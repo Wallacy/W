@@ -59,13 +59,11 @@ export fn trainLinearKernel<
   )
 }
 
-export const lastLightKernels = accelerator.module(
-  functions: [
-    forecastKernel,
-    normalizeKernel,
-    trainLinearKernel,
-  ],
-)
+export const lastLightKernels = accelerator.module<{
+  forecast: forecastKernel,
+  normalize: normalizeKernel,
+  trainLinear: trainLinearKernel,
+}>()
 
 test "matrix contraction fixes the output shape" for forecastKernel {
   let features: FeatureBatch<rows: 2, columns: 3> = [

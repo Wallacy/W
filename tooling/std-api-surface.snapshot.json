@@ -1,20 +1,20 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "0a452c903b8a11480f4cbc942197f5aa08d84792ff85c158f7476016d515ebf2",
+  "catalogDigest": "56e69d084c41dcadd83eccf94554b8b50920de90f44eae91ab71e0f7beca5d34",
   "summary": {
-    "modules": 22,
-    "catalogedApis": 320,
-    "draftCatalogedApis": 320,
+    "modules": 23,
+    "catalogedApis": 326,
+    "draftCatalogedApis": 326,
     "missingCatalogedApis": 0,
-    "qualifiedReferenceSurfaces": 78,
-    "referenceRequirements": 24,
-    "contractedReferenceRequirements": 24,
-    "missingReferenceRequirements": 0,
+    "qualifiedReferenceSurfaces": 84,
+    "referenceRequirements": 26,
+    "contractedReferenceRequirements": 26,
+    "missingReferenceRequirements": 1,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 2,
-    "implementationProviders": 16,
-    "missingImplementationProviders": 16
+    "implementationProviders": 17,
+    "missingImplementationProviders": 17
   },
   "modules": [
     {
@@ -210,6 +210,127 @@
           "declarationDigest": "182d51210ee436d857e63b3162dcb74fb4aa4186ce5082432dbd88604342bd5c",
           "line": 8,
           "profile": "value-contract",
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "id": "std.accelerator",
+      "availability": "accelerator-provider",
+      "source": "std/accelerator/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.accelerator@1",
+        "status": "missing",
+        "gates": [
+          "cancellation-drain",
+          "device-loss",
+          "module-manifest",
+          "ownership-staging",
+          "provider-equivalence",
+          "queue-receipts"
+        ]
+      },
+      "catalogedDeclarationsDigest": "21db2fa3929630a3fc5f71bb16901e57a6e53bb98d8e1811698fa3a2d85a22e9",
+      "apis": [
+        {
+          "symbol": "KernelModule",
+          "kind": "protocol",
+          "signature": "export protocol KernelModule",
+          "declarationDigest": "ac3c135052b05f36fdcf5bf5382c8f976b688df3f94806afca1dbec575df2a12",
+          "line": 84,
+          "profile": "accelerator-module",
+          "status": "draft"
+        },
+        {
+          "symbol": "Launch",
+          "kind": "struct",
+          "signature": "export struct Launch<Module: KernelModule>",
+          "declarationDigest": "7d8a343f194724e944db2f251c872ffaa86f7c6e2a95593f9722d11563f9bfe2",
+          "line": 96,
+          "profile": "accelerator-launch",
+          "members": [
+            {
+              "symbol": "close",
+              "overloads": [
+                {
+                  "signature": "export take async fn close() throws LaunchError",
+                  "line": 103
+                }
+              ],
+              "profile": "accelerator-launch"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "LaunchError",
+          "kind": "enum",
+          "signature": "export enum LaunchError: Error",
+          "declarationDigest": "0cc3e89f4c88510fb7830f116e55dc519b2e6624355a9f71b0bc275e45b65bff",
+          "line": 8,
+          "profile": "accelerator-launch",
+          "status": "draft"
+        },
+        {
+          "symbol": "Limits",
+          "kind": "struct",
+          "signature": "export struct Limits: Copy & Equatable",
+          "declarationDigest": "59aead5bd5c0500662937287e763ccbe427ffe1de0df9ed5cf331581627cadd9",
+          "line": 23,
+          "profile": "value-contract",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export const init( maximumInFlight: usize<(1...)>, maximumCommandBytes: u64<(1...)>, maximumArgumentBytes: u64<(1...)>, maximumResultBytes: u64<(1...)>, maximumDependencyEdges: usize<(1...)>, maximumRetainedDeviceBytes: u64<(1...)>, maximumCompletionRecords: usize<(1...)>, maximumCleanupSteps: u64<(1...)>, )",
+                  "line": 33
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "standard",
+              "overloads": [
+                {
+                  "signature": "export static fn standard(): Limits",
+                  "line": 53
+                }
+              ],
+              "profile": "value-contract"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "ModuleIdentity",
+          "kind": "struct",
+          "signature": "export struct ModuleIdentity: Copy & Equatable",
+          "declarationDigest": "b82c534712993441a2dc63fc185036c9a2cfbace6a8bdae06e12f0122976cf22",
+          "line": 67,
+          "profile": "accelerator-module",
+          "members": [
+            {
+              "symbol": "same",
+              "overloads": [
+                {
+                  "signature": "export fn same(as other: ref ModuleIdentity): Bool",
+                  "line": 74
+                }
+              ],
+              "profile": "accelerator-module"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "open",
+          "kind": "fn",
+          "signature": "export async fn open<Module: KernelModule>( module: ref Module, on queue: ref tensor.Queue, limits: ref Limits, ): Launch<Module> throws LaunchError",
+          "declarationDigest": "7b6896bf4a3e883d017bcb04400ca180ce2d56e068520a6be340628e86530bb3",
+          "line": 108,
+          "profile": "accelerator-launch",
           "status": "draft"
         }
       ]
@@ -6738,6 +6859,38 @@
       ]
     },
     {
+      "module": "std.accelerator",
+      "surface": "LaunchError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/device_execution_oracle.w"
+      ]
+    },
+    {
+      "module": "std.accelerator",
+      "surface": "Limits",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/device_execution_oracle.w"
+      ]
+    },
+    {
+      "module": "std.accelerator",
+      "surface": "module",
+      "status": "missing",
+      "consumers": [
+        "reference/last-light/ai_harness.w"
+      ]
+    },
+    {
+      "module": "std.accelerator",
+      "surface": "open",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/device_execution_oracle.w"
+      ]
+    },
+    {
       "module": "std.arrow",
       "surface": "CArrayHandle",
       "status": "draft",
@@ -7322,6 +7475,7 @@
       "surface": "Device",
       "status": "draft",
       "consumers": [
+        "reference/last-light/device_execution_oracle.w",
         "reference/last-light/tensor_interop.w"
       ]
     },
@@ -7330,6 +7484,7 @@
       "surface": "Limits",
       "status": "draft",
       "consumers": [
+        "reference/last-light/device_execution_oracle.w",
         "reference/last-light/tensor_interop.w"
       ]
     },
@@ -7338,7 +7493,24 @@
       "surface": "Queue",
       "status": "draft",
       "consumers": [
+        "reference/last-light/device_execution_oracle.w",
         "reference/last-light/tensor_interop.w"
+      ]
+    },
+    {
+      "module": "std.tensor",
+      "surface": "TensorError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/device_execution_oracle.w"
+      ]
+    },
+    {
+      "module": "std.tensor",
+      "surface": "transfer",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/device_execution_oracle.w"
       ]
     },
     {
@@ -7484,6 +7656,22 @@
     }
   ],
   "referenceRequirements": [
+    {
+      "id": "dev0-accelerator-module-synthesis",
+      "module": "std.accelerator",
+      "surface": "module",
+      "status": "missing",
+      "profile": "accelerator-module",
+      "consumer": "reference/last-light/ai_harness.w"
+    },
+    {
+      "id": "dev0-accelerator-open",
+      "module": "std.accelerator",
+      "surface": "open",
+      "status": "draft",
+      "profile": "accelerator-launch",
+      "consumer": "reference/last-light/device_execution_oracle.w"
+    },
     {
       "id": "lm0-async-mutex",
       "module": "std.sync",

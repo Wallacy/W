@@ -2788,6 +2788,37 @@ A superfície vigente usa `WorkKeyRef.start`/`tryStart`, `work.step`,
 `waitUntil` bounded continuam candidatos. `spawn<owner: ...>`, detach por drop,
 call one-way, actor reentrant e persistência automática de frame não entram.
 
+### 1.18 Evidência de device scopes DEV0
+
+DEV0 mantém launch de accelerator sob as quatro formas de execução do W. A
+comparação não escolhe um backend como semântica da linguagem:
+
+- o [MLIR GPU dialect](https://mlir.llvm.org/docs/Dialects/GPU/) separa module,
+  launch, memory spaces e async tokens;
+- o [MLIR Async dialect](https://mlir.llvm.org/docs/Dialects/AsyncDialect/)
+  explicita dependencies e permite execução física sequencial;
+- o [CUDA Programming Guide — asynchronous execution](https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/asynchronous-execution.html)
+  e a seção de [streams e events](https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/advanced-host-programming.html)
+  distinguem queue order de synchronization entre streams;
+- a [SYCL 2020 specification](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html)
+  usa queues, events, explicit dependencies e async errors;
+- o [DLPack core](https://dmlc.github.io/dlpack/latest/) e o
+  [Python Array API exchange](https://dmlc.github.io/dlpack/latest/python_spec.html)
+  tornam device, stream handoff e copy policy observáveis.
+
+Essas fontes sustentam a separação entre dependência lógica e schedule físico.
+Elas não autorizam W a copiar a API ou a promessa de liveness de um provider.
+DEV0 mede a projeção comum: owner, loan, queue, receipt, completion, cleanup e
+outcome.
+
+Alternativas rejeitadas:
+
+- migrar W code arbitrário para device por um `spawn` comum;
+- inserir host/device transfer ou CPU fallback sem prova;
+- expor stream integer, raw event ou pointer como safe authority;
+- fire-and-forget, drop como async cleanup ou completion sem receipt;
+- impor um scheduler físico universal a CPU, GPU, DSP e ASIC.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
@@ -4042,6 +4073,14 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1208 | censo sem coletor | profile debug/test registra control-block edges e reporta SCC que nenhum root alcança somente depois de admission close e drain; não coleta nem muda drop | coletor default, relatório antes do drain, ciclo alcançável chamado de leak, deinit executado pelo detector |
 | W-1209 | evidence de ciclos e captures M1/S0 | S0 fixa capture explícita e diagnostics; M1 deriva SCC forte, edge rompível, roots e residual pós-drain; Last Light fornece consumer | checker por substring, graph fornecendo resposta esperada, chamar oracle de runtime/compiler ou leak sanitizer real |
 | W-1210 | claim de concorrência e paralelismo | quatro formas de execução compartilham ownership/lifetime; children drenam; synchronization forma um happens-before explicável; schedulers e providers reais precisam provar equivalência, liveness e cleanup | declarar problema resolvido por syntax, thread por task, lock-free universal, copy/share oculto, oracle host chamado de runtime |
+| W-1211 | descriptor fechado de kernel | `accelerator.module<{...}>()` sintetiza module identity, manifest e launch stubs tipados a partir de um static record; a função original permanece chamável no host | lista heterogênea runtime, lookup por string, reflection ou interface sem nome estável |
+| W-1212 | scope de launch owned | `Launch<Module>` é move-only, pertence a module/queue/device/provider generation e fecha admission antes de drenar e liberar uma vez | deinit assíncrono, scope copiável, owner sem close ou cleanup fire-and-forget |
+| W-1213 | ownership e transfer de device | staging preserva take/copy/ref/inout; tensor borrowed reside no device ou mapping provado; transfer e host read são explícitos | copy ou materialization escondida, ref escapante, queue concedendo owner |
+| W-1214 | submission estruturada | invocation passa por staging, submit, execução, drain, cleanup, commit e join; cancellation pós-submit não presume preemption | cancel como rollback, output antes de drain, task detached ou provider sem join |
+| W-1215 | queue e happens-before | provider cunha submit/completion receipts; dependencies vêm de owners/loans/results/waits; cross-queue exige handoff explícito | caller `ready`, ordem global implícita, queue order como ownership ou host visibility |
+| W-1216 | fault e generation | device loss fecha admission; owners drenam ou ficam em quarantine; completion stale é suprimida depois do drain | liberar storage vivo, reutilizar generation, continuar admission após protocol fault |
+| W-1217 | limits e equivalência | limits cobrem work e retenção; CPU fallback exige module/numeric/layout/effect/memory proof e nunca insere transfer | ordinal físico no source, fallback silencioso, tolerância não declarada |
+| W-1218 | evidence DEV0 | fixture Última Luz e machine/checker/snapshot/test host cobrem positivos e negativos sem executar W ou provider | chamar oracle de runtime, snapshot manual, caso sem símbolo consumidor ou driver fictício |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

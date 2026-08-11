@@ -243,6 +243,7 @@ alvo de execução independente.
 | `horizon.w` | sensores do buraco negro, event time e tensor fusion |
 | `horizon_script.w` | oracle PYN1 de header script, dependency locked, requirement admission, menu do horizonte e implicit entry default |
 | `tensor_interop.w` | fixture PYN4 de carrier tensorial DLPack 1.3, device/queue, zero-copy, callback scoped, materialização e export consuming |
+| `device_execution_oracle.w` | fixture DEV0 de descriptor, launch scope, queue receipt, cancel drain e equivalência CPU/device |
 | `observatory_app.w` | processo nativo do swarm e da telemetria |
 | `audio.w` | render de áudio com buffers fixos e sem allocation |
 | `audio_app.w` | callback do audio device |
@@ -2555,6 +2556,36 @@ O host oracle independente está em
 checker, snapshot e testes próprios. Os testes W são puros (shape, score e
 provider identity); lifecycle, receipt, limits e device mismatch ficam no host
 corpus. Ele não compila ou executa W.
+
+### 3.47 Scope dos Computadores que Cabem em Outros Computadores
+
+Famílias: kernel descriptor, Launch owned, Queue, device memory, submission,
+completion receipt, cancellation, fault, limits e equivalência CPU/device.
+
+`device_execution_oracle.w` abre um `accelerator.Launch` para o descriptor
+fechado de `ai_harness.w`. `async let` continua sendo a forma estruturada; o
+device não acrescenta uma quinta forma de execução. O resultado só chega ao
+host por `tensor.transfer` explícito.
+
+Aceite:
+
+- cada field de `accelerator.module<{...}>()` nomeia um kernel e um launch stub
+  tipado; lista runtime e lookup por string falham;
+- `Launch` pertence a module, Queue, Device, provider generation e Limits;
+- `take`, `copy`, `ref` e `inout` preservam owners e loans durante staging;
+- cancelamento pré-submit impede o launch; pós-submit aguarda provider drain;
+- submit e completion receipts são cunhados pelo provider. O caller não declara
+  `ready` ou uma ordem entre queues;
+- device loss fecha admission, drena ou põe storage vivo em quarantine e
+  suprime completion stale;
+- host read e fallback CPU nunca inserem transfer oculta;
+- `.strict`, `.reproducible` e `.fast` mantêm critérios distintos de
+  equivalência.
+
+O oracle host fica em
+[`tooling/device-execution-machine.mjs`](../../tooling/device-execution-machine.mjs),
+com corpus, checker, snapshot e teste independentes. Ele não executa W, kernel,
+driver ou provider.
 
 ## 4. Alternativas visuais obrigatórias
 

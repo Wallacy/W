@@ -1,0 +1,595 @@
+{
+  "$schema": "w-device-execution-cases-1",
+  "status": "design-oracle-input",
+  "fixtures": {
+    "openCuda": [
+      {
+        "op": "open",
+        "moduleShape": "static-record",
+        "moduleIdentity": "last-light-kernels-v1",
+        "runtimeLookup": false,
+        "queueId": "queue-0",
+        "queueDeviceId": "cuda-0",
+        "deviceId": "cuda-0",
+        "provider": "cuda-provider",
+        "providerGeneration": "generation-1",
+        "providerResolved": true,
+        "numericMode": "reproducible",
+        "limits": {
+          "maximumInFlight": 8,
+          "maximumCommandBytes": 4096,
+          "maximumArgumentBytes": 4096,
+          "maximumResultBytes": 8192,
+          "maximumDependencyEdges": 16,
+          "maximumRetainedDeviceBytes": 65536,
+          "maximumCompletionRecords": 16,
+          "maximumCleanupSteps": 1000
+        }
+      }
+    ],
+    "stageForecast": [
+      {
+        "op": "stage",
+        "id": "forecast",
+        "moduleIdentity": "last-light-kernels-v1",
+        "queueId": "queue-0",
+        "kernelDeclared": true,
+        "kernelNeverSuspend": true,
+        "kernelNonthrowing": true,
+        "effectsAllowed": true,
+        "arguments": [
+          { "kind": "tensor", "mode": "ref", "deviceId": "cuda-0", "lifetimeStable": true },
+          { "kind": "tensor", "mode": "ref", "deviceId": "cuda-0", "lifetimeStable": true }
+        ],
+        "commandBytes": 128,
+        "argumentBytes": 64,
+        "resultBytes": 256,
+        "retainedDeviceBytes": 1024,
+        "dependencies": []
+      }
+    ],
+    "submitForecast": [
+      {
+        "op": "submit",
+        "id": "forecast",
+        "receipt": {
+          "issuedBy": "provider",
+          "generation": "generation-1",
+          "moduleIdentity": "last-light-kernels-v1",
+          "queueId": "queue-0",
+          "invocation": "forecast"
+        }
+      }
+    ],
+    "startForecast": [{ "op": "start", "id": "forecast" }],
+    "completeForecast": [
+      {
+        "op": "complete",
+        "id": "forecast",
+        "result": "success",
+        "receipt": {
+          "issuedBy": "provider",
+          "generation": "generation-1",
+          "moduleIdentity": "last-light-kernels-v1",
+          "queueId": "queue-0",
+          "invocation": "forecast"
+        }
+      }
+    ],
+    "finishForecast": [
+      { "op": "drain", "id": "forecast", "providerDrained": true },
+      { "op": "cleanup", "id": "forecast", "releasedLoans": true, "releasedStaging": true },
+      { "op": "commit", "id": "forecast" },
+      { "op": "join", "id": "forecast" }
+    ],
+    "closeScope": [{ "op": "closeAdmission" }, { "op": "close" }]
+  },
+  "cases": [
+    {
+      "id": "DEV0-accepted-static-module-open",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "lastLightKernels" },
+      "decisions": ["W-1211", "W-1212", "W-1218"],
+      "operations": [{ "$use": "openCuda" }],
+      "expect": { "status": "accepted", "phase": "ready" }
+    },
+    {
+      "id": "DEV0-rejected-runtime-list-module",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "accelerator.module" },
+      "decisions": ["W-1211", "W-1218"],
+      "operations": [{ "$use": "openCuda", "with": { "moduleShape": "runtime-list" } }],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0001", "phase": "uninitialized" }
+    },
+    {
+      "id": "DEV0-rejected-runtime-kernel-lookup",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "forecastKernel" },
+      "decisions": ["W-1211"],
+      "operations": [{ "$use": "openCuda", "with": { "runtimeLookup": true } }],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0001" }
+    },
+    {
+      "id": "DEV0-rejected-provider-missing",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1212", "W-1216"],
+      "operations": [{ "$use": "openCuda", "with": { "providerResolved": false } }],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0002" }
+    },
+    {
+      "id": "DEV0-rejected-queue-device-mismatch",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1212", "W-1215"],
+      "operations": [{ "$use": "openCuda", "with": { "queueDeviceId": "cuda-1" } }],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0002" }
+    },
+    {
+      "id": "DEV0-accepted-complete-lifecycle",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "DeviceInvocationPhase" },
+      "decisions": ["W-1212", "W-1213", "W-1214", "W-1215", "W-1218"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "startForecast" },
+        { "$use": "completeForecast" },
+        { "$use": "finishForecast" },
+        { "$use": "closeScope" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "phase": "closed",
+        "outcomes": { "forecast": "success" },
+        "happensBefore": ["device:forecast->host:forecast"]
+      }
+    },
+    {
+      "id": "DEV0-rejected-drop-open-scope",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1212", "W-1214", "W-1218"],
+      "operations": [{ "$use": "openCuda" }, { "op": "dropScope" }],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0004", "phase": "ready" }
+    },
+    {
+      "id": "DEV0-rejected-hidden-device-transfer",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "copyForecastToHost" },
+      "decisions": ["W-1213", "W-1217"],
+      "operations": [
+        { "$use": "openCuda" },
+        {
+          "$use": "stageForecast",
+          "with": {
+            "arguments": [
+              { "kind": "tensor", "mode": "ref", "deviceId": "cpu-0", "lifetimeStable": true, "hiddenTransfer": true }
+            ]
+          }
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0003" }
+    },
+    {
+      "id": "DEV0-accepted-host-shared-reference",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1213", "W-1218"],
+      "operations": [
+        { "$use": "openCuda" },
+        {
+          "$use": "stageForecast",
+          "with": {
+            "arguments": [
+              { "kind": "tensor", "mode": "ref", "deviceId": "cpu-0", "hostShared": true, "lifetimeStable": true }
+            ]
+          }
+        }
+      ],
+      "expect": { "status": "accepted", "phase": "ready" }
+    },
+    {
+      "id": "DEV0-rejected-inout-alias",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "normalizeKernel" },
+      "decisions": ["W-1213"],
+      "operations": [
+        { "$use": "openCuda" },
+        {
+          "$use": "stageForecast",
+          "with": {
+            "arguments": [
+              { "kind": "tensor", "mode": "inout", "deviceId": "cuda-0", "exclusive": false, "aliasFree": false }
+            ]
+          }
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0003" }
+    },
+    {
+      "id": "DEV0-rejected-take-without-owner",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "copyForecastToHost" },
+      "decisions": ["W-1213"],
+      "operations": [
+        { "$use": "openCuda" },
+        {
+          "$use": "stageForecast",
+          "with": { "arguments": [{ "kind": "tensor", "mode": "take", "deviceId": "cuda-0", "owned": false }] }
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0003" }
+    },
+    {
+      "id": "DEV0-accepted-cancel-before-submit",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "nextDeviceInvocationPhase" },
+      "decisions": ["W-1214"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "op": "cancel", "id": "forecast" },
+        { "$use": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "phase": "closed", "outcomes": { "forecast": "cancelled" } }
+    },
+    {
+      "id": "DEV0-accepted-cancel-after-submit-drains",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1214", "W-1215"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "op": "cancel", "id": "forecast" },
+        { "$use": "completeForecast" },
+        { "$use": "finishForecast" },
+        { "$use": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "phase": "closed", "outcomes": { "forecast": "cancelled" } }
+    },
+    {
+      "id": "DEV0-accepted-late-cancel-keeps-success",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1214"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "completeForecast" },
+        { "op": "cancel", "id": "forecast" },
+        { "$use": "finishForecast" },
+        { "$use": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "outcomes": { "forecast": "success" } }
+    },
+    {
+      "id": "DEV0-rejected-caller-ready-proof",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1215", "W-1218"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast", "with": { "callerReady": true } }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0005" }
+    },
+    {
+      "id": "DEV0-rejected-stale-submit-generation",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "DeviceInvocationPhase" },
+      "decisions": ["W-1215", "W-1216"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast", "with": { "receipt": { "issuedBy": "provider", "generation": "generation-0", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "forecast" } } }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0006" }
+    },
+    {
+      "id": "DEV0-accepted-explicit-dependency-edge",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "DeviceInvocationPhase" },
+      "decisions": ["W-1215"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "startForecast" },
+        { "$use": "completeForecast" },
+        { "$use": "finishForecast" },
+        { "$use": "stageForecast", "with": { "id": "normalize", "dependencies": ["forecast"] } },
+        { "$use": "submitForecast", "with": { "id": "normalize", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "normalize" } } },
+        { "op": "start", "id": "normalize" }
+      ],
+      "expect": { "status": "accepted", "happensBefore": ["device:forecast->host:forecast", "device:forecast->device:normalize"] }
+    },
+    {
+      "id": "DEV0-rejected-unmet-dependency",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "DeviceInvocationPhase" },
+      "decisions": ["W-1215"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "stageForecast", "with": { "id": "normalize", "dependencies": ["forecast"] } },
+        { "$use": "submitForecast", "with": { "id": "normalize", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "normalize" } } },
+        { "op": "start", "id": "normalize" }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0005" }
+    },
+    {
+      "id": "DEV0-accepted-device-dependency-before-host-cleanup",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "DeviceInvocationPhase" },
+      "decisions": ["W-1214", "W-1215"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "completeForecast" },
+        { "$use": "stageForecast", "with": { "id": "normalize", "dependencies": ["forecast"] } },
+        { "$use": "submitForecast", "with": { "id": "normalize", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "normalize" } } },
+        { "op": "start", "id": "normalize" }
+      ],
+      "expect": { "status": "accepted", "happensBefore": ["device:forecast->host:forecast", "device:forecast->device:normalize"] }
+    },
+    {
+      "id": "DEV0-accepted-independent-invocation-reorder",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "DeviceInvocationPhase" },
+      "decisions": ["W-1215"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "stageForecast", "with": { "id": "normalize" } },
+        { "$use": "submitForecast", "with": { "id": "normalize", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "normalize" } } },
+        { "op": "start", "id": "normalize" },
+        { "op": "start", "id": "forecast" }
+      ],
+      "expect": { "status": "accepted", "happensBefore": [] }
+    },
+    {
+      "id": "DEV0-rejected-cross-queue-without-receipt",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1215"],
+      "operations": [{ "$use": "openCuda" }, { "op": "crossQueue", "from": "queue-0", "to": "queue-1" }],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0005" }
+    },
+    {
+      "id": "DEV0-accepted-cross-queue-receipt",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1215"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "op": "crossQueue", "from": "queue-0", "to": "queue-1", "receipt": { "issuedBy": "provider", "generation": "generation-1", "from": "queue-0", "to": "queue-1" } }
+      ],
+      "expect": { "status": "accepted", "happensBefore": ["queue:queue-0->queue:queue-1"] }
+    },
+    {
+      "id": "DEV0-accepted-device-loss-drain",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1214", "W-1216"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "startForecast" },
+        { "$use": "completeForecast", "with": { "result": "deviceLost" } },
+        { "$use": "finishForecast" },
+        { "$use": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "phase": "closed", "outcomes": { "forecast": "error" }, "quarantined": [] }
+    },
+    {
+      "id": "DEV0-accepted-stale-completion-suppressed",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "DeviceInvocationPhase" },
+      "decisions": ["W-1216"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "completeForecast", "with": { "result": "deviceLost" } },
+        { "$use": "finishForecast" },
+        { "op": "lateCompletion", "id": "forecast-old", "generation": "generation-0" }
+      ],
+      "expect": { "status": "accepted", "phase": "faulted", "suppressedCompletions": ["forecast-old"] }
+    },
+    {
+      "id": "DEV0-rejected-new-work-after-device-loss",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1216"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "completeForecast", "with": { "result": "deviceLost" } },
+        { "$use": "stageForecast", "with": { "id": "late" } }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0004", "phase": "faulted" }
+    },
+    {
+      "id": "DEV0-rejected-host-read-without-transfer",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "copyForecastToHost" },
+      "decisions": ["W-1213", "W-1215"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "completeForecast" },
+        { "$use": "finishForecast" },
+        { "op": "hostRead", "id": "forecast", "explicitTransfer": false, "hostAddressable": false }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0003" }
+    },
+    {
+      "id": "DEV0-accepted-explicit-host-transfer",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "copyForecastToHost" },
+      "decisions": ["W-1213", "W-1217"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "completeForecast" },
+        { "$use": "finishForecast" },
+        { "op": "hostRead", "id": "forecast", "explicitTransfer": true, "hostAddressable": true }
+      ],
+      "expect": { "status": "accepted" }
+    },
+    {
+      "id": "DEV0-rejected-command-budget",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1217"],
+      "operations": [{ "$use": "openCuda" }, { "$use": "stageForecast", "with": { "commandBytes": 4097 } }],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0008" }
+    },
+    {
+      "id": "DEV0-rejected-live-invocation-budget",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1217", "W-1218"],
+      "operations": [
+        { "$use": "openCuda", "with": { "limits": { "maximumInFlight": 1 } } },
+        { "$use": "stageForecast" },
+        { "$use": "stageForecast", "with": { "id": "second" } }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0008" }
+    },
+    {
+      "id": "DEV0-rejected-retained-device-budget",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1213", "W-1217"],
+      "operations": [
+        { "$use": "openCuda", "with": { "limits": { "maximumRetainedDeviceBytes": 1500 } } },
+        { "$use": "stageForecast" },
+        { "$use": "stageForecast", "with": { "id": "second" } }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0008" }
+    },
+    {
+      "id": "DEV0-rejected-completion-record-budget",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "DeviceInvocationPhase" },
+      "decisions": ["W-1214", "W-1217"],
+      "operations": [
+        { "$use": "openCuda", "with": { "limits": { "maximumCompletionRecords": 1 } } },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "completeForecast" },
+        { "$use": "stageForecast", "with": { "id": "second" } },
+        { "$use": "submitForecast", "with": { "id": "second", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "second" } } },
+        { "$use": "completeForecast", "with": { "id": "second", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "second" } } }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0008" }
+    },
+    {
+      "id": "DEV0-rejected-cleanup-step-budget",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "DeviceInvocationPhase" },
+      "decisions": ["W-1212", "W-1214", "W-1217"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "completeForecast" },
+        { "op": "drain", "id": "forecast", "providerDrained": true },
+        { "op": "cleanup", "id": "forecast", "releasedLoans": true, "releasedStaging": true, "steps": 1001 }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0008" }
+    },
+    {
+      "id": "DEV0-rejected-kernel-effect",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "forecastKernel" },
+      "decisions": ["W-1211", "W-1217"],
+      "operations": [{ "$use": "openCuda" }, { "$use": "stageForecast", "with": { "effectsAllowed": false } }],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0001" }
+    },
+    {
+      "id": "DEV0-accepted-strict-equivalence",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "compareStrictForecast" },
+      "decisions": ["W-1217", "W-1218"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "op": "compare", "mode": "strict", "sameModule": true, "sameLayout": true, "sameEffects": true, "memoryPlanProved": true, "hiddenTransfer": false, "expected": 42, "actual": 42, "sameFailurePoint": true }
+      ],
+      "expect": { "status": "accepted", "comparisons": ["strict"] }
+    },
+    {
+      "id": "DEV0-rejected-strict-value-mismatch",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "compareStrictForecast" },
+      "decisions": ["W-1217"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "op": "compare", "mode": "strict", "sameModule": true, "sameLayout": true, "sameEffects": true, "memoryPlanProved": true, "hiddenTransfer": false, "expected": 42, "actual": 43, "sameFailurePoint": true }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0007" }
+    },
+    {
+      "id": "DEV0-accepted-reproducible-equivalence",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "compareStrictForecast" },
+      "decisions": ["W-1217"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "op": "compare", "mode": "reproducible", "sameModule": true, "sameLayout": true, "sameEffects": true, "memoryPlanProved": true, "hiddenTransfer": false, "algorithmVersion": "matmul-v1", "expectedAlgorithmVersion": "matmul-v1", "valueDigest": "sha256:42", "expectedValueDigest": "sha256:42" }
+      ],
+      "expect": { "status": "accepted", "comparisons": ["reproducible"] }
+    },
+    {
+      "id": "DEV0-accepted-fast-declared-tolerance",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "compareStrictForecast" },
+      "decisions": ["W-1217"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "op": "compare", "mode": "fast", "sameModule": true, "sameLayout": true, "sameEffects": true, "memoryPlanProved": true, "hiddenTransfer": false, "expected": 42, "actual": 42.01, "tolerance": 0.02 }
+      ],
+      "expect": { "status": "accepted", "comparisons": ["fast"] }
+    },
+    {
+      "id": "DEV0-rejected-hidden-cpu-fallback-transfer",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnCpu" },
+      "decisions": ["W-1213", "W-1217"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "op": "compare", "mode": "strict", "sameModule": true, "sameLayout": true, "sameEffects": true, "memoryPlanProved": false, "hiddenTransfer": true, "expected": 42, "actual": 42, "sameFailurePoint": true }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0007" }
+    },
+    {
+      "id": "DEV0-accepted-asynchronous-error-drains",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1214", "W-1216"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast" },
+        { "$use": "completeForecast", "with": { "result": "error" } },
+        { "$use": "finishForecast" },
+        { "$use": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "phase": "closed", "outcomes": { "forecast": "error" } }
+    }
+  ]
+}

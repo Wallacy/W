@@ -41,6 +41,8 @@ std/
     contracts.w
   presentation/
     contracts.w
+  accelerator/
+    contracts.w
   tensor/
     contracts.w
   dlpack/
@@ -82,6 +84,12 @@ o payload não precisa ser shareable. `ReadWriteLock` agrupa o prefixo de reader
 anterior ao próximo writer e não permite bypass. O provider `std.sync@1`
 continua missing. O source não fixa parking, reference counting, epoch, hazard
 pointer ou outra estratégia física compatível com os contratos.
+`accelerator/contracts.w` materializa `Limits`, `KernelModule` e o owner
+`Launch<Module>`. O compiler sintetiza descriptors e launch stubs tipados de
+um static record; o módulo não fornece reflection ou registry runtime. O scope
+liga module, queue, device e provider generation e exige close assíncrono com
+drain. O provider `std.accelerator@1` continua missing. Transfer e device
+storage permanecem contratos explícitos de `std.tensor`.
 `json/contracts.w` materializa o codec JSON bounded de host. `Encodable`,
 `Decodable` e `Codable` exigem conformance explícita. `Writer` e `Reader` são
 cursors opacos; object e array cursors vivem somente em closures scoped.

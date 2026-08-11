@@ -688,6 +688,21 @@ const dlpackOperations = dlpackCorpus.cases.reduce(
 const acceptedDlpackCases = dlpackCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
+const deviceExecutionCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "device-execution-cases.json"), "utf8"),
+);
+const deviceExecutionCases = deviceExecutionCorpus.cases.length;
+const deviceExecutionOperations = deviceExecutionCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.reduce(
+    (caseCount, operation) =>
+      caseCount + (operation.$use ? deviceExecutionCorpus.fixtures[operation.$use].length : 1),
+    0,
+  ),
+  0,
+);
+const acceptedDeviceExecutionCases = deviceExecutionCorpus.cases.filter(
+  (testCase) => testCase.kind === "accepted",
+).length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -894,6 +909,13 @@ output.push(
 output.push(
   `| casos/operações do carrier DLPack PYN4 | ${dlpackCases}/${dlpackOperations} ` +
     `(${acceptedDlpackCases} aceitos + ${dlpackCases - acceptedDlpackCases} rejeitados; ` +
+    `host oracle não executa W) |`,
+);
+output.push(
+  `| casos/operações de device execution DEV0 | ` +
+    `${deviceExecutionCases}/${deviceExecutionOperations} ` +
+    `(${acceptedDeviceExecutionCases} aceitos + ` +
+    `${deviceExecutionCases - acceptedDeviceExecutionCases} rejeitados; ` +
     `host oracle não executa W) |`,
 );
 output.push(
