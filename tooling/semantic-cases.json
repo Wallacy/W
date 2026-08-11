@@ -3725,6 +3725,73 @@
       }
     },
     {
+      "id": "S0-POS-generic-named-argument-order",
+      "kind": "positive",
+      "rule": "W-1156",
+      "source": [
+        "struct ServiceProfile<tables: usize, courses: usize> {}",
+        "fn readTables(): usize {",
+        "  return ServiceProfile<tables: 8, courses: 4>.tables",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "ServiceProfile<tables: 8, courses: 4>.tables" },
+        "semanticResult": {
+          "resultType": "usize",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "associated-contract-value", "subject": "ServiceProfile.tables", "value": "8" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "specialization", "operation": "specialize", "subject": "ServiceProfile" },
+              { "id": "lookup", "operation": "static-lookup", "subject": "tables" }
+            ],
+            "edges": [
+              { "from": "specialization", "to": "lookup", "kind": "associated-value" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-generic-named-argument-out-of-order",
+      "kind": "negative",
+      "rule": "W-1156",
+      "baseline": "S0-POS-generic-named-argument-order",
+      "failureField": "proofFacts",
+      "source": [
+        "struct ServiceProfile<tables: usize, courses: usize> {}",
+        "type InvalidProfile = ServiceProfile<courses: 4, tables: 8>"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-GENERIC-0003",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "courses: 4" },
+            "labels": [
+              { "role": "generic-parameter", "selector": { "text": "tables: usize" } }
+            ],
+            "facts": {
+              "parameter": "tables",
+              "kind": "value",
+              "externalLabel": "courses",
+              "position": 0,
+              "reason": "named-argument-out-of-order"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
       "id": "S0-POS-generic-associated-contract-lookup",
       "kind": "positive",
       "rule": "W-1156",

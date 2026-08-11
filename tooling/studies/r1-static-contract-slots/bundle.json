@@ -1,0 +1,128 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-static-contract-slots",
+  "title": "Static contract slots at the Last Light restaurant",
+  "r0Cases": ["R0-named-static-slot", "R0-static-argument-parity"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/generics.w",
+    "symbol": "Matrix<Element, rows: usize, columns: usize>",
+    "digest": "sha256:94caacfb784bef6dad0723290585dd3ca6619e96fa2b79ab8728f3964a779171"
+  },
+  "variants": [
+    {
+      "id": "named",
+      "role": "selected",
+      "language": "w",
+      "path": "named.w",
+      "digest": "sha256:26c0bdd8b279753aa6458e1b4191fd2800df128afcce4e19339721d47fc7d599",
+      "changedConstructs": [
+        "named static value slots on the type head",
+        "the same named static categories on the generic call",
+        "associated contract values with stable field identity"
+      ]
+    },
+    {
+      "id": "positional",
+      "role": "alternative",
+      "language": "w",
+      "path": "positional.w",
+      "digest": "sha256:094850478e055868dd37602016de29a05dab240399f26f96fc40cc8e84aea9c9",
+      "changedConstructs": [
+        "optional labels on every static value slot",
+        "positional type and generic-call arguments",
+        "same-type slots identified only by ordinal at the application"
+      ]
+    },
+    {
+      "id": "split-call",
+      "role": "alternative",
+      "language": "w",
+      "path": "split-call.w",
+      "digest": "sha256:f096c52e87871f208fe5936b9d7229a3d25c7917dc307c6d64397dae98e9c422",
+      "changedConstructs": [
+        "full static contract on the type head",
+        "restricted static categories on the generic call",
+        "String and quantity moved to runtime call arguments"
+      ]
+    }
+  ],
+  "entry": "observeStaticContract",
+  "inputs": [
+    {
+      "id": "kitchen-service",
+      "enabled": true,
+      "name": "kitchen",
+      "timeoutMilliseconds": 250,
+      "tables": 8,
+      "courses": 4,
+      "bufferBytes": 4096,
+      "expected": {
+        "enabled": true,
+        "name": "kitchen",
+        "timeoutMilliseconds": 250,
+        "tables": 8,
+        "courses": 4,
+        "bufferBytes": 4096
+      }
+    },
+    {
+      "id": "asymmetric-same-type-slots",
+      "enabled": false,
+      "name": "horizon",
+      "timeoutMilliseconds": 1750,
+      "tables": 2,
+      "courses": 9,
+      "bufferBytes": 64,
+      "expected": {
+        "enabled": false,
+        "name": "horizon",
+        "timeoutMilliseconds": 1750,
+        "tables": 2,
+        "courses": 9,
+        "bufferBytes": 64
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Identify each static slot, its category, its associated value, and whether the generic call preserves the same contract."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the profile type application and the matching generic call.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that exchanges tables and courses without changing their usize type.",
+      "mutations": {
+        "named": "Move the `courses:` argument before `tables:` and preserve both labels.",
+        "positional": "Exchange the fourth and fifth positional arguments.",
+        "split-call": "Exchange the second and third static arguments of `start`."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a usize lanes slot between courses and buffer in both the type contract and generic call without changing the outcome."
+    }
+  ],
+  "presentationOrders": [
+    ["named", "positional", "split-call"],
+    ["positional", "split-call", "named"],
+    ["split-call", "named", "positional"]
+  ],
+  "blinding": {
+    "participantLabels": { "named": "A", "positional": "B", "split-call": "C" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:19b8709a45bffeee9257fb7c5a7d9a8dfe60810c923771d5831dec24ee69d6d5"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}
