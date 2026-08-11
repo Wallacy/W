@@ -269,6 +269,7 @@ const oracleCorpusFiles = [
   "layout-abi-cases.json",
   "execution-concurrency-cases.json",
   "runtime-liveness-cases.json",
+  "scoped-lock-cases.json",
   "snapshot-cell-cases.json",
   "boundary-effect-cases.json",
   "package-release-cases.json",
@@ -432,6 +433,20 @@ const runtimeLivenessOperations = runtimeLivenessCorpus.cases.reduce(
 );
 const acceptedRuntimeLivenessCases = runtimeLivenessCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
+).length;
+const scopedLockCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "scoped-lock-cases.json"), "utf8"),
+);
+const scopedLockCases = scopedLockCorpus.cases.length;
+const scopedLockOperations = scopedLockCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedScopedLockCases = scopedLockCorpus.cases.filter(
+  (testCase) => testCase.kind === "accepted",
+).length;
+const faultedScopedLockCases = scopedLockCorpus.cases.filter(
+  (testCase) => testCase.kind === "fault",
 ).length;
 const snapshotCellCorpus = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "snapshot-cell-cases.json"), "utf8"),
@@ -731,6 +746,13 @@ output.push(
     `(${acceptedRuntimeLivenessCases} aceitos + ` +
     `${runtimeLivenessCases - acceptedRuntimeLivenessCases} rejeitados; ` +
     `sete testes host) |`,
+);
+output.push(
+  `| casos/operações de locks escopados LM0 | ` +
+    `${scopedLockCases}/${scopedLockOperations} ` +
+    `(${acceptedScopedLockCases} aceitos + ` +
+    `${scopedLockCases - acceptedScopedLockCases - faultedScopedLockCases} rejeitados + ` +
+    `${faultedScopedLockCases} fault; oito testes host) |`,
 );
 output.push(
   `| casos/operações do carrier de snapshot SP0 | ` +

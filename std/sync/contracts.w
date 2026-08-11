@@ -1,14 +1,67 @@
-// Published immutable snapshots for read-heavy state.
+// Scoped exclusive state and published immutable snapshots.
 //
-// SnapshotCell is a safe synchronization carrier. The provider can use a
-// target-specific reclamation strategy, but it must preserve versions, drops,
-// happens-before edges, and structured lifetime. Only this validated wrapper
-// receives the trusted shareable fact. A lock fallback retains the selected
-// version under a short internal lock. It does not hold a writer lock while
-// user code runs.
+// Mutex and AsyncMutex expose the protected value only through never-suspending
+// closures. The trusted wrapper is shareable; the payload does not need to be.
+// SnapshotCell can use a target-specific reclamation strategy, but it preserves
+// versions, drops, happens-before edges, and structured lifetime.
 
-foreign intrinsic from "std.snapshot-cell@1" {
+export enum LockAttempt<Result> {
+  acquired(Result)
+  busy
+}
+
+foreign intrinsic from "std.sync@1" {
+  type MutexHandle
+  type AsyncMutexHandle
   type SnapshotCellHandle
+
+  fn stdMutexCreate<Value>(initial: take Value): MutexHandle
+
+  fn stdMutexRead<Value, Result, Failure: Error>(
+    handle: ref MutexHandle,
+    operation: some fn(ref Value): Result throws Failure,
+  ): Result throws Failure
+
+  fn stdMutexModify<Value, Result, Failure: Error>(
+    handle: ref MutexHandle,
+    operation: some fn(inout Value): Result throws Failure,
+  ): Result throws Failure
+
+  fn stdMutexTryRead<Value, Result, Failure: Error>(
+    handle: ref MutexHandle,
+    operation: some fn(ref Value): Result throws Failure,
+  ): LockAttempt<Result> throws Failure
+
+  fn stdMutexTryModify<Value, Result, Failure: Error>(
+    handle: ref MutexHandle,
+    operation: some fn(inout Value): Result throws Failure,
+  ): LockAttempt<Result> throws Failure
+
+  fn stdMutexDrop(handle: inout MutexHandle)
+
+  fn stdAsyncMutexCreate<Value>(initial: take Value): AsyncMutexHandle
+
+  async fn stdAsyncMutexRead<Value, Result, Failure: Error>(
+    handle: ref AsyncMutexHandle,
+    operation: some fn(ref Value): Result throws Failure,
+  ): Result throws Failure
+
+  async fn stdAsyncMutexModify<Value, Result, Failure: Error>(
+    handle: ref AsyncMutexHandle,
+    operation: some fn(inout Value): Result throws Failure,
+  ): Result throws Failure
+
+  fn stdAsyncMutexTryRead<Value, Result, Failure: Error>(
+    handle: ref AsyncMutexHandle,
+    operation: some fn(ref Value): Result throws Failure,
+  ): LockAttempt<Result> throws Failure
+
+  fn stdAsyncMutexTryModify<Value, Result, Failure: Error>(
+    handle: ref AsyncMutexHandle,
+    operation: some fn(inout Value): Result throws Failure,
+  ): LockAttempt<Result> throws Failure
+
+  fn stdAsyncMutexDrop(handle: inout AsyncMutexHandle)
 
   fn stdSnapshotCellCreate<Value>(
     initial: take Value,
@@ -25,6 +78,100 @@ foreign intrinsic from "std.snapshot-cell@1" {
   )
 
   fn stdSnapshotCellDrop(handle: inout SnapshotCellHandle)
+}
+
+struct TypedMutexHandle<Value> {
+  raw: MutexHandle
+
+  init(validatedRaw: MutexHandle) {
+    self.raw = validatedRaw
+  }
+}
+
+struct TypedAsyncMutexHandle<Value> {
+  raw: AsyncMutexHandle
+
+  init(validatedRaw: AsyncMutexHandle) {
+    self.raw = validatedRaw
+  }
+}
+
+export struct Mutex<Value> {
+  handle: TypedMutexHandle<Value>
+
+  export init(
+    _ initial: take Value<(.transferable && .lifetimeIndependent)>,
+  ) {
+    let raw = unsafe { stdMutexCreate(initial: take initial) }
+    self.handle = TypedMutexHandle<Value>(validatedRaw: raw)
+  }
+
+  export fn withLock<Result, Failure: Error>(
+    _ operation: some fn(ref Value): Result throws Failure,
+  ): Result throws Failure {
+    return unsafe { try stdMutexRead(handle: handle.raw, operation: operation) }
+  }
+
+  export fn withLock<Result, Failure: Error>(
+    _ operation: some fn(inout Value): Result throws Failure,
+  ): Result throws Failure {
+    return unsafe { try stdMutexModify(handle: handle.raw, operation: operation) }
+  }
+
+  export fn tryWithLock<Result, Failure: Error>(
+    _ operation: some fn(ref Value): Result throws Failure,
+  ): LockAttempt<Result> throws Failure {
+    return unsafe { try stdMutexTryRead(handle: handle.raw, operation: operation) }
+  }
+
+  export fn tryWithLock<Result, Failure: Error>(
+    _ operation: some fn(inout Value): Result throws Failure,
+  ): LockAttempt<Result> throws Failure {
+    return unsafe { try stdMutexTryModify(handle: handle.raw, operation: operation) }
+  }
+
+  deinit {
+    unsafe { stdMutexDrop(handle: inout handle.raw) }
+  }
+}
+
+export struct AsyncMutex<Value> {
+  handle: TypedAsyncMutexHandle<Value>
+
+  export init(
+    _ initial: take Value<(.transferable && .lifetimeIndependent)>,
+  ) {
+    let raw = unsafe { stdAsyncMutexCreate(initial: take initial) }
+    self.handle = TypedAsyncMutexHandle<Value>(validatedRaw: raw)
+  }
+
+  export async fn withLock<Result, Failure: Error>(
+    _ operation: some fn(ref Value): Result throws Failure,
+  ): Result throws Failure {
+    return unsafe { try await stdAsyncMutexRead(handle: handle.raw, operation: operation) }
+  }
+
+  export async fn withLock<Result, Failure: Error>(
+    _ operation: some fn(inout Value): Result throws Failure,
+  ): Result throws Failure {
+    return unsafe { try await stdAsyncMutexModify(handle: handle.raw, operation: operation) }
+  }
+
+  export fn tryWithLock<Result, Failure: Error>(
+    _ operation: some fn(ref Value): Result throws Failure,
+  ): LockAttempt<Result> throws Failure {
+    return unsafe { try stdAsyncMutexTryRead(handle: handle.raw, operation: operation) }
+  }
+
+  export fn tryWithLock<Result, Failure: Error>(
+    _ operation: some fn(inout Value): Result throws Failure,
+  ): LockAttempt<Result> throws Failure {
+    return unsafe { try stdAsyncMutexTryModify(handle: handle.raw, operation: operation) }
+  }
+
+  deinit {
+    unsafe { stdAsyncMutexDrop(handle: inout handle.raw) }
+  }
 }
 
 struct TypedSnapshotCellHandle<Value> {

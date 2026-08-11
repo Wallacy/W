@@ -160,6 +160,9 @@ spawn<.compute> let plan = optimize(take snapshot)
 | criar child no domínio atual | `async let` | handle lexical, join e drain obrigatórios |
 | criar child em outro domínio | `spawn<domain> let` | placement explícito; serial ou paralelo conforme o domain |
 | reads concorrentes e write exclusivo | `spawn<domain>` + `.barrier` | tickets e loans verificados num grafo fechado |
+| proteger critical section curta | `Mutex` ou `AsyncMutex` | closure scoped; sem guard ou suspensão enquanto protege |
+| publicar versão read-heavy | `SnapshotCell` | readers veem versões completas; reclamation é automática |
+| atualizar scalar concorrente | `var atomic` | operação, extent e memory order explícitos ou sequenciais |
 
 `async` na declaration fixa um contrato quando a interface precisa dele; a HIR
 também infere suspensão. `spawn` não significa thread nem paralelismo por si só.
@@ -11527,8 +11530,12 @@ esse storage. Release/acquire não substitui essa prova.
 
 #### 12.10.6 Locks síncronos e assíncronos
 
-host oferece `Mutex<T>` para code síncrono e `AsyncMutex<T>` para tasks. Ambos
-protegem o payload e expõem uma closure scoped:
+**W-1181 — lock escopado:** `Mutex<T>` serve a code síncrono e
+`AsyncMutex<T>` serve a tasks. Os dois são owners move-only e shareable. A
+inicialização consome `T<(.transferable && .lifetimeIndependent)>`. O payload
+não precisa ser shareable: somente a closure protegida recebe acesso a ele.
+
+As duas APIs oferecem acessos `ref` e `inout` sem publicar um guard:
 
 ```w
 let snapshot = ledger.withLock(
@@ -11541,9 +11548,21 @@ let receipt = await asyncLedger.withLock((value: inout ApologyLedgerState) => {
 })
 ```
 
+O `Result` da closure não pode conter um borrow, uma view ou outra dependency do
+payload. A closure é `neverSuspend` e executa exatamente uma vez depois da
+aquisição. `return` e application error liberam o lock antes de devolver o
+resultado ou propagar o error.
+
 `Mutex.withLock` pode bloquear a thread. Um executor cooperativo exige um domain
-que aceite blocking ou usa `AsyncMutex`. `tryWithLock` nunca bloqueia e devolve
-`Option<R>`.
+que aceite blocking ou usa `AsyncMutex`. `tryWithLock` nunca bloqueia. Ele usa
+um enum para não confundir lock ocupado com um resultado optional:
+
+```w
+enum LockAttempt<T> {
+  acquired(T)
+  busy
+}
+```
 
 A interface compilada marca `Mutex.withLock` com o fato `blocking`. O verifier
 rejeita uma call alcançável num domain non-blocking sem adapter:
@@ -11554,25 +11573,80 @@ spawn<.blocking> let snapshot = ledger.withLock(
 )
 ```
 
-`AsyncMutex.withLock` pode suspender durante a aquisição. A closure protegida é
-síncrona e não pode usar `await`. Ela também não pode devolver um borrow do
-payload.
+`AsyncMutex.withLock` pode suspender durante a aquisição. `tryWithLock` continua
+síncrono e executa a closure somente quando devolve `.acquired`.
 
-Cancelamento durante a espera remove o waiter. Depois da aquisição, a closure
-termina e libera o lock antes de observar cancelamento. Return e `throw` também
-liberam o lock.
+O receiver e a closure de `tryWithLock` seguem a ordem normal de avaliação da
+call. A closure é construída uma vez antes da tentativa. Em `.busy`, seu body
+não executa e suas captures são destruídas pelos drop paths normais. Portanto,
+`capture(take owner)` transfere `owner` mesmo quando a tentativa encontra o
+lock ocupado. O caller que precisa preservar esse owner usa `ref`, `copy` ou
+faz a tentativa antes de construir trabalho owned.
 
-W não publica um guard na baseline. A closure reduz escape, lock esquecido e
-lock mantido durante suspension. Essa escolha aplica a intenção histórica de
-`property.use`, mas torna o custo explícito no owner `Mutex`.
+**W-1182 — admission e failure:** cada aquisição recebe um ticket FIFO. Um
+`tryWithLock` devolve `.busy` quando o lock está ocupado ou já existe waiter;
+ele não ultrapassa a fila. Cancelamento de `AsyncMutex` durante a espera remove
+o ticket e não executa a closure. Depois da aquisição, a closure termina e
+libera o lock antes de o task observar cancelamento.
 
-W não usa poisoning. Um panic termina a fault boundary física. Nenhum caller W
-continua nessa boundary para observar state possivelmente parcial.
+O unlock cria um edge release/acquire para a aquisição seguinte. O provider
+pode estacionar thread ou task, mas não pode mudar a ordem lógica, repetir a
+closure ou conceder dois acessos simultâneos.
 
-`RwLock`, condition, once, barreira coletiva e atomic wait/notify são **Pesquisa** com
-APIs scoped e contracts próprios de fairness, cancellation e failure. RCU
-genérico fica **Rejeitado** na safe std; reclamation customizada pertence a um
-adapter `unsafe`.
+FIFO define a ordem lógica de grant entre pedidos admitidos. Ele não promete
+latency máxima, turno imediato de CPU ou progresso quando o scheduler, o host
+ou a própria closure não progride.
+
+W não publica guard, lock recursivo, upgrade ou downgrade. A closure reduz
+escape, unlock esquecido e lock mantido durante suspension. Uma call segura
+precisa provar que o mesmo lock não está no `HeldLockSet`; reentrada conhecida é
+erro. O resource lens também informa ordens de aquisição entre locks. Essa
+análise não promete eliminar ciclos criados por input, FFI ou adapters
+`unsafe`.
+
+W não usa poisoning. Um lock pertence à fault boundary em que foi criado e não
+cruza essa boundary. Um panic durante a closure falha a boundary inteira; seus
+waiters não retomam sobre state parcial. Teardown físico libera a primitive,
+mas não publica o payload para outra boundary.
+
+O owner do wrapper só pode ser destruído depois de closures, borrows e waiters
+drenarem. O drop do payload ocorre uma vez. `w explain synchronization` mostra
+fila, contention, tempo protegido e provider sem transformar medidas observadas
+em garantia universal.
+
+**W-1183 — conjunto mínimo:** W não adiciona uma primitive só porque o host a
+oferece. Esta tabela fecha a baseline safe:
+
+| Necessidade | Forma corrente | Estado de alternativas |
+|---|---|---|
+| scalar concorrente | `Atomic<T>` | CAS não concede lifetime ou invariantes entre fields |
+| critical section síncrona | `Mutex<T>` | guard público e mutex recursivo rejeitados |
+| critical section de task | `AsyncMutex<T>` | closure protegida nunca suspende |
+| reads paralelos e write in-place | domain concorrente + `.barrier` | `RwLock<T>` rejeitado na safe std |
+| versão imutável read-heavy | `SnapshotCell<T>` | RCU e grace period ficam internos ao provider |
+| transferência ou mailbox | `Channel<T>` ou service | condition variable rejeitada na safe std |
+| inicialização estática | const/module initialization | `Once` raw rejeitado; lazy concorrente permanece Pesquisa |
+| join lexical | `Task`, tuple ou `TaskGroup` | barreira cíclica/reutilizável permanece Pesquisa |
+| park por palavra atômica | primitive privada do runtime | `Atomic.wait/notify` público permanece Pesquisa |
+
+`RwLock<T>` duplica o domain concorrente com barrier, mas perde placement,
+ticket subtree e prova lexical de loans. Uma implementação foreign continua
+possível num adapter `unsafe`; ela não se torna uma segunda baseline.
+
+Uma condition variable separa predicate, lock e wakeup. Channels, task outcomes
+e services mantêm o evento junto de ownership e cancellation. Compatibilidade
+com APIs C usa adapter `unsafe`. A pesquisa de lazy concorrente precisa fechar
+winner, reentrada, error, panic e cancellation antes de escolher um nome ou um
+property behavior.
+
+Uma barreira de device pertence ao contract do kernel. Uma barreira CPU
+reutilizável precisa declarar participantes, desistência, cancellation e
+generation. `Atomic.wait/notify` precisa separar uma wait bloqueante de uma wait
+que suspende task. Nenhuma dessas pesquisas bloqueia o caminho comum.
+
+Os diagnostics `W-LOCK-*` possuem escape, suspensão, blocking domain, reentrada,
+fault boundary, access mode, copy, drain e provider order. `W-SYNC-*` informa
+que uma primitive não pertence à safe std e lista as formas vigentes.
 
 Services, channels e immutable snapshots lideram para state de domínio. Um
 service serial não precisa de atomic ou lock para seu state interno:
@@ -11582,6 +11656,12 @@ service DiningRoom {
   var served: u64 = 0 // O closed turn fornece isolation.
 }
 ```
+
+**W-1184 — evidence de lock:** LM0 possui 33 casos e 114 operações: 19 aceitos,
+13 rejeitados e uma fault. Oito testes host independentes cobrem protected
+loans, FIFO, try sem bypass, cancellation, unlock, drop, fault boundary e a
+seleção entre synchronization forms. O oracle não implementa compiler,
+scheduler, runtime ou provider `std.sync@1`.
 
 #### 12.10.7 `SnapshotCell`
 
@@ -17993,7 +18073,7 @@ declara:
 O source W mostra a assinatura completa. O checker extrai cada declaration,
 calcula seu digest e rejeita export sem profile, anchor inexistente, consumer
 ausente, uso qualificado desconhecido e snapshot stale. A projeção atual possui
-316 exports em 22 módulos, 78 superfícies qualificadas e 21/21 requisitos com
+319 exports em 22 módulos, 78 superfícies qualificadas e 23/23 requisitos com
 profile. Todos os 16 providers de implementação permanecem `missing`.
 
 Readiness mede somente a interface W. Provider ID, gates e estado executável
@@ -27594,7 +27674,10 @@ Uma pesquisa só avança quando possui:
 | fallback atomic não lock-free | **Provável** | runtime striped lock preserva semântica; signals e freestanding exigem profile |
 | `Atomic<T, lockFree: true>` | **Possível agora** | target e alignment resolvem o contrato em compile time |
 | `Mutex.withLock` scoped | **Possível agora** | closure não escapa e cleanup síncrono fecha unlock |
-| `AsyncMutex.withLock` sem suspension interna | **Provável** | fila cancel-safe e scheduler precisam de protótipo |
+| closure de `AsyncMutex.withLock` sem suspension | **Possível agora** | tickets FIFO, cancellation e unlock possuem contrato LM0 |
+| `RwLock<T>` na safe std | **Rejeitado** | domain concorrente com `.barrier` preserva placement, tickets e loans |
+| condition variable na safe std | **Rejeitado** | channel, task outcome e service unem evento, ownership e cancellation |
+| lazy concorrente, barreira cíclica e atomic wait/notify | **Pesquisa** | cada forma ainda precisa de failure, cancellation, generation e provider contract próprios |
 | `SnapshotCell<T>` | **Possível agora** | `read`, `snapshot` e `publish` fecham versões, edges e reclamation sem API RCU no caller |
 | RCU genérico safe | **Rejeitado** | reclamation, ABA e leitura longa exigem adapter `unsafe` especializado |
 | facts trusted para FFI e synchronization customizada | **Provável** | somente provider ou foreign interface fixa target, digest e negative facts |
@@ -28743,13 +28826,13 @@ observável e referência para o Book.
 
 [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json) torna essa
 auditoria incremental e verificável. Uma decisão ligada a R0 recebe a classe de
-source automaticamente. Um caso F0, S0, M1, L0, E0, E1, SP0, B0 ou P0 pode ligar seus
+source automaticamente. Um caso F0, S0, M1, L0, E0, E1, LM0, SP0, B0 ou P0 pode ligar seus
 oracles diretamente aos IDs que prova. As outras decisões exigem uma
 disposition explícita: escolha de implementação sem diferença observável,
 hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
 maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. O freeze audit classifica 368/1180
-decisões: 129 pelo eixo source, 278 pelo eixo oracle e oito explicitamente. Há
+declara todos os eixos obrigatórios. O freeze audit classifica 372/1184
+decisões: 129 pelo eixo source, 282 pelo eixo oracle e oito explicitamente. Há
 47 decisões com eixos sobrepostos. Duas decisões exigem formalmente ambos os
 eixos. As 812 restantes continuam um worklist, não uma aprovação implícita.
 `--require-complete` exige classificação total e todos os eixos declarados.
@@ -28826,12 +28909,12 @@ evidência de design:
 |---|---|---|
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 20 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | cobrir cada construção normalizada com par CST-equivalente e provar idempotência no modelo F0 |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 104 casos pareiam 52 resultados positivos com 52 inversões e outcomes JSONL | ligar cada família normativa a um resultado positivo, à inversão relevante e ao campo exato que falha |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 47/47 diagnostics S0 possuem cobertura e o catálogo com 217 entries cobre 175 codes referenciados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
-| std | o catálogo possui 316 exports em 22 módulos; todos têm declaration draft-ready; 21/21 requisitos têm profile; 2/8 carriers estão missing (Blob e FormData); 16/16 providers de implementação estão missing | manter Blob/FormData como carriers explicitamente missing, validar a superfície com outro consumer além do Última Luz e preservar os providers pós-freeze |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 47/47 diagnostics S0 possuem cobertura e o catálogo com 228 entries cobre 175 codes referenciados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
+| std | o catálogo possui 319 exports em 22 módulos; todos têm declaration draft-ready; 23/23 requisitos têm profile; 2/8 carriers estão missing (Blob e FormData); 16/16 providers de implementação estão missing | manter Blob/FormData como carriers explicitamente missing, validar a superfície com outro consumer além do Última Luz e preservar os providers pós-freeze |
 | workflow single-file e científico PYN1/PYN0/PYN2/PYN3/PYN4 | PYN1 fecha header contextual, root standalone, package/ephemeral context, imports explícitos, payload P0 `package.lock` com grafo transitivo, fetch/CAS por content digest, requirement admission, identity sem path físico e promotion; PYN2 fecha session/repl transacional e generational, identities, receipts, graph invalidation, scopes, drain e bounded history; PYN3 fecha presentation, adapter Jupyter e export comprovado; PYN4 fecha carrier tensorial, device/queue, DLPack 1.3, Python lease, lifecycle e evidence host; PYN0 mantém `std.tensor`/`std.dlpack`, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters TAB1 | implementar CLI, resolver/provider, kernel/runtime/drain físico, sanitizer e ZeroMQ, providers tensor/DLPack e evidence dos gates de latency; tudo permanece pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
-| memória e execução | M1 fixa owner/borrow; A0 fixa allocation física; E0 fixa happens-before; E1 fixa closure/liveness; SP0 fixa publicação e reclamation de snapshot; o oracle de domain fixa serial FIFO, barreira e lanes bounded | fechar device providers/scopes e matrizes de adapters/profile; hazard/epoch/RCU são escolhas internas ou adapters `unsafe`, não superfícies safe pendentes; HIR, allocator e scheduler reais ficam pós-freeze |
+| memória e execução | M1 fixa owner/borrow; A0 fixa allocation física; E0 fixa happens-before; E1 fixa closure/liveness; LM0 fixa locks escopados; SP0 fixa publicação e reclamation de snapshot; o oracle de domain fixa serial FIFO, barreira e lanes bounded | fechar device providers/scopes e matrizes de adapters/profile; hazard/epoch/RCU são escolhas internas ou adapters `unsafe`, não superfícies safe pendentes; HIR, allocator e scheduler reais ficam pós-freeze |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
@@ -29262,7 +29345,8 @@ antes de sair do scope.
 - admission avalia staging uma vez, reserva antes do publish e limpa uma vez;
 - blocking adapter, drain e callback scheduling;
 - `TaskLocal<T>` estruturado e `ThreadLocal<T>` com accessor síncrono;
-- locks, barriers, once, wait/notify e topology types bounded;
+- locks escopados, dispatch de barreira e topology types bounded;
+- protótipos separados para lazy concorrente, barreira cíclica e atomic wait/notify;
 - HIR verificada antes do lowering async;
 - executor cooperativo e pool paralelo bounded;
 - schema de domain e `executionProfiles` data-only;

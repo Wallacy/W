@@ -746,7 +746,13 @@ Aceite:
 - `atomic.fence` exige reads-from atômica e rejeita `.relaxed`;
 - `Mutex.withLock` não deixa borrow ou guard escapar;
 - `AsyncMutex.withLock` suspende na aquisição, não dentro da closure;
+- o payload do lock não precisa ser shareable;
+- tickets de lock são FIFO, e `tryWithLock` não ultrapassa waiter;
 - cancellation durante a espera não executa a closure;
+- cancellation depois do grant é observada somente depois do unlock;
+- panic falha a fault boundary do lock em vez de publicar state parcial;
+- domain concorrente com `.barrier` substitui `RwLock` na safe std;
+- condition variable e `Once` raw não entram na safe std;
 - `SnapshotCell.read` observa uma versão completa sem deixar borrow escapar;
 - `publish` consome uma nova versão e não espera readers da versão anterior;
 - `snapshot` cria um owner somente quando o payload atende a `Duplicable`;
@@ -764,10 +770,16 @@ Failure injection cobre cancellation antes e depois da aquisição async. O trac
 confirma que cada critical section libera o lock uma vez. Benchmarks separam
 latency sem contenção, contenção na mesma cache line e counters particionados.
 
+O corpus LM0 possui 33 casos e 114 operações: 19 aceitos, 13 rejeitados e uma
+fault. Oito testes host cobrem locks síncronos e assíncronos, FIFO, try sem
+bypass, cancellation, protected loans, fault boundary e seleção entre atomic,
+lock, domain barrier, snapshot, channel e service. Eles não executam W nem o
+provider `std.sync@1`.
+
 O corpus SP0 possui 27 casos e 82 operações: 14 aceitos, 12 rejeitados e uma
 fault de allocation antes da publicação. Sete testes host cobrem versões,
 publication order, error drain, retirement bounded e estratégias equivalentes.
-Eles não implementam o provider `std.snapshot-cell@1` nem executam W.
+Eles não implementam o provider `std.sync@1` nem executam W.
 
 ### 3.5.3 Passa-Pratos de Capacidade Finita
 

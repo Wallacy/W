@@ -1558,6 +1558,116 @@
       "fixes": {}
     },
     {
+      "code": "W-LOCK-0001",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a dependency on lock-protected storage escapes the scoped operation",
+      "requiredFacts": { "dependencyKind": "string", "lock": "string", "target": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LOCK-0002",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a protected lock operation can suspend",
+      "requiredFacts": { "effect": "string", "lock": "string", "operation": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LOCK-0003",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a blocking lock acquisition is reachable from a non-blocking execution domain",
+      "requiredFacts": { "domain": "string", "lock": "string", "requiredCapability": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LOCK-0004",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a protected operation attempts to acquire the same lock again",
+      "requiredFacts": { "heldLock": "string", "operation": "string", "origin": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LOCK-0005",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a lock or protected access crosses its owning fault boundary",
+      "requiredFacts": { "actualBoundary": "string", "lock": "string", "ownerBoundary": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LOCK-0006",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a read-only protected access attempts to mutate the payload",
+      "requiredFacts": { "accessMode": "string", "lock": "string", "operation": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LOCK-0007",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a move-only lock owner is copied",
+      "requiredFacts": { "actualType": "string", "operation": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LOCK-0008",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a lock owner is destroyed before holders and waiters drain",
+      "requiredFacts": { "activeHolder": "boolean", "lock": "string", "waiters": "integer" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LOCK-0009",
+      "state": "active",
+      "phase": "interface",
+      "defaultSeverity": "error",
+      "meaning": "a lock provider grants an acquisition out of FIFO admission order",
+      "requiredFacts": { "actualTicket": "integer", "expectedTicket": "integer", "lock": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LOCK-0010",
+      "state": "active",
+      "phase": "interface",
+      "defaultSeverity": "error",
+      "meaning": "cancellation interrupts a protected operation after lock grant and before unlock",
+      "requiredFacts": { "lock": "string", "phase": "string", "ticket": "integer" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SYNC-0001",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a synchronization primitive is not part of the safe standard-library surface",
+      "requiredFacts": { "alternatives": "string-set", "primitive": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
       "code": "W-BORROW-0001",
       "state": "active",
       "phase": "semantic.ownership",

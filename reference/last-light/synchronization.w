@@ -1,7 +1,7 @@
 // Atomic publication and scoped locks at the Last Light restaurant.
 
 import atomic from std
-import { SnapshotCell } from std.sync
+import { AsyncMutex, LockAttempt, Mutex, SnapshotCell } from std.sync
 
 export enum SignState {
   dark
@@ -122,6 +122,12 @@ export object ThreadApologyLedger {
       (ledger: ref ApologyLedgerState) => copy ledger,
     )
   }
+
+  fn trySnapshot(): LockAttempt<ApologyLedgerState> {
+    return state.tryWithLock(
+      (ledger: ref ApologyLedgerState) => copy ledger,
+    )
+  }
 }
 
 export object TaskApologyLedger {
@@ -201,6 +207,12 @@ test "a scoped synchronous lock returns an owned snapshot" {
   let snapshot = ledger.snapshot()
   expect snapshot.revision == 1
   expect snapshot.messages == ["We regret the scheduling inconvenience"]
+
+  let attempted = ledger.trySnapshot()
+  expect switch attempted {
+    case .acquired(let value): value.revision == 1
+    case .busy: false
+  }
 }
 
 test "a published menu exposes one complete revision" {
@@ -230,6 +242,9 @@ test "a published menu exposes one complete revision" {
 // (ref state).withExclusive((value: inout SignState) => value = .dark)
 // state.withLock((value: inout State) => await suspend(value))
 // state.withLock((value: ref State) => ref value)
+// state.withLock((value: ref State) => state.withLock(inspect))
+// copy state
+// RwLock(ApologyLedgerState(revision: 0, messages: []))
 // snapshots.read((menu: ref PublishedMenu) => await inspect(menu))
 // snapshots.read((menu: ref PublishedMenu) => ref menu)
 // snapshots.publish(ref nextMenu)

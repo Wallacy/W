@@ -1,0 +1,417 @@
+{
+  "$schema": "w-scoped-lock-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "LM0-accepted-sync-read",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "ThreadApologyLedger" },
+      "decisions": ["W-1181", "W-1184"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "sync", "boundary": "restaurant", "value": 7, "owned": true, "transferable": true, "lifetimeIndependent": true, "shareable": false },
+        { "op": "request", "lock": "ledger", "task": "reader", "access": "ref", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "grant", "lock": "ledger", "task": "reader" },
+        { "op": "read", "lock": "ledger", "task": "reader" },
+        { "op": "finish", "lock": "ledger", "task": "reader", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "value": 7, "reads": [7], "holder": null }
+    },
+    {
+      "id": "LM0-accepted-sync-write-then-read",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "record" },
+      "decisions": ["W-1181", "W-1182"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "sync", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "writer", "access": "inout", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "grant", "lock": "ledger", "task": "writer" },
+        { "op": "write", "lock": "ledger", "task": "writer", "value": 1 },
+        { "op": "finish", "lock": "ledger", "task": "writer", "outcome": "success" },
+        { "op": "request", "lock": "ledger", "task": "reader", "access": "ref", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "grant", "lock": "ledger", "task": "reader" },
+        { "op": "read", "lock": "ledger", "task": "reader" },
+        { "op": "finish", "lock": "ledger", "task": "reader", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "value": 1, "reads": [1], "happensBefore": ["body:0->unlock:0", "unlock:0->grant:1", "body:1->unlock:1"] }
+    },
+    {
+      "id": "LM0-accepted-error-releases",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "Mutex" },
+      "decisions": ["W-1181", "W-1182"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "sync", "boundary": "restaurant", "value": 4, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "failing", "access": "inout", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "grant", "lock": "ledger", "task": "failing" },
+        { "op": "finish", "lock": "ledger", "task": "failing", "outcome": "error" },
+        { "op": "tryAcquire", "lock": "ledger", "task": "next", "access": "ref", "boundary": "restaurant" },
+        { "op": "finish", "lock": "ledger", "task": "next", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "holder": null, "outcomes": ["error", "success"], "tryResults": ["acquired"] }
+    },
+    {
+      "id": "LM0-accepted-try-acquired",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "trySnapshot" },
+      "decisions": ["W-1181", "W-1182"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "sync", "boundary": "restaurant", "value": 9, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader", "access": "ref", "boundary": "restaurant" },
+        { "op": "read", "lock": "ledger", "task": "reader" },
+        { "op": "finish", "lock": "ledger", "task": "reader", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "tryResults": ["acquired"], "reads": [9] }
+    },
+    {
+      "id": "LM0-accepted-try-busy-does-not-bypass",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "LockAttempt" },
+      "decisions": ["W-1182", "W-1184"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "async", "boundary": "restaurant", "value": 3, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "first", "access": "ref", "boundary": "restaurant" },
+        { "op": "tryAcquire", "lock": "ledger", "task": "late", "access": "ref", "boundary": "restaurant" },
+        { "op": "grant", "lock": "ledger", "task": "first" },
+        { "op": "finish", "lock": "ledger", "task": "first", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "tryResults": ["busy"], "queue": [] }
+    },
+    {
+      "id": "LM0-accepted-async-fifo",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "TaskApologyLedger" },
+      "decisions": ["W-1182", "W-1184"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "async", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "first", "access": "inout", "boundary": "restaurant" },
+        { "op": "request", "lock": "ledger", "task": "second", "access": "inout", "boundary": "restaurant" },
+        { "op": "grant", "lock": "ledger", "task": "first" },
+        { "op": "write", "lock": "ledger", "task": "first", "value": 1 },
+        { "op": "finish", "lock": "ledger", "task": "first", "outcome": "success" },
+        { "op": "grant", "lock": "ledger", "task": "second" },
+        { "op": "write", "lock": "ledger", "task": "second", "value": 2 },
+        { "op": "finish", "lock": "ledger", "task": "second", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "value": 2, "outcomes": ["success", "success"], "queue": [] }
+    },
+    {
+      "id": "LM0-accepted-async-cancel-waiter",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "AsyncMutex" },
+      "decisions": ["W-1182"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "async", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "holder", "access": "ref", "boundary": "restaurant" },
+        { "op": "grant", "lock": "ledger", "task": "holder" },
+        { "op": "request", "lock": "ledger", "task": "cancelled", "access": "ref", "boundary": "restaurant" },
+        { "op": "request", "lock": "ledger", "task": "next", "access": "ref", "boundary": "restaurant" },
+        { "op": "cancelWait", "lock": "ledger", "task": "cancelled" },
+        { "op": "finish", "lock": "ledger", "task": "holder", "outcome": "success" },
+        { "op": "grant", "lock": "ledger", "task": "next" },
+        { "op": "finish", "lock": "ledger", "task": "next", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "cancellations": ["removed:cancelled"], "outcomes": ["success", "success"] }
+    },
+    {
+      "id": "LM0-accepted-async-cancel-after-grant",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "TaskApologyLedger" },
+      "decisions": ["W-1182"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "async", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "writer", "access": "inout", "boundary": "restaurant" },
+        { "op": "grant", "lock": "ledger", "task": "writer" },
+        { "op": "cancelHeld", "lock": "ledger", "task": "writer" },
+        { "op": "write", "lock": "ledger", "task": "writer", "value": 1 },
+        { "op": "finish", "lock": "ledger", "task": "writer", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "value": 1, "cancellations": ["deferred:writer", "observed:writer"], "outcomeCancellations": ["after-unlock"] }
+    },
+    {
+      "id": "LM0-accepted-nonshareable-payload",
+      "kind": "accepted",
+      "source": { "path": "std/sync/contracts.w", "symbol": "Mutex<Value>" },
+      "decisions": ["W-1181"],
+      "operations": [
+        { "op": "create", "lock": "owner", "kind": "sync", "boundary": "restaurant", "value": "non-shareable-owner", "owned": true, "transferable": true, "lifetimeIndependent": true, "shareable": false },
+        { "op": "tryAcquire", "lock": "owner", "task": "reader", "access": "ref", "boundary": "restaurant" },
+        { "op": "finish", "lock": "owner", "task": "reader", "outcome": "success" },
+        { "op": "drop", "lock": "owner" }
+      ],
+      "expect": { "status": "accepted", "phase": "closed", "drops": 1 }
+    },
+    {
+      "id": "LM0-accepted-same-boundary-cross-domain",
+      "kind": "accepted",
+      "source": { "path": "std/sync/contracts.w", "symbol": "AsyncMutex<Value>" },
+      "decisions": ["W-1181", "W-1182"],
+      "operations": [
+        { "op": "create", "lock": "owner", "kind": "async", "boundary": "process", "value": 5, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "owner", "task": "io-domain", "access": "ref", "boundary": "process", "domain": "io" },
+        { "op": "request", "lock": "owner", "task": "compute-domain", "access": "ref", "boundary": "process", "domain": "compute" },
+        { "op": "grant", "lock": "owner", "task": "io-domain" },
+        { "op": "finish", "lock": "owner", "task": "io-domain", "outcome": "success" },
+        { "op": "grant", "lock": "owner", "task": "compute-domain" },
+        { "op": "finish", "lock": "owner", "task": "compute-domain", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "outcomes": ["success", "success"] }
+    },
+    {
+      "id": "LM0-accepted-drop-after-drain",
+      "kind": "accepted",
+      "source": { "path": "std/sync/contracts.w", "symbol": "stdMutexDrop" },
+      "decisions": ["W-1181"],
+      "operations": [
+        { "op": "create", "lock": "owner", "kind": "sync", "boundary": "restaurant", "value": 2, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "owner", "task": "reader", "access": "ref", "boundary": "restaurant" },
+        { "op": "finish", "lock": "owner", "task": "reader", "outcome": "success" },
+        { "op": "drop", "lock": "owner" }
+      ],
+      "expect": { "status": "accepted", "phase": "closed", "drops": 1 }
+    },
+    {
+      "id": "LM0-accepted-select-atomic",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "var atomic" },
+      "decisions": ["W-1183", "W-1184"],
+      "operations": [
+        { "op": "select", "facts": { "scalar": true, "singleLocation": true } }
+      ],
+      "expect": { "status": "accepted", "selections": ["atomic"] }
+    },
+    {
+      "id": "LM0-accepted-select-domain-barrier",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/domain_oracle.w", "symbol": "barrier" },
+      "decisions": ["W-1183", "W-1184"],
+      "operations": [
+        { "op": "select", "facts": { "parallelReads": true, "exclusiveWrite": true, "staticDomain": true, "closedAccessGraph": true } }
+      ],
+      "expect": { "status": "accepted", "selections": ["domain-barrier"] }
+    },
+    {
+      "id": "LM0-accepted-select-snapshot-cell",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "SnapshotCell" },
+      "decisions": ["W-1183"],
+      "operations": [
+        { "op": "select", "facts": { "readHeavy": true, "replaceWholeVersion": true } }
+      ],
+      "expect": { "status": "accepted", "selections": ["snapshot-cell"] }
+    },
+    {
+      "id": "LM0-accepted-select-async-mutex",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "AsyncMutex" },
+      "decisions": ["W-1183"],
+      "operations": [
+        { "op": "select", "facts": { "shortCriticalSection": true, "taskContext": true } }
+      ],
+      "expect": { "status": "accepted", "selections": ["async-mutex"] }
+    },
+    {
+      "id": "LM0-accepted-select-mutex",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "Mutex" },
+      "decisions": ["W-1183"],
+      "operations": [
+        { "op": "select", "facts": { "shortCriticalSection": true, "synchronousContext": true } }
+      ],
+      "expect": { "status": "accepted", "selections": ["mutex"] }
+    },
+    {
+      "id": "LM0-accepted-select-channel",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "Channel" },
+      "decisions": ["W-1183"],
+      "operations": [
+        { "op": "select", "facts": { "transferOwnership": true } }
+      ],
+      "expect": { "status": "accepted", "selections": ["channel"] }
+    },
+    {
+      "id": "LM0-accepted-select-service",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/supervision.w", "symbol": "service" },
+      "decisions": ["W-1183"],
+      "operations": [
+        { "op": "select", "facts": { "durable": true, "keyedIdentity": true } }
+      ],
+      "expect": { "status": "accepted", "selections": ["service"] }
+    },
+    {
+      "id": "LM0-accepted-select-insufficient-facts",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "HorizonTelemetryEpoch" },
+      "decisions": ["W-1183", "W-1184"],
+      "operations": [
+        { "op": "select", "facts": { "readHeavy": true } }
+      ],
+      "expect": { "status": "accepted", "selections": ["insufficient-facts"] }
+    },
+    {
+      "id": "LM0-rejected-protected-borrow-escapes",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "state.withLock" },
+      "decisions": ["W-1181"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "sync", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader", "access": "ref", "boundary": "restaurant" },
+        { "op": "escape", "lock": "ledger", "task": "reader" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0001" }
+    },
+    {
+      "id": "LM0-rejected-protected-closure-suspends",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "await suspend" },
+      "decisions": ["W-1181"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "async", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader", "access": "ref", "boundary": "restaurant" },
+        { "op": "suspend", "lock": "ledger", "task": "reader" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0002" }
+    },
+    {
+      "id": "LM0-rejected-sync-lock-on-nonblocking-domain",
+      "kind": "rejected",
+      "source": { "path": "std/sync/contracts.w", "symbol": "Mutex<Value>" },
+      "decisions": ["W-1181"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "sync", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "cooperative", "access": "ref", "boundary": "restaurant", "blockingAllowed": false }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0003" }
+    },
+    {
+      "id": "LM0-rejected-same-lock-reentry",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "state.withLock" },
+      "decisions": ["W-1181"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "sync", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader", "access": "ref", "boundary": "restaurant" },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader", "access": "ref", "boundary": "restaurant" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0004" }
+    },
+    {
+      "id": "LM0-rejected-cross-fault-boundary",
+      "kind": "rejected",
+      "source": { "path": "std/sync/contracts.w", "symbol": "AsyncMutex<Value>" },
+      "decisions": ["W-1181", "W-1182"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "async", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "foreign", "access": "ref", "boundary": "guest" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0005" }
+    },
+    {
+      "id": "LM0-rejected-write-through-ref",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "snapshot" },
+      "decisions": ["W-1181"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "sync", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader", "access": "ref", "boundary": "restaurant" },
+        { "op": "write", "lock": "ledger", "task": "reader", "value": 1 }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0006" }
+    },
+    {
+      "id": "LM0-rejected-copy-lock",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "copy state" },
+      "decisions": ["W-1181"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "sync", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "copy", "lock": "ledger" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0007" }
+    },
+    {
+      "id": "LM0-rejected-drop-before-drain",
+      "kind": "rejected",
+      "source": { "path": "std/sync/contracts.w", "symbol": "deinit" },
+      "decisions": ["W-1181", "W-1182"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "async", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "waiter", "access": "ref", "boundary": "restaurant" },
+        { "op": "drop", "lock": "ledger" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0008" }
+    },
+    {
+      "id": "LM0-rejected-out-of-order-grant",
+      "kind": "rejected",
+      "source": { "path": "std/sync/contracts.w", "symbol": "AsyncMutex<Value>" },
+      "decisions": ["W-1182"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "async", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "first", "access": "ref", "boundary": "restaurant" },
+        { "op": "request", "lock": "ledger", "task": "second", "access": "ref", "boundary": "restaurant" },
+        { "op": "grant", "lock": "ledger", "task": "second" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0009" }
+    },
+    {
+      "id": "LM0-rejected-cancel-interrupts-held-closure",
+      "kind": "rejected",
+      "source": { "path": "std/sync/contracts.w", "symbol": "stdAsyncMutexModify" },
+      "decisions": ["W-1182"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "async", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "writer", "access": "inout", "boundary": "restaurant" },
+        { "op": "cancelHeld", "lock": "ledger", "task": "writer" },
+        { "op": "interruptHeld", "lock": "ledger", "task": "writer" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0010" }
+    },
+    {
+      "id": "LM0-rejected-rwlock-safe-surface",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "RwLock" },
+      "decisions": ["W-1183", "W-1184"],
+      "operations": [
+        { "op": "unsupported", "primitive": "RwLock" }
+      ],
+      "expect": { "status": "rejected", "error": "W-SYNC-0001" }
+    },
+    {
+      "id": "LM0-rejected-condition-safe-surface",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "Compile-fail assays" },
+      "decisions": ["W-1183", "W-1184"],
+      "operations": [
+        { "op": "unsupported", "primitive": "Condition" }
+      ],
+      "expect": { "status": "rejected", "error": "W-SYNC-0001" }
+    },
+    {
+      "id": "LM0-rejected-once-raw-surface",
+      "kind": "rejected",
+      "source": { "path": "std/sync/contracts.w", "symbol": "LockAttempt" },
+      "decisions": ["W-1183"],
+      "operations": [
+        { "op": "unsupported", "primitive": "Once" }
+      ],
+      "expect": { "status": "rejected", "error": "W-SYNC-0001" }
+    },
+    {
+      "id": "LM0-fault-panic-fails-boundary",
+      "kind": "fault",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "ThreadApologyLedger" },
+      "decisions": ["W-1181", "W-1182", "W-1184"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "sync", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "writer", "access": "inout", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "request", "lock": "ledger", "task": "waiter", "access": "ref", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "grant", "lock": "ledger", "task": "writer" },
+        { "op": "write", "lock": "ledger", "task": "writer", "value": 1 },
+        { "op": "panic", "lock": "ledger", "task": "writer" }
+      ],
+      "expect": { "status": "fault", "error": "lockBoundaryPanicked", "phase": "faulted", "failedBoundaries": ["restaurant"] }
+    }
+  ]
+}

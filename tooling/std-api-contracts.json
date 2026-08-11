@@ -652,6 +652,34 @@
       "bounds": ["attached-thread-state", "lease-child", "release-job-drain", "drain-before-finalization", "no-callback-after-boundary"],
       "complexity": { "time": "constant-registration", "space": "fixed-lease" }
     },
+    "scoped-lock-carrier": {
+      "capabilities": ["sync-provider"],
+      "effects": ["allocation", "synchronization"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["fault-boundary", "structured-lifetime", "waiter-budget", "fifo-admission"],
+      "complexity": { "time": "constant-metadata", "space": "payload-plus-bounded-waiters" }
+    },
+    "scoped-lock-sync": {
+      "capabilities": ["sync-provider", "blocking-domain"],
+      "effects": ["blocking", "synchronization"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["never-suspend-closure", "fifo-admission", "structured-protected-loan"],
+      "complexity": { "time": "contention-plus-operation", "space": "constant-metadata" }
+    },
+    "scoped-lock-async": {
+      "capabilities": ["sync-provider"],
+      "effects": ["suspension", "synchronization", "cancellation-drain"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["never-suspend-closure", "fifo-admission", "waiter-budget", "structured-protected-loan"],
+      "complexity": { "time": "contention-plus-operation", "space": "bounded-waiter" }
+    },
+    "scoped-lock-try": {
+      "capabilities": ["sync-provider"],
+      "effects": ["synchronization"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["never-block", "no-waiter-bypass", "never-suspend-closure"],
+      "complexity": { "time": "constant-plus-operation-when-acquired", "space": "constant-metadata" }
+    },
     "snapshot-cell-carrier": {
       "capabilities": ["snapshot-cell-provider"],
       "effects": ["allocation", "synchronization", "deferred-drop"],
@@ -1095,12 +1123,17 @@
       "id": "std.sync",
       "availability": "bundled-portable",
       "source": "std/sync/contracts.w",
-      "designAnchors": ["9.11.1", "12.7", "12.10.7"],
+      "designAnchors": ["9.11.1", "12.7", "12.10.6", "12.10.7"],
       "implementationProvider": {
         "kind": "std-intrinsic",
-        "id": "std.snapshot-cell@1",
+        "id": "std.sync@1",
         "status": "missing",
         "gates": [
+          "scoped-loan-no-escape",
+          "never-suspend-protected-operation",
+          "fifo-lock-admission",
+          "async-cancellation-drain",
+          "fault-boundary-isolation",
           "version-linearization",
           "reader-version-stability",
           "reclamation-after-last-reader",
@@ -1111,9 +1144,30 @@
       },
       "consumer": {
         "path": "reference/last-light/synchronization.w",
-        "symbols": ["SnapshotCell", "PublishedMenu", "HorizonMenuPublication"]
+        "symbols": ["Mutex", "AsyncMutex", "LockAttempt", "SnapshotCell", "PublishedMenu", "HorizonMenuPublication"]
       },
       "apis": [
+        { "symbol": "LockAttempt", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "Mutex",
+          "kind": "struct",
+          "profile": "scoped-lock-carrier",
+          "members": [
+            { "symbol": "init", "profile": "scoped-lock-carrier" },
+            { "symbol": "withLock", "overloads": 2, "profile": "scoped-lock-sync" },
+            { "symbol": "tryWithLock", "overloads": 2, "profile": "scoped-lock-try" }
+          ]
+        },
+        {
+          "symbol": "AsyncMutex",
+          "kind": "struct",
+          "profile": "scoped-lock-carrier",
+          "members": [
+            { "symbol": "init", "profile": "scoped-lock-carrier" },
+            { "symbol": "withLock", "overloads": 2, "profile": "scoped-lock-async" },
+            { "symbol": "tryWithLock", "overloads": 2, "profile": "scoped-lock-try" }
+          ]
+        },
         {
           "symbol": "SnapshotCell",
           "kind": "struct",
@@ -2378,6 +2432,24 @@
       "kind": "symbol",
       "consumer": "reference/last-light/tensor_interop.w",
       "profile": "dlpack-export",
+      "status": "draft"
+    },
+    {
+      "id": "lm0-mutex",
+      "module": "std.sync",
+      "surface": "Mutex",
+      "kind": "symbol",
+      "consumer": "reference/last-light/synchronization.w",
+      "profile": "scoped-lock-carrier",
+      "status": "draft"
+    },
+    {
+      "id": "lm0-async-mutex",
+      "module": "std.sync",
+      "surface": "AsyncMutex",
+      "kind": "symbol",
+      "consumer": "reference/last-light/synchronization.w",
+      "profile": "scoped-lock-carrier",
       "status": "draft"
     },
     {
