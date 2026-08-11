@@ -1030,7 +1030,11 @@ de modelos permanecem missing.
 foram retiradas porque ausência, payload e ownership são eixos diferentes:
 `shared T?` é um handle opcional, enquanto `shared Option<T>` compartilha um
 payload opcional. A forma prefixa também permanece coerente com `ref`, `inout`,
-`weak` e `atomic`.
+`weak` e `view`.
+
+`atomic` pertence a outra categoria. `var atomic value: T` modifica o storage
+do binding e baixa para `Atomic<T>`. A forma `atomic T` foi rejeitada porque
+confundiria uma policy de acesso ao storage com a identidade de um owner.
 
 Um slot `shared<allocator: .name>` também foi retirado. O nome de um provider
 não identifica a instância, lifetime, mobility ou deallocator que originou o
@@ -4745,6 +4749,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1290 | labels callable uniformes | `name: T` é posicional em qualquer índice; `named name: T` exige label homônimo; `external internal: T` exige label distinto e `_ name: T` torna o label opcional; initializers e enum payloads permanecem record-like | labels inferidas pela posição, todos nomeados, reorder, ranking por tipo |
 | W-1291 | posição de ownership em parâmetro | labels e binding ficam antes de `:`; `ref`, `inout`, `take` e `const` iniciam o contrato à direita; `copy` fica somente no call site | `take value: T`, modifier como label, `copy` na assinatura ou duas ordens canônicas |
 | W-1292 | operação de ownership no call site | marker aparece quando a call opera sobre place existente; borrow já tipado e rvalue owned novo passam diretamente; receiver read-only permanece implícito | omitir sempre `ref`, marcar todo rvalue, borrow implícito de owner lvalue ou marker sem type/value category |
+| W-1293 | categorias das formas de memória | `shared T` e `weak T` são tipos de handle; `ref T`, `inout T` e `view T` são tipos dependentes; `take T` e `const T` são contratos; `atomic` modifica storage e baixa para `Atomic<T>` | `Shared<T>` público, `atomic T`, allocator no tipo shared ou tratar toda keyword como modifier equivalente |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
