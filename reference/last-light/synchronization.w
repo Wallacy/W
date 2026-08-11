@@ -327,3 +327,6 @@ test "a read mostly ledger keeps reads scoped and writes exclusive" {
 // snapshots.read((menu: ref PublishedMenu) => ref menu)
 // snapshots.publish(ref nextMenu)
 // copy snapshots
+// var atomic pointer: c.ptr<Menu> = rawMenu
+// var atomic pair: (u64, u64) = (0, 0)
+// var atomic owner: shared PublishedMenu = share(menu)

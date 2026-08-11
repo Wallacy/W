@@ -731,6 +731,7 @@ Aceite:
 - `+=` é uma read-modify-write checked;
 - `value = value + 1` é rejeitado como load e store separados;
 - `Bool`, integers e enums sem payload podem usar storage atomic;
+- pointer, owner, float, struct e palavra dupla não entram em `Atomic<T>` safe;
 - compare-exchange devolve `.exchanged` ou `.mismatch`;
 - success/failure seguem a matriz estática de `MemoryOrder`;
 - success de compare-exchange é RMW; failure é somente load;
