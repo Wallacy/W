@@ -4902,6 +4902,21 @@
     }
   },
   {
+    "type": "foreign_body",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "foreign_body_content",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "foreign_declaration",
     "named": true,
     "fields": {
@@ -5031,6 +5046,10 @@
         "types": [
           {
             "type": "block",
+            "named": true
+          },
+          {
+            "type": "foreign_body",
             "named": true
           }
         ]
@@ -11841,6 +11860,10 @@
             "named": false
           },
           {
+            "type": "const",
+            "named": false
+          },
+          {
             "type": "inout",
             "named": false
           },
@@ -13014,6 +13037,10 @@
   {
     "type": "foreign",
     "named": false
+  },
+  {
+    "type": "foreign_body_content",
+    "named": true
   },
   {
     "type": "from",

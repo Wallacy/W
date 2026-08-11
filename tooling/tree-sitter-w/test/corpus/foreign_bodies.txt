@@ -1,0 +1,197 @@
+==================
+C body is one opaque byte range
+==================
+
+unsafe fn<C> legacyChecksum(data: c.ptr<const c.uchar>, size: c.size): c.uint {
+  uint32_t hash = 2166136261u;
+  const char *marker = "} is not the W close";
+  /* Neither is this brace: } */
+  for (size_t i = 0; i < size; ++i) {
+    hash = (hash ^ data[i]) * 16777619u;
+  %>
+  return marker[0] == '}' ? hash : 0u;
+}
+
+---
+
+(source_file
+  (function_declaration
+    (language_tag
+      (identifier))
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)
+                  (type_identifier)))))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)
+        (type_identifier)))
+    (foreign_body
+      (foreign_body_content))))
+
+==================
+Language island requires an inline body
+==================
+
+protocol LegacyProbe {
+  unsafe fn<C> probe(status: c.int): c.int
+  fn close()
+}
+
+---
+
+(source_file
+  (protocol_declaration
+    (type_identifier)
+    (protocol_body
+      (ERROR
+        (language_tag
+          (identifier))
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)
+                (type_identifier)))))
+        (type
+          (type_name
+            (type_identifier)
+            (type_identifier))))
+      (function_declaration
+        (identifier)
+        (parameter_list)))))
+
+==================
+Labeled C adapter has the same opaque body
+==================
+
+unsafe fn<lang: .c> legacyStatus(status: c.int): c.int {
+  if (status < 0) {
+    return -1;
+  }
+  return status;
+}
+
+---
+
+(source_file
+  (function_declaration
+    (language_tag
+      (contextual_member_expression
+        (identifier)))
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)
+        (type_identifier)))
+    (foreign_body
+      (foreign_body_content))))
+
+==================
+Missing adapter still preserves a structural fallback
+==================
+
+unsafe fn<Rust> choose(ready: bool): i32 {
+  if ready { 1 } else { 0 }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (language_tag
+      (identifier))
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (foreign_body
+      (foreign_body_content))))
+
+==================
+Empty foreign body and ordinary W body stay distinct
+==================
+
+unsafe fn<C> empty(): void {}
+
+fn ordinary(): i32 {
+  return 1
+}
+
+---
+
+(source_file
+  (function_declaration
+    (language_tag
+      (identifier))
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (foreign_body))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (number_literal)))))
+
+==================
+Preprocessor text is preserved for semantic rejection
+==================
+
+unsafe fn<C> rejectedDirective(): c.int {
+#define OPEN {
+%:define CLOSE }
+  return 0;
+}
+
+---
+
+(source_file
+  (function_declaration
+    (language_tag
+      (identifier))
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)
+        (type_identifier)))
+    (foreign_body
+      (foreign_body_content))))

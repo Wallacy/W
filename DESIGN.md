@@ -1045,13 +1045,14 @@ top_level_declaration = export_list_declaration
 export_list_declaration = "export" "{" identifier
                           ("," identifier)* ","? "}" ";"? ;
 
-function_declaration = function_prefix "fn" foreign_contract?
-                       identifier generic_parameters? parameter_list
-                       return_clause? throws_clause? block? ";"? ;
+function_declaration = function_prefix "fn"
+                       (language_contract function_tail block
+                       | abi_contract? function_tail block? ";"?) ;
+function_tail = identifier generic_parameters? parameter_list
+                return_clause? throws_clause? ;
 function_prefix = "export"? "static"? "const"? "unsafe"?
                   receiver_modifier? "async"? ;
 receiver_modifier = "mut" | "take" ;
-foreign_contract = language_contract | abi_contract ;
 language_contract = "<" (identifier | "lang" ":" contextual_member)
                     ("," static_argument)* ","? ">" ;
 abi_contract = "<" "abi" ":" contextual_member ","? ">" ;
@@ -1101,8 +1102,9 @@ protocol_body = "{" protocol_member_declaration* "}" ;
 ```
 
 Um body de função é obrigatório no top-level, em `struct`, `object`, `service`,
-`enum`, `extension` e `behavior`. Somente um protocol requirement ou uma
-foreign signature pode omitir o body. Um semicolon pode tornar essa boundary
+`enum`, `extension` e `behavior`. Somente um protocol requirement W pode omitir
+o body. Uma ilha `fn<Language>` sempre contém body; um símbolo externo usa a
+declaração `foreign`. Um semicolon pode tornar a boundary de requirement
 explícita, mas o formatter o remove quando o parse não muda.
 
 `static` e o receiver modifier exigem contexto de member. `entry` e `test` não
@@ -21164,36 +21166,73 @@ linguagem completa.
 declarado no manifest e fixado no lock. O mesmo alias não pode resolver para
 adapters diferentes dentro do product.
 
-O parser W lê a assinatura e delimita o body. Ele preserva os bytes internos como
-source opaco. O adapter registrado faz lex, parse, type-check e code generation.
-O parser W nunca interpreta C, Rust ou outra linguagem como um subset W.
+**W-1233 — uma syntax de ilha:** `fn<Language>` contém somente body inline.
+Source separado pertence a um nó foreign-unit do build graph. O builder agrupa
+essas units internamente; W não adiciona uma syntax de unit nomeada nem faz um
+arquivo externo parecer um module W.
 
-O adapter também fornece um body scanner. O scanner encontra o delimitador final
-segundo as regras lexicais da linguagem externa. Ele não entrega sua AST ao
-parser W. Sem o adapter, a ferramenta preserva bytes, mas informa que não pode
-validar o fechamento da ilha.
+**W-1261 — um range opaco:** depois de ler a assinatura, o frontend produz um
+único `foreign_body` cujo filho `foreign_body_content` cobre os bytes entre as
+chaves externas. Espaços, comentários, CRLF e UTF-8 não são normalizados. O
+formatter pode alterar a assinatura e as chaves; ele copia o content sem
+interpretar ou reindentar. Um body `fn<Language>` nunca produz statements W.
 
-O builder agrupa as funções por:
+**W-1262 — scanner do adapter:** o adapter registrado delimita o body segundo
+seu profile lexical e devolve este record data-only:
 
-- adapter e versão de toolchain;
-- target, ABI e profile;
-- runtime e dependency graph;
-- compilation unit declarada.
+```text
+ForeignBodyScanRecord
+  adapterDigest, scannerDigest, scannerAbi, lexicalProfile
+  bodyStartByte, bodyEndByte, bodyDigest
+  maximumBodyBytes, maximumNesting, terminalState
+```
 
-O adapter gera uma declaration equivalente na linguagem de destino. Ele também
-gera uma façade com C ABI para cada símbolo W. O artefato preferido é uma static
-system library ou um conjunto de object files. O conteúdo não vira “C”. A façade
-somente usa a ABI C do target.
+O header, scanner e adapter vêm do lock. O recipe inclui seus digests e o digest
+dos bytes. O scanner recebe somente o slice de source e limits; não recebe
+filesystem, network, environment ou shell. Ele encontra o delimiter e os spans,
+mas o adapter continua responsável por lex, parse, type-check e code generation.
+Sua AST não entra no parser W.
 
-Essa diferença é importante para Rust. Um `staticlib` Rust inclui suas
-dependencies e partes do runtime. Várias `staticlib` Rust podem colidir. O
-builder agrupa ilhas Rust compatíveis em uma crate e uma unidade de link. A
-[Rust Reference](https://doc.rust-lang.org/reference/linkage.html) documenta
-essas propriedades.
+**W-1263 — primeiro profile C:** `C` e `.c` selecionam `c-inline-1`. O profile
+reconhece braces, strings, character literals, escapes e comentários de C. Ele
+exige UTF-8 sem NUL, reconhece os digraphs de brace `<%` e `%>`, e rejeita
+directive de preprocessor no início de uma linha lógica. Line splice fora de
+literal ou comment também é rejeitado porque mudaria tokens antes do scan.
+Headers, macros condicionais e source gerado pertencem a uma foreign
+unit separada; o inline body permanece pequeno e delimitável sem executar um
+preprocessor. Em `c.ptr<const c.uchar>`, o schema do carrier interpreta `const`
+como qualifier da pointee C. Em `name: const T`, o schema de parâmetro exige um
+argumento `ConstRepresentable` conforme W-548. Nenhum dos dois cria um tipo
+readonly geral `const T`; outro contexto é rejeitado semanticamente.
 
-Somente os símbolos da façade ficam visíveis. O builder gera nomes com package,
-module, function e contract digest. A link recipe usa export list ou mecanismo
-equivalente do target.
+**W-1264 — tooling não vira prova de build:** a projeção Tree-sitter usa um
+external scanner estrutural para criar o mesmo leaf opaco e uma injection C para
+highlight. Sem o adapter, ela pode preservar um range estrutural como
+`preservedUnvalidated`. Esse fallback ajuda edição e recovery, mas não pode
+publicar interface, object ou recipe. Uma syntax externa que o fallback não
+delimita permanece source intacto até o adapter fornecer scanner; o editor não
+inventa uma AST.
+
+**W-1265 — diagnostics no source W:** o adapter devolve offsets relativos ao
+content. O frontend soma `bodyStartByte`, valida o range e publica labels na
+posição original do arquivo W. Source maps posteriores preservam function
+identity, body digest e adapter digest. Um diagnostic fora do range é rejeitado.
+
+**W-1266 — failure e limits:** missing adapter, profile desconhecido, delimiter
+ausente, literal ou comentário incompleto, invalid UTF-8, NUL, nesting, bytes e
+digest divergente falham antes de code generation. Recovery editorial não
+consome source W depois do close comprovado. O formatter e fix-its nunca editam
+o content sem uma edit explícita do adapter. A família `W-FOREIGN-*` separa
+essas falhas: `W-FOREIGN-0001`–`0002` e
+`0007`–`0008` pertencem à fase `build`; `0003`–`0006` e `0009` pertencem a
+`source.validate`.
+
+Depois do scan, o builder agrupa os bodies por adapter/toolchain, target, ABI,
+profile, runtime e dependency graph. O adapter compila cada grupo em objects ou
+static system library e publica somente uma façade C ABI tipada. A recipe fixa
+nomes derivados de package, module, function e contract digest, além da export
+list do target. Um provider deve impedir colisão de runtime e símbolos ao formar
+o grupo; o source estrangeiro não vira C por conveniência.
 
 A fronteira aceita somente carriers com layout e ownership definidos:
 
@@ -21206,77 +21245,41 @@ A fronteira aceita somente carriers com layout e ownership definidos:
 | `throws E` | status e out value, ou result struct ABI |
 | callback | function pointer, context e destroy function |
 
-Rich W types não atravessam diretamente. O compiler gera wrappers W antes e
-depois da façade. Um borrow não vira owner. Um panic ou exception não atravessa
-a boundary sem um ABI e uma policy explícitos.
+Rich W types não atravessam diretamente. Wrappers W preservam ownership,
+lifetime, refinements e errors antes e depois da façade. Borrow não vira owner;
+output refinado é revalidado; panic ou exception precisa de ABI e policy
+explícitos.
 
-Um refinement usa o carrier do base type. Inputs já possuem a prova W. Outputs
-são validados antes de recuperar o refined type. Uma falha segue o error contract
-da wrapper.
+| Input fixado do adapter | Output verificado |
+|---|---|
+| body inline ou foreign source e seus digests | objects, archive ou artifact permitido |
+| assinatura reduzida aos carriers | symbol manifest e façade C tipada |
+| target, data layout, sysroot e capabilities | libraries nativas e requirements |
+| imports, flags, dependencies e policies | dependency digests e metadata de effects, ownership e concurrency |
+| symbol names e source-map request | diagnostics, source maps e provenance |
 
-Cada adapter recebe:
-
-- body inline ou source separado da aplicação;
-- assinatura W já reduzida a carriers suportados;
-- target triple, data layout, sysroot e capabilities;
-- imports, flags e dependencies fixados;
-- regra de panic, exception, blocking e callback;
-- symbol names e source map solicitados.
-
-O [guia de cross-compilation do Clang](https://clang.llvm.org/docs/CrossCompilation.html)
-mostra que target triple, sysroot, include paths e library paths não podem vir
-do host por acidente.
-
-O adapter devolve:
-
-- object files, static archive ou outro artefato permitido pelo target;
-- symbol manifest e libraries nativas exigidas;
-- diagnostics mapeados para o source W;
-- dependencies descobertas e seus digests;
-- metadata de effects, ownership e concurrency;
-- provenance completa da invocação.
-
-O recipe fixa todos esses inputs. O builder não executa um comando livre
-fornecido pelo package. Um adapter é uma tool target hermética e versionada.
-
-A linguagem externa não precisa usar LLVM ou MLIR. Ela precisa produzir um
-artefato compatível com o linker e a façade do target. Compartilhar LLVM pode
-habilitar link-time optimization. Isso não prova ABI, layout, runtime ou
-ownership. A
-[MLIR Dialect Conversion](https://mlir.llvm.org/docs/DialectConversion/)
-também exige conversões e regras de legalidade explícitas.
-
-O primeiro adapter é C. Rust, Zig, C++ e Fortran são candidatos naturais quando
-o toolchain gera objects para o mesmo target. JS, TypeScript e outras linguagens
-com runtime entram somente se um adapter AOT fornecer runtime e artefato
-herméticos.
-
-Python segue a mesma regra de adapter genérico. `fn<Python>` não é reservado e
-não é promessa de baseline. O adapter genérico permanece sem promessa e sem
-proibição. Um manifest pode resolver um adapter AOT quando ele
-entrega artifact hermético, façade C tipada, runtime e dependencies fixos, e
-diagnostics, effects e provenance verificáveis. CPython ordinário usa bridge,
-service ou fault boundary.
+Todos os inputs e outputs entram na recipe. Um adapter é uma tool target
+hermética e versionada; package nenhum fornece um shell command livre. Ele não
+precisa usar LLVM ou MLIR, mas precisa entregar artifacts compatíveis com o
+linker, a façade e as políticas do target.
 
 `fn<C>` e `fn<lang: .c>` são formas vigentes do mesmo slot opcional de
 frontend. O body dessa forma é sempre inline. O builder agrupa bodies
 compatíveis em foreign units internas; o source W não nomeia essas units.
 
-Um source externo separado entra como input de um nó foreign-unit do build
-graph da seção 21. Ele produz uma façade W tipada pela mesma boundary C e usa o
-mesmo adapter, lock, recipe e provenance. Ele não usa outra forma
-`fn<Language>`, não cria um module W extensível e não ganha syntax de
-compilation unit. Assim, migrar um arquivo legado inteiro e escrever uma ilha
-inline compartilham o adapter sem duplicar o sistema de módulos.
+Um source externo usa o mesmo adapter, lock, recipe, provenance e façade em um
+nó foreign-unit da seção 21. O adapter C é o primeiro provider obrigatório.
+Outros adapters ficam `missing` sem mudar a linguagem. Python ordinário usa
+bridge, service ou fault boundary; `fn<Python>` só existe quando um provider AOT
+hermético satisfaz este contrato.
 
-O adapter C é o primeiro provider obrigatório. Outros adapters podem ficar
-`missing` sem mudar a linguagem. Rust, Swift, Zig, C++ e Fortran usam a mesma
-façade C tipada quando um provider hermético está disponível.
-
-**W-1233 — uma syntax de ilha:** `fn<Language>` contém somente body inline.
-Source separado pertence ao build graph e foreign units são agrupamentos
-internos reproduzíveis. W não adiciona syntax de unit nomeada nem faz um arquivo
-externo parecer um module W.
+**W-1267 — evidence FB0:** 45 casos e 90 operações cobrem bytes exatos,
+nesting, strings, comments, CRLF, UTF-8, empty body, suffix W, alias `.c`, edit,
+source map, fallback, lock, digests e limits. São 15 casos aceitos, 28 rejeitados
+e duas informações; nove testes host não leem o snapshot. A gramática
+Tree-sitter possui corpus separado e scanner externo. Um dos 23 pares F0 prova
+que a assinatura muda sem alterar os bytes do body. Esses oracles não executam
+o frontend C, compiler W, formatter ou builder.
 
 ### 19.3 Targets de sistema e escapes controlados
 
@@ -27845,7 +27848,7 @@ evidência de design:
 
 | Artefato | Contrato corrente | Prova de design restante |
 |---|---|---|
-| grammar e formatter | G0–G5, CST lossless, recovery e F0 idempotente | cobrir cada construção normalizada e adicionar o scanner byte-preserving de bodies `fn<Language>`; a projeção Tree-sitter atual valida o contract e aceita somente body W-shaped ou placeholder |
+| grammar e formatter | G0–G5, CST lossless, recovery, F0 idempotente e FB0 para body estrangeiro opaco | cobrir cada construção normalizada e fuzzar edits, recovery e limits do external scanner; scanners de adapters além de C são providers, não novas regras W |
 | checker e diagnostics | S0 integra type, effects, ownership, flow e evaluation; D0 fixa record e causalidade | ligar cada regra a success, inversão e campo de falha exato |
 | std | módulos possuem declarations e profiles; providers executáveis continuam missing | materializar `TaskLocal` em `std.runtime.task`, `ThreadLocal` em `std.runtime.thread`, fechar carriers ausentes e validar cada superfície com outro consumer |
 | workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, sessão, notebook, dados e tensor interop | fechar import-root/dependency, rich display, DLPack real e latency gates |

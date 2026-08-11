@@ -2145,8 +2145,27 @@ implícito, release duplicada e ABI física derivada do layout.
 
 **Origem: 19.2 `fn<Language>`**
 
-**Alternativa:** um raw body com fence hash permite recovery sem adapter. O
-corpus deve comparar a forma braced com `#{...}#` antes do design freeze.
+**Alternativa:** um raw body com fence hash permitiria recovery sem conhecer a
+linguagem. Ele acrescentaria uma segunda delimiter syntax, ainda exigiria o
+adapter para validar o body e tornaria migração menos direta. W mantém braces e
+um scanner fixado no adapter. Source que precisa de preprocessor ou delimiter
+mais complexo usa uma foreign unit externa. O fence fica **Rejeitado**.
+
+A façade C é um carrier de link, não uma conversão do source para C. Um provider
+agrupa ilhas compatíveis para evitar runtimes e símbolos duplicados. Isso é
+especialmente importante para `staticlib` Rust, que pode incluir dependencies e
+partes do runtime, conforme a
+[Rust Reference](https://doc.rust-lang.org/reference/linkage.html). Compartilhar
+LLVM pode habilitar LTO, mas não prova ABI, layout, runtime ou ownership. A
+[MLIR Dialect Conversion](https://mlir.llvm.org/docs/DialectConversion/) exige
+conversões e regras de legalidade explícitas.
+
+Target triple, sysroot, include paths e libraries precisam ser inputs da recipe,
+nunca escolhas ambientais do host. O
+[guia de cross-compilation do Clang](https://clang.llvm.org/docs/CrossCompilation.html)
+mostra essa separação. C é o provider de bootstrap. Rust, Swift, Zig, C++,
+Fortran e adapters AOT de linguagens com runtime são candidatos, não promessas
+do core.
 
 **Origem: Performance e alternativas**
 
@@ -3004,10 +3023,15 @@ object-file retention e assembly text não bastam como promessa segura. W move
 esses facts para target manifest, host slot, product recipe ou adapter
 hermético.
 
-O parser canônico precisa preservar o body externo byte a byte e usar o scanner
-do adapter. A projeção Tree-sitter atual cobre o contract estático e representa
-o body somente quando ele é W-shaped ou um placeholder. Esse limite é tooling
-missing, não uma segunda semântica para `fn<Language>`.
+O parser canônico preserva o body externo byte a byte e usa o scanner do
+adapter. A projeção Tree-sitter materializa um leaf opaco com external scanner;
+somente o adapter fixado no lock fornece prova de build. A
+[documentação de external scanners do Tree-sitter](https://tree-sitter.github.io/tree-sitter/creating-parsers/4-external-scanners.html)
+explica state serializável, `mark_end` e precedência durante recovery. A
+[documentação de language injection](https://tree-sitter.github.io/tree-sitter/3-syntax-highlighting.html#language-injection)
+separa o range da árvore W da árvore usada apenas para highlight. Essas APIs
+suportam a projeção; elas não definem a semântica de W nem substituem o scanner
+hermético do adapter.
 
 Alternativas rejeitadas:
 
@@ -3818,7 +3842,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-752 | recovery sintático G0 | recovery insere somente delimiter/keyword exigida, preserva bytes em ERROR e usa MISSING zero-width; build rejeita árvore recuperada | inventar expression/identifier; compilar recovery tree; descartar bytes; formatter salvar reparo silencioso |
 | W-753 | grammar normativa G1 | EBNF de raízes, imports e declarations pertence ao design; source de módulo e manifest são documentos disjuntos | package inline; parser gerado como autoridade; manifest misturado com source executável |
 | W-754 | fase de imports | header precede imports e imports precedem declarations comuns; recovery não move imports | imports intercalados; import dentro de body; ordenação automática pelo formatter |
-| W-755 | body de função | função comum exige body; somente protocol requirement e foreign signature podem omitir body | prototype solto no top-level; body inferido; newline termina signature |
+| W-755 | body de função | função comum e ilha `fn<Language>` exigem body; somente protocol requirement W pode omiti-lo; símbolo externo usa `foreign` | prototype solto no top-level, ilha sem body, body inferido, newline termina signature |
 | W-756 | delimiters de configuração | `<...>` modifica contrato local nomeado; `{...}` define record completo e data-only de manifest | `package Name<...>`; body executável de manifest; delimiter escolhido somente por tamanho |
 | W-757 | grammar normativa G2 | EBNF de types, generic parameters, contract payloads, tuples, arrays e function types pertence ao design | grammar gerada como autoridade; type syntax somente em prosa; um parser por head |
 | W-758 | attachment de contrato | `<` toca o head em type, declaration e call; trivia antes do envelope é erro | `Array <T>`; whitespace muda apenas no generic call; formatter decide depois do parse |
@@ -4324,6 +4348,13 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1258 | gate e lifecycle | HIR/interface preservam allocation/place/access; overlapping concurrent access usa a mesma gate; unlock publica release/acquire; cancellation e drop drenam; sem poisoning ou cross-boundary | análise textual global, gate cruzar process, plain read disputar write, FIFO host como prova |
 | W-1259 | seleção lock-avoiding | owner/domain/service/atomic/barrier/SnapshotCell/channel precedem lock; RW lock e wrappers saem da safe std; adapter especializado exige target e benchmark | lock-first, RW universal, async mutex para task-owned state, read comum de atomic stale |
 | W-1260 | evidence LM1 | 39 casos/86 operações e 11 testes host derivam as três formas, busy sem body, cancellation, edges, reentry, boundary, drain e substituições; não executam W/provider | reciclar LM0 read/write, expected echo, chamar modelo de runtime/compiler |
+| W-1261 | body estrangeiro opaco | `foreign_body_content` preserva os bytes entre as chaves e nunca cria statements W; formatter copia o range | interpretar C como W, normalizar whitespace, AST foreign no CST W, fence paralelo |
+| W-1262 | scanner hermético | adapter/lock fixam scanner ABI, profile e digest; recipe liga scanner e body digest; scanner recebe bytes e limits | scanner ambiental, shell, filesystem, adapter sem lock, confiar no Tree-sitter para build |
+| W-1263 | inline C baseline | `c-inline-1` cobre tokens que afetam braces e restringe preprocessing; `const` é pointee C em `c.ptr` ou requisito de chamada W-548, nunca readonly type geral | preprocessor completo inline, macro condicionado como delimiter, `const T` nativo, C subset W |
+| W-1264 | fallback editorial | external scanner Tree-sitter e injection preservam range; missing adapter produz `preservedUnvalidated`, nunca object | fallback virar build evidence, parser dinâmico universal, body W-shaped, reescrita do editor |
+| W-1265 | source map estrangeiro | offsets do adapter são relativos ao content e validados antes de mapear ao arquivo W | span fora do body, line/column sem bytes, diagnostic sem adapter/body digest |
+| W-1266 | failure bounded | encoding, delimiters, lexical terminal, nesting, bytes e digests falham antes de codegen; recovery não engole suffix W | scan unbounded, truncation silenciosa, fix-it dentro do body sem adapter, aceitar NUL |
+| W-1267 | evidence FB0 | 45 casos/90 operações, 9 testes host, corpus Tree-sitter e um par F0 byte-preserving cobrem scanner/body/recipe sem executar adapter ou formatter | snapshot como implementação, expected echo, alegar frontend C ou formatter prontos |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

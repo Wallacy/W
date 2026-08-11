@@ -43,6 +43,7 @@ const corpusFiles = [
   "tabular-adapter-cases.json",
   "dlpack-cases.json",
   "device-execution-cases.json",
+  "foreign-body-cases.json",
 ];
 const categories = new Set([
   "semantic-contract",

@@ -119,6 +119,32 @@ for (const [index, testCase] of corpus.cases.entries()) {
     fail(`${testCase.id} output needs exactly one final newline`)
   }
 
+  const opaqueForeignBodies = testCase.opaqueForeignBodies ?? []
+  if (!Array.isArray(opaqueForeignBodies)) {
+    fail(`${testCase.id} opaqueForeignBodies is not an array`)
+  }
+  const opaqueRanges = []
+  for (const [bodyIndex, body] of opaqueForeignBodies.entries()) {
+    if (typeof body !== "string" || body.length === 0) {
+      fail(`${testCase.id} opaque foreign body ${bodyIndex} is empty or invalid`)
+    }
+    const wrapped = `{${body}}`
+    const inputStart = input.indexOf(wrapped)
+    const outputStart = output.indexOf(wrapped)
+    if (
+      inputStart < 0 ||
+      outputStart < 0 ||
+      input.indexOf(wrapped, inputStart + 1) >= 0 ||
+      output.indexOf(wrapped, outputStart + 1) >= 0
+    ) {
+      fail(`${testCase.id} does not preserve opaque foreign body ${bodyIndex} exactly once`)
+    }
+    opaqueRanges.push({
+      start: outputStart + 1,
+      end: outputStart + 1 + body.length,
+    })
+  }
+
   for (const [lineIndex, line] of testCase.output.entries()) {
     if (/[ \t]$/.test(line)) {
       fail(`${testCase.id} line ${lineIndex + 1} has trailing whitespace`)
@@ -142,7 +168,11 @@ for (const [index, testCase] of corpus.cases.entries()) {
 
   const mutations = []
   for (const [mutationIndex, marker] of testCase.requiredSemicolons.entries()) {
-    if (marker.role !== "statement-boundary" && marker.role !== "repeat-array") {
+    if (
+      marker.role !== "statement-boundary" &&
+      marker.role !== "repeat-array" &&
+      marker.role !== "foreign-body"
+    ) {
       fail(`${testCase.id} has an unknown semicolon role`)
     }
     const needle = `${marker.after};`
@@ -151,6 +181,16 @@ for (const [index, testCase] of corpus.cases.entries()) {
       fail(`${testCase.id} semicolon selector ${JSON.stringify(marker.after)} is not unique`)
     }
     const semicolon = first + marker.after.length
+    const insideOpaqueBody = opaqueRanges.some(
+      (range) => semicolon >= range.start && semicolon < range.end,
+    )
+    if (marker.role === "foreign-body" && !insideOpaqueBody) {
+      fail(`${testCase.id} marks a non-opaque semicolon as foreign-body`)
+    }
+    if (marker.role !== "foreign-body" && insideOpaqueBody) {
+      fail(`${testCase.id} treats an opaque foreign semicolon as W syntax`)
+    }
+    if (marker.role === "foreign-body") continue
     mutations.push({
       id: `${testCase.id}-without-semicolon-${mutationIndex}`,
       source: `${output.slice(0, semicolon)}${output.slice(semicolon + 1)}`,
@@ -193,7 +233,13 @@ for (const [index, testCase] of corpus.cases.entries()) {
     ],
     root: null,
   })
-  prepared.push({ id: testCase.id, input, output, mutations })
+  prepared.push({
+    id: testCase.id,
+    input,
+    output,
+    mutations,
+    semicolonCount: testCase.requiredSemicolons.length,
+  })
 }
 
 const expectedSnapshot = `${diagnostics.map((record) => JSON.stringify(record)).join("\n")}\n`
@@ -281,5 +327,5 @@ try {
 }
 
 console.log(
-  `Formatter cases: ${prepared.length} CST-preserving pairs, ${prepared.reduce((count, item) => count + item.mutations.length, 0)} required semicolons, ${diagnostics.length} D0 snapshots.`,
+  `Formatter cases: ${prepared.length} CST-preserving pairs, ${prepared.reduce((count, item) => count + item.semicolonCount, 0)} classified semicolons, ${prepared.reduce((count, item) => count + item.mutations.length, 0)} syntax mutations, ${diagnostics.length} D0 snapshots.`,
 )

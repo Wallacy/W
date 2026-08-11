@@ -49,7 +49,12 @@ export object AromaProbeDevice {
 
 // W-1233: inline body; the builder owns the reproducible foreign-unit grouping.
 unsafe fn<C> legacyProbeStatus(status: c.int): c.int {
-  return status;
+  const char *closing_brace_note = "}";
+  /* This brace belongs to a C comment, not to the W module: } */
+  if (status < 0) {
+    return status;
+  }
+  return closing_brace_note[0] == '}' ? status : -1;
 }
 
 export service aromaProbe: AromaProbeApi {
