@@ -179,6 +179,17 @@ unsafe fn<lang: .c> namedChecksum(data: c.ptr<c.uchar>): c.uint {
   return unsafe { c_checksum(data) }
 }
 
+unsafe fn<Asm,
+  targets: [.aarch64],
+  clobbers: [],
+  memory: .none,
+  stack: .preserved,
+  unwind: .never,
+  volatile: true,
+> readCycleCounter(): u64 {
+  // Opaque Asm body: mrs x0, cntvct_el0
+}
+
 async fn prepare(): Dish {
   async let stock = fetchStock()
   spawn<.compute> let plan = calculatePlan()
@@ -290,6 +301,46 @@ entry LastLight(run)
                 (argument_list
                   (argument
                     (identifier))))))))))
+  (function_declaration
+    (language_tag
+      (identifier)
+      (type_argument
+        (identifier)
+        (static_argument_value
+          (static_array_literal
+            (static_argument_value
+              (contextual_member_expression
+                (identifier))))))
+      (type_argument
+        (identifier)
+        (static_argument_value
+          (static_array_literal)))
+      (type_argument
+        (identifier)
+        (static_argument_value
+          (contextual_member_expression
+            (identifier))))
+      (type_argument
+        (identifier)
+        (static_argument_value
+          (contextual_member_expression
+            (identifier))))
+      (type_argument
+        (identifier)
+        (static_argument_value
+          (contextual_member_expression
+            (identifier))))
+      (type_argument
+        (identifier)
+        (static_argument_value
+          (boolean_literal))))
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (comment)))
   (function_declaration
     (identifier)
     (parameter_list)

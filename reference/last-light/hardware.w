@@ -47,6 +47,7 @@ export object AromaProbeDevice {
   }
 }
 
+// W-1233: inline body; the builder owns the reproducible foreign-unit grouping.
 unsafe fn<C> legacyProbeStatus(status: c.int): c.int {
   return status;
 }

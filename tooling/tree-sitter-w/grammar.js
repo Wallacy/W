@@ -334,6 +334,8 @@ module.exports = grammar({
           field("language", $.identifier),
           seq("lang", ":", field("language", $.contextual_member_expression)),
         ),
+        repeat(seq(",", field("option", $.type_argument))),
+        optional(","),
         ">",
       ),
 

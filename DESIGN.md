@@ -1046,9 +1046,10 @@ function_declaration = function_prefix "fn" foreign_contract?
 function_prefix = "export"? "static"? "const"? "unsafe"?
                   receiver_modifier? "async"? ;
 receiver_modifier = "mut" | "take" ;
-foreign_contract = "<" identifier ">"
-                 | "<" "lang" ":" contextual_member ","? ">"
-                 | "<" "abi" ":" contextual_member ","? ">" ;
+foreign_contract = language_contract | abi_contract ;
+language_contract = "<" (identifier | "lang" ":" contextual_member)
+                    ("," static_argument)* ","? ">" ;
+abi_contract = "<" "abi" ":" contextual_member ","? ">" ;
 return_clause = ":" type ;
 throws_clause = "throws" type ;
 
@@ -1118,6 +1119,7 @@ O parser resolve estas sequências sem type information:
 | `entry(run)` | descriptor default com handler |
 | `entry Diagnostics {}` | descriptor nomeado com body |
 | `fn<C> close()` | função foreign inline na linguagem C |
+| `fn<Asm, memory: .none> read()` | ilha assembly com slots do adapter |
 | `fn close<T>()` | função W com parâmetro de tipo |
 | `const fn digest()` | função W avaliável em compile time |
 | `const digest = value` | const declaration |
@@ -9217,6 +9219,20 @@ let (a, b) = try await (local, remote)
 Uma call por function value segue o mesmo resumo: se `worker` tem type
 `fn(A): B` com `suspension: may`, `worker(value)` exige uma das quatro formas.
 O resumo não desaparece quando o nome concreto é indireto.
+
+Uma operação genérica scoped pode publicar
+`suspension: forwards(operation)` quando o verifier prova que a callable não
+escapa, executa na task corrente e é a única fonte variável de suspensão. O
+resumo da instância é `never` quando a callable é `neverSuspend` e `may` quando
+ela é `maySuspend`. A interface guarda essa dependência; não cria uma annotation
+no source, uma task ou uma espera blocking. Uma implementação que armazena a
+callable, muda de execution domain ou adiciona outro suspension point perde essa
+forma e publica `may`.
+
+**W-1240 — forwarding de suspensão:** higher-order scopes verificados podem
+propagar o efeito de suspensão de uma callable sem duplicar APIs síncrona e
+assíncrona. O call site continua distinguindo call direta de `await`, e uma
+mudança do resumo público continua sujeita à regra breaking desta subseção.
 
 `await` em callable `neverSuspend` pode produzir uma informação removível. Ele
 não altera o resultado. Não existe call-site `sync` genérico. A espera blocking
@@ -21177,9 +21193,24 @@ diagnostics, effects e provenance verificáveis. CPython ordinário usa bridge,
 service ou fault boundary.
 
 `fn<C>` e `fn<lang: .c>` são formas vigentes do mesmo slot opcional de
-frontend. Source separado e compilation units nomeadas são **Provável** depois
-do adapter C inline. Rust, Swift, Zig, C++ e Fortran usam a mesma façade C
-tipada e um artifact hermético por adapter.
+frontend. O body dessa forma é sempre inline. O builder agrupa bodies
+compatíveis em foreign units internas; o source W não nomeia essas units.
+
+Um source externo separado entra como input de um nó foreign-unit do build
+graph da seção 21. Ele produz uma façade W tipada pela mesma boundary C e usa o
+mesmo adapter, lock, recipe e provenance. Ele não usa outra forma
+`fn<Language>`, não cria um module W extensível e não ganha syntax de
+compilation unit. Assim, migrar um arquivo legado inteiro e escrever uma ilha
+inline compartilham o adapter sem duplicar o sistema de módulos.
+
+O adapter C é o primeiro provider obrigatório. Outros adapters podem ficar
+`missing` sem mudar a linguagem. Rust, Swift, Zig, C++ e Fortran usam a mesma
+façade C tipada quando um provider hermético está disponível.
+
+**W-1233 — uma syntax de ilha:** `fn<Language>` contém somente body inline.
+Source separado pertence ao build graph e foreign units são agrupamentos
+internos reproduzíveis. W não adiciona syntax de unit nomeada nem faz um arquivo
+externo parecer um module W.
 
 ### 19.3 Targets de sistema e escapes controlados
 
@@ -21189,24 +21220,24 @@ um modifier geral de variável:
 ```w
 fn sampleStatus(device: ref DeviceContext): u32 throws DeviceError {
   let status: MmioRegister<u32, access: .readOnly> =
-    try device.register(named: .horizonStatus)
+    try device.mmio.register(named: .horizonStatus)
   return status.load()
 }
 ```
 
-W precisa substituir C em código de sistema sem transformar detalhes de target
-em semântica comum. A baseline fecha estas rotas:
+W substitui C em código de sistema sem transformar detalhes de target em
+semântica comum. Cada escape possui uma authority e um lugar único:
 
-| Necessidade | Forma W | Estado |
+| Necessidade | Forma corrente | Authority |
 |---|---|---|
-| volatile e MMIO | register tipado criado por `DeviceContext` | **Provável** |
-| interrupt | host slot com effect envelope fixo | **Provável** |
-| task-local context | `TaskLocal<T>.withValue` com lifetime estruturado | **Provável** |
-| native thread-local | `ThreadLocal<T>` sem uso através de `await` | **Provável** |
-| linker section e retain | placement data-only no product | **Provável** |
-| symbol e calling convention | `export foreign` e symbol manifest | **Possível agora** |
-| inline assembly | `unsafe fn<Asm>` com target e clobbers | **Provável** |
-| compiler intrinsic | `foreign intrinsic from "provider@major"` interno da std | **Possível agora** |
+| volatile e MMIO | `MmioRegister<T, access>` | `DeviceContext` + target manifest |
+| interrupt | handler ligado a host slot | host profile + product binding |
+| contexto de task | `TaskLocal<T>.withValue` | task scope estruturado |
+| estado de thread nativa | `ThreadLocal<T>.read/write` | native-thread profile |
+| section, address e retain | `linkPlacements` data-only | product target variant |
+| symbol e calling convention | `export foreign` + symbol manifest | ABI adapter |
+| assembly | `unsafe fn<Asm>` | target adapter hermético |
+| compiler intrinsic | `foreign intrinsic from "provider@major"` | SDK manifest |
 
 #### 19.3.1 Intrinsics internos do SDK
 
@@ -21274,38 +21305,144 @@ o ID, a signature ou o corpus de conformidade. A comparação de stages inclui o
 manifest intrinsic e seus digests.
 
 Uma interface intrinsic fechada permite parse, type-check e catálogo do source
-da std mesmo quando o provider executável ainda está ausente. Um build que
-precisa baixar a operação ainda falha antes do lowering. Catálogo e diagnostics
-mantêm estados separados para `draft interface` e `provider available`; o
-primeiro nunca alega que o algoritmo ou runtime já existe.
+da std quando o provider executável está ausente. Um build alcançável ainda
+falha antes do lowering. Catálogo e diagnostics separam `draft interface` de
+`provider available`; o primeiro nunca alega implementação.
 
-`MmioRegister<T, access: A>` aceita somente carriers inteiros, fixed arrays ou
-structs de layout explícito aceitos pelo target. `load` e `store` executam
-acessos volatile. Eles não criam atomicidade, synchronization ou cache
-coherence. Um register pode exigir uma device barrier no próprio protocol.
-
-O SDK possui uma primitive `unsafe volatile.load/store` para implementar
-registers. Código comum não importa essa primitive. Memória mapeada recebe
-provenance, bounds, access mode e device lifetime do host. Um endereço inteiro
-não cria um register.
-
-`TaskLocal<T>` propaga um immutable value para children estruturados. O scope
-restaura o valor anterior depois de success, error ou cancellation:
+#### 19.3.2 MMIO tipado
 
 ```w
-return try await requestId.withValue(id) {
-  try await serve(request)
-}
+let status: MmioRegister<u32, access: .readOnly> =
+  try device.mmio.register(named: .horizonStatus)
+let bits = status.load()
 ```
 
-`ThreadLocal<T>` pertence a native threads. Seu accessor recebe uma closure
-síncrona. O compiler rejeita borrow, guard ou reference thread-local viva em um
-`await`. Affinity exige um execution domain ou host slot, não TLS.
+`MmioRegister<T, access: A>` aceita integers, fixed arrays e structs de layout
+explícito aprovados pelo target. O target manifest fixa:
 
-Um interrupt slot declara se permite allocation, blocking, panic, floating
-point e nested interrupt. O adapter executa somente a primitive permitida ou
-enfileira um event bounded para um domain. Signal POSIX, hardware interrupt e
-task cancellation permanecem contracts diferentes.
+- address space, offset, extent, alignment e access width;
+- carrier, layout, endianness e access mode;
+- read-clear, write-one-to-clear e outros side effects do register;
+- device lifetime e ordering exigida por um acesso isolado.
+
+`DeviceContext.mmio.register(named:)` valida esse record e cunha provenance.
+Um integer não cria register. `load` existe para `.readOnly` e `.readWrite`;
+`store` existe para `.writeOnly` e `.readWrite`. O SDK não oferece um
+read-modify-write genérico, pois ler ou reescrever pode ter side effect. Um
+device schema pode gerar uma operação mais estreita quando o hardware a define.
+
+Cada `load` ou `store` preserva o número, width e ordem dos acessos volatile
+exigidos pelo schema. `volatile` não cria atomicidade, happens-before, cache
+coherence ou ordering com memória comum. Uma ordem entre registers, DMA e RAM
+usa a device barrier explícita do SDK. A primitive raw de volatile fica
+`unsafe` e interna ao platform SDK.
+
+**W-1234 — MMIO por capability:** source safe obtém register somente de
+`DeviceContext` e target metadata verificada. A API expõe apenas operações
+válidas para o access mode e não transforma volatile em modifier geral,
+atomicidade ou synchronization.
+
+#### 19.3.3 Interrupts como host slots
+
+```w
+hostBindings: [
+  { slot: "device.interrupt", handler: "controller_app::interrupt" },
+]
+```
+
+O product liga um handler ao slot versionado do host profile com
+`hostBindings`. O slot fixa ABI, signature, priority, nesting, payload, context,
+effect envelope, budget, acknowledgement e fault policy. O linker rejeita
+handler incompatível antes de produzir o image.
+
+Um handler direto é `neverSuspend`, nonthrowing e não faz allocation, blocking,
+panic, unwind ou floating-point por default. O analyzer exige que seus effects
+sejam um subset do slot. O profile também declara se o host ou o handler possui
+acknowledgement e end-of-interrupt; nunca existem dois owners dessa obrigação.
+
+Quando o trabalho exige `await`, allocation ou blocking, o adapter executa uma
+shim mínima e publica um event em uma fila bounded de um execution domain. O
+slot define overflow e mask policy. O event começa outra task estruturada; o raw
+interrupt frame não suspende. State acessível pelo handler precisa ser
+interrupt-owned, atomic ou protegido por uma regra de preemption do host que o
+verifier reconhece.
+
+Hardware interrupt, POSIX signal, console event e task cancellation continuam
+contratos diferentes. Um nome comum não permite converter entre eles.
+
+**W-1235 — interrupt verificado:** interrupts entram por host slot data-only.
+Effect envelope, budget, acknowledgement, preemption e overflow são facts do
+profile; não são annotations livres nem pressupostos do body.
+
+#### 19.3.4 Contexto de task e storage de thread
+
+`std.runtime.task.TaskLocal<T>` mantém metadata imutável ao longo da árvore
+estruturada. `T` precisa ser `shareable`. `withValue` usa o parâmetro por valor normal: `Copy`
+copia e um owner non-Copy move no último uso. A key não cria `shared`, retain ou
+copy ocultos.
+
+```w
+struct Trace {
+  const requestId = TaskLocal<OrderId?>.key(default: .none)
+}
+
+return try await Trace.requestId.withValue(
+  .some(id),
+  operation: () => try await serve(request),
+)
+```
+
+`key` é `static const fn` e só inicializa um module const ou associated const
+nomeado. A identidade vem do symbol da declaração e de `T`, não do default, de
+um endereço ou da ordem de initialization. `Trace.requestId` é um descriptor;
+não existe mutable type storage ou registry runtime. `withValue` usa o
+forwarding de W-1240: uma operation `neverSuspend`
+permite call direta; uma operation `maySuspend` exige `await`. O método não cria
+outra task e invoca a operation uma vez na task corrente. Os bindings vivem no
+task frame. `get()` devolve um `ref T` ligado ao binding corrente. Children
+criados dentro do scope herdam o binding, inclusive por `async let`, task group
+ou `spawn<domain>`. O binding permanece vivo até todos esses children drenarem.
+Success, error, cancellation e panic boundary restauram o binding anterior em
+ordem LIFO.
+
+Service call, wire call, device launch, foreign callback e novo host entry não
+herdam o valor; essas boundaries exigem parâmetro ou metadata explícita.
+Task-local serve a trace e configuração, não a authority escondida.
+
+**W-1236 — task-local estruturado:** binding imutável acompanha somente a árvore
+de tasks e usa as mesmas provas de ownership, shareability e cleanup. Ele não é
+um mapa ambiental, não cruza boundaries e não altera o resultado lógico por
+convenção.
+
+`std.runtime.thread.ThreadLocal<T>` pertence à thread nativa, não à task, lane,
+service ou domain. A safe std aceita somente initial value compile-time,
+`T: Copy` e nenhum drop obligation. Isso elimina lazy allocation, reentrância
+de destructor e cleanup best-effort do caminho portátil.
+
+```w
+struct NativeCounters {
+  const samples = ThreadLocal<u64>.key(initial: 0)
+}
+
+return NativeCounters.samples.write((count: inout u64) => {
+  count += 1
+  return count
+})
+```
+
+`key` também produz um associated const descriptor; o native-thread provider
+possui o storage por thread. `read` e `write` recebem closures `neverSuspend`.
+Nenhum `ref`, `inout`, guard ou dependent value pode escapar da closure ou
+permanecer vivo em `await`. Target sem native TLS informa unavailability antes
+do lowering; o provider não troca thread identity por fiber identity em
+silêncio. State com cleanup ou lifecycle usa execution domain, service ou
+adapter de host explícito.
+
+**W-1237 — TLS estreito e determinístico:** `ThreadLocal<T>` safe cobre values
+`Copy` sem drop e acesso síncrono scoped. W não depende de destructor TLS
+best-effort para cumprir a promessa de memória automática.
+
+#### 19.3.5 Linker placement no product
 
 Linker placement pertence ao product e à target variant:
 
@@ -21316,27 +21453,59 @@ linkPlacements: [
 ]
 ```
 
-O linker verifica overlap, alignment, visibility, mutability e target. Um
-module import não muda section. Source comum não usa annotation de linker.
+O record fixa symbol identity, target, section ou address, alignment,
+visibility, mutability e retain policy. Data placed possui layout explícito e
+não depende de runtime initializer ou deinit. Functions placed preservam ABI e
+calling convention declaradas. Um import não muda placement.
 
-Inline assembly usa o mesmo modelo de ilha de linguagem:
+O linker valida overlap e suporte do target. `retain` cria uma root na receita
+do linker e precisa aparecer no symbol manifest do payload final; manter o item
+somente no object file não satisfaz o contrato. A recipe registra linker,
+script, target spec e placement digest.
+
+**W-1238 — placement data-only:** section, address e retention são decisões do
+product, verificadas no payload final. W não usa source annotation comum nem
+aceita flag livre do linker como prova.
+
+#### 19.3.6 Assembly como ilha unsafe
 
 ```w
-unsafe fn<Asm, targets: [.aarch64], clobbers: [.conditionCodes]>
+unsafe fn<Asm,
+  targets: [.aarch64],
+  clobbers: [],
+  memory: .none,
+  stack: .preserved,
+  unwind: .never,
+  volatile: true,
+>
 readCycleCounter(): u64 {
   mrs x0, cntvct_el0
 }
 ```
 
-A assinatura tipa operands e return. O contract declara targets, clobbers,
-memory effect, unwind e volatility. `Asm` não pode ocultar uma call, acessar
-stack fora do contract ou supor register não declarado. O adapter gera source
-map e object provenance. W não oferece naked function na baseline.
+A signature tipa inputs e output segundo a target ABI. O adapter fornece o
+wrapper, prologue e return; o body contém somente as instructions da ilha. O
+static contract fixa targets, dialect, clobbers, memory effect, stack, unwind e
+volatility. `volatile: true` preserva a invocation, mas não cria uma memory
+barrier ou synchronization.
+
+O target adapter parseia a assembly e verifica instructions, reserved
+registers, clobbers e constraints. A ilha é `neverSuspend`, nonthrowing, não
+chama outra função, não modifica stack pointer fora do contract e não faz
+unwind. W não oferece naked function na baseline. Uma necessidade incompatível
+usa façade foreign ou platform intrinsic com contrato próprio.
+
+**W-1239 — assembly fechada:** `unsafe fn<Asm>` é a única superfície comum de
+assembly. Operands vêm da signature; todo state não representado nela aparece
+no static contract. O backend não infere correctness do texto opaco.
 
 C varargs continuam em `c.vaList` ou wrapper tipado. C bitfields, flexible
 arrays e unions exigem importer override ou façade. `setjmp`/`longjmp` não
 atravessam um W frame. Uma foreign exception ou unwind que alcance W é fault de
 boundary, salvo quando o ABI adapter fornece um contrato específico.
+
+Evidência comparativa e alternativas rejeitadas ficam em
+[`RATIONALE.md` §1.20](RATIONALE.md#120-escapes-de-sistema-e-fronteiras-de-target).
 
 ## 20. Compilador e bootstrap
 
@@ -27612,11 +27781,11 @@ evidência de design:
 
 | Artefato | Contrato corrente | Prova de design restante |
 |---|---|---|
-| grammar e formatter | G0–G5, CST lossless, recovery e F0 idempotente | cobrir cada construção normalizada e cada boundary preservada |
+| grammar e formatter | G0–G5, CST lossless, recovery e F0 idempotente | cobrir cada construção normalizada e adicionar o scanner byte-preserving de bodies `fn<Language>`; a projeção Tree-sitter atual valida o contract e aceita somente body W-shaped ou placeholder |
 | checker e diagnostics | S0 integra type, effects, ownership, flow e evaluation; D0 fixa record e causalidade | ligar cada regra a success, inversão e campo de falha exato |
-| std | módulos possuem declarations e profiles; providers executáveis continuam missing | fechar carriers ausentes e validar cada superfície com outro consumer |
+| std | módulos possuem declarations e profiles; providers executáveis continuam missing | materializar `TaskLocal` em `std.runtime.task`, `ThreadLocal` em `std.runtime.thread`, fechar carriers ausentes e validar cada superfície com outro consumer |
 | workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, sessão, notebook, dados e tensor interop | fechar import-root/dependency, rich display, DLPack real e latency gates |
-| targets e host profiles | target facts e availability não mudam a semântica comum | fixar manifest e conformance mínima de cada target prometido |
+| targets e host profiles | target facts e availability não mudam a semântica comum; escapes de sistema têm authority única | fixar manifests e conformance de MMIO, interrupt, TLS, placement e assembly por target prometido |
 | ABI e metadata | L0 e WMeta fixam layout, container e readers de evidence | ligar wrappers ELF, Mach-O, COFF e Wasm ao container comum |
 | services, wire e recovery | B0 e SR0 fecham turn, gates, queue bounded, deduplication, recovery e faults; wWire tem baseline | fechar wire byte-exact, flow control e adapters reais com fault injection |
 | packages e releases | P0 fecha resolver, lock, CAS, recipe, mirror e rebuild | fechar prerelease, trust, archive safety e rebuild independente |
@@ -28056,7 +28225,7 @@ antes de sair do scope.
 - `concurrentMap`/`parallelMap` bounded;
 - admission avalia staging uma vez, reserva antes do publish e limpa uma vez;
 - blocking adapter, drain e callback scheduling;
-- `TaskLocal<T>` estruturado e `ThreadLocal<T>` com accessor síncrono;
+- `TaskLocal<T>` estruturado e `ThreadLocal<T>` restrito a `Copy` sem drop;
 - locks escopados, dispatch de barreira e topology types bounded;
 - provider e benchmark de lazy concorrente e atomic wait/notify;
 - protótipo separado para barreira cíclica;
