@@ -859,7 +859,7 @@ O modelo não compila ou executa W e não promete CLI, runtime ou provider.
 
 PYN3 fecha kernel Jupyter, counters, `presentation.Presentable` e export
 reproduzível em [24.1.4](DESIGN.md#2414-apresentação-jupyter-e-export-de-notebooks).
-DLPack permanece um adapter T2 separado. PYN2 registra somente output bounded
+DLPack permanece um adapter científico separado. PYN2 registra somente output bounded
 e receipts necessários ao session core.
 
 As fontes comparativas Python/codeop, IPython autoreload, Julia world age, Pluto
@@ -876,7 +876,8 @@ review, sem IDs de ledger artificiais para bookkeeping, status ou tooling.
 [`tooling/dlpack-results.snapshot.jsonl`](tooling/dlpack-results.snapshot.jsonl)
 e [`tooling/dlpack-reference.test.mjs`](tooling/dlpack-reference.test.mjs).
 
-PYN4 fecha dois módulos T2 draft e mantém `std.tensor@1` e `std.dlpack@1`
+PYN4 fecha os drafts de `std.tensor` e `std.dlpack` e mantém
+`std.tensor@1` e `std.dlpack@1`
 missing. A baseline é DLPack 1.3 versioned, trusted in-process, com release
 exact-once, capsule one-shot, queue/device identity provider-scoped, transfer
 explícito, lease Python bounded e semântica de zero-copy sem cópia de payload.
@@ -3051,13 +3052,13 @@ A superfície vigente usa `WorkKeyRef.start`/`tryStart`, `work.step`,
 `waitUntil` bounded continuam candidatos. `spawn<owner: ...>`, detach por drop,
 call one-way, actor reentrant e persistência automática de frame não entram.
 
-### 1.18 Evidência de device scopes DEV0
+### 1.18 Evidência de síntese KM0 e device scopes DEV0
 
 DEV0 mantém launch de accelerator sob as quatro formas de execução do W. A
 comparação não escolhe um backend como semântica da linguagem:
 
 - o [MLIR GPU dialect](https://mlir.llvm.org/docs/Dialects/GPU/) separa module,
-  launch, memory spaces e async tokens;
+  function, binary/offloading, launch, memory spaces e async tokens;
 - o [MLIR Async dialect](https://mlir.llvm.org/docs/Dialects/AsyncDialect/)
   explicita dependencies e permite execução física sequencial;
 - o [CUDA Programming Guide — asynchronous execution](https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/asynchronous-execution.html)
@@ -3069,10 +3070,23 @@ comparação não escolhe um backend como semântica da linguagem:
   [Python Array API exchange](https://dmlc.github.io/dlpack/latest/python_spec.html)
   tornam device, stream handoff e copy policy observáveis.
 
+KM0 fecha a etapa anterior ao launch. O
+[SPIR-V](https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html) modela
+modules com entry points estáticos, call trees, execution environment e
+specialization constants. O
+[CUDA Programming Guide](https://docs.nvidia.com/cuda/cuda-programming-guide/)
+mantém a configuração de execução explícita no launch. O
+[WGSL](https://gpuweb.github.io/gpuweb/wgsl/) liga pipeline e entry point e
+valida o código alcançável por esse entry point. A metadata de
+[AMDGPU code objects](https://llvm.org/docs/AMDGPUUsage.html) confirma que o
+artifact precisa registrar facts específicos do target.
+
 Essas fontes sustentam a separação entre dependência lógica e schedule físico.
 Elas não autorizam W a copiar a API ou a promessa de liveness de um provider.
-DEV0 mede a projeção comum: owner, loan, queue, receipt, completion, cleanup e
-outcome.
+KM0 usa esses fatos para famílias estáticas, especializações finitas e artifacts
+target-specific. DEV0 mede a projeção runtime comum: owner, loan, queue,
+receipt, completion, cleanup e outcome. Nenhuma fonte autoriza registry runtime,
+JIT implícito ou transfer escondida.
 
 Alternativas rejeitadas:
 
@@ -4466,7 +4480,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1215 | queue e happens-before | provider cunha submit/completion receipts; dependencies vêm de owners/loans/results/waits; cross-queue exige handoff explícito | caller `ready`, ordem global implícita, queue order como ownership ou host visibility |
 | W-1216 | fault e generation | device loss fecha admission; owners drenam ou ficam em quarantine; completion stale é suprimida depois do drain | liberar storage vivo, reutilizar generation, continuar admission após protocol fault |
 | W-1217 | limits e equivalência | limits cobrem work e retenção; CPU fallback exige module/numeric/layout/effect/memory proof e nunca insere transfer | ordinal físico no source, fallback silencioso, tolerância não declarada |
-| W-1218 | evidence DEV0 | fixture Última Luz e machine/checker/snapshot/test host cobrem positivos e negativos sem executar W ou provider | chamar oracle de runtime, snapshot manual, caso sem símbolo consumidor ou driver fictício |
+| W-1218 | evidence KM0/DEV0 | KM0 fecha synthesis/identities/instances/artifact; DEV0 consome esse resultado e fecha scope/queue/submission sem executar W ou provider | um oracle misturando compiler/runtime, snapshot manual, driver fictício |
 | W-1219 | composição de recovery | recovery de service compõe call B0, closure E1, gates e supervisor sem criar syntax, annotation ou quinta forma de execução | actor/runtime paralelo, handler durable, retry escondido no source |
 | W-1220 | mailbox e admission durável | quotas precedem enqueue, FIFO vale por sender/instance e input commit fixa a admission que sobrevive a process fault | FIFO global, priority com starvation, reservation volátil chamada de commit, queue ilimitada |
 | W-1221 | turn e output frontier | uma instance executa um turn de aplicação; runtime closure precede outcome; output retido captura frontier e só abre depois do commit | reentrância default, delivery antes de cleanup, output gate como transaction remota |
@@ -4532,6 +4546,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1281 | FormData lógico | lista W ordered de String ou Blob+filename; append/set/delete preservam o standard e falha não publica mutation parcial | object dinâmico, DOM form, filename como Path, unordered map, mutação parcial |
 | W-1282 | multipart bounded | FormDataLimits + MessageLimits precedem attachment; host escolhe boundary; encoder streams Blob com backpressure | boundary do caller, collect completo, tamanho unchecked, Content-Type divergente |
 | W-1283 | Body Web completo | BodySource aceita String, Bytes, URLSearchParams, Blob, FormData e stream; blob/formData consuming exigem limits | BodyInit apagado, stubs parciais, materialização sem limit, provider extra para Blob |
+| W-1284 | head de síntese de kernel | `accelerator.module` é compiler-owned, recebe static record em const de module scope e produz a única conformance KernelModule sem runtime call/registry/authority | conformance manual, função runtime, macro user-defined, descriptor local ou reflection |
+| W-1285 | identidade de module | interface cobre fields/signatures; implementation acrescenta callable privado, HIR/call graph; paths, tempo e ordinal físico ficam fora | hash de arquivo, rename privado quebrar interface, identity ambiental ou uma identity única |
+| W-1286 | especialização finita | identidades canônicas de tipo e ConstIR derivam KernelInstanceId; bundle genérico é source-backed e binary-only contém conjunto finito fechado | JIT implícito, lookup por string, evaluator duplicado no linker ou binary incompleto |
+| W-1287 | stub e artifact | stub preserva labels/ownership e acrescenta Launch; artifact liga instances, target, numeric mode, features e provider ABI; open só valida/abre | transfer escondida, open compilar, artifact sem target facts ou launch sem failure typed |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

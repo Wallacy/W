@@ -10309,6 +10309,45 @@ e devolve o mesmo result type. Ele é `maySuspend` e adiciona somente
 retorna failures de domínio como valor. O manifest fecha os effects aceitos;
 recursion, task, service, host I/O, dynamic dispatch e FFI de host falham.
 
+**W-1284 — head de síntese:** `accelerator.module` é um head reservado do
+compiler, resolvido pelo import de `std.accelerator`. Ele não é função runtime,
+function value, provider call ou reflection. O único argumento é um static
+record não vazio em uma declaration `const` de module scope. Cada valor do
+record é um símbolo direto. A síntese produz um tipo nominal que conforma
+`KernelModule`, seus launch stubs e metadata verificável. Ela não aloca, registra
+ou adquire authority em runtime. `KernelModule` é um constraint público com
+conformance compiler-owned; um tipo comum não pode implementá-lo manualmente.
+
+**W-1285 — identidade em duas camadas:** a interface identity inclui o head,
+`SymbolId` do descriptor, fields em ordem, assinaturas normalizadas, parâmetros
+estáticos e effects. A implementation identity acrescenta HIR normalizada e o
+call graph transitivo permitido de cada kernel. `ModuleIdentity` liga as duas.
+Path físico, timestamp, ordinal de device e checkout não entram na identidade.
+Renomear ou reordenar fields muda a interface. Renomear somente o callable
+privado preserva a interface e muda a implementation identity, assim como
+alterar a implementação.
+
+**W-1286 — especialização finita:** um field pode nomear uma família genérica.
+Cada uso normaliza argumentos de tipo e valores `const` na ordem declarada e
+deriva um `KernelInstanceId` das identidades canônicas de tipo e ConstIR. O
+product ou device bundle precisa materializar todo instance alcançável.
+Instances não alcançados são removidos. W não faz lookup
+por string nem JIT implícito. Uma library genérica distribui source ou um
+conjunto finito declarado; um binary sem o instance exigido não satisfaz o
+link. Shape runtime usa ABI dinâmica não genérica e não cria código.
+
+**W-1287 — stub e artifact:** o launch stub preserva labels, result e modos
+`take`, `copy`, `ref` e `inout`; ele acrescenta primeiro
+`using: ref Launch<Module>`, pode suspender e falha com `LaunchError`. O stub não
+insere transfer. A identity source-backed inclui classe, module, source recipe
+e target constraints. A identity closed acrescenta instances alcançados,
+target, numeric mode, feature digest e provider ABI. `open` valida
+esse artifact contra module, Queue e provider; ele não executa a síntese.
+Somente `.closed` é launchable; tentar abrir `.sourceBacked` falha antes de
+admission.
+`w explain synthesis` e o sidecar mostram essas identidades sem reflection
+runtime.
+
 **W-1212 — scope owned:** `accelerator.open` cria um `Launch<Module>` move-only
 ligado a um module, Queue, Device, provider generation e Limits. O lifecycle é:
 
@@ -10375,10 +10414,12 @@ CPU fallback exige provas de module, numeric mode, layout, effects e memory
 plan, sem transfer oculta. `.strict` exige o mesmo value e failure point;
 `.reproducible`, o algoritmo versionado; `.fast`, a tolerância declarada.
 
-**W-1218 — evidência DEV0:** o corpus DEV0 deriva scope, staging, submission,
-completion, cancellation, queue dependencies, device loss, stale generation,
-budgets e equivalência CPU/device. O oracle host não executa W, kernel, driver
-ou accelerator. Providers reais continuam sujeitos ao gate 24.3.2.
+**W-1218 — evidência DEV0/KM0:** KM0 deriva síntese, identidade,
+especializações e closure do artifact. DEV0 consome uma `ModuleIdentity` já
+validada e deriva scope, staging, submission, completion, cancellation, queue
+dependencies, device loss, stale generation, budgets e equivalência
+CPU/device. Os oracles host não executam W, kernel, driver ou accelerator.
+Providers reais continuam sujeitos ao gate 24.3.2.
 
 ### 12.8 Task groups e backpressure
 
@@ -17924,9 +17965,12 @@ declara:
 - origem dos bounds;
 - classes de tempo e espaço.
 
-O source W mostra a assinatura completa. O checker extrai cada declaration,
-calcula seu digest e rejeita export sem profile, anchor inexistente, consumer
-ausente, uso qualificado desconhecido e snapshot stale. As contagens ficam em
+O source W mostra a assinatura completa de cada API runtime. Um head de síntese
+do compiler não vira export fictício: o catálogo exige anchor normativo,
+consumer textual, corpus positivo/negativo e ausência do símbolo runtime. O
+checker extrai cada declaration, calcula seu digest e rejeita export sem
+profile, anchor inexistente, consumer ausente, uso qualificado desconhecido e
+snapshot stale. As contagens ficam em
 [`DESIGN-INDEX.md`](DESIGN-INDEX.md). Todos os providers executáveis catalogados
 permanecem `missing`.
 
@@ -17967,11 +18011,11 @@ No `build-context`, o `Context` faz read de input e materializa candidatos em
 staging. A publicação do action-result pertence ao host depois do handler e não
 é um effect do `Context`.
 
-O inventário de declarations está fechado para os módulos catalogados. O freeze
-exige evidence positiva e negativa dos seis BodySource, um segundo consumer
-antes de estabilidade e preserva todos os providers como gates pós-design.
-Interfaces emitidas pelo checker real substituirão os digests de source durante
-a implementação.
+O inventário de declarations e heads de síntese está fechado para os módulos
+catalogados. O freeze exige evidence positiva e negativa dos seis BodySource,
+um segundo consumer antes de estabilidade e preserva todos os providers como
+gates pós-design. Interfaces emitidas pelo checker real substituirão os digests
+de source durante a implementação.
 
 Os rascunhos seguem a visibilidade da seção 6.2. `package` não é access
 modifier. Um struct com `init` explícito mantém fields privados sem modifier.
@@ -24205,7 +24249,7 @@ Product kinds iniciais:
 | `.dynamicLibrary` | library com ABI declarada |
 | `.component` | component com entry, imports ou providers exportados |
 | `.firmware` | imagem e metadata de device |
-| `.deviceBundle` | kernels/objects para um accelerator e manifest de launch |
+| `.deviceBundle` | module manifest source-backed ou kernels/objects fechados para um accelerator |
 | `.test` | harness e corpus selecionado |
 | `.benchmark` | harness, workload e evidence schema |
 | `.tool` | executável hermético usado pelo build |
@@ -24227,6 +24271,15 @@ component quando uma falha precisar ser isolada do host.
 
 Uma library não estabiliza a ABI W por causa do container físico. Wasm
 Component e service ABI usam seus próprios product schemas.
+
+Um `.deviceBundle` cujo root exporta uma família `KernelModule` sem launch site
+concreto produz manifest, recipe e target-constraint digest source-backed. Ele
+não contém kernel executável e não satisfaz um launch sozinho. Quando todos os
+roots são `KernelInstanceId` concretos, o artifact é fechado, contém ao menos
+um instance alcançável e exatamente seus objects e launch manifest. O artifact
+record distingue `.sourceBacked` de
+`.closed`; essa classe é derivada do grafo e não é uma opção do source. Uma
+publicação binary-only só pode fornecer o conjunto finito fechado.
 
 `targetSets` servem à matriz de CI e release. Eles não produzem um payload
 universal por inferência. Cada combinação de product, target e profile abre uma
@@ -24664,7 +24717,8 @@ A chave mínima inclui:
 ```text
 package graph + product + entry + host bindings + host profile + runtime graph + packing
 + target spec + selected target variants + profile + toolchain-plan row
-+ WAbiKey + RuntimeClosureKey + adapters + build inputs + lock digest
++ WAbiKey + RuntimeClosureKey + device module/instance closure
++ adapters + build inputs + lock digest
 ```
 
 O artifact record separa:
@@ -24673,7 +24727,7 @@ O artifact record separa:
 - `WInterface`, ABI note e symbol manifest;
 - runtime requirements;
 - resources;
-- device payloads;
+- device module class (`sourceBacked` ou `closed`), identities e payloads;
 - debug sidecars;
 - provenance e attestations;
 - envelope de plataforma.
@@ -25200,6 +25254,7 @@ w explain feature <package>::<feature>
 w explain target-variant <package>::<variant> --target <target>
 w explain action <action>
 w explain product <product>
+w explain synthesis <package>::<symbol> [--target <target>]
 w explain artifact <digest>
 w explain workflow <supervisor> --key <key>
 w audit effects <product>
@@ -27971,11 +28026,12 @@ precisam passar fault injection sem task, waiter, loan ou resource órfão. Uma
 transferência entre domains não pode criar copy, share, retain ou mobility
 ocultos.
 
-E0, E1, MX0, LM1, SP0, LZ0, CTX0, B0 e DEV0 fornecem modelos de design. A alegação
-pública exige HIR, runtime e providers reais, stress tests, sanitizers e replay
-nos targets prometidos. Até esse ponto, a forma correta é “modelo estruturado
-de execução definido; implementação missing”. O gate não exige thread por task,
-lock-free universal nem o mesmo lowering físico em todos os targets.
+E0, E1, MX0, LM1, SP0, LZ0, CTX0, B0, KM0 e DEV0 fornecem modelos de design. A
+alegação pública exige HIR, runtime e providers reais, stress tests, sanitizers
+e replay nos targets prometidos. Até esse ponto, a forma correta é “modelo
+estruturado de execução definido; implementação missing”. O gate não exige
+thread por task, lock-free universal nem o mesmo lowering físico em todos os
+targets.
 
 Num product que alcança tasks, services ou device queues, os gates 24.3.1 e
 24.3.2 são conjuntos: nenhum scheduler pode reparar ownership, e nenhum plano
@@ -28003,9 +28059,9 @@ evidência de design:
 | bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
 | ergonomia comparativa | R0/R0S/R1 guardam substituições e variantes observáveis | ratificar formas que ainda mudam source ou registrar waiver motivado |
 
-M1/A0/E0/E1/LM1/SP0/LZ0/CTX0/DEV0 fecham ownership, allocation, closure,
-synchronization, reclamation e device launch no nível de design. B0/SR0 fecham
-turn, effect e recovery de service. HIR, allocator, scheduler, wire, storage,
+M1/A0/E0/E1/LM1/SP0/LZ0/CTX0/KM0/DEV0 fecham ownership, allocation, closure,
+synchronization, reclamation e device synthesis/launch no nível de design.
+B0/SR0 fecham turn, effect e recovery de service. HIR, allocator, scheduler, wire, storage,
 drivers e providers executáveis são gates de implementação e da alegação
 pública; não são lacunas de syntax ou semântica para o freeze.
 

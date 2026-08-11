@@ -59,6 +59,8 @@ export fn trainLinearKernel<
   )
 }
 
+// The compiler closes this module-scope family. Products materialize only the
+// finite kernel specializations reachable from their launch sites.
 export const lastLightKernels = accelerator.module<{
   forecast: forecastKernel,
   normalize: normalizeKernel,

@@ -1,0 +1,344 @@
+{
+  "$schema": "w-kernel-module-cases-1",
+  "status": "design-oracle-input",
+  "module": {
+    "head": "std.accelerator.module@1",
+    "scope": "module-const",
+    "conformanceOrigin": "compiler",
+    "symbolId": "last_light.ai_harness::lastLightKernels",
+    "recordKind": "static-record",
+    "runtimeLookup": false,
+    "physicalPath": "D:/checkout-a/reference/last-light/ai_harness.w",
+    "fields": [
+      {
+        "name": "forecast",
+        "callableId": "last_light.ai_harness::forecastKernel",
+        "interfaceDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "hirDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "callGraphDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "directSymbol": true,
+        "runtimeLookup": false,
+        "captures": [],
+        "suspension": "never",
+        "failure": "never",
+        "effects": ["arithmetic", "tensor-read", "tensor-result"],
+        "staticParameters": [
+          { "name": "rows", "domain": "value", "typeIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333" },
+          { "name": "inputs", "domain": "value", "typeIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333" },
+          { "name": "outputs", "domain": "value", "typeIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333" }
+        ]
+      },
+      {
+        "name": "normalize",
+        "callableId": "last_light.ai_harness::normalizeKernel",
+        "interfaceDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "hirDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "callGraphDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "directSymbol": true,
+        "runtimeLookup": false,
+        "captures": [],
+        "suspension": "never",
+        "failure": "never",
+        "effects": ["arithmetic", "tensor-read", "tensor-write"],
+        "staticParameters": [
+          { "name": "rows", "domain": "value", "typeIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333" },
+          { "name": "columns", "domain": "value", "typeIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333" }
+        ]
+      }
+    ]
+  },
+  "forecastArguments": [
+    { "name": "rows", "origin": "const", "typeIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "constIdentity": "sha256:4444444444444444444444444444444444444444444444444444444444444444" },
+    { "name": "inputs", "origin": "const", "typeIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "constIdentity": "sha256:5555555555555555555555555555555555555555555555555555555555555555" },
+    { "name": "outputs", "origin": "const", "typeIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "constIdentity": "sha256:6666666666666666666666666666666666666666666666666666666666666666" }
+  ],
+  "normalizeArguments": [
+    { "name": "rows", "origin": "const", "typeIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "constIdentity": "sha256:4444444444444444444444444444444444444444444444444444444444444444" },
+    { "name": "columns", "origin": "const", "typeIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "constIdentity": "sha256:6666666666666666666666666666666666666666666666666666666666666666" }
+  ],
+  "target": {
+    "backend": "nvvm",
+    "triple": "nvptx64-nvidia-cuda",
+    "featuresDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "providerAbiDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "numericMode": "reproducible"
+  },
+  "cases": [
+    {
+      "id": "KM0-POS-closed-module",
+      "kind": "positive",
+      "decisions": ["W-1211", "W-1284", "W-1285", "W-1287"],
+      "input": { "subject": "module" },
+      "expect": { "accepted": true, "fields": ["forecast", "normalize"], "runtimeAllocation": false, "runtimeReflection": false }
+    },
+    {
+      "id": "KM0-NEG-wrong-synthesis-head",
+      "kind": "negative",
+      "decisions": ["W-1211", "W-1284"],
+      "input": { "subject": "module", "modulePatch": { "head": "user.module@1" } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0001" }
+    },
+    {
+      "id": "KM0-NEG-local-synthesis",
+      "kind": "negative",
+      "decisions": ["W-1284", "W-1285"],
+      "input": { "subject": "module", "modulePatch": { "scope": "function-local" } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0001" }
+    },
+    {
+      "id": "KM0-NEG-manual-kernel-module-conformance",
+      "kind": "negative",
+      "decisions": ["W-1284"],
+      "input": { "subject": "module", "modulePatch": { "conformanceOrigin": "user" } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0001" }
+    },
+    {
+      "id": "KM0-NEG-runtime-list",
+      "kind": "negative",
+      "decisions": ["W-1284"],
+      "input": { "subject": "module", "modulePatch": { "recordKind": "runtime-list" } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0002" }
+    },
+    {
+      "id": "KM0-NEG-empty-module",
+      "kind": "negative",
+      "decisions": ["W-1284"],
+      "input": { "subject": "module", "modulePatch": { "fields": [] } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0002" }
+    },
+    {
+      "id": "KM0-NEG-duplicate-field",
+      "kind": "negative",
+      "decisions": ["W-1284", "W-1285"],
+      "input": { "subject": "module", "duplicateField": "forecast" },
+      "expect": { "accepted": false, "error": "W-KERNEL-0002" }
+    },
+    {
+      "id": "KM0-NEG-dynamic-callable",
+      "kind": "negative",
+      "decisions": ["W-1284"],
+      "input": { "subject": "module", "fieldPatch": { "name": "forecast", "directSymbol": false, "runtimeLookup": true } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0003" }
+    },
+    {
+      "id": "KM0-NEG-captured-kernel",
+      "kind": "negative",
+      "decisions": ["W-1284", "W-1285"],
+      "input": { "subject": "module", "fieldPatch": { "name": "forecast", "captures": ["weights"] } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0003" }
+    },
+    {
+      "id": "KM0-NEG-suspending-kernel",
+      "kind": "negative",
+      "decisions": ["W-1284", "W-1287"],
+      "input": { "subject": "module", "fieldPatch": { "name": "forecast", "suspension": "may" } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0004" }
+    },
+    {
+      "id": "KM0-NEG-throwing-kernel",
+      "kind": "negative",
+      "decisions": ["W-1284", "W-1287"],
+      "input": { "subject": "module", "fieldPatch": { "name": "forecast", "failure": "throws" } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0004" }
+    },
+    {
+      "id": "KM0-NEG-host-io-effect",
+      "kind": "negative",
+      "decisions": ["W-1284", "W-1287"],
+      "input": { "subject": "module", "fieldPatch": { "name": "forecast", "effects": ["tensor-read", "host-io"] } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0004" }
+    },
+    {
+      "id": "KM0-NEG-duplicate-effect",
+      "kind": "negative",
+      "decisions": ["W-1284", "W-1285"],
+      "input": { "subject": "module", "fieldPatch": { "name": "forecast", "effects": ["tensor-read", "tensor-read"] } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0004" }
+    },
+    {
+      "id": "KM0-NEG-missing-call-graph",
+      "kind": "negative",
+      "decisions": ["W-1285"],
+      "input": { "subject": "module", "fieldPatch": { "name": "forecast", "callGraphDigest": "missing" } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0003" }
+    },
+    {
+      "id": "KM0-NEG-forged-module-identity",
+      "kind": "negative",
+      "decisions": ["W-1285"],
+      "input": { "subject": "module", "modulePatch": { "claimedIdentity": "sha256:0000000000000000000000000000000000000000000000000000000000000000" } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0002" }
+    },
+    {
+      "id": "KM0-POS-generic-specialization",
+      "kind": "positive",
+      "decisions": ["W-1286", "W-1287"],
+      "input": { "subject": "specialization", "field": "forecast" },
+      "expect": { "accepted": true, "field": "forecast", "usingFirst": true, "preservesParameterModes": true, "maySuspend": true, "failure": "LaunchError", "hiddenTransfer": false }
+    },
+    {
+      "id": "KM0-POS-type-and-value-specialization",
+      "kind": "positive",
+      "decisions": ["W-1286", "W-1287"],
+      "input": {
+        "subject": "specialization",
+        "field": "forecast",
+        "fieldPatch": {
+          "name": "forecast",
+          "staticParameters": [
+            {
+              "name": "Element",
+              "domain": "type",
+              "constraintDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+            },
+            {
+              "name": "rows",
+              "domain": "value",
+              "typeIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+            }
+          ]
+        },
+        "staticArguments": [
+          {
+            "name": "Element",
+            "origin": "type",
+            "typeIdentity": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+          },
+          {
+            "name": "rows",
+            "origin": "const",
+            "typeIdentity": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "constIdentity": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+          }
+        ]
+      },
+      "expect": { "accepted": true, "field": "forecast", "usingFirst": true, "hiddenTransfer": false }
+    },
+    {
+      "id": "KM0-NEG-missing-static-argument",
+      "kind": "negative",
+      "decisions": ["W-1286"],
+      "input": { "subject": "specialization", "field": "forecast", "staticArguments": [{ "name": "rows", "kind": "usize", "origin": "const", "value": 2 }] },
+      "expect": { "accepted": false, "error": "W-KERNEL-0005" }
+    },
+    {
+      "id": "KM0-NEG-runtime-static-argument",
+      "kind": "negative",
+      "decisions": ["W-1286"],
+      "input": { "subject": "specialization", "field": "forecast", "argumentPatch": { "name": "inputs", "origin": "runtime" } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0005" }
+    },
+    {
+      "id": "KM0-NEG-static-argument-kind-mismatch",
+      "kind": "negative",
+      "decisions": ["W-1286"],
+      "input": { "subject": "specialization", "field": "forecast", "argumentPatch": { "name": "inputs", "typeIdentity": "sha256:9999999999999999999999999999999999999999999999999999999999999999" } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0005" }
+    },
+    {
+      "id": "KM0-NEG-reordered-static-arguments",
+      "kind": "negative",
+      "decisions": ["W-1286"],
+      "input": { "subject": "specialization", "field": "forecast", "reverseArguments": true },
+      "expect": { "accepted": false, "error": "W-KERNEL-0005" }
+    },
+    {
+      "id": "KM0-NEG-unknown-kernel-field",
+      "kind": "negative",
+      "decisions": ["W-1286", "W-1287"],
+      "input": { "subject": "specialization", "field": "lookupByString" },
+      "expect": { "accepted": false, "error": "W-KERNEL-0005" }
+    },
+    {
+      "id": "KM0-POS-source-backed-family",
+      "kind": "positive",
+      "decisions": ["W-1286", "W-1287"],
+      "input": {
+        "subject": "artifact",
+        "artifactClass": "sourceBacked",
+        "sourceRecipeDigest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "targetConstraintDigest": "sha256:1313131313131313131313131313131313131313131313131313131313131313",
+        "reachable": [],
+        "materialized": []
+      },
+      "expect": { "accepted": true, "artifactClass": "sourceBacked", "launchable": false, "runtimeJit": false }
+    },
+    {
+      "id": "KM0-NEG-source-backed-materialized-instance",
+      "kind": "negative",
+      "decisions": ["W-1286", "W-1287"],
+      "input": {
+        "subject": "artifact",
+        "artifactClass": "sourceBacked",
+        "sourceRecipeDigest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "targetConstraintDigest": "sha256:1313131313131313131313131313131313131313131313131313131313131313",
+        "reachable": ["forecast"],
+        "materialized": ["forecast"]
+      },
+      "expect": { "accepted": false, "error": "W-KERNEL-0007" }
+    },
+    {
+      "id": "KM0-NEG-source-backed-target-constraint-missing",
+      "kind": "negative",
+      "decisions": ["W-1285", "W-1287"],
+      "input": {
+        "subject": "artifact",
+        "artifactClass": "sourceBacked",
+        "sourceRecipeDigest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "targetConstraintDigest": "unknown",
+        "reachable": [],
+        "materialized": []
+      },
+      "expect": { "accepted": false, "error": "W-KERNEL-0007" }
+    },
+    {
+      "id": "KM0-POS-closed-artifact",
+      "kind": "positive",
+      "decisions": ["W-1285", "W-1286", "W-1287"],
+      "input": { "subject": "artifact", "artifactClass": "closed", "reachable": ["forecast"], "materialized": ["forecast"] },
+      "expect": { "accepted": true, "artifactClass": "closed", "launchable": true, "reachableInstances": 1, "materializedInstances": 1, "strippedInstances": 0, "runtimeJit": false }
+    },
+    {
+      "id": "KM0-NEG-empty-closed-artifact",
+      "kind": "negative",
+      "decisions": ["W-1286", "W-1287"],
+      "input": { "subject": "artifact", "artifactClass": "closed", "reachable": [], "materialized": [] },
+      "expect": { "accepted": false, "error": "W-KERNEL-0006" }
+    },
+    {
+      "id": "KM0-POS-unused-instance-stripped",
+      "kind": "positive",
+      "decisions": ["W-1286", "W-1287"],
+      "input": { "subject": "artifact", "artifactClass": "closed", "reachable": ["forecast"], "materialized": ["forecast", "normalize"] },
+      "expect": { "accepted": true, "reachableInstances": 1, "materializedInstances": 1, "strippedInstances": 1 }
+    },
+    {
+      "id": "KM0-NEG-reachable-instance-missing",
+      "kind": "negative",
+      "decisions": ["W-1286", "W-1287"],
+      "input": { "subject": "artifact", "artifactClass": "closed", "reachable": ["forecast"], "materialized": [] },
+      "expect": { "accepted": false, "error": "W-KERNEL-0006" }
+    },
+    {
+      "id": "KM0-NEG-duplicate-reachable-instance",
+      "kind": "negative",
+      "decisions": ["W-1286", "W-1287"],
+      "input": { "subject": "artifact", "artifactClass": "closed", "reachable": ["forecast", "forecast"], "materialized": ["forecast"] },
+      "expect": { "accepted": false, "error": "W-KERNEL-0006" }
+    },
+    {
+      "id": "KM0-NEG-runtime-jit",
+      "kind": "negative",
+      "decisions": ["W-1286", "W-1287"],
+      "input": { "subject": "artifact", "artifactClass": "closed", "reachable": ["forecast"], "materialized": ["forecast"], "runtimeJit": true },
+      "expect": { "accepted": false, "error": "W-KERNEL-0007" }
+    },
+    {
+      "id": "KM0-NEG-target-identity-incomplete",
+      "kind": "negative",
+      "decisions": ["W-1285", "W-1287"],
+      "input": { "subject": "artifact", "artifactClass": "closed", "reachable": ["forecast"], "materialized": ["forecast"], "targetPatch": { "featuresDigest": "unknown" } },
+      "expect": { "accepted": false, "error": "W-KERNEL-0007" }
+    }
+  ]
+}

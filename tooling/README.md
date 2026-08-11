@@ -27,6 +27,7 @@ linguagem.
 | `execution-ergonomics-cases.json` + máquina/checker/snapshot | 61 casos (23 positivos, 36 negativos e duas informações) derivam labels, suspension, placement, barriers, process projections, doctests, std e lanes seriais dinâmicas; 15 testes host usam entradas independentes | oracle host de design; não executa W nem implementa scheduler, pool ou provider |
 | `foreign-body-cases.json` + máquina/checker/snapshot | FB0 cobre 45 casos/90 operações (15 aceitos, 28 rejeitados e duas informações) para bytes opacos, delimitação C, fallback editorial, limits, source map e recipe; nove testes host usam source independente | oracle host de design; o external scanner Tree-sitter é projeção e não implementa adapter C, compiler, formatter ou builder |
 | `web-body-cases.json` + máquina/checker/snapshot | WB0 cobre 27 casos/160 operações (12 aceitos + 15 rejeitados) para Blob, FormData, retained-byte limits, boundary, attachment e parse; seis testes host usam inputs independentes | oracle host de design; não executa W, compiler, HTTP provider ou codec multipart |
+| `kernel-module-cases.json` + máquina/checker/snapshot | KM0 cobre 32 casos/218 operações (6 aceitos + 26 rejeitados) para head de síntese, identities, call graph, famílias genéricas, artifacts source-backed/closed e ausência de JIT; nove testes host usam inputs independentes | oracle host de design; não executa W, compiler, kernel, linker, driver ou provider |
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 70 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
 | `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 460/1283 decisões estão classificadas (139 source, 361 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 48 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 174 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
@@ -216,9 +217,10 @@ Exchange. `std.tensor@1` e `std.dlpack@1` permanecem missing.
 ### Device execution DEV0
 
 [`device-execution-machine.mjs`](device-execution-machine.mjs) deriva o scope
-`Launch`, descriptor fechado, staging de ownership, submit/completion receipts,
-dependencies de Queue, cancellation, device loss, generations, budgets e
-equivalência CPU/device. O corpus, checker, snapshot e teste host ficam em
+`Launch` a partir de module/artifact/instances já fechados por KM0. Ele deriva
+staging de ownership, submit/completion receipts, dependencies de Queue,
+cancellation, device loss, generations, budgets e equivalência CPU/device. O
+corpus, checker, snapshot e teste host ficam em
 [`device-execution-cases.json`](device-execution-cases.json),
 [`check-device-execution-cases.mjs`](check-device-execution-cases.mjs),
 [`device-execution-results.snapshot.jsonl`](device-execution-results.snapshot.jsonl)

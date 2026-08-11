@@ -674,11 +674,18 @@
       "complexity": { "time": "linear-bounded-payload", "space": "bounded-by-limits" }
     },
     "accelerator-module": {
-      "capabilities": ["accelerator-provider", "tensor-device-provider"],
-      "effects": ["device-execution", "synchronization"],
-      "failures": { "mode": "typed", "types": ["accelerator.LaunchError"] },
-      "bounds": ["closed-static-record", "typed-launch-stub", "module-identity", "effect-manifest", "no-runtime-lookup"],
-      "complexity": { "time": "compile-time-synthesis", "space": "bounded-by-module" }
+      "capabilities": [],
+      "effects": [],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["nominal-module-identity", "closed-descriptor", "no-runtime-reflection"],
+      "complexity": { "time": "constant", "space": "fixed-handle" }
+    },
+    "accelerator-module-synthesis": {
+      "capabilities": [],
+      "effects": [],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["module-scope-static-record", "compiler-owned-conformance", "typed-launch-stub", "finite-reachable-instances", "target-artifact", "no-runtime-jit"],
+      "complexity": { "time": "compile-time-reachability", "space": "bounded-by-reachable-instances" }
     },
     "accelerator-launch": {
       "capabilities": ["accelerator-provider", "tensor-device-provider"],
@@ -2668,10 +2675,16 @@
       "id": "dev0-accelerator-module-synthesis",
       "module": "std.accelerator",
       "surface": "module",
-      "kind": "symbol",
+      "kind": "compiler-synthesis",
       "consumer": "reference/last-light/ai_harness.w",
-      "profile": "accelerator-module",
-      "status": "missing"
+      "consumerToken": "accelerator.module",
+      "designAnchor": "12.7.2",
+      "oracle": {
+        "path": "tooling/kernel-module-cases.json",
+        "decisions": ["W-1284", "W-1285", "W-1286", "W-1287"]
+      },
+      "profile": "accelerator-module-synthesis",
+      "status": "draft"
     },
     {
       "id": "dev0-accelerator-open",

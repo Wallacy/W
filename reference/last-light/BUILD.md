@@ -378,8 +378,12 @@ O primeiro gate embedded exige:
 | `amdgcn-amd-amdhsa` | MLIR GPU → ROCDL |
 | `spirv64-unknown-vulkan` | MLIR GPU → SPIR-V |
 
-O device bundle contém kernels e metadata. Um host product mantém device
-selection, transfer, launch, synchronization e errors.
+`last-light-accelerators` exporta a família genérica `lastLightKernels`. Sem
+launch sites concretos nesse product, o resultado é um module manifest
+source-backed, a recipe reproduzível e as constraints de target; ele não afirma
+conter kernels executáveis. Um host product que fecha `KernelInstanceId`s
+materializa os objects exatos para o target. Esse host mantém device selection, transfer,
+launch, synchronization e errors.
 
 ASIC e FPGA permanecem em **Pesquisa**. Eles exigem um modelo de tempo, memória
 e synthesis que LLVM IR geral não fornece.

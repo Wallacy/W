@@ -256,7 +256,70 @@ function resolveRequirement(requirement, moduleState) {
     return new RegExp(`\\b(?:fn|init)\\s+${member}\\b`).test(moduleState.source);
   }
 
-  errors.push(`${requirement.id}: kind must be symbol or member.`);
+  if (requirement.kind === "compiler-synthesis") {
+    let valid = true;
+    if (moduleState.exports.has(requirement.surface)) {
+      errors.push(`${requirement.id}: compiler synthesis cannot be a runtime export.`);
+      valid = false;
+    }
+    if (!requirement.designAnchor || !hasDesignAnchor(requirement.designAnchor)) {
+      errors.push(`${requirement.id}: compiler synthesis needs a valid design anchor.`);
+      valid = false;
+    }
+
+    const consumerPath = path.join(rootDirectory, requirement.consumer ?? "");
+    const consumer = fs.existsSync(consumerPath)
+      ? fs.readFileSync(consumerPath, "utf8")
+      : "";
+    if (!requirement.consumerToken || !consumer.includes(requirement.consumerToken)) {
+      errors.push(`${requirement.id}: consumer token is absent.`);
+      valid = false;
+    }
+
+    const oraclePath = path.join(rootDirectory, requirement.oracle?.path ?? "");
+    if (!fs.existsSync(oraclePath)) {
+      errors.push(`${requirement.id}: compiler synthesis oracle does not exist.`);
+      return false;
+    }
+    const oracle = JSON.parse(fs.readFileSync(oraclePath, "utf8"));
+    if (oracle.status !== "design-oracle-input") {
+      errors.push(`${requirement.id}: compiler synthesis oracle status is invalid.`);
+      valid = false;
+    }
+    const covered = new Set(
+      (oracle.cases ?? []).flatMap((testCase) => testCase.decisions ?? []),
+    );
+    if (
+      !Array.isArray(requirement.oracle?.decisions) ||
+      requirement.oracle.decisions.length === 0
+    ) {
+      errors.push(`${requirement.id}: compiler synthesis needs oracle decisions.`);
+      valid = false;
+    } else {
+      for (const decision of requirement.oracle.decisions) {
+        const decisionCases = (oracle.cases ?? []).filter(
+          (testCase) => testCase.decisions?.includes(decision),
+        );
+        if (!covered.has(decision)) {
+          errors.push(`${requirement.id}: oracle does not cover ${decision}.`);
+          valid = false;
+        }
+        if (!decisionCases.some((testCase) => testCase.kind === "positive")) {
+          errors.push(`${requirement.id}: oracle lacks positive ${decision}.`);
+          valid = false;
+        }
+        if (!decisionCases.some((testCase) => testCase.kind === "negative")) {
+          errors.push(`${requirement.id}: oracle lacks negative ${decision}.`);
+          valid = false;
+        }
+      }
+    }
+    return valid;
+  }
+
+  errors.push(
+    `${requirement.id}: kind must be symbol, member or compiler-synthesis.`,
+  );
   return false;
 }
 
@@ -606,7 +669,7 @@ for (const requirement of catalog.referenceRequirements ?? []) {
   if (requirement.profile && !catalog.profiles?.[requirement.profile]) {
     errors.push(`${requirement.id}: unknown profile ${requirement.profile}.`);
   }
-  if (present && requirement.profile) {
+  if (present && requirement.profile && requirement.kind !== "compiler-synthesis") {
     const owner = requirement.surface.split(".")[0];
     const module = catalog.modules.find((candidate) => candidate.id === requirement.module);
     const api = module?.apis.find((candidate) => candidate.symbol === owner);
@@ -622,6 +685,7 @@ for (const requirement of catalog.referenceRequirements ?? []) {
     id: requirement.id,
     module: requirement.module,
     surface: requirement.surface,
+    ...(requirement.kind !== "symbol" ? { kind: requirement.kind } : {}),
     status: actualStatus,
     ...(requirement.profile ? { profile: requirement.profile } : {}),
     ...(requiredCarriers.length > 0 ? { requires: [...requiredCarriers].sort() } : {}),

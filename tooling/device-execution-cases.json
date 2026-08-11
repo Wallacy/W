@@ -5,9 +5,15 @@
     "openCuda": [
       {
         "op": "open",
-        "moduleShape": "static-record",
         "moduleIdentity": "last-light-kernels-v1",
-        "runtimeLookup": false,
+        "artifactClass": "closed",
+        "artifactIdentity": "last-light-cuda-artifact-v1",
+        "artifactModuleIdentity": "last-light-kernels-v1",
+        "artifactProviderAbiDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "providerAbiDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "artifactTarget": "cuda-sm90",
+        "deviceTarget": "cuda-sm90",
+        "artifactInstances": ["forecast-instance-v1", "normalize-instance-v1", "train-instance-v1"],
         "queueId": "queue-0",
         "queueDeviceId": "cuda-0",
         "deviceId": "cuda-0",
@@ -33,10 +39,7 @@
         "id": "forecast",
         "moduleIdentity": "last-light-kernels-v1",
         "queueId": "queue-0",
-        "kernelDeclared": true,
-        "kernelNeverSuspend": true,
-        "kernelNonthrowing": true,
-        "effectsAllowed": true,
+        "kernelInstanceIdentity": "forecast-instance-v1",
         "arguments": [
           { "kind": "tensor", "mode": "ref", "deviceId": "cuda-0", "lifetimeStable": true },
           { "kind": "tensor", "mode": "ref", "deviceId": "cuda-0", "lifetimeStable": true }
@@ -56,6 +59,7 @@
           "issuedBy": "provider",
           "generation": "generation-1",
           "moduleIdentity": "last-light-kernels-v1",
+          "artifactIdentity": "last-light-cuda-artifact-v1",
           "queueId": "queue-0",
           "invocation": "forecast"
         }
@@ -71,6 +75,7 @@
           "issuedBy": "provider",
           "generation": "generation-1",
           "moduleIdentity": "last-light-kernels-v1",
+          "artifactIdentity": "last-light-cuda-artifact-v1",
           "queueId": "queue-0",
           "invocation": "forecast"
         }
@@ -89,24 +94,40 @@
       "id": "DEV0-accepted-static-module-open",
       "kind": "accepted",
       "source": { "path": "reference/last-light/ai_harness.w", "symbol": "lastLightKernels" },
-      "decisions": ["W-1211", "W-1212", "W-1218"],
+      "decisions": ["W-1212", "W-1218"],
       "operations": [{ "$use": "openCuda" }],
       "expect": { "status": "accepted", "phase": "ready" }
     },
     {
-      "id": "DEV0-rejected-runtime-list-module",
+      "id": "DEV0-rejected-artifact-module-mismatch",
       "kind": "rejected",
       "source": { "path": "reference/last-light/ai_harness.w", "symbol": "accelerator.module" },
-      "decisions": ["W-1211", "W-1218"],
-      "operations": [{ "$use": "openCuda", "with": { "moduleShape": "runtime-list" } }],
+      "decisions": ["W-1212", "W-1218", "W-1287"],
+      "operations": [{ "$use": "openCuda", "with": { "artifactModuleIdentity": "other-module" } }],
       "expect": { "status": "rejected", "error": "W-DEVICE-0001", "phase": "uninitialized" }
     },
     {
-      "id": "DEV0-rejected-runtime-kernel-lookup",
+      "id": "DEV0-rejected-source-backed-artifact-open",
       "kind": "rejected",
-      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "forecastKernel" },
-      "decisions": ["W-1211"],
-      "operations": [{ "$use": "openCuda", "with": { "runtimeLookup": true } }],
+      "source": { "path": "reference/last-light/package.w", "symbol": "last-light-accelerators" },
+      "decisions": ["W-1212", "W-1286", "W-1287"],
+      "operations": [{ "$use": "openCuda", "with": { "artifactClass": "sourceBacked" } }],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0001", "phase": "uninitialized" }
+    },
+    {
+      "id": "DEV0-rejected-artifact-provider-abi-mismatch",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "lastLightKernels" },
+      "decisions": ["W-1212", "W-1287"],
+      "operations": [{ "$use": "openCuda", "with": { "artifactProviderAbiDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } }],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0001" }
+    },
+    {
+      "id": "DEV0-rejected-artifact-target-mismatch",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "lastLightKernels" },
+      "decisions": ["W-1212", "W-1287"],
+      "operations": [{ "$use": "openCuda", "with": { "artifactTarget": "rocdl-gfx1200" } }],
       "expect": { "status": "rejected", "error": "W-DEVICE-0001" }
     },
     {
@@ -287,9 +308,21 @@
       "operations": [
         { "$use": "openCuda" },
         { "$use": "stageForecast" },
-        { "$use": "submitForecast", "with": { "receipt": { "issuedBy": "provider", "generation": "generation-0", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "forecast" } } }
+        { "$use": "submitForecast", "with": { "receipt": { "issuedBy": "provider", "generation": "generation-0", "moduleIdentity": "last-light-kernels-v1", "artifactIdentity": "last-light-cuda-artifact-v1", "queueId": "queue-0", "invocation": "forecast" } } }
       ],
       "expect": { "status": "rejected", "error": "W-DEVICE-0006" }
+    },
+    {
+      "id": "DEV0-rejected-submit-artifact-mismatch",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastOnDevice" },
+      "decisions": ["W-1215", "W-1287"],
+      "operations": [
+        { "$use": "openCuda" },
+        { "$use": "stageForecast" },
+        { "$use": "submitForecast", "with": { "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "artifactIdentity": "other-artifact", "queueId": "queue-0", "invocation": "forecast" } } }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0001" }
     },
     {
       "id": "DEV0-accepted-explicit-dependency-edge",
@@ -303,8 +336,8 @@
         { "$use": "startForecast" },
         { "$use": "completeForecast" },
         { "$use": "finishForecast" },
-        { "$use": "stageForecast", "with": { "id": "normalize", "dependencies": ["forecast"] } },
-        { "$use": "submitForecast", "with": { "id": "normalize", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "normalize" } } },
+        { "$use": "stageForecast", "with": { "id": "normalize", "kernelInstanceIdentity": "normalize-instance-v1", "dependencies": ["forecast"] } },
+        { "$use": "submitForecast", "with": { "id": "normalize", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "artifactIdentity": "last-light-cuda-artifact-v1", "queueId": "queue-0", "invocation": "normalize" } } },
         { "op": "start", "id": "normalize" }
       ],
       "expect": { "status": "accepted", "happensBefore": ["device:forecast->host:forecast", "device:forecast->device:normalize"] }
@@ -318,8 +351,8 @@
         { "$use": "openCuda" },
         { "$use": "stageForecast" },
         { "$use": "submitForecast" },
-        { "$use": "stageForecast", "with": { "id": "normalize", "dependencies": ["forecast"] } },
-        { "$use": "submitForecast", "with": { "id": "normalize", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "normalize" } } },
+        { "$use": "stageForecast", "with": { "id": "normalize", "kernelInstanceIdentity": "normalize-instance-v1", "dependencies": ["forecast"] } },
+        { "$use": "submitForecast", "with": { "id": "normalize", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "artifactIdentity": "last-light-cuda-artifact-v1", "queueId": "queue-0", "invocation": "normalize" } } },
         { "op": "start", "id": "normalize" }
       ],
       "expect": { "status": "rejected", "error": "W-DEVICE-0005" }
@@ -334,8 +367,8 @@
         { "$use": "stageForecast" },
         { "$use": "submitForecast" },
         { "$use": "completeForecast" },
-        { "$use": "stageForecast", "with": { "id": "normalize", "dependencies": ["forecast"] } },
-        { "$use": "submitForecast", "with": { "id": "normalize", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "normalize" } } },
+        { "$use": "stageForecast", "with": { "id": "normalize", "kernelInstanceIdentity": "normalize-instance-v1", "dependencies": ["forecast"] } },
+        { "$use": "submitForecast", "with": { "id": "normalize", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "artifactIdentity": "last-light-cuda-artifact-v1", "queueId": "queue-0", "invocation": "normalize" } } },
         { "op": "start", "id": "normalize" }
       ],
       "expect": { "status": "accepted", "happensBefore": ["device:forecast->host:forecast", "device:forecast->device:normalize"] }
@@ -349,8 +382,8 @@
         { "$use": "openCuda" },
         { "$use": "stageForecast" },
         { "$use": "submitForecast" },
-        { "$use": "stageForecast", "with": { "id": "normalize" } },
-        { "$use": "submitForecast", "with": { "id": "normalize", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "normalize" } } },
+        { "$use": "stageForecast", "with": { "id": "normalize", "kernelInstanceIdentity": "normalize-instance-v1" } },
+        { "$use": "submitForecast", "with": { "id": "normalize", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "artifactIdentity": "last-light-cuda-artifact-v1", "queueId": "queue-0", "invocation": "normalize" } } },
         { "op": "start", "id": "normalize" },
         { "op": "start", "id": "forecast" }
       ],
@@ -493,8 +526,8 @@
         { "$use": "submitForecast" },
         { "$use": "completeForecast" },
         { "$use": "stageForecast", "with": { "id": "second" } },
-        { "$use": "submitForecast", "with": { "id": "second", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "second" } } },
-        { "$use": "completeForecast", "with": { "id": "second", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "queueId": "queue-0", "invocation": "second" } } }
+        { "$use": "submitForecast", "with": { "id": "second", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "artifactIdentity": "last-light-cuda-artifact-v1", "queueId": "queue-0", "invocation": "second" } } },
+        { "$use": "completeForecast", "with": { "id": "second", "receipt": { "issuedBy": "provider", "generation": "generation-1", "moduleIdentity": "last-light-kernels-v1", "artifactIdentity": "last-light-cuda-artifact-v1", "queueId": "queue-0", "invocation": "second" } } }
       ],
       "expect": { "status": "rejected", "error": "W-DEVICE-0008" }
     },
@@ -514,11 +547,11 @@
       "expect": { "status": "rejected", "error": "W-DEVICE-0008" }
     },
     {
-      "id": "DEV0-rejected-kernel-effect",
+      "id": "DEV0-rejected-unmaterialized-kernel-instance",
       "kind": "rejected",
       "source": { "path": "reference/last-light/ai_harness.w", "symbol": "forecastKernel" },
-      "decisions": ["W-1211", "W-1217"],
-      "operations": [{ "$use": "openCuda" }, { "$use": "stageForecast", "with": { "effectsAllowed": false } }],
+      "decisions": ["W-1212", "W-1286", "W-1287"],
+      "operations": [{ "$use": "openCuda" }, { "$use": "stageForecast", "with": { "kernelInstanceIdentity": "missing-instance" } }],
       "expect": { "status": "rejected", "error": "W-DEVICE-0001" }
     },
     {
