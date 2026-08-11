@@ -1,20 +1,20 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "afa05559de87a6b2b1d303223ba30c9f2285cc8eec0462dd0c77b29fec1c28cf",
+  "catalogDigest": "0258a7cf882e43b5bdc5e37c4487b40dd6170df8610e0328b8e67a323f0ddda6",
   "summary": {
-    "modules": 21,
-    "catalogedApis": 315,
-    "draftCatalogedApis": 315,
+    "modules": 22,
+    "catalogedApis": 316,
+    "draftCatalogedApis": 316,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 78,
-    "referenceRequirements": 20,
-    "contractedReferenceRequirements": 20,
+    "referenceRequirements": 21,
+    "contractedReferenceRequirements": 21,
     "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 2,
-    "implementationProviders": 15,
-    "missingImplementationProviders": 15
+    "implementationProviders": 16,
+    "missingImplementationProviders": 16
   },
   "modules": [
     {
@@ -5723,6 +5723,78 @@
       ]
     },
     {
+      "id": "std.sync",
+      "availability": "bundled-portable",
+      "source": "std/sync/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.snapshot-cell@1",
+        "status": "missing",
+        "gates": [
+          "asan-tsan-leak",
+          "drop-once",
+          "reader-version-stability",
+          "reclamation-after-last-reader",
+          "strategy-differential",
+          "version-linearization"
+        ]
+      },
+      "catalogedDeclarationsDigest": "740b33f5dd8253b381050577e1e3cc5423b330f1f587efc62d87fd5b432ad63c",
+      "apis": [
+        {
+          "symbol": "SnapshotCell",
+          "kind": "struct",
+          "signature": "export struct SnapshotCell<Value>",
+          "declarationDigest": "326ae5b1cbc802d0a36f993621865e107152929427fd27a1c5e4ae84125df88b",
+          "line": 38,
+          "profile": "snapshot-cell-carrier",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init( _ initial: take Value<( .transferable && .shareable && .lifetimeIndependent )>, )",
+                  "line": 41
+                }
+              ],
+              "profile": "snapshot-cell-carrier"
+            },
+            {
+              "symbol": "read",
+              "overloads": [
+                {
+                  "signature": "export fn read<Result, Failure: Error>( _ operation: some fn(ref Value): Result throws Failure, ): Result throws Failure",
+                  "line": 50
+                }
+              ],
+              "profile": "snapshot-cell-read"
+            },
+            {
+              "symbol": "publish",
+              "overloads": [
+                {
+                  "signature": "export fn publish( _ next: take Value<( .transferable && .shareable && .lifetimeIndependent )>, )",
+                  "line": 61
+                }
+              ],
+              "profile": "snapshot-cell-publish"
+            },
+            {
+              "symbol": "snapshot",
+              "overloads": [
+                {
+                  "signature": "export fn snapshot(): Value",
+                  "line": 80
+                }
+              ],
+              "profile": "snapshot-cell-copy"
+            }
+          ],
+          "status": "draft"
+        }
+      ]
+    },
+    {
       "id": "std.tensor",
       "availability": "tensor-device-provider",
       "source": "std/tensor/contracts.w",
@@ -7384,6 +7456,14 @@
       "status": "draft",
       "profile": "snapshot-byte-source",
       "consumer": "reference/last-light/data_formats.w"
+    },
+    {
+      "id": "sp0-snapshot-cell",
+      "module": "std.sync",
+      "surface": "SnapshotCell",
+      "status": "draft",
+      "profile": "snapshot-cell-carrier",
+      "consumer": "reference/last-light/synchronization.w"
     },
     {
       "id": "tab1-arrow-ipc-stream",

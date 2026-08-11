@@ -1458,6 +1458,106 @@
       "fixes": {}
     },
     {
+      "code": "W-SNAPSHOT-0001",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a dependency on a published snapshot escapes its scoped read",
+      "requiredFacts": { "dependencyKind": "string", "operation": "string", "target": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SNAPSHOT-0002",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a snapshot read operation can suspend",
+      "requiredFacts": { "effect": "string", "operation": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SNAPSHOT-0003",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a snapshot payload lacks required mobility or lifetime facts",
+      "requiredFacts": { "actualType": "string", "missingFacts": "string-set" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SNAPSHOT-0004",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "published snapshot storage is mutated in place",
+      "requiredFacts": { "binding": "string", "operation": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SNAPSHOT-0005",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a move-only snapshot cell is copied",
+      "requiredFacts": { "actualType": "string", "operation": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SNAPSHOT-0006",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "snapshot construction or publication does not consume an owned value",
+      "requiredFacts": { "actualMode": "string", "requiredMode": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SNAPSHOT-0007",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "an owned snapshot is requested for a value that is not duplicable",
+      "requiredFacts": { "actualType": "string", "requirement": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SNAPSHOT-0008",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a snapshot cell is closed while a structured reader remains active",
+      "requiredFacts": { "activeReaders": "integer", "operation": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SNAPSHOT-0009",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a snapshot cell is used after its structured lifetime ended",
+      "requiredFacts": { "operation": "string", "phase": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SNAPSHOT-0010",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "the selected snapshot provider strategy is not admitted by the profile",
+      "requiredFacts": { "profile": "string", "strategy": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
       "code": "W-BORROW-0001",
       "state": "active",
       "phase": "semantic.ownership",

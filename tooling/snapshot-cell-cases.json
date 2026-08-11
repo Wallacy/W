@@ -1,0 +1,338 @@
+{
+  "$schema": "w-snapshot-cell-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "SP0-accepted-read-initial",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "HorizonMenuPublication" },
+      "decisions": ["W-1178", "W-1180"],
+      "operations": [
+        { "op": "create", "strategy": "reference-counting", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "beginRead", "reader": "front-desk" },
+        { "op": "finishRead", "reader": "front-desk", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "phase": "open", "currentVersion": 0, "observed": ["menu-v0"], "drops": [] }
+    },
+    {
+      "id": "SP0-accepted-old-reader-survives-publish",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "PublishedMenu" },
+      "decisions": ["W-1178", "W-1179"],
+      "operations": [
+        { "op": "create", "strategy": "epoch", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "beginRead", "reader": "old-reader" },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true, "allocation": "success" },
+        { "op": "beginRead", "reader": "new-reader" },
+        { "op": "finishRead", "reader": "new-reader", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "currentVersion": 1, "observed": ["menu-v0", "menu-v1"], "versionPhases": ["retired", "current"], "drops": [] }
+    },
+    {
+      "id": "SP0-accepted-last-reader-reclaims-retired",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "HorizonMenuPublication" },
+      "decisions": ["W-1179", "W-1180"],
+      "operations": [
+        { "op": "create", "strategy": "hazard", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "beginRead", "reader": "left" },
+        { "op": "beginRead", "reader": "right" },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "finishRead", "reader": "left", "outcome": "success" },
+        { "op": "finishRead", "reader": "right", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "versionPhases": ["reclaimed", "current"], "drops": [0] }
+    },
+    {
+      "id": "SP0-accepted-publish-without-reader-reclaims-immediately",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "publish" },
+      "decisions": ["W-1179"],
+      "operations": [
+        { "op": "create", "strategy": "lock", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true }
+      ],
+      "expect": { "status": "accepted", "versionPhases": ["reclaimed", "current"], "drops": [0] }
+    },
+    {
+      "id": "SP0-accepted-error-releases-reader",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "revision" },
+      "decisions": ["W-1178", "W-1179"],
+      "operations": [
+        { "op": "create", "strategy": "reference-counting", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "beginRead", "reader": "failing-reader" },
+        { "op": "finishRead", "reader": "failing-reader", "outcome": "error" },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true }
+      ],
+      "expect": { "status": "accepted", "readerOutcomes": ["error"], "drops": [0] }
+    },
+    {
+      "id": "SP0-accepted-owned-snapshot-copy",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "snapshot" },
+      "decisions": ["W-1178"],
+      "operations": [
+        { "op": "create", "strategy": "reference-counting", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "copySnapshot", "duplicable": true },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "copySnapshot", "duplicable": true }
+      ],
+      "expect": { "status": "accepted", "copies": ["menu-v0", "menu-v1"], "publicationOrder": [1] }
+    },
+    {
+      "id": "SP0-accepted-publications-have-total-order",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "publish" },
+      "decisions": ["W-1178", "W-1180"],
+      "operations": [
+        { "op": "create", "strategy": "reference-counting", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "publish", "value": "menu-v2", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "beginRead", "reader": "after" },
+        { "op": "finishRead", "reader": "after", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "currentVersion": 2, "observed": ["menu-v2"], "publicationOrder": [1, 2], "drops": [0, 1] }
+    },
+    {
+      "id": "SP0-accepted-close-drops-current-once",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "HorizonMenuPublication" },
+      "decisions": ["W-1179"],
+      "operations": [
+        { "op": "create", "strategy": "epoch", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "close" }
+      ],
+      "expect": { "status": "accepted", "phase": "closed", "currentVersion": null, "versionPhases": ["reclaimed", "reclaimed"], "drops": [0, 1] }
+    },
+    {
+      "id": "SP0-accepted-release-acquire-edge",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "courseCount" },
+      "decisions": ["W-1178"],
+      "operations": [
+        { "op": "create", "strategy": "hazard", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "beginRead", "reader": "reader" },
+        { "op": "finishRead", "reader": "reader", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "happensBefore": ["publish:1->read:reader"] }
+    },
+    {
+      "id": "SP0-accepted-reference-counting-strategy",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "SnapshotCell" },
+      "decisions": ["W-1179", "W-1180"],
+      "operations": [
+        { "op": "create", "strategy": "reference-counting", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "close" }
+      ],
+      "expect": { "status": "accepted", "phase": "closed", "drops": [0, 1] }
+    },
+    {
+      "id": "SP0-accepted-epoch-strategy",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "SnapshotCell" },
+      "decisions": ["W-1179", "W-1180"],
+      "operations": [
+        { "op": "create", "strategy": "epoch", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "close" }
+      ],
+      "expect": { "status": "accepted", "phase": "closed", "drops": [0, 1] }
+    },
+    {
+      "id": "SP0-accepted-hazard-strategy",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "SnapshotCell" },
+      "decisions": ["W-1179", "W-1180"],
+      "operations": [
+        { "op": "create", "strategy": "hazard", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "close" }
+      ],
+      "expect": { "status": "accepted", "phase": "closed", "drops": [0, 1] }
+    },
+    {
+      "id": "SP0-accepted-lock-strategy",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "SnapshotCell" },
+      "decisions": ["W-1179", "W-1180"],
+      "operations": [
+        { "op": "create", "strategy": "lock", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "close" }
+      ],
+      "expect": { "status": "accepted", "phase": "closed", "drops": [0, 1] }
+    },
+    {
+      "id": "SP0-rejected-non-shareable-payload",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "PublishedMenu" },
+      "decisions": ["W-1178"],
+      "operations": [
+        { "op": "create", "strategy": "reference-counting", "value": "menu-v0", "owned": true, "transferable": true, "shareable": false, "lifetimeIndependent": true }
+      ],
+      "expect": { "status": "rejected", "error": "W-SNAPSHOT-0003", "phase": "uninitialized" }
+    },
+    {
+      "id": "SP0-rejected-non-transferable-payload",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "PublishedMenu" },
+      "decisions": ["W-1178"],
+      "operations": [
+        { "op": "create", "strategy": "reference-counting", "value": "menu-v0", "owned": true, "transferable": false, "shareable": true, "lifetimeIndependent": true }
+      ],
+      "expect": { "status": "rejected", "error": "W-SNAPSHOT-0003", "phase": "uninitialized" }
+    },
+    {
+      "id": "SP0-rejected-dependent-payload",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "PublishedMenu" },
+      "decisions": ["W-1178"],
+      "operations": [
+        { "op": "create", "strategy": "reference-counting", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": false }
+      ],
+      "expect": { "status": "rejected", "error": "W-SNAPSHOT-0003", "phase": "uninitialized" }
+    },
+    {
+      "id": "SP0-rejected-read-dependency-escape",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "revision" },
+      "decisions": ["W-1178"],
+      "operations": [
+        { "op": "create", "strategy": "epoch", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "beginRead", "reader": "reader" },
+        { "op": "escapeRead", "reader": "reader" }
+      ],
+      "expect": { "status": "rejected", "error": "W-SNAPSHOT-0001", "phase": "open" }
+    },
+    {
+      "id": "SP0-rejected-read-suspension",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "courseCount" },
+      "decisions": ["W-1178"],
+      "operations": [
+        { "op": "create", "strategy": "epoch", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "beginRead", "reader": "reader" },
+        { "op": "suspendRead", "reader": "reader" }
+      ],
+      "expect": { "status": "rejected", "error": "W-SNAPSHOT-0002", "phase": "open" }
+    },
+    {
+      "id": "SP0-rejected-published-mutation",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "PublishedMenu" },
+      "decisions": ["W-1178"],
+      "operations": [
+        { "op": "create", "strategy": "hazard", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "beginRead", "reader": "reader" },
+        { "op": "mutateRead", "reader": "reader" }
+      ],
+      "expect": { "status": "rejected", "error": "W-SNAPSHOT-0004", "phase": "open" }
+    },
+    {
+      "id": "SP0-rejected-cell-copy",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "HorizonMenuPublication" },
+      "decisions": ["W-1178"],
+      "operations": [
+        { "op": "create", "strategy": "lock", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "copyCell" }
+      ],
+      "expect": { "status": "rejected", "error": "W-SNAPSHOT-0005", "phase": "open" }
+    },
+    {
+      "id": "SP0-rejected-borrowed-publication",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "publish" },
+      "decisions": ["W-1178"],
+      "operations": [
+        { "op": "create", "strategy": "reference-counting", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "publish", "value": "menu-v1", "owned": false, "transferable": true, "shareable": true, "lifetimeIndependent": true }
+      ],
+      "expect": { "status": "rejected", "error": "W-SNAPSHOT-0006", "currentVersion": 0 }
+    },
+    {
+      "id": "SP0-rejected-copy-of-nonduplicable-value",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "snapshot" },
+      "decisions": ["W-1178"],
+      "operations": [
+        { "op": "create", "strategy": "reference-counting", "value": "opaque-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "copySnapshot", "duplicable": false }
+      ],
+      "expect": { "status": "rejected", "error": "W-SNAPSHOT-0007", "copies": [] }
+    },
+    {
+      "id": "SP0-rejected-close-with-active-reader",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "HorizonMenuPublication" },
+      "decisions": ["W-1179"],
+      "operations": [
+        { "op": "create", "strategy": "epoch", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "beginRead", "reader": "reader" },
+        { "op": "close" }
+      ],
+      "expect": { "status": "rejected", "error": "W-SNAPSHOT-0008", "phase": "open", "drops": [] }
+    },
+    {
+      "id": "SP0-rejected-use-after-close",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "HorizonMenuPublication" },
+      "decisions": ["W-1179"],
+      "operations": [
+        { "op": "create", "strategy": "reference-counting", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "close" },
+        { "op": "beginRead", "reader": "late" }
+      ],
+      "expect": { "status": "rejected", "error": "W-SNAPSHOT-0009", "phase": "closed", "drops": [0] }
+    },
+    {
+      "id": "SP0-rejected-unknown-strategy",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "SnapshotCell" },
+      "decisions": ["W-1179", "W-1180"],
+      "operations": [
+        { "op": "create", "strategy": "magic", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true }
+      ],
+      "expect": { "status": "rejected", "error": "W-SNAPSHOT-0010", "phase": "uninitialized" }
+    },
+    {
+      "id": "SP0-accepted-retained-versions-follow-active-readers",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "HorizonMenuPublication" },
+      "decisions": ["W-1179", "W-1180"],
+      "operations": [
+        { "op": "create", "strategy": "epoch", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "beginRead", "reader": "old" },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "beginRead", "reader": "middle" },
+        { "op": "publish", "value": "menu-v2", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "finishRead", "reader": "old", "outcome": "success" },
+        { "op": "finishRead", "reader": "middle", "outcome": "success" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "currentVersion": 2,
+        "observed": ["menu-v0", "menu-v1"],
+        "versionPhases": ["reclaimed", "reclaimed", "current"],
+        "publicationOrder": [1, 2],
+        "drops": [0, 1]
+      }
+    },
+    {
+      "id": "SP0-fault-allocation-before-publication",
+      "kind": "fault",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "publish" },
+      "decisions": ["W-1178", "W-1179"],
+      "operations": [
+        { "op": "create", "strategy": "reference-counting", "value": "menu-v0", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true },
+        { "op": "publish", "value": "menu-v1", "owned": true, "transferable": true, "shareable": true, "lifetimeIndependent": true, "allocation": "fault" }
+      ],
+      "expect": { "status": "fault", "error": "snapshotPublicationAllocationFault", "phase": "faulted", "currentVersion": 0, "publicationOrder": [], "drops": [] }
+    }
+  ]
+}

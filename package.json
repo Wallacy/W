@@ -23,6 +23,7 @@
     "check:packages": "bun tooling/check-package-release-cases.mjs",
     "check:std": "bun tooling/check-std-api-contracts.mjs",
     "check:script-workflow": "bun test tooling/script-workflow-reference.test.mjs && bun tooling/check-script-workflow-cases.mjs",
+    "check:snapshot-cell": "bun test tooling/snapshot-cell-reference.test.mjs && bun tooling/check-snapshot-cell-cases.mjs",
     "check:repl-session": "bun test tooling/repl-session-reference.test.mjs && bun tooling/check-repl-session-cases.mjs",
     "check:presentation": "bun test tooling/presentation-reference.test.mjs && bun tooling/check-presentation-cases.mjs",
     "check:jupyter": "bun test tooling/jupyter-reference.test.mjs && bun tooling/check-jupyter-cases.mjs",

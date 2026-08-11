@@ -192,7 +192,7 @@ alvo de execução independente.
 | `menus/final.menu` | input do build transform |
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
 | `mobility.w` | transferência exclusiva, sharing verificado e captures |
-| `synchronization.w` | atomics, memory orders, CAS e locks scoped |
+| `synchronization.w` | atomics, memory orders, CAS, locks scoped e snapshots publicados |
 | `abort.w` | AbortSignal Web bounded, controller move-only, timeout, `any` e ponte HTTP |
 | `json.w` | JSON bounded, profiles I-JSON/RFC 8259, synthesis explícita, cursors scoped e oracles de falha |
 | `streams.w` | stream pull, carrier readable Web, BYOB, tee com lag explícito, channel MPSC e backpressure |
@@ -712,7 +712,8 @@ synchronization e uma view que escapa do scope.
 
 ### 3.5.2 Placar da Improbabilidade Residual
 
-Famílias: data-race freedom, happens-before, atomics, CAS e locks scoped.
+Famílias: data-race freedom, happens-before, atomics, CAS, locks scoped e
+snapshots publicados.
 
 Aceite:
 
@@ -746,8 +747,14 @@ Aceite:
 - `Mutex.withLock` não deixa borrow ou guard escapar;
 - `AsyncMutex.withLock` suspende na aquisição, não dentro da closure;
 - cancellation durante a espera não executa a closure;
+- `SnapshotCell.read` observa uma versão completa sem deixar borrow escapar;
+- `publish` consome uma nova versão e não espera readers da versão anterior;
+- `snapshot` cria um owner somente quando o payload atende a `Duplicable`;
+- a versão substituída executa drop uma vez, depois do último reader;
+- reference counting, epoch, hazard e lock preservam o mesmo trace lógico;
 - state de um closed turn não recebe atomic ou lock sem outra razão;
-- RCU e cache isolation continuam tipos ou contratos especializados.
+- RCU safe genérico continua rejeitado; reclamation customizada fica em adapter
+  `unsafe`.
 
 E0 executa traces lógicos de publication, release sequence, fences e
 compare-exchange. O gate de runtime repetirá litmus tests com uma, duas e quatro
@@ -756,6 +763,11 @@ threads. Esse gate também forçará o fallback não lock-free e executará TSan
 Failure injection cobre cancellation antes e depois da aquisição async. O trace
 confirma que cada critical section libera o lock uma vez. Benchmarks separam
 latency sem contenção, contenção na mesma cache line e counters particionados.
+
+O corpus SP0 possui 27 casos e 82 operações: 14 aceitos, 12 rejeitados e uma
+fault de allocation antes da publicação. Sete testes host cobrem versões,
+publication order, error drain, retirement bounded e estratégias equivalentes.
+Eles não implementam o provider `std.snapshot-cell@1` nem executam W.
 
 ### 3.5.3 Passa-Pratos de Capacidade Finita
 
