@@ -1322,6 +1322,10 @@ Aceite:
 - mover ou substituir o owner durante esse borrow falha;
 - `Pinned<T>` pode mudar de endereço sem mover o `T`;
 - `try pin take state` separa allocation fallible do move;
+- `try pin BellState(...)` inicializa no destination estável sem temporary
+  completo;
+- falha de argumento, allocation ou initializer não publica endereço;
+- self-reference safe não obtém acesso ao `self` parcial;
 - falha de `pin`, `share`, `tryShare` ou `rehome` consome e limpa o source uma vez;
 - não existe `unpin` irrestrito depois que o endereço é publicado;
 - a lease mantém o bell e o callback state vivos até unsubscribe;

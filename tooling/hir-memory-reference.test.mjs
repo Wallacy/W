@@ -849,6 +849,109 @@ test("M1 consuming allocation failure drops the source before propagation", () =
   assert.equal(result.state.outcomes.pin, "allocationError");
 });
 
+test("M1 direct pinned construction commits one stable destination", () => {
+  const result = runMemoryProgram([
+    {
+      op: "pinConstruct",
+      binding: "state",
+      root: "bell-state",
+      arguments: ["label", "rings"],
+      fields: ["label", "rings"],
+      initializedFields: ["label", "rings"],
+      consumedArguments: ["label"],
+      delegationDepth: 2,
+      result: "construction",
+    },
+    { op: "publishAddress", binding: "state" },
+    { op: "move", from: "state", to: "lease" },
+  ]);
+  assert.equal(result.status, "accepted");
+  assert.equal(result.state.outcomes.construction, "success");
+  assert.equal(result.state.bindings.state.state, "moved");
+  assert.equal(result.state.bindings.lease.pinnedHandle, true);
+  const payload = result.state.payloads[result.state.bindings.lease.payload];
+  assert.equal(payload.root, "pin:bell-state");
+  assert.equal(payload.address, "published");
+  assert.equal(payload.construction.intermediateMoves, 0);
+  assert.equal(payload.construction.delegationDepth, 2);
+  const receipt = result.state.constructionReceipts[0];
+  assert.equal(receipt.destinationRoot, "pin:bell-state");
+  assert.equal(receipt.bindingCommitted, true);
+  assert.equal(receipt.addressPublishedBeforeCommit, false);
+});
+
+test("M1 pinned construction cleans each failure phase before publication", () => {
+  const argumentFailure = runMemoryProgram([{
+    op: "pinConstruct",
+    binding: "state",
+    arguments: ["bell", "label", "rings"],
+    fields: ["label", "rings"],
+    outcome: "argumentError",
+    failedArgumentIndex: 2,
+    result: "construction",
+  }]);
+  assert.equal(argumentFailure.status, "accepted");
+  assert.deepEqual(
+    argumentFailure.state.constructionReceipts[0].stagingCleanup,
+    ["label", "bell"],
+  );
+  assert.equal(argumentFailure.state.bindings.state, undefined);
+
+  const allocationFailure = runMemoryProgram([{
+    op: "pinConstruct",
+    binding: "state",
+    arguments: ["label", "rings"],
+    fields: ["label", "rings"],
+    outcome: "allocationError",
+    result: "construction",
+  }]);
+  assert.deepEqual(
+    allocationFailure.state.constructionReceipts[0].stagingCleanup,
+    ["rings", "label"],
+  );
+  assert.equal(allocationFailure.state.constructionReceipts[0].storageReserved, false);
+
+  const initializerFailure = runMemoryProgram([{
+    op: "pinConstruct",
+    binding: "state",
+    arguments: ["label", "rings"],
+    fields: ["label", "rings"],
+    initializedFields: ["label"],
+    consumedArguments: ["label"],
+    outcome: "initializerError",
+    result: "construction",
+  }]);
+  const receipt = initializerFailure.state.constructionReceipts[0];
+  assert.deepEqual(receipt.fieldCleanup, ["label"]);
+  assert.deepEqual(receipt.stagingCleanup, ["rings"]);
+  assert.equal(receipt.storageReleased, true);
+  assert.equal(receipt.deinitCount, 0);
+  assert.equal(receipt.bindingCommitted, false);
+  assert.equal(receipt.addressPublishedBeforeCommit, false);
+});
+
+test("M1 pinned construction rejects partial self and early publication", () => {
+  const selfReference = runMemoryProgram([{
+    op: "pinConstruct",
+    binding: "state",
+    arguments: ["label"],
+    fields: ["label", "selfView"],
+    selfReference: true,
+  }]);
+  assert.equal(selfReference.status, "rejected");
+  assert.equal(selfReference.code, "selfReferentialValue");
+
+  const earlyPublication = runMemoryProgram([{
+    op: "pinConstruct",
+    binding: "state",
+    arguments: ["label"],
+    fields: ["label", "rings"],
+    publishBeforeCommit: true,
+  }]);
+  assert.equal(earlyPublication.status, "rejected");
+  assert.equal(earlyPublication.code, "addressPublicationBeforeInitialization");
+});
+
 test("M1 erasure derives inline and spill storage from the product policy", () => {
   const allocators = [
     {
