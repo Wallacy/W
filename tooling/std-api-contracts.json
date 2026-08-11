@@ -1164,12 +1164,6 @@
         "id": "std.sync@1",
         "status": "missing",
         "gates": [
-          "scoped-loan-no-escape",
-          "never-suspend-protected-operation",
-          "fifo-lock-admission",
-          "phase-fair-read-write-admission",
-          "async-cancellation-drain",
-          "fault-boundary-isolation",
           "version-linearization",
           "reader-version-stability",
           "reclamation-after-last-reader",
@@ -1180,42 +1174,9 @@
       },
       "consumer": {
         "path": "reference/last-light/synchronization.w",
-        "symbols": ["Mutex", "AsyncMutex", "ReadWriteLock", "LockAttempt", "SnapshotCell", "PublishedMenu", "HorizonMenuPublication", "ReadMostlyApologyLedger"]
+        "symbols": ["SnapshotCell", "PublishedMenu", "HorizonMenuPublication"]
       },
       "apis": [
-        { "symbol": "LockAttempt", "kind": "enum", "profile": "value-contract" },
-        {
-          "symbol": "Mutex",
-          "kind": "struct",
-          "profile": "scoped-lock-carrier",
-          "members": [
-            { "symbol": "init", "profile": "scoped-lock-carrier" },
-            { "symbol": "withLock", "overloads": 2, "profile": "scoped-lock-sync" },
-            { "symbol": "tryWithLock", "overloads": 2, "profile": "scoped-lock-try" }
-          ]
-        },
-        {
-          "symbol": "AsyncMutex",
-          "kind": "struct",
-          "profile": "scoped-lock-carrier",
-          "members": [
-            { "symbol": "init", "profile": "scoped-lock-carrier" },
-            { "symbol": "withLock", "overloads": 2, "profile": "scoped-lock-async" },
-            { "symbol": "tryWithLock", "overloads": 2, "profile": "scoped-lock-try" }
-          ]
-        },
-        {
-          "symbol": "ReadWriteLock",
-          "kind": "struct",
-          "profile": "scoped-read-write-carrier",
-          "members": [
-            { "symbol": "init", "profile": "scoped-read-write-carrier" },
-            { "symbol": "read", "profile": "scoped-read-write-sync" },
-            { "symbol": "write", "profile": "scoped-read-write-sync" },
-            { "symbol": "tryRead", "profile": "scoped-read-write-try" },
-            { "symbol": "tryWrite", "profile": "scoped-read-write-try" }
-          ]
-        },
         {
           "symbol": "SnapshotCell",
           "kind": "struct",
@@ -2541,33 +2502,6 @@
       "kind": "symbol",
       "consumer": "reference/last-light/tensor_interop.w",
       "profile": "dlpack-export",
-      "status": "draft"
-    },
-    {
-      "id": "lm0-mutex",
-      "module": "std.sync",
-      "surface": "Mutex",
-      "kind": "symbol",
-      "consumer": "reference/last-light/synchronization.w",
-      "profile": "scoped-lock-carrier",
-      "status": "draft"
-    },
-    {
-      "id": "lm0-async-mutex",
-      "module": "std.sync",
-      "surface": "AsyncMutex",
-      "kind": "symbol",
-      "consumer": "reference/last-light/synchronization.w",
-      "profile": "scoped-lock-carrier",
-      "status": "draft"
-    },
-    {
-      "id": "lm0-read-write-lock",
-      "module": "std.sync",
-      "surface": "ReadWriteLock",
-      "kind": "symbol",
-      "consumer": "reference/last-light/synchronization.w",
-      "profile": "scoped-read-write-carrier",
       "status": "draft"
     },
     {

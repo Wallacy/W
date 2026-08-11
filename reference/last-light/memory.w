@@ -1,7 +1,6 @@
 // Memory oracles for the Last Light restaurant.
 
 import * from std.memory
-import std.sync
 import std.task
 
 foreign c from "last_light_bell.h" {
@@ -102,24 +101,20 @@ export const fn expectedSharedCycleDisposition(
 }
 
 export object MenuObserverHub {
-  callbacks: Mutex<Array<any fn(): ()>>
+  callbacks: shared Array<any fn(): ()>
 
   export init() {
-    self.callbacks = Mutex([])
+    self.callbacks = []
   }
 
   fn observe(callback: take any fn(): ()) {
-    callbacks.withLock(
-      capture(take callback) (items) => {
-        items.append(take callback)
-      },
-    )
+    lock callbacks as items {
+      items.append(take callback)
+    }
   }
 
   fn observerCount(): usize {
-    return callbacks.withLock(
-      (items) => items.count,
-    )
+    return lock callbacks as items { items.count }
   }
 }
 
@@ -166,11 +161,12 @@ test "weak capture and drained census classify cycles" for expectedSharedCycleDi
 
 // Common construction uses the product allocator and the normal OOM policy.
 export fn makeMenuRoot(title: String): shared MenuSection {
-  return share(MenuSection(
+  let root: shared MenuSection = MenuSection(
     title: take title,
     parent: .none,
     children: [],
-  ))
+  )
+  return root
 }
 
 // The fallible result is borrow-independent. Its control block records

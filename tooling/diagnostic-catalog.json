@@ -1671,8 +1671,8 @@
       "state": "active",
       "phase": "semantic.ownership",
       "defaultSeverity": "error",
-      "meaning": "a move-only lock owner is copied",
-      "requiredFacts": { "actualType": "string", "operation": "string" },
+      "meaning": "the lock target is not a stable shared place",
+      "requiredFacts": { "actualType": "string", "operation": "string", "target": "string" },
       "labelRoles": {},
       "fixes": {}
     },
@@ -1691,8 +1691,8 @@
       "state": "active",
       "phase": "interface",
       "defaultSeverity": "error",
-      "meaning": "a lock provider grants an acquisition out of FIFO admission order",
-      "requiredFacts": { "actualTicket": "integer", "expectedTicket": "integer", "lock": "string" },
+      "meaning": "a lock provider grants an acquisition that is absent or no longer pending",
+      "requiredFacts": { "lock": "string", "request": "string", "task": "string" },
       "labelRoles": {},
       "fixes": {}
     },
@@ -1703,6 +1703,36 @@
       "defaultSeverity": "error",
       "meaning": "cancellation interrupts a protected operation after lock grant and before unlock",
       "requiredFacts": { "lock": "string", "phase": "string", "ticket": "integer" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LOCK-0011",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a protected lock operation can throw an application error",
+      "requiredFacts": { "effect": "string", "lock": "string", "operation": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LOCK-0012",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a protected lock operation can perform another blocking effect",
+      "requiredFacts": { "effect": "string", "lock": "string", "operation": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LOCK-0013",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a concurrent access bypasses the synchronization selected for the shared place",
+      "requiredFacts": { "access": "string", "place": "string", "synchronization": "string" },
       "labelRoles": {},
       "fixes": {}
     },

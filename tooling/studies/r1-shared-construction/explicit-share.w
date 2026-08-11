@@ -1,4 +1,4 @@
-// R1 shared-construction study: selected overloaded operation.
+// R1 shared-construction study: explicit expression and allocator operations.
 
 struct MenuSection {
   title: String

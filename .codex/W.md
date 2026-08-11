@@ -59,6 +59,11 @@ decision. If current artifacts conflict, fix `DESIGN.md` first, then update
   affected `.w` source and its local documentation range.
 - Update the grammar, reference product, and tests when the visible surface
   changes. Keep the frozen portal noncanonical.
+- Derive a new abstraction from a concrete Last Light case. First try to
+  compose existing ownership, domain/service, atomic, snapshot, channel, and
+  residual language-lock contracts. Add a wrapper, primitive, or design
+  pattern only when composition cannot express the case or measured evidence
+  shows a material loss. A precedent in another language is not sufficient.
 - Verify the smallest changed surface first. Run broader link, app, and diff
   checks once at the end.
 - For every substantive task, follow the coordinator-worker protocol in

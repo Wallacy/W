@@ -1,4 +1,4 @@
-// R1 shared-construction study: expected type performs the promotion.
+// R1 shared-construction study: the written shared declaration is the operation.
 
 struct MenuSection {
   title: String
@@ -15,7 +15,7 @@ fn makeRoot(title: String): shared MenuSection {
   return root
 }
 
-test "shared construction relies on contextual promotion" {
+test "shared construction is explicit in the declaration" {
   let root = makeRoot("Dinner")
   expect root.title == "Dinner"
 }

@@ -7287,6 +7287,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "lock_expression"
+        },
+        {
+          "type": "SYMBOL",
           "name": "transaction_expression"
         },
         {
@@ -9069,6 +9073,47 @@
           {
             "type": "SYMBOL",
             "name": "block"
+          }
+        ]
+      }
+    },
+    "lock_expression": {
+      "type": "PREC_RIGHT",
+      "value": 0,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "lock"
+          },
+          {
+            "type": "FIELD",
+            "name": "target",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_expression"
+            }
+          },
+          {
+            "type": "STRING",
+            "value": "as"
+          },
+          {
+            "type": "FIELD",
+            "name": "binding",
+            "content": {
+              "type": "SYMBOL",
+              "name": "identifier"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "body",
+            "content": {
+              "type": "SYMBOL",
+              "name": "block"
+            }
           }
         ]
       }

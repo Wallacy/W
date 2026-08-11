@@ -1,466 +1,325 @@
-const LOCK_KINDS = new Set(["sync", "async", "read-write"])
 const ACCESS_MODES = new Set(["ref", "inout"])
+const WAITING_FORMS = new Set(["sync", "await"])
 
-export class ScopedLockModelError extends Error {
+class LanguageLockModelError extends Error {
   constructor(code, status = "rejected") {
     super(code)
-    this.name = "ScopedLockModelError"
     this.code = code
     this.status = status
   }
 }
 
 function fail(code, status = "rejected") {
-  throw new ScopedLockModelError(code, status)
+  throw new LanguageLockModelError(code, status)
 }
 
-function requireName(value, code) {
+function requireText(value, code) {
   if (typeof value !== "string" || value.length === 0) fail(code)
+  return value
 }
 
-function requireLock(state, lockId) {
-  const lock = state.locks[lockId]
-  if (!lock) fail("lockUnknown")
-  if (lock.phase !== "open") fail("lockNotOpen")
-  return lock
+function requireOwner(state, name) {
+  const owner = state.owners[name]
+  if (!owner) fail("sharedOwnerMissing")
+  return owner
 }
 
-function requireHolder(lock, task) {
-  if (lock.kind !== "read-write") {
-    if (!lock.holder || lock.holder.task !== task) fail("lockHolderMismatch")
-    return lock.holder
+function requireOpen(owner) {
+  if (owner.phase !== "open") fail("sharedOwnerNotOpen")
+}
+
+function activeTask(owner, task) {
+  return owner.holder?.task === task || owner.waiters.some((waiter) => waiter.task === task)
+}
+
+function validateSharedConstruction(operation) {
+  if (operation.lifetimeIndependent !== true) fail("W-BORROW-0010")
+  if (operation.source === "binding" && operation.take !== true) fail("W-OWNERSHIP-0010")
+  if (operation.source !== "binding" && operation.source !== "temporary") {
+    fail("sharedSourceInvalid")
   }
-  if (lock.writer?.task === task) return lock.writer
-  const reader = lock.readers.find((item) => item.task === task)
-  if (!reader) fail("lockHolderMismatch")
-  return reader
 }
 
-function hasActiveHolder(lock) {
-  if (lock.kind === "read-write") return lock.writer !== null || lock.readers.length > 0
-  return lock.holder !== null
-}
-
-function taskIsActive(lock, task) {
-  if (lock.kind === "read-write") {
-    return lock.writer?.task === task || lock.readers.some((item) => item.task === task)
-  }
-  return lock.holder?.task === task
-}
-
-function enqueue(lock, operation) {
-  if (taskIsActive(lock, operation.task) || lock.queue.some((item) => item.task === operation.task)) {
-    fail("W-LOCK-0004")
-  }
-  const ticket = lock.nextTicket
-  lock.nextTicket += 1
-  lock.queue.push({
-    task: operation.task,
-    ticket,
-    access: operation.access,
+function makeOwner(operation, allocation) {
+  return {
+    allocation,
     boundary: operation.boundary,
-  })
-  lock.trace.push(`enqueue:${ticket}:${operation.task}`)
-  return ticket
+    value: operation.value,
+    phase: "open",
+    holder: null,
+    waiters: [],
+    nextWait: 0,
+    lastUnlock: null,
+    drops: 0,
+    bodyEvaluations: 0,
+    cancellations: [],
+    happensBefore: [],
+    outcomes: [],
+    trace: [`create:${operation.form}`],
+  }
 }
 
-function admit(lock, waiter, source) {
-  if (lock.kind === "read-write") fail("lockAdmissionKindInvalid")
-  lock.holder = {
+function validateTarget(owner, operation) {
+  requireOpen(owner)
+  requireText(operation.task, "lockTaskMissing")
+  if (!ACCESS_MODES.has(operation.access)) fail("lockAccessInvalid")
+  if (operation.boundary !== owner.boundary) fail("W-LOCK-0005")
+  if (activeTask(owner, operation.task)) fail("W-LOCK-0004")
+}
+
+function validateBody(operation) {
+  const body = operation.body ?? {}
+  if (body.neverSuspend !== true) fail("W-LOCK-0002")
+  if (body.neverThrow !== true) fail("W-LOCK-0011")
+  if (body.nonBlocking !== true) fail("W-LOCK-0012")
+  if (body.resultIndependent !== true) fail("W-LOCK-0001")
+}
+
+function grant(owner, waiter, source) {
+  if (owner.holder) fail("lockAlreadyHeld")
+  owner.holder = {
     task: waiter.task,
-    ticket: waiter.ticket,
     access: waiter.access,
+    form: waiter.form,
+    wait: waiter.wait,
     pendingCancellation: false,
   }
-  lock.trace.push(`grant:${waiter.ticket}:${waiter.task}:${source}`)
-  if (lock.lastUnlock !== null) {
-    lock.happensBefore.push(`unlock:${lock.lastUnlock}->grant:${waiter.ticket}`)
+  owner.trace.push(`grant:${waiter.wait}:${waiter.task}:${source}`)
+  if (owner.lastUnlock !== null) {
+    owner.happensBefore.push(`unlock:${owner.lastUnlock}->grant:${waiter.wait}`)
   }
 }
 
-function beginReadWritePhase(lock, waiters, source) {
-  if (hasActiveHolder(lock) || waiters.length === 0) fail("lockPhaseAdmissionInvalid")
-  const phase = lock.nextPhase
-  lock.nextPhase += 1
-  const access = waiters[0].access
-  if (!waiters.every((waiter) => waiter.access === access)) fail("lockPhaseAccessMixed")
-  if (access === "inout" && waiters.length !== 1) fail("lockWriterPhaseWidthInvalid")
-
-  for (const waiter of waiters) {
-    const holder = {
-      task: waiter.task,
-      ticket: waiter.ticket,
-      access: waiter.access,
-      phase,
-      pendingCancellation: false,
-    }
-    if (access === "ref") lock.readers.push(holder)
-    else lock.writer = holder
-    lock.trace.push(`grant:${waiter.ticket}:${waiter.task}:${source}:phase:${phase}`)
-    if (lock.lastPhaseClose !== null) {
-      lock.happensBefore.push(`phase-close:${lock.lastPhaseClose}->grant:${waiter.ticket}`)
-    }
-  }
+function requireHolder(owner, task) {
+  if (!owner.holder || owner.holder.task !== task) fail("lockHolderMissing")
+  return owner.holder
 }
 
-function joinReadWritePhase(lock, waiters, source) {
-  if (lock.writer || lock.readers.length === 0 || waiters.length === 0) {
-    fail("lockPhaseJoinInvalid")
+export function selectSynchronization(facts) {
+  if (facts.durable || facts.distributed || facts.keyedIdentity) return "service"
+  if (facts.transferOwnership || facts.mailbox || facts.closeProtocol) return "channel"
+  if (facts.uniqueOwner || facts.taskLocal) return "owner"
+  if (facts.scalar && facts.singleLocation) return "atomic"
+  if (facts.immutableVersions && facts.readHeavy) return "snapshot-cell"
+  if (facts.taskOwnedMutableState) return "serial-domain"
+  if (facts.parallelReads && facts.exclusiveTaskWrite && facts.closedAccessGraph) {
+    return "domain-barrier"
   }
-  const phase = lock.readers[0].phase
-  if (!waiters.every((waiter) => waiter.access === "ref")) fail("lockPhaseAccessMixed")
-  for (const waiter of waiters) {
-    lock.readers.push({
-      task: waiter.task,
-      ticket: waiter.ticket,
-      access: "ref",
-      phase,
-      pendingCancellation: false,
-    })
-    lock.trace.push(`grant:${waiter.ticket}:${waiter.task}:${source}:phase:${phase}`)
+  if (facts.synchronousForeign && facts.shortCriticalSection && facts.sameBoundary) {
+    return "language-lock"
   }
-}
-
-function validateRequest(lock, operation, immediate = false) {
-  requireName(operation.task, "lockTaskMissing")
-  if (!ACCESS_MODES.has(operation.access)) fail("lockAccessInvalid")
-  if (operation.boundary !== lock.boundary) fail("W-LOCK-0005")
-  if (
-    new Set(["sync", "read-write"]).has(lock.kind) &&
-    !immediate &&
-    operation.blockingAllowed !== true
-  ) {
-    fail("W-LOCK-0003")
-  }
-}
-
-function finishHolder(lock, operation) {
-  const holder = requireHolder(lock, operation.task)
-  if (!new Set(["success", "error"]).has(operation.outcome)) fail("lockOutcomeInvalid")
-  lock.trace.push(`finish:${holder.ticket}:${operation.task}:${operation.outcome}`)
-  lock.happensBefore.push(`body:${holder.ticket}->unlock:${holder.ticket}`)
-  lock.outcomes.push({
-    task: operation.task,
-    ticket: holder.ticket,
-    outcome: operation.outcome,
-    cancellation: holder.pendingCancellation ? "after-unlock" : "none",
-  })
-  if (holder.pendingCancellation) lock.cancellations.push(`observed:${operation.task}`)
-  if (lock.kind !== "read-write") {
-    lock.lastUnlock = holder.ticket
-    lock.holder = null
-    return
-  }
-
-  if (holder.access === "inout") {
-    lock.writer = null
-    lock.lastPhaseClose = holder.phase
-    lock.happensBefore.push(`unlock:${holder.ticket}->phase-close:${holder.phase}`)
-    lock.closedPhases.push({ phase: holder.phase, access: "write", tickets: [holder.ticket] })
-    return
-  }
-
-  lock.readers = lock.readers.filter((item) => item.task !== operation.task)
-  lock.readerUnlocks.push({ phase: holder.phase, ticket: holder.ticket })
-  if (lock.readers.some((item) => item.phase === holder.phase)) return
-  const tickets = lock.readerUnlocks
-    .filter((item) => item.phase === holder.phase)
-    .map((item) => item.ticket)
-    .sort((left, right) => left - right)
-  lock.lastPhaseClose = holder.phase
-  lock.happensBefore.push(`readers:${tickets.join(",")}->phase-close:${holder.phase}`)
-  lock.closedPhases.push({ phase: holder.phase, access: "read", tickets })
+  if (facts.kernelOrOsSpecialization && facts.unsafeAdapterContract) return "specialized-adapter"
+  if (facts.readWriteLockRequested) return "rejected-read-write-lock"
+  return "insufficient-facts"
 }
 
 function applyOperation(state, operation) {
   switch (operation.op) {
-    case "create": {
-      requireName(operation.lock, "lockNameMissing")
-      requireName(operation.boundary, "lockBoundaryMissing")
-      if (state.locks[operation.lock]) fail("lockAlreadyCreated")
-      if (!LOCK_KINDS.has(operation.kind)) fail("W-SYNC-0001")
-      if (
-        operation.owned !== true ||
-        operation.transferable !== true ||
-        operation.lifetimeIndependent !== true
-      ) {
-        fail("lockPayloadContractMissing")
+    case "declareShared": {
+      requireText(operation.owner, "sharedOwnerNameMissing")
+      requireText(operation.boundary, "sharedBoundaryMissing")
+      if (state.owners[operation.owner]) fail("sharedOwnerAlreadyExists")
+      if (!new Set(["binding", "storedField"]).has(operation.context)) {
+        fail("W-OWNERSHIP-0013")
       }
-      state.locks[operation.lock] = {
-        kind: operation.kind,
-        boundary: operation.boundary,
-        value: operation.value,
-        phase: "open",
-        holder: null,
-        readers: [],
-        writer: null,
-        queue: [],
-        nextTicket: 0,
-        nextPhase: 0,
-        lastUnlock: null,
-        lastPhaseClose: null,
-        readerUnlocks: [],
-        closedPhases: [],
-        drops: 0,
-        outcomes: [],
-        cancellations: [],
-        happensBefore: [],
-        trace: [`create:${operation.kind}`],
+      if (operation.explicitSharedType !== true) fail("W-OWNERSHIP-0013")
+      validateSharedConstruction(operation)
+      state.owners[operation.owner] = makeOwner(operation, "product.default")
+      state.receipts.push({ operation: "shared", owner: operation.owner, allocation: "product.default" })
+      return
+    }
+
+    case "share": {
+      requireText(operation.owner, "sharedOwnerNameMissing")
+      requireText(operation.boundary, "sharedBoundaryMissing")
+      if (state.owners[operation.owner]) fail("sharedOwnerAlreadyExists")
+      if (operation.explicitOperation !== true) fail("W-OWNERSHIP-0013")
+      validateSharedConstruction(operation)
+      const allocation = operation.allocator ?? "product.default"
+      if (allocation !== "product.default" && operation.recoverable !== true) {
+        fail("sharedAllocatorRequiresRecoverableOperation")
       }
+      state.owners[operation.owner] = makeOwner(operation, allocation)
+      state.receipts.push({ operation: "share", owner: operation.owner, allocation })
       return
     }
 
     case "request": {
-      const lock = requireLock(state, operation.lock)
-      validateRequest(lock, operation)
-      const ticket = enqueue(lock, operation)
-      state.receipts.push({ operation: "request", task: operation.task, ticket })
+      const owner = requireOwner(state, operation.owner)
+      if (!WAITING_FORMS.has(operation.form)) fail("lockWaitingFormInvalid")
+      validateTarget(owner, operation)
+      validateBody(operation)
+      if (operation.form === "sync" && operation.blockingAllowed !== true) fail("W-LOCK-0003")
+      const waiter = {
+        task: operation.task,
+        access: operation.access,
+        form: operation.form,
+        wait: owner.nextWait,
+      }
+      owner.nextWait += 1
+      owner.waiters.push(waiter)
+      owner.trace.push(`request:${waiter.wait}:${waiter.task}:${waiter.form}`)
+      state.receipts.push({ operation: "request", task: waiter.task, wait: waiter.wait })
       return
     }
 
     case "grant": {
-      const lock = requireLock(state, operation.lock)
-      if (lock.kind === "read-write") fail("lockGrantFormInvalid")
-      if (lock.holder) fail("lockAlreadyHeld")
-      const waiter = lock.queue[0]
-      if (!waiter || waiter.task !== operation.task) fail("W-LOCK-0009")
-      lock.queue.shift()
-      admit(lock, waiter, "queue")
-      return
-    }
-
-    case "grantPhase": {
-      const lock = requireLock(state, operation.lock)
-      if (lock.kind !== "read-write") fail("lockGrantFormInvalid")
-      if (lock.writer) fail("lockAlreadyHeld")
-      const head = lock.queue[0]
-      if (!head) fail("lockWaiterMissing")
-
-      if (head.access === "inout") {
-        if (lock.readers.length > 0) fail("lockAlreadyHeld")
-        if (operation.task !== head.task || operation.tasks !== undefined) fail("W-LOCK-0009")
-        lock.queue.shift()
-        beginReadWritePhase(lock, [head], "queue")
-        return
-      }
-
-      const prefix = []
-      while (lock.queue[0]?.access === "ref") prefix.push(lock.queue.shift())
-      const expectedTasks = prefix.map((item) => item.task)
-      if (JSON.stringify(operation.tasks) !== JSON.stringify(expectedTasks)) fail("W-LOCK-0009")
-      if (lock.readers.length > 0) joinReadWritePhase(lock, prefix, "queue")
-      else beginReadWritePhase(lock, prefix, "queue")
+      const owner = requireOwner(state, operation.owner)
+      requireOpen(owner)
+      if (owner.holder) fail("lockAlreadyHeld")
+      const index = owner.waiters.findIndex((waiter) => waiter.task === operation.task)
+      if (index < 0) fail("W-LOCK-0009")
+      const [waiter] = owner.waiters.splice(index, 1)
+      grant(owner, waiter, "provider")
       return
     }
 
     case "tryAcquire": {
-      const lock = requireLock(state, operation.lock)
-      validateRequest(lock, operation, true)
-      if (taskIsActive(lock, operation.task)) fail("W-LOCK-0004")
-      const readCanJoin =
-        lock.kind === "read-write" &&
-        operation.access === "ref" &&
-        lock.writer === null &&
-        lock.queue.length === 0
-      const writeCanEnter =
-        lock.kind === "read-write" &&
-        operation.access === "inout" &&
-        !hasActiveHolder(lock) &&
-        lock.queue.length === 0
-      const ordinaryCanEnter =
-        lock.kind !== "read-write" && lock.holder === null && lock.queue.length === 0
-      if (!readCanJoin && !writeCanEnter && !ordinaryCanEnter) {
-        lock.trace.push(`try-busy:${operation.task}`)
+      const owner = requireOwner(state, operation.owner)
+      validateTarget(owner, operation)
+      validateBody(operation)
+      if (owner.holder || owner.waiters.length > 0 || operation.providerBusy === true) {
+        owner.trace.push(`try-busy:${operation.task}`)
         state.receipts.push({ operation: "try", task: operation.task, result: "busy" })
         return
       }
       const waiter = {
         task: operation.task,
-        ticket: lock.nextTicket,
         access: operation.access,
-        boundary: operation.boundary,
+        form: "try",
+        wait: owner.nextWait,
       }
-      lock.nextTicket += 1
-      if (lock.kind === "read-write") {
-        if (readCanJoin && lock.readers.length > 0) {
-          joinReadWritePhase(lock, [waiter], "try")
-        } else {
-          beginReadWritePhase(lock, [waiter], "try")
-        }
-      } else {
-        admit(lock, waiter, "try")
-      }
+      owner.nextWait += 1
+      grant(owner, waiter, "try")
       state.receipts.push({ operation: "try", task: operation.task, result: "acquired" })
       return
     }
 
     case "read": {
-      const lock = requireLock(state, operation.lock)
-      const holder = requireHolder(lock, operation.task)
-      lock.trace.push(`read:${holder.ticket}:${String(lock.value)}`)
-      state.reads.push(lock.value)
+      const owner = requireOwner(state, operation.owner)
+      requireHolder(owner, operation.task)
+      owner.bodyEvaluations += 1
+      state.reads.push(owner.value)
+      owner.trace.push(`read:${operation.task}`)
       return
     }
 
     case "write": {
-      const lock = requireLock(state, operation.lock)
-      const holder = requireHolder(lock, operation.task)
+      const owner = requireOwner(state, operation.owner)
+      const holder = requireHolder(owner, operation.task)
       if (holder.access !== "inout") fail("W-LOCK-0006")
-      lock.value = operation.value
-      lock.trace.push(`write:${holder.ticket}:${String(operation.value)}`)
+      owner.bodyEvaluations += 1
+      owner.value = operation.value
+      owner.trace.push(`write:${operation.task}`)
       return
     }
 
     case "finish": {
-      const lock = requireLock(state, operation.lock)
-      finishHolder(lock, operation)
+      const owner = requireOwner(state, operation.owner)
+      const holder = requireHolder(owner, operation.task)
+      if (operation.resultIndependent !== true) fail("W-LOCK-0001")
+      const cancellation = holder.pendingCancellation ? "after-unlock" : "none"
+      owner.outcomes.push({ task: holder.task, outcome: "success", cancellation })
+      owner.happensBefore.push(`body:${holder.wait}->unlock:${holder.wait}`)
+      owner.lastUnlock = holder.wait
+      owner.trace.push(`finish:${holder.wait}:${holder.task}`)
+      owner.holder = null
+      if (cancellation === "after-unlock") owner.cancellations.push(`observed:${holder.task}`)
       return
     }
 
     case "cancelWait": {
-      const lock = requireLock(state, operation.lock)
-      if (lock.kind !== "async") fail("lockSyncWaitNotCancellable")
-      const index = lock.queue.findIndex((item) => item.task === operation.task)
+      const owner = requireOwner(state, operation.owner)
+      const index = owner.waiters.findIndex((waiter) => waiter.task === operation.task)
       if (index < 0) fail("lockWaiterMissing")
-      const [waiter] = lock.queue.splice(index, 1)
-      lock.cancellations.push(`removed:${operation.task}`)
-      lock.trace.push(`cancel-wait:${waiter.ticket}:${operation.task}`)
+      if (owner.waiters[index].form !== "await") fail("lockSyncWaitNotCancellable")
+      owner.waiters.splice(index, 1)
+      owner.cancellations.push(`removed:${operation.task}`)
+      owner.trace.push(`cancel-wait:${operation.task}`)
       return
     }
 
     case "cancelHeld": {
-      const lock = requireLock(state, operation.lock)
-      if (lock.kind !== "async") fail("lockSyncHolderNotCancellable")
-      const holder = requireHolder(lock, operation.task)
+      const owner = requireOwner(state, operation.owner)
+      const holder = requireHolder(owner, operation.task)
+      if (holder.form !== "await") fail("lockSyncHolderNotCancellable")
       holder.pendingCancellation = true
-      lock.cancellations.push(`deferred:${operation.task}`)
-      lock.trace.push(`cancel-held:${holder.ticket}:${operation.task}`)
+      owner.cancellations.push(`deferred:${operation.task}`)
       return
-    }
-
-    case "interruptHeld": {
-      const lock = requireLock(state, operation.lock)
-      const holder = requireHolder(lock, operation.task)
-      if (!holder.pendingCancellation) fail("lockCancellationMissing")
-      fail("W-LOCK-0010")
     }
 
     case "suspend":
-      requireHolder(requireLock(state, operation.lock), operation.task)
+      requireHolder(requireOwner(state, operation.owner), operation.task)
       fail("W-LOCK-0002")
 
+    case "throw":
+      requireHolder(requireOwner(state, operation.owner), operation.task)
+      fail("W-LOCK-0011")
+
+    case "block":
+      requireHolder(requireOwner(state, operation.owner), operation.task)
+      fail("W-LOCK-0012")
+
     case "escape":
-      requireHolder(requireLock(state, operation.lock), operation.task)
+      requireHolder(requireOwner(state, operation.owner), operation.task)
       fail("W-LOCK-0001")
 
-    case "copy":
-      requireLock(state, operation.lock)
-      fail("W-LOCK-0007")
+    case "unguardedOverlap":
+      requireOwner(state, operation.owner)
+      fail("W-LOCK-0013")
+
+    case "drop": {
+      const owner = requireOwner(state, operation.owner)
+      if (owner.holder || owner.waiters.length > 0) fail("W-LOCK-0008")
+      if (owner.drops !== 0) fail("sharedDropRepeated")
+      owner.drops = 1
+      owner.phase = "closed"
+      owner.trace.push("drop")
+      return
+    }
 
     case "panic": {
-      const lock = requireLock(state, operation.lock)
-      const holder = requireHolder(lock, operation.task)
-      lock.trace.push(`panic:${holder.ticket}:${operation.task}`)
-      lock.phase = "faulted"
-      lock.holder = null
-      lock.writer = null
-      lock.readers = []
-      lock.queue = []
-      state.failedBoundaries.push(lock.boundary)
+      const owner = requireOwner(state, operation.owner)
+      requireHolder(owner, operation.task)
+      owner.phase = "faulted"
+      owner.holder = null
+      owner.waiters = []
+      state.failedBoundaries.push(owner.boundary)
       fail("lockBoundaryPanicked", "fault")
     }
 
-    case "drop": {
-      const lock = requireLock(state, operation.lock)
-      if (hasActiveHolder(lock) || lock.queue.length > 0) fail("W-LOCK-0008")
-      if (lock.drops !== 0) fail("lockDropRepeated")
-      lock.drops = 1
-      lock.phase = "closed"
-      lock.trace.push("drop")
-      return
-    }
-
     case "unsupported":
-      if (!new Set(["Condition", "Once"]).has(operation.primitive)) {
-        fail("lockUnsupportedEvidenceInvalid")
-      }
       fail("W-SYNC-0001")
 
-    case "select": {
+    case "select":
       state.selections.push(selectSynchronization(operation.facts ?? {}))
       return
-    }
 
     default:
       fail("lockOperationUnknown")
   }
 }
 
-function verifyState(state) {
-  for (const lock of Object.values(state.locks)) {
-    for (let index = 1; index < lock.queue.length; index += 1) {
-      if (lock.queue[index - 1].ticket >= lock.queue[index].ticket) fail("W-LOCK-0009")
-    }
-    if (
-      lock.phase === "closed" &&
-      (hasActiveHolder(lock) || lock.queue.length > 0 || lock.drops !== 1)
-    ) {
-      fail("lockClosedStateInvalid")
-    }
-    if (lock.kind === "read-write" && lock.writer && lock.readers.length > 0) {
-      fail("lockReadWriteOverlap")
-    }
-  }
-}
-
-export function selectSynchronization(facts) {
-  if (facts.durable === true || facts.distributed === true || facts.keyedIdentity === true) {
-    return "service"
-  }
-  if (facts.transferOwnership === true) return "channel"
-  if (facts.scalar === true && facts.singleLocation === true) return "atomic"
-  if (facts.readHeavy === true && facts.replaceWholeVersion === true) return "snapshot-cell"
-  if (
-    facts.parallelReads === true &&
-    facts.exclusiveWrite === true &&
-    facts.staticDomain === true &&
-    facts.closedAccessGraph === true
-  ) {
-    return "domain-barrier"
-  }
-  if (
-    facts.parallelReads === true &&
-    facts.exclusiveWrite === true &&
-    facts.synchronousContext === true
-  ) {
-    return "read-write-lock"
-  }
-  if (facts.shortCriticalSection === true && facts.taskContext === true) return "async-mutex"
-  if (facts.shortCriticalSection === true && facts.synchronousContext === true) return "mutex"
-  return "insufficient-facts"
-}
-
 function projectState(state) {
-  const locks = {}
-  for (const [id, lock] of Object.entries(state.locks)) {
-    locks[id] = {
-      kind: lock.kind,
-      boundary: lock.boundary,
-      value: lock.value,
-      phase: lock.phase,
-      holder: lock.kind === "read-write" ? lock.writer?.task ?? null : lock.holder?.task ?? null,
-      readers: lock.readers.map((item) => item.task),
-      queue: lock.queue.map((item) => item.task),
-      drops: lock.drops,
-      outcomes: lock.outcomes,
-      cancellations: lock.cancellations,
-      happensBefore: lock.happensBefore,
-      closedPhases: lock.closedPhases,
-      trace: lock.trace,
+  const owners = {}
+  for (const [name, owner] of Object.entries(state.owners)) {
+    owners[name] = {
+      allocation: owner.allocation,
+      boundary: owner.boundary,
+      value: owner.value,
+      phase: owner.phase,
+      holder: owner.holder?.task ?? null,
+      waiters: owner.waiters.map((waiter) => waiter.task),
+      drops: owner.drops,
+      bodyEvaluations: owner.bodyEvaluations,
+      cancellations: owner.cancellations,
+      happensBefore: owner.happensBefore,
+      outcomes: owner.outcomes,
+      trace: owner.trace,
     }
   }
   return {
-    locks,
+    owners,
     receipts: state.receipts,
     reads: state.reads,
     selections: state.selections,
@@ -470,7 +329,7 @@ function projectState(state) {
 
 export function runScopedLockOperations(operations) {
   const state = {
-    locks: {},
+    owners: {},
     receipts: [],
     reads: [],
     selections: [],
@@ -483,9 +342,8 @@ export function runScopedLockOperations(operations) {
   for (const [index, operation] of operations.entries()) {
     try {
       applyOperation(state, operation)
-      verifyState(state)
     } catch (cause) {
-      if (!(cause instanceof ScopedLockModelError)) throw cause
+      if (!(cause instanceof LanguageLockModelError)) throw cause
       status = cause.status
       error = cause.code
       failedOperation = index
@@ -493,10 +351,5 @@ export function runScopedLockOperations(operations) {
     }
   }
 
-  return {
-    status,
-    error,
-    failedOperation,
-    state: projectState(state),
-  }
+  return { status, error, failedOperation, state: projectState(state) }
 }

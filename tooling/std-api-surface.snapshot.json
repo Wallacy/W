@@ -1,15 +1,15 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "0652cc7309305502977f6a6dd4137233503aec7bf1751e0647f36b9675171767",
+  "catalogDigest": "cce57dfc93dbfe5926d65f6240a460ba8dd5c202c28d4bf722cbcb4422551b62",
   "summary": {
     "modules": 23,
-    "catalogedApis": 328,
-    "draftCatalogedApis": 328,
+    "catalogedApis": 324,
+    "draftCatalogedApis": 324,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 84,
-    "referenceRequirements": 26,
-    "contractedReferenceRequirements": 26,
+    "referenceRequirements": 23,
+    "contractedReferenceRequirements": 23,
     "missingReferenceRequirements": 1,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 2,
@@ -5906,195 +5906,21 @@
         "status": "missing",
         "gates": [
           "asan-tsan-leak",
-          "async-cancellation-drain",
           "drop-once",
-          "fault-boundary-isolation",
-          "fifo-lock-admission",
-          "never-suspend-protected-operation",
-          "phase-fair-read-write-admission",
           "reader-version-stability",
           "reclamation-after-last-reader",
-          "scoped-loan-no-escape",
           "strategy-differential",
           "version-linearization"
         ]
       },
-      "catalogedDeclarationsDigest": "58f16c0eb9817d3f5372d0b8a650a0a2b63003678829708cfd1656903c3525a6",
+      "catalogedDeclarationsDigest": "5f80170752ce8749cb68f9729568e6797f6d3ea5eeb032c5056ea58cc9f7b9e6",
       "apis": [
-        {
-          "symbol": "AsyncMutex",
-          "kind": "struct",
-          "signature": "export struct AsyncMutex<Value>",
-          "declarationDigest": "ee0a0ed21eb711c1d2cc8ac8f6a047bcc7aadf69dfa0940a42322451ef6a7cd4",
-          "line": 174,
-          "profile": "scoped-lock-carrier",
-          "members": [
-            {
-              "symbol": "init",
-              "overloads": [
-                {
-                  "signature": "export init( _ initial: take Value<(.transferable && .lifetimeIndependent)>, )",
-                  "line": 177
-                }
-              ],
-              "profile": "scoped-lock-carrier"
-            },
-            {
-              "symbol": "withLock",
-              "overloads": [
-                {
-                  "signature": "export async fn withLock<Result, Failure: Error>( _ operation: some fn(ref Value): Result throws Failure, ): Result throws Failure",
-                  "line": 184
-                },
-                {
-                  "signature": "export async fn withLock<Result, Failure: Error>( _ operation: some fn(inout Value): Result throws Failure, ): Result throws Failure",
-                  "line": 190
-                }
-              ],
-              "profile": "scoped-lock-async"
-            },
-            {
-              "symbol": "tryWithLock",
-              "overloads": [
-                {
-                  "signature": "export fn tryWithLock<Result, Failure: Error>( _ operation: some fn(ref Value): Result throws Failure, ): LockAttempt<Result> throws Failure",
-                  "line": 196
-                },
-                {
-                  "signature": "export fn tryWithLock<Result, Failure: Error>( _ operation: some fn(inout Value): Result throws Failure, ): LockAttempt<Result> throws Failure",
-                  "line": 202
-                }
-              ],
-              "profile": "scoped-lock-try"
-            }
-          ],
-          "status": "draft"
-        },
-        {
-          "symbol": "LockAttempt",
-          "kind": "enum",
-          "signature": "export enum LockAttempt<Result>",
-          "declarationDigest": "716a5ba4b7f83fc6c7becc38b317ffb9706772f07d8df30953aeb8463ce6ab9e",
-          "line": 9,
-          "profile": "value-contract",
-          "status": "draft"
-        },
-        {
-          "symbol": "Mutex",
-          "kind": "struct",
-          "signature": "export struct Mutex<Value>",
-          "declarationDigest": "f8e3fb87f095f9af5a7293dd0751e1dfb6f5791342bb664b4bd09531641041cc",
-          "line": 135,
-          "profile": "scoped-lock-carrier",
-          "members": [
-            {
-              "symbol": "init",
-              "overloads": [
-                {
-                  "signature": "export init( _ initial: take Value<(.transferable && .lifetimeIndependent)>, )",
-                  "line": 138
-                }
-              ],
-              "profile": "scoped-lock-carrier"
-            },
-            {
-              "symbol": "withLock",
-              "overloads": [
-                {
-                  "signature": "export fn withLock<Result, Failure: Error>( _ operation: some fn(ref Value): Result throws Failure, ): Result throws Failure",
-                  "line": 145
-                },
-                {
-                  "signature": "export fn withLock<Result, Failure: Error>( _ operation: some fn(inout Value): Result throws Failure, ): Result throws Failure",
-                  "line": 151
-                }
-              ],
-              "profile": "scoped-lock-sync"
-            },
-            {
-              "symbol": "tryWithLock",
-              "overloads": [
-                {
-                  "signature": "export fn tryWithLock<Result, Failure: Error>( _ operation: some fn(ref Value): Result throws Failure, ): LockAttempt<Result> throws Failure",
-                  "line": 157
-                },
-                {
-                  "signature": "export fn tryWithLock<Result, Failure: Error>( _ operation: some fn(inout Value): Result throws Failure, ): LockAttempt<Result> throws Failure",
-                  "line": 163
-                }
-              ],
-              "profile": "scoped-lock-try"
-            }
-          ],
-          "status": "draft"
-        },
-        {
-          "symbol": "ReadWriteLock",
-          "kind": "struct",
-          "signature": "export struct ReadWriteLock<Value>",
-          "declarationDigest": "5fe359d8881e9d893f6ef9f21d3138e41f4dc29677b86752ae2ddf19cbd6d048",
-          "line": 213,
-          "profile": "scoped-read-write-carrier",
-          "members": [
-            {
-              "symbol": "init",
-              "overloads": [
-                {
-                  "signature": "export init( _ initial: take Value<(.transferable && .lifetimeIndependent)>, )",
-                  "line": 216
-                }
-              ],
-              "profile": "scoped-read-write-carrier"
-            },
-            {
-              "symbol": "read",
-              "overloads": [
-                {
-                  "signature": "export fn read<Result, Failure: Error>( _ operation: some fn(ref Value): Result throws Failure, ): Result throws Failure",
-                  "line": 223
-                }
-              ],
-              "profile": "scoped-read-write-sync"
-            },
-            {
-              "symbol": "write",
-              "overloads": [
-                {
-                  "signature": "export fn write<Result, Failure: Error>( _ operation: some fn(inout Value): Result throws Failure, ): Result throws Failure",
-                  "line": 231
-                }
-              ],
-              "profile": "scoped-read-write-sync"
-            },
-            {
-              "symbol": "tryRead",
-              "overloads": [
-                {
-                  "signature": "export fn tryRead<Result, Failure: Error>( _ operation: some fn(ref Value): Result throws Failure, ): LockAttempt<Result> throws Failure",
-                  "line": 239
-                }
-              ],
-              "profile": "scoped-read-write-try"
-            },
-            {
-              "symbol": "tryWrite",
-              "overloads": [
-                {
-                  "signature": "export fn tryWrite<Result, Failure: Error>( _ operation: some fn(inout Value): Result throws Failure, ): LockAttempt<Result> throws Failure",
-                  "line": 247
-                }
-              ],
-              "profile": "scoped-read-write-try"
-            }
-          ],
-          "status": "draft"
-        },
         {
           "symbol": "SnapshotCell",
           "kind": "struct",
           "signature": "export struct SnapshotCell<Value>",
           "declarationDigest": "326ae5b1cbc802d0a36f993621865e107152929427fd27a1c5e4ae84125df88b",
-          "line": 268,
+          "line": 35,
           "profile": "snapshot-cell-carrier",
           "members": [
             {
@@ -6102,7 +5928,7 @@
               "overloads": [
                 {
                   "signature": "export init( _ initial: take Value<( .transferable && .shareable && .lifetimeIndependent )>, )",
-                  "line": 271
+                  "line": 38
                 }
               ],
               "profile": "snapshot-cell-carrier"
@@ -6112,7 +5938,7 @@
               "overloads": [
                 {
                   "signature": "export fn read<Result, Failure: Error>( _ operation: some fn(ref Value): Result throws Failure, ): Result throws Failure",
-                  "line": 280
+                  "line": 47
                 }
               ],
               "profile": "snapshot-cell-read"
@@ -6122,7 +5948,7 @@
               "overloads": [
                 {
                   "signature": "export fn publish( _ next: take Value<( .transferable && .shareable && .lifetimeIndependent )>, )",
-                  "line": 291
+                  "line": 58
                 }
               ],
               "profile": "snapshot-cell-publish"
@@ -6132,7 +5958,7 @@
               "overloads": [
                 {
                   "signature": "export fn snapshot(): Value",
-                  "line": 310
+                  "line": 77
                 }
               ],
               "profile": "snapshot-cell-copy"
@@ -7724,30 +7550,6 @@
       "status": "draft",
       "profile": "accelerator-launch",
       "consumer": "reference/last-light/device_execution_oracle.w"
-    },
-    {
-      "id": "lm0-async-mutex",
-      "module": "std.sync",
-      "surface": "AsyncMutex",
-      "status": "draft",
-      "profile": "scoped-lock-carrier",
-      "consumer": "reference/last-light/synchronization.w"
-    },
-    {
-      "id": "lm0-mutex",
-      "module": "std.sync",
-      "surface": "Mutex",
-      "status": "draft",
-      "profile": "scoped-lock-carrier",
-      "consumer": "reference/last-light/synchronization.w"
-    },
-    {
-      "id": "lm0-read-write-lock",
-      "module": "std.sync",
-      "surface": "ReadWriteLock",
-      "status": "draft",
-      "profile": "scoped-read-write-carrier",
-      "consumer": "reference/last-light/synchronization.w"
     },
     {
       "id": "pyn3-presentation-presentable",

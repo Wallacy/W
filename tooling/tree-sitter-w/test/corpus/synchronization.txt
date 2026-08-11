@@ -1,5 +1,5 @@
 ==================
-Atomic contracts and scoped locks
+Atomic contracts and language lock
 ==================
 
 enum GateState {
@@ -34,15 +34,19 @@ fn requiredNativeCounter(): Atomic<u64, lockFree: true> {
   return Atomic<u64, lockFree: true>(0)
 }
 
-fn snapshot(lock: ref Mutex<GateState>): GateState {
-  return lock.withLock((value: ref GateState) => value)
+fn snapshot(state: shared GateState): GateState {
+  return lock state as value { value }
 }
 
-async fn close(lock: ref AsyncMutex<GateState>): GateState {
-  return await lock.withLock((value: inout GateState) => {
+async fn close(state: shared GateState): GateState {
+  return await lock state as value {
     value = .idle
-    return value
-  })
+    value
+  }
+}
+
+fn trySnapshot(state: shared GateState): LockAttempt<GateState> {
+  return try lock state as value { value }
 }
 
 ---
@@ -182,30 +186,42 @@ async fn close(lock: ref AsyncMutex<GateState>): GateState {
         (identifier)
         (type
           (type_name
-            (type_identifier))
-          (type_arguments
-            (type_argument
-              (type
-                (type_name
-                  (type_identifier))))))))
+            (type_identifier)))))
     (type
       (type_name
         (type_identifier)))
     (block
       (return_statement
-        (call_expression
-          (member_expression
+        (lock_expression
+          (identifier)
+          (identifier)
+          (block
+            (expression_statement
+              (identifier)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (unary_expression
+          (lock_expression
             (identifier)
-            (identifier))
-          (argument_list
-            (argument
-              (closure_expression
-                (closure_parameters
-                  (closure_parameter
-                    (identifier)
-                    (type
-                      (type_name
-                        (type_identifier)))))
+            (identifier)
+            (block
+              (expression_statement
+                (assignment_expression
+                  (identifier)
+                  (contextual_member_expression
+                    (identifier))))
+              (expression_statement
                 (identifier))))))))
   (function_declaration
     (identifier)
@@ -214,36 +230,49 @@ async fn close(lock: ref AsyncMutex<GateState>): GateState {
         (identifier)
         (type
           (type_name
-            (type_identifier))
-          (type_arguments
-            (type_argument
-              (type
-                (type_name
-                  (type_identifier))))))))
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))))
+    (block
+      (return_statement
+        (unary_expression
+          (lock_expression
+            (identifier)
+            (identifier)
+            (block
+              (expression_statement
+                (identifier)))))))))
+
+==================
+Lock requires a scoped binding
+==================
+
+fn invalid(state: shared GateState): GateState {
+  return lock state { state }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
     (type
       (type_name
         (type_identifier)))
     (block
-      (return_statement
-        (unary_expression
-          (call_expression
-            (member_expression
-              (identifier)
-              (identifier))
-            (argument_list
-              (argument
-                (closure_expression
-                  (closure_parameters
-                    (closure_parameter
-                      (identifier)
-                      (type
-                        (type_name
-                          (type_identifier)))))
-                  (block
-                    (expression_statement
-                      (assignment_expression
-                        (identifier)
-                        (contextual_member_expression
-                          (identifier))))
-                    (return_statement
-                      (identifier))))))))))))
+      (return_statement)
+      (ERROR
+        (identifier)
+        (identifier)))))

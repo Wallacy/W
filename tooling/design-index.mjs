@@ -860,11 +860,11 @@ output.push(
     `${channelCases - acceptedChannelCases} rejeitados; 12 testes host) |`,
 );
 output.push(
-  `| casos/operações de locks escopados LM0 | ` +
+  `| casos/operações de lock da linguagem LM1 | ` +
     `${scopedLockCases}/${scopedLockOperations} ` +
     `(${acceptedScopedLockCases} aceitos + ` +
     `${scopedLockCases - acceptedScopedLockCases - faultedScopedLockCases} rejeitados + ` +
-    `${faultedScopedLockCases} fault; oito testes host) |`,
+    `${faultedScopedLockCases} fault; 11 testes host) |`,
 );
 output.push(
   `| casos/operações do carrier de snapshot SP0 | ` +

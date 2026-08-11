@@ -78,12 +78,10 @@ estruturada. `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
 delivery de workflows por steps. Uma suspensão pública contém duração restante,
 não o alarm privado do adapter. `io/contracts.w` materializa byte I/O de host.
-`sync/contracts.w` materializa `Mutex`, `AsyncMutex`, `ReadWriteLock`,
-`LockAttempt` e `SnapshotCell`. Locks expõem somente closures `neverSuspend`;
-o payload não precisa ser shareable. `ReadWriteLock` agrupa o prefixo de readers
-anterior ao próximo writer e não permite bypass. O provider `std.sync@1`
-continua missing. O source não fixa parking, reference counting, epoch, hazard
-pointer ou outra estratégia física compatível com os contratos.
+`sync/contracts.w` materializa somente `SnapshotCell`. `lock`, `await lock`,
+`try lock` e `LockAttempt` pertencem à linguagem e não a um wrapper da std.
+O provider `std.sync@1` continua missing. O source não fixa reference counting,
+epoch, hazard pointer ou outra estratégia física compatível com snapshots.
 `accelerator/contracts.w` materializa `Limits`, `KernelModule` e o owner
 `Launch<Module>`. O compiler sintetiza descriptors e launch stubs tipados de
 um static record; o módulo não fornece reflection ou registry runtime. O scope
