@@ -2537,6 +2537,257 @@ rejeitada antes da comparação. P0 não implementa resolver, registry, CAS,
 signature, prerelease SemVer, TUF, Sigstore, download, sandbox, archive reader,
 path normalization ou rebuild real.
 
+### 1.17 Fontes e perfis operacionais retirados do design normativo
+
+Esta seção preserva referências, alternativas de provider e perfis de medição.
+Ela não adiciona API nem amplia uma garantia do `DESIGN.md`.
+
+#### Signals, I/O e perfil Web
+
+O contrato de signals usa o executor em vez de executar W dentro do callback
+bruto. As referências de host são
+[POSIX `sigaction`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/sigaction.html)
+e
+[Windows `SetConsoleCtrlHandler`](https://learn.microsoft.com/en-us/windows/console/setconsolectrlhandler).
+
+Os adapters de I/O comparados incluem IOCP/`WSASend`, `io_uring`, `writev`,
+epoll, kqueue, poll, WASI e pools blocking bounded. Scatter read por `ReadBatch`
+e `io.transfer` continuam candidatos: ambos precisam preservar owner, short
+progress, cancellation, offset, fallback e scratch observável. Referências:
+
+- [`readv` e `writev`](https://man7.org/linux/man-pages/man2/writev.2.html);
+- [`WSASend`](https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsasend);
+- [`sendfile`](https://man7.org/linux/man-pages/man2/sendfile.2.html);
+- [`TransmitFile`](https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile).
+
+O profile Web compara conceitos com
+[WinterTC](https://wintertc.org/),
+[Minimum Common Web API](https://min-common-api.proposal.wintertc.org/) e
+[workerd](https://github.com/cloudflare/workerd). A comparação não declara W
+como ECMAScript e não cria `globalThis`.
+
+#### Performance e benchmark
+
+O profile de performance usa evidência de
+[LLVM `range` metadata](https://llvm.org/docs/LangRef.html#range-metadata),
+[MLIR Vector](https://mlir.llvm.org/docs/Dialects/Vector/),
+[MLIR Linalg](https://mlir.llvm.org/docs/Dialects/Linalg/),
+[atomics no LLVM](https://llvm.org/docs/Atomics.html) e o
+[modelo UTF-8 de Swift](https://www.swift.org/blog/utf8-string/).
+
+O perfil Última Luz para
+[TechEmpower Framework Benchmarks](https://www.techempower.com/benchmarks/)
+preserva as sete famílias públicas: JSON, single query, multiple queries,
+cached queries, fortunes, updates e plaintext. O harness precisa validar
+method, path, headers, clamp `1...500`, queries distintas, `Sync` PostgreSQL,
+read-modify-write, escaping UTF-8, cache real e limites de recursos antes de
+medir throughput. A
+[visão dos testes](https://github.com/TechEmpower/FrameworkBenchmarks/wiki/Project-Information-Framework-Tests-Overview)
+e o
+[repositório FrameworkBenchmarks](https://github.com/TechEmpower/FrameworkBenchmarks)
+são a referência do workload.
+
+O registro de evidência fixa harness, hardware, kernel, database, topology,
+source, lock, compiler, runtime, artifact, warmup, duração e repetições. Perfis
+separados medem processo único, nanoservices co-localizados, processos
+separados e component host. Uma variante não pode remover validação, retornar
+constants nem trocar business logic para melhorar o ranking. O estado de
+submissão do projeto externo é evidência mutável e deve ser verificado antes de
+publicar qualquer claim.
+
+#### Precedentes de syntax, tipos e tooling
+
+A separação de callables compara
+[Swift SE-0111](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0111-remove-arg-label-type-significance.md),
+[function pointers do Rust](https://doc.rust-lang.org/reference/types/function-pointer.html),
+[closures do Rust](https://doc.rust-lang.org/reference/types/closure.html) e a
+[ABI de Clang Blocks](https://clang.llvm.org/docs/Block-ABI-Apple.html).
+
+Refinements com range têm precedente no
+[Ada Reference Manual](https://docs.adacore.com/live/wave/arm22/pdf/arm22/arm-22.pdf),
+e [Liquid Types](https://escholarship.org/uc/item/0vx7j8zc) demonstra predicates
+verificáveis. Generics usam como evidência a
+[monomorphization do rustc](https://rustc-dev-guide.rust-lang.org/backend/monomorph.html),
+a [inference de Go](https://go.dev/ref/spec#Type_inference) e os
+[opaque types de Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/opaquetypes/).
+Units angulares têm precedente nas
+[units of measure de F#](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/units-of-measure).
+O custo source de labels de type arguments aparece nos
+[named type arguments do Scala 3](https://docs.scala-lang.org/scala3/reference/experimental/named-typeargs-spec.html).
+O [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/unions-and-intersections.html)
+é a comparação para unions e intersections anônimas; W mantém sums nominais.
+
+O schema de diagnostics compara
+[JSON do rustc](https://doc.rust-lang.org/beta/rustc/json.html),
+[Language Server Protocol](https://microsoft.github.io/language-server-protocol/)
+e [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.pdf).
+W mantém D0 menor e usa adapters para esses formatos. Para I/O, os nomes
+`Reader`/`Writer`, `AsyncRead`/`AsyncWrite` e `Input`/`Output` foram comparados;
+`ByteSource`/`ByteSink` tornam direção e unidade explícitas sem repetir o efeito
+`async` no nome.
+
+Typestate usa como evidência o
+[Embedded Rust Book](https://docs.rust-embedded.org/book/static-guarantees/typestate-programming.html),
+suas
+[zero-cost abstractions](https://docs.rust-embedded.org/book/static-guarantees/zero-cost-abstractions.html),
+[Typestates for Objects](https://www.cs.cmu.edu/~aldrich/courses/819/deline-typestates.pdf)
+e as
+[regras de Durable Objects](https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/).
+As formas adiadas com precedente em Swift são
+[typed key paths](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0161-key-paths.md),
+[síntese estrutural](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0185-synthesize-equatable-hashable.md)
+e
+[parameter packs](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0393-parameter-packs.md).
+
+Outras comparações retiradas das regras correntes incluem:
+
+- statement boundaries em
+  [Swift](https://docs.swift.org/swift-book/ReferenceManual/LexicalStructure.html),
+  [Go](https://go.dev/ref/spec#Semicolons) e
+  [Rust](https://doc.rust-lang.org/reference/statements.html);
+- visibilidade e records em
+  [Rust](https://doc.rust-lang.org/reference/visibility-and-privacy.html),
+  [Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/accesscontrol/)
+  e
+  [Java](https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/lang/Record.html);
+- library evolution em
+  [Swift](https://www.swift.org/blog/library-evolution/),
+  [`non_exhaustive` de Rust](https://doc.rust-lang.org/reference/attributes/type_system.html)
+  e [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
+- receiver ownership em
+  [Swift SE-0377](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0377-parameter-ownership-modifiers.md)
+  e
+  [methods de Rust](https://doc.rust-lang.org/reference/items/associated-items.html#methods);
+- labels e overloads em
+  [Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/declarations/),
+  [C#](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#1264-overload-resolution)
+  e [Go](https://go.dev/doc/faq#overloading);
+- opaque parameters em
+  [Swift SE-0341](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0341-opaque-parameters.md),
+  narrowing em
+  [TypeScript](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
+  e enums exaustivos em
+  [Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/enumerations/).
+
+#### Memória, execução e SDK
+
+[mimalloc](https://github.com/microsoft/mimalloc) permanece um provider
+candidato, não um default sem evidência. Versão, modes, origem de allocation,
+sanitizers, unload e cross-domain free pertencem ao profile e à recipe. O
+contrato normativo aceita `.system`, `.none` ou um runtime contract exato sem
+prometer um allocator específico.
+
+Transactions e closed turns foram comparados com
+[`PREPARE TRANSACTION` do PostgreSQL](https://www.postgresql.org/docs/current/sql-prepare-transaction.html),
+[transactions](https://www.sqlite.org/lang_transaction.html) e
+[savepoints](https://www.sqlite.org/lang_savepoint.html) do SQLite,
+[Swift actors](https://www.swift.org/swift-evolution/#SE-0306),
+[input gates de Durable Objects](https://blog.cloudflare.com/durable-objects-easy-fast-correct-choose-three/)
+e o desenho de
+[nanoservices do workerd](https://github.com/cloudflare/workerd).
+
+O network draft comparou [`std::net`](https://doc.rust-lang.org/std/net/),
+[`net` de Go](https://pkg.go.dev/net),
+[capabilities WASI](https://github.com/WebAssembly/WASI/blob/main/docs/Capabilities.md),
+[TCP sockets de Workers](https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/),
+[RFC 6724](https://www.rfc-editor.org/info/rfc6724),
+[RFC 8305](https://www.rfc-editor.org/info/rfc8305),
+[RFC 5952](https://www.rfc-editor.org/info/rfc5952) e
+[RFC 8085](https://www.rfc-editor.org/info/rfc8085/). Esses precedentes não são
+conformance de um provider W.
+
+Os contratos de dados compararam
+[Apple Codable](https://developer.apple.com/documentation/swift/encoding-and-decoding-custom-types),
+[Serde](https://serde.rs/),
+[String UTF-8 de Swift](https://www.swift.org/blog/utf8-string/),
+[`String`](https://doc.rust-lang.org/stable/alloc/string/struct.String.html),
+[`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html),
+[`HashMap`](https://doc.rust-lang.org/std/collections/struct.HashMap.html) e
+[slices de Rust](https://doc.rust-lang.org/std/primitive.slice.html),
+[`Ref`](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0519-borrow-inout-types.md)
+e [`Span`](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0447-span-access-to-contiguous-storage.md)
+de Swift,
+[dictionary de Python](https://docs.python.org/3/reference/datamodel.html#dictionaries),
+[`LinkedHashMap`](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/LinkedHashMap.html)
+e [`SmallString`](https://llvm.org/doxygen/classllvm_1_1SmallString.html). W não
+herda layout, derivation, hashing ou threshold desses precedentes.
+
+#### Targets e toolchains
+
+LLVM, WASI, Android e MLIR fundamentam a matriz inicial de targets. Essas
+fontes explicam viabilidade; somente CI e os gates W publicam suporte:
+
+- [targets configuráveis do LLVM](https://llvm.org/docs/CMake.html);
+- [política de targets experimentais do LLVM](https://llvm.org/docs/DeveloperPolicy.html);
+- [WASI 0.3](https://bytecodealliance.org/articles/WASI-0.3) e
+  [WIT async](https://component-model.bytecodealliance.org/design/wit.html);
+- [MLIR GPU](https://mlir.llvm.org/docs/Dialects/GPU/),
+  [NVVM](https://mlir.llvm.org/docs/Dialects/NVVMDialect/),
+  [ROCDL](https://mlir.llvm.org/docs/Dialects/ROCDLDialect/) e
+  [SPIR-V](https://mlir.llvm.org/docs/Dialects/SPIR-V/);
+- [ABIs do Android NDK](https://developer.android.com/ndk/guides/abis).
+
+#### Packages, releases e transportes
+
+Os invariantes de workspace, feature e source vêm de
+[Cargo workspaces](https://doc.rust-lang.org/cargo/reference/workspaces.html),
+[Cargo features](https://doc.rust-lang.org/cargo/reference/features.html),
+[Cargo dependency sources](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html)
+e [Go workspaces](https://go.dev/ref/mod#workspaces). W não herda o resolver ou
+a semântica de feature dessas ferramentas.
+
+O modelo de distribuição compara
+[TUF](https://theupdateframework.github.io/specification/draft/),
+[Sigstore](https://docs.sigstore.dev/),
+[Rekor](https://docs.sigstore.dev/logging/overview/),
+[SLSA provenance](https://slsa.dev/spec/v1.2/provenance) e
+[Reproducible Builds](https://reproducible-builds.org/docs/plans/). Nenhuma
+dessas fontes transforma transporte, transparency log ou identidade efêmera em
+trust policy suficiente por si só.
+
+Para metadata W, Protobuf foi descartado porque sua
+[serialização não é canônica](https://protobuf.dev/programming-guides/serialization-not-canonical/).
+Cap'n Proto preserva acesso direto e
+[canonicalization](https://capnproto.org/encoding.html#canonicalization), mas
+writers comuns não emitem essa forma por default e o bootstrap teria pointer
+trees, alignment e traversal accounting adicionais. Ele continua referência
+de RPC, não formato de metadata W.
+
+O estabelecimento wRPC usa como evidência
+[TLS 1.3](https://www.rfc-editor.org/rfc/rfc8446.html),
+[`tls-exporter`](https://www.rfc-editor.org/rfc/rfc9266.html),
+[TLS para RPC](https://www.rfc-editor.org/rfc/rfc9289.html),
+[QUIC TLS](https://www.rfc-editor.org/rfc/rfc9001.html) e
+[SPIFFE](https://spiffe.io/docs/latest/spiffe-about/spiffe-concepts/). A
+seleção não publica keys, credentials ou capability tokens no audit.
+
+#### Workflows, supervisors e journals
+
+O desenho de trabalho runtime-owned e durável compara:
+
+- [JEP 525](https://openjdk.org/jeps/525) para subtasks confinadas;
+- [`waitUntil`](https://developers.cloudflare.com/workers/runtime-apis/context/)
+  para lifetime bounded de trabalho auxiliar;
+- [regras](https://developers.cloudflare.com/workflows/build/rules-of-workflows/),
+  [sleep/retry](https://developers.cloudflare.com/workflows/build/sleeping-and-retrying/)
+  e [events](https://developers.cloudflare.com/workflows/build/events-and-parameters/)
+  de Cloudflare Workflows;
+- [constraints](https://learn.microsoft.com/en-us/azure/durable-task/common/durable-task-code-constraints)
+  e [versionamento](https://learn.microsoft.com/en-us/azure/durable-task/common/durable-orchestration-versioning)
+  de Durable Task;
+- [atomic commit](https://www.sqlite.org/atomiccommit.html),
+  [transactions](https://www.sqlite.org/lang_transaction.html) e
+  [WAL](https://www.sqlite.org/wal.html) do SQLite;
+- [Durable Objects](https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/)
+  e seus [alarms](https://developers.cloudflare.com/durable-objects/api/alarms/);
+- [Orleans timers/reminders](https://learn.microsoft.com/en-us/dotnet/orleans/grains/timers-and-reminders)
+  e [Erlang supervisors](https://www.erlang.org/doc/system/sup_princ.html).
+
+A superfície vigente usa `WorkKeyRef.start`/`tryStart`, `work.step`,
+`work.sleep` e `work.wait`. Child workflows, fan-out determinístico e adapters
+`waitUntil` bounded continuam candidatos. `spawn<owner: ...>`, detach por drop,
+call one-way, actor reentrant e persistência automática de frame não entram.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
@@ -3790,6 +4041,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1207 | classificação de ciclo forte | HIR rejeita SCC fechado cujas edges fortes só terminariam pelo `deinit` interno; weak, close e lifecycle drain permanecem distinções observáveis | rejeitar todo grafo cíclico, aceitar self-cycle imutável, converter strong em weak, confiar em nome de field |
 | W-1208 | censo sem coletor | profile debug/test registra control-block edges e reporta SCC que nenhum root alcança somente depois de admission close e drain; não coleta nem muda drop | coletor default, relatório antes do drain, ciclo alcançável chamado de leak, deinit executado pelo detector |
 | W-1209 | evidence de ciclos e captures M1/S0 | S0 fixa capture explícita e diagnostics; M1 deriva SCC forte, edge rompível, roots e residual pós-drain; Last Light fornece consumer | checker por substring, graph fornecendo resposta esperada, chamar oracle de runtime/compiler ou leak sanitizer real |
+| W-1210 | claim de concorrência e paralelismo | quatro formas de execução compartilham ownership/lifetime; children drenam; synchronization forma um happens-before explicável; schedulers e providers reais precisam provar equivalência, liveness e cleanup | declarar problema resolvido por syntax, thread por task, lock-free universal, copy/share oculto, oracle host chamado de runtime |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
