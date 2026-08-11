@@ -1545,22 +1545,22 @@
     },
     {
       "id": "R0-shared-construction",
-      "reviewItem": "`share(value)` normal e `tryShare(value, using:)` recuperável contra `try share` universal e promotion contextual",
+      "reviewItem": "overloads `share(value)` normal e `try share(value, using:)` recuperável contra `tryShare` separado e promotion contextual",
       "decisions": ["W-025", "W-255", "W-415", "W-929", "W-930", "W-1177"],
       "task": "Create the first shared menu owner and keep recoverable allocation explicit only when requested.",
       "selected": {
         "language": "w",
         "source": [
           "let root = share(MenuSection(title: \"Dinner\"))",
-          "let local = try tryShare(take draft, using: memory)"
+          "let local = try share(take draft, using: memory)"
         ]
       },
       "alternatives": [
         {
-          "name": "always-fallible-share",
+          "name": "distinct-try-share",
           "language": "w-alternative",
-          "source": ["let root = try share(MenuSection(title: \"Dinner\"), using: memory)"],
-          "expectedDifference": "Every first owner carries recoverable allocation syntax even when the program uses the normal OOM policy."
+          "source": ["let local = try tryShare(take draft, using: memory)"],
+          "expectedDifference": "A second verb repeats the recoverable boundary already stated by try and the using label."
         },
         {
           "name": "contextual-shared-type",

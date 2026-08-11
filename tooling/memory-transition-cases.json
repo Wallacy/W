@@ -1545,7 +1545,7 @@
     {
       "id": "M1-share-rejects-borrow-dependent-payload",
       "decisions": ["W-929"],
-      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "tryMakeMenuRoot" }],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "makeMenuRoot" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
         { "op": "initialize", "binding": "menu" },
@@ -1557,7 +1557,7 @@
     {
       "id": "M1-share-requires-storage-to-outlive-control-block",
       "decisions": ["W-929"],
-      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "tryMakeMenuRoot" }],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "makeMenuRoot" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "request", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
         { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
@@ -1606,7 +1606,7 @@
     {
       "id": "M1-share-allocation-failure-consumes-source",
       "decisions": ["W-930", "W-1177"],
-      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "tryMakeMenuRoot" }],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "makeMenuRoot" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
         { "op": "initialize", "binding": "menu" },

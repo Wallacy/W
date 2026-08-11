@@ -1719,11 +1719,11 @@
       "source": [
         "struct Menu { title: String }",
         "fn shareMenu(value: take Menu, memory: ref Allocator): shared Menu throws AllocationError {",
-        "  return try tryShare(take value, using: memory)",
+        "  return try share(take value, using: memory)",
         "}"
       ],
       "expect": {
-        "focus": { "text": "tryShare(take value, using: memory)" },
+        "focus": { "text": "share(take value, using: memory)" },
         "semanticResult": {
           "resultType": "shared Menu",
           "category": "value",
@@ -3557,7 +3557,7 @@
       "source": [
         "struct MenuView { title: view String }",
         "fn shareMenuView(value: take MenuView, memory: ref Allocator): shared MenuView throws AllocationError {",
-        "  return try tryShare(take value, using: memory)",
+        "  return try share(take value, using: memory)",
         "}"
       ],
       "expect": {
@@ -3566,13 +3566,13 @@
             "code": "W-BORROW-0010",
             "phase": "semantic.ownership",
             "severity": "error",
-            "primary": { "text": "tryShare(take value, using: memory)" },
+            "primary": { "text": "share(take value, using: memory)" },
             "labels": [
               { "role": "dependent-value", "selector": { "text": "take value" } },
-              { "role": "share-call", "selector": { "text": "tryShare(take value, using: memory)" } }
+              { "role": "share-call", "selector": { "text": "share(take value, using: memory)" } }
             ],
             "facts": {
-              "operation": "tryShare",
+              "operation": "share",
               "owner": "value",
               "origins": ["value.title"]
             },

@@ -176,11 +176,11 @@ export fn makeMenuRoot(title: String): shared MenuSection {
 // The fallible result is borrow-independent. Its control block records
 // `memory` in AllocationOriginMap, so the allocator instance must outlive every
 // strong and weak handle.
-export fn tryMakeMenuRoot(
+export fn makeMenuRoot(
   title: String,
   memory: ref Allocator,
 ): shared MenuSection throws AllocationError {
-  return try tryShare(
+  return try share(
     MenuSection(
       title: take title,
       parent: .none,

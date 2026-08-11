@@ -122,7 +122,7 @@ spawn<.compute> let plan = optimize(take snapshot)
 | mutar com exclusividade | `inout` | um loan exclusivo; aliases conflitantes falham |
 | transferir ownership | `take` | o source perde o owner uma vez |
 | duplicar deliberadamente | `copy` | somente tipo copiável; custo permanece explicável |
-| criar owners múltiplos reais | `share(value)` e `copy sharedHandle` | allocation e cada retain ficam visíveis |
+| criar owners múltiplos reais | `share(value)`, `try share(..., using:)` e `copy sharedHandle` | allocation e cada retain ficam visíveis |
 | observar owner sem mantê-lo vivo | `weak` e `upgrade()` | acesso exige adquirir owner forte opcional |
 | suspender a task atual | `await` | mesmo job; cancellation e cleanup estruturados |
 | criar child no domínio atual | `async let` | handle lexical, join e drain obrigatórios |
@@ -134,12 +134,12 @@ spawn<.compute> let plan = optimize(take snapshot)
 | atualizar scalar concorrente | `var atomic` | operação, extent e memory order explícitos ou sequenciais |
 | esperar mudança atômica | `await value.wait(whileEqual:)` | suspensão cancelável; notification e lifetime explícitos |
 
-`async` na declaration fixa um contrato quando a interface precisa dele; a HIR
-também infere suspensão. `spawn` não significa thread nem paralelismo por si só.
-Um domain serial executa um segmento por vez. Um domain com `.parallel` pode
-usar múltiplos recursos. Em ambos, children permanecem estruturados.
-Uma closure escapante também escolhe `take`, `copy` ou `weak`; W não cria retain
-oculto para reparar lifetime.
+O source escolhe ownership, suspensão e placement lógico. O compiler escolhe
+register, stack, frame, heap, coroutine lowering, pool e estratégia de
+reclamation. Ele não insere `copy`, `share`, retain, child, thread ou lock para
+reparar um programa. `async` na declaration fixa uma recomendação de interface;
+a HIR também infere suspensão. Uma closure escapante escolhe `take`, `copy` ou
+`weak`; W não cria retain oculto para reparar lifetime.
 
 [A seção 9](#9-memória-layout-e-alocação) define owner, loans, storage e
 reclamation. [A seção 12](#12-concorrência-paralelismo-e-execução) define
@@ -7162,19 +7162,11 @@ counting no caminho comum. O source escolhe a semântica com `ref`, `inout`,
 real exige endereço estável, owners múltiplos ou storage bounded explícito.
 
 Todo valor que exige cleanup possui um owner. O compilador controla
-inicialização, move, borrow, escape e drop. A escada semântica é:
-
-1. valor `Copy`;
-2. owner único com drop determinístico;
-3. borrow `ref` ou `inout`;
-4. owner único `Pinned<T>` quando a API publica endereço estável;
-5. scope estruturado com placement bounded explícito quando muitos valores possuem o mesmo lifetime;
-6. `shared T` quando existem múltiplos owners reais;
-7. owner de service para estado serializado por instância;
-8. ponteiro manual somente em `unsafe` ou FFI.
-
-Nenhum assignment escolhe silenciosamente entre move, reference counting e
-arena. O tipo e a assinatura determinam a operação.
+inicialização, move, borrow, escape e drop. O caminho progride de value `Copy`
+para owner único e `ref`/`inout`. `Pinned<T>` aparece somente para endereço
+publicado, `Arena` para storage bounded com lifetime comum, `shared T` para
+owners múltiplos e service owner para estado serializado por instance. Pointer
+manual fica em `unsafe` ou FFI. O compiler nunca sobe essa escada em silêncio.
 
 ### 9.2 Owner único, move e borrow
 
@@ -7264,7 +7256,7 @@ não contorna essa regra.
 **Exemplo:** duas projections `kitchen.westOven` e `kitchen.eastOven` aceitam
 loans exclusivos simultâneos quando o struct prova fields distintos.
 
-**Direção:** a HIR usa `PlaceId` como um root estável seguido por uma sequência
+A HIR usa `PlaceId` como um root estável seguido por uma sequência
 de projections. As projections incluem field, tuple, enum payload, index, range,
 dereference e view extent. Um `LoanId` registra place, modo `shared` ou
 `exclusive`, origem, emissão, fim, estabilidade e parent de reborrow.
@@ -7589,24 +7581,24 @@ normal de allocation: não adiciona `throws`, mas OOM pode encerrar a fault
 boundary. O nome mantém allocation e mudança de ownership visíveis:
 
 ```w
+fn share<T>(value: take T): shared T
+fn share<T>(value: take T, using memory: ref Allocator): shared T throws AllocationError
+```
+
+```w
 let root = share(MenuSection(title: "Dinner", parent: .none, children: []))
+let local = try share(
+  MenuSection(title: "Supper", parent: .none, children: []),
+  using: memory,
+)
 let observer = copy root
 let parent = root.weak()
 ```
 
-Recovery ou allocator explícito usa `tryShare`:
-
-```w
-let root = try tryShare(
-  MenuSection(title: "Dinner", parent: .none, children: []),
-  using: memory,
-)
-```
-
 Um temporary não usa `take`. Um binding existente exige `share(take value)` ou
-`try tryShare(take value, using: memory)`. `share` não aceita `using:`; um
-allocator scoped ou bounded exige a variante fallible. W não promove owner
-único por expected type, return type ou parâmetro.
+`try share(take value, using: memory)`. O label `using:` seleciona o overload
+fallible antes da análise de effects; por isso, a call exige `try`, `try?` ou
+`catch`. W não promove owner único por expected type, return type ou parâmetro.
 `W-OWNERSHIP-0013` aponta o contexto. O caller escolhe `share(take value)` ou
 altera a API; o diagnostic não insere allocation automaticamente.
 
@@ -7621,14 +7613,15 @@ struct MenuView { title: view String }
 
 let title = menu.title.scalars
 let borrowed = MenuView(title: title)
-let invalid = try tryShare(take borrowed, using: memory)
-// W-BORROW-0010: tryShare não prolonga a origin de title.
+let invalid = try share(take borrowed, using: memory)
+// W-BORROW-0010: share não prolonga a origin de title.
 ```
 
 Uma falha limpa temporary ou argumento marcado com `take` e o control block
 parcial uma vez; nenhum handle é publicado. `share` escala a falha segundo a
-policy normal. `tryShare` propaga `AllocationError`. Uma API de retry precisa
-devolver o source num outcome próprio; a baseline não restaura o binding.
+policy normal. O overload com `using:` propaga `AllocationError`. Uma API de
+retry precisa devolver o source num outcome próprio; a baseline não restaura o
+binding.
 
 `shared T` e `weak T` são move-first. `copy handle` cria outro owner e torna o
 retain visível no source. `upgrade()` é a única operação que cria um shared owner
@@ -7737,12 +7730,9 @@ scratch.clear()
 e reinicia a capacidade. Ele falha enquanto borrow ou valor dependente permanece
 vivo. Allocator, budget e origin continuam contratos separados.
 
-`share` e `tryShare` são reservados para múltiplos owners que excedem o scope
+Os overloads de `share` são reservados para múltiplos owners que excedem o scope
 lexical. W não promove unique para shared em silêncio. A promoção pode alocar e
 muda a destruição. Ela não é o caminho normal de concorrência.
-
-Alternativas históricas de block-region e placement explícito ficam em
-`RATIONALE.md`. A decisão vigente usa análise de escape e a API avançada `Arena`.
 
 ### 9.6 Allocator e origem
 
@@ -8590,17 +8580,22 @@ applicability `review`; `machine` fica reservado à transformação já provada.
 Uma recomendação de `shared` exige prova de owners múltiplos. Uma de `atomic`
 exige prova de accesses concorrentes, extent único e operação compatível.
 
-Quando mais de uma alternativa passa pelos facts, o explain usa esta ordem:
+O conjunto de synchronization fica fechado na tabela da
+[seção 12.10.7](#12107-locks-síncronos-e-assíncronos). Esta seção define somente
+como tooling escolhe uma recomendação. A ordem de prova é:
 
-1. partition ou `move` + `join` para separar ownership;
-2. `ref` imutável ou `copy` para um snapshot independente;
-3. channel ou service para transferir/serializar state;
-4. scoped lock para uma critical section bounded;
-5. atomic somente para uma localização scalar suportada;
-6. `shared` somente para multiplicidade real de owners além do scope lexical.
+1. separar ownership por scope, subplace disjunto, `take` e join;
+2. usar `ref`, `inout` ou `copy` quando access, escape e duplication permitem;
+3. selecionar um carrier da tabela 12.10.7 pela topologia de acesso;
+4. validar lifetime, capability, admission e custo antes de mostrar o fix.
 
-As posições 3–6 exigem facts de capability, lifetime e cost. O diagnostic não
-insere uma operação que muda architecture, allocation ou cost sem revisão.
+Um grafo fechado com reads em paralelo e write exclusivo pode recomendar
+`spawn<domain, .barrier>`. Uma única localização scalar pode recomendar
+`atomic`. Uma critical section dinâmica e bounded pode recomendar lock. Estado
+transferido ou serializado por identity pode recomendar channel ou service.
+`shared` só entra quando os facts provam owners múltiplos reais; ele não é um
+fix de data race. O diagnostic não insere uma operação que muda architecture,
+allocation ou custo sem revisão.
 
 O `ResourceLensRecord` também pode ser emitido para um valor ou uma função.
 `w explain memory value` acrescenta owner, escape, allocation e drop path ao
@@ -9593,7 +9588,7 @@ async let profile = sampleOven()
 ```
 
 O alias continua um member enum-like no contexto de domain. O import não cria
-queue, thread ou executor. Ele importa uma requirement estática.
+estado runtime. Ele importa uma requirement estática.
 
 `async let` herda o domínio atual. `spawn<domain>` exige o domínio explícito.
 `concurrentMap` herda o domínio. `parallelMap<domain>` exige um domínio explícito
@@ -9670,9 +9665,6 @@ Um módulo publica requirements, mas não escolhe um domínio oculto para `spawn
 ou `parallelMap`. Importar um módulo nunca cria executor, queue ou thread.
 Service e entry podem declarar preference porque possuem instance e lifecycle.
 O product seleciona o profile que fornece bindings e budgets.
-
-Os antigos “thread groups” sobrevivem como domain IDs e bindings de profile.
-Essa forma mantém a finalidade e remove a promessa de uma thread fixa.
 
 ##### 12.6.1.1 Dispatch comum e de barreira
 
@@ -9793,10 +9785,9 @@ reference runtime não prova os loans estáticos de 12.6.1.1. O payload ainda de
 ser moved, shareable ou sincronizado. Read-heavy usa domain estático com
 `barrierDispatch`; state por key durável ou distribuído usa service instance.
 
-O profile precisa conceder `dynamicSerial`. W não oferece lane concorrente
-dinâmica, sync dispatch, global mutable queue, target queue, QoS no call site ou
-fire-and-forget. Critical section curta usa lock ou atomic. Executor customizado
-continua restrito à interface runtime `unsafe`.
+O profile precisa conceder `dynamicSerial`. Lanes dinâmicas safe são seriais;
+critical section curta usa lock ou atomic. Executor customizado continua
+restrito à interface runtime `unsafe`.
 
 #### 12.6.3 Deadline e relógio operacional
 
@@ -10111,7 +10102,9 @@ let (localResult, parallelResult) = await (local, parallel)
 **W-1185 — plano único de ownership:** call direta, `await`, `async let` e
 `spawn` usam os mesmos `PlaceId`, `LoanId`, `OriginSet`, owner deltas e drop
 obligations. A forma de execução muda task e placement; ela não cria uma segunda
-semântica de memória.
+semântica de memória. A HIR normaliza um único invocation plan com forma,
+parent/child, domain, captures, places, loans, origins, access edges, cleanup e
+outcome. Storage e scheduler são lowerings posteriores desse record.
 
 | Forma | Owner e storage | Autoridade do parent |
 |---|---|---|
@@ -11415,8 +11408,6 @@ writer exclusivo, ticket sem bypass, `try*`, blocking diagnostics, memory edges,
 failure, drain e seleção entre storage e domain. O oracle não executa W nem
 implementa o provider.
 
-As primitives não selecionadas e seus substitutos permanecem em
-[`RATIONALE.md` §1.11](RATIONALE.md#111-alternativas-retiradas-do-design-corrente).
 Uma barreira de device pertence ao contract do kernel. O provider de parking de
 `var Lazy` permanece missing.
 
@@ -27554,6 +27545,10 @@ pública exige HIR, runtime e providers reais, stress tests, sanitizers e replay
 nos targets prometidos. Até esse ponto, a forma correta é “modelo estruturado
 de execução definido; implementação missing”. O gate não exige thread por task,
 lock-free universal nem o mesmo lowering físico em todos os targets.
+
+Num product que alcança tasks, services ou device queues, os gates 24.3.1 e
+24.3.2 são conjuntos: nenhum scheduler pode reparar ownership, e nenhum plano
+de memória pode ignorar join, cancellation, provider drain ou reclamation.
 
 ### 24.4 Artefatos que ainda bloqueiam o design freeze
 

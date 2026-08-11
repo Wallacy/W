@@ -1,4 +1,4 @@
-// R1 shared-construction study: every first owner is fallible.
+// R1 shared-construction study: separate recoverable verb.
 
 struct MenuSection {
   title: String
@@ -10,7 +10,7 @@ fn makeRoot(
   title: String,
   memory: ref Allocator,
 ): shared MenuSection throws AllocationError {
-  return try share(
+  return try tryShare(
     MenuSection(
       title: take title,
       parent: .none,
@@ -20,7 +20,7 @@ fn makeRoot(
   )
 }
 
-test "shared construction carries allocation recovery" {
+test "shared construction uses a separate recoverable verb" {
   let root = try makeRoot("Dinner", memory: testAllocator)
   expect root.title == "Dinner"
 }

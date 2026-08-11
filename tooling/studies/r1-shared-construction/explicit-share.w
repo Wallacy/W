@@ -1,4 +1,4 @@
-// R1 shared-construction study: selected explicit operation.
+// R1 shared-construction study: selected overloaded operation.
 
 struct MenuSection {
   title: String
@@ -14,11 +14,11 @@ fn makeRoot(title: String): shared MenuSection {
   ))
 }
 
-fn tryMakeRoot(
+fn makeRoot(
   title: String,
   memory: ref Allocator,
 ): shared MenuSection throws AllocationError {
-  return try tryShare(
+  return try share(
     MenuSection(
       title: take title,
       parent: .none,
@@ -30,6 +30,8 @@ fn tryMakeRoot(
 
 test "shared construction separates normal and recoverable allocation" {
   let root = makeRoot("Dinner")
+  let local = try makeRoot("Supper", using: testAllocator)
   let observer = copy root
   expect observer.title == "Dinner"
+  expect local.title == "Supper"
 }

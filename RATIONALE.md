@@ -110,7 +110,7 @@ O corpus compara, no mínimo:
 - static record/list contra interpretações universais de extension e constraints;
 - ponteiro `fn`, `some fn` e `any fn` contra um único callable apagado;
 - erasure contextual com policy normal e `erase` fallible contra exigir uma única forma em todos os casos;
-- `share(value)` normal e `tryShare(value, using:)` recuperável contra `try share` universal e promotion contextual;
+- overloads `share(value)` normal e `try share(value, using:)` recuperável contra `tryShare` separado e promotion contextual;
 - call posicional por valor contra labels e defaults preservados no function type;
 - `fn`, `mut fn` e `take fn` contra protocols callable separados;
 - signature invariável contra variance e effect widening implícitos;
@@ -984,12 +984,12 @@ a semântica de W-746, W-769, W-770, W-771, W-772 ou W-147.
 #### 1.3.20 Criação do primeiro owner `shared`
 
 **Exemplo:** `share(MenuSection(...))` cria o primeiro owner com a policy normal;
-`try tryShare(take draft, using: memory)` escolhe recovery e allocator.
+`try share(take draft, using: memory)` escolhe recovery e allocator.
 
 O bundle
 [`r1-shared-construction`](tooling/studies/r1-shared-construction) compara três
-formas parseáveis: operação explícita com policies separadas, `try share`
-universal e promotion pelo expected type. Os inputs cobrem temporary, binding
+formas parseáveis: um verbo com overload normal/fallible, `tryShare` como verbo
+separado e promotion pelo expected type. Os inputs cobrem temporary, binding
 existente, allocator bounded, payload lifetime-dependent e falha antes da
 publicação do handle. O oracle host verifica consumo, cleanup e failure policy;
 ele não aloca um control block W.
@@ -1000,10 +1000,11 @@ define factories `make_shared` e `allocate_shared`. W não copia essas
 superfícies: o qualifier `shared` continua sendo o tipo e um verbo no value
 expression torna allocation e mudança de ownership observáveis.
 
-A forma selecionada reduz ceremony no caso normal sem introduzir promotion
-contextual. `tryShare` permanece distinto porque o caller escolhe uma failure
-boundary recuperável. Tree-sitter e o oracle host são a evidência atual;
-`w-compile`, `w-run`, estudo humano e estudo de modelos permanecem missing.
+A forma selecionada reduz ceremony sem introduzir promotion contextual. O label
+`using:` seleciona o overload fallible, e `try` torna a boundary recuperável
+visível; um segundo verbo repetia essa informação. Tree-sitter e o oracle host
+são a evidência atual; `w-compile`, `w-run`, estudo humano e estudo de modelos
+permanecem missing.
 
 ### 1.4 Concorrência, paralelismo e execução
 
@@ -1015,7 +1016,8 @@ Esta seção preserva comparação, precedentes e alternativas. A seção 12 de
 As fontes primárias usadas no gate W-1170 são:
 
 - [Swift SE-0296](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0296-async-await.md),
-  [SE-0304](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0304-structured-concurrency.md)
+  [SE-0304](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0304-structured-concurrency.md),
+  [SE-0414](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0414-region-based-isolation.md)
   e [SE-0417](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0417-task-executor-preference.md);
 - a documentação Apple de
   [`dispatch_async`](https://developer.apple.com/documentation/dispatch/dispatch_async),
@@ -1041,6 +1043,14 @@ As fontes primárias usadas no gate W-1170 são:
 | ownership | provas de transfer, share e loans | exclusivity e isolation | disciplina do programa | JMM e synchronization | lifetime/data-race rules de C++ |
 | admission | budgets do domain/profile | policy do executor | runtime policy | policy do executor/scope | sender/scheduler contract |
 | efeito | `maySuspend` inferido; `async fn` recomenda call | `async` nominal | sem efeito async nominal | sem efeito async nominal | completion signatures |
+
+SE-0414 demonstra que uma análise flow-sensitive pode transferir uma região de
+isolation sem expor a região no source. O
+[`thread::scope` de Rust](https://doc.rust-lang.org/std/thread/fn.scope.html)
+demonstra que join lexical permite borrows non-static, embora a assinatura Rust
+publique lifetimes. W preserva a prova internamente: `take`, `copy`, `ref` e
+`inout` escolhem a operação; `PlaceId`, `OriginSet` e join delimitam o lifetime
+sem annotation de região.
 
 Koka é somente uma referência para
 [inferência de effects](https://koka-lang.github.io/koka/doc/book.html).
@@ -1105,6 +1115,13 @@ W exige order atômica constante no source, direção também usada pelo
 [Swift Atomics](https://github.com/apple/swift-atomics/blob/main/Sources/Atomics/Types/UnsafeAtomic.swift).
 LLVM fornece o precedente de lowering e memory model, não a autoridade
 semântica de W.
+
+Os papers WG14
+[N1525](https://open-std.org/jtc1/sc22/wg14/www/docs/n1525.htm) e
+[N1479](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1479.htm) separam
+atomicidade de ordering e tratam data race como erro. Eles sustentam W-1174:
+`load<.relaxed>()` ainda é atomic; um read comum concorrente dos mesmos bytes
+não vira válido por aceitar staleness.
 
 Release sequences e compare-exchange foram comparados com o
 [LLVM LangRef](https://llvm.org/docs/LangRef.html#cmpxchg-instruction). Fences,
@@ -2941,7 +2958,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-022 | borrow | `ref` e `inout` | lifetime annotations públicas; pointers |
 | W-023 | transfer | last-use + `take` obrigatório na API | move sempre explícito; move implícito amplo |
 | W-024 | copy | implícito só para `Copy`; `copy value` explícito usa `Duplicable` | `.clone()` universal; COW como contrato |
-| W-025 | shared | `share(value)` normal, `tryShare(value, using:)` recuperável, `copy` para novo owner e `weak()` | ARC implícito; promotion por expected type; block-region-only (retired) |
+| W-025 | shared | `share(value)` normal, `try share(value, using:)` recuperável, `copy` para novo owner e `weak()` | `tryShare` separado; ARC implícito; promotion por expected type; block-region-only (retired) |
 | W-026 | region block (retired) | syntax `region name(using:, limit:)` liderava e baixava para `Arena`; a API foi mantida, mas o bloco foi retirado antes de W 1.0 | lifetime annotations; heap por módulo; API sem bloco |
 | W-027 | allocator | capability explícita, default fixado pelo product, system portátil e profile substituível | mimalloc universal; allocator por import; default thread-local mutável |
 | W-028 | OOM | fallible explícito; geral aborta boundary | throws universal; abort de process sempre |
@@ -3331,7 +3348,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-412 | allocator profiles | build profile fixa `.system`, `.none` ou runtime contract; plan fixa provider; mimalloc exige benchmark | override global obrigatório; allocator escolhido por import; path no manifest |
 | W-413 | allocation failure | cases estáveis, strong guarantee em `try*` e budget distinto de OOM | tamanho livre global; falha parcial; uma exception universal |
 | W-414 | inicialização de storage | safe typed allocation nunca expõe uninitialized; zero é operação/policy explícita | calloc semântico universal; bytes residuais legíveis |
-| W-415 | criação shared | `share` usa policy normal; `tryShare` é fallible e aceita allocator explícito; não há promotion implícita | constructor wrapper nominal; expected type aloca; shared universal |
+| W-415 | criação shared | `share(value)` usa policy normal; `try share(value, using:)` aceita allocator explícito; não há promotion implícita | `tryShare` separado; constructor wrapper nominal; expected type aloca; shared universal |
 | W-416 | cópia shared | handles são move-first; `copy` torna retain visível; optimizer pode elidir | shared atende a Copy implícito; retain escondido em assignment |
 | W-417 | `ref` versus `view` | `ref` preserva place completo; `view` descreve projeção sem owner/capacity | tratar ambos como pointer + count; view nominal por tipo |
 | W-418 | mutation de view | binding/parameter `inout view T`; extent fixo e sem resize; String/CString permanecem read-only | `MutableXView`; mutation por view read-only; copy-on-write |
@@ -3845,8 +3862,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-926 | estudo R1 de domain (retired) | decisão anterior tratava `<domain: .compute>` como variante de schema; W-1160/W-1162/W-1172 tornam as duas formas equivalentes e preservam o dispatch sem prometer simultaneidade | tratar domain como thread; aceitar alias duplo no mesmo slot; capacity um invalida spawn; chamar oracle de scheduler |
 | W-927 | formatter de domain (retired) | F0 preserva a forma positional ou named escrita e a HIR normaliza ambas; spacing e statement boundaries ficam canônicos | apagar label; inserir label; reescrever domain como frase `on`; inferir pool no formatter |
 | W-928 | proveniências de borrow e storage | `OriginSet` mantém dependency edges; `AllocationOriginSet` mantém allocator instance, lifetime, mobility, deallocator e adoption family; move transfere ambos, mas nenhum substitui o outro | um origin set universal; allocator como borrow comum; metadata em pointer; lifetimeIndependent apagar storage origin |
-| W-929 | criação de shared | `share` e `tryShare` exigem payload lifetime-independent, preservam origins internas e criam origin própria para control block; storage interno precisa sobreviver ao block; shareable só é exigido na fronteira paralela | share prolonga borrow; shareable repara lifetime; ARC universal; control block sem allocator origin |
-| W-930 | falha de operação consuming de storage | failure de `pin`, `share`, `tryShare`, `rehome` e `erase` consome e destrói o source uma vez, limpa destino parcial e não publica handle/address/existential; `share` escala por panic e recovery exige operação/outcome explícito | restaurar binding implicitamente; source parcialmente válido; leak do destino; publicar pointer ou existential antes do success |
+| W-929 | criação de shared | os overloads de `share` exigem payload lifetime-independent, preservam origins internas e criam origin própria para control block; storage interno precisa sobreviver ao block; shareable só é exigido na fronteira paralela | share prolonga borrow; shareable repara lifetime; ARC universal; control block sem allocator origin |
+| W-930 | falha de operação consuming de storage | failure de `pin`, `share`, `rehome` e `erase` consome e destrói o source uma vez, limpa destino parcial e não publica handle/address/existential; `share(value)` escala por panic e `try share(..., using:)` devolve `AllocationError` | restaurar binding implicitamente; source parcialmente válido; leak do destino; publicar pointer ou existential antes do success |
 | W-931 | composição strong/weak | último strong executa deinit uma vez; weak mantém somente control block e allocator origin; upgrade após strong zero devolve none; último weak libera block; borrow shared fica ligado ao strong handle de origem; `inout` exige owner único; cross-domain exige payload shareable, contador thread-safe e todas origins móveis | weak acessa payload sem upgrade; borrow ligado ao contador global; alias sem relação bloqueia drop; ressurreição; contador local cruza domain; shareable ignora allocator mobility |
 | W-932 | interface de storage owned | `AllocationOriginMap` liga paths de storage do result a allocator inputs, default do product ou runtime owner; ele é separado do borrow mapping e participa da SemanticInterfaceKey | esconder lifetime do allocator; colocar mapping somente em docs; tratar owned result como lifetime-independent por definição; expor mapping oculto na C ABI |
 | W-933 | expansão de composição M1 | a tranche adiciona 21 casos e quatro testes independentes para budget/close, rehome, local versus cross-domain, share dependent, failure consuming, lifecycle strong/weak, borrows por handle e interface storage; W-938 estende o snapshot corrente | exemplo sem state; somente success; simular thread scheduler; chamar origin lógica de allocation física |
@@ -4093,7 +4110,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1174 | leitura tolerante a staleness | `load<.relaxed>()` continua atômica; storage comum só participa quando happens-before ou barreira prova a ordem; o modifier `atomic` nunca expõe uma view comum dos mesmos bytes | read não atômica concorrente porque o valor pode ser antigo, relaxed como non-atomic, weakening silencioso, `volatile` como synchronization |
 | W-1175 | lane serial dinâmica | `ExecutionAuthority.openSerial` cria owner lexical bounded sobre pool existente; primeiro start é FIFO, só um segmento runnable usa o permit, suspension o libera, rejeição devolve o input em `TaskAdmissionError<Input>`, close drena e refs não estendem lifetime | copiar GCD inteiro, reter worker durante suspension, restaurar binding movido, perder input na admission, fila global, sync dispatch, QoS no call site, target queues, fire-and-forget, thread por lane, executor custom safe, usar lane local no lugar de service keyed |
 | W-1176 | claim de memória | gerência automática exige prova real de owner/borrow/drop/reclamation, placement semanticamente neutro e contratos explícitos para shared/pin/FFI/OOM | alegar memória resolvida por existir um borrow checker, exigir GC/ARC universal, usar resultado de oracle host como implementação |
-| W-1177 | criação shared ergonômica | `share(value)` usa allocator geral e policy normal; `tryShare(value, using:)` torna recovery e allocator explícitos; owner existente exige `take`; expected type nunca promove | `try share` obrigatório no caminho comum, allocation escondida pelo expected type, `Shared<T>.make`, promotion automática em argumento ou return |
+| W-1177 | criação shared ergonômica | `share(value)` usa allocator geral e policy normal; `try share(value, using:)` torna recovery e allocator explícitos; owner existente exige `take`; expected type nunca promove | `tryShare` separado, `try share` obrigatório no caminho comum, allocation escondida pelo expected type, `Shared<T>.make`, promotion automática em argumento ou return |
 | W-1178 | snapshot publicado | `SnapshotCell<T>` é move-only/shareable; `read` scoped vê uma versão, `snapshot` duplica e `publish` consome uma versão completa | guard público, ref escapante, mutation in-place, update closure escondida, safe RCU geral |
 | W-1179 | reclamation de snapshot | publicação retira a versão anterior; cada versão executa drop uma vez depois do último reader, sem esperar no publish | liberar no swap, manter tudo até drop do cell, expor grace period, `Atomic<shared T>` |
 | W-1180 | oracle SP0 | máquina host pura cobre publication order, staleness, error drain, retirement, close, OOM pré-publicação e estratégias equivalentes | chamar oracle de provider/runtime, snapshot manual, caso sem símbolo Última Luz |
