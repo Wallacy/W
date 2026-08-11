@@ -296,6 +296,51 @@ R1 fixa source base, input, outcome, ordem de apresentação e digest de cada
 variante. As variantes diferem somente na construção estudada. Uma variante não
 pode remover contexto ou testes para parecer menor.
 
+#### Corpus semântico S0 e diagnostics D0
+
+O corpus S0 usa sources syntax-valid do Última Luz. Cada caso negativo aponta
+para um baseline positivo da mesma decisão e muda um único `failureField`. Os
+outros fields permanecem calculados, para que um erro de move não passe porque o
+checker também perdeu type ou effect.
+
+Um resultado aceito materializa:
+
+1. `resultType`;
+2. `category`;
+3. `flow` e target quando existe owner;
+4. `ownerDelta` em source order;
+5. `effectSummary` com sets byte-sorted;
+6. `proofFacts` válidos no caminho corrente;
+7. `evaluationGraph` com nodes locais e edges direcionais.
+
+Os IDs de node valem somente dentro do record. Eles não dependem de address,
+scheduler ou hash order. O grafo registra source order, branch, transfer,
+suspension e cleanup sem ordenar caminhos mutuamente exclusivos.
+
+O Última Luz liga patterns, narrowing e branch join a `enum_contracts.w` e
+`command.w`; loops e assignment a `collections.w` e `numerics.w`; error e
+cleanup a `failure.w`; callables a `callables.w`; memória a `memory.w` e
+`hir_memory_oracle.w`; execução a `execution.w` e `scheduler_oracle.w`; staging
+a `allocation.w` e `dining.w`; transaction e services aos oracles próprios.
+
+As inversões cobrem static contracts, patterns, match, expressions, effects,
+ownership, generic inference e ConstIR. Os casos Const trocam, uma causa por
+vez, const safety, ciclo, quota, predicate, error, panic ou argumento compile-time.
+Os casos generic removem uma equação, fazem recursion crescer, deixam um domain
+sem resolução ou violam label e associated name.
+
+Const evaluation usa como precedentes
+[Rust const evaluation](https://doc.rust-lang.org/reference/const_eval.html),
+[Zig comptime](https://ziglang.org/documentation/master/#comptime) e
+[D CTFE](https://dlang.org/spec/function.html#interpretation). W retém um corpo
+comum entre runtime e compile time, mas exige contrato `const`, quotas na recipe
+e nenhuma branch baseada na fase.
+
+`semantic-results.snapshot.jsonl` e `semantic-diagnostics.snapshot.jsonl` são
+expectativas de design. Eles não provam type checker, evaluator ou ConstIR. O
+primeiro frontend S0 deve emitir records compatíveis antes que o status deixe de
+ser `design-oracle-input`.
+
 ### 1.3 Bundles R1 do Última Luz
 
 Cada bundle mantém o mesmo source base, os mesmos inputs e o mesmo application
@@ -1897,6 +1942,38 @@ valor lógico, oferece fallback e passa os oracles diferenciais. O
 [`representation_oracle.w`](reference/last-light/representation_oracle.w)
 aplica a matriz de fronteiras ao Última Luz.
 
+#### Niches, tags e headers considerados
+
+`Option<ref Oven>` pode usar null porque `ref Oven` não aceita null. O mesmo
+raciocínio não comprime automaticamente `Option<Option<ref Oven>>`: um null
+separa dois estados, não três. Uma tag explícita continua sendo o fallback que
+preserva todos os cases.
+
+Um enum subset reduz os cases que o caller precisa tratar, mas não cria uma
+promessa pública de tamanho. Especialização interna pode remover tags
+impossíveis. ABI e persistence continuam ligadas ao layout ou schema publicado.
+
+Alignment oferece somente candidatos a low bits. A escolha também precisa de
+provenance preservada, operação válida no address space, tooling compatível e
+conversão para a forma canônica em cada fronteira. Allocation estrangeira usa o
+alignment efetivo, não o alignment nominal que W desejaria. Essa foi a razão
+para rejeitar um contrato de tagged pointer no source.
+
+Reference count, generation, allocator identity e deallocator não cabem num
+contrato geral de address bits. Eles mudam, podem sofrer wrap ou precisam
+sobreviver à canonicalização. Uma generation curta também não elimina ABA.
+Epoch, hazard pointer e reclamation equivalente permanecem escolhas internas da
+estrutura que precisa dessa garantia.
+
+Os exemplos `BellHandle`, `shared MenuSection` e `ServiceRef<Kitchen>` pedem
+metadata diferente. Um header universal desperdiçaria storage e confundiria
+owner, capability e runtime identity. Por isso owner único pode ser headerless,
+`shared` pode usar control block e service state fica no host.
+
+NaN boxing foi mantido fora da baseline porque W preserva payload de NaN e
+signed zero em `f64`. Um carrier dinâmico interno pode pesquisar a técnica com
+fallback. Ele não pode mudar arrays de `f64` nem tornar a otimização observável.
+
 #### Domains, channels e scheduler
 
 O [`domain_oracle.w`](reference/last-light/domain_oracle.w) cobre herança de
@@ -1930,6 +2007,7 @@ Estas eram as contagens em 11 de agosto de 2026:
 |---|---:|---:|---:|---|
 | M1 memory transition | 165 casos, 580 operações | 70 aceitos, 95 rejeitados | checker puro | não executa W |
 | A0 physical allocation | 48 casos, 123 operações | 15 aceitos, 33 rejeitados | 13 testes | não mede allocator real |
+| L0 layout e ABI | 78 casos, 96 operações | 27 aceitos, 51 rejeitados | 10 testes | não implementa linker, importer ou backend |
 | execution ergonomics | 61 casos | 23 positivos, 36 negativos, 2 informações | 15 testes | não compila nem agenda W |
 | E0 concurrency | 57 casos, 527 operações | 31 aceitos, 26 rejeitados; 10/10 origens HB | checker puro | valida witness; não enumera execuções |
 | E1 liveness | 41 casos, 473 operações | 19 aceitos, 22 rejeitados | 7 testes | não prova clock, OS I/O ou terminação de user code |
@@ -1948,6 +2026,50 @@ provas isoladas escondam copy, share, rollback ou drop divergente. LM0 cobre
 loans, FIFO, `tryWithLock`, cancellation, unlock, drop e fault boundary. SP0
 cobre readers antigos e novos, publicação concorrente, retirement bounded,
 drop, OOM antes de publish, close e estratégias equivalentes.
+
+### 1.16 Evidence de boundaries, packages e releases
+
+#### Boundary effects B0
+
+O corpus B0 contém 39 sequências e 320 operações ligadas a symbols do Última
+Luz. Ele aceita 25 e rejeita 14. A máquina cobre:
+
+- staging, envelope commit, admission, closed turn, output gate e delivery;
+- cleanup único do envelope e output retido até confirmação e drain;
+- `commitFailed`, `unknownOutcome(effectId)` e cancellation distintos;
+- retry idempotente com o mesmo effect ID e bloqueio de `atMostOnce`;
+- transaction com begin, body, commit, abort e `unknownCommit`;
+- pipeline linear e diamond, fail-fast, drain e capability settlement.
+
+Os negativos incluem delivery antes do drain, segundo closed turn, retry
+inseguro, abort depois de commit request, forward reference e resolução
+prematura. B0 recebe admission, evidence e effect IDs resolvidos. Ele não prova
+adapter, transport, fila bounded, clock, storage, wWire, deduplication, database,
+crash recovery ou execução distribuída.
+
+#### Package e release P0
+
+O corpus P0 contém 44 casos e 379 operações. Ele cobre:
+
+- snapshot assinado, rollback, expiry, delegation e equivocation;
+- resolução determinística, features, members e realms;
+- lock estrutural, source inventories e active source sets;
+- CAS, mirrors listados e reconstrução offline;
+- recipe hermética, source tree, toolchain e environment declarado;
+- artifact identity, quorum independente e papéis de assinatura;
+- estados ortogonais de advisory, yank e revocation.
+
+P0 usa digests SHA-256 tagged sobre records canônicos como identity do oracle. A
+produção mantém algoritmo e schema versionados no envelope. O lock fixa a
+estrutura da resolução; mudar bytes inventariados troca source-tree digest e
+recipe, enquanto adicionar, remover ou mudar o papel de um source invalida o
+lock.
+
+Builder, operator, credential, execution root e executor registram
+independência. Eles não entram na identity da recipe. Evidência incompleta é
+rejeitada antes da comparação. P0 não implementa resolver, registry, CAS,
+signature, prerelease SemVer, TUF, Sigstore, download, sandbox, archive reader,
+path normalization ou rebuild real.
 
 ## 2. Proveniência
 
