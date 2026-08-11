@@ -10664,10 +10664,16 @@ mostra separadamente:
 - permits;
 - high-water mark.
 
-Uma mailbox de service continua a primitive para quotas simultâneas de itens,
-bytes e trabalho em voo. `WeightedChannel<T>` é **Provável**, mas cada send
-fornece um peso inteiro já calculado. Uma callback de peso não pode ocultar
-allocation, error ou custo não determinístico.
+**W-1229 — accounting explícito:** `WeightedChannel<T>` não entra na baseline.
+Um inteiro fornecido pelo caller mede uma unidade de aplicação; ele não prova
+bytes transitivos, allocation ou trabalho físico. Uma callback de peso também
+poderia ocultar allocation, error ou custo não determinístico.
+
+Um pipeline local limita bytes ao combinar capacity com um payload refinado.
+Esse produto limita os bytes carregados, não o grafo transitivo ou o overhead do
+allocator. Uma mailbox de service continua a forma para quotas simultâneas de
+itens, bytes e trabalho em voo, porque o service possui a authority que admite e
+contabiliza o recurso.
 
 #### 12.9.7 Ordering, fairness e cancellation
 
@@ -10753,21 +10759,63 @@ Low e high watermarks são policies de wake-up e batching. Elas não mudam
 capacity ou ownership. Um producer implementa `next()` como state machine ou
 usa um channel; `buffer(capacity:)` continua a única superfície de prefetch.
 
-#### 12.9.11 Topologias distintas
+**W-1230 — distribuição de trabalho por composição:** W não publica
+`WorkQueue<T>`. Uma coleção finita usa `TaskGroup.concurrentMap` ou
+`TaskGroup.parallelMap`. Um stream usa os adapters homônimos:
 
-Uma opção de mode em `Channel` não deve esconder semânticas incompatíveis:
+```w
+let prepared = (take orders).parallelMap<.compute>(
+  limit: 8,
+  ordering: .completion,
+  using: prepareCourse,
+)
+```
 
-| Necessidade | Tipo candidato | Regra |
-|---|---|---|
-| vários producers, um consumer | `Channel<T>` | baseline MPSC |
-| vários workers dividem itens | `WorkQueue<T>` | **Provável**; cada item vai para um worker |
-| cada subscriber recebe uma cópia | `Broadcast<T>` | **Provável**; exige duplicação ou sharing e lag policy |
-| observar somente o valor mais novo | `Watch<T>` | **Provável**; intermediários podem sumir |
-| um resultado | `Task<T, E>` | já pertence à structured concurrency |
-| call local ou remota | mailbox de service | schema, authority, deadline e boundary outcome |
+O mapper é `async`, recebe `take Item` e usa o mesmo `Failure` fechado do
+source. Trabalho que precisa continuar depois de uma falha devolve
+`Result<Output, ItemFailure>` como item. O adapter devolve
+`some Stream<Output, Failure>`.
 
-MPMC, broadcast e watch não são contracts como `<.parallel>` sobre a mesma API.
-Eles mudam loss, ordering, close, slow-consumer policy e mobilidade.
+Cada item entra em exatamente um child. `limit` inclui trabalho admitido ainda
+não entregue, inclusive child ativo ou result pronto. Existe no máximo um pull
+upstream adicional em voo. Cancellation e o primeiro `Failure` fecham a
+entrada, cancelam children e aguardam cleanup. `.input` e `.completion` mantêm
+o significado de `TaskGroup`. Essa composição preserva o owner único do source
+e não cria um endpoint MPMC copiável.
+
+Uma mailbox de service cobre admission contínua com authority, restart ou
+distribuição entre instances.
+
+#### 12.9.11 Composição de topologias
+
+Uma opção de mode em `Channel` não esconde loss, fan-out ou conflation:
+
+| Necessidade | Forma corrente |
+|---|---|
+| vários producers, um consumer | `Channel<T>` MPSC |
+| coleção finita distribuída | `TaskGroup.concurrentMap` ou `parallelMap` |
+| admission contínua de trabalho | mailbox de service + group ou worker instances |
+| duas branches estáticas | `ReadableStream.tee`, com duplicação e lag bounded explícitos |
+| subscribers dinâmicos | service com endpoint e policy próprios por subscriber |
+| valor imutável mais recente | `SnapshotCell<T>` |
+| um resultado | `Task<T, E>` |
+
+**W-1231 — fan-out explícito:** `Broadcast<T>` não entra na baseline. Um
+broadcast genérico precisaria escolher entre suspender pelo subscriber mais
+lento, descartar valor antigo, descartar valor novo ou desconectar o subscriber.
+Também precisaria escolher replay, close, failure e quando duplicar `T`. O nome
+sozinho não comunica essas decisões. `tee` fecha o fan-out estático. Um service
+fecha o caso dinâmico e torna cada policy parte da interface.
+
+**W-1232 — state não é event stream:** `Watch<T>` também não entra. Um
+`SnapshotCell<T>` publica e lê a versão imutável corrente. Quando observers
+precisam ser acordados, o owner publica uma revisão monotônica por channel,
+atomic wait ou service depois de publicar o snapshot. O adapter específico
+fecha a relação entre revisão e snapshot e prova que não perde wake. W não
+esconde conflation, equality ou lifecycle em outro carrier universal.
+
+MPMC, broadcast e watch permanecem implementáveis como adapters especializados.
+Eles não mudam `Channel`, não ganham syntax e não bloqueiam o design freeze.
 
 A implementação de `Channel` pode usar ring buffer, queue segmentada, mutex ou
 atomics. `lockFree` não faz parte da promessa. O profile mede throughput,

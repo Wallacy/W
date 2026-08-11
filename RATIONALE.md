@@ -1156,6 +1156,29 @@ expõe o risco de manter guards durante suspension. O
 explicita premissas de fairness. W transforma essas observações em contratos
 próprios de ownership, closure, admission e profile.
 
+As topologias de fan-out reforçam por que uma fila universal não basta. O
+[`broadcast` de Tokio](https://docs.rs/tokio/latest/tokio/sync/broadcast/)
+mantém um ring bounded, duplica sob demanda e informa quantos valores um
+receiver lento perdeu. O
+[`watch` de Tokio](https://docs.rs/tokio/latest/tokio/sync/watch/) mantém somente
+o valor mais recente e precisa distinguir leitura de leitura que também avança
+o cursor para evitar repetição na corrida com uma mudança.
+
+[`SharedFlow`](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-shared-flow/)
+permite replay, capacidade extra e três policies de overflow, não fecha e não
+carrega failure. [`StateFlow`](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-state-flow/)
+sempre possui um valor, conflates por equality e também não fecha. A
+[`concurrent_bounded_queue` de oneTBB](https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.1-rev-1/elements/onetbb/source/containers/concurrent_bounded_queue_cls)
+oferece FIFO MPMC bounded, mas não define task scope, cancellation ou ownership
+estruturado.
+
+Essas diferenças não escolhem um default para W. A baseline compõe `TaskGroup`,
+`Stream`, `Channel`, services, `ReadableStream.tee` e `SnapshotCell`. Um adapter
+especializado pode oferecer outra policy, mas precisa nomear loss, replay,
+close, failure, duplication, limits e owner graph. `WeightedChannel` também não
+entra: peso informado pelo caller é accounting de aplicação, não prova de
+memória ou trabalho físico.
+
 A documentação do kernel Linux sobre
 [RCU](https://docs.kernel.org/RCU/whatisRCU.html) separa removal de reclamation.
 Ela também exige que readers anteriores terminem antes do reuse. W preserva
@@ -1612,7 +1635,7 @@ O índice gerado usa esta tabela somente como projeção.
 | `for try await` | **Possível agora** | sugar local para `next()`; borrow do cursor e effects permanecem visíveis |
 | `Channel<T>` MPSC bounded | **Provável** | ownership e estados estão fechados; fairness, cancellation e custo exigem protótipo |
 | permits de channel | **Provável** | capability linear fecha capacity; close e suspension longa exigem oracle |
-| WorkQueue, broadcast, watch e weighted channel | **Provável** | cada tipo possui loss, fan-out, lag e accounting próprios |
+| WorkQueue, broadcast, watch e weighted channel | **Rejeitado na baseline** | TaskGroup, Stream, services, tee e SnapshotCell compõem os casos sem esconder loss ou accounting |
 | `ByteSource`/`ByteSink` async-first | **Possível agora** | short progress, EOF e errors possuem resultados fechados |
 | read por append em reserva privada de `Bytes` | **Possível agora** | initialized count e commit ocultam storage ainda não inicializado |
 | cancellation de I/O com completion drain | **Provável** | backends possuem completion; runtime e borrow checker precisam de oracle |
@@ -3403,7 +3426,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-467 | happens-before de channel | send→receive, slot liberado→send admitido e close→fim observado | somente ownership; fence manual pelo usuário |
 | W-468 | buffering de stream | nenhum prefetch default; adapter bounded com scope estruturado | watermark na assinatura; buffer ilimitado; producer detached |
 | W-469 | `yield` | rejeitado por enquanto; Stream constructor nominal expõe borrow, cleanup, error, cancellation e capacity | generator define semântica; callback oculto |
-| W-470 | outras topologias | `WorkQueue`, `Broadcast`, `Watch` e weighted channel são prováveis T1 com contracts distintos | um `Channel<mode: ...>` muda loss e fan-out |
+| W-470 | outras topologias (retired) | candidatos anteriores foram substituídos por composição em W-1229–W-1232 | um `Channel<mode: ...>` muda loss e fan-out |
 | W-471 | implementation de channel | target escolhe ring, segmentos, mutex ou atomics; lock-free não é contrato | algoritmo único no ABI; tagged pointer obrigatório |
 | W-472 | accounting de channel | lens separa storage, itens, payload desconhecido, waiters, permits e watermark medido | capacity promete bytes transitivos; número único exato |
 | W-473 | byte I/O | `ByteSource<Failure>` e `ByteSink<Failure>` async-first; cursor lógico no source | Reader/Writer nominal por backend; prefixo `Async`; interface sync única |
@@ -4162,6 +4185,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1226 | journal e commit authority | prefixo confirmado, schema/version/digest e uma authority definem recovery; multi-provider usa step ou outbox e SQLite é apenas adapter/profile | aceitar suffix corrupto, WAL em network filesystem, transaction implícita entre providers |
 | W-1227 | retention, restart e shutdown | queues, outputs, journal, dedup, tombstones e restart window são bounded; drain fecha admission e aguarda owners/commit/quarantine | restart infinito, compaction que perde record vivo, shutdown com output ou turn pendente |
 | W-1228 | evidence SR0 | fixture Última Luz e machine/checker/snapshot/test host cobrem 48 casos, 392 operações e 17 testes sem executar W, database, network ou provider | expected echo, fault booleano sem record real, completion não registrada, chamar model de runtime ou exactly-once proof |
+| W-1229 | accounting de channel | capacity mede itens; payload refinado pode limitar bytes carregados; quotas de itens/bytes/trabalho pertencem à mailbox com authority | `WeightedChannel`, callback de peso, peso do caller chamado de memória real |
+| W-1230 | distribuição de trabalho | collections usam TaskGroup; streams usam concurrentMap/parallelMap bounded; services cobrem admission contínua e distribuição entre instances | `WorkQueue` MPMC, receiver compartilhado, child detached, fila ilimitada |
+| W-1231 | fan-out explícito | tee fecha duas branches estáticas; service fecha subscribers dinâmicos e nomeia loss/replay/close/failure/duplication | `Broadcast` universal, policy de lag implícita, cópia escondida por channel mode |
+| W-1232 | latest state separado de eventos | SnapshotCell mantém versão corrente; adapter específico publica revisão depois do snapshot e prova wake sem perda | `Watch` universal, conflation/equality/lifecycle escondidos, state tratado como event history |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

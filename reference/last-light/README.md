@@ -828,7 +828,14 @@ Aceite:
 - destruir o receiver descarta o buffer e acorda producers;
 - sends sequenciais por sender preservam ordem;
 - sends concorrentes não ganham uma ordem global fictícia;
-- commit de send acontece antes de receive devolver o item.
+- commit de send acontece antes de receive devolver o item;
+- collections usam `TaskGroup` e streams usam map concorrente ou paralelo
+  bounded em vez de um receiver MPMC;
+- `ReadableStream.tee` cobre duas branches estáticas;
+- fan-out dinâmico pertence a um service que declara policy por subscriber;
+- `SnapshotCell` mantém state corrente sem fingir que também é event history;
+- quotas de bytes e trabalho pertencem à mailbox, não a um peso arbitrário do
+  channel.
 
 O source usa dois balcões de universos incompatíveis como producers. Um único
 maître recebe os pedidos. CH0 repete o caso com capacity 0, 1 e 64. O gate de
@@ -2677,6 +2684,10 @@ O Book deve mostrar pares lado a lado:
 | falha de envio | enum devolve `T` | Boolean, panic ou perda do item |
 | close de channel | último sender ou receiver gracioso; drop do receiver aborta | qualquer sender fecha globalmente |
 | prefetch | adapter `buffer(capacity:)` explícito | watermark na assinatura ou buffer invisível |
+| distribuição de trabalho | `TaskGroup`/Stream map bounded ou mailbox de service | `WorkQueue` MPMC universal |
+| fan-out | `tee` estático ou service com policy por subscriber | `Broadcast` com lag/replay implícitos |
+| state mais recente | `SnapshotCell` e notification específica | `Watch` que esconde conflation e lifecycle |
+| quota por recurso | mailbox com authority | `WeightedChannel` chamado de limite de memória |
 | byte I/O | `ByteSource`/`ByteSink` async-first | `Reader`/`Writer` por backend ou interface sync condicional |
 | destino de read | append em `Bytes` com spare privado | `ReadBuffer` público ou `inout view Bytes` genérico |
 | EOF | `ReadStep.data(positive)` / `.end` | zero bytes e Boolean adicional |

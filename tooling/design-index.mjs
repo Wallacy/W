@@ -273,6 +273,7 @@ const oracleCorpusFiles = [
   "scoped-lock-cases.json",
   "snapshot-cell-cases.json",
   "boundary-effect-cases.json",
+  "service-recovery-cases.json",
   "package-release-cases.json",
   "script-workflow-cases.json",
   "repl-session-cases.json",
@@ -283,6 +284,7 @@ const oracleCorpusFiles = [
   "tabular-carrier-cases.json",
   "tabular-adapter-cases.json",
   "dlpack-cases.json",
+  "device-execution-cases.json",
 ];
 const oracleFreezeDecisionIds = new Set(
   oracleCorpusFiles.flatMap((file) => {
