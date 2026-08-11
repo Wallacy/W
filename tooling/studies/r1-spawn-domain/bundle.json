@@ -3,7 +3,7 @@
   "status": "design-oracle-input",
   "id": "R1-spawn-domain-last-light",
   "title": "Bounded galley planning at the Last Light restaurant",
-  "r0Cases": ["R0-spawn-domain"],
+  "r0Cases": ["R0-spawn-domain", "R0-product-execution-profile"],
   "sourceBase": {
     "path": "../../../reference/last-light/execution.w",
     "symbol": "spawn<.compute> let leftResult",
@@ -18,7 +18,8 @@
       "digest": "sha256:5e988c714290062fc207f5840f236934212af82d36ddd1bc6e2733e2467726ad",
       "changedConstructs": [
         "positional domain slot written as a contextual case",
-        "explicit dispatch remains distinct from serial or parallel execution"
+        "explicit dispatch remains distinct from serial or parallel execution",
+        "product-selected profile stays outside module source and survives packing"
       ]
     },
     {
@@ -29,7 +30,8 @@
       "digest": "sha256:a13e2a5573f54d7b7f5cafef4def1a1c55897e095edb3b56e1bf280c6f14da06",
       "changedConstructs": [
         "named domain slot written with its source label",
-        "explicit dispatch remains distinct from serial or parallel execution"
+        "explicit dispatch remains distinct from serial or parallel execution",
+        "product-selected profile stays outside module source and survives packing"
       ]
     }
   ],
@@ -40,6 +42,8 @@
       "left": 2,
       "right": 3,
       "profile": {
+        "id": "native-bounded",
+        "selectionOwner": "product",
         "domain": "compute",
         "requiredCapabilities": ["parallel"],
         "capabilities": ["concurrent", "parallel"],
@@ -59,6 +63,8 @@
       "left": 2,
       "right": 3,
       "profile": {
+        "id": "native-bounded",
+        "selectionOwner": "product",
         "domain": "compute",
         "requiredCapabilities": ["parallel"],
         "capabilities": ["serial"],
@@ -77,6 +83,8 @@
       "left": 2,
       "right": 3,
       "profile": {
+        "id": "native-bounded",
+        "selectionOwner": "product",
         "domain": "compute",
         "requiredCapabilities": ["parallel"],
         "capabilities": ["concurrent", "parallel"],
@@ -87,6 +95,26 @@
         "reason": "emptyCapacity",
         "domain": "compute",
         "dispatch": "explicit"
+      }
+    },
+    {
+      "id": "module-profile-default",
+      "left": 2,
+      "right": 3,
+      "profile": {
+        "id": "module-compute",
+        "selectionOwner": "module",
+        "domain": "compute",
+        "requiredCapabilities": ["parallel"],
+        "capabilities": ["concurrent", "parallel"],
+        "capacity": 1
+      },
+      "expected": {
+        "status": "rejected",
+        "reason": "profileSelectionOwner",
+        "domain": "compute",
+        "dispatch": "explicit",
+        "actualOwner": "module"
       }
     }
   ],
@@ -120,7 +148,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:8ca0e8b8653d6970ea804e7f2458f160d3a0b289c6e13519a63a8ef948f9bbdf"
+    "digest": "sha256:131f510450c31fa19b160f0d4b36e4ca28cc78dd11fe1fa4b627dfd3749a8af3"
   },
   "evidence": {
     "current": ["tree-sitter-parse", "host-oracle"],
