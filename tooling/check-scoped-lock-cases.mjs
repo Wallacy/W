@@ -69,6 +69,7 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
   expectField(item.id, "phase", lock?.phase, expected.phase)
   expectField(item.id, "value", lock?.value, expected.value)
   expectField(item.id, "holder", lock?.holder, expected.holder)
+  expectField(item.id, "readers", lock?.readers, expected.readers)
   expectField(item.id, "queue", lock?.queue, expected.queue)
   expectField(item.id, "drops", lock?.drops, expected.drops)
   expectField(item.id, "reads", result.state.reads, expected.reads)
@@ -88,6 +89,7 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
   )
   expectField(item.id, "cancellations", lock?.cancellations, expected.cancellations)
   expectField(item.id, "happensBefore", lock?.happensBefore, expected.happensBefore)
+  expectField(item.id, "closedPhases", lock?.closedPhases, expected.closedPhases)
   expectField(
     item.id,
     "tryResults",
@@ -99,7 +101,16 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
   results.push({ caseId: item.id, ...result })
 }
 
-for (const decision of ["W-1181", "W-1182", "W-1183", "W-1184"]) {
+for (const decision of [
+  "W-1181",
+  "W-1182",
+  "W-1183",
+  "W-1184",
+  "W-1189",
+  "W-1190",
+  "W-1191",
+  "W-1192",
+]) {
   if (!(corpus.cases ?? []).some((item) => item.decisions?.includes(decision))) {
     errors.push(`missing decision coverage ${decision}`)
   }

@@ -123,7 +123,68 @@ test("the synchronization selector keeps distinct architectures distinct", () =>
     selectSynchronization({ readHeavy: true, replaceWholeVersion: true }),
     "snapshot-cell",
   )
+  assert.equal(
+    selectSynchronization({
+      parallelReads: true,
+      exclusiveWrite: true,
+      synchronousContext: true,
+    }),
+    "read-write-lock",
+  )
   assert.equal(selectSynchronization({ durable: true }), "service")
+})
+
+test("read write admission batches only the reader prefix before a writer", () => {
+  const result = runScopedLockOperations([
+    create("read-write"),
+    request("reader-a", "ref", true),
+    request("reader-b", "ref", true),
+    request("writer", "inout", true),
+    request("late-reader", "ref", true),
+    { op: "grantPhase", lock: "ledger", tasks: ["reader-a", "reader-b"] },
+    { op: "finish", lock: "ledger", task: "reader-b", outcome: "success" },
+    { op: "finish", lock: "ledger", task: "reader-a", outcome: "success" },
+    { op: "grantPhase", lock: "ledger", task: "writer" },
+    { op: "write", lock: "ledger", task: "writer", value: 1 },
+    { op: "finish", lock: "ledger", task: "writer", outcome: "success" },
+    { op: "grantPhase", lock: "ledger", tasks: ["late-reader"] },
+  ])
+  const lock = result.state.locks.ledger
+  assert.equal(result.status, "accepted")
+  assert.equal(lock.holder, null)
+  assert.deepEqual(lock.readers, ["late-reader"])
+  assert.deepEqual(lock.queue, [])
+  assert.deepEqual(lock.closedPhases, [
+    { phase: 0, access: "read", tickets: [0, 1] },
+    { phase: 1, access: "write", tickets: [2] },
+  ])
+})
+
+test("a queued writer prevents a late try read from joining active readers", () => {
+  const result = runScopedLockOperations([
+    create("read-write"),
+    { op: "tryAcquire", lock: "ledger", task: "reader", access: "ref", boundary: "restaurant" },
+    request("writer", "inout", true),
+    { op: "tryAcquire", lock: "ledger", task: "late", access: "ref", boundary: "restaurant" },
+  ])
+  assert.equal(result.status, "accepted")
+  assert.deepEqual(
+    result.state.receipts
+      .filter((receipt) => receipt.operation === "try")
+      .map((receipt) => receipt.result),
+    ["acquired", "busy"],
+  )
+})
+
+test("a blocking reader at the head joins the active reader phase", () => {
+  const result = runScopedLockOperations([
+    create("read-write", 5),
+    { op: "tryAcquire", lock: "ledger", task: "first", access: "ref", boundary: "restaurant" },
+    request("second", "ref", true),
+    { op: "grantPhase", lock: "ledger", tasks: ["second"] },
+  ])
+  assert.equal(result.status, "accepted")
+  assert.deepEqual(result.state.locks.ledger.readers, ["first", "second"])
 })
 
 test("scoped access rejects suspension, escape and reentry", () => {

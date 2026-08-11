@@ -1,7 +1,8 @@
 // Scoped exclusive state and published immutable snapshots.
 //
-// Mutex and AsyncMutex expose the protected value only through never-suspending
-// closures. The trusted wrapper is shareable; the payload does not need to be.
+// Mutex, AsyncMutex, and ReadWriteLock expose the protected value only through
+// never-suspending closures. The trusted wrapper is shareable; the payload does
+// not need to be.
 // SnapshotCell can use a target-specific reclamation strategy, but it preserves
 // versions, drops, happens-before edges, and structured lifetime.
 
@@ -13,6 +14,7 @@ export enum LockAttempt<Result> {
 foreign intrinsic from "std.sync@1" {
   type MutexHandle
   type AsyncMutexHandle
+  type ReadWriteLockHandle
   type SnapshotCellHandle
 
   fn stdMutexCreate<Value>(initial: take Value): MutexHandle
@@ -63,6 +65,32 @@ foreign intrinsic from "std.sync@1" {
 
   fn stdAsyncMutexDrop(handle: inout AsyncMutexHandle)
 
+  fn stdReadWriteLockCreate<Value>(
+    initial: take Value,
+  ): ReadWriteLockHandle
+
+  fn stdReadWriteLockRead<Value, Result, Failure: Error>(
+    handle: ref ReadWriteLockHandle,
+    operation: some fn(ref Value): Result throws Failure,
+  ): Result throws Failure
+
+  fn stdReadWriteLockWrite<Value, Result, Failure: Error>(
+    handle: ref ReadWriteLockHandle,
+    operation: some fn(inout Value): Result throws Failure,
+  ): Result throws Failure
+
+  fn stdReadWriteLockTryRead<Value, Result, Failure: Error>(
+    handle: ref ReadWriteLockHandle,
+    operation: some fn(ref Value): Result throws Failure,
+  ): LockAttempt<Result> throws Failure
+
+  fn stdReadWriteLockTryWrite<Value, Result, Failure: Error>(
+    handle: ref ReadWriteLockHandle,
+    operation: some fn(inout Value): Result throws Failure,
+  ): LockAttempt<Result> throws Failure
+
+  fn stdReadWriteLockDrop(handle: inout ReadWriteLockHandle)
+
   fn stdSnapshotCellCreate<Value>(
     initial: take Value,
   ): SnapshotCellHandle
@@ -92,6 +120,14 @@ struct TypedAsyncMutexHandle<Value> {
   raw: AsyncMutexHandle
 
   init(validatedRaw: AsyncMutexHandle) {
+    self.raw = validatedRaw
+  }
+}
+
+struct TypedReadWriteLockHandle<Value> {
+  raw: ReadWriteLockHandle
+
+  init(validatedRaw: ReadWriteLockHandle) {
     self.raw = validatedRaw
   }
 }
@@ -171,6 +207,53 @@ export struct AsyncMutex<Value> {
 
   deinit {
     unsafe { stdAsyncMutexDrop(handle: inout handle.raw) }
+  }
+}
+
+export struct ReadWriteLock<Value> {
+  handle: TypedReadWriteLockHandle<Value>
+
+  export init(
+    _ initial: take Value<(.transferable && .lifetimeIndependent)>,
+  ) {
+    let raw = unsafe { stdReadWriteLockCreate(initial: take initial) }
+    self.handle = TypedReadWriteLockHandle<Value>(validatedRaw: raw)
+  }
+
+  export fn read<Result, Failure: Error>(
+    _ operation: some fn(ref Value): Result throws Failure,
+  ): Result throws Failure {
+    return unsafe {
+      try stdReadWriteLockRead(handle: handle.raw, operation: operation)
+    }
+  }
+
+  export fn write<Result, Failure: Error>(
+    _ operation: some fn(inout Value): Result throws Failure,
+  ): Result throws Failure {
+    return unsafe {
+      try stdReadWriteLockWrite(handle: handle.raw, operation: operation)
+    }
+  }
+
+  export fn tryRead<Result, Failure: Error>(
+    _ operation: some fn(ref Value): Result throws Failure,
+  ): LockAttempt<Result> throws Failure {
+    return unsafe {
+      try stdReadWriteLockTryRead(handle: handle.raw, operation: operation)
+    }
+  }
+
+  export fn tryWrite<Result, Failure: Error>(
+    _ operation: some fn(inout Value): Result throws Failure,
+  ): LockAttempt<Result> throws Failure {
+    return unsafe {
+      try stdReadWriteLockTryWrite(handle: handle.raw, operation: operation)
+    }
+  }
+
+  deinit {
+    unsafe { stdReadWriteLockDrop(handle: inout handle.raw) }
   }
 }
 

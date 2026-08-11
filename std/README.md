@@ -76,11 +76,12 @@ estruturada. `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
 delivery de workflows por steps. Uma suspensão pública contém duração restante,
 não o alarm privado do adapter. `io/contracts.w` materializa byte I/O de host.
-`sync/contracts.w` materializa `Mutex`, `AsyncMutex`, `LockAttempt` e
-`SnapshotCell`. Locks expõem somente closures `neverSuspend`; o payload não
-precisa ser shareable. O provider `std.sync@1` continua missing. O source não
-fixa parking, reference counting, epoch, hazard pointer ou outra estratégia
-física compatível com os contratos.
+`sync/contracts.w` materializa `Mutex`, `AsyncMutex`, `ReadWriteLock`,
+`LockAttempt` e `SnapshotCell`. Locks expõem somente closures `neverSuspend`;
+o payload não precisa ser shareable. `ReadWriteLock` agrupa o prefixo de readers
+anterior ao próximo writer e não permite bypass. O provider `std.sync@1`
+continua missing. O source não fixa parking, reference counting, epoch, hazard
+pointer ou outra estratégia física compatível com os contratos.
 `json/contracts.w` materializa o codec JSON bounded de host. `Encodable`,
 `Decodable` e `Codable` exigem conformance explícita. `Writer` e `Reader` são
 cursors opacos; object e array cursors vivem somente em closures scoped.

@@ -1160,13 +1160,20 @@ oferece uma unidade mais próxima do W: jobs anteriores drenam, o write executa
 sozinho e jobs posteriores só iniciam depois. W acrescenta tickets, children,
 cleanup e prova de loans ao mesmo padrão.
 
+O
+[SRW lock do Windows](https://learn.microsoft.com/en-us/windows/win32/sync/slim-reader-writer--srw--locks)
+expõe shared/exclusive access, mas declara que não é fair nem FIFO. O
+[`pthread_rwlock_rdlock`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_rwlock_rdlock.html)
+também condiciona admission a writers bloqueados e ao profile de scheduling.
+Logo, nenhum primitive do host fornece sozinho a policy lógica de W.
+
 Domains cobrem o caminho task-owned com placement, tickets e cancellation.
 `SnapshotCell` cobre publicação imutável; `Mutex` e `AsyncMutex` cobrem critical
-sections. Isso não torna um read/write lock síncrono semanticamente redundante,
-em especial para code freestanding e adapters que não possuem task runtime. A
-decisão atual mantém `ReadWriteLock<T>` em Pesquisa até fechar fairness,
-closure-scoped loans, blocking diagnostics e benchmark. A forma ainda não faz
-parte da safe std; adapters foreign `unsafe` continuam possíveis.
+sections. Code freestanding e adapters sem task runtime ainda precisam de
+reads simultâneos sobre storage mutável. W-1189 a W-1192 fecham esse espaço com
+`ReadWriteLock<T>`, closures scoped e admission por fases. O provider e o
+benchmark continuam ausentes; isso limita claims de performance, não a
+semântica da safe std.
 
 Condition variables foram consideradas pelo mesmo critério. Separar predicate,
 lock e notification cria uma protocol surface em que lost wakeup e lifetime do
@@ -1503,7 +1510,7 @@ O índice gerado usa esta tabela somente como projeção.
 | `Atomic<T, lockFree: true>` | **Possível agora** | target e alignment resolvem o contrato em compile time |
 | `Mutex.withLock` scoped | **Possível agora** | closure não escapa e cleanup síncrono fecha unlock |
 | closure de `AsyncMutex.withLock` sem suspension | **Possível agora** | tickets FIFO, cancellation e unlock possuem contrato LM0 |
-| `ReadWriteLock<T>` na safe std | **Pesquisa** | lock síncrono e domain barrier são distintos; falta fechar fairness, blocking e ganho mensurável |
+| `ReadWriteLock<T>` na safe std | **Possível agora** | closures scoped e fases writer-aware fecham a semântica; provider e benchmark continuam gates de implementação |
 | condition variable na safe std | **Rejeitado** | channel, task outcome e service unem evento, ownership e cancellation |
 | lazy concorrente, barreira cíclica e atomic wait/notify | **Pesquisa** | cada forma ainda precisa de failure, cancellation, generation e provider contract próprios |
 | `SnapshotCell<T>` | **Possível agora** | `read`, `snapshot` e `publish` fecham versões, edges e reclamation sem API RCU no caller |
@@ -2295,10 +2302,9 @@ storage com readers simultâneos e um writer, mas deixa priority ao OS. O
 um writer espera e proíbe upgrade, downgrade e recursive read locking.
 
 W conserva domains seriais estáticos, lanes seriais dinâmicas e barrier de
-domain para trabalho estruturado. Um `ReadWriteLock<T>` síncrono não é tratado
-como alias dessas formas. Ele permanece Pesquisa até fechar fairness, progress,
-blocking diagnostics, closure-scoped loans e ganho mensurável sobre `Mutex`,
-`SnapshotCell` e domain barrier.
+domain para trabalho estruturado. `ReadWriteLock<T>` não é alias dessas formas.
+Ele usa tickets e fases para storage síncrono; benchmark posterior decide quando
+recomendá-lo em vez de `Mutex`, `SnapshotCell` ou domain barrier.
 
 CH0 usa [`streams.w`](reference/last-light/streams.w) como source e a
 [`channel-machine.mjs`](tooling/channel-machine.mjs) para derivar o estado. O
@@ -2356,7 +2362,7 @@ Estas eram as contagens em 11 de agosto de 2026:
 | E1 liveness | 41 casos, 473 operações | 19 aceitos, 22 rejeitados | 7 testes | não prova clock, OS I/O ou terminação de user code |
 | MX0 ownership + execution | 46 casos, 274 operações | 23 aceitos, 23 rejeitados | 14 testes | compõe modelos; não executa checker, scheduler ou runtime W |
 | CH0 bounded channel | 47 casos, 333 operações | 28 aceitos, 19 rejeitados | 12 testes | não implementa scheduler, runtime ou provider W |
-| LM0 scoped locks | 33 casos, 114 operações | 19 aceitos, 13 rejeitados, 1 fault | 8 testes | não implementa `std.sync@1` |
+| LM0 scoped locks | 42 casos, 171 operações | 25 aceitos, 16 rejeitados, 1 fault | 11 testes | não implementa `std.sync@1` |
 | SP0 snapshot cell | 27 casos, 82 operações | 14 aceitos, 12 rejeitados, 1 fault | 7 testes | não implementa reclamation físico |
 
 E0 cobre lifecycle, cancellation, fail-fast, as dez origens de happens-before,
@@ -3650,15 +3656,18 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1178 | snapshot publicado | `SnapshotCell<T>` é move-only/shareable; `read` scoped vê uma versão, `snapshot` duplica e `publish` consome uma versão completa | guard público, ref escapante, mutation in-place, update closure escondida, safe RCU geral |
 | W-1179 | reclamation de snapshot | publicação retira a versão anterior; cada versão executa drop uma vez depois do último reader, sem esperar no publish | liberar no swap, manter tudo até drop do cell, expor grace period, `Atomic<shared T>` |
 | W-1180 | oracle SP0 | máquina host pura cobre publication order, staleness, error drain, retirement, close, OOM pré-publicação e estratégias equivalentes | chamar oracle de provider/runtime, snapshot manual, caso sem símbolo Última Luz |
-| W-1181 | lock escopado | `Mutex<T>` e `AsyncMutex<T>` encapsulam payload non-shareable, expõem `ref`/`inout` por closure `neverSuspend` e não publicam guard | guard escapante, await protegido, payload shareable obrigatório, recursive lock |
+| W-1181 | lock escopado | `Mutex<T>`, `AsyncMutex<T>` e `ReadWriteLock<T>` encapsulam payload non-shareable, expõem `ref`/`inout` por closure `neverSuspend` e não publicam guard | guard escapante, await protegido, payload shareable obrigatório, recursive lock |
 | W-1182 | lock admission e failure | tickets FIFO, try sem bypass, cancel pré-grant remove waiter, cancel pós-grant espera unlock e panic falha a fault boundary | barging, poisoning recuperável, closure repetida, unlock antes de cleanup |
-| W-1183 | conjunto mínimo de synchronization | atomic, locks, domain barrier, SnapshotCell, channel e service têm papéis distintos; condition e Once raw não entram na safe std; read/write lock segue W-1189 | copiar toda primitive host, condition sem ownership, RCU safe |
-| W-1184 | oracle LM0 | máquina host pura cobre locks sync/async, queue, cancellation, failure, lifetime e seleção; não executa provider ou runtime W | expected echo, chamar model de scheduler, caso sem símbolo Última Luz |
+| W-1183 | conjunto mínimo de synchronization | atomic, locks, domain barrier, SnapshotCell, channel e service têm papéis distintos; condition e Once raw não entram na safe std; read/write síncrono segue W-1189 | copiar toda primitive host, condition sem ownership, RCU safe |
+| W-1184 | oracle LM0 | máquina host pura cobre locks sync/async/read-write, queue, cancellation, failure, lifetime e seleção; não executa provider ou runtime W | expected echo, chamar model de scheduler, caso sem símbolo Última Luz |
 | W-1185 | plano cross-axis de ownership | as quatro formas de execução usam PlaceId, LoanId, OriginSet, owner delta e drop obligations comuns; placement não cria outra memória | ownership por scheduler, copy/share implícito, ARC para reparar capture inválida |
 | W-1186 | staging e fechamento cross-axis | capture passa parent→staging→child; rejection limpa uma vez; cleanup precede outcome e join restaura somente a autoridade permitida | rollback de take, outcome antes de cleanup, loan lexical encerrado por evento runtime invisível |
 | W-1187 | publicação e ownership | happens-before publica mutation autorizada sem conceder owner, ampliar loan ou ressuscitar binding; scope exit cancela, drena e faz join | cancellation como rollback, join como share, binding movido volta por error |
 | W-1188 | oracle MX0 | máquina host pura compõe staging, mobility, loans, admission, cancellation, cleanup, outcome, join e drop sem substituir M1/E0/E1 | colar snapshots independentes, expected echo, chamar modelo de compiler/runtime |
-| W-1189 | read/write síncrono | domain barrier ordena tasks; `ReadWriteLock<T>` protege storage síncrono e permanece Pesquisa até fechar closures sem guard, fairness, blocking diagnostics e benchmark | tratar lock e domain como aliases, prometer fairness do host, adicionar guard/upgrade/downgrade ou copiar `RwLock` sem consumer |
+| W-1189 | read/write síncrono | `ReadWriteLock<T>` protege storage síncrono por closures `read`/`write` e `try*`; domain barrier continua task-owned | tratar lock e domain como aliases, guard público, async read/write lock baseline |
+| W-1190 | admission read/write | tickets abrem ou ampliam a fase com o prefixo contíguo de readers; writer pendente bloqueia readers posteriores e `try*` não ultrapassa fila | fairness do host, barging, starvation por readers, recursion garantida, upgrade ou downgrade |
+| W-1191 | lifetime e provider read/write | phase close deriva edges, application error libera, panic falha boundary, drop espera drain e provider preserva a policy de W | poisoning, liberar payload com reader, prometer SRW/pthread fairness, benchmark como semântica |
+| W-1192 | evidence read/write LM0 | oracle host deriva reader phases, writer exclusivo, no-bypass, blocking, failure, drain e seleção; provider W continua missing | expected echo, chamar oracle de runtime, caso sem consumer Last Light |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

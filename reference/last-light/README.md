@@ -752,8 +752,10 @@ Aceite:
 - cancellation durante a espera não executa a closure;
 - cancellation depois do grant é observada somente depois do unlock;
 - panic falha a fault boundary do lock em vez de publicar state parcial;
-- domain concorrente com `.barrier` cobre o caminho task-owned; um
-  `ReadWriteLock` síncrono permanece Pesquisa com gate próprio;
+- domain concorrente com `.barrier` cobre o caminho task-owned;
+- `ReadWriteLock.read` agrupa readers síncronos anteriores ao próximo writer;
+- `ReadWriteLock.write` executa sozinho e impede bypass de readers tardios;
+- `tryRead` e `tryWrite` não bloqueiam nem ultrapassam tickets;
 - condition variable e `Once` raw não entram na safe std;
 - `SnapshotCell.read` observa uma versão completa sem deixar borrow escapar;
 - `publish` consome uma nova versão e não espera readers da versão anterior;
@@ -772,11 +774,11 @@ Failure injection cobre cancellation antes e depois da aquisição async. O trac
 confirma que cada critical section libera o lock uma vez. Benchmarks separam
 latency sem contenção, contenção na mesma cache line e counters particionados.
 
-O corpus LM0 possui 33 casos e 114 operações: 19 aceitos, 13 rejeitados e uma
-fault. Oito testes host cobrem locks síncronos e assíncronos, FIFO, try sem
-bypass, cancellation, protected loans, fault boundary e seleção entre atomic,
-lock, domain barrier, snapshot, channel e service. Eles não executam W nem o
-provider `std.sync@1`.
+O corpus LM0 possui 42 casos e 171 operações: 25 aceitos, 16 rejeitados e uma
+fault. Onze testes host cobrem locks exclusivos e read/write, admission FIFO e
+por fases, try sem bypass, cancellation, protected loans, fault boundary e
+seleção entre atomic, lock, domain barrier, snapshot, channel e service. Eles
+não executam W nem o provider `std.sync@1`.
 
 O corpus SP0 possui 27 casos e 82 operações: 14 aceitos, 12 rejeitados e uma
 fault de allocation antes da publicação. Sete testes host cobrem versões,

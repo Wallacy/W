@@ -11114,12 +11114,18 @@ esse storage. Release/acquire não substitui essa prova.
 
 #### 12.10.6 Locks síncronos e assíncronos
 
-**W-1181 — lock escopado:** `Mutex<T>` serve a code síncrono e
-`AsyncMutex<T>` serve a tasks. Os dois são owners move-only e shareable. A
-inicialização consome `T<(.transferable && .lifetimeIndependent)>`. O payload
-não precisa ser shareable: somente a closure protegida recebe acesso a ele.
+**W-1181 — lock escopado:** os locks safe são owners move-only e shareable. A
+inicialização consome `T<(.transferable && .lifetimeIndependent)>`; o payload
+não precisa ser shareable. Somente uma closure protegida recebe `ref` ou
+`inout`; W não publica guard.
 
-As duas APIs oferecem acessos `ref` e `inout` sem publicar um guard:
+| Carrier | Aquisição | Acesso | Admission |
+|---|---|---|---|
+| `Mutex<T>` | bloqueia thread | `withLock` | um ticket FIFO |
+| `AsyncMutex<T>` | suspende task | `await withLock` | um ticket FIFO cancelável |
+| `ReadWriteLock<T>` | bloqueia thread | `read` ou `write` | fases da W-1190 |
+
+Exemplos de acesso exclusivo:
 
 ```w
 let snapshot = ledger.withLock(
@@ -11132,14 +11138,10 @@ let receipt = await asyncLedger.withLock((value: inout ApologyLedgerState) => {
 })
 ```
 
-O `Result` da closure não pode conter um borrow, uma view ou outra dependency do
-payload. A closure é `neverSuspend` e executa exatamente uma vez depois da
-aquisição. `return` e application error liberam o lock antes de devolver o
-resultado ou propagar o error.
-
-`Mutex.withLock` pode bloquear a thread. Um executor cooperativo exige um domain
-que aceite blocking ou usa `AsyncMutex`. `tryWithLock` nunca bloqueia. Ele usa
-um enum para não confundir lock ocupado com um resultado optional:
+Toda closure é `neverSuspend` e executa exatamente uma vez depois do grant. Seu
+resultado não pode conter borrow, view ou dependency do payload. `return` e
+application error liberam o acesso antes do resultado. A variante `try*` nunca
+bloqueia e usa um enum para distinguir contenção de um resultado optional:
 
 ```w
 enum LockAttempt<T> {
@@ -11148,8 +11150,8 @@ enum LockAttempt<T> {
 }
 ```
 
-A interface compilada marca `Mutex.withLock` com o fato `blocking`. O verifier
-rejeita uma call alcançável num domain non-blocking sem adapter:
+A interface compilada marca cada aquisição síncrona com o fato `blocking`. O
+verifier rejeita a call num domain non-blocking sem adapter:
 
 ```w
 spawn<.blocking> let snapshot = ledger.withLock(
@@ -11157,46 +11159,34 @@ spawn<.blocking> let snapshot = ledger.withLock(
 )
 ```
 
-`AsyncMutex.withLock` pode suspender durante a aquisição. `tryWithLock` continua
-síncrono e executa a closure somente quando devolve `.acquired`.
+Receiver e closure de `try*` seguem a ordem normal da call. A closure é
+construída uma vez; em `.busy`, o body não executa e captures usam os drop paths
+normais. `capture(take owner)` transfere o owner mesmo quando o lock está
+ocupado. Para preservá-lo, o caller usa `ref`, `copy` ou tenta antes de construir
+trabalho owned.
 
-O receiver e a closure de `tryWithLock` seguem a ordem normal de avaliação da
-call. A closure é construída uma vez antes da tentativa. Em `.busy`, seu body
-não executa e suas captures são destruídas pelos drop paths normais. Portanto,
-`capture(take owner)` transfere `owner` mesmo quando a tentativa encontra o
-lock ocupado. O caller que precisa preservar esse owner usa `ref`, `copy` ou
-faz a tentativa antes de construir trabalho owned.
-
-**W-1182 — admission e failure:** cada aquisição recebe um ticket FIFO. Um
-`tryWithLock` devolve `.busy` quando o lock está ocupado ou já existe waiter;
-ele não ultrapassa a fila. Cancelamento de `AsyncMutex` durante a espera remove
-o ticket e não executa a closure. Depois da aquisição, a closure termina e
-libera o lock antes de o task observar cancelamento.
+**W-1182 — admission e failure:** `Mutex` e `AsyncMutex` concedem tickets FIFO.
+`tryWithLock` devolve `.busy` quando existe holder ou waiter. Cancellation de
+`AsyncMutex` antes do grant remove o ticket sem executar a closure. Depois do
+grant, cancellation fica observável somente depois do unlock.
 
 O unlock cria um edge release/acquire para a aquisição seguinte. O provider
 pode estacionar thread ou task, mas não pode mudar a ordem lógica, repetir a
 closure ou conceder dois acessos simultâneos.
 
-FIFO define a ordem lógica de grant entre pedidos admitidos. Ele não promete
-latency máxima, turno imediato de CPU ou progresso quando o scheduler, o host
-ou a própria closure não progride.
-
-W não publica guard, lock recursivo, upgrade ou downgrade. A closure reduz
-escape, unlock esquecido e lock mantido durante suspension. Uma call segura
-precisa provar que o mesmo lock não está no `HeldLockSet`; reentrada conhecida é
-erro. O resource lens também informa ordens de aquisição entre locks. Essa
-análise não promete eliminar ciclos criados por input, FFI ou adapters
-`unsafe`.
+Admission lógica não promete latency máxima ou progresso quando scheduler,
+host ou closure não progride. Reentrada conhecida falha pelo `HeldLockSet`.
+O resource lens informa ordens entre locks, mas não elimina ciclos dependentes
+de input, FFI ou adapters `unsafe`.
 
 W não usa poisoning. Um lock pertence à fault boundary em que foi criado e não
 cruza essa boundary. Um panic durante a closure falha a boundary inteira; seus
 waiters não retomam sobre state parcial. Teardown físico libera a primitive,
 mas não publica o payload para outra boundary.
 
-O owner do wrapper só pode ser destruído depois de closures, borrows e waiters
-drenarem. O drop do payload ocorre uma vez. `w explain synchronization` mostra
-fila, contention, tempo protegido e provider sem transformar medidas observadas
-em garantia universal.
+O wrapper só executa drop depois de closures, borrows e waiters drenarem; o
+payload executa drop uma vez. `w explain synchronization` mostra admission,
+contention, tempo protegido e provider sem transformar medida em garantia.
 
 **W-1183 — conjunto mínimo:** W não adiciona uma primitive só porque o host a
 oferece. Esta tabela fecha a baseline safe:
@@ -11207,23 +11197,69 @@ oferece. Esta tabela fecha a baseline safe:
 | critical section síncrona | `Mutex<T>` | guard público e mutex recursivo rejeitados |
 | critical section de task | `AsyncMutex<T>` | closure protegida nunca suspende |
 | reads paralelos e write in-place em tasks | domain concorrente + `.barrier` | ordena dispatch, placement e subtree |
-| reads paralelos e write in-place síncrono | `Mutex<T>` até existir outro contrato | `ReadWriteLock<T>` permanece Pesquisa |
+| reads paralelos e write in-place síncrono | `ReadWriteLock<T>` | `Mutex<T>` continua preferível quando reads não dominam |
 | versão imutável read-heavy | `SnapshotCell<T>` | RCU e grace period ficam internos ao provider |
 | transferência ou mailbox | `Channel<T>` ou service | condition variable rejeitada na safe std |
 | inicialização estática | const/module initialization | `Once` raw rejeitado; lazy concorrente permanece Pesquisa |
 | join lexical | `Task`, tuple ou `TaskGroup` | barreira cíclica/reutilizável permanece Pesquisa |
 | park por palavra atômica | primitive privada do runtime | `Atomic.wait/notify` público permanece Pesquisa |
 
-**W-1189 — read/write síncrono:** `ReadWriteLock<T>` e domain concorrente com
-barrier não são equivalentes. O lock
-protege storage em code síncrono ou freestanding. O domain ordena dispatch de
-tasks, placement, cancellation e ticket subtree. O design vigente prioriza
-`Mutex`, `SnapshotCell` e domain porque os consumers atuais cabem nessas formas.
+**W-1189 — read/write síncrono:** `ReadWriteLock<T>` é a Forma vigente para
+storage síncrono ou freestanding com reads simultâneos e write exclusivo. Ele
+não substitui um domain concorrente com barrier. O domain ordena tasks,
+placement, cancellation e a subtree estruturada. O lock protege um valor entre
+threads que não precisam de task runtime.
 
-`ReadWriteLock<T>` permanece **Pesquisa**, não rejeitado. Para entrar na safe
-std, ele precisa de closures `ref`/`inout` sem guard público, fairness declarada,
-diagnostic de blocking domain, nenhuma operação de upgrade/downgrade e benchmark
-contra as três formas vigentes. Adapter de host continua possível em `unsafe`.
+Quatro operações formam a superfície específica:
+
+```w
+let revision = ledger.read((state: ref ApologyLedgerState) => state.revision)
+
+let next = ledger.write((state: inout ApologyLedgerState) => {
+  state.revision += 1
+  return state.revision
+})
+
+let current = ledger.tryRead((state: ref ApologyLedgerState) => state.revision)
+let updated = ledger.tryWrite((state: inout ApologyLedgerState) => {
+  state.revision += 1
+  return state.revision
+})
+```
+
+`read` e `write` exigem contexto síncrono ou domain com blocking. `tryRead` e
+`tryWrite` devolvem `LockAttempt<R>`. W não adiciona um read/write lock async na
+baseline; task-owned state usa domain barrier, `SnapshotCell` ou `AsyncMutex`.
+
+**W-1190 — admission por fases:** todo pedido bloqueante recebe um ticket
+monotônico. Um writer na cabeça recebe acesso exclusivo. Um reader na cabeça
+abre uma fase que admite o prefixo contíguo de readers anterior ao próximo
+writer. Um reader posterior não ultrapassa um writer em espera. Assim, readers
+progridem em paralelo sem permitir starvation por readers novos.
+
+Um reader bloqueante na cabeça pode entrar na fase ativa; todo prefixo anterior
+ao writer seguinte entra junto. `tryRead` entra somente quando a fila está
+vazia. `tryWrite` exige nenhum holder e fila vazia. Nenhuma tentativa ultrapassa
+um ticket admitido. Reentrada conhecida é erro; cycles dependentes de runtime
+podem bloquear. Não existem operações de upgrade ou downgrade.
+
+**W-1191 — edges, failure e provider:** o unlock de um writer sincroniza com a
+fase seguinte. O fechamento de uma fase de readers ocorre depois do unlock de
+todos os seus readers e sincroniza com a fase seguinte. Readers na mesma fase
+não ganham ordem entre si. `return` e application error liberam o acesso antes
+do resultado; panic falha a fault boundary sem publicar state parcial.
+
+O wrapper só executa drop depois de holders e waiters drenarem. Um provider pode
+usar SRWLOCK, pthread rwlock, parking ou uma fila própria, mas precisa preservar
+as fases e os tickets de W. A fairness do host não é autoridade. O provider
+`std.sync@1` continua missing; o benchmark compara `ReadWriteLock`, `Mutex`,
+`SnapshotCell` e domain barrier antes de selecionar lowering. Falta de ganho
+mensurável pode mudar a recomendação, não a semântica.
+
+**W-1192 — evidence LM0:** a máquina host de locks deriva fases de readers,
+writer exclusivo, ticket sem bypass, `try*`, blocking diagnostics, memory edges,
+failure, drain e seleção entre storage e domain. O oracle não executa W nem
+implementa o provider.
 
 Uma condition variable separa predicate, lock e wakeup. Channels, task outcomes
 e services mantêm o evento junto de ownership e cancellation. Compatibilidade
@@ -17513,9 +17549,9 @@ declara:
 
 O source W mostra a assinatura completa. O checker extrai cada declaration,
 calcula seu digest e rejeita export sem profile, anchor inexistente, consumer
-ausente, uso qualificado desconhecido e snapshot stale. A projeção atual possui
-319 exports em 22 módulos, 78 superfícies qualificadas e 23/23 requisitos com
-profile. Todos os 16 providers de implementação permanecem `missing`.
+ausente, uso qualificado desconhecido e snapshot stale. As contagens ficam em
+[`DESIGN-INDEX.md`](DESIGN-INDEX.md). Todos os providers executáveis catalogados
+permanecem `missing`.
 
 Readiness mede somente a interface W. Provider ID, gates e estado executável
 ficam separados. Uma declaration `draft` não torna um provider `available`, e
@@ -27454,14 +27490,11 @@ Cada ausência deliberada precisa de quatro itens na documentação final:
 3. a diferença observável em custo, controle, cleanup ou error;
 4. um link para a decisão e para o caso comparativo.
 
-O corpus R0 contém 69 substituições estruturadas. Esse corpus é a origem do Tour
-comparativo e do Book. Uma nova ausência de superfície não fecha com texto no
-ledger. Ela precisa de um caso R0 ou de uma justificativa que prove que não
-existe source comparável.
-
-A razão `69/69` cobre os requisitos declarados na seção 1 de [`RATIONALE.md`](RATIONALE.md). Ela não prova que
-o ledger inteiro já foi auditado. Antes do design freeze, cada decisão precisa
-classificar sua alternativa como uma destas categorias:
+O corpus R0 é a origem do Tour comparativo e do Book. Uma nova ausência de
+superfície precisa de caso R0 ou justificativa de que não existe source
+comparável. A cobertura gerada fica em [`DESIGN-INDEX.md`](DESIGN-INDEX.md);
+ela não substitui a auditoria do ledger. Antes do design freeze, cada decisão
+classifica sua alternativa como uma destas categorias:
 
 - ausência de source com substituição comparável;
 - alternativa de implementação sem diferença de source;
@@ -27532,20 +27565,22 @@ Nenhuma família funcional está sem posição. A especificação ainda não pos
 mesma profundidade em todas as famílias. A coluna final abaixo exige somente
 evidência de design:
 
-| Artefato | Estado atual | Condição de fechamento do design |
+| Artefato | Contrato corrente | Prova de design restante |
 |---|---|---|
-| grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 20 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | cobrir cada construção normalizada com par CST-equivalente e provar idempotência no modelo F0 |
-| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 104 casos pareiam 52 resultados positivos com 52 inversões e outcomes JSONL | ligar cada família normativa a um resultado positivo, à inversão relevante e ao campo exato que falha |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 47/47 diagnostics S0 possuem cobertura e o catálogo com 228 entries cobre 175 codes referenciados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
-| std | o catálogo possui 319 exports em 22 módulos; todos têm declaration draft-ready; 23/23 requisitos têm profile; 2/8 carriers estão missing (Blob e FormData); 16/16 providers de implementação estão missing | manter Blob/FormData como carriers explicitamente missing, validar a superfície com outro consumer além do Última Luz e preservar os providers pós-freeze |
-| workflow single-file e científico PYN1/PYN0/PYN2/PYN3/PYN4 | PYN1 fecha header contextual, root standalone, package/ephemeral context, imports explícitos, payload P0 `package.lock` com grafo transitivo, fetch/CAS por content digest, requirement admission, identity sem path físico e promotion; PYN2 fecha session/repl transacional e generational, identities, receipts, graph invalidation, scopes, drain e bounded history; PYN3 fecha presentation, adapter Jupyter e export comprovado; PYN4 fecha carrier tensorial, device/queue, DLPack 1.3, Python lease, lifecycle e evidence host; PYN0 mantém `std.tensor`/`std.dlpack`, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters TAB1 | implementar CLI, resolver/provider, kernel/runtime/drain físico, sanitizer e ZeroMQ, providers tensor/DLPack e evidence dos gates de latency; tudo permanece pós-freeze |
-| targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
-| ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
-| memória e execução | M1 fixa owner/borrow; A0 fixa allocation física; E0 fixa happens-before; E1 fixa closure/liveness; LM0 fixa locks escopados; SP0 fixa publicação e reclamation de snapshot; o oracle de domain fixa serial FIFO, barreira e lanes bounded | fechar device providers/scopes e matrizes de adapters/profile; hazard/epoch/RCU são escolhas internas ou adapters `unsafe`, não superfícies safe pendentes; HIR, allocator e scheduler reais ficam pós-freeze |
-| services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
-| packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
-| bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
-| documentação comparativa | R0 cobre 69/69 requisitos declarados; R0S mede a superfície derivada por script; R1 cobre 21 bundles, 51 variantes, 84 tarefas e 32/69 casos promovidos; participantes e modelos ainda não foram executados | classificar as decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
+| grammar e formatter | G0–G5, CST lossless, recovery e F0 idempotente | cobrir cada construção normalizada e cada boundary preservada |
+| checker e diagnostics | S0 integra type, effects, ownership, flow e evaluation; D0 fixa record e causalidade | ligar cada regra a success, inversão e campo de falha exato |
+| std | módulos possuem declarations e profiles; providers executáveis continuam missing | fechar carriers ausentes e validar cada superfície com outro consumer |
+| workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, sessão, notebook, dados e tensor interop | fechar import-root/dependency, rich display, DLPack real e latency gates |
+| targets e host profiles | target facts e availability não mudam a semântica comum | fixar manifest e conformance mínima de cada target prometido |
+| ABI e metadata | L0 e WMeta fixam layout, container e readers de evidence | ligar wrappers ELF, Mach-O, COFF e Wasm ao container comum |
+| memória e execução | M1/A0/E0/E1/LM0/SP0 fecham ownership, allocation, closure, synchronization e reclamation | fechar device scopes, profiles e equivalência dos providers; HIR, allocator e scheduler reais ficam pós-freeze |
+| services e efeitos | B0 fecha turn, gate, transaction e pipeline; wWire tem baseline | fechar queues, deduplication, recovery e faults de processo/rede |
+| packages e releases | P0 fecha resolver, lock, CAS, recipe, mirror e rebuild | fechar prerelease, trust, archive safety e rebuild independente |
+| bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
+| ergonomia comparativa | R0/R0S/R1 guardam substituições e variantes observáveis | ratificar formas que ainda mudam source ou registrar waiver motivado |
+
+Contagens de casos, operações, APIs e cobertura são projeções. Elas ficam
+em [`DESIGN-INDEX.md`](DESIGN-INDEX.md), não neste contrato.
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da
