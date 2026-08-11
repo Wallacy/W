@@ -10366,128 +10366,51 @@ tasks podem ficar vivas naquele domain.
 
 #### 12.6.5 Execution profile e product
 
-Um execution profile é um record data-only do package. Ele fixa o envelope do
-task runtime:
+Um execution profile é um record data-only do package. Ele fixa este envelope:
+
+| Campo | Contrato |
+|---|---|
+| `tasks` | máximos de tasks vivas, frame bytes e timers |
+| `pools` | capacity física mínima e máxima |
+| `domains` | pool, capabilities, ready budget e fallback por domain |
+| `domains.dynamicSerial` | pool, owners vivos, budget agregado e máximo por lane |
+| `cleanup` | grace bounds de cleanup assíncrono e blocking drain |
+
+**Exemplo:** o product seleciona o profile pelo nome; a forma completa fica no
+[`package.w` do Última Luz](reference/last-light/package.w) e no schema de
+[manifest](#211-manifest-e-resolução):
 
 ```w
-executionProfiles: [
+products: [
   {
-    name: "native-bounded"
-    tasks: {
-      live: 16_384
-      frameBytes: 256MiB
-      timers: 16_384
-    }
-    pools: [
-      {
-        name: "cpu"
-        capacity: { minimum: 1, maximum: .hostCpuQuota }
-      },
-      {
-        name: "blocking"
-        capacity: { minimum: 1, maximum: 32 }
-      },
-    ]
-    domains: {
-      main: {
-        pool: "cpu"
-        ready: { jobs: 1, frameBytes: 16MiB }
-        fallback: .reject
-      }
-      io: {
-        pool: "cpu"
-        ready: { jobs: 8_192, frameBytes: 128MiB }
-        fallback: .reject
-      }
-      network: {
-        pool: "cpu"
-        ready: { jobs: 8_192, frameBytes: 128MiB }
-        fallback: .io
-      }
-      compute: {
-        pool: "cpu"
-        ready: { jobs: 8_192, frameBytes: 256MiB }
-        fallback: .reject
-      }
-      blocking: {
-        pool: "blocking"
-        ready: { jobs: 256, frameBytes: 32MiB }
-        fallback: .reject
-      }
-      custom: [
-        {
-          id: "execution::thermal"
-          capabilities: [.serial]
-          pool: "cpu"
-          ready: { jobs: 1_024, frameBytes: 64MiB }
-          fallback: .reject
-        },
-        {
-          id: "domain_oracle::catalog"
-          capabilities: [.concurrent, .barrierDispatch]
-          pool: "cpu"
-          ready: { jobs: 1_024, frameBytes: 64MiB }
-          fallback: .reject
-        },
-      ]
-      dynamicSerial: {
-        pool: "cpu"
-        live: 128
-        aggregateReady: { jobs: 4_096, frameBytes: 64MiB }
-        laneMaximum: { jobs: 256, frameBytes: 4MiB }
-      }
-    }
-    cleanup: {
-      asyncGrace: 5<si.s>
-      blockingDrainGrace: 30<si.s>
-    }
+    name: "last-light-native"
+    executionProfile: "native-bounded"
   },
 ]
 ```
 
-Os capabilities de `.main` são fixos pela linguagem. Os outros domains vêm dos
-contratos de pacote e módulo. O profile fornece pool, ready budget e fallback.
-Dois domains podem compartilhar o mesmo pool sem criar novos worker threads.
-`dynamicSerial` reserva um subenvelope do mesmo pool. `live` limita owners de
-lane, `aggregateReady` limita a soma das filas e `laneMaximum` limita cada
-pedido. O runtime não empresta budget de outro campo quando esse subenvelope
-termina.
+Os capabilities de `.main` são fixos pela linguagem. Outros domains vêm dos
+contratos de package e module. Dois domains podem compartilhar pool sem perder
+seus contracts. `dynamicSerial` usa um subenvelope do pool; o runtime não toma
+budget de outro campo quando `live`, `aggregateReady` ou `laneMaximum` termina.
 
-Um product que alcança tasks seleciona um profile:
+O linker rejeita binding ausente, capability insuficiente, fallback cíclico e
+budget impossível. Library ou device bundle sem task runtime alcançável omite
+`executionProfile`. Depois do packing, cada unit com task runtime recebe o
+profile do product. Budgets são por unit; o artifact index registra cada máximo
+e a soma. Unit sem task não recebe pool por reachability indireta.
 
-```w
-{
-  name: "last-light-native"
-  executionProfile: "native-bounded"
-}
-```
+Build profile escolhe optimization, checks e representação. Execution profile
+escolhe budgets e scheduler contracts. O artifact grava seu digest e máximos.
+Deployment só pode reduzir capacity e budgets; não pode aumentar máximo, mudar
+capability, pool, fallback ou affinity. A redução entra no deployment digest e
+não exige recompilar o artifact.
 
-O linker verifica todos os domains alcançáveis. Binding ausente, capability
-insuficiente, fallback cíclico e budget impossível para o host profile são
-errors. Um library ou device bundle sem task runtime alcançável omite
-`executionProfile`.
-
-Depois do packing, cada unit com task runtime recebe o profile selecionado pelo
-product. Os budgets são por unit, pois units podem ocupar hosts diferentes. O
-artifact index registra o máximo por unit e a soma de todos os máximos. Uma unit
-sem task alcançável não recebe pool apenas porque outra unit do product usa
-tasks.
-
-O build profile escolhe optimization, checks e representação. O execution
-profile escolhe budgets e scheduler contracts. Um não substitui o outro. O
-artifact grava o digest do execution profile e seus máximos.
-
-Um deployment pode reduzir capacity e budgets dentro desse envelope. Ele não
-pode aumentar um máximo, alterar capabilities, mudar pool mapping, trocar
-fallback ou remover affinity. A redução fica no deployment digest e não exige
-recompilar o artifact. `w explain execution <product>` mostra source
-requirements, bindings, shared pools, limites do artifact e reduções do
-deployment.
-
-O oracle [`domain_oracle.w`](reference/last-light/domain_oracle.w) verifica a
-seleção herdada de `async let`, o domínio explícito de `spawn`, o FIFO serial,
-o gate `.parallel` de `parallelMap` e a redução de capacity pelo deployment.
-Declarar ou importar um domain não cria queue, thread ou executor.
+`w explain execution <product>` mostra requirements, bindings, shared pools,
+limites e reduções. O oracle
+[`domain_oracle.w`](reference/last-light/domain_oracle.w) cobre herança de
+`async let`, domain explícito de `spawn`, FIFO serial, gate `.parallel` e redução
+de capacity. Declarar ou importar domain não cria queue, thread ou executor.
 
 ### 12.7 Mobilidade e captures
 
