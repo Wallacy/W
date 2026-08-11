@@ -30,6 +30,9 @@ const PIN_CONSTRUCT_OUTCOMES = new Set([
   "initializerError",
 ]);
 const ERASURE_SPILL_POLICIES = new Set(["forbid", "allocator"]);
+const SHARED_EDGE_MODES = new Set(["strong", "weak"]);
+const SHARED_EDGE_RELEASES = new Set(["deinit", "explicitClose", "lifecycleDrain"]);
+const SHARED_GRAPH_PHASES = new Set(["compile", "drainedBoundary"]);
 const PROJECTION_KINDS = new Set([
   "field",
   "tuple",
@@ -94,6 +97,99 @@ function allocatorTable(state) {
 function controlBlockTable(state) {
   if (!state.controlBlocks) state.controlBlocks = {};
   return state.controlBlocks;
+}
+
+function classifySharedGraph(operation) {
+  const nodes = [...operation.nodes].sort();
+  const edges = [...operation.edges].sort((left, right) => left.id.localeCompare(right.id));
+  const strongEdges = edges.filter((edge) => edge.mode === "strong");
+  const adjacency = new Map(nodes.map((node) => [node, []]));
+  for (const edge of strongEdges) adjacency.get(edge.from).push(edge.to);
+  for (const targets of adjacency.values()) targets.sort();
+
+  const rootReachable = new Set();
+  const pendingRoots = [...(operation.externalRoots ?? [])].sort().reverse();
+  while (pendingRoots.length > 0) {
+    const node = pendingRoots.pop();
+    if (rootReachable.has(node)) continue;
+    rootReachable.add(node);
+    for (const target of adjacency.get(node)) {
+      if (!rootReachable.has(target)) pendingRoots.push(target);
+    }
+  }
+
+  let nextIndex = 0;
+  const stack = [];
+  const onStack = new Set();
+  const indexes = new Map();
+  const lowLinks = new Map();
+  const components = [];
+
+  function visit(node) {
+    indexes.set(node, nextIndex);
+    lowLinks.set(node, nextIndex);
+    nextIndex += 1;
+    stack.push(node);
+    onStack.add(node);
+
+    for (const target of adjacency.get(node)) {
+      if (!indexes.has(target)) {
+        visit(target);
+        lowLinks.set(node, Math.min(lowLinks.get(node), lowLinks.get(target)));
+      } else if (onStack.has(target)) {
+        lowLinks.set(node, Math.min(lowLinks.get(node), indexes.get(target)));
+      }
+    }
+
+    if (lowLinks.get(node) !== indexes.get(node)) return;
+    const component = [];
+    while (stack.length > 0) {
+      const member = stack.pop();
+      onStack.delete(member);
+      component.push(member);
+      if (member === node) break;
+    }
+    component.sort();
+    components.push(component);
+  }
+
+  for (const node of nodes) {
+    if (!indexes.has(node)) visit(node);
+  }
+
+  const cycles = components
+    .filter((component) => {
+      if (component.length > 1) return true;
+      return strongEdges.some(
+        (edge) => edge.from === component[0] && edge.to === component[0],
+      );
+    })
+    .map((component) => {
+      const members = new Set(component);
+      const internalEdges = strongEdges.filter(
+        (edge) => members.has(edge.from) && members.has(edge.to),
+      );
+      return {
+        nodes: component,
+        edges: internalEdges.map((edge) => edge.id),
+        origins: internalEdges.map((edge) => edge.origin),
+        breakEdges: internalEdges
+          .filter((edge) => edge.release !== "deinit")
+          .map((edge) => edge.id),
+        rooted: component.some((node) => rootReachable.has(node)),
+        unbreakable: internalEdges.every((edge) => edge.release === "deinit"),
+      };
+    })
+    .sort((left, right) => left.nodes[0].localeCompare(right.nodes[0]));
+
+  return {
+    phase: operation.phase,
+    closed: operation.closed,
+    drained: operation.drained ?? null,
+    boundary: operation.boundary ?? null,
+    externalRoots: [...(operation.externalRoots ?? [])].sort(),
+    cycles,
+  };
 }
 
 function outcomeTable(state) {
@@ -1591,6 +1687,25 @@ function applyOperation(state, operation) {
       recordOutcome(state, operation, "some");
       return;
     }
+    case "analyzeSharedGraph": {
+      const analysis = classifySharedGraph(operation);
+      if (
+        analysis.phase === "compile" &&
+        analysis.closed &&
+        analysis.cycles.some((cycle) => cycle.unbreakable)
+      ) {
+        throw new HirMemoryError("unbreakableStrongCycle");
+      }
+      if (analysis.phase === "drainedBoundary") {
+        if (!analysis.drained) throw new HirMemoryError("sharedCycleAuditBeforeDrain");
+        if (analysis.cycles.some((cycle) => !cycle.rooted)) {
+          throw new HirMemoryError("residualStrongCycle");
+        }
+      }
+      if (!state.sharedCycleAnalyses) state.sharedCycleAnalyses = [];
+      state.sharedCycleAnalyses.push(analysis);
+      return;
+    }
     case "pin": {
       const source = requireUniqueBinding(state, operation.from);
       const payload = state.payloads[source.payload];
@@ -1983,6 +2098,48 @@ export function validateMemoryOperation(operation) {
         operation.from !== operation.to &&
         hasString("result")
       );
+    case "analyzeSharedGraph": {
+      const nodes = operation.nodes;
+      const edges = operation.edges;
+      const externalRoots = operation.externalRoots ?? [];
+      const validNames =
+        Array.isArray(nodes) &&
+        nodes.length > 0 &&
+        nodes.every((node) => typeof node === "string" && node.length > 0) &&
+        new Set(nodes).size === nodes.length;
+      const validEdges =
+        Array.isArray(edges) &&
+        edges.length > 0 &&
+        edges.every(
+          (edge) =>
+            edge &&
+            typeof edge === "object" &&
+            Object.keys(edge).sort().join(",") ===
+              "from,id,mode,origin,release,to" &&
+            typeof edge.id === "string" &&
+            edge.id.length > 0 &&
+            typeof edge.from === "string" &&
+            nodes?.includes(edge.from) &&
+            typeof edge.to === "string" &&
+            nodes?.includes(edge.to) &&
+            SHARED_EDGE_MODES.has(edge.mode) &&
+            SHARED_EDGE_RELEASES.has(edge.release) &&
+            typeof edge.origin === "string" &&
+            edge.origin.length > 0,
+        ) &&
+        new Set(edges?.map((edge) => edge.id)).size === edges?.length;
+      const validRoots =
+        Array.isArray(externalRoots) &&
+        externalRoots.every((root) => typeof root === "string" && nodes?.includes(root)) &&
+        new Set(externalRoots).size === externalRoots.length;
+      const validPhase =
+        SHARED_GRAPH_PHASES.has(operation.phase) &&
+        typeof operation.closed === "boolean" &&
+        (operation.phase === "compile"
+          ? operation.drained === undefined && operation.boundary === undefined
+          : typeof operation.drained === "boolean" && hasString("boundary"));
+      return validNames && validEdges && validRoots && validPhase;
+    }
     case "beginBorrow":
       return (
         hasString("binding") &&

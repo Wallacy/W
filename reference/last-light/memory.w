@@ -1,6 +1,7 @@
 // Memory oracles for the Last Light restaurant.
 
 import * from std.memory
+import std.sync
 import std.task
 
 foreign c from "last_light_bell.h" {
@@ -49,8 +50,118 @@ export object MenuSection {
   }
 }
 
+export enum SharedCyclePhase {
+  compile
+  drainedBoundary
+}
+
+export enum SharedEdgeRelease {
+  deinitOnly
+  explicitClose
+  lifecycleDrain
+  weak
+}
+
+export enum SharedCycleDisposition {
+  accepted
+  dynamic
+  breakRequired
+  unbreakable
+  auditBeforeDrain
+  residual
+}
+
+export const fn expectedSharedCycleDisposition(
+  phase: SharedCyclePhase,
+  forward: SharedEdgeRelease,
+  backward: SharedEdgeRelease,
+  closed: Bool,
+  drained: Bool,
+  rootReachesCycle: Bool,
+): SharedCycleDisposition {
+  if forward == .weak || backward == .weak { return .accepted }
+
+  return switch phase {
+    case .compile:
+      if !closed {
+        .dynamic
+      } else if forward == .deinitOnly && backward == .deinitOnly {
+        .unbreakable
+      } else {
+        .breakRequired
+      }
+    case .drainedBoundary:
+      if !drained {
+        .auditBeforeDrain
+      } else if rootReachesCycle {
+        .accepted
+      } else {
+        .residual
+      }
+  }
+}
+
+export object MenuObserverHub {
+  callbacks: Mutex<Array<any fn(): ()>>
+
+  export init() {
+    self.callbacks = Mutex([])
+  }
+
+  fn observe(callback: take any fn(): ()) {
+    callbacks.withLock(
+      capture(take callback) (items) => {
+        items.append(take callback)
+      },
+    )
+  }
+
+  fn observerCount(): usize {
+    return callbacks.withLock(
+      (items) => items.count,
+    )
+  }
+}
+
+// The hub owns the callback, but the callback does not own the hub. Replacing
+// `weak` with `copy` would form a closed strong cycle whose two edges depend on
+// the destructors inside that same cycle.
+export fn installMenuObserver(hub: shared MenuObserverHub) {
+  hub.observe(capture(weak hub) () => {
+    guard let hub = hub.upgrade() else return ()
+    if hub.observerCount() == 0 { return () }
+  })
+}
+
 export fn sameMenuSection(left: ref MenuSection, right: ref MenuSection): Bool {
   return left.isSameInstance(as: right)
+}
+
+test "weak capture and drained census classify cycles" for expectedSharedCycleDisposition {
+  expect expectedSharedCycleDisposition(
+    phase: .compile,
+    forward: .deinitOnly,
+    backward: .weak,
+    closed: true,
+    drained: false,
+    rootReachesCycle: true,
+  ) == .accepted
+  expect expectedSharedCycleDisposition(
+    phase: .compile,
+    forward: .deinitOnly,
+    backward: .deinitOnly,
+    closed: true,
+    drained: false,
+    rootReachesCycle: true,
+  ) == .unbreakable
+  expect expectedSharedCycleDisposition(
+    phase: .drainedBoundary,
+    forward: .deinitOnly,
+    backward: .explicitClose,
+    closed: false,
+    drained: true,
+    rootReachesCycle: false,
+  ) == .residual
 }
 
 // Common construction uses the product allocator and the normal OOM policy.
