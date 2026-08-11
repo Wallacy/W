@@ -1444,6 +1444,20 @@
       "fixes": {}
     },
     {
+      "code": "W-OWNERSHIP-0013",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a unique owner is used where shared ownership is required without an explicit share operation",
+      "requiredFacts": {
+        "actualType": "string",
+        "context": "string",
+        "expectedType": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
       "code": "W-BORROW-0001",
       "state": "active",
       "phase": "semantic.ownership",

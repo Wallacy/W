@@ -1667,17 +1667,63 @@
       }
     },
     {
+      "id": "S0-POS-share-default-allocation",
+      "kind": "positive",
+      "rule": "W-1177",
+      "source": [
+        "struct Menu { title: String }",
+        "fn shareMenu(value: take Menu): shared Menu {",
+        "  return share(take value)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "share(take value)" },
+        "semanticResult": {
+          "resultType": "shared Menu",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [
+            { "operation": "move", "place": "value", "type": "Menu" }
+          ],
+          "effectSummary": {
+            "signature": [],
+            "control": [],
+            "operational": ["allocation"]
+          },
+          "proofFacts": [
+            { "kind": "lifetime-independent", "subject": "value", "value": "true" },
+            { "kind": "allocation-origin", "subject": "result.$control", "value": "product.default" },
+            { "kind": "allocation-failure", "subject": "share", "value": "panic-policy" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "source", "operation": "resolve-owner", "subject": "value" },
+              { "id": "lifetime", "operation": "verify-lifetime-independent", "subject": "value" },
+              { "id": "allocator", "operation": "resolve-general-allocator", "subject": "product.default" },
+              { "id": "result", "operation": "create-shared-owner", "subject": "shared Menu" }
+            ],
+            "edges": [
+              { "from": "source", "to": "lifetime", "kind": "next" },
+              { "from": "lifetime", "to": "allocator", "kind": "true" },
+              { "from": "allocator", "to": "result", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
       "id": "S0-POS-share-lifetime-independent",
       "kind": "positive",
       "rule": "W-929",
       "source": [
         "struct Menu { title: String }",
         "fn shareMenu(value: take Menu, memory: ref Allocator): shared Menu throws AllocationError {",
-        "  return try share(take value, using: memory)",
+        "  return try tryShare(take value, using: memory)",
         "}"
       ],
       "expect": {
-        "focus": { "text": "share(take value, using: memory)" },
+        "focus": { "text": "tryShare(take value, using: memory)" },
         "semanticResult": {
           "resultType": "shared Menu",
           "category": "value",
@@ -1709,6 +1755,37 @@
           }
         },
         "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-share-implicit-promotion",
+      "kind": "negative",
+      "rule": "W-1177",
+      "baseline": "S0-POS-share-default-allocation",
+      "failureField": "ownerDelta",
+      "source": [
+        "struct Menu { title: String }",
+        "fn shareMenu(value: take Menu): shared Menu {",
+        "  return take value",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-OWNERSHIP-0013",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "take value" },
+            "labels": [],
+            "facts": {
+              "actualType": "Menu",
+              "context": "return",
+              "expectedType": "shared Menu"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
       }
     },
     {
@@ -3307,7 +3384,7 @@
       "source": [
         "struct MenuView { title: view String }",
         "fn shareMenuView(value: take MenuView, memory: ref Allocator): shared MenuView throws AllocationError {",
-        "  return try share(take value, using: memory)",
+        "  return try tryShare(take value, using: memory)",
         "}"
       ],
       "expect": {
@@ -3316,13 +3393,13 @@
             "code": "W-BORROW-0010",
             "phase": "semantic.ownership",
             "severity": "error",
-            "primary": { "text": "share(take value, using: memory)" },
+            "primary": { "text": "tryShare(take value, using: memory)" },
             "labels": [
               { "role": "dependent-value", "selector": { "text": "take value" } },
-              { "role": "share-call", "selector": { "text": "share(take value, using: memory)" } }
+              { "role": "share-call", "selector": { "text": "tryShare(take value, using: memory)" } }
             ],
             "facts": {
-              "operation": "share",
+              "operation": "tryShare",
               "owner": "value",
               "origins": ["value.title"]
             },

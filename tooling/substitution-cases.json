@@ -1542,6 +1542,40 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-shared-construction",
+      "reviewItem": "`share(value)` normal e `tryShare(value, using:)` recuperável contra `try share` universal e promotion contextual",
+      "decisions": ["W-025", "W-255", "W-415", "W-929", "W-930", "W-1177"],
+      "task": "Create the first shared menu owner and keep recoverable allocation explicit only when requested.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let root = share(MenuSection(title: \"Dinner\"))",
+          "let local = try tryShare(take draft, using: memory)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "always-fallible-share",
+          "language": "w-alternative",
+          "source": ["let root = try share(MenuSection(title: \"Dinner\"), using: memory)"],
+          "expectedDifference": "Every first owner carries recoverable allocation syntax even when the program uses the normal OOM policy."
+        },
+        {
+          "name": "contextual-shared-type",
+          "language": "w-rejected",
+          "source": ["let root: shared MenuSection = MenuSection(title: \"Dinner\")"],
+          "expectedDifference": "The expected type would allocate and change ownership without an operation on the value expression."
+        },
+        {
+          "name": "nominal-wrapper-factory",
+          "language": "rust",
+          "source": ["let root = Arc::new(MenuSection::new(\"Dinner\"));"],
+          "expectedDifference": "A nominal wrapper repeats a type-level utility surface that W already expresses with the shared ownership qualifier."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

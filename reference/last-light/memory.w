@@ -53,14 +53,23 @@ export fn sameMenuSection(left: ref MenuSection, right: ref MenuSection): Bool {
   return left.isSameInstance(as: right)
 }
 
-// The result is borrow-independent. Its control block still records `memory`
-// in AllocationOriginMap, so the allocator instance must outlive every strong
-// and weak handle.
-export fn makeMenuRoot(
+// Common construction uses the product allocator and the normal OOM policy.
+export fn makeMenuRoot(title: String): shared MenuSection {
+  return share(MenuSection(
+    title: take title,
+    parent: .none,
+    children: [],
+  ))
+}
+
+// The fallible result is borrow-independent. Its control block records
+// `memory` in AllocationOriginMap, so the allocator instance must outlive every
+// strong and weak handle.
+export fn tryMakeMenuRoot(
   title: String,
   memory: ref Allocator,
 ): shared MenuSection throws AllocationError {
-  return try share(
+  return try tryShare(
     MenuSection(
       title: take title,
       parent: .none,

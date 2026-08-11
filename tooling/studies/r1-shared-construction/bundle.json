@@ -1,0 +1,94 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-shared-construction",
+  "title": "First shared owner at the Last Light restaurant",
+  "r0Cases": ["R0-shared-construction"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/memory.w",
+    "symbol": "makeMenuRoot",
+    "digest": "sha256:7a092e2df9f5c5437a695bf5925b1d32b92684f3aa715d7fb274026abb0ba568"
+  },
+  "variants": [
+    {
+      "id": "explicit-share",
+      "role": "selected",
+      "language": "w",
+      "path": "explicit-share.w",
+      "digest": "sha256:8161c3dd650388d0022a538179a7dade8263800fd4f764441242de5daae63ab7",
+      "changedConstructs": ["share normal allocation", "tryShare recoverable allocation", "explicit ownership operation"]
+    },
+    {
+      "id": "always-fallible",
+      "role": "alternative",
+      "language": "w",
+      "path": "always-fallible.w",
+      "digest": "sha256:19e5dde193fa03533f4e94a5d9a50db1f65b7de8d8e095b72312921fae6432a8",
+      "changedConstructs": ["try on every first owner", "allocator in common path", "recoverable allocation effect"]
+    },
+    {
+      "id": "contextual-type",
+      "role": "alternative",
+      "language": "w",
+      "path": "contextual-type.w",
+      "digest": "sha256:624bf27307448eb5e48514e546ccbfa4e0b99a7da5b47881fd0d715d4b0e1f77",
+      "changedConstructs": ["expected-type promotion", "implicit allocation operation", "repeated shared type"]
+    }
+  ],
+  "entry": "makeRoot",
+  "inputs": [
+    {
+      "id": "fresh-default",
+      "expected": { "resultType": "shared MenuSection", "failurePolicy": "normal OOM", "allocationVisible": true }
+    },
+    {
+      "id": "bounded-recovery",
+      "expected": { "resultType": "shared MenuSection", "failurePolicy": "throws AllocationError", "allocationVisible": true }
+    },
+    {
+      "id": "adversarial-ownership",
+      "expected": { "missingTake": "reject", "dependentPayload": "reject", "implicitPromotion": "reject", "dropCount": 1 }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain where shared ownership begins, which form can throw, and why expected type does not allocate."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct allocator, failure, take, and lifetime-independent rules.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair missing take, hidden contextual promotion, or recoverable allocation that uses share.",
+      "mutations": {
+        "explicit-share": "Remove take from an existing owner or use share with a bounded allocator.",
+        "always-fallible": "Remove try while preserving the throwing signature.",
+        "contextual-type": "Rely on the expected shared type without an explicit operation."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a weak parent and a copied observer without introducing implicit retain or mutation authority."
+    }
+  ],
+  "presentationOrders": [
+    ["explicit-share", "always-fallible", "contextual-type"],
+    ["contextual-type", "explicit-share", "always-fallible"],
+    ["always-fallible", "contextual-type", "explicit-share"]
+  ],
+  "blinding": {
+    "participantLabels": { "explicit-share": "A", "always-fallible": "B", "contextual-type": "C" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:71a7448a9ccad0bcddc0f337f0561cd11447806be0a46c150bc5901591644a1c"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle", "M1"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}

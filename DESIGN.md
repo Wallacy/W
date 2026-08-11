@@ -83,7 +83,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia com evidência | 65–72% | R0 cobre 68/68, R0S mede a superfície derivada por script e R1 possui 20 bundles contrabalanceados do Última Luz que promovem 31/68 casos R0; participantes e modelos ainda não foram executados |
+| ergonomia com evidência | 65–72% | R0 cobre 69/69, R0S mede a superfície derivada por script e R1 possui 21 bundles contrabalanceados do Última Luz que promovem 32/69 casos R0; participantes e modelos ainda não foram executados |
 | validação executável | 55–65% | Tree-sitter, F0, S0, wire, R0/R1, M1, E0, B0 e P0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -2183,6 +2183,7 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 | `W-OWNERSHIP-0010` | prefix exige place, owner, borrow ou mobilidade incompatível |
 | `W-BORROW-0010` | `share` recebe payload com origin de borrow dinâmica |
 | `W-OWNERSHIP-0011` | place owned e movível chama member `take fn` sem `(take receiver)` |
+| `W-OWNERSHIP-0013` | expected type, return ou parâmetro tenta promover owner único para `shared` |
 
 O code pertence à primeira fase que perde um resultado válido. Uma cadeia
 `a == b == c` falha no parser porque a grammar não cria a árvore. Uma condition
@@ -2202,6 +2203,7 @@ estimate(1, courses: each xs, 2)   // W-EXPR-0007: each deve ser final
 return await try kitchen.load()    // W-EFFECT-0010: use try await
 inspect(ref makeDish())            // W-OWNERSHIP-0010: ref exige place
 stream.finish()                    // W-OWNERSHIP-0011: use (take stream).finish()
+let x: shared Dish = Dish()        // W-OWNERSHIP-0013: use share(Dish())
 ```
 
 Recovery de expression nunca inventa operator ou operand. Ele pode inserir um
@@ -2744,11 +2746,11 @@ Um enum curto sem expected type falha sem busca global por case name. O
 diagnostic registra member, context e ausência do expected type. Adicionar outro
 enum ou import não muda candidates porque essa lista não existe.
 
-Oito pares cobrem a fronteira semântica de G4. Os pares tornam explícitos o
+Nove pares cobrem a fronteira semântica de G4. Os pares tornam explícitos o
 resultado Unit de assignment, a aplicabilidade de postfix, a expansão rest, a
 ordem de effects, os requisitos de place dos prefixes de ownership e a
-transferência explícita de um receiver consuming. O oitavo separa lifetime de
-borrow da criação de shared ownership.
+transferência explícita de um receiver consuming. Os dois últimos separam
+lifetime de borrow e promotion implícita da criação explícita de shared ownership.
 
 | Code | Baseline positivo | Campo que falha |
 |---|---|---|
@@ -2760,6 +2762,7 @@ borrow da criação de shared ownership.
 | `W-OWNERSHIP-0010` | `ref` aplicado a place | `ownerDelta` |
 | `W-BORROW-0010` | `share` de payload lifetime-independent | `proofFacts` |
 | `W-OWNERSHIP-0011` | `(take stream).finish()` | `ownerDelta` |
+| `W-OWNERSHIP-0013` | `share(Dish())` explícito | `ownerDelta` |
 
 O corpus não duplica falhas que já pertencem a outra fase. Chaining de
 comparison pertence a `W-PARSE-0030`. Condition sem Bool pertence a
@@ -7922,8 +7925,9 @@ W não cria `PinnedRef<T>` ou `PinnedMut<T>`. `Pinned<T>` usa `withRef` e
 
 ### 9.4 `shared`, `weak` e ciclos
 
-`shared T` cria múltiplos owners. A implementação portátil usa reference
-counting. `weak T?` não mantém o valor vivo. `upgrade()` retorna `shared T?`.
+`shared T` cria múltiplos owners. `weak T?` não mantém o payload vivo e
+`upgrade()` retorna `shared T?`. O fallback portátil usa reference counting;
+essa estratégia não faz parte do tipo source.
 
 ```w
 object MenuSection {
@@ -7933,56 +7937,56 @@ object MenuSection {
 }
 ```
 
-`share` cria o primeiro shared owner. A operação é uma função intrinsic baseline,
-sempre fallible, porque pode criar um control block:
+**W-1177 — criação do primeiro owner compartilhado:** `share(value)` cria o
+primeiro owner com o allocator geral do product. A operação segue a policy
+normal de allocation: não adiciona `throws`, mas OOM pode encerrar a fault
+boundary. O nome mantém allocation e mudança de ownership visíveis:
 
 ```w
-let root = try share(
-  MenuSection(title: "Dinner", parent: .none, children: []),
-  using: memory,
-)
+let root = share(MenuSection(title: "Dinner", parent: .none, children: []))
 let observer = copy root
 let parent = root.weak()
 ```
 
-Um temporary não usa `take`. Promover um owner existente exige
-`share(take value, using:)`. A forma sem `using` usa o allocator default. W não
-converte um owner único para `shared T` somente por expected type ou parâmetro.
+Recovery ou allocator explícito usa `tryShare`:
 
-`share` exige que o payload seja `.lifetimeIndependent`. A operação não estende
-o lifetime de `ref`, `view`, `inout` ou capture borrowed. Ela preserva o
-`AllocationOriginSet` do payload e adiciona a origem do control block. Cada
-origem interna precisa durar pelo menos tanto quanto o control block. Caso
-contrário, o caller usa `rehome` antes de `share`.
+```w
+let root = try tryShare(
+  MenuSection(title: "Dinner", parent: .none, children: []),
+  using: memory,
+)
+```
+
+Um temporary não usa `take`. Um binding existente exige `share(take value)` ou
+`try tryShare(take value, using: memory)`. `share` não aceita `using:`; um
+allocator scoped ou bounded exige a variante fallible. W não promove owner
+único por expected type, return type ou parâmetro.
+`W-OWNERSHIP-0013` aponta o contexto. O caller escolhe `share(take value)` ou
+altera a API; o diagnostic não insere allocation automaticamente.
+
+As duas operações exigem payload `.lifetimeIndependent`. Elas não prolongam
+`ref`, `view`, `inout` ou capture borrowed. O `AllocationOriginMap` preserva as
+origens do payload e adiciona a origem do control block. Cada storage interno
+precisa durar pelo menos tanto quanto esse block; caso contrário, o caller usa
+`rehome` antes da promoção.
 
 ```w
 struct MenuView { title: view String }
 
 let title = menu.title.scalars
 let borrowed = MenuView(title: title)
-let invalid = try share(take borrowed, using: memory)
-// W-BORROW-0010: share não prolonga a origin de title.
+let invalid = try tryShare(take borrowed, using: memory)
+// W-BORROW-0010: tryShare não prolonga a origin de title.
 ```
 
-O resultado pode depender do allocator explícito. Essa dependência aparece no
-`AllocationOriginMap` da interface, mesmo quando o tipo source continua
-`shared T`. Ela não é uma annotation de lifetime escrita pelo usuário. Um
-control block criado numa arena pode ser usado dentro da arena, mas nenhum
-strong ou weak handle sobrevive ao fechamento dela.
-
-Falha de allocation consome o temporary ou o argumento marcado com `take`,
-executa o drop de `T` uma vez e libera qualquer control block parcial. Ela não
-publica handle strong ou weak. Esse comportamento segue as outras operações
-consuming. Uma API de retry precisa devolver o source num outcome explícito; a
-baseline não cria `attemptShare` implicitamente.
+Uma falha limpa temporary ou argumento marcado com `take` e o control block
+parcial uma vez; nenhum handle é publicado. `share` escala a falha segundo a
+policy normal. `tryShare` propaga `AllocationError`. Uma API de retry precisa
+devolver o source num outcome próprio; a baseline não restaura o binding.
 
 `shared T` e `weak T` são move-first. `copy handle` cria outro owner e torna o
 retain visível no source. `upgrade()` é a única operação que cria um shared owner
 a partir de `weak`. Uma função pode mover seu último shared handle sem retain.
-
-O compiler pode co-alocar temporary e control block ou remover contagem quando
-prova owner único. `share` ainda preserva failure, allocator e origem. Um valor
-que depende de uma arena mais curta precisa de `rehome` antes da promoção.
 
 W não possui cycle collector por default. Um ciclo forte precisa de uma destas
 soluções:
@@ -7992,21 +7996,15 @@ soluções:
 - um owner de scope que destrói o grafo;
 - um owner de lifecycle, como service ou request scope.
 
-O compiler pode remover retains e releases quando prova owner único. Um handle
-`shared T` que cruza `spawn` usa contagem thread-safe e exige que `T` seja
-`shareable`. A implementação pode usar contagem local somente quando prova que o
-handle não cruza uma fronteira paralela.
-
-Criar aliases no mesmo isolation domain não exige que `T` seja `shareable`.
-Cruzar `spawn`, channel, service ou callback concorrente exige, em conjunto:
+Aliases no mesmo isolation domain não exigem `T.shareable`. Cruzar `spawn`,
+channel, service ou callback concorrente exige, em conjunto:
 
 1. `T` shareable;
 2. contador thread-safe;
 3. mobility `.crossDomain` para o control block e todo storage alcançável;
 4. lifetime válido para cada origem de allocation.
 
-O compiler deriva esses fatos. `share` não recebe uma flag de thread safety no
-source.
+O compiler deriva esses fatos; a call não recebe flag de thread safety.
 
 Um borrow obtido por um strong handle usa esse handle como sua origin. Enquanto
 o borrow estiver vivo, o programa não move nem destrói o handle de origem. Ele
@@ -8018,25 +8016,15 @@ mutation direta. Interior mutation usa uma API que publica atomicidade,
 serialization ou exclusividade verificada. `weak T` não oferece acesso ao
 payload; o programa chama `upgrade()` e testa o `Option<shared T>` primeiro.
 
-Overflow de contador nunca faz wrap. Ele encerra a fault boundary antes de
-perder um owner. O último release executa `deinit` uma vez. `weak` expira antes
-de o storage ser reutilizado.
+Overflow de contador encerra a fault boundary antes de perder um owner. O último
+strong release executa `deinit` uma vez; o control block permanece até o último
+weak release. `upgrade()` é linearizável com o strong release final: devolve
+`.some` somente quando adquire um owner antes da destruição e sempre devolve
+`.none` depois dela. Reuse de endereço não reanima um handle antigo.
 
-`upgrade()` é linearizável em relação ao último release forte. Ele devolve
-`.some` somente quando adquiriu um owner forte antes da destruição do valor. Se
-as duas operações competirem, o resultado corresponde a uma dessas duas ordens
-completas. Depois da destruição, todo `upgrade()` devolve `.none`.
-
-O fallback portátil usa um control block com estado forte, estado weak, origem
-de allocation e operação de drop. Quando o strong count chega a zero, o valor
-executa `deinit`. O control block continua vivo até o último weak handle morrer.
-Um weak handle aponta para esse estado, não para um payload que pode ser
-reutilizado. Assim, reuse de endereço não reanima um owner antigo.
-
-O optimizer pode juntar valor e control block ou usar contagem local. Ele precisa
-preservar o mesmo ponto de linearização, a mesma ordem de drop e a mesma origem.
-Uma representação compacta não pode substituir essa obrigação por um contador
-curto em bits do pointer.
+O optimizer pode co-alocar payload e control block, remover contagens provadas
+únicas ou usar contagem local. Ele preserva failure, origins, linearization e
+drop. Uma representação compacta não substitui essas obrigações.
 
 `ServiceRef<T>` não é `shared T`. O host controla o lifecycle da instance. Um
 handle de service mantém identity e capability, não ownership direto do estado.
@@ -8069,9 +8057,9 @@ scratch.clear()
 e reinicia a capacidade. Ele falha enquanto borrow ou valor dependente permanece
 vivo. Allocator, budget e origin continuam contratos separados.
 
-`try share` é reservado para múltiplos owners que excedem o scope lexical. W não
-promove unique para shared em silêncio. A promoção pode alocar, falhar e mudar a
-destruição. Ela não é o caminho normal de concorrência.
+`share` e `tryShare` são reservados para múltiplos owners que excedem o scope
+lexical. W não promove unique para shared em silêncio. A promoção pode alocar e
+muda a destruição. Ela não é o caminho normal de concorrência.
 
 Alternativas históricas de block-region e placement explícito ficam em
 `RATIONALE.md`. A decisão vigente usa análise de escape e a API avançada `Arena`.
@@ -19315,7 +19303,7 @@ prova.
 
 ```w
 let courses = ["broth", "cake"]       // profundamente imutável
-let counter = try share(Atomic(0_u64)) // não: atomic permite mutation observável
+let counter = share(Atomic(0_u64)) // não: atomic permite mutation observável
 ```
 
 Uma API que precisa prometer um snapshot recebe ou devolve um valor owned.
@@ -28999,12 +28987,12 @@ Cada ausência deliberada precisa de quatro itens na documentação final:
 3. a diferença observável em custo, controle, cleanup ou error;
 4. um link para a decisão e para o caso comparativo.
 
-O corpus R0 contém 68 substituições estruturadas. Esse corpus é a origem do Tour
+O corpus R0 contém 69 substituições estruturadas. Esse corpus é a origem do Tour
 comparativo e do Book. Uma nova ausência de superfície não fecha com texto no
 ledger. Ela precisa de um caso R0 ou de uma justificativa que prove que não
 existe source comparável.
 
-A razão `68/68` cobre os requisitos declarados na seção 1 de [`RATIONALE.md`](RATIONALE.md). Ela não prova que
+A razão `69/69` cobre os requisitos declarados na seção 1 de [`RATIONALE.md`](RATIONALE.md). Ela não prova que
 o ledger inteiro já foi auditado. Antes do design freeze, cada decisão precisa
 classificar sua alternativa como uma destas categorias:
 
@@ -29024,7 +29012,7 @@ oracles diretamente aos IDs que prova. As outras decisões exigem uma
 disposition explícita: escolha de implementação sem diferença observável,
 hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
 maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. O freeze audit classifica 361/1176
+declara todos os eixos obrigatórios. O freeze audit classifica 365/1177
 decisões: 123 pelo eixo source, 274 pelo eixo oracle e oito explicitamente. Há
 44 decisões com eixos sobrepostos. Duas decisões exigem formalmente ambos os
 eixos. As 815 restantes continuam um worklist, não uma aprovação implícita.
@@ -29101,8 +29089,8 @@ evidência de design:
 | Artefato | Estado atual | Condição de fechamento do design |
 |---|---|---|
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 20 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | cobrir cada construção normalizada com par CST-equivalente e provar idempotência no modelo F0 |
-| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 92 casos pareiam 46 resultados positivos com 46 inversões e outcomes JSONL | ligar cada família normativa a um resultado positivo, à inversão relevante e ao campo exato que falha |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 96/96 codes referenciados estão catalogados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
+| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 104 casos pareiam 52 resultados positivos com 52 inversões e outcomes JSONL | ligar cada família normativa a um resultado positivo, à inversão relevante e ao campo exato que falha |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 47/47 diagnostics S0 possuem cobertura e o catálogo com 207 entries cobre 175 codes referenciados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
 | std | SDK0 cataloga 315 exports em 21 módulos; todos possuem declaration draft-ready; 20/20 requisitos contratados têm profile; 2/8 carriers estão missing (Blob e FormData); 15/15 providers de implementação estão missing | manter Blob/FormData como carriers explicitamente missing, validar a superfície com outro consumer além do Última Luz e preservar os providers pós-freeze |
 | workflow single-file e científico PYN1/PYN0/PYN2/PYN3/PYN4 | PYN1 fecha header contextual, root standalone, package/ephemeral context, imports explícitos, payload P0 `package.lock` com grafo transitivo, fetch/CAS por content digest, requirement admission, identity sem path físico e promotion; PYN2 fecha session/repl transacional e generational, identities, receipts, graph invalidation, scopes, drain e bounded history; PYN3 fecha presentation, adapter Jupyter e export comprovado; PYN4 fecha carrier tensorial, device/queue, DLPack 1.3, Python lease, lifecycle e evidence host; PYN0 mantém `std.tensor`/`std.dlpack`, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters TAB1 | implementar CLI, resolver/provider, kernel/runtime/drain físico, sanitizer e ZeroMQ, providers tensor/DLPack e evidence dos gates de latency; tudo permanece pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
@@ -29111,7 +29099,7 @@ evidência de design:
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
-| documentação comparativa | R0 cobre 68/68 requisitos declarados; R0S mede a superfície derivada por script; [R1E0](RATIONALE.md#1319-r1e0-núcleo-de-expressions) eleva a cobertura a 20 bundles, 48 variantes, 80 tarefas e 31/68 casos promovidos; participantes e modelos ainda não foram executados | classificar as decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
+| documentação comparativa | R0 cobre 69/69 requisitos declarados; R0S mede a superfície derivada por script; R1 cobre 21 bundles, 51 variantes, 84 tarefas e 32/69 casos promovidos; participantes e modelos ainda não foram executados | classificar as decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da
