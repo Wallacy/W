@@ -16,10 +16,10 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 28629 |
-| tokens aproximados de `DESIGN.md` | 299000 |
-| linhas de `RATIONALE.md` | 4556 |
-| tokens aproximados de `RATIONALE.md` | 122500 |
+| linhas de `DESIGN.md` | 28633 |
+| tokens aproximados de `DESIGN.md` | 299100 |
+| linhas de `RATIONALE.md` | 4584 |
+| tokens aproximados de `RATIONALE.md` | 122900 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 335/335 |
 | decisões | 1287 (W-001–W-1287) |
@@ -33,9 +33,9 @@
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 174 |
 | surface lexemes das formas vigentes R0 | 1443 total; mediana 16; máximo 52 |
-| bundles executáveis R1 | 21 |
-| variantes/tarefas R1 | 51/84 |
-| casos R0 promovidos a R1 | 32/70 |
+| bundles executáveis R1 | 22 |
+| variantes/tarefas R1 | 54/88 |
+| casos R0 promovidos a R1 | 34/70 |
 | casos do corpus Tree-sitter | 108 |
 | pares canônicos do formatter F0 | 23 |
 | casos/operações do kernel de memória M1 | 184/603 (82 aceitos + 102 rejeitados) |
@@ -66,9 +66,9 @@
 | casos/operações da síntese de kernel KM0 | 32/218 (6 aceitos + 26 rejeitados; host oracle não executa W) |
 | casos/operações de body estrangeiro FB0 | 45/90 (15 aceitos + 28 rejeitados + 2 informações; host oracle não executa adapter) |
 | casos/operações de Web bodies WB0 | 27/160 (12 aceitos + 15 rejeitados; host oracle não executa compiler/provider) |
-| casos do corpus semântico S0 | 110 (55 positivos + 55 negativos) |
-| outcomes SemanticResult S0 | 110 |
-| snapshots de diagnostic D0 | 55 |
+| casos do corpus semântico S0 | 112 (56 positivos + 56 negativos) |
+| outcomes SemanticResult S0 | 112 |
+| snapshots de diagnostic D0 | 56 |
 | snapshots F0 no formato D0 | 23 |
 | codes D0 catalogados | 260/166 |
 | sources W no root do Última Luz | 93 |
@@ -132,33 +132,33 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 5 | 3346–3653 | 2700 | Source, nomes e edição |
 | 6 | 3654–4059 | 3700 | Módulos, imports e visibilidade |
 | 7 | 4060–4717 | 6000 | Bindings, funções e closures |
-| 8 | 4718–7189 | 19300 | Tipos e conversões |
-| 9 | 7190–8729 | 17500 | Memória, layout e alocação |
-| 10 | 8730–8852 | 1400 | Property behaviors |
-| 11 | 8853–9198 | 2700 | Erros, panic, OOM e cleanup |
-| 12 | 9199–12111 | 31900 | Concorrência, paralelismo e execução |
-| 13 | 12112–14384 | 22900 | Módulos de execução, services e entries |
-| 14 | 14385–18144 | 47900 | Prelude e SDK |
-| 15 | 18145–18849 | 7100 | Números, ranges e unidades |
-| 16 | 18850–20449 | 13500 | Texto, bytes e collections |
-| 17 | 20450–20799 | 4100 | Matrizes, tensors e ML |
-| 18 | 20800–21291 | 4900 | Performance e custo |
-| 19 | 21292–21858 | 6800 | FFI, unsafe e ilhas de linguagem |
-| 20 | 21859–23364 | 16100 | Compilador e bootstrap |
-| 21 | 23365–25377 | 19000 | Packages, builds e releases |
-| 22 | 25378–25884 | 4900 | Tooling e interface para máquinas |
-| 23 | 25885–27288 | 16600 | Protocolos e pesquisas de ecossistema |
-| 24 | 27289–28092 | 10900 | Design freeze e pendências |
-| 25 | 28093–28303 | 1900 | Produto de referência Última Luz |
-| 26 | 28304–28629 | 4000 | Plano de implementação |
+| 8 | 4718–7193 | 19400 | Tipos e conversões |
+| 9 | 7194–8733 | 17500 | Memória, layout e alocação |
+| 10 | 8734–8856 | 1400 | Property behaviors |
+| 11 | 8857–9202 | 2700 | Erros, panic, OOM e cleanup |
+| 12 | 9203–12115 | 31900 | Concorrência, paralelismo e execução |
+| 13 | 12116–14388 | 22900 | Módulos de execução, services e entries |
+| 14 | 14389–18148 | 47900 | Prelude e SDK |
+| 15 | 18149–18853 | 7100 | Números, ranges e unidades |
+| 16 | 18854–20453 | 13500 | Texto, bytes e collections |
+| 17 | 20454–20803 | 4100 | Matrizes, tensors e ML |
+| 18 | 20804–21295 | 4900 | Performance e custo |
+| 19 | 21296–21862 | 6800 | FFI, unsafe e ilhas de linguagem |
+| 20 | 21863–23368 | 16100 | Compilador e bootstrap |
+| 21 | 23369–25381 | 19000 | Packages, builds e releases |
+| 22 | 25382–25888 | 4900 | Tooling e interface para máquinas |
+| 23 | 25889–27292 | 16600 | Protocolos e pesquisas de ecossistema |
+| 24 | 27293–28096 | 10900 | Design freeze e pendências |
+| 25 | 28097–28307 | 1900 | Produto de referência Última Luz |
+| 26 | 28308–28633 | 4000 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 14–3221 | 49200 | Evidência comparativa |
-| 2 | 3222–3252 | 500 | Proveniência |
-| 3 | 3253–4556 | 72800 | Ledger |
+| 1 | 14–3249 | 49500 | Evidência comparativa |
+| 2 | 3250–3280 | 500 | Proveniência |
+| 3 | 3281–4584 | 72800 | Ledger |
 
 ## Bundles de leitura
 
@@ -166,11 +166,11 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 
 | Bundle | Seções | Linhas | Tokens aproximados | Foco |
 |---|---:|---:|---:|---|
-| orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 15–7189 | 66000 | promessa, símbolos, source, módulos, funções e tipos |
-| segurança e execução | 9, 10, 11, 12, 13 | 7190–14384 | 76400 | ownership, errors, tasks, domains, services e entries |
-| SDK e performance | 14, 15, 16, 17, 18, 19 | 14385–21858 | 84300 | módulos, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 21859–27288 | 56600 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 27289–28629 | 16800 | freeze, Última Luz, gates e roadmap |
+| orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 15–7193 | 66100 | promessa, símbolos, source, módulos, funções e tipos |
+| segurança e execução | 9, 10, 11, 12, 13 | 7194–14388 | 76400 | ownership, errors, tasks, domains, services e entries |
+| SDK e performance | 14, 15, 16, 17, 18, 19 | 14389–21862 | 84300 | módulos, números, texto, tensors, custo, C e unsafe |
+| compiler e distribuição | 20, 21, 22, 23 | 21863–27292 | 56600 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26 | 27293–28633 | 16800 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

@@ -6237,6 +6237,10 @@ Callable generic value parameters são bindings compile-time da call. Eles não
 criam associated members. Type identity, `ConstIR`, monomorphization e cache
 usam o valor normalizado em todos os casos.
 
+O ensaio comparativo de labels, slots posicionais e paridade entre type
+application e generic call fica em
+[`RATIONALE.md` §1.3.21](RATIONALE.md#1321-slots-estáticos-em-types-e-calls).
+
 #### 8.7.2 Constraints e composição
 
 `T: P` exige uma conformance nominal. `&` combina requirements sem ordenar
