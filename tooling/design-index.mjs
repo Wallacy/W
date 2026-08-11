@@ -97,7 +97,7 @@ const readingBundles = [
   {
     name: "validação e decisões",
     sections: [24, 25, 26],
-    purpose: "viabilidade, Última Luz, gates e roadmap",
+    purpose: "freeze, Última Luz, gates e roadmap",
   },
 ];
 
@@ -182,20 +182,18 @@ if (decisions.length === 0) {
   structuralErrors.push("The decision ledger is empty.");
 }
 
-const viabilityStart = numberedSections.find((section) => section.number === 24)?.start;
-const viabilitySectionEnd = numberedSections.find((section) => section.number === 25)?.start;
-const viabilitySubsectionStart = lines.findIndex(
-  (line, index) => index + 1 > viabilityStart && line.startsWith("### 24."),
+const viabilityHeading = "### 1.8 Catálogo comparativo de viabilidade";
+const viabilityStart = rationaleLines.findIndex((line) => line === viabilityHeading);
+const viabilityEnd = rationaleLines.findIndex(
+  (line, index) => index > viabilityStart && line.startsWith("### 1."),
 );
-const viabilityEnd =
-  viabilitySubsectionStart >= 0 ? viabilitySubsectionStart + 1 : viabilitySectionEnd;
 const viabilityRows = [];
 
-if (!viabilityStart || !viabilityEnd) {
-  structuralErrors.push("Sections 24 and 25 are required for viability metrics.");
+if (viabilityStart < 0 || viabilityEnd <= viabilityStart) {
+  structuralErrors.push("RATIONALE.md section 1.8 is required for viability metrics.");
 }
 
-for (const line of lines.slice(viabilityStart, viabilityEnd - 1)) {
+for (const line of rationaleLines.slice(viabilityStart + 1, viabilityEnd)) {
   if (!line.startsWith("| ") || line.startsWith("|---") || line.includes("Classe vigente")) {
     continue;
   }
