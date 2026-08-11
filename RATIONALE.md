@@ -713,6 +713,16 @@ device, chunks, owner, views, waits, children, trust, sanitização e limits.
 Eles não compilam nem executam W. A evidência corrente é `design-oracle-input`.
 `w compile`, `w run`, estudo humano e estudo de modelo permanecem missing.
 
+As referências comparativas são Arrow
+[Columnar](https://arrow.apache.org/docs/format/Columnar.html),
+[C Data](https://arrow.apache.org/docs/format/CDataInterface.html),
+[C Stream](https://arrow.apache.org/docs/format/CStreamInterface.html) e
+[Security](https://arrow.apache.org/docs/format/Security.html), além dos
+[requisitos](https://data-apis.org/dataframe-protocol/latest/design_requirements.html)
+e da [API](https://data-apis.org/dataframe-protocol/latest/API.html) do Python
+dataframe interchange. Elas sustentam comparação de columns, chunks, buffers,
+copy e lifetime; não definem a semântica W.
+
 #### 1.3.15 Adapters tabulares TAB1
 
 **Exemplo:** o mesmo resumo do horizonte passa por três variantes de W: upload
@@ -738,6 +748,18 @@ reader binário Parquet ou Arrow.
 `tree-sitter` parse, host oracle e cases são evidência corrente. `w compile`,
 `w run`, estudo humano e estudo de modelo permanecem missing. A superfície
 derivada liga os símbolos de `data_formats.w` aos requisitos TAB1 e ao ledger.
+
+As fontes de formato preservadas são [RFC 4180](https://www.rfc-editor.org/rfc/rfc4180),
+[Parquet file format](https://parquet.apache.org/docs/file-format/),
+[logical types](https://parquet.apache.org/docs/file-format/types/logicaltypes/),
+[page index](https://parquet.apache.org/docs/file-format/pageindex/) e
+[encryption](https://parquet.apache.org/docs/file-format/encryption/), mais Arrow
+[IPC](https://arrow.apache.org/docs/format/IPC.html),
+[C Data](https://arrow.apache.org/docs/format/CDataInterface.html),
+[C Stream](https://arrow.apache.org/docs/format/CStreamInterface.html),
+[C Device](https://arrow.apache.org/docs/format/CDeviceDataInterface.html) e
+[Security](https://arrow.apache.org/docs/format/Security.html). Python, PyArrow e
+Polars são evidência ergonômica, não autoridade semântica.
 
 #### 1.3.16 Workflow single-file PYN1
 
@@ -861,6 +883,16 @@ O fixture não executa W. A máquina host valida positivos e negativos de dtype,
 layout, flags, overflow, alignment, shape, queue happens-before, dynamic bind,
 materialização, export, cancellation, close/quarantine, GIL/finalization,
 provenance, redaction, untrusted input e ausência de hidden copy.
+
+As fontes preservadas são DLPack [C API](https://dmlc.github.io/dlpack/latest/c_api.html),
+[Python API](https://dmlc.github.io/dlpack/latest/python_spec.html) e
+[release v1.3](https://github.com/dmlc/dlpack/releases/tag/v1.3), além das APIs
+CPython de [capsules](https://docs.python.org/3/c-api/capsule.html) e
+[thread state, GIL e finalização](https://docs.python.org/3/c-api/init.html), e
+[`from_dlpack`](https://data-apis.org/array-api/latest/API_specification/generated/array_api.from_dlpack.html).
+O fixture usa carriers trusted, não publica raw pointer, fecha `open` com
+`defer async`, mapeia errors explicitamente e mantém o callback scoped até o
+drain de queue, Python lease e release.
 
 O teste host independente repete invariantes de lifecycle, release e queue
 matching. O checker exige referências ao fixture, cobertura positiva e negativa
