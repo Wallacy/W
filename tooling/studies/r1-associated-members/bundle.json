@@ -1,0 +1,95 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-associated-members",
+  "title": "Associated members at the Last Light restaurant",
+  "r0Cases": ["R0-associated-member"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/domain.w",
+    "symbol": "Course",
+    "digest": "sha256:d870d4ca6242097a8122da1afef4c6bc28dddeed1fd1b2b1b0f4fd9f414221e3"
+  },
+  "variants": [
+    {
+      "id": "direct",
+      "role": "selected",
+      "language": "w",
+      "path": "direct.w",
+      "digest": "sha256:57edc9dddb9769b2602a03567c11b03f9dbd59011a50c296069ab8762e611bd5",
+      "changedConstructs": [
+        "direct associated const",
+        "direct associated static function",
+        "compile-time type namespace lookup"
+      ]
+    },
+    {
+      "id": "protocol-requirement",
+      "role": "alternative",
+      "language": "w",
+      "path": "protocol-requirement.w",
+      "digest": "sha256:e74a1e8d43e2fb9d5ec800e99f38393d4f9f226d24c146f43462891674397723",
+      "changedConstructs": [
+        "protocol requirements for const and static function",
+        "generic static dispatch through T",
+        "explicit conformance witness"
+      ]
+    }
+  ],
+  "entry": "selectCourse",
+  "inputs": [
+    {
+      "id": "first-course",
+      "ordinal": 0,
+      "expected": { "status": "selected", "course": "nebulaBroth" }
+    },
+    {
+      "id": "last-course",
+      "ordinal": 3,
+      "expected": { "status": "selected", "course": "horizonCake" }
+    },
+    {
+      "id": "outside-course-set",
+      "ordinal": 4,
+      "expected": { "status": "absent" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Identify the type namespace, associated constant, static function, protocol requirement, and absence of runtime metatype state."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct course selection and state where a protocol becomes necessary.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that replaces immutable associated data with mutable type storage.",
+      "mutations": {
+        "direct": "Replace `const count` with rejected `static var count`.",
+        "protocol-requirement": "Add mutable storage to the protocol instead of an immutable requirement."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a fifth course while preserving static lookup, exhaustive outcomes, and no mutable type storage."
+    }
+  ],
+  "presentationOrders": [
+    ["direct", "protocol-requirement"],
+    ["protocol-requirement", "direct"]
+  ],
+  "blinding": {
+    "participantLabels": { "direct": "A", "protocol-requirement": "B" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:72f8d9654a0622870735124bab89378a3712381fe11aa1c4ac04857b83dc309a"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}

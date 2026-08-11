@@ -4881,6 +4881,13 @@ entry {
 Um `object Catalog` pode ter várias instances. O binding acima expressa um
 singleton do product, não da linguagem. Um módulo também não é singleton.
 
+**W-1289 — associated member não exige abstraction:** um tipo pode declarar
+`const` e `static fn` sem criar protocol, witness ou instance. Um protocol só
+declara esses members quando código generic precisa exigir a forma. As duas
+rotas mantêm lookup estático; nenhuma autoriza mutable type storage. O ensaio
+comparativo fica em
+[`RATIONALE.md` §1.3.23](RATIONALE.md#1323-members-associados-diretos).
+
 W não reifica tipos como `Type<T>` no design vigente. Associated member lookup continua
 compile-time. `reflect.TypeId` oferece identidade runtime local. Uma conformance
 a `reflect.Reflectable` solicita metadata estrutural. A seção 8.9 define os dois

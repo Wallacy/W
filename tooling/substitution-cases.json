@@ -441,7 +441,7 @@
     {
       "id": "R0-associated-member",
       "reviewItem": "associated member direto contra protocol requirement e mutable type storage",
-      "decisions": ["W-148", "W-150"],
+      "decisions": ["W-148", "W-150", "W-1289"],
       "task": "Expose a stable maximum and a parser on a type without global mutable state.",
       "selected": {
         "language": "w",
