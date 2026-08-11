@@ -13741,71 +13741,20 @@ call. Ela mantém o grafo e as capabilities visíveis antes da execução.
 também precisa de scope, lifecycle, mailbox, limits e initializer. Reduzir essa
 fronteira a um handler esconderia partes necessárias do artifact contract.
 
-**Exemplo:** o product nativo fornece `lastLight` e importa os controladores
-físicos da despensa e dos fornos.
+**Exemplo:** o grafo `restaurant-core` do
+[`package.w` do Última Luz](reference/last-light/package.w) fornece
+`lastLight`, importa despensa e fornos e exporta as services públicas.
 
 O package graph declara services e requirements nomeadas. Um product seleciona
 no máximo um graph. Não existe herança ou overlay na primeira edição.
 
-```w
-runtimeGraphs: [
-  {
-    name: "restaurant-core"
-    servicePolicy: {
-      resolution: .startup
-      links: [
-        .local,
-        .component,
-        .wrpc(transports: [.ipc, .network]),
-      ]
-      dynamicRebinding: .deny
-    }
-    services: [
-      {
-        binding: "lastLight"
-        declaration: "restaurant::lastLight"
-        scope: .process
-        mailbox: { items: 64, bytes: 8MiB, inFlight: 1 }
-      },
-      {
-        binding: "orders"
-        declaration: "supervision::orderCoordinators"
-        scope: .keyed(keyType: "domain::OrderId")
-        mailbox: { items: 8, bytes: 1MiB, inFlight: 1 }
-        arguments: {
-          identity: .serviceIdentity
-          fulfillment: .supervisor("fulfillment", key: .serviceIdentity)
-        }
-      },
-    ]
-
-    requirements: [
-      { service: "restaurant::pantry", default: .import("pantry") },
-      { service: "workflow::pantry", default: .import("pantry") },
-    ]
-
-    imports: [
-      {
-        binding: "pantry"
-        protocol: "kitchen::PantryApi"
-        source: .deployment
-      },
-      {
-        binding: "ovens"
-        protocol: "kitchen::OvenApi"
-        source: .deployment
-      },
-      {
-        binding: "aromaDevice"
-        capability: "hardware::AromaProbeDevice"
-        source: .host
-      },
-    ]
-
-    exports: ["lastLight", "orders"]
-  },
-]
-```
+| Campo | Contrato |
+|---|---|
+| `servicePolicy` | resolution, links permitidos e rebinding |
+| `services` | declaration, scope, mailbox e initializer arguments |
+| `requirements` | identities exigidas pelos callers |
+| `imports` | protocols ou capabilities fornecidos externamente |
+| `exports` | bindings visíveis para composição |
 
 A entrada `services` liga uma service declaration a scope, quotas e argumentos.
 O nome da binding é local ao graph. Ele não usa lookup global.
@@ -13818,37 +13767,10 @@ suas identities no source.
 os links e os transports internos de wRPC. `.startup` permite override antes do
 entry. `.deny` impede que uma referência ativa troque de provider.
 
-Um graph que alcança uma service stream deve declarar `streamLimits`:
-
-```w
-streamLimits: {
-  open: 64
-  perStream: {
-    itemBytes: 256KiB
-    inFlight: { items: 8, bytes: 1MiB }
-    queued: { items: 8, bytes: 1MiB }
-    traversalPerItem: 1MiB
-    capabilitySlots: 64
-    rate: {
-      itemsPerSecond: 4_096
-      bytesPerSecond: 16MiB
-      burstItems: 8
-      burstBytes: 1MiB
-    }
-  }
-  total: {
-    inFlight: { items: 256, bytes: 16MiB }
-    queued: { items: 256, bytes: 16MiB }
-    capabilitySlots: 1_024
-    rate: {
-      itemsPerSecond: 32_768
-      bytesPerSecond: 128MiB
-      burstItems: 256
-      burstBytes: 16MiB
-    }
-  }
-}
-```
+Um graph que alcança uma service stream declara `streamLimits`. O record fixa
+streams abertos e limites `perStream`/`total` de item bytes, traversal,
+in-flight, queue, capability slots, rate e burst. A forma parseável está no
+[`package.w` do Última Luz](reference/last-light/package.w).
 
 O product envelope fixa os máximos. Um deployment pode reduzi-los por unit ou
 edge. Ele não pode ampliar uma garantia publicada. O compiler rejeita um graph
@@ -13952,21 +13874,8 @@ compartilha memória e authority com o processo.
 Os limites pertencem ao artifact contract. Um deployment pode reduzi-los. Ele
 não pode trocar operation, protocol, key type, rights ou required isolation.
 
-Essa divisão segue dois precedentes. workerd declara service bindings na
-configuração do caller. WebAssembly Components conecta imports tipados a
-exports tipados durante composition. W acrescenta ownership, error effects,
-budgets e `ServiceRef` estruturado.
-
-Cloudflare fixa service bindings no deploy. W resolve a escolha no startup,
-dentro da boundary e policy gravadas no artifact. A configuração não transforma
-um import comum em service.
-
-- [Cloudflare service bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/)
-- [workerd](https://github.com/cloudflare/workerd)
-- [JavaScript-native RPC](https://blog.cloudflare.com/javascript-native-rpc/)
-- [Cap'n Web](https://blog.cloudflare.com/capnweb-javascript-rpc-library/)
-- [Cloudflare sandbox e seccomp](https://blog.cloudflare.com/sandboxing-in-linux-with-zero-lines-of-code/)
-- [WebAssembly Component Model](https://component-model.bytecodealliance.org/design/components.html)
+A comparação com workerd, WebAssembly Components e RPC externos fica em
+[`RATIONALE.md`](RATIONALE.md#16-services-packing-e-deployment).
 
 **Direção:** W possui uma stack de service nativa. `ServiceIR` registra o
 contrato. `ServiceLink` materializa a route. O link nativo distribuído usa wRPC,
@@ -13984,7 +13893,9 @@ artifact digest e conformance tests.
 
 #### 13.8.3 Packing de build
 
-**Exemplo:** o mesmo grafo gera um artifact único ou um index com quatro units.
+**Exemplo:** os packings `single-process` e `split-services` no
+[`package.w` do Última Luz](reference/last-light/package.w) geram,
+respectivamente, um artifact único ou um index com quatro units.
 
 `packing` é uma decisão de build. Ele divide providers e supervisors em artifact
 units. O nome e a expansão do packing entram na recipe.
@@ -13992,51 +13903,13 @@ units. O nome e a expansão do packing entram na recipe.
 O product seleciona um packing default. `--packing` pode escolher outro packing
 do mesmo grafo. Se o grafo possui uma opção, o build pode inferi-la.
 
-```w
-packings: [
-  {
-    name: "single-process"
-    units: [
-      {
-        name: "main"
-        entry: true
-        providers: [
-          "lastLight",
-          "orders",
-          "oracle",
-          "aromaProbe",
-          "billing",
-          "diningRoom",
-        ]
-        supervisors: ["fulfillment"]
-      },
-    ]
-  },
-  {
-    name: "split-services"
-    units: [
-      {
-        name: "gateway"
-        entry: true
-        providers: ["lastLight", "orders"]
-        supervisors: ["fulfillment"]
-      },
-      { name: "planning", providers: ["oracle", "aromaProbe"] },
-      { name: "finance", providers: ["billing"] },
-      { name: "dining", providers: ["diningRoom"] },
-    ]
-  },
-]
-```
-
 Cada provider e supervisor aparece em uma unit. Um product com entry marca uma
 unit com `entry: true`. Uma unit sem entry continua válida quando publica um
 provider no artifact index. O instance manager inicia essa unit.
 
 O packer deriva interfaces privadas entre units a partir de service bindings,
 initializer arguments e requirements do supervisor. Elas entram no artifact
-index. Elas não
-tornam o provider um export público do runtime graph.
+index sem tornar o provider um export público do runtime graph.
 
 Cada edge grava caller unit, service identity, default provider, protocol, key
 type e policy. Uma edge `.startup` aceita override dentro do envelope. Uma edge
@@ -14066,108 +13939,19 @@ sem boundary, o programador usa import comum.
 
 #### 13.8.4 Manifest e lock de deployment
 
-**Exemplo:** o plano local seleciona uma recipe. O lock grava os digests
-resultantes.
+**Exemplo:** o plano
+[`local.w`](reference/last-light/deployments/local.w) seleciona recipe, packing,
+bindings e limites. O plano
+[`distributed.w`](reference/last-light/deployments/distributed.w) também fixa
+placement e session wRPC. O lock grava as escolhas por digest.
 
-```w
-deployment {
-  schema: "w.deployment/1"
-  name: "last-light/local"
-
-  artifacts: [
-    {
-      name: "restaurant"
-      source: .product(
-        "last-light-native",
-        target: "x86_64-unknown-linux-gnu",
-        profile: "debug",
-        packing: "single-process",
-      )
-    },
-  ]
-
-  placement: [
-    { unit: "restaurant/main", host: .local },
-  ]
-
-  bindings: [
-    {
-      import: "restaurant/pantry"
-      provider: .adapter("last-light.dev/pantry@1")
-    },
-    {
-      import: "restaurant/ovens"
-      provider: .adapter("last-light.dev/ovens@1")
-    },
-  ]
-
-  adapters: [
-    {
-      artifact: "restaurant"
-      supervisor: "fulfillment"
-      role: .workflowJournal
-      provider: .adapter(
-        "w.std/sqlite-workflow@1",
-        storage: .capability("last-light/workflow-store"),
-      )
-    },
-  ]
-
-  limits: {
-    execution: [
-      {
-        unit: "restaurant/main"
-        tasks: { live: 1_024, frameBytes: 32MiB, timers: 1_024 }
-        pools: [
-          { name: "cpu", capacity: 1 }
-          { name: "blocking", capacity: 2 }
-        ]
-      },
-    ]
-    supervisors: [
-      {
-        artifact: "restaurant"
-        binding: "fulfillment"
-        roots: 256
-        running: 8
-        admissionQueued: 32
-      },
-    ]
-  }
-}
-```
-
-Um deployment distribuído também fixa a policy de session wRPC:
-
-```w
-deployment {
-  security: {
-    wrpc: {
-      channels: {
-        network: [.quicTls13Mutual, .tls13Mutual]
-        ipc: [.ipcPeer]
-      }
-      identity: .unit(trustDomain: "last-light.production")
-      credentials: .capability("last-light/workload-identity")
-      trustRoots: .capability("last-light/workload-trust")
-      earlyData: .deny
-      handshake: {
-        pendingPerAuthority: 32
-        credentialBytes: 64KiB
-        helloBytes: 64KiB
-        interfaces: 128
-        compatibilityMaps: 64
-        timeout: 5<s>
-      }
-      lifecycle: {
-        maximumAge: 1<h>
-        drainTimeout: 5<s>
-        revocation: .terminate
-      }
-    }
-  }
-}
-```
+| Campo | Contrato |
+|---|---|
+| `artifacts` | products ou releases reproduzíveis |
+| `placement` | unit para host |
+| `bindings` e `adapters` | imports, providers e roles já permitidos |
+| `limits` | reduções por unit, supervisor e service edge |
+| `security.wrpc` | channels, peer identity, credentials, trust, handshake e lifecycle |
 
 `deployment.w` é um plano data-only. `.product(...)` referencia uma recipe
 reproduzível. `w deploy resolve` grava cada artifact e unit por digest em
@@ -14225,11 +14009,8 @@ Artifact, packing, deployment e adapter digests aparecem em trace, audit e
 crash report. Duas instalações podem usar os mesmos bytes e configurações
 distintas sem perder observabilidade.
 
-Fontes primárias:
-
-- [Wasm Components e composição por imports/exports](https://component-model.bytecodealliance.org/design/components.html);
-- [WIT worlds como contracts de imports e exports](https://component-model.bytecodealliance.org/design/worlds.html);
-- [OCI manifests e indexes content-addressed](https://github.com/opencontainers/image-spec/blob/main/manifest.md).
+Precedentes e fontes ficam em
+[`RATIONALE.md`](RATIONALE.md#16-services-packing-e-deployment).
 
 #### 13.8.5 Versionamento e rolling update
 
