@@ -31,7 +31,7 @@ struct CallableObservation {
 
 alias ErasedWelcomeRoute = any Callable<Arrival, Welcome>
 
-fn standardWelcome(arrival: Arrival): Welcome {
+fn standardWelcome(arrival: Arrival = Arrival(orderId: 0)): Welcome {
   return Welcome(orderId: arrival.orderId, gate: 1)
 }
 

@@ -6,7 +6,9 @@
   "r0Cases": [
     "R0-callable-representations",
     "R0-callable-modes",
-    "R0-erasure-storage"
+    "R0-erasure-storage",
+    "R0-positional-callable-value",
+    "R0-invariant-callable-signature"
   ],
   "sourceBase": {
     "path": "../../../reference/last-light/callables.w",
@@ -19,11 +21,13 @@
       "role": "selected",
       "language": "w",
       "path": "separated.w",
-      "digest": "sha256:d79623a7c27f01c532f88863b41bdc84a4ff02ba1d7a3786223b107abaa1d05c",
+      "digest": "sha256:2d0e71300dda8554c19ee162bab7c4cb85dc541c05fe59c600ffbe40a94274e2",
       "changedConstructs": [
         "fn, some fn, and any fn expose representation",
         "fn, mut fn, and take fn expose environment access",
-        "try erase exposes allocator choice and recoverable allocation failure"
+        "try erase exposes allocator choice and recoverable allocation failure",
+        "stored function values omit declaration labels and defaults",
+        "parameter, ownership, result, and error contracts stay invariant"
       ]
     },
     {
@@ -31,7 +35,7 @@
       "role": "alternative",
       "language": "w-rejected",
       "path": "unified.w",
-      "digest": "sha256:28fe7f92ceab075e38d664348b6bfa1875da0dc9c73d0ec31120b244dcd5586f",
+      "digest": "sha256:2dd24e6a7aab73c901d0bd3f88560b5fe46d48c0ab0ed7796113f1a1f0017aff",
       "changedConstructs": [
         "one fn spelling accepts thin and capturing callables",
         "mutation and consumption are absent from the callable type",
@@ -43,7 +47,7 @@
       "role": "alternative",
       "language": "w-alternative",
       "path": "protocols.w",
-      "digest": "sha256:296f451c2bb6675ff5fe03fd798ec7f9e997026335195146c3fca0de99a6493a",
+      "digest": "sha256:8e16706062055c6bd1a33b9a0fe06b02c6dfc7e0dca8f6b8781a2b4ef89df0b1",
       "changedConstructs": [
         "Callable, MutableCallable, and ConsumingCallable are nominal protocols",
         "call uses a protocol method and nominal conformance",
@@ -81,7 +85,7 @@
   "tasks": [
     {
       "kind": "explain",
-      "instruction": "For each callable, identify capture, representation, dispatch, repeated access, exclusive access, consumption, and possible allocation."
+      "instruction": "For each callable, identify capture, representation, dispatch, repeated access, exclusive access, consumption, possible allocation, value-call labels, defaults, and signature compatibility."
     },
     {
       "kind": "recall",
@@ -120,7 +124,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:7095067bee7f425b6c2346b9ae9ea1556de4c625bf66c1b2b624d72a581284fc"
+    "digest": "sha256:2841f7c7ccb738613408fa00e2ed35948fa20400f4268696ba3c083ac0f86efa"
   },
   "evidence": {
     "current": ["tree-sitter-parse", "host-oracle"],

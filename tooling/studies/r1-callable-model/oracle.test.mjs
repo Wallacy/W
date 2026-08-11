@@ -45,6 +45,27 @@ function protocolContract(input) {
   };
 }
 
+function functionValueSurface({ declarationLabel, hasDefault }) {
+  return {
+    declarationLabel,
+    declarationHasDefault: hasDefault,
+    storedType: "fn(Arrival): Welcome",
+    storedLabels: [],
+    storedDefaults: [],
+    invocation: "greeter(arrival)",
+    omittedArgumentAccepted: false,
+  };
+}
+
+function callableCompatibility(actual, expected) {
+  for (const field of ["parameter", "ownership", "result", "error"]) {
+    if (actual[field] !== expected[field]) {
+      return { status: "rejected", reason: `${field}-invariant` };
+    }
+  }
+  return { status: "accepted" };
+}
+
 describe("R1 callable-model host oracle", () => {
   const inputs = [
     { gate: 2, initial: 40, orderIds: [7, 8, 9] },
@@ -80,5 +101,39 @@ describe("R1 callable-model host oracle", () => {
     expect(separatedContract(input).erasureFailure).toBe("allocation-error");
     expect(protocolContract(input).erasureFailure).toBe("allocation-error");
     expect(unifiedContract(input).erasureFailure).toBe("not-recoverable");
+  });
+
+  test("function values keep parameter types but not declaration labels or defaults", () => {
+    expect(functionValueSurface({ declarationLabel: "arrival", hasDefault: true })).toEqual({
+      declarationLabel: "arrival",
+      declarationHasDefault: true,
+      storedType: "fn(Arrival): Welcome",
+      storedLabels: [],
+      storedDefaults: [],
+      invocation: "greeter(arrival)",
+      omittedArgumentAccepted: false,
+    });
+  });
+
+  test("callable parameter result ownership and error contracts are invariant", () => {
+    const exact = {
+      parameter: "Payment",
+      ownership: "value",
+      result: "Receipt",
+      error: "PaymentError",
+    };
+    expect(callableCompatibility(exact, { ...exact })).toEqual({ status: "accepted" });
+    expect(callableCompatibility({ ...exact, parameter: "CardPayment" }, exact)).toEqual({
+      status: "rejected",
+      reason: "parameter-invariant",
+    });
+    expect(callableCompatibility({ ...exact, result: "AnyReceipt" }, exact)).toEqual({
+      status: "rejected",
+      reason: "result-invariant",
+    });
+    expect(callableCompatibility({ ...exact, error: "Error" }, exact)).toEqual({
+      status: "rejected",
+      reason: "error-invariant",
+    });
   });
 });
