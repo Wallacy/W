@@ -15156,12 +15156,12 @@ ambiental.
 
 | Família WinterTC 2025 | Contrato W | Estado de design |
 |---|---|---|
-| Fetch | `fetch`, `Request`, `Response`, `Headers` | núcleo SDK0 fechado em 14.3.1–14.3.3; `BodySource` usa quatro cases; Blob e FormData permanecem profile-final; readiness deriva dos requisitos e carriers catalogados |
+| Fetch | `fetch`, `Request`, `Response`, `Headers` | núcleo SDK0 fechado em 14.3.1–14.3.3; `BodySource` usa seis cases, inclusive Blob e FormData; readiness deriva dos requisitos e carriers catalogados |
 | URL | `URL`, `URLSearchParams` | draft interface fechada; provider executável ausente; `URLPattern` não entra no SDK0 |
 | Streams | readable, writable, transform, BYOB e queuing strategies | `ReadableStream` e BYOB têm draft em 14.3.4; provider executável ausente; writable, transform e strategies continuam sem interface SDK0 |
 | cancellation e events | `AbortController`, `AbortSignal`, `Event`, `EventTarget` | `std.abort` tem draft em 14.3.5; events gerais continuam pesquisa |
 | encoding e compression | text encoders/decoders e compression streams | alvo domain; algorithms e error policy precisam de catálogo |
-| binary e files | `Blob` e `File` | alvo domain; backing store, lifetime e limits precisam de contrato |
+| binary e files | `Blob` e `File` | `std.blob.Blob` é um value imutável; File e filesystem authority continuam pesquisa |
 | messaging | `MessageChannel`, `MessagePort` e structured clone | channels W são base; o clone compatível não é universal |
 | crypto | `Crypto`, `CryptoKey` e `SubtleCrypto` | façade Web sobre capability crypto; keys continuam non-extractable por policy |
 | clock e scheduling | performance, timers e `queueMicrotask` | clock/timer mapeiam para std W; microtask não vira scheduler universal |
@@ -15195,16 +15195,17 @@ privados. Eles não atendem `Copy` ou `Duplicable`. `Drop` libera cada handle um
 vez. Cada operação consuming torna o handle inerte antes de suspender ou
 propagar um outcome.
 
-O body SDK0 é o sum type público `BodySource` com somente estes cases:
+O body SDK0 é o sum type público `BodySource` com estes cases:
 
 ```text
 string(String)
 bytes(Bytes)
 urlSearchParams(URLSearchParams)
+blob(Blob)
+formData(FormData)
 stream(ReadableStream<Bytes, HttpBodyError>)
 ```
 
-`Blob` e `FormData` permanecem profile-final e não recebem stubs neste bundle.
 `RequestInit` constrói por URL String ou URL e usa fields opcionais. Ausência
 seleciona os defaults Fetch. `RequestOverride` consome um `Request` e usa
 `BodyOverride { inherit, none, replace(BodySource) }`, sem nested `Option`.
@@ -15227,15 +15228,17 @@ ou escolhe default, `value(String)` define metadata e `.some(.none)` em
 `Request` expõe method, URL, Headers, AbortSignal, `bodyUsed` e as policies como
 projeções read-only. Todo Request é immutable; borrow checking rejeita mutation
 direta e o guard `immutable` do adapter é defesa adicional. `body()`, `bytes`,
-`text` e `json` consomem o owner. Cada leitura materializada exige
-`maximumBytes` ou `json.Limits`. `clone(maximumBufferedBytes:)` consome o owner,
-usa tee bounded e devolve dois Requests ou `BodyCloneError`.
+`text`, `blob`, `formData` e `json` consomem o owner. Cada leitura
+materializada exige `maximumBytes`, `FormDataLimits` ou `json.Limits`.
+`clone(maximumBufferedBytes:)` consome o owner, usa tee bounded e devolve dois
+Requests ou `BodyCloneError`.
 
 `Response` observa status `0..<600`, `ok`, statusText, Headers, URL opcional,
 redirected, type, `bodyUsed` e body. Constructors normais aceitam somente
 `200..<600`. `Response.error()` cria status zero. Constructors ergonômicos
-aceitam body ausente, String, Bytes, URLSearchParams, ReadableStream ou
-`BodySource`. Status 204, 205 e 304 rejeitam body. `Response.json` exige
+aceitam body ausente, String, Bytes, URLSearchParams, Blob, FormData,
+ReadableStream ou `BodySource`. Status 204, 205 e 304 rejeitam body.
+`Response.json` exige
 `json.Encodable`, usa `json.encode` comum com profile `interoperable` por
 default, mapeia `json.EncodeError` para `ResponseError.encoding` e adiciona
 `application/json` somente quando o header está ausente. `Request.json` e
@@ -15272,8 +15275,9 @@ antes de Response produz 500 fixo do host profile, sem payload do error.
 
 **Rejeitado por enquanto:** `BodyInit` universal com `T??`, clone non-consuming
 ou tee sem bound, Context ambiental/string lookup/global, um segundo modelo de
-HTTP server-side, Blob/FormData parcial e JSON de domínio lossy para contornar
-Quantity/SI. Schemas `Command`, `AppResponse` e `WifiSession` continuam targets
+HTTP server-side, um Blob com authority ambiental, um multipart sem limits e
+JSON de domínio lossy para contornar Quantity/SI. Schemas `Command`,
+`AppResponse` e `WifiSession` continuam targets
 separados. A policy wire de Quantity/SI está fechada por W-903. Os witnesses de
 `Command`, `AppResponse` e `WifiSession` permanecem trabalho seguinte.
 
@@ -15714,6 +15718,82 @@ não substitui WPT nem autoriza divergência.
 URL antes do handler, então o programa não repete parse. A qualificação extra
 preserva a prova de parse e a estrutura canônica.
 
+##### Blob e FormData
+
+**W-1280 — Blob é composição de ownership:** `std.blob.Blob` contém um
+`shared Bytes` imutável, uma faixa checked e o media type normalizado. O tipo
+não contém path, file descriptor, URL ou registry key e não concede authority.
+O primeiro constructor move `Bytes` para o backing; `copy blob` retém o owner
+de forma explícita. `slice` cria outro owner sobre uma subfaixa e não copia o
+payload. O range fora do Blob é `BlobError.invalidRange`, não clamp silencioso.
+
+`Blob.size` é conhecido. `bytes(maximumBytes:)` e
+`text(maximumBytes:)` são síncronos porque o Blob corrente é um snapshot em
+memória. `text` segue o File API e substitui maximal subparts UTF-8 inválidas
+por U+FFFD. `stream(chunkBytes:)` cria um cursor independente e bounded sobre o
+mesmo backing. Blob também atende a `SnapshotByteSource`; reads posicionais
+podem executar em paralelo sem alterar o value.
+
+O media type conserva o nome Web `type`. O constructor e `slice` aceitam
+String, exigem somente bytes ASCII `0x20...0x7e`, convertem ASCII uppercase para
+lowercase e usam String vazia quando o input contém outro byte. Essa
+normalização é value logic e não um parser MIME geral. `std.blob` não cria um
+provider ou uma façade `File`. Um futuro File precisa fechar snapshot de disco,
+metadata, authority e I/O antes de converter explicitamente para Blob.
+
+**W-1281 — FormData separa lista lógica de multipart wire:**
+`std.http.FormData` é uma lista owned, ordenada e duplicável explicitamente.
+Ela preserva nomes repetidos, nomes vazios e insertion order. Cada value é
+String ou `Blob` com filename owned. O filename default de Blob é `"blob"` e
+nunca é interpretado como path. `append` adiciona ao final. `set` substitui a
+primeira ocorrência, remove as posteriores e adiciona ao final quando o nome
+não existe. `delete` remove todas as ocorrências. Failure deixa a lista antiga
+válida.
+
+**W-1282 — multipart é bounded antes do attachment:** `FormDataLimits` limita
+entries, name, filename, text, Blob, payload lógico e bytes codificados. O total
+lógico inclui names, filenames e values retidos. Cada mutation valida esses
+limites antes de publicar a nova lista. O adapter valida também o tamanho
+multipart conservador e o menor
+`MessageLimits` antes de publicar Request ou Response. Arithmetic de tamanho é
+checked; não existe truncation, collect implícito ou crescimento sem bound.
+
+Somente `std.http` transforma FormData em
+`multipart/form-data`. O provider cria uma boundary de 27 a 70 bytes com pelo
+menos 95 bits de entropy, serializa a lista na ordem, normaliza quebras de linha
+e escapa nomes e filenames conforme Fetch/HTML. O source não escolhe a boundary.
+Um header `Content-Type` fornecido junto de FormData é rejeitado com
+`FormDataError.contentTypeControlled`, pois poderia separar a boundary do body.
+Para wire bytes controlados pelo programa, o caller usa Bytes ou stream.
+
+O encoder conhece o tamanho de cada Blob e transmite seus ranges com
+backpressure. Cada chunk pode virar um `Bytes` owned; o encoder não materializa
+o multipart completo. A boundary é dado de
+runtime e não entra em build reproducibility. A serialização é canônica para a
+boundary selecionada; logs e signatures que exigem bytes idênticos precisam
+usar um body explícito.
+
+**W-1283 — o Body Web usa seis carriers fechados:**
+`take request.formData(limits:)` e a forma de Response consomem o body e aceitam
+somente `multipart/form-data` ou `application/x-www-form-urlencoded`.
+Multipart file parts viram Blob + filename; campos comuns viram String.
+Multipart exige uma boundary válida; URL-encoded produz somente String.
+Malformed input, media type incorreto e limites usam `FormDataError` dentro de
+`BodyDecodeError`. `take request.blob(maximumBytes:)` preserva Content-Type
+normalizado no Blob.
+
+As referências normativas são o
+[File API](https://w3c.github.io/FileAPI/), o
+[FormData Standard](https://xhr.spec.whatwg.org/#interface-formdata) e o
+[Fetch Standard](https://fetch.spec.whatwg.org/#bodyinit-unions). O baseline
+server-side também mantém Blob e FormData no
+[Minimum Common API](https://min-common-api.proposal.wintertc.org/). W adapta
+constructors dinâmicos e Promise para overloads, ownership e errors tipados.
+
+WB0 liga essas decisões a casos host positivos e negativos para range, retain,
+limites lógicos completos, mutation rollback, boundary, attachment e parse. O
+oracle valida o design; ele não executa W nem implementa o codec multipart.
+
 `BodySource` é o sum type público de body. Ele não é um object apagado:
 
 | Input | Ownership | Media type automático | Estado SDK0 |
@@ -15721,10 +15801,11 @@ preserva a prova de parse e a estrutura canônica.
 | `String` | move; UTF-8 | `text/plain;charset=UTF-8` | SDK0 draft |
 | `Bytes` | move; sem cópia obrigatória | nenhum | SDK0 draft |
 | `URLSearchParams` | move | form URL encoded UTF-8 | draft em `std.url` |
+| `Blob` | move; backing imutável retido | `Blob.type` quando não vazio | draft em `std.blob` |
+| `FormData` | move | multipart + boundary controlada pelo host | draft em `std.http` |
 | `ReadableStream<Bytes, HttpBodyError>` | move | nenhum | draft em `std.stream`; provider ausente |
 
-Blob e FormData permanecem no profile final. Eles entram no source somente com
-backing store, limits e corpora. String, Bytes e stream usam o mesmo constructor
+String, Bytes, URLSearchParams, Blob, FormData e stream usam o mesmo constructor
 de Request ou Response.
 
 `BodyOverride` possui `inherit`, `none` e `replace(BodySource)`. Essa forma
@@ -15732,11 +15813,10 @@ separa herança de remoção sem nested `Option`.
 
 O body atende a `ByteSource<HttpBodyError>` e só pode ser consumido uma vez.
 Na superfície web, ele também se apresenta como
-`ReadableStream<Bytes, HttpBodyError>`. `json`, `bytes` e `text` conservam os
-nomes do Body mixin. Cada método exige um limite e consome o receiver com
-`take`. O programa usa o stream quando não deseja materializar o body.
-`formData` e `blob` não possuem declarations SDK0 e não ganham stubs neste
-bundle.
+`ReadableStream<Bytes, HttpBodyError>`. `json`, `bytes`, `text`, `blob` e
+`formData` conservam os nomes do Body mixin. Cada método que materializa ou
+decodifica exige um limite e consome o receiver com `take`. O programa usa o
+stream quando não deseja materializar o body.
 
 `arrayBuffer` é `notApplicable` porque W não possui o carrier ECMAScript
 `ArrayBuffer`. `bytes` devolve o owner W `Bytes` e preserva os mesmos bytes.
@@ -15773,7 +15853,7 @@ fornecer um body disturbed ou locked. W devolve `HttpBodyError.alreadyUsed` ou
 `.locked`. Cancellation devolve `.aborted`.
 
 Body ausente produz bytes e texto vazios. JSON vazio produz error do codec.
-Blob e FormData entram somente depois de storage, limits e errors fechados.
+Blob vazio continua um Blob válido. FormData exige um media type suportado.
 
 W não oferece cópia implícita de `Request`. A operação adaptada é:
 
@@ -15978,7 +16058,7 @@ Questões ainda não provadas:
 
 1. `std.abort-state@1` ainda precisa de implementação e conformance;
 2. `std.readable-stream@1` ainda precisa de implementação e conformance;
-3. Blob e FormData precisam de backing store, limits e corpus;
+3. multipart precisa de differential corpus, fuzzing e provider real;
 4. um iterator borrowed só entra se provar vantagem sem invalidation;
 5. peers legacy precisam de corpus para medir rejeição por UTF-8.
 
@@ -15993,8 +16073,8 @@ superfície W.
 
 #### 14.3.2 Response, streaming e commit
 
-**Exemplo:** `Response` recebe qualquer `BodySource` aceito. String, bytes e stream
-mantêm o mesmo constructor:
+**Exemplo:** `Response` recebe qualquer `BodySource` aceito. String, bytes,
+Blob, FormData e stream mantêm o mesmo constructor:
 
 ```w
 var headers = http.Headers()
@@ -16026,6 +16106,8 @@ A interface lógica contém:
 Response(take body: BodySource? = none, status: StatusCode = StatusCode.ok,
   statusText: String = "", take headers: Headers = Headers())
   -> Response throws ResponseError
+Response(take body: Blob, ...) -> Response throws ResponseError
+Response(take body: FormData, ...) -> Response throws ResponseError
 Response.error() -> Response
 Response.json<Value: json.Encodable>(
   ref Value,
@@ -16051,6 +16133,9 @@ statusText: view String
 headers: Headers
 body(): ReadableStream<Bytes, HttpBodyError>?
 bodyUsed: Bool
+take blob(maximumBytes: usize<(1...)>) -> Blob throws HttpBodyError
+take formData(limits: FormDataLimits) -> FormData
+  throws BodyDecodeError<FormDataError>
 
 take clone(maximumBufferedBytes: usize<(1...)>)
   -> (Response, Response) throws BodyCloneError
@@ -16083,7 +16168,8 @@ ausente. Um handler não pode enviar esse owner como resposta HTTP final. O host
 produz `invalidServerResponse` antes do commit.
 
 Constructors públicos normais validam `200..<600`. Body ausente, String, Bytes,
-URLSearchParams, ReadableStream e `BodySource` possuem overloads ergonômicos.
+URLSearchParams, Blob, FormData, ReadableStream e `BodySource` possuem overloads
+ergonômicos.
 Status 204, 205 e 304 rejeita qualquer body com
 `ResponseError.bodyNotAllowed`. `Response.json` usa `json.encode` comum sobre
 `ref Value`, mapeia encoding e header failures para `ResponseError` e adiciona
@@ -16098,8 +16184,8 @@ define static constructors, properties e clone. W troca `any` por
 `json.Encodable` e exceptions por errors tipados.
 
 `ResponseError` separa syntax, header guard, header limit na attachment, JSON
-encoding, body proibido e response inválido para server. Status, statusText e
-headers são validados antes de criar o owner.
+encoding, FormData, body proibido e response inválido para server. Status,
+statusText e headers são validados antes de criar o owner.
 
 #### 14.3.2.1 Erros de documento HTTP
 
@@ -16141,9 +16227,9 @@ Um body String usa UTF-8 e recebe o media type padrão do Fetch Standard. HTML
 exige `content-type` explícito. Bytes e streams não são copiados pelo
 constructor.
 
-`Response` inclui as operações `bytes`, `text` e `json` do Body comum. Cada
-operação consome o owner e exige limite. JSON usa
-`BodyDecodeError<json.DecodeError>`; text e bytes usam `HttpBodyError`. `arrayBuffer` é
+`Response` inclui `bytes`, `text`, `blob`, `formData` e `json` do Body comum.
+Cada operação consome o owner e exige limite. JSON e FormData preservam codec
+error separado; text, bytes e Blob usam `HttpBodyError`. `arrayBuffer` é
 `notApplicable`; `bytes` devolve o carrier W sem o object model ECMAScript.
 
 Clone consome um owner e devolve dois. Metadata e headers são duplicados. O body
@@ -16213,7 +16299,7 @@ precisa fechar validation, commit e failure antes dessa superfície.
 Questões ainda não provadas:
 
 1. o provider executável de ReadableStream e o codec JSON ainda estão ausentes;
-2. Blob e FormData ainda não possuem contracts de storage e limits;
+2. o codec multipart ainda precisa de provider, WPT, fuzzing e differential;
 3. fixed-length stream precisa de contrato antes de controlar Content-Length;
 4. trailers precisam de corpus para HTTP/1.1, HTTP/2, HTTP/3 e WASI HTTP.
 
@@ -17850,9 +17936,8 @@ uma relação `requires` não fecha enquanto seu requisito obrigatório estiver
 ausente. Os IDs do catálogo reutilizam o mesmo grafo de requisitos e carriers;
 eles não criam um segundo grafo de readiness.
 
-Oito requisitos de carrier tornam o bloqueio verificável. Seis possuem draft
-e dois continuam missing. Os carriers obrigatórios do núcleo Fetch têm
-interface draft. `Blob` e `FormData` continuam profile-final:
+Oito requisitos de carrier tornam o bloqueio verificável. Todos possuem
+interface draft. Os providers executáveis permanecem separados:
 
 | Carrier | Provider SDK0 | Interface | Provider executável |
 |---|---|---|---|
@@ -17862,12 +17947,12 @@ interface draft. `Blob` e `FormData` continuam profile-final:
 | `AbortSignal` | `std.abort` | obrigatório; draft | `std.abort-state@1`; missing |
 | `json.Encodable` e `json.Decodable` | `std.json` | obrigatório; draft | `std.json@1`; missing |
 | `net.ListenAddress` e `net.Network` | `std.net` | obrigatório para `serve`; draft | `std.net@1`; missing |
-| `Blob` | módulo ainda não decidido | profile final; missing | não aplicável |
-| `FormData` | `std.http` | profile final; missing | não aplicável |
+| `Blob` | `std.blob` | obrigatório; draft | composição W; não precisa de provider próprio |
+| `FormData` | `std.http` | obrigatório; draft | serializer/parser em `std.http@1`; missing |
 
-`required` participa da readiness do draft atual. `profile-final` preserva uma
-obrigação do profile, mas não inventa uma declaration parcial. Blob e FormData
-entram somente depois de storage, limits e errors.
+`required` participa da readiness do draft atual. Blob fecha storage, limits e
+errors por composição; FormData fecha a lista lógica em W e mantém somente o
+codec multipart no provider HTTP já exigido.
 
 O checker deriva readiness de cada export e de cada requisito explícito. Uma
 relação de export aponta somente IDs de requisito ou carrier existentes. Ela não
@@ -17883,10 +17968,10 @@ staging. A publicação do action-result pertence ao host depois do handler e n�
 é um effect do `Context`.
 
 O inventário de declarations está fechado para os módulos catalogados. O freeze
-mantém Blob e FormData como carriers ausentes, exige um segundo consumer antes
-de estabilidade e preserva todos os providers como gates pós-design. Interfaces
-emitidas pelo checker real substituirão os digests de source durante a
-implementação.
+exige evidence positiva e negativa dos seis BodySource, um segundo consumer
+antes de estabilidade e preserva todos os providers como gates pós-design.
+Interfaces emitidas pelo checker real substituirão os digests de source durante
+a implementação.
 
 Os rascunhos seguem a visibilidade da seção 6.2. `package` não é access
 modifier. Um struct com `init` explícito mantém fields privados sem modifier.
@@ -27909,8 +27994,8 @@ evidência de design:
 |---|---|---|
 | grammar e formatter | G0–G5, CST lossless, recovery, F0 idempotente e FB0 para body estrangeiro opaco | cobrir cada construção normalizada e fuzzar edits, recovery e limits do external scanner; scanners de adapters além de C são providers, não novas regras W |
 | checker e diagnostics | S0 integra type, effects, ownership, flow e evaluation; D0 fixa record e causalidade | ligar cada regra a success, inversão e campo de falha exato |
-| std | módulos possuem declarations e profiles; providers executáveis continuam missing | fechar carriers ausentes e validar cada superfície restante com outro consumer |
-| workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, sessão, notebook, dados e tensor interop | fechar import-root/dependency, rich display, DLPack real e latency gates |
+| std | módulos possuem declarations e profiles; os oito carriers Web possuem interface; providers executáveis continuam missing | validar adapters byte-exact, limits e cada superfície restante com outro consumer |
+| workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, sessão, notebook, apresentação, dados e tensor interop | fechar import-root/dependency, providers reais, DLPack real e latency gates |
 | targets e host profiles | target facts e availability não mudam a semântica comum; escapes de sistema têm authority única | fixar manifests e conformance de MMIO, interrupt, TLS, placement e assembly por target prometido |
 | ABI e metadata | L0 e WMeta fixam layout, container e readers de evidence | ligar wrappers ELF, Mach-O, COFF e Wasm ao container comum |
 | services, wire e recovery | B0 e SR0 fecham turn, gates, queue bounded, deduplication, recovery e faults; wWire tem baseline | fechar wire byte-exact, flow control e adapters reais com fault injection |

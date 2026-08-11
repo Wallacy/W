@@ -1,0 +1,347 @@
+{
+  "$schema": "w-web-body-cases-1",
+  "status": "design-oracle-input",
+  "limits": {
+    "maximumEntries": 4,
+    "maximumNameBytes": 32,
+    "maximumFilenameBytes": 64,
+    "maximumTextBytes": 64,
+    "maximumBlobBytes": 1024,
+    "maximumPayloadBytes": 1024,
+    "maximumEncodedBytes": 4096
+  },
+  "cases": [
+    {
+      "id": "WB-POS-blob-type-normalized",
+      "kind": "positive",
+      "decisions": ["W-1280"],
+      "input": { "subject": "blob", "operation": "normalize", "type": "IMAGE/JPEG" },
+      "expect": { "accepted": true, "type": "image/jpeg" }
+    },
+    {
+      "id": "WB-POS-blob-type-invalid-becomes-empty",
+      "kind": "positive",
+      "decisions": ["W-1280"],
+      "input": { "subject": "blob", "operation": "normalize", "type": "text/🪐" },
+      "expect": { "accepted": true, "type": "" }
+    },
+    {
+      "id": "WB-POS-blob-explicit-copy-retains",
+      "kind": "positive",
+      "decisions": ["W-1280"],
+      "input": { "subject": "blob", "operation": "duplicate", "size": 1024, "explicitCopy": true },
+      "expect": { "accepted": true, "logicalOwners": 2, "payloadCopies": 0, "retainVisible": true }
+    },
+    {
+      "id": "WB-POS-blob-slice-retains-range",
+      "kind": "positive",
+      "decisions": ["W-1280"],
+      "input": { "subject": "blob", "operation": "slice", "size": 20, "start": 5, "end": 12 },
+      "expect": { "accepted": true, "start": 5, "size": 7, "payloadCopies": 0 }
+    },
+    {
+      "id": "WB-NEG-blob-range-outside",
+      "kind": "negative",
+      "decisions": ["W-1280"],
+      "input": { "subject": "blob", "operation": "slice", "size": 20, "start": 12, "end": 21 },
+      "expect": { "accepted": false, "reason": "invalidRange", "preservedSize": 20 }
+    },
+    {
+      "id": "WB-POS-blob-materialization-bounded",
+      "kind": "positive",
+      "decisions": ["W-1280", "W-1283"],
+      "input": { "subject": "blob", "operation": "materialize", "size": 64, "maximumBytes": 64 },
+      "expect": { "accepted": true, "copiedBytes": 64 }
+    },
+    {
+      "id": "WB-NEG-blob-materialization-limit",
+      "kind": "negative",
+      "decisions": ["W-1280", "W-1283"],
+      "input": { "subject": "blob", "operation": "materialize", "size": 65, "maximumBytes": 64 },
+      "expect": { "accepted": false, "reason": "limitExceeded", "preservedSize": 65 }
+    },
+    {
+      "id": "WB-POS-blob-stream-independent-cursor",
+      "kind": "positive",
+      "decisions": ["W-1280"],
+      "input": { "subject": "blob", "operation": "stream", "size": 10, "chunkBytes": 4 },
+      "expect": { "accepted": true, "independentCursor": true, "maximumChunkBytes": 4, "chunks": 3 }
+    },
+    {
+      "id": "WB-NEG-blob-stream-zero-bound",
+      "kind": "negative",
+      "decisions": ["W-1280"],
+      "input": { "subject": "blob", "operation": "stream", "size": 10, "chunkBytes": 0 },
+      "expect": { "accepted": false, "reason": "invalidChunkBound" }
+    },
+    {
+      "id": "WB-POS-form-append-preserves-repetition",
+      "kind": "positive",
+      "decisions": ["W-1281", "W-1282"],
+      "input": {
+        "subject": "formMutation",
+        "operation": "append",
+        "entries": [{ "name": "sensor", "kind": "text", "value": "Violet" }],
+        "entry": { "name": "sensor", "kind": "text", "value": "Patient" }
+      },
+      "expect": {
+        "accepted": true,
+        "entries": [
+          { "name": "sensor", "kind": "text", "value": "Violet" },
+          { "name": "sensor", "kind": "text", "value": "Patient" }
+        ]
+      }
+    },
+    {
+      "id": "WB-POS-form-set-replaces-first-and-removes-rest",
+      "kind": "positive",
+      "decisions": ["W-1281"],
+      "input": {
+        "subject": "formMutation",
+        "operation": "set",
+        "entries": [
+          { "name": "a", "kind": "text", "value": "1" },
+          { "name": "b", "kind": "text", "value": "2" },
+          { "name": "a", "kind": "text", "value": "3" }
+        ],
+        "entry": { "name": "a", "kind": "text", "value": "4" }
+      },
+      "expect": {
+        "accepted": true,
+        "entries": [
+          { "name": "a", "kind": "text", "value": "4" },
+          { "name": "b", "kind": "text", "value": "2" }
+        ]
+      }
+    },
+    {
+      "id": "WB-POS-form-delete-removes-all",
+      "kind": "positive",
+      "decisions": ["W-1281"],
+      "input": {
+        "subject": "formMutation",
+        "operation": "delete",
+        "name": "a",
+        "entries": [
+          { "name": "a", "kind": "text", "value": "1" },
+          { "name": "b", "kind": "text", "value": "2" },
+          { "name": "a", "kind": "text", "value": "3" }
+        ]
+      },
+      "expect": { "accepted": true, "entries": [{ "name": "b", "kind": "text", "value": "2" }] }
+    },
+    {
+      "id": "WB-NEG-form-entry-limit-preserves-list",
+      "kind": "negative",
+      "decisions": ["W-1281", "W-1282"],
+      "input": {
+        "subject": "formMutation",
+        "operation": "append",
+        "entries": [
+          { "name": "a", "kind": "text", "value": "1" },
+          { "name": "b", "kind": "text", "value": "2" },
+          { "name": "c", "kind": "text", "value": "3" },
+          { "name": "d", "kind": "text", "value": "4" }
+        ],
+        "entry": { "name": "e", "kind": "text", "value": "5" }
+      },
+      "expect": { "accepted": false, "reason": "entries" }
+    },
+    {
+      "id": "WB-NEG-form-payload-limit-preserves-list",
+      "kind": "negative",
+      "decisions": ["W-1281", "W-1282"],
+      "input": {
+        "subject": "formMutation",
+        "operation": "append",
+        "entries": [{ "name": "a", "kind": "blob", "size": 900, "filename": "a.bin" }],
+        "entry": { "name": "b", "kind": "blob", "size": 200, "filename": "b.bin" }
+      },
+      "expect": { "accepted": false, "reason": "payloadBytes" }
+    },
+    {
+      "id": "WB-NEG-form-payload-includes-entry-metadata",
+      "kind": "negative",
+      "decisions": ["W-1281", "W-1282"],
+      "input": {
+        "subject": "formMutation",
+        "operation": "append",
+        "limits": {
+          "maximumEntries": 4,
+          "maximumNameBytes": 32,
+          "maximumFilenameBytes": 64,
+          "maximumTextBytes": 64,
+          "maximumBlobBytes": 1024,
+          "maximumPayloadBytes": 4,
+          "maximumEncodedBytes": 4096
+        },
+        "entries": [],
+        "entry": { "name": "abc", "kind": "text", "value": "xy" }
+      },
+      "expect": { "accepted": false, "reason": "payloadBytes" }
+    },
+    {
+      "id": "WB-NEG-form-filename-limit",
+      "kind": "negative",
+      "decisions": ["W-1281", "W-1282"],
+      "input": {
+        "subject": "formMutation",
+        "operation": "append",
+        "entries": [],
+        "entry": {
+          "name": "image",
+          "kind": "blob",
+          "size": 10,
+          "filename": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "expect": { "accepted": false, "reason": "filenameBytes" }
+    },
+    {
+      "id": "WB-POS-form-attachment-streams-blob",
+      "kind": "positive",
+      "decisions": ["W-1282", "W-1283"],
+      "input": {
+        "subject": "formAttachment",
+        "entries": [
+          { "name": "station", "kind": "text", "value": "Milliways" },
+          { "name": "image", "kind": "blob", "size": 100, "filename": "horizon.jpg" }
+        ],
+        "headers": [],
+        "boundary": { "generatedByHost": true, "length": 48, "entropyBits": 128 },
+        "messageMaximumBytes": 4096
+      },
+      "expect": {
+        "accepted": true,
+        "published": true,
+        "entryOrder": ["station", "image"],
+        "streamedBlobParts": 1,
+        "materializedMultipart": false
+      }
+    },
+    {
+      "id": "WB-NEG-form-content-type-controlled",
+      "kind": "negative",
+      "decisions": ["W-1282", "W-1283"],
+      "input": {
+        "subject": "formAttachment",
+        "entries": [{ "name": "a", "kind": "text", "value": "1" }],
+        "headers": ["Content-Type"],
+        "boundary": { "generatedByHost": true, "length": 48, "entropyBits": 128 },
+        "messageMaximumBytes": 4096
+      },
+      "expect": { "accepted": false, "reason": "contentTypeControlled", "published": false }
+    },
+    {
+      "id": "WB-NEG-form-boundary-caller-provided",
+      "kind": "negative",
+      "decisions": ["W-1282"],
+      "input": {
+        "subject": "formAttachment",
+        "entries": [{ "name": "a", "kind": "text", "value": "1" }],
+        "headers": [],
+        "boundary": { "generatedByHost": false, "length": 48, "entropyBits": 128 },
+        "messageMaximumBytes": 4096
+      },
+      "expect": { "accepted": false, "reason": "invalidBoundaryEvidence", "published": false }
+    },
+    {
+      "id": "WB-NEG-form-encoded-message-limit",
+      "kind": "negative",
+      "decisions": ["W-1282"],
+      "input": {
+        "subject": "formAttachment",
+        "entries": [{ "name": "a", "kind": "blob", "size": 900, "filename": "a.bin" }],
+        "headers": [],
+        "boundary": { "generatedByHost": true, "length": 48, "entropyBits": 128 },
+        "messageMaximumBytes": 128
+      },
+      "expect": { "accepted": false, "reason": "encodedBytes", "published": false }
+    },
+    {
+      "id": "WB-POS-form-parse-multipart",
+      "kind": "positive",
+      "decisions": ["W-1281", "W-1283"],
+      "input": {
+        "subject": "formParse",
+        "mediaType": "multipart/form-data; boundary=host",
+        "encodedBytes": 512,
+        "entries": [{ "name": "image", "kind": "blob", "size": 100, "filename": "../horizon.jpg" }]
+      },
+      "expect": { "accepted": true, "consumed": true, "filenamesAreData": true, "pathAuthority": false }
+    },
+    {
+      "id": "WB-POS-form-parse-urlencoded",
+      "kind": "positive",
+      "decisions": ["W-1283"],
+      "input": {
+        "subject": "formParse",
+        "mediaType": "application/x-www-form-urlencoded",
+        "encodedBytes": 8,
+        "entries": [{ "name": "a", "kind": "text", "value": "1" }]
+      },
+      "expect": { "accepted": true, "consumed": true }
+    },
+    {
+      "id": "WB-NEG-form-parse-unsupported-media",
+      "kind": "negative",
+      "decisions": ["W-1283"],
+      "input": {
+        "subject": "formParse",
+        "mediaType": "application/json",
+        "encodedBytes": 2,
+        "entries": []
+      },
+      "expect": { "accepted": false, "reason": "unsupportedMediaType", "consumed": true }
+    },
+    {
+      "id": "WB-NEG-form-parse-malformed",
+      "kind": "negative",
+      "decisions": ["W-1283"],
+      "input": {
+        "subject": "formParse",
+        "mediaType": "multipart/form-data; boundary=host",
+        "encodedBytes": 16,
+        "entries": [],
+        "malformed": true
+      },
+      "expect": { "accepted": false, "reason": "malformed", "consumed": true }
+    },
+    {
+      "id": "WB-NEG-form-parse-multipart-without-boundary",
+      "kind": "negative",
+      "decisions": ["W-1282", "W-1283"],
+      "input": {
+        "subject": "formParse",
+        "mediaType": "multipart/form-data",
+        "encodedBytes": 16,
+        "entries": []
+      },
+      "expect": { "accepted": false, "reason": "malformed", "consumed": true }
+    },
+    {
+      "id": "WB-NEG-form-parse-urlencoded-blob",
+      "kind": "negative",
+      "decisions": ["W-1281", "W-1283"],
+      "input": {
+        "subject": "formParse",
+        "mediaType": "application/x-www-form-urlencoded",
+        "encodedBytes": 16,
+        "entries": [{ "name": "image", "kind": "blob", "size": 1, "filename": "a.bin" }]
+      },
+      "expect": { "accepted": false, "reason": "malformed", "consumed": true }
+    },
+    {
+      "id": "WB-NEG-form-parse-encoded-limit",
+      "kind": "negative",
+      "decisions": ["W-1282", "W-1283"],
+      "input": {
+        "subject": "formParse",
+        "mediaType": "multipart/form-data; boundary=host",
+        "encodedBytes": 4097,
+        "entries": []
+      },
+      "expect": { "accepted": false, "reason": "encodedBytes", "consumed": true }
+    }
+  ]
+}

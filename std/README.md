@@ -21,6 +21,8 @@ link.
 std/
   abort/
     contracts.w
+  blob/
+    contracts.w
   build/
     contracts.w
   cache/
@@ -131,6 +133,11 @@ materializa snapshots owned de `URLSearchParams` somente por call explícita.
 `editSearchParams` mantém a mutação do URL scoped. Os outros arquivos
 materializam values e protocols tipados.
 
+`blob/contracts.w` materializa Blob sem outro provider: `shared Bytes`
+imutável, faixa checked, media type normalizado, cópia/retain explícito,
+SnapshotByteSource e stream com cursor próprio. Blob não contém File, path,
+blob URL ou authority. Materializar bytes ou texto exige limite.
+
 `http/contracts.w` materializa o draft SDK0 de `Request`, `Response`,
 `Context` e a declaration de `serve`. Um único provider intrinsic `std.http@1` possui handles de
 mensagem, body, contexto e host. O provider continua missing até os gates
@@ -138,10 +145,11 @@ WHATWG Fetch, Streams integration, WPT Fetch/Headers, WinterTC/WinterCG,
 workerd differential, ownership/tee fault injection, admission/cancellation,
 ASan/TSan/leak e limits/fuzzing.
 
-`BodySource` aceita somente String, Bytes, URLSearchParams e
-`ReadableStream<Bytes, HttpBodyError>`. `Blob` e `FormData` permanecem
-profile-final. Request e Response são owners move-only. Reads e clone são
-consuming e bounded. `Request.json`/`Response.json` compõem `std.json` comum;
+`BodySource` aceita String, Bytes, URLSearchParams, Blob, FormData e
+`ReadableStream<Bytes, HttpBodyError>`. FormData é uma lista W ordered e
+bounded; somente `std.http@1` codifica ou decodifica multipart e escolhe a
+boundary. Request e Response são owners move-only. Reads e clone são consuming
+e bounded. `Request.json`/`Response.json` compõem `std.json` comum;
 o valor de `Response.json` é borrowed. `http.Context` expõe wrappers tipados
 para random, databases, caches, templates e signal. Registries usam bindings
 const infallible resolvidos no link/startup e retornam `some` protocol owners.

@@ -1,0 +1,27 @@
+{"id":"WB-POS-blob-type-normalized","kind":"positive","decisions":["W-1280"],"result":{"accepted":true,"type":"image/jpeg"}}
+{"id":"WB-POS-blob-type-invalid-becomes-empty","kind":"positive","decisions":["W-1280"],"result":{"accepted":true,"type":""}}
+{"id":"WB-POS-blob-explicit-copy-retains","kind":"positive","decisions":["W-1280"],"result":{"accepted":true,"logicalOwners":2,"payloadCopies":0,"retainVisible":true}}
+{"id":"WB-POS-blob-slice-retains-range","kind":"positive","decisions":["W-1280"],"result":{"accepted":true,"start":5,"size":7,"payloadCopies":0,"type":""}}
+{"id":"WB-NEG-blob-range-outside","kind":"negative","decisions":["W-1280"],"result":{"accepted":false,"reason":"invalidRange","preservedSize":20}}
+{"id":"WB-POS-blob-materialization-bounded","kind":"positive","decisions":["W-1280","W-1283"],"result":{"accepted":true,"copiedBytes":64,"size":64}}
+{"id":"WB-NEG-blob-materialization-limit","kind":"negative","decisions":["W-1280","W-1283"],"result":{"accepted":false,"reason":"limitExceeded","preservedSize":65}}
+{"id":"WB-POS-blob-stream-independent-cursor","kind":"positive","decisions":["W-1280"],"result":{"accepted":true,"independentCursor":true,"maximumChunkBytes":4,"chunks":3,"payloadCopies":10}}
+{"id":"WB-NEG-blob-stream-zero-bound","kind":"negative","decisions":["W-1280"],"result":{"accepted":false,"reason":"invalidChunkBound"}}
+{"id":"WB-POS-form-append-preserves-repetition","kind":"positive","decisions":["W-1281","W-1282"],"result":{"accepted":true,"entries":[{"name":"sensor","kind":"text","value":"Violet"},{"name":"sensor","kind":"text","value":"Patient"}],"payloadBytes":25}}
+{"id":"WB-POS-form-set-replaces-first-and-removes-rest","kind":"positive","decisions":["W-1281"],"result":{"accepted":true,"entries":[{"name":"a","kind":"text","value":"4"},{"name":"b","kind":"text","value":"2"}],"payloadBytes":4}}
+{"id":"WB-POS-form-delete-removes-all","kind":"positive","decisions":["W-1281"],"result":{"accepted":true,"entries":[{"name":"b","kind":"text","value":"2"}],"payloadBytes":2}}
+{"id":"WB-NEG-form-entry-limit-preserves-list","kind":"negative","decisions":["W-1281","W-1282"],"result":{"accepted":false,"reason":"entries","entries":[{"name":"a","kind":"text","value":"1"},{"name":"b","kind":"text","value":"2"},{"name":"c","kind":"text","value":"3"},{"name":"d","kind":"text","value":"4"}]}}
+{"id":"WB-NEG-form-payload-limit-preserves-list","kind":"negative","decisions":["W-1281","W-1282"],"result":{"accepted":false,"reason":"payloadBytes","entries":[{"name":"a","kind":"blob","size":900,"filename":"a.bin"}]}}
+{"id":"WB-NEG-form-payload-includes-entry-metadata","kind":"negative","decisions":["W-1281","W-1282"],"result":{"accepted":false,"reason":"payloadBytes","entries":[]}}
+{"id":"WB-NEG-form-filename-limit","kind":"negative","decisions":["W-1281","W-1282"],"result":{"accepted":false,"reason":"filenameBytes","entries":[]}}
+{"id":"WB-POS-form-attachment-streams-blob","kind":"positive","decisions":["W-1282","W-1283"],"result":{"accepted":true,"published":true,"contentType":"multipart/form-data; boundary=<host>","encodedBytes":584,"entryOrder":["station","image"],"streamedBlobParts":1,"materializedMultipart":false}}
+{"id":"WB-NEG-form-content-type-controlled","kind":"negative","decisions":["W-1282","W-1283"],"result":{"accepted":false,"reason":"contentTypeControlled","published":false}}
+{"id":"WB-NEG-form-boundary-caller-provided","kind":"negative","decisions":["W-1282"],"result":{"accepted":false,"reason":"invalidBoundaryEvidence","published":false}}
+{"id":"WB-NEG-form-encoded-message-limit","kind":"negative","decisions":["W-1282"],"result":{"accepted":false,"reason":"encodedBytes","published":false}}
+{"id":"WB-POS-form-parse-multipart","kind":"positive","decisions":["W-1281","W-1283"],"result":{"accepted":true,"consumed":true,"entries":[{"name":"image","kind":"blob","size":100,"filename":"../horizon.jpg"}],"filenamesAreData":true,"pathAuthority":false}}
+{"id":"WB-POS-form-parse-urlencoded","kind":"positive","decisions":["W-1283"],"result":{"accepted":true,"consumed":true,"entries":[{"name":"a","kind":"text","value":"1"}],"filenamesAreData":true,"pathAuthority":false}}
+{"id":"WB-NEG-form-parse-unsupported-media","kind":"negative","decisions":["W-1283"],"result":{"accepted":false,"reason":"unsupportedMediaType","consumed":true}}
+{"id":"WB-NEG-form-parse-malformed","kind":"negative","decisions":["W-1283"],"result":{"accepted":false,"reason":"malformed","consumed":true}}
+{"id":"WB-NEG-form-parse-multipart-without-boundary","kind":"negative","decisions":["W-1282","W-1283"],"result":{"accepted":false,"reason":"malformed","consumed":true}}
+{"id":"WB-NEG-form-parse-urlencoded-blob","kind":"negative","decisions":["W-1281","W-1283"],"result":{"accepted":false,"reason":"malformed","consumed":true}}
+{"id":"WB-NEG-form-parse-encoded-limit","kind":"negative","decisions":["W-1282","W-1283"],"result":{"accepted":false,"reason":"encodedBytes","consumed":true}}

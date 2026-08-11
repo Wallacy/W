@@ -62,6 +62,12 @@ TAB1 telemetry / data_formats.w
   → `String?` view somente no scope; `copy` materializa owner
   → nested/custom exige projeção tipada, adapter ou materialização explícita
 
+Web bodies / web_bodies.w
+  → Blob compõe shared Bytes imutável
+  → FormData preserva ordem e campos repetidos
+  → Request/Response movem o body
+  → multipart fica bounded e escolhe boundary no adapter
+
 last-light-observatory / LastLightObservatory
   → swarm de satélites e sensores do horizonte
   → duas calls concorrentes com join estruturado
@@ -214,6 +220,7 @@ alvo de execução independente.
 | `gateway.w` | dispatch, routing por URL, body único e oracle de compile surface para clone bounded |
 | `http_documents.w` | adapters direcionais de Command/AppResponse e Problem Details |
 | `http_oracle.w` | constructors, limits, consuming reads, bounded clone, JSON, copied-headers override e net serve signature |
+| `web_bodies.w` | Blob imutável, FormData ordered, upload multipart bounded e Response binária |
 | `service_oracle.w` | seleção de link, camadas de boundary, commit gate, pipeline e evolução de schema |
 | `session_security_oracle.w` | channel, transcript, 0-RTT e replay de session wRPC |
 | `capability_security_oracle.w` | root grants, attenuation, delegation e revocation |
@@ -2094,7 +2101,14 @@ de um tipo simples `json.Codable`, a cópia explícita de incoming headers via
 `RequestOverride` e a assinatura de `serve` com carriers `net`. O caminho de
 produção não chama esse helper, e o corpus
 não alega execução enquanto `std.http@1` e os carriers executáveis estão
-missing. `http_documents.w` valida os tagged documents de Command e encoda cada
+missing. `web_bodies.w` fecha os dois carriers Web restantes. Blob usa
+`shared Bytes` em W e não adiciona provider. FormData mantém a lista lógica,
+enquanto `std.http@1` continua responsável pelo parser/serializer multipart,
+boundary e admission. Os testes puros cobrem media type, faixa, repetição,
+ordem e rollback de mutation; as rotas Request/Response continuam
+provider-gated. O corpus WB0 em `tooling/web-body-cases.json` deriva 24 casos
+positivos e negativos sem chamar o modelo de compiler ou provider.
+`http_documents.w` valida os tagged documents de Command e encoda cada
 AppResponse com order canônica. Os adapters são endpoint-owned/dedicated:
 exportar sua plumbing para o host não cria `json.Codable` nos types de domínio
 nem transforma o schema local em contrato global. Seus Problem Details usam
@@ -2160,6 +2174,11 @@ Aceite:
   alegar execução runtime;
 - `benchmark_app.w` anexa `Headers` ao `Response` HTML;
 - JSON usa `Response.json` e 204 usa `Response` sem body;
+- Blob copia somente por `copy`, slices retêm bytes imutáveis e toda
+  materialização recebe limite;
+- FormData preserva insertion order e nomes repetidos; mutation recusada não
+  altera a lista;
+- source FormData não define multipart boundary nem `Content-Type`;
 - a consulta de pedidos usa QUERY e não GET com content ou POST genérico;
 - construção textual usa `append` no próprio `String`, sem um `StringBuilder`
   público;

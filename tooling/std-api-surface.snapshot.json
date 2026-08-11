@@ -1,18 +1,18 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "d9468436c939f91e80f0031b5cad13ec0baeb64ab9ca882e6ef95b0a36c3ec61",
+  "catalogDigest": "dc9d0c662c0a73e7d6e02447d3aaa02dc2f6e7e500453324df7f278bc86876e8",
   "summary": {
-    "modules": 24,
-    "catalogedApis": 326,
-    "draftCatalogedApis": 326,
+    "modules": 25,
+    "catalogedApis": 334,
+    "draftCatalogedApis": 334,
     "missingCatalogedApis": 0,
-    "qualifiedReferenceSurfaces": 84,
+    "qualifiedReferenceSurfaces": 87,
     "referenceRequirements": 25,
     "contractedReferenceRequirements": 25,
     "missingReferenceRequirements": 1,
     "carrierRequirements": 8,
-    "missingCarrierRequirements": 2,
+    "missingCarrierRequirements": 0,
     "implementationProviders": 19,
     "missingImplementationProviders": 19
   },
@@ -640,6 +640,139 @@
           "declarationDigest": "c21d9b7ca3dcd3e0e9ec6c9f8ae33ec683cae29853bf9d001c0e1f57eac7a36e",
           "line": 27,
           "profile": "arrow-ipc",
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "id": "std.blob",
+      "availability": "bundled-portable",
+      "source": "std/blob/contracts.w",
+      "catalogedDeclarationsDigest": "5e321fc2a707a4dbbad6432fb299c137306e58ca205ead723ffeb34e871437bf",
+      "apis": [
+        {
+          "symbol": "Blob",
+          "kind": "struct",
+          "signature": "export struct Blob: Duplicable & SnapshotByteSource<BlobError>",
+          "declarationDigest": "be6070d820d655e75726567f3228e7d12cf47ee3d392d8d32e22f115555ed30c",
+          "line": 57,
+          "profile": "blob-carrier",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init(_ bytes: take Bytes, type: String = \"\")",
+                  "line": 63
+                }
+              ],
+              "profile": "blob-carrier"
+            },
+            {
+              "symbol": "size",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export size: usize",
+                  "line": 83
+                }
+              ],
+              "profile": "blob-carrier"
+            },
+            {
+              "symbol": "type",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export type: view String",
+                  "line": 87
+                }
+              ],
+              "profile": "blob-carrier"
+            },
+            {
+              "symbol": "duplicate",
+              "overloads": [
+                {
+                  "signature": "export fn duplicate(): Blob",
+                  "line": 91
+                }
+              ],
+              "profile": "blob-carrier"
+            },
+            {
+              "symbol": "slice",
+              "overloads": [
+                {
+                  "signature": "export fn slice( start relativeStart: usize = 0, end relativeEnd: usize? = .none, type: String = \"\", ): Blob throws BlobError",
+                  "line": 100
+                }
+              ],
+              "profile": "blob-carrier"
+            },
+            {
+              "symbol": "bytes",
+              "overloads": [
+                {
+                  "signature": "export fn bytes( maximumBytes: usize<(1...)>, ): Bytes throws BlobError",
+                  "line": 122
+                }
+              ],
+              "profile": "blob-read"
+            },
+            {
+              "symbol": "text",
+              "overloads": [
+                {
+                  "signature": "export fn text( maximumBytes: usize<(1...)>, ): String throws BlobError",
+                  "line": 132
+                }
+              ],
+              "profile": "blob-read"
+            },
+            {
+              "symbol": "stream",
+              "overloads": [
+                {
+                  "signature": "export fn stream( chunkBytes: usize<(1...)>, ): ReadableStream<Bytes, BlobError>",
+                  "line": 139
+                }
+              ],
+              "profile": "blob-read"
+            },
+            {
+              "symbol": "byteCount",
+              "overloads": [
+                {
+                  "signature": "export fn byteCount(): u64",
+                  "line": 149
+                }
+              ],
+              "profile": "blob-read"
+            },
+            {
+              "symbol": "read",
+              "overloads": [
+                {
+                  "signature": "export async fn read( at offset: u64, appendTo destination: inout Bytes, maximum: usize<(1...)>, ): SnapshotReadStep throws BlobError",
+                  "line": 153
+                }
+              ],
+              "profile": "blob-read"
+            }
+          ],
+          "status": "draft",
+          "requires": [
+            "sdk0-web-readable-stream"
+          ]
+        },
+        {
+          "symbol": "BlobError",
+          "kind": "enum",
+          "signature": "export enum BlobError: Error & Copy",
+          "declarationDigest": "4de07fdb2b9c65543a2393b20d75aaec83447e6a312b2badcacb6d5b94bc6106",
+          "line": 11,
+          "profile": "value-contract",
           "status": "draft"
         }
       ]
@@ -1747,14 +1880,14 @@
           "wpt-fetch-headers"
         ]
       },
-      "catalogedDeclarationsDigest": "d6e0d43262022f38ff9c4733cc11e691f612fc7978feaaf38981bb404e2d6005",
+      "catalogedDeclarationsDigest": "7ceda3e99ce989936bce5c7453e6bc78e908946f1967f71918b23a41814a41d9",
       "apis": [
         {
           "symbol": "BodyCloneError",
           "kind": "enum",
           "signature": "export enum BodyCloneError: Error",
           "declarationDigest": "eb151b2bc3a1d20c2683d781c874034f830851b1a79001b5cc3118e35fb9e267",
-          "line": 722,
+          "line": 723,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1763,7 +1896,7 @@
           "kind": "enum",
           "signature": "export enum BodyDecodeError<CodecFailure: Error>: Error",
           "declarationDigest": "5f55fef3dd317ba454b03e285cb9829bfadfc0f536d34d8e43922cb7df514beb",
-          "line": 717,
+          "line": 718,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1772,7 +1905,7 @@
           "kind": "enum",
           "signature": "export enum BodyOverride",
           "declarationDigest": "4f725590407320cf81bbc614a148f033bbb5f66a4c071fe5da21a03b7f86101e",
-          "line": 790,
+          "line": 1157,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1780,8 +1913,8 @@
           "symbol": "BodySource",
           "kind": "enum",
           "signature": "export enum BodySource",
-          "declarationDigest": "3e1b845242422c23140b97bfa083c3ff8db6959c19ed4ce232bfd679eb13e1c5",
-          "line": 783,
+          "declarationDigest": "d00abec5b7d0522f47d0997ce7f6ca1853f773dbbdf5cd69e836dc4f40179991",
+          "line": 1148,
           "profile": "http-body-source",
           "status": "draft"
         },
@@ -1790,7 +1923,7 @@
           "kind": "enum",
           "signature": "export enum CacheMode",
           "declarationDigest": "a7462fb4d55473c20eb66ce1c8e23dd8bde1728b3788a6f9a8be9c4192bc9ebc",
-          "line": 809,
+          "line": 1176,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1799,7 +1932,7 @@
           "kind": "struct",
           "signature": "export struct CacheRegistry",
           "declarationDigest": "2720acd39392d59807441ceaed78aa67837732de3a731f8150c162c709813d15",
-          "line": 1591,
+          "line": 2026,
           "profile": "http-context",
           "members": [
             {
@@ -1807,7 +1940,7 @@
               "overloads": [
                 {
                   "signature": "export fn get<Key: Equatable & Hashable & Duplicable, Value: Duplicable,>( binding: const cache.LocalBinding<Key, Value>, ): some cache.LocalCache<Key, Value>",
-                  "line": 1598
+                  "line": 2033
                 }
               ],
               "profile": "http-context"
@@ -1820,7 +1953,7 @@
           "kind": "struct",
           "signature": "export struct Context",
           "declarationDigest": "fe16b5bc88fb099851530184f0e0727885c073280ec2bc514426037fba4c77ec",
-          "line": 1668,
+          "line": 2103,
           "profile": "http-context",
           "members": [
             {
@@ -1829,7 +1962,7 @@
               "overloads": [
                 {
                   "signature": "export random: RandomSource",
-                  "line": 1679
+                  "line": 2114
                 }
               ],
               "profile": "http-context"
@@ -1840,7 +1973,7 @@
               "overloads": [
                 {
                   "signature": "export databases: DatabaseRegistry",
-                  "line": 1685
+                  "line": 2120
                 }
               ],
               "profile": "http-context"
@@ -1851,7 +1984,7 @@
               "overloads": [
                 {
                   "signature": "export caches: CacheRegistry",
-                  "line": 1691
+                  "line": 2126
                 }
               ],
               "profile": "http-context"
@@ -1862,7 +1995,7 @@
               "overloads": [
                 {
                   "signature": "export templates: TemplateRegistry",
-                  "line": 1697
+                  "line": 2132
                 }
               ],
               "profile": "http-context"
@@ -1873,7 +2006,7 @@
               "overloads": [
                 {
                   "signature": "export signal: AbortSignal",
-                  "line": 1705
+                  "line": 2140
                 }
               ],
               "profile": "http-context"
@@ -1886,7 +2019,7 @@
           "kind": "enum",
           "signature": "export enum CredentialsMode",
           "declarationDigest": "4670a3ce47d8e34bc416d5b6cbffbff14b05f087396fd0cf51491c4a5b9127fb",
-          "line": 803,
+          "line": 1170,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1895,7 +2028,7 @@
           "kind": "struct",
           "signature": "export struct DatabaseRegistry",
           "declarationDigest": "6474e19a878ede485e74ce325207ebbf55dee4588027bef941fb6978240fff83",
-          "line": 1573,
+          "line": 2008,
           "profile": "http-context",
           "members": [
             {
@@ -1903,7 +2036,7 @@
               "overloads": [
                 {
                   "signature": "export fn get( binding: const database.Binding, ): some database.Database",
-                  "line": 1580
+                  "line": 2015
                 }
               ],
               "profile": "http-context"
@@ -1916,16 +2049,264 @@
           "kind": "enum",
           "signature": "export enum Duplex",
           "declarationDigest": "7eb2fc32a0d3b9636e68f9d66c3a58c36d1e6f1176d545622d99ab50e9bcf63b",
-          "line": 835,
+          "line": 1202,
           "profile": "value-contract",
           "status": "draft"
+        },
+        {
+          "symbol": "FormData",
+          "kind": "struct",
+          "signature": "export struct FormData: Duplicable",
+          "declarationDigest": "d032f77263fdd9e4cef7ea58bbed0e6c17236e91bbf20772450d9ff93e55a180",
+          "line": 892,
+          "profile": "form-data-value",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init(limits: FormDataLimits = FormDataLimits.standard())",
+                  "line": 897
+                }
+              ],
+              "profile": "form-data-value"
+            },
+            {
+              "symbol": "size",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export size: usize",
+                  "line": 913
+                }
+              ],
+              "profile": "form-data-value"
+            },
+            {
+              "symbol": "limits",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export limits: FormDataLimits",
+                  "line": 917
+                }
+              ],
+              "profile": "form-data-value"
+            },
+            {
+              "symbol": "duplicate",
+              "overloads": [
+                {
+                  "signature": "export fn duplicate(): FormData",
+                  "line": 921
+                }
+              ],
+              "profile": "form-data-value"
+            },
+            {
+              "symbol": "append",
+              "overloads": [
+                {
+                  "signature": "export mut fn append( name: String, value: String, ): () throws FormDataError",
+                  "line": 1020
+                },
+                {
+                  "signature": "export mut fn append( name: String, blob: take Blob, filename: String = \"blob\", ): () throws FormDataError",
+                  "line": 1027
+                }
+              ],
+              "profile": "form-data-mutation"
+            },
+            {
+              "symbol": "set",
+              "overloads": [
+                {
+                  "signature": "export mut fn set( name: String, value: String, ): () throws FormDataError",
+                  "line": 1038
+                },
+                {
+                  "signature": "export mut fn set( name: String, blob: take Blob, filename: String = \"blob\", ): () throws FormDataError",
+                  "line": 1045
+                }
+              ],
+              "profile": "form-data-mutation"
+            },
+            {
+              "symbol": "delete",
+              "overloads": [
+                {
+                  "signature": "export mut fn delete(name: ref String)",
+                  "line": 1105
+                }
+              ],
+              "profile": "form-data-mutation"
+            },
+            {
+              "symbol": "get",
+              "overloads": [
+                {
+                  "signature": "export fn get(name: ref String): ref FormDataValue?",
+                  "line": 1118
+                }
+              ],
+              "profile": "form-data-value"
+            },
+            {
+              "symbol": "getAll",
+              "overloads": [
+                {
+                  "signature": "export fn getAll(name: ref String): Array<FormDataValue>",
+                  "line": 1125
+                }
+              ],
+              "profile": "form-data-value"
+            },
+            {
+              "symbol": "has",
+              "overloads": [
+                {
+                  "signature": "export fn has(name: ref String): Bool",
+                  "line": 1135
+                }
+              ],
+              "profile": "form-data-value"
+            },
+            {
+              "symbol": "entries",
+              "overloads": [
+                {
+                  "signature": "export fn entries(): Array<FormDataEntry>",
+                  "line": 1139
+                }
+              ],
+              "profile": "form-data-value"
+            }
+          ],
+          "status": "draft",
+          "requires": [
+            "sdk0-web-blob"
+          ]
+        },
+        {
+          "symbol": "FormDataEntry",
+          "kind": "struct",
+          "signature": "export struct FormDataEntry: Duplicable",
+          "declarationDigest": "310b75336c848a3273f710be7dabbe87f3513db62069510a7e0744a1b4a187a0",
+          "line": 855,
+          "profile": "form-data-value",
+          "members": [
+            {
+              "symbol": "name",
+              "overloads": [
+                {
+                  "signature": "export fn name(): view String",
+                  "line": 870
+                }
+              ],
+              "profile": "form-data-value"
+            },
+            {
+              "symbol": "value",
+              "overloads": [
+                {
+                  "signature": "export fn value(): ref FormDataValue",
+                  "line": 874
+                }
+              ],
+              "profile": "form-data-value"
+            },
+            {
+              "symbol": "duplicate",
+              "overloads": [
+                {
+                  "signature": "export fn duplicate(): FormDataEntry",
+                  "line": 878
+                }
+              ],
+              "profile": "form-data-value"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "FormDataError",
+          "kind": "enum",
+          "signature": "export enum FormDataError: Error & Copy",
+          "declarationDigest": "69dd4df308cb334e225ebcc6d15473885ba983fbc05f1ddd969bbd525d708f39",
+          "line": 794,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "FormDataLimitKind",
+          "kind": "enum",
+          "signature": "export enum FormDataLimitKind: Copy",
+          "declarationDigest": "d6a859da518f7cca89fb74cd28278c5cb6b9f7ec2b85d84609bc3beb285f250a",
+          "line": 784,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "FormDataLimits",
+          "kind": "struct",
+          "signature": "export struct FormDataLimits: Copy & Equatable",
+          "declarationDigest": "ba081246a18c991d694ae1877a050b18e5bade0da1246c8cd42711b753e2b494",
+          "line": 801,
+          "profile": "value-contract",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export const init( maximumEntries: usize<(1...)>, maximumNameBytes: usize<(1...)>, maximumFilenameBytes: usize<(1...)>, maximumTextBytes: usize<(1...)>, maximumBlobBytes: usize<(1...)>, maximumPayloadBytes: usize<(1...)>, maximumEncodedBytes: usize<(1...)>, )",
+                  "line": 810
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "standard",
+              "overloads": [
+                {
+                  "signature": "export static fn standard(): FormDataLimits",
+                  "line": 828
+                }
+              ],
+              "profile": "value-contract"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "FormDataValue",
+          "kind": "enum",
+          "signature": "export enum FormDataValue: Duplicable",
+          "declarationDigest": "93a211bf0d3f203b5739346f018091d21b3789a2cd6f4f70cc84b40279ddf02c",
+          "line": 841,
+          "profile": "form-data-value",
+          "members": [
+            {
+              "symbol": "duplicate",
+              "overloads": [
+                {
+                  "signature": "export fn duplicate(): FormDataValue",
+                  "line": 845
+                }
+              ],
+              "profile": "form-data-value"
+            }
+          ],
+          "status": "draft",
+          "requires": [
+            "sdk0-web-blob"
+          ]
         },
         {
           "symbol": "HeaderField",
           "kind": "struct",
           "signature": "export struct HeaderField",
           "declarationDigest": "4c458f69692eb86a987a4fd868af48789c2293e9cc63d9b76a746399a9f897f9",
-          "line": 382,
+          "line": 383,
           "profile": "normalized-http-header-component",
           "status": "draft"
         },
@@ -1934,7 +2315,7 @@
           "kind": "enum",
           "signature": "export enum HeaderMutationDenied",
           "declarationDigest": "9f310f6e27f9dd3228f9dc1f7111636cfdf73b80146ee765dab255b8f7cc6650",
-          "line": 453,
+          "line": 454,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1943,7 +2324,7 @@
           "kind": "struct",
           "signature": "export struct HeaderName",
           "declarationDigest": "168da2a30af2aaf7c2e491e1fbec70d710bad6b8be29a0ef632ee1c71e748725",
-          "line": 304,
+          "line": 305,
           "profile": "normalized-http-header-component",
           "status": "draft"
         },
@@ -1952,7 +2333,7 @@
           "kind": "struct",
           "signature": "export struct Headers",
           "declarationDigest": "0205b96325362846caa847ddf37b732bd8b0ef8b3a23d7d245efb800ed392259",
-          "line": 473,
+          "line": 474,
           "profile": "http-headers",
           "members": [
             {
@@ -1960,11 +2341,11 @@
               "overloads": [
                 {
                   "signature": "export init(_ initialFields: take HeaderField...)",
-                  "line": 477
+                  "line": 478
                 },
                 {
                   "signature": "export init(copying source: ref Headers)",
-                  "line": 482
+                  "line": 483
                 }
               ],
               "profile": "http-headers-construction"
@@ -1974,7 +2355,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn append( name: String, value: String, ): () throws HeadersError",
-                  "line": 498
+                  "line": 499
                 }
               ],
               "profile": "http-headers-append"
@@ -1984,7 +2365,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn delete(name: ref String): () throws HeadersError",
-                  "line": 511
+                  "line": 512
                 }
               ],
               "profile": "http-headers-mutation"
@@ -1994,7 +2375,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(name: ref String): String? throws HeadersError",
-                  "line": 526
+                  "line": 527
                 }
               ],
               "profile": "http-headers-query"
@@ -2004,7 +2385,7 @@
               "overloads": [
                 {
                   "signature": "export fn getSetCookie(): Array<String>",
-                  "line": 542
+                  "line": 543
                 }
               ],
               "profile": "http-headers-list-query"
@@ -2014,7 +2395,7 @@
               "overloads": [
                 {
                   "signature": "export fn has(name: ref String): Bool throws HeadersError",
-                  "line": 552
+                  "line": 553
                 }
               ],
               "profile": "http-headers-membership"
@@ -2024,7 +2405,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn set( name: String, value: String, ): () throws HeadersError",
-                  "line": 560
+                  "line": 561
                 }
               ],
               "profile": "http-headers-mutation"
@@ -2034,7 +2415,7 @@
               "overloads": [
                 {
                   "signature": "export fn entries(): Array<HeaderField>",
-                  "line": 600
+                  "line": 601
                 }
               ],
               "profile": "http-headers-iteration"
@@ -2047,7 +2428,7 @@
           "kind": "enum",
           "signature": "export enum HeadersError: Error",
           "declarationDigest": "72a5e407db7d3017b9713e040f1ab4e83989d799c4397a23e898d26c27dda9f0",
-          "line": 460,
+          "line": 461,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2056,7 +2437,7 @@
           "kind": "enum",
           "signature": "export enum HttpBodyError: Error & Duplicable",
           "declarationDigest": "3836d56c16be2c254cd3ce892ce4c1cee745a2adddc1cf2f07b29c7d0c9b68de",
-          "line": 707,
+          "line": 708,
           "profile": "value-contract",
           "status": "draft",
           "requires": [
@@ -2068,7 +2449,7 @@
           "kind": "enum",
           "signature": "export enum HttpError: Error",
           "declarationDigest": "bbfa669bc6f99c4ef5447f2cc8d110bc3f7a73adc2fc8059a77aa117426f0247",
-          "line": 747,
+          "line": 750,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2077,7 +2458,7 @@
           "kind": "protocol",
           "signature": "export protocol HttpHandler<Failure: Error>",
           "declarationDigest": "fc9db826e80d97ce7fc122f230a76727fabfcfc9f3008cdecf7bc99bc04bcdff",
-          "line": 1730,
+          "line": 2165,
           "profile": "http-handler",
           "status": "draft",
           "requires": [
@@ -2091,7 +2472,7 @@
           "kind": "enum",
           "signature": "export enum HttpSyntaxError: Error",
           "declarationDigest": "1ea4222e48791e4d56bcc53a3d566799053313fc64851a36453a4164e4832432",
-          "line": 699,
+          "line": 700,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2100,7 +2481,7 @@
           "kind": "struct",
           "signature": "export struct MessageLimits",
           "declarationDigest": "042016cbfcfa023aa8f3f98f913b268adc952ff0de81f66ff81c9e50d4183842",
-          "line": 766,
+          "line": 769,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2109,7 +2490,7 @@
           "kind": "enum",
           "signature": "export enum Method",
           "declarationDigest": "f218517e6bfcc193b5dae1ad01920bb440a17209234a96493870f9881927145a",
-          "line": 276,
+          "line": 277,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2118,7 +2499,7 @@
           "kind": "struct",
           "signature": "export struct MethodToken",
           "declarationDigest": "18cf1ace150c8cd4851e99dcfd414c615107ff7bd67d09f8f98d217afc5f05d5",
-          "line": 263,
+          "line": 264,
           "profile": "validated-http-token",
           "status": "draft"
         },
@@ -2127,7 +2508,7 @@
           "kind": "enum",
           "signature": "export enum Priority",
           "declarationDigest": "fcd5d3a517f018d9b0168165ada47c339d835078a8338db57bfa5b7ac4bfe9b5",
-          "line": 839,
+          "line": 1206,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2136,7 +2517,7 @@
           "kind": "struct",
           "signature": "export struct RandomSource",
           "declarationDigest": "b6705b6dcef83199aaf6f8bf4882d412d1abb127b5c7952f08bab99705c675a8",
-          "line": 1557,
+          "line": 1992,
           "profile": "http-context",
           "members": [
             {
@@ -2144,7 +2525,7 @@
               "overloads": [
                 {
                   "signature": "export fn integer(in range: Range<i32>): i32",
-                  "line": 1564
+                  "line": 1999
                 }
               ],
               "profile": "http-context"
@@ -2157,7 +2538,7 @@
           "kind": "enum",
           "signature": "export enum RedirectMode",
           "declarationDigest": "2adb67c040396e9229ea07f102b624382132a44cb7fd68830389a3df2cb60af2",
-          "line": 818,
+          "line": 1185,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2166,7 +2547,7 @@
           "kind": "enum",
           "signature": "export enum ReferrerPolicy",
           "declarationDigest": "fe490b8ae21e4d99f5a8617bde0666e7ba81c33299810f9b57893c6496e1245f",
-          "line": 824,
+          "line": 1191,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2174,8 +2555,8 @@
           "symbol": "Request",
           "kind": "struct",
           "signature": "export struct Request",
-          "declarationDigest": "78b13b3c81331692073ab6a6123bf068a0429ee1c640ba51a6fd7979ea49d5a2",
-          "line": 1141,
+          "declarationDigest": "56bc9fdd2a572aa6fbf4a0776c114c4bf308f623629f6291b0e2699b020f5374",
+          "line": 1524,
           "profile": "http-request",
           "members": [
             {
@@ -2183,19 +2564,19 @@
               "overloads": [
                 {
                   "signature": "export init(_ input: take String, take init: RequestInit = RequestInit()) throws RequestError",
-                  "line": 1148
+                  "line": 1531
                 },
                 {
                   "signature": "export init(_ input: take URL, take init: RequestInit = RequestInit()) throws RequestError",
-                  "line": 1154
+                  "line": 1537
                 },
                 {
                   "signature": "export init(copying input: ref URL, take init: RequestInit = RequestInit()) throws RequestError",
-                  "line": 1162
+                  "line": 1545
                 },
                 {
                   "signature": "export init(take input: Request, take override: RequestOverride = RequestOverride()) throws RequestError",
-                  "line": 1168
+                  "line": 1551
                 }
               ],
               "profile": "http-request"
@@ -2206,7 +2587,7 @@
               "overloads": [
                 {
                   "signature": "export method: Method",
-                  "line": 1173
+                  "line": 1556
                 }
               ],
               "profile": "http-request"
@@ -2217,7 +2598,7 @@
               "overloads": [
                 {
                   "signature": "export url: ref URL",
-                  "line": 1177
+                  "line": 1560
                 }
               ],
               "profile": "http-request"
@@ -2228,7 +2609,7 @@
               "overloads": [
                 {
                   "signature": "export headers: ref Headers",
-                  "line": 1181
+                  "line": 1564
                 }
               ],
               "profile": "http-request"
@@ -2239,7 +2620,7 @@
               "overloads": [
                 {
                   "signature": "export signal: ref AbortSignal",
-                  "line": 1185
+                  "line": 1568
                 }
               ],
               "profile": "http-request"
@@ -2250,7 +2631,7 @@
               "overloads": [
                 {
                   "signature": "export bodyUsed: Bool",
-                  "line": 1189
+                  "line": 1572
                 }
               ],
               "profile": "http-request"
@@ -2261,7 +2642,7 @@
               "overloads": [
                 {
                   "signature": "export destination: RequestDestination",
-                  "line": 1193
+                  "line": 1576
                 }
               ],
               "profile": "http-request"
@@ -2272,7 +2653,7 @@
               "overloads": [
                 {
                   "signature": "export mode: RequestMode",
-                  "line": 1197
+                  "line": 1580
                 }
               ],
               "profile": "http-request"
@@ -2283,7 +2664,7 @@
               "overloads": [
                 {
                   "signature": "export credentials: CredentialsMode",
-                  "line": 1201
+                  "line": 1584
                 }
               ],
               "profile": "http-request"
@@ -2294,7 +2675,7 @@
               "overloads": [
                 {
                   "signature": "export cache: CacheMode",
-                  "line": 1205
+                  "line": 1588
                 }
               ],
               "profile": "http-request"
@@ -2305,7 +2686,7 @@
               "overloads": [
                 {
                   "signature": "export redirect: RedirectMode",
-                  "line": 1209
+                  "line": 1592
                 }
               ],
               "profile": "http-request"
@@ -2316,7 +2697,7 @@
               "overloads": [
                 {
                   "signature": "export referrer: RequestReferrer",
-                  "line": 1213
+                  "line": 1596
                 }
               ],
               "profile": "http-request"
@@ -2327,7 +2708,7 @@
               "overloads": [
                 {
                   "signature": "export referrerPolicy: ReferrerPolicy",
-                  "line": 1217
+                  "line": 1600
                 }
               ],
               "profile": "http-request"
@@ -2338,7 +2719,7 @@
               "overloads": [
                 {
                   "signature": "export integrity: view String",
-                  "line": 1221
+                  "line": 1604
                 }
               ],
               "profile": "http-request"
@@ -2349,7 +2730,7 @@
               "overloads": [
                 {
                   "signature": "export duplex: Duplex",
-                  "line": 1225
+                  "line": 1608
                 }
               ],
               "profile": "http-request"
@@ -2360,7 +2741,7 @@
               "overloads": [
                 {
                   "signature": "export priority: Priority",
-                  "line": 1229
+                  "line": 1612
                 }
               ],
               "profile": "http-request"
@@ -2370,7 +2751,7 @@
               "overloads": [
                 {
                   "signature": "export take fn body(): ReadableStream<Bytes, HttpBodyError>?",
-                  "line": 1234
+                  "line": 1617
                 }
               ],
               "profile": "http-request"
@@ -2380,7 +2761,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn bytes(maximumBytes: usize<(1...)>): Bytes throws HttpBodyError",
-                  "line": 1238
+                  "line": 1621
                 }
               ],
               "profile": "http-request"
@@ -2390,21 +2771,41 @@
               "overloads": [
                 {
                   "signature": "export take async fn text(maximumBytes: usize<(1...)>): String throws HttpBodyError",
-                  "line": 1242
+                  "line": 1625
                 }
               ],
               "profile": "http-request"
+            },
+            {
+              "symbol": "blob",
+              "overloads": [
+                {
+                  "signature": "export take async fn blob(maximumBytes: usize<(1...)>): Blob throws HttpBodyError",
+                  "line": 1629
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "formData",
+              "overloads": [
+                {
+                  "signature": "export take async fn formData( limits: FormDataLimits = FormDataLimits.standard(), ): FormData throws BodyDecodeError<FormDataError>",
+                  "line": 1633
+                }
+              ],
+              "profile": "form-data-codec"
             },
             {
               "symbol": "json",
               "overloads": [
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( maximumBytes: usize<(1...)>, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1246
+                  "line": 1639
                 },
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( limits: json.Limits, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1258
+                  "line": 1651
                 }
               ],
               "profile": "http-request"
@@ -2414,7 +2815,7 @@
               "overloads": [
                 {
                   "signature": "export take fn clone( maximumBufferedBytes: usize<(1...)>, ): (Request, Request) throws BodyCloneError",
-                  "line": 1283
+                  "line": 1676
                 }
               ],
               "profile": "http-request"
@@ -2424,6 +2825,8 @@
           "requires": [
             "sdk0-json-codec",
             "sdk0-web-abort-signal",
+            "sdk0-web-blob",
+            "sdk0-web-form-data",
             "sdk0-web-readable-stream",
             "sdk0-web-url",
             "sdk0-web-url-search-params"
@@ -2434,7 +2837,7 @@
           "kind": "enum",
           "signature": "export enum RequestDestination",
           "declarationDigest": "7f402ff297e9f78eec1cf3da2eab233fab32e871ae1b4c8b95c5221e1caff785",
-          "line": 845,
+          "line": 1212,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2442,8 +2845,8 @@
           "symbol": "RequestError",
           "kind": "enum",
           "signature": "export enum RequestError: Error",
-          "declarationDigest": "e282bba2b6e7db32f2f21c5b54d51e24880b7eb65acfc80c718339db387e56d2",
-          "line": 728,
+          "declarationDigest": "1e8db1d497081c8d67c0447abb3cf853df2750a8ccbfad0c8cf4ae3973b6b635",
+          "line": 729,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2452,7 +2855,7 @@
           "kind": "struct",
           "signature": "export struct RequestInit",
           "declarationDigest": "032a5c7bb02099d00930a5023fef65d1547403b96af1b9a4012f4765eeea063f",
-          "line": 893,
+          "line": 1260,
           "profile": "http-request",
           "members": [
             {
@@ -2460,7 +2863,7 @@
               "overloads": [
                 {
                   "signature": "export init( method: Method? = .none, headers: Headers? = .none, body: BodySource? = .none, signal: AbortSignal? = .none, mode: RequestMode? = .none, credentials: CredentialsMode? = .none, cache: CacheMode? = .none, redirect: RedirectMode? = .none, referrer: RequestReferrer? = .none, referrerPolicy: ReferrerPolicy? = .none, integrity: RequestIntegrity? = .none, duplex: Duplex? = .none, priority: Priority? = .none, )",
-                  "line": 910
+                  "line": 1277
                 }
               ],
               "profile": "http-request"
@@ -2473,7 +2876,7 @@
           "kind": "enum",
           "signature": "export enum RequestIntegrity",
           "declarationDigest": "c479d8442cb550d779f476f0582845319a26a0ae406423f62fa21fb80877e447",
-          "line": 879,
+          "line": 1246,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2482,7 +2885,7 @@
           "kind": "enum",
           "signature": "export enum RequestMode",
           "declarationDigest": "e31a569e23b6167b79d752942051be3966b96d47bfca09db8f98d1acb2b42602",
-          "line": 796,
+          "line": 1163,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2491,7 +2894,7 @@
           "kind": "struct",
           "signature": "export struct RequestOverride",
           "declarationDigest": "ca500fe1c720ac8edabf93afa6b3c4df4c60d5a5d868eaae5b01b0ec2e7f57d5",
-          "line": 941,
+          "line": 1308,
           "profile": "http-request",
           "members": [
             {
@@ -2499,7 +2902,7 @@
               "overloads": [
                 {
                   "signature": "export init( method: Method? = .none, headers: Headers? = .none, body: BodyOverride = .inherit, signal: AbortSignal? = .none, mode: RequestMode? = .none, credentials: CredentialsMode? = .none, cache: CacheMode? = .none, redirect: RedirectMode? = .none, referrer: RequestReferrer? = .none, referrerPolicy: ReferrerPolicy? = .none, integrity: RequestIntegrity? = .none, duplex: Duplex? = .none, priority: Priority? = .none, )",
-                  "line": 957
+                  "line": 1324
                 }
               ],
               "profile": "http-request"
@@ -2512,7 +2915,7 @@
           "kind": "enum",
           "signature": "export enum RequestReferrer",
           "declarationDigest": "fd56203f3257879a99d8afc1ff2b69cf402d8290d8199a3d40dc65a69217642e",
-          "line": 871,
+          "line": 1238,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2520,8 +2923,8 @@
           "symbol": "Response",
           "kind": "struct",
           "signature": "export struct Response",
-          "declarationDigest": "7d0c42a0fb732683038867c827d7cbdfd07dc41c62980e7b18d5e4fa620ae22a",
-          "line": 1300,
+          "declarationDigest": "f472c220e6152c34898247fe4b8dd53d5548f6e065aa73a244e33d81378eb1e8",
+          "line": 1693,
           "profile": "http-response",
           "members": [
             {
@@ -2529,27 +2932,35 @@
               "overloads": [
                 {
                   "signature": "export init( status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1307
+                  "line": 1700
                 },
                 {
                   "signature": "export init( _ body: take String, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1322
+                  "line": 1715
                 },
                 {
                   "signature": "export init( _ body: take Bytes, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1338
+                  "line": 1731
                 },
                 {
                   "signature": "export init( _ body: take URLSearchParams, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1354
+                  "line": 1747
+                },
+                {
+                  "signature": "export init( _ body: take Blob, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
+                  "line": 1763
+                },
+                {
+                  "signature": "export init( _ body: take FormData, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
+                  "line": 1779
                 },
                 {
                   "signature": "export init( _ body: take ReadableStream<Bytes, HttpBodyError>, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1370
+                  "line": 1795
                 },
                 {
                   "signature": "export init( take body: BodySource, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1386
+                  "line": 1811
                 }
               ],
               "profile": "http-response"
@@ -2559,7 +2970,7 @@
               "overloads": [
                 {
                   "signature": "export static fn error(): Response",
-                  "line": 1402
+                  "line": 1827
                 }
               ],
               "profile": "http-response"
@@ -2569,19 +2980,19 @@
               "overloads": [
                 {
                   "signature": "export static fn json<Value: json.Encodable>( value: ref Value, maximumBytes: usize<(1...)>, status: StatusCode = StatusCode.ok, statusText: String = \"\", profile: json.Profile = .interoperable, take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1406
+                  "line": 1831
                 },
                 {
                   "signature": "export static fn json<Value: json.Encodable>( value: ref Value, limits: json.Limits, status: StatusCode = StatusCode.ok, statusText: String = \"\", profile: json.Profile = .interoperable, take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1424
+                  "line": 1849
                 },
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( maximumBytes: usize<(1...)>, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1504
+                  "line": 1939
                 },
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( limits: json.Limits, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1516
+                  "line": 1951
                 }
               ],
               "profile": "http-response"
@@ -2592,7 +3003,7 @@
               "overloads": [
                 {
                   "signature": "export status: u16<(0..<600)>",
-                  "line": 1460
+                  "line": 1885
                 }
               ],
               "profile": "http-response"
@@ -2603,7 +3014,7 @@
               "overloads": [
                 {
                   "signature": "export ok: Bool",
-                  "line": 1464
+                  "line": 1889
                 }
               ],
               "profile": "http-response"
@@ -2614,7 +3025,7 @@
               "overloads": [
                 {
                   "signature": "export statusText: view String",
-                  "line": 1468
+                  "line": 1893
                 }
               ],
               "profile": "http-response"
@@ -2625,7 +3036,7 @@
               "overloads": [
                 {
                   "signature": "export headers: ref Headers",
-                  "line": 1472
+                  "line": 1897
                 }
               ],
               "profile": "http-response"
@@ -2636,7 +3047,7 @@
               "overloads": [
                 {
                   "signature": "export url: URL?",
-                  "line": 1476
+                  "line": 1901
                 }
               ],
               "profile": "http-response"
@@ -2647,7 +3058,7 @@
               "overloads": [
                 {
                   "signature": "export redirected: Bool",
-                  "line": 1480
+                  "line": 1905
                 }
               ],
               "profile": "http-response"
@@ -2658,7 +3069,7 @@
               "overloads": [
                 {
                   "signature": "export type: ResponseType",
-                  "line": 1484
+                  "line": 1909
                 }
               ],
               "profile": "http-response"
@@ -2669,7 +3080,7 @@
               "overloads": [
                 {
                   "signature": "export bodyUsed: Bool",
-                  "line": 1488
+                  "line": 1913
                 }
               ],
               "profile": "http-response"
@@ -2679,7 +3090,7 @@
               "overloads": [
                 {
                   "signature": "export take fn body(): ReadableStream<Bytes, HttpBodyError>?",
-                  "line": 1492
+                  "line": 1917
                 }
               ],
               "profile": "http-response"
@@ -2689,7 +3100,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn bytes(maximumBytes: usize<(1...)>): Bytes throws HttpBodyError",
-                  "line": 1496
+                  "line": 1921
                 }
               ],
               "profile": "http-response"
@@ -2699,17 +3110,37 @@
               "overloads": [
                 {
                   "signature": "export take async fn text(maximumBytes: usize<(1...)>): String throws HttpBodyError",
-                  "line": 1500
+                  "line": 1925
                 }
               ],
               "profile": "http-response"
+            },
+            {
+              "symbol": "blob",
+              "overloads": [
+                {
+                  "signature": "export take async fn blob(maximumBytes: usize<(1...)>): Blob throws HttpBodyError",
+                  "line": 1929
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "formData",
+              "overloads": [
+                {
+                  "signature": "export take async fn formData( limits: FormDataLimits = FormDataLimits.standard(), ): FormData throws BodyDecodeError<FormDataError>",
+                  "line": 1933
+                }
+              ],
+              "profile": "form-data-codec"
             },
             {
               "symbol": "clone",
               "overloads": [
                 {
                   "signature": "export take fn clone( maximumBufferedBytes: usize<(1...)>, ): (Response, Response) throws BodyCloneError",
-                  "line": 1540
+                  "line": 1975
                 }
               ],
               "profile": "http-response"
@@ -2718,6 +3149,8 @@
           "status": "draft",
           "requires": [
             "sdk0-json-codec",
+            "sdk0-web-blob",
+            "sdk0-web-form-data",
             "sdk0-web-readable-stream",
             "sdk0-web-url",
             "sdk0-web-url-search-params"
@@ -2727,8 +3160,8 @@
           "symbol": "ResponseError",
           "kind": "enum",
           "signature": "export enum ResponseError: Error",
-          "declarationDigest": "4058e9bc7fd1fdece9c519970f92ed0bd179adb0bf0bc2349c8d8f3bf020d630",
-          "line": 738,
+          "declarationDigest": "895b56a82a299e808db16612da2367a1eb7cb4d0c4740044c03992d502b2f8ca",
+          "line": 740,
           "profile": "value-contract",
           "status": "draft",
           "requires": [
@@ -2740,7 +3173,7 @@
           "kind": "enum",
           "signature": "export enum ResponseType",
           "declarationDigest": "0606765b20dd26b6b4bb8af28eb240aaf0750c6c962f86318e92c603bbb64959",
-          "line": 884,
+          "line": 1251,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2749,7 +3182,7 @@
           "kind": "fn",
           "signature": "export async fn serve<Failure: Error>( at address: net.ListenAddress, using network: ref net.Network, limits: ServerLimits, handler: some async fn(take Request, Context): Response throws Failure, ): () throws ServerError",
           "declarationDigest": "11a2bf72109c5f7f956d5f421cdd4687530258194bd6c4d414818efb85f973db",
-          "line": 1714,
+          "line": 2149,
           "profile": "http-server",
           "status": "draft",
           "requires": [
@@ -2764,7 +3197,7 @@
           "kind": "enum",
           "signature": "export enum ServerError: Error",
           "declarationDigest": "45fe60cd3c821618bd45f6a49f10dde73e17ad0ddacae9dc370ea8932460b992",
-          "line": 757,
+          "line": 760,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2773,7 +3206,7 @@
           "kind": "struct",
           "signature": "export struct ServerLimits",
           "declarationDigest": "4bd70d562362b3ed761f6f146c1993a7c666cae8f0482c4dbbf06eee02db24b3",
-          "line": 773,
+          "line": 776,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2782,7 +3215,7 @@
           "kind": "type",
           "signature": "export type StatusCode = u16<(100..<600)>",
           "declarationDigest": "a4654d254d7edc4b527a489a0c2b91cb01e8fd2ed070d4303053f6668a690439",
-          "line": 290,
+          "line": 291,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2791,7 +3224,7 @@
           "kind": "struct",
           "signature": "export struct Template",
           "declarationDigest": "f6e207cfb4a97c3b35e26d153b18ec11e1ec176f60e056c3b8c267cb0804b741",
-          "line": 1630,
+          "line": 2065,
           "profile": "template-provider",
           "members": [
             {
@@ -2799,7 +3232,7 @@
               "overloads": [
                 {
                   "signature": "export fn render<Value: json.Encodable>( values: ref Array<Value>, ): String throws TemplateError",
-                  "line": 1637
+                  "line": 2072
                 }
               ],
               "profile": "template-provider"
@@ -2815,7 +3248,7 @@
           "kind": "struct",
           "signature": "export struct TemplateBinding",
           "declarationDigest": "4b901c14b9688b4ca179d05a91a3dc8dae95f4bade8fae948872ff6b1fe13866",
-          "line": 1612,
+          "line": 2047,
           "profile": "value-contract",
           "members": [
             {
@@ -2823,7 +3256,7 @@
               "overloads": [
                 {
                   "signature": "export const init( name: String, limits: TemplateLimits, version: u32<(1...)> = 1, )",
-                  "line": 1617
+                  "line": 2052
                 }
               ],
               "profile": "value-contract"
@@ -2836,7 +3269,7 @@
           "kind": "enum",
           "signature": "export enum TemplateError: Error",
           "declarationDigest": "433a533d2e06fbc573ae91b6724f70a44adefe4738bcb82d5fdafdc457bafaa0",
-          "line": 993,
+          "line": 1360,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2845,7 +3278,7 @@
           "kind": "enum",
           "signature": "export enum TemplateLimitKind",
           "declarationDigest": "177cafea0d129b250d4bc7225fd3336c244339b729370172acd47bcb3026b1c1",
-          "line": 988,
+          "line": 1355,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2854,7 +3287,7 @@
           "kind": "struct",
           "signature": "export struct TemplateLimits",
           "declarationDigest": "91044be5884ee2dcf30d6b7ba396abac01b414a3a5c77a69f1c55c57e5bb4838",
-          "line": 1000,
+          "line": 1367,
           "profile": "value-contract",
           "members": [
             {
@@ -2862,7 +3295,7 @@
               "overloads": [
                 {
                   "signature": "export const init( maximumOutputBytes: usize<(1...)>, maximumValues: usize, )",
-                  "line": 1004
+                  "line": 1371
                 }
               ],
               "profile": "value-contract"
@@ -2875,7 +3308,7 @@
           "kind": "struct",
           "signature": "export struct TemplateRegistry",
           "declarationDigest": "e22549b44aaf4b057d6f8fbd651d8da2a8c1621d4b1ce0d4fcb4a74bb6c70388",
-          "line": 1650,
+          "line": 2085,
           "profile": "http-context",
           "members": [
             {
@@ -2883,7 +3316,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(binding: const TemplateBinding): Template",
-                  "line": 1657
+                  "line": 2092
                 }
               ],
               "profile": "http-context"
@@ -7246,6 +7679,7 @@
       "status": "draft",
       "consumers": [
         "reference/last-light/gateway.w",
+        "reference/last-light/web_bodies.w",
         "reference/last-light/wifi_app.w"
       ]
     },
@@ -7258,6 +7692,30 @@
         "reference/last-light/gateway.w",
         "reference/last-light/http_oracle.w",
         "reference/last-light/wifi_app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "FormData",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/web_bodies.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "FormDataError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/web_bodies.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "FormDataLimits",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/web_bodies.w"
       ]
     },
     {
@@ -7304,6 +7762,7 @@
         "reference/last-light/benchmark_app.w",
         "reference/last-light/gateway.w",
         "reference/last-light/http_oracle.w",
+        "reference/last-light/web_bodies.w",
         "reference/last-light/wifi_app.w"
       ]
     },
@@ -7312,7 +7771,8 @@
       "surface": "RequestError",
       "status": "draft",
       "consumers": [
-        "reference/last-light/http_oracle.w"
+        "reference/last-light/http_oracle.w",
+        "reference/last-light/web_bodies.w"
       ]
     },
     {
@@ -7320,7 +7780,8 @@
       "surface": "RequestInit",
       "status": "draft",
       "consumers": [
-        "reference/last-light/http_oracle.w"
+        "reference/last-light/http_oracle.w",
+        "reference/last-light/web_bodies.w"
       ]
     },
     {
@@ -7341,6 +7802,7 @@
         "reference/last-light/gateway.w",
         "reference/last-light/http_documents.w",
         "reference/last-light/http_oracle.w",
+        "reference/last-light/web_bodies.w",
         "reference/last-light/wifi_app.w"
       ]
     },
@@ -7353,6 +7815,7 @@
         "reference/last-light/gateway.w",
         "reference/last-light/http_documents.w",
         "reference/last-light/http_oracle.w",
+        "reference/last-light/web_bodies.w",
         "reference/last-light/wifi_app.w"
       ]
     },
@@ -7577,10 +8040,10 @@
     },
     {
       "id": "sdk0-web-blob",
-      "providerModule": null,
+      "providerModule": "std.blob",
       "surface": "Blob",
-      "status": "missing",
-      "readiness": "profile-final",
+      "status": "draft",
+      "readiness": "required",
       "profile": "web-body-carrier",
       "consumers": [
         "std.http.Request",
@@ -7591,8 +8054,8 @@
       "id": "sdk0-web-form-data",
       "providerModule": "std.http",
       "surface": "FormData",
-      "status": "missing",
-      "readiness": "profile-final",
+      "status": "draft",
+      "readiness": "required",
       "profile": "web-body-carrier",
       "consumers": [
         "std.http.Request",
