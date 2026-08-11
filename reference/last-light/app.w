@@ -6,6 +6,7 @@ import {
   Arguments as ProcessArguments,
   Context as ProcessContext,
   ExitCode as ProcessExitCode,
+  InputError as ProcessInputError,
   Signal as ProcessSignal,
   SignalError as ProcessSignalError,
 } from std.process
@@ -47,6 +48,8 @@ export enum AppError: Error {
   gateway(GatewayError)
   http(http.ServerError)
   io(IoError)
+  input(ProcessInputError)
+  output(WriteAllError<IoError>)
   signal(ProcessSignalError)
   service(ServiceFailure)
 }
@@ -84,7 +87,7 @@ fn launchMode(args: ref ProcessArguments): LaunchMode throws AppError {
 
 async fn runConsole(ctx: ProcessContext, mode renderMode: RenderMode): ProcessExitCode throws AppError {
   let welcome = renderResponse(.help, mode: renderMode)
-  try await ctx.stdout.write(welcome)
+  try await ctx.stdout.writeAll(text: welcome)
 
   for try await line in ctx.stdin.lines(maximumBytes: commandLimit) {
     let command = try decodeCommand(line)
@@ -95,7 +98,7 @@ async fn runConsole(ctx: ProcessContext, mode renderMode: RenderMode): ProcessEx
     )
     let shouldStop = requestsShutdown(response)
     let output = renderResponse(take response, mode: renderMode)
-    try await ctx.stdout.write(output)
+    try await ctx.stdout.writeAll(text: output)
 
     if shouldStop {
       return .success

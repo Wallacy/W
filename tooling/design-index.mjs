@@ -295,6 +295,7 @@ const oracleCorpusFiles = [
   "kernel-module-cases.json",
   "foreign-body-cases.json",
   "web-body-cases.json",
+  "process-root-cases.json",
 ];
 const oracleFreezeDecisionIds = new Set(
   oracleCorpusFiles.flatMap((file) => {
@@ -803,6 +804,21 @@ const webBodyOperations = webBodyCorpus.cases.reduce(
 const acceptedWebBodyCases = webBodyCorpus.cases.filter(
   (testCase) => testCase.kind === "positive",
 ).length;
+const processRootCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "process-root-cases.json"), "utf8"),
+);
+const processRootCases = processRootCorpus.cases.length;
+const processRootOperations = processRootCorpus.cases.reduce(
+  (count, testCase) =>
+    count + Object.keys(testCase.input ?? {}).length
+      + (testCase.input.values?.length ?? 0)
+      + (testCase.input.calls?.length ?? 0)
+      + (testCase.input.events?.length ?? 0),
+  0,
+);
+const acceptedProcessRootCases = processRootCorpus.cases.filter(
+  (testCase) => testCase.kind === "positive",
+).length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -1056,6 +1072,11 @@ output.push(
   `| casos/operações de Web bodies WB0 | ${webBodyCases}/${webBodyOperations} ` +
     `(${acceptedWebBodyCases} aceitos + ${webBodyCases - acceptedWebBodyCases} rejeitados; ` +
     `host oracle não executa compiler/provider) |`,
+);
+output.push(
+  `| casos/operações do root de processo PR0 | ${processRootCases}/${processRootOperations} ` +
+    `(${acceptedProcessRootCases} aceitos + ${processRootCases - acceptedProcessRootCases} rejeitados; ` +
+    `host oracle não executa W/provider) |`,
 );
 output.push(
   `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,

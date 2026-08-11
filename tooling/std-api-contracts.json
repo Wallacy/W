@@ -152,6 +152,48 @@
       "bounds": ["source-size", "segment-count"],
       "complexity": { "time": "linear-progress", "space": "bounded-by-argument" }
     },
+    "process-arguments": {
+      "capabilities": [],
+      "effects": ["borrow"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["entry-root-lifetime", "argument-count", "native-representation"],
+      "complexity": { "time": "constant-access-or-linear-search", "space": "constant" }
+    },
+    "process-input": {
+      "capabilities": ["process-stdio"],
+      "effects": ["suspension", "byte-io", "allocation", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["IoError", "process.InputError"] },
+      "bounds": ["single-cursor", "maximum-argument", "line-byte-limit", "strict-utf8"],
+      "complexity": { "time": "linear-progress", "space": "bounded-by-maximum" }
+    },
+    "process-output": {
+      "capabilities": ["process-stdio"],
+      "effects": ["suspension", "byte-io", "admission", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["IoError", "WriteAllError<IoError>"] },
+      "bounds": ["source-size", "fifo-ticket", "committed-progress"],
+      "complexity": { "time": "linear-progress", "space": "bounded-by-argument" }
+    },
+    "process-signals": {
+      "capabilities": ["process-signals"],
+      "effects": ["registration", "generation", "structured-child"],
+      "failures": { "mode": "typed", "types": ["process.SignalError"] },
+      "bounds": ["registration-count", "signal-set", "entry-root-lifetime"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
+    },
+    "process-services": {
+      "capabilities": ["process-services"],
+      "effects": ["suspension", "admission-close", "structured-drain"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["deadline", "entry-root-lifetime", "service-root-count"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
+    },
+    "process-context": {
+      "capabilities": ["entry-root-capability-set"],
+      "effects": ["borrow", "retained-projection"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["entry-root-lifetime", "declared-capability-set", "no-boundary-crossing"],
+      "complexity": { "time": "constant", "space": "bounded-by-projections" }
+    },
     "http-handler": {
       "capabilities": ["http-context"],
       "effects": ["suspension", "network"],
@@ -1053,6 +1095,104 @@
         { "symbol": "ByteSource", "kind": "protocol", "profile": "byte-source" },
         { "symbol": "ByteSink", "kind": "protocol", "profile": "byte-sink" },
         { "symbol": "SnapshotByteSource", "kind": "protocol", "profile": "snapshot-byte-source" }
+      ]
+    },
+    {
+      "id": "std.process",
+      "availability": "native-process-host",
+      "source": "std/process/contracts.w",
+      "designAnchors": ["13.2", "14.5.2", "16.7"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.process@1",
+        "status": "missing",
+        "gates": [
+          "native-argv-round-trip",
+          "root-projection-lifetime",
+          "stdio-progress",
+          "signal-generation",
+          "structured-callback-drain",
+          "capability-link-denial"
+        ]
+      },
+      "consumer": {
+        "path": "reference/last-light/process_oracle.w",
+        "symbols": ["Arguments", "Context", "ExitCode", "Signal"]
+      },
+      "apis": [
+        { "symbol": "ExitCode", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Signal", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "SignalError", "kind": "enum", "profile": "process-signals" },
+        { "symbol": "InputError", "kind": "enum", "profile": "process-input" },
+        {
+          "symbol": "Arguments",
+          "kind": "struct",
+          "profile": "process-arguments",
+          "members": [
+            { "symbol": "count", "profile": "process-arguments" },
+            { "symbol": "isEmpty", "profile": "process-arguments" },
+            { "symbol": "get", "profile": "process-arguments" },
+            { "symbol": "contains", "profile": "process-arguments", "overloads": 2 },
+            { "symbol": "iterator", "profile": "process-arguments" }
+          ]
+        },
+        {
+          "symbol": "Input",
+          "kind": "struct",
+          "profile": "process-input",
+          "members": [
+            { "symbol": "read", "profile": "process-input" },
+            { "symbol": "lines", "profile": "process-input" }
+          ]
+        },
+        {
+          "symbol": "Output",
+          "kind": "struct",
+          "profile": "process-output",
+          "members": [
+            { "symbol": "write", "profile": "process-output" },
+            { "symbol": "writeAll", "profile": "process-output" }
+          ]
+        },
+        {
+          "symbol": "SignalRegistry",
+          "kind": "struct",
+          "profile": "process-signals",
+          "members": [
+            { "symbol": "register", "profile": "process-signals" }
+          ]
+        },
+        {
+          "symbol": "SignalRegistration",
+          "kind": "struct",
+          "profile": "process-signals",
+          "members": [
+            { "symbol": "replace", "profile": "process-signals" },
+            { "symbol": "cancel", "profile": "process-signals" }
+          ]
+        },
+        {
+          "symbol": "Services",
+          "kind": "struct",
+          "profile": "process-services",
+          "members": [
+            { "symbol": "drain", "profile": "process-services" }
+          ]
+        },
+        {
+          "symbol": "Context",
+          "kind": "struct",
+          "profile": "process-context",
+          "members": [
+            { "symbol": "stdin", "profile": "process-input" },
+            { "symbol": "stdout", "profile": "process-output" },
+            { "symbol": "stderr", "profile": "process-output" },
+            { "symbol": "network", "profile": "process-context" },
+            { "symbol": "signals", "profile": "process-signals" },
+            { "symbol": "services", "profile": "process-services" },
+            { "symbol": "deadline", "profile": "process-context" }
+          ]
+        }
       ]
     },
     {
@@ -2579,6 +2719,24 @@
     { "binding": "dlpack", "module": "std.dlpack" }
   ],
   "referenceRequirements": [
+    {
+      "id": "sdk0-process-arguments",
+      "module": "std.process",
+      "surface": "Arguments",
+      "kind": "symbol",
+      "consumer": "reference/last-light/process_oracle.w",
+      "profile": "process-arguments",
+      "status": "draft"
+    },
+    {
+      "id": "sdk0-process-context",
+      "module": "std.process",
+      "surface": "Context",
+      "kind": "symbol",
+      "consumer": "reference/last-light/process_oracle.w",
+      "profile": "process-context",
+      "status": "draft"
+    },
     {
       "id": "sdk0-build-context",
       "module": "std.build",

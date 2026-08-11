@@ -1,20 +1,20 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "97d710f6839b1ecdf8a7248a37d9284fc6ed0875e05ed8f0b9c1914e40faca66",
+  "catalogDigest": "2f6bbbd8ef4222d51fa6509e2ca1f3e84424ecee80287889edd5d8cb9ffa9668",
   "summary": {
-    "modules": 26,
-    "catalogedApis": 338,
-    "draftCatalogedApis": 338,
+    "modules": 27,
+    "catalogedApis": 349,
+    "draftCatalogedApis": 349,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 87,
-    "referenceRequirements": 25,
-    "contractedReferenceRequirements": 25,
+    "referenceRequirements": 27,
+    "contractedReferenceRequirements": 27,
     "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 0,
-    "implementationProviders": 20,
-    "missingImplementationProviders": 20
+    "implementationProviders": 21,
+    "missingImplementationProviders": 21
   },
   "modules": [
     {
@@ -6070,6 +6070,353 @@
       ]
     },
     {
+      "id": "std.process",
+      "availability": "native-process-host",
+      "source": "std/process/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.process@1",
+        "status": "missing",
+        "gates": [
+          "capability-link-denial",
+          "native-argv-round-trip",
+          "root-projection-lifetime",
+          "signal-generation",
+          "stdio-progress",
+          "structured-callback-drain"
+        ]
+      },
+      "catalogedDeclarationsDigest": "8fe599c0bc1293275cfb0be8118631cd258de0dab99401aae1d5b36024207aec",
+      "apis": [
+        {
+          "symbol": "Arguments",
+          "kind": "struct",
+          "signature": "export struct Arguments",
+          "declarationDigest": "4da033f39f274a32ec6eaa0b441fba3ab441141ec31724c18ea68a8717f63fa4",
+          "line": 120,
+          "profile": "process-arguments",
+          "members": [
+            {
+              "symbol": "count",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export count: usize",
+                  "line": 127
+                }
+              ],
+              "profile": "process-arguments"
+            },
+            {
+              "symbol": "isEmpty",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export isEmpty: Bool",
+                  "line": 131
+                }
+              ],
+              "profile": "process-arguments"
+            },
+            {
+              "symbol": "get",
+              "overloads": [
+                {
+                  "signature": "export fn get(index: usize): ref OsString?",
+                  "line": 135
+                }
+              ],
+              "profile": "process-arguments"
+            },
+            {
+              "symbol": "contains",
+              "overloads": [
+                {
+                  "signature": "export fn contains(native value: ref OsString): Bool",
+                  "line": 139
+                },
+                {
+                  "signature": "export fn contains(value: ref String): Bool",
+                  "line": 146
+                }
+              ],
+              "profile": "process-arguments"
+            },
+            {
+              "symbol": "iterator",
+              "overloads": [
+                {
+                  "signature": "export fn iterator(): some Iterator<ref OsString>",
+                  "line": 174
+                }
+              ],
+              "profile": "process-arguments"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "Context",
+          "kind": "struct",
+          "signature": "export struct Context",
+          "declarationDigest": "029dcf1095df329f06bc33eeabd1869b9b8f0ff01fb3b3b8864c420f50bf8411",
+          "line": 321,
+          "profile": "process-context",
+          "members": [
+            {
+              "symbol": "stdin",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export stdin: Input",
+                  "line": 328
+                }
+              ],
+              "profile": "process-input"
+            },
+            {
+              "symbol": "stdout",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export stdout: Output",
+                  "line": 334
+                }
+              ],
+              "profile": "process-output"
+            },
+            {
+              "symbol": "stderr",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export stderr: Output",
+                  "line": 340
+                }
+              ],
+              "profile": "process-output"
+            },
+            {
+              "symbol": "network",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export network: net.Network",
+                  "line": 346
+                }
+              ],
+              "profile": "process-context"
+            },
+            {
+              "symbol": "signals",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export signals: SignalRegistry",
+                  "line": 350
+                }
+              ],
+              "profile": "process-signals"
+            },
+            {
+              "symbol": "services",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export services: Services",
+                  "line": 356
+                }
+              ],
+              "profile": "process-services"
+            },
+            {
+              "symbol": "deadline",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export deadline: Deadline",
+                  "line": 362
+                }
+              ],
+              "profile": "process-context"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "ExitCode",
+          "kind": "enum",
+          "signature": "export enum ExitCode: Copy & Equatable",
+          "declarationDigest": "96392068f3a569b64d4a9b6d57d802cbd3c6487a62c12fbde9ab4965d4d415ae",
+          "line": 10,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Input",
+          "kind": "struct",
+          "signature": "export struct Input: ByteSource<IoError>",
+          "declarationDigest": "e9a75b075acec9aafe54a8e88cfd7fac24310093ec7284d2e8b472f7c8880cdf",
+          "line": 179,
+          "profile": "process-input",
+          "members": [
+            {
+              "symbol": "read",
+              "overloads": [
+                {
+                  "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws IoError",
+                  "line": 186
+                }
+              ],
+              "profile": "process-input"
+            },
+            {
+              "symbol": "lines",
+              "overloads": [
+                {
+                  "signature": "export fn lines( named maximumBytes: usize<(1...)>, ): some Stream<String, InputError>",
+                  "line": 199
+                }
+              ],
+              "profile": "process-input"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "InputError",
+          "kind": "enum",
+          "signature": "export enum InputError: Error",
+          "declarationDigest": "092b2c37911a08c40f89347ce4108bb68d3a8e431b54f11237adc5e0aa48e838",
+          "line": 30,
+          "profile": "process-input",
+          "status": "draft"
+        },
+        {
+          "symbol": "Output",
+          "kind": "struct",
+          "signature": "export struct Output: ByteSink<IoError>",
+          "declarationDigest": "626d5a943bd00bb66f188fcb775dd4818c0e8cc4e58d21ab6a41e1eaa3258591",
+          "line": 233,
+          "profile": "process-output",
+          "members": [
+            {
+              "symbol": "write",
+              "overloads": [
+                {
+                  "signature": "export mut async fn write( source: view Bytes, ): WriteStep throws IoError",
+                  "line": 240
+                }
+              ],
+              "profile": "process-output"
+            },
+            {
+              "symbol": "writeAll",
+              "overloads": [
+                {
+                  "signature": "export async fn writeAll( text source: view String, ): () throws WriteAllError<IoError>",
+                  "line": 248
+                }
+              ],
+              "profile": "process-output"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "Services",
+          "kind": "struct",
+          "signature": "export struct Services",
+          "declarationDigest": "23fdbf0e2ed39e53f98c2df5b01affd5b59dd1206ada7be3331b595c4f2993ac",
+          "line": 305,
+          "profile": "process-services",
+          "members": [
+            {
+              "symbol": "drain",
+              "overloads": [
+                {
+                  "signature": "export async fn drain(named deadline: Deadline)",
+                  "line": 312
+                }
+              ],
+              "profile": "process-services"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "Signal",
+          "kind": "enum",
+          "signature": "export enum Signal: Copy & Equatable & Hashable",
+          "declarationDigest": "f6170c792a4513c253a94c3a5c534a7b99defe7eb5ae95ecc46a8039a916278f",
+          "line": 15,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "SignalError",
+          "kind": "enum",
+          "signature": "export enum SignalError: Error & Duplicable",
+          "declarationDigest": "06fcfc3d9d46ec3760f7c8ae45ea5b40aa15eac02e247e75081ce17511e134d1",
+          "line": 20,
+          "profile": "process-signals",
+          "status": "draft"
+        },
+        {
+          "symbol": "SignalRegistration",
+          "kind": "struct",
+          "signature": "export struct SignalRegistration",
+          "declarationDigest": "6e56dc43f2b7eb1ce9c895a2761221772c9be78a57e63f005a900ef16370b1a2",
+          "line": 281,
+          "profile": "process-signals",
+          "members": [
+            {
+              "symbol": "replace",
+              "overloads": [
+                {
+                  "signature": "export fn replace( named handler: some async fn(Signal, Context): (), ): () throws SignalError",
+                  "line": 288
+                }
+              ],
+              "profile": "process-signals"
+            },
+            {
+              "symbol": "cancel",
+              "overloads": [
+                {
+                  "signature": "export fn cancel()",
+                  "line": 294
+                }
+              ],
+              "profile": "process-signals"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "SignalRegistry",
+          "kind": "struct",
+          "signature": "export struct SignalRegistry",
+          "declarationDigest": "088c77a2bd592bae01e4ee7cdd1727e0219788aab0b91ae4c5314b7df7c98b03",
+          "line": 259,
+          "profile": "process-signals",
+          "members": [
+            {
+              "symbol": "register",
+              "overloads": [
+                {
+                  "signature": "export fn register( signals: view Array<Signal>, named handler: some async fn(Signal, Context): (), ): SignalRegistration throws SignalError",
+                  "line": 266
+                }
+              ],
+              "profile": "process-signals"
+            }
+          ],
+          "status": "draft"
+        }
+      ]
+    },
+    {
       "id": "std.runtime.task",
       "availability": "runtime-profile",
       "source": "std/runtime/task.w",
@@ -8367,6 +8714,22 @@
       "status": "draft",
       "profile": "value-contract",
       "consumer": "reference/last-light/app.w"
+    },
+    {
+      "id": "sdk0-process-arguments",
+      "module": "std.process",
+      "surface": "Arguments",
+      "status": "draft",
+      "profile": "process-arguments",
+      "consumer": "reference/last-light/process_oracle.w"
+    },
+    {
+      "id": "sdk0-process-context",
+      "module": "std.process",
+      "surface": "Context",
+      "status": "draft",
+      "profile": "process-context",
+      "consumer": "reference/last-light/process_oracle.w"
     },
     {
       "id": "sdk0-snapshot-byte-source",
