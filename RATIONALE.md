@@ -1117,6 +1117,29 @@ typed effects, valores armazenáveis e trace sidecar. O
 separa panic de error recuperável. W usa teardown da fault boundary e não expõe
 unwind recuperável no source.
 
+### 1.6 Services, packing e deployment
+
+O modelo separa graph lógico, packing físico e deployment. workerd declara
+service bindings na configuração do caller. WebAssembly Components liga imports
+tipados a exports tipados durante composition. W acrescenta ownership, effects,
+budgets, lifecycle e `ServiceRef` estruturado. Cloudflare fixa bindings no
+deploy; W resolve a escolha no startup dentro do envelope do artifact.
+
+As referências principais são:
+
+- [Cloudflare service bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/);
+- [workerd](https://github.com/cloudflare/workerd);
+- [JavaScript-native RPC](https://blog.cloudflare.com/javascript-native-rpc/)
+  e [Cap'n Web](https://blog.cloudflare.com/capnweb-javascript-rpc-library/);
+- [sandbox e seccomp](https://blog.cloudflare.com/sandboxing-in-linux-with-zero-lines-of-code/);
+- [WebAssembly Component Model](https://component-model.bytecodealliance.org/design/components.html)
+  e [WIT worlds](https://component-model.bytecodealliance.org/design/worlds.html);
+- [OCI manifests e indexes](https://github.com/opencontainers/image-spec/blob/main/manifest.md).
+
+Esses precedentes não definem a stack W. `ServiceIR`, `ServiceLink`, wRPC,
+`ServiceTransport`, packing e deployment mantêm contratos próprios. Cap'n
+Proto, Cap'n Web e gRPC permanecem foreign links, não dependências estruturais.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
