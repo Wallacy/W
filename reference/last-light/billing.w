@@ -180,7 +180,7 @@ test "pricing keeps currency and integer minor units" for quote {
   expect value.currency == Currency.cr
   expect value.minorUnits == 4_242
   expect Money.zeroCredits.minorUnits == 0
-  expect try Money(majorUnits: 42, currency: .cr).minorUnits == 4_200
+  expect Money(majorUnits: 42, currency: .cr).minorUnits == 4_200
   expect menu.count == 4
   expect menu.last?.label == "Horizon cake"
 }

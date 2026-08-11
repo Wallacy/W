@@ -4973,22 +4973,23 @@ export struct Money {
   export minorUnits: i128
   export currency: Currency
 
-  export init(minorUnits: i128, currency: Currency) {
-    self.minorUnits = minorUnits
+  export const init(minorUnits value: i128, currency: Currency) {
+    self.minorUnits = value
     self.currency = currency
   }
 
-  export init(majorUnits: i64, currency: Currency) throws DomainError {
-    let minorUnits = try i128.checkedMultiply(i128(majorUnits), 100)
-      .mapError((_) => .overflow)
-
-    self = Money(minorUnits: minorUnits, currency: currency)
+  export const init(majorUnits value: i64, currency: Currency) {
+    self = Money(minorUnits: i128(value) * 100, currency: currency)
   }
 }
 ```
 
 As formas são `Money(minorUnits:, currency:)` e
-`Money(majorUnits:, currency:)`. Os tipos não participam da seleção.
+`Money(majorUnits:, currency:)`. `minorUnits` e `majorUnits` são labels
+externos obrigatórios; `value` é o nome interno nos dois initializers. Os tipos
+não participam da seleção. A conversão `i64` para `i128` é exata, e
+`i64.max * 100` cabe em `i128`; portanto, o segundo initializer é total,
+`const` e não exige `throws` ou `try`.
 
 A presença de qualquer `init` remove o initializer sintetizado da interface
 source. O compiler classifica cada initializer como direto ou delegante. Um

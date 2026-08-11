@@ -1,0 +1,112 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-multiple-initializers",
+  "title": "Money construction at the Last Light restaurant",
+  "r0Cases": ["R0-multiple-initializers"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/domain.w",
+    "symbol": "Money",
+    "digest": "sha256:1487008ffa56f4fbca61f457a6f77f6de4cb82a65d304839432641fc7902b433"
+  },
+  "variants": [
+    {
+      "id": "multiple",
+      "role": "selected",
+      "language": "w",
+      "path": "multiple.w",
+      "digest": "sha256:deb0aae5c7a7dae864bdcfcff4138371880a0dc77e2e08b8b5481a1844a07c37",
+      "changedConstructs": [
+        "two initializers with disjoint external labels",
+        "uniform Type(...) construction",
+        "total major-unit conversion after i64-to-i128 widening"
+      ]
+    },
+    {
+      "id": "single-mode",
+      "role": "alternative",
+      "language": "w",
+      "path": "single-mode.w",
+      "digest": "sha256:3e8b7150c448051adaf0b43731dba41ad858372cf0cb4ae5c4c2c9ddde93721b",
+      "changedConstructs": [
+        "one initializer shape",
+        "enum mode value selects the invariant",
+        "payload type moves behind the mode"
+      ]
+    },
+    {
+      "id": "factories",
+      "role": "alternative",
+      "language": "w",
+      "path": "factories.w",
+      "digest": "sha256:7bad7efb99ae9dfb3b1d043382d485e4ef2102ab03ad9a83d4ffee9e1eda218e",
+      "changedConstructs": [
+        "one canonical initializer",
+        "named associated factory for major units",
+        "construction syntax differs by input unit"
+      ]
+    }
+  ],
+  "entry": "majorPrice",
+  "inputs": [
+    {
+      "id": "minor-units",
+      "unit": "minor",
+      "value": "4242",
+      "expected": { "minorUnits": "4242" }
+    },
+    {
+      "id": "major-units",
+      "unit": "major",
+      "value": "42",
+      "expected": { "minorUnits": "4200" }
+    },
+    {
+      "id": "maximum-major-units",
+      "unit": "major",
+      "value": "9223372036854775807",
+      "expected": { "minorUnits": "922337203685477580700" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Identify call shape, internal parameter name, mode value or factory, exact widening, and effect contract."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct minor-unit and major-unit construction without adding a failure that the types exclude.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that removes the external labels and makes overload selection depend on i64 versus i128.",
+      "mutations": {
+        "multiple": "Replace `minorUnits value` and `majorUnits value` with two positional first parameters.",
+        "single-mode": "Remove the MoneyInput case and infer the mode from the numeric type.",
+        "factories": "Rename the factory to `init` without giving it a distinct call shape."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a decimal text input whose parse can fail while keeping the two integer construction paths total."
+    }
+  ],
+  "presentationOrders": [
+    ["multiple", "single-mode", "factories"],
+    ["single-mode", "factories", "multiple"],
+    ["factories", "multiple", "single-mode"]
+  ],
+  "blinding": {
+    "participantLabels": { "multiple": "A", "single-mode": "B", "factories": "C" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:68515a24a6cede6dc964433fea93d8da1050fecec784b036c6e299570fc1b5a5"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}

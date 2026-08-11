@@ -1601,7 +1601,7 @@ delegação.
 Aceite:
 
 - `Money(minorUnits:, currency:)` seleciona o initializer de unidade mínima;
-- `Money(majorUnits:, currency:)` seleciona o initializer com conversão;
+- `Money(majorUnits:, currency:)` seleciona o initializer total com conversão exata para `i128`;
 - os labels selecionam o initializer antes do type-check;
 - `self = Money(...)` delega sem trocar a identidade do storage;
 - overflow na conversão lança `DomainError.overflow`;

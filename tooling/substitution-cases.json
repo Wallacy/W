@@ -622,7 +622,7 @@
       "task": "Construct money from exact minor or major units with disjoint call shapes.",
       "selected": {
         "language": "w",
-        "source": ["init(minorUnits: i128, currency: Currency)", "init(majorUnits: i64, currency: Currency) throws DomainError"]
+        "source": ["const init(minorUnits value: i128, currency: Currency)", "const init(majorUnits value: i64, currency: Currency)"]
       },
       "alternatives": [
         {
