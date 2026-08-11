@@ -9,7 +9,7 @@ function withoutComments(source) {
 export function splitTopLevel(text, separator = ",") {
   const parts = []
   let start = 0
-  let depth = 0
+  const delimiters = []
   let quote = null
   let escaped = false
   for (let index = 0; index < text.length; index += 1) {
@@ -24,9 +24,15 @@ export function splitTopLevel(text, separator = ",") {
       quote = character
       continue
     }
-    if ("([{<".includes(character)) depth += 1
-    else if (") ]}>".replaceAll(" ", "").includes(character)) depth -= 1
-    else if (character === separator && depth === 0) {
+    if ("([{".includes(character)) delimiters.push(character)
+    else if (character === "<" && index > 0 && !/\s/.test(text[index - 1])) {
+      delimiters.push(character)
+    } else if (")]}".includes(character)) {
+      const expected = { ")": "(", "]": "[", "}": "{" }[character]
+      if (delimiters.at(-1) === expected) delimiters.pop()
+    } else if (character === ">" && delimiters.at(-1) === "<") {
+      delimiters.pop()
+    } else if (character === separator && delimiters.length === 0) {
       parts.push(text.slice(start, index).trim())
       start = index + 1
     }
@@ -37,17 +43,34 @@ export function splitTopLevel(text, separator = ",") {
 }
 
 function parseParameter(raw, index) {
-  const cleaned = raw.replace(/=.*/, "").trim()
+  const hasDefault = splitTopLevel(raw, "=").length > 1
+  const cleaned = splitTopLevel(raw, "=")[0].trim()
   if (!cleaned || cleaned === "...") return null
+  const variadic = /\.\.\.\s*$/.test(cleaned)
   let tokens = cleaned.split(/\s+/)
   const modifiers = new Set(["inout", "take", "ref", "copy", "shared", "weak", "view", "mut"])
   while (modifiers.has(tokens[0])) tokens = tokens.slice(1)
   let external = null
   let internal = null
+  if (tokens[0] === "named") {
+    internal = tokens[1]?.replace(/:.*/, "")
+    return internal && identifier.test(internal)
+      ? {
+          index,
+          internal,
+          external: internal,
+          policy: `required(${internal})`,
+          forms: [`${internal}:`],
+          hasDefault,
+          variadic,
+          named: true,
+        }
+      : null
+  }
   if (tokens[0] === "_") {
     internal = tokens[1]?.replace(/:.*/, "")
     return internal && identifier.test(internal)
-      ? { index, internal, policy: "optional(name)", forms: ["positional", `${internal}:`] }
+      ? { index, internal, policy: "optional(name)", forms: ["positional", `${internal}:`], hasDefault, variadic }
       : null
   }
   const inlineExternalInternal = tokens.length >= 3
@@ -62,81 +85,239 @@ function parseParameter(raw, index) {
     external = tokens[0]
     internal = tokens[1]
       .replace(/:.*/, "")
-    return { index, internal, external, policy: `required(${external})`, forms: [`${external}:`] }
+    return { index, internal, external, policy: `required(${external})`, forms: [`${external}:`], hasDefault, variadic }
   }
-  const nameToken = tokens.find((token) => token.includes(":")) ?? tokens[0]
+  const nameToken = tokens.find((token) => /^[A-Za-z_][A-Za-z0-9_]*:/.test(token))
+  if (!nameToken) {
+    return {
+      index,
+      internal: `$${index}`,
+      policy: "positionalOnly",
+      forms: ["positional"],
+      hasDefault,
+      variadic,
+      unnamed: true,
+    }
+  }
   internal = nameToken.replace(/:.*/, "")
   if (!identifier.test(internal)) return null
-  if (index === 0) return { index, internal, policy: "positionalOnly", forms: ["positional"] }
-  return { index, internal, external: internal, policy: `required(${internal})`, forms: [`${internal}:`] }
+  return { index, internal, policy: "positionalOnly", forms: ["positional"], hasDefault, variadic }
 }
 
 function parseParameters(raw) {
   return splitTopLevel(raw).map(parseParameter).filter(Boolean)
 }
 
-function declarationBodies(source) {
-  const declarations = []
-  const pattern = /\b(?:(export)\s+)?((?:unsafe\s+)?(?:mut\s+|take\s+)?(?:async\s+)?)fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>{}]*>)?\s*\(([\s\S]*?)\)\s*(?:[^\{\n]*)(\{)?/g
-  for (const match of source.matchAll(pattern)) {
-    const start = match.index ?? 0
-    const line = source.slice(source.lastIndexOf("\n", start) + 1, start + match[0].length)
-    const bodyStart = start + match[0].lastIndexOf("{")
-    let body = ""
-    if (match[5]) {
-      let depth = 0
-      for (let index = bodyStart; index < source.length; index += 1) {
-        if (source[index] === "{") depth += 1
-        else if (source[index] === "}") {
-          depth -= 1
-          if (depth === 0) {
-            body = source.slice(bodyStart + 1, index)
-            break
-          }
-        }
+function recordLabelDiagnostics(source) {
+  const diagnostics = []
+  for (const match of source.matchAll(/\binit\s*\(/g)) {
+    const opening = (match.index ?? 0) + match[0].lastIndexOf("(")
+    const closing = matchingDelimiter(source, opening)
+    if (closing < 0) continue
+    for (const raw of splitTopLevel(source.slice(opening + 1, closing))) {
+      const parameter = raw.match(/^named\s+([A-Za-z_][A-Za-z0-9_]*)\s*:/)
+      if (!parameter) continue
+      diagnostics.push({
+        code: "W-LABEL-0007",
+        declaration: "init",
+        parameter: parameter[1],
+        context: "initializer",
+        reason: "record-label-already-required",
+      })
+    }
+  }
+  return diagnostics
+}
+
+function matchingDelimiter(source, opening, open = "(", close = ")") {
+  let depth = 0
+  let quote = null
+  let escaped = false
+  for (let index = opening; index < source.length; index += 1) {
+    const character = source[index]
+    if (quote) {
+      if (escaped) escaped = false
+      else if (character === "\\") escaped = true
+      else if (character === quote) quote = null
+      continue
+    }
+    if (character === "\"" || character === "'") {
+      quote = character
+      continue
+    }
+    if (character === open) depth += 1
+    else if (character === close) {
+      depth -= 1
+      if (depth === 0) return index
+    }
+  }
+  return -1
+}
+
+function declarationScopes(source) {
+  const scopes = []
+  const patterns = [
+    /\b(struct|object|protocol|enum|service)\s+([A-Za-z_][A-Za-z0-9_]*)[^\n{]*\{/g,
+    /\b(extension)(?:<[^>{}]*>)?\s+([A-Za-z_][A-Za-z0-9_]*)[^\n{]*\{/g,
+  ]
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) {
+      const opening = (match.index ?? 0) + match[0].lastIndexOf("{")
+      const closing = matchingDelimiter(source, opening, "{", "}")
+      if (closing >= 0) {
+        scopes.push({
+          id: `nominal:${match[2]}`,
+          kind: match[1],
+          start: opening,
+          end: closing,
+        })
       }
     }
+  }
+  return scopes
+}
+
+function declarationBodies(source) {
+  const declarations = []
+  const scopes = declarationScopes(source)
+  const pattern = /\b(?:(export)\s+)?((?:static\s+|const\s+|unsafe\s+|mut\s+|take\s+|async\s+)*)fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>{}]*>)?\s*\(/g
+  for (const match of source.matchAll(pattern)) {
+    const start = match.index ?? 0
+    const parametersStart = start + match[0].lastIndexOf("(")
+    const parametersEnd = matchingDelimiter(source, parametersStart)
+    if (parametersEnd < 0) continue
+    const lineEnd = source.indexOf("\n", parametersEnd)
+    const tailEnd = lineEnd < 0 ? source.length : lineEnd
+    const tail = source.slice(parametersEnd + 1, tailEnd)
+    const relativeBodyStart = tail.indexOf("{")
+    const bodyStart = relativeBodyStart < 0 ? -1 : parametersEnd + 1 + relativeBodyStart
+    let body = ""
+    if (bodyStart >= 0) {
+      const bodyEnd = matchingDelimiter(source, bodyStart, "{", "}")
+      if (bodyEnd >= 0) body = source.slice(bodyStart + 1, bodyEnd)
+    }
+    const owner = scopes
+      .filter((scope) => scope.start < start && start < scope.end)
+      .sort((left, right) => (left.end - left.start) - (right.end - right.start))[0]
     declarations.push({
       name: match[3],
-      params: parseParameters(match[4]),
+      params: parseParameters(source.slice(parametersStart + 1, parametersEnd)),
+      line: source.slice(0, start).split("\n").length,
+      source: source.slice(start, parametersEnd + 1).replace(/\s+/g, " ").trim(),
       body,
-      explicitAsync: /\basync\s+fn\b/.test(line),
-      hasBody: Boolean(match[5]),
+      explicitAsync: /\basync\s*$/.test(match[2]),
+      hasBody: bodyStart >= 0,
       exported: Boolean(match[1]),
+      scope: owner?.id ?? "module",
     })
   }
   return declarations
 }
 
+function braceDepth(source, start, end) {
+  let depth = 0
+  let quote = null
+  let escaped = false
+  for (let index = start; index < end; index += 1) {
+    const character = source[index]
+    if (quote) {
+      if (escaped) escaped = false
+      else if (character === "\\") escaped = true
+      else if (character === quote) quote = null
+      continue
+    }
+    if (character === "\"" || character === "'") quote = character
+    else if (character === "{") depth += 1
+    else if (character === "}") depth -= 1
+  }
+  return depth
+}
+
+function codeMask(source) {
+  let quote = null
+  let escaped = false
+  let mask = ""
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]
+    if (quote) {
+      if (escaped) escaped = false
+      else if (character === "\\") escaped = true
+      else if (character === quote) quote = null
+      mask += character === "\n" || character === "\r" ? character : " "
+      continue
+    }
+    if (character === "\"" || character === "'") {
+      quote = character
+      mask += " "
+      continue
+    }
+    mask += character
+  }
+  return mask
+}
+
 function parseCalls(source) {
   const calls = []
-  const lines = source.split(/\r?\n/)
-  for (const [lineIndex, rawLine] of lines.entries()) {
-    let line = rawLine.trim()
-    if (!line || /^\/\//.test(line)) continue
-    if (/\bfn\s+[A-Za-z_]/.test(line)) {
-      const declaration = line.search(/\bfn\s+[A-Za-z_]/)
-      const brace = line.indexOf("{", declaration)
-      if (brace < 0) continue
-      line = line.slice(brace + 1).trim()
+  const mask = codeMask(source)
+  const enumScopes = declarationScopes(source).filter((scope) => scope.kind === "enum")
+  const ignored = new Set(["fn", "if", "for", "while", "switch", "catch", "return", "yield"])
+
+  for (const match of mask.matchAll(/\b([A-Za-z_][A-Za-z0-9_]*)/g)) {
+    const callee = match[1]
+    const start = match.index ?? 0
+    if (ignored.has(callee)) continue
+    const prefix = mask.slice(Math.max(0, start - 32), start)
+    if (/\bfn\s*$/.test(prefix)) continue
+
+    let cursor = start + callee.length
+    if (mask[cursor] === "<") {
+      const genericEnd = matchingDelimiter(mask, cursor, "<", ">")
+      if (genericEnd < 0) continue
+      cursor = genericEnd + 1
     }
-    for (const match of line.matchAll(/(?:\.|\b)([A-Za-z_][A-Za-z0-9_]*)\s*\(([^()]*)\)/g)) {
-      const callee = match[1]
-      if (["if", "for", "while", "switch", "catch", "return", "Task", "yield"].includes(callee)) continue
-      const args = splitTopLevel(match[2])
-      const labels = []
-      for (const argument of args) {
-        const labelMatch = argument.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:/)
-        if (labelMatch) labels.push(labelMatch[1])
-      }
-      const statementStart = line.lastIndexOf(";", match.index ?? 0) + 1
-      const statement = line.slice(statementStart, (match.index ?? 0) + match[0].length)
-      let callForm = "direct"
-      if (/\btry\s+await\b|\bawait\b/.test(statement)) callForm = "await"
-      else if (/\basync\s+let\b/.test(statement)) callForm = "async let"
-      else if (/\bspawn\s*</.test(statement)) callForm = "spawn"
-      calls.push({ callee, labels, callForm, line: lineIndex + 1, source: line })
+    while (/\s/.test(mask[cursor] ?? "")) cursor += 1
+    if (mask[cursor] !== "(") continue
+    const closing = matchingDelimiter(source, cursor)
+    if (closing < 0) continue
+
+    const enclosingEnum = enumScopes.find((scope) =>
+      scope.start < start && start < scope.end
+      && braceDepth(source, scope.start + 1, start) === 0)
+    if (enclosingEnum) continue
+
+    const args = splitTopLevel(source.slice(cursor + 1, closing))
+    const labels = []
+    const forms = []
+    for (const argument of args) {
+      const labelMatch = argument.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:/)
+      if (labelMatch) {
+        labels.push(labelMatch[1])
+        forms.push(`${labelMatch[1]}:`)
+      } else forms.push("positional")
     }
+
+    const statementStart = Math.max(
+      source.lastIndexOf("\n", start),
+      source.lastIndexOf(";", start),
+      source.lastIndexOf("{", start),
+    ) + 1
+    const statement = source.slice(statementStart, closing + 1)
+    let callForm = "direct"
+    if (/\btry\s+await\b|\bawait\b/.test(statement)) callForm = "await"
+    else if (/\basync\s+let\b/.test(statement)) callForm = "async let"
+    else if (/\bspawn\s*</.test(statement)) callForm = "spawn"
+
+    let memberCursor = start - 1
+    while (/\s/.test(mask[memberCursor] ?? "")) memberCursor -= 1
+    calls.push({
+      callee,
+      labels,
+      forms,
+      member: mask[memberCursor] === ".",
+      callForm,
+      line: source.slice(0, start).split("\n").length,
+      source: source.slice(start, closing + 1).replace(/\s+/g, " ").trim(),
+    })
   }
   return calls
 }
@@ -144,20 +325,103 @@ function parseCalls(source) {
 function completeCallShapes(parameters) {
   let shapes = [[]]
   for (const parameter of parameters) {
-    shapes = shapes.flatMap((shape) => parameter.forms.map((form) => [...shape, form]))
+    if (parameter.variadic) {
+      const extended = shapes.flatMap((shape) =>
+        parameter.forms.map((form) => [...shape, `${form}...`]))
+      shapes = [...shapes, ...extended]
+      continue
+    }
+    const extended = shapes.flatMap((shape) => parameter.forms.map((form) => [...shape, form]))
+    shapes = parameter.hasDefault ? [...shapes, ...extended] : extended
   }
   return shapes.map((shape) => shape.join("|"))
 }
 
+function epsilonClosure(parameters, initialStates) {
+  const states = new Set(initialStates)
+  const pending = [...states]
+  while (pending.length > 0) {
+    const state = pending.pop()
+    const parameterIndex = Math.floor(state / 2)
+    const parameter = parameters[parameterIndex]
+    const continuation = state % 2 === 1
+    if (!parameter) continue
+    if (!continuation && !parameter.hasDefault && !parameter.variadic) continue
+    const next = (parameterIndex + 1) * 2
+    if (!states.has(next)) {
+      states.add(next)
+      pending.push(next)
+    }
+  }
+  return states
+}
+
+function consumeForm(parameters, states, form) {
+  const next = new Set()
+  for (const state of epsilonClosure(parameters, states)) {
+    const parameterIndex = Math.floor(state / 2)
+    const parameter = parameters[parameterIndex]
+    if (!parameter) continue
+    const continuation = state % 2 === 1
+    if (continuation) {
+      if (parameter.variadic && form === "positional") next.add(state)
+      continue
+    }
+    if (!parameter.forms.includes(form)) continue
+    next.add(parameter.variadic ? state + 1 : state + 2)
+  }
+  return epsilonClosure(parameters, next)
+}
+
+export function acceptsCallShape(parameters, forms) {
+  let states = epsilonClosure(parameters, new Set([0]))
+  for (const form of forms) {
+    states = consumeForm(parameters, states, form)
+    if (states.size === 0) return false
+  }
+  return states.has(parameters.length * 2)
+}
+
+function overlappingCallShape(left, right) {
+  const alphabet = [...new Set(
+    left.concat(right).flatMap((parameter) =>
+      parameter.variadic ? [...parameter.forms, "positional"] : parameter.forms),
+  )].sort()
+  const initialLeft = epsilonClosure(left, new Set([0]))
+  const initialRight = epsilonClosure(right, new Set([0]))
+  const queue = [{ left: initialLeft, right: initialRight, forms: [] }]
+  const visited = new Set()
+
+  while (queue.length > 0) {
+    const state = queue.shift()
+    const key = `${[...state.left].sort().join(",")}|${[...state.right].sort().join(",")}`
+    if (visited.has(key)) continue
+    visited.add(key)
+    if (state.left.has(left.length * 2) && state.right.has(right.length * 2)) {
+      return state.forms.join("|")
+    }
+    for (const form of alphabet) {
+      const nextLeft = consumeForm(left, state.left, form)
+      const nextRight = consumeForm(right, state.right, form)
+      if (nextLeft.size > 0 && nextRight.size > 0) {
+        queue.push({ left: nextLeft, right: nextRight, forms: [...state.forms, form] })
+      }
+    }
+  }
+  return null
+}
+
 function deriveCallableLabels(source, declarations) {
+  const byScopedName = new Map()
   const byName = new Map()
-  const diagnostics = []
+  const diagnostics = recordLabelDiagnostics(source)
   for (const declaration of declarations) {
     const callShapes = completeCallShapes(declaration.params)
-    const previous = byName.get(declaration.name) ?? []
+    const scopedName = `${declaration.scope}|${declaration.name}`
+    const previous = byScopedName.get(scopedName) ?? []
     for (const prior of previous) {
-      const overlap = callShapes.find((shape) => prior.callShapes.includes(shape))
-      if (overlap) {
+      const overlap = overlappingCallShape(declaration.params, prior.params)
+      if (overlap !== null) {
         diagnostics.push({
           code: "W-LABEL-0004",
           declaration: declaration.name,
@@ -166,22 +430,48 @@ function deriveCallableLabels(source, declarations) {
         })
       }
     }
-    byName.set(declaration.name, [...previous, { callShapes, params: declaration.params, ordinal: declarations.indexOf(declaration) }])
+    const item = {
+      callShapes,
+      params: declaration.params,
+      ordinal: declarations.indexOf(declaration),
+      scope: declaration.scope,
+    }
+    byScopedName.set(scopedName, [...previous, item])
+    byName.set(declaration.name, [...(byName.get(declaration.name) ?? []), item])
   }
   const calls = parseCalls(source)
   for (const call of calls) {
-    const declarationsForName = byName.get(call.callee) ?? []
+    // This oracle has no type checker. A member name can resolve to a type that
+    // is not declared in the same source file, so only direct calls are
+    // validated here. S0 owns member lookup and witness conformance.
+    if (call.member) continue
+    const candidates = byName.get(call.callee) ?? []
+    const declarationsForName = candidates.filter((declaration) => declaration.scope === "module")
     if (declarationsForName.length === 0) continue
     const acceptedLabels = declarationsForName.flatMap((declaration) => declaration.params.flatMap((parameter) => parameter.forms.filter((form) => form.endsWith(":"))))
     const duplicate = call.labels.find((label, index) => call.labels.indexOf(label) !== index)
     if (duplicate) diagnostics.push({ code: "W-LABEL-0006", declaration: call.callee, label: duplicate, slot: duplicate })
-    const unknown = call.labels.find((label) => !acceptedLabels.includes(`${label}:`))
-    if (unknown) diagnostics.push({ code: "W-LABEL-0005", declaration: call.callee, label: unknown, acceptedForms: acceptedLabels })
+    const suppliedShape = call.forms.join("|")
+    const acceptedShapes = declarationsForName.flatMap((declaration) => declaration.callShapes)
+    const accepted = declarationsForName.some((declaration) =>
+      acceptsCallShape(declaration.params, call.forms))
+    if (!duplicate && !accepted) {
+      const unknown = call.labels.find((label) => !acceptedLabels.includes(`${label}:`))
+      diagnostics.push({
+        code: "W-LABEL-0005",
+        declaration: call.callee,
+        label: unknown ?? suppliedShape,
+        acceptedForms: acceptedShapes,
+      })
+    }
   }
   return {
     declarations: declarations.map((declaration, ordinal) => ({
       name: declaration.name,
       ordinal,
+      scope: declaration.scope,
+      line: declaration.line,
+      source: declaration.source,
       params: declaration.params,
       callShapes: completeCallShapes(declaration.params),
     })),

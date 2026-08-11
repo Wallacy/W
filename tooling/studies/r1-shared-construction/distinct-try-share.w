@@ -8,7 +8,7 @@ struct MenuSection {
 
 fn makeRoot(
   title: String,
-  memory: ref Allocator,
+  named memory: ref Allocator,
 ): shared MenuSection throws AllocationError {
   return try tryShare(
     MenuSection(

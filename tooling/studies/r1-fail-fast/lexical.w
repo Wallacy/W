@@ -11,13 +11,13 @@ async fn controlledDelay(ticks: u16): () {
   }
 }
 
-async fn mixPort(delay: u16, fails: Bool): u32 throws MixingError {
+async fn mixPort(delay: u16, named fails: Bool): u32 throws MixingError {
   await controlledDelay(delay)
   if fails { throw .port }
   return 1
 }
 
-async fn mixStarboard(delay: u16, fails: Bool): u32 throws MixingError {
+async fn mixStarboard(delay: u16, named fails: Bool): u32 throws MixingError {
   await controlledDelay(delay)
   if fails { throw .starboard }
   return 2

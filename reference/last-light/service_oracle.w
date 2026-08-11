@@ -138,8 +138,8 @@ enum PipelineAggregate {
 }
 
 const fn expectedPipelineAggregate(
-  first: PipelineNodeOutcome,
-  second: PipelineNodeOutcome,
+  named first: PipelineNodeOutcome,
+  named second: PipelineNodeOutcome,
 ): PipelineAggregate {
   return switch (first, second) {
     case (.unknownOutcome, _): .pipelineUnknown
@@ -153,9 +153,9 @@ const fn expectedPipelineAggregate(
 }
 
 const fn expectedCapabilitySettlement(
-  created: Bool,
-  selected: Bool,
-  pipelineSucceeded: Bool,
+  named created: Bool,
+  named selected: Bool,
+  named pipelineSucceeded: Bool,
 ): PipelineCapabilitySettlement {
   return switch (created, selected, pipelineSucceeded) {
     case (false, _, _): .absent

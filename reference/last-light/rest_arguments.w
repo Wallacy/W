@@ -10,9 +10,9 @@ fn courseLoad(course: Course): u32 {
   }
 }
 
-export fn kitchenLoad(kitchens: u16, courses: Course...): u32 {
+export fn kitchenLoad(kitchens: u16, courses plannedCourses: Course...): u32 {
   var total: u32 = 0
-  for course in courses {
+  for course in plannedCourses {
     total += courseLoad(course) * kitchens
   }
   return total

@@ -21,10 +21,46 @@
       "expect": { "callableName": "route", "callableExternal": "to", "callableInternal": "range", "parameterIndex": 0 }
     },
     {
+      "id": "EE-POS-callable-plain-parameters-positional",
+      "kind": "positive",
+      "source": "fn query(count: usize<(1...500)>, context: Context) {}\nquery(20, context)",
+      "expect": { "callableName": "query", "callShapes": ["positional|positional"] }
+    },
+    {
+      "id": "EE-POS-callable-named-parameter",
+      "kind": "positive",
+      "source": "fn query(count: usize<(1...500)>, named context: Context) {}\nquery(20, context: context)",
+      "expect": { "callableName": "query", "callablePolicy": "required(context)", "forms": ["context:"], "parameterIndex": 1 }
+    },
+    {
+      "id": "EE-POS-named-remains-identifier",
+      "kind": "positive",
+      "source": "fn inspect(named: Bool) {}\ninspect(flag)",
+      "expect": { "callableName": "inspect", "callablePolicy": "positionalOnly", "forms": ["positional"] }
+    },
+    {
+      "id": "EE-POS-label-overload-owner-scoped",
+      "kind": "positive",
+      "source": "protocol Left { fn read(value: Value) }\nstruct Right { fn read(value: Value) {} }",
+      "expect": { "callableName": "read", "diagnostics": [] }
+    },
+    {
       "id": "EE-NEG-callable-unknown-external-label",
       "kind": "negative",
       "source": "fn route(to range: Range, during duration: Duration) {}\nroute(from: 1, during: 2)",
       "expect": { "diagnostic": "W-LABEL-0005", "callableName": "route" }
+    },
+    {
+      "id": "EE-NEG-callable-named-parameter-positional",
+      "kind": "negative",
+      "source": "fn query(count: usize, named context: Context) {}\nquery(20, context)",
+      "expect": { "diagnostic": "W-LABEL-0005", "callableName": "query" }
+    },
+    {
+      "id": "EE-NEG-record-named-marker",
+      "kind": "negative",
+      "source": "struct Seat {\n  value: usize\n  init(named value: usize) { self.value = value }\n}",
+      "expect": { "diagnostic": "W-LABEL-0007" }
     },
     {
       "id": "EE-POS-label-shapes-disjoint",
@@ -37,6 +73,18 @@
       "kind": "negative",
       "source": "fn open(_ name) {}\nfn open(name) {}",
       "expect": { "diagnostic": "W-LABEL-0004" }
+    },
+    {
+      "id": "EE-NEG-label-collision-across-extensions",
+      "kind": "negative",
+      "source": "extension Stream { fn tee(limit: usize) {} }\nextension Stream { fn tee(limit: usize) {} }",
+      "expect": { "diagnostic": "W-LABEL-0004", "callableName": "tee" }
+    },
+    {
+      "id": "EE-NEG-variadic-overlap-unbounded",
+      "kind": "negative",
+      "source": "fn collect(values: Value...) {}\nfn collect(first: Value, second: Value, third: Value) {}",
+      "expect": { "diagnostic": "W-LABEL-0004", "callableName": "collect" }
     },
     {
       "id": "EE-NEG-label-unknown",
@@ -175,7 +223,7 @@
     {
       "id": "EE-POS-barrier-read-write-read",
       "kind": "positive",
-      "source": "fn summarize(state: ref Menu): u64 { return state.revision }\nfn replace(state: inout Menu, revision: u64): u64 { state.revision = revision; return revision }\nspawn<.catalog> let before = summarize(ref menu)\nspawn<.catalog, .barrier> let update = replace(inout menu, revision: next)\nspawn<.catalog> let after = summarize(ref menu)",
+      "source": "fn summarize(state: ref Menu): u64 { return state.revision }\nfn replace(state: inout Menu, revision value: u64): u64 { state.revision = value; return value }\nspawn<.catalog> let before = summarize(ref menu)\nspawn<.catalog, .barrier> let update = replace(inout menu, revision: next)\nspawn<.catalog> let after = summarize(ref menu)",
       "input": { "domainCapabilities": { ".catalog": ["concurrent", "barrierDispatch"] } },
       "expect": {
         "domain": ".catalog",

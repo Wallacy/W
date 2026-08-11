@@ -51,12 +51,12 @@ fn limits(maximumBytes: usize<(1...)>): json.Limits {
 
 fn decodeTicket(
   source: ref Bytes,
-  unknownMembers: json.UnknownMemberPolicy = .reject,
+  unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject,
 ): Ticket throws json.DecodeError {
   return try json.decode<Ticket>(
     ref source,
     limits: limits(4<KiB>),
-    unknownMembers: unknownMembers,
+    unknownMembers: memberPolicy,
   )
 }
 

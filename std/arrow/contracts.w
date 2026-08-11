@@ -311,7 +311,7 @@ export struct CArrayHandle {
   }
 
   deinit {
-    unsafe { stdArrowReleaseArray(handle: inout raw) }
+    unsafe { stdArrowReleaseArray(inout raw) }
   }
 }
 
@@ -323,7 +323,7 @@ export struct CStreamHandle {
   }
 
   deinit {
-    unsafe { stdArrowReleaseStream(handle: inout raw) }
+    unsafe { stdArrowReleaseStream(inout raw) }
   }
 }
 
@@ -538,7 +538,7 @@ export fn importCArray<Row: data.Row>(
     // The handle carries the raw Arrow schema.  Typed import validates it
     // against the compiler-generated Row schema; callers cannot substitute a
     // second schema authority.
-    try stdArrowImportCArray(handle: take handle, options: options)
+    try stdArrowImportCArray(take handle, options)
   }
 }
 
@@ -547,7 +547,7 @@ export fn importCArrayDynamic(
   options: CImportOptions = CImportOptions.standard(),
 ): data.DynamicBatch throws CImportError {
   return unsafe {
-    try stdArrowImportCArrayDynamic(handle: take handle, options: options)
+    try stdArrowImportCArrayDynamic(take handle, options)
   }
 }
 
@@ -556,7 +556,7 @@ export fn importCStream<Row: data.Row>(
   options: CStreamImportOptions = CStreamImportOptions.standard(),
 ): some Stream<data.Batch<Row>, CImportError> {
   return unsafe {
-    stdArrowImportCStream(handle: take handle, options: options)
+    stdArrowImportCStream(take handle, options)
   }
 }
 
@@ -565,7 +565,7 @@ export fn importCStreamDynamic(
   options: CStreamImportOptions = CStreamImportOptions.standard(),
 ): some Stream<data.DynamicBatch, CImportError> {
   return unsafe {
-    stdArrowImportCStreamDynamic(handle: take handle, options: options)
+    stdArrowImportCStreamDynamic(take handle, options)
   }
 }
 
@@ -574,6 +574,6 @@ export fn exportCArray<Row: data.Row>(
   options: CExportOptions = CExportOptions.standard(),
 ): CArrayHandle throws CExportError {
   return unsafe {
-    try stdArrowExportCArray(batch: batch, options: options)
+    try stdArrowExportCArray(batch, options)
   }
 }

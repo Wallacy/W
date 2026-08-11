@@ -143,7 +143,7 @@ export object ThreadApologyLedger {
 
 fn recordApology(
   state: inout ApologyLedgerState,
-  message: take String,
+  named message: take String,
 ): u64 {
   state.messages.append(take message)
   state.revision += 1
@@ -152,7 +152,7 @@ fn recordApology(
 
 export async fn recordOnApologyDomain(
   state: inout ApologyLedgerState,
-  message: take String,
+  named message: take String,
 ): u64 {
   spawn<.apology> let revision = recordApology(
     inout state,

@@ -260,7 +260,7 @@ export async fn recoverAfterReceiverAbort(
 // borrowedLines.append(line)                // The view would cross the next iteration.
 // let next = try await lines.next()         // Rejected when `line` is used again later.
 // let copy = copy readable                   // ReadableStream is move-only.
-// let _ = readable.tee(maximumBufferedItems: 8)
+// let _ = readable.tee(items: 8)
 // // Rejected when Item or Failure is not Duplicable.
 // do {
 //   try await (take readable).cancel()

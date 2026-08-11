@@ -82,7 +82,7 @@ export fn wireName(value: ref String): WireName throws RefinementError {
 test "range facts prove the result refinement" for combineFlavor {
   let left = try FlavorSignal(128)
   let right = try FlavorSignal(128)
-  let result: FlavorPair = combineFlavor(left, right: right)
+  let result: FlavorPair = combineFlavor(left, right)
 
   expect result == 256
 }
@@ -106,7 +106,7 @@ test "text refinements expose different capacity facts" {
 test "partitioned counts combine only at the join" for combineBrigadeCounts {
   let port = countCompleted([true, true, false])
   let starboard = countCompleted([false, true])
-  let total = combineBrigadeCounts(port, right: starboard)
+  let total = combineBrigadeCounts(port, starboard)
 
   expect total.completed == 3
   expect total.failed == 2

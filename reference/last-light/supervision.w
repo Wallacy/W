@@ -151,7 +151,7 @@ export service orderCoordinators<key: OrderId>: OrderCoordinatorApi {
   }
 }
 
-const fn isPreparing(state: WorkState, progress: ServiceStage?): Bool {
+const fn isPreparing(state: WorkState, named progress: ServiceStage?): Bool {
   return state == .running && progress == .some(.preparing)
 }
 

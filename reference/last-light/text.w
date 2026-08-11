@@ -22,9 +22,9 @@ export fn textShape(value: ref String): TextShape {
   )
 }
 
-export fn scalarPrefix(value: ref String, count: usize): view String {
+export fn scalarPrefix(value: ref String, count scalarCount: usize): view String {
   let start = value.scalars.start
-  let end = value.scalars.index(start, offsetBy: count)
+  let end = value.scalars.index(start, offsetBy: scalarCount)
   return value.scalars[start..<end]
 }
 
@@ -42,22 +42,22 @@ export fn adoptLabel(payload: take Bytes): Utf8Adoption {
 
 export fn decodeFragments(
   first: ref Bytes,
-  second: ref Bytes,
+  second finalFragment: ref Bytes,
 ): String throws Utf8Error {
   var decoder = Utf8Decoder()
   try decoder.push(first)
-  try decoder.push(second)
+  try decoder.push(finalFragment)
   return try (take decoder).finish()
 }
 
 export fn replaceScalarTail(
   value: inout String,
-  offset: usize,
-  replacement: ref String,
+  offset scalarOffset: usize,
+  replacement tail: ref String,
 ): () {
-  let start = value.scalars.index(value.scalars.start, offsetBy: offset)
+  let start = value.scalars.index(value.scalars.start, offsetBy: scalarOffset)
   let end = value.scalars.end
-  value.replace(scalars: start..<end, with: replacement)
+  value.replace(scalars: start..<end, with: tail)
 }
 
 export fn cLabel(value: ref String): CString throws CStringError {

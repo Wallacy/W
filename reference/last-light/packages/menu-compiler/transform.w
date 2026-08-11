@@ -17,12 +17,12 @@ export enum MenuTransformError: Error {
 
 async fn transform(ctx: build.Context): () throws MenuTransformError {
   let source = try await ctx.read(
-    menuSource,
+    string: menuSource,
     maximumBytes: 64<KiB>,
   )
   let compiled = try compileMenu(source)
   let MenuBytecode(bytes, _) = take compiled
-  try await ctx.write(menuBytecode, take bytes)
+  try await ctx.write(bytes: menuBytecode, value: take bytes)
 }
 
 entry(transform)

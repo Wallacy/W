@@ -15,7 +15,7 @@
       "role": "selected",
       "language": "w",
       "path": "pipeline.w",
-      "digest": "sha256:05964f9b0b473a20ba331875d5067213de9cfe29d045ad3ffd417fa3371ad40b",
+      "digest": "sha256:02dc6893593d73211ea09a7e07b0ec807bd3ec23c90b7fb5cfd747b1786d08bb",
       "changedConstructs": ["lazy filter-map pipeline", "bounded collect"]
     },
     {
@@ -23,7 +23,7 @@
       "role": "alternative",
       "language": "w",
       "path": "loop.w",
-      "digest": "sha256:4cba414e89015817005bddb7dcbb9cbd6c7783f34803a1fcb99fe619e903b648",
+      "digest": "sha256:caf4a53f13cc1192dd74c391104a8b3684a6f7e381d49351c4439289be450949",
       "changedConstructs": ["explicit loop", "mutable result append"]
     }
   ],

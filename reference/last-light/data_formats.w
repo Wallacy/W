@@ -71,7 +71,7 @@ export fn summarize(
   // loan tied to `batch`; neither the column nor its view is returned.
   // Nested or custom fields do not receive a universal view.  Their adapters
   // project a typed core field or materialize an owner explicitly.
-  let warning: view data.StringColumn<TabularTelemetryRow> = batch.column(.warning)
+  let warning: view data.StringColumn<TabularTelemetryRow> = batch.column(string: .warning)
   let warningView: view String? = warning.view(at: 0)
   let (warningViewLength, warningWasNull) = switch warningView {
     case .some(let value): (u64(value.bytes.count), false)
@@ -102,7 +102,7 @@ export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(
     source: take source,
     options: options,
   )
-  return summarize(batch: take batch)
+  return summarize(take batch)
 }
 
 // A Parquet archive uses the finite positional snapshot contract.
@@ -115,7 +115,7 @@ export async fn archiveParquet<Failure: Error,
     source: take source,
     options: options,
   )
-  return summarize(batch: take batch)
+  return summarize(take batch)
 }
 
 // An Arrow IPC stream carries the same typed rows to a service handoff.  The
@@ -129,7 +129,7 @@ export async fn handoffArrow<Failure: Error, Source: io.ByteSource<Failure>>(
     source: take source,
     options: options,
   )
-  return summarize(batch: take batch)
+  return summarize(take batch)
 }
 
 // C Data import is trusted in-process.  The raw Arrow schema travels with
@@ -142,7 +142,7 @@ export fn importTrustedCArray(
     handle: take handle,
     options: options,
   )
-  return summarize(batch: take batch)
+  return summarize(take batch)
 }
 
 export async fn encodeCsv<Failure: Error, Sink: io.ByteSink<Failure>>(

@@ -81,7 +81,7 @@ test "integer radix parsing and formatting stay explicit" {
 }
 
 test "safe conversion is unique and value preserving" for addPortions {
-  expect addPortions(250, right: 2) == 252
+  expect addPortions(250, 2) == 252
   expect try narrowTrayCount(65_535) == 65_535
   expect try truncateReading(-3.9) == -3
 }
@@ -111,7 +111,7 @@ test "byte order is explicit at a boundary" {
 test "float order is explicit when IEEE equality is partial" for compareReadings {
   expect f64.nan != f64.nan
   expect -0.0 == 0.0
-  expect compareReadings(f64.nan, right: 1.0) == none
+  expect compareReadings(f64.nan, 1.0) == none
   expect f64.totalOrder(-0.0, 0.0) == .less
 }
 

@@ -57,7 +57,7 @@ export struct PairTelemetry {
 
 export async fn observePair(
   left: ServiceRef<SatelliteApi>,
-  right: ServiceRef<SatelliteApi>,
+  named right: ServiceRef<SatelliteApi>,
   after sequence: u64,
 ): PairTelemetry throws SatelliteError {
   async let leftSample = left.telemetry(after: sequence)

@@ -7,7 +7,7 @@ struct ImpactEstimate {
   fallTime: f64
 }
 
-fn estimateHorizonImpact(mass: f64, height: f64): ImpactEstimate {
+fn estimateHorizonImpact(mass: f64, named height: f64): ImpactEstimate {
   let gravity = 9.80665[si.m/si.s^2]
   let energy = mass * gravity.value * height
   let fallTime = (2.0 * height / gravity.value) ** 0.5

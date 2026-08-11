@@ -103,10 +103,10 @@ export async fn copyForecastToHost<
 }
 
 export fn compareStrictForecast(
-  cpu: f32,
-  device: f32,
+  cpu hostValue: f32,
+  device deviceValue: f32,
 ): ForecastComparison {
-  return if cpu == device { .equivalent } else { .outsideTolerance }
+  return if hostValue == deviceValue { .equivalent } else { .outsideTolerance }
 }
 
 test "device invocation lifecycle closes in order" for nextDeviceInvocationPhase {

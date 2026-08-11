@@ -151,6 +151,10 @@
           "match": "\\batomic\\b"
         },
         {
+          "name": "keyword.other.parameter.w",
+          "match": "\\bnamed\\b(?=\\s+[A-Za-z_][A-Za-z0-9_]*\\s*:)"
+        },
+        {
           "name": "keyword.other.ownership.w",
           "match": "\\b(?:capture|copy|inout|pin|ref|shared|take|view|weak)\\b"
         },

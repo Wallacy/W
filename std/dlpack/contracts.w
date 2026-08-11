@@ -97,7 +97,7 @@ export struct ManagedTensor {
   // This synchronous drop is valid only for a provider-verified versioned,
   // unconsumed capsule with a synchronous-safe deleter. open and materialize
   // move the handle out, so this deinit never releases a consumed carrier.
-  deinit { unsafe { stdDLPackDropUnconsumed(handle: inout handle) } }
+  deinit { unsafe { stdDLPackDropUnconsumed(inout handle) } }
 }
 
 export struct ImportedTensor<Element, shape: StaticList<usize>> {
@@ -116,7 +116,7 @@ export struct ImportedTensor<Element, shape: StaticList<usize>> {
   }
 
   export take async fn close() throws DLPackError {
-    unsafe { try await stdDLPackCloseImported(handle: take handle) }
+    unsafe { try await stdDLPackCloseImported(take handle) }
   }
 
 }
@@ -140,7 +140,7 @@ export struct DynamicImportedTensor {
   }
 
   export take async fn close() throws DLPackError {
-    unsafe { try await stdDLPackCloseDynamic(handle: take handle) }
+    unsafe { try await stdDLPackCloseDynamic(take handle) }
   }
 }
 
@@ -236,9 +236,9 @@ foreign intrinsic from "std.dlpack@1" {
     shape: shape,
   ): ImportedTensorHandle throws DLPackError
   async fn stdDLPackOpenDynamic(
-    managed: take ManagedTensorHandle,
-    queue: ref tensor.Queue?,
-    limits: ref Limits,
+    named managed: take ManagedTensorHandle,
+    named queue: ref tensor.Queue?,
+    named limits: ref Limits,
   ): DynamicImportedTensorHandle throws DLPackError
   async fn stdDLPackBind<Element, shape: StaticList<usize>>(
     handle: take DynamicImportedTensorHandle,

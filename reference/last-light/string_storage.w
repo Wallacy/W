@@ -7,16 +7,16 @@ export type HorizonSignLabel = String<(.bytes.count <= 64)>
 
 export fn appendToHorizonSign(
   label: inout HorizonSignLabel,
-  suffix: view String,
+  suffix addition: view String,
 ): Bool {
-  guard suffix.bytes.count <= 64 - label.bytes.count else return false
-  label.append(suffix)
+  guard addition.bytes.count <= 64 - label.bytes.count else return false
+  label.append(addition)
   return true
 }
 
 export fn joinAnnouncements(
   lines: ref Array<String>,
-  memory: ref Allocator,
+  memory allocator: ref Allocator,
 ): String throws AllocationError {
   var required: usize = 0
   var isFirst = true
@@ -32,7 +32,7 @@ export fn joinAnnouncements(
     isFirst = false
   }
 
-  var output = String(using: memory)
+  var output = String(using: allocator)
   try output.tryReserve(minimumBytes: required)
   isFirst = true
 

@@ -34,9 +34,9 @@ export struct InteropLimits {
 }
 
 export async fn importScientific<samples: usize>(
-  take managed: dlpack.ManagedTensor,
+  named managed: take dlpack.ManagedTensor,
   on queue: ref tensor.Queue,
-  limits: ref dlpack.Limits,
+  named limits: ref dlpack.Limits,
 ): dlpack.ImportedTensor<f32, shape: [samples, 6]> throws dlpack.DLPackError {
   return try await dlpack.open(
     managed: take managed,
@@ -46,47 +46,48 @@ export async fn importScientific<samples: usize>(
 }
 
 export fn scoreSamples(
-  sensor: ref BlackHoleSensor,
-  samples: usize,
+  sensor sourceSensor: ref BlackHoleSensor,
+  samples sampleCount: usize,
 ): Scores {
-  return Scores(samples: samples, anomaly: sensor.distance.toF32())
+  return Scores(samples: sampleCount, anomaly: sourceSensor.distance.toF32())
 }
 
-export fn scientificShape(samples: usize): Array<usize> {
-  return [samples, 6]
+export fn scientificShape(samples sampleCount: usize): Array<usize> {
+  return [sampleCount, 6]
 }
 
 export fn sameProviderIdentity(
-  leftProvider: String,
-  leftId: usize,
-  rightProvider: String,
-  rightId: usize,
+  named leftProvider: String,
+  named leftId: usize,
+  named rightProvider: String,
+  named rightId: usize,
 ): Bool {
   return leftProvider == rightProvider && leftId == rightId
 }
 
 export mut async fn scoreView<samples: usize>(
   view: view Tensor<f32, shape: [samples, 6]>,
-  sensor: ref BlackHoleSensor,
+  sensor sourceSensor: ref BlackHoleSensor,
 ): Scores throws ScoreError {
   // The callback returns an owned score. It never returns or stores `view`.
-  return scoreSamples(sensor: ref sensor, samples: samples)
+  return scoreSamples(sensor: ref sourceSensor, samples: samples)
 }
 
 export mut async fn scoreScientific<samples: usize>(
-  imported: inout dlpack.ImportedTensor<f32, shape: [samples, 6]>,
-  sensor: ref BlackHoleSensor,
+  named imported: inout dlpack.ImportedTensor<f32, shape: [samples, 6]>,
+  sensor sourceSensor: ref BlackHoleSensor,
 ): Scores throws dlpack.ViewError<ScoreError> {
   return try await imported.withView(
-    body: scoreView(samples: samples, sensor: ref sensor),
+    body: capture(ref sourceSensor) (view) =>
+      try await scoreView<samples>(view, sensor: ref sourceSensor),
   )
 }
 
 export async fn materializeToHost<samples: usize>(
-  take managed: dlpack.ManagedTensor,
-  target: ref tensor.Device,
+  named managed: take dlpack.ManagedTensor,
+  named target: ref tensor.Device,
   on queue: ref tensor.Queue?,
-  limits: ref InteropLimits,
+  named limits: ref InteropLimits,
 ): Tensor<f32, shape: [samples, 6]> throws dlpack.DLPackError {
   return try await dlpack.materialize(
     managed: take managed,
@@ -97,9 +98,9 @@ export async fn materializeToHost<samples: usize>(
 }
 
 export async fn exportScores<samples: usize>(
-  take scores: Tensor<f32, shape: [samples, 6]>,
+  named scores: take Tensor<f32, shape: [samples, 6]>,
   on queue: ref tensor.Queue?,
-  limits: ref dlpack.Limits,
+  named limits: ref dlpack.Limits,
 ): dlpack.ManagedTensor throws dlpack.DLPackError {
   return try await dlpack.export(
     value: take scores,
@@ -109,20 +110,19 @@ export async fn exportScores<samples: usize>(
 }
 
 export async fn scientificRoute<samples: usize>(
-  take managed: dlpack.ManagedTensor,
-  device: ref tensor.Device,
-  queue: ref tensor.Queue,
-  sensor: ref BlackHoleSensor,
-  limits: ref InteropLimits,
+  named managed: take dlpack.ManagedTensor,
+  named device: ref tensor.Device,
+  named queue: ref tensor.Queue,
+  named sensor: ref BlackHoleSensor,
+  named limits: ref InteropLimits,
 ): Scores throws InteropError {
   guard queue.device().same(as: ref device) else throw .carrier(.deviceMismatch)
 
   var imported: dlpack.ImportedTensor<f32, shape: [samples, 6]>
   do {
-    imported = try await importScientific(
-      samples: samples,
+    imported = try await importScientific<samples>(
       managed: take managed,
-      queue: ref queue,
+      on: ref queue,
       limits: ref limits.dlpack,
     )
   } catch error {
@@ -136,8 +136,7 @@ export async fn scientificRoute<samples: usize>(
     }
   }
   do {
-    return try await scoreScientific(
-      samples: samples,
+    return try await scoreScientific<samples>(
       imported: inout imported,
       sensor: ref sensor,
     )

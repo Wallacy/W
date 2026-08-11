@@ -94,10 +94,10 @@ fn incrementRevision(ledger: inout RevisionLedger): u64 {
 }
 
 export fn fourOwnershipForms(
-  direct: take TrackedCourse,
-  awaited: take TrackedCourse,
-  local: take TrackedCourse,
-  parallel: take TrackedCourse,
+  named direct: take TrackedCourse,
+  named awaited: take TrackedCourse,
+  named local: take TrackedCourse,
+  named parallel: take TrackedCourse,
 ): OwnershipBatch {
   let directCode = inspectDirect(ref direct)
   let awaitedCode = await inspectAfterYield(ref awaited)

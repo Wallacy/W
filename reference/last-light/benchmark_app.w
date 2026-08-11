@@ -106,9 +106,9 @@ enum QueryEditError: Error {
 
 fn boundedCount(
   parameters: ref url.URLSearchParams,
-  parameter: ref String,
+  parameter key: ref String,
 ): usize<(1...500)> {
-  let count = parameters.get(parameter)
+  let count = parameters.get(key)
     .flatMap((value) => usize.parse(value))
     ?? 1
 
@@ -121,10 +121,10 @@ fn boundedCount(
 
 fn boundedRequestCount(
   request: ref http.Request,
-  parameter: ref String,
+  parameter key: ref String,
 ): usize<(1...500)> {
   let parameters = request.url.searchParams()
-  return boundedCount(parameters, parameter: parameter)
+  return boundedCount(parameters, parameter: key)
 }
 
 fn rejectQueryEdit(
@@ -136,12 +136,12 @@ fn rejectQueryEdit(
 
 fn randomWorldKeys(
   count: usize<(1...500)>,
-  ctx: ref http.Context,
+  ctx context: ref http.Context,
 ): Array<WorldKey> {
   var keys = Array<WorldKey>(minimumCapacity: count)
 
   for _ in 0..<count {
-    keys.append(WorldKey(id: ctx.random.integer(in: 1...10_000)))
+    keys.append(WorldKey(id: context.random.integer(in: 1...10_000)))
   }
 
   return keys
@@ -168,10 +168,10 @@ fn decodeWorlds(rows: take Array<WorldRow>): Array<World> {
 
 async fn worlds(
   count: usize<(1...500)>,
-  ctx: http.Context,
+  ctx context: http.Context,
 ): Array<World> throws BenchmarkError {
-  let store = ctx.databases.get(benchmarkDatabase)
-  let keys = randomWorldKeys(count, ctx: ctx)
+  let store = context.databases.get(benchmarkDatabase)
+  let keys = randomWorldKeys(count, ctx: context)
   let rows = try await store.queryMany(
     worldById,
     parameters: take keys,
@@ -210,10 +210,10 @@ async fn renderFortunes(
 
 async fn updateWorlds(
   count: usize<(1...500)>,
-  ctx: http.Context,
+  ctx context: http.Context,
 ): Array<World> throws BenchmarkError {
-  let store = ctx.databases.get(benchmarkDatabase)
-  let keys = randomWorldKeys(count, ctx: ctx)
+  let store = context.databases.get(benchmarkDatabase)
+  let keys = randomWorldKeys(count, ctx: context)
   let rows = try await store.queryMany(
     worldById,
     parameters: take keys,
@@ -222,7 +222,7 @@ async fn updateWorlds(
   var result = decodeWorlds(take rows)
 
   for inout world in result {
-    world.randomNumber = ctx.random.integer(in: 1...10_000)
+    world.randomNumber = context.random.integer(in: 1...10_000)
   }
 
   return try await transaction<
@@ -245,7 +245,7 @@ async fn updateWorlds(
 
 async fn loadCachedWorld(
   id: ref i32,
-  store: ref any database.Database,
+  _ store: ref any database.Database,
 ): CachedWorld throws database.DatabaseError {
   let row = try await store.one(
     cachedWorldById,
@@ -256,17 +256,17 @@ async fn loadCachedWorld(
 
 async fn cachedQueries(
   count: usize<(1...500)>,
-  ctx: http.Context,
+  ctx context: http.Context,
 ): Array<CachedWorld> throws BenchmarkError {
-  let store = ctx.databases.get(benchmarkDatabase)
-  let local = ctx.caches.get(cachedWorlds)
+  let store = context.databases.get(benchmarkDatabase)
+  let local = context.caches.get(cachedWorlds)
   let loader = capture(ref store) (id: ref i32) => {
     return try await loadCachedWorld(id, store: store)
   }
   var result = Array<CachedWorld>(minimumCapacity: count)
 
   for _ in 0..<count {
-    let id = ctx.random.integer(in: 1...10_000)
+    let id = context.random.integer(in: 1...10_000)
     result.append(try await local.getOrLoad(id, using: loader))
   }
 

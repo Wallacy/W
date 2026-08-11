@@ -155,7 +155,7 @@ export struct Number: Duplicable & Equatable {
 
   export init(_ token: String, limits: Limits) throws ValueError {
     self.token = unsafe {
-      try stdJsonNumberNormalize(token: ref token, limits: ref limits)
+      try stdJsonNumberNormalize(ref token, ref limits)
     }
   }
 
@@ -168,7 +168,7 @@ export struct Number: Duplicable & Equatable {
     limits: ref Limits,
   ): Number throws ValueError {
     let normalized = unsafe {
-      try stdJsonNumberNormalize(token: token, limits: limits)
+      try stdJsonNumberNormalize(token, limits)
     }
     return Number(validatedToken: take normalized)
   }
@@ -190,7 +190,7 @@ export struct Number: Duplicable & Equatable {
   }
 
   export fn equals(other: ref Number): Bool {
-    return unsafe { stdJsonNumberEquals(left: self, right: other) }
+    return unsafe { stdJsonNumberEquals(self, other) }
   }
 }
 
@@ -402,9 +402,9 @@ foreign intrinsic from "std.json@1" {
   // `name` is borrowed for this call; the provider emits it immediately and
   // never retains the caller's String storage.
   fn stdJsonObjectWriterField<Value: Encodable>(
-    cursor: inout JsonObjectWriterHandle,
-    name: ref String,
-    value: ref Value,
+    named cursor: inout JsonObjectWriterHandle,
+    named name: ref String,
+    named value: ref Value,
   ) throws EncodeError
   fn stdJsonObjectWriterFinish(cursor: inout JsonObjectWriterHandle) throws EncodeError
   fn stdJsonObjectWriterDrop(cursor: inout JsonObjectWriterHandle)
@@ -416,10 +416,10 @@ foreign intrinsic from "std.json@1" {
   fn stdJsonArrayWriterDrop(cursor: inout JsonArrayWriterHandle)
 
   fn stdJsonReaderCreate(
-    bytes: ref Bytes,
-    limits: ref Limits,
-    profile: Profile,
-    unknownMembers: UnknownMemberPolicy,
+    named bytes: ref Bytes,
+    named limits: ref Limits,
+    named profile: Profile,
+    named unknownMembers: UnknownMemberPolicy,
   ): JsonReaderHandle throws DecodeError
   fn stdJsonReaderFinish(handle: inout JsonReaderHandle) throws DecodeError
   fn stdJsonReaderDrop(handle: inout JsonReaderHandle)
@@ -452,30 +452,30 @@ export struct Writer {
 
   init(limits: ref Limits, profile: Profile) throws EncodeError {
     self.handle = unsafe {
-      try stdJsonWriterCreate(limits: limits, profile: profile)
+      try stdJsonWriterCreate(limits, profile)
     }
   }
 
   export mut fn writeNull(): () throws EncodeError {
-    unsafe { try stdJsonWriterNull(handle: inout handle) }
+    unsafe { try stdJsonWriterNull(inout handle) }
   }
 
   export mut fn writeBool(_ value: Bool): () throws EncodeError {
-    unsafe { try stdJsonWriterBool(handle: inout handle, value: value) }
+    unsafe { try stdJsonWriterBool(inout handle, value) }
   }
 
   export mut fn writeString(_ value: ref String): () throws EncodeError {
-    unsafe { try stdJsonWriterString(handle: inout handle, value: value) }
+    unsafe { try stdJsonWriterString(inout handle, value) }
   }
 
   export mut fn writeNumber(_ value: ref Number): () throws EncodeError {
-    unsafe { try stdJsonWriterNumber(handle: inout handle, value: value) }
+    unsafe { try stdJsonWriterNumber(inout handle, value) }
   }
 
   export mut fn withObject(
     _ body: some take fn(inout ObjectWriter): () throws EncodeError,
   ): () throws EncodeError {
-    var raw = unsafe { try stdJsonWriterObject(handle: inout handle) }
+    var raw = unsafe { try stdJsonWriterObject(inout handle) }
     var object = ObjectWriter(validatedHandle: take raw)
     do {
       try (take body)(inout object)
@@ -489,7 +489,7 @@ export struct Writer {
   export mut fn withArray(
     _ body: some take fn(inout ArrayWriter): () throws EncodeError,
   ): () throws EncodeError {
-    var raw = unsafe { try stdJsonWriterArray(handle: inout handle) }
+    var raw = unsafe { try stdJsonWriterArray(inout handle) }
     var array = ArrayWriter(validatedHandle: take raw)
     do {
       try (take body)(inout array)
@@ -501,11 +501,11 @@ export struct Writer {
   }
 
   fn finish(): Bytes throws EncodeError {
-    return unsafe { try stdJsonWriterFinish(handle: inout handle) }
+    return unsafe { try stdJsonWriterFinish(inout handle) }
   }
 
   deinit {
-    unsafe { stdJsonWriterDrop(handle: inout handle) }
+    unsafe { stdJsonWriterDrop(inout handle) }
   }
 }
 
@@ -518,7 +518,7 @@ export struct ObjectWriter {
 
   export mut fn field<Value: Encodable>(
     name: ref String,
-    value: ref Value,
+    named value: ref Value,
   ): () throws EncodeError {
     unsafe {
       try stdJsonObjectWriterField(
@@ -530,15 +530,15 @@ export struct ObjectWriter {
   }
 
   fn finish(): () throws EncodeError {
-    unsafe { try stdJsonObjectWriterFinish(cursor: inout handle) }
+    unsafe { try stdJsonObjectWriterFinish(inout handle) }
   }
 
   fn abort() {
-    unsafe { stdJsonObjectWriterDrop(cursor: inout handle) }
+    unsafe { stdJsonObjectWriterDrop(inout handle) }
   }
 
   deinit {
-    unsafe { stdJsonObjectWriterDrop(cursor: inout handle) }
+    unsafe { stdJsonObjectWriterDrop(inout handle) }
   }
 }
 
@@ -551,20 +551,20 @@ export struct ArrayWriter {
 
   export mut fn element<Value: Encodable>(value: ref Value): () throws EncodeError {
     unsafe {
-      try stdJsonArrayWriterElement(cursor: inout handle, value: value)
+      try stdJsonArrayWriterElement(inout handle, value)
     }
   }
 
   fn finish(): () throws EncodeError {
-    unsafe { try stdJsonArrayWriterFinish(cursor: inout handle) }
+    unsafe { try stdJsonArrayWriterFinish(inout handle) }
   }
 
   fn abort() {
-    unsafe { stdJsonArrayWriterDrop(cursor: inout handle) }
+    unsafe { stdJsonArrayWriterDrop(inout handle) }
   }
 
   deinit {
-    unsafe { stdJsonArrayWriterDrop(cursor: inout handle) }
+    unsafe { stdJsonArrayWriterDrop(inout handle) }
   }
 }
 
@@ -588,29 +588,29 @@ export struct Reader {
   }
 
   export mut fn readNull(): () throws DecodeError {
-    unsafe { try stdJsonReaderNull(handle: inout handle) }
+    unsafe { try stdJsonReaderNull(inout handle) }
   }
 
   export mut fn readBool(): Bool throws DecodeError {
-    return unsafe { try stdJsonReaderBool(handle: inout handle) }
+    return unsafe { try stdJsonReaderBool(inout handle) }
   }
 
   export mut fn readString(): String throws DecodeError {
-    return unsafe { try stdJsonReaderString(handle: inout handle) }
+    return unsafe { try stdJsonReaderString(inout handle) }
   }
 
   export mut fn readNumber(): Number throws DecodeError {
-    return unsafe { try stdJsonReaderNumber(handle: inout handle) }
+    return unsafe { try stdJsonReaderNumber(inout handle) }
   }
 
   fn readValue(): Value throws DecodeError {
-    return unsafe { try stdJsonReaderValue(handle: inout handle) }
+    return unsafe { try stdJsonReaderValue(inout handle) }
   }
 
   export mut fn withObject<Output>(
     _ body: some take fn(inout ObjectReader): Output throws DecodeError,
   ): Output throws DecodeError {
-    var raw = unsafe { try stdJsonReaderObject(handle: inout handle) }
+    var raw = unsafe { try stdJsonReaderObject(inout handle) }
     var object = ObjectReader(validatedHandle: take raw)
     do {
       let output = try (take body)(inout object)
@@ -625,7 +625,7 @@ export struct Reader {
   export mut fn withArray<Output>(
     _ body: some take fn(inout ArrayReader): Output throws DecodeError,
   ): Output throws DecodeError {
-    var raw = unsafe { try stdJsonReaderArray(handle: inout handle) }
+    var raw = unsafe { try stdJsonReaderArray(inout handle) }
     var array = ArrayReader(validatedHandle: take raw)
     do {
       let output = try (take body)(inout array)
@@ -638,11 +638,11 @@ export struct Reader {
   }
 
   fn finish(): () throws DecodeError {
-    unsafe { try stdJsonReaderFinish(handle: inout handle) }
+    unsafe { try stdJsonReaderFinish(inout handle) }
   }
 
   deinit {
-    unsafe { stdJsonReaderDrop(handle: inout handle) }
+    unsafe { stdJsonReaderDrop(inout handle) }
   }
 }
 
@@ -655,26 +655,26 @@ export struct ObjectReader {
 
   export mut fn required<Value: Decodable>(name: ref String): Value throws DecodeError {
     return unsafe {
-      try stdJsonObjectReaderRequired(cursor: inout handle, name: name)
+      try stdJsonObjectReaderRequired(inout handle, name)
     }
   }
 
   export mut fn optional<Value: Decodable>(name: ref String): Value? throws DecodeError {
     return unsafe {
-      try stdJsonObjectReaderOptional(cursor: inout handle, name: name)
+      try stdJsonObjectReaderOptional(inout handle, name)
     }
   }
 
   fn finish(): () throws DecodeError {
-    unsafe { try stdJsonObjectReaderFinish(cursor: inout handle) }
+    unsafe { try stdJsonObjectReaderFinish(inout handle) }
   }
 
   fn abort() {
-    unsafe { stdJsonObjectReaderDrop(cursor: inout handle) }
+    unsafe { stdJsonObjectReaderDrop(inout handle) }
   }
 
   deinit {
-    unsafe { stdJsonObjectReaderDrop(cursor: inout handle) }
+    unsafe { stdJsonObjectReaderDrop(inout handle) }
   }
 }
 
@@ -686,26 +686,26 @@ export struct ArrayReader {
   }
 
   export mut fn next<Value: Decodable>(): Value? throws DecodeError {
-    return unsafe { try stdJsonArrayReaderNext(cursor: inout handle) }
+    return unsafe { try stdJsonArrayReaderNext(inout handle) }
   }
 
   fn finish(): () throws DecodeError {
-    unsafe { try stdJsonArrayReaderFinish(cursor: inout handle) }
+    unsafe { try stdJsonArrayReaderFinish(inout handle) }
   }
 
   fn abort() {
-    unsafe { stdJsonArrayReaderDrop(cursor: inout handle) }
+    unsafe { stdJsonArrayReaderDrop(inout handle) }
   }
 
   deinit {
-    unsafe { stdJsonArrayReaderDrop(cursor: inout handle) }
+    unsafe { stdJsonArrayReaderDrop(inout handle) }
   }
 }
 
 export fn encode<Value: Encodable>(
   value: ref Value,
-  limits: Limits,
-  profile: Profile = .interoperable,
+  named limits: Limits,
+  named profile: Profile = .interoperable,
 ): Bytes throws EncodeError {
   var writer = try Writer(limits: limits, profile: profile)
   try value.encode(to: inout writer)
@@ -714,9 +714,9 @@ export fn encode<Value: Encodable>(
 
 export fn decode<Decoded: Decodable>(
   bytes: ref Bytes,
-  limits: Limits,
-  profile: Profile = .interoperable,
-  unknownMembers: UnknownMemberPolicy = .reject,
+  named limits: Limits,
+  named profile: Profile = .interoperable,
+  named unknownMembers: UnknownMemberPolicy = .reject,
 ): Decoded throws DecodeError {
   var reader = try Reader(
     bytes: bytes,

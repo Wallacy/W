@@ -948,6 +948,21 @@
       "fixes": {}
     },
     {
+      "code": "W-LABEL-0007",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a record-like declaration uses the redundant named parameter marker",
+      "requiredFacts": {
+        "context": "string",
+        "declaration": "string",
+        "parameter": "string",
+        "reason": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
       "code": "W-SUSPEND-0001",
       "state": "active",
       "phase": "semantic.effect",

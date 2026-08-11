@@ -177,20 +177,20 @@ struct WireLimits {
 }
 
 const fn budgetFits(
-  limits: WireLimits,
-  usage: WireBudget,
+  limits wireLimits: WireLimits,
+  usage measuredUsage: WireBudget,
 ): Bool {
-  return usage.receivedBytes <= limits.maximumReceivedBytes &&
-    usage.logicalBytes <= limits.maximumLogicalBytes &&
-    usage.nodes <= limits.maximumNodes &&
-    usage.depth <= limits.maximumDepth &&
-    usage.allocationBytes <= limits.maximumAllocationBytes
+  return measuredUsage.receivedBytes <= wireLimits.maximumReceivedBytes &&
+    measuredUsage.logicalBytes <= wireLimits.maximumLogicalBytes &&
+    measuredUsage.nodes <= wireLimits.maximumNodes &&
+    measuredUsage.depth <= wireLimits.maximumDepth &&
+    measuredUsage.allocationBytes <= wireLimits.maximumAllocationBytes
 }
 
 const fn directoryLengthIsValid(
-  directoryBytes: u64,
-  blockBytes: u64,
-  recordBytes: u64,
+  named directoryBytes: u64,
+  named blockBytes: u64,
+  named recordBytes: u64,
 ): Bool {
   if directoryBytes > maximumWireMessageBytes ||
     blockBytes > maximumWireMessageBytes {

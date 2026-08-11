@@ -12,13 +12,13 @@ foreign intrinsic from "std.sync@1" {
   ): SnapshotCellHandle
 
   fn stdSnapshotCellRead<Value, Result, Failure: Error>(
-    handle: ref SnapshotCellHandle,
-    operation: some fn(ref Value): Result throws Failure,
+    named handle: ref SnapshotCellHandle,
+    named operation: some fn(ref Value): Result throws Failure,
   ): Result throws Failure
 
   fn stdSnapshotCellPublish<Value>(
-    handle: ref SnapshotCellHandle,
-    next: take Value,
+    named handle: ref SnapshotCellHandle,
+    named next: take Value,
   )
 
   fn stdSnapshotCellDrop(handle: inout SnapshotCellHandle)
@@ -40,7 +40,7 @@ export struct SnapshotCell<Value> {
       .transferable && .shareable && .lifetimeIndependent
     )>,
   ) {
-    let raw = unsafe { stdSnapshotCellCreate(initial: take initial) }
+    let raw = unsafe { stdSnapshotCellCreate(take initial) }
     self.handle = TypedSnapshotCellHandle<Value>(validatedRaw: raw)
   }
 
@@ -69,7 +69,7 @@ export struct SnapshotCell<Value> {
   }
 
   deinit {
-    unsafe { stdSnapshotCellDrop(handle: inout handle.raw) }
+    unsafe { stdSnapshotCellDrop(inout handle.raw) }
   }
 }
 

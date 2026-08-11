@@ -37,11 +37,148 @@ test("external and internal labels are distinct without a label keyword", () => 
   assert.ok(summarizeDiagnostics(unknown).includes("W-LABEL-0005"))
 })
 
+test("plain callable parameters stay positional at every index", () => {
+  const result = deriveExecutionErgonomics(`
+    fn query(count: usize<(1...500)>, context: Context) {}
+    query(20, context)
+  `)
+  const query = result.labels.declarations.find((declaration) => declaration.name === "query")
+  assert.deepEqual(query.params.map((parameter) => parameter.policy), [
+    "positionalOnly",
+    "positionalOnly",
+  ])
+  assert.deepEqual(query.callShapes, ["positional|positional"])
+  assert.deepEqual(result.labels.diagnostics, [])
+})
+
+test("named publishes a required label without duplicating the binding", () => {
+  const accepted = deriveExecutionErgonomics(`
+    fn query(count: usize, named context: Context) {}
+    query(20, context: context)
+  `)
+  const query = accepted.labels.declarations.find((declaration) => declaration.name === "query")
+  expect(query?.params[1]).toMatchObject({
+    internal: "context",
+    external: "context",
+    policy: "required(context)",
+    forms: ["context:"],
+    named: true,
+  })
+  expect(accepted.labels.diagnostics).toEqual([])
+
+  const rejected = deriveExecutionErgonomics(`
+    fn query(count: usize, named context: Context) {}
+    query(20, context)
+  `)
+  expect(summarizeDiagnostics(rejected)).toContain("W-LABEL-0005")
+
+  const contextualIdentifier = deriveExecutionErgonomics(`
+    fn inspect(named: Bool) {}
+    inspect(flag)
+  `)
+  expect(contextualIdentifier.labels.declarations[0]?.params[0]).toMatchObject({
+    internal: "named",
+    policy: "positionalOnly",
+    forms: ["positional"],
+  })
+  expect(contextualIdentifier.labels.diagnostics).toEqual([])
+})
+
+test("record-like initializers reject the redundant named marker", () => {
+  const result = deriveExecutionErgonomics(`
+    struct Seat {
+      value: usize
+      init(named value: usize) { self.value = value }
+    }
+  `)
+  expect(summarizeDiagnostics(result)).toContain("W-LABEL-0007")
+})
+
+test("parameter splitting distinguishes generic delimiters from operators", () => {
+  const result = deriveExecutionErgonomics(`
+    fn project(
+      transform: fn(Int, Int) -> Int,
+      range: Int<(value > 0)>,
+      enabled: Bool = lower < upper,
+    ) {}
+    project(transform, range)
+  `)
+  const project = result.labels.declarations.find((declaration) => declaration.name === "project")
+  expect(project?.params).toHaveLength(3)
+  expect(project?.callShapes).toContain("positional|positional")
+  expect(result.labels.diagnostics).toEqual([])
+})
+
+test("overload collision is scoped to one declaration owner", () => {
+  const result = deriveExecutionErgonomics(`
+    protocol Left { fn read(value: Value) }
+    struct Right { fn read(value: Value) {} }
+  `)
+  assert.deepEqual(result.labels.diagnostics, [])
+})
+
+test("enum payload cases are not mistaken for direct calls", () => {
+  const source = `
+    enum GatewayError {
+      dispatch(DispatchError)
+    }
+
+    async fn dispatch(command: Command, authority hostAuthority: HostAuthority): Result {
+      return Result(command: command, authority: hostAuthority)
+    }
+
+    async fn route(command: Command): Result {
+      return await dispatch(command, authority: .localOperator)
+    }
+  `
+  const result = deriveExecutionErgonomics(source)
+  expect(result.labels.diagnostics).toEqual([])
+})
+
+test("unnamed intrinsic slots and variadic calls remain positional", () => {
+  const source = `
+    fn intrinsic(ref Handle, usize): usize { return 0 }
+    fn byteCount(_ messages: ref String...): usize { return 0 }
+    fn route(handle: ref Handle): usize {
+      let count = intrinsic(handle, 4)
+      return count + byteCount("a", "b") + byteCount(messages: each labels)
+    }
+  `
+  const result = deriveExecutionErgonomics(source)
+  expect(result.labels.diagnostics).toEqual([])
+  expect(result.labels.declarations.find((item) => item.name === "intrinsic")?.params)
+    .toHaveLength(2)
+})
+
+test("extensions use the nominal owner's overload set", () => {
+  const independent = `
+    extension LeftStream { fn tee(limit: usize): Pair {} }
+    extension RightStream { fn tee(limit: usize): Pair {} }
+  `
+  expect(deriveExecutionErgonomics(independent).labels.diagnostics).toEqual([])
+
+  const collision = `
+    extension Stream { fn tee(limit: usize): Pair {} }
+    extension Stream { fn tee(limit: usize): Pair {} }
+  `
+  expect(summarizeDiagnostics(deriveExecutionErgonomics(collision)))
+    .toContain("W-LABEL-0004")
+})
+
+test("variadic overlap is not bounded by a sampled arity", () => {
+  const source = `
+    fn collect(values: Value...) {}
+    fn collect(first: Value, second: Value, third: Value) {}
+  `
+  expect(summarizeDiagnostics(deriveExecutionErgonomics(source)))
+    .toContain("W-LABEL-0004")
+})
+
 test("complete ordered call shapes separate arities and reject real overlap", () => {
   const disjoint = deriveExecutionErgonomics("fn serve(_ value: Value) {}\nfn serve(_ value: Value, mode: Mode) {}")
   const declarations = disjoint.labels.declarations.filter((declaration) => declaration.name === "serve")
   assert.deepEqual(declarations[0].callShapes, ["positional", "value:"])
-  assert.deepEqual(declarations[1].callShapes, ["positional|mode:", "value:|mode:"])
+  assert.deepEqual(declarations[1].callShapes, ["positional|positional", "value:|positional"])
   assert.deepEqual(disjoint.labels.diagnostics, [])
   const collision = deriveExecutionErgonomics("fn serve(_ value: Value) {}\nfn serve(value: Value) {}")
   assert.ok(summarizeDiagnostics(collision).includes("W-LABEL-0004"))

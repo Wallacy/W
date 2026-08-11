@@ -593,7 +593,7 @@
     {
       "id": "R0-overload-shape",
       "reviewItem": "overload por forma contra ranking por tipos e nomes distintos",
-      "decisions": ["W-180", "W-181", "W-182"],
+      "decisions": ["W-180", "W-181", "W-182", "W-1290"],
       "task": "Select a serving operation before type ranking by using a distinct argument-label shape.",
       "selected": {
         "language": "w",

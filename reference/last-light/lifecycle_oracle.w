@@ -21,7 +21,7 @@ enum TaskEvent {
 }
 
 const fn nextTaskState(
-  from state: TaskLifecycle,
+  state: TaskLifecycle,
   on event: TaskEvent,
 ): TaskLifecycle? {
   return switch (state, event) {
@@ -58,7 +58,7 @@ enum ServiceTurnEvent {
 }
 
 const fn nextServiceTurnState(
-  from state: ServiceTurnState,
+  state: ServiceTurnState,
   on event: ServiceTurnEvent,
 ): ServiceTurnState? {
   return switch (state, event) {
@@ -92,7 +92,7 @@ enum CommitProviderEvent {
 }
 
 const fn nextCommitProviderState(
-  from state: CommitProviderState,
+  state: CommitProviderState,
   on event: CommitProviderEvent,
 ): CommitProviderState? {
   return switch (state, event) {

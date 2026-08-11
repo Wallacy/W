@@ -35,8 +35,8 @@ export enum AudioRenderError: Error {
 
 export fn renderTone(
   state: inout OscillatorState,
-  block: inout DeviceAudioBlock,
-  sampleRate: u32,
+  named block: inout DeviceAudioBlock,
+  named sampleRate: u32,
 ): () throws AudioRenderError {
   guard sampleRate > 0 else throw .invalidSampleRate
 
@@ -58,19 +58,19 @@ export struct AudioRenderState {
 
 export fn renderFinalSong(
   state: inout AudioRenderState,
-  block: inout DeviceAudioBlock,
-  ctx: audio.RenderContext,
+  block output: inout DeviceAudioBlock,
+  ctx context: audio.RenderContext,
 ): audio.RenderResult {
   do {
     try renderTone(
       inout state.oscillator,
-      block: inout block,
-      sampleRate: ctx.sampleRate,
+      block: inout output,
+      sampleRate: context.sampleRate,
     )
     state.renderedFrames += audioFrames
     return .complete
   } catch error {
-    block.clear()
+    output.clear()
     return .silence(reason: error)
   }
 }

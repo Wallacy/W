@@ -133,17 +133,17 @@ export async fn mixOnThermalLane(job: take MixingJob): MixingResult throws Briga
 
 export async fn mixBatch(
   jobs: take Array<MixingJob>,
-  parallelism: usize,
+  parallelism maximumParallelism: usize,
 ): Array<MixingResult> throws BrigadeError {
-  guard parallelism > 0 && parallelism <= maximumParallelCooks else {
-    throw .invalidParallelism(found: parallelism, maximum: maximumParallelCooks)
+  guard maximumParallelism > 0 && maximumParallelism <= maximumParallelCooks else {
+    throw .invalidParallelism(found: maximumParallelism, maximum: maximumParallelCooks)
   }
 
   let worker: fn(take MixingJob): MixingResult throws BrigadeError = mixJob
 
   return try await TaskGroup.parallelMap<.compute>(
     take jobs,
-    limit: parallelism,
+    limit: maximumParallelism,
     ordering: .input,
     using: worker,
   )

@@ -163,21 +163,21 @@ export enum CommandDocumentError: Error {
 
 fn canonicalOrderId(
   text: view String,
-  field: CommandDocumentField,
+  field documentField: CommandDocumentField,
 ): OrderId throws CommandDocumentError {
   let carrier = try u64.parse(text)
-    .mapError((_) => CommandDocumentError.invalidDecimal(field))
-  guard text == carrier.display() else throw .nonCanonicalDecimal(field)
+    .mapError((_) => CommandDocumentError.invalidDecimal(documentField))
+  guard text == carrier.display() else throw .nonCanonicalDecimal(documentField)
   return OrderId(carrier)
 }
 
 fn canonicalGuestId(
   text: view String,
-  field: CommandDocumentField,
+  field documentField: CommandDocumentField,
 ): GuestId throws CommandDocumentError {
   let carrier = try u64.parse(text)
-    .mapError((_) => CommandDocumentError.invalidDecimal(field))
-  guard text == carrier.display() else throw .nonCanonicalDecimal(field)
+    .mapError((_) => CommandDocumentError.invalidDecimal(documentField))
+  guard text == carrier.display() else throw .nonCanonicalDecimal(documentField)
   return GuestId(carrier)
 }
 
@@ -591,13 +591,13 @@ export struct ProblemDocument: json.Encodable {
   }
 }
 
-export fn problem(code: ProblemCode): ProblemDocument {
-  return ProblemDocument(code: code)
+export fn problem(code problemCode: ProblemCode): ProblemDocument {
+  return ProblemDocument(code: problemCode)
 }
 
 export fn problemResponse(
-  code: ProblemCode,
-  maximumBytes: usize<(1...)>,
+  code problemCode: ProblemCode,
+  maximumBytes responseLimit: usize<(1...)>,
 ): http.Response throws http.ResponseError {
   var headers = http.Headers()
   do {
@@ -605,11 +605,11 @@ export fn problemResponse(
   } catch error {
     throw .headers(error)
   }
-  let document = ProblemDocument(code: code)
+  let document = ProblemDocument(code: problemCode)
   let status = document.status
   return try http.Response.json(
     value: ref document,
-    maximumBytes: maximumBytes,
+    maximumBytes: responseLimit,
     status: status,
     headers: take headers,
   )

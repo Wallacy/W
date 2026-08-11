@@ -7,7 +7,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/execution.w",
     "symbol": "mixPair",
-    "digest": "sha256:d5a96e90e9282edefeef5aac253ad93c730491e81c976f6e12a7bacfd0ed424e"
+    "digest": "sha256:d1d9d45d4ff1c6d1815cf6d11ae3a8fb26e119c3541dfb2e64de6078722f9a98"
   },
   "variants": [
     {
@@ -15,7 +15,7 @@
       "role": "selected",
       "language": "w",
       "path": "grouped.w",
-      "digest": "sha256:ab3f135cd16bb6cd3ab53227e907d1bfacc398c9d53fca7e6c55b1460865cba8",
+      "digest": "sha256:78f0846e0046e011e32aaaff22f23d56f3789675a38c39b9bfe4749657f73796",
       "changedConstructs": ["tuple await", "fail-fast sibling cancellation", "post-drain arbitration"]
     },
     {
@@ -23,7 +23,7 @@
       "role": "alternative",
       "language": "w",
       "path": "lexical.w",
-      "digest": "sha256:2b25dd72955b883d5e6ecb6a7760e850d334f5acc3572b75d70b6e3dca53abc1",
+      "digest": "sha256:b1ef9eea4319972666cbcef706ad79913526092173c96e85bc07684343d3e3f7",
       "changedConstructs": ["strict lexical await", "delayed sibling observation"]
     }
   ],

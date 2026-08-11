@@ -29,9 +29,9 @@ enum DomainResolution {
 }
 
 const fn resolveDomain(
-  intent: DomainIntent,
-  explicit: DomainName,
-  inherited: DomainName,
+  named intent: DomainIntent,
+  named explicit: DomainName,
+  named inherited: DomainName,
 ): DomainResolution {
   if intent == .inheritedChild {
     if inherited != .unselected {
@@ -66,10 +66,10 @@ enum AdmissionDecision {
 }
 
 const fn admit(
-  intent: DomainIntent,
-  mode: DispatchMode,
-  maySuspend: Bool,
-  contract: DomainContract,
+  named intent: DomainIntent,
+  named mode: DispatchMode,
+  named maySuspend: Bool,
+  named contract: DomainContract,
 ): AdmissionDecision {
   if contract.capacity == 0 {
     return .emptyCapacity
@@ -103,14 +103,14 @@ enum ReadyDecision {
 }
 
 const fn scheduleReady(
-  active: u16,
-  contract: DomainContract,
+  active activeCount: u16,
+  contract domainContract: DomainContract,
 ): ReadyDecision {
-  if active < contract.capacity {
+  if activeCount < domainContract.capacity {
     return .run
   }
 
-  if contract.serial {
+  if domainContract.serial {
     return .queuedFifo
   }
 
@@ -131,9 +131,9 @@ enum StructuredTicketDecision {
 }
 
 const fn scheduleBarrierTicket(
-  mode: DispatchMode,
-  earlierOutstanding: u16,
-  earlierBarrierPending: Bool,
+  named mode: DispatchMode,
+  named earlierOutstanding: u16,
+  named earlierBarrierPending: Bool,
 ): BarrierGateDecision {
   if mode == .barrier {
     if earlierOutstanding > 0 {
@@ -151,8 +151,8 @@ const fn scheduleBarrierTicket(
 }
 
 const fn resolveStructuredTicket(
-  sameDomain: Bool,
-  parentMode: DispatchMode,
+  named sameDomain: Bool,
+  named parentMode: DispatchMode,
 ): StructuredTicketDecision {
   if parentMode == .barrier {
     return .barrierCannotCreateChild
@@ -196,25 +196,25 @@ struct DynamicLaneTransition {
 }
 
 const fn reduceCapacity(
-  artifactMaximum: u16,
-  deploymentMaximum: u16,
+  artifactMaximum artifactLimit: u16,
+  deploymentMaximum deploymentLimit: u16,
 ): CapacityDecision {
-  if deploymentMaximum == 0 || deploymentMaximum > artifactMaximum {
+  if deploymentLimit == 0 || deploymentLimit > artifactLimit {
     return .reject
   }
 
-  return .reduced(deploymentMaximum)
+  return .reduced(deploymentLimit)
 }
 
 const fn openDynamicSerial(
-  live: u16,
-  liveLimit: u16,
-  requestedJobs: u16,
-  requestedFrameBytes: u64,
-  aggregateJobsAvailable: u16,
-  aggregateFrameBytesAvailable: u64,
-  laneMaximumJobs: u16,
-  laneMaximumFrameBytes: u64,
+  named live: u16,
+  named liveLimit: u16,
+  named requestedJobs: u16,
+  named requestedFrameBytes: u64,
+  named aggregateJobsAvailable: u16,
+  named aggregateFrameBytesAvailable: u64,
+  named laneMaximumJobs: u16,
+  named laneMaximumFrameBytes: u64,
 ): DynamicLaneTransition {
   if live >= liveLimit {
     return DynamicLaneTransition(state: .absent, decision: .liveBudgetExhausted)
@@ -239,8 +239,8 @@ const fn openDynamicSerial(
   return DynamicLaneTransition(state: .open, decision: .opened)
 }
 
-const fn admitDynamicSerial(state: DynamicLaneState): DynamicLaneDecision {
-  if state != .open {
+const fn admitDynamicSerial(state laneState: DynamicLaneState): DynamicLaneDecision {
+  if laneState != .open {
     return .admissionClosed
   }
 
@@ -248,8 +248,8 @@ const fn admitDynamicSerial(state: DynamicLaneState): DynamicLaneDecision {
 }
 
 const fn closeDynamicSerial(
-  state: DynamicLaneState,
-  outstandingJobs: u16,
+  named state: DynamicLaneState,
+  named outstandingJobs: u16,
 ): DynamicLaneTransition {
   if state == .open && outstandingJobs > 0 {
     return DynamicLaneTransition(state: .closing, decision: .waitingForJobs)
@@ -274,8 +274,8 @@ fn observeCatalog(state: ref CatalogState): u64 {
   return state.revision
 }
 
-fn replaceCatalog(state: inout CatalogState, revision: u64): u64 {
-  state.revision = revision
+fn replaceCatalog(state: inout CatalogState, revision nextRevision: u64): u64 {
+  state.revision = nextRevision
   return state.revision
 }
 

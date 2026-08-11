@@ -10,16 +10,16 @@ export struct MenuSnapshot {
 
 export fn stageMenu(
   title: ref String,
-  dishes: ref Array<String>,
-  memory: ref Allocator,
+  dishes menuDishes: ref Array<String>,
+  memory destination: ref Allocator,
 ): MenuSnapshot throws AllocationError {
   var storage: [u8; 2<MiB>] = [0; 2<MiB>]
   var staging = Arena.fixed(inout storage)
   defer { staging.clear() }
   var stagedDishes = Array<String>(using: staging)
-  try stagedDishes.tryReserve(minimumCapacity: dishes.count)
+  try stagedDishes.tryReserve(minimumCapacity: menuDishes.count)
 
-  for ref dish in dishes {
+  for ref dish in menuDishes {
     let stagedDish = try dish.tryDuplicate(using: staging)
     stagedDishes.append(take stagedDish)
   }
@@ -30,7 +30,7 @@ export fn stageMenu(
   )
   // Rehome changes allocation origins. It does not erase a borrow origin.
   // The result interface maps owned storage to the `memory` parameter.
-  return try (take staged).rehome(using: memory)
+  return try (take staged).rehome(using: destination)
 }
 
 export fn countEmergencyTokens(source: ref String): usize throws AllocationError {

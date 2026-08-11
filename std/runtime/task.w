@@ -36,9 +36,9 @@ foreign intrinsic from "std.runtime.task-local@1" {
   ): ref Value
 
   fn stdTaskLocalWithValue<Value, Result, Failure: Error>(
-    identity: ref TaskLocalIdentity,
-    value: take Value<(.shareable)>,
-    operation: some fn(): Result throws Failure,
+    named identity: ref TaskLocalIdentity,
+    named value: take Value<(.shareable)>,
+    named operation: some fn(): Result throws Failure,
   ): Result throws Failure
 }
 
@@ -52,19 +52,19 @@ export struct TaskLocal<Value> {
   export static const fn key(
     default: Value<(.shareable)>,
   ): TaskLocal<Value> {
-    let identity = unsafe { stdTaskLocalKey(default: default) }
+    let identity = unsafe { stdTaskLocalKey(default) }
     return TaskLocal<Value>(validatedIdentity: identity)
   }
 
   export fn get(): ref Value {
-    return unsafe { stdTaskLocalGet(identity: identity) }
+    return unsafe { stdTaskLocalGet(identity) }
   }
 
   // W-1240 forwards suspension from operation. This wrapper does not create a
   // task. Error, cancellation, and panic cleanup drain children before pop.
   export fn withValue<Result, Failure: Error>(
     _ value: Value<(.shareable)>,
-    operation: some fn(): Result throws Failure,
+    named operation: some fn(): Result throws Failure,
   ): Result throws Failure {
     return unsafe {
       try stdTaskLocalWithValue(

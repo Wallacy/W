@@ -89,28 +89,28 @@ export alias TransactionFailure<Failure: Error> =
 export protocol Transaction {
   async fn one<Parameters, Row>(
     query: const Query<Parameters, Row>,
-    parameters: Parameters,
+    parameters values: Parameters,
   ): Row throws DatabaseError
 
   async fn optional<Parameters, Row>(
     query: const Query<Parameters, Row>,
-    parameters: Parameters,
+    parameters values: Parameters,
   ): Row? throws DatabaseError
 
   async fn all<Parameters, Row>(
     query: const Query<Parameters, Row>,
-    parameters: Parameters,
-    limits: RowLimits,
+    parameters values: Parameters,
+    limits rowLimits: RowLimits,
   ): Array<Row> throws DatabaseError
 
   async fn execute<Parameters>(
     command: const Command<Parameters>,
-    parameters: Parameters,
+    parameters values: Parameters,
   ): u64 throws DatabaseError
 
   async fn executeMany<Parameters>(
     command: const Command<Parameters>,
-    parameters: take Array<Parameters>,
+    parameters values: take Array<Parameters>,
   ): u64 throws DatabaseError
 }
 
@@ -118,24 +118,24 @@ export protocol Database:
   Transactional<Transaction, TransactionContract, DatabaseError> {
   async fn one<Parameters, Row>(
     query: const Query<Parameters, Row>,
-    parameters: Parameters,
+    parameters values: Parameters,
   ): Row throws DatabaseError
 
   async fn optional<Parameters, Row>(
     query: const Query<Parameters, Row>,
-    parameters: Parameters,
+    parameters values: Parameters,
   ): Row? throws DatabaseError
 
   async fn all<Parameters, Row>(
     query: const Query<Parameters, Row>,
-    parameters: Parameters,
-    limits: RowLimits,
+    parameters values: Parameters,
+    limits rowLimits: RowLimits,
   ): Array<Row> throws DatabaseError
 
   async fn queryMany<Parameters, Row>(
     query: const Query<Parameters, Row>,
-    parameters: take Array<Parameters>,
-    maximumInFlight: usize<(1...)>,
+    parameters values: take Array<Parameters>,
+    maximumInFlight concurrency: usize<(1...)>,
   ): Array<Row> throws DatabaseError
 
 }

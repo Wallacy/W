@@ -16,7 +16,7 @@ fn makeRoot(title: String): shared MenuSection {
 
 fn makeRoot(
   title: String,
-  memory: ref Allocator,
+  using memory: ref Allocator,
 ): shared MenuSection throws AllocationError {
   return try share(
     MenuSection(

@@ -121,7 +121,7 @@ export struct MediaType: Equatable {
 
   export init(_ value: String) throws MediaTypeError {
     self.storedValue = unsafe {
-      try stdPresentationMediaTypeValidate(value: ref value)
+      try stdPresentationMediaTypeValidate(ref value)
     }
   }
 
@@ -132,11 +132,11 @@ export struct MediaType: Equatable {
   export value: view String { get => storedValue }
 
   export fn kind(): MediaKind throws MediaTypeError {
-    return unsafe { try stdPresentationMediaTypeKind(media: ref self) }
+    return unsafe { try stdPresentationMediaTypeKind(ref self) }
   }
 
   export fn isPortable(): Bool {
-    return unsafe { stdPresentationMediaTypePortable(media: ref self) }
+    return unsafe { stdPresentationMediaTypePortable(ref self) }
   }
 }
 
@@ -148,7 +148,7 @@ export struct Png {
   height: u32
 
   export init(bytes: take Bytes, width: u32, height: u32) throws Error {
-    self.bytes = unsafe { try stdPresentationPngValidate(bytes: take bytes, width: width, height: height) }
+    self.bytes = unsafe { try stdPresentationPngValidate(take bytes, width, height) }
     self.width = width
     self.height = height
   }
@@ -160,7 +160,7 @@ export struct Jpeg {
   height: u32
 
   export init(bytes: take Bytes, width: u32, height: u32) throws Error {
-    self.bytes = unsafe { try stdPresentationJpegValidate(bytes: take bytes, width: width, height: height) }
+    self.bytes = unsafe { try stdPresentationJpegValidate(take bytes, width, height) }
     self.width = width
     self.height = height
   }
@@ -181,7 +181,7 @@ export struct Writer {
 
   export mut fn text(_ value: view String) throws Error {
     unsafe {
-      try stdPresentationWriterText(handle: inout handle, value: value)
+      try stdPresentationWriterText(inout handle, value)
     }
   }
 
@@ -196,7 +196,7 @@ export struct Writer {
 
   export mut fn jpeg(_ image: ref Jpeg) throws Error {
     unsafe {
-      try stdPresentationWriterJpeg(handle: inout handle, image: image)
+      try stdPresentationWriterJpeg(inout handle, image)
     }
   }
 
@@ -204,7 +204,7 @@ export struct Writer {
     _ body: some take fn(inout json.Writer): () throws json.EncodeError,
   ) throws Error {
     unsafe {
-      try stdPresentationWriterJson(handle: inout handle, body: take body)
+      try stdPresentationWriterJson(inout handle, take body)
     }
   }
 
@@ -222,7 +222,7 @@ export struct Writer {
   }
 
   deinit {
-    unsafe { stdPresentationWriterDrop(handle: inout handle) }
+    unsafe { stdPresentationWriterDrop(inout handle) }
   }
 }
 
@@ -253,8 +253,8 @@ foreign intrinsic from "std.presentation@1" {
     value: view String,
   ) throws Error
   fn stdPresentationWriterPng(
-    handle: inout PresentationWriterHandle,
-    image: ref Png,
+    named handle: inout PresentationWriterHandle,
+    named image: ref Png,
   ) throws Error
   fn stdPresentationWriterJpeg(
     handle: inout PresentationWriterHandle,
@@ -265,9 +265,9 @@ foreign intrinsic from "std.presentation@1" {
     body: some take fn(inout json.Writer): () throws json.EncodeError,
   ) throws Error
   fn stdPresentationWriterVendorJson(
-    handle: inout PresentationWriterHandle,
-    media: ref MediaType,
-    body: some take fn(inout json.Writer): () throws json.EncodeError,
+    named handle: inout PresentationWriterHandle,
+    named media: ref MediaType,
+    named body: some take fn(inout json.Writer): () throws json.EncodeError,
   ) throws Error
   fn stdPresentationWriterDrop(handle: inout PresentationWriterHandle)
 }

@@ -34,8 +34,8 @@ export enum ServiceRecoveryAction {
 
 export const fn serviceRecoveryAction(
   point: ServiceFaultPoint,
-  policy: RecoveryEffectPolicy,
-  provider: ProviderDecision,
+  named policy: RecoveryEffectPolicy,
+  named provider: ProviderDecision,
 ): ServiceRecoveryAction {
   return switch point {
     case .beforeEnvelopeCommit: .cleanupWithoutExecution
@@ -73,8 +73,8 @@ export enum DedupDecision {
 
 export const fn serviceDedupDecision(
   state: DedupRecordState,
-  sameIdentity: Bool,
-  withinRetention: Bool,
+  named sameIdentity: Bool,
+  named withinRetention: Bool,
 ): DedupDecision {
   guard sameIdentity else { return .effectConflict }
   guard withinRetention else { return .retentionExpired }
@@ -94,8 +94,8 @@ export struct RecoveryMailboxTicket {
 
 export const fn mayStartRecoveryTurn(
   candidate: RecoveryMailboxTicket,
-  earliestForSender: RecoveryMailboxTicket,
-  anotherTurnActive: Bool,
+  named earliestForSender: RecoveryMailboxTicket,
+  named anotherTurnActive: Bool,
 ): Bool {
   return !anotherTurnActive
     && candidate.sender == earliestForSender.sender
@@ -103,10 +103,10 @@ export const fn mayStartRecoveryTurn(
 }
 
 export const fn acceptsRecoveryCompletion(
-  currentGeneration: u64,
-  receiptGeneration: u64,
+  currentGeneration activeGeneration: u64,
+  receiptGeneration completedGeneration: u64,
 ): Bool {
-  return currentGeneration == receiptGeneration
+  return activeGeneration == completedGeneration
 }
 
 test "recovery distinguishes a retry from an unknown at-most-once effect" {

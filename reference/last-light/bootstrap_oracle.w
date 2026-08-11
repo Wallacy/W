@@ -28,10 +28,10 @@ enum CompilerLayer {
   extended
 }
 
-const fn dependencyAllowed(from: CompilerLayer, to: CompilerLayer): Bool {
-  return switch from {
-    case .coreW0: to == .coreW0 || to == .backendAdapter
-    case .backendAdapter: to == .backendAdapter
+const fn dependencyAllowed(from source: CompilerLayer, to target: CompilerLayer): Bool {
+  return switch source {
+    case .coreW0: target == .coreW0 || target == .backendAdapter
+    case .backendAdapter: target == .backendAdapter
     case .extended: true
   }
 }

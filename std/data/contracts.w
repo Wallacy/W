@@ -63,7 +63,7 @@ export struct FixedDecimalType {
 
   export static fn make(precision: u16, scale: i16): FixedDecimalType throws SchemaError {
     return FixedDecimalType(validatedHandle: unsafe {
-      try stdDataFixedDecimal(precision: precision, scale: scale)
+      try stdDataFixedDecimal(precision, scale)
     })
   }
 }
@@ -81,12 +81,12 @@ export struct LogicalType {
 
   export static fn integer(width: IntegerWidth, sign: IntegerSign): LogicalType {
     return LogicalType(validatedHandle: unsafe {
-      stdDataLogicalInteger(width: width, sign: sign)
+      stdDataLogicalInteger(width, sign)
     })
   }
 
   export static fn float(width: FloatWidth): LogicalType {
-    return LogicalType(validatedHandle: unsafe { stdDataLogicalFloat(width: width) })
+    return LogicalType(validatedHandle: unsafe { stdDataLogicalFloat(width) })
   }
 
   export static fn fixedDecimal(
@@ -94,7 +94,7 @@ export struct LogicalType {
     scale: i16,
   ): LogicalType throws SchemaError {
     return LogicalType(validatedHandle: unsafe {
-      try stdDataLogicalFixedDecimal(precision: precision, scale: scale)
+      try stdDataLogicalFixedDecimal(precision, scale)
     })
   }
 
@@ -118,7 +118,7 @@ export struct LogicalType {
   // A time is a time-of-day.  It has precision but no timezone conversion.
   export static fn time(precision: TemporalPrecision): LogicalType {
     return LogicalType(validatedHandle: unsafe {
-      stdDataLogicalTime(precision: precision)
+      stdDataLogicalTime(precision)
     })
   }
 
@@ -126,7 +126,7 @@ export struct LogicalType {
   // conversion policy.
   export static fn instant(precision: TemporalPrecision): LogicalType {
     return LogicalType(validatedHandle: unsafe {
-      stdDataLogicalInstant(precision: precision)
+      stdDataLogicalInstant(precision)
     })
   }
 
@@ -134,7 +134,7 @@ export struct LogicalType {
   // instant in this module.
   export static fn localDateTime(precision: TemporalPrecision): LogicalType {
     return LogicalType(validatedHandle: unsafe {
-      stdDataLogicalLocalDateTime(precision: precision)
+      stdDataLogicalLocalDateTime(precision)
     })
   }
 
@@ -143,7 +143,7 @@ export struct LogicalType {
     limits: ref Limits = ref Limits.standard(),
   ): LogicalType throws SchemaError {
     return LogicalType(validatedHandle: unsafe {
-      try stdDataLogicalOption(child: take child, limits: limits)
+      try stdDataLogicalOption(take child, limits)
     })
   }
 
@@ -152,7 +152,7 @@ export struct LogicalType {
     limits: ref Limits = ref Limits.standard(),
   ): LogicalType throws SchemaError {
     return LogicalType(validatedHandle: unsafe {
-      try stdDataLogicalList(child: take child, limits: limits)
+      try stdDataLogicalList(take child, limits)
     })
   }
 
@@ -162,7 +162,7 @@ export struct LogicalType {
     limits: ref Limits = ref Limits.standard(),
   ): LogicalType throws SchemaError {
     return LogicalType(validatedHandle: unsafe {
-      try stdDataLogicalMap(key: take key, value: take value, limits: limits)
+      try stdDataLogicalMap(take key, take value, limits)
     })
   }
 
@@ -170,7 +170,7 @@ export struct LogicalType {
     identity: ref SchemaIdentity,
   ): LogicalType throws SchemaError {
     return LogicalType(validatedHandle: unsafe {
-      try stdDataLogicalNested(identity: identity)
+      try stdDataLogicalNested(identity)
     })
   }
 
@@ -179,7 +179,7 @@ export struct LogicalType {
     limits: ref Limits = ref Limits.standard(),
   ): LogicalType throws SchemaError {
     return LogicalType(validatedHandle: unsafe {
-      try stdDataLogicalExtension(extension: take extension, limits: limits)
+      try stdDataLogicalExtension(take extension, limits)
     })
   }
 }
@@ -225,7 +225,7 @@ export struct DecimalValue {
     unscaled: i128,
   ): DecimalValue throws SchemaError {
     return DecimalValue(validatedHandle: unsafe {
-      try stdDataDecimalValue(type: take type, unscaled: unscaled)
+      try stdDataDecimalValue(take type, unscaled)
     })
   }
 }
@@ -238,7 +238,7 @@ export struct UUIDValue {
   }
 
   export static fn make(bytes: take Bytes): UUIDValue throws SchemaError {
-    return UUIDValue(validatedHandle: unsafe { try stdDataUuidValue(bytes: take bytes) })
+    return UUIDValue(validatedHandle: unsafe { try stdDataUuidValue(take bytes) })
   }
 }
 
@@ -251,7 +251,7 @@ export struct DateValue {
 
   export static fn make(daysSinceEpoch: i32): DateValue throws SchemaError {
     return DateValue(validatedHandle: unsafe {
-      try stdDataDateValue(daysSinceEpoch: daysSinceEpoch)
+      try stdDataDateValue(daysSinceEpoch)
     })
   }
 }
@@ -265,7 +265,7 @@ export struct TimeValue {
 
   export static fn make(nanosecondsSinceMidnight: u64): TimeValue throws SchemaError {
     return TimeValue(validatedHandle: unsafe {
-      try stdDataTimeValue(nanosecondsSinceMidnight: nanosecondsSinceMidnight)
+      try stdDataTimeValue(nanosecondsSinceMidnight)
     })
   }
 }
@@ -279,7 +279,7 @@ export struct InstantValue {
 
   export static fn make(epochNanoseconds: i128): InstantValue throws SchemaError {
     return InstantValue(validatedHandle: unsafe {
-      try stdDataInstantValue(epochNanoseconds: epochNanoseconds)
+      try stdDataInstantValue(epochNanoseconds)
     })
   }
 }
@@ -295,7 +295,7 @@ export struct LocalDateTimeValue {
   // epoch and does not imply conversion to an Instant.
   export static fn make(civilTicks: i128): LocalDateTimeValue throws SchemaError {
     return LocalDateTimeValue(validatedHandle: unsafe {
-      try stdDataLocalDateTimeValue(civilTicks: civilTicks)
+      try stdDataLocalDateTimeValue(civilTicks)
     })
   }
 }
@@ -445,10 +445,10 @@ foreign intrinsic from "std.data@1" {
     limits: ref Limits,
   ): LogicalTypeHandle throws SchemaError
   fn stdDataSemanticExtension(
-    id: take String,
-    version: u32,
-    parameters: take Array<Bytes>,
-    limits: ref Limits,
+    named id: take String,
+    named version: u32,
+    named parameters: take Array<Bytes>,
+    named limits: ref Limits,
   ): SemanticExtensionHandle throws SchemaError
   fn stdDataDecimalValue(
     type: take FixedDecimalType,
@@ -460,10 +460,10 @@ foreign intrinsic from "std.data@1" {
   fn stdDataInstantValue(epochNanoseconds: i128): InstantValueHandle throws SchemaError
   fn stdDataLocalDateTimeValue(civilTicks: i128): LocalDateTimeValueHandle throws SchemaError
   fn stdDataDynamicExtensionValue(
-    type: take LogicalType,
-    extension: take SemanticExtension,
-    storage: take Bytes,
-    limits: ref Limits,
+    named type: take LogicalType,
+    named extension: take SemanticExtension,
+    named storage: take Bytes,
+    named limits: ref Limits,
   ): DynamicExtensionValueHandle throws SchemaError
   fn stdDataDynamicList(
     values: take Array<DynamicValue>,
@@ -480,10 +480,10 @@ foreign intrinsic from "std.data@1" {
 
 
   fn stdDataSchemaField(
-    name: take String,
-    logicalType: take LogicalType,
-    nullable: Bool,
-    limits: ref Limits,
+    named name: take String,
+    named logicalType: take LogicalType,
+    named nullable: Bool,
+    named limits: ref Limits,
   ): SchemaFieldHandle throws SchemaError
 
   fn stdDataSchema(
@@ -507,7 +507,7 @@ foreign intrinsic from "std.data@1" {
   fn stdDataBatchStringColumn(handle: ref BatchHandle, field: ref FieldDescriptorHandle): view StringColumnHandle
   fn stdDataBatchBytesColumn(handle: ref BatchHandle, field: ref FieldDescriptorHandle): view BytesColumnHandle
   fn stdDataColumnCount(handle: view ColumnHandle): usize
-  fn stdDataColumnCopy<Value>(handle: view ColumnHandle, index: usize): Value
+  fn stdDataColumnCopy<Value>(named handle: view ColumnHandle, named index: usize): Value
   fn stdDataStringColumnCount(handle: view StringColumnHandle): usize
   fn stdDataStringColumnView(handle: view StringColumnHandle, index: usize): view String?
   fn stdDataStringColumnCopy(handle: view StringColumnHandle, index: usize): String?
@@ -520,10 +520,10 @@ foreign intrinsic from "std.data@1" {
   fn stdDataDynamicColumnCount(handle: ref DynamicColumnHandle): usize
   fn stdDataDynamicColumnValue(handle: ref DynamicColumnHandle, index: usize): DynamicValue
   fn stdDataBind<Element: Row>(
-    batch: take DynamicBatch,
-    schema: ref Schema,
-    policy: BindingPolicy,
-    limits: ref Limits,
+    named batch: take DynamicBatch,
+    named schema: ref Schema,
+    named policy: BindingPolicy,
+    named limits: ref Limits,
   ): Batch<Element> throws BindError
   fn stdDataSchemaFor<Element: Row>(): Schema
 }
@@ -574,19 +574,19 @@ export struct Schema {
     limits: ref Limits = ref Limits.standard(),
   ): Schema throws SchemaError {
     let handle = unsafe {
-      try stdDataSchema(fields: take fields, rowCount: rowCount, limits: limits)
+      try stdDataSchema(take fields, rowCount, limits)
     }
     return Schema(validatedHandle: handle)
   }
 
   export fn identity(): SchemaIdentity {
     return SchemaIdentity(
-      validatedHandle: unsafe { stdDataSchemaIdentity(handle: ref handle) },
+      validatedHandle: unsafe { stdDataSchemaIdentity(ref handle) },
     )
   }
 
   export fn fieldCount(): usize {
-    return unsafe { stdDataSchemaFieldCount(handle: ref handle) }
+    return unsafe { stdDataSchemaFieldCount(ref handle) }
   }
 }
 
@@ -631,7 +631,7 @@ export struct DynamicListValue {
     limits: ref Limits = ref Limits.standard(),
   ): DynamicListValue throws SchemaError {
     return DynamicListValue(validatedHandle: unsafe {
-      try stdDataDynamicList(values: take values, limits: limits)
+      try stdDataDynamicList(take values, limits)
     })
   }
 }
@@ -648,7 +648,7 @@ export struct DynamicMapValue {
     limits: ref Limits = ref Limits.standard(),
   ): DynamicMapValue throws SchemaError {
     return DynamicMapValue(validatedHandle: unsafe {
-      try stdDataDynamicMap(entries: take entries, limits: limits)
+      try stdDataDynamicMap(take entries, limits)
     })
   }
 }
@@ -665,7 +665,7 @@ export struct DynamicNestedValue {
     limits: ref Limits = ref Limits.standard(),
   ): DynamicNestedValue throws SchemaError {
     return DynamicNestedValue(validatedHandle: unsafe {
-      try stdDataDynamicNested(entries: take entries, limits: limits)
+      try stdDataDynamicNested(take entries, limits)
     })
   }
 }
@@ -722,7 +722,7 @@ export struct Column<Owner: Row, Value> {
   }
 
   export fn count(): usize {
-    return unsafe { stdDataColumnCount(handle: handle) }
+    return unsafe { stdDataColumnCount(handle) }
   }
 
   // Copy values return an owner; the source spelling `column[index]` lowers to
@@ -740,17 +740,17 @@ export struct StringColumn<Owner: Row> {
   }
 
   export fn count(): usize {
-    return unsafe { stdDataStringColumnCount(handle: handle) }
+    return unsafe { stdDataStringColumnCount(handle) }
   }
 
   // The borrowed value is tied to this column's Batch owner and cannot be
   // returned from a scope that does not keep that owner alive.
   export fn view(at index: usize): view String? {
-    return unsafe { stdDataStringColumnView(handle: handle, index: index) }
+    return unsafe { stdDataStringColumnView(handle, index) }
   }
 
   export fn copy(at index: usize): String? {
-    return unsafe { stdDataStringColumnCopy(handle: handle, index: index) }
+    return unsafe { stdDataStringColumnCopy(handle, index) }
   }
 }
 
@@ -762,15 +762,15 @@ export struct BytesColumn<Owner: Row> {
   }
 
   export fn count(): usize {
-    return unsafe { stdDataBytesColumnCount(handle: handle) }
+    return unsafe { stdDataBytesColumnCount(handle) }
   }
 
   export fn view(at index: usize): view Bytes? {
-    return unsafe { stdDataBytesColumnView(handle: handle, index: index) }
+    return unsafe { stdDataBytesColumnView(handle, index) }
   }
 
   export fn copy(at index: usize): Bytes? {
-    return unsafe { stdDataBytesColumnCopy(handle: handle, index: index) }
+    return unsafe { stdDataBytesColumnCopy(handle, index) }
   }
 }
 
@@ -782,11 +782,11 @@ export struct DynamicColumn {
   }
 
   export fn count(): usize {
-    return unsafe { stdDataDynamicColumnCount(handle: ref handle) }
+    return unsafe { stdDataDynamicColumnCount(ref handle) }
   }
 
   export fn value(at index: usize): DynamicValue {
-    return unsafe { stdDataDynamicColumnValue(handle: ref handle, index: index) }
+    return unsafe { stdDataDynamicColumnValue(ref handle, index) }
   }
 }
 
@@ -798,11 +798,11 @@ export struct Batch<Element: Row> {
   }
 
   export fn schema(): Schema {
-    return Schema(validatedHandle: unsafe { stdDataBatchSchema(handle: ref handle) })
+    return Schema(validatedHandle: unsafe { stdDataBatchSchema(ref handle) })
   }
 
   export fn rowCount(): usize {
-    return unsafe { stdDataBatchRowCount(handle: ref handle) }
+    return unsafe { stdDataBatchRowCount(ref handle) }
   }
 
   // Compiler-generated descriptors carry Element.  The provider rejects a
@@ -811,23 +811,23 @@ export struct Batch<Element: Row> {
     _ field: FieldDescriptor<Element, Value>,
   ): view Column<Element, Value> {
     return view Column(validatedHandle: unsafe {
-      stdDataBatchColumn(handle: ref handle, field: ref field.handle)
+      stdDataBatchColumn(ref handle, ref field.handle)
     })
   }
 
   export fn column(
-    _ field: FieldDescriptor<Element, String?>,
+    string field: FieldDescriptor<Element, String?>,
   ): view StringColumn<Element> {
     return view StringColumn(validatedHandle: unsafe {
-      stdDataBatchStringColumn(handle: ref handle, field: ref field.handle)
+      stdDataBatchStringColumn(ref handle, ref field.handle)
     })
   }
 
   export fn column(
-    _ field: FieldDescriptor<Element, Bytes?>,
+    bytes field: FieldDescriptor<Element, Bytes?>,
   ): view BytesColumn<Element> {
     return view BytesColumn(validatedHandle: unsafe {
-      stdDataBatchBytesColumn(handle: ref handle, field: ref field.handle)
+      stdDataBatchBytesColumn(ref handle, ref field.handle)
     })
   }
 }
@@ -841,17 +841,17 @@ export struct DynamicBatch {
 
   export fn schema(): Schema {
     return Schema(validatedHandle: unsafe {
-      stdDataDynamicBatchSchema(handle: ref handle)
+      stdDataDynamicBatchSchema(ref handle)
     })
   }
 
   export fn rowCount(): usize {
-    return unsafe { stdDataDynamicBatchRowCount(handle: ref handle) }
+    return unsafe { stdDataDynamicBatchRowCount(ref handle) }
   }
 
   export fn column(_ name: ref String): DynamicColumn {
     return DynamicColumn(validatedHandle: unsafe {
-      stdDataDynamicBatchColumn(handle: ref handle, name: name)
+      stdDataDynamicBatchColumn(ref handle, name)
     })
   }
 }
@@ -903,10 +903,10 @@ export struct EncodeProgress: Copy & Equatable {
 
 foreign intrinsic from "std.data@1" {
   fn stdDataProgressAdding(
-    current: EncodeProgress,
-    bytes: u64,
-    records: u64,
-    partialRecord: Bool,
+    named current: EncodeProgress,
+    named bytes: u64,
+    named records: u64,
+    named partialRecord: Bool,
   ): EncodeProgress throws ProgressError
 }
 

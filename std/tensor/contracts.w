@@ -55,12 +55,12 @@ export struct Device {
   }
 
   export fn kind(): DeviceKind {
-    return unsafe { stdTensorDeviceKind(handle: ref handle) }
+    return unsafe { stdTensorDeviceKind(ref handle) }
   }
 
   export fn same(as other: ref Device): Bool {
     return unsafe {
-      stdTensorDeviceSame(left: ref handle, right: ref other.handle)
+      stdTensorDeviceSame(ref handle, ref other.handle)
     }
   }
 }
@@ -74,7 +74,7 @@ export struct Queue {
 
   export fn device(): Device {
     return Device(validatedHandle: unsafe {
-      stdTensorQueueDevice(handle: ref handle)
+      stdTensorQueueDevice(ref handle)
     })
   }
 

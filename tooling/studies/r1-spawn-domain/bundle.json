@@ -7,7 +7,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/execution.w",
     "symbol": "spawn<.compute> let leftResult",
-    "digest": "sha256:d5a96e90e9282edefeef5aac253ad93c730491e81c976f6e12a7bacfd0ed424e"
+    "digest": "sha256:d1d9d45d4ff1c6d1815cf6d11ae3a8fb26e119c3541dfb2e64de6078722f9a98"
   },
   "variants": [
     {
@@ -15,7 +15,7 @@
       "role": "selected",
       "language": "w",
       "path": "positional.w",
-      "digest": "sha256:5e988c714290062fc207f5840f236934212af82d36ddd1bc6e2733e2467726ad",
+      "digest": "sha256:46940f423a634153bb4b7ba0b23a726dc721430aec6d4a9fb62d7236287e60f5",
       "changedConstructs": [
         "positional domain slot written as a contextual case",
         "explicit dispatch remains distinct from serial or parallel execution",
@@ -27,7 +27,7 @@
       "role": "alternative",
       "language": "w",
       "path": "named.w",
-      "digest": "sha256:a13e2a5573f54d7b7f5cafef4def1a1c55897e095edb3b56e1bf280c6f14da06",
+      "digest": "sha256:f23d0cd5623e8de78ef96358f334211f09087eeb3752cbb7f09fe5d61041151e",
       "changedConstructs": [
         "named domain slot written with its source label",
         "explicit dispatch remains distinct from serial or parallel execution",
