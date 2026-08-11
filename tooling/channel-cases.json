@@ -1,0 +1,922 @@
+{
+  "$schema": "w-channel-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "CH0-accepted-buffered-send-receive",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "runBoundedOrderWindow" },
+      "decisions": ["W-458", "W-459", "W-460", "W-467"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "a", "waiter": "send-a" },
+        { "op": "progressAdmission" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "progressReceive" },
+        { "op": "consumeReceive", "receive": "receive-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "lifecycle": "drained",
+          "terminalItems": { "a": "consumed" },
+          "highWaterMark": 1,
+          "happensBefore": [
+            "send:send-a:a->receive:receive-a:a",
+            "close->admission-closed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-rendezvous",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "handOffAtRendezvous" },
+      "decisions": ["W-462", "W-464", "W-467"],
+      "operations": [
+        { "op": "open", "capacity": 0, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "beginSend", "sender": "out", "item": "a", "waiter": "send-a" },
+        { "op": "progressAdmission" },
+        { "op": "consumeReceive", "receive": "receive-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "lifecycle": "drained",
+          "terminalItems": { "a": "consumed" },
+          "highWaterMark": 0,
+          "happensBefore": [
+            "send:send-a:a->receive:receive-a:a",
+            "send:send-a:a->send-complete:send-a",
+            "close->admission-closed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-positive-permit-send",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitAfterAdmission" },
+      "decisions": ["W-462", "W-463"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "progressAdmission" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "permitSend", "permit": "permit-a", "item": "a" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "progressReceive" },
+        { "op": "consumeReceive", "receive": "receive-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "permits": { "permit-a": "used" },
+          "terminalItems": { "a": "consumed" },
+          "highWaterMark": 1
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-rendezvous-permit-send",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitAfterAdmission" },
+      "decisions": ["W-462", "W-463", "W-467"],
+      "operations": [
+        { "op": "open", "capacity": 0, "strategy": "mutex", "sender": "out", "receiver": "in" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "progressAdmission" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "permitSend", "permit": "permit-a", "item": "a" },
+        { "op": "consumeReceive", "receive": "receive-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "permits": { "permit-a": "used" },
+          "terminalItems": { "a": "consumed" },
+          "highWaterMark": 0
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-permit-drop-releases-slot",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitAfterAdmission" },
+      "decisions": ["W-463", "W-467"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "progressAdmission" },
+        { "op": "dropPermit", "permit": "permit-a" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "a", "waiter": "send-a" },
+        { "op": "progressAdmission" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "progressReceive" },
+        { "op": "consumeReceive", "receive": "receive-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "permits": { "permit-a": "dropped" },
+          "terminalItems": { "a": "consumed" },
+          "happensBefore": [
+            "permit-drop:permit-a->send:send-a:a",
+            "send:send-a:a->receive:receive-a:a",
+            "close->admission-closed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-graceful-close-honors-permit",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "closeAfterReservedOrder" },
+      "decisions": ["W-463", "W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "mutex", "sender": "out", "receiver": "in" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "progressAdmission" },
+        { "op": "closeReceiver" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "permitSend", "permit": "permit-a", "item": "a" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "progressReceive" },
+        { "op": "consumeReceive", "receive": "receive-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "lifecycle": "drained",
+          "permits": { "permit-a": "used" },
+          "terminalItems": { "a": "consumed" }
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-abort-drops-buffer-and-returns-waiter",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "recoverAfterReceiverAbort" },
+      "decisions": ["W-461", "W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "accepted", "kind": "owned" },
+        { "op": "createItem", "item": "waiting", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "accepted", "waiter": "send-a" },
+        { "op": "progressAdmission" },
+        { "op": "beginSend", "sender": "out", "item": "waiting", "waiter": "send-b" },
+        { "op": "abortReceiver" },
+        { "op": "dropReturnedItem", "item": "waiting", "reason": "caller" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "lifecycle": "aborted",
+          "terminalItems": {
+            "accepted": "dropped:receiver-abort",
+            "waiting": "dropped:caller"
+          }
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-aborted-permit-returns-item",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "recoverAfterReceiverAbort" },
+      "decisions": ["W-461", "W-463", "W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "mutex", "sender": "out", "receiver": "in" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "progressAdmission" },
+        { "op": "abortReceiver" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "permitSend", "permit": "permit-a", "item": "a" },
+        { "op": "dropReturnedItem", "item": "a", "reason": "caller" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "lifecycle": "aborted",
+          "permits": { "permit-a": "usedAfterAbort" },
+          "terminalItems": { "a": "dropped:caller" }
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-try-full-returns-owner",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "trySubmitOrder" },
+      "decisions": ["W-461", "W-462"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "createItem", "item": "b", "kind": "owned" },
+        { "op": "trySend", "sender": "out", "item": "a" },
+        { "op": "trySend", "sender": "out", "item": "b" },
+        { "op": "dropReturnedItem", "item": "b", "reason": "caller" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "progressReceive" },
+        { "op": "consumeReceive", "receive": "receive-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "terminalItems": { "a": "consumed", "b": "dropped:caller" },
+          "highWaterMark": 1
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-try-does-not-bypass-ticket",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "trySubmitOrder" },
+      "decisions": ["W-465"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "first", "kind": "owned" },
+        { "op": "createItem", "item": "barger", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "first", "waiter": "send-first" },
+        { "op": "trySend", "sender": "out", "item": "barger" },
+        { "op": "dropReturnedItem", "item": "barger", "reason": "caller" },
+        { "op": "progressAdmission" },
+        { "op": "beginReceive", "receive": "receive-first" },
+        { "op": "progressReceive" },
+        { "op": "consumeReceive", "receive": "receive-first" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "terminalItems": { "first": "consumed", "barger": "dropped:caller" }
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-send-cancel-before-commit",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitOrder" },
+      "decisions": ["W-464"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "mutex", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "a", "waiter": "send-a" },
+        { "op": "cancelAdmission", "waiter": "send-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "terminalItems": { "a": "dropped:cancel:send-a" },
+          "drops": [{ "item": "a", "reason": "cancel:send-a" }]
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-send-cancel-after-commit",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitOrder" },
+      "decisions": ["W-464"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "a", "waiter": "send-a" },
+        { "op": "progressAdmission" },
+        { "op": "cancelAdmission", "waiter": "send-a" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "progressReceive" },
+        { "op": "consumeReceive", "receive": "receive-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": { "terminalItems": { "a": "consumed" }, "drops": [] }
+      }
+    },
+    {
+      "id": "CH0-accepted-reserve-cancel-before-commit",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitAfterAdmission" },
+      "decisions": ["W-463", "W-464"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "cancelAdmission", "waiter": "reserve-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": { "permits": {}, "lifecycle": "drained" }
+      }
+    },
+    {
+      "id": "CH0-accepted-reserve-cancel-after-commit",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitAfterAdmission" },
+      "decisions": ["W-463", "W-464"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "progressAdmission" },
+        { "op": "cancelAdmission", "waiter": "reserve-a" },
+        { "op": "dropPermit", "permit": "permit-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": { "permits": { "permit-a": "dropped" }, "lifecycle": "drained" }
+      }
+    },
+    {
+      "id": "CH0-accepted-receive-cancel-before-commit",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "acceptOrders" },
+      "decisions": ["W-464"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "mutex", "sender": "out", "receiver": "in" },
+        { "op": "beginReceive", "receive": "first" },
+        { "op": "cancelReceive", "receive": "first" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "a", "waiter": "send-a" },
+        { "op": "progressAdmission" },
+        { "op": "beginReceive", "receive": "second" },
+        { "op": "progressReceive" },
+        { "op": "consumeReceive", "receive": "second" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "terminalItems": { "a": "consumed" },
+          "frames": { "second": "consumed" }
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-receive-cancel-after-commit",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "acceptOrders" },
+      "decisions": ["W-464"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "a", "waiter": "send-a" },
+        { "op": "progressAdmission" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "progressReceive" },
+        { "op": "cancelReceive", "receive": "receive-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "terminalItems": { "a": "dropped:receive-cancel:receive-a" },
+          "frames": { "receive-a": "dropped" }
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-last-sender-closes-after-copy",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "runBoundedOrderWindow" },
+      "decisions": ["W-459", "W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "left", "receiver": "in" },
+        { "op": "copySender", "from": "left", "as": "right" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "beginSend", "sender": "right", "item": "a", "waiter": "send-a" },
+        { "op": "progressAdmission" },
+        { "op": "dropSender", "sender": "left" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "progressReceive" },
+        { "op": "consumeReceive", "receive": "receive-a" },
+        { "op": "dropSender", "sender": "right" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": { "activeSenders": 0, "lifecycle": "drained" }
+      }
+    },
+    {
+      "id": "CH0-accepted-admission-fifo-and-slot-edge",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "runBoundedOrderWindow" },
+      "decisions": ["W-465", "W-467"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "left", "receiver": "in" },
+        { "op": "copySender", "from": "left", "as": "right" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "createItem", "item": "b", "kind": "owned" },
+        { "op": "beginSend", "sender": "left", "item": "a", "waiter": "send-a" },
+        { "op": "beginSend", "sender": "right", "item": "b", "waiter": "send-b" },
+        { "op": "progressAdmission" },
+        { "op": "progressAdmission" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "progressReceive" },
+        { "op": "progressAdmission" },
+        { "op": "beginReceive", "receive": "receive-b" },
+        { "op": "progressReceive" },
+        { "op": "consumeReceive", "receive": "receive-a" },
+        { "op": "consumeReceive", "receive": "receive-b" },
+        { "op": "dropSender", "sender": "left" },
+        { "op": "dropSender", "sender": "right" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "terminalItems": { "a": "consumed", "b": "consumed" },
+          "happensBefore": [
+            "send:send-a:a->receive:receive-a:a",
+            "receive:receive-a:a->send:send-b:b",
+            "send:send-b:b->receive:receive-b:b",
+            "close->admission-closed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-close-returns-queued-send",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "trySubmitOrder" },
+      "decisions": ["W-461", "W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "mutex", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "a", "waiter": "send-a" },
+        { "op": "closeReceiver" },
+        { "op": "dropReturnedItem", "item": "a", "reason": "caller" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": { "terminalItems": { "a": "dropped:caller" }, "lifecycle": "drained" }
+      }
+    },
+    {
+      "id": "CH0-accepted-close-rejects-queued-reserve",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitAfterAdmission" },
+      "decisions": ["W-463", "W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "closeReceiver" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": { "permits": {}, "lifecycle": "drained" }
+      }
+    },
+    {
+      "id": "CH0-accepted-receive-none-after-drain",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "acceptOrders" },
+      "decisions": ["W-466", "W-467"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "beginReceive", "receive": "receive-end" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "lifecycle": "drained",
+          "happensBefore": ["close->admission-closed", "close->receive-none:receive-end"]
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-rendezvous-permit-drop-finishes-close",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "closeAfterReservedOrder" },
+      "decisions": ["W-463", "W-466"],
+      "operations": [
+        { "op": "open", "capacity": 0, "strategy": "mutex", "sender": "out", "receiver": "in" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "progressAdmission" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "dropPermit", "permit": "permit-a" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "lifecycle": "drained",
+          "permits": { "permit-a": "dropped" },
+          "happensBefore": ["close->admission-closed", "close->receive-none:receive-a"]
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-capacity-64-accounting",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "runBoundedOrderWindow" },
+      "decisions": ["W-462", "W-472"],
+      "operations": [
+        { "op": "open", "capacity": 64, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "createItem", "item": "b", "kind": "owned" },
+        { "op": "createItem", "item": "c", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "a", "waiter": "send-a" },
+        { "op": "beginSend", "sender": "out", "item": "b", "waiter": "send-b" },
+        { "op": "beginSend", "sender": "out", "item": "c", "waiter": "send-c" },
+        { "op": "progressAdmission" },
+        { "op": "progressAdmission" },
+        { "op": "progressAdmission" },
+        { "op": "abortReceiver" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "highWaterMark": 3,
+          "terminalItems": {
+            "a": "dropped:receiver-abort",
+            "b": "dropped:receiver-abort",
+            "c": "dropped:receiver-abort"
+          }
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-mutex-strategy-same-semantics",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "runBoundedOrderWindow" },
+      "decisions": ["W-471"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "mutex", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "a", "waiter": "send-a" },
+        { "op": "progressAdmission" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "progressReceive" },
+        { "op": "consumeReceive", "receive": "receive-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": { "terminalItems": { "a": "consumed" }, "lifecycle": "drained" },
+        "physicalStrategy": "mutex"
+      }
+    },
+    {
+      "id": "CH0-accepted-permit-blocks-try-send",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitAfterAdmission" },
+      "decisions": ["W-462", "W-463"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "progressAdmission" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "trySend", "sender": "out", "item": "a" },
+        { "op": "dropReturnedItem", "item": "a", "reason": "caller" },
+        { "op": "dropPermit", "permit": "permit-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": {
+          "terminalItems": { "a": "dropped:caller" },
+          "permits": { "permit-a": "dropped" }
+        }
+      }
+    },
+    {
+      "id": "CH0-accepted-close-is-idempotent",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "closeAfterReservedOrder" },
+      "decisions": ["W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "closeReceiver" },
+        { "op": "closeReceiver" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": { "status": "accepted", "state": { "lifecycle": "drained" } }
+    },
+    {
+      "id": "CH0-accepted-send-after-close-returns-owner",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "recoverAfterReceiverAbort" },
+      "decisions": ["W-461", "W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "closeReceiver" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "a", "waiter": "send-a" },
+        { "op": "dropReturnedItem", "item": "a", "reason": "caller" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "state": { "terminalItems": { "a": "dropped:caller" }, "lifecycle": "drained" }
+      }
+    },
+    {
+      "id": "CH0-accepted-reserve-after-close-is-closed",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitAfterAdmission" },
+      "decisions": ["W-463", "W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "closeReceiver" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "releaseReceiver" },
+        { "op": "finish" }
+      ],
+      "expect": { "status": "accepted", "state": { "permits": {}, "lifecycle": "drained" } }
+    },
+
+    {
+      "id": "CH0-rejected-unbounded-capacity",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "runBoundedOrderWindow" },
+      "decisions": ["W-462"],
+      "operations": [{ "op": "open", "strategy": "ring", "sender": "out", "receiver": "in" }],
+      "expect": { "status": "rejected", "error": "capacityInvalid" }
+    },
+    {
+      "id": "CH0-rejected-negative-capacity",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "runBoundedOrderWindow" },
+      "decisions": ["W-462"],
+      "operations": [{ "op": "open", "capacity": -1, "strategy": "ring", "sender": "out", "receiver": "in" }],
+      "expect": { "status": "rejected", "error": "capacityInvalid" }
+    },
+    {
+      "id": "CH0-rejected-unknown-physical-strategy",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "runBoundedOrderWindow" },
+      "decisions": ["W-471"],
+      "operations": [{ "op": "open", "capacity": 1, "strategy": "lockFreePromise", "sender": "out", "receiver": "in" }],
+      "expect": { "status": "rejected", "error": "strategyInvalid" }
+    },
+    {
+      "id": "CH0-rejected-view-payload",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "inspectMenuLines" },
+      "decisions": ["W-460"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "line", "kind": "view" },
+        { "op": "beginSend", "sender": "out", "item": "line", "waiter": "send-line" }
+      ],
+      "expect": { "status": "rejected", "error": "payloadNotTransferable" }
+    },
+    {
+      "id": "CH0-rejected-copy-receiver",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "acceptOrders" },
+      "decisions": ["W-459"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "copyReceiver", "as": "other" }
+      ],
+      "expect": { "status": "rejected", "error": "receiverNotShareable" }
+    },
+    {
+      "id": "CH0-rejected-two-pending-receives",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "acceptOrders" },
+      "decisions": ["W-459"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "beginReceive", "receive": "left" },
+        { "op": "beginReceive", "receive": "right" }
+      ],
+      "expect": { "status": "rejected", "error": "receiverAlreadyWaiting" }
+    },
+    {
+      "id": "CH0-rejected-sender-global-close",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitOrder" },
+      "decisions": ["W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "closeSender", "sender": "out" }
+      ],
+      "expect": { "status": "rejected", "error": "senderCannotCloseGlobally" }
+    },
+    {
+      "id": "CH0-rejected-drop-sender-with-pending-call",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitOrder" },
+      "decisions": ["W-459", "W-464"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "beginSend", "sender": "out", "item": "a", "waiter": "send-a" },
+        { "op": "dropSender", "sender": "out" }
+      ],
+      "expect": { "status": "rejected", "error": "senderHasPendingAdmission" }
+    },
+    {
+      "id": "CH0-rejected-release-live-receiver",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "acceptOrders" },
+      "decisions": ["W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "releaseReceiver" }
+      ],
+      "expect": { "status": "rejected", "error": "receiverReleaseWouldAbort" }
+    },
+    {
+      "id": "CH0-rejected-close-while-receive-waits",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "acceptOrders" },
+      "decisions": ["W-459", "W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "closeReceiver" }
+      ],
+      "expect": { "status": "rejected", "error": "receiverBusy" }
+    },
+    {
+      "id": "CH0-rejected-double-permit-send",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitAfterAdmission" },
+      "decisions": ["W-463"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "progressAdmission" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "createItem", "item": "b", "kind": "owned" },
+        { "op": "permitSend", "permit": "permit-a", "item": "a" },
+        { "op": "permitSend", "permit": "permit-a", "item": "b" }
+      ],
+      "expect": { "status": "rejected", "error": "permitUnavailable" }
+    },
+    {
+      "id": "CH0-rejected-double-permit-drop",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitAfterAdmission" },
+      "decisions": ["W-463"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "progressAdmission" },
+        { "op": "dropPermit", "permit": "permit-a" },
+        { "op": "dropPermit", "permit": "permit-a" }
+      ],
+      "expect": { "status": "rejected", "error": "permitUnavailable" }
+    },
+    {
+      "id": "CH0-rejected-consume-frame-twice",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "acceptOrders" },
+      "decisions": ["W-464"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "trySend", "sender": "out", "item": "a" },
+        { "op": "beginReceive", "receive": "receive-a" },
+        { "op": "progressReceive" },
+        { "op": "consumeReceive", "receive": "receive-a" },
+        { "op": "consumeReceive", "receive": "receive-a" }
+      ],
+      "expect": { "status": "rejected", "error": "receiveFrameUnavailable" }
+    },
+    {
+      "id": "CH0-rejected-finish-open-channel",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "runBoundedOrderWindow" },
+      "decisions": ["W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "finish" }
+      ],
+      "expect": { "status": "rejected", "error": "channelNotTerminal" }
+    },
+    {
+      "id": "CH0-rejected-drop-item-before-return",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "recoverAfterReceiverAbort" },
+      "decisions": ["W-461", "W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "createItem", "item": "a", "kind": "owned" },
+        { "op": "dropReturnedItem", "item": "a", "reason": "caller" }
+      ],
+      "expect": { "status": "rejected", "error": "returnedItemUnavailable" }
+    },
+    {
+      "id": "CH0-rejected-finish-with-aborted-permit",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "recoverAfterReceiverAbort" },
+      "decisions": ["W-463", "W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a", "permit": "permit-a" },
+        { "op": "progressAdmission" },
+        { "op": "abortReceiver" },
+        { "op": "dropSender", "sender": "out" },
+        { "op": "finish" }
+      ],
+      "expect": { "status": "rejected", "error": "channelObligationsRemain" }
+    },
+    {
+      "id": "CH0-rejected-receive-after-abort",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "acceptOrders" },
+      "decisions": ["W-466"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "abortReceiver" },
+        { "op": "beginReceive", "receive": "receive-a" }
+      ],
+      "expect": { "status": "rejected", "error": "receiverUnavailable" }
+    },
+    {
+      "id": "CH0-rejected-progress-empty-admission",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitOrder" },
+      "decisions": ["W-465"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "progressAdmission" }
+      ],
+      "expect": { "status": "rejected", "error": "admissionQueueEmpty" }
+    },
+    {
+      "id": "CH0-rejected-reserve-without-permit-identity",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/streams.w", "symbol": "submitAfterAdmission" },
+      "decisions": ["W-463"],
+      "operations": [
+        { "op": "open", "capacity": 1, "strategy": "ring", "sender": "out", "receiver": "in" },
+        { "op": "beginReserve", "sender": "out", "waiter": "reserve-a" }
+      ],
+      "expect": { "status": "rejected", "error": "permitMissing" }
+    }
+  ]
+}

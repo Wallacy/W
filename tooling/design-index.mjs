@@ -268,6 +268,7 @@ const oracleCorpusFiles = [
   "execution-concurrency-cases.json",
   "runtime-liveness-cases.json",
   "ownership-execution-cases.json",
+  "channel-cases.json",
   "scoped-lock-cases.json",
   "snapshot-cell-cases.json",
   "boundary-effect-cases.json",
@@ -442,6 +443,17 @@ const ownershipExecutionOperations = ownershipExecutionCorpus.cases.reduce(
   0,
 );
 const acceptedOwnershipExecutionCases = ownershipExecutionCorpus.cases.filter(
+  (testCase) => testCase.kind === "accepted",
+).length;
+const channelCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "channel-cases.json"), "utf8"),
+);
+const channelCases = channelCorpus.cases.length;
+const channelOperations = channelCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedChannelCases = channelCorpus.cases.filter(
   (testCase) => testCase.kind === "accepted",
 ).length;
 const scopedLockCorpus = JSON.parse(
@@ -763,6 +775,12 @@ output.push(
     `(${acceptedOwnershipExecutionCases} aceitos + ` +
     `${ownershipExecutionCases - acceptedOwnershipExecutionCases} rejeitados; ` +
     `14 testes host) |`,
+);
+output.push(
+  `| casos/operações de channel bounded CH0 | ` +
+    `${channelCases}/${channelOperations} ` +
+    `(${acceptedChannelCases} aceitos + ` +
+    `${channelCases - acceptedChannelCases} rejeitados; 12 testes host) |`,
 );
 output.push(
   `| casos/operações de locks escopados LM0 | ` +

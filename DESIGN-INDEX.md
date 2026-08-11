@@ -16,10 +16,10 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 28471 |
+| linhas de `DESIGN.md` | 28469 |
 | tokens aproximados de `DESIGN.md` | 299000 |
-| linhas de `RATIONALE.md` | 3309 |
-| tokens aproximados de `RATIONALE.md` | 99000 |
+| linhas de `RATIONALE.md` | 3319 |
+| tokens aproximados de `RATIONALE.md` | 99200 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 327/327 |
 | decisões | 1188 (W-001–W-1188) |
@@ -28,8 +28,8 @@
 | requisitos de ratificação comparativa | 69 |
 | casos de substituição estruturados | 69/69 |
 | decisões referenciadas por casos R0 | 129/1188 |
-| decisões classificadas para design freeze | 376/1188 (129 source + 286 oracle + 8 explícitas; 47 overlaps) |
-| decisões ainda sem classe de freeze | 812 |
+| decisões classificadas para design freeze | 388/1188 (129 source + 298 oracle + 8 explícitas; 47 overlaps) |
+| decisões ainda sem classe de freeze | 800 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 169 |
 | surface lexemes das formas vigentes R0 | 1404 total; mediana 16; máximo 52 |
@@ -44,6 +44,7 @@
 | casos/operações do kernel de execução E0 | 57/527 (31 aceitos + 26 rejeitados; 10/10 origens happens-before) |
 | casos/operações do kernel de runtime closure E1 | 41/473 (19 aceitos + 22 rejeitados; sete testes host) |
 | casos/operações da composição de ownership e execução MX0 | 46/274 (23 aceitos + 23 rejeitados; 14 testes host) |
+| casos/operações de channel bounded CH0 | 47/333 (28 aceitos + 19 rejeitados; 12 testes host) |
 | casos/operações de locks escopados LM0 | 33/114 (19 aceitos + 13 rejeitados + 1 fault; oito testes host) |
 | casos/operações do carrier de snapshot SP0 | 27/82 (14 aceitos + 12 rejeitados + 1 fault; sete testes host) |
 | casos/operações do kernel de boundary effects B0 | 39/320 (25 aceitos + 14 rejeitados) |
@@ -134,17 +135,17 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 21 | 22905–24940 | 19300 | Packages, builds e releases |
 | 22 | 24941–25450 | 4900 | Tooling e interface para máquinas |
 | 23 | 25451–26859 | 16600 | Protocolos e pesquisas de ecossistema |
-| 24 | 26860–27937 | 16400 | Design freeze e pendências |
-| 25 | 27938–28148 | 1900 | Produto de referência Última Luz |
-| 26 | 28149–28471 | 4000 | Plano de implementação |
+| 24 | 26860–27935 | 16400 | Design freeze e pendências |
+| 25 | 27936–28146 | 1900 | Produto de referência Última Luz |
+| 26 | 28147–28469 | 4000 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 14–2073 | 31400 | Evidência comparativa |
-| 2 | 2074–2104 | 500 | Proveniência |
-| 3 | 2105–3309 | 67000 | Ledger |
+| 1 | 14–2083 | 31600 | Evidência comparativa |
+| 2 | 2084–2114 | 500 | Proveniência |
+| 3 | 2115–3319 | 67000 | Ledger |
 
 ## Bundles de leitura
 
@@ -156,7 +157,7 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | segurança e execução | 9, 10, 11, 12, 13 | 7280–13990 | 70400 | ownership, errors, tasks, domains, services e entries |
 | SDK e performance | 14, 15, 16, 17, 18, 19 | 13991–21333 | 82500 | módulos, números, texto, tensors, custo, C e unsafe |
 | compiler e distribuição | 20, 21, 22, 23 | 21334–26859 | 57900 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 26860–28471 | 22300 | freeze, Última Luz, gates e roadmap |
+| validação e decisões | 24, 25, 26 | 26860–28469 | 22300 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 
