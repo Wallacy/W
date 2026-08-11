@@ -1,0 +1,1065 @@
+{
+  "$schema": "w-service-recovery-cases-1",
+  "status": "design-oracle-input",
+  "fixtures": {
+    "boot": [
+      {
+        "op": "boot",
+        "instanceIdentity": "restaurant/order:42",
+        "generation": "generation-1",
+        "operationVersion": "fulfillment-v1",
+        "schemaDigest": "schema-v1",
+        "provider": {
+          "id": "sqlite-workflow",
+          "resolved": true,
+          "atomicCommit": true,
+          "crashRecovery": true,
+          "checksummed": true,
+          "profile": "sqlite-wal",
+          "filesystem": "local"
+        },
+        "limits": {
+          "maximumCallRecords": 24,
+          "maximumMailboxItems": 6,
+          "maximumMailboxBytes": 4096,
+          "maximumInFlight": 6,
+          "maximumStagedOutputBytes": 4096,
+          "maximumJournalRecords": 32,
+          "maximumJournalBytes": 16384,
+          "maximumDedupRecords": 16,
+          "maximumTombstones": 16,
+          "retryWindowTicks": 100,
+          "maximumRestarts": 2,
+          "restartWindowTicks": 10
+        }
+      }
+    ],
+    "stageOrder": [
+      {
+        "op": "stageCall",
+        "callId": "call-order-1",
+        "effectId": "effect-order-42",
+        "sender": "maitre",
+        "operationId": "OrderCoordinatorApi.submit",
+        "interfaceDigest": "interface-v1",
+        "inputDigest": "order-42-v1",
+        "policy": "idempotent",
+        "bytes": 128,
+        "ownerStaged": true,
+        "persistFrame": false,
+        "persistLoan": false,
+        "transportIdentityUsed": false
+      }
+    ],
+    "envelopeOrder": [{ "op": "commitEnvelope", "callId": "call-order-1" }],
+    "admitOrder": [{ "op": "admitCall", "callId": "call-order-1" }],
+    "startOrder": [{ "op": "startTurn", "callId": "call-order-1" }],
+    "inputOrder": [
+      { "op": "prepareInput", "callId": "call-order-1", "bytes": 96 },
+      {
+        "op": "confirmInput",
+        "callId": "call-order-1",
+        "receipt": {
+          "issuedBy": "journal-provider",
+          "provider": "sqlite-workflow",
+          "generation": "generation-1",
+          "callId": "call-order-1",
+          "effectId": "effect-order-42",
+          "kind": "input"
+        }
+      }
+    ],
+    "effectOrder": [
+      {
+        "op": "dispatchEffect",
+        "callId": "call-order-1",
+        "idempotencyKey": "effect-order-42",
+        "externalMutation": true
+      },
+      {
+        "op": "settleEffect",
+        "callId": "call-order-1",
+        "outcome": "success",
+        "receipt": { "issuedBy": "effect-provider", "effectId": "effect-order-42" }
+      }
+    ],
+    "bodyOrder": [
+      { "op": "stageOutput", "callId": "call-order-1", "kind": "response", "bytes": 256 },
+      { "op": "settleBody", "callId": "call-order-1", "outcome": "success" },
+      {
+        "op": "closeTurn",
+        "callId": "call-order-1",
+        "persistFrame": false,
+        "persistLoan": false,
+        "receipt": {
+          "issuedBy": "runtime",
+          "generation": "generation-1",
+          "callId": "call-order-1",
+          "closureCommitted": true
+        }
+      }
+    ],
+    "outcomeOrder": [
+      { "op": "prepareOutcome", "callId": "call-order-1", "outcome": "success", "bytes": 64 },
+      {
+        "op": "confirmOutcome",
+        "callId": "call-order-1",
+        "receipt": {
+          "issuedBy": "journal-provider",
+          "provider": "sqlite-workflow",
+          "generation": "generation-1",
+          "callId": "call-order-1",
+          "effectId": "effect-order-42",
+          "kind": "outcome"
+        }
+      }
+    ],
+    "deliverOrder": [{ "op": "deliverOutcome", "callId": "call-order-1", "connectionOpen": true }],
+    "recoverG2": [
+      {
+        "op": "recoverInstance",
+        "newGeneration": "generation-2",
+        "evidence": {
+          "issuedBy": "journal-provider",
+          "provider": "sqlite-workflow",
+          "committedPrefixValid": true,
+          "checksumValid": true,
+          "sequenceContiguous": true,
+          "oldGenerationIsolated": true,
+          "operationVersion": "fulfillment-v1",
+          "schemaDigest": "schema-v1"
+        },
+        "transactionDecisions": {}
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "SR0-accepted-provider-boot",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "ServiceRecoveryAction" },
+      "decisions": ["W-1219", "W-1226", "W-1228"],
+      "operations": [{ "$use": "boot" }],
+      "expect": { "status": "accepted", "phase": "ready", "generation": "generation-1" }
+    },
+    {
+      "id": "SR0-rejected-provider-without-crash-recovery",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/workflow.w", "symbol": "fulfillOrderDurably" },
+      "decisions": ["W-1219", "W-1226", "W-1228"],
+      "operations": [{ "$use": "boot", "with": { "provider": { "crashRecovery": false } } }],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0001", "phase": "absent" }
+    },
+    {
+      "id": "SR0-rejected-sqlite-wal-network-filesystem",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/workflow.w", "symbol": "WorkContext" },
+      "decisions": ["W-1226"],
+      "operations": [{ "$use": "boot", "with": { "provider": { "filesystem": "network" } } }],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0001" }
+    },
+    {
+      "id": "SR0-accepted-full-turn-lifecycle",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/supervision.w", "symbol": "OrderCoordinatorApi" },
+      "decisions": ["W-1219", "W-1220", "W-1221", "W-1222", "W-1226", "W-1228"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "$use": "effectOrder" },
+        { "$use": "bodyOrder" },
+        { "$use": "outcomeOrder" },
+        { "$use": "deliverOrder" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "phase": "ready",
+        "activeTurn": null,
+        "call": {
+          "id": "call-order-1",
+          "fields": {
+            "phase": "delivered",
+            "durableOutcome": "success",
+            "callerOutcome": "success",
+            "frameResolution": "runtimeClosure"
+          }
+        },
+        "effect": {
+          "id": "effect-order-42",
+          "fields": { "state": "terminal", "outcome": "success" }
+        },
+        "journal": { "pending": null }
+      }
+    },
+    {
+      "id": "SR0-accepted-no-global-fifo-between-senders",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "mayStartRecoveryTurn" },
+      "decisions": ["W-1220"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder", "with": { "callId": "call-a", "effectId": "effect-a", "sender": "a", "inputDigest": "a" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-a" } },
+        { "$use": "admitOrder", "with": { "callId": "call-a" } },
+        { "$use": "stageOrder", "with": { "callId": "call-b", "effectId": "effect-b", "sender": "b", "inputDigest": "b" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-b" } },
+        { "$use": "admitOrder", "with": { "callId": "call-b" } },
+        { "op": "startTurn", "callId": "call-b" }
+      ],
+      "expect": { "status": "accepted", "activeTurn": "call-b", "mailbox": ["call-a"] }
+    },
+    {
+      "id": "SR0-rejected-fifo-bypass-for-one-sender",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "RecoveryMailboxTicket" },
+      "decisions": ["W-1220", "W-1228"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder", "with": { "callId": "call-first", "effectId": "effect-first", "inputDigest": "first" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-first" } },
+        { "$use": "admitOrder", "with": { "callId": "call-first" } },
+        { "$use": "stageOrder", "with": { "callId": "call-later", "effectId": "effect-later", "inputDigest": "later" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-later" } },
+        { "$use": "admitOrder", "with": { "callId": "call-later" } },
+        { "op": "startTurn", "callId": "call-later" }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0002", "mailbox": ["call-first", "call-later"] }
+    },
+    {
+      "id": "SR0-rejected-second-active-turn",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/supervision.w", "symbol": "orderCoordinators" },
+      "decisions": ["W-1221"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "stageOrder", "with": { "callId": "call-other", "effectId": "effect-other", "sender": "other", "inputDigest": "other" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-other" } },
+        { "$use": "admitOrder", "with": { "callId": "call-other" } },
+        { "op": "startTurn", "callId": "call-other" }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0004", "activeTurn": "call-order-1" }
+    },
+    {
+      "id": "SR0-rejected-mailbox-item-budget",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "mayStartRecoveryTurn" },
+      "decisions": ["W-1220", "W-1227"],
+      "operations": [
+        { "$use": "boot", "with": { "limits": { "maximumMailboxItems": 1 } } },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "stageOrder", "with": { "callId": "call-two", "effectId": "effect-two", "inputDigest": "two" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-two" } },
+        { "$use": "admitOrder", "with": { "callId": "call-two" } }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0002" }
+    },
+    {
+      "id": "SR0-rejected-mailbox-byte-budget",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "RecoveryMailboxTicket" },
+      "decisions": ["W-1220", "W-1227"],
+      "operations": [
+        { "$use": "boot", "with": { "limits": { "maximumMailboxBytes": 64 } } },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0002" }
+    },
+    {
+      "id": "SR0-accepted-active-duplicate-attaches",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "serviceDedupDecision" },
+      "decisions": ["W-1222"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "stageOrder", "with": { "callId": "call-order-2" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-order-2" } },
+        { "$use": "admitOrder", "with": { "callId": "call-order-2" } }
+      ],
+      "expect": {
+        "status": "accepted",
+        "call": { "id": "call-order-2", "fields": { "phase": "attached", "replayed": false } }
+      }
+    },
+    {
+      "id": "SR0-accepted-attached-call-fails-with-uncommitted-primary",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "DedupDecision" },
+      "decisions": ["W-1222", "W-1224", "W-1228"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "stageOrder", "with": { "callId": "call-order-2" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-order-2" } },
+        { "$use": "admitOrder", "with": { "callId": "call-order-2" } },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "call": {
+          "id": "call-order-2",
+          "fields": {
+            "phase": "boundaryFailed",
+            "callerOutcome": "unavailable",
+            "frameResolution": "faultBoundary",
+            "cleanupCount": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "SR0-accepted-terminal-duplicate-replays",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "DedupDecision" },
+      "decisions": ["W-1222", "W-1223"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "$use": "effectOrder" },
+        { "$use": "bodyOrder" },
+        { "$use": "outcomeOrder" },
+        { "$use": "deliverOrder" },
+        { "$use": "stageOrder", "with": { "callId": "call-order-2" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-order-2" } },
+        { "$use": "admitOrder", "with": { "callId": "call-order-2" } }
+      ],
+      "expect": {
+        "status": "accepted",
+        "call": {
+          "id": "call-order-2",
+          "fields": { "phase": "outcomeCommitted", "durableOutcome": "success", "replayed": true }
+        }
+      }
+    },
+    {
+      "id": "SR0-rejected-effect-input-conflict",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "effectConflict" },
+      "decisions": ["W-1222"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "stageOrder", "with": { "callId": "call-conflict", "inputDigest": "different-order" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-conflict" } },
+        { "$use": "admitOrder", "with": { "callId": "call-conflict" } }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0003" }
+    },
+    {
+      "id": "SR0-rejected-effect-policy-conflict",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "RecoveryEffectPolicy" },
+      "decisions": ["W-1222"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "stageOrder", "with": { "callId": "call-conflict", "policy": "atMostOnce" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-conflict" } },
+        { "$use": "admitOrder", "with": { "callId": "call-conflict" } }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0003" }
+    },
+    {
+      "id": "SR0-rejected-transport-id-as-effect-id",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "Transport sequence is not EffectId" },
+      "decisions": ["W-1222", "W-1225"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder", "with": { "transportIdentityUsed": true } }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0003" }
+    },
+    {
+      "id": "SR0-accepted-crash-before-envelope-commit",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "beforeEnvelopeCommit" },
+      "decisions": ["W-1223", "W-1224"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "op": "crashProcess" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "phase": "crashed",
+        "call": {
+          "id": "call-order-1",
+          "fields": { "phase": "boundaryFailed", "callerOutcome": "unavailable", "cleanupCount": 1 }
+        }
+      }
+    },
+    {
+      "id": "SR0-accepted-crash-before-input-commit",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "beforeInputCommit" },
+      "decisions": ["W-1223", "W-1224", "W-1226"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "op": "prepareInput", "callId": "call-order-1", "bytes": 96 },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "phase": "ready",
+        "generation": "generation-2",
+        "call": { "id": "call-order-1", "fields": { "phase": "boundaryFailed", "callerOutcome": "unavailable" } },
+        "journal": { "pending": null, "records": [] }
+      }
+    },
+    {
+      "id": "SR0-accepted-crash-after-input-before-dispatch",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "beforeEffectDispatch" },
+      "decisions": ["W-1223", "W-1224", "W-1226"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "phase": "ready",
+        "mailbox": ["call-order-1"],
+        "call": { "id": "call-order-1", "fields": { "phase": "queued", "attempt": 2, "recoveryAction": "replayTurn" } }
+      }
+    },
+    {
+      "id": "SR0-accepted-idempotent-dispatch-retries-same-effect",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/workflow.w", "symbol": "capturePaymentStep" },
+      "decisions": ["W-1223", "W-1224", "W-1228"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "dispatchEffect", "callId": "call-order-1", "idempotencyKey": "effect-order-42", "externalMutation": true },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "mailbox": ["call-order-1"],
+        "quarantined": ["call-order-1@generation-1"],
+        "call": { "id": "call-order-1", "fields": { "phase": "queued", "attempt": 2, "effectId": "effect-order-42" } }
+      }
+    },
+    {
+      "id": "SR0-accepted-at-most-once-dispatch-becomes-unknown",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "returnUnknownOutcome" },
+      "decisions": ["W-1223", "W-1224"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder", "with": { "policy": "atMostOnce" } },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "dispatchEffect", "callId": "call-order-1" },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "call": { "id": "call-order-1", "fields": { "phase": "outcomeCommitted", "durableOutcome": "unknownOutcome" } },
+        "effect": { "id": "effect-order-42", "fields": { "state": "terminal", "outcome": "unknownOutcome" } }
+      }
+    },
+    {
+      "id": "SR0-accepted-transaction-commit-resolves-after-crash",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "resolveCommitted" },
+      "decisions": ["W-1223", "W-1226"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder", "with": { "policy": "transactional" } },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "dispatchEffect", "callId": "call-order-1", "commitProvider": "sqlite-workflow", "transactionId": "tx-42" },
+        { "op": "crashProcess" },
+        {
+          "$use": "recoverG2",
+          "with": {
+            "transactionDecisions": {
+              "call-order-1": {
+                "issuedBy": "journal-provider",
+                "provider": "sqlite-workflow",
+                "effectId": "effect-order-42",
+                "decision": "committed"
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "status": "accepted",
+        "call": { "id": "call-order-1", "fields": { "phase": "outcomeCommitted", "durableOutcome": "success" } }
+      }
+    },
+    {
+      "id": "SR0-accepted-transaction-abort-replays",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "resolveAborted" },
+      "decisions": ["W-1223", "W-1226"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder", "with": { "policy": "transactional" } },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "dispatchEffect", "callId": "call-order-1", "commitProvider": "sqlite-workflow", "transactionId": "tx-42" },
+        { "op": "crashProcess" },
+        {
+          "$use": "recoverG2",
+          "with": {
+            "transactionDecisions": {
+              "call-order-1": {
+                "issuedBy": "journal-provider",
+                "provider": "sqlite-workflow",
+                "effectId": "effect-order-42",
+                "decision": "aborted"
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "status": "accepted",
+        "mailbox": ["call-order-1"],
+        "call": { "id": "call-order-1", "fields": { "phase": "queued", "attempt": 2, "recoveryAction": "resolveAborted" } }
+      }
+    },
+    {
+      "id": "SR0-rejected-transaction-cross-provider",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "transactional" },
+      "decisions": ["W-1223", "W-1226"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder", "with": { "policy": "transactional" } },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "dispatchEffect", "callId": "call-order-1", "commitProvider": "remote-bank", "transactionId": "tx-42" }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0005" }
+    },
+    {
+      "id": "SR0-rejected-idempotent-effect-without-stable-key",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/workflow.w", "symbol": "paymentKey" },
+      "decisions": ["W-1223"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "dispatchEffect", "callId": "call-order-1", "idempotencyKey": "fresh-key" }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0005" }
+    },
+    {
+      "id": "SR0-rejected-repeatable-external-mutation",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "repeatable" },
+      "decisions": ["W-1223"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder", "with": { "policy": "repeatable" } },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "dispatchEffect", "callId": "call-order-1", "externalMutation": true }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0005" }
+    },
+    {
+      "id": "SR0-rejected-dispatch-before-input-commit",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "beforeEffectDispatch" },
+      "decisions": ["W-1221", "W-1223"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "op": "dispatchEffect", "callId": "call-order-1", "idempotencyKey": "effect-order-42" }
+      ],
+      "expect": { "status": "rejected", "error": "serviceCallPhaseInvalid" }
+    },
+    {
+      "id": "SR0-rejected-outcome-before-runtime-closure",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lifecycle_oracle.w", "symbol": "cleanup" },
+      "decisions": ["W-1221", "W-1224"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "settleBody", "callId": "call-order-1", "outcome": "success" },
+        { "op": "prepareOutcome", "callId": "call-order-1", "outcome": "success", "bytes": 64 }
+      ],
+      "expect": { "status": "rejected", "error": "serviceCallPhaseInvalid" }
+    },
+    {
+      "id": "SR0-rejected-persist-runtime-frame",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "persist(taskFrame)" },
+      "decisions": ["W-1224", "W-1228"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder", "with": { "persistFrame": true } }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0009" }
+    },
+    {
+      "id": "SR0-rejected-delivery-before-outcome-commit",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lifecycle_oracle.w", "symbol": "outcomeCommitted" },
+      "decisions": ["W-1221", "W-1225"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "op": "deliverOutcome", "callId": "call-order-1", "connectionOpen": true }
+      ],
+      "expect": { "status": "rejected", "error": "serviceCallPhaseInvalid" }
+    },
+    {
+      "id": "SR0-accepted-outcome-commit-survives-reply-loss",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "afterOutcomeCommit" },
+      "decisions": ["W-1223", "W-1225", "W-1226"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "$use": "effectOrder" },
+        { "$use": "bodyOrder" },
+        { "$use": "outcomeOrder" },
+        { "op": "disconnect", "callId": "call-order-1", "capabilityCount": 2 },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2" },
+        { "$use": "stageOrder", "with": { "callId": "call-order-2" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-order-2" } },
+        { "$use": "admitOrder", "with": { "callId": "call-order-2" } }
+      ],
+      "expect": {
+        "status": "accepted",
+        "generation": "generation-2",
+        "disconnectedCapabilities": 2,
+        "call": { "id": "call-order-2", "fields": { "phase": "outcomeCommitted", "durableOutcome": "success", "replayed": true } }
+      }
+    },
+    {
+      "id": "SR0-rejected-connection-capability-claimed-persistent",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "afterDelivery" },
+      "decisions": ["W-1225"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "op": "disconnect", "callId": "call-order-1", "capabilityCount": 1, "persistentCapabilityClaim": true }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0006" }
+    },
+    {
+      "id": "SR0-rejected-unregistered-stale-completion",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "acceptsRecoveryCompletion" },
+      "decisions": ["W-1224", "W-1225"],
+      "operations": [
+        { "$use": "boot" },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2" },
+        { "op": "lateCompletion", "callId": "old-turn", "generation": "generation-1", "mutatesState": false }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0007" }
+    },
+    {
+      "id": "SR0-rejected-stale-completion-publishes-state",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "acceptsRecoveryCompletion" },
+      "decisions": ["W-1224", "W-1225"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "dispatchEffect", "callId": "call-order-1", "idempotencyKey": "effect-order-42" },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2" },
+        {
+          "op": "lateCompletion",
+          "callId": "call-order-1",
+          "generation": "generation-1",
+          "mutatesState": true,
+          "receipt": {
+            "issuedBy": "runtime",
+            "callId": "call-order-1",
+            "generation": "generation-1",
+            "drained": true
+          }
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0007" }
+    },
+    {
+      "id": "SR0-rejected-stale-completion-without-drain-receipt",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "acceptsRecoveryCompletion" },
+      "decisions": ["W-1224", "W-1228"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "dispatchEffect", "callId": "call-order-1", "idempotencyKey": "effect-order-42" },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2" },
+        { "op": "lateCompletion", "callId": "call-order-1", "generation": "generation-1", "mutatesState": false }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0007" }
+    },
+    {
+      "id": "SR0-rejected-corrupt-journal-prefix",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/workflow.w", "symbol": "work.step" },
+      "decisions": ["W-1224", "W-1226"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "crashProcess" },
+        { "op": "corruptJournal", "index": 0 },
+        { "$use": "recoverG2" }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0006", "phase": "crashed" }
+    },
+    {
+      "id": "SR0-rejected-recovery-schema-mismatch",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/workflow.w", "symbol": "FulfillmentPoint" },
+      "decisions": ["W-1224", "W-1226"],
+      "operations": [
+        { "$use": "boot" },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2", "with": { "evidence": { "schemaDigest": "schema-v2" } } }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0006" }
+    },
+    {
+      "id": "SR0-rejected-generation-reuse",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "currentGeneration" },
+      "decisions": ["W-1224"],
+      "operations": [
+        { "$use": "boot" },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2", "with": { "newGeneration": "generation-1" } }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0007" }
+    },
+    {
+      "id": "SR0-accepted-compaction-preserves-live-dedup",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "DedupRecordState" },
+      "decisions": ["W-1222", "W-1227"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "$use": "effectOrder" },
+        { "$use": "bodyOrder" },
+        { "$use": "outcomeOrder" },
+        {
+          "op": "compactJournal",
+          "retainEffectIds": ["effect-order-42"],
+          "targetRecords": 1,
+          "receipt": {
+            "issuedBy": "journal-provider",
+            "provider": "sqlite-workflow",
+            "generation": "generation-1",
+            "coversThroughSequence": 2,
+            "checkpointDigest": "checkpoint-2",
+            "retainedEffectIds": ["effect-order-42"]
+          }
+        }
+      ],
+      "expect": { "status": "accepted", "journal": { "compactedRecords": 1 } }
+    },
+    {
+      "id": "SR0-rejected-compaction-drops-live-dedup",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "DedupRecordState" },
+      "decisions": ["W-1222", "W-1227"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        {
+          "op": "compactJournal",
+          "retainEffectIds": [],
+          "targetRecords": 0,
+          "receipt": {
+            "issuedBy": "journal-provider",
+            "provider": "sqlite-workflow",
+            "generation": "generation-1",
+            "coversThroughSequence": 1,
+            "checkpointDigest": "checkpoint-1",
+            "retainedEffectIds": []
+          }
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0008" }
+    },
+    {
+      "id": "SR0-rejected-compaction-without-provider-receipt",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "ServiceRecoveryAction" },
+      "decisions": ["W-1226", "W-1228"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "$use": "effectOrder" },
+        { "$use": "bodyOrder" },
+        { "$use": "outcomeOrder" },
+        { "op": "compactJournal", "retainEffectIds": ["effect-order-42"], "targetRecords": 1 }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0006" }
+    },
+    {
+      "id": "SR0-rejected-retry-after-retention",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "retentionExpired" },
+      "decisions": ["W-1222", "W-1227"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "$use": "effectOrder" },
+        { "$use": "bodyOrder" },
+        { "$use": "outcomeOrder" },
+        { "op": "advanceTime", "ticks": 101 },
+        {
+          "op": "compactJournal",
+          "retainEffectIds": [],
+          "targetRecords": 0,
+          "receipt": {
+            "issuedBy": "journal-provider",
+            "provider": "sqlite-workflow",
+            "generation": "generation-1",
+            "coversThroughSequence": 2,
+            "checkpointDigest": "checkpoint-2",
+            "retainedEffectIds": []
+          }
+        },
+        { "$use": "stageOrder", "with": { "callId": "call-order-2" } },
+        { "$use": "envelopeOrder", "with": { "callId": "call-order-2" } },
+        { "$use": "admitOrder", "with": { "callId": "call-order-2" } }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0003" }
+    },
+    {
+      "id": "SR0-accepted-graceful-drain",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/supervision.w", "symbol": "cancel" },
+      "decisions": ["W-1227"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "$use": "effectOrder" },
+        { "$use": "bodyOrder" },
+        { "$use": "outcomeOrder" },
+        { "$use": "deliverOrder" },
+        { "op": "beginDrain" },
+        { "op": "shutdown" }
+      ],
+      "expect": { "status": "accepted", "phase": "stopped" }
+    },
+    {
+      "id": "SR0-rejected-shutdown-with-active-turn",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/supervision.w", "symbol": "WorkCancelResult" },
+      "decisions": ["W-1227"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "op": "beginDrain" },
+        { "op": "shutdown" }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0008", "phase": "draining" }
+    },
+    {
+      "id": "SR0-rejected-admission-after-drain",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/supervision.w", "symbol": "tryStart" },
+      "decisions": ["W-1220", "W-1227"],
+      "operations": [
+        { "$use": "boot" },
+        { "op": "beginDrain" },
+        { "$use": "stageOrder" }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0002", "phase": "draining" }
+    },
+    {
+      "id": "SR0-rejected-restart-storm",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "ServiceFaultPoint" },
+      "decisions": ["W-1224", "W-1227"],
+      "operations": [
+        { "$use": "boot" },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2" },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2", "with": { "newGeneration": "generation-3" } },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2", "with": { "newGeneration": "generation-4" } }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0008", "phase": "crashed" }
+    },
+    {
+      "id": "SR0-accepted-restart-window-expires",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "ServiceRecoveryAction" },
+      "decisions": ["W-1224", "W-1227"],
+      "operations": [
+        { "$use": "boot" },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2" },
+        { "op": "advanceTime", "ticks": 11 },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2", "with": { "newGeneration": "generation-3" } }
+      ],
+      "expect": { "status": "accepted", "phase": "ready", "generation": "generation-3" }
+    },
+    {
+      "id": "SR0-rejected-output-budget",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/supervision.w", "symbol": "OrderAccepted" },
+      "decisions": ["W-1221", "W-1227"],
+      "operations": [
+        { "$use": "boot", "with": { "limits": { "maximumStagedOutputBytes": 32 } } },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "stageOutput", "callId": "call-order-1", "kind": "response", "bytes": 256 }
+      ],
+      "expect": { "status": "rejected", "error": "W-RECOVERY-0008" }
+    },
+    {
+      "id": "SR0-accepted-late-provider-drain-clears-quarantine",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "acceptsRecoveryCompletion" },
+      "decisions": ["W-1224", "W-1228"],
+      "operations": [
+        { "$use": "boot" },
+        { "$use": "stageOrder" },
+        { "$use": "envelopeOrder" },
+        { "$use": "admitOrder" },
+        { "$use": "startOrder" },
+        { "$use": "inputOrder" },
+        { "op": "dispatchEffect", "callId": "call-order-1", "idempotencyKey": "effect-order-42" },
+        { "op": "crashProcess" },
+        { "$use": "recoverG2" },
+        {
+          "op": "lateCompletion",
+          "callId": "call-order-1",
+          "generation": "generation-1",
+          "mutatesState": false,
+          "receipt": {
+            "issuedBy": "runtime",
+            "callId": "call-order-1",
+            "generation": "generation-1",
+            "drained": true
+          }
+        }
+      ],
+      "expect": { "status": "accepted", "quarantined": [], "suppressedCompletions": ["call-order-1@generation-1"] }
+    }
+  ]
+}

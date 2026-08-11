@@ -14,6 +14,7 @@
     "check:abi": "bun tooling/check-layout-abi-cases.mjs",
     "check:allocation": "bun test tooling/allocation-reference.test.mjs && bun tooling/check-allocation-cases.mjs",
     "check:boundary": "bun tooling/check-boundary-effect-cases.mjs",
+    "check:service-recovery": "bun test tooling/service-recovery-reference.test.mjs && bun tooling/check-service-recovery-cases.mjs",
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
     "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",
     "check:execution-ergonomics": "bun test tooling/execution-ergonomics-reference.test.mjs && bun tooling/check-execution-ergonomics-cases.mjs",

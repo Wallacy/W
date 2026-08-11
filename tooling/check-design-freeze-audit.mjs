@@ -31,6 +31,7 @@ const corpusFiles = [
   "scoped-lock-cases.json",
   "snapshot-cell-cases.json",
   "boundary-effect-cases.json",
+  "service-recovery-cases.json",
   "package-release-cases.json",
   "script-workflow-cases.json",
   "repl-session-cases.json",

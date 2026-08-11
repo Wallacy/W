@@ -12445,6 +12445,11 @@ overload sem esperar. Drain rejeita antes de reservar quota.
 Ordering default é FIFO por `(sender, instance)` na admissão. Não existe ordem
 global entre senders. Priority não pode causar starvation silencioso.
 
+Reservation de mailbox não é admission durável. Quando um product exige
+recovery, o commit do input no journal fixa a admission que sobrevive a uma
+queda. Uma tentativa usa `callId`; o efeito lógico usa `effectId` através das
+tentativas autorizadas.
+
 ### 13.6 Structured calls e falhas
 
 Uma call transporta:
@@ -12509,6 +12514,8 @@ Um method `throws E` chamado por `ServiceRef` possui dois error effects:
 | `callCycle` | ancestry formaria ciclo closed-turn | não |
 | `commitFailed(effectId)` | dependency falhou antes de liberar o outcome | não |
 | `unknownOutcome(effectId)` | entrega ou efeito ocorreu, mas não foi confirmado | só com idempotência |
+| `effectConflict(effectId)` | o mesmo effect ID chegou com outro input, interface ou policy | não |
+| `retentionExpired(effectId)` | a janela prometida de reconciliação terminou | não |
 | `pipelineUnknown(effectIds)` | uma ou mais calls do pipeline possuem outcome incerto | somente por effect ID e policy explícita |
 
 `commitFailed` prova que o output gated não foi entregue. Ele não desfaz um
@@ -12532,8 +12539,9 @@ espera um deadlock conhecido. Ciclos que atravessam sistemas sem metadata ainda
 exigem deadline.
 
 Retry mutante nunca é implícito. Idempotência ou deduplication podem autorizar
-uma policy. Queda depois da entrega pode retornar `unknownOutcome`. W não promete
-exactly-once sem protocol e storage adequados.
+uma policy. A matriz de recovery e a retenção ficam em
+[13.9.3](#1393-recovery-de-service-e-deduplicação). W não promete exactly-once
+sem protocol e storage adequados.
 
 Um `Deadline` local não entra no envelope. A boundary envia o remaining
 `Duration` e mantém o timer do caller como authority. Cada intermediary subtrai
@@ -13411,11 +13419,9 @@ recovery:        required
 confidentiality: host-encrypted
 ```
 
-O oracle derruba o adapter antes do dispatch, depois do dispatch, antes do
-outcome commit e depois do commit. Ele também cobre input divergente, point
-duplicado, retry exaurido, effect at-most-once incerto, evento antecipado e
-duplicado, timeout concorrente, cancellation, history cheio, schema incompatível
-e operation version ausente.
+SR0 possui a fault matrix comum de service. O oracle de workflow acrescenta
+point divergente, retry exaurido, evento antecipado ou duplicado, timeout,
+cancellation, history cheio, schema incompatível e operation version ausente.
 
 Alarmes e reminders acordam uma instance no futuro. Eles não são tasks mantidas
 vivas. Delivery at-least-once exige handler idempotente.
@@ -13870,19 +13876,12 @@ não permite ignorar essa verificação durante rolling update.
 
 ### 13.9 Estado durável e gates
 
-**Exemplo:** o adapter SQLite confirma a transação antes de liberar a resposta.
-Uma falha descarta o output retido.
-
 Durability é um adapter explícito. Um handler declara transação, commit point e
 a relação entre state e outputs. A baseline não presume state durável.
 
 SQLite é o primeiro adapter oficial provável. Ele oferece transações, operação
 local e portabilidade. Ele não é a semântica universal. Memory, files, remote KV
 e engines especializadas podem implementar o contrato.
-
-O [SQLite em Durable Objects](https://blog.cloudflare.com/sqlite-in-durable-objects/)
-mostra o valor de storage local e synchronous dentro de uma owner unit. W usa
-essa evidência para o adapter. Ela não torna SQLite obrigatório para services.
 
 **Forma vigente para workflows:** o adapter confirma input, outcome e progress
 do step antes de liberar o resultado para o código replayable. Um outbox
@@ -13977,13 +13976,6 @@ Staged items e bytes consomem quotas. Backpressure começa antes de preparar uma
 saída que ultrapassaria o limite. Cancellation não libera owners até confirmar
 commit, abort ou perda da fault boundary.
 
-O
-[output gate de Durable Objects](https://blog.cloudflare.com/durable-objects-easy-fast-correct-choose-three/)
-retém respostas e outgoing requests até confirmar storage. O adapter SQLite de
-Durable Objects usa a mesma regra para executar código enquanto a confirmação
-durável continua.
-[SQLite em Durable Objects](https://blog.cloudflare.com/sqlite-in-durable-objects/)
-
 Input e output gates são regras de scheduling, state e effect commit. Eles não
 são layouts de Cap'n Proto ou Cap'n Web. wRPC transporta os outcomes depois que
 o runtime abre o output gate.
@@ -13992,6 +13984,96 @@ O runtime protocol do commit provider é **Provável** e permanece SPI interno.
 Ele registra uma causal frontier bounded e um commit terminal. A primeira
 versão aceita um único commit provider por turn. Vários providers exigem
 workflow ou outbox explícita.
+
+#### 13.9.3 Recovery de service e deduplicação
+
+Recovery compõe a call estruturada, o closed turn, o output gate e o supervisor.
+Ele não cria outra forma de execução nem uma annotation no handler. O source
+comum continua a usar `try await service.operation(...)`.
+
+Uma tentativa possui `callId`. O efeito lógico possui `effectId`. O record de
+deduplicação usa:
+
+```text
+(service identity, operation ID, effect ID, interface digest,
+ input digest, effect policy)
+```
+
+`callId` muda em uma nova tentativa. `effectId` permanece igual somente quando a
+policy autoriza repetir ou reconciliar o mesmo efeito. Connection ID, stream ID
+e sequence number de transporte não são effect IDs.
+
+O primeiro input confirmado cria o record. Uma tentativa posterior com a mesma
+identity:
+
+- aguarda o mesmo outcome ou boundary failure quando o turn ainda está ativo;
+- recebe o outcome confirmado sem executar o handler outra vez;
+- falha com `effectConflict` quando input, interface ou policy diferem;
+- falha com `retentionExpired` quando está fora da janela de reconciliação
+  declarada.
+
+Outcome, record ativo e tombstone consomem quotas separadas. O tombstone fica
+retido por toda a retry window publicada no descriptor. O caller não reutiliza
+um `effectId` depois dessa janela.
+
+O journal lógico confirma records nesta ordem:
+
+```text
+input → effect decision → outcome/progress → outbox → dedup terminal
+```
+
+O adapter pode combinar records numa transação. A ordem acima continua
+observável no recovery. Cada record possui sequence, predecessor, schema,
+operation version e digest. Recovery aceita somente o prefixo confirmado e
+descarta um suffix incompleto. Gap, checksum inválido, version ausente ou schema
+incompatível falha a boundary; o runtime não adivinha state.
+
+Compaction exige receipt do provider com prefixo coberto, effect IDs retidos e
+checkpoint digest. O suffix restante encadeia nesse checkpoint.
+
+Uma transação pode unir effect, outcome, outbox e dedup somente quando uma única
+authority de commit controla todos eles. Um efeito remoto exige idempotência ou
+reconciliação. Dois commit providers exigem steps distintos ou outbox. W não
+introduz uma distributed transaction implícita.
+
+A matriz normativa de queda é:
+
+| Ponto observado | Estado durável | Ação autorizada |
+|---|---|---|
+| antes do envelope commit | nenhum | cleanup do staging; handler não executa |
+| envelope committed, antes do input commit | nenhum | nova tentativa pode usar o mesmo `effectId` |
+| depois do input commit, antes do dispatch | input | replay inicia o turn desde o point confirmado |
+| depois do dispatch, sem decisão confirmada | input + effect ID | policy decide retry, resolve transaction ou `unknownOutcome` |
+| depois do outcome commit, antes da entrega | outcome + dedup | nova tentativa recebe o mesmo outcome |
+| depois da entrega | outcome + dedup | nenhuma reexecução; duplicate recebe o mesmo outcome |
+
+Depois de dispatch incerto:
+
+- `.repeatable` pode executar outra attempt;
+- `.idempotent` usa o mesmo `effectId` e a mesma key estável;
+- `.transactional` consulta a decisão da mesma authority;
+- `.atMostOnce` termina em `unknownOutcome(effectId)`.
+
+Uma queda de processo fecha admission e cria outra instance generation. Recovery
+não serializa stack, task frame, pointer, loan, capability ou `ServiceRef`. Ele
+reconstrói somente values confirmados pelo journal. O host drena ou põe em
+quarantine recursos físicos da geração antiga. Uma completion antiga nunca
+altera state, outcome ou owner da geração nova.
+
+Uma queda de conexão não reverte outcome durável. Capability ligada à conexão
+fica disconnected; um handle persistente exige protocolo explícito. O caller
+resolve outra `ServiceRef` e, quando autorizado, tenta de novo com novo `callId`
+e o mesmo `effectId`. Promise pipelining preserva o DAG causal e reduz round
+trips; ele não cria atomicidade. Incerteza em um nó mutante domina seus
+dependentes como `pipelineUnknown`.
+
+Drain fecha admission antes de aguardar mailbox, turns, commit dependencies,
+outbox e roots supervisionados. Restart usa intensity e window limitadas. Timer
+durável e alarm são at-least-once; handler ou step usa identity estável. Nenhuma
+queue, retry loop, journal, dedup table ou tombstone cresce sem budget.
+
+Evidência, faults e alternativas ficam em
+[`RATIONALE.md` §1.19](RATIONALE.md#119-evidência-de-recovery-de-services-sr0).
 
 ### 13.10 Capabilities e sandbox
 
@@ -27490,15 +27572,16 @@ evidência de design:
 | workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, sessão, notebook, dados e tensor interop | fechar import-root/dependency, rich display, DLPack real e latency gates |
 | targets e host profiles | target facts e availability não mudam a semântica comum | fixar manifest e conformance mínima de cada target prometido |
 | ABI e metadata | L0 e WMeta fixam layout, container e readers de evidence | ligar wrappers ELF, Mach-O, COFF e Wasm ao container comum |
-| services e efeitos | B0 fecha turn, gate, transaction e pipeline; wWire tem baseline | fechar queues, deduplication, recovery e faults de processo/rede |
+| services, wire e recovery | B0 e SR0 fecham turn, gates, queue bounded, deduplication, recovery e faults; wWire tem baseline | fechar wire byte-exact, flow control e adapters reais com fault injection |
 | packages e releases | P0 fecha resolver, lock, CAS, recipe, mirror e rebuild | fechar prerelease, trust, archive safety e rebuild independente |
 | bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
 | ergonomia comparativa | R0/R0S/R1 guardam substituições e variantes observáveis | ratificar formas que ainda mudam source ou registrar waiver motivado |
 
-M1/A0/E0/E1/LM0/SP0/LZ0/DEV0 fecham o contrato de ownership, allocation,
-closure, synchronization, reclamation e device launch no nível de design. HIR,
-allocator, scheduler, drivers e providers executáveis são gates de implementação
-e da alegação pública; não são lacunas de syntax ou semântica para o freeze.
+M1/A0/E0/E1/LM0/SP0/LZ0/DEV0 fecham ownership, allocation, closure,
+synchronization, reclamation e device launch no nível de design. B0/SR0 fecham
+turn, effect e recovery de service. HIR, allocator, scheduler, wire, storage,
+drivers e providers executáveis são gates de implementação e da alegação
+pública; não são lacunas de syntax ou semântica para o freeze.
 
 Contagens de casos, operações, APIs e cobertura são projeções. Elas ficam
 em [`DESIGN-INDEX.md`](DESIGN-INDEX.md), não neste contrato.
@@ -27518,7 +27601,7 @@ A ordem recomendada de fechamento é:
 1. ampliar R1 e ratificar a superfície que ainda pode mudar source;
 2. fechar as matrizes normativas de formatter, semantics e diagnostics;
 3. fechar ABI, memória e C com modelos e readers host independentes;
-4. fechar execução, services e wire com fault injection modelada;
+4. fechar wire, transport e adapters com fault injection modelada;
 5. fechar package, release, bootstrap, std e targets com schemas e consumidores
    de design.
 

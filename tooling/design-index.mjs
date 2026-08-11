@@ -542,6 +542,27 @@ const boundaryEffectOperations = boundaryEffectCorpus.cases.reduce(
 const acceptedBoundaryEffectCases = boundaryEffectCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
+const serviceRecoveryCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "service-recovery-cases.json"), "utf8"),
+);
+function serviceRecoveryOperationCount(testCase) {
+  return testCase.operations.reduce((count, operation) => {
+    if (operation.$use === undefined) return count + 1;
+    const fixture = serviceRecoveryCorpus.fixtures[operation.$use];
+    if (!Array.isArray(fixture)) {
+      throw new Error(`Unknown service-recovery fixture ${operation.$use}.`);
+    }
+    return count + fixture.length;
+  }, 0);
+}
+const serviceRecoveryCases = serviceRecoveryCorpus.cases.length;
+const serviceRecoveryOperations = serviceRecoveryCorpus.cases.reduce(
+  (count, testCase) => count + serviceRecoveryOperationCount(testCase),
+  0,
+);
+const acceptedServiceRecoveryCases = serviceRecoveryCorpus.cases.filter(
+  (testCase) => testCase.kind === "accepted",
+).length;
 const packageReleaseCorpus = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "package-release-cases.json"), "utf8"),
 );
@@ -855,6 +876,13 @@ output.push(
     `${boundaryEffectCases}/${boundaryEffectOperations} ` +
     `(${acceptedBoundaryEffectCases} aceitos + ` +
     `${boundaryEffectCases - acceptedBoundaryEffectCases} rejeitados) |`,
+);
+output.push(
+  `| casos/operações de service recovery SR0 | ` +
+    `${serviceRecoveryCases}/${serviceRecoveryOperations} ` +
+    `(${acceptedServiceRecoveryCases} aceitos + ` +
+    `${serviceRecoveryCases - acceptedServiceRecoveryCases} rejeitados; ` +
+    `17 testes host) |`,
 );
 output.push(
   `| casos/operações do kernel de packages e releases P0 | ` +

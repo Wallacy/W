@@ -2509,9 +2509,10 @@ Luz. Ele aceita 25 e rejeita 14. A máquina cobre:
 
 Os negativos incluem delivery antes do drain, segundo closed turn, retry
 inseguro, abort depois de commit request, forward reference e resolução
-prematura. B0 recebe admission, evidence e effect IDs resolvidos. Ele não prova
-adapter, transport, fila bounded, clock, storage, wWire, deduplication, database,
-crash recovery ou execução distribuída.
+prematura. B0 recebe admission, evidence e effect IDs resolvidos. SR0 acrescenta
+queue bounded, deduplication, journal, crash recovery e generation. Os dois são
+modelos host: não executam adapter, transport, clock, storage, wWire, database
+ou sistema distribuído.
 
 #### Package e release P0
 
@@ -2818,6 +2819,59 @@ Alternativas rejeitadas:
 - expor stream integer, raw event ou pointer como safe authority;
 - fire-and-forget, drop como async cleanup ou completion sem receipt;
 - impor um scheduler físico universal a CPU, GPU, DSP e ASIC.
+
+### 1.19 Evidência de recovery de services SR0
+
+SR0 fecha a lacuna entre o lifecycle abstrato de B0 e a recuperação de uma
+instance depois de falha de processo ou rede. O modelo não muda a superfície de
+service do W.
+
+As fontes primárias separam responsabilidades que W também mantém separadas:
+
+- os
+  [input e output gates de Durable Objects](https://blog.cloudflare.com/durable-objects-easy-fast-correct-choose-three/)
+  bloqueiam delivery durante storage pendente e retêm outputs até o commit;
+- [Cap'n Proto RPC](https://capnproto.org/rpc.html) usa capabilities, torna a
+  falha de conexão observável e reduz round trips com promise pipelining sem
+  fingir que uma call remota é local;
+- [Cap'n Web](https://blog.cloudflare.com/capnweb-javascript-rpc-library/)
+  preserva dependent calls e object capabilities sobre transportes Web;
+- o [atomic commit do SQLite](https://www.sqlite.org/atomiccommit.html) define um
+  ponto de decisão recuperável e destaca a necessidade de crash tests;
+- o [WAL do SQLite](https://www.sqlite.org/wal.html) permite readers concorrentes
+  com um writer, mas exige shared memory no mesmo host e uma policy de
+  checkpoint;
+- [supervisors de Erlang/OTP](https://www.erlang.org/doc/system/sup_princ.html)
+  limitam burst e taxa sustentada de restarts;
+- [alarms de Durable Objects](https://developers.cloudflare.com/durable-objects/api/alarms/)
+  mostram delivery at-least-once e retry bounded.
+
+Esses sistemas não definem a semântica de W. Eles sustentam a separação entre
+turn serial, commit authority, transporte, deduplication, supervision e timer.
+Em especial, promise pipelining reduz latency, mas não amplia uma transação.
+WAL melhora concurrency local, mas não prova filesystem remoto nem durability
+fora do profile selecionado.
+
+SR0 usa um journal lógico, não o layout do SQLite. A machine host deriva
+mailbox, quotas, input commit, effect policy, output frontier, generation,
+recovery action, dedup record, tombstone, compaction com receipt, disconnect e
+shutdown. O
+corpus injeta faults em cada fronteira e liga os casos a symbols do Última Luz.
+Ele não executa W, wWire, database, filesystem, network ou provider.
+
+Alternativas rejeitadas:
+
+- exactly-once universal para efeitos remotos;
+- retry mutante com novo `effectId` ou retry at-most-once depois de dúvida;
+- persistir stack, task frame, borrow, pointer ou capability de conexão;
+- mailbox, journal, outbox, retry ou deduplication sem budget;
+- FIFO global entre senders ou reentrância default;
+- transaction implícita entre dois commit providers;
+- usar connection ID como effect identity;
+- aceitar suffix incompleto, checksum inválido ou schema divergente;
+- aceitar compaction ou completion física sem receipt registrado;
+- deixar completion de geração antiga publicar no state novo;
+- restart ilimitado ou alarm tratado como exactly-once.
 
 ## 2. Proveniência
 
@@ -4081,6 +4135,16 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1216 | fault e generation | device loss fecha admission; owners drenam ou ficam em quarantine; completion stale é suprimida depois do drain | liberar storage vivo, reutilizar generation, continuar admission após protocol fault |
 | W-1217 | limits e equivalência | limits cobrem work e retenção; CPU fallback exige module/numeric/layout/effect/memory proof e nunca insere transfer | ordinal físico no source, fallback silencioso, tolerância não declarada |
 | W-1218 | evidence DEV0 | fixture Última Luz e machine/checker/snapshot/test host cobrem positivos e negativos sem executar W ou provider | chamar oracle de runtime, snapshot manual, caso sem símbolo consumidor ou driver fictício |
+| W-1219 | composição de recovery | recovery de service compõe call B0, closure E1, gates e supervisor sem criar syntax, annotation ou quinta forma de execução | actor/runtime paralelo, handler durable, retry escondido no source |
+| W-1220 | mailbox e admission durável | quotas precedem enqueue, FIFO vale por sender/instance e input commit fixa a admission que sobrevive a process fault | FIFO global, priority com starvation, reservation volátil chamada de commit, queue ilimitada |
+| W-1221 | turn e output frontier | uma instance executa um turn de aplicação; runtime closure precede outcome; output retido captura frontier e só abre depois do commit | reentrância default, delivery antes de cleanup, output gate como transaction remota |
+| W-1222 | effect identity e dedup | `callId` identifica attempt; `effectId` e digests identificam o efeito; duplicate aguarda ou replaya; conflito e retention são failures explícitas | connection ID como effect ID, payload divergente aceito, tombstone ou outcome sem budget |
+| W-1223 | matriz de faults | posição do fault e `StepEffect` determinam replay, retry com mesma key, decisão transactional ou `unknownOutcome`; outcome committed nunca reexecuta | exactly-once universal, retry at-most-once, compensação automática após dúvida |
+| W-1224 | generation e ownership em recovery | process fault fecha admission; nova generation reconstrói somente values do journal; frame, pointer, loan e capability não persistem; completion stale é suprimida | serializar stack, reviver borrow, liberar resource foreign antes de drain, reuse de generation |
+| W-1225 | disconnect e dependent calls | disconnect revoga capability da conexão sem apagar outcome; retry resolve novo handle; pipeline preserva DAG e propaga incerteza sem criar atomicidade | remote igual a local, capability persistente implícita, pipeline como distributed transaction |
+| W-1226 | journal e commit authority | prefixo confirmado, schema/version/digest e uma authority definem recovery; multi-provider usa step ou outbox e SQLite é apenas adapter/profile | aceitar suffix corrupto, WAL em network filesystem, transaction implícita entre providers |
+| W-1227 | retention, restart e shutdown | queues, outputs, journal, dedup, tombstones e restart window são bounded; drain fecha admission e aguarda owners/commit/quarantine | restart infinito, compaction que perde record vivo, shutdown com output ou turn pendente |
+| W-1228 | evidence SR0 | fixture Última Luz e machine/checker/snapshot/test host cobrem 48 casos, 392 operações e 17 testes sem executar W, database, network ou provider | expected echo, fault booleano sem record real, completion não registrada, chamar model de runtime ou exactly-once proof |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

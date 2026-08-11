@@ -47,6 +47,7 @@ linguagem.
 | `snapshot-cell-cases.json` + máquina SP0 | 27 casos e 82 operações (14 aceitos + 12 rejeitados + uma fault), sete testes host; publication order, version stability, retirement bounded, drop único e quatro estratégias equivalentes | oracle host de snapshot publicado; não implementa compiler, runtime, scheduler ou provider `std.sync@1` |
 | `lazy-behavior-cases.json` + máquina LZ0 | winner, waiters, lowering, publication edge, reentrada, cancellation, mutation e drop | oracle host de `Lazy`; não implementa compiler, runtime ou provider de parking |
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
+| `service-recovery-cases.json` + máquina SR0 | 48 casos e 392 operações (18 aceitos + 30 rejeitados), 17 testes host; mailbox, dedup, journal, process/network faults, generations, compaction, restart e shutdown | oracle host que compõe B0/E1; não executa W, wWire, database, filesystem, network, runtime ou provider |
 | `package-release-cases.json` + máquina P0 | 44 sequências e 379 operações cobrem resolver, lock, CAS, recipe, mirror, rebuild e release | oracle host de supply chain; não é resolver, registry, CAS ou signer real |
 | `script-workflow-cases.json` + máquina PYN1 | 91 casos/533 operações (22 aceitos + 69 rejeitados, incluindo multi-target, parse evidence e sidecar records) para header, context, roots físicos opacos, imports, virtual selection, lock P0 (`contexts`/`packages`), grafo transitivo, fetch/CAS por digest, requirement admission, identity, entry, cleanup e promotion | oracle host de design; não é CLI, compiler, resolver, provider, runtime ou execução W |
 | `std-api-contracts.json` + checker SDK0 | perfis cobrem 320 exports em 22 módulos, 78 superfícies qualificadas, 24/24 requisitos contratados e 2/8 carriers missing (Blob/FormData) | catálogo e snapshot são projeções; módulos catalogados, incluindo `std.sync`, são drafts e seus 16/16 providers intrinsics continuam missing; bounds determinísticos entram na recipe key; o host publica o action-result pós-handler |
@@ -229,6 +230,29 @@ O fixture é
 [`reference/last-light/device_execution_oracle.w`](../reference/last-light/device_execution_oracle.w).
 O oracle não executa W, kernel, driver ou provider. `std.accelerator@1`
 permanece missing.
+
+### Service recovery SR0
+
+[`service-recovery-machine.mjs`](service-recovery-machine.mjs) deriva mailbox,
+input commit, effect policy, output frontier, deduplication, journal prefix,
+instance generation, disconnect, compaction, restart window e shutdown. Corpus,
+checker, snapshot e testes independentes ficam em
+[`service-recovery-cases.json`](service-recovery-cases.json),
+[`check-service-recovery-cases.mjs`](check-service-recovery-cases.mjs),
+[`service-recovery-results.snapshot.jsonl`](service-recovery-results.snapshot.jsonl)
+e
+[`service-recovery-reference.test.mjs`](service-recovery-reference.test.mjs).
+
+Use:
+
+```sh
+bun run check:service-recovery
+```
+
+O fixture é
+[`reference/last-light/service_recovery_oracle.w`](../reference/last-light/service_recovery_oracle.w).
+SR0 compõe B0 e E1. Ele não executa W, wWire, SQLite, filesystem, network,
+runtime ou provider.
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
 gramática Tree-sitter é a única candidata a descrever estrutura entre esses
