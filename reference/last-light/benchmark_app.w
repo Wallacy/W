@@ -260,7 +260,7 @@ async fn cachedQueries(
 ): Array<CachedWorld> throws BenchmarkError {
   let store = context.databases.get(benchmarkDatabase)
   let local = context.caches.get(cachedWorlds)
-  let loader = capture(ref store) (id: ref i32) => {
+  let loader = <[ref store]> (id: ref i32) => {
     return try await loadCachedWorld(id, store: store)
   }
   var result = Array<CachedWorld>(minimumCapacity: count)

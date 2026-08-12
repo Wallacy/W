@@ -170,6 +170,10 @@ fn welcome(
   return greeter(arrival)
 }
 
+fn explicitCaptureFixture(gate: usize): some fn(ref Arrival): Welcome {
+  return <[copy gate]> (arrival) => Welcome(orderId: arrival.orderId, gate: gate)
+}
+
 fn firstOrder(values: ref Array<Order>): ref Order? {
   let ref first = values.first?
   return .some(first)

@@ -108,6 +108,48 @@ function clock(input) {
       rawTicksPublic: false,
     }
   }
+  if (input.operation === "deadlineHostSuspend") {
+    if (input.factSource !== "provider") {
+      return { accepted: false, reason: "providerClockFactsRequired" }
+    }
+    const active = integer(input.activeNanoseconds)
+    const hostSuspend = integer(input.hostSuspendNanoseconds)
+    const deadline = integer(input.deadlineNanoseconds)
+    if (active === null || hostSuspend === null || deadline === null
+      || active < 0n || hostSuspend < 0n || deadline < 0n) {
+      return { accepted: false, reason: "invalidDeadlineSuspendFacts" }
+    }
+    if (!suspendAccounting.has(input.suspendAccounting)) {
+      return { accepted: false, reason: "invalidSuspendAccounting" }
+    }
+    if (input.requiredSuspendAccounting !== undefined
+      && input.requiredSuspendAccounting !== input.suspendAccounting) {
+      return {
+        accepted: false,
+        reason: "suspendAccountingRequired",
+        required: input.requiredSuspendAccounting,
+        actual: input.suspendAccounting,
+      }
+    }
+    if (input.suspendAccounting === "unspecified") {
+      return {
+        accepted: true,
+        suspendAccounting: "unspecified",
+        deadlineReached: null,
+        elapsedNanoseconds: null,
+        inferenceAllowed: false,
+        hostSuspended: hostSuspend > 0n,
+      }
+    }
+    const elapsed = input.suspendAccounting === "included" ? active + hostSuspend : active
+    return {
+      accepted: true,
+      elapsedNanoseconds: elapsed.toString(),
+      deadlineReached: elapsed >= deadline,
+      suspendAccounting: input.suspendAccounting,
+      hostSuspended: hostSuspend > 0n,
+    }
+  }
   return { accepted: false, reason: "unknownClockOperation" }
 }
 

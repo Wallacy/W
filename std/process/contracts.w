@@ -1,8 +1,15 @@
 // Native process entry values and capability projections.
 //
 // The module exports nominal wrappers. It does not create a global process
-// object. The narrow `process.args` and `process.context` spellings are
-// compiler projections available only inside a native-process entry root.
+// object. The narrow `process.args`, `process.context`, `process.clock`, and
+// `process.deadline` spellings are compiler projections available only inside a
+// native-process entry root. `process.clock` preserves identity, origin,
+// authority, and lifetime from `process.context.clock`. `process.deadline`
+// preserves value identity, origin, and lifetime from `process.context.deadline`.
+// Deadline is not authority, so the short projection does not expand it.
+// Each short projection has the availability of its long projection.
+// `ctx.clock` remains valid when Context is a parameter. No global lookup or
+// `Clock.current` exists.
 
 import * from std.io
 import fs from std

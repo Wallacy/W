@@ -24,7 +24,7 @@ fn standardWelcome(arrival: Arrival = Arrival(orderId: 0)): Welcome {
 }
 
 fn route(named gate: usize): any fn(Arrival): Welcome {
-  return capture(copy gate) (arrival) => Welcome(
+  return <[copy gate]> (arrival) => Welcome(
     orderId: arrival.orderId,
     gate: gate,
   )
@@ -33,21 +33,21 @@ fn route(named gate: usize): any fn(Arrival): Welcome {
 fn ticketSequence(named initial: usize): some mut fn(): usize {
   var next = initial
 
-  return capture(take next) () => {
+  return <[take next]> () => {
     next += 1
     return next
   }
 }
 
 fn finalManifest(orderIds: take Array<u64>): some take fn(): Array<u64> {
-  return capture(take orderIds) () => take orderIds
+  return <[take orderIds]> () => take orderIds
 }
 
 fn recoverableRoute(
   gate: usize,
   memory: ref Allocator,
 ): ErasedWelcomeRoute throws AllocationError {
-  let concrete = capture(copy gate) (arrival) => Welcome(
+  let concrete = <[copy gate]> (arrival) => Welcome(
     orderId: arrival.orderId,
     gate: gate,
   )

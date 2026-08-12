@@ -7,7 +7,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/memory.w",
     "symbol": "makeMenuRoot",
-    "digest": "sha256:eb9cc70c69f82c7c7bd7c18c564f9149b3112cd7e3e617f6fe7dfee0fb5c2b76"
+    "digest": "sha256:e2c2117b56f232146f713bcdc57d23e0db630e6187806d781ba4ba073ffa1c1d"
   },
   "variants": [
     {

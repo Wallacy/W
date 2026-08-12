@@ -46,7 +46,6 @@ const MODIFIER_KEYWORDS = [
   "async",
   "atomic",
   "await",
-  "capture",
   "const",
   "copy",
   "export",
@@ -1451,14 +1450,17 @@ module.exports = grammar({
 
     closure_expression: ($) =>
       prec.right(seq($.closure_parameters, "=>", choice($._expression, $.block))),
+    // `<[...]>` is a contextual closure-capture contract. It is not a
+    // StaticList runtime value or a generic argument.
     capture_expression: ($) =>
       prec.right(
         seq(
-          "capture",
-          "(",
-          commaSep($.capture_item),
+          "<",
+          "[",
+          commaSep1($.capture_item),
           optional(","),
-          ")",
+          "]",
+          ">",
           $.closure_expression,
         ),
       ),

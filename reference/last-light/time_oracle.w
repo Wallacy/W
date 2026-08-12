@@ -2,6 +2,8 @@
 //
 // The clock is an explicit root-scoped capability. The provider remains
 // missing; this source fixes call shape, ownership, and local-origin rules.
+// SuspendAccounting describes HOST/SO suspension, not coroutine, task, or
+// await suspension. The safe wrappers keep the provider boundary internal.
 
 import time from std
 
@@ -44,7 +46,15 @@ test "duration remains portable signed data" {
 }
 
 // Compile-fail assays:
+// In a native-process entry body, `process.clock` equals `process.context.clock`
+// by identity, origin, authority, and lifetime. `process.deadline` equals
+// `process.context.deadline` by value identity, origin, and lifetime. Deadline
+// is not authority; its short projection keeps `authorityExpanded: false`.
+// A provider profile with 60 ms active time, 50 ms HOST/SO suspension, and a
+// 100 ms deadline reaches the deadline with `.included`, does not with
+// `.excluded`, and remains unknown with `.unspecified`.
 // let ambient = time.Clock()
+// let global = time.Clock.current()
 // serialize(clock.now())
 // service.send(deadline)
 // let wall = clock.wallNow()

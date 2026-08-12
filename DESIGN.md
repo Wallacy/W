@@ -2042,8 +2042,8 @@ closure_parameters = "(" (closure_parameter
                      ("," closure_parameter)* ","?)? ")" ;
 closure_parameter = identifier (":" type)? ;
 
-capture_expression = "capture" "(" (capture_item
-                     ("," capture_item)* ","?)? ")"
+capture_expression = "<[" capture_item
+                     ("," capture_item)* ","? "]>"
                      closure_expression ;
 capture_item = ("copy" | "ref" | "take" | "weak") identifier ;
 ```
@@ -2051,9 +2051,22 @@ capture_item = ("copy" | "ref" | "take" | "weak") identifier ;
 Parentheses de parâmetros são obrigatórios. Closure parameters não possuem
 external labels ou defaults. O body expression retorna seu value.
 
-Captures implícitas seguem a seção 7.5. `capture(...)` fixa os modos quando
-ownership ou custo precisa aparecer. Os capture items são preparados da
-esquerda para a direita quando a closure é construída.
+Captures implícitas seguem a seção 7.5. O prefixo `<[...]>` fixa os modos quando
+ownership ou custo precisa aparecer. Ele é um contrato contextual da closure.
+Ele não é `StaticList` runtime nem argumento genérico. Os capture items são
+preparados da esquerda para a direita quando a closure é construída.
+O parser reconhece o prefixo porque ele precede imediatamente os parâmetros da
+closure. Fora dessa posição, `<[...]>` mantém o significado de static list do
+head que o recebe.
+
+A lista explícita vazia é rejeitada porque repete a inferência. O compilador
+rejeita binding duplicado, binding desconhecido, mode inválido e `ref` que
+escapa do owner. A ordem da lista fica no trace e nos diagnostics. Ela não
+define layout do ambiente.
+
+`capture(...)` é a forma anterior. Antes de W 1.0, ela deve produzir erro de
+parse ou de migração conforme o contexto. W não mantém uma camada de
+compatibilidade para essa forma.
 
 `inout` não pode ficar numa closure armazenada. Um borrow pode escapar somente
 quando seu owner cobre o destino. Construir a closure não executa seu body.
@@ -4600,7 +4613,7 @@ fn map<T, U>(
 fn makeEstimator(
   model: take Model,
 ): some fn(ref Observation): Score {
-  return capture(take model) (observation) => model.score(observation)
+  return <[take model]> (observation) => model.score(observation)
 }
 
 let estimate: some fn(Int): Int = (value) => value * 2
@@ -4639,14 +4652,14 @@ ou o allocator default:
 
 ```w
 let stored: any fn(Arrival): Welcome =
-  capture(copy gate) (arrival) => welcome(arrival, gate: gate)
+  <[copy gate]> (arrival) => welcome(arrival, gate: gate)
 ```
 
 Essa forma segue a policy normal de OOM. Recovery ou escolha de allocator usa a
 operação consuming `erase` e um expected type obrigatório:
 
 ```w
-let concrete = capture(copy gate) (arrival) => welcome(arrival, gate: gate)
+let concrete = <[copy gate]> (arrival) => welcome(arrival, gate: gate)
 let stored: any fn(Arrival): Welcome =
   try erase(take concrete, using: memory)
 ```
@@ -4695,7 +4708,7 @@ fn counter(
 ): some mut fn(): usize {
   var next = initial
 
-  return capture(take next) () => {
+  return <[take next]> () => {
     next += 1
     return next
   }
@@ -4704,7 +4717,7 @@ fn counter(
 fn closingNotice(
   log: take ShiftLog,
 ): some take fn(): AuditRecord {
-  return capture(take log) () => (take log).seal()
+  return <[take log]> () => (take log).seal()
 }
 
 var nextTicket = counter(40)
@@ -4753,11 +4766,10 @@ let readWord: fn(usize): u16 =
 Captures sem custo de ownership podem ser inferidos: value `Copy`, borrow
 nonescaping e borrow de child estruturado cujo join fecha o lifetime. Uma
 closure que escapa não cria `copy`, retain, `weak` ou transferência de um owner
-move-first em silêncio. Ela usa `capture(...)` com `copy`, `ref`, `take` ou
-`weak`:
+move-first em silêncio. Ela usa `<[...]>` com `copy`, `ref`, `take` ou `weak`:
 
 ```w
-let task = capture(take model, ref cache) (input) => {
+let task = <[take model, ref cache]> (input) => {
   return model.run(input, cache: cache)
 }
 ```
@@ -4786,7 +4798,7 @@ Uma referência a instance method não captura `self` implicitamente. O programa
 mostra o mode com uma closure:
 
 ```w
-let bake = capture(ref oven) (order) => oven.bake(order)
+let bake = <[ref oven]> (order) => oven.bake(order)
 ```
 
 Uma função generic precisa ter todos os argumentos de tipo resolvidos antes da
@@ -7745,6 +7757,35 @@ Um tipo comum não paga por pinning.
 `upgrade()` retorna `shared T?`. O fallback portátil usa reference counting;
 essa estratégia não faz parte do tipo source.
 
+`upgrade()` adquire de forma linearizável um novo `shared T?`. Ele devolve
+`.some` somente quando o strong release final ainda não destruiu o payload.
+Depois da destruição, ele devolve `.none` e não reanima um endereço reutilizado:
+
+```w
+fn titleWhileLive(root: shared MenuSection): String? {
+  let weakRoot = root.weak()
+  guard let owner = weakRoot.upgrade() else return .none
+  return .some(copy owner.title)
+}
+
+fn expiredHandle(root: take shared MenuSection): weak MenuSection? {
+  let weakRoot = root.weak()
+  return weakRoot
+}
+
+let liveTitle = titleWhileLive(copy root)
+let expired = expiredHandle(take root)
+if expired.upgrade() == .none {
+  record("menu expired")
+}
+```
+
+`expiredHandle` consome o último owner com `take`. O scope da função termina
+antes do `upgrade` seguinte, portanto não resta um owner forte.
+
+O resultado é um novo owner forte. O programa deve testar o `Option` antes de
+usar o payload. `upgrade()` não muda o nome ou a forma vigente de `weak`.
+
 ```w
 object MenuSection {
   title: String
@@ -7867,7 +7908,7 @@ formas significam transferência do owner forte, criação explícita de outro
 owner forte e criação de um owner fraco, respectivamente:
 
 ```w
-let observe = capture(weak root) () => {
+let observe = <[weak root]> () => {
   guard let root = root.upgrade() else return .none
   return .some(copy root.title)
 }
@@ -7954,14 +7995,68 @@ freestanding ou performance. A API é explícita:
 ```w
 var storage: [u8; 64<KiB>] = [0; 64<KiB>]
 var scratch = Arena.fixed(inout storage)
-let tokens = try lex(source, using: ref scratch)
-scratch.clear()
+for source in sources {
+  let tokens = try lex(source, using: ref scratch)
+  consume(take tokens)
+  scratch.clear()
+}
 ```
 
 `Arena.fixed` nunca solicita storage ao OS. `clear` executa os drops registrados
-e reinicia a capacidade. O checker rejeita a call enquanto borrow ou valor
-dependente permanece vivo; `clear` não converte esse erro estático em failure
-runtime. Allocator, budget e origin continuam contratos separados.
+e reinicia a capacidade para reuso antecipado. Scope exit e unwind também limpam
+os valores dependentes e o owner da Arena. `clear()` só é necessário para
+resetar a mesma capacity antes do fim do scope. O checker rejeita a call enquanto
+borrow ou valor dependente permanece vivo. Se o provider raw não executa drops W,
+o drop ledger do compiler executa cada drop antes do bulk release.
+Allocator, budget e origin continuam contratos separados.
+
+No restaurante, o placement de um `Dish` local pode ser inferido quando o valor
+não escapa. O source não escreve uma annotation de stack ou heap:
+
+```w
+fn plate(name: String): Dish {
+  let dish = Dish(name: name)
+  return dish
+}
+```
+
+Quando o limite é parte do contrato, o programa usa `Arena.fixed`. A capacidade
+é bounded e o cleanup fica visível:
+
+```w
+fn prepareMenus(
+  sources: ref Array<Bytes>,
+  memory: ref Allocator,
+): Array<Menu> throws AllocationError {
+  var storage: [u8; 64<KiB>] = [0; 64<KiB>]
+  var arena = Arena.fixed(inout storage)
+  var result = Array<Menu>(using: memory)
+  for source in sources {
+    let menu = try parseMenu(source, using: ref arena)
+    let owned = try (take menu).rehome(using: memory)
+    result.append(take owned)
+    arena.clear()
+  }
+  return result
+}
+```
+
+Cada iteração faz `rehome` antes do `clear`. Uma falha em `parseMenu` ou
+`rehome` faz unwind dos valores staged, do resultado e do owner Arena.
+O checker rejeita `arena.clear()` enquanto `menu` ou um borrow dependente ainda
+estiver vivo. Ele também rejeita o escape de storage ligado à arena:
+
+```w
+fn invalidMenu(source: ref Bytes): Menu throws AllocationError {
+  var storage: [u8; 4<KiB>] = [0; 4<KiB>]
+  var arena = Arena.fixed(inout storage)
+  let menu = try parseMenu(source, using: ref arena)
+  return menu // error: storage de arena escapa do lifetime local
+}
+```
+
+O caso válido usa `rehome` antes do retorno. Nenhum desses casos reintroduz a
+syntax `region`.
 
 **W-1294 — Arena é um refinement de Allocator:** `Allocator` publica os facts
 compile-time `.arena` e `.crossDomain` em seu type contract. `Arena` é o alias
@@ -7997,6 +8092,12 @@ fn decode(payload: ref Bytes, using memory: ref Allocator): Document throws Allo
   return try parseNodes(payload, into: nodes)
 }
 ```
+
+`Array<String>(using: memory)` preserva o initializer vigente. O envelope `<>`
+seleciona contratos e especialização estática. Os parênteses `()` recebem a
+capability runtime e sua lifetime. `Array<String, using: memory>()` mistura
+phase e instance identity e fica **Rejeitado por enquanto**. O label `using:`
+evita colisão com outros initializers.
 
 O owner criado com um allocator não pode sobreviver a ele. A HIR registra essa
 relação de provenance. O source não escreve lifetime. Um container mantém a
@@ -10074,8 +10175,9 @@ restrito à interface runtime `unsafe`.
 
 #### 12.6.3 Deadline e relógio operacional
 
-`std.time` separa quatro conceitos. `Duration` é data portátil. `Clock` é uma
-capability monotônica do entry ou fault root. `Instant` e `Deadline` são valores
+`std.time` separa quatro conceitos. `Duration` é data portátil. `Clock` mantém o
+nome `Clock` e é monotônico por definição. Ele é uma capability do entry ou fault
+root. `Instant` e `Deadline` são valores
 opacos dependentes desse mesmo root. Eles não contêm wall-clock time, não têm
 projeção numérica e não são serializáveis. Ajustes de data e timezone não
 alteram sua ordem.
@@ -10084,11 +10186,41 @@ alteram sua ordem.
 nanoseconds no intervalo de `i128`. Seu layout físico é opaco. Ele não possui
 NaN nem infinity. A aritmética mantém a semântica checked dos integers.
 
+**Pesquisa:** um sensor FPGA pode contar fótons com um período físico em
+picoseconds. Este caso usa uma dimensão SI, um carrier racional exato e um
+contador `u64`. O provider continua missing e a API do detector não é decidida.
+O snippet pressupõe `si` do módulo `std` e imports seletivos de `std.math` e
+`std.time`.
+
+```w
+import si from std
+import { BigInt, Rational } from std.math
+import { Duration } from std.time
+
+unit detectorTick = 4<si.ps>
+alias SensorDuration = Quantity<si.Duration, Rational<BigInt>>
+let tickPeriod: SensorDuration = 1<detectorTick>
+let tickCount: u64 = detector.readTicks()
+let transit: SensorDuration = tickPeriod * tickCount
+let elapsed: Duration = try Duration.exactly(transit)
+```
+
+`si.ps` é a unit SI de picoseconds, não uma dimensão. `detectorTick` é uma
+unit custom derivada dessa unit. Se a escala não cabe em signed i128
+nanoseconds, o adapter mantém a quantity física ou devolve erro de range.
+
 **W-1311 — Clock é authority explícita:** o runtime pode medir tempo para
 scheduling, deadline e trace sem conceder a capability `.clock`. O programa só
-lê o relógio quando um `Context` projeta `time.Clock`. Não existe `Clock()`
-público, clock global ou lookup ambiental. Cada projection retém um owner no
-mesmo root; reter o wrapper não amplia authority nem lifetime.
+lê o relógio quando um `Context` projeta `time.Clock`. `process.clock` é uma
+projection curta vigente e equivalente a `process.context.clock` por identity,
+origin, authority e lifetime. Em um native-process entry, `process.deadline` tem
+a mesma value identity, origin e lifetime de `process.context.deadline`. `Deadline`
+não é authority; a projection mantém `authorityExpanded: false`. A availability
+de cada alias é a mesma da projection longa correspondente. `ctx.clock` continua
+quando `Context` é parâmetro. Não existe `Clock()`, `Clock.current`, clock global,
+lookup ambiental ou ambient authority. Cada projection retém um owner no mesmo
+root quando a projection longa possui owner. `Deadline` permanece root-bound
+pela lifetime do entry. Reter qualquer wrapper não amplia authority nem lifetime.
 
 **W-1312 — origem monotônica não cruza boundaries:** `Clock.now()` produz
 `Instant` e `Clock.deadline(after:)` produz `Deadline` com a identidade do root.
@@ -10098,11 +10230,25 @@ provider. `Duration` cruza service, wire e storage; `Clock`, `Instant` e
 `Deadline` não.
 
 **W-1313 — o profile não promete um relógio ideal:** leituras de `now()` não
-diminuem e `resolution()` é uma `Duration<(1...)>`. O provider declara
-`suspendAccounting()` como `.included`, `.excluded` ou `.unspecified`. Nenhuma
-dessas formas promete frequência constante, ausência de drift, latência máxima
-ou hard real-time. Testes podem substituir a capability do root por um clock
+diminuem e `resolution()` é uma `Duration<(1...)>`. `SuspendAccounting` descreve
+somente a suspensão do HOST/SO. Ele nunca descreve a suspensão de coroutine,
+task ou `await`. O provider declara `.included`, `.excluded` ou `.unspecified`:
+
+- `.included` mede o intervalo em que o HOST/SO ficou suspenso;
+- `.excluded` pausa a medição durante a suspensão do HOST/SO;
+- `.unspecified` proíbe inferir qualquer dos dois comportamentos.
+
+O profile deve mostrar como a escolha afeta o deadline. Um target ou profile
+pode exigir um case explícito. A ausência dessa exigência não cria uma prova.
+Nenhuma forma promete frequência constante, ausência de drift, latência máxima ou
+hard real-time. Testes podem substituir a capability do root por um clock
 virtual determinístico.
+
+Por exemplo, com 60 ms ativos, 50 ms de suspensão do HOST/SO e deadline de
+100 ms, `.included` observa 110 ms e alcança o deadline. `.excluded` observa
+60 ms e não o alcança. `.unspecified` publica somente que o resultado não pode
+ser inferido. Um profile que exige `.included` rejeita um provider
+`.unspecified` antes da execução.
 
 Um child herda o menor deadline entre parent e operação. Nenhuma API pode
 ampliar o deadline herdado. Um timeout local cria um deadline relativo ao clock
@@ -10181,7 +10327,10 @@ capability e values próprios. Eles não entram em deadline ou elapsed time e n�
 ficam implícitos em `std.time`. A forma pública de tempo civil permanece fora
 deste slice até fechar calendário, leap seconds, serialization e autoridade.
 
-**W-1316 — evidence TIME0:** source W, 43 casos tabelados e oito testes host
+**Pesquisa:** `WallClock`/`Timestamp` ou um par `CivilTime`/`TimeZone` são
+candidatos de estudo. Esta seção não escolhe syntax ou API.
+
+**W-1316 — evidence TIME0:** source W, 47 casos tabelados e oito testes host
 derivam range, exatidão, capability, origem, profile, deadline, cancellation,
 boundary e clock virtual. Eles não executam W, timer, scheduler, sistema
 operacional ou provider `std.time@1`.
@@ -21692,6 +21841,14 @@ Workloads, topologias e fontes comparativas ficam em
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 ## 19. FFI, unsafe e ilhas de linguagem
+
+`unsafe` fica somente no adapter ou provider interno que atravessa a fronteira
+raw. Cada wrapper safe restabelece os invariants aplicáveis: origin, validação
+ou range, e ownership/drop. Ele valida somente os facts exigidos pelo seu
+contract antes de publicar um value W. User code e API pública não exigem
+`unsafe` para usar a interface safe. O boundary continua visível no source
+interno. W não inventa um trusted block nem esconde a operação raw em lookup
+implícito.
 
 ### 19.1 Fronteira C
 

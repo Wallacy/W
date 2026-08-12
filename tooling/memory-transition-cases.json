@@ -1785,7 +1785,7 @@
           "nodes": ["callback", "hub"],
           "edges": [
             { "id": "owns-callback", "from": "hub", "to": "callback", "mode": "strong", "release": "deinit", "origin": "callbacks" },
-            { "id": "observes-hub", "from": "callback", "to": "hub", "mode": "weak", "release": "deinit", "origin": "capture(weak hub)" }
+            { "id": "observes-hub", "from": "callback", "to": "hub", "mode": "weak", "release": "deinit", "origin": "<[weak hub]>" }
           ],
           "externalRoots": ["hub"]
         }
@@ -1804,7 +1804,7 @@
           "nodes": ["callback", "hub"],
           "edges": [
             { "id": "owns-callback", "from": "hub", "to": "callback", "mode": "strong", "release": "deinit", "origin": "callbacks" },
-            { "id": "retains-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinit", "origin": "capture(copy hub)" }
+            { "id": "retains-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinit", "origin": "<[copy hub]>" }
           ],
           "externalRoots": ["hub"]
         }
@@ -1823,7 +1823,7 @@
           "nodes": ["callback", "hub"],
           "edges": [
             { "id": "owns-callback", "from": "hub", "to": "callback", "mode": "strong", "release": "explicitClose", "origin": "callbacks.clear" },
-            { "id": "retains-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinit", "origin": "capture(copy hub)" }
+            { "id": "retains-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinit", "origin": "<[copy hub]>" }
           ],
           "externalRoots": ["hub"]
         }
@@ -1842,7 +1842,7 @@
           "nodes": ["callback", "service"],
           "edges": [
             { "id": "owns-callback", "from": "service", "to": "callback", "mode": "strong", "release": "lifecycleDrain", "origin": "service shutdown" },
-            { "id": "retains-service", "from": "callback", "to": "service", "mode": "strong", "release": "deinit", "origin": "capture(copy service)" }
+            { "id": "retains-service", "from": "callback", "to": "service", "mode": "strong", "release": "deinit", "origin": "<[copy service]>" }
           ],
           "externalRoots": ["service"]
         }
@@ -1860,7 +1860,7 @@
           "closed": true,
           "nodes": ["callback"],
           "edges": [
-            { "id": "retains-self", "from": "callback", "to": "callback", "mode": "strong", "release": "deinit", "origin": "capture(copy self)" }
+            { "id": "retains-self", "from": "callback", "to": "callback", "mode": "strong", "release": "deinit", "origin": "<[copy self]>" }
           ],
           "externalRoots": ["callback"]
         }
@@ -1900,7 +1900,7 @@
           "nodes": ["callback", "hub"],
           "edges": [
             { "id": "owns-callback", "from": "hub", "to": "callback", "mode": "strong", "release": "explicitClose", "origin": "callbacks.clear" },
-            { "id": "retains-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinit", "origin": "capture(copy hub)" }
+            { "id": "retains-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinit", "origin": "<[copy hub]>" }
           ],
           "externalRoots": []
         }
@@ -1921,7 +1921,7 @@
           "nodes": ["callback", "hub"],
           "edges": [
             { "id": "owns-callback", "from": "hub", "to": "callback", "mode": "strong", "release": "explicitClose", "origin": "callbacks.clear" },
-            { "id": "retains-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinit", "origin": "capture(copy hub)" }
+            { "id": "retains-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinit", "origin": "<[copy hub]>" }
           ],
           "externalRoots": []
         }
@@ -1942,7 +1942,7 @@
           "nodes": ["callback", "hub"],
           "edges": [
             { "id": "owns-callback", "from": "hub", "to": "callback", "mode": "strong", "release": "explicitClose", "origin": "callbacks.clear" },
-            { "id": "retains-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinit", "origin": "capture(copy hub)" }
+            { "id": "retains-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinit", "origin": "<[copy hub]>" }
           ],
           "externalRoots": ["hub"]
         }
@@ -1963,7 +1963,7 @@
           "nodes": ["callback", "hub", "unrelated"],
           "edges": [
             { "id": "owns-callback", "from": "hub", "to": "callback", "mode": "strong", "release": "explicitClose", "origin": "callbacks.clear" },
-            { "id": "retains-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinit", "origin": "capture(copy hub)" },
+            { "id": "retains-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinit", "origin": "<[copy hub]>" },
             { "id": "unrelated-child", "from": "unrelated", "to": "unrelated", "mode": "weak", "release": "deinit", "origin": "diagnostic root" }
           ],
           "externalRoots": ["unrelated"]
@@ -1985,7 +1985,7 @@
           "nodes": ["callback", "hub"],
           "edges": [
             { "id": "owns-callback", "from": "hub", "to": "callback", "mode": "strong", "release": "deinit", "origin": "callbacks" },
-            { "id": "observes-hub", "from": "callback", "to": "hub", "mode": "weak", "release": "deinit", "origin": "capture(weak hub)" }
+            { "id": "observes-hub", "from": "callback", "to": "hub", "mode": "weak", "release": "deinit", "origin": "<[weak hub]>" }
           ],
           "externalRoots": []
         }

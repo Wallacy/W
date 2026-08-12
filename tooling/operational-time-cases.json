@@ -122,6 +122,34 @@
       "expect": { "accepted": true, "sampleCount": 1, "suspendAccounting": "unspecified" }
     },
     {
+      "id": "TIME0-POS-deadline-includes-host-suspend",
+      "kind": "positive",
+      "decisions": ["W-1313", "W-1314"],
+      "input": { "subject": "clock", "operation": "deadlineHostSuspend", "factSource": "provider", "activeNanoseconds": "60", "hostSuspendNanoseconds": "50", "deadlineNanoseconds": "100", "suspendAccounting": "included" },
+      "expect": { "accepted": true, "elapsedNanoseconds": "110", "deadlineReached": true, "suspendAccounting": "included", "hostSuspended": true }
+    },
+    {
+      "id": "TIME0-POS-deadline-excludes-host-suspend",
+      "kind": "positive",
+      "decisions": ["W-1313", "W-1314"],
+      "input": { "subject": "clock", "operation": "deadlineHostSuspend", "factSource": "provider", "activeNanoseconds": "60", "hostSuspendNanoseconds": "50", "deadlineNanoseconds": "100", "suspendAccounting": "excluded" },
+      "expect": { "accepted": true, "elapsedNanoseconds": "60", "deadlineReached": false, "suspendAccounting": "excluded", "hostSuspended": true }
+    },
+    {
+      "id": "TIME0-POS-deadline-unspecified-cannot-infer",
+      "kind": "positive",
+      "decisions": ["W-1313", "W-1314"],
+      "input": { "subject": "clock", "operation": "deadlineHostSuspend", "factSource": "provider", "activeNanoseconds": "60", "hostSuspendNanoseconds": "50", "deadlineNanoseconds": "100", "suspendAccounting": "unspecified" },
+      "expect": { "accepted": true, "suspendAccounting": "unspecified", "deadlineReached": null, "elapsedNanoseconds": null, "inferenceAllowed": false, "hostSuspended": true }
+    },
+    {
+      "id": "TIME0-NEG-profile-requires-suspend-case",
+      "kind": "negative",
+      "decisions": ["W-1313", "W-1314"],
+      "input": { "subject": "clock", "operation": "deadlineHostSuspend", "factSource": "provider", "activeNanoseconds": "60", "hostSuspendNanoseconds": "50", "deadlineNanoseconds": "100", "suspendAccounting": "unspecified", "requiredSuspendAccounting": "included" },
+      "expect": { "accepted": false, "reason": "suspendAccountingRequired", "required": "included", "actual": "unspecified" }
+    },
+    {
       "id": "TIME0-NEG-clock-regression",
       "kind": "negative",
       "decisions": ["W-1313"],

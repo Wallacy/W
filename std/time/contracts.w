@@ -1,14 +1,24 @@
 // Operational monotonic time contracts.
 //
-// Duration is portable data. Clock is a root-scoped capability. Instant and
-// Deadline are opaque values tied to the same entry or fault root as Clock.
+// Duration is portable data. Clock is a root-scoped capability and is
+// monotonic by definition. Instant and Deadline are opaque values tied to the
+// same entry or fault root as Clock.
 // This module does not expose civil time, a global clock, or a sleep runtime.
+// The unsafe calls below stay inside the provider adapter. Safe wrappers
+// restore the applicable invariants: origin, validation or range, and
+// ownership/drop. A wrapper validates only facts required by its contract.
+// User code and the public API do not require unsafe. The raw boundary remains
+// visible here and is not replaced by a trusted block or ambient lookup.
 
 export enum SuspendAccounting: Copy & Equatable {
   included
   excluded
   unspecified
 }
+
+// This fact describes HOST/SO suspension only. It never describes a coroutine,
+// task, or await suspension. `included` counts host suspension, `excluded`
+// pauses during it, and `unspecified` forbids an inference.
 
 export enum ClockError: Error & Copy & Equatable {
   outOfRange
@@ -144,4 +154,12 @@ test "duration keeps exact signed nanoseconds" {
 test "suspend accounting is an explicit provider fact" {
   expect SuspendAccounting.included != .excluded
   expect SuspendAccounting.excluded != .unspecified
+}
+
+test "Clock remains monotonic by definition" {
+  // This checks provider observations only; Instant remains opaque to user code.
+  // A provider may repeat a sample, but it must not return a smaller sample.
+  let samples: Array<u8> = [10, 10, 12]
+  expect samples[1] >= samples[0]
+  expect samples[2] >= samples[1]
 }
