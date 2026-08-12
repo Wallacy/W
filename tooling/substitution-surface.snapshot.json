@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:221ef8a01c269455755ac0b2d118f3894a203897d2b6e93a0c2aff18b30d5654",
+  "corpusDigest": "sha256:566f98fc3702d360c2e377063f9a22bcb0566406363a12b64fe95c10716f1940",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -2803,28 +2803,28 @@
     {
       "id": "R0-shared-construction",
       "task": {
-        "utf8Bytes": 96,
-        "codePoints": 96,
-        "nonWhitespaceCodePoints": 83,
+        "utf8Bytes": 150,
+        "codePoints": 150,
+        "nonWhitespaceCodePoints": 128,
         "lines": 1,
-        "surfaceLexemes": 15
+        "surfaceLexemes": 28
       },
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:1f1f4355624b4dc85acb2d24be13fd18ada46b2b473f9f02509513e924d3f831",
+        "sourceDigest": "sha256:771b2ae76cef8f1f0e3aa221110d6ea395851ad7f96668ac23d897973760179e",
         "metrics": {
-          "utf8Bytes": 108,
-          "codePoints": 108,
-          "nonWhitespaceCodePoints": 94,
+          "utf8Bytes": 102,
+          "codePoints": 102,
+          "nonWhitespaceCodePoints": 89,
           "lines": 2,
-          "surfaceLexemes": 25
+          "surfaceLexemes": 20
         }
       },
       "alternatives": [
         {
           "name": "explicit-default-share",
-          "language": "w-alternative",
+          "language": "w-rejected",
           "sourceDigest": "sha256:2db4c583d2241a9c40be7f0fd1174d78df349cd2f9d47b2415c6c55316c7fa41",
           "metrics": {
             "utf8Bytes": 46,
@@ -2836,7 +2836,7 @@
         },
         {
           "name": "distinct-try-share",
-          "language": "w-alternative",
+          "language": "w-rejected",
           "sourceDigest": "sha256:3ee8253b0b274b655b41cdf7fcfaa85bb09b10b86f782004ac18607b966985a8",
           "metrics": {
             "utf8Bytes": 51,
@@ -2908,7 +2908,7 @@
         },
         {
           "name": "reservation-only",
-          "language": "w-alternative",
+          "language": "w-rejected",
           "sourceDigest": "sha256:8e7ede50b347131d6e45500c07bcc7cd0fcc1f0fbadef83574450faf3d0d4ad1",
           "metrics": {
             "utf8Bytes": 38,
@@ -2992,19 +2992,19 @@
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:177239632b5833b8ac539fee830d29fde9cd6bdb1f7998ea742c52d16e1439c2",
+        "sourceDigest": "sha256:9134ecd515112065bb7416c766bd3ad08efc1d0ed210b86bbadb29160c453342",
         "metrics": {
-          "utf8Bytes": 81,
-          "codePoints": 81,
+          "utf8Bytes": 83,
+          "codePoints": 83,
           "nonWhitespaceCodePoints": 70,
           "lines": 2,
-          "surfaceLexemes": 21
+          "surfaceLexemes": 17
         }
       },
       "alternatives": [
         {
           "name": "strong-property",
-          "language": "w-alternative",
+          "language": "w-rejected",
           "sourceDigest": "sha256:2544dbed4c5853eb5c0160488682ce7c8c350ca19946eb3f3b9ef45c4ef8b976",
           "metrics": {
             "utf8Bytes": 30,
@@ -3016,7 +3016,7 @@
         },
         {
           "name": "strong-method",
-          "language": "w-alternative",
+          "language": "w-rejected",
           "sourceDigest": "sha256:b04e6e1e0f9db545c31af8513a0585e4e307e0e2663bada3b13b85083f134f95",
           "metrics": {
             "utf8Bytes": 32,
@@ -3040,13 +3040,13 @@
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:01f04da82b4182f7a008a8ed7f88244ce0935ff8d890efa0a66dac40dad36c08",
+        "sourceDigest": "sha256:c99134a766ac963ac7de6ae64aea32d694ef8c15486b9adb3b837f0b8a1a7de0",
         "metrics": {
-          "utf8Bytes": 143,
-          "codePoints": 143,
-          "nonWhitespaceCodePoints": 124,
-          "lines": 3,
-          "surfaceLexemes": 38
+          "utf8Bytes": 167,
+          "codePoints": 167,
+          "nonWhitespaceCodePoints": 147,
+          "lines": 4,
+          "surfaceLexemes": 43
         }
       },
       "alternatives": [
@@ -3088,11 +3088,11 @@
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:e2eaaf3fb1dbcc68ea998069781b40f455488ef2d607f88184c320304c16dc89",
+        "sourceDigest": "sha256:e585b0995a34bb49944ff7f66018c768b4f74c8737ef3af10ec16bf73f83f616",
         "metrics": {
-          "utf8Bytes": 63,
-          "codePoints": 63,
-          "nonWhitespaceCodePoints": 58,
+          "utf8Bytes": 67,
+          "codePoints": 67,
+          "nonWhitespaceCodePoints": 62,
           "lines": 2,
           "surfaceLexemes": 18
         }
@@ -3101,11 +3101,11 @@
         {
           "name": "generic-envelope-slot",
           "language": "w-alternative",
-          "sourceDigest": "sha256:88243ede5f19fcf10a3f86d8b0ef19b3f43a9f601d7326fd44a1bbbbfcab7e70",
+          "sourceDigest": "sha256:77310afc8e40a86b1422302496bd21f13b7ee5dec5c8e336196f16f3cbe50131",
           "metrics": {
-            "utf8Bytes": 42,
-            "codePoints": 42,
-            "nonWhitespaceCodePoints": 37,
+            "utf8Bytes": 46,
+            "codePoints": 46,
+            "nonWhitespaceCodePoints": 41,
             "lines": 1,
             "surfaceLexemes": 13
           }

@@ -66,4 +66,11 @@ describe("R1 SuspendAccounting naming host oracle", () => {
     expect(deadlineOutcome({ policy: true, suspensionKind: "host-so", activeMs: 60, hostSuspendMs: 50, deadlineMs: 100 }).reason).toBe("boolean-cannot-express-three-states")
     expect(deadlineOutcome({ policy: "always-steady", suspensionKind: "host-so", activeMs: 60, hostSuspendMs: 50, deadlineMs: 100 }).reason).toBe("unknown-suspend-policy")
   })
+
+  test("the restaurant deadline includes eight minutes of host sleep", () => {
+    const facts = { suspensionKind: "host-so", activeMs: 1, hostSuspendMs: 8, deadlineMs: 5 }
+    expect(deadlineOutcome({ ...facts, policy: "included" })).toMatchObject({ elapsedMs: 9, deadlineReached: true })
+    expect(deadlineOutcome({ ...facts, policy: "excluded" })).toMatchObject({ elapsedMs: 1, deadlineReached: false })
+    expect(deadlineOutcome({ ...facts, policy: "unspecified" })).toMatchObject({ elapsedMs: null, deadlineReached: null, inferred: false })
+  })
 })

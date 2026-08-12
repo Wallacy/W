@@ -599,7 +599,7 @@ Aceite:
 - `view String` sempre começa e termina em boundaries UTF-8 válidas;
 - `inout view String` e `inout view CString` não existem;
 - `materialize()` copia a projeção para um owner;
-- `tryMaterialize(using:)` torna allocation failure recuperável;
+- `tryMaterialize(allocator:)` torna allocation failure recuperável;
 - `await` exige que o owner permaneça estável no task frame;
 - um child estruturado termina antes do owner; uma task detached não recebe a
   view;
@@ -1446,23 +1446,22 @@ Aceite:
 - ciclo forte fechado e destruction-dependent falha com caminho causal;
 - ciclo dinâmico que nenhum root externo alcança só é reportado depois do drain
   e nunca é coletado;
-- `upgrade()` retorna `some` quando adquire antes do strong release final e
-  `none` depois do último shared owner;
-- `upgrade()` e o último release possuem uma ordem linearizável;
+- a leitura contextual retorna `some` quando adquire antes do strong release final
+  e `none` depois do último shared owner;
+- a leitura contextual de weak e o último release possuem uma ordem linearizável;
 - o value morre no strong zero e o control block no weak zero;
 - um borrow fica ligado ao strong handle que o criou; outro alias pode morrer;
-- shared handle não concede `inout` e weak exige `upgrade()` antes do acesso;
+- shared handle não concede `inout` e weak exige binding opcional antes do acesso;
 - `OriginSet` de borrow e `AllocationOriginSet` de storage não se substituem;
 - `let root: shared T = temporary` mostra o primeiro owner no binding;
 - `shared T` é o tipo final; ele não é escrito como `Shared<T>` ou
   `shared<allocator: ...> T`;
 - `atomic` modifica storage e baixa para `Atomic<T>`; ele não forma `atomic T`;
 - `shared T?` é um handle opcional; `shared Option<T>` possui payload opcional;
-- `share(temporary)` continua disponível em expression context;
-- `try share(..., using:)` torna `AllocationError` e allocator bounded explícitos;
+- expression e return criam binding local `shared` e movem com `take`;
 - trocar a origem do control block não altera o tipo `shared T`;
 - argumento, return e inference não promovem owner único para `shared T`;
-- `share(dependent)` falha até o payload ser lifetime-independent;
+- payload dependent falha até o storage ser lifetime-independent;
 - o allocator do control block continua vivo até o último weak handle;
 - mover ownership por `spawn` exige `transferable`;
 - enviar um `ref` estruturado por `spawn` exige payload `shareable` e lifetime
@@ -1696,7 +1695,7 @@ Aceite:
 - `some fn` preserva o tipo concreto e permite specialization;
 - `any fn` possui owner, invoke e drop observáveis;
 - erasure contextual usa a policy normal de OOM do product;
-- `try erase(take value, using:)` torna allocator e recovery explícitos;
+- `try erase(take value, allocator:)` torna allocator e recovery explícitos;
 - inline erasure preserva origins; spill adiciona a origin do box;
 - labels e defaults não entram no function type;
 - `mut fn` exige um callable mutável e acesso exclusivo;
@@ -2101,19 +2100,20 @@ Aceite:
 
 - um local síncrono fixo que não escapa não usa o allocator geral;
 - placement inferido não exige syntax no source;
-- um caso `Arena.fixed` mantém capacity bounded; `clear` ocorre somente para
+- um caso `Arena.fixed` mantém capacity bounded; `reset` ocorre somente para
   reuso antecipado após `rehome`;
 - o escape de um valor ligado à Arena é rejeitado antes do runtime;
 - `object` não implica heap;
-- somente calls com `using: ref staging` usam a Arena;
+- somente calls com `allocator: ref staging` usam a Arena;
 - `tryReserve` falha antes de consumir os elementos;
 - cada string duplicada mantém a origem da Arena;
-- `Arena` é `Allocator<(.arena)>` e atende diretamente a `ref Allocator`;
-- `clear` exige exclusividade e nenhum loan ou valor dependente vivo;
+- `Arena` é uma capability scoped distinta de `Allocator`;
+- `reset` exige exclusividade e nenhum loan ou valor dependente vivo;
 - a origem registra instance lifetime, deallocator, mobility e adoption family;
 - storage de uma arena local não atende a `transferable`;
-- `Allocator<(.crossDomain)>` é necessário para produzir um owner que cruza
-  `spawn`;
+- facts do contrato de allocation derivam mobility cross-domain quando um owner
+  cruza `spawn`; a relação Arena→Allocator e seu lowering de `ref Allocator`
+  continuam missing e este source oracle não os implementa;
 - `rehome` move storage independente e realoca somente storage dependente;
 - uma falha de `rehome` consome e limpa o snapshot e o destino parcial;
 - `attemptRehome` devolve o snapshot no outcome quando retry é necessário;
@@ -2138,7 +2138,7 @@ Se o provider raw não executa drops W, o drop ledger do compiler os executa
 antes do bulk release.
 Antes de `rehome`, toda falha limpa os valores pela Arena. Durante `rehome`,
 toda falha limpa source e destino parcial uma vez. Um batch que reutiliza a
-capacity chama `clear` somente depois de `rehome`. O teste repete com allocator
+capacity chama `reset` somente depois de `rehome`. O teste repete com allocator
 do sistema, buffer fixo e os profiles `benchmark` e `benchmark-mimalloc`. Os
 valores, errors e drops são os mesmos. Cada allocation mantém a origem
 declarada; provider measurements podem mudar.

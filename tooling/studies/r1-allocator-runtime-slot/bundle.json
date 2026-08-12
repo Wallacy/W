@@ -3,30 +3,46 @@
   "status": "design-oracle-input",
   "id": "R1-allocator-runtime-slot",
   "title": "Allocator capability position at the Last Light restaurant",
-  "r0Cases": ["R0-allocator-runtime-slot"],
+  "r0Cases": [
+    "R0-allocator-runtime-slot"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/allocation.w",
-    "symbol": "Array<String>(using:",
-    "digest": "sha256:7c301ce036d2c3d6280b8cbf6a3451af510f2ddecb0753f3d55d1cdf518891b1"
+    "symbol": "Array<String>(allocator:",
+    "digest": "sha256:6e4c62a799bf730837c133cfacd0b4e0969b7841bf82449d995800e879ba61cb"
   },
   "variants": [
     {
-      "id": "runtime-using",
+      "id": "construction-allocator",
       "role": "selected",
       "language": "w",
       "path": "runtime-using.w",
-      "digest": "sha256:24d3dfcd348ecfce06ba041c8b8b8a492416c49b7796fd2cbe8b797797cdf020",
-      "changedConstructs": ["Array<String> static element contract", "using: memory runtime slot", "allocation origin in owner"],
-      "parseEvidence": { "status": "tree-sitter-parse", "note": "The baseline source is a structural parse witness." }
+      "digest": "sha256:803c25ccd52c6db1b75c575a5d85eaa3386eec2d3284c2c7be11ce47f146f4d4",
+      "changedConstructs": [
+        "Array<String> static element contract",
+        "allocator: control argument",
+        "allocation origin in owner"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The baseline source is a structural parse witness."
+      }
     },
     {
-      "id": "envelope-using",
+      "id": "generic-envelope",
       "role": "alternative",
       "language": "w-alternative",
       "path": "envelope-using.w",
-      "digest": "sha256:e02edbc0ee681cb6b1845bf1ab221189ea0d4a074454f89b90c58645e0ced37f",
-      "changedConstructs": ["runtime capability in generic envelope", "parse-shaped labeled type argument", "contextual runtime-slot candidate"],
-      "parseEvidence": { "status": "tree-sitter-parse", "note": "Tree-sitter shapes the envelope. R1 treats its contextual runtime slot as a candidate, not a current contract." }
+      "digest": "sha256:8f010264dfa127042492ff763699ad02c24c5030466b57cf048f5ab51e215e5f",
+      "changedConstructs": [
+        "rejected generic envelope",
+        "allocator control argument is not a type slot",
+        "contextual candidate retired"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Tree-sitter shapes the envelope. R1 treats its contextual runtime slot as a candidate, not a current contract."
+      }
     }
   ],
   "entry": "allocateNames",
@@ -36,7 +52,16 @@
       "origin": "request.memory",
       "capabilityIdentity": true,
       "capabilityLifetime": true,
-      "expected": { "status": "accepted", "output": ["Dinner"], "origin": "request.memory", "sameOutcomeAcrossVariants": true, "sameCleanupAcrossVariants": true }
+      "expected": {
+        "status": "accepted",
+        "output": [
+          "Dinner"
+        ],
+        "origin": "request.memory",
+        "sameOutcomeAcrossVariants": false,
+        "alternativeStatus": "rejected",
+        "sameCleanupAcrossVariants": false
+      }
     },
     {
       "id": "allocation-failure",
@@ -44,14 +69,25 @@
       "capabilityIdentity": true,
       "capabilityLifetime": true,
       "failAt": "allocation",
-      "expected": { "status": "allocation-error", "output": null, "origin": "request.memory", "partialReleased": true, "sameFailureAcrossVariants": true, "sameCleanupAcrossVariants": true }
+      "expected": {
+        "status": "allocation-error",
+        "output": null,
+        "origin": "request.memory",
+        "partialReleased": true,
+        "alternativeStatus": "rejected",
+        "sameFailureAcrossVariants": false,
+        "sameCleanupAcrossVariants": false
+      }
     },
     {
       "id": "adversarial-missing-capability-facts",
       "origin": "request.memory",
       "capabilityIdentity": false,
       "capabilityLifetime": false,
-      "expected": { "status": "rejected", "reason": "allocator-capability-facts-missing" }
+      "expected": {
+        "status": "rejected",
+        "reason": "allocator-capability-facts-missing"
+      }
     },
     {
       "id": "adversarial-capability-type-identity",
@@ -59,7 +95,10 @@
       "capabilityIdentity": true,
       "capabilityLifetime": true,
       "typeIdentity": true,
-      "expected": { "status": "rejected", "reason": "allocator-capability-cannot-be-type-identity" }
+      "expected": {
+        "status": "rejected",
+        "reason": "allocator-capability-cannot-be-type-identity"
+      }
     },
     {
       "id": "adversarial-capability-comptime",
@@ -67,25 +106,61 @@
       "capabilityIdentity": true,
       "capabilityLifetime": true,
       "comptime": true,
-      "expected": { "status": "rejected", "reason": "allocator-capability-cannot-be-comptime" }
+      "expected": {
+        "status": "rejected",
+        "reason": "allocator-capability-cannot-be-comptime"
+      }
+    },
+    {
+      "id": "adversarial-user-allocator-collision",
+      "construction": "CustomObj",
+      "publishesAllocationSite": false,
+      "allocatorMeaning": "ordinary-field",
+      "expected": {
+        "status": "rejected",
+        "reason": "allocator-label-reserved"
+      }
+    },
+    {
+      "id": "adversarial-allocator-after-ordinary-argument",
+      "construction": "CustomObj",
+      "argumentOrder": [
+        "a",
+        "allocator",
+        "b"
+      ],
+      "publishesAllocationSite": true,
+      "expected": {
+        "status": "rejected",
+        "reason": "allocator-control-argument-must-be-first"
+      }
+    },
+    {
+      "id": "adversarial-allocator-without-site",
+      "construction": "ValueOnly",
+      "publishesAllocationSite": false,
+      "expected": {
+        "status": "rejected",
+        "reason": "allocator-argument-inapplicable"
+      }
     }
   ],
   "tasks": [
     {
       "kind": "explain",
-      "instruction": "Explain why memory is a runtime capability, why element contracts stay static, why memory is not type identity or comptime, and what contextual slot the envelope candidate measures."
+      "instruction": "Explain why memory is a runtime capability, why element contracts stay static, why memory is not type identity or comptime, and why allocator is a construction control argument rather than a type slot."
     },
     {
       "kind": "recall",
-      "instruction": "After the controlled delay, reconstruct allocation origin, failure cleanup, equal output, and the type-identity/comptime boundary for both spellings.",
+      "instruction": "After the controlled delay, reconstruct allocation origin, failure cleanup, the rejected generic envelope, and the type-identity/comptime boundary.",
       "minimumDelaySeconds": 60
     },
     {
       "kind": "repair",
-      "instruction": "Repair either spelling while preserving the contextual runtime slot, or reject only a capability treated as type identity, comptime, or missing its facts.",
+      "instruction": "Repair the construction control argument or reject a generic slot, a user allocator collision, a missing site, or missing capability facts.",
       "mutations": {
-        "runtime-using": "Keep memory in the using call argument and preserve origin on allocation failure.",
-        "envelope-using": "Keep the candidate envelope spelling and preserve the same runtime slot, output, origin, and failure cleanup."
+        "construction-allocator": "Keep allocator first in the construction expression and preserve origin on allocation failure.",
+        "generic-envelope": "Reject the generic envelope and keep allocator outside type identity."
       }
     },
     {
@@ -93,8 +168,42 @@
       "instruction": "Add a second container element contract without moving the allocator capability into type identity or comptime, for either spelling."
     }
   ],
-  "presentationOrders": [["runtime-using", "envelope-using"], ["envelope-using", "runtime-using"]],
-  "blinding": { "participantLabels": { "runtime-using": "A", "envelope-using": "B" }, "hide": ["id", "role", "path", "changedConstructs"] },
-  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:49dd31feb55587a7e1be438b593af54a06c1a5b5b3a6ef2caf1a233717d8038d" },
-  "evidence": { "current": ["tree-sitter-parse", "host-oracle"], "missing": ["w-compile", "w-run", "human-study", "model-study"] }
+  "presentationOrders": [
+    [
+      "construction-allocator",
+      "generic-envelope"
+    ],
+    [
+      "generic-envelope",
+      "construction-allocator"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "construction-allocator": "A",
+      "generic-envelope": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:8de485644a39e40ff0fffbf8cce360986621d8fe8234dd57de1ac5c15759355f"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
+  }
 }

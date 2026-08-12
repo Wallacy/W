@@ -10,6 +10,8 @@ function constructShared(input) {
   }
   if (input.allocatorTypeSlot) return reject("allocator-is-origin-not-type")
 
+  if (!declarative) return reject("retired-shared-construction-call")
+
   if (declarative && !new Set(["binding", "stored-field"]).has(input.context)) {
     return reject("context-cannot-promote")
   }
@@ -17,9 +19,14 @@ function constructShared(input) {
   if (input.source === "binding" && !input.take) return reject("missing-take")
   if (!input.lifetimeIndependent) return reject("lifetime-dependent")
 
-  const recoverable = input.form === "share-using" || input.form === "tryShare"
-  if (input.allocator !== "product.default" && !recoverable) {
-    return reject("allocator-requires-fallible-operation")
+  const recoverable = false
+  if (input.allocator !== "product.default") {
+    return {
+      status: "blocked",
+      reason: "custom-allocator-construction-contract-missing",
+      resultType: "shared MenuSection",
+      trace,
+    }
   }
 
   trace.push({ operation: "consume-source", source: input.source })
@@ -68,11 +75,11 @@ describe("R1 shared-construction host oracle", () => {
       lifetimeIndependent: true,
     })
     const recoverable = constructShared({
-      form: "share-using",
-      context: "expression",
-      source: "binding",
-      take: true,
-      allocator: "request.arena",
+      form: "shared-declaration",
+      context: "binding",
+      explicitSharedType: true,
+      source: "temporary",
+      allocator: "product.default",
       lifetimeIndependent: true,
     })
     expect(normal).toMatchObject({
@@ -84,7 +91,7 @@ describe("R1 shared-construction host oracle", () => {
     expect(recoverable).toMatchObject({
       status: "accepted",
       resultType: "shared MenuSection",
-      failurePolicy: "throws AllocationError",
+      failurePolicy: "normal OOM",
     })
     expect(recoverable.resultType).toBe(normal.resultType)
   })
@@ -123,7 +130,7 @@ describe("R1 shared-construction host oracle", () => {
     expect(allocatorSlot.trace).toEqual([])
   })
 
-  test("default share remains equivalent in expression contexts", () => {
+  test("retired share calls do not allocate", () => {
     const declaration = constructShared({
       form: "shared-declaration",
       context: "binding",
@@ -139,29 +146,22 @@ describe("R1 shared-construction host oracle", () => {
       allocator: "product.default",
       lifetimeIndependent: true,
     })
-    expect(expression.resultType).toBe(declaration.resultType)
-    expect(expression.failurePolicy).toBe(declaration.failurePolicy)
-    expect(expression.published).toBe(true)
+    expect(expression.status).toBe("rejected")
+    expect(expression.reason).toBe("retired-shared-construction-call")
   })
 
   test("failure cleans source and partial control exactly once", () => {
     const result = constructShared({
-      form: "share-using",
-      context: "expression",
-      source: "binding",
-      take: true,
+      form: "shared-declaration",
+      context: "binding",
+      explicitSharedType: true,
+      source: "temporary",
       allocator: "request.arena",
       lifetimeIndependent: true,
       failure: "budgetExceeded",
     })
-    expect(result.status).toBe("allocation-error")
-    expect(result.published).toBe(false)
-    expect(result.trace.filter((event) => event.operation === "drop-source")).toEqual([
-      { operation: "drop-source", count: 1 },
-    ])
-    expect(result.trace.filter((event) => event.operation === "release-partial-control")).toEqual([
-      { operation: "release-partial-control", count: 1 },
-    ])
+    expect(result.status).toBe("blocked")
+    expect(result.reason).toBe("custom-allocator-construction-contract-missing")
   })
 
   test("existing owners require take and borrowed payloads remain rejected", () => {
@@ -175,11 +175,12 @@ describe("R1 shared-construction host oracle", () => {
       lifetimeIndependent: true,
     })
     const dependent = constructShared({
-      form: "share-using",
-      context: "expression",
+      form: "shared-declaration",
+      context: "binding",
+      explicitSharedType: true,
       source: "binding",
       take: true,
-      allocator: "request.arena",
+      allocator: "product.default",
       lifetimeIndependent: false,
     })
     expect(missingTake.reason).toBe("missing-take")

@@ -911,7 +911,7 @@
       "bounds": ["caller-storage", "dependent-lifetime", "fixed-capacity", "no-general-allocation"],
       "complexity": { "time": "constant", "space": "fixed-handle" }
     },
-    "arena-clear": {
+    "arena-reset": {
       "capabilities": ["fixed-storage"],
       "effects": ["mutation", "drop", "bulk-release"],
       "failures": { "mode": "none", "types": [] },
@@ -1802,12 +1802,17 @@
           "symbol": "Allocator",
           "kind": "struct",
           "profile": "allocator-carrier",
+          "members": []
+        },
+        {
+          "symbol": "Arena",
+          "kind": "struct",
+          "profile": "arena-fixed",
           "members": [
             { "symbol": "fixed", "profile": "arena-fixed" },
-            { "symbol": "clear", "profile": "arena-clear" }
+            { "symbol": "reset", "profile": "arena-reset" }
           ]
-        },
-        { "symbol": "Arena", "kind": "alias", "profile": "allocator-carrier" }
+        }
       ]
     },
     {

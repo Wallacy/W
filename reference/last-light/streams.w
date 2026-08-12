@@ -117,7 +117,7 @@ export async fn pumpReadableBytes<
         do {
           try await output.writeAll(chunk)
           committed += count
-          scratch.clear()
+          scratch.reset()
         } catch error {
           return .writeFailed(
             cause: error,

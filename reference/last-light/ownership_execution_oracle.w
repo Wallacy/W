@@ -143,7 +143,8 @@ export fn cancelDiscardedCourse(
 }
 
 test "the four forms preserve explicit ownership" for fourOwnershipForms {
-  let ledger = share(LifetimeLedger())
+  let ledgerOwner = LifetimeLedger()
+  let ledger: shared LifetimeLedger = take ledgerOwner
   let result = await fourOwnershipForms(
     direct: TrackedCourse(orderId: 1, revision: 1, ledger: copy ledger),
     awaited: TrackedCourse(orderId: 2, revision: 1, ledger: copy ledger),

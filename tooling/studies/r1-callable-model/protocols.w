@@ -61,7 +61,7 @@ fn recoverableRoute(
 ): ErasedWelcomeRoute throws AllocationError {
   let concrete: some Callable<Arrival, Welcome> =
     (arrival) => Welcome(orderId: arrival.orderId, gate: gate)
-  return try erase(take concrete, using: memory)
+  return try erase(take concrete, allocator: memory)
 }
 
 fn observeCallableModel(

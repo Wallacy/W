@@ -1590,7 +1590,7 @@
     },
     {
       "id": "M1-shared-weak-lifecycle",
-      "decisions": ["W-637", "W-931", "W-1177"],
+      "decisions": ["W-637", "W-931", "W-1319"],
       "references": [
         { "path": "../reference/last-light/memory.w", "symbol": "makeMenuRoot" },
         { "path": "../reference/last-light/memory.w", "symbol": "parentTitle" }
@@ -1602,10 +1602,10 @@
         { "op": "copyShared", "from": "root", "to": "alias" },
         { "op": "makeWeak", "from": "root", "to": "observer" },
         { "op": "drop", "binding": "root" },
-        { "op": "upgradeWeak", "from": "observer", "to": "revived", "result": "beforeLastRelease" },
+        { "op": "readWeak", "from": "observer", "to": "revived", "result": "beforeLastRelease" },
         { "op": "drop", "binding": "alias" },
         { "op": "drop", "binding": "revived" },
-        { "op": "upgradeWeak", "from": "observer", "to": "expired", "result": "afterLastRelease" },
+        { "op": "readWeak", "from": "observer", "to": "expired", "result": "afterLastRelease" },
         { "op": "drop", "binding": "observer" },
         { "op": "closeAllocator", "allocator": "process" }
       ],

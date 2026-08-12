@@ -1747,7 +1747,7 @@
         "struct Menu { title: String }",
         "fn shareMenu(value: take Menu): shared Menu {",
         "  let result: shared Menu = take value",
-        "  return result",
+        "  return take result",
         "}"
       ],
       "expect": {
@@ -1792,12 +1792,13 @@
       "rule": "W-929",
       "source": [
         "struct Menu { title: String }",
-        "fn shareMenu(value: take Menu, memory: ref Allocator): shared Menu throws AllocationError {",
-        "  return try share(take value, using: memory)",
+        "fn shareMenu(value: take Menu): shared Menu {",
+        "  let root: shared Menu = take value",
+        "  return take root",
         "}"
       ],
       "expect": {
-        "focus": { "text": "share(take value, using: memory)" },
+        "focus": { "text": "let root: shared Menu = take value" },
         "semanticResult": {
           "resultType": "shared Menu",
           "category": "value",
@@ -1806,20 +1807,21 @@
             { "operation": "move", "place": "value", "type": "Menu" }
           ],
           "effectSummary": {
-            "signature": ["throws AllocationError"],
+            "signature": [],
             "control": [],
             "operational": ["allocation"]
           },
           "proofFacts": [
             { "kind": "lifetime-independent", "subject": "value", "value": "true" },
-            { "kind": "allocation-origin", "subject": "result.$control", "value": "memory" }
+            { "kind": "allocation-origin", "subject": "root.$control", "value": "product.default" },
+            { "kind": "allocation-failure", "subject": "shared declaration", "value": "panic-policy" }
           ],
           "evaluationGraph": {
             "nodes": [
               { "id": "source", "operation": "resolve-owner", "subject": "value" },
               { "id": "lifetime", "operation": "verify-lifetime-independent", "subject": "value" },
-              { "id": "allocator", "operation": "resolve-allocation-origin", "subject": "memory" },
-              { "id": "result", "operation": "create-shared-owner", "subject": "shared Menu" }
+              { "id": "allocator", "operation": "resolve-general-allocator", "subject": "product.default" },
+              { "id": "result", "operation": "bind-explicit-shared-owner", "subject": "shared Menu" }
             ],
             "edges": [
               { "from": "source", "to": "lifetime", "kind": "next" },
@@ -1871,8 +1873,8 @@
         "object MenuSection { title: String }",
         "fn makeObserver(root: shared MenuSection): some fn(): String? {",
         "  return <[weak root]> () => {",
-        "    guard let root = root.upgrade() else return .none",
-        "    return .some(copy root.title)",
+        "    guard let owner = root else return .none",
+        "    return .some(copy owner.title)",
         "  }",
         "}"
       ],
@@ -1959,8 +1961,8 @@
         "}",
         "fn attach(hub: shared ObserverHub) {",
         "  hub.add(<[weak hub]> () => {",
-        "    guard let hub = hub.upgrade() else return ()",
-        "    hub.refresh()",
+        "    guard let owner = hub else return ()",
+        "    owner.refresh()",
         "  })",
         "}"
       ],
@@ -3743,11 +3745,12 @@
       "rule": "W-929",
       "baseline": "S0-POS-share-lifetime-independent",
       "failureField": "proofFacts",
-      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:a0d9da41d0ce92f922e2c00144cbef1d35a03d3b41c430fc3e94dcd2bd295163" },
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:fe47cd159f61360092aebf534d8b9f3aaafe54e9969fb81793abfcbe7a7cb004" },
       "source": [
         "struct MenuView { title: view String }",
-        "fn shareMenuView(value: take MenuView, memory: ref Allocator): shared MenuView throws AllocationError {",
-        "  return try share(take value, using: memory)",
+        "fn shareMenuView(value: take MenuView): shared MenuView {",
+        "  let invalid: shared MenuView = take value",
+        "  return take invalid",
         "}"
       ],
       "expect": {
@@ -3756,13 +3759,13 @@
             "code": "W-BORROW-0010",
             "phase": "semantic.ownership",
             "severity": "error",
-            "primary": { "text": "share(take value, using: memory)" },
+            "primary": { "text": "let invalid: shared MenuView = take value" },
             "labels": [
               { "role": "dependent-value", "selector": { "text": "take value" } },
-              { "role": "share-call", "selector": { "text": "share(take value, using: memory)" } }
+              { "role": "shared-binding", "selector": { "text": "let invalid: shared MenuView = take value" } }
             ],
             "facts": {
-              "operation": "share",
+              "operation": "shared-binding",
               "owner": "value",
               "origins": ["value.title"]
             },

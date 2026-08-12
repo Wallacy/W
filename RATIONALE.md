@@ -110,7 +110,7 @@ O corpus compara, no mínimo:
 - static record/list contra interpretações universais de extension e constraints;
 - ponteiro `fn`, `some fn` e `any fn` contra um único callable apagado;
 - erasure contextual com policy normal e `erase` fallible contra exigir uma única forma em todos os casos;
-- declaração `let x: shared T = value` e `share(..., using:)` recuperável contra factory nominal, `tryShare` e promotion em calls;
+- declaração `let x: shared T = value` e movimento explícito com `take` contra factory nominal, `share`/`try share` aposentados e promotion em calls;
 - String refinada, resource gate e carrier de boundary contra `InlineString`, reserva e fixed array universal;
 - call posicional por valor contra labels e defaults preservados no function type;
 - `fn`, `mut fn` e `take fn` contra protocols callable separados;
@@ -160,9 +160,9 @@ O corpus compara, no mínimo:
 - `data.Row` synthesis fechada contra `Any`, duck typing e schema implícito;
 - binding dynamic, copy/device e release scoped contra coerção e lifetime ocultos.
 - nomenclatura `SuspendAccounting` para suspensão HOST/SO contra `HostSuspendPolicy`, booleano e estados inferidos;
-- aquisição de owner a partir de `weak` contra property `strong` e method `strong()`;
+- aquisição contextual de owner a partir de `weak T?` contra property `strong` e method `strong()`;
 - escopo `Arena.fixed` contra região lexical reservada e scope por closure;
-- slot runtime de allocator em `Array<String>(using: memory)` contra envelope genérico.
+- slot runtime de allocator em `Array<String>(allocator: memory)` contra envelope genérico.
 
 ### 1.1 Cobertura de substituições
 
@@ -1009,13 +1009,13 @@ a semântica de W-746, W-769, W-770, W-771, W-772 ou W-147.
 #### 1.3.20 Criação do primeiro owner `shared`
 
 **Exemplo:** `let root: shared MenuSection = MenuSection(...)` cria o primeiro
-owner com a policy normal; `try share(take draft, using: memory)` escolhe
-recovery e allocator.
+owner com a policy normal. Expression e return criam binding local `shared` e
+movem o owner com `take`.
 
 O bundle
 [`r1-shared-construction`](tooling/studies/r1-shared-construction) compara três
-formas parseáveis: declaração `shared`, verbo normal/fallible e `tryShare`
-separado. Os inputs cobrem temporary, binding
+formas parseáveis: declaração `shared` e calls históricas `share`/`tryShare`
+mantidas como alternativas rejeitadas. Os inputs cobrem temporary, binding
 existente, allocator bounded, payload lifetime-dependent e falha antes da
 publicação do handle. O oracle host verifica consumo, cleanup e failure policy;
 ele não aloca um control block W.
@@ -1025,8 +1025,9 @@ reference counting automático para instances de class. O working draft de C++
 define factories `make_shared` e `allocate_shared`. W não copia essas
 superfícies. W permite um único contexto declarativo: initializer de binding ou
 stored field cujo tipo `shared T` está escrito. Argumento, return, inference e
-overload não promovem. `share` permanece explícito em expression context; o
-label `using:` e `try` mostram allocator e failure recuperável. Tree-sitter e o
+overload não promovem. Expression e return criam binding local `shared` e movem
+com `take`. Factories com allocator customizado ficam em Pesquisa até existir
+contrato de construction expression. Tree-sitter e o
 oracle host são a evidência atual; `w-compile`, `w-run`, estudo humano e estudo
 de modelos permanecem missing.
 
@@ -1043,7 +1044,8 @@ confundiria uma policy de acesso ao storage com a identidade de um owner.
 Um slot `shared<allocator: .name>` também foi retirado. O nome de um provider
 não identifica a instância, lifetime, mobility ou deallocator que originou o
 control block. Se o provider é a policy geral, o build profile o seleciona. Se
-a instância é scoped, `try share(..., using:)` recebe a capability diretamente.
+a instância é scoped e precisa de contrato de construction expression que receba
+`allocator:`. Sem esse contrato, a lacuna é registrada como blocker.
 Assim o allocator não fragmenta APIs em tipos `shared` incompatíveis nem cria
 authority ambiental por import.
 
@@ -1229,7 +1231,7 @@ no bundle.
 ##### Nomes de suspensão
 
 O bundle [`r1-suspend-accounting-names`](tooling/studies/r1-suspend-accounting-names)
-usa `SuspendAccounting` com `included`, `excluded` e `unspecified`. A call
+mantém `SuspendAccounting` com `included`, `excluded` e `unspecified`. A call
 vigente é `clock.suspendAccounting()`. A alternativa de pesquisa usa
 `HostSuspendPolicy` com `counted`, `paused` e `unknown` e a call
 `clock.hostSuspendPolicy()`.
@@ -1238,54 +1240,55 @@ Ambas as formas descrevem somente suspensão do HOST/SO. `await`, task e
 coroutine não entram nesse fato. O cenário de 60 ms ativos, 50 ms de suspensão
 HOST/SO e deadline de 100 ms produz 110 ms e alcance para `included` ou
 `counted`. Ele produz 60 ms e ausência de alcance para `excluded` ou `paused`.
-O estado `unspecified` ou `unknown` não autoriza inferência. Booleano é uma
-variante adversarial rejeitada.
+No restaurante, 1 minuto ativo e 8 minutos de sleep do host diante de uma
+deadline de 5 minutos expiram em `included` no resume. `excluded` retorna com 4
+minutos restantes. `unspecified` não sustenta um profile que exige uma das duas
+regras. Host suspend inclui sleep, hibernate e VM pause. Não inclui `await` ou
+task que apenas suspende W. Os candidatos humanos são `HostSuspendPolicy`,
+`ClockSuspendBehavior` e `HostSleepBehavior`. O último é mais claro, mas é
+tecnicamente mais estreito. O bundle aguarda feedback humano.
 
 ##### Aquisição de owner fraco
 
 O bundle [`r1-weak-owner-acquisition`](tooling/studies/r1-weak-owner-acquisition)
-compara `weakRoot.upgrade()` com `weakRoot.strong` e `weakRoot.strong()`.
-As três formas são estudadas contra os mesmos estados live, expired e de corrida
-com o último strong release. A aquisição retorna um novo owner `shared` ou
-`none`. `weak` não acessa payload. A linearização ocorre antes ou depois do
-release final, sem ressurreição de endereço reutilizado.
-A baseline faz o rewrap explícito em `.some(owner)` depois do `guard`; as
-formas property e method devolvem o mesmo `optional` diretamente. O oracle
-compara esse resultado, e não a conveniência da forma de retorno.
-A property pode esconder o ponto de aquisição e um method pode torná-lo
-explícito. O estudo mede essa visibilidade sem mudar o contrato de `optional`
-nem a linearização.
+usa a forma contextual corrente e registra `.upgrade`, `.strong` e `.strong()`
+como alternativas retiradas. As alternativas passam para **Rejeitado por
+enquanto**. Os mesmos estados live, expired e de corrida com o último strong
+release retornam um owner `shared` ou `none`. Weak não acessa payload. A
+linearização ocorre antes ou depois do release final, sem ressurreição de
+endereço reutilizado.
 
 ##### Escopo de Arena
 
-O bundle [`r1-arena-scope`](tooling/studies/r1-arena-scope) seleciona
-`Arena.fixed(inout storage)` com `using: ref scratch`. Ele compara a API vigente
-com uma região lexical reservada e com um scope por closure. A região lexical
-fica registrada como witness textual com estado `reserved-not-parsed`. Ela não é
-apresentada como syntax vigente nem como parse positivo.
+O bundle [`r1-arena-scope`](tooling/studies/r1-arena-scope) usa
+`Arena.fixed(inout storage)` com `allocator: ref scratch`. Ele compara o caminho
+normal sem Arena, o caso problem-first com Arena e propostas lexicais reservadas.
+A região lexical fica registrada como witness textual com estado
+`reserved-not-parsed`. Ela não é apresentada como syntax vigente nem como parse
+positivo.
 
 Todos os inputs preservam storage fixed e bounded, ausência de alocação do OS,
-drop ledger antes de bulk release, proibição de escape, `clear` somente após
+drop ledger antes de bulk release, proibição de escape, `reset` somente após
 `rehome`, e cleanup em scope exit ou unwind. O oracle compara a mesma ordem de
 drop e release. Ele não executa Arena W.
 
 ##### Slot runtime do allocator
 
 O bundle [`r1-allocator-runtime-slot`](tooling/studies/r1-allocator-runtime-slot)
-seleciona `Array<String>(using: memory)`. A alternativa
-`Array<String, using: memory>()` pode ser reconhecida pelo Tree-sitter como
-envelope. R1 a trata como uma candidata contextual que coloca a mesma
-capability runtime fora de
-`type identity` ou `comptime`, para medir se a forma preserva output, origin,
-failure e cleanup. A semântica atual não aceita nem promove a forma; R1 avalia
-se um contrato contextual poderia aceitá-la, sem mudar o design. Nenhuma forma
-method ou builder foi incluída, pois não acrescentaria um candidato contextual
-distinto neste estudo.
+usa `Array<String>(allocator: memory)` e uma call customizada
+`CustomObj(using: recipe)`. `using:` continua local e livre. Em construction
+expressions, `allocator:` é um control argument reservado, canonicamente antes
+dos demais, fora da initializer signature. Ele governa somente allocation sites
+publicados pelo contrato da construção. `CustomObj(allocator: memory, a: 1,
+b: 2)` é válido apenas quando `CustomObj` publica storage alocável. Capability,
+origin e mobility vêm do contrato do parâmetro e do `AllocationOriginMap`. O
+estudo rejeita `Allocator<(.crossDomain)>` source-visible e inferência pelo
+texto `using:`.
 
 A capability `memory` mantém identidade e lifetime. Type e element permanecem
-contratos estáticos. Allocation origin, failure policy e output do caminho
-vigente são os facts observados pelo oracle. A alternativa contextual não muda
-esses facts e continua uma proposta de R1, não uma forma normativa.
+contratos estáticos. Allocation origin, mobility, failure policy e output do
+caminho vigente são os facts observados pelo oracle. O label de uma API user não
+muda esses facts.
 
 ##### Fronteira da evidência
 
@@ -1294,6 +1297,18 @@ Os quatro bundles registram `tree-sitter-parse` para as variantes `.w` e
 `model-study` continuam missing. A região é um witness textual reservado, não
 parte do parse 71/71. O checker registra essa natureza no campo `parseEvidence`
 do variant.
+
+##### Fontes primárias do bundle de memória
+
+O contrato de Arena usa três fontes primárias. O
+[LLVM BumpPtrAllocator](https://llvm.org/doxygen/classllvm_1_1BumpPtrAllocatorImpl.html)
+documenta alocação bump e reset em lote. O
+[C++ monotonic_buffer_resource](https://eel.is/c++draft/mem.res.monotonic.buffer)
+define o recurso monotônico para poucos objetos e liberação conjunta. A
+[documentação de weak de Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting/#Weak-References)
+declara weak em storage optional e usa optional binding. W preserva esse padrão
+para o storage weak, mas usa copy explícito para owners já existentes. A leitura
+weak é a única aquisição contextual porque não existe owner forte para copiar.
 
 ### 1.4 Concorrência, paralelismo e execução
 
@@ -1638,12 +1653,11 @@ sem prefixo. A forma antiga deve falhar no parser ou no diagnostic de migração
 Não há camada de compatibilidade. Esta troca preserva a ordem source para
 diagnostics, mas não congela o layout do environment.
 
-`upgrade()` foi mantido como o verbo vigente porque torna a aquisição linearizável
-e o resultado opcional explícito. `share()` cria um novo owner a partir de um
-payload owned e pode escolher um allocator. Uma property futura como `.strong`
-poderia projetar um owner, mas esconderia o momento de aquisição e sua falha.
-Esta comparação permanece uma decisão humana revisável. Ela não muda a forma
-vigente de `upgrade()`.
+As formas `.upgrade()`, `.strong`, `.strong()` e `share()` foram mantidas apenas
+como alternativas históricas rejeitadas. A forma vigente lê `weak T?` em target
+normal e produz atomicamente `shared T?`; a declaração `shared` cria o primeiro
+owner e um owner existente move-se com `take`. A aquisição e a criação ficam
+visíveis no tipo e no binding, sem call de linguagem.
 
 O artigo
 [Concurrent Cycle Collection in Reference Counted Systems](https://pages.cs.wisc.edu/~cymen/misc/interests/Bacon01Concurrent.pdf)
@@ -1692,23 +1706,24 @@ e o
 informam strong failure, resize in-place e relocation. W deixa fallback e
 commit no caller e registra origem por receipt.
 
-W trata `Arena` como refinement transparente de `Allocator`. Essa escolha
-permite que collections mantenham uma única entrada `using: ref Allocator` sem
-conversão implícita, protocol público de allocation ou segunda família de
-containers. O fact `.arena` habilita `clear`; a instance e o deallocator
-continuam em `AllocationOrigin`, não no tipo.
+W trata `Arena` como capability scoped distinta de `Allocator`. A relação de
+refinement-to-base que permitiria atender `ref Allocator` ainda é um contrato
+do compiler missing; a surface atual usa parâmetros `Arena` explícitos nos
+exemplos. Facts de provider, mobility e origin ficam na HIR e no
+`AllocationOriginMap`, não no tipo source.
 
 **Região lexical como alternativa.** Uma proposta `region name(using:, limit:)`
 seria apenas açúcar para `Arena.fixed`, um scope de cleanup e uma capability de
 allocator. Ela não é Forma vigente. O açúcar teria custos de allocator implícito,
 escape de values, `async` atravessando o bloco e regiões aninhadas. A API
-explícita mantém placement, budget, lifetime e `clear` visíveis no call site.
+explícita mantém placement, budget, lifetime e `reset` visíveis no call site.
 
-O uso de `Array<String>(using: memory)` segue essa separação. `<>` seleciona
-contratos e especialização estática. `()` recebe a capability runtime e sua
-lifetime. `Array<String, using: memory>()` mistura as duas fases e permanece
-**Rejeitado por enquanto**. O label `using:` também evita colisão com outros
-initializers.
+O uso de `Array<String>(allocator: memory)` segue essa separação. `allocator:` é
+um control argument reservado em construction expressions, canonicamente antes
+dos argumentos comuns e fora da initializer signature. Ele governa somente
+allocation sites publicados pelo contract. `using:` permanece livre em calls
+comuns. `Array<String, allocator: memory>()` mistura as duas fases e permanece
+**Rejeitado por enquanto**.
 
 [mimalloc](https://github.com/microsoft/mimalloc) permanece provider candidate,
 não default sem evidência. Suas
@@ -3727,7 +3742,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-022 | borrow | `ref` e `inout` | lifetime annotations públicas; pointers |
 | W-023 | transfer | last-use + `take` obrigatório na API | move sempre explícito; move implícito amplo |
 | W-024 | copy | implícito só para `Copy`; `copy value` explícito usa `Duplicable` | `.clone()` universal; COW como contrato |
-| W-025 | shared | declaração `shared T` cria o primeiro owner em binding/field; `share(value)` cobre expression context; `try share(value, using:)` cobre allocator recuperável; `copy` e `weak()` são explícitos | `tryShare` separado; ARC implícito; promotion por call/return/inference; block-region-only (retired) |
+| W-025 | shared | declaração `shared T` cria o primeiro owner em binding/field; expression/return criam binding local `shared` e usam `take`; `copy` é explícito | `share`/`try share` como caminho corrente; `tryShare` separado; ARC implícito; promotion por call/return/inference; block-region-only (retired) |
 | W-026 | region block (retired) | syntax `region name(using:, limit:)` liderava e baixava para `Arena`; a API foi mantida, mas o bloco foi retirado antes de W 1.0 | lifetime annotations; heap por módulo; API sem bloco; açúcar lexical para Arena |
 | W-027 | allocator | capability explícita, default fixado pelo product, system portátil e profile substituível | mimalloc universal; allocator por import; default thread-local mutável |
 | W-028 | OOM | fallible explícito; geral aborta boundary | throws universal; abort de process sempre |
@@ -4117,7 +4132,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-412 | allocator profiles | build profile fixa `.system`, `.none` ou runtime contract; plan fixa provider; mimalloc exige benchmark | override global obrigatório; allocator escolhido por import; path no manifest |
 | W-413 | allocation failure | cases estáveis, strong guarantee em `try*` e budget distinto de OOM | tamanho livre global; falha parcial; uma exception universal |
 | W-414 | inicialização de storage | safe typed allocation nunca expõe uninitialized; zero é operação/policy explícita | calloc semântico universal; bytes residuais legíveis |
-| W-415 | criação shared (refinada) | W-1256 promove somente initializer de storage anotado `shared`; `share` cobre expression context e `using:` cobre allocator explícito | promotion em argumento/return/overload; `tryShare`; wrapper nominal; shared universal |
+| W-415 | criação shared (refinada) | W-1256 promove somente initializer de storage anotado `shared`; expression/return usam binding local e `take`; allocator customizado segue Pesquisa | `share`/`try share` como caminho corrente; promotion em argumento/return/overload; wrapper nominal; shared universal |
 | W-416 | cópia shared | handles são move-first; `copy` torna retain visível; optimizer pode elidir | shared atende a Copy implícito; retain escondido em assignment |
 | W-417 | `ref` versus `view` | `ref` preserva place completo; `view` descreve projeção sem owner/capacity | tratar ambos como pointer + count; view nominal por tipo |
 | W-418 | mutation de view | binding/parameter `inout view T`; extent fixo e sem resize; String/CString permanecem read-only | `MutableXView`; mutation por view read-only; copy-on-write |
@@ -4339,8 +4354,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-634 | `Address` | `Copy` opaco por address space, equality local, hash local, hex e `Bits`; não é pointer, identity ou ordem | alias de `usize`; integer com dereference; object ID |
 | W-635 | reconstrução de pointer | `withAddress` usa a provenance e o address space do receiver; v0 não possui exposed provenance ou `Address.toPointer` | round-trip integer; provenance global implícita; pointer forge safe |
 | W-636 | cópia de pointer | cópia tipada preserva non-address bits e estado externo; Bytes não faz round-trip | mesmo size implica bitwise; serializar pointer; integer load/store equivalente |
-| W-637 | `shared` e `weak` | `upgrade` linearizável; value morre no strong zero e control block no weak zero | weak aponta ao payload reutilizável; contador curto no pointer; ressurreição |
-| W-638 | mobilidade de allocator | origem local impede `transferable`; `Allocator<(.crossDomain)>` publica a prova necessária | todo allocator cruza domain; annotation por container; teste runtime tardio |
+| W-637 | `shared` e `weak` | leitura contextual em target normal adquire `shared T?` de `weak T?` de forma linearizável; value morre no strong zero e control block no weak zero | `.upgrade`, `.strong`, `.strong()`; weak aponta ao payload reutilizável; contador curto no pointer; ressurreição |
+| W-638 | mobilidade de allocator | origem local impede `transferable`; parameter contract e `AllocationOriginMap` derivam a prova cross-domain | todo allocator cruza domain; `Allocator<(.crossDomain)>` source-visible; annotation por container; teste runtime tardio |
 | W-639 | profile de memória | `memory.generalAllocator` e `memory.representation` são obrigatórios por build profile | default ambiental; allocator por dependency; compactação sem oracle |
 | W-640 | low-bit lowering | alignment + address-space + provenance + tooling + canonical boundary; fallback quando qualquer prova falta | alignment nominal basta; ptr-int-ptr; tag cruza FFI |
 | W-641 | entrada de representação | fingerprint descreve logical identity, validity e carrier físico; recipe retém provider e options | provider noise na ABI; fingerprint só por compiler; adaptação heurística |
@@ -4632,8 +4647,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-927 | formatter de domain (retired) | F0 preserva a forma positional ou named escrita e a HIR normaliza ambas; spacing e statement boundaries ficam canônicos | apagar label; inserir label; reescrever domain como frase `on`; inferir pool no formatter |
 | W-928 | proveniências de borrow e storage | `OriginSet` mantém dependency edges; `AllocationOriginSet` mantém allocator instance, lifetime, mobility, deallocator e adoption family; move transfere ambos, mas nenhum substitui o outro | um origin set universal; allocator como borrow comum; metadata em pointer; lifetimeIndependent apagar storage origin |
 | W-929 | criação de shared | os overloads de `share` exigem payload lifetime-independent, preservam origins internas e criam origin própria para control block; storage interno precisa sobreviver ao block; shareable só é exigido na fronteira paralela | share prolonga borrow; shareable repara lifetime; ARC universal; control block sem allocator origin |
-| W-930 | falha de operação consuming de storage | failure de `pin`, `share`, `rehome` e `erase` consome e destrói o source uma vez, limpa destino parcial e não publica handle/address/existential; `share(value)` escala por panic e `try share(..., using:)` devolve `AllocationError` | restaurar binding implicitamente; source parcialmente válido; leak do destino; publicar pointer ou existential antes do success |
-| W-931 | composição strong/weak | último strong executa deinit uma vez; weak mantém somente control block e allocator origin; upgrade após strong zero devolve none; último weak libera block; borrow shared fica ligado ao strong handle de origem; `inout` exige owner único; cross-domain exige payload shareable, contador thread-safe e todas origins móveis | weak acessa payload sem upgrade; borrow ligado ao contador global; alias sem relação bloqueia drop; ressurreição; contador local cruza domain; shareable ignora allocator mobility |
+| W-930 | falha de operação consuming de storage | failure de `pin`, construction shared, `rehome` e `erase` consome e destrói o source uma vez, limpa destino parcial e não publica handle/address/existential; custom allocator construction fica blocker até contract | restaurar binding implicitamente; `share` current; source parcialmente válido; leak do destino; publicar pointer ou existential antes do success |
+| W-931 | composição strong/weak | último strong executa deinit uma vez; weak mantém somente control block e allocator origin; leitura contextual após strong zero devolve none; último weak libera block; borrow shared fica ligado ao strong handle de origem; `inout` exige owner único; cross-domain exige payload shareable, contador thread-safe e todas origins móveis | weak acessa payload; `.upgrade`/`.strong`/`.strong()` current; borrow ligado ao contador global; alias sem relação bloqueia drop; ressurreição; contador local cruza domain; shareable ignora allocator mobility |
 | W-932 | interface de storage owned | `AllocationOriginMap` liga paths de storage do result a allocator inputs, default do product ou runtime owner; ele é separado do borrow mapping e participa da SemanticInterfaceKey | esconder lifetime do allocator; colocar mapping somente em docs; tratar owned result como lifetime-independent por definição; expor mapping oculto na C ABI |
 | W-933 | expansão de composição M1 | a tranche adiciona 21 casos e quatro testes independentes para budget/close, rehome, local versus cross-domain, share dependent, failure consuming, lifecycle strong/weak, borrows por handle e interface storage; W-938 estende o snapshot corrente | exemplo sem state; somente success; simular thread scheduler; chamar origin lógica de allocation física |
 | W-934 | fronteira do design freeze | contratos, alternativas, exemplos, modelos host, vetores e spikes descartáveis fecham design; formatter, checker, HIR, scheduler, runtime, providers e compiler de produção começam depois e podem reabrir uma decisão por evidência | exigir implementação ampla para definir a linguagem; chamar oracle de produto; congelar sem modelo adversarial; impedir revisão após evidência real |
@@ -4879,7 +4894,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1174 | leitura tolerante a staleness | `load<.relaxed>()` continua atômica; storage comum só participa quando happens-before ou barreira prova a ordem; o modifier `atomic` nunca expõe uma view comum dos mesmos bytes | read não atômica concorrente porque o valor pode ser antigo, relaxed como non-atomic, weakening silencioso, `volatile` como synchronization |
 | W-1175 | lane serial dinâmica | `ExecutionAuthority.openSerial` cria owner lexical bounded sobre pool existente; primeiro start é FIFO, só um segmento runnable usa o permit, suspension o libera, rejeição devolve o input em `TaskAdmissionError<Input>`, close drena e refs não estendem lifetime | copiar GCD inteiro, reter worker durante suspension, restaurar binding movido, perder input na admission, fila global, sync dispatch, QoS no call site, target queues, fire-and-forget, thread por lane, executor custom safe, usar lane local no lugar de service keyed |
 | W-1176 | claim de memória | gerência automática exige prova real de owner/borrow/drop/reclamation, placement semanticamente neutro e contratos explícitos para shared/pin/FFI/OOM | alegar memória resolvida por existir um borrow checker, exigir GC/ARC universal, usar resultado de oracle host como implementação |
-| W-1177 | criação shared ergonômica (refinada) | W-1256 seleciona storage `shared` explícito no caminho comum; `share` permanece em expression context e `using:` torna recovery explícita | `tryShare`, wrapper nominal, promotion em argumento/return/overload, retain implícito |
+| W-1177 | criação shared ergonômica (refinada) | W-1256 seleciona storage `shared` explícito no caminho comum; expression/return usam binding local e `take`; recovery com allocator customizado é Pesquisa | `share`/`try share`, wrapper nominal, promotion em argumento/return/overload, retain implícito |
 | W-1178 | snapshot publicado | `SnapshotCell<T>` é move-only/shareable; `read` scoped vê uma versão, `snapshot` duplica e `publish` consome uma versão completa | guard público, ref escapante, mutation in-place, update closure escondida, safe RCU geral |
 | W-1179 | reclamation de snapshot | publicação retira a versão anterior; cada versão executa drop uma vez depois do último reader, sem esperar no publish | liberar no swap, manter tudo até drop do cell, expor grace period, `Atomic<shared T>` |
 | W-1180 | oracle SP0 | máquina host pura cobre publication order, staleness, error drain, retirement, close, OOM pré-publicação e estratégias equivalentes | chamar oracle de provider/runtime, snapshot manual, caso sem símbolo Última Luz |
@@ -4958,7 +4973,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1253 | radix explícito | parse/format usam radix refinado 2...36, ASCII, lowercase default e uppercase opcional sem mudar Display | locale, prefixo ou whitespace implícito, radix runtime inválido, canonical decimal variável |
 | W-1254 | C Exchange N0 | bridge Python pode usar table estática como fast path call-scoped, non-owning, não suspensivo e no current producer stream; metadata morre no retorno e uma lease mantém o producer até o work receipt drenar; N1 usa carrier versioned | expor na std, reter DLTensor temporário, liberar producer antes do drain, atravessar suspension, esconder fallback ou tratar otimização como semântica |
 | W-1255 | barreira cíclica | safe std não inclui primitive genérica; phase local usa TaskGroup, epochs usam domain barrier e participantes duráveis usam service/workflow | participant loss implícita, reset de generation silencioso, cancellation sem outcome, barreira universal |
-| W-1256 | primeiro shared declarativo | initializer de binding/stored field anotado `shared T` cria o primeiro owner; inference usa `share`; allocator custom usa `try share(..., using:)`; argumento e return não promovem | promotion por overload, argumento ou return; ARC/retain implícito; wrapper nominal obrigatório |
+| W-1256 | primeiro shared declarativo | initializer de binding/stored field anotado `shared T` cria o primeiro owner; expression/return usam binding local e `take`; allocator custom requer construction contract com `allocator:` e permanece blocker | `share`/`try share` current; promotion por overload, argumento ou return; ARC/retain implícito; wrapper nominal obrigatório |
 | W-1257 | lock da linguagem | `lock`, `await lock` e `try lock` abrem body scoped sobre `shared T`; body não suspende, não lança application error e não escapa dependency | Mutex/AsyncMutex wrapper, guard, unlock manual, await no body, body repetido |
 | W-1258 | gate e lifecycle | HIR/interface preservam allocation/place/access; overlapping concurrent access usa a mesma gate; unlock publica release/acquire; cancellation e drop drenam; sem poisoning ou cross-boundary | análise textual global, gate cruzar process, plain read disputar write, FIFO host como prova |
 | W-1259 | seleção lock-avoiding | owner/domain/service/atomic/barrier/SnapshotCell/channel precedem lock; RW lock e wrappers saem da safe std; adapter especializado exige target e benchmark | lock-first, RW universal, async mutex para task-owned state, read comum de atomic stale |
@@ -4977,7 +4992,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1272 | layout físico na boundary | adapter ou target record garante offsets/alignment publicados, sem prometer throughput ou cache exclusiva | wrapper safe universal, padding implícito em ABI, benchmark como semântica |
 | W-1273 | evidence IL0 | machine/corpus/test host derivam layout aplicado/não aplicado, partition e boundaries; não medem cache nem executam W | snapshot como compiler, target inventado pelo caller, performance claim sem measurement |
 | W-1274 | grafia de shared ownership | `shared T` e `weak T` são prefixos de ownership; `shared T?` é Option do handle e `shared Option<T>` possui payload opcional | `Shared<T>`, `shared<T>`, wrapper de std, optionalidade ambígua |
-| W-1275 | allocator fora de `shared T` | product profile escolhe o default; `try share(..., using:)` recebe capability scoped e preserva origin | allocator como generic slot, case de módulo criando instance, `try` no tipo |
+| W-1275 | allocator fora de `shared T` | product profile escolhe o default; construction contract pode receber `allocator:` e preserva origin; allocator não entra no tipo | allocator como generic slot, call `share`, case de módulo criando instance, `try` no tipo |
 | W-1276 | texto bounded por composição | refinement limita valor, resource gate limita allocation e carrier de adapter publica layout | `InlineString<N>` no core, capacity como property de String, threshold source |
 | W-1277 | placement textual privado | byte bound fornece extent máximo; escape, target, profile e cost model escolhem inline, static, flat ou arena | storage source obrigatório, general allocation escondida sob gate, truncation |
 | W-1278 | mutation refinada | cada mutation prova o predicate na saída; unknown usa staging base e reconstrução fallible | check oculto, truncation, panic implícito, valor refinado temporariamente inválido |
@@ -4996,7 +5011,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1291 | posição de ownership em parâmetro | labels e binding ficam antes de `:`; `ref`, `inout`, `take` e `const` iniciam o contrato à direita; `copy` fica somente no call site | `take value: T`, modifier como label, `copy` na assinatura ou duas ordens canônicas |
 | W-1292 | operação de ownership no call site | marker aparece quando a call opera sobre place existente; borrow já tipado e rvalue owned novo passam diretamente; receiver read-only permanece implícito | omitir sempre `ref`, marcar todo rvalue, borrow implícito de owner lvalue ou marker sem type/value category |
 | W-1293 | categorias das formas de memória | `shared T` e `weak T` são tipos de handle; `ref T`, `inout T` e `view T` são tipos dependentes; `take T` e `const T` são contratos; `atomic` modifica storage e baixa para `Atomic<T>` | `Shared<T>` público, `atomic T`, allocator no tipo shared ou tratar toda keyword como modifier equivalente |
-| W-1294 | uma abstração de allocator | `Arena` é alias de `Allocator<(.arena)>`; refined-to-base permite a única entrada `ref Allocator`, enquanto origin preserva instance, lifetime e deallocator | protocol de allocator público, conversão implícita de Arena, API `allocator` duplicada ou Arena como segundo provider |
+| W-1294 | uma abstração de allocator | `Arena` é capability nominal distinta; relação refinement-to-base com `Allocator` continua compiler missing; origin preserva instance, lifetime, mobility e deallocator | `Allocator<(.arena)>` source-visible, `Allocator<(.crossDomain)>`, coerção sem gate, API allocator duplicada ou Arena como segundo provider |
 | W-1295 | payload de budget de allocation | `BudgetExceeded` publica limit, committed e requested bytes; overflow usa `.sizeOverflow`, e identidade física fica no diagnostic sidecar | erro Boolean, bytes disponíveis globais, provider identity no valor ou payload truncado após overflow |
 | W-1296 | root de processo único | host cria Arguments e Context; handler explícito recebe owners e entry curto empresta via `process.args`/`process.context`; `process.clock` preserva identity/origin/authority/lifetime da projection longa, e `process.deadline` preserva value identity/origin/lifetime sem ampliar authority | descartar argv, injetar args/ctx, singleton process, lookup global ou duplicar projections |
 | W-1297 | argumentos nativos | Arguments preserva OsString ordenado, empresta por get/iteração e oferece comparação textual exata sem lossy decode | Array<String>, locale, normalização, cópia por projection ou acesso sem bound |
@@ -5015,15 +5030,15 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1310 | Duration operacional | total signed exato de nanoseconds em i128, layout opaco, arithmetic checked e conversão de unit exata; quantities físicas ficam em Pesquisa | unsigned duration, float, infinity, wraparound, picoseconds no baseline ou layout público |
 | W-1311 | Clock por capability | `.clock` projeta owner monotônico root-scoped; runtime interno não concede leitura à aplicação; `process.clock` é alias por identidade/origem/authority | global clock, constructor público, lookup ambiental, `Clock.current` ou `.monotonicClock` paralelo |
 | W-1312 | origem temporal local | Instant e Deadline são opacos, dependem do root e não cruzam service/wire/storage/foreign; Duration cruza | raw ticks públicos, serializar Instant, comparar roots ou identity generic na syntax |
-| W-1313 | profile monotônico honesto | now não regride; resolução positiva e `SuspendAccounting` descreve somente suspensão do HOST/SO; included, excluded e unspecified afetam deadline de modo explícito | frequência constante universal, bool do caller, inferir política unspecified, tratar await/coroutine como suspensão do host ou timing como prova |
+| W-1313 | profile monotônico honesto | now não regride; resolução positiva e `SuspendAccounting` descreve somente suspensão do HOST/SO; included, excluded e unspecified afetam deadline de modo explícito; exemplo de sleep/hibernate/VM pause no restaurante | frequência constante universal, bool do caller, inferir política unspecified, tratar await/coroutine como suspensão do host ou timing como prova |
 | W-1314 | expiration estruturada | deadline relativo nonnegative, zero imediato, nunca early; retorno pode atrasar e expiration cancela com cleanup drain | matar thread, alarme exato, rollback, error da aplicação ou liberar recursos cedo |
 | W-1315 | tempo civil separado | `.clock` não fornece data, timezone ou calendário; contrato civil futuro terá capability e values próprios e nunca dirige deadline | `now()` global de parede, timestamp em Instant ou calendário implícito no runtime |
 | W-1316 | evidence TIME0 | source W, 47 casos e oito testes host cobrem Duration, Clock, origin, profile, suspensão do HOST/SO, deadline, boundaries e clock virtual sem alegar provider | timing real como oracle, expected echo, chamar modelo de scheduler ou provider |
 | W-1317 | fronteira de evidência R1H0 | quatro bundles independentes registram parse Tree-sitter e host oracle; compile, run e estudos humano/model permanecem missing; formas reservadas mantêm estado explícito | chamar parse de ratificação, chamar oracle de execução W, ou inventar participantes |
 | W-1318 | R1 nomenclatura de suspensão | baseline `SuspendAccounting` mantém três estados e call `suspendAccounting`; `HostSuspendPolicy` é alternativa explícita; ambos excluem await, task e coroutine | booleano, inferência de `unspecified`, ou tratar suspensão da task como HOST/SO |
-| W-1319 | R1 aquisição de owner fraco | `upgrade`, property `strong` e method `strong()` são comparados contra live, expired e último strong release; resultado é novo owner ou none | acesso de payload por weak, upgrade não linearizável, ressurreição ou shared implícito |
-| W-1320 | R1 escopo de Arena | `Arena.fixed` mantém storage bounded, ledger de drops, rehome antes de clear, escape proibido e cleanup automático; região lexical fica reservada e closure é alternativa de estudo | region como syntax vigente, escape unchecked, bulk release antes de drop W, ou alocação OS |
-| W-1321 | R1 slot runtime de allocator | `Array<String>(using: memory)` separa capability runtime de contratos estáticos; envelope `Array<String, using: memory>()` é parseável e estudado como candidato contextual fora de type identity e comptime; o bundle não promove essa grafia | capability no type identity ou comptime, allocator por import, failure tardia ou origin omitida |
+| W-1319 | R1 aquisição de owner fraco | target normal lê `weak T?` como `shared T?`; `.upgrade`, property `strong` e method `strong()` passam a alternativas retiradas/rejeitadas; live, expired e último strong release permanecem no oracle | acesso de payload por weak, aquisição não linearizável, ressurreição ou shared implícito |
+| W-1320 | R1 escopo de Arena | `Arena.fixed` mantém storage bounded, ledger de drops, `rehome` antes de `reset`, escape proibido e cleanup automático; região lexical fica reservada; caso problem-first e custos entram no oracle | region como syntax vigente, escape unchecked, bulk release antes de drop W, ou alocação OS |
+| W-1321 | R1 slot runtime de allocator | `Array<String>(allocator: memory)` preserva capability e origin; `using:` permanece label local livre; `allocator:` é control argument reservado em construction expressions quando o contrato publica allocation sites; mobility é derivada | capability no type identity ou comptime, inferência por texto `using:`, `Allocator<(.crossDomain)>` source-visible, failure tardia ou origin omitida |
 | W-1322 | métricas e fechamento R1H0 | variantes preservam casos e traces quando a forma é genuína ou explicitamente modelada como candidata; selected continua baseline current; métricas não afirmam estudo humano ou de modelo | contar bundles como implementação, promover oracle a runtime, ou declarar ratificação |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
@@ -5067,3 +5082,5 @@ esses roots preservados.
 
 | W-1323 | SDM0 | derive S0/D0; pairs W-785/W-788; meta W-791..820 | echo, pair, backend, global, secret |
 | W-1324 | phases | DESIGN/catalog/machine share closed ordered set | missing phase, alias, drift, lifecycle |
+| W-1325 | MCX0 memory transition evidence | M1 covers contextual weak transitions; four R1 host oracles cover weak acquisition, Arena problem matrix, allocator control-label reservation/mobility and suspend deadline outcomes; none executes compiler, runtime or provider | expected echo, provider execution, inferred label semantics, weak payload access |
+| W-1326 | allocator control argument | `allocator:` is reserved only in construction expressions, appears before ordinary arguments, stays outside overload/initializer signature, and governs published allocation sites only; `using:` remains free elsewhere | global reservation of `allocator:`, propagation to arbitrary initializer allocations, user-defined allocator meaning, inference by label text |

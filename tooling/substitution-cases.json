@@ -1545,28 +1545,28 @@
     },
     {
       "id": "R0-shared-construction",
-      "reviewItem": "declaração `let x: shared T = value` e `share(..., using:)` recuperável contra factory nominal, `tryShare` e promotion em calls",
+      "reviewItem": "declaração `let x: shared T = value` e movimento explícito com `take` contra factory nominal, `share`/`try share` aposentados e promotion em calls",
       "decisions": ["W-025", "W-255", "W-415", "W-929", "W-930", "W-1177", "W-1256"],
-      "task": "Create the first shared menu owner and keep recoverable allocation explicit only when requested.",
+      "task": "Create the first shared menu owner with a declarative binding, move an existing owner with take, and keep custom control-block allocation in research.",
       "selected": {
         "language": "w",
         "source": [
           "let root: shared MenuSection = MenuSection(title: \"Dinner\")",
-          "let local = try share(take draft, using: memory)"
+          "let local: shared MenuSection = take draft"
         ]
       },
       "alternatives": [
         {
           "name": "explicit-default-share",
-          "language": "w-alternative",
+          "language": "w-rejected",
           "source": ["let root = share(MenuSection(title: \"Dinner\"))"],
-          "expectedDifference": "The explicit operation is valid in expression contexts, but repeats what the written shared declaration already states for a binding."
+          "expectedDifference": "The call form is retired before W 1.0; use a shared binding and take an existing owner."
         },
         {
           "name": "distinct-try-share",
-          "language": "w-alternative",
+          "language": "w-rejected",
           "source": ["let local = try tryShare(take draft, using: memory)"],
-          "expectedDifference": "A second verb repeats the recoverable boundary already stated by try and the using label."
+          "expectedDifference": "The try share call is retired before W 1.0; custom control-block allocator construction remains a research blocker."
         },
         {
           "name": "contextual-argument-promotion",
@@ -1607,7 +1607,7 @@
         },
         {
           "name": "reservation-only",
-          "language": "w-alternative",
+          "language": "w-rejected",
           "source": ["let label = String(reservingBytes: 64)"],
           "expectedDifference": "Reservation is an estimate. It does not constrain the value or prove the absence of later allocation."
         },
@@ -1653,28 +1653,28 @@
     },
     {
       "id": "R0-weak-owner-acquisition",
-      "reviewItem": "aquisição de owner a partir de `weak` contra property `strong` e method `strong()`",
+      "reviewItem": "aquisição contextual de owner a partir de `weak T?` contra property `strong` e method `strong()`",
       "decisions": ["W-637", "W-1317", "W-1319", "W-1322"],
       "task": "Acquire an optional new strong owner from a weak handle without reading payload or reviving an expired object.",
       "selected": {
         "language": "w",
         "source": [
-          "let weakRoot = root.weak()",
-          "guard let owner = weakRoot.upgrade() else return .none"
+          "let weakRoot: weak MenuSection? = root",
+          "guard let owner = weakRoot else return .none"
         ]
       },
       "alternatives": [
         {
           "name": "strong-property",
-          "language": "w-alternative",
+          "language": "w-rejected",
           "source": ["let owner = root.weak().strong"],
-          "expectedDifference": "A property can expose the same acquisition point, but it must retain linearization and optional ownership facts."
+          "expectedDifference": "The property spelling is retired; a normal-target read of weak T? is the contextual shared acquisition."
         },
         {
           "name": "strong-method",
-          "language": "w-alternative",
+          "language": "w-rejected",
           "source": ["let owner = root.weak().strong()"],
-          "expectedDifference": "A method can expose the same acquisition point, but it must not access payload or hide the optional result."
+          "expectedDifference": "The method spelling is retired; no language call is needed to acquire the optional shared owner."
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
@@ -1683,13 +1683,14 @@
       "id": "R0-arena-scope",
       "reviewItem": "escopo `Arena.fixed` contra região lexical reservada e scope por closure",
       "decisions": ["W-026", "W-408", "W-409", "W-410", "W-1317", "W-1320", "W-1322"],
-      "task": "Use fixed bounded storage, rehome dependent values, and preserve the drop ledger at clear and scope exit.",
+      "task": "Use fixed bounded storage, rehome dependent values, and preserve the drop ledger at reset and scope exit.",
       "selected": {
         "language": "w",
         "source": [
           "var scratch = Arena.fixed(inout storage)",
-          "let value = try parse(payload, using: ref scratch)",
-          "let result = try (take value).rehome(using: memory)"
+          "let value = try parse(payload, allocator: ref scratch)",
+          "let result = try (take value).rehome(allocator: memory)",
+          "scratch.reset()"
         ]
       },
       "alternatives": [
@@ -1712,13 +1713,13 @@
     },
     {
       "id": "R0-allocator-runtime-slot",
-      "reviewItem": "slot runtime de allocator em `Array<String>(using: memory)` contra envelope genérico",
+      "reviewItem": "slot runtime de allocator em `Array<String>(allocator: memory)` contra envelope genérico",
       "decisions": ["W-027", "W-108", "W-1275", "W-1317", "W-1321", "W-1322"],
       "task": "Pass allocator capability at runtime while keeping element contracts static and preserving allocation origin.",
       "selected": {
         "language": "w",
         "source": [
-          "var names = Array<String>(using: memory)",
+          "var names = Array<String>(allocator: memory)",
           "names.append(\"Dinner\")"
         ]
       },
@@ -1726,8 +1727,8 @@
         {
           "name": "generic-envelope-slot",
           "language": "w-alternative",
-          "source": ["var names = Array<String, using: memory>()"],
-          "expectedDifference": "The envelope can parse as a labeled generic argument. R1 evaluates it as a contextual runtime-slot candidate outside type identity or comptime; the bundle does not promote that spelling to the current design."
+          "source": ["var names = Array<String, allocator: memory>()"],
+          "expectedDifference": "The envelope puts the runtime capability in type identity or comptime and is rejected; the current slot is the reserved construction control argument."
         },
         {
           "name": "allocator-builder",

@@ -43,7 +43,7 @@ export fn recoverableRoute(
     gate: entryGate,
   )
   let handler: any fn(Arrival): Welcome =
-    try erase(take concrete, using: allocator)
+    try erase(take concrete, allocator: allocator)
   return WelcomeRoute(handler: take handler)
 }
 

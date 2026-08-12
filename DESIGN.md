@@ -122,8 +122,8 @@ spawn<.compute> let plan = optimize(take snapshot)
 | mutar com exclusividade | `inout` | um loan exclusivo; aliases conflitantes falham |
 | transferir ownership | `take` | o source perde o owner uma vez |
 | duplicar deliberadamente | `copy` | somente tipo copiável; custo permanece explicável |
-| criar owners múltiplos reais | `let x: shared T = value`, `share(value)`, `try share(..., using:)` e `copy handle` | a declaração ou a operação mostra allocation; cada retain continua explícito |
-| observar owner sem mantê-lo vivo | `weak` e `upgrade()` | acesso exige adquirir owner forte opcional |
+| criar owners múltiplos reais | `let x: shared T = value`, binding local `shared` com `take` e `copy handle` | a declaração ou o move mostra allocation; cada retain continua explícito |
+| observar owner sem mantê-lo vivo | `weak T?` contextual e binding opcional | leitura em target normal adquire `shared T?`; weak não acessa payload |
 | suspender a task atual | `await` | mesma task, sem child; a retomada pode usar outro job |
 | criar child no domínio atual | `async let` | handle lexical, join e drain obrigatórios |
 | criar child em outro domínio | `spawn<domain> let` | placement explícito; serial ou paralelo conforme o domain |
@@ -2168,9 +2168,9 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 | `W-EXPR-0007` | `each` não ocupa o último argumento rest compatível |
 | `W-EFFECT-0010` | `try`, `await` ou `?` está ausente, redundante ou fora da ordem canônica |
 | `W-OWNERSHIP-0010` | prefix exige place, owner, borrow ou mobilidade incompatível |
-| `W-BORROW-0010` | `share` recebe payload com origin de borrow dinâmica |
+| `W-BORROW-0010` | criação `shared` recebe payload com origin de borrow dinâmica |
 | `W-OWNERSHIP-0011` | place owned e movível chama member `take fn` sem `(take receiver)` |
-| `W-OWNERSHIP-0013` | argumento, return ou inferência tenta criar `shared` sem declaração ou operação explícita |
+| `W-OWNERSHIP-0013` | argumento, return ou inferência tenta criar `shared` sem binding escrito e movimento explícito |
 | `W-OWNERSHIP-0014` | grafo fechado contém ciclo forte que só poderia terminar pelo próprio `deinit` |
 | `W-OWNERSHIP-0015` | closure escapante exigiria retain ou transferência implícita de owner move-first |
 | `W-OWNERSHIP-0016` | prefix de parâmetro aparece antes do binding ou `copy` tenta virar modo de parâmetro |
@@ -2710,7 +2710,7 @@ As famílias específicas usam estes códigos:
 | `W-EXPR-0007` | `each` não é final ou não satisfaz rest |
 | `W-EFFECT-0010` | prefix de effect falta, sobra ou viola a ordem canônica |
 | `W-OWNERSHIP-0010` | prefix de ownership recebe place, owner, borrow ou mobility incompatível |
-| `W-BORROW-0010` | `share` recebe payload dependente do lifetime |
+| `W-BORROW-0010` | criação `shared` recebe payload dependente do lifetime |
 | `W-OWNERSHIP-0011` | consuming receiver não foi transferido |
 | `W-OWNERSHIP-0013` | shared ownership seria criado implicitamente |
 | `W-OWNERSHIP-0014` | componente forte fechado depende do próprio `deinit` para romper o ciclo |
@@ -4661,7 +4661,7 @@ operação consuming `erase` e um expected type obrigatório:
 ```w
 let concrete = <[copy gate]> (arrival) => welcome(arrival, gate: gate)
 let stored: any fn(Arrival): Welcome =
-  try erase(take concrete, using: memory)
+  try erase(take concrete, allocator: memory)
 ```
 
 `erase` mantém o effect `throws AllocationError` mesmo quando a instantiation
@@ -4776,7 +4776,7 @@ let task = <[take model, ref cache]> (input) => {
 
 Para um handle `shared T`, `take` transfere o owner existente, `copy` cria outro
 owner forte e `weak` cria um handle fraco. O binding de uma capture `weak`
-continua fraco dentro do body e precisa de `upgrade()` antes do acesso. W não
+continua fraco dentro do body e precisa de binding opcional antes do acesso. W não
 possui capture `unowned`: `ref` cobre lifetime provado; `weak` cobre liveness
 opcional.
 
@@ -6699,7 +6699,7 @@ Os limites e o provider participam da recipe, do runtime contract set e da
 `WAbiKey`. Uma mudança não altera o protocol, mas pode alterar allocation,
 budget e failure e, por isso, não fica ambiental. Um profile sem allocator geral
 aceita contextual erasure somente quando o concrete payload cabe inline. Caso
-contrário, o link falha ou o programa usa `try erase(..., using:)` com uma origem
+contrário, o link falha ou o programa usa `try erase(..., allocator:)` com uma origem
 permitida.
 
 Inline erasure preserva as allocation origins transitivas do payload e não cria
@@ -6709,7 +6709,7 @@ chama o witness de destruição uma vez e depois libera o box pela origem corret
 interface. Nenhuma dessas records ocupa bits reservados do pointer.
 
 Contextual erasure de um rvalue usa a policy normal de OOM. A operação
-`try erase(take value, using: memory)` oferece recovery e allocator explícito.
+`try erase(take value, allocator: memory)` oferece recovery e allocator explícito.
 Ela exige um expected type `any P` ou `any fn(...)`; W não procura um protocol
 global. Allocation failure segue a regra consuming da seção 9.4. `some P` não
 aloca somente para esconder o nome do concrete type. `ref any P` não cria owner
@@ -7539,7 +7539,8 @@ edges para cada referent.
 `.lifetimeIndependent` é true quando não existe origin dinâmica. Static e
 immortal satisfazem somente esse gate. Eles não provam `WireValue`, `Send`,
 `Sync`, shareability, transferability ou segurança FFI. Escapes rejeitam edges
-dinâmicas externas, não toda ref immortal. `share(dependent)` é rejeitado até o
+dinâmicas externas, não toda ref immortal. Uma declaração `shared` com payload
+dependent é rejeitada até o
 payload atender a `.lifetimeIndependent`. `shareable` não repara lifetime e só
 entra quando aliases cruzam uma fronteira paralela. Structured child exige join
 antes do fim de cada origin e mobilidade transferível.
@@ -7603,7 +7604,7 @@ Diagnostics distinguem pelo menos:
 - `W-BORROW-0007` para referent unstable durante await;
 - `W-BORROW-0008` para move, drop ou pin bloqueado por edge dinâmica;
 - `W-BORROW-0009` para write solicitado por uma dependency edge shared.
-- `W-BORROW-0010` para `share` de payload com origin de borrow dinâmica.
+- `W-BORROW-0010` para criação `shared` com payload de origin de borrow dinâmica.
 
 Cada diagnostic sugere reordenar, encerrar scope, materializar, copiar, fazer
 `take` antes do borrow, separar ou limpar um container, ou usar pin quando o
@@ -7753,38 +7754,52 @@ Um tipo comum não paga por pinning.
 
 ### 9.4 `shared`, `weak` e ciclos
 
-`shared T` cria múltiplos owners. `weak T?` não mantém o payload vivo e
-`upgrade()` retorna `shared T?`. O fallback portátil usa reference counting;
-essa estratégia não faz parte do tipo source.
+`shared T` cria múltiplos owners. `weak T?` não mantém o payload vivo. W não
+possui uma call de linguagem para ler ou promover um weak handle.
 
-`upgrade()` adquire de forma linearizável um novo `shared T?`. Ele devolve
-`.some` somente quando o strong release final ainda não destruiu o payload.
-Depois da destruição, ele devolve `.none` e não reanima um endereço reutilizado:
+`weak T?` é válido em storage, field e capture. A criação é contextual pelo
+expected target. O target precisa escrever o prefixo `weak` para preservar a
+forma fraca:
 
 ```w
 fn titleWhileLive(root: shared MenuSection): String? {
-  let weakRoot = root.weak()
-  guard let owner = weakRoot.upgrade() else return .none
+  let weakRoot: weak MenuSection? = root
+  guard let owner = weakRoot else return .none
   return .some(copy owner.title)
 }
 
 fn expiredHandle(root: take shared MenuSection): weak MenuSection? {
-  let weakRoot = root.weak()
+  let weakRoot: weak MenuSection? = root
   return weakRoot
 }
 
 let liveTitle = titleWhileLive(copy root)
 let expired = expiredHandle(take root)
-if expired.upgrade() == .none {
+if let expiredOwner = expired {
+  record(copy expiredOwner.title)
+} else {
   record("menu expired")
 }
 ```
 
-`expiredHandle` consome o último owner com `take`. O scope da função termina
-antes do `upgrade` seguinte, portanto não resta um owner forte.
+`expiredHandle` consome o último owner com `take`. O target normal de `if let`
+converte a leitura em `shared MenuSection?`. O owner forte existe somente no
+branch que recebe `.some`.
 
-O resultado é um novo owner forte. O programa deve testar o `Option` antes de
-usar o payload. `upgrade()` não muda o nome ou a forma vigente de `weak`.
+Uma leitura weak em target normal é uma aquisição linearizável. Ela retorna
+`.some(shared T)` somente quando o strong release final ainda não destruiu o
+payload. Depois da destruição, retorna `.none` e não reanima um endereço
+reutilizado. A leitura não propaga weak por inferência.
+
+Para preservar weak, o target escreve `weak`:
+
+```w
+let other: weak MenuSection? = weakRoot
+```
+
+Weak não acessa o payload. O binding opcional é a única aquisição contextual de
+um owner. `.weak()`, `.upgrade()`, `.strong` e `.strong()` não pertencem à forma
+vigente antes de 1.0.
 
 ```w
 object MenuSection {
@@ -7832,23 +7847,6 @@ existente exige `take`:
 let root: shared MenuSection = take draft
 ```
 
-`share(value)` continua a operação explícita para inferência e expression
-contexts. O overload com `using:` seleciona allocator e failure recuperável:
-
-```w
-fn share<T>(value: take T): shared T
-fn share<T>(value: take T, using memory: ref Allocator): shared T throws AllocationError
-```
-
-```w
-let local = try share(
-  MenuSection(title: "Supper", parent: .none, children: []),
-  using: memory,
-)
-let observer = copy root
-let parent = root.weak()
-```
-
 **W-1275 — allocator não integra o tipo shared:** o allocator do control block
 é uma `AllocationOrigin`, não um argumento de `shared T`. Formas como
 `shared<.request> T` ou `shared<allocator: .request> T` não fazem parte do
@@ -7858,24 +7856,32 @@ drop, mobilidade e diagnostics.
 
 Um provider que deve atender à policy normal do produto é escolhido no build
 profile. O source continua na forma declarativa. Uma instância scoped, como a
-memória de um request, é uma capability e usa `try share(..., using:)`. Importar
-um módulo ou escrever um case enum-like não cria essa instância nem prova seu
-lifetime. `try` pertence à operação fallible e não ao tipo do binding.
+memória de um request, é uma capability e recebe o owner por binding local
+`shared` com `take`. Importar um módulo ou escrever um case enum-like não cria
+essa instância nem prova seu lifetime.
 
 ```w
-let productRoot: shared MenuSection = makeMenuSection("Product root")
-let requestRoot: shared MenuSection =
-  try share(makeMenuSection("Request root"), using: requestMemory)
+fn returnShared(draft: MenuSection): shared MenuSection {
+  let root: shared MenuSection = MenuSection(
+    title: take draft.title,
+    parent: .none,
+    children: [],
+  )
+  return take root
+}
+
+fn moveShared(draft: shared MenuSection): shared MenuSection {
+  let root: shared MenuSection = take draft
+  return take root
+}
 ```
 
-Um temporary não usa `take`. Um binding existente exige `take` tanto na forma
-declarativa quanto em `share`. O label `using:` seleciona o overload fallible
-antes da análise de effects; por isso, a call exige `try`, `try?` ou `catch`.
-`W-OWNERSHIP-0013` aponta argumento, return ou contexto inferido que tentou
-promover sem uma declaração `shared` ou uma operação `share` explícita. O
-diagnostic nunca altera overload ou insere allocation num call.
+Uma expression ou return que precisa iniciar shared cria primeiro um binding
+local `shared` e move esse owner com `take`. Argumento e return não promovem por
+inferência. `W-OWNERSHIP-0013` aponta a tentativa sem binding declarativo.
+O diagnostic nunca altera overload ou insere allocation num call.
 
-As duas operações exigem payload `.lifetimeIndependent`. Elas não prolongam
+A declaração `shared` exige payload `.lifetimeIndependent`. Ela não prolonga
 `ref`, `view`, `inout` ou capture borrowed. O `AllocationOriginMap` preserva as
 origens do payload e adiciona a origem do control block. Cada storage interno
 precisa durar pelo menos tanto quanto esse block; caso contrário, o caller usa
@@ -7886,19 +7892,18 @@ struct MenuView { title: view String }
 
 let title = menu.title.scalars
 let borrowed = MenuView(title: title)
-let invalid = try share(take borrowed, using: memory)
-// W-BORROW-0010: share não prolonga a origin de title.
+let invalid: shared MenuView = take borrowed
+// W-BORROW-0010: a declaração shared não prolonga a origin de title.
 ```
 
-Uma falha limpa temporary ou argumento marcado com `take` e o control block
-parcial uma vez; nenhum handle é publicado. `share` escala a falha segundo a
-policy normal. O overload com `using:` propaga `AllocationError`. Uma API de
-retry precisa devolver o source num outcome próprio; a baseline não restaura o
-binding.
+Uma declaração `shared` segue a policy normal de allocation. Uma falha limpa o
+temporary e o control block parcial uma vez. Factories que exigem recovery ou
+um allocator customizado permanecem em Pesquisa até existir um contrato sem
+call de linguagem.
 
 `shared T` e `weak T` são move-first. `copy handle` cria outro owner e torna o
-retain visível no source. `upgrade()` é a única operação que cria um shared owner
-a partir de `weak`. Uma função pode mover seu último shared handle sem retain.
+retain visível no source. Uma função pode mover seu último shared handle sem
+retain.
 
 #### 9.4.1 Captures e ciclos fortes
 
@@ -7909,7 +7914,7 @@ owner forte e criação de um owner fraco, respectivamente:
 
 ```w
 let observe = <[weak root]> () => {
-  guard let root = root.upgrade() else return .none
+  guard let root = root else return .none
   return .some(copy root.title)
 }
 ```
@@ -7960,13 +7965,14 @@ global e mantém a causa no place que criou o acesso.
 `shared T` oferece acesso shared ao payload. Ele não concede `inout T` nem
 mutation direta. Interior mutation usa uma API que publica atomicidade,
 serialization ou exclusividade verificada. `weak T` não oferece acesso ao
-payload; o programa chama `upgrade()` e testa o `Option<shared T>` primeiro.
+payload. Um binding opcional em target normal adquire e testa o
+`Option<shared T>` primeiro.
 
 Overflow de contador encerra a fault boundary antes de perder um owner. O último
 strong release executa `deinit` uma vez; o control block permanece até o último
-weak release. `upgrade()` é linearizável com o strong release final: devolve
-`.some` somente quando adquire um owner antes da destruição e sempre devolve
-`.none` depois dela. Reuse de endereço não reanima um handle antigo.
+weak release. A leitura contextual é linearizável com o strong release final:
+devolve `.some` somente quando adquire um owner antes da destruição e sempre
+devolve `.none` depois dela. Reuse de endereço não reanima um handle antigo.
 
 O optimizer pode co-alocar payload e control block, remover contagens provadas
 únicas ou usar contagem local. Ele preserva failure, origins, linearization e
@@ -7981,37 +7987,10 @@ sem censo instrumentado permanece `unknown`; tooling não inventa prova global.
 
 ### 9.5 Arena avançada e placement invisível
 
-**W-1165 — caminho de memória:** a syntax `region` não pertence à Forma vigente antes de W 1.0. O código normal usa value,
-ref, inout, take, copy e scopes estruturados. `async let`, `spawn`, channels,
-services, locks e atomics não exigem um bloco de allocator ou uma Arena.
-
-O compiler pode escolher placement bulk ou frame quando escape analysis prova que
-isso não é observável. O lowering mantém owner, failure, cleanup, budget e trace.
-Ele não publica uma syntax de bloco para a escolha.
-
-`Arena` permanece uma API avançada de `std.memory` para storage fixed, bounded,
-freestanding ou performance. A API é explícita:
-
-```w
-var storage: [u8; 64<KiB>] = [0; 64<KiB>]
-var scratch = Arena.fixed(inout storage)
-for source in sources {
-  let tokens = try lex(source, using: ref scratch)
-  consume(take tokens)
-  scratch.clear()
-}
-```
-
-`Arena.fixed` nunca solicita storage ao OS. `clear` executa os drops registrados
-e reinicia a capacidade para reuso antecipado. Scope exit e unwind também limpam
-os valores dependentes e o owner da Arena. `clear()` só é necessário para
-resetar a mesma capacity antes do fim do scope. O checker rejeita a call enquanto
-borrow ou valor dependente permanece vivo. Se o provider raw não executa drops W,
-o drop ledger do compiler executa cada drop antes do bulk release.
-Allocator, budget e origin continuam contratos separados.
-
-No restaurante, o placement de um `Dish` local pode ser inferido quando o valor
-não escapa. O source não escreve uma annotation de stack ou heap:
+**W-1165 — caminho de memória:** comece pelo problema. Um `Dish` ou `Menu`
+local no restaurante usa value, `ref`, `inout`, `take`, `copy` e scopes
+estruturados. O compiler escolhe placement e cleanup quando o valor não escapa.
+Esse caminho não exige uma Arena, um bloco `region` ou uma annotation de stack.
 
 ```w
 fn plate(name: String): Dish {
@@ -8020,64 +7999,92 @@ fn plate(name: String): Dish {
 }
 ```
 
-Quando o limite é parte do contrato, o programa usa `Arena.fixed`. A capacidade
-é bounded e o cleanup fica visível:
+O caso que justifica Arena tem muitos valores temporários, lifetime homogêneo,
+reset em lote e budget fixo. No restaurante, um decoder processa milhares de
+frames de telemetry e sensor por batch. Sem Arena, um allocator bounded ainda
+funciona, mas paga metadata e free por value. Ele também sofre fragmentação e
+não oferece reset físico O(1) depois dos drops W. O allocator geral pode pedir
+storage ao OS ou crescer buffers. Esses custos não provam um limite de memória.
 
 ```w
-fn prepareMenus(
-  sources: ref Array<Bytes>,
+fn decodeTelemetry(
+  frames: ref Array<Bytes>,
   memory: ref Allocator,
-): Array<Menu> throws AllocationError {
+): Array<Frame> throws AllocationError {
   var storage: [u8; 64<KiB>] = [0; 64<KiB>]
   var arena = Arena.fixed(inout storage)
-  var result = Array<Menu>(using: memory)
-  for source in sources {
-    let menu = try parseMenu(source, using: ref arena)
-    let owned = try (take menu).rehome(using: memory)
+  var result = Array<Frame>(allocator: memory)
+  for frame in frames {
+    let decoded = try decodeFrame(frame, allocator: ref arena)
+    let owned = try (take decoded).rehome(allocator: memory)
     result.append(take owned)
-    arena.clear()
+    arena.reset()
   }
   return result
 }
 ```
 
-Cada iteração faz `rehome` antes do `clear`. Uma falha em `parseMenu` ou
-`rehome` faz unwind dos valores staged, do resultado e do owner Arena.
-O checker rejeita `arena.clear()` enquanto `menu` ou um borrow dependente ainda
-estiver vivo. Ele também rejeita o escape de storage ligado à arena:
+`Arena` é um owner scoped monotonic ou bump. Ele aloca sequencialmente e adia o
+free físico individual. Scope exit ou reset executa o W drop ledger antes do
+bulk reset ou release. `Arena.fixed` usa o buffer do caller. Ele nunca solicita
+storage ao OS. Falha de capacity ou budget é explícita.
+
+`rehome` ocorre antes de `reset` para cada value que escapa. O physical bump
+reset pode ser O(1) depois dos drops; o reset total percorre os values nontrivial
+no drop ledger e custa O(n) para n entradas. O checker rejeita
+reset enquanto um borrow ou valor dependente está vivo. Ele rejeita o escape de
+storage ligado à Arena. Unwind limpa staged values, o ledger e o owner da Arena.
+
+Uma Arena tem estes custos e compromissos:
+
+- capacity fixa e failure explícita;
+- waste interno e alinhamento;
+- owner exclusivo e serial;
+- nenhum escape sem `rehome`;
+- drop ledger antes do reset;
+- reset invalida dependents;
+- ajuste ruim para lifetimes não relacionados, values long-lived ou mutation
+  concorrente.
+
+O caso abaixo usa Arena de forma errada. O menu atual tem lifetime longo e
+lifetimes não relacionados. O caminho normal é melhor:
 
 ```w
-fn invalidMenu(source: ref Bytes): Menu throws AllocationError {
-  var storage: [u8; 4<KiB>] = [0; 4<KiB>]
+let current = Dish(name: "Current menu")
+let menu = Menu(dishes: [current])
+```
+
+`Arena` é uma capability nominal distinta no contrato de `std.memory`. A relação
+de refinement-to-base com `Allocator` ainda é um contrato do compiler missing.
+W não publica `Allocator<(.arena)>`, `Allocator<(.crossDomain)>` ou qualquer
+alias de refinement. Até esse gate, APIs allocating recebem a capability Arena
+explicitamente. O resultado preserva o mapping simbólico da origem do allocator.
+
+Uma origem de Arena é local. Este uso falha no boundary:
+
+```w
+async fn invalidParallel(
+  payload: ref Bytes,
+  processMemory: ref Allocator,
+): () throws AllocationError {
+  var storage: [u8; 8<MiB>] = [0; 8<MiB>]
   var arena = Arena.fixed(inout storage)
-  let menu = try parseMenu(source, using: ref arena)
-  return menu // error: storage de arena escapa do lifetime local
+  let local = try Menu.parse(payload, allocator: ref arena)
+  // spawn<.compute> let invalid = consume(take local)
+  // error: AllocationOrigin mobility is local
+
+  let portable = try (take local).rehome(allocator: processMemory)
+  spawn<.compute> let valid = consume(take portable)
+  try await valid
 }
 ```
 
-O caso válido usa `rehome` antes do retorno. Nenhum desses casos reintroduz a
-syntax `region`.
+O `spawn` inválido falha pela origem real. O `rehome` para um allocator com
+mobility cross-domain permite a transferência. A surface não escreve um fact
+`.crossDomain`.
 
-**W-1294 — Arena é um refinement de Allocator:** `Allocator` publica os facts
-compile-time `.arena` e `.crossDomain` em seu type contract. `Arena` é o alias
-transparente abaixo, não outro protocol, wrapper ou provider:
-
-```w
-export alias Arena = Allocator<(.arena)>
-```
-
-O initializer raw de `Allocator` é privado. Somente um intrinsic confiável pode
-anexar os facts ao handle validado. `Arena.fixed(inout storage)` devolve o
-refinement, liga sua lifetime ao storage e resolve por member lookup normal do
-alias transparente. Refined-to-base é implícito, portanto uma API continua
-recebendo `ref Allocator`; o call site escreve `using: ref scratch`. `clear`
-existe somente no refinement `Arena` e exige receiver exclusivo. Os facts não
-identificam a instance ou seu deallocator: `AllocationOrigin` continua
-registrando essas informações por allocation.
-
-Os overloads de `share` são reservados para múltiplos owners que excedem o scope
-lexical. W não promove unique para shared em silêncio. A promoção pode alocar e
-muda a destruição. Ela não é o caminho normal de concorrência.
+Nenhuma call de linguagem promove unique para shared. A forma `shared` declarada
+no binding continua o caminho corrente para o primeiro owner.
 
 ### 9.6 Allocator e origem
 
@@ -8086,29 +8093,50 @@ allocating. Somente runtime, FFI e adapters `unsafe` implementam a operação ra
 de allocate, resize e deallocate.
 
 ```w
-fn decode(payload: ref Bytes, using memory: ref Allocator): Document throws AllocationError {
-  var nodes = Array<Node>(using: memory)
+fn decode(payload: ref Bytes, allocator memory: ref Allocator): Document throws AllocationError {
+  var nodes = Array<Node>(allocator: memory)
   try nodes.tryReserve(minimumCapacity: 128)
   return try parseNodes(payload, into: nodes)
 }
 ```
 
-`Array<String>(using: memory)` preserva o initializer vigente. O envelope `<>`
-seleciona contratos e especialização estática. Os parênteses `()` recebem a
-capability runtime e sua lifetime. `Array<String, using: memory>()` mistura
-phase e instance identity e fica **Rejeitado por enquanto**. O label `using:`
-evita colisão com outros initializers.
+`Array<String>(allocator: memory)` preserva o initializer vigente. O envelope
+`<>` seleciona contratos e especialização estática. Os parênteses `()` recebem
+a capability runtime e sua lifetime. `Array<String, allocator: memory>()`
+mistura phase e instance identity e fica **Rejeitado por enquanto**.
+
+`using:` não é reservado e não identifica allocator. Em APIs comuns, ele é
+sempre um label nominal local.
+Callback, network, launch, handler e policy podem usá-lo. Por exemplo,
+`CustomObj(using: recipe)` é uma call válida e não carrega facts de allocation.
+Em construction expressions `T(allocator: ..., ...)`, `allocator:` é reservado
+pela linguagem como control argument, canonicamente antes dos demais argumentos.
+Ele fica fora da overload e da initializer signature. `T(allocator: memory, ...)`
+seleciona a origem somente para os storage ou control-block allocation sites que
+o contrato da construção publica. Ele não propaga a origem para allocations
+arbitrárias dentro do initializer. Sem allocation site compatível, o compiler
+emite diagnóstico de argumento inaplicável. O label não é um slot comum de
+initializer. Uma declaração user que tenta atribuir outro significado recebe
+diagnóstico precoce.
+Compiler e HIR reconhecem capability e origin pelo contrato do parâmetro e pelo
+`AllocationOriginMap`. Fora de initializers, labels de allocator permanecem
+nominais e locais quando aplicável.
+
+Assim, `decodeFrame(frame, allocator:)` e `rehome(allocator:)` usam um label
+nominal de API. O compiler não aplica a regra reservada de construction
+expression a essas calls.
 
 O owner criado com um allocator não pode sobreviver a ele. A HIR registra essa
 relação de provenance. O source não escreve lifetime. Um container mantém a
 origem necessária para resize e drop; ele não consulta um default novo depois.
 
 O allocator default é fixado pelo product e pelo host adapter. Ele não muda
-durante uma call, thread ou module import. Uma API sem `using` usa esse default:
+durante uma call, thread ou module import. Uma construction expression sem
+`allocator:` usa esse default para os allocation sites publicados pelo contrato:
 
 ```w
 var names = Array<String>()              // allocator default do product
-var local = Array<String>(using: memory) // allocator explícito
+var local = Array<String>(allocator: memory) // allocator explícito
 ```
 
 Alocação e growth normais podem causar panic `.outOfMemory`. A forma `try*`
@@ -8122,8 +8150,8 @@ altera ownership nem o representation fingerprint quando os carriers
 permanecem iguais. W chama a API do provider e não depende de override global de
 `malloc`, pois código estrangeiro pode misturar origens.
 
-O build profile fixa o default geral. A escolha não muda calls que recebem
-`using:`:
+O build profile fixa o default geral. A escolha não muda construction expressions
+que recebem `allocator:`. Um label `using:` fora dessa surface permanece nominal:
 
 ```w
 memory: {
@@ -8357,33 +8385,31 @@ precisa ocupar bits do pointer. Move preserva a origem. FFI preserva o
 deallocator estrangeiro. W nunca chama `free` num pointer de origem
 desconhecida.
 
-`mobility` possui pelo menos `.local` e `.crossDomain`. Um owner que depende de
-uma origem local não atende a `transferable`, mesmo quando seus elements atendem.
-Ele precisa morrer no mesmo domain ou usar `rehome` antes de cruzar `spawn`,
-service, channel ou callback estrangeira. Um allocator apagado por `Allocator`
+`mobility` possui pelo menos `local` e `crossDomain` como facts internos. Um owner
+que depende de uma origem local não atende a `transferable`, mesmo quando seus
+elements atendem. Ele precisa morrer no mesmo domain ou usar `rehome` antes de
+cruzar `spawn`, service, channel ou callback estrangeira. Um allocator apagado
 sem prova de mobilidade é local por conservação.
 
-Uma API que precisa produzir storage transferível aceita a capability refinada
-`Allocator<(.crossDomain)>`. Isso é um requisito do tipo, não uma annotation de
-placement.
-
-O compiler mantém essa informação como um fato de origem. O source não recebe um
-argumento de tipo para cada container:
+Uma API que precisa produzir storage transferível aceita `ref Allocator` com um
+parameter contract que exige mobility `crossDomain`. Esse requisito não é uma
+annotation de placement nem um refinement escrito no source. O compiler deriva
+o fact pelo contrato e pelo `AllocationOriginMap`.
 
 ```w
 async fn stageForParallel(
   payload: ref Bytes,
-  processMemory: ref Allocator<(.crossDomain)>,
+  processMemory: ref Allocator,
 ): () throws AllocationError {
   var storage: [u8; 8<MiB>] = [0; 8<MiB>]
   var scratch = Arena.fixed(inout storage)
-  let local = try Menu.parse(payload, using: ref scratch)
+  let local = try Menu.parse(payload, allocator: ref scratch)
   // spawn<.compute> let invalid = consume(take local)
 
-  let portable = try (take local).rehome(using: processMemory)
+  let portable = try (take local).rehome(allocator: processMemory)
   spawn<.compute> let valid = consume(take portable)
   try await valid
-  scratch.clear()
+  scratch.reset()
 }
 ```
 
@@ -8406,7 +8432,7 @@ Typed construction e definite initialization gravam cada valor antes da leitura.
 Uma API que precisa de zero declara a operação:
 
 ```w
-let bitmap = try Bytes(repeating: 0_u8, count: size, using: memory)
+let bitmap = try Bytes(repeating: 0_u8, count: size, allocator: memory)
 ```
 
 Somente `unsafe MaybeUninit<T>` expõe storage sem inicialização. Um profile pode
@@ -9342,7 +9368,8 @@ let snapshot = try menu.tryDuplicate()
 
 `tryReserve` retorna `Result<(), AllocationError>`. `tryDuplicate` retorna
 `Result<T, AllocationError>`. Elas não alteram o valor quando falham.
-As duas formas aceitam `using:` quando o caller precisa escolher o allocator.
+As APIs de memória usam `allocator:` quando o caller precisa escolher o
+allocator. Um label `using:` em outra API não seleciona allocation.
 **W-1295 — budget de allocation é um valor local em bytes:**
 `BudgetExceeded` informa a carga já publicada, o limite e a carga adicional da
 operação. Alignment, padding e metadata de drop cobrados pelo allocator entram
@@ -9381,7 +9408,7 @@ não faz parte de equality, serialization ou resultado reproduzível. O erro
 atingida:
 
 ```w
-let frame = try Bytes(repeating: 0_u8, count: size, using: ref arena)
+let frame = try Bytes(repeating: 0_u8, count: size, allocator: ref arena)
 // A falha pode ser `.budgetExceeded(...)`.
 ```
 
@@ -10244,11 +10271,13 @@ Nenhuma forma promete frequência constante, ausência de drift, latência máxi
 hard real-time. Testes podem substituir a capability do root por um clock
 virtual determinístico.
 
-Por exemplo, com 60 ms ativos, 50 ms de suspensão do HOST/SO e deadline de
-100 ms, `.included` observa 110 ms e alcança o deadline. `.excluded` observa
-60 ms e não o alcança. `.unspecified` publica somente que o resultado não pode
-ser inferido. Um profile que exige `.included` rejeita um provider
-`.unspecified` antes da execução.
+Por exemplo, a timeline do restaurante começa em 0. Com 1 minuto ativo, o host
+entra em sleep por 8 minutos e retoma no minuto 9. Para uma deadline de 5
+minutos, `.included` calcula `1 + 8 = 9` minutos e expira no resume. `.excluded`
+calcula somente 1 minuto e retorna com 4 minutos restantes. `.unspecified`
+publica somente que o resultado não pode ser inferido. Um profile que exige
+`.included` ou `.excluded` rejeita um provider `.unspecified` antes da execução.
+O mesmo fato cobre hibernate e VM pause. `await` e task suspension não entram.
 
 Um child herda o menor deadline entre parent e operação. Nenhuma API pode
 ampliar o deadline herdado. Um timeout local cria um deadline relativo ao clock
@@ -10468,7 +10497,7 @@ join ou return.
    mecanismo verificado;
 4. cleanup posterior ao último use concorrente.
 
-`share(dependent)` não é uma forma de tornar um referent independente. A call é
+Uma declaração `shared` não torna um referent borrowed independente. A forma é
 rejeitada até materializar, copiar ou obter uma prova de
 `.lifetimeIndependent`. Captures borrowed usam a mesma regra de origins e a
 mesma precisão de place do HIR.
@@ -19554,7 +19583,7 @@ prova.
 
 ```w
 let courses = ["broth", "cake"]       // profundamente imutável
-let counter = share(Atomic(0_u64)) // não: atomic permite mutation observável
+let counter: shared Atomic<u64> = Atomic(0_u64) // não: atomic permite mutation observável
 ```
 
 Uma API que precisa prometer um snapshot recebe ou devolve um valor owned.
@@ -19642,10 +19671,10 @@ Materialização é explícita e produz o owner lógico:
 ```w
 let prompt: view String = "End of service"
 let owned: String = prompt.materialize() // Usa a policy normal de OOM.
-let recovered = try prompt.tryMaterialize(using: memory)
+let recovered = try prompt.tryMaterialize(allocator: memory)
 ```
 
-`materialize()` segue a policy normal de allocation. `tryMaterialize(using:)`
+`materialize()` segue a policy normal de allocation. `tryMaterialize(allocator:)`
 retorna `AllocationError`. Ela copia conteúdo; uma view borrowed não pode adotar
 o storage do owner.
 
@@ -20021,8 +20050,8 @@ são:
 | Operação | Contrato |
 |---|---|
 | `String()` | vazio sem allocation |
-| `String(using:)` | vazio ligado ao allocator fornecido |
-| `String(reservingBytes:, using:)` | solicita uma reserva mínima |
+| `String(allocator:)` | vazio ligado ao allocator fornecido |
+| `String(reservingBytes:, allocator:)` | solicita uma reserva mínima |
 | `reserve(minimumBytes:)` | usa a policy normal de OOM |
 | `tryReserve(minimumBytes:)` | retorna `AllocationError` e mantém o valor na falha |
 | `append(view String)` | copia bytes UTF-8 válidos para o fim |
@@ -20039,7 +20068,7 @@ bytes. Uma implementação pode reservar mais. A recipe fixa a growth policy
 quando budget ou failure fazem o tamanho físico observável.
 
 ```w
-var line = String(using: memory)
+var line = String(allocator: memory)
 try line.tryReserve(minimumBytes: expectedBytes)
 line.append(prefix)
 line.append('🪐')
@@ -20500,7 +20529,7 @@ insert/remove no meio têm O(n):
 
 ```w
 var courses = Array<Course>()
-var staged = Array<Course>(using: request)
+var staged = Array<Course>(allocator: request)
 courses.reserve(minimumCapacity: 16)
 courses.append(.broth)
 courses.insert(.cake, at: 0)
@@ -28645,6 +28674,26 @@ declarations, profiles, errors, limits, workflows e o corpus adversarial em
 [14.4.2](#1442-adapters-tabulares). O bloqueio restante é provider executável e
 evidence de integração, sem alterar a schema identity ou as regras de
 ownership.
+
+### 24.5 Blockers de memória MCX0
+
+**Exemplo:** um decoder pode usar `Arena.fixed` no batch e rehome values que
+escapam, mas o compiler ainda não pode afirmar coerção Arena→Allocator nem
+construction recoverable de um control block `shared` customizado.
+
+Dois contratos permanecem explicitamente bloqueados e não são comportamento
+implementado:
+
+1. A relação Arena→Allocator (refinement, coerção e lowering de capability) ainda
+   exige contrato do compiler/provider. `Arena` continua capability nominal
+   distinta; a surface não publica `Allocator<(.arena)>`. Até esse gate, APIs
+   recebem Arena explicitamente quando precisam dela.
+2. A construção de control block `shared` com allocator customizado e falha
+   recuperável ainda não possui construction contract fechado. `allocator:` é
+   reservado como control argument somente quando a construção publica um
+   allocation site; `share`/`try share` não retornam como caminho corrente. O
+   caso permanece Pesquisa/blocker, sem call de linguagem ou implementação
+   runtime.
 
 A ordem recomendada de fechamento é:
 

@@ -130,18 +130,7 @@ function applyOperation(state, operation) {
     }
 
     case "share": {
-      requireText(operation.owner, "sharedOwnerNameMissing")
-      requireText(operation.boundary, "sharedBoundaryMissing")
-      if (state.owners[operation.owner]) fail("sharedOwnerAlreadyExists")
-      if (operation.explicitOperation !== true) fail("W-OWNERSHIP-0013")
-      validateSharedConstruction(operation)
-      const allocation = operation.allocator ?? "product.default"
-      if (allocation !== "product.default" && operation.recoverable !== true) {
-        fail("sharedAllocatorRequiresRecoverableOperation")
-      }
-      state.owners[operation.owner] = makeOwner(operation, allocation)
-      state.receipts.push({ operation: "share", owner: operation.owner, allocation })
-      return
+      fail("retiredSharedConstructionCall")
     }
 
     case "request": {

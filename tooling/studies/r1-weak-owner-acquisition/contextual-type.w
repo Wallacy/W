@@ -4,9 +4,9 @@ object MenuSection {
   title: String
 }
 
-// Retired alternative. W no longer provides an upgrade language call.
+// Current baseline. The expected target supplies the weak context.
 export fn acquireOwner(root: shared MenuSection): shared MenuSection? {
-  let weakRoot = root.weak()
-  guard let owner = weakRoot.upgrade() else return .none
+  let weakRoot: weak MenuSection? = root
+  guard let owner = weakRoot else return .none
   return .some(owner)
 }
