@@ -3,6 +3,7 @@
 // These declarations fix the public shape. They do not claim execution while
 // std.http@1 and the required carrier providers are missing.
 
+import iec from std
 import http from std.http
 import json from std.json
 import net from std.net
@@ -22,13 +23,13 @@ fn requestConstructorOracle(): http.Request throws http.RequestError {
 async fn consumingBodyLimitOracle(
   request: take http.Request,
 ): Bytes throws http.HttpBodyError {
-  return try await (take request).bytes(maximumBytes: 64<KiB>)
+  return try await (take request).bytes(maximumBytes: 64<iec.KiB>)
 }
 
 fn boundedCloneOracle(
   request: take http.Request,
 ): (http.Request, http.Request) throws http.BodyCloneError {
-  return try (take request).clone(maximumBufferedBytes: 64<KiB>)
+  return try (take request).clone(maximumBufferedBytes: 64<iec.KiB>)
 }
 
 fn responseConstructorOracle(): http.Response throws http.ResponseError {
@@ -42,7 +43,7 @@ fn responseJsonOracle(): http.Response throws http.ResponseError {
   let payload = OraclePayload(message: "ok")
   return try http.Response.json(
     value: ref payload,
-    maximumBytes: 4<KiB>,
+    maximumBytes: 4<iec.KiB>,
   )
 }
 

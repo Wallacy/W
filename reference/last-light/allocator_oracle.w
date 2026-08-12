@@ -1,4 +1,8 @@
+import iec from std
+
 // Physical allocation and reclamation oracles for the Last Light restaurant.
+// `arena` is retained only as an implementation strategy label in this oracle;
+// source code uses a lexical allocator block.
 
 export enum AllocatorProgress {
   general
@@ -32,7 +36,7 @@ export enum ResizeResult {
 
 export enum StorageOwner {
   unique
-  arena
+  fixedScope
   sharedPayload
   sharedControlBlock
   pinned
@@ -105,7 +109,7 @@ export const fn progressAccepts(
 export const fn baselineReclamation(owner: StorageOwner): ReclamationGate {
   return switch owner {
     case .unique: .typedDrop
-    case .arena: .bulkRelease
+    case .fixedScope: .bulkRelease
     case .sharedPayload: .strongZero
     case .sharedControlBlock: .weakZero
     case .pinned: .addressDrain
@@ -123,13 +127,13 @@ test "allocation layout is bounded before provider access" for acceptsLayout {
     deallocationProgress: .bounded,
     mobility: .local,
     resize: .none,
-    maximumBytes: 64<KiB>,
+    maximumBytes: 64<iec.KiB>,
     maximumAlignment: 64,
   )
 
   expect acceptsLayout(fixed, layout: AllocationLayout(size: 4096, alignment: 16))
   expect !acceptsLayout(fixed, layout: AllocationLayout(size: 4096, alignment: 3))
-  expect !acceptsLayout(fixed, layout: AllocationLayout(size: 128<KiB>, alignment: 16))
+  expect !acceptsLayout(fixed, layout: AllocationLayout(size: 128<iec.KiB>, alignment: 16))
 }
 
 test "zero-size and resize preserve receipt authority" for oldReceiptSurvives {
@@ -150,7 +154,7 @@ test "progress requirements remain contextual" for progressAccepts {
 
 test "each owner has one baseline reclamation gate" for baselineReclamation {
   expect baselineReclamation(.unique) == .typedDrop
-  expect baselineReclamation(.arena) == .bulkRelease
+  expect baselineReclamation(.fixedScope) == .bulkRelease
   expect baselineReclamation(.sharedPayload) == .strongZero
   expect baselineReclamation(.sharedControlBlock) == .weakZero
   expect baselineReclamation(.pinned) == .addressDrain

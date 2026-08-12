@@ -1,14 +1,16 @@
 // Native process entry values and capability projections.
 //
 // The module exports nominal wrappers. It does not create a global process
-// object. The narrow `process.args`, `process.context`, `process.clock`, and
+// object. The narrow `process.args`, `process.context`, and `process.clock()`
 // `process.deadline` spellings are compiler projections available only inside a
-// native-process entry root. `process.clock` preserves identity, origin,
-// authority, and lifetime from `process.context.clock`. `process.deadline`
+// native-process entry root. `process.clock()` preserves identity, origin,
+// authority, and lifetime from `process.context.clock()`. `process.deadline`
 // preserves value identity, origin, and lifetime from `process.context.deadline`.
 // Deadline is not authority, so the short projection does not expand it.
 // Each short projection has the availability of its long projection.
-// `ctx.clock` remains valid when Context is a parameter. No global lookup or
+// `ctx.clock()` remains valid when Context is a parameter. The default call is
+// nonthrowing when the capability is available; active policy selection is
+// fallible and accepts only included/excluded. No global lookup or
 // `Clock.current` exists.
 
 import * from std.io
@@ -121,7 +123,13 @@ foreign intrinsic from "std.process@1" {
   fn stdProcessContextError(handle: ref ContextHandle): OutputHandle
   fn stdProcessContextFileSystem(handle: ref ContextHandle): fs.FileSystem
   fn stdProcessContextNetwork(handle: ref ContextHandle): net.Network
-  fn stdProcessContextClock(handle: ref ContextHandle): time.Clock
+  fn stdProcessContextClock(
+    handle: ref ContextHandle,
+  ): time.Clock
+  fn stdProcessContextClockWithPolicy(
+    handle: ref ContextHandle,
+    hostSuspend policy: time.HostSuspendPolicy<[.included, .excluded]>,
+  ): time.Clock throws time.ClockSelectionError
   fn stdProcessContextSignals(handle: ref ContextHandle): SignalRegistryHandle
   fn stdProcessContextServices(handle: ref ContextHandle): ServicesHandle
   fn stdProcessContextDeadline(handle: ref ContextHandle): time.Deadline
@@ -362,8 +370,16 @@ export struct Context {
     get => unsafe { stdProcessContextNetwork(ref handle) }
   }
 
-  export clock: time.Clock {
-    get => unsafe { stdProcessContextClock(ref handle) }
+  export fn clock(): time.Clock {
+    return unsafe { stdProcessContextClock(ref handle) }
+  }
+
+  export fn clock(
+    hostSuspend policy: time.HostSuspendPolicy<[.included, .excluded]>,
+  ): time.Clock throws time.ClockSelectionError {
+    return unsafe {
+      try stdProcessContextClockWithPolicy(ref handle, hostSuspend: policy)
+    }
   }
 
   export signals: SignalRegistry {

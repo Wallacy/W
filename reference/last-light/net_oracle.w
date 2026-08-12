@@ -3,8 +3,10 @@
 // These calls fix the typed compile surface. They do not claim execution while
 // std.net@1 is missing and no host capability is bound.
 
+import iec from std
 import * from std.io
 import net from std.net
+import si from std
 
 fn addressOracle(): (net.Ipv4Address, net.Ipv6Address, net.SocketAddress) {
   let v4 = net.Ipv4Address(127, 0, 0, 1)
@@ -45,8 +47,8 @@ async fn resolveAndConnectOracle(
   let limits = net.ResolveLimits(
     maximumAddresses: 8,
     maximumCnameDepth: 4,
-    maximumResponseBytes: 16<KiB>,
-    maximumAllocationBytes: 64<KiB>,
+    maximumResponseBytes: 16<iec.KiB>,
+    maximumAllocationBytes: 64<iec.KiB>,
   )
   let addresses = try await network.resolve(ref host, port: 443, limits: limits)
   expect addresses.count <= limits.maximumAddresses
@@ -54,7 +56,7 @@ async fn resolveAndConnectOracle(
   let endpoint = net.Endpoint(host: host.duplicate(), port: 443)
   let options = net.ConnectOptions(
     maximumAttempts: 4,
-    fallbackDelay: 250<ms>,
+    fallbackDelay: 250<si.ms>,
     preference: .system,
   )
   return try await network.connectTcp(to: ref endpoint, options: options)
@@ -77,10 +79,10 @@ async fn tcpSplitOracle(
 
   var response = Bytes()
   var reachedEnd = false
-  while !reachedEnd && response.count < 4<KiB> {
+  while !reachedEnd && response.count < 4<iec.KiB> {
     let step = try await input.read(
       appendTo: inout response,
-      maximum: 4<KiB>,
+      maximum: 4<iec.KiB>,
     )
     switch step {
       case .data(let count):
@@ -91,7 +93,7 @@ async fn tcpSplitOracle(
   }
   // A response at the bound is intentionally truncated by policy. The oracle
   // records that bound instead of treating a short read as complete.
-  expect reachedEnd || response.count == 4<KiB>
+  expect reachedEnd || response.count == 4<iec.KiB>
 }
 
 async fn tcpFinishWritingOracle(
@@ -127,20 +129,20 @@ async fn udpOracle(
   var socket = try await network.bindUdp(
     at: ref address,
     limits: net.DatagramLimits(
-      maximumDatagramBytes: 1<KiB>,
+      maximumDatagramBytes: 1<iec.KiB>,
       maximumQueuedDatagrams: 32,
-      maximumQueuedBytes: 32<KiB>,
+      maximumQueuedBytes: 32<iec.KiB>,
     ),
   )
   // W-1252: the two unique halves progress independently without a shared
   // socket or lock in application source.
   let (receive, send) = (take socket).split()
-  async let inbound = receive.receive(maximumBytes: 1<KiB>)
+  async let inbound = receive.receive(maximumBytes: 1<iec.KiB>)
   async let outbound = send.send(source: probe, to: peer)
   let (received, _) = try await (inbound, outbound)
   let datagram: net.Datagram = take received
   if datagram.truncated {
-    expect datagram.bytes.count == 1<KiB>
+    expect datagram.bytes.count == 1<iec.KiB>
   }
 }
 

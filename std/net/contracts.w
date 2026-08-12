@@ -3,8 +3,10 @@
 // This file fixes the typed surface for network carriers. The intrinsic seam
 // remains missing until the gates in DESIGN.md pass.
 
+import iec from std
 import * from std.io
 import { Duration } from std.time
+import si from std
 
 export enum AddressFamily: Copy & Equatable & Hashable {
   ipv4
@@ -483,8 +485,8 @@ export struct ResolveLimits: Copy & Equatable {
   export const init(
     maximumAddresses: usize<(1...)> = 16,
     maximumCnameDepth: usize = 8,
-    maximumResponseBytes: usize<(1...)> = 64<KiB>,
-    maximumAllocationBytes: usize<(1...)> = 256<KiB>,
+    maximumResponseBytes: usize<(1...)> = 64<iec.KiB>,
+    maximumAllocationBytes: usize<(1...)> = 256<iec.KiB>,
   ) {
     self.maximumAddresses = maximumAddresses
     self.maximumCnameDepth = maximumCnameDepth
@@ -501,13 +503,13 @@ export enum AddressPreference: Copy & Equatable {
 
 export struct ConnectOptions: Duplicable & Equatable {
   export maximumAttempts: usize<(1...16)>
-  export fallbackDelay: Duration<(0...30<s>)>
+  export fallbackDelay: Duration<(0...30<si.s>)>
   export preference: AddressPreference
   export local: SocketAddress?
 
   export const init(
     maximumAttempts: usize<(1...16)> = 4,
-    fallbackDelay: Duration<(0...30<s>)> = 250<ms>,
+    fallbackDelay: Duration<(0...30<si.s>)> = 250<si.ms>,
     preference: AddressPreference = .system,
     local: SocketAddress? = .none,
   ) {
@@ -555,7 +557,7 @@ export struct DatagramLimits: Copy & Equatable {
   export const init(
     maximumDatagramBytes: usize<(1...)> = 65_507,
     maximumQueuedDatagrams: usize<(1...)> = 128,
-    maximumQueuedBytes: usize<(1...)> = 1<MiB>,
+    maximumQueuedBytes: usize<(1...)> = 1<iec.MiB>,
   ) {
     self.maximumDatagramBytes = maximumDatagramBytes
     self.maximumQueuedDatagrams = maximumQueuedDatagrams

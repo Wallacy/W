@@ -1231,10 +1231,15 @@ no bundle.
 ##### Nomes de suspensão
 
 O bundle [`r1-suspend-accounting-names`](tooling/studies/r1-suspend-accounting-names)
-mantém `SuspendAccounting` com `included`, `excluded` e `unspecified`. A call
-vigente é `clock.suspendAccounting()`. A alternativa de pesquisa usa
-`HostSuspendPolicy` com `counted`, `paused` e `unknown` e a call
-`clock.hostSuspendPolicy()`.
+fica como evidência histórica. A decisão ASC0 atual usa `HostSuspendPolicy` com
+`included`, `excluded` e `unspecified`. `Clock.hostSuspendPolicy` é uma
+inspection passiva; a aquisição default é `process.clock()` nonthrowing quando
+o Context concede a capability, e a seleção ativa é
+`try process.clock(hostSuspend: .included)` (ou a forma longa
+`process.context.clock(...)`). O request ativo usa o tipo estreito
+`HostSuspendPolicy<[.included, .excluded]>`; `.unspecified` é diagnostic em
+compile time, não uma solicitação. Provider unsupported para um case válido
+continua uma falha typed antes do trabalho.
 
 Ambas as formas descrevem somente suspensão do HOST/SO. `await`, task e
 coroutine não entram nesse fato. O cenário de 60 ms ativos, 50 ms de suspensão
@@ -1244,9 +1249,9 @@ No restaurante, 1 minuto ativo e 8 minutos de sleep do host diante de uma
 deadline de 5 minutos expiram em `included` no resume. `excluded` retorna com 4
 minutos restantes. `unspecified` não sustenta um profile que exige uma das duas
 regras. Host suspend inclui sleep, hibernate e VM pause. Não inclui `await` ou
-task que apenas suspende W. Os candidatos humanos são `HostSuspendPolicy`,
-`ClockSuspendBehavior` e `HostSleepBehavior`. O último é mais claro, mas é
-tecnicamente mais estreito. O bundle aguarda feedback humano.
+task que apenas suspende W. Os candidatos históricos foram
+`HostSuspendPolicy`, `ClockSuspendBehavior` e `HostSleepBehavior`. O design
+atual usa `HostSuspendPolicy`; esta nota não reabre a decisão normativa.
 
 ##### Aquisição de owner fraco
 
@@ -1258,19 +1263,19 @@ release retornam um owner `shared` ou `none`. Weak não acessa payload. A
 linearização ocorre antes ou depois do release final, sem ressurreição de
 endereço reutilizado.
 
-##### Escopo de Arena
+##### Escopo de allocator
 
-O bundle [`r1-arena-scope`](tooling/studies/r1-arena-scope) usa
-`Arena.fixed(inout storage)` com `allocator: ref scratch`. Ele compara o caminho
-normal sem Arena, o caso problem-first com Arena e propostas lexicais reservadas.
-A região lexical fica registrada como witness textual com estado
-`reserved-not-parsed`. Ela não é apresentada como syntax vigente nem como parse
-positivo.
+O bundle [`r1-arena-scope`](tooling/studies/r1-arena-scope) fica como evidência
+histórica de uma API retirada. ASC0 escolhe a declaração lexical
+`allocator scratch: .fixed<capacity: N> { ... }`, com construction sites diretos
+usando o binding mais interno e calls desacopladas recebendo o parâmetro
+contextual `allocator name: ref Allocator` explicitamente. O bloco fecha
+admission, children/waits/loans/dependents, typed drops e só então storage.
 
 Todos os inputs preservam storage fixed e bounded, ausência de alocação do OS,
-drop ledger antes de bulk release, proibição de escape, `reset` somente após
-`rehome`, e cleanup em scope exit ou unwind. O oracle compara a mesma ordem de
-drop e release. Ele não executa Arena W.
+drop ledger antes de bulk release, proibição de escape, `rehome` antes de uma
+fronteira e cleanup em scope exit ou unwind. O oracle compara a mesma ordem de
+drop e release. Ele não executa allocator W.
 
 ##### Slot runtime do allocator
 
@@ -1300,7 +1305,7 @@ do variant.
 
 ##### Fontes primárias do bundle de memória
 
-O contrato de Arena usa três fontes primárias. O
+O estudo histórico de Arena usa três fontes primárias. O
 [LLVM BumpPtrAllocator](https://llvm.org/doxygen/classllvm_1_1BumpPtrAllocatorImpl.html)
 documenta alocação bump e reset em lote. O
 [C++ monotonic_buffer_resource](https://eel.is/c++draft/mem.res.monotonic.buffer)
@@ -1309,6 +1314,22 @@ define o recurso monotônico para poucos objetos e liberação conjunta. A
 declara weak em storage optional e usa optional binding. W preserva esse padrão
 para o storage weak, mas usa copy explícito para owners já existentes. A leitura
 weak é a única aquisição contextual porque não existe owner forte para copiar.
+
+ASC0 também compara [Odin implicit context](https://odin-lang.org/docs/overview/)
+e o escopo de cleanup de [`using` em C#](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/using).
+O primeiro mostra por que um contexto implícito transitivo em toda call esconderia
+efeitos; o segundo é uma comparação de cleanup, não um modelo de allocator W.
+Para a estratégia física, [rustc_arena](https://github.com/rust-lang/rust/tree/master/compiler/rustc_arena)
+e [LLVM BumpPtrAllocator](https://llvm.org/doxygen/classllvm_1_1BumpPtrAllocatorImpl.html)
+informam bulk reclaim, mas não definem a surface source.
+
+Para a seleção de relógio, o provider pode diferenciar
+[Linux `CLOCK_MONOTONIC` e `CLOCK_BOOTTIME`](https://man7.org/linux/man-pages/man3/clock_gettime.3.html),
+[Windows `QueryUnbiasedInterruptTime`](https://learn.microsoft.com/en-us/windows/win32/api/realtimeapiset/nf-realtimeapiset-queryunbiasedinterrupttime)
+e [Apple `mach_continuous_time`](https://developer.apple.com/documentation/kernel/3198725-mach_continuous_time)
+ou [`mach_absolute_time`](https://developer.apple.com/documentation/kernel/1462446-mach_absolute_time).
+Essas fontes sustentam que included/excluded é uma propriedade do provider;
+elas não justificam um relógio global ou uma inferência de `.unspecified`.
 
 ### 1.4 Concorrência, paralelismo e execução
 
@@ -1698,7 +1719,7 @@ de shared ownership e recomenda uma única allocation. W escolhe um verbo
 explícito para a mudança de ownership, separa policy normal de recovery e deixa
 co-allocation para o optimizer.
 
-#### 1.5.2 Allocators e arenas
+#### 1.5.2 Allocators e scopes lexicais
 
 [`Allocator` de Rust](https://doc.rust-lang.org/std/alloc/trait.Allocator.html)
 e o
@@ -1706,17 +1727,36 @@ e o
 informam strong failure, resize in-place e relocation. W deixa fallback e
 commit no caller e registra origem por receipt.
 
-W trata `Arena` como capability scoped distinta de `Allocator`. A relação de
-refinement-to-base que permitiria atender `ref Allocator` ainda é um contrato
-do compiler missing; a surface atual usa parâmetros `Arena` explícitos nos
-exemplos. Facts de provider, mobility e origin ficam na HIR e no
-`AllocationOriginMap`, não no tipo source.
+ASC0 substitui a antiga surface `Arena` por uma declaração lexical:
+`allocator scratch: .fixed<capacity: N> { ... }`. O binding cria owner e
+capability scoped. Construction sites diretos no corpo omitem `allocator:` e
+usam o binding mais interno; calls arbitrárias não recebem uma propagação
+ambiental. Um parâmetro contextual pode aparecer somente primeiro e uma vez:
+`fn decode(allocator memory: ref Allocator, frame: ref Bytes): Frame`.
+Esse slot entra em signature, resource/interface facts, HIR e ABI, mas só fornece default lexical
+ao corpo da função. Provider facts, mobility e origin ficam na HIR e no
+`AllocationOriginMap`, não em um tipo source refinado.
 
-**Região lexical como alternativa.** Uma proposta `region name(using:, limit:)`
-seria apenas açúcar para `Arena.fixed`, um scope de cleanup e uma capability de
-allocator. Ela não é Forma vigente. O açúcar teria custos de allocator implícito,
-escape de values, `async` atravessando o bloco e regiões aninhadas. A API
-explícita mantém placement, budget, lifetime e `reset` visíveis no call site.
+`.fixed<capacity: N>` usa reserva de lowering por frame, task ou agregado, sem
+buffer de caller. Placement e capacity são gates de target/profile; recursion
+multiplica a reserva, e overflow, placement unsupported ou admission falha antes
+do body, sem fallback oculto. A forma sem `try` exige prova de reservation
+estática e admission infallible, incluindo recursion fechada. Uma admission
+dinâmica exige `try allocator` e não cria binding nem entra no body em falha.
+`.bounded<budget: N>` limita commit sobre um provider e permanece Research. Um
+plan customizado aceita um descriptor lógico `AllocatorPlan` versionado com
+`providerDigest: [u8; 32]`, failure, deallocator e mobility. Esse descriptor é
+o contrato lógico `std.memory.AllocatorPlan` com `AllocatorPlanDescriptor` e
+`AllocatorLease`; o protocol usa `const descriptor` e um `take fn open()`
+consuming. O compiler chama `open()` antes do body; a lease fecha o provider em
+`deinit` exatamente uma vez. O usuário não chama `open` ou `close`. A interface
+executável, provider e lowering continuam gates de implementação.
+`RestaurantPool(backing: ref processMemory, budget: 4<iec.MiB>)` é válido
+somente se publicar esse descriptor. Provider raw é `unsafe`/versioned;
+composição de plans contratados é safe. O bloco é dono de um lease; o provider
+backing pode sobreviver a ele. Typed drops ocorrem
+antes de reclaim físico, e return/break/throw/cancel usam o mesmo unwind.
+`Arena` permanece somente termo de lowering.
 
 O uso de `Array<String>(allocator: memory)` segue essa separação. `allocator:` é
 um control argument reservado em construction expressions, canonicamente antes
@@ -1884,7 +1924,7 @@ O índice gerado usa esta tabela somente como projeção.
 | `pin` e `Pinned<T>` públicos | **Provável** | M1 fecha estado lógico e falha consuming; FFI persistente precisa de protótipo |
 | placement local sem annotation | **Possível agora** | escape e frame analysis conservadores fornecem fallback stack |
 | gate sem allocator geral | **Provável** | call graph e allocation facts são conhecidos; FFI exige summary |
-| `Arena` baseline com scope explícito | **Provável** | M1 fecha lifetime, budget e rehome lógicos; async e destruição física exigem protótipo |
+| `Arena` baseline com scope explícito | **Alternativa** | R1 preserva a forma como estudo histórico; ASC0 usa allocator lexical, e async e destruição física continuam gates de implementação |
 | allocator explícito por `using` | **Possível agora** | origem e deallocator acompanham o owner |
 | mobilidade derivada da origem | **Provável** | M1 separa origem local/cross-domain; FFI e matriz de providers exigem protótipo |
 | allocator geral por build profile | **Possível agora** | profile gera runtime requirement e plan fixa provider exato |
@@ -3743,7 +3783,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-023 | transfer | last-use + `take` obrigatório na API | move sempre explícito; move implícito amplo |
 | W-024 | copy | implícito só para `Copy`; `copy value` explícito usa `Duplicable` | `.clone()` universal; COW como contrato |
 | W-025 | shared | declaração `shared T` cria o primeiro owner em binding/field; expression/return criam binding local `shared` e usam `take`; `copy` é explícito | `share`/`try share` como caminho corrente; `tryShare` separado; ARC implícito; promotion por call/return/inference; block-region-only (retired) |
-| W-026 | region block (retired) | syntax `region name(using:, limit:)` liderava e baixava para `Arena`; a API foi mantida, mas o bloco foi retirado antes de W 1.0 | lifetime annotations; heap por módulo; API sem bloco; açúcar lexical para Arena |
+| W-026 | region block (retired) | syntax `region name(using:, limit:)` liderava e baixava para `Arena`; o bloco e a API histórica foram retirados antes de W 1.0, sem compatibilidade | lifetime annotations; heap por módulo; API sem bloco; açúcar lexical para Arena |
 | W-027 | allocator | capability explícita, default fixado pelo product, system portátil e profile substituível | mimalloc universal; allocator por import; default thread-local mutável |
 | W-028 | OOM | fallible explícito; geral aborta boundary | throws universal; abort de process sempre |
 | W-029 | layout | W opaco; C/schema explícitos | layout W estável universal |
@@ -4620,7 +4660,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-900 | JSON bounded SDK0 | `std.json` fornece `Encodable`, `Decodable`, `Codable`, `Limits` Copy/Equatable com defaults finitos, profiles `.interoperable`/`.rfc8259`, `ValueKind`/`ValueConstraint`, errors tipados com `Location`/`SyntaxKind`, `typeMismatch` e `invalidValue`, cursors `Writer`/`Reader` opacos e scoped com callbacks `some take fn`, `Number` nominal validado, `Value` sum type explícito, Object equality map-like com insertion order preservada no re-encode, synthesis somente por conformance JSON fechada (Array/fixed array/Option/Map<String,V>; sem tuple), unknown policy explícita e duplicate rejection; encoder compacto define escapes, shortest-round-trip e signed zero sem alegar canonical JSON; HTTP usa `json.*` e exige `maximumBytes` ou `json.Limits`; adapters direcionais de Command/AppResponse/WifiSession estão no produto de referência; provider `std.json@1` continua missing | serializer universal, reflection, `Any`, annotation, macro, metatype, cursor escapante, route unlimited, duplicate last-wins, NaN/Infinity, conformance Codable global de domain types ou codec automático para Display/outros schemas; chamar o output de JCS ou identity de signature/content |
 | W-901 | HTTP SDK0 | `std.http@1` possui handles privados para Request, Response, body, Context e serve; BodySource aceita String, Bytes, URLSearchParams, Blob, FormData e ReadableStream; Blob usa shared Bytes sem provider; FormData é lista bounded e multipart fica no provider HTTP; RequestInit/Override separam defaults, inherit e none; policies são enums fechados; clone usa tee bounded; JSON compõe std.json; Context usa bindings tipados; serve depende de std.net/http missing; adapters usam errors tipados e RFC 9457 | BodyInit universal; clone sem bound; Context ambiental; intrinsics JSON genéricas; template irrestrito; mutation direta de Headers; Blob com authority; boundary multipart do caller; JSON lossy; claims de execução sem provider |
 | W-902 | rede SDK0 | `std.net` é módulo com provider intrinsic único `std.net@1` missing; `Network` é capability nominal move-only sem initializer público; address values, resolve/connect, TCP split/lifecycle e UDP bounded possuem contracts explícitos; W-1252 adiciona halves UDP direcionais únicos sem esconder sharing ou alterar datagram semantics | socket global, constructor de capability, network String names, raw sockets, fd inheritance, socket-option escape hatch, transports sem contract próprio, reliability/ordering no UDP, cancelamento físico não provado ou protocol genérico de datagram sem segundo transporte |
-| W-903 | Quantity/SI | dimensões normalizam para IDs-base e expoentes; `std.si` fixa `m`, `kg`, `s`, `A`, `K`, `mol`, `cd`, Angle usa `rad` como eixo forte W e Temperature point/delta usam K; cada dimensão customizada exige exatamente uma declaration `unit name: Dimension`, independente de source/file order; `Quantity<D, R>` guarda somente magnitude em R; aliases preservam D; linear, affine point e affine delta são identidades distintas; scale/offset são rationals exact; integer exige resultado integral/in-range checked; float usa coeficiente nearest-even, multiply strict e affine multiply-then-add; `canonicalValue`, `value(in:)`, `exactValue(in:)` fallible sem rounding e `try value(in:, rounding:)` formam a surface explícita; layout é o de R sem metadata por value e não promete ABI/FFI; optimizer preserva dimensão, rounding e strict float; wWire carrega somente R e inclui dimensão normal, kind, reference, R, refinements e validation no `WireSchemaDigest`; JSON escolhe schema fixo `{value, unit}` na ordem value/unit, exige token exato, recomenda UCUM e decimal canônica, sem `json.Codable` genérico; Last Light usa `quantity_oracle.w` para 30 s/0.5 min, affine points, bits IEC e schemas `s`/`J`; providers `std.json@1` e wWire de produção continuam missing | **Alternativa:** field name com unit embutida para APIs compactas; **Pesquisa:** optimizer/vectorização e providers; **Rejeitado por enquanto:** `{value, arbitraryUnit}` com conversão dinâmica, level/log em Quantity linear, registry runtime e metadata por value |
+| W-903 | Quantity/SI/IEC | dimensões normalizam para IDs-base e expoentes; `std.si` fixa `m`, `kg`, `s`, `A`, `K`, `mol`, `cd`, Angle usa `rad` como eixo forte W e Temperature point/delta usam K; `std.iec` fixa `Information` com `bit` como reference e `byte`, `KiB`, `MiB`, `GiB` em escalas exatas de 1024; cada dimensão customizada exige exatamente uma declaration `unit name: Dimension`, independente de source/file order; `Quantity<D, R>` guarda somente magnitude em R; aliases preservam D; linear, affine point e affine delta são identidades distintas; scale/offset são rationals exact; integer exige resultado integral/in-range checked; float usa coeficiente nearest-even, multiply strict e affine multiply-then-add; `canonicalValue`, `value(in:)`, `exactValue(in:)` fallible sem rounding e `try value(in:, rounding:)` formam a surface explícita; layout é o de R sem metadata por value e não promete ABI/FFI; optimizer preserva dimensão, rounding e strict float; wWire carrega somente R e inclui dimensão normal, kind, reference, R, refinements e validation no `WireSchemaDigest`; JSON escolhe schema fixo `{value, unit}` na ordem value/unit, exige token exato, recomenda UCUM e decimal canônica, sem `json.Codable` genérico; Last Light usa `quantity_oracle.w` para 30 s/0.5 min, affine points, bits IEC e schemas `s`/`J`; providers `std.json@1` e wWire de produção continuam missing | **Alternativa:** field name com unit embutida para APIs compactas; **Pesquisa:** optimizer/vectorização e providers; **Rejeitado por enquanto:** `{value, arbitraryUnit}` com conversão dinâmica, level/log em Quantity linear, registry runtime e metadata por value |
 | W-904 | texto inteiro canônico | integers fixed, `Int` e `UInt` atendem `Display` decimal ASCII; parse decimal é estrito e typed; W-1253 fecha overloads radix `2...36` sem mudar Display ou schemas | locale numérico, whitespace/prefix/underscore implícito, formatar signed min por negação intermediária, radix alterar canonical decimal |
 | W-905 | Duration exata | `Duration` continua signed i128 nanoseconds com layout opaco; getter read-only `nanoseconds: i128` e constructor total `Duration(nanoseconds: i128)` expõem o valor sem expor layout; refinements exigem narrowing checked em input runtime; JSON genérico de Duration fica rejeitado e cada endpoint escolhe schema; Wifi usa String decimal `remainingNanoseconds` | layout público, float/infinity, narrowing implícito, serializer Duration universal |
 | W-906 | adapters direcionais de JSON | domain types não conformam diretamente `json.Codable`; cada endpoint possui adapter endpoint-owned/dedicated inbound somente `json.Decodable` e outbound somente `json.Encodable`; o módulo pode exportar a plumbing necessária ao host sem criar `json.Codable` no type de domínio ou um contrato global; schemas/versionamento ficam locais sem reflection, annotation ou conformance global; unknown members reject e duplicate sempre falha; IDs u64/u128, Money i128, Duration nanoseconds e completedOrders u64 usam decimal String canônica com parse/display no carrier explícito; u16/u32 usam JSON number; tokens são explícitos ASCII kebab-case; encoder põe `kind` primeiro e `notes` usa null; borrowed AppResponse adapters encodam sem mover/copiar o modelo; Quantity usa adapters nominais fixos para tokens de unit; Problem Details usam `code` estável e status derivado do code; Command, AppResponse e WifiSession têm source oracles provider-gated | conformance direta de domain type congelando um schema global, reflection/universal serializer, tokens derivados de source names, shape dependente de runtime value, envelope genérico que mistura decode e domain errors, status/code livres, unit String arbitrária |
@@ -4973,7 +5013,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1253 | radix explícito | parse/format usam radix refinado 2...36, ASCII, lowercase default e uppercase opcional sem mudar Display | locale, prefixo ou whitespace implícito, radix runtime inválido, canonical decimal variável |
 | W-1254 | C Exchange N0 | bridge Python pode usar table estática como fast path call-scoped, non-owning, não suspensivo e no current producer stream; metadata morre no retorno e uma lease mantém o producer até o work receipt drenar; N1 usa carrier versioned | expor na std, reter DLTensor temporário, liberar producer antes do drain, atravessar suspension, esconder fallback ou tratar otimização como semântica |
 | W-1255 | barreira cíclica | safe std não inclui primitive genérica; phase local usa TaskGroup, epochs usam domain barrier e participantes duráveis usam service/workflow | participant loss implícita, reset de generation silencioso, cancellation sem outcome, barreira universal |
-| W-1256 | primeiro shared declarativo | initializer de binding/stored field anotado `shared T` cria o primeiro owner; expression/return usam binding local e `take`; allocator custom requer construction contract com `allocator:` e permanece blocker | `share`/`try share` current; promotion por overload, argumento ou return; ARC/retain implícito; wrapper nominal obrigatório |
+| W-1256 | primeiro shared declarativo | initializer de binding/stored field anotado `shared T` cria o primeiro owner; expression/return usam binding local e `take`; allocator custom publica `AllocatorPlan`, mas construção do control block shared com recovery permanece blocker | `share`/`try share` current; promotion por overload, argumento ou return; ARC/retain implícito; wrapper nominal obrigatório |
 | W-1257 | lock da linguagem | `lock`, `await lock` e `try lock` abrem body scoped sobre `shared T`; body não suspende, não lança application error e não escapa dependency | Mutex/AsyncMutex wrapper, guard, unlock manual, await no body, body repetido |
 | W-1258 | gate e lifecycle | HIR/interface preservam allocation/place/access; overlapping concurrent access usa a mesma gate; unlock publica release/acquire; cancellation e drop drenam; sem poisoning ou cross-boundary | análise textual global, gate cruzar process, plain read disputar write, FIFO host como prova |
 | W-1259 | seleção lock-avoiding | owner/domain/service/atomic/barrier/SnapshotCell/channel precedem lock; RW lock e wrappers saem da safe std; adapter especializado exige target e benchmark | lock-first, RW universal, async mutex para task-owned state, read comum de atomic stale |
@@ -5011,9 +5051,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1291 | posição de ownership em parâmetro | labels e binding ficam antes de `:`; `ref`, `inout`, `take` e `const` iniciam o contrato à direita; `copy` fica somente no call site | `take value: T`, modifier como label, `copy` na assinatura ou duas ordens canônicas |
 | W-1292 | operação de ownership no call site | marker aparece quando a call opera sobre place existente; borrow já tipado e rvalue owned novo passam diretamente; receiver read-only permanece implícito | omitir sempre `ref`, marcar todo rvalue, borrow implícito de owner lvalue ou marker sem type/value category |
 | W-1293 | categorias das formas de memória | `shared T` e `weak T` são tipos de handle; `ref T`, `inout T` e `view T` são tipos dependentes; `take T` e `const T` são contratos; `atomic` modifica storage e baixa para `Atomic<T>` | `Shared<T>` público, `atomic T`, allocator no tipo shared ou tratar toda keyword como modifier equivalente |
-| W-1294 | uma abstração de allocator | `Arena` é capability nominal distinta; relação refinement-to-base com `Allocator` continua compiler missing; origin preserva instance, lifetime, mobility e deallocator | `Allocator<(.arena)>` source-visible, `Allocator<(.crossDomain)>`, coerção sem gate, API allocator duplicada ou Arena como segundo provider |
+| W-1294 | uma abstração de allocator | ASC0 usa um `Allocator` owner/capability com plan lexical; origin preserva instance, lifetime, mobility e deallocator; `Arena` é apenas lowering interno | `Allocator<(.arena)>` source-visible, `Allocator<(.crossDomain)>`, provider enum fechado, API Arena pública |
 | W-1295 | payload de budget de allocation | `BudgetExceeded` publica limit, committed e requested bytes; overflow usa `.sizeOverflow`, e identidade física fica no diagnostic sidecar | erro Boolean, bytes disponíveis globais, provider identity no valor ou payload truncado após overflow |
-| W-1296 | root de processo único | host cria Arguments e Context; handler explícito recebe owners e entry curto empresta via `process.args`/`process.context`; `process.clock` preserva identity/origin/authority/lifetime da projection longa, e `process.deadline` preserva value identity/origin/lifetime sem ampliar authority | descartar argv, injetar args/ctx, singleton process, lookup global ou duplicar projections |
+| W-1296 | root de processo único | host cria Arguments e Context; handler explícito recebe owners e entry curto empresta via `process.args`/`process.context`; `process.clock()` preserva identity/origin/authority/lifetime da projection longa, e `process.deadline` preserva value identity/origin/lifetime sem ampliar authority | descartar argv, injetar args/ctx, singleton process, lookup global ou duplicar projections |
 | W-1297 | argumentos nativos | Arguments preserva OsString ordenado, empresta por get/iteração e oferece comparação textual exata sem lossy decode | Array<String>, locale, normalização, cópia por projection ou acesso sem bound |
 | W-1298 | Context por capability | getters retornam owners retidos root-scoped; reachability exige stdio/network/clock/signals/services individualmente | mapa universal, capability opcional runtime, Context serializable ou getter ambiental |
 | W-1299 | stdio de processo | Input usa um cursor ByteSource e stream de linhas UTF-8 bounded; Output usa progress e calls sem byte interleaving | readline global, decode lossy, newline implícito, collect ou concorrência sem admission |
@@ -5028,16 +5068,16 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1308 | IoError portátil | kind fechado, operação lógica W e cause opaco bounded; adapter de domínio pode promover o snapshot | errno público, syscall como operação, cause serializável ou enum non-exhaustive |
 | W-1309 | controle de I/O | wouldBlock suspende, interrupção sem progress repete, EOF usa ReadStep e cancellation usa TaskOutcome | transformar controle em IoError ou oferecer retryable Boolean |
 | W-1310 | Duration operacional | total signed exato de nanoseconds em i128, layout opaco, arithmetic checked e conversão de unit exata; quantities físicas ficam em Pesquisa | unsigned duration, float, infinity, wraparound, picoseconds no baseline ou layout público |
-| W-1311 | Clock por capability | `.clock` projeta owner monotônico root-scoped; runtime interno não concede leitura à aplicação; `process.clock` é alias por identidade/origem/authority | global clock, constructor público, lookup ambiental, `Clock.current` ou `.monotonicClock` paralelo |
+| W-1311 | Clock por capability | `.clock` projeta owner monotônico root-scoped; `process.clock()`/`ctx.clock()` são default nonthrowing quando capability está disponível; `hostSuspend:` é seleção ativa com slot estreito included/excluded; runtime interno não concede leitura à aplicação | global clock, constructor público, lookup ambiental, `time.clock()` sem Context, `Clock.current` ou `.monotonicClock` paralelo |
 | W-1312 | origem temporal local | Instant e Deadline são opacos, dependem do root e não cruzam service/wire/storage/foreign; Duration cruza | raw ticks públicos, serializar Instant, comparar roots ou identity generic na syntax |
-| W-1313 | profile monotônico honesto | now não regride; resolução positiva e `SuspendAccounting` descreve somente suspensão do HOST/SO; included, excluded e unspecified afetam deadline de modo explícito; exemplo de sleep/hibernate/VM pause no restaurante | frequência constante universal, bool do caller, inferir política unspecified, tratar await/coroutine como suspensão do host ou timing como prova |
+| W-1313 | profile monotônico honesto | now não regride; resolução positiva e `HostSuspendPolicy` descreve somente suspensão do HOST/SO; included, excluded e unspecified afetam deadline de modo explícito; exemplo de sleep/hibernate/VM pause no restaurante | frequência constante universal, bool do caller, inferir política unspecified, tratar await/coroutine como suspensão do host ou timing como prova |
 | W-1314 | expiration estruturada | deadline relativo nonnegative, zero imediato, nunca early; retorno pode atrasar e expiration cancela com cleanup drain | matar thread, alarme exato, rollback, error da aplicação ou liberar recursos cedo |
 | W-1315 | tempo civil separado | `.clock` não fornece data, timezone ou calendário; contrato civil futuro terá capability e values próprios e nunca dirige deadline | `now()` global de parede, timestamp em Instant ou calendário implícito no runtime |
 | W-1316 | evidence TIME0 | source W, 47 casos e oito testes host cobrem Duration, Clock, origin, profile, suspensão do HOST/SO, deadline, boundaries e clock virtual sem alegar provider | timing real como oracle, expected echo, chamar modelo de scheduler ou provider |
 | W-1317 | fronteira de evidência R1H0 | quatro bundles independentes registram parse Tree-sitter e host oracle; compile, run e estudos humano/model permanecem missing; formas reservadas mantêm estado explícito | chamar parse de ratificação, chamar oracle de execução W, ou inventar participantes |
-| W-1318 | R1 nomenclatura de suspensão | baseline `SuspendAccounting` mantém três estados e call `suspendAccounting`; `HostSuspendPolicy` é alternativa explícita; ambos excluem await, task e coroutine | booleano, inferência de `unspecified`, ou tratar suspensão da task como HOST/SO |
+| W-1318 | R1 nomenclatura de suspensão (retired) | estudo histórico preserva `SuspendAccounting`; decisão ASC0 escolhe `HostSuspendPolicy` e separa inspection passiva de aquisição ativa | booleano, inferência de `unspecified`, ou tratar suspensão da task como HOST/SO |
 | W-1319 | R1 aquisição de owner fraco | target normal lê `weak T?` como `shared T?`; `.upgrade`, property `strong` e method `strong()` passam a alternativas retiradas/rejeitadas; live, expired e último strong release permanecem no oracle | acesso de payload por weak, aquisição não linearizável, ressurreição ou shared implícito |
-| W-1320 | R1 escopo de Arena | `Arena.fixed` mantém storage bounded, ledger de drops, `rehome` antes de `reset`, escape proibido e cleanup automático; região lexical fica reservada; caso problem-first e custos entram no oracle | region como syntax vigente, escape unchecked, bulk release antes de drop W, ou alocação OS |
+| W-1320 | R1 escopo de Arena (retired) | estudo histórico compara Arena; ASC0 escolhe bloco lexical allocator, ledger de drops, `rehome` antes da fronteira, escape proibido e cleanup automático | Arena como source surface, escape unchecked, bulk release antes de drop W, ou alocação OS |
 | W-1321 | R1 slot runtime de allocator | `Array<String>(allocator: memory)` preserva capability e origin; `using:` permanece label local livre; `allocator:` é control argument reservado em construction expressions quando o contrato publica allocation sites; mobility é derivada | capability no type identity ou comptime, inferência por texto `using:`, `Allocator<(.crossDomain)>` source-visible, failure tardia ou origin omitida |
 | W-1322 | métricas e fechamento R1H0 | variantes preservam casos e traces quando a forma é genuína ou explicitamente modelada como candidata; selected continua baseline current; métricas não afirmam estudo humano ou de modelo | contar bundles como implementação, promover oracle a runtime, ou declarar ratificação |
 
@@ -5082,5 +5122,12 @@ esses roots preservados.
 
 | W-1323 | SDM0 | derive S0/D0; pairs W-785/W-788; meta W-791..820 | echo, pair, backend, global, secret |
 | W-1324 | phases | DESIGN/catalog/machine share closed ordered set | missing phase, alias, drift, lifecycle |
-| W-1325 | MCX0 memory transition evidence | M1 covers contextual weak transitions; four R1 host oracles cover weak acquisition, Arena problem matrix, allocator control-label reservation/mobility and suspend deadline outcomes; none executes compiler, runtime or provider | expected echo, provider execution, inferred label semantics, weak payload access |
+| W-1325 | ASC0 memory transition evidence | M1 covers contextual weak transitions; four R1 host oracles cover weak acquisition, Arena problem matrix, allocator control-label reservation/mobility and suspend deadline outcomes; none executes compiler, runtime or provider | expected echo, provider execution, inferred label semantics, weak payload access |
 | W-1326 | allocator control argument | `allocator:` is reserved only in construction expressions, appears before ordinary arguments, stays outside overload/initializer signature, and governs published allocation sites only; `using:` remains free elsewhere | global reservation of `allocator:`, propagation to arbitrary initializer allocations, user-defined allocator meaning, inference by label text |
+| W-1327 | declaração lexical de allocator | `allocator name: plan { ... }` cria owner/capability lexical; construction direta usa o binding mais interno; nomes seguem a regra lexical nominal geral sem regra especial de allocator | `Arena.fixed`, região sem binding, contexto ambiental transitivo, regra especial de shadowing para allocator |
+| W-1328 | plans fixed, bounded e custom | `.fixed<capacity: N>` reserva storage por lowering sob gates de placement/admission; recursion multiplica reservation; `.bounded<budget: N>` permanece Research; `AllocatorPlan` publica `providerDigest: [u8; 32]`, version/failure/deallocator/mobility, `const descriptor` e consuming `open()`; a lease fecha em `deinit`; acquisition fallible usa `try allocator` | enum fechado de providers, promessa de O(1) total, raw provider sem contract, fallback oculto |
+| W-1329 | lifecycle, escape e rehome | close drena children/waits/loans/dependents, executa drops tipados e só então reclaim; unwind é uniforme; origem local exige `rehome` antes de await/spawn/service/channel | reset comum, detached work, escape unchecked, drop após bulk release |
+| W-1330 | parâmetro contextual de allocator | primeiro e único slot `allocator name: ref Allocator` entra signature/resource facts/ABI/HIR e só fornece default lexical ao corpo; function types/callbacks preservam slot | parâmetro oculto em toda função, slot não primeiro/duplicado, propagação transitive, ABI foreign escondida |
+| W-1331 | aquisição ativa de clock | `process.clock()`/`ctx.clock()` selecionam default nonthrowing quando capability está disponível; `hostSuspend:` seleciona policy com `HostSuspendPolicy<[.included, .excluded]>`; `Clock.hostSuspendPolicy` é passive fact e `.unspecified` é diagnostic | `SuspendAccounting`, `suspendAccounting()`, `time.clock()` ambiental, inferência provider |
+| W-1332 | binding explícito de units | `250<ms>` exige import seletivo/flattened de `std.si`; `import si from std` exige `250<si.ms>`; registry ambient não existe | ms global, qualificação inconsistente, source sem binding |
+| W-1333 | evidence ASC0 | Last Light, corpus, parser, HIR e oracles cobrem allocator scope, clock active/default e units; nenhum declara compiler/runtime/provider implementado | expected echo, check como execução, compatibility pre-1.0 |

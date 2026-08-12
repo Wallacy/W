@@ -10,11 +10,15 @@
 // User code and the public API do not require unsafe. The raw boundary remains
 // visible here and is not replaced by a trusted block or ambient lookup.
 
-export enum SuspendAccounting: Copy & Equatable {
+export enum HostSuspendPolicy: Copy & Equatable {
   included
   excluded
   unspecified
 }
+
+// Active selection accepts only HostSuspendPolicy<[.included, .excluded]>.
+// `.unspecified` is a passive provider fact and is rejected by the checker
+// before a provider call.
 
 // This fact describes HOST/SO suspension only. It never describes a coroutine,
 // task, or await suspension. `included` counts host suspension, `excluded`
@@ -22,6 +26,10 @@ export enum SuspendAccounting: Copy & Equatable {
 
 export enum ClockError: Error & Copy & Equatable {
   outOfRange
+}
+
+export enum ClockSelectionError: Error & Copy & Equatable {
+  unsupported(HostSuspendPolicy)
 }
 
 // The semantic value is an exact signed total of nanoseconds. The physical
@@ -45,9 +53,9 @@ foreign intrinsic from "std.time@1" {
 
   fn stdTimeClockNow(handle: ref ClockHandle): InstantValue
   fn stdTimeClockResolution(handle: ref ClockHandle): Duration<(1...)>
-  fn stdTimeClockSuspendAccounting(
+  fn stdTimeClockHostSuspendPolicy(
     handle: ref ClockHandle,
-  ): SuspendAccounting
+  ): HostSuspendPolicy
   fn stdTimeClockDuration(
     handle: ref ClockHandle,
     from earlier: InstantValue,
@@ -104,8 +112,8 @@ export struct Clock {
     return unsafe { stdTimeClockResolution(ref handle) }
   }
 
-  export fn suspendAccounting(): SuspendAccounting {
-    return unsafe { stdTimeClockSuspendAccounting(ref handle) }
+  export hostSuspendPolicy: HostSuspendPolicy {
+    get => unsafe { stdTimeClockHostSuspendPolicy(ref handle) }
   }
 
   export fn duration(
@@ -151,9 +159,9 @@ test "duration keeps exact signed nanoseconds" {
   expect epoch.nanoseconds < after.nanoseconds
 }
 
-test "suspend accounting is an explicit provider fact" {
-  expect SuspendAccounting.included != .excluded
-  expect SuspendAccounting.excluded != .unspecified
+test "host suspend policy is an explicit provider fact" {
+  expect HostSuspendPolicy.included != .excluded
+  expect HostSuspendPolicy.excluded != .unspecified
 }
 
 test "Clock remains monotonic by definition" {

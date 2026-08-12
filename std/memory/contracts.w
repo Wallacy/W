@@ -1,18 +1,13 @@
-// Allocator capabilities and bounded arenas.
+// Allocator capability contracts.
 //
-// Allocator is one opaque capability family. Arena is a distinct scoped
-// monotonic capability. The compiler binds provider facts, origins, mobility,
-// and dependent lifetimes to the validated handle. These facts are not source
-// refinements. The private initializer prevents source from forging them.
+// `allocator name: plan { ... }` is the source surface. The compiler binds
+// provider facts, origins, mobility, and dependent lifetimes to the validated
+// handle. A bump arena can be an implementation strategy, but it is not a
+// public W type or constructor.
 
 foreign intrinsic from "std.memory@1" {
   type AllocatorHandle
 
-  fn stdMemoryFixedArena<capacity: usize>(
-    storage: inout [u8; capacity],
-  ): AllocatorHandle
-
-  fn stdMemoryResetArena(handle: inout AllocatorHandle)
   fn stdMemoryDropAllocator(handle: inout AllocatorHandle)
 }
 
@@ -30,6 +25,32 @@ export enum AllocationError: Error {
   unsupportedAlignment(usize)
 }
 
+// These values form the source-neutral descriptor accepted by a custom plan.
+// They describe the contract; they do not expose a raw provider or a public
+// allocation operation.
+export enum AllocatorFailureMode: Copy & Equatable {
+  infallible
+  fallible
+}
+
+export enum AllocatorDeallocator: Copy & Equatable {
+  provider
+  backing
+}
+
+export enum AllocatorMobility: Copy & Equatable {
+  local
+  crossDomain
+}
+
+export struct AllocatorPlanDescriptor: Copy & Equatable {
+  providerDigest: [u8; 32]
+  version: u32<(1...)>
+  failure: AllocatorFailureMode
+  deallocator: AllocatorDeallocator
+  mobility: AllocatorMobility
+}
+
 export struct Allocator {
   handle: AllocatorHandle
 
@@ -38,29 +59,32 @@ export struct Allocator {
   }
 
   deinit {
+    // AllocatorLease deinit closes the provider lease exactly once.
     unsafe { stdMemoryDropAllocator(inout handle) }
   }
 }
 
-// Draft contract: Arena is intended as a nominal scoped capability. This
-// source declaration does not prove sealing or refinement-to-base coercion;
-// that interface remains provider/compiler work. Until that gate exists,
-// allocating APIs receive Arena explicitly.
-export struct Arena {
-  handle: AllocatorHandle
+// A lease is the scoped Allocator owner acquired by the compiler's plan
+// lowering. The alias gives the logical consuming-open contract a stable
+// name; source cannot construct it from a raw handle.
+export alias AllocatorLease = Allocator
 
-  export static fn fixed<capacity: usize>(
-    _ storage: inout [u8; capacity],
-  ): Arena {
-    let raw = unsafe { stdMemoryFixedArena(inout storage) }
-    return Arena(handle: raw)
-  }
-
-  export mut fn reset() {
-    unsafe { stdMemoryResetArena(inout handle) }
-  }
-
-  deinit {
-    unsafe { stdMemoryDropAllocator(inout handle) }
-  }
+// Custom plan expressions conform to this descriptor shape. Only the descriptor
+// facts are source-neutral data. `open()` is an executable consuming hook that
+// the compiler invokes before the body; users do not call open or close
+// manually. AllocatorLease deinit closes the provider lease. Providers and
+// lowering remain missing gates.
+export protocol AllocatorPlan {
+  const descriptor: AllocatorPlanDescriptor
+  take fn open(): AllocatorLease throws AllocationError
 }
+
+// The compiler/provider owns plan acquisition and lowering. A `fixed` plan
+// reserves storage under target/profile gates. A custom plan publishes the
+// source-neutral AllocatorPlan descriptor: providerDigest, version, failure,
+// deallocator, and mobility. These data-only facts are separate from the
+// executable open hook. The compiler runs open before the body and
+// performs structured drain and typed drops before AllocatorLease deinit. The
+// source contract deliberately does not expose reset or manual close: a common
+// allocator block closes, drains, drops, and then reclaims its storage as one
+// lifecycle.

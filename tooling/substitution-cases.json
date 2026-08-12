@@ -1064,7 +1064,7 @@
       "task": "Use the same four static-value categories to specialize a type and a generic call.",
       "selected": {
         "language": "w",
-        "source": ["type Profile = ServiceProfile<enabled: true, name: \"kitchen\", timeout: 250<ms>, buffer: 4096>", "let service = start<enabled: true, name: \"kitchen\", timeout: 250<ms>, buffer: 4096>()"]
+        "source": ["import si from std", "type Profile = ServiceProfile<enabled: true, name: \"kitchen\", timeout: 250<si.ms>, buffer: 4096>", "let service = start<enabled: true, name: \"kitchen\", timeout: 250<si.ms>, buffer: 4096>()"]
       },
       "alternatives": [
         {
@@ -1623,12 +1623,13 @@
     {
       "id": "R0-suspend-accounting-names",
       "reviewItem": "nomenclatura `SuspendAccounting` para suspensão HOST/SO contra `HostSuspendPolicy`, booleano e estados inferidos",
-      "decisions": ["W-1313", "W-1314", "W-1317", "W-1318", "W-1322"],
-      "task": "Describe HOST/SO suspension with three explicit provider states and preserve the deadline outcome.",
+      "decisions": ["W-1313", "W-1314", "W-1317", "W-1318", "W-1331", "W-1322"],
+      "task": "Select a host-suspend policy explicitly while preserving the passive provider fact and deadline outcome.",
       "selected": {
         "language": "w",
         "source": [
-          "let policy: SuspendAccounting = clock.suspendAccounting()",
+          "let clock = try process.clock(hostSuspend: .included)",
+          "let policy: HostSuspendPolicy = clock.hostSuspendPolicy",
           "// included, excluded, unspecified describe HOST/SO suspension only"
         ]
       },
@@ -1682,15 +1683,15 @@
     {
       "id": "R0-arena-scope",
       "reviewItem": "escopo `Arena.fixed` contra região lexical reservada e scope por closure",
-      "decisions": ["W-026", "W-408", "W-409", "W-410", "W-1317", "W-1320", "W-1322"],
-      "task": "Use fixed bounded storage, rehome dependent values, and preserve the drop ledger at reset and scope exit.",
+      "decisions": ["W-026", "W-408", "W-409", "W-410", "W-1317", "W-1320", "W-1327", "W-1328", "W-1329", "W-1322"],
+      "task": "Use a fixed allocator block, rehome dependent values, and preserve the drop ledger at scope exit.",
       "selected": {
         "language": "w",
         "source": [
-          "var scratch = Arena.fixed(inout storage)",
-          "let value = try parse(payload, allocator: ref scratch)",
+          "allocator scratch: .fixed<capacity: 64<KiB>> {",
+          "let value = try parse(payload)",
           "let result = try (take value).rehome(allocator: memory)",
-          "scratch.reset()"
+          "}"
         ]
       },
       "alternatives": [

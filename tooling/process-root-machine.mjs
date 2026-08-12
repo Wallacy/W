@@ -116,6 +116,27 @@ function deriveContext(input) {
       authorityExpanded: false,
     }
   }
+  if (input.operation === "clockAcquire") {
+    if (!(input.capabilities ?? []).includes("clock")) {
+      return { accepted: false, reason: "capabilityMissing", requirement: "clock", providerCalled: false }
+    }
+    if (input.selection === "active") {
+      if (!["included", "excluded"].includes(input.hostSuspendPolicy)) {
+        return { accepted: false, reason: "activeHostSuspendPolicySubsetRequired", requested: input.hostSuspendPolicy, providerCalled: false }
+      }
+      if (!(input.providerPolicies ?? ["included", "excluded"]).includes(input.hostSuspendPolicy)) {
+        return { accepted: false, reason: "hostSuspendPolicyUnsupported", requested: input.hostSuspendPolicy, providerCalled: true }
+      }
+    }
+    return {
+      accepted: true,
+      selection: input.selection ?? "default",
+      hostSuspendPolicy: input.hostSuspendPolicy ?? input.providerPolicy ?? "unspecified",
+      retainedOwner: true,
+      rootBound: true,
+      providerCalled: true,
+    }
+  }
   if (input.operation === "shortProjection") {
     if (!(input.member === "clock" || input.member === "deadline")) {
       return { accepted: false, reason: "unknownMember" }
@@ -132,8 +153,8 @@ function deriveContext(input) {
     return {
       accepted: true,
       member: input.member,
-      shortProjection: input.member === "clock" ? "process.clock" : "process.deadline",
-      equivalentTo: input.member === "clock" ? "process.context.clock" : "process.context.deadline",
+      shortProjection: input.member === "clock" ? "process.clock()" : "process.deadline",
+      equivalentTo: input.member === "clock" ? "process.context.clock()" : "process.context.deadline",
       sameIdentity: true,
       sameOrigin: true,
       ...(input.member === "clock" ? { sameAuthority: true } : {}),

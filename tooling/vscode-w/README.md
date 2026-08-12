@@ -28,7 +28,7 @@ permite language mode icons e não possui associação mais específica para `.w
 - operações de ownership e acesso `ref`, `view`, `inout`, `take`, `copy` e
   `pin`;
 - contratos de capture `<[copy name, take other]>` em closures;
-- API avançada `Arena` para storage fixed/bounded;
+- declaração lexical `allocator` com plans fixed/bounded/custom;
 - blocos estruturados `pipeline` e `transaction`, com `commit`;
 - pares, comentário e indentação básicos do editor.
 

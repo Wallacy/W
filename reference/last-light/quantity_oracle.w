@@ -31,7 +31,7 @@ const fn durationBitsAreCanonical(): Bool {
 }
 
 const fn memoryBitsAreCanonical(): Bool {
-  let memory: MemorySize = 64<KiB>
+  let memory: MemorySize = 64<iec.KiB>
   return memory.canonicalValue == 524_288
 }
 
@@ -73,7 +73,7 @@ test "affine points normalize and point subtraction produces a delta" {
 
 test "IEC information stores reference bits and converts exactly to bytes" {
   // `MemorySize` is Quantity<iec.Information, u64>; `bit` is its reference unit.
-  let memory: MemorySize = 64<KiB>
+  let memory: MemorySize = 64<iec.KiB>
 
   expect memoryBitsAreCanonical()
   expect memory.canonicalValue == 524_288

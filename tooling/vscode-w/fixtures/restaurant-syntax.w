@@ -5,6 +5,7 @@ module restaurant<
   ],
 >
 
+import iec from std
 import std.http
 import { Order } from domain
 import reflect from std
@@ -89,7 +90,7 @@ unit clap: Applause
 unit ovation = 1_000<clap>
 
 const serviceTemperature = 180<degC>
-const commandLimit = 64<KiB>
+const commandLimit = 64<iec.KiB>
 
 fn lexicalValues(): () {
   let scalar = 'W'
@@ -280,13 +281,11 @@ fn pinState(state: take BellState): Pinned<BellState> throws AllocationError {
   return try pin take state
 }
 
-fn decodeMenu(payload: ref Bytes, memory: ref Allocator): Menu throws AllocationError {
-  var storage: [u8; 8<MiB>] = [0; 8<MiB>]
-  var scratch = Arena.fixed(inout storage)
-  let parsed = try Menu.parse(payload, allocator: scratch)
-  let result = try (take parsed).rehome(allocator: memory)
-  scratch.reset()
-  return result
+fn decodeMenu(allocator memory: ref Allocator, payload: ref Bytes): Menu throws AllocationError {
+  allocator scratch: .fixed<capacity: 8<iec.MiB>> {
+    let parsed = try Menu.parse(payload)
+    return try (take parsed).rehome(allocator: memory)
+  }
 }
 
 protocol Stream<Item, Failure: Error> {

@@ -304,8 +304,8 @@
       "expect": {
         "accepted": true,
         "member": "clock",
-        "shortProjection": "process.clock",
-        "equivalentTo": "process.context.clock",
+        "shortProjection": "process.clock()",
+        "equivalentTo": "process.context.clock()",
         "sameIdentity": true,
         "sameOrigin": true,
         "sameAuthority": true,
@@ -313,6 +313,81 @@
         "serializable": false,
         "authorityExpanded": false
       }
+    },
+    {
+      "id": "PR0-POS-clock-default-selection",
+      "kind": "positive",
+      "decisions": ["W-1298", "W-1311", "W-1331"],
+      "input": {
+        "subject": "context",
+        "operation": "clockAcquire",
+        "root": true,
+        "profile": "native-process",
+        "capabilities": ["clock"],
+        "selection": "default",
+        "providerPolicy": "unspecified"
+      },
+      "expect": {
+        "accepted": true,
+        "selection": "default",
+        "hostSuspendPolicy": "unspecified",
+        "retainedOwner": true,
+        "rootBound": true,
+        "providerCalled": true
+      }
+    },
+    {
+      "id": "PR0-POS-clock-active-selection",
+      "kind": "positive",
+      "decisions": ["W-1298", "W-1311", "W-1331"],
+      "input": {
+        "subject": "context",
+        "operation": "clockAcquire",
+        "root": true,
+        "profile": "native-process",
+        "capabilities": ["clock"],
+        "selection": "active",
+        "hostSuspendPolicy": "included",
+        "providerPolicies": ["included", "excluded"]
+      },
+      "expect": {
+        "accepted": true,
+        "selection": "active",
+        "hostSuspendPolicy": "included",
+        "retainedOwner": true,
+        "rootBound": true
+      }
+    },
+    {
+      "id": "PR0-NEG-clock-active-unspecified",
+      "kind": "negative",
+      "decisions": ["W-1331"],
+      "input": {
+        "subject": "context",
+        "operation": "clockAcquire",
+        "root": true,
+        "profile": "native-process",
+        "capabilities": ["clock"],
+        "selection": "active",
+        "hostSuspendPolicy": "unspecified"
+      },
+      "expect": { "accepted": false, "reason": "activeHostSuspendPolicySubsetRequired", "requested": "unspecified", "providerCalled": false }
+    },
+    {
+      "id": "PR0-NEG-clock-active-provider-unsupported",
+      "kind": "negative",
+      "decisions": ["W-1331"],
+      "input": {
+        "subject": "context",
+        "operation": "clockAcquire",
+        "root": true,
+        "profile": "native-process",
+        "capabilities": ["clock"],
+        "selection": "active",
+        "hostSuspendPolicy": "excluded",
+        "providerPolicies": ["included"]
+      },
+      "expect": { "accepted": false, "reason": "hostSuspendPolicyUnsupported", "requested": "excluded", "providerCalled": true }
     },
     {
       "id": "PR0-POS-short-deadline-projection-reuses-context",

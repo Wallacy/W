@@ -7,25 +7,25 @@
   "sourceBase": {
     "path": "../../../reference/last-light/time_oracle.w",
     "symbol": "openObservationWindow",
-    "digest": "sha256:abf2c744aeb072b323af8ccee08621ca529d87d65ad41dae522bbabe7b57aef2"
+    "digest": "sha256:025d2a5a0e10b356c9eced9ddcfecd6ffe5cc75492f0e3f71aceba1bccb367a9"
   },
   "variants": [
     {
       "id": "suspend-accounting",
-      "role": "selected",
-      "language": "w",
+      "role": "alternative",
+      "language": "w-historical",
       "path": "baseline.w",
       "digest": "sha256:ac3973826c28ce29e1cb2dd2f3e4a76ebcf0ed191d776bd27dd78f6135d4c642",
-      "changedConstructs": ["SuspendAccounting enum names", "clock.suspendAccounting()", "HOST/SO-only fact"],
+      "changedConstructs": ["retired SuspendAccounting enum names", "retired clock.suspendAccounting()", "HOST/SO-only fact"],
       "parseEvidence": { "status": "tree-sitter-parse", "note": "The baseline source is a structural parse witness." }
     },
     {
       "id": "host-suspend-policy",
-      "role": "alternative",
-      "language": "w-alternative",
+      "role": "selected",
+      "language": "w",
       "path": "host-suspend-policy.w",
-      "digest": "sha256:2a185f2e2f7142c3ab00b0fa36fcb3929fbeb50daf2b1d82136314ad7517ee75",
-      "changedConstructs": ["HostSuspendPolicy enum names", "clock.hostSuspendPolicy()", "explicit host wording"],
+      "digest": "sha256:1f6d0632e091c7b5bcc081b2167477ae2250c5819ade4dc97d1bad3b6f2c5923",
+      "changedConstructs": ["HostSuspendPolicy enum names", "clock.hostSuspendPolicy property", "explicit host wording"],
       "parseEvidence": { "status": "tree-sitter-parse", "note": "The alternative is syntax-shaped evidence only." }
     }
   ],

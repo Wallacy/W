@@ -36,14 +36,22 @@ test "portable signals are explicit values" {
 
 // Compile-fail assays:
 // In a native-process entry body, the short projections are equivalent:
-// let started = process.clock.now()
+// let clock = process.clock()
+// let started = clock.now()
 // let deadline = process.deadline
-// let elapsed = process.clock.duration(from: started, to: process.clock.now())
-// `process.clock` keeps identity, origin, authority, and lifetime from
-// `process.context.clock`. `process.deadline` keeps value identity, origin,
+// let elapsed = clock.duration(from: started, to: clock.now())
+// `process.clock()` keeps identity, origin, authority, and lifetime from
+// `process.context.clock()`. `process.deadline` keeps value identity, origin,
 // and lifetime from `process.context.deadline`; Deadline is not authority, so
 // the short projection keeps `authorityExpanded: false`.
 // Each short projection has the availability of its long projection.
+// `process.clock()` selects the product default and may report
+// `.unspecified`; it is nonthrowing when the Context capability is available.
+// `try process.clock(hostSuspend: .included)` and the long
+// `try process.context.clock(hostSuspend: .excluded)` select an active policy.
+// Restaurant reservation leases require `.included`; kitchen active-work
+// budgets require `.excluded`; unsupported or unspecified active requests are
+// rejected before work starts.
 // entry { serialize(process.context) }
 // entry { service.send(process.context) }
 // entry { let hidden = process.ctx }

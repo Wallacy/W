@@ -1,5 +1,6 @@
 // TechEmpower-compatible workload profile. No route bypasses normal APIs.
 
+import iec from std
 import cache from std
 import database from std
 import http from std
@@ -53,7 +54,7 @@ const cachedWorlds = cache.LocalBinding<i32, CachedWorld>(
 const fortunesTemplate = http.TemplateBinding(
   name: "fortunes",
   limits: http.TemplateLimits(
-    maximumOutputBytes: 1<MiB>,
+    maximumOutputBytes: 1<iec.MiB>,
     maximumValues: 501,
   ),
   version: 1,
@@ -187,7 +188,7 @@ async fn renderFortunes(
   let rows = try await store.all(
     allFortunes,
     parameters: (),
-    limits: database.RowLimits(rows: 64, bytes: 64<KiB>),
+    limits: database.RowLimits(rows: 64, bytes: 64<iec.KiB>),
   )
   var fortunes = Array<Fortune>(minimumCapacity: rows.count + 1)
 
@@ -284,15 +285,15 @@ async fn fetchBenchmark(
       let payload = BenchmarkMessage(message: "Hello, World!")
       try http.Response.json(
         value: ref payload,
-        maximumBytes: 64<KiB>,
+        maximumBytes: 64<iec.KiB>,
       )
     case (.get, "/db"):
       let payload = try await world(ctx)
-      try http.Response.json(value: ref payload, maximumBytes: 64<KiB>)
+      try http.Response.json(value: ref payload, maximumBytes: 64<iec.KiB>)
     case (.get, "/queries"):
       let count = boundedRequestCount(request, parameter: "queries")
       let payload = try await worlds(count, ctx: ctx)
-      try http.Response.json(value: ref payload, maximumBytes: 64<KiB>)
+      try http.Response.json(value: ref payload, maximumBytes: 64<iec.KiB>)
     case (.get, "/fortunes"):
       try await renderFortunes(ctx)
     case (.get, "/updates"):
@@ -300,14 +301,14 @@ async fn fetchBenchmark(
       let payload = try await updateWorlds(count, ctx: ctx)
       try http.Response.json(
         value: ref payload,
-        maximumBytes: 64<KiB>,
+        maximumBytes: 64<iec.KiB>,
       )
     case (.get, "/cached-queries"):
       let count = boundedRequestCount(request, parameter: "count")
       let payload = try await cachedQueries(count, ctx: ctx)
       try http.Response.json(
         value: ref payload,
-        maximumBytes: 64<KiB>,
+        maximumBytes: 64<iec.KiB>,
       )
     case (_, _):
       try http.Response(status: http.StatusCode.notFound)

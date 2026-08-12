@@ -1,6 +1,7 @@
 const i128Minimum = -(1n << 127n)
 const i128Maximum = (1n << 127n) - 1n
-const suspendAccounting = new Set(["included", "excluded", "unspecified"])
+const hostSuspendPolicies = new Set(["included", "excluded", "unspecified"])
+const activeHostSuspendPolicies = new Set(["included", "excluded"])
 
 function integer(value) {
   if (typeof value !== "string" || !/^-?(?:0|[1-9][0-9]*)$/.test(value)) return null
@@ -56,6 +57,41 @@ function duration(input) {
 }
 
 function clock(input) {
+  if (input.operation === "defaultAcquire") {
+    if (input.root !== true) return { accepted: false, reason: "clockOutsideRoot" }
+    if (!(input.capabilities ?? []).includes("clock")) {
+      return { accepted: false, reason: "clockCapabilityMissing", providerCalled: false }
+    }
+    return {
+      accepted: true,
+      selection: "default",
+      hostSuspendPolicy: input.providerPolicy ?? "unspecified",
+      mayReportUnspecified: true,
+      retainedOwner: true,
+      rootBound: true,
+      global: false,
+    }
+  }
+  if (input.operation === "selectAcquire") {
+    if (input.root !== true) return { accepted: false, reason: "clockOutsideRoot" }
+    if (!(input.capabilities ?? []).includes("clock")) {
+      return { accepted: false, reason: "clockCapabilityMissing", providerCalled: false }
+    }
+    if (!activeHostSuspendPolicies.has(input.hostSuspendPolicy)) {
+      return { accepted: false, reason: "activeHostSuspendPolicySubsetRequired", requested: input.hostSuspendPolicy, providerCalled: false }
+    }
+    if (!(input.providerPolicies ?? activeHostSuspendPolicies).includes(input.hostSuspendPolicy)) {
+      return { accepted: false, reason: "hostSuspendPolicyUnsupported", requested: input.hostSuspendPolicy, providerCalled: true }
+    }
+    return {
+      accepted: true,
+      selection: "active",
+      hostSuspendPolicy: input.hostSuspendPolicy,
+      retainedOwner: true,
+      rootBound: true,
+      global: false,
+    }
+  }
   if (input.operation === "project") {
     if (input.root !== true) return { accepted: false, reason: "clockOutsideRoot" }
     if (!(input.capabilities ?? []).includes("clock")) {
@@ -87,8 +123,8 @@ function clock(input) {
     if (resolution === null || resolution <= 0n || !inI128(resolution)) {
       return { accepted: false, reason: "invalidResolution" }
     }
-    if (!suspendAccounting.has(input.suspendAccounting)) {
-      return { accepted: false, reason: "invalidSuspendAccounting" }
+    if (!hostSuspendPolicies.has(input.hostSuspendPolicy)) {
+      return { accepted: false, reason: "invalidHostSuspendPolicy" }
     }
     const samples = (input.samples ?? []).map(integer)
     if (samples.length === 0 || samples.some((value) => value === null)) {
@@ -102,7 +138,7 @@ function clock(input) {
       sampleCount: samples.length,
       nondecreasing: true,
       resolutionNanoseconds: resolution.toString(),
-      suspendAccounting: input.suspendAccounting,
+      hostSuspendPolicy: input.hostSuspendPolicy,
       steadyFrequencyPromised: false,
       hardRealtimePromised: false,
       rawTicksPublic: false,
@@ -119,34 +155,34 @@ function clock(input) {
       || active < 0n || hostSuspend < 0n || deadline < 0n) {
       return { accepted: false, reason: "invalidDeadlineSuspendFacts" }
     }
-    if (!suspendAccounting.has(input.suspendAccounting)) {
-      return { accepted: false, reason: "invalidSuspendAccounting" }
+    if (!hostSuspendPolicies.has(input.hostSuspendPolicy)) {
+      return { accepted: false, reason: "invalidHostSuspendPolicy" }
     }
-    if (input.requiredSuspendAccounting !== undefined
-      && input.requiredSuspendAccounting !== input.suspendAccounting) {
+    if (input.requiredHostSuspendPolicy !== undefined
+      && input.requiredHostSuspendPolicy !== input.hostSuspendPolicy) {
       return {
         accepted: false,
-        reason: "suspendAccountingRequired",
-        required: input.requiredSuspendAccounting,
-        actual: input.suspendAccounting,
+        reason: "hostSuspendPolicyRequired",
+        required: input.requiredHostSuspendPolicy,
+        actual: input.hostSuspendPolicy,
       }
     }
-    if (input.suspendAccounting === "unspecified") {
+    if (input.hostSuspendPolicy === "unspecified") {
       return {
         accepted: true,
-        suspendAccounting: "unspecified",
+        hostSuspendPolicy: "unspecified",
         deadlineReached: null,
         elapsedNanoseconds: null,
         inferenceAllowed: false,
         hostSuspended: hostSuspend > 0n,
       }
     }
-    const elapsed = input.suspendAccounting === "included" ? active + hostSuspend : active
+    const elapsed = input.hostSuspendPolicy === "included" ? active + hostSuspend : active
     return {
       accepted: true,
       elapsedNanoseconds: elapsed.toString(),
       deadlineReached: elapsed >= deadline,
-      suspendAccounting: input.suspendAccounting,
+      hostSuspendPolicy: input.hostSuspendPolicy,
       hostSuspended: hostSuspend > 0n,
     }
   }

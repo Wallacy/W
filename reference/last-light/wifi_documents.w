@@ -2,6 +2,7 @@
 // These vectors are compile/provider-gated until std.json@1 and std.http@1
 // exist.  They do not claim provider execution.
 
+import iec from std
 import json from std.json
 import * from std.time
 import {
@@ -80,12 +81,12 @@ export struct SessionDocument: json.Encodable {
 
 test "wifi login and revoke documents keep raw fields out of semantic errors" {
   var loginBytes: Bytes = b"{\"device\":\"tablet-7\",\"voucher\":\"violet\"}"
-  let login = try json.decode<LoginDocument>(ref loginBytes, limits: json.Limits(maximumBytes: 4<KiB>))
+  let login = try json.decode<LoginDocument>(ref loginBytes, limits: json.Limits(maximumBytes: 4<iec.KiB>))
   let request = try login.loginRequest()
   expect request.device == "tablet-7"
 
   var revokeBytes: Bytes = b"{\"id\":\"340282366920938463463374607431768211455\"}"
-  let revoke = try json.decode<RevokeDocument>(ref revokeBytes, limits: json.Limits(maximumBytes: 1<KiB>))
+  let revoke = try json.decode<RevokeDocument>(ref revokeBytes, limits: json.Limits(maximumBytes: 1<iec.KiB>))
   expect try revoke.sessionId() == u128.max
 }
 
@@ -97,13 +98,13 @@ test "wifi session uses canonical decimal values and explicit role token" {
     remaining: Duration(nanoseconds: 30_000_000_000),
   )
   let document = SessionDocument(session: ref session)
-  let bytes = try json.encode(ref document, limits: json.Limits(maximumBytes: 1<KiB>))
+  let bytes = try json.encode(ref document, limits: json.Limits(maximumBytes: 1<iec.KiB>))
   expect bytes == b"{\"id\":\"340282366920938463463374607431768211455\",\"device\":\"tablet-7\",\"role\":\"guest\",\"remainingNanoseconds\":\"30000000000\"}"
 }
 
 test "wifi document failures do not echo voucher text" {
   var loginBytes: Bytes = b"{\"device\":\"tablet-7\",\"voucher\":\"secret-voucher\"}"
-  let login = try json.decode<LoginDocument>(ref loginBytes, limits: json.Limits(maximumBytes: 1<KiB>))
+  let login = try json.decode<LoginDocument>(ref loginBytes, limits: json.Limits(maximumBytes: 1<iec.KiB>))
   var longVoucher = String()
   for _ in 0..<257 { longVoucher.append("x") }
   do {

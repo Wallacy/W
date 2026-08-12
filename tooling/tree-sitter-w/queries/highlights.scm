@@ -21,6 +21,7 @@
 
 [
   "alias"
+  "allocator"
   "behavior"
   "dimension"
   "enum"

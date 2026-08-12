@@ -12,6 +12,25 @@ enum HirBoundary { internal wExact foreignC wire persisted capability }
 enum HirRepresentation { explicitTag provenNiche lowBit highBit nativeCarrier }
 enum HirBoundaryOwnership { borrowed owned }
 enum HirAllocatorMobility { local crossDomain }
+enum HirAllocatorSlotKind { contextual }
+
+// ASC0 keeps the contextual allocator slot visible to HIR, resource/interface
+// facts, and ABI. An effect row records it only when the declaration has one;
+// it is not a hidden parameter on ordinary functions.
+struct HirAllocatorSlot {
+  index: usize
+  name: String
+  kind: HirAllocatorSlotKind
+  abiVisible: Bool
+  resourceVisible: Bool
+}
+
+const fn validAllocatorSlots(slots: Array<HirAllocatorSlot>): Bool {
+  if slots.count > 1 { return false }
+  if slots.count == 0 { return true }
+  let slot = slots[0]
+  return slot.index == 0 && slot.abiVisible && slot.resourceVisible
+}
 
 struct HirProjection {
   kind: HirProjectionKind
@@ -506,4 +525,28 @@ test "M1 weak handle keeps only the control block alive" {
   guard let releasedWeak = releasedWeak else { panic("weak release was rejected") }
   expect !releasedWeak.blockAlive
   expect releasedWeak.deinitCount == 1
+}
+
+test "ASC0 allocator slot is first, unique, and ABI-visible" {
+  let valid = [HirAllocatorSlot(
+    index: 0,
+    name: "memory",
+    kind: .contextual,
+    abiVisible: true,
+    resourceVisible: true,
+  )]
+  let duplicate = [
+    HirAllocatorSlot(index: 0, name: "memory", kind: .contextual, abiVisible: true, resourceVisible: true),
+    HirAllocatorSlot(index: 1, name: "other", kind: .contextual, abiVisible: true, resourceVisible: true),
+  ]
+  let hidden = [HirAllocatorSlot(
+    index: 0,
+    name: "memory",
+    kind: .contextual,
+    abiVisible: false,
+    resourceVisible: true,
+  )]
+  expect validAllocatorSlots(valid)
+  expect !validAllocatorSlots(duplicate)
+  expect !validAllocatorSlots(hidden)
 }

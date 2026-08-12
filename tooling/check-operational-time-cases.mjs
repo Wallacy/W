@@ -59,7 +59,7 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
   }
   if (!Array.isArray(item.decisions) || item.decisions.length === 0) errors.push(`${location}: decisions`)
   for (const decision of item.decisions ?? []) {
-    if (!/^W-131[0-6]$/.test(decision)) errors.push(`${location}: unexpected decision ${decision}`)
+    if (!/^(?:W-131[0-6]|W-1331)$/.test(decision)) errors.push(`${location}: unexpected decision ${decision}`)
     const kinds = decisionKinds.get(decision) ?? new Set()
     kinds.add(item.kind)
     decisionKinds.set(decision, kinds)
@@ -75,7 +75,7 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
   results.push({ id: item.id, kind: item.kind, decisions: item.decisions, result })
 }
 
-for (let value = 1310; value <= 1316; value += 1) {
+for (const value of [...Array.from({ length: 7 }, (_, index) => 1310 + index), 1331]) {
   const decision = `W-${value}`
   const kinds = decisionKinds.get(decision) ?? new Set()
   if (!kinds.has("positive")) errors.push(`${decision}: missing positive case`)

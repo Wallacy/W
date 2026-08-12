@@ -1,5 +1,6 @@
 // Bounded Web body carriers for horizon observations.
 
+import iec from std
 import { Blob } from std.blob
 import http from std.http
 
@@ -18,10 +19,10 @@ export fn horizonObservationForm(
       maximumEntries: 8,
       maximumNameBytes: 128,
       maximumFilenameBytes: 256,
-      maximumTextBytes: 4<KiB>,
-      maximumBlobBytes: 8<MiB>,
-      maximumPayloadBytes: 8<MiB>,
-      maximumEncodedBytes: 9<MiB>,
+      maximumTextBytes: 4<iec.KiB>,
+      maximumBlobBytes: 8<iec.MiB>,
+      maximumPayloadBytes: 8<iec.MiB>,
+      maximumEncodedBytes: 9<iec.MiB>,
     ),
   )
 

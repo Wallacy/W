@@ -135,7 +135,7 @@ RestaurantApi
   → Sonda de Aroma
   → Arquivo de Ecos shared/weak
   → Sino de Encerramento pinned
-  → Arena Temporária do Cardápio
+  → Scope Lexical do Cardápio
   → Janela de Serviço sem Dono
   → Passa-Pratos de Capacidade Finita
   → Recepção callable do Último Maitre
@@ -190,7 +190,7 @@ alvo de execução independente.
 | `memory.w` | ownership, shared/weak, ciclos, Address, provenance, pinning e callback C |
 | `hir_memory_oracle.w` | PlaceId, LoanId, reborrow, OriginSet, suspensão, representação e ABI |
 | `borrowed_values.w` | kitchens disjuntas, stored `ref`/`view`/`inout`, Array de refs, reborrow e await stable |
-| `allocation.w` | placement, origem, mobilidade, arena, budget e rehome |
+| `allocation.w` | placement, origem, mobilidade, allocator scope, budget e rehome |
 | `allocator_oracle.w` | layout físico, provider, resize, progress e reclamation A0 |
 | `representation_oracle.w` | matriz de representação por fronteira e fallback portátil |
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
@@ -667,7 +667,7 @@ Aceite:
   identidade;
 - `30<s>` e `0.5<min>` têm o mesmo canonical value e o mesmo bit pattern;
 - `180<degC>` é affine point, e point menos point produz `TemperatureDelta`;
-- `64<KiB>` guarda reference bits em `MemorySize`, e `exactValue(in: B)` produz
+- `64<iec.KiB>` guarda reference bits em `MemorySize`, e `exactValue(in: B)` produz
   bytes sem arredondamento;
 - `Power * PhysicalDuration` produz Energy;
 - `Duration` operacional não aceita conversão float implícita;
@@ -1389,10 +1389,10 @@ peak:       unknown             input-dependent
 accounting: payload + allocator
 ```
 
-O limite `2<MiB>` da Arena é um contract de admission. Ele não prova o peak
+O limite `2<iec.MiB>` do plan `.fixed` é um contract de admission. Ele não prova o peak
 total de `stageMenu`, porque o input e a cópia final podem usar outro storage.
-`countEmergencyTokens` mantém um buffer fixo de `64<KiB>`, mas o lens continua
-separando storage local, arena e payload produzido. Uma medição posterior só é
+`countEmergencyTokens` mantém um buffer fixo de `64<iec.KiB>`, mas o lens continua
+separando storage local, allocator scope e payload produzido. Uma medição posterior só é
 aceita no cache quando recipe, `WAbiKey`, target e profile são iguais.
 
 ### 3.12 Turno do Horizonte Violeta
@@ -2092,28 +2092,32 @@ lowering MLIR. Para floats, ele compara bits das operações strict, classes IEE
 signed zero e total order. Modes `fast` são avaliados por bounds próprios e não
 participam do oracle bit-exact de `.strict`.
 
-### 3.33 Arena Temporária do Cardápio
+### 3.33 Scope Lexical do Cardápio
 
-Famílias: placement, allocator, arena, budget, escape e OOM.
+Famílias: placement, allocator scope, budget, escape e OOM.
 
 Aceite:
 
-- um local síncrono fixo que não escapa não usa o allocator geral;
-- placement inferido não exige syntax no source;
-- um caso `Arena.fixed` mantém capacity bounded; `reset` ocorre somente para
-  reuso antecipado após `rehome`;
-- o escape de um valor ligado à Arena é rejeitado antes do runtime;
+- um local síncrono fixo que não escapa usa um bloco
+  `allocator scratch: .fixed<capacity: 2<iec.MiB>> { ... }`;
+- placement e provider são verificados pelo target; a sintaxe não esconde
+  uma alocação transitiva em chamadas arbitrárias;
+- o bloco fecha admission, drena children/waits/loans/dependents, executa drops
+  tipados e só depois recupera o storage;
+- o escape de um valor ligado ao allocator é rejeitado antes do runtime;
 - `object` não implica heap;
-- somente calls com `allocator: ref staging` usam a Arena;
+- somente construções diretas no bloco omitem `allocator:`; uma função chamada
+  recebe `allocator: ref memory` explicitamente;
 - `tryReserve` falha antes de consumir os elementos;
-- cada string duplicada mantém a origem da Arena;
-- `Arena` é uma capability scoped distinta de `Allocator`;
-- `reset` exige exclusividade e nenhum loan ou valor dependente vivo;
+- cada string duplicada mantém a origem do allocator;
+- `.fixed` fornece uma capability scoped de `Allocator`; `.bounded` é um budget
+  sobre provider e não promete storage fixo;
+- reuso/reset não é a surface comum; o bloco exige que nenhum child, wait, loan
+  ou dependent permaneça aberto;
 - a origem registra instance lifetime, deallocator, mobility e adoption family;
-- storage de uma arena local não atende a `transferable`;
+- storage local não atende a `transferable` sem `rehome` explícito;
 - facts do contrato de allocation derivam mobility cross-domain quando um owner
-  cruza `spawn`; a relação Arena→Allocator e seu lowering de `ref Allocator`
-  continuam missing e este source oracle não os implementa;
+  cruza `spawn`; origens locais são rejeitadas, salvo `rehome` antes da fronteira;
 - `rehome` move storage independente e realoca somente storage dependente;
 - uma falha de `rehome` consome e limpa o snapshot e o destino parcial;
 - `attemptRehome` devolve o snapshot no outcome quando retry é necessário;
@@ -2124,21 +2128,45 @@ Aceite:
   `committedBytes`;
 - `.budgetExceeded` não vira `.outOfMemory`;
 - drop executa em ordem inversa da construção concluída;
-- um child paralelo não compartilha a arena default;
-- `Arena.fixed` não pede storage ao OS;
+- um child paralelo não compartilha o allocator default;
+- `.fixed` não pede storage ao OS quando o profile fornece placement suportado;
+- `.fixed` sem `try` exige reservation estática, admission infallible e recursion
+  fechada no profile; admission dinâmica exige `try allocator`;
+- um plan customizado publica o descriptor lógico `AllocatorPlan` com
+  `providerDigest: [u8; 32]`, version, failure, deallocator e mobility; o
+  protocol usa `const descriptor` e `take fn open()`, e `AllocatorLease`
+  fecha o provider em `deinit` exatamente uma vez. A aquisição fallible não
+  entra no body nem cria binding:
+
+  ```w
+  import iec from std
+
+  try allocator request: RestaurantPool(
+    backing: ref processMemory,
+    budget: 4<iec.MiB>,
+  ) {
+    let order = Order(allocator: request, id: id)
+  }
+  ```
+- um allocator aninhado com nome distinto seleciona o binding mais interno pela
+  regra lexical nominal geral; não existe uma regra especial de shadowing;
+- `await` exige owner e storage estáveis no task frame. Um origin local não pode
+  entrar em `spawn`, service ou channel sem `rehome` explícito;
 - importar um módulo não cria uma heap implícita;
 - o build profile fixa `generalAllocator` e `representation`;
-- o snapshot retornado não depende da Arena temporária;
+- o snapshot retornado não depende do allocator temporário;
 - `w check memory --require no-general-allocation` mostra a call chain que viola
   o profile.
 
-O oracle executa `stageMenu` com um allocator de falha injetada em cada
-allocation. Scope exit e unwind limpam valores dependentes e o owner Arena.
+O oracle host executa um modelo source-shaped de `stageMenu` com uma falha
+injetada em cada allocation; isso não é execução do compiler, runtime ou
+provider W. Scope exit e unwind limpam valores dependentes e o owner do bloco.
 Se o provider raw não executa drops W, o drop ledger do compiler os executa
 antes do bulk release.
-Antes de `rehome`, toda falha limpa os valores pela Arena. Durante `rehome`,
+Antes de `rehome`, toda falha limpa os valores pelo allocator local. Durante `rehome`,
 toda falha limpa source e destino parcial uma vez. Um batch que reutiliza a
-capacity chama `reset` somente depois de `rehome`. O teste repete com allocator
+capacity reentra em um bloco depois de `rehome`; `reset` continua interno e não
+é uma call source comum. O teste repete com allocator
 do sistema, buffer fixo e os profiles `benchmark` e `benchmark-mimalloc`. Os
 valores, errors e drops são os mesmos. Cada allocation mantém a origem
 declarada; provider measurements podem mudar.
@@ -2215,8 +2243,8 @@ cada argumento como `OsString`; `Context` projeta somente as capabilities do
 produto, inclusive o `time.Clock` monotônico quando `.clock` está presente;
 `ExitCode` separa conclusão portátil de fault. `process.args` e
 `process.context` tomam empréstimos do mesmo owner do root. Dentro de um entry,
-`process.clock` é uma projection curta com a mesma identity, origin, authority
-e lifetime de `process.context.clock`. `process.deadline`
+`process.clock()` é uma projection curta com a mesma identity, origin, authority
+e lifetime de `process.context.clock()`. `process.deadline`
 preserva value identity, origin e lifetime de `process.context.deadline`, sem
 ampliar authority (`authorityExpanded: false`). A availability de cada alias é a
 da projection longa correspondente. Eles não criam um singleton ambiental. PR0
@@ -2225,15 +2253,25 @@ não executa W, o scheduler, o sistema operacional ou o provider
 `std.process@1`.
 
 `time_oracle.w` separa `Duration` portátil de `Clock`, `Instant` e `Deadline`
-root-scoped. TIME0 deriva clock não regressivo, resolução, suspend accounting,
+root-scoped. TIME0 deriva clock não regressivo, resolução, política de suspensão,
 origem, expiration sem disparo antecipado, cancellation drain e clock virtual.
-`SuspendAccounting` descreve somente suspensão do HOST/SO: `.included` soma o
+`HostSuspendPolicy` descreve somente suspensão do HOST/SO: `.included` soma o
 intervalo ao deadline, `.excluded` pausa a medição e `.unspecified` não permite
 inferência. Ele não descreve coroutine, task ou `await`. Com 60 ms ativos, 50 ms
 de HOST/SO suspend e deadline de 100 ms, included alcança, excluded não alcança
 e unspecified exige um case explícito se o profile o exigir. O oracle não
 executa W, timer, scheduler, sistema operacional ou o provider `std.time@1`.
 Tempo civil não faz parte da capability `.clock`.
+`process.clock()` seleciona o relógio root default sem throw quando a
+capability está disponível e pode relatar `.unspecified`;
+`try process.clock(hostSuspend: .included)` e
+`try process.context.clock(hostSuspend: .excluded)` são seleções ativas e
+usam `HostSuspendPolicy<[.included, .excluded]>`; `.unspecified` é rejeitado
+no compile time. Providers unsupported ainda podem falhar antes do trabalho.
+Uma lease de reserva exige `.included`; o
+budget de trabalho ativo da cozinha exige `.excluded`; provider unsupported ou
+unspecified rejeita uma solicitação ativa. Providers de Linux, Windows e Apple
+podem oferecer políticas diferentes.
 
 O oracle HTTP também reserva uma consulta RestPC segura e idempotente. O
 request usa o método QUERY padronizado pelo RFC 10008. O content evita uma URI
@@ -2882,7 +2920,7 @@ O Book deve mostrar pares lado a lado:
 | matrix | `[[1, 2], [3, 4]]` | `[1 2; 3 4]` |
 | closure | `(x) => body` | `fn(x) { body }` |
 | namespace import | `import http from std` ou `import stdHTTP from std.http` | default export ou `as` externo |
-| Arena | `Arena.fixed(inout storage)` | somente API manual e explícita |
+| allocator block | `allocator scratch: .fixed<capacity: N> { ... }` | scope lexical; `Arena` é só lowering interno |
 | projeção borrowed | `view T` para famílias core | `StringView`/`Slice<T>` públicos e `Readonly<T>` profundo |
 | stream assíncrono | `Stream<Item, Failure>` single-pass | sequence + iterator obrigatórios ou generator |
 | loop de stream | `for try await item in stream` | `await stream` lê tudo ou callback push |

@@ -1,7 +1,11 @@
-// Allocator and Arena oracles for the Last Light restaurant.
+// Lexical allocator scope oracles for the Last Light restaurant.
 
+import iec from std
 import * from std.memory
 import * from std.task
+
+// Custom plan expressions conform to AllocatorPlan and publish an
+// AllocatorPlanDescriptor; the compiler owns the AllocatorLease lifecycle.
 
 export struct MenuSnapshot {
   title: String
@@ -9,42 +13,43 @@ export struct MenuSnapshot {
 }
 
 export fn stageMenu(
+  allocator destination: ref Allocator,
   title: ref String,
   dishes menuDishes: ref Array<String>,
-  memory destination: ref Allocator,
 ): MenuSnapshot throws AllocationError {
-  var storage: [u8; 2<MiB>] = [0; 2<MiB>]
-  var staging = Arena.fixed(inout storage)
-  var stagedDishes = Array<String>(allocator: ref staging)
-  try stagedDishes.tryReserve(minimumCapacity: menuDishes.count)
+  // This fixture assumes the selected profile proves fixed admission
+  // infallible. A dynamic reservation uses `try allocator`.
+  allocator scratch: .fixed<capacity: 2<iec.MiB>> {
+    var stagedDishes = Array<String>()
+    try stagedDishes.tryReserve(minimumCapacity: menuDishes.count)
 
-  for ref dish in menuDishes {
-    let stagedDish = try dish.tryDuplicate(allocator: ref staging)
-    stagedDishes.append(take stagedDish)
+    for ref dish in menuDishes {
+      let stagedDish = try dish.tryDuplicate()
+      stagedDishes.append(take stagedDish)
+    }
+
+    let staged = MenuSnapshot(
+      title: try title.tryDuplicate(),
+      dishes: take stagedDishes,
+    )
+    // Rehome changes allocation origins. It does not erase a borrow origin.
+    return try (take staged).rehome(allocator: destination)
   }
-
-  let staged = MenuSnapshot(
-    title: try title.tryDuplicate(allocator: ref staging),
-    dishes: take stagedDishes,
-  )
-  // Rehome changes allocation origins. It does not erase a borrow origin.
-  // The result interface maps owned storage to the `memory` parameter.
-  return try (take staged).rehome(allocator: destination)
 }
 
 export fn countEmergencyTokens(source: ref String): usize throws AllocationError {
-  var storage: [u8; 64<KiB>] = [0; 64<KiB>]
-  let scratch = Arena.fixed(inout storage)
-  var separators = Array<usize>(allocator: ref scratch)
-  try separators.tryReserve(minimumCapacity: source.bytes.count)
+  allocator scratch: .fixed<capacity: 64<iec.KiB>> {
+    var separators = Array<usize>()
+    try separators.tryReserve(minimumCapacity: source.bytes.count)
 
-  var offset: usize = 0
-  for byte in source.bytes {
-    if byte == b' ' { separators.append(offset) }
-    offset += 1
+    var offset: usize = 0
+    for byte in source.bytes {
+      if byte == b' ' { separators.append(offset) }
+      offset += 1
+    }
+
+    return if source.bytes.count == 0 { 0 } else { separators.count + 1 }
   }
-
-  return if source.bytes.count == 0 { 0 } else { separators.count + 1 }
 }
 
 fn snapshotBytes(snapshot: take MenuSnapshot): usize {
@@ -60,23 +65,22 @@ export async fn countStagedMenuInParallel(
   dishes: ref Array<String>,
   processMemory: ref Allocator,
 ): usize throws AllocationError {
-  let snapshot = try stageMenu(title, dishes: dishes, memory: processMemory)
+  let snapshot = try stageMenu(allocator: ref processMemory, ref title, dishes: ref dishes)
   spawn<.compute> let count = snapshotBytes(take snapshot)
   return await count
 }
 
-test "a staged menu leaves its temporary Arena" for stageMenu {
-  var storage: [u8; 64<KiB>] = [0; 64<KiB>]
-  let destination = Arena.fixed(inout storage)
+test "a staged menu leaves its temporary allocator scope" for stageMenu {
   let title = "Menu at the Observable Edge"
   let dishes = ["Photon soup", "Patient comet cake"]
 
-  let snapshot = try stageMenu(ref title, dishes: ref dishes, memory: ref destination)
+  allocator destination: .fixed<capacity: 8<iec.MiB>> {
+    let snapshot = try stageMenu(allocator: ref destination, ref title, dishes: ref dishes)
+    expect snapshot.title == title
+    expect snapshot.dishes == dishes
+  }
 
-  expect snapshot.title == title
-  expect snapshot.dishes == dishes
-
-  // Compile-fail assay: fixed arena storage is local to this execution domain.
+  // Compile-fail assay: local fixed storage cannot cross an execution domain.
   // let count = await countStagedMenuInParallel(
   //   ref title,
   //   dishes: ref dishes,
