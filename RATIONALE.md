@@ -5028,3 +5028,42 @@ policy plana por módulo, capability, target facts, provider e reachability.
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
+
+### 1.24 Evidência SDM0: matriz de diagnostics e resultado semântico
+
+SDM0 avança a prova de design pedida em DESIGN §24.4. A matriz host em
+`tooling/semantic-diagnostic-matrix-cases.json` deriva records de eventos
+estruturados. Ela não repete expectativas como resultado de uma máquina W.
+
+O corpus source S0 mantém 128 casos, com 64 positivos e 64 negativos. Cada
+regra source usada no corpus exige um positivo, uma inversão negativa única,
+`rule` igual, `failureField` exato e um diagnostic catalogado. W-785 e W-788
+possuem pares source reais. W-791 e os contratos D0/S0 meta usam o corpus host.
+
+A máquina SDM0 comprova estas dimensões:
+
+- sete campos de `SemanticResult` e sete campos de `CheckerContext` derivados;
+- entry, continue, back-edge e break em fixed point, com widening monotônico;
+- interface AST→HIR única, schema `w-ast-hir-s0` versão 1 e domains que só
+  acrescentam facts;
+- records D0 com spans UTF-8 half-open, fases e catálogo fechados, facts sem
+  segredos, fixes com digest e prova, causalidade, poison, ordenação e limite;
+- política sem demotion de errors e sem supressão source, boundary lex/parse,
+  namespace, profiles, facts de parse e cobertura por decisão.
+
+Os testes host alteram graph edge, contexto implícito, back-edge inseguro,
+schema de backend, fact secreto, fix stale ou sobreposto, poison cascade,
+ordenação, truncation, demotion, namespace, profile e boundary UTF-8. Os
+O source Last Light é um assay de expected-use, owner/effect/control e loop;
+CheckerContext completo continua uma interface interna coberta somente pela
+matriz host. Os checks cobrem o corpus SDM0 regenerado. As contagens de casos, outcomes,
+decisões e mutações ficam no índice gerado. O status continua
+`design-oracle-input`. Nenhuma execução de
+checker, compiler, formatter, runtime ou provider é alegada.
+
+No limite D0, `limit` conta apenas roots normais preservados; o sentinel
+`W-DIAGNOSTIC-0001` é sempre o último record e `facts.emitted` conta somente
+esses roots preservados.
+
+| W-1323 | SDM0 | derive S0/D0; pairs W-785/W-788; meta W-791..820 | echo, pair, backend, global, secret |
+| W-1324 | phases | DESIGN/catalog/machine share closed ordered set | missing phase, alias, drift, lifecycle |

@@ -170,6 +170,7 @@ alvo de execução independente.
 | `text.w` | UTF-8, unidades de texto, normalização, paths e contrato de C string |
 | `string_storage.w` | construção, reserva, reuse e carrier String/Bytes consuming |
 | `collections.w` | arrays, views, labeled loops e blocks, operators compostos, Map/Set, hashing e stable sort |
+| `semantic_matrix.w` | source oracle pequeno para expected-use, owner/effect/control assay e loop fixed-point com entry, continue, back-edge e break; CheckerContext completo permanece interno e é coberto pela matriz host |
 | `views.w` | diferença entre owner, borrow completo e projeção de extent fixo |
 | `failure.w` | Option, Result, typed throws, panic, OOM e cleanup |
 | `generics.w` | primary associated types, constraints, static contract atoms, inference e witnesses |
