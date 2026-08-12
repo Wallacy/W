@@ -1,0 +1,90 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-arena-scope",
+  "title": "Fixed Arena scope at the Last Light restaurant",
+  "r0Cases": ["R0-arena-scope"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/allocation.w",
+    "symbol": "stageMenu",
+    "digest": "sha256:7c301ce036d2c3d6280b8cbf6a3451af510f2ddecb0753f3d55d1cdf518891b1"
+  },
+  "variants": [
+    {
+      "id": "fixed-using",
+      "role": "selected",
+      "language": "w",
+      "path": "fixed-using.w",
+      "digest": "sha256:428a24c8efd72295735b799ed96604a1f97a5dfea3eddd1c6d73b357ab12b84f",
+      "changedConstructs": ["Arena.fixed(inout storage)", "using: ref scratch", "rehome before clear"],
+      "parseEvidence": { "status": "tree-sitter-parse", "note": "The baseline source is a structural parse witness." }
+    },
+    {
+      "id": "reserved-region",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "reserved-region.txt",
+      "digest": "sha256:0f469f3bd5e63c3e3182185bac06d1a6fcfdce278ad2f2b30e9889de4a97b6a7",
+      "changedConstructs": ["reserved lexical region spelling", "same bounded storage case", "reserved-not-parsed witness"],
+      "parseEvidence": { "status": "reserved-not-parsed", "note": "The complete proposal form is shown as text. It is not a Tree-sitter positive." }
+    },
+    {
+      "id": "scope-closure",
+      "role": "alternative",
+      "language": "w-alternative",
+      "path": "scope-closure.w",
+      "digest": "sha256:9bbb1d3d1100bdd66983025c7b24112e9836f37b8fb1bb9c1f8ae00fdbf60c9f",
+      "changedConstructs": ["take storage FnOnce capture", "ref payload and memory captures", "same rehome and clear order"],
+      "parseEvidence": { "status": "tree-sitter-parse", "note": "The closure spelling is structural alternative evidence." }
+    }
+  ],
+  "entry": "arenaScope",
+  "inputs": [
+    {
+      "id": "primary-rehome-before-clear",
+      "payloadBytes": 12,
+      "expected": { "status": "accepted", "result": 12, "dropBeforeBulkRelease": true, "osAllocation": false }
+    },
+    {
+      "id": "unwind-parse-failure",
+      "payloadBytes": 4,
+      "failAt": "parse",
+      "expected": { "status": "unwind", "dropBeforeBulkRelease": true, "storageReleased": true }
+    },
+    {
+      "id": "adversarial-escape-and-early-clear",
+      "payloadBytes": 3,
+      "escape": true,
+      "clearBeforeRehome": true,
+      "expected": { "status": "rejected", "escape": "arena-storage-escape", "clear": "clear-with-live-arena-value" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain fixed bounded storage, drop ledger order, rehome before clear, escape rejection, and automatic cleanup for the baseline and each proposal form."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the success and unwind cleanup traces for the baseline, reserved proposal witness, and closure proposal.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a clear before rehome, an escaped arena value, or a bulk release that skips W drops.",
+      "mutations": {
+        "fixed-using": "Move rehome before clear and keep the drop ledger ahead of bulk release.",
+        "reserved-region": "Repair the reserved proposal text without presenting it as a positive W parse.",
+        "scope-closure": "Capture storage with take for the FnOnce boundary, close the closure before storage release, and preserve the same unwind trace."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add an early reuse iteration after rehome without changing bounded capacity or scope-exit cleanup."
+    }
+  ],
+  "presentationOrders": [["fixed-using", "reserved-region", "scope-closure"], ["scope-closure", "fixed-using", "reserved-region"], ["reserved-region", "scope-closure", "fixed-using"]],
+  "blinding": { "participantLabels": { "fixed-using": "A", "reserved-region": "B", "scope-closure": "C" }, "hide": ["id", "role", "path", "changedConstructs"] },
+  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:08553c6417e51bd988c108e86a3a3b96a9668e1d6aae29b3fa7f1926aee14a72" },
+  "evidence": { "current": ["tree-sitter-parse", "host-oracle"], "missing": ["w-compile", "w-run", "human-study", "model-study"] }
+}

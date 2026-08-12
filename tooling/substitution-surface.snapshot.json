@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:87dfb286105c5b2d8454a96470773a3d578a9e91ce67358327ea0b7036e4de08",
+  "corpusDigest": "sha256:221ef8a01c269455755ac0b2d118f3894a203897d2b6e93a0c2aff18b30d5654",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -2928,6 +2928,198 @@
             "nonWhitespaceCodePoints": 42,
             "lines": 1,
             "surfaceLexemes": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-suspend-accounting-names",
+      "task": {
+        "utf8Bytes": 98,
+        "codePoints": 98,
+        "nonWhitespaceCodePoints": 86,
+        "lines": 1,
+        "surfaceLexemes": 16
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:1e214b36c818d7cc86a79a005f345e39cd2eb96b325c1ef388d9a32845f27900",
+        "metrics": {
+          "utf8Bytes": 125,
+          "codePoints": 125,
+          "nonWhitespaceCodePoints": 113,
+          "lines": 2,
+          "surfaceLexemes": 23
+        }
+      },
+      "alternatives": [
+        {
+          "name": "explicit-host-policy",
+          "language": "w-alternative",
+          "sourceDigest": "sha256:778d8dd28d99821f8fa0a0f8f19026cdfb8e29a874430bc5110a7156010bef3d",
+          "metrics": {
+            "utf8Bytes": 114,
+            "codePoints": 114,
+            "nonWhitespaceCodePoints": 102,
+            "lines": 2,
+            "surfaceLexemes": 23
+          }
+        },
+        {
+          "name": "boolean-policy",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:92f412a9feb3c14edc432273ace602261364e3bd8c78295ff68e95b3b24b8150",
+          "metrics": {
+            "utf8Bytes": 44,
+            "codePoints": 44,
+            "nonWhitespaceCodePoints": 40,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-weak-owner-acquisition",
+      "task": {
+        "utf8Bytes": 110,
+        "codePoints": 110,
+        "nonWhitespaceCodePoints": 93,
+        "lines": 1,
+        "surfaceLexemes": 19
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:177239632b5833b8ac539fee830d29fde9cd6bdb1f7998ea742c52d16e1439c2",
+        "metrics": {
+          "utf8Bytes": 81,
+          "codePoints": 81,
+          "nonWhitespaceCodePoints": 70,
+          "lines": 2,
+          "surfaceLexemes": 21
+        }
+      },
+      "alternatives": [
+        {
+          "name": "strong-property",
+          "language": "w-alternative",
+          "sourceDigest": "sha256:2544dbed4c5853eb5c0160488682ce7c8c350ca19946eb3f3b9ef45c4ef8b976",
+          "metrics": {
+            "utf8Bytes": 30,
+            "codePoints": 30,
+            "nonWhitespaceCodePoints": 27,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "strong-method",
+          "language": "w-alternative",
+          "sourceDigest": "sha256:b04e6e1e0f9db545c31af8513a0585e4e307e0e2663bada3b13b85083f134f95",
+          "metrics": {
+            "utf8Bytes": 32,
+            "codePoints": 32,
+            "nonWhitespaceCodePoints": 29,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-arena-scope",
+      "task": {
+        "utf8Bytes": 105,
+        "codePoints": 105,
+        "nonWhitespaceCodePoints": 89,
+        "lines": 1,
+        "surfaceLexemes": 20
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:01f04da82b4182f7a008a8ed7f88244ce0935ff8d890efa0a66dac40dad36c08",
+        "metrics": {
+          "utf8Bytes": 143,
+          "codePoints": 143,
+          "nonWhitespaceCodePoints": 124,
+          "lines": 3,
+          "surfaceLexemes": 38
+        }
+      },
+      "alternatives": [
+        {
+          "name": "reserved-lexical-region",
+          "language": "w-reserved",
+          "sourceDigest": "sha256:72203656e941f21a656d3aa80f9d56077d90d865affbb9955c3b838ab5a74d97",
+          "metrics": {
+            "utf8Bytes": 44,
+            "codePoints": 44,
+            "nonWhitespaceCodePoints": 38,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "scope-by-closure",
+          "language": "w-alternative",
+          "sourceDigest": "sha256:0dd2309d65db11187a410cdf7e161a57badcd90d89ef9df4acfe597642163e4d",
+          "metrics": {
+            "utf8Bytes": 86,
+            "codePoints": 86,
+            "nonWhitespaceCodePoints": 76,
+            "lines": 1,
+            "surfaceLexemes": 23
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-allocator-runtime-slot",
+      "task": {
+        "utf8Bytes": 109,
+        "codePoints": 109,
+        "nonWhitespaceCodePoints": 96,
+        "lines": 1,
+        "surfaceLexemes": 15
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:e2eaaf3fb1dbcc68ea998069781b40f455488ef2d607f88184c320304c16dc89",
+        "metrics": {
+          "utf8Bytes": 63,
+          "codePoints": 63,
+          "nonWhitespaceCodePoints": 58,
+          "lines": 2,
+          "surfaceLexemes": 18
+        }
+      },
+      "alternatives": [
+        {
+          "name": "generic-envelope-slot",
+          "language": "w-alternative",
+          "sourceDigest": "sha256:88243ede5f19fcf10a3f86d8b0ef19b3f43a9f601d7326fd44a1bbbbfcab7e70",
+          "metrics": {
+            "utf8Bytes": 42,
+            "codePoints": 42,
+            "nonWhitespaceCodePoints": 37,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "allocator-builder",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:93112c79f503ba0e4f233640e2cf4f45fbddaa0db2770d136b6146a0818cd726",
+          "metrics": {
+            "utf8Bytes": 39,
+            "codePoints": 39,
+            "nonWhitespaceCodePoints": 36,
+            "lines": 1,
+            "surfaceLexemes": 12
           }
         }
       ]

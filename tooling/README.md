@@ -33,10 +33,10 @@ linguagem.
 | `io-error-cases.json` + máquina/checker/snapshot | IOE0 cobre 44 casos/219 operações (32 aceitos + 12 rejeitados) para kind portátil, operação lógica, causa opaca bounded, control outcomes, duplicate e recovery contextual; sete testes host usam entradas independentes | oracle host de design; não executa W, adapter, syscall ou provider `std.io@1` |
 | `operational-time-cases.json` + máquina/checker/snapshot | TIME0 cobre 43 casos/215 operações (21 aceitos + 22 rejeitados) para Duration exata, Clock root-scoped, origin, profile monotônico, deadlines, boundaries e clock virtual; oito testes host usam entradas independentes | oracle host de design; não executa W, clock, timer, scheduler, OS ou provider `std.time@1` |
 | `kernel-module-cases.json` + máquina/checker/snapshot | KM0 cobre 32 casos/218 operações (6 aceitos + 26 rejeitados) para head de síntese, identities, call graph, famílias genéricas, artifacts source-backed/closed e ausência de JIT; nove testes host usam inputs independentes | oracle host de design; não executa W, compiler, kernel, linker, driver ou provider |
-| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 70 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 499/1316 decisões estão classificadas (142 source, 398 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 49 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
-| `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 174 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 25 bundles R1, 62 variantes e 100 tarefas; 41/70 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
+| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
+| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 510/1322 decisões estão classificadas (158 source, 398 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 54 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 186 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
+| `studies/*/bundle.json` + checker | 29 bundles R1, 72 variantes e 116 tarefas; 45/74 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
 | `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
 | `tabular-adapter-cases.json` + máquina/checker/snapshot | TAB1 deriva source kind, u64 snapshot offsets/short reads, nominal schema identity, publication, CSV tokenizer/nulls, Parquet footer/page/mapping/key/commit, Arrow IPC dictionary/buffer, borrowed view, copy materialization, progress/cancel, provenance, C quota/trust/release; 86 casos e 193 operações (36 aceitos + 50 rejeitados) | oracle host independente; símbolos Last Light são cross-linked; não implementa reader CSV/Parquet/Arrow, compiler, runtime ou provider |
@@ -83,6 +83,30 @@ alterá-los:
 Todos os bundles permanecem `design-oracle-input`. Parse Tree-sitter e host
 oracle são evidência corrente. Compile, run e estudos humano/model permanecem
 missing.
+
+### R1H0 — ergonomia de tempo e memória
+
+Os quatro bundles independentes preservam os invariantes do design e não mudam
+`DESIGN.md`:
+
+- [`r1-suspend-accounting-names`](studies/r1-suspend-accounting-names) compara
+  `SuspendAccounting` com `HostSuspendPolicy` e rejeita Boolean e suspensão de
+  `await`, task ou coroutine como fato de HOST/SO.
+- [`r1-weak-owner-acquisition`](studies/r1-weak-owner-acquisition) compara
+  `upgrade()`, property `strong` e method `strong()` para owners live e expired.
+- [`r1-arena-scope`](studies/r1-arena-scope) compara `Arena.fixed`, uma região
+  lexical reservada e scope por closure. A região usa `reserved-not-parsed`.
+- [`r1-allocator-runtime-slot`](studies/r1-allocator-runtime-slot) compara o
+  slot runtime `using: memory` com um envelope contextual candidato fora de
+  type identity e comptime. O bundle
+  não promove essa grafia para o design corrente.
+
+Cada bundle usa quatro tasks em ordem `explain`, `recall`, `repair`, `change`,
+ordens counterbalanced, blinding, sourceBase e digests. Há 72 variantes totais,
+71 variantes `.w` parseadas pelo Tree-sitter e uma proposta textual `.txt`
+`reserved-not-parsed`; o witness region não faz parte do parse 71/71. Parse
+Tree-sitter das variantes `.w` e host oracle são evidência corrente. `w-compile`, `w-run`,
+`human-study` e `model-study` permanecem missing.
 
 ### Workflow single-file PYN1
 

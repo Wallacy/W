@@ -1,0 +1,89 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-suspend-accounting-names",
+  "title": "Suspend accounting names at the Last Light clock",
+  "r0Cases": ["R0-suspend-accounting-names"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/time_oracle.w",
+    "symbol": "openObservationWindow",
+    "digest": "sha256:abf2c744aeb072b323af8ccee08621ca529d87d65ad41dae522bbabe7b57aef2"
+  },
+  "variants": [
+    {
+      "id": "suspend-accounting",
+      "role": "selected",
+      "language": "w",
+      "path": "baseline.w",
+      "digest": "sha256:ac3973826c28ce29e1cb2dd2f3e4a76ebcf0ed191d776bd27dd78f6135d4c642",
+      "changedConstructs": ["SuspendAccounting enum names", "clock.suspendAccounting()", "HOST/SO-only fact"],
+      "parseEvidence": { "status": "tree-sitter-parse", "note": "The baseline source is a structural parse witness." }
+    },
+    {
+      "id": "host-suspend-policy",
+      "role": "alternative",
+      "language": "w-alternative",
+      "path": "host-suspend-policy.w",
+      "digest": "sha256:2a185f2e2f7142c3ab00b0fa36fcb3929fbeb50daf2b1d82136314ad7517ee75",
+      "changedConstructs": ["HostSuspendPolicy enum names", "clock.hostSuspendPolicy()", "explicit host wording"],
+      "parseEvidence": { "status": "tree-sitter-parse", "note": "The alternative is syntax-shaped evidence only." }
+    }
+  ],
+  "entry": "observeSuspend",
+  "inputs": [
+    {
+      "id": "active-host-suspend-deadline",
+      "activeMs": 60,
+      "hostSuspendMs": 50,
+      "deadlineMs": 100,
+      "expected": { "included": { "elapsedMs": 110, "deadlineReached": true }, "excluded": { "elapsedMs": 60, "deadlineReached": false }, "unspecified": { "elapsedMs": null, "deadlineReached": null, "inferred": false } }
+    },
+    {
+      "id": "three-policy-states",
+      "policies": ["included", "excluded", "unspecified"],
+      "alternativePolicies": ["counted", "paused", "unknown"],
+      "expected": { "stateCount": 3, "oneToOne": true, "hostSoOnly": true }
+    },
+    {
+      "id": "adversarial-non-host-suspension",
+      "suspensionKinds": ["await", "task", "coroutine"],
+      "expected": { "status": "rejected", "reason": "only-host-so-suspension-is-a-clock-fact" }
+    },
+    {
+      "id": "adversarial-boolean-policy",
+      "policy": true,
+      "suspensionKind": "host-so",
+      "activeMs": 60,
+      "hostSuspendMs": 50,
+      "deadlineMs": 100,
+      "expected": { "status": "rejected", "reason": "boolean-cannot-express-three-states" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain why the three states describe HOST/SO suspension and how the 60/50/100 deadline outcomes differ."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the three state names, the deadline outcomes, and the await boundary.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared Boolean policy and the accidental treatment of await as HOST/SO suspension.",
+      "mutations": {
+        "suspend-accounting": "Replace a Boolean policy with the three SuspendAccounting states and keep the provider fact HOST/SO-only.",
+        "host-suspend-policy": "Keep the explicit host names but restore unknown as a non-inferred outcome."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a provider profile requirement for counted or included suspension without changing the unknown outcome."
+    }
+  ],
+  "presentationOrders": [["suspend-accounting", "host-suspend-policy"], ["host-suspend-policy", "suspend-accounting"]],
+  "blinding": { "participantLabels": { "suspend-accounting": "A", "host-suspend-policy": "B" }, "hide": ["id", "role", "path", "changedConstructs"] },
+  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:f12fcf850126f3a903f8676fe692e98a63717a8aec09f8b9fed6a73a9fe190c9" },
+  "evidence": { "current": ["tree-sitter-parse", "host-oracle"], "missing": ["w-compile", "w-run", "human-study", "model-study"] }
+}

@@ -1619,6 +1619,124 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-suspend-accounting-names",
+      "reviewItem": "nomenclatura `SuspendAccounting` para suspensão HOST/SO contra `HostSuspendPolicy`, booleano e estados inferidos",
+      "decisions": ["W-1313", "W-1314", "W-1317", "W-1318", "W-1322"],
+      "task": "Describe HOST/SO suspension with three explicit provider states and preserve the deadline outcome.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let policy: SuspendAccounting = clock.suspendAccounting()",
+          "// included, excluded, unspecified describe HOST/SO suspension only"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "explicit-host-policy",
+          "language": "w-alternative",
+          "source": [
+            "let policy: HostSuspendPolicy = clock.hostSuspendPolicy()",
+            "// counted, paused, unknown use explicit HOST/SO wording"
+          ],
+          "expectedDifference": "The alternative names the host fact directly, but its acceptance and ergonomics remain a research question."
+        },
+        {
+          "name": "boolean-policy",
+          "language": "w-rejected",
+          "source": ["let policy: Bool = clock.suspendAccounting()"],
+          "expectedDifference": "A Boolean cannot represent included, excluded, and unspecified without an inferred third state."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-weak-owner-acquisition",
+      "reviewItem": "aquisição de owner a partir de `weak` contra property `strong` e method `strong()`",
+      "decisions": ["W-637", "W-1317", "W-1319", "W-1322"],
+      "task": "Acquire an optional new strong owner from a weak handle without reading payload or reviving an expired object.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let weakRoot = root.weak()",
+          "guard let owner = weakRoot.upgrade() else return .none"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "strong-property",
+          "language": "w-alternative",
+          "source": ["let owner = root.weak().strong"],
+          "expectedDifference": "A property can expose the same acquisition point, but it must retain linearization and optional ownership facts."
+        },
+        {
+          "name": "strong-method",
+          "language": "w-alternative",
+          "source": ["let owner = root.weak().strong()"],
+          "expectedDifference": "A method can expose the same acquisition point, but it must not access payload or hide the optional result."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-arena-scope",
+      "reviewItem": "escopo `Arena.fixed` contra região lexical reservada e scope por closure",
+      "decisions": ["W-026", "W-408", "W-409", "W-410", "W-1317", "W-1320", "W-1322"],
+      "task": "Use fixed bounded storage, rehome dependent values, and preserve the drop ledger at clear and scope exit.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "var scratch = Arena.fixed(inout storage)",
+          "let value = try parse(payload, using: ref scratch)",
+          "let result = try (take value).rehome(using: memory)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "reserved-lexical-region",
+          "language": "w-reserved",
+          "source": ["region scratch(using: inout storage) { ... }"],
+          "expectedDifference": "The lexical region is a reserved textual proposal. It is not a positive W parse or a current form."
+        },
+        {
+          "name": "scope-by-closure",
+          "language": "w-alternative",
+          "source": [
+            "let result = withArena(inout storage, (scratch) => parse(payload, using: ref scratch))"
+          ],
+          "expectedDifference": "A closure can make cleanup lexical, but it must preserve Arena origin, rehome, and unwind facts."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-allocator-runtime-slot",
+      "reviewItem": "slot runtime de allocator em `Array<String>(using: memory)` contra envelope genérico",
+      "decisions": ["W-027", "W-108", "W-1275", "W-1317", "W-1321", "W-1322"],
+      "task": "Pass allocator capability at runtime while keeping element contracts static and preserving allocation origin.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "var names = Array<String>(using: memory)",
+          "names.append(\"Dinner\")"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "generic-envelope-slot",
+          "language": "w-alternative",
+          "source": ["var names = Array<String, using: memory>()"],
+          "expectedDifference": "The envelope can parse as a labeled generic argument. R1 evaluates it as a contextual runtime-slot candidate outside type identity or comptime; the bundle does not promote that spelling to the current design."
+        },
+        {
+          "name": "allocator-builder",
+          "language": "w-rejected",
+          "source": ["var names = Array<String>.using(memory)"],
+          "expectedDifference": "A method or builder would duplicate the initializer surface and is not a genuine selected alternative here."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }
