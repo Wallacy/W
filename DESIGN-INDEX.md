@@ -18,24 +18,24 @@
 |---|---:|
 | linhas de `DESIGN.md` | 29189 |
 | tokens aproximados de `DESIGN.md` | 306200 |
-| linhas de `RATIONALE.md` | 4944 |
-| tokens aproximados de `RATIONALE.md` | 129300 |
+| linhas de `RATIONALE.md` | 5031 |
+| tokens aproximados de `RATIONALE.md` | 130900 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 336/336 |
-| decisões | 1316 (W-001–W-1316) |
+| decisões | 1322 (W-001–W-1322) |
 | famílias de viabilidade | 182 |
 | slices normativos de grammar | 6 |
-| requisitos de ratificação comparativa | 70 |
-| casos de substituição estruturados | 70/70 |
-| decisões referenciadas por casos R0 | 142/1316 |
-| decisões classificadas para design freeze | 499/1316 (142 source + 398 oracle + 8 explícitas; 49 overlaps) |
-| decisões ainda sem classe de freeze | 817 |
+| requisitos de ratificação comparativa | 74 |
+| casos de substituição estruturados | 74/74 |
+| decisões referenciadas por casos R0 | 158/1322 |
+| decisões classificadas para design freeze | 510/1322 (158 source + 398 oracle + 8 explícitas; 54 overlaps) |
+| decisões ainda sem classe de freeze | 812 |
 | decisões com múltiplos eixos obrigatórios | 2 |
-| formas R0 com baseline estática | 174 |
-| surface lexemes das formas vigentes R0 | 1446 total; mediana 16; máximo 52 |
-| bundles executáveis R1 | 25 |
-| variantes/tarefas R1 | 62/100 |
-| casos R0 promovidos a R1 | 41/70 |
+| formas R0 com baseline estática | 186 |
+| surface lexemes das formas vigentes R0 | 1546 total; mediana 17.5; máximo 52 |
+| bundles executáveis R1 | 29 |
+| variantes/tarefas R1 | 72/116 |
+| casos R0 promovidos a R1 | 45/74 |
 | casos do corpus Tree-sitter | 114 |
 | pares canônicos do formatter F0 | 25 |
 | casos/operações do kernel de memória M1 | 185/606 (82 aceitos + 103 rejeitados) |
@@ -160,9 +160,9 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 14–3580 | 53900 | Evidência comparativa |
-| 2 | 3581–3611 | 500 | Proveniência |
-| 3 | 3612–4944 | 74900 | Ledger |
+| 1 | 14–3661 | 55000 | Evidência comparativa |
+| 2 | 3662–3692 | 500 | Proveniência |
+| 3 | 3693–5031 | 75400 | Ledger |
 
 ## Bundles de leitura
 

@@ -159,6 +159,10 @@ O corpus compara, no mínimo:
 - `data.Batch<Row>` columnar contra `Array<Row>` universal e DataFrame completo;
 - `data.Row` synthesis fechada contra `Any`, duck typing e schema implícito;
 - binding dynamic, copy/device e release scoped contra coerção e lifetime ocultos.
+- nomenclatura `SuspendAccounting` para suspensão HOST/SO contra `HostSuspendPolicy`, booleano e estados inferidos;
+- aquisição de owner a partir de `weak` contra property `strong` e method `strong()`;
+- escopo `Arena.fixed` contra região lexical reservada e scope por closure;
+- slot runtime de allocator em `Array<String>(using: memory)` contra envelope genérico.
 
 ### 1.1 Cobertura de substituições
 
@@ -1213,6 +1217,83 @@ passam sem marker; owner place mostra a operação. O source-call gate consegue
 rejeitar operações explicitamente incompatíveis e labels inválidos. Somente S0
 consegue provar que um argumento sem marker era owner place, borrow ou rvalue.
 Os oracles host não substituem essa análise.
+
+#### 1.3.28 R1H0 — estudos de ergonomia de tempo e memória
+
+Este bundle materializa quatro estudos independentes. Cada estudo mantém o
+mesmo input, outcome lógico e trace de cleanup entre variantes genuínas ou
+explicitamente modeladas como candidatas. A forma com papel `selected` é a
+baseline corrente. Ela não recebe ratificação humana ou de modelo por existir
+no bundle.
+
+##### Nomes de suspensão
+
+O bundle [`r1-suspend-accounting-names`](tooling/studies/r1-suspend-accounting-names)
+usa `SuspendAccounting` com `included`, `excluded` e `unspecified`. A call
+vigente é `clock.suspendAccounting()`. A alternativa de pesquisa usa
+`HostSuspendPolicy` com `counted`, `paused` e `unknown` e a call
+`clock.hostSuspendPolicy()`.
+
+Ambas as formas descrevem somente suspensão do HOST/SO. `await`, task e
+coroutine não entram nesse fato. O cenário de 60 ms ativos, 50 ms de suspensão
+HOST/SO e deadline de 100 ms produz 110 ms e alcance para `included` ou
+`counted`. Ele produz 60 ms e ausência de alcance para `excluded` ou `paused`.
+O estado `unspecified` ou `unknown` não autoriza inferência. Booleano é uma
+variante adversarial rejeitada.
+
+##### Aquisição de owner fraco
+
+O bundle [`r1-weak-owner-acquisition`](tooling/studies/r1-weak-owner-acquisition)
+compara `weakRoot.upgrade()` com `weakRoot.strong` e `weakRoot.strong()`.
+As três formas são estudadas contra os mesmos estados live, expired e de corrida
+com o último strong release. A aquisição retorna um novo owner `shared` ou
+`none`. `weak` não acessa payload. A linearização ocorre antes ou depois do
+release final, sem ressurreição de endereço reutilizado.
+A baseline faz o rewrap explícito em `.some(owner)` depois do `guard`; as
+formas property e method devolvem o mesmo `optional` diretamente. O oracle
+compara esse resultado, e não a conveniência da forma de retorno.
+A property pode esconder o ponto de aquisição e um method pode torná-lo
+explícito. O estudo mede essa visibilidade sem mudar o contrato de `optional`
+nem a linearização.
+
+##### Escopo de Arena
+
+O bundle [`r1-arena-scope`](tooling/studies/r1-arena-scope) seleciona
+`Arena.fixed(inout storage)` com `using: ref scratch`. Ele compara a API vigente
+com uma região lexical reservada e com um scope por closure. A região lexical
+fica registrada como witness textual com estado `reserved-not-parsed`. Ela não é
+apresentada como syntax vigente nem como parse positivo.
+
+Todos os inputs preservam storage fixed e bounded, ausência de alocação do OS,
+drop ledger antes de bulk release, proibição de escape, `clear` somente após
+`rehome`, e cleanup em scope exit ou unwind. O oracle compara a mesma ordem de
+drop e release. Ele não executa Arena W.
+
+##### Slot runtime do allocator
+
+O bundle [`r1-allocator-runtime-slot`](tooling/studies/r1-allocator-runtime-slot)
+seleciona `Array<String>(using: memory)`. A alternativa
+`Array<String, using: memory>()` pode ser reconhecida pelo Tree-sitter como
+envelope. R1 a trata como uma candidata contextual que coloca a mesma
+capability runtime fora de
+`type identity` ou `comptime`, para medir se a forma preserva output, origin,
+failure e cleanup. A semântica atual não aceita nem promove a forma; R1 avalia
+se um contrato contextual poderia aceitá-la, sem mudar o design. Nenhuma forma
+method ou builder foi incluída, pois não acrescentaria um candidato contextual
+distinto neste estudo.
+
+A capability `memory` mantém identidade e lifetime. Type e element permanecem
+contratos estáticos. Allocation origin, failure policy e output do caminho
+vigente são os facts observados pelo oracle. A alternativa contextual não muda
+esses facts e continua uma proposta de R1, não uma forma normativa.
+
+##### Fronteira da evidência
+
+Os quatro bundles registram `tree-sitter-parse` para as variantes `.w` e
+`host-oracle` como evidência corrente. `w-compile`, `w-run`, `human-study` e
+`model-study` continuam missing. A região é um witness textual reservado, não
+parte do parse 71/71. O checker registra essa natureza no campo `parseEvidence`
+do variant.
 
 ### 1.4 Concorrência, paralelismo e execução
 
@@ -4938,6 +5019,12 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1314 | expiration estruturada | deadline relativo nonnegative, zero imediato, nunca early; retorno pode atrasar e expiration cancela com cleanup drain | matar thread, alarme exato, rollback, error da aplicação ou liberar recursos cedo |
 | W-1315 | tempo civil separado | `.clock` não fornece data, timezone ou calendário; contrato civil futuro terá capability e values próprios e nunca dirige deadline | `now()` global de parede, timestamp em Instant ou calendário implícito no runtime |
 | W-1316 | evidence TIME0 | source W, 47 casos e oito testes host cobrem Duration, Clock, origin, profile, suspensão do HOST/SO, deadline, boundaries e clock virtual sem alegar provider | timing real como oracle, expected echo, chamar modelo de scheduler ou provider |
+| W-1317 | fronteira de evidência R1H0 | quatro bundles independentes registram parse Tree-sitter e host oracle; compile, run e estudos humano/model permanecem missing; formas reservadas mantêm estado explícito | chamar parse de ratificação, chamar oracle de execução W, ou inventar participantes |
+| W-1318 | R1 nomenclatura de suspensão | baseline `SuspendAccounting` mantém três estados e call `suspendAccounting`; `HostSuspendPolicy` é alternativa explícita; ambos excluem await, task e coroutine | booleano, inferência de `unspecified`, ou tratar suspensão da task como HOST/SO |
+| W-1319 | R1 aquisição de owner fraco | `upgrade`, property `strong` e method `strong()` são comparados contra live, expired e último strong release; resultado é novo owner ou none | acesso de payload por weak, upgrade não linearizável, ressurreição ou shared implícito |
+| W-1320 | R1 escopo de Arena | `Arena.fixed` mantém storage bounded, ledger de drops, rehome antes de clear, escape proibido e cleanup automático; região lexical fica reservada e closure é alternativa de estudo | region como syntax vigente, escape unchecked, bulk release antes de drop W, ou alocação OS |
+| W-1321 | R1 slot runtime de allocator | `Array<String>(using: memory)` separa capability runtime de contratos estáticos; envelope `Array<String, using: memory>()` é parseável e estudado como candidato contextual fora de type identity e comptime; o bundle não promove essa grafia | capability no type identity ou comptime, allocator por import, failure tardia ou origin omitida |
+| W-1322 | métricas e fechamento R1H0 | variantes preservam casos e traces quando a forma é genuína ou explicitamente modelada como candidata; selected continua baseline current; métricas não afirmam estudo humano ou de modelo | contar bundles como implementação, promover oracle a runtime, ou declarar ratificação |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

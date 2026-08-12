@@ -1,0 +1,93 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-weak-owner-acquisition",
+  "title": "Weak owner acquisition at the Last Light restaurant",
+  "r0Cases": ["R0-weak-owner-acquisition"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/memory.w",
+    "symbol": "weakUpgradeSuccess",
+    "digest": "sha256:e2c2117b56f232146f713bcdc57d23e0db630e6187806d781ba4ba073ffa1c1d"
+  },
+  "variants": [
+    {
+      "id": "upgrade",
+      "role": "selected",
+      "language": "w",
+      "path": "upgrade.w",
+      "digest": "sha256:22acb70bbb1b90710fde190500b86f60b4c1ed1976f8a2f259237ced20eaec0d",
+      "changedConstructs": ["weakRoot.upgrade()", "optional new shared owner", "linearizable final-release boundary"],
+      "parseEvidence": { "status": "tree-sitter-parse", "note": "The baseline source is a structural parse witness." }
+    },
+    {
+      "id": "strong-property",
+      "role": "alternative",
+      "language": "w-alternative",
+      "path": "strong-property.w",
+      "digest": "sha256:fe2c4497959104d8783699487093465b6ad93f37195915328c918d3379497be2",
+      "changedConstructs": ["weakRoot.strong property", "optional owner exposure", "same linearization requirement"],
+      "parseEvidence": { "status": "tree-sitter-parse", "note": "Property syntax is parse-shaped alternative evidence." }
+    },
+    {
+      "id": "strong-method",
+      "role": "alternative",
+      "language": "w-alternative",
+      "path": "strong-method.w",
+      "digest": "sha256:b8079a41d5de4b811d3d00ed2934cbfec61a7ffcbd9c04a7d5ea90b8f95a7825",
+      "changedConstructs": ["weakRoot.strong() method", "optional owner result", "same linearization requirement"],
+      "parseEvidence": { "status": "tree-sitter-parse", "note": "Method syntax is parse-shaped alternative evidence." }
+    }
+  ],
+  "entry": "acquireOwner",
+  "inputs": [
+    {
+      "id": "live-owner",
+      "strongCount": 1,
+      "payload": "Dinner",
+      "linearization": "before-final-release",
+      "expected": { "status": "accepted", "newOwner": true, "payload": "Dinner" }
+    },
+    {
+      "id": "expired-after-last-owner",
+      "strongCount": 0,
+      "payload": "Expired",
+      "linearization": "after-final-release",
+      "expected": { "status": "accepted", "newOwner": false, "owner": null }
+    },
+    {
+      "id": "adversarial-weak-payload-access",
+      "strongCount": 1,
+      "payload": "Hidden",
+      "payloadAccess": true,
+      "expected": { "status": "rejected", "reason": "weak-cannot-access-payload" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain why weak has no payload access, when acquisition returns none, and how the final strong release orders the race."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the live, expired, and final-release outcomes for all three spellings.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a weak access that reads payload directly or returns an owner after the final strong release, without favoring a property or method spelling.",
+      "mutations": {
+        "upgrade": "Keep upgrade optional and linearizable with the final release.",
+        "strong-property": "Make the property return an optional new owner without payload access.",
+        "strong-method": "Make the method return none after the final release and preserve the owner lifetime."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a weak parent observer that copies title only after successful acquisition and never retains the parent implicitly."
+    }
+  ],
+  "presentationOrders": [["upgrade", "strong-property", "strong-method"], ["strong-method", "upgrade", "strong-property"], ["strong-property", "strong-method", "upgrade"]],
+  "blinding": { "participantLabels": { "upgrade": "A", "strong-property": "B", "strong-method": "C" }, "hide": ["id", "role", "path", "changedConstructs"] },
+  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:cf5d876b1dbc3e34c08294209928e9b8a55822ee1f36e1d901f944a7dd84620e" },
+  "evidence": { "current": ["tree-sitter-parse", "host-oracle"], "missing": ["w-compile", "w-run", "human-study", "model-study"] }
+}

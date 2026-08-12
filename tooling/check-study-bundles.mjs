@@ -172,6 +172,29 @@ for (const bundleFile of bundleFiles) {
         requireString(construct, `${variantLocation}.changedConstructs[${constructIndex}]`),
       );
     }
+    const parseEvidence = variant.parseEvidence;
+    const bundleHasParseEvidence = bundle.variants.some(
+      (candidate) => candidate.parseEvidence !== undefined,
+    );
+    if (bundleHasParseEvidence && (!parseEvidence || typeof parseEvidence !== "object")) {
+      errors.push(`${variantLocation}.parseEvidence must record the parse evidence nature.`);
+    } else if (parseEvidence && typeof parseEvidence === "object" && !new Set(["tree-sitter-parse", "reserved-not-parsed"]).has(parseEvidence.status)) {
+      errors.push(`${variantLocation}.parseEvidence.status must be tree-sitter-parse or reserved-not-parsed.`);
+    } else if (parseEvidence && variant.language === "w-reserved" && parseEvidence.status !== "reserved-not-parsed") {
+      errors.push(`${variantLocation}.w-reserved variants must use reserved-not-parsed evidence.`);
+    } else if (parseEvidence && parseEvidence.status === "reserved-not-parsed" && variant.language !== "w-reserved") {
+      errors.push(`${variantLocation}.reserved-not-parsed evidence requires language w-reserved.`);
+    }
+    if (parseEvidence && typeof parseEvidence === "object") {
+      requireString(parseEvidence.note, `${variantLocation}.parseEvidence.note`);
+      const extension = path.extname(variant.path ?? "").toLowerCase();
+      if (parseEvidence.status === "tree-sitter-parse" && extension !== ".w") {
+        errors.push(`${variantLocation}.parseEvidence tree-sitter-parse requires a .w source path; found ${variant.path}.`);
+      }
+      if (parseEvidence.status === "reserved-not-parsed" && extension === ".w") {
+        errors.push(`${variantLocation}.parseEvidence reserved-not-parsed requires a non-.w witness path; found ${variant.path}.`);
+      }
+    }
   }
 
   if (selectedCount !== 1) {
