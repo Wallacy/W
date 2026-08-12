@@ -1099,6 +1099,126 @@
       "fixes": {}
     },
     {
+      "code": "W-ALLOCATOR-0001",
+      "state": "active",
+      "phase": "semantic.capability",
+      "defaultSeverity": "error",
+      "meaning": "an allocator contextual parameter is not first or is repeated",
+      "requiredFacts": { "declaration": "string", "parameter": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-ALLOCATOR-0002",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a value, borrow, child, wait, or dependent escapes its allocator scope",
+      "requiredFacts": { "allocator": "string", "value": "string", "boundary": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-ALLOCATOR-0003",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a local allocation origin crosses an async or service boundary without stable storage or rehome",
+      "requiredFacts": { "allocator": "string", "boundary": "string", "origin": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-ALLOCATOR-0004",
+      "state": "active",
+      "phase": "semantic.capability",
+      "defaultSeverity": "error",
+      "meaning": "a custom allocator plan lacks a nonzero providerDigest[32], version, failure, deallocator, mobility, const descriptor, or consuming open hook",
+      "requiredFacts": { "plan": "string", "provider": "string", "missingFacts": "string-set" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-ALLOCATOR-0005",
+      "state": "active",
+      "phase": "semantic.capability",
+      "defaultSeverity": "error",
+      "meaning": "a fixed allocator capacity or placement is unsupported by the selected target profile",
+      "requiredFacts": { "capacity": "string", "placement": "string", "profile": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-ALLOCATOR-0006",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "an allocator block closes with an undrained child, wait, loan, or dependent",
+      "requiredFacts": { "allocator": "string", "active": "string-set", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-ALLOCATOR-0007",
+      "state": "active",
+      "phase": "semantic.capability",
+      "defaultSeverity": "error",
+      "meaning": "allocator plan admission or lease acquisition fails before the body and binding exist",
+      "requiredFacts": { "plan": "string", "provider": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-ALLOCATOR-0008",
+      "state": "active",
+      "phase": "interface",
+      "defaultSeverity": "error",
+      "meaning": "a foreign ABI omits the explicit allocator contextual slot",
+      "requiredFacts": { "declaration": "string", "abi": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-ALLOCATOR-0009",
+      "state": "active",
+      "phase": "semantic.capability",
+      "defaultSeverity": "error",
+      "meaning": "a fixed allocator reservation or admission is not proven infallible and the declaration omits try",
+      "requiredFacts": { "allocator": "string", "target": "string", "profile": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-TIME-0001",
+      "state": "active",
+      "phase": "source.capability",
+      "defaultSeverity": "error",
+      "meaning": "an active host-suspend policy request is outside the included/excluded subset or unsupported by the provider",
+      "requiredFacts": { "requested": "string", "provider": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-TIME-0002",
+      "state": "active",
+      "phase": "source.capability",
+      "defaultSeverity": "error",
+      "meaning": "clock acquisition has no explicit process or Context authority",
+      "requiredFacts": { "expression": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-UNIT-0001",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a unit literal uses an unbound unqualified unit name",
+      "requiredFacts": { "unit": "string", "imports": "string[]", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
       "code": "W-STD-0001",
       "state": "active",
       "phase": "link",

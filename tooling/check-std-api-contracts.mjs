@@ -17,7 +17,7 @@ const rationale = fs.readFileSync(rationalePath, "utf8");
 const errors = [];
 
 const allowedFailureModes = new Set(["none", "typed", "generic"]);
-const allowedImplementationProviderKinds = new Set(["std-intrinsic"]);
+const allowedImplementationProviderKinds = new Set(["std-intrinsic", "std-source"]);
 const allowedImplementationProviderStatuses = new Set(["available", "missing"]);
 const requiredProfileFields = [
   "capabilities",
@@ -85,7 +85,7 @@ function extractExports(source, sourcePath) {
 
   for (let index = 0; index < lines.length; index += 1) {
     const match = lines[index].match(
-      /^export\s+(?:(?:async|const)\s+)?(type|alias|struct|object|enum|protocol|fn|unit)\s+([A-Za-z_][A-Za-z0-9_]*)/,
+      /^export\s+(?:(?:async|const)\s+)?(type|alias|struct|object|enum|protocol|fn|unit|dimension)\s+([A-Za-z_][A-Za-z0-9_]*)/,
     );
     if (!match) continue;
 

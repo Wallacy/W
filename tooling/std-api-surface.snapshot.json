@@ -1,11 +1,11 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "d1b49f68e969b742d8f8dd3d0f565be31f8951a7dac48971b3636baa6fa6a111",
+  "catalogDigest": "521e10f3d4e72e45fbfbf6cf15f092e3f44f2317bfdb7c10de6fb7c7ca651dea",
   "summary": {
-    "modules": 29,
-    "catalogedApis": 377,
-    "draftCatalogedApis": 377,
+    "modules": 31,
+    "catalogedApis": 422,
+    "draftCatalogedApis": 422,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 92,
     "referenceRequirements": 31,
@@ -13,8 +13,8 @@
     "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 0,
-    "implementationProviders": 23,
-    "missingImplementationProviders": 23
+    "implementationProviders": 25,
+    "missingImplementationProviders": 25
   },
   "modules": [
     {
@@ -800,14 +800,14 @@
           "strict-utf8-and-byte-identity"
         ]
       },
-      "catalogedDeclarationsDigest": "53f1accca3f865c3d952e4fc7a56f24dbbabe712ee909c93d5dc4bab7b1efb45",
+      "catalogedDeclarationsDigest": "eab8d4da1e9c16161b54ca6febbff5e0b218b147639d35c6c44440a433475e51",
       "apis": [
         {
           "symbol": "Context",
           "kind": "struct",
           "signature": "export struct Context",
           "declarationDigest": "fc5b354ea1e6048977b7233aa1d6742962200f7128ff4244f55ae8406ea40f39",
-          "line": 97,
+          "line": 99,
           "profile": "build-context",
           "members": [
             {
@@ -815,11 +815,11 @@
               "overloads": [
                 {
                   "signature": "export async fn read( string input: const Input<String>, maximumBytes limit: usize<(1...)>, ): String throws Error",
-                  "line": 107
+                  "line": 109
                 },
                 {
                   "signature": "export async fn read( bytes input: const Input<Bytes>, maximumBytes limit: usize<(1...)>, ): Bytes throws Error",
-                  "line": 120
+                  "line": 122
                 }
               ],
               "profile": "build-context-read"
@@ -829,11 +829,11 @@
               "overloads": [
                 {
                   "signature": "export async fn write( string output: const Output<String>, value content: take String, ): () throws Error",
-                  "line": 136
+                  "line": 138
                 },
                 {
                   "signature": "export async fn write( bytes output: const Output<Bytes>, value content: take Bytes, ): () throws Error",
-                  "line": 149
+                  "line": 151
                 }
               ],
               "profile": "build-context-write"
@@ -846,7 +846,7 @@
           "kind": "enum",
           "signature": "export enum Error: Error & Equatable",
           "declarationDigest": "8ad64a362ad0384f1bb88200b9c7e73c037f53859902fb81ffb6b5d7d00936ef",
-          "line": 42,
+          "line": 44,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -855,7 +855,7 @@
           "kind": "struct",
           "signature": "export struct Input<Value>",
           "declarationDigest": "b45ecf0c34b64fd88bacd8a8099247a36a2e983356bedc82e392eefd09559956",
-          "line": 20,
+          "line": 22,
           "profile": "const-binding",
           "status": "draft"
         },
@@ -864,7 +864,7 @@
           "kind": "struct",
           "signature": "export struct Output<Value>",
           "declarationDigest": "5b6fb3a47132a947bbad9ed373b4c62ac6c17e8eca7615d9f3ec684c6e7af722",
-          "line": 30,
+          "line": 32,
           "profile": "const-binding",
           "status": "draft"
         }
@@ -2435,14 +2435,14 @@
           "wpt-fetch-headers"
         ]
       },
-      "catalogedDeclarationsDigest": "8bbcff12918bdc292d0b72f6474e21f4e6149793b23e9737507527e6e3dc9565",
+      "catalogedDeclarationsDigest": "1b1b7f6224b6a3e785106c4dc5a10a5e58309ee2792da5e5505d27ac7296debb",
       "apis": [
         {
           "symbol": "BodyCloneError",
           "kind": "enum",
           "signature": "export enum BodyCloneError: Error",
           "declarationDigest": "eb151b2bc3a1d20c2683d781c874034f830851b1a79001b5cc3118e35fb9e267",
-          "line": 723,
+          "line": 724,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2451,7 +2451,7 @@
           "kind": "enum",
           "signature": "export enum BodyDecodeError<CodecFailure: Error>: Error",
           "declarationDigest": "5f55fef3dd317ba454b03e285cb9829bfadfc0f536d34d8e43922cb7df514beb",
-          "line": 718,
+          "line": 719,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2460,7 +2460,7 @@
           "kind": "enum",
           "signature": "export enum BodyOverride",
           "declarationDigest": "4f725590407320cf81bbc614a148f033bbb5f66a4c071fe5da21a03b7f86101e",
-          "line": 1157,
+          "line": 1158,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2469,7 +2469,7 @@
           "kind": "enum",
           "signature": "export enum BodySource",
           "declarationDigest": "d00abec5b7d0522f47d0997ce7f6ca1853f773dbbdf5cd69e836dc4f40179991",
-          "line": 1148,
+          "line": 1149,
           "profile": "http-body-source",
           "status": "draft"
         },
@@ -2478,7 +2478,7 @@
           "kind": "enum",
           "signature": "export enum CacheMode",
           "declarationDigest": "a7462fb4d55473c20eb66ce1c8e23dd8bde1728b3788a6f9a8be9c4192bc9ebc",
-          "line": 1176,
+          "line": 1177,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2487,7 +2487,7 @@
           "kind": "struct",
           "signature": "export struct CacheRegistry",
           "declarationDigest": "1fbd6c903e944839c043098ca64dfdb8c0f551ee13e824c7130df01a17c6d13d",
-          "line": 2029,
+          "line": 2030,
           "profile": "http-context",
           "members": [
             {
@@ -2495,7 +2495,7 @@
               "overloads": [
                 {
                   "signature": "export fn get<Key: Equatable & Hashable & Duplicable, Value: Duplicable,>( binding: const cache.LocalBinding<Key, Value>, ): some cache.LocalCache<Key, Value>",
-                  "line": 2036
+                  "line": 2037
                 }
               ],
               "profile": "http-context"
@@ -2508,7 +2508,7 @@
           "kind": "struct",
           "signature": "export struct Context",
           "declarationDigest": "cb3acb226df4947837d78978ae3187a883887f4bb5e217a38fcfa4824173e470",
-          "line": 2106,
+          "line": 2107,
           "profile": "http-context",
           "members": [
             {
@@ -2517,7 +2517,7 @@
               "overloads": [
                 {
                   "signature": "export random: RandomSource",
-                  "line": 2117
+                  "line": 2118
                 }
               ],
               "profile": "http-context"
@@ -2528,7 +2528,7 @@
               "overloads": [
                 {
                   "signature": "export databases: DatabaseRegistry",
-                  "line": 2123
+                  "line": 2124
                 }
               ],
               "profile": "http-context"
@@ -2539,7 +2539,7 @@
               "overloads": [
                 {
                   "signature": "export caches: CacheRegistry",
-                  "line": 2129
+                  "line": 2130
                 }
               ],
               "profile": "http-context"
@@ -2550,7 +2550,7 @@
               "overloads": [
                 {
                   "signature": "export templates: TemplateRegistry",
-                  "line": 2135
+                  "line": 2136
                 }
               ],
               "profile": "http-context"
@@ -2561,7 +2561,7 @@
               "overloads": [
                 {
                   "signature": "export signal: AbortSignal",
-                  "line": 2143
+                  "line": 2144
                 }
               ],
               "profile": "http-context"
@@ -2574,7 +2574,7 @@
           "kind": "enum",
           "signature": "export enum CredentialsMode",
           "declarationDigest": "4670a3ce47d8e34bc416d5b6cbffbff14b05f087396fd0cf51491c4a5b9127fb",
-          "line": 1170,
+          "line": 1171,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2583,7 +2583,7 @@
           "kind": "struct",
           "signature": "export struct DatabaseRegistry",
           "declarationDigest": "761b5bbca15e305eecbd5cf19dd0d0121fb07852cdb7461fc90d6e0830603df8",
-          "line": 2011,
+          "line": 2012,
           "profile": "http-context",
           "members": [
             {
@@ -2591,7 +2591,7 @@
               "overloads": [
                 {
                   "signature": "export fn get( binding: const database.Binding, ): some database.Database",
-                  "line": 2018
+                  "line": 2019
                 }
               ],
               "profile": "http-context"
@@ -2604,7 +2604,7 @@
           "kind": "enum",
           "signature": "export enum Duplex",
           "declarationDigest": "7eb2fc32a0d3b9636e68f9d66c3a58c36d1e6f1176d545622d99ab50e9bcf63b",
-          "line": 1202,
+          "line": 1203,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2613,7 +2613,7 @@
           "kind": "struct",
           "signature": "export struct FormData: Duplicable",
           "declarationDigest": "98f8fc34c184177c1796a49637d5c6d2e0bd1d4140ec8b7b936773653e6023e6",
-          "line": 892,
+          "line": 893,
           "profile": "form-data-value",
           "members": [
             {
@@ -2621,7 +2621,7 @@
               "overloads": [
                 {
                   "signature": "export init(limits: FormDataLimits = FormDataLimits.standard())",
-                  "line": 897
+                  "line": 898
                 }
               ],
               "profile": "form-data-value"
@@ -2632,7 +2632,7 @@
               "overloads": [
                 {
                   "signature": "export size: usize",
-                  "line": 913
+                  "line": 914
                 }
               ],
               "profile": "form-data-value"
@@ -2643,7 +2643,7 @@
               "overloads": [
                 {
                   "signature": "export limits: FormDataLimits",
-                  "line": 917
+                  "line": 918
                 }
               ],
               "profile": "form-data-value"
@@ -2653,7 +2653,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): FormData",
-                  "line": 921
+                  "line": 922
                 }
               ],
               "profile": "form-data-value"
@@ -2663,11 +2663,11 @@
               "overloads": [
                 {
                   "signature": "export mut fn append( name: String, value: String, ): () throws FormDataError",
-                  "line": 1020
+                  "line": 1021
                 },
                 {
                   "signature": "export mut fn append( name: String, blob file: take Blob, filename fileName: String = \"blob\", ): () throws FormDataError",
-                  "line": 1027
+                  "line": 1028
                 }
               ],
               "profile": "form-data-mutation"
@@ -2677,11 +2677,11 @@
               "overloads": [
                 {
                   "signature": "export mut fn set( name: String, value: String, ): () throws FormDataError",
-                  "line": 1038
+                  "line": 1039
                 },
                 {
                   "signature": "export mut fn set( name: String, blob file: take Blob, filename fileName: String = \"blob\", ): () throws FormDataError",
-                  "line": 1045
+                  "line": 1046
                 }
               ],
               "profile": "form-data-mutation"
@@ -2691,7 +2691,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn delete(name: ref String)",
-                  "line": 1105
+                  "line": 1106
                 }
               ],
               "profile": "form-data-mutation"
@@ -2701,7 +2701,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(name: ref String): ref FormDataValue?",
-                  "line": 1118
+                  "line": 1119
                 }
               ],
               "profile": "form-data-value"
@@ -2711,7 +2711,7 @@
               "overloads": [
                 {
                   "signature": "export fn getAll(name: ref String): Array<FormDataValue>",
-                  "line": 1125
+                  "line": 1126
                 }
               ],
               "profile": "form-data-value"
@@ -2721,7 +2721,7 @@
               "overloads": [
                 {
                   "signature": "export fn has(name: ref String): Bool",
-                  "line": 1135
+                  "line": 1136
                 }
               ],
               "profile": "form-data-value"
@@ -2731,7 +2731,7 @@
               "overloads": [
                 {
                   "signature": "export fn entries(): Array<FormDataEntry>",
-                  "line": 1139
+                  "line": 1140
                 }
               ],
               "profile": "form-data-value"
@@ -2747,7 +2747,7 @@
           "kind": "struct",
           "signature": "export struct FormDataEntry: Duplicable",
           "declarationDigest": "310b75336c848a3273f710be7dabbe87f3513db62069510a7e0744a1b4a187a0",
-          "line": 855,
+          "line": 856,
           "profile": "form-data-value",
           "members": [
             {
@@ -2755,7 +2755,7 @@
               "overloads": [
                 {
                   "signature": "export fn name(): view String",
-                  "line": 870
+                  "line": 871
                 }
               ],
               "profile": "form-data-value"
@@ -2765,7 +2765,7 @@
               "overloads": [
                 {
                   "signature": "export fn value(): ref FormDataValue",
-                  "line": 874
+                  "line": 875
                 }
               ],
               "profile": "form-data-value"
@@ -2775,7 +2775,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): FormDataEntry",
-                  "line": 878
+                  "line": 879
                 }
               ],
               "profile": "form-data-value"
@@ -2788,7 +2788,7 @@
           "kind": "enum",
           "signature": "export enum FormDataError: Error & Copy",
           "declarationDigest": "69dd4df308cb334e225ebcc6d15473885ba983fbc05f1ddd969bbd525d708f39",
-          "line": 794,
+          "line": 795,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2797,7 +2797,7 @@
           "kind": "enum",
           "signature": "export enum FormDataLimitKind: Copy",
           "declarationDigest": "d6a859da518f7cca89fb74cd28278c5cb6b9f7ec2b85d84609bc3beb285f250a",
-          "line": 784,
+          "line": 785,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2805,8 +2805,8 @@
           "symbol": "FormDataLimits",
           "kind": "struct",
           "signature": "export struct FormDataLimits: Copy & Equatable",
-          "declarationDigest": "ba081246a18c991d694ae1877a050b18e5bade0da1246c8cd42711b753e2b494",
-          "line": 801,
+          "declarationDigest": "9ae8d287a50aea02924dfb40a3e45bd246f3bb39cebde91bfbc44aca2e80b469",
+          "line": 802,
           "profile": "value-contract",
           "members": [
             {
@@ -2814,7 +2814,7 @@
               "overloads": [
                 {
                   "signature": "export const init( maximumEntries: usize<(1...)>, maximumNameBytes: usize<(1...)>, maximumFilenameBytes: usize<(1...)>, maximumTextBytes: usize<(1...)>, maximumBlobBytes: usize<(1...)>, maximumPayloadBytes: usize<(1...)>, maximumEncodedBytes: usize<(1...)>, )",
-                  "line": 810
+                  "line": 811
                 }
               ],
               "profile": "value-contract"
@@ -2824,7 +2824,7 @@
               "overloads": [
                 {
                   "signature": "export static fn standard(): FormDataLimits",
-                  "line": 828
+                  "line": 829
                 }
               ],
               "profile": "value-contract"
@@ -2837,7 +2837,7 @@
           "kind": "enum",
           "signature": "export enum FormDataValue: Duplicable",
           "declarationDigest": "93a211bf0d3f203b5739346f018091d21b3789a2cd6f4f70cc84b40279ddf02c",
-          "line": 841,
+          "line": 842,
           "profile": "form-data-value",
           "members": [
             {
@@ -2845,7 +2845,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): FormDataValue",
-                  "line": 845
+                  "line": 846
                 }
               ],
               "profile": "form-data-value"
@@ -2861,7 +2861,7 @@
           "kind": "struct",
           "signature": "export struct HeaderField",
           "declarationDigest": "4c458f69692eb86a987a4fd868af48789c2293e9cc63d9b76a746399a9f897f9",
-          "line": 383,
+          "line": 384,
           "profile": "normalized-http-header-component",
           "status": "draft"
         },
@@ -2870,7 +2870,7 @@
           "kind": "enum",
           "signature": "export enum HeaderMutationDenied",
           "declarationDigest": "9f310f6e27f9dd3228f9dc1f7111636cfdf73b80146ee765dab255b8f7cc6650",
-          "line": 454,
+          "line": 455,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2879,7 +2879,7 @@
           "kind": "struct",
           "signature": "export struct HeaderName",
           "declarationDigest": "168da2a30af2aaf7c2e491e1fbec70d710bad6b8be29a0ef632ee1c71e748725",
-          "line": 305,
+          "line": 306,
           "profile": "normalized-http-header-component",
           "status": "draft"
         },
@@ -2888,7 +2888,7 @@
           "kind": "struct",
           "signature": "export struct Headers",
           "declarationDigest": "0205b96325362846caa847ddf37b732bd8b0ef8b3a23d7d245efb800ed392259",
-          "line": 474,
+          "line": 475,
           "profile": "http-headers",
           "members": [
             {
@@ -2896,11 +2896,11 @@
               "overloads": [
                 {
                   "signature": "export init(_ initialFields: take HeaderField...)",
-                  "line": 478
+                  "line": 479
                 },
                 {
                   "signature": "export init(copying source: ref Headers)",
-                  "line": 483
+                  "line": 484
                 }
               ],
               "profile": "http-headers-construction"
@@ -2910,7 +2910,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn append( name: String, value: String, ): () throws HeadersError",
-                  "line": 499
+                  "line": 500
                 }
               ],
               "profile": "http-headers-append"
@@ -2920,7 +2920,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn delete(name: ref String): () throws HeadersError",
-                  "line": 512
+                  "line": 513
                 }
               ],
               "profile": "http-headers-mutation"
@@ -2930,7 +2930,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(name: ref String): String? throws HeadersError",
-                  "line": 527
+                  "line": 528
                 }
               ],
               "profile": "http-headers-query"
@@ -2940,7 +2940,7 @@
               "overloads": [
                 {
                   "signature": "export fn getSetCookie(): Array<String>",
-                  "line": 543
+                  "line": 544
                 }
               ],
               "profile": "http-headers-list-query"
@@ -2950,7 +2950,7 @@
               "overloads": [
                 {
                   "signature": "export fn has(name: ref String): Bool throws HeadersError",
-                  "line": 553
+                  "line": 554
                 }
               ],
               "profile": "http-headers-membership"
@@ -2960,7 +2960,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn set( name: String, value: String, ): () throws HeadersError",
-                  "line": 561
+                  "line": 562
                 }
               ],
               "profile": "http-headers-mutation"
@@ -2970,7 +2970,7 @@
               "overloads": [
                 {
                   "signature": "export fn entries(): Array<HeaderField>",
-                  "line": 601
+                  "line": 602
                 }
               ],
               "profile": "http-headers-iteration"
@@ -2983,7 +2983,7 @@
           "kind": "enum",
           "signature": "export enum HeadersError: Error",
           "declarationDigest": "72a5e407db7d3017b9713e040f1ab4e83989d799c4397a23e898d26c27dda9f0",
-          "line": 461,
+          "line": 462,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2992,7 +2992,7 @@
           "kind": "enum",
           "signature": "export enum HttpBodyError: Error & Duplicable",
           "declarationDigest": "3836d56c16be2c254cd3ce892ce4c1cee745a2adddc1cf2f07b29c7d0c9b68de",
-          "line": 708,
+          "line": 709,
           "profile": "value-contract",
           "status": "draft",
           "requires": [
@@ -3004,7 +3004,7 @@
           "kind": "enum",
           "signature": "export enum HttpError: Error",
           "declarationDigest": "bbfa669bc6f99c4ef5447f2cc8d110bc3f7a73adc2fc8059a77aa117426f0247",
-          "line": 750,
+          "line": 751,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3013,7 +3013,7 @@
           "kind": "protocol",
           "signature": "export protocol HttpHandler<Failure: Error>",
           "declarationDigest": "fc9db826e80d97ce7fc122f230a76727fabfcfc9f3008cdecf7bc99bc04bcdff",
-          "line": 2168,
+          "line": 2169,
           "profile": "http-handler",
           "status": "draft",
           "requires": [
@@ -3027,7 +3027,7 @@
           "kind": "enum",
           "signature": "export enum HttpSyntaxError: Error",
           "declarationDigest": "1ea4222e48791e4d56bcc53a3d566799053313fc64851a36453a4164e4832432",
-          "line": 700,
+          "line": 701,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3036,7 +3036,7 @@
           "kind": "struct",
           "signature": "export struct MessageLimits",
           "declarationDigest": "042016cbfcfa023aa8f3f98f913b268adc952ff0de81f66ff81c9e50d4183842",
-          "line": 769,
+          "line": 770,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3045,7 +3045,7 @@
           "kind": "enum",
           "signature": "export enum Method",
           "declarationDigest": "f218517e6bfcc193b5dae1ad01920bb440a17209234a96493870f9881927145a",
-          "line": 277,
+          "line": 278,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3054,7 +3054,7 @@
           "kind": "struct",
           "signature": "export struct MethodToken",
           "declarationDigest": "18cf1ace150c8cd4851e99dcfd414c615107ff7bd67d09f8f98d217afc5f05d5",
-          "line": 264,
+          "line": 265,
           "profile": "validated-http-token",
           "status": "draft"
         },
@@ -3063,7 +3063,7 @@
           "kind": "enum",
           "signature": "export enum Priority",
           "declarationDigest": "fcd5d3a517f018d9b0168165ada47c339d835078a8338db57bfa5b7ac4bfe9b5",
-          "line": 1206,
+          "line": 1207,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3072,7 +3072,7 @@
           "kind": "struct",
           "signature": "export struct RandomSource",
           "declarationDigest": "f77a8c642a83631f2893c0539296d0951b7f0a67fcb306b9a55a3dd501589b78",
-          "line": 1995,
+          "line": 1996,
           "profile": "http-context",
           "members": [
             {
@@ -3080,7 +3080,7 @@
               "overloads": [
                 {
                   "signature": "export fn integer(in range: Range<i32>): i32",
-                  "line": 2002
+                  "line": 2003
                 }
               ],
               "profile": "http-context"
@@ -3093,7 +3093,7 @@
           "kind": "enum",
           "signature": "export enum RedirectMode",
           "declarationDigest": "2adb67c040396e9229ea07f102b624382132a44cb7fd68830389a3df2cb60af2",
-          "line": 1185,
+          "line": 1186,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3102,7 +3102,7 @@
           "kind": "enum",
           "signature": "export enum ReferrerPolicy",
           "declarationDigest": "fe490b8ae21e4d99f5a8617bde0666e7ba81c33299810f9b57893c6496e1245f",
-          "line": 1191,
+          "line": 1192,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3111,7 +3111,7 @@
           "kind": "struct",
           "signature": "export struct Request",
           "declarationDigest": "eb44373a4ada347728cf5f4579a828a477b82152c0bf99c3192d80e7e5c6db75",
-          "line": 1524,
+          "line": 1525,
           "profile": "http-request",
           "members": [
             {
@@ -3119,19 +3119,19 @@
               "overloads": [
                 {
                   "signature": "export init(_ input: take String, init: take RequestInit = RequestInit()) throws RequestError",
-                  "line": 1531
+                  "line": 1532
                 },
                 {
                   "signature": "export init(_ input: take URL, init: take RequestInit = RequestInit()) throws RequestError",
-                  "line": 1537
+                  "line": 1538
                 },
                 {
                   "signature": "export init(copying input: ref URL, init: take RequestInit = RequestInit()) throws RequestError",
-                  "line": 1545
+                  "line": 1546
                 },
                 {
                   "signature": "export init( _ input: take Request, override: take RequestOverride = RequestOverride(), ) throws RequestError",
-                  "line": 1551
+                  "line": 1552
                 }
               ],
               "profile": "http-request"
@@ -3142,7 +3142,7 @@
               "overloads": [
                 {
                   "signature": "export method: Method",
-                  "line": 1559
+                  "line": 1560
                 }
               ],
               "profile": "http-request"
@@ -3153,7 +3153,7 @@
               "overloads": [
                 {
                   "signature": "export url: ref URL",
-                  "line": 1563
+                  "line": 1564
                 }
               ],
               "profile": "http-request"
@@ -3164,7 +3164,7 @@
               "overloads": [
                 {
                   "signature": "export headers: ref Headers",
-                  "line": 1567
+                  "line": 1568
                 }
               ],
               "profile": "http-request"
@@ -3175,7 +3175,7 @@
               "overloads": [
                 {
                   "signature": "export signal: ref AbortSignal",
-                  "line": 1571
+                  "line": 1572
                 }
               ],
               "profile": "http-request"
@@ -3186,7 +3186,7 @@
               "overloads": [
                 {
                   "signature": "export bodyUsed: Bool",
-                  "line": 1575
+                  "line": 1576
                 }
               ],
               "profile": "http-request"
@@ -3197,7 +3197,7 @@
               "overloads": [
                 {
                   "signature": "export destination: RequestDestination",
-                  "line": 1579
+                  "line": 1580
                 }
               ],
               "profile": "http-request"
@@ -3208,7 +3208,7 @@
               "overloads": [
                 {
                   "signature": "export mode: RequestMode",
-                  "line": 1583
+                  "line": 1584
                 }
               ],
               "profile": "http-request"
@@ -3219,7 +3219,7 @@
               "overloads": [
                 {
                   "signature": "export credentials: CredentialsMode",
-                  "line": 1587
+                  "line": 1588
                 }
               ],
               "profile": "http-request"
@@ -3230,7 +3230,7 @@
               "overloads": [
                 {
                   "signature": "export cache: CacheMode",
-                  "line": 1591
+                  "line": 1592
                 }
               ],
               "profile": "http-request"
@@ -3241,7 +3241,7 @@
               "overloads": [
                 {
                   "signature": "export redirect: RedirectMode",
-                  "line": 1595
+                  "line": 1596
                 }
               ],
               "profile": "http-request"
@@ -3252,7 +3252,7 @@
               "overloads": [
                 {
                   "signature": "export referrer: RequestReferrer",
-                  "line": 1599
+                  "line": 1600
                 }
               ],
               "profile": "http-request"
@@ -3263,7 +3263,7 @@
               "overloads": [
                 {
                   "signature": "export referrerPolicy: ReferrerPolicy",
-                  "line": 1603
+                  "line": 1604
                 }
               ],
               "profile": "http-request"
@@ -3274,7 +3274,7 @@
               "overloads": [
                 {
                   "signature": "export integrity: view String",
-                  "line": 1607
+                  "line": 1608
                 }
               ],
               "profile": "http-request"
@@ -3285,7 +3285,7 @@
               "overloads": [
                 {
                   "signature": "export duplex: Duplex",
-                  "line": 1611
+                  "line": 1612
                 }
               ],
               "profile": "http-request"
@@ -3296,7 +3296,7 @@
               "overloads": [
                 {
                   "signature": "export priority: Priority",
-                  "line": 1615
+                  "line": 1616
                 }
               ],
               "profile": "http-request"
@@ -3306,7 +3306,7 @@
               "overloads": [
                 {
                   "signature": "export take fn body(): ReadableStream<Bytes, HttpBodyError>?",
-                  "line": 1620
+                  "line": 1621
                 }
               ],
               "profile": "http-request"
@@ -3316,7 +3316,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn bytes(maximumBytes limit: usize<(1...)>): Bytes throws HttpBodyError",
-                  "line": 1624
+                  "line": 1625
                 }
               ],
               "profile": "http-request"
@@ -3326,7 +3326,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn text(maximumBytes limit: usize<(1...)>): String throws HttpBodyError",
-                  "line": 1628
+                  "line": 1629
                 }
               ],
               "profile": "http-request"
@@ -3336,7 +3336,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn blob(maximumBytes limit: usize<(1...)>): Blob throws HttpBodyError",
-                  "line": 1632
+                  "line": 1633
                 }
               ],
               "profile": "http-request"
@@ -3346,7 +3346,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn formData( limits formLimits: FormDataLimits = FormDataLimits.standard(), ): FormData throws BodyDecodeError<FormDataError>",
-                  "line": 1636
+                  "line": 1637
                 }
               ],
               "profile": "form-data-codec"
@@ -3356,11 +3356,11 @@
               "overloads": [
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( maximumBytes byteLimit: usize<(1...)>, profile decodeProfile: json.Profile = .interoperable, unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1642
+                  "line": 1643
                 },
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( limits decodeLimits: json.Limits, profile decodeProfile: json.Profile = .interoperable, unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1654
+                  "line": 1655
                 }
               ],
               "profile": "http-request"
@@ -3370,7 +3370,7 @@
               "overloads": [
                 {
                   "signature": "export take fn clone( maximumBufferedBytes bufferLimit: usize<(1...)>, ): (Request, Request) throws BodyCloneError",
-                  "line": 1679
+                  "line": 1680
                 }
               ],
               "profile": "http-request"
@@ -3392,7 +3392,7 @@
           "kind": "enum",
           "signature": "export enum RequestDestination",
           "declarationDigest": "7f402ff297e9f78eec1cf3da2eab233fab32e871ae1b4c8b95c5221e1caff785",
-          "line": 1212,
+          "line": 1213,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3401,7 +3401,7 @@
           "kind": "enum",
           "signature": "export enum RequestError: Error",
           "declarationDigest": "1e8db1d497081c8d67c0447abb3cf853df2750a8ccbfad0c8cf4ae3973b6b635",
-          "line": 729,
+          "line": 730,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3410,7 +3410,7 @@
           "kind": "struct",
           "signature": "export struct RequestInit",
           "declarationDigest": "032a5c7bb02099d00930a5023fef65d1547403b96af1b9a4012f4765eeea063f",
-          "line": 1260,
+          "line": 1261,
           "profile": "http-request",
           "members": [
             {
@@ -3418,7 +3418,7 @@
               "overloads": [
                 {
                   "signature": "export init( method: Method? = .none, headers: Headers? = .none, body: BodySource? = .none, signal: AbortSignal? = .none, mode: RequestMode? = .none, credentials: CredentialsMode? = .none, cache: CacheMode? = .none, redirect: RedirectMode? = .none, referrer: RequestReferrer? = .none, referrerPolicy: ReferrerPolicy? = .none, integrity: RequestIntegrity? = .none, duplex: Duplex? = .none, priority: Priority? = .none, )",
-                  "line": 1277
+                  "line": 1278
                 }
               ],
               "profile": "http-request"
@@ -3431,7 +3431,7 @@
           "kind": "enum",
           "signature": "export enum RequestIntegrity",
           "declarationDigest": "c479d8442cb550d779f476f0582845319a26a0ae406423f62fa21fb80877e447",
-          "line": 1246,
+          "line": 1247,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3440,7 +3440,7 @@
           "kind": "enum",
           "signature": "export enum RequestMode",
           "declarationDigest": "e31a569e23b6167b79d752942051be3966b96d47bfca09db8f98d1acb2b42602",
-          "line": 1163,
+          "line": 1164,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3449,7 +3449,7 @@
           "kind": "struct",
           "signature": "export struct RequestOverride",
           "declarationDigest": "ca500fe1c720ac8edabf93afa6b3c4df4c60d5a5d868eaae5b01b0ec2e7f57d5",
-          "line": 1308,
+          "line": 1309,
           "profile": "http-request",
           "members": [
             {
@@ -3457,7 +3457,7 @@
               "overloads": [
                 {
                   "signature": "export init( method: Method? = .none, headers: Headers? = .none, body: BodyOverride = .inherit, signal: AbortSignal? = .none, mode: RequestMode? = .none, credentials: CredentialsMode? = .none, cache: CacheMode? = .none, redirect: RedirectMode? = .none, referrer: RequestReferrer? = .none, referrerPolicy: ReferrerPolicy? = .none, integrity: RequestIntegrity? = .none, duplex: Duplex? = .none, priority: Priority? = .none, )",
-                  "line": 1324
+                  "line": 1325
                 }
               ],
               "profile": "http-request"
@@ -3470,7 +3470,7 @@
           "kind": "enum",
           "signature": "export enum RequestReferrer",
           "declarationDigest": "fd56203f3257879a99d8afc1ff2b69cf402d8290d8199a3d40dc65a69217642e",
-          "line": 1238,
+          "line": 1239,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3479,7 +3479,7 @@
           "kind": "struct",
           "signature": "export struct Response",
           "declarationDigest": "a12f95d99c7bad8991b6cbd282ad4c607411ca9c609eb538e924567c5e4e1ff7",
-          "line": 1696,
+          "line": 1697,
           "profile": "http-response",
           "members": [
             {
@@ -3487,35 +3487,35 @@
               "overloads": [
                 {
                   "signature": "export init( status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
-                  "line": 1703
+                  "line": 1704
                 },
                 {
                   "signature": "export init( _ body: take String, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
-                  "line": 1718
+                  "line": 1719
                 },
                 {
                   "signature": "export init( _ body: take Bytes, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
-                  "line": 1734
+                  "line": 1735
                 },
                 {
                   "signature": "export init( _ body: take URLSearchParams, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
-                  "line": 1750
+                  "line": 1751
                 },
                 {
                   "signature": "export init( _ body: take Blob, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
-                  "line": 1766
+                  "line": 1767
                 },
                 {
                   "signature": "export init( _ body: take FormData, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
-                  "line": 1782
+                  "line": 1783
                 },
                 {
                   "signature": "export init( _ body: take ReadableStream<Bytes, HttpBodyError>, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
-                  "line": 1798
+                  "line": 1799
                 },
                 {
                   "signature": "export init( _ body: take BodySource, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
-                  "line": 1814
+                  "line": 1815
                 }
               ],
               "profile": "http-response"
@@ -3525,7 +3525,7 @@
               "overloads": [
                 {
                   "signature": "export static fn error(): Response",
-                  "line": 1830
+                  "line": 1831
                 }
               ],
               "profile": "http-response"
@@ -3535,19 +3535,19 @@
               "overloads": [
                 {
                   "signature": "export static fn json<Value: json.Encodable>( value input: ref Value, maximumBytes byteLimit: usize<(1...)>, status responseStatus: StatusCode = StatusCode.ok, statusText responseStatusText: String = \"\", profile encodeProfile: json.Profile = .interoperable, headers responseHeaders: take Headers = Headers(), ) throws ResponseError",
-                  "line": 1834
+                  "line": 1835
                 },
                 {
                   "signature": "export static fn json<Value: json.Encodable>( value input: ref Value, limits encodeLimits: json.Limits, status responseStatus: StatusCode = StatusCode.ok, statusText responseStatusText: String = \"\", profile encodeProfile: json.Profile = .interoperable, headers responseHeaders: take Headers = Headers(), ) throws ResponseError",
-                  "line": 1852
+                  "line": 1853
                 },
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( maximumBytes byteLimit: usize<(1...)>, profile decodeProfile: json.Profile = .interoperable, unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1942
+                  "line": 1943
                 },
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( limits decodeLimits: json.Limits, profile decodeProfile: json.Profile = .interoperable, unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1954
+                  "line": 1955
                 }
               ],
               "profile": "http-response"
@@ -3558,7 +3558,7 @@
               "overloads": [
                 {
                   "signature": "export status: u16<(0..<600)>",
-                  "line": 1888
+                  "line": 1889
                 }
               ],
               "profile": "http-response"
@@ -3569,7 +3569,7 @@
               "overloads": [
                 {
                   "signature": "export ok: Bool",
-                  "line": 1892
+                  "line": 1893
                 }
               ],
               "profile": "http-response"
@@ -3580,7 +3580,7 @@
               "overloads": [
                 {
                   "signature": "export statusText: view String",
-                  "line": 1896
+                  "line": 1897
                 }
               ],
               "profile": "http-response"
@@ -3591,7 +3591,7 @@
               "overloads": [
                 {
                   "signature": "export headers: ref Headers",
-                  "line": 1900
+                  "line": 1901
                 }
               ],
               "profile": "http-response"
@@ -3602,7 +3602,7 @@
               "overloads": [
                 {
                   "signature": "export url: URL?",
-                  "line": 1904
+                  "line": 1905
                 }
               ],
               "profile": "http-response"
@@ -3613,7 +3613,7 @@
               "overloads": [
                 {
                   "signature": "export redirected: Bool",
-                  "line": 1908
+                  "line": 1909
                 }
               ],
               "profile": "http-response"
@@ -3624,7 +3624,7 @@
               "overloads": [
                 {
                   "signature": "export type: ResponseType",
-                  "line": 1912
+                  "line": 1913
                 }
               ],
               "profile": "http-response"
@@ -3635,7 +3635,7 @@
               "overloads": [
                 {
                   "signature": "export bodyUsed: Bool",
-                  "line": 1916
+                  "line": 1917
                 }
               ],
               "profile": "http-response"
@@ -3645,7 +3645,7 @@
               "overloads": [
                 {
                   "signature": "export take fn body(): ReadableStream<Bytes, HttpBodyError>?",
-                  "line": 1920
+                  "line": 1921
                 }
               ],
               "profile": "http-response"
@@ -3655,7 +3655,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn bytes(maximumBytes limit: usize<(1...)>): Bytes throws HttpBodyError",
-                  "line": 1924
+                  "line": 1925
                 }
               ],
               "profile": "http-response"
@@ -3665,7 +3665,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn text(maximumBytes limit: usize<(1...)>): String throws HttpBodyError",
-                  "line": 1928
+                  "line": 1929
                 }
               ],
               "profile": "http-response"
@@ -3675,7 +3675,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn blob(maximumBytes limit: usize<(1...)>): Blob throws HttpBodyError",
-                  "line": 1932
+                  "line": 1933
                 }
               ],
               "profile": "http-response"
@@ -3685,7 +3685,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn formData( limits formLimits: FormDataLimits = FormDataLimits.standard(), ): FormData throws BodyDecodeError<FormDataError>",
-                  "line": 1936
+                  "line": 1937
                 }
               ],
               "profile": "form-data-codec"
@@ -3695,7 +3695,7 @@
               "overloads": [
                 {
                   "signature": "export take fn clone( maximumBufferedBytes bufferLimit: usize<(1...)>, ): (Response, Response) throws BodyCloneError",
-                  "line": 1978
+                  "line": 1979
                 }
               ],
               "profile": "http-response"
@@ -3716,7 +3716,7 @@
           "kind": "enum",
           "signature": "export enum ResponseError: Error",
           "declarationDigest": "895b56a82a299e808db16612da2367a1eb7cb4d0c4740044c03992d502b2f8ca",
-          "line": 740,
+          "line": 741,
           "profile": "value-contract",
           "status": "draft",
           "requires": [
@@ -3728,7 +3728,7 @@
           "kind": "enum",
           "signature": "export enum ResponseType",
           "declarationDigest": "0606765b20dd26b6b4bb8af28eb240aaf0750c6c962f86318e92c603bbb64959",
-          "line": 1251,
+          "line": 1252,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3737,7 +3737,7 @@
           "kind": "fn",
           "signature": "export async fn serve<Failure: Error>( at address: net.ListenAddress, using network: ref net.Network, named limits: ServerLimits, named handler: some async fn(take Request, Context): Response throws Failure, ): () throws ServerError",
           "declarationDigest": "9d9862d70a183298de077f13a3b3813a6648a549a42a5421fd4e8bcc7b665b4a",
-          "line": 2152,
+          "line": 2153,
           "profile": "http-server",
           "status": "draft",
           "requires": [
@@ -3752,7 +3752,7 @@
           "kind": "enum",
           "signature": "export enum ServerError: Error",
           "declarationDigest": "45fe60cd3c821618bd45f6a49f10dde73e17ad0ddacae9dc370ea8932460b992",
-          "line": 760,
+          "line": 761,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3761,7 +3761,7 @@
           "kind": "struct",
           "signature": "export struct ServerLimits",
           "declarationDigest": "4bd70d562362b3ed761f6f146c1993a7c666cae8f0482c4dbbf06eee02db24b3",
-          "line": 776,
+          "line": 777,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3770,7 +3770,7 @@
           "kind": "type",
           "signature": "export type StatusCode = u16<(100..<600)>",
           "declarationDigest": "a4654d254d7edc4b527a489a0c2b91cb01e8fd2ed070d4303053f6668a690439",
-          "line": 291,
+          "line": 292,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3779,7 +3779,7 @@
           "kind": "struct",
           "signature": "export struct Template",
           "declarationDigest": "299e1b1b8fa043986291f91ebd76799e2b3688e95921d5c919effa68ca47489e",
-          "line": 2068,
+          "line": 2069,
           "profile": "template-provider",
           "members": [
             {
@@ -3787,7 +3787,7 @@
               "overloads": [
                 {
                   "signature": "export fn render<Value: json.Encodable>( values: ref Array<Value>, ): String throws TemplateError",
-                  "line": 2075
+                  "line": 2076
                 }
               ],
               "profile": "template-provider"
@@ -3803,7 +3803,7 @@
           "kind": "struct",
           "signature": "export struct TemplateBinding",
           "declarationDigest": "4b901c14b9688b4ca179d05a91a3dc8dae95f4bade8fae948872ff6b1fe13866",
-          "line": 2050,
+          "line": 2051,
           "profile": "value-contract",
           "members": [
             {
@@ -3811,7 +3811,7 @@
               "overloads": [
                 {
                   "signature": "export const init( name: String, limits: TemplateLimits, version: u32<(1...)> = 1, )",
-                  "line": 2055
+                  "line": 2056
                 }
               ],
               "profile": "value-contract"
@@ -3824,7 +3824,7 @@
           "kind": "enum",
           "signature": "export enum TemplateError: Error",
           "declarationDigest": "433a533d2e06fbc573ae91b6724f70a44adefe4738bcb82d5fdafdc457bafaa0",
-          "line": 1360,
+          "line": 1361,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3833,7 +3833,7 @@
           "kind": "enum",
           "signature": "export enum TemplateLimitKind",
           "declarationDigest": "177cafea0d129b250d4bc7225fd3336c244339b729370172acd47bcb3026b1c1",
-          "line": 1355,
+          "line": 1356,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3842,7 +3842,7 @@
           "kind": "struct",
           "signature": "export struct TemplateLimits",
           "declarationDigest": "91044be5884ee2dcf30d6b7ba396abac01b414a3a5c77a69f1c55c57e5bb4838",
-          "line": 1367,
+          "line": 1368,
           "profile": "value-contract",
           "members": [
             {
@@ -3850,7 +3850,7 @@
               "overloads": [
                 {
                   "signature": "export const init( maximumOutputBytes: usize<(1...)>, maximumValues: usize, )",
-                  "line": 1371
+                  "line": 1372
                 }
               ],
               "profile": "value-contract"
@@ -3863,7 +3863,7 @@
           "kind": "struct",
           "signature": "export struct TemplateRegistry",
           "declarationDigest": "3fd4df06f1d57a2b5650e62ac1abdf76fd611c0623cbbe7339af9cc57be1fe91",
-          "line": 2088,
+          "line": 2089,
           "profile": "http-context",
           "members": [
             {
@@ -3871,12 +3871,84 @@
               "overloads": [
                 {
                   "signature": "export fn get(binding: const TemplateBinding): Template",
-                  "line": 2095
+                  "line": 2096
                 }
               ],
               "profile": "http-context"
             }
           ],
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "id": "std.iec",
+      "availability": "bundled-portable",
+      "source": "std/iec/contracts.w",
+      "implementationProvider": {
+        "kind": "std-source",
+        "id": "std.iec@1",
+        "status": "missing",
+        "gates": [
+          "dimension-identity",
+          "exact-scale",
+          "unit-binding-resolution"
+        ]
+      },
+      "catalogedDeclarationsDigest": "d151022cee7df5c9747b13a36b26f9cc6af93bbae26f810158fc12a6a119ce06",
+      "apis": [
+        {
+          "symbol": "bit",
+          "kind": "unit",
+          "signature": "export unit bit: Information export unit byte = 8<bit> export unit KiB = 1_024<byte> export unit MiB = 1_024<KiB> export unit GiB = 1_024<MiB>",
+          "declarationDigest": "e4b960b7da2d1a12504abe7183c42ebfa8fc45e913d32df21324d9830c50e472",
+          "line": 10,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "byte",
+          "kind": "unit",
+          "signature": "export unit byte = 8<bit> export unit KiB = 1_024<byte> export unit MiB = 1_024<KiB> export unit GiB = 1_024<MiB>",
+          "declarationDigest": "1d59070399525703dc7458cb9c501aaa9ac0c157ca47a89845e9cdf01701c6f7",
+          "line": 11,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "GiB",
+          "kind": "unit",
+          "signature": "export unit GiB = 1_024<MiB>",
+          "declarationDigest": "bf4a3ecf85cc9be0418de87439e4835e563941e6bd54667d3d20045c91422449",
+          "line": 14,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Information",
+          "kind": "dimension",
+          "signature": "export dimension Information export unit bit: Information export unit byte = 8<bit> export unit KiB = 1_024<byte> export unit MiB = 1_024<KiB> export unit GiB = 1_024<MiB>",
+          "declarationDigest": "6cf845d476b857080866439868a4278a0b9d5d2817d8118d8acf4ab3ab8aaa4d",
+          "line": 9,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "KiB",
+          "kind": "unit",
+          "signature": "export unit KiB = 1_024<byte> export unit MiB = 1_024<KiB> export unit GiB = 1_024<MiB>",
+          "declarationDigest": "9bc9c16a5ea488eddc117181a8625d7ec08b58a7342dbb18e003b238332785c0",
+          "line": 12,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "MiB",
+          "kind": "unit",
+          "signature": "export unit MiB = 1_024<KiB> export unit GiB = 1_024<MiB>",
+          "declarationDigest": "76b70ec14b08ab9297120c71ef644afe7376e91baedac16e0f6ac0b0ee0c97ce",
+          "line": 13,
+          "profile": "value-contract",
           "status": "draft"
         }
       ]
@@ -4818,21 +4890,24 @@
         "status": "missing",
         "gates": [
           "active-loan-clear-rejection",
+          "allocator-plan-contract",
           "asan-tsan-leak",
           "drop-ledger",
+          "fixed-admission-and-resource-gates",
+          "fixed-recursion-reservation",
           "fixed-storage-lifetime",
           "origin-and-mobility",
           "refined-to-base"
         ]
       },
-      "catalogedDeclarationsDigest": "ac9a45c7b7fe3b4839a7c89db13847b5e440d4427b7813049daa9a7a6087f1e1",
+      "catalogedDeclarationsDigest": "afcd80214c15a355377f97b7d4ec3fc936acc28488aac71e773c85a737e910b5",
       "apis": [
         {
           "symbol": "AllocationError",
           "kind": "enum",
           "signature": "export enum AllocationError: Error",
           "declarationDigest": "80b6885f1fc0a262f1e8aafb76234eefa52904a87baa4196e7f9236b463b52c9",
-          "line": 25,
+          "line": 20,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -4840,40 +4915,63 @@
           "symbol": "Allocator",
           "kind": "struct",
           "signature": "export struct Allocator",
-          "declarationDigest": "0b9c77f5bf13647a184fb0e3682db512154e951d56acf20f67d3b0f4841464ec",
-          "line": 33,
+          "declarationDigest": "5f4481d4ab8030acba90c0894e25972e950bb60f24dec95baed4f82d4092b376",
+          "line": 54,
           "profile": "allocator-carrier",
           "status": "draft"
         },
         {
-          "symbol": "Arena",
+          "symbol": "AllocatorDeallocator",
+          "kind": "enum",
+          "signature": "export enum AllocatorDeallocator: Copy & Equatable",
+          "declarationDigest": "9c5257233e330296eec131427eb4ccd7dd08da88ad8421cafd7f242a5af18689",
+          "line": 36,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "AllocatorFailureMode",
+          "kind": "enum",
+          "signature": "export enum AllocatorFailureMode: Copy & Equatable",
+          "declarationDigest": "ba6d84b14b988e76356e8f978dbc072e1c8d8e57dbff17791ba8ee7a81bb2177",
+          "line": 31,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "AllocatorLease",
+          "kind": "alias",
+          "signature": "export alias AllocatorLease = Allocator",
+          "declarationDigest": "de4fe5bdc91c6bd5308ad7225a7a7d3532c1555fdff68b490a23ff5ff6474d71",
+          "line": 70,
+          "profile": "allocator-lease",
+          "status": "draft"
+        },
+        {
+          "symbol": "AllocatorMobility",
+          "kind": "enum",
+          "signature": "export enum AllocatorMobility: Copy & Equatable",
+          "declarationDigest": "a8c5fc04852a17a3dbc58182fc1f77dbf48455668ebb04dad495bcbcc966ff09",
+          "line": 41,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "AllocatorPlan",
+          "kind": "protocol",
+          "signature": "export protocol AllocatorPlan",
+          "declarationDigest": "d2e0c67c35b22547d968ece6c245167c6553856a1fbb7116cc57a60194a70dc6",
+          "line": 77,
+          "profile": "allocator-plan",
+          "status": "draft"
+        },
+        {
+          "symbol": "AllocatorPlanDescriptor",
           "kind": "struct",
-          "signature": "export struct Arena",
-          "declarationDigest": "2d6c9ae088f4dde5f5cd98a06e0b3085fb9f3a97d49b9aef0dc9a6903bcbda07",
-          "line": 49,
-          "profile": "arena-fixed",
-          "members": [
-            {
-              "symbol": "fixed",
-              "overloads": [
-                {
-                  "signature": "export static fn fixed<capacity: usize>( _ storage: inout [u8; capacity], ): Arena",
-                  "line": 52
-                }
-              ],
-              "profile": "arena-fixed"
-            },
-            {
-              "symbol": "reset",
-              "overloads": [
-                {
-                  "signature": "export mut fn reset()",
-                  "line": 59
-                }
-              ],
-              "profile": "arena-reset"
-            }
-          ],
+          "signature": "export struct AllocatorPlanDescriptor: Copy & Equatable",
+          "declarationDigest": "3ccfe9ceeb72863a1b0a9afd4e9a046d461cfc0b1a444edb9e4c790d72c48ed6",
+          "line": 46,
+          "profile": "allocator-plan-descriptor",
           "status": "draft"
         },
         {
@@ -4881,7 +4979,7 @@
           "kind": "struct",
           "signature": "export struct BudgetExceeded: Copy & Equatable",
           "declarationDigest": "49b0f6ec5ec9c1ac1295aca7f8cfc2f71cb924d9b87ef4da603eb81c02d698af",
-          "line": 19,
+          "line": 14,
           "profile": "value-contract",
           "status": "draft"
         }
@@ -4911,14 +5009,14 @@
           "udp-directional-split-lifecycle"
         ]
       },
-      "catalogedDeclarationsDigest": "f9d852501c069818ef06b51ba4baa6626fc5d1f79c0094bd9af022e05fc6c78f",
+      "catalogedDeclarationsDigest": "32f1e6787c1ffa02c774a64edc46214b9bf4400fbc0c770cb27d2382519a2671",
       "apis": [
         {
           "symbol": "AcceptedTcp",
           "kind": "struct",
           "signature": "export struct AcceptedTcp",
           "declarationDigest": "9fcbfccc6597d717c293473de6be62561d089a4540ad78113ff5c3db119b3860",
-          "line": 903,
+          "line": 905,
           "profile": "net-transport",
           "members": [
             {
@@ -4927,7 +5025,7 @@
               "overloads": [
                 {
                   "signature": "export connection: TcpConnection export peer: SocketAddress",
-                  "line": 904
+                  "line": 906
                 }
               ],
               "profile": "net-transport"
@@ -4938,7 +5036,7 @@
               "overloads": [
                 {
                   "signature": "export peer: SocketAddress",
-                  "line": 905
+                  "line": 907
                 }
               ],
               "profile": "net-address-value"
@@ -4951,7 +5049,7 @@
           "kind": "enum",
           "signature": "export enum AddressError: Error & Duplicable",
           "declarationDigest": "10e88ada0a886cfdecf7908dabfc6e2592bfc6848fc21b6ca71f27e958427725",
-          "line": 15,
+          "line": 17,
           "profile": "net-address-value",
           "status": "draft"
         },
@@ -4960,7 +5058,7 @@
           "kind": "enum",
           "signature": "export enum AddressFamily: Copy & Equatable & Hashable",
           "declarationDigest": "2249cfd82d699f4cb668da65afe1e36961b5b1f64dfb365324c5b141a662bb14",
-          "line": 9,
+          "line": 11,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -4969,7 +5067,7 @@
           "kind": "enum",
           "signature": "export enum AddressPreference: Copy & Equatable",
           "declarationDigest": "4ce5275d9e11f668f75744ca556b79f20851497f7c08ab471114a306e2f45f5c",
-          "line": 496,
+          "line": 498,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -4977,16 +5075,16 @@
           "symbol": "ConnectOptions",
           "kind": "struct",
           "signature": "export struct ConnectOptions: Duplicable & Equatable",
-          "declarationDigest": "83c8a9a72a1630229241f33637a4626e34484f2dbd43e38c52ef4a0740225526",
-          "line": 502,
+          "declarationDigest": "8615729539d554ac0684116997619111c689e39371ad26cff9bbb9bc81300c86",
+          "line": 504,
           "profile": "value-contract",
           "members": [
             {
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export const init( maximumAttempts: usize<(1...16)> = 4, fallbackDelay: Duration<(0...30<s>)> = 250<ms>, preference: AddressPreference = .system, local: SocketAddress? = .none, )",
-                  "line": 508
+                  "signature": "export const init( maximumAttempts: usize<(1...16)> = 4, fallbackDelay: Duration<(0...30<si.s>)> = 250<si.ms>, preference: AddressPreference = .system, local: SocketAddress? = .none, )",
+                  "line": 510
                 }
               ],
               "profile": "value-contract"
@@ -4996,8 +5094,8 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumAttempts: usize<(1...16)> export fallbackDelay: Duration<(0...30<s>)> export preference: AddressPreference export local: SocketAddress?",
-                  "line": 503
+                  "signature": "export maximumAttempts: usize<(1...16)> export fallbackDelay: Duration<(0...30<si.s>)> export preference: AddressPreference export local: SocketAddress?",
+                  "line": 505
                 }
               ],
               "profile": "value-contract"
@@ -5007,8 +5105,8 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export fallbackDelay: Duration<(0...30<s>)> export preference: AddressPreference export local: SocketAddress?",
-                  "line": 504
+                  "signature": "export fallbackDelay: Duration<(0...30<si.s>)> export preference: AddressPreference export local: SocketAddress?",
+                  "line": 506
                 }
               ],
               "profile": "value-contract"
@@ -5019,7 +5117,7 @@
               "overloads": [
                 {
                   "signature": "export preference: AddressPreference export local: SocketAddress?",
-                  "line": 505
+                  "line": 507
                 }
               ],
               "profile": "value-contract"
@@ -5030,7 +5128,7 @@
               "overloads": [
                 {
                   "signature": "export local: SocketAddress?",
-                  "line": 506
+                  "line": 508
                 }
               ],
               "profile": "value-contract"
@@ -5040,7 +5138,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): ConnectOptions",
-                  "line": 520
+                  "line": 522
                 }
               ],
               "profile": "value-contract"
@@ -5050,7 +5148,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref ConnectOptions): Bool",
-                  "line": 529
+                  "line": 531
                 }
               ],
               "profile": "value-contract"
@@ -5063,7 +5161,7 @@
           "kind": "struct",
           "signature": "export struct Datagram: Duplicable",
           "declarationDigest": "d2249d98686ef56c283f5f83b5c206b393699a06146e4cbd1a94b45b92fa5cb7",
-          "line": 566,
+          "line": 568,
           "profile": "net-transport",
           "members": [
             {
@@ -5072,7 +5170,7 @@
               "overloads": [
                 {
                   "signature": "export bytes: Bytes export peer: SocketAddress export truncated: Bool",
-                  "line": 567
+                  "line": 569
                 }
               ],
               "profile": "value-contract"
@@ -5083,7 +5181,7 @@
               "overloads": [
                 {
                   "signature": "export peer: SocketAddress export truncated: Bool",
-                  "line": 568
+                  "line": 570
                 }
               ],
               "profile": "value-contract"
@@ -5094,7 +5192,7 @@
               "overloads": [
                 {
                   "signature": "export truncated: Bool",
-                  "line": 569
+                  "line": 571
                 }
               ],
               "profile": "value-contract"
@@ -5104,7 +5202,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): Datagram",
-                  "line": 577
+                  "line": 579
                 }
               ],
               "profile": "value-contract"
@@ -5116,16 +5214,16 @@
           "symbol": "DatagramLimits",
           "kind": "struct",
           "signature": "export struct DatagramLimits: Copy & Equatable",
-          "declarationDigest": "0746d48c77072dd6871e8b368c9e5414ab4a10141f417207e5306da7729995f5",
-          "line": 550,
+          "declarationDigest": "645d714d30f335e294a635df52903250f37654c72ace69d064a436b97600d197",
+          "line": 552,
           "profile": "value-contract",
           "members": [
             {
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export const init( maximumDatagramBytes: usize<(1...)> = 65_507, maximumQueuedDatagrams: usize<(1...)> = 128, maximumQueuedBytes: usize<(1...)> = 1<MiB>, )",
-                  "line": 555
+                  "signature": "export const init( maximumDatagramBytes: usize<(1...)> = 65_507, maximumQueuedDatagrams: usize<(1...)> = 128, maximumQueuedBytes: usize<(1...)> = 1<iec.MiB>, )",
+                  "line": 557
                 }
               ],
               "profile": "value-contract"
@@ -5136,7 +5234,7 @@
               "overloads": [
                 {
                   "signature": "export maximumDatagramBytes: usize<(1...)> export maximumQueuedDatagrams: usize<(1...)> export maximumQueuedBytes: usize<(1...)>",
-                  "line": 551
+                  "line": 553
                 }
               ],
               "profile": "value-contract"
@@ -5147,7 +5245,7 @@
               "overloads": [
                 {
                   "signature": "export maximumQueuedDatagrams: usize<(1...)> export maximumQueuedBytes: usize<(1...)>",
-                  "line": 552
+                  "line": 554
                 }
               ],
               "profile": "value-contract"
@@ -5158,7 +5256,7 @@
               "overloads": [
                 {
                   "signature": "export maximumQueuedBytes: usize<(1...)>",
-                  "line": 553
+                  "line": 555
                 }
               ],
               "profile": "value-contract"
@@ -5171,7 +5269,7 @@
           "kind": "struct",
           "signature": "export struct Endpoint: Duplicable & Equatable & Hashable",
           "declarationDigest": "df5963fc18970ac5720b96a7ad8d3e7e2b6fba0ede9878ebe6552347f543a3b6",
-          "line": 324,
+          "line": 326,
           "profile": "net-address-value",
           "members": [
             {
@@ -5179,11 +5277,11 @@
               "overloads": [
                 {
                   "signature": "export init( ip: IpAddress, port: u16<(1...65_535)>, )",
-                  "line": 328
+                  "line": 330
                 },
                 {
                   "signature": "export init( host: HostName, port: u16<(1...65_535)>, )",
-                  "line": 336
+                  "line": 338
                 }
               ],
               "profile": "net-address-value"
@@ -5194,7 +5292,7 @@
               "overloads": [
                 {
                   "signature": "export host: EndpointHost export port: u16<(1...65_535)>",
-                  "line": 325
+                  "line": 327
                 }
               ],
               "profile": "value-contract"
@@ -5205,7 +5303,7 @@
               "overloads": [
                 {
                   "signature": "export port: u16<(1...65_535)>",
-                  "line": 326
+                  "line": 328
                 }
               ],
               "profile": "value-contract"
@@ -5215,7 +5313,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): Endpoint",
-                  "line": 344
+                  "line": 346
                 }
               ],
               "profile": "value-contract"
@@ -5225,7 +5323,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref Endpoint): Bool",
-                  "line": 351
+                  "line": 353
                 }
               ],
               "profile": "value-contract"
@@ -5238,7 +5336,7 @@
           "kind": "enum",
           "signature": "export enum EndpointHost: Duplicable & Equatable & Hashable",
           "declarationDigest": "485a636c618374914ffe54ec18ab6055e91b00674d925c9cba4befc46d69878c",
-          "line": 361,
+          "line": 363,
           "profile": "net-address-value",
           "members": [
             {
@@ -5246,7 +5344,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): EndpointHost",
-                  "line": 365
+                  "line": 367
                 }
               ],
               "profile": "value-contract"
@@ -5256,7 +5354,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref EndpointHost): Bool",
-                  "line": 372
+                  "line": 374
                 }
               ],
               "profile": "value-contract"
@@ -5269,7 +5367,7 @@
           "kind": "struct",
           "signature": "export struct HostName: Duplicable & Equatable & Hashable",
           "declarationDigest": "ec057ca8e8be5ad6e8ed4306f8ebbe366ff2b8a32d3daf48b4dc7047e4ee0124",
-          "line": 294,
+          "line": 296,
           "profile": "net-address-value",
           "members": [
             {
@@ -5277,7 +5375,7 @@
               "overloads": [
                 {
                   "signature": "export init(_ value: String) throws AddressError",
-                  "line": 297
+                  "line": 299
                 }
               ],
               "profile": "net-address-value"
@@ -5287,7 +5385,7 @@
               "overloads": [
                 {
                   "signature": "export fn text(): view String",
-                  "line": 307
+                  "line": 309
                 }
               ],
               "profile": "net-address-value"
@@ -5297,7 +5395,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): HostName",
-                  "line": 311
+                  "line": 313
                 }
               ],
               "profile": "value-contract"
@@ -5307,7 +5405,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref HostName): Bool",
-                  "line": 315
+                  "line": 317
                 }
               ],
               "profile": "value-contract"
@@ -5320,7 +5418,7 @@
           "kind": "enum",
           "signature": "export enum IpAddress: Duplicable & Equatable & Hashable",
           "declarationDigest": "5eba17db96d08fc8763ad7021c92417023a7bf55e1019be48c234d713522d1c5",
-          "line": 175,
+          "line": 177,
           "profile": "net-address-value",
           "members": [
             {
@@ -5328,7 +5426,7 @@
               "overloads": [
                 {
                   "signature": "export static fn parse(_ text: ref String): IpAddress throws AddressError",
-                  "line": 180
+                  "line": 182
                 }
               ],
               "profile": "net-address-value"
@@ -5338,7 +5436,7 @@
               "overloads": [
                 {
                   "signature": "export fn family(): AddressFamily",
-                  "line": 184
+                  "line": 186
                 }
               ],
               "profile": "value-contract"
@@ -5348,7 +5446,7 @@
               "overloads": [
                 {
                   "signature": "export fn text(): String",
-                  "line": 191
+                  "line": 193
                 }
               ],
               "profile": "net-address-value"
@@ -5358,7 +5456,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): IpAddress",
-                  "line": 198
+                  "line": 200
                 }
               ],
               "profile": "value-contract"
@@ -5368,7 +5466,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref IpAddress): Bool",
-                  "line": 205
+                  "line": 207
                 }
               ],
               "profile": "value-contract"
@@ -5381,7 +5479,7 @@
           "kind": "struct",
           "signature": "export struct Ipv4Address: Duplicable & Equatable & Hashable",
           "declarationDigest": "6c549c77c1fd6d8b2e57cf6dcd6d03848910a6d8947da5e72c32ef13c12cdad9",
-          "line": 61,
+          "line": 63,
           "profile": "net-address-value",
           "members": [
             {
@@ -5389,7 +5487,7 @@
               "overloads": [
                 {
                   "signature": "export const init( _ first: u8, _ second: u8, _ third: u8, _ fourth: u8, )",
-                  "line": 65
+                  "line": 67
                 }
               ],
               "profile": "net-address-value"
@@ -5399,7 +5497,7 @@
               "overloads": [
                 {
                   "signature": "export static fn parse(_ text: ref String): Ipv4Address throws AddressError",
-                  "line": 78
+                  "line": 80
                 }
               ],
               "profile": "net-address-value"
@@ -5409,7 +5507,7 @@
               "overloads": [
                 {
                   "signature": "export static fn loopback(): Ipv4Address",
-                  "line": 82
+                  "line": 84
                 }
               ],
               "profile": "value-contract"
@@ -5419,7 +5517,7 @@
               "overloads": [
                 {
                   "signature": "export static fn unspecified(): Ipv4Address",
-                  "line": 86
+                  "line": 88
                 }
               ],
               "profile": "value-contract"
@@ -5429,7 +5527,7 @@
               "overloads": [
                 {
                   "signature": "export fn octets(): [u8; 4]",
-                  "line": 90
+                  "line": 92
                 }
               ],
               "profile": "value-contract"
@@ -5439,7 +5537,7 @@
               "overloads": [
                 {
                   "signature": "export fn text(): String",
-                  "line": 94
+                  "line": 96
                 }
               ],
               "profile": "net-address-value"
@@ -5449,7 +5547,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): Ipv4Address",
-                  "line": 98
+                  "line": 100
                 }
               ],
               "profile": "value-contract"
@@ -5459,7 +5557,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref Ipv4Address): Bool",
-                  "line": 102
+                  "line": 104
                 }
               ],
               "profile": "value-contract"
@@ -5472,7 +5570,7 @@
           "kind": "struct",
           "signature": "export struct Ipv6Address: Duplicable & Equatable & Hashable",
           "declarationDigest": "2cba71fd25d8bc3cf4b05995be4dbb57245f15b61a1c82126d162cc0006e0003",
-          "line": 111,
+          "line": 113,
           "profile": "net-address-value",
           "members": [
             {
@@ -5480,7 +5578,7 @@
               "overloads": [
                 {
                   "signature": "export const init( _ first: u16, _ second: u16, _ third: u16, _ fourth: u16, _ fifth: u16, _ sixth: u16, _ seventh: u16, _ eighth: u16, )",
-                  "line": 115
+                  "line": 117
                 }
               ],
               "profile": "net-address-value"
@@ -5490,7 +5588,7 @@
               "overloads": [
                 {
                   "signature": "export static fn parse(_ text: ref String): Ipv6Address throws AddressError",
-                  "line": 141
+                  "line": 143
                 }
               ],
               "profile": "net-address-value"
@@ -5500,7 +5598,7 @@
               "overloads": [
                 {
                   "signature": "export static fn loopback(): Ipv6Address",
-                  "line": 145
+                  "line": 147
                 }
               ],
               "profile": "value-contract"
@@ -5510,7 +5608,7 @@
               "overloads": [
                 {
                   "signature": "export static fn unspecified(): Ipv6Address",
-                  "line": 149
+                  "line": 151
                 }
               ],
               "profile": "value-contract"
@@ -5520,7 +5618,7 @@
               "overloads": [
                 {
                   "signature": "export fn segments(): [u16; 8]",
-                  "line": 153
+                  "line": 155
                 }
               ],
               "profile": "value-contract"
@@ -5530,7 +5628,7 @@
               "overloads": [
                 {
                   "signature": "export fn text(): String",
-                  "line": 158
+                  "line": 160
                 }
               ],
               "profile": "net-address-value"
@@ -5540,7 +5638,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): Ipv6Address",
-                  "line": 162
+                  "line": 164
                 }
               ],
               "profile": "value-contract"
@@ -5550,7 +5648,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref Ipv6Address): Bool",
-                  "line": 166
+                  "line": 168
                 }
               ],
               "profile": "value-contract"
@@ -5563,7 +5661,7 @@
           "kind": "struct",
           "signature": "export struct ListenAddress: Duplicable & Equatable & Hashable",
           "declarationDigest": "396b0299db4fb30584d6b75050118b0131b4792b1c9d69d7d2e6405eca1800dd",
-          "line": 435,
+          "line": 437,
           "profile": "net-address-value",
           "members": [
             {
@@ -5571,7 +5669,7 @@
               "overloads": [
                 {
                   "signature": "export static fn loopback( port: u16, family: AddressFamily = .any, ): ListenAddress",
-                  "line": 442
+                  "line": 444
                 }
               ],
               "profile": "net-address-value"
@@ -5581,7 +5679,7 @@
               "overloads": [
                 {
                   "signature": "export static fn allInterfaces( port: u16, family: AddressFamily = .any, ): ListenAddress",
-                  "line": 449
+                  "line": 451
                 }
               ],
               "profile": "net-address-value"
@@ -5591,7 +5689,7 @@
               "overloads": [
                 {
                   "signature": "export static fn address(_ address: SocketAddress): ListenAddress",
-                  "line": 456
+                  "line": 458
                 }
               ],
               "profile": "net-address-value"
@@ -5601,7 +5699,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): ListenAddress",
-                  "line": 460
+                  "line": 462
                 }
               ],
               "profile": "value-contract"
@@ -5611,7 +5709,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref ListenAddress): Bool",
-                  "line": 468
+                  "line": 470
                 }
               ],
               "profile": "value-contract"
@@ -5624,7 +5722,7 @@
           "kind": "struct",
           "signature": "export struct ListenerLimits: Copy & Equatable",
           "declarationDigest": "eebc400f6a9ba8e6bff4019c06baeb1660123db525792e0d1be658c613aea23f",
-          "line": 537,
+          "line": 539,
           "profile": "value-contract",
           "members": [
             {
@@ -5632,7 +5730,7 @@
               "overloads": [
                 {
                   "signature": "export const init( maximumBacklog: usize<(1...)> = 128, maximumQueuedAccepts: usize<(1...)> = 128, )",
-                  "line": 541
+                  "line": 543
                 }
               ],
               "profile": "value-contract"
@@ -5643,7 +5741,7 @@
               "overloads": [
                 {
                   "signature": "export maximumBacklog: usize<(1...)> export maximumQueuedAccepts: usize<(1...)>",
-                  "line": 538
+                  "line": 540
                 }
               ],
               "profile": "value-contract"
@@ -5654,7 +5752,7 @@
               "overloads": [
                 {
                   "signature": "export maximumQueuedAccepts: usize<(1...)>",
-                  "line": 539
+                  "line": 541
                 }
               ],
               "profile": "value-contract"
@@ -5667,7 +5765,7 @@
           "kind": "struct",
           "signature": "export struct Network",
           "declarationDigest": "dabbda65115e26da8fc100b19298ec721bfe9ffe85bfbd1a4d1be843c22099ba",
-          "line": 699,
+          "line": 701,
           "profile": "net-listener-carrier",
           "members": [
             {
@@ -5675,7 +5773,7 @@
               "overloads": [
                 {
                   "signature": "export async fn resolve( _ host: ref HostName, named port: u16<(1...65_535)>, named limits: ResolveLimits = ResolveLimits(), ): Array<SocketAddress> throws NetworkError",
-                  "line": 709
+                  "line": 711
                 }
               ],
               "profile": "net-listener-carrier"
@@ -5685,7 +5783,7 @@
               "overloads": [
                 {
                   "signature": "export async fn connectTcp( to endpoint: ref Endpoint, named options: ConnectOptions = ConnectOptions(), ): TcpConnection throws NetworkError",
-                  "line": 724
+                  "line": 726
                 }
               ],
               "profile": "net-listener-carrier"
@@ -5695,7 +5793,7 @@
               "overloads": [
                 {
                   "signature": "export async fn listenTcp( at address: ref ListenAddress, named limits: ListenerLimits = ListenerLimits(), ): TcpListener throws NetworkError",
-                  "line": 738
+                  "line": 740
                 }
               ],
               "profile": "net-listener-carrier"
@@ -5705,7 +5803,7 @@
               "overloads": [
                 {
                   "signature": "export async fn bindUdp( at address: ref ListenAddress, named limits: DatagramLimits = DatagramLimits(), ): UdpSocket throws NetworkError",
-                  "line": 752
+                  "line": 754
                 }
               ],
               "profile": "net-listener-carrier"
@@ -5718,7 +5816,7 @@
           "kind": "enum",
           "signature": "export enum NetworkError: Error & Duplicable",
           "declarationDigest": "4fb8ddd4a426a4dd1f94cd95e6c65ad939bc7b09a164d7f3c9947a2fc2a65468",
-          "line": 40,
+          "line": 42,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -5727,7 +5825,7 @@
           "kind": "enum",
           "signature": "export enum NetworkLimitKind: Copy & Equatable",
           "declarationDigest": "956899b150c4d523953dd416d663158ee9cc2cb816fd20d3107cc27b24a2702d",
-          "line": 26,
+          "line": 28,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -5735,16 +5833,16 @@
           "symbol": "ResolveLimits",
           "kind": "struct",
           "signature": "export struct ResolveLimits: Copy & Equatable",
-          "declarationDigest": "e94f2bd0e0626a200e1b34055cb3164b2eaea470a38dee4bab8b90a6a9e3f456",
-          "line": 477,
+          "declarationDigest": "04852fc2468a2edbaa471235ce8345160d2057e3df30c06b687e7abd561141ce",
+          "line": 479,
           "profile": "value-contract",
           "members": [
             {
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export const init( maximumAddresses: usize<(1...)> = 16, maximumCnameDepth: usize = 8, maximumResponseBytes: usize<(1...)> = 64<KiB>, maximumAllocationBytes: usize<(1...)> = 256<KiB>, )",
-                  "line": 483
+                  "signature": "export const init( maximumAddresses: usize<(1...)> = 16, maximumCnameDepth: usize = 8, maximumResponseBytes: usize<(1...)> = 64<iec.KiB>, maximumAllocationBytes: usize<(1...)> = 256<iec.KiB>, )",
+                  "line": 485
                 }
               ],
               "profile": "value-contract"
@@ -5755,7 +5853,7 @@
               "overloads": [
                 {
                   "signature": "export maximumAddresses: usize<(1...)> export maximumCnameDepth: usize export maximumResponseBytes: usize<(1...)> export maximumAllocationBytes: usize<(1...)>",
-                  "line": 478
+                  "line": 480
                 }
               ],
               "profile": "value-contract"
@@ -5766,7 +5864,7 @@
               "overloads": [
                 {
                   "signature": "export maximumCnameDepth: usize export maximumResponseBytes: usize<(1...)> export maximumAllocationBytes: usize<(1...)>",
-                  "line": 479
+                  "line": 481
                 }
               ],
               "profile": "value-contract"
@@ -5777,7 +5875,7 @@
               "overloads": [
                 {
                   "signature": "export maximumResponseBytes: usize<(1...)> export maximumAllocationBytes: usize<(1...)>",
-                  "line": 480
+                  "line": 482
                 }
               ],
               "profile": "value-contract"
@@ -5788,7 +5886,7 @@
               "overloads": [
                 {
                   "signature": "export maximumAllocationBytes: usize<(1...)>",
-                  "line": 481
+                  "line": 483
                 }
               ],
               "profile": "value-contract"
@@ -5801,7 +5899,7 @@
           "kind": "struct",
           "signature": "export struct SocketAddress: Duplicable & Equatable & Hashable",
           "declarationDigest": "b63dbf9dc5c1989f2feec7a9bfd685963beacd802484ea258ba15a3556790420",
-          "line": 225,
+          "line": 227,
           "profile": "net-address-value",
           "members": [
             {
@@ -5809,7 +5907,7 @@
               "overloads": [
                 {
                   "signature": "export init( ip: IpAddress, port: u16, scopeId: u32? = .none, ) throws AddressError",
-                  "line": 230
+                  "line": 232
                 }
               ],
               "profile": "net-address-value"
@@ -5820,7 +5918,7 @@
               "overloads": [
                 {
                   "signature": "export ip: IpAddress export port: u16 export scopeId: u32?",
-                  "line": 226
+                  "line": 228
                 }
               ],
               "profile": "value-contract"
@@ -5831,7 +5929,7 @@
               "overloads": [
                 {
                   "signature": "export port: u16 export scopeId: u32?",
-                  "line": 227
+                  "line": 229
                 }
               ],
               "profile": "value-contract"
@@ -5842,7 +5940,7 @@
               "overloads": [
                 {
                   "signature": "export scopeId: u32?",
-                  "line": 228
+                  "line": 230
                 }
               ],
               "profile": "value-contract"
@@ -5852,7 +5950,7 @@
               "overloads": [
                 {
                   "signature": "export static fn parse(_ text: ref String): SocketAddress throws AddressError",
-                  "line": 257
+                  "line": 259
                 }
               ],
               "profile": "net-address-value"
@@ -5862,7 +5960,7 @@
               "overloads": [
                 {
                   "signature": "export fn family(): AddressFamily",
-                  "line": 261
+                  "line": 263
                 }
               ],
               "profile": "value-contract"
@@ -5872,7 +5970,7 @@
               "overloads": [
                 {
                   "signature": "export fn text(): String",
-                  "line": 265
+                  "line": 267
                 }
               ],
               "profile": "net-address-value"
@@ -5882,7 +5980,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): SocketAddress",
-                  "line": 271
+                  "line": 273
                 }
               ],
               "profile": "value-contract"
@@ -5892,7 +5990,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref SocketAddress): Bool",
-                  "line": 279
+                  "line": 281
                 }
               ],
               "profile": "value-contract"
@@ -5905,7 +6003,7 @@
           "kind": "struct",
           "signature": "export struct TcpConnection: ByteSource<NetworkError> & ByteSink<NetworkError>",
           "declarationDigest": "7d8bf4261060138dea41a7943d98f35ebb31fabb7720569b7a4461c6c8d05a60",
-          "line": 774,
+          "line": 776,
           "profile": "net-transport",
           "members": [
             {
@@ -5913,7 +6011,7 @@
               "overloads": [
                 {
                   "signature": "export fn localAddress(): SocketAddress",
-                  "line": 785
+                  "line": 787
                 }
               ],
               "profile": "net-address-value"
@@ -5923,7 +6021,7 @@
               "overloads": [
                 {
                   "signature": "export fn peerAddress(): SocketAddress",
-                  "line": 789
+                  "line": 791
                 }
               ],
               "profile": "net-address-value"
@@ -5933,7 +6031,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws NetworkError",
-                  "line": 793
+                  "line": 795
                 }
               ],
               "profile": "byte-source"
@@ -5943,7 +6041,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn write(source: view Bytes): WriteStep throws NetworkError",
-                  "line": 806
+                  "line": 808
                 }
               ],
               "profile": "byte-sink"
@@ -5953,7 +6051,7 @@
               "overloads": [
                 {
                   "signature": "export take fn split(): (TcpReadHalf, TcpWriteHalf)",
-                  "line": 812
+                  "line": 814
                 }
               ],
               "profile": "net-transport"
@@ -5963,7 +6061,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn finishWriting(): TcpReadHalf throws NetworkError",
-                  "line": 825
+                  "line": 827
                 }
               ],
               "profile": "net-transport"
@@ -5976,7 +6074,7 @@
           "kind": "struct",
           "signature": "export struct TcpListener",
           "declarationDigest": "0fb1bcd9828aeecbdc4967595d6cee6b157718df66ac4e0eccf4f9bd321c66bc",
-          "line": 913,
+          "line": 915,
           "profile": "net-transport",
           "members": [
             {
@@ -5984,7 +6082,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn accept(): AcceptedTcp throws NetworkError",
-                  "line": 923
+                  "line": 925
                 }
               ],
               "profile": "net-transport"
@@ -5994,7 +6092,7 @@
               "overloads": [
                 {
                   "signature": "export fn localAddresses(): Array<SocketAddress>",
-                  "line": 933
+                  "line": 935
                 }
               ],
               "profile": "net-address-value"
@@ -6007,7 +6105,7 @@
           "kind": "struct",
           "signature": "export struct TcpReadHalf: ByteSource<NetworkError>",
           "declarationDigest": "5f7b7fe168189b82f2593029640f7c0d749a73415a09bfc17354878c6b78c8c3",
-          "line": 839,
+          "line": 841,
           "profile": "net-transport",
           "members": [
             {
@@ -6015,7 +6113,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws NetworkError",
-                  "line": 849
+                  "line": 851
                 }
               ],
               "profile": "byte-source"
@@ -6028,7 +6126,7 @@
           "kind": "struct",
           "signature": "export struct TcpWriteHalf: ByteSink<NetworkError>",
           "declarationDigest": "9e49edc1c6516a06236783d1d509a761690d6db87244ee539094b8d6ffda3f50",
-          "line": 869,
+          "line": 871,
           "profile": "net-transport",
           "members": [
             {
@@ -6036,7 +6134,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn write(source: view Bytes): WriteStep throws NetworkError",
-                  "line": 879
+                  "line": 881
                 }
               ],
               "profile": "byte-sink"
@@ -6046,7 +6144,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn finish(): () throws NetworkError",
-                  "line": 889
+                  "line": 891
                 }
               ],
               "profile": "net-transport"
@@ -6059,7 +6157,7 @@
           "kind": "struct",
           "signature": "export struct UdpReceiveHalf",
           "declarationDigest": "727ab0044524f2388fbd6ee98f3cada28b99a8e3425caad82af29ca3d931b95d",
-          "line": 997,
+          "line": 999,
           "profile": "net-transport",
           "members": [
             {
@@ -6067,7 +6165,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn receive( maximumBytes: usize<(1...)>, ): Datagram throws NetworkError",
-                  "line": 1004
+                  "line": 1006
                 }
               ],
               "profile": "net-transport"
@@ -6080,7 +6178,7 @@
           "kind": "struct",
           "signature": "export struct UdpSendHalf",
           "declarationDigest": "5bd56319472334c3e0cf03f4beb6ed2d8135e5de6ea92f96463aa022b2de061d",
-          "line": 1020,
+          "line": 1022,
           "profile": "net-transport",
           "members": [
             {
@@ -6088,7 +6186,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn send( source: view Bytes, to address: ref SocketAddress, ): () throws NetworkError",
-                  "line": 1027
+                  "line": 1029
                 }
               ],
               "profile": "net-transport"
@@ -6101,7 +6199,7 @@
           "kind": "struct",
           "signature": "export struct UdpSocket",
           "declarationDigest": "20a84a60fd2899ff51b3f3aa465a48318b1cceab334991035480a0769b5c1774",
-          "line": 944,
+          "line": 946,
           "profile": "net-transport",
           "members": [
             {
@@ -6109,7 +6207,7 @@
               "overloads": [
                 {
                   "signature": "export fn localAddresses(): Array<SocketAddress>",
-                  "line": 954
+                  "line": 956
                 }
               ],
               "profile": "net-address-value"
@@ -6119,7 +6217,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn receive( maximumBytes: usize<(1...)>, ): Datagram throws NetworkError",
-                  "line": 966
+                  "line": 968
                 }
               ],
               "profile": "net-transport"
@@ -6129,7 +6227,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn send( source: view Bytes, to address: ref SocketAddress, ): () throws NetworkError",
-                  "line": 977
+                  "line": 979
                 }
               ],
               "profile": "net-transport"
@@ -6139,7 +6237,7 @@
               "overloads": [
                 {
                   "signature": "export take fn split(): (UdpReceiveHalf, UdpSendHalf)",
-                  "line": 958
+                  "line": 960
                 }
               ],
               "profile": "net-transport"
@@ -6739,14 +6837,14 @@
           "structured-callback-drain"
         ]
       },
-      "catalogedDeclarationsDigest": "e757f61e343e92ad2ae6e22622211eace7115e78454da16ee00e9f91ad11741b",
+      "catalogedDeclarationsDigest": "016d7b34c92d6968e0b8e2a227b81d7b25a06eb2a21bcc98472ac67acf5d1216",
       "apis": [
         {
           "symbol": "Arguments",
           "kind": "struct",
           "signature": "export struct Arguments",
           "declarationDigest": "4da033f39f274a32ec6eaa0b441fba3ab441141ec31724c18ea68a8717f63fa4",
-          "line": 131,
+          "line": 139,
           "profile": "process-arguments",
           "members": [
             {
@@ -6755,7 +6853,7 @@
               "overloads": [
                 {
                   "signature": "export count: usize",
-                  "line": 138
+                  "line": 146
                 }
               ],
               "profile": "process-arguments"
@@ -6766,7 +6864,7 @@
               "overloads": [
                 {
                   "signature": "export isEmpty: Bool",
-                  "line": 142
+                  "line": 150
                 }
               ],
               "profile": "process-arguments"
@@ -6776,7 +6874,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(index: usize): ref OsString?",
-                  "line": 146
+                  "line": 154
                 }
               ],
               "profile": "process-arguments"
@@ -6786,11 +6884,11 @@
               "overloads": [
                 {
                   "signature": "export fn contains(native value: ref OsString): Bool",
-                  "line": 150
+                  "line": 158
                 },
                 {
                   "signature": "export fn contains(value: ref String): Bool",
-                  "line": 157
+                  "line": 165
                 }
               ],
               "profile": "process-arguments"
@@ -6800,7 +6898,7 @@
               "overloads": [
                 {
                   "signature": "export fn iterator(): some Iterator<ref OsString>",
-                  "line": 185
+                  "line": 193
                 }
               ],
               "profile": "process-arguments"
@@ -6812,8 +6910,8 @@
           "symbol": "Context",
           "kind": "struct",
           "signature": "export struct Context",
-          "declarationDigest": "acfc6a4aba556641e9bc5420930db7fcaf738ea192bd89f758b52b2114100855",
-          "line": 332,
+          "declarationDigest": "7dcc30725f87e720ca1d73f19c26e7da5bd5f0254eb9e51a2544e9a8d0b47a30",
+          "line": 340,
           "profile": "process-context",
           "members": [
             {
@@ -6822,7 +6920,7 @@
               "overloads": [
                 {
                   "signature": "export stdin: Input",
-                  "line": 339
+                  "line": 347
                 }
               ],
               "profile": "process-input"
@@ -6833,7 +6931,7 @@
               "overloads": [
                 {
                   "signature": "export stdout: Output",
-                  "line": 345
+                  "line": 353
                 }
               ],
               "profile": "process-output"
@@ -6844,7 +6942,7 @@
               "overloads": [
                 {
                   "signature": "export stderr: Output",
-                  "line": 351
+                  "line": 359
                 }
               ],
               "profile": "process-output"
@@ -6855,7 +6953,7 @@
               "overloads": [
                 {
                   "signature": "export filesystem: fs.FileSystem",
-                  "line": 357
+                  "line": 365
                 }
               ],
               "profile": "process-context"
@@ -6866,18 +6964,21 @@
               "overloads": [
                 {
                   "signature": "export network: net.Network",
-                  "line": 361
+                  "line": 369
                 }
               ],
               "profile": "process-context"
             },
             {
               "symbol": "clock",
-              "kind": "property",
               "overloads": [
                 {
-                  "signature": "export clock: time.Clock",
-                  "line": 365
+                  "signature": "export fn clock(): time.Clock",
+                  "line": 373
+                },
+                {
+                  "signature": "export fn clock( hostSuspend policy: time.HostSuspendPolicy<[.included, .excluded]>, ): time.Clock throws time.ClockSelectionError",
+                  "line": 377
                 }
               ],
               "profile": "time-clock"
@@ -6888,7 +6989,7 @@
               "overloads": [
                 {
                   "signature": "export signals: SignalRegistry",
-                  "line": 369
+                  "line": 385
                 }
               ],
               "profile": "process-signals"
@@ -6899,7 +7000,7 @@
               "overloads": [
                 {
                   "signature": "export services: Services",
-                  "line": 375
+                  "line": 391
                 }
               ],
               "profile": "process-services"
@@ -6910,7 +7011,7 @@
               "overloads": [
                 {
                   "signature": "export deadline: time.Deadline",
-                  "line": 381
+                  "line": 397
                 }
               ],
               "profile": "process-context"
@@ -6923,7 +7024,7 @@
           "kind": "enum",
           "signature": "export enum ExitCode: Copy & Equatable",
           "declarationDigest": "96392068f3a569b64d4a9b6d57d802cbd3c6487a62c12fbde9ab4965d4d415ae",
-          "line": 19,
+          "line": 21,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -6932,7 +7033,7 @@
           "kind": "struct",
           "signature": "export struct Input: ByteSource<IoError>",
           "declarationDigest": "e9a75b075acec9aafe54a8e88cfd7fac24310093ec7284d2e8b472f7c8880cdf",
-          "line": 190,
+          "line": 198,
           "profile": "process-input",
           "members": [
             {
@@ -6940,7 +7041,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws IoError",
-                  "line": 197
+                  "line": 205
                 }
               ],
               "profile": "process-input"
@@ -6950,7 +7051,7 @@
               "overloads": [
                 {
                   "signature": "export fn lines( named maximumBytes: usize<(1...)>, ): some Stream<String, InputError>",
-                  "line": 210
+                  "line": 218
                 }
               ],
               "profile": "process-input"
@@ -6963,7 +7064,7 @@
           "kind": "enum",
           "signature": "export enum InputError: Error",
           "declarationDigest": "092b2c37911a08c40f89347ce4108bb68d3a8e431b54f11237adc5e0aa48e838",
-          "line": 39,
+          "line": 41,
           "profile": "process-input",
           "status": "draft"
         },
@@ -6972,7 +7073,7 @@
           "kind": "struct",
           "signature": "export struct Output: ByteSink<IoError>",
           "declarationDigest": "626d5a943bd00bb66f188fcb775dd4818c0e8cc4e58d21ab6a41e1eaa3258591",
-          "line": 244,
+          "line": 252,
           "profile": "process-output",
           "members": [
             {
@@ -6980,7 +7081,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn write( source: view Bytes, ): WriteStep throws IoError",
-                  "line": 251
+                  "line": 259
                 }
               ],
               "profile": "process-output"
@@ -6990,7 +7091,7 @@
               "overloads": [
                 {
                   "signature": "export async fn writeAll( text source: view String, ): () throws WriteAllError<IoError>",
-                  "line": 259
+                  "line": 267
                 }
               ],
               "profile": "process-output"
@@ -7003,7 +7104,7 @@
           "kind": "struct",
           "signature": "export struct Services",
           "declarationDigest": "0924ec97707c46b4cb097e50d21b2375c40b562e1448807e0d6a7569f88a42d0",
-          "line": 316,
+          "line": 324,
           "profile": "process-services",
           "members": [
             {
@@ -7011,7 +7112,7 @@
               "overloads": [
                 {
                   "signature": "export async fn drain(named deadline: time.Deadline)",
-                  "line": 323
+                  "line": 331
                 }
               ],
               "profile": "process-services"
@@ -7024,7 +7125,7 @@
           "kind": "enum",
           "signature": "export enum Signal: Copy & Equatable & Hashable",
           "declarationDigest": "f6170c792a4513c253a94c3a5c534a7b99defe7eb5ae95ecc46a8039a916278f",
-          "line": 24,
+          "line": 26,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7033,7 +7134,7 @@
           "kind": "enum",
           "signature": "export enum SignalError: Error & Duplicable",
           "declarationDigest": "06fcfc3d9d46ec3760f7c8ae45ea5b40aa15eac02e247e75081ce17511e134d1",
-          "line": 29,
+          "line": 31,
           "profile": "process-signals",
           "status": "draft"
         },
@@ -7042,7 +7143,7 @@
           "kind": "struct",
           "signature": "export struct SignalRegistration",
           "declarationDigest": "6e56dc43f2b7eb1ce9c895a2761221772c9be78a57e63f005a900ef16370b1a2",
-          "line": 292,
+          "line": 300,
           "profile": "process-signals",
           "members": [
             {
@@ -7050,7 +7151,7 @@
               "overloads": [
                 {
                   "signature": "export fn replace( named handler: some async fn(Signal, Context): (), ): () throws SignalError",
-                  "line": 299
+                  "line": 307
                 }
               ],
               "profile": "process-signals"
@@ -7060,7 +7161,7 @@
               "overloads": [
                 {
                   "signature": "export fn cancel()",
-                  "line": 305
+                  "line": 313
                 }
               ],
               "profile": "process-signals"
@@ -7073,7 +7174,7 @@
           "kind": "struct",
           "signature": "export struct SignalRegistry",
           "declarationDigest": "088c77a2bd592bae01e4ee7cdd1727e0219788aab0b91ae4c5314b7df7c98b03",
-          "line": 270,
+          "line": 278,
           "profile": "process-signals",
           "members": [
             {
@@ -7081,7 +7182,7 @@
               "overloads": [
                 {
                   "signature": "export fn register( signals: view Array<Signal>, named handler: some async fn(Signal, Context): (), ): SignalRegistration throws SignalError",
-                  "line": 277
+                  "line": 285
                 }
               ],
               "profile": "process-signals"
@@ -7449,6 +7550,321 @@
       ]
     },
     {
+      "id": "std.si",
+      "availability": "bundled-portable",
+      "source": "std/si/contracts.w",
+      "implementationProvider": {
+        "kind": "std-source",
+        "id": "std.si@1",
+        "status": "missing",
+        "gates": [
+          "dimension-identity",
+          "exact-scale",
+          "unit-binding-resolution"
+        ]
+      },
+      "catalogedDeclarationsDigest": "0e71823b04aa2eb47eb9fce54638f8512a70289a485c2b62618c8fdefc0542df",
+      "apis": [
+        {
+          "symbol": "A",
+          "kind": "unit",
+          "signature": "export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "f8941e5d788229cb04664254eb1af72939512555fc450d63d82373b34883a09d",
+          "line": 28,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Acceleration",
+          "kind": "dimension",
+          "signature": "export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "70a5060c14873fa154d0b13658c210906d6da2fdb053e51ea07c3bdb6edcb116",
+          "line": 22,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Amount",
+          "kind": "dimension",
+          "signature": "export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "7e5efbae8d1dff84c1b994fc3314e3ad209816b72edfa5f9f8f47e9328cd8b2b",
+          "line": 15,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Angle",
+          "kind": "dimension",
+          "signature": "export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "8587db5f5eca32f965bc6c7aac441c159cf824156379b6f5bd822bedd4657b81",
+          "line": 17,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "cd",
+          "kind": "unit",
+          "signature": "export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "139e186b7aecb5d3f857bb9338b457e356b73b21da047bc9dc2770833dd385e7",
+          "line": 30,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Duration",
+          "kind": "dimension",
+          "signature": "export dimension Duration export dimension Temperature export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "c7c2c1b37bb334153f2a4dcd97a72b2a607855e5b6d5aad69b60f8a4aaae7ffb",
+          "line": 12,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "ElectricCurrent",
+          "kind": "dimension",
+          "signature": "export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "fc481cfad9b6e12a906ae27ac702a04cb11e0d3889bd0d6b2a56dbe54f8578e1",
+          "line": 14,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Energy",
+          "kind": "dimension",
+          "signature": "export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "e10f034068b21ee683f1ad42d8071cb163ad94f47628125b1590de5b0f8944f9",
+          "line": 18,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Frequency",
+          "kind": "dimension",
+          "signature": "export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "6fa5c9993d9c458640fb48df7490a3cd4b589092ead1c6b0d96b6348016d3cfe",
+          "line": 20,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "h",
+          "kind": "unit",
+          "signature": "export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "df49f485127271a35e790bc764704ab2005b60a4ef869aff0e0713cec487f1e9",
+          "line": 36,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Hz",
+          "kind": "unit",
+          "signature": "export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "82da6be82cf78942fb9abe2195f26b9b674b0c51f507a66d8afb1d4f70172aaa",
+          "line": 37,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "J",
+          "kind": "unit",
+          "signature": "export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "fbaf23114997a5ac585ceebb4424e6374d49265d95270ac7c1741ffdb7cc01fa",
+          "line": 39,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "K",
+          "kind": "unit",
+          "signature": "export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "7a36cfa559d06f1e9cf531b4b8272b9efb40f88463f09052d779d4399b8b9289",
+          "line": 27,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "kg",
+          "kind": "unit",
+          "signature": "export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "38cb891e0be14dc710f434c139959989f2e45aedd95b80af1ffa5a4b50766a84",
+          "line": 25,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Length",
+          "kind": "dimension",
+          "signature": "export dimension Length export dimension Mass export dimension Duration export dimension Temperature export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "5a7a3a210db47c5df18c045dc98aaf3b063072850db3347897fa5ffb9bb52307",
+          "line": 10,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "LuminousIntensity",
+          "kind": "dimension",
+          "signature": "export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "daf353340c51e945b7ae0ec69b8c0468f6c267346169af74b6324e4f1fcc529d",
+          "line": 16,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "m",
+          "kind": "unit",
+          "signature": "export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "7491d17a75d7a60743b8f24de51df08b375ee79b872cc1754d4fe00b969ec8d5",
+          "line": 24,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Mass",
+          "kind": "dimension",
+          "signature": "export dimension Mass export dimension Duration export dimension Temperature export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "b1c2fb07a04d5750295f24c320e6f23534423b67086e52c62355a5f0c6033ce2",
+          "line": 11,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "min",
+          "kind": "unit",
+          "signature": "export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "919b7d2c9ee0b9b3ee5808fd3bc08d068298567e80ae01c23e71ab8dd409ade7",
+          "line": 35,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "mol",
+          "kind": "unit",
+          "signature": "export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "3219b4e87788b260b6276c95544560a4ad67db8e02a3bd9f2be779637efc632e",
+          "line": 29,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "ms",
+          "kind": "unit",
+          "signature": "export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "80cf252805043b8a01caf85c76188ca283f86062f0c7f805ecfc4bc9f409d0d1",
+          "line": 32,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "N",
+          "kind": "unit",
+          "signature": "export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "64294a4290ac07d0217774ba19d42dee4d4ab5541647ca5f6e3a883eeb082b5b",
+          "line": 38,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "ns",
+          "kind": "unit",
+          "signature": "export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "5d698766f8ba5833b14347fd5568c7ff273182b73858ed80b6022f70498f8f48",
+          "line": 34,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Pa",
+          "kind": "unit",
+          "signature": "export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "91e7d09a36984917a0ae60fcb589d06fb306a3af21dc658a2444d7b579e51d26",
+          "line": 41,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Power",
+          "kind": "dimension",
+          "signature": "export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "a88b3a24e606176787a90c1e57ceb3bb4d578e8ce12b769a4356242d4ce3148f",
+          "line": 19,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Pressure",
+          "kind": "dimension",
+          "signature": "export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "3146b26d11af0bd8d099b3fa0133051085f78132edcc7c2f6f43dacf5114e5c1",
+          "line": 23,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "ps",
+          "kind": "unit",
+          "signature": "export unit ps = 1/1_000<ns>",
+          "declarationDigest": "b05518409fd539e574555427676048c3770bd52c55678dc0872fc07dc28f9a94",
+          "line": 42,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "rad",
+          "kind": "unit",
+          "signature": "export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "adc0b6e1909ea58ea42f56c618b8eec0622006ca333de75bdc7812f4b552125b",
+          "line": 31,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "s",
+          "kind": "unit",
+          "signature": "export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "bcaec8bcf313959f95cd3463ae4dc0cf38a084d78b50b06ab8524a546c0b44ef",
+          "line": 26,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Temperature",
+          "kind": "dimension",
+          "signature": "export dimension Temperature export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "856ebf28ae01cbb1964f5937b71fb4707a2ffd7421f479e394f9baa8f537702c",
+          "line": 13,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "us",
+          "kind": "unit",
+          "signature": "export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "a13a38ae031910dc6318cc92c90de4c2447501df0d6f1b2e7b46f5235e1780a9",
+          "line": 33,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Velocity",
+          "kind": "dimension",
+          "signature": "export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "273d8b90ce60b594b05226e7feab1172f62d9f0137d4ee7142912dc69eca8ef5",
+          "line": 21,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "W",
+          "kind": "unit",
+          "signature": "export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "00b23c87cc9695d4262a09a0f0890861967e5a0e1ff2df173b2cdf06faac1942",
+          "line": 40,
+          "profile": "value-contract",
+          "status": "draft"
+        }
+      ]
+    },
+    {
       "id": "std.stream",
       "availability": "bundled-portable",
       "source": "std/stream/contracts.w",
@@ -7776,23 +8192,23 @@
         "id": "std.time@1",
         "status": "missing",
         "gates": [
+          "host-suspend-policy-profile",
           "monotonic-nondecreasing",
           "no-early-expiration",
           "resolution-reporting",
           "same-root-origin-check",
           "structured-cancellation-drain",
-          "suspend-accounting-profile",
           "virtual-clock-determinism"
         ]
       },
-      "catalogedDeclarationsDigest": "0e439f5b894dcc74f1c8b6a7dab3efe152dc20ce1e5d0dbbf43faab68513655d",
+      "catalogedDeclarationsDigest": "134b32a27f474f43563fa1aafb7850d5ecbd71f7e5dd80fd71e432d59e09062e",
       "apis": [
         {
           "symbol": "Clock",
           "kind": "struct",
           "signature": "export struct Clock",
-          "declarationDigest": "8884511b31e6c52054e1aeb0436368ff2f91cdb9202a6c6d3e854fbeca0451c0",
-          "line": 92,
+          "declarationDigest": "64e37731d93d2c6453ff01dad7d86e8776cebd1314a0d50d3574c4077d97dae8",
+          "line": 100,
           "profile": "time-clock",
           "members": [
             {
@@ -7800,7 +8216,7 @@
               "overloads": [
                 {
                   "signature": "export fn now(): Instant",
-                  "line": 99
+                  "line": 107
                 }
               ],
               "profile": "time-clock"
@@ -7810,17 +8226,18 @@
               "overloads": [
                 {
                   "signature": "export fn resolution(): Duration<(1...)>",
-                  "line": 103
+                  "line": 111
                 }
               ],
               "profile": "time-clock"
             },
             {
-              "symbol": "suspendAccounting",
+              "symbol": "hostSuspendPolicy",
+              "kind": "property",
               "overloads": [
                 {
-                  "signature": "export fn suspendAccounting(): SuspendAccounting",
-                  "line": 107
+                  "signature": "export hostSuspendPolicy: HostSuspendPolicy",
+                  "line": 115
                 }
               ],
               "profile": "time-clock"
@@ -7830,7 +8247,7 @@
               "overloads": [
                 {
                   "signature": "export fn duration( from earlier: Instant, to later: Instant, ): Duration",
-                  "line": 111
+                  "line": 119
                 }
               ],
               "profile": "time-clock"
@@ -7840,7 +8257,7 @@
               "overloads": [
                 {
                   "signature": "export fn deadline( after duration: Duration<(0...)>, ): Deadline throws ClockError",
-                  "line": 120
+                  "line": 128
                 }
               ],
               "profile": "time-clock"
@@ -7850,7 +8267,7 @@
               "overloads": [
                 {
                   "signature": "export fn remaining( until deadline: Deadline, ): Duration<(0...)>",
-                  "line": 129
+                  "line": 137
                 }
               ],
               "profile": "time-clock"
@@ -7860,7 +8277,7 @@
               "overloads": [
                 {
                   "signature": "export fn hasReached(_ deadline: Deadline): Bool",
-                  "line": 137
+                  "line": 145
                 }
               ],
               "profile": "time-clock"
@@ -7873,7 +8290,16 @@
           "kind": "enum",
           "signature": "export enum ClockError: Error & Copy & Equatable",
           "declarationDigest": "fc12ab51c9efedbe809985bfa675cd593d80cdf028d1113f373940343825bcdb",
-          "line": 23,
+          "line": 27,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "ClockSelectionError",
+          "kind": "enum",
+          "signature": "export enum ClockSelectionError: Error & Copy & Equatable",
+          "declarationDigest": "392a1d5fb5c1c83b5131d8cb398d1d53edacf4c662cb803cb279fa8fa26fe0ce",
+          "line": 31,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7882,7 +8308,7 @@
           "kind": "struct",
           "signature": "export struct Deadline: Copy",
           "declarationDigest": "f20c7e90fb382f647ff9fe869af24b42b57d2d2b41ad3a11e541d080411ebe69",
-          "line": 81,
+          "line": 89,
           "profile": "time-local-value",
           "status": "draft"
         },
@@ -7891,7 +8317,7 @@
           "kind": "struct",
           "signature": "export struct Duration: Copy & Equatable & Hashable",
           "declarationDigest": "fb25018eca7583dac141efba72c0ce7d636656a7bfe4fece9feb3b2f37ac8531",
-          "line": 29,
+          "line": 37,
           "profile": "time-duration",
           "members": [
             {
@@ -7899,7 +8325,7 @@
               "overloads": [
                 {
                   "signature": "export const init(nanoseconds: i128)",
-                  "line": 32
+                  "line": 40
                 }
               ],
               "profile": "time-duration"
@@ -7910,7 +8336,7 @@
               "overloads": [
                 {
                   "signature": "export nanoseconds: i128",
-                  "line": 36
+                  "line": 44
                 }
               ],
               "profile": "time-duration"
@@ -7919,21 +8345,21 @@
           "status": "draft"
         },
         {
+          "symbol": "HostSuspendPolicy",
+          "kind": "enum",
+          "signature": "export enum HostSuspendPolicy: Copy & Equatable",
+          "declarationDigest": "5c180c49e9764aaf34f4e63ca827801179146eaeccd4df82d2f5fdf96950a776",
+          "line": 13,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
           "symbol": "Instant",
           "kind": "struct",
           "signature": "export struct Instant: Copy",
           "declarationDigest": "e1949b511ccbfe1ec39c30df022f55015d30cb4a7613013f7291e857e780aeab",
-          "line": 73,
+          "line": 81,
           "profile": "time-local-value",
-          "status": "draft"
-        },
-        {
-          "symbol": "SuspendAccounting",
-          "kind": "enum",
-          "signature": "export enum SuspendAccounting: Copy & Equatable",
-          "declarationDigest": "e4b6bad0a0f62112b69cca3486796d2944dcb4554796417ecbfa76b41e2798fd",
-          "line": 13,
-          "profile": "value-contract",
           "status": "draft"
         }
       ]

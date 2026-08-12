@@ -12,12 +12,12 @@ type ConfiguredText = BoundedText<{min: 1, max: 40}>
 type ContinuingOutcome = Outcome<Dish><[.ready, .delayed]>
 type FeatureOn = Feature<true>
 type Utf8Codec = Codec<"utf8">
-type CacheWindow = Cache<duration: 10<si.s>, bytes: 64<KiB>>
+type CacheWindow = Cache<duration: 10<si.s>, bytes: 64<iec.KiB>>
 
 type NamedPair = (id: OrderId, stage: ServiceStage)
 type SingleDish = (Dish,)
 type Digest = [u8; 32]
-type ArenaBytes = [u8; 64<KiB>]
+type ArenaBytes = [u8; 64<iec.KiB>]
 
 type Handler = any mut async fn(
   inout Buffer,
@@ -39,7 +39,7 @@ struct CoursePath<_ stages: StaticList<ServiceStage>> {}
 fn useContracts(bytes: view Bytes, edit: inout view Bytes) {
   let enabled = select<true>()
   let decoder = decode<"utf8">()
-  let arena = allocate<64<KiB>>()
+  let arena = allocate<64<iec.KiB>>()
   let timer = schedule<timeout: 10<si.s>>()
 }
 

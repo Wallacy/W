@@ -37,6 +37,10 @@ std/
     contracts.w
   memory/
     contracts.w
+  si/
+    contracts.w
+  iec/
+    contracts.w
   process/
     contracts.w
   data/
@@ -90,7 +94,12 @@ estruturados e drena antes do pop. O provider
 thread com task ou fiber. O provider `std.runtime.thread-local@1` continua
 missing. `time/contracts.w` materializa `Duration` signed e exata, `Clock`
 monotônico root-scoped e os values opacos `Instant` e `Deadline`. A capability
-`.clock` não concede wall clock; o provider `std.time@1` continua missing.
+`.clock` não concede wall clock. `process.clock()` seleciona o root default sem
+throw quando a capability está disponível;
+`process.clock(hostSuspend: .included/.excluded)` faz seleção ativa e pode
+falhar antes do trabalho; o slot rejeita `.unspecified` em compile time.
+`Clock.hostSuspendPolicy` é inspeção passiva. O
+provider `std.time@1` continua missing.
 `runtime/transaction.w` materializa o contrato de transação
 estruturada. `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
@@ -101,15 +110,29 @@ não o alarm privado do adapter. `io/contracts.w` materializa byte I/O de host.
 O provider `std.sync@1` continua missing. O source não fixa reference counting,
 epoch, hazard pointer ou outra estratégia física compatível com snapshots.
 `memory/contracts.w` materializa uma única capability opaca `Allocator`.
-`Arena` é uma capability scoped distinta de `Allocator`. `fixed` liga o handle
-ao storage do caller sem allocation geral, e `reset` só executa quando não há
-loan ou valor dependente vivo. A relação Arena→Allocator e o lowering de
-refinement/coerção ainda são compiler/provider work; o source não escreve
-`Allocator<(.arena)>` ou `Allocator<(.crossDomain)>`.
+Declarações source usam `allocator name: .fixed<capacity: N> { ... }`,
+`.bounded<budget: N>` ou um provider customizado com contract versionado.
+`AllocatorPlan` e `AllocatorPlanDescriptor` fixam `providerDigest: [u8; 32]`,
+version, failure, deallocator e mobility. O protocol usa `const descriptor` e
+`take fn open(): AllocatorLease`; o `deinit` da lease fecha o provider uma vez.
+O compiler chama `open` antes do body e executa drain/drop estruturado antes do
+deinit; o usuário não chama `open` ou `close`. Eles descrevem a seleção, não
+expõem um provider raw executável.
+`fixed` não pede allocation geral quando o target fornece placement suportado;
+sem `try` somente quando reservation, admission e recursion são provadas
+infallible pelo target/profile. Caso contrário, `try allocator` falha antes do
+body e não cria binding. O bloco fecha children, loans e dependents, executa
+drops tipados e recupera o storage. `Arena` não é API source; pode ser lowering
+interno.
 `AllocationError` separa OOM, budget, overflow e layout. `BudgetExceeded`
 publica somente limit, committed e requested bytes locais.
 O provider `std.memory@1` continua missing. O source não fixa o allocator geral,
 layout físico do handle ou estratégia de drop ledger.
+`iec/contracts.w` materializa a dimensão `Information` e as units IEC
+`bit`, `byte`, `KiB`, `MiB` e `GiB` com escalas exatas de 1024. O caller deve
+importar `iec` ou um símbolo selecionado. O módulo não cria um registry
+ambient de units. O provider `std.iec@1` continua missing, portanto o source é
+um contrato de design e não uma alegação de execução.
 `process/contracts.w` materializa os owners nominais de um entry nativo.
 `Arguments` preserva `OsString`; `Context` projeta stdio, network, clock,
 signals, services e filesystem somente quando o product concede a capability,

@@ -741,7 +741,8 @@ structured_statement = defer_statement
                      | while_statement
                      | for_statement
                      | repeat_statement
-                     | do_statement ;
+                     | do_statement
+                     | allocator_statement ;
 
 binding_statement = task_prefix? binding_kind storage_modifier?
                     pattern_ownership? pattern type_annotation? initializer? ;
@@ -778,6 +779,10 @@ guard_statement = "guard" condition "else" (block | statement) ;
 
 do_statement = "do" block catch_clause+ ;
 catch_clause = "catch" (pattern ("if" expression)?)? block ;
+allocator_statement = "try"? "allocator" identifier ":" allocator_plan block ;
+allocator_plan = contextual_member allocator_contract?
+               | expression ;
+allocator_contract = "<" static_argument ("," static_argument)* ","? ">" ;
 ```
 
 O parser aplica estas decisões antes do type checker:
@@ -792,6 +797,13 @@ O parser aplica estas decisões antes do type checker:
 | `catch` | associa ao `do` aberto mais próximo |
 | `while` após body de `repeat` | pertence ao `repeat` |
 | `identifier : {` | block rotulado |
+
+`allocator` é contextual somente na posição `allocator name: plan { ... }` e
+como prefixo do primeiro parâmetro contextual de uma função. Em qualquer outra
+posição, o checker pode diagnosticar um identifier ou label inválido. O plan
+`.fixed<capacity: N>` usa `allocator_contract`; um plan customizado usa uma
+expression de provider. O parser preserva os dois como `allocator_plan` e o
+checker valida provider, target, capacity e lifecycle.
 
 O formatter remove um semicolon somente quando o reparse preserva os mesmos
 statement nodes e o mesmo papel yield/discard. Se a remoção unir expressions ou
@@ -1071,6 +1083,13 @@ function_declaration = function_prefix "fn"
                        | abi_contract? function_tail block? ";"?) ;
 function_tail = identifier generic_parameters? parameter_list
                 return_clause? throws_clause? ;
+parameter_list = "(" parameter ("," parameter)* ","? ")" ;
+parameter = allocator_parameter | callable_parameter ;
+allocator_parameter = "allocator" identifier ":" parameter_requirement? type ;
+callable_parameter = (identifier | identifier identifier) ":"
+                     parameter_requirement? type default_value? ;
+parameter_requirement = "ref" | "inout" | "take" | "const" ;
+default_value = "=" expression ;
 function_prefix = "export"? "static"? "const"? "unsafe"?
                   receiver_modifier? "async"? ;
 receiver_modifier = "mut" | "take" ;
@@ -1465,7 +1484,7 @@ possuem label ou nenhum possui:
 type Location = (deck: u16, table: u16)
 type SingleCourse = (Course,)
 type Digest = [u8; 32]
-type Arena = [u8; 64<KiB>]
+type FixedBytes = [u8; 64<iec.KiB>]
 ```
 
 `(Course)` é erro. W não usa parentheses para agrupar type. A composição e o
@@ -1486,7 +1505,10 @@ callable_mode = "mut" | "take" ;
 function_contract = contract_envelope ;
 function_type_parameters = function_type_parameter
                            ("," function_type_parameter)* ","? ;
-function_type_parameter = parameter_requirement? type "..."? ;
+function_type_parameter = allocator_function_type_parameter
+                        | parameter_requirement? type "..."? ;
+allocator_function_type_parameter = "allocator" identifier ":"
+                                    parameter_requirement? type ;
 parameter_requirement = "ref" | "inout" | "take" | "const" ;
 ```
 
@@ -1506,6 +1528,11 @@ Function type parameters não possuem labels, nomes ou defaults. Omitir o
 return type significa `()`. O schema de `fn<abi: .c>` rejeita capture, `async`,
 `throws` e carriers não representáveis em C.
 
+Uma function type que declara `allocator name: ref Allocator` preserva o slot
+contextual como primeiro e único parâmetro. O nome existe na interface e na HIR
+para diagnostics, mas a call usa o label externo `allocator:`. Um function type
+foreign não pode esconder esse slot no ABI.
+
 ##### Tokenização e recovery
 
 No contexto de type ou contrato, closes adjacentes são tokens `>` distintos:
@@ -1521,7 +1548,7 @@ ser operador porque parentheses delimitam a const expression:
 Int<(value > 0)>
 ```
 
-`64<KiB>` é um único quantity ou size literal porque o head é numérico. Ele não
+`64<iec.KiB>` é um único quantity ou size literal porque o head é numérico. Ele não
 é application de um type chamado `64`.
 
 Recovery mantém a profundidade de `<`, `(`, `[` e `{`. Um close ausente pode
@@ -1967,7 +1994,7 @@ Postfixes associam à esquerda:
 
 ```w
 let city = guests[index()]?.address?.city?
-let decoded = try await (take request).json<Order>(maximumBytes: 64<KiB>)
+let decoded = try await (take request).json<Order>(maximumBytes: 64<iec.KiB>)
 ```
 
 `?.` faz member access condicional e achata uma camada de Option. Postfix `?`
@@ -2751,7 +2778,7 @@ Estes contextos exigem um valor compile-time:
 | contrato estático | `Tensor<f32, shape: [8, 4]>` |
 | tamanho de array fixo | `[u8; digestSize]` |
 | quantidade de repeat literal | `[0; digestSize]` |
-| definição de unit | `unit KiB = 1024<B>` |
+| definição de unit | `unit KiB = 1_024<byte>` |
 | refinement e shape | `u16<(1...4096)>` |
 
 Uma função usada nesses contextos declara `const fn`:
@@ -4199,6 +4226,26 @@ rejeitada por colisão após a normalização. `named` é contextual: em
 `inspect`, ele é somente o nome de um parâmetro posicional porque não precede
 outro nome de parâmetro.
 
+`allocator name: ref Allocator` é o único parâmetro contextual permitido. Ele
+deve ser o primeiro parâmetro explícito e não pode repetir. O label externo é
+`allocator:` e o nome interno é `name`. O parâmetro entra na signature, nos
+resource/interface facts e na ABI. Se uma declaração também publicar um effect
+row, o row conserva esse slot; o allocator não inventa um effect genérico. O
+body usa `name` como default lexical para
+construction expressions diretas que omitem `allocator:`. Uma call a outra
+função não recebe esse default. O checker rejeita parâmetro não primeiro,
+duplicado ou oculto por overload.
+
+```w
+fn decode(allocator memory: ref Allocator, frame: ref Bytes): Frame {
+  var fields = Array<Field>()       // usa memory neste body
+  return parse(frame, into: fields) // parse não herda memory
+}
+
+// error: allocator slot must be first and unique
+fn invalid(frame: ref Bytes, allocator memory: ref Allocator, allocator other: ref Allocator): Frame { ... }
+```
+
 Dentro de type, protocol, service ou extension, `fn` recebe `self` por borrow.
 `mut fn` recebe `self` com mutation exclusiva. `take fn` recebe ownership.
 `static fn` não recebe `self`:
@@ -4982,7 +5029,8 @@ contratos.
 
 ### 8.3 Construção e inicialização
 
-`Type(...)` constrói uma instance. A forma não promete heap, stack ou Arena.
+`Type(...)` constrói uma instance. A forma não promete heap, stack ou allocator
+strategy.
 O optimizer escolhe o storage sem mudar ownership, identidade ou drop:
 
 ```w
@@ -6527,7 +6575,7 @@ let found = contains(values, target: needle)
 Um argumento explícito fixa uma parte da solução:
 
 ```w
-let order = try await (take request).json<Order>(maximumBytes: 64<KiB>)
+let order = try await (take request).json<Order>(maximumBytes: 64<iec.KiB>)
 let forecast = try forecast<tables: 2, courses: 4>(
   observations,
   weights: weights,
@@ -7316,7 +7364,7 @@ Evidência e critérios de reabertura ficam em
 
 ### 9.1 Quatro contratos separados
 
-**Exemplo:** mover um `Buffer` encerra o binding antigo. Stack, arena ou heap não
+**Exemplo:** mover um `Buffer` encerra o binding antigo. Stack, fixed-scope ou heap não
 mudam esse resultado.
 
 W separa quatro contratos:
@@ -7337,7 +7385,7 @@ As formas de memória também pertencem a categorias diferentes:
 | `shared T` e `weak T` | tipos de handle; fazem parte da identidade semântica do valor |
 | `take T` e `const T` | contratos de parâmetro ou receiver; não são tipos armazenáveis |
 | `var atomic value: T` | modificador de storage; o binding baixa para `Atomic<T>` |
-| `Pinned<T>`, `Arena` e `SnapshotCell<T>` | tipos nominais para contratos avançados |
+| `Pinned<T>` e `SnapshotCell<T>` | tipos nominais para contratos avançados |
 
 **W-1293 — tipo, contrato e storage ficam separados:** `shared T` é o tipo
 source final. O HIR pode usar um carrier parametrizado sem expor `Shared<T>`.
@@ -7346,17 +7394,18 @@ impede que allocator, failure policy ou synchronization fragmentem a identidade
 de `shared T`.
 
 Gerência automática em W significa que o compiler prova lifetime, insere os
-drop paths e escolhe placement sem pedir stack, heap, arena, GC ou reference
-counting no caminho comum. O source escolhe a semântica com `ref`, `inout`,
-`take` e `copy`. `pin`, `shared` e `Arena` aparecem somente quando o contrato
+drop paths e escolhe placement sem pedir stack, heap, GC ou reference counting
+no caminho comum. O source escolhe a semântica com `ref`, `inout`, `take` e
+`copy`. `pin`, `shared` e allocator blocks aparecem somente quando o contrato
 real exige endereço estável, owners múltiplos ou storage bounded explícito.
 
 Todo valor que exige cleanup possui um owner. O compilador controla
 inicialização, move, borrow, escape e drop. O caminho progride de value `Copy`
 para owner único e `ref`/`inout`. `Pinned<T>` aparece somente para endereço
-publicado, `Arena` para storage bounded com lifetime comum, `shared T` para
-owners múltiplos e service owner para estado serializado por instance. Pointer
-manual fica em `unsafe` ou FFI. O compiler nunca sobe essa escada em silêncio.
+publicado, allocator blocks para storage bounded com lifetime comum, `shared T`
+para owners múltiplos e service owner para estado serializado por instance.
+Pointer manual fica em `unsafe` ou FFI. O compiler nunca sobe essa escada em
+silêncio.
 
 ### 9.2 Owner único, move e borrow
 
@@ -7547,8 +7596,8 @@ antes do fim de cada origin e mobilidade transferível.
 
 `OriginSet` contém dependências de borrow. `AllocationOriginSet` contém as
 origens dos storages owned que o value mantém transitivamente. Os conjuntos não
-se substituem. Um `String` alocado numa arena pode ter `OriginSet` vazio e ainda
-depender da arena para lifetime e deallocation. Um `view String` pode não possuir
+se substituem. Um `String` alocado num allocator block pode ter `OriginSet`
+vazio e ainda depender do block para lifetime e deallocation. Um `view String` pode não possuir
 storage e ainda ter uma edge dinâmica para o owner.
 
 Move transfere os dois conjuntos. Drop libera primeiro as obrigações usadas por
@@ -7616,7 +7665,7 @@ de alocar o control block.
 #### 9.2.2 Placement e alocação inferida
 
 Ownership não escolhe um endereço. O compiler escolhe register, stack, static
-storage, task frame, arena ou allocator conforme escape, tamanho e target.
+storage, task frame, fixed-scope ou allocator conforme escape, tamanho e target.
 Source comum não recebe annotation de placement.
 
 **Garantia vigente:** uma função síncrona não causa alocação no allocator geral
@@ -7631,7 +7680,7 @@ fn scale(sample: Sample): Sample {
 ```
 
 `struct` e `object` também não significam heap. `object` define identity e
-encapsulation. O owner pode ficar inline, no stack, num task frame, numa arena
+encapsulation. O owner pode ficar inline, no stack, num task frame, num fixed scope
 ou numa allocation própria. Expor um endereço cria uma barreira de
 representação, mas não exige heap. `pin` é necessário somente quando o endereço
 precisa permanecer estável.
@@ -7897,9 +7946,10 @@ let invalid: shared MenuView = take borrowed
 ```
 
 Uma declaração `shared` segue a policy normal de allocation. Uma falha limpa o
-temporary e o control block parcial uma vez. Factories que exigem recovery ou
-um allocator customizado permanecem em Pesquisa até existir um contrato sem
-call de linguagem.
+temporary e o control block parcial uma vez. Factories que exigem recovery
+continuam em Pesquisa. Um allocator customizado só pode ser selecionado quando
+a expression publica o descriptor lógico `AllocatorPlan`; interface executável,
+provider e lowering continuam gates de implementação.
 
 `shared T` e `weak T` são move-first. `copy handle` cria outro owner e torna o
 retain visível no source. Uma função pode mover seu último shared handle sem
@@ -7985,12 +8035,12 @@ handle de service mantém identity e capability, não ownership direto do estado
 ciclos, planos de ruptura e a razão de uma contagem atômica. Um grafo dinâmico
 sem censo instrumentado permanece `unknown`; tooling não inventa prova global.
 
-### 9.5 Arena avançada e placement invisível
+### 9.5 Declaração lexical de allocator
 
 **W-1165 — caminho de memória:** comece pelo problema. Um `Dish` ou `Menu`
 local no restaurante usa value, `ref`, `inout`, `take`, `copy` e scopes
 estruturados. O compiler escolhe placement e cleanup quando o valor não escapa.
-Esse caminho não exige uma Arena, um bloco `region` ou uma annotation de stack.
+Esse caminho não exige uma declaração de allocator.
 
 ```w
 fn plate(name: String): Dish {
@@ -7999,92 +8049,121 @@ fn plate(name: String): Dish {
 }
 ```
 
-O caso que justifica Arena tem muitos valores temporários, lifetime homogêneo,
-reset em lote e budget fixo. No restaurante, um decoder processa milhares de
-frames de telemetry e sensor por batch. Sem Arena, um allocator bounded ainda
-funciona, mas paga metadata e free por value. Ele também sofre fragmentação e
-não oferece reset físico O(1) depois dos drops W. O allocator geral pode pedir
-storage ao OS ou crescer buffers. Esses custos não provam um limite de memória.
+**W-1327 — declaração lexical de allocator:** `allocator` é uma declaração
+contextual que cria um owner e um capability binding nomeado. O plan adquire o
+provider antes do body. Uma construction expression direta dentro do body que
+omite `allocator:` usa o binding lexical mais interno. O default não atravessa
+uma call arbitrária.
+
+O primeiro exemplo assume um target/profile que prova a reserva estática, a
+admission infallible e a recursion alcançável fechada. Em um profile que não
+prova esses fatos, a mesma declaração usa `try allocator`.
 
 ```w
+import iec from std
+
+allocator scratch: .fixed<capacity: 64<iec.KiB>> {
+  var frames = Array<Frame>()
+  let decoded = try decode(allocator: ref scratch, frame: ref frame)
+}
+```
+
+Uma construção direta é aquela que o checker associa ao contrato de alocação da
+construction expression no mesmo body. Uma call a `decode` não recebe o
+allocator por herança. O parâmetro contextual precisa aparecer explicitamente.
+`T(allocator: other, ...)` substitui o binding lexical para essa construção.
+Bindings seguem a regra lexical nominal geral de W. O binding mais interno
+vence para uma construction direta. Esta decisão não cria uma regra especial
+de shadowing para `allocator`.
+
+O caso que justifica o bloco tem muitos temporários com lifetime homogêneo. No
+restaurante, um decoder processa milhares de frames por batch. Um bloco fecha a
+admission, drena children, waits, loans e dependents, executa drops tipados e
+somente então faz reclaim físico. O mesmo caminho vale para `return`, `break`,
+`throw` e cancellation.
+
+```w
+import iec from std
+
 fn decodeTelemetry(
+  allocator memory: ref Allocator,
   frames: ref Array<Bytes>,
-  memory: ref Allocator,
 ): Array<Frame> throws AllocationError {
-  var storage: [u8; 64<KiB>] = [0; 64<KiB>]
-  var arena = Arena.fixed(inout storage)
-  var result = Array<Frame>(allocator: memory)
-  for frame in frames {
-    let decoded = try decodeFrame(frame, allocator: ref arena)
-    let owned = try (take decoded).rehome(allocator: memory)
-    result.append(take owned)
-    arena.reset()
+  // This profile proves static admission and closed recursion.
+  allocator scratch: .fixed<capacity: 64<iec.KiB>> {
+    var result = Array<Frame>(allocator: memory)
+    for ref frame in frames {
+      let decoded = try decode(allocator: ref scratch, frame: ref frame)
+      result.append(try (take decoded).rehome(allocator: memory))
+    }
+    return take result
   }
-  return result
 }
 ```
 
-`Arena` é um owner scoped monotonic ou bump. Ele aloca sequencialmente e adia o
-free físico individual. Scope exit ou reset executa o W drop ledger antes do
-bulk reset ou release. `Arena.fixed` usa o buffer do caller. Ele nunca solicita
-storage ao OS. Falha de capacity ou budget é explícita.
+Um value que depende do scope não pode escapar. `rehome` muda a origem antes da
+saída. `await` exige owner e storage estáveis no task frame. `spawn`, service e
+channel rejeitam origem local sem `rehome`. Trabalho detached não é admitido.
+O block não publica `reset` como operação comum. O compiler pode baixar o plan
+para bump storage quando facts de drop, alignment, capacity e placement
+permitem, mas `Arena` é somente um termo interno de lowering.
 
-`rehome` ocorre antes de `reset` para cada value que escapa. O physical bump
-reset pode ser O(1) depois dos drops; o reset total percorre os values nontrivial
-no drop ledger e custa O(n) para n entradas. O checker rejeita
-reset enquanto um borrow ou valor dependente está vivo. Ele rejeita o escape de
-storage ligado à Arena. Unwind limpa staged values, o ledger e o owner da Arena.
+**W-1328 — planos:** `.fixed<capacity: N>` é um plan built-in. O compiler e o
+provider de lowering reservam storage fixo e bounded por frame, task ou recurso
+agregado; o source não passa um buffer de caller e não chama uma intrinsic de
+storage. A reserva não usa OS ou allocation geral e tem reclaim em lote depois
+dos drops. O target/profile verifica placement em stack, frame ou memória local.
+Recursion multiplica a reserva: admission e profile gates precisam contar cada
+frame ativo. Capacity grande demais, placement unsupported ou overflow estático
+produz diagnostic de compile/link. A declaração pode omitir `try` somente quando
+o target/profile prova reservation estática e admission infallible, incluindo a
+recursion alcançável. Se a admission é dinâmica, ou a recursion não está
+fechada, a forma exige `try allocator`. Falha de admission ou resource
+exhaustion ocorre antes do body e não cria binding. Não existe panic fallback
+oculto.
 
-Uma Arena tem estes custos e compromissos:
-
-- capacity fixa e failure explícita;
-- waste interno e alinhamento;
-- owner exclusivo e serial;
-- nenhum escape sem `rehome`;
-- drop ledger antes do reset;
-- reset invalida dependents;
-- ajuste ruim para lifetimes não relacionados, values long-lived ou mutation
-  concorrente.
-
-O caso abaixo usa Arena de forma errada. O menu atual tem lifetime longo e
-lifetimes não relacionados. O caminho normal é melhor:
-
-```w
-let current = Dish(name: "Current menu")
-let menu = Menu(dishes: [current])
-```
-
-`Arena` é uma capability nominal distinta no contrato de `std.memory`. A relação
-de refinement-to-base com `Allocator` ainda é um contrato do compiler missing.
-W não publica `Allocator<(.arena)>`, `Allocator<(.crossDomain)>` ou qualquer
-alias de refinement. Até esse gate, APIs allocating recebem a capability Arena
-explicitamente. O resultado preserva o mapping simbólico da origem do allocator.
-
-Uma origem de Arena é local. Este uso falha no boundary:
+`.bounded<budget: N>` é um plan de Pesquisa até existir um provider closeable.
+Ele limita bytes committed sobre um backing provider, mas não promete storage
+fixo, ausência de OS ou bulk reclaim.
 
 ```w
-async fn invalidParallel(
-  payload: ref Bytes,
-  processMemory: ref Allocator,
-): () throws AllocationError {
-  var storage: [u8; 8<MiB>] = [0; 8<MiB>]
-  var arena = Arena.fixed(inout storage)
-  let local = try Menu.parse(payload, allocator: ref arena)
-  // spawn<.compute> let invalid = consume(take local)
-  // error: AllocationOrigin mobility is local
+import iec from std
 
-  let portable = try (take local).rehome(allocator: processMemory)
-  spawn<.compute> let valid = consume(take portable)
-  try await valid
+try allocator request: RestaurantPool(
+  backing: ref processMemory,
+  budget: 4<iec.MiB>,
+) {
+  let order = Order(allocator: request, id: id)
 }
 ```
 
-O `spawn` inválido falha pela origem real. O `rehome` para um allocator com
-mobility cross-domain permite a transferência. A surface não escreve um fact
-`.crossDomain`.
+Um plan customizado aceita uma expression que conforma ao contrato lógico
+`std.memory.AllocatorPlan` e publica `AllocatorPlanDescriptor`. O descriptor
+`Copy & Equatable` usa um `providerDigest: [u8; 32]` fixo, `version`, `failure`,
+`deallocator` e `mobility` facts; ele não carrega `String` nem consulta um
+provider em runtime. O protocol expõe somente um `const descriptor` e um
+`take fn open(): AllocatorLease throws AllocationError`. O compiler consome a
+expression e chama `open()` antes do body. `AllocatorLease` é o owner da lease;
+seu `deinit` fecha o provider exatamente uma vez. O usuário não chama
+`open`/`close` manualmente. A interface executável, o provider e o lowering
+ainda são gates de implementação. A implementação raw de um provider
+customizado continua `unsafe` e versioned. Composição e seleção de descriptors
+que já publicam o contrato são safe. O backing pode sobreviver ao lease, mas a
+lease não pode sobreviver ao backing. Origin, deallocator, mobility, failure e
+lifecycle facts permanecem no owner.
 
-Nenhuma call de linguagem promove unique para shared. A forma `shared` declarada
-no binding continua o caminho corrente para o primeiro owner.
+Uma aquisição fallible usa `try allocator name: plan { ... }`. Se `open` falha,
+o body não entra e o binding não é criado. `.fixed` pode omitir `try` quando o
+profile fecha a admission acima; não existe fallback implícito para heap ou
+panic.
+
+**W-1329 — custos e lifecycle:** capacity fixa não significa custo total O(1).
+Typed drops percorrem `n` values nontrivial. Bulk reclaim pode ser O(1) depois
+do ledger, mas a fase de drop custa O(n). O checker rejeita close com loan,
+child, wait ou dependent ativo e registra a primeira causa.
+
+Nenhuma call promove unique para shared. A forma `shared` declarada no binding
+continua o caminho corrente para o primeiro owner.
 
 ### 9.6 Allocator e origem
 
@@ -8092,13 +8171,33 @@ no binding continua o caminho corrente para o primeiro owner.
 allocating. Somente runtime, FFI e adapters `unsafe` implementam a operação raw
 de allocate, resize e deallocate.
 
+**W-1330 — parâmetro contextual de allocator:** uma função pode declarar no
+máximo um parâmetro contextual `allocator name: ref Allocator`. Ele deve ser o
+primeiro parâmetro explícito e fica na signature semântica, nos resource e
+interface facts e na ABI. Só participa de um effect row quando a linguagem
+declarar esse row explicitamente; o slot não inventa um effect genérico.
+O slot fornece o default lexical somente para construções diretas no body da
+função. A call de uma função chamada não herda o slot. Function types,
+closures, callbacks e HIR preservam o slot e sua origem. Uma foreign ABI deve
+publicar o slot ou rejeitar a função. Um parâmetro não primeiro ou duplicado
+produz diagnostic antes da resolução de overload.
+
 ```w
-fn decode(payload: ref Bytes, allocator memory: ref Allocator): Document throws AllocationError {
-  var nodes = Array<Node>(allocator: memory)
+fn decode(allocator memory: ref Allocator, payload: ref Bytes): Document throws AllocationError {
+  var nodes = Array<Node>()
   try nodes.tryReserve(minimumCapacity: 128)
   return try parseNodes(payload, into: nodes)
 }
+
+type Decoder = fn(allocator memory: ref Allocator, ref Bytes): Document
+let callback: Decoder = decode
 ```
+
+Function types e callbacks preservam esse primeiro slot. Uma declaração
+`foreign<abi: .c> fn decode(allocator memory: ref Allocator, ...)` precisa
+publicar uma lowering ABI para o slot; se a ABI não o representa, o checker
+rejeita a declaração. O callee nunca recebe um allocator por propagação
+transitiva.
 
 `Array<String>(allocator: memory)` preserva o initializer vigente. O envelope
 `<>` seleciona contratos e especialização estática. Os parênteses `()` recebem
@@ -8130,13 +8229,20 @@ O owner criado com um allocator não pode sobreviver a ele. A HIR registra essa
 relação de provenance. O source não escreve lifetime. Um container mantém a
 origem necessária para resize e drop; ele não consulta um default novo depois.
 
-O allocator default é fixado pelo product e pelo host adapter. Ele não muda
-durante uma call, thread ou module import. Uma construction expression sem
-`allocator:` usa esse default para os allocation sites publicados pelo contrato:
+Fora de um allocator block, uma construction expression sem `allocator:` usa o
+default geral fixado pelo product e pelo host adapter. Dentro de um block, o
+binding lexical mais interno vence. Um parâmetro contextual fornece o mesmo
+default lexical no body da função. Nenhuma destas escolhas propaga para uma
+função chamada:
 
 ```w
-var names = Array<String>()              // allocator default do product
-var local = Array<String>(allocator: memory) // allocator explícito
+import iec from std
+
+var names = Array<String>()                       // default do product
+try allocator request: RestaurantPool(backing: ref processMemory, budget: 4<iec.MiB>) {
+  var local = Array<String>()                     // request
+  var portable = Array<String>(allocator: processMemory)
+}
 ```
 
 Alocação e growth normais podem causar panic `.outOfMemory`. A forma `try*`
@@ -8297,7 +8403,7 @@ segue W-930 e não restaura o source. `attemptRehome` pode devolver o source num
 outcome explícito.
 
 Um provider pode devolver mais bytes que o pedido. O container pode usar essa
-capacity quando o profile permite. Um budget de `Arena` cobra o span lógico
+capacity quando o profile permite. Um budget de allocator block cobra o span lógico
 calculado antes da call. Metadata e over-allocation do provider permanecem em
 `accounting: allocator`.
 
@@ -8323,8 +8429,8 @@ Allocation geral não recebe o effect `blocking` somente por usar um lock intern
 Ela recebe o fato `allocates(.general)`. Esse fato não satisfaz real-time,
 interrupt, signal-safe ou `no-general-allocation`.
 
-Um profile real-time usa storage fixed, arena pre-reservada ou outro provider
-com bounds. O profile fixa capacity, alignment, progress e comportamento de
+Um profile real-time usa storage fixed, allocator block pré-reservado ou outro
+provider com bounds. O profile fixa capacity, alignment, progress e comportamento de
 falha. Ele não usa o allocator do sistema como prova temporal.
 
 A baseline usa estes adapters:
@@ -8397,19 +8503,20 @@ annotation de placement nem um refinement escrito no source. O compiler deriva
 o fact pelo contrato e pelo `AllocationOriginMap`.
 
 ```w
-async fn stageForParallel(
-  payload: ref Bytes,
-  processMemory: ref Allocator,
-): () throws AllocationError {
-  var storage: [u8; 8<MiB>] = [0; 8<MiB>]
-  var scratch = Arena.fixed(inout storage)
-  let local = try Menu.parse(payload, allocator: ref scratch)
-  // spawn<.compute> let invalid = consume(take local)
+import iec from std
 
-  let portable = try (take local).rehome(allocator: processMemory)
-  spawn<.compute> let valid = consume(take portable)
-  try await valid
-  scratch.reset()
+async fn stageForParallel(
+  allocator memory: ref Allocator,
+  payload: ref Bytes,
+): () throws AllocationError {
+  allocator scratch: .fixed<capacity: 8<iec.MiB>> {
+    let local = try Menu.parse(payload)
+    // spawn<.compute> let invalid = consume(take local)
+
+    let portable = try (take local).rehome(allocator: memory)
+    spawn<.compute> let valid = consume(take portable)
+    try await valid
+  }
 }
 ```
 
@@ -8418,8 +8525,9 @@ Um provider pode permitir deallocation cross-thread e ainda proibir allocation
 concorrente na mesma instance. Esses são fatos separados.
 
 Importar um módulo não cria instance, lifetime, heap ou fault boundary. Storage
-com lifecycle de service, request ou task usa `Arena`, o owner desse lifecycle
-ou um allocator explícito sem mudar o ownership dos demais valores do módulo.
+com lifecycle de service, request ou task usa um allocator block, o owner desse
+lifecycle ou um allocator explícito sem mudar o ownership dos demais valores do
+módulo.
 
 Zero-sized values não solicitam storage. Alignment precisa ser uma potência de
 dois suportada pelo allocator. Soma ou multiplicação de tamanho que excede
@@ -8440,9 +8548,23 @@ zerar storage ao alocar ou liberar por hardening, mas essa policy não muda o
 valor de um programa safe. Uma primitive de provider que zera storage pode
 implementar uma call que promete zero; ela não muda o default semântico.
 
-Alocações que precisam de recovery usam API fallible ou uma `Arena` com budget.
+Alocações que precisam de recovery usam API fallible ou um plan com budget.
 OOM geral encerra a fault boundary conforme a seção de panic. `w explain memory`
 mostra allocator, origem, escape, stack estimate e motivo de cada allocation.
+
+Os diagnostics mínimos do contrato de allocator são:
+
+| Code | Condição |
+|---|---|
+| `W-ALLOCATOR-0001` | parâmetro contextual não é primeiro ou aparece mais de uma vez |
+| `W-ALLOCATOR-0002` | value, borrow, child, wait ou dependent escapa do allocator scope |
+| `W-ALLOCATOR-0003` | origem local alcança spawn, service, channel, callback ou await sem estabilidade/rehome |
+| `W-ALLOCATOR-0004` | plan customizado não publica `providerDigest: [u8; 32]` não nulo, version, failure, deallocator, mobility ou `const descriptor`/`take fn open()` |
+| `W-ALLOCATOR-0005` | fixed capacity ou placement não atende target/profile |
+| `W-ALLOCATOR-0006` | close começa com child, wait, loan ou dependent não drenado |
+| `W-ALLOCATOR-0007` | aquisição ou admission do plan falha antes de criar binding/body |
+| `W-ALLOCATOR-0008` | ABI foreign omite o slot contextual explícito de allocator |
+| `W-ALLOCATOR-0009` | fixed não prova reservation/admission infallible e omite `try allocator` |
 
 ### 9.7 Provenance, pointer e address
 
@@ -8675,7 +8797,7 @@ estratégia explícita.
 
 W não exige header universal. Owner único pode ser headerless; `shared T` pode
 usar control block; service identity pertence ao host; reflection usa metadata
-por tipo. Handles indexados e pointer compression exigem arena ou heap isolado
+por tipo. Handles indexados e pointer compression exigem bump lowering ou heap isolado
 com base e bounds explícitos.
 
 Nenhum profile pode reduzir o range de integers, alterar bits IEEE de `f64`,
@@ -8844,7 +8966,7 @@ A baseline usa esta matriz:
 | Storage | Condição de retirement | Condição de reclamation |
 |---|---|---|
 | owner único | drop ou consumo final | `deinit` e drops terminam; receipt é consumido |
-| bounded Arena scope | fechamento após drain | drop ledger termina; provider faz bulk release |
+| fixed allocator scope | fechamento após drain | drop ledger termina; provider faz bulk release |
 | `shared T` | strong count chega a zero | payload termina no strong zero; block termina no weak zero |
 | pinned | owner pinned inicia drop | address leases e loans terminaram; drop ocorre no endereço estável |
 | task frame | task entra em outcome terminal | children, cleanup, wakers, queue links e handles drenam |
@@ -8882,7 +9004,7 @@ path para `value`.
 `w explain memory` separa fatos, estimates e medições:
 
 - owner, move, borrow e drop são fatos semânticos;
-- stack, heap, Arena placement e tag são escolhas do artifact;
+- stack, heap, fixed-scope placement e tag são escolhas do artifact;
 - tamanho importado e peak runtime são estimates;
 - allocator calls, resident bytes e retain count são medições.
 
@@ -9408,11 +9530,11 @@ não faz parte de equality, serialization ou resultado reproduzível. O erro
 atingida:
 
 ```w
-let frame = try Bytes(repeating: 0_u8, count: size, allocator: ref arena)
+let frame = try Bytes(repeating: 0_u8, count: size)
 // A falha pode ser `.budgetExceeded(...)`.
 ```
 
-Uma arena cobra o span alinhado antes de publicar storage. Uma falha de budget
+Um allocator block cobra o span alinhado antes de publicar storage. Uma falha de budget
 não altera offset, drop ledger ou container. Um allocator upstream ainda pode
 devolver `.outOfMemory` antes de o budget lógico terminar.
 
@@ -9655,6 +9777,9 @@ Os diagnostics desta policy são:
 | `W-PROCESS-0001` | projection process fora do root/profile válido |
 | `W-PROCESS-0002` | projeção ou authority de process cruza a boundary do entry-root (escape, service crossing ou serialização); value-copy não torna o crossing legal |
 | `W-PROCESS-0003` | `process.ctx` não é alias intrínseco de `process.context` |
+| `W-TIME-0001` | request ativo de `hostSuspend` usa `.unspecified` ou não é suportado pelo provider |
+| `W-TIME-0002` | aquisição de clock não possui authority explícita de process/Context |
+| `W-UNIT-0001` | literal usa unit não qualificada sem binding importado da projection correspondente (`std.si`, `std.iec` ou outra) |
 | `W-DOC-0003` | example sem terminal único `result` ou `error` |
 | `W-DOC-0005` | example usa effect ambiental sem fixture explícito |
 | `W-STD-0001` | módulo std usa o field de tier retirado |
@@ -10146,7 +10271,7 @@ host usa a mesma admission API.
 
 ```w
 let lane = try ctx.execution.openSerial(
-  limits: { readyJobs: 64, frameBytes: 1<MiB> },
+  limits: { readyJobs: 64, frameBytes: 1<iec.MiB> },
   traceLabel: "order-lane",
 )
 defer async { await lane.close() }
@@ -10238,13 +10363,14 @@ nanoseconds, o adapter mantém a quantity física ou devolve erro de range.
 
 **W-1311 — Clock é authority explícita:** o runtime pode medir tempo para
 scheduling, deadline e trace sem conceder a capability `.clock`. O programa só
-lê o relógio quando um `Context` projeta `time.Clock`. `process.clock` é uma
-projection curta vigente e equivalente a `process.context.clock` por identity,
+lê o relógio quando um `Context` projeta `time.Clock`. `process.clock()` é uma
+projection curta vigente e equivalente a `process.context.clock()` por identity,
 origin, authority e lifetime. Em um native-process entry, `process.deadline` tem
 a mesma value identity, origin e lifetime de `process.context.deadline`. `Deadline`
 não é authority; a projection mantém `authorityExpanded: false`. A availability
-de cada alias é a mesma da projection longa correspondente. `ctx.clock` continua
-quando `Context` é parâmetro. Não existe `Clock()`, `Clock.current`, clock global,
+de cada alias é a mesma da projection longa correspondente. `ctx.clock()` continua
+quando `Context` é parâmetro. Não existe `Clock()`, `Clock.current`, `time.clock()` sem
+authority, clock global,
 lookup ambiental ou ambient authority. Cada projection retém um owner no mesmo
 root quando a projection longa possui owner. `Deadline` permanece root-bound
 pela lifetime do entry. Reter qualquer wrapper não amplia authority nem lifetime.
@@ -10257,7 +10383,7 @@ provider. `Duration` cruza service, wire e storage; `Clock`, `Instant` e
 `Deadline` não.
 
 **W-1313 — o profile não promete um relógio ideal:** leituras de `now()` não
-diminuem e `resolution()` é uma `Duration<(1...)>`. `SuspendAccounting` descreve
+diminuem e `resolution()` é uma `Duration<(1...)>`. `HostSuspendPolicy` descreve
 somente a suspensão do HOST/SO. Ele nunca descreve a suspensão de coroutine,
 task ou `await`. O provider declara `.included`, `.excluded` ou `.unspecified`:
 
@@ -10279,11 +10405,26 @@ publica somente que o resultado não pode ser inferido. Um profile que exige
 `.included` ou `.excluded` rejeita um provider `.unspecified` antes da execução.
 O mesmo fato cobre hibernate e VM pause. `await` e task suspension não entram.
 
+`process.clock()` adquire o relógio root default e pode retornar o fato
+`.unspecified`; quando o `Context` concede essa capability, essa projection é
+simples e nonthrowing. A ausência da capability é uma falha de availability de
+compile/link. A seleção ativa é `try process.clock(hostSuspend: .included)`;
+`try process.context.clock(hostSuspend: .excluded)` é a forma longa equivalente.
+O argumento ativo tem o tipo estreito
+`HostSuspendPolicy<[.included, .excluded]>`; o literal `.unspecified` é
+diagnostic em compile time, não um request ativo. Provider unsupported para um
+case válido pode retornar `ClockSelectionError` antes do trabalho. A ausência
+de Context ou de provider é uma falha de availability em compile/link, não um
+erro runtime de seleção. Uma lease de reserva do restaurante exige `.included`; o orçamento de trabalho
+ativo da cozinha exige `.excluded`. Linux, Windows e Apple podem expor
+políticas diferentes.
+
 Um child herda o menor deadline entre parent e operação. Nenhuma API pode
 ampliar o deadline herdado. Um timeout local cria um deadline relativo ao clock
 operacional:
 
 ```w
+import si from std
 let timeout: TaskTimeout = 250<si.ms>
 let outcome = await Task.withTimeout(
   for: timeout,
@@ -10337,7 +10478,8 @@ Expiration solicita cancellation e aguarda cleanup; ela não mata thread, não
 faz rollback e não transforma o error da aplicação.
 
 ```w
-let clock = process.context.clock
+import si from std
+let clock = process.context.clock()
 let started = clock.now()
 let deadline = try clock.deadline(after: 250<si.ms>)
 let remaining = clock.remaining(until: deadline)
@@ -10539,7 +10681,7 @@ O compiler deriva os fatos:
 | `ServiceRef<P>` | transferable e shareable; state permanece na instance |
 | function pointer | transferable e shareable |
 | closure | deriva mode e fatos de cada capture |
-| `Pinned<T>` e Arena | dependem de storage, allocator, cleanup e affinity |
+| `Pinned<T>` e allocator block | dependem de storage, allocator, cleanup e affinity |
 | raw pointer, thread-local e foreign handle | locais por default |
 
 Um `object` não ganha `shareable` somente por ter identity. O compiler analisa
@@ -14786,7 +14928,7 @@ uma classe utilitária apenas para agrupar nomes:
 
 ```w
 var output = String()
-output.reserve(minimumBytes: 4<KiB>)
+output.reserve(minimumBytes: 4<iec.KiB>)
 output.append("Last Light")
 
 let menu: view String = output.view
@@ -15879,9 +16021,9 @@ async fn fetch(
   }
 
   let command = try await (take request).json<Command>(
-    maximumBytes: 64<KiB>,
+    maximumBytes: 64<iec.KiB>,
   )
-  return try http.Response.json(value: ref command, maximumBytes: 64<KiB>)
+  return try http.Response.json(value: ref command, maximumBytes: 64<iec.KiB>)
 }
 ```
 
@@ -16894,13 +17036,13 @@ mesmo envelope do host:
 const serverLimits = http.ServerLimits(
   activeRequests: 1_024,
   queuedRequests: 2_048,
-  queuedBytes: 64<MiB>,
+  queuedBytes: 64<iec.MiB>,
   connections: 8_192,
   message: http.MessageLimits(
-    targetBytes: 16<KiB>,
-    headerBytes: 64<KiB>,
+    targetBytes: 16<iec.KiB>,
+    headerBytes: 64<iec.KiB>,
     headerFields: 128,
-    bodyBytes: 1<MiB>,
+    bodyBytes: 1<iec.MiB>,
   ),
 )
 
@@ -19158,9 +19300,11 @@ O delimitador vigente é `<...>`. Comparações de syntax e precedentes ficam em
 No design vigente, o literal exige adjacência:
 
 ```w
-let gravity = 9.80665<m/s^2>
-let setpoint = -40<degC>
-let memory = 64<KiB>
+import si from std
+import iec from std
+let gravity = 9.80665<si.m/si.s^2>
+let setpoint = -40<si.K>
+let memory = 64<iec.KiB>
 ```
 
 A produção aceita somente um literal numérico adjacente a
@@ -19172,6 +19316,23 @@ parênteses e expoentes inteiros. `^` continua XOR fora desse contexto. Nomes
 qualificados são permitidos. O literal `1` pode ocupar o numerator
 dimensionless, como em `1/mol`; outros coefficients são rejeitados. O resolver
 aceita somente símbolos de kind `Unit`.
+
+Um nome de unit não é registrado no ambiente global. `ms` sem qualificação só
+é válido quando o binding foi importado ou achatado explicitamente:
+
+```w
+import { ms } from std.si
+let retry: Duration = 250<ms>
+
+import * from std.si
+let retryAgain: Duration = 250<ms>
+
+import si from std
+let qualified: Duration = 250<si.ms>
+```
+
+Sem um desses bindings, `250<ms>` produz `W-UNIT-0001`. A origem do símbolo,
+a dimensão e a escala entram na metadata; não existe registry ambient de units.
 
 A dimensão já participa da identidade de `Quantity`. Um nome local comum usa
 `alias`, não um newtype. Use um nome que não oculte um tipo operacional de host:
@@ -19241,7 +19402,9 @@ escala, offset, símbolo e origem versionada. Units são apagadas quando
 reflection/formatting não as alcança.
 
 Sugars como `90C`, `90°F`, `5km` e `64KiB` continuam num mapa da edição. Tooling
-mostra a expansão. Source gerado e API pública preferem a forma delimitada.
+mostra a expansão para a unit qualificada quando o source importa a projection.
+Source gerado e API pública preferem a forma delimitada. O sugar não cria um
+binding ambient.
 
 ### 15.5 Quantity/SI: identidade e representação
 
@@ -19263,7 +19426,11 @@ dimensão derivada é a unidade coerente formada pelas references das bases.
 `std.si` fixa `m`, `kg`, `s`, `A`, `K`, `mol` e `cd`. `si.Angle` usa `rad` como
 eixo semântico forte. Essa é uma escolha de W, não uma nova base SI oficial.
 Temperature point e delta usam `K`. `std.iec.Information` usa `bit` como
-reference.
+reference. A projection source `std/iec/contracts.w` materializa
+`Information`, `bit`, `byte`, `KiB`, `MiB` e `GiB`. O caller importa `iec` ou
+seleciona os symbols. O provider `std.iec@1` continua missing, portanto esta
+source projection é contrato de design e não uma alegação de execução.
+`Information`, `bit`, `byte`, `KiB`, `MiB` e `GiB` não pertencem a `std.si`.
 
 Uma dimensão customizada exige exatamente uma declaração `unit name: Dimension`,
 independente da ordem dos arquivos ou declarations no módulo. Essa declaração
@@ -19314,7 +19481,7 @@ deve ser integral e caber em R. Um literal que falha é diagnostic.
 
 ```w
 let invalid: Quantity<si.Duration, u64> = 0.5<si.s> // diagnostic: fractional
-let bytes: MemorySize = 64<KiB>
+let bytes: MemorySize = 64<iec.KiB>
 let referenceBits: u64 = bytes.canonicalValue
 let octets: u64 = try bytes.exactValue(in: B)
 ```
@@ -20383,7 +20550,7 @@ especializados. Eles mudam operações, complexidade ou identidade. Storage
 inline, isoladamente, não muda a semântica de `String`.
 
 **W-1277 — storage privado deriva de provas e profile:** um limite estático de
-bytes permite storage inline, static, flat ou proveniente de uma arena. O
+bytes permite storage inline, static, flat ou proveniente de um allocator. O
 compiler escolhe a forma conforme escape, target, profile e cost model. O
 source não escolhe um threshold.
 
@@ -20410,7 +20577,7 @@ encoding, bytes não usados e overflow. O refinement de `String` não publica
 esses fatos.
 
 O primeiro protótipo de `String` usa UTF-8 válido sobre um buffer growable. Um
-profile posterior pode comparar SSO, storage inline privado e arena fixa.
+profile posterior pode comparar SSO, storage inline privado e lowering fixed.
 Nenhum threshold entra no contrato source antes de benchmarks reproduzíveis.
 
 Literal/static, inline e dinâmica precisam produzir os mesmos resultados,
@@ -21439,7 +21606,7 @@ inicial inclui:
 | comprimento | array, string refinement ou value parameter | bounds e reserva |
 | shape e stride | Tensor type ou view | fusion, tiling e bounds |
 | alignment | allocation e layout interno | vector load e low bits |
-| alias e escape | owner, `ref`, `inout` e capture | vectorização e stack/Arena placement |
+| alias e escape | owner, `ref`, `inout` e capture | vectorização e stack/fixed placement |
 | float class | guard explícito | remover branches; nunca ativa fast math |
 | unit e scale | tipo de unit | eliminar conversões estáticas |
 
@@ -23559,7 +23726,7 @@ serializer e driver. Ele também precisa chamar o backend pelo adapter C.
 | números | widths fixas, `usize`, checked arithmetic, bit operations e endian explícito |
 | dados | String, Bytes, `view`, Array, Map, Set e Range de baseline |
 | generics | type parameters, constraints, inference fechada, coherence e monomorphization |
-| memória | owner único, whole-value move, `ref`, `inout`, `Address`, drop, `defer` e Arena API |
+| memória | owner único, whole-value move, `ref`, `inout`, `Address`, drop, `defer` e allocator block |
 | falha | `throws E`, `try`, `do`/`catch`, panic e allocation fallible |
 | C | opaque type, scalar, struct, pointer, function e callback + context |
 | entry | forma curta para `process.main` |
@@ -25385,7 +25552,7 @@ enum MenuTransformError: Error {
 }
 
 async fn transform(ctx: build.Context): () throws MenuTransformError {
-  let source = try await ctx.read(string: menuSource, maximumBytes: 64<KiB>)
+  let source = try await ctx.read(string: menuSource, maximumBytes: 64<iec.KiB>)
   let compiled = try compileMenu(source)
   let MenuBytecode(bytes, _) = take compiled
   try await ctx.write(bytes: menuBytecode, value: take bytes)
@@ -27246,7 +27413,7 @@ O body possui uma gramática semântica menor:
 - argumentos aceitam values transferíveis, `take`, capabilities, constructors
   e projections verificáveis;
 - `var`, assignment, `try`, `await`, `async`, `spawn`, `defer`, loops, branches,
-  `unsafe`, Arena e calls locais não constroem nodes.
+  `unsafe`, allocator blocks e calls locais não constroem nodes.
 
 Essas regras produzem um DAG sem executar uma closure de usuário. Uma branch
 usa um value escolhido antes do bloco:
@@ -27387,7 +27554,7 @@ de service que W precisa.
 #### 23.1.10 Hipóteses de vantagem para W
 
 **Exemplo:** uma call local de `lastLight.menu()` move o resultado para a
-mailbox. Ela não cria um message arena somente para manter compatibilidade com a
+mailbox. Ela não cria um message allocator somente para manter compatibilidade com a
 call network.
 
 W pode superar o ajuste de uma library externa em cinco pontos:
@@ -27501,7 +27668,7 @@ regras:
 | `usize` e `isize` | somente com refinement finito que fixa um domínio portátil |
 | `Instant`, `Deadline` e clock local | proibidos; a call propaga duração restante |
 | ref, inout, view, pointer e Address | proibidos |
-| allocator, Arena, Task, Domain e handle de host | proibidos |
+| allocator block, Task, Domain e handle de host | proibidos |
 | shared, weak e grafo com aliases gerais | proibidos na baseline |
 
 Uma service limitada a `.local` pode usar outro valor transferable. Adicionar
@@ -27688,11 +27855,11 @@ falha ocorre antes de reservar o destino:
 
 ```w
 let limits = WireLimits(
-  maximumReceivedBytes: 4<KiB>,
-  maximumLogicalBytes: 16<KiB>,
+  maximumReceivedBytes: 4<iec.KiB>,
+  maximumLogicalBytes: 16<iec.KiB>,
   maximumNodes: 128,
   maximumDepth: 8,
-  maximumAllocationBytes: 16<KiB>,
+  maximumAllocationBytes: 16<iec.KiB>,
 )
 ```
 
@@ -28584,7 +28751,7 @@ num task frame; owner, drop e resultado permanecem iguais.
 
 **W-1176 — claim de memória:** W só pode alegar gerência automática de memória
 quando safe source comprovar owner, borrow, drop e reclamation sem lifetime
-annotations; quando placement entre register, stack, frame, heap e arena não
+annotations; quando placement entre register, stack, frame, heap e fixed scope não
 mudar o resultado; e quando `shared`, pinning, FFI e OOM preservarem seus
 contratos explícitos.
 
@@ -28675,20 +28842,31 @@ declarations, profiles, errors, limits, workflows e o corpus adversarial em
 evidence de integração, sem alterar a schema identity ou as regras de
 ownership.
 
-### 24.5 Blockers de memória MCX0
+### 24.5 Blockers de allocator ASC0
 
-**Exemplo:** um decoder pode usar `Arena.fixed` no batch e rehome values que
-escapam, mas o compiler ainda não pode afirmar coerção Arena→Allocator nem
-construction recoverable de um control block `shared` customizado.
+Os snippets desta subseção pressupõem `import iec from std` no header do
+module; a qualificação `iec.MiB` nunca é um binding ambient.
 
-Dois contratos permanecem explicitamente bloqueados e não são comportamento
+**Exemplo:** um decoder pode usar
+`allocator scratch: .fixed<capacity: 2<iec.MiB>> { ... }` no batch e rehome values
+que escapam. O bloco é a surface normativa; um bump arena é somente uma
+estratégia de lowering quando os facts permitirem.
+
+O parser, a fixture e o oracle ASC0 são somente evidência de design: não existe
+compiler, runtime, lowering físico ou provider executável para esta surface.
+Três contratos permanecem explicitamente bloqueados e não são comportamento
 implementado:
 
-1. A relação Arena→Allocator (refinement, coerção e lowering de capability) ainda
-   exige contrato do compiler/provider. `Arena` continua capability nominal
-   distinta; a surface não publica `Allocator<(.arena)>`. Até esse gate, APIs
-   recebem Arena explicitamente quando precisam dela.
-2. A construção de control block `shared` com allocator customizado e falha
+1. O provider `AllocatorPlan` customizado, seu `providerDigest`, versão,
+   admission, lease e lifecycle ainda exigem lowering executável do
+   compiler/provider. A surface publica `AllocatorPlanDescriptor`, `const
+   descriptor`, `take fn open()` e o owner `AllocatorLease`; o `deinit` da
+   lease é a única finalização. Ela não publica `Arena` nem uma coerção nominal
+   separada.
+2. Placement físico de `.fixed` por frame/task/agregado e suas resource gates
+   ainda não estão implementados. O profile deve fechar reservation,
+   recursion, overflow e falha de admission antes de o body entrar.
+3. A construção de control block `shared` com allocator customizado e falha
    recuperável ainda não possui construction contract fechado. `allocator:` é
    reservado como control argument somente quando a construção publica um
    allocation site; `share`/`try share` não retornam como caminho corrente. O
@@ -29218,7 +29396,7 @@ Saída: design W demonstrado de ponta a ponta e pronto para revisão pública.
 
 | Gate | Pergunta | Evidência mínima |
 |---|---|---|
-| memória | `shared`, arena e allocator compõem sem surpresa? | benchmarks, cycles, FFI e cancellation |
+| memória | `shared`, bump lowering e allocator compõem sem surpresa? | benchmarks, cycles, FFI e cancellation |
 | tasks | lowering preserva join, cancelamento, budget, deadline e mobilidade? | testes diferenciais, fault injection e scheduler reproduzível |
 | services | closed turn, admission e cycle são previsíveis? | três workloads, failure injection e trace |
 | units | `<>` supera `[]` em uso real? | estudo humano e modelo |

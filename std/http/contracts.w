@@ -1,5 +1,6 @@
 // Public value contracts for HTTP messages and server admission.
 
+import iec from std
 import { AbortReason, AbortSignal } from std.abort
 import { Blob } from std.blob
 import cache from std.cache
@@ -828,12 +829,12 @@ export struct FormDataLimits: Copy & Equatable {
   export static fn standard(): FormDataLimits {
     return FormDataLimits(
       maximumEntries: 128,
-      maximumNameBytes: 8<KiB>,
-      maximumFilenameBytes: 8<KiB>,
-      maximumTextBytes: 1<MiB>,
-      maximumBlobBytes: 64<MiB>,
-      maximumPayloadBytes: 64<MiB>,
-      maximumEncodedBytes: 65<MiB>,
+      maximumNameBytes: 8<iec.KiB>,
+      maximumFilenameBytes: 8<iec.KiB>,
+      maximumTextBytes: 1<iec.MiB>,
+      maximumBlobBytes: 64<iec.MiB>,
+      maximumPayloadBytes: 64<iec.MiB>,
+      maximumEncodedBytes: 65<iec.MiB>,
     )
   }
 }

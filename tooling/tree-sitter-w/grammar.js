@@ -3,6 +3,7 @@
 
 const DECLARATION_KEYWORDS = [
   "alias",
+  "allocator",
   "behavior",
   "dimension",
   "enum",
@@ -368,6 +369,19 @@ module.exports = grammar({
 
     parameter_list: ($) => seq("(", commaSep($.parameter), optional(","), ")"),
     parameter: ($) =>
+      choice(
+        seq(
+          "allocator",
+          field("name", $.identifier),
+          ":",
+          optional(
+            choice(
+              field("ownership", choice("ref", "inout", "take")),
+              field("const_requirement", "const"),
+            ),
+          ),
+          field("type", alias($.non_borrowed_type, $.type)),
+        ),
       seq(
         choice(
           field("name", $.identifier),
@@ -383,6 +397,7 @@ module.exports = grammar({
         field("type", alias($.non_borrowed_type, $.type)),
         optional(field("rest", $.rest_marker)),
         optional(seq("=", field("default", $._expression))),
+        ),
       ),
     rest_marker: (_) => "...",
 
@@ -1024,7 +1039,20 @@ module.exports = grammar({
         ),
       ),
     function_type_parameter: ($) =>
-      seq(
+      choice(
+        seq(
+        "allocator",
+        field("name", $.identifier),
+        ":",
+        optional(
+          choice(
+            field("ownership", choice("ref", "inout", "take")),
+            field("const_requirement", "const"),
+          ),
+        ),
+        field("type", alias($.non_borrowed_type, $.type)),
+        ),
+        seq(
         optional(
           choice(
             field("ownership", choice("ref", "inout", "take")),
@@ -1033,11 +1061,13 @@ module.exports = grammar({
         ),
         field("type", alias($.non_borrowed_type, $.type)),
         optional(field("rest", $.rest_marker)),
+        ),
       ),
 
     block: ($) => seq("{", repeat($._statement), "}"),
     _statement: ($) =>
       choice(
+        $.allocator_statement,
         $.binding_declaration,
         $.commit_statement,
         $.return_statement,
@@ -1054,6 +1084,18 @@ module.exports = grammar({
         $.continue_statement,
         $.expression_statement,
       ),
+
+    allocator_statement: ($) =>
+      seq(
+        optional("try"),
+        "allocator",
+        field("name", $.identifier),
+        ":",
+        field("plan", choice($.allocator_builtin_plan, $._expression)),
+        field("body", $.block),
+      ),
+    allocator_builtin_plan: ($) =>
+      seq(field("kind", $.contextual_member_expression), field("contract", $.type_arguments)),
 
     binding_declaration: ($) =>
       seq(

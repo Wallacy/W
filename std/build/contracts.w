@@ -1,3 +1,5 @@
+import iec from std
+
 // Typed bindings and errors for hermetic build transforms.
 
 const fn isBindingName(value: ref String): Bool {
@@ -168,8 +170,8 @@ export struct Context {
 }
 
 test "input and output limits remain distinct build failures" {
-  let input: Error = .inputLimit(name: "menu", maximumBytes: 64<KiB>)
-  let output: Error = .outputLimit(name: "bytecode", maximumBytes: 1<MiB>)
+  let input: Error = .inputLimit(name: "menu", maximumBytes: 64<iec.KiB>)
+  let output: Error = .outputLimit(name: "bytecode", maximumBytes: 1<iec.MiB>)
   expect input != output
 }
 

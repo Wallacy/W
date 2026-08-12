@@ -1372,11 +1372,15 @@
       ]
     },
     "parameter": {
-      "type": "SEQ",
+      "type": "CHOICE",
       "members": [
         {
-          "type": "CHOICE",
+          "type": "SEQ",
           "members": [
+            {
+              "type": "STRING",
+              "value": "allocator"
+            },
             {
               "type": "FIELD",
               "name": "name",
@@ -1386,25 +1390,72 @@
               }
             },
             {
-              "type": "SEQ",
+              "type": "STRING",
+              "value": ":"
+            },
+            {
+              "type": "CHOICE",
               "members": [
                 {
-                  "type": "FIELD",
-                  "name": "label",
-                  "content": {
-                    "type": "CHOICE",
-                    "members": [
-                      {
-                        "type": "SYMBOL",
-                        "name": "identifier"
-                      },
-                      {
-                        "type": "STRING",
-                        "value": "_"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "FIELD",
+                      "name": "ownership",
+                      "content": {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "STRING",
+                            "value": "ref"
+                          },
+                          {
+                            "type": "STRING",
+                            "value": "inout"
+                          },
+                          {
+                            "type": "STRING",
+                            "value": "take"
+                          }
+                        ]
                       }
-                    ]
-                  }
+                    },
+                    {
+                      "type": "FIELD",
+                      "name": "const_requirement",
+                      "content": {
+                        "type": "STRING",
+                        "value": "const"
+                      }
+                    }
+                  ]
                 },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "FIELD",
+              "name": "type",
+              "content": {
+                "type": "ALIAS",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "non_borrowed_type"
+                },
+                "named": true,
+                "value": "type"
+              }
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "CHOICE",
+              "members": [
                 {
                   "type": "FIELD",
                   "name": "name",
@@ -1412,108 +1463,138 @@
                     "type": "SYMBOL",
                     "name": "identifier"
                   }
+                },
+                {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "FIELD",
+                      "name": "label",
+                      "content": {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "SYMBOL",
+                            "name": "identifier"
+                          },
+                          {
+                            "type": "STRING",
+                            "value": "_"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "FIELD",
+                      "name": "name",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "identifier"
+                      }
+                    }
+                  ]
                 }
               ]
-            }
-          ]
-        },
-        {
-          "type": "STRING",
-          "value": ":"
-        },
-        {
-          "type": "CHOICE",
-          "members": [
+            },
+            {
+              "type": "STRING",
+              "value": ":"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "FIELD",
+                      "name": "ownership",
+                      "content": {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "STRING",
+                            "value": "ref"
+                          },
+                          {
+                            "type": "STRING",
+                            "value": "inout"
+                          },
+                          {
+                            "type": "STRING",
+                            "value": "take"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "FIELD",
+                      "name": "const_requirement",
+                      "content": {
+                        "type": "STRING",
+                        "value": "const"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "FIELD",
+              "name": "type",
+              "content": {
+                "type": "ALIAS",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "non_borrowed_type"
+                },
+                "named": true,
+                "value": "type"
+              }
+            },
             {
               "type": "CHOICE",
               "members": [
                 {
                   "type": "FIELD",
-                  "name": "ownership",
-                  "content": {
-                    "type": "CHOICE",
-                    "members": [
-                      {
-                        "type": "STRING",
-                        "value": "ref"
-                      },
-                      {
-                        "type": "STRING",
-                        "value": "inout"
-                      },
-                      {
-                        "type": "STRING",
-                        "value": "take"
-                      }
-                    ]
-                  }
-                },
-                {
-                  "type": "FIELD",
-                  "name": "const_requirement",
-                  "content": {
-                    "type": "STRING",
-                    "value": "const"
-                  }
-                }
-              ]
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
-        },
-        {
-          "type": "FIELD",
-          "name": "type",
-          "content": {
-            "type": "ALIAS",
-            "content": {
-              "type": "SYMBOL",
-              "name": "non_borrowed_type"
-            },
-            "named": true,
-            "value": "type"
-          }
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "FIELD",
-              "name": "rest",
-              "content": {
-                "type": "SYMBOL",
-                "name": "rest_marker"
-              }
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SEQ",
-              "members": [
-                {
-                  "type": "STRING",
-                  "value": "="
-                },
-                {
-                  "type": "FIELD",
-                  "name": "default",
+                  "name": "rest",
                   "content": {
                     "type": "SYMBOL",
-                    "name": "_expression"
+                    "name": "rest_marker"
                   }
+                },
+                {
+                  "type": "BLANK"
                 }
               ]
             },
             {
-              "type": "BLANK"
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "STRING",
+                      "value": "="
+                    },
+                    {
+                      "type": "FIELD",
+                      "name": "default",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_expression"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
             }
           ]
         }
@@ -5418,76 +5499,157 @@
       }
     },
     "function_type_parameter": {
-      "type": "SEQ",
+      "type": "CHOICE",
       "members": [
         {
-          "type": "CHOICE",
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "allocator"
+            },
+            {
+              "type": "FIELD",
+              "name": "name",
+              "content": {
+                "type": "SYMBOL",
+                "name": "identifier"
+              }
+            },
+            {
+              "type": "STRING",
+              "value": ":"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "FIELD",
+                      "name": "ownership",
+                      "content": {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "STRING",
+                            "value": "ref"
+                          },
+                          {
+                            "type": "STRING",
+                            "value": "inout"
+                          },
+                          {
+                            "type": "STRING",
+                            "value": "take"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "FIELD",
+                      "name": "const_requirement",
+                      "content": {
+                        "type": "STRING",
+                        "value": "const"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "FIELD",
+              "name": "type",
+              "content": {
+                "type": "ALIAS",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "non_borrowed_type"
+                },
+                "named": true,
+                "value": "type"
+              }
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
           "members": [
             {
               "type": "CHOICE",
               "members": [
                 {
-                  "type": "FIELD",
-                  "name": "ownership",
-                  "content": {
-                    "type": "CHOICE",
-                    "members": [
-                      {
-                        "type": "STRING",
-                        "value": "ref"
-                      },
-                      {
-                        "type": "STRING",
-                        "value": "inout"
-                      },
-                      {
-                        "type": "STRING",
-                        "value": "take"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "FIELD",
+                      "name": "ownership",
+                      "content": {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "STRING",
+                            "value": "ref"
+                          },
+                          {
+                            "type": "STRING",
+                            "value": "inout"
+                          },
+                          {
+                            "type": "STRING",
+                            "value": "take"
+                          }
+                        ]
                       }
-                    ]
-                  }
+                    },
+                    {
+                      "type": "FIELD",
+                      "name": "const_requirement",
+                      "content": {
+                        "type": "STRING",
+                        "value": "const"
+                      }
+                    }
+                  ]
                 },
                 {
-                  "type": "FIELD",
-                  "name": "const_requirement",
-                  "content": {
-                    "type": "STRING",
-                    "value": "const"
-                  }
+                  "type": "BLANK"
                 }
               ]
             },
             {
-              "type": "BLANK"
-            }
-          ]
-        },
-        {
-          "type": "FIELD",
-          "name": "type",
-          "content": {
-            "type": "ALIAS",
-            "content": {
-              "type": "SYMBOL",
-              "name": "non_borrowed_type"
-            },
-            "named": true,
-            "value": "type"
-          }
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
               "type": "FIELD",
-              "name": "rest",
+              "name": "type",
               "content": {
-                "type": "SYMBOL",
-                "name": "rest_marker"
+                "type": "ALIAS",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "non_borrowed_type"
+                },
+                "named": true,
+                "value": "type"
               }
             },
             {
-              "type": "BLANK"
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "FIELD",
+                  "name": "rest",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "rest_marker"
+                  }
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
             }
           ]
         }
@@ -5516,6 +5678,10 @@
     "_statement": {
       "type": "CHOICE",
       "members": [
+        {
+          "type": "SYMBOL",
+          "name": "allocator_statement"
+        },
         {
           "type": "SYMBOL",
           "name": "binding_declaration"
@@ -5575,6 +5741,85 @@
         {
           "type": "SYMBOL",
           "name": "expression_statement"
+        }
+      ]
+    },
+    "allocator_statement": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "try"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": "allocator"
+        },
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "identifier"
+          }
+        },
+        {
+          "type": "STRING",
+          "value": ":"
+        },
+        {
+          "type": "FIELD",
+          "name": "plan",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "allocator_builtin_plan"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_expression"
+              }
+            ]
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "body",
+          "content": {
+            "type": "SYMBOL",
+            "name": "block"
+          }
+        }
+      ]
+    },
+    "allocator_builtin_plan": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "kind",
+          "content": {
+            "type": "SYMBOL",
+            "name": "contextual_member_expression"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "contract",
+          "content": {
+            "type": "SYMBOL",
+            "name": "type_arguments"
+          }
         }
       ]
     },

@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/allocation.w",
     "symbol": "stageMenu",
-    "digest": "sha256:6e4c62a799bf730837c133cfacd0b4e0969b7841bf82449d995800e879ba61cb"
+    "digest": "sha256:5e075fd2dee1494e16091be9d7e4f97d27396a90793b0905277496b699f17882"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "selected",
       "language": "w",
       "path": "fixed-using.w",
-      "digest": "sha256:32b8107e4e36edde01aa86bc4c140ca6fb2d792a2c58602abed19565535965e5",
+      "digest": "sha256:ed1c84de03c3c8f09bca6f31e8d88eecec3ad4c7a14498e8cd5de8cb903bad67",
       "changedConstructs": [
         "Arena.fixed(inout storage)",
         "allocator: ref scratch",
@@ -49,7 +49,7 @@
       "role": "alternative",
       "language": "w-alternative",
       "path": "scope-closure.w",
-      "digest": "sha256:453d001ebffa204f559d1441782edf7565d8c34dddb9b9d1cc85c6a8c570a3b6",
+      "digest": "sha256:11a724ab187f615b13fc406064222a3423c1c18197c70429b01641f6b3865c56",
       "changedConstructs": [
         "take storage FnOnce capture",
         "ref payload and memory captures",

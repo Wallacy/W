@@ -218,7 +218,7 @@
     "time-clock": {
       "capabilities": ["operational-clock"],
       "effects": ["clock-read", "deadline-creation", "retained-projection"],
-      "failures": { "mode": "typed", "types": ["time.ClockError"] },
+      "failures": { "mode": "typed", "types": ["time.ClockError", "time.ClockSelectionError"] },
       "bounds": ["entry-or-fault-root", "positive-resolution", "provider-range", "same-clock-origin"],
       "complexity": { "time": "constant-provider", "space": "fixed-handle" }
     },
@@ -904,19 +904,26 @@
       "bounds": ["opaque-handle", "origin-preservation", "move-only", "provider-generation"],
       "complexity": { "time": "constant", "space": "fixed-handle" }
     },
-    "arena-fixed": {
-      "capabilities": ["fixed-storage"],
-      "effects": ["storage-binding"],
+    "allocator-plan-descriptor": {
+      "capabilities": [],
+      "effects": ["descriptor-validation"],
       "failures": { "mode": "none", "types": [] },
-      "bounds": ["caller-storage", "dependent-lifetime", "fixed-capacity", "no-general-allocation"],
+      "bounds": ["provider-identity", "versioned-contract", "failure-fact", "deallocator-fact", "mobility-fact"],
+      "complexity": { "time": "constant", "space": "bounded-descriptor" }
+    },
+    "allocator-lease": {
+      "capabilities": ["allocation-provider"],
+      "effects": ["capability-carry", "drop", "structured-deinit"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["scoped-lease", "backing-outlives-lease", "origin-preservation", "move-only"],
       "complexity": { "time": "constant", "space": "fixed-handle" }
     },
-    "arena-reset": {
-      "capabilities": ["fixed-storage"],
-      "effects": ["mutation", "drop", "bulk-release"],
-      "failures": { "mode": "none", "types": [] },
-      "bounds": ["exclusive-receiver", "no-active-loans", "drop-ledger", "same-storage"],
-      "complexity": { "time": "linear-registered-drops", "space": "constant" }
+    "allocator-plan": {
+      "capabilities": ["allocation-provider"],
+      "effects": ["descriptor-selection", "scoped-open-close"],
+      "failures": { "mode": "typed", "types": ["memory.AllocationError"] },
+      "bounds": ["versioned-contract", "open-before-body", "deinit-after-drain", "no-hidden-fallback"],
+      "complexity": { "time": "provider-bounded", "space": "lease-plus-descriptor" }
     },
     "scoped-lock-carrier": {
       "capabilities": ["sync-provider"],
@@ -1367,7 +1374,7 @@
         "gates": [
           "monotonic-nondecreasing",
           "resolution-reporting",
-          "suspend-accounting-profile",
+          "host-suspend-policy-profile",
           "same-root-origin-check",
           "no-early-expiration",
           "structured-cancellation-drain",
@@ -1379,7 +1386,8 @@
         "symbols": ["Duration", "Clock", "Instant", "Deadline"]
       },
       "apis": [
-        { "symbol": "SuspendAccounting", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "HostSuspendPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "ClockSelectionError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "ClockError", "kind": "enum", "profile": "value-contract" },
         {
           "symbol": "Duration",
@@ -1399,13 +1407,88 @@
           "members": [
             { "symbol": "now", "profile": "time-clock" },
             { "symbol": "resolution", "profile": "time-clock" },
-            { "symbol": "suspendAccounting", "profile": "time-clock" },
+            { "symbol": "hostSuspendPolicy", "profile": "time-clock" },
             { "symbol": "duration", "profile": "time-clock" },
             { "symbol": "deadline", "profile": "time-clock" },
             { "symbol": "remaining", "profile": "time-clock" },
             { "symbol": "hasReached", "profile": "time-clock" }
           ]
         }
+      ]
+    },
+    {
+      "id": "std.si",
+      "availability": "bundled-portable",
+      "source": "std/si/contracts.w",
+      "designAnchors": ["15.3", "15.5"],
+      "implementationProvider": {
+        "kind": "std-source",
+        "id": "std.si@1",
+        "status": "missing",
+        "gates": ["unit-binding-resolution", "dimension-identity", "exact-scale"]
+      },
+      "consumer": {
+        "path": "std/si/contracts.w",
+        "symbols": ["m", "s", "ms"]
+      },
+      "apis": [
+        { "symbol": "Length", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "Mass", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "Duration", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "Temperature", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "ElectricCurrent", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "Amount", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "LuminousIntensity", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "Angle", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "Energy", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "Power", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "Frequency", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "Velocity", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "Acceleration", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "Pressure", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "m", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "kg", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "s", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "K", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "A", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "mol", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "cd", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "rad", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "ms", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "us", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "ns", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "min", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "h", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "Hz", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "N", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "J", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "W", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "Pa", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "ps", "kind": "unit", "profile": "value-contract" }
+      ]
+    },
+    {
+      "id": "std.iec",
+      "availability": "bundled-portable",
+      "source": "std/iec/contracts.w",
+      "designAnchors": ["15.3", "15.5"],
+      "implementationProvider": {
+        "kind": "std-source",
+        "id": "std.iec@1",
+        "status": "missing",
+        "gates": ["unit-binding-resolution", "dimension-identity", "exact-scale"]
+      },
+      "consumer": {
+        "path": "std/iec/contracts.w",
+        "symbols": ["Information", "bit", "byte", "KiB", "MiB", "GiB"]
+      },
+      "apis": [
+        { "symbol": "Information", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "bit", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "byte", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "KiB", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "MiB", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "GiB", "kind": "unit", "profile": "value-contract" }
       ]
     },
     {
@@ -1501,7 +1584,7 @@
             { "symbol": "stderr", "profile": "process-output" },
             { "symbol": "filesystem", "profile": "process-context" },
             { "symbol": "network", "profile": "process-context" },
-            { "symbol": "clock", "profile": "time-clock" },
+            { "symbol": "clock", "profile": "time-clock", "overloads": 2 },
             { "symbol": "signals", "profile": "process-signals" },
             { "symbol": "services", "profile": "process-services" },
             { "symbol": "deadline", "profile": "process-context" }
@@ -1784,6 +1867,9 @@
         "status": "missing",
         "gates": [
           "fixed-storage-lifetime",
+          "fixed-admission-and-resource-gates",
+          "fixed-recursion-reservation",
+          "allocator-plan-contract",
           "refined-to-base",
           "drop-ledger",
           "active-loan-clear-rejection",
@@ -1793,25 +1879,22 @@
       },
       "consumer": {
         "path": "reference/last-light/allocation.w",
-        "symbols": ["Allocator", "Arena", "AllocationError", "stageMenu", "countEmergencyTokens"]
+        "symbols": ["Allocator", "AllocatorPlan", "AllocatorPlanDescriptor", "AllocationError", "stageMenu", "countEmergencyTokens"]
       },
       "apis": [
         { "symbol": "BudgetExceeded", "kind": "struct", "profile": "value-contract" },
         { "symbol": "AllocationError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "AllocatorFailureMode", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "AllocatorDeallocator", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "AllocatorMobility", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "AllocatorPlanDescriptor", "kind": "struct", "profile": "allocator-plan-descriptor" },
+        { "symbol": "AllocatorLease", "kind": "alias", "profile": "allocator-lease" },
+        { "symbol": "AllocatorPlan", "kind": "protocol", "profile": "allocator-plan" },
         {
           "symbol": "Allocator",
           "kind": "struct",
           "profile": "allocator-carrier",
           "members": []
-        },
-        {
-          "symbol": "Arena",
-          "kind": "struct",
-          "profile": "arena-fixed",
-          "members": [
-            { "symbol": "fixed", "profile": "arena-fixed" },
-            { "symbol": "reset", "profile": "arena-reset" }
-          ]
         }
       ]
     },

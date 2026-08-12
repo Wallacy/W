@@ -21,14 +21,14 @@ region staging {
   (ERROR))
 
 ==================
-Arena storage with bounded capacity
+Lexical allocator storage with bounded capacity
 ==================
 
-fn decodeMenu(payload: ref Bytes, memory: ref Allocator): Menu throws AllocationError {
-  var storage: [u8; 8<MiB>] = [0; 8<MiB>]
-  var scratch = Arena.fixed(inout storage)
-  let parsed = try Menu.parse(payload, using: scratch)
-  return try (take parsed).rehome(using: memory)
+fn decodeMenu(allocator memory: ref Allocator, payload: ref Bytes): Menu throws AllocationError {
+  allocator scratch: .fixed<capacity: 8<iec.MiB>> {
+    var parsed = Menu.parse(payload)
+    return try (take parsed).rehome(allocator: memory)
+  }
 }
 
 ---
@@ -54,52 +54,73 @@ fn decodeMenu(payload: ref Bytes, memory: ref Allocator): Menu throws Allocation
       (type_name
         (type_identifier)))
     (block
-      (binding_declaration
-        (pattern
-          (identifier))
-        (type
-          (fixed_array_type
-            (type
-              (type_name
-                (type_identifier)))
-            (quantity_literal)))
-        (repeat_array_literal
-          (number_literal)
-          (quantity_literal)))
+      (allocator_statement
+        (identifier)
+        (allocator_builtin_plan
+          (contextual_member_expression
+            (identifier))
+          (type_arguments
+            (type_argument
+              (identifier)
+              (static_argument_value
+                (quantity_literal)))))
+        (block
+          (binding_declaration
+            (pattern
+              (identifier))
+            (call_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (argument_list
+                (argument
+                  (identifier)))))
+          (return_statement
+            (unary_expression
+              (call_expression
+                (member_expression
+                  (parenthesized_expression
+                    (unary_expression
+                      (identifier)))
+                  (identifier))
+                (argument_list
+                  (argument
+                    (identifier)
+                    (identifier)))))))))))
+
+==================
+Fallible custom allocator plan
+==================
+
+try allocator request: RestaurantPool(backing: ref processMemory, budget: 4<iec.MiB>) {
+  let order = Order(allocator: request, id: id)
+}
+
+---
+
+(source_file
+  (allocator_statement
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list
+        (argument
+          (identifier)
+          (unary_expression
+            (identifier)))
+        (argument
+          (identifier)
+          (quantity_literal))))
+    (block
       (binding_declaration
         (pattern
           (identifier))
         (call_expression
-          (member_expression
-            (identifier)
-            (identifier))
+          (identifier)
           (argument_list
             (argument
-              (unary_expression
-                (identifier))))))
-      (binding_declaration
-        (pattern
-          (identifier))
-        (unary_expression
-          (call_expression
-            (member_expression
               (identifier)
               (identifier))
-            (argument_list
-              (argument
-                (identifier))
-              (argument
-                (identifier)
-                (identifier))))))
-      (return_statement
-        (unary_expression
-          (call_expression
-            (member_expression
-              (parenthesized_expression
-                (unary_expression
-                  (identifier)))
-              (identifier))
-            (argument_list
-              (argument
-                (identifier)
-                (identifier)))))))))
+            (argument
+              (identifier)
+              (identifier))))))))

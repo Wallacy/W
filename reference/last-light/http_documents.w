@@ -6,6 +6,7 @@
 // These vectors are compile/provider-gated until std.json@1 and std.http@1
 // exist.  They do not claim provider execution.
 
+import iec from std
 import http from std
 import json from std.json
 import si from std
@@ -617,7 +618,7 @@ export fn problemResponse(
 
 test "command document uses tagged shapes and canonical decimal strings" {
   var source: Bytes = b"{\"kind\":\"place\",\"order\":{\"id\":\"42\",\"guest\":{\"id\":\"7\",\"name\":\"Arthur Dent\"},\"guests\":2,\"course\":\"horizon-cake\",\"notes\":null,\"timeline\":0}}"
-  let document = try json.decode<CommandDocument>(ref source, limits: json.Limits(maximumBytes: 4<KiB>))
+  let document = try json.decode<CommandDocument>(ref source, limits: json.Limits(maximumBytes: 4<iec.KiB>))
   let command = try (take document).command()
 
   switch command {
@@ -632,14 +633,14 @@ test "command document uses tagged shapes and canonical decimal strings" {
 
 test "command document rejects noncanonical or unexpected payloads" {
   var noncanonical: Bytes = b"{\"kind\":\"status\",\"orderId\":\"+42\"}"
-  let plus = try json.decode<CommandDocument>(ref noncanonical, limits: json.Limits(maximumBytes: 1<KiB>))
+  let plus = try json.decode<CommandDocument>(ref noncanonical, limits: json.Limits(maximumBytes: 1<iec.KiB>))
   do {
     let _ = try (take plus).command()
     panic("noncanonical order id was accepted")
   } catch .nonCanonicalDecimal(.orderId) {}
 
   var payload: Bytes = b"{\"kind\":\"help\",\"orderId\":\"42\"}"
-  let unexpected = try json.decode<CommandDocument>(ref payload, limits: json.Limits(maximumBytes: 1<KiB>))
+  let unexpected = try json.decode<CommandDocument>(ref payload, limits: json.Limits(maximumBytes: 1<iec.KiB>))
   do {
     let _ = try (take unexpected).command()
     panic("unexpected payload was accepted")
@@ -653,7 +654,7 @@ test "app response omits trace id and writes kind first" {
     traceId: Trace.current.id,
   ))
   let document = AppResponseDocument(response: ref response)
-  let bytes = try json.encode(ref document, limits: json.Limits(maximumBytes: 4<KiB>))
+  let bytes = try json.encode(ref document, limits: json.Limits(maximumBytes: 4<iec.KiB>))
   expect bytes == b"{\"kind\":\"placed\",\"receipt\":{\"orderId\":\"42\",\"total\":{\"minorUnits\":\"4242\",\"currency\":\"CR\"}}}"
 }
 
@@ -664,10 +665,10 @@ test "problem response keeps code, status, body, and media type aligned" {
   expect problemStatus(.invalidWifiDocument) == http.StatusCode.unprocessableContent
   let body = problem(code: code)
   expect body.status == http.StatusCode.unprocessableContent
-  let bytes = try json.encode(ref body, limits: json.Limits(maximumBytes: 1<KiB>))
+  let bytes = try json.encode(ref body, limits: json.Limits(maximumBytes: 1<iec.KiB>))
   expect bytes == b"{\"type\":\"https://last-light.example/problems/invalid-command\",\"title\":\"Invalid command document\",\"status\":422,\"code\":\"invalid-command\",\"detail\":\"The command document is not valid for this endpoint.\"}"
 
-  let response = try problemResponse(code: code, maximumBytes: 1<KiB>)
+  let response = try problemResponse(code: code, maximumBytes: 1<iec.KiB>)
   expect response.status == http.StatusCode.unprocessableContent
   expect try response.headers.get("content-type") == "application/problem+json"
 }

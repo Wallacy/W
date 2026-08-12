@@ -13,6 +13,7 @@
     "check": "bun run --cwd tooling/tree-sitter-w check",
     "check:abi": "bun tooling/check-layout-abi-cases.mjs",
     "check:allocation": "bun test tooling/allocation-reference.test.mjs && bun tooling/check-allocation-cases.mjs",
+    "check:allocator-scope": "bun test tooling/allocator-scope-reference.test.mjs && bun tooling/check-allocator-scope-cases.mjs",
     "check:boundary": "bun tooling/check-boundary-effect-cases.mjs",
     "check:service-recovery": "bun test tooling/service-recovery-reference.test.mjs && bun tooling/check-service-recovery-cases.mjs",
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",

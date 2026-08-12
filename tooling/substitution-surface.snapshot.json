@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:566f98fc3702d360c2e377063f9a22bcb0566406363a12b64fe95c10716f1940",
+  "corpusDigest": "sha256:7345a75407b3e60cf76eeac7c19cbbd666c95d1887e4094f7f17f6ab8ff7df4e",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -1996,13 +1996,13 @@
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:90d72250b8c9dbe4e6b450c173d2cff903750ab874b79b035e636128a02ed342",
+        "sourceDigest": "sha256:f3ed08ee47e48d8c1f44021812a21b1ef970666017b3a6c59d91364844b9dc14",
         "metrics": {
-          "utf8Bytes": 179,
-          "codePoints": 179,
-          "nonWhitespaceCodePoints": 158,
-          "lines": 2,
-          "surfaceLexemes": 50
+          "utf8Bytes": 204,
+          "codePoints": 204,
+          "nonWhitespaceCodePoints": 179,
+          "lines": 3,
+          "surfaceLexemes": 58
         }
       },
       "alternatives": [
@@ -2935,22 +2935,22 @@
     {
       "id": "R0-suspend-accounting-names",
       "task": {
-        "utf8Bytes": 98,
-        "codePoints": 98,
-        "nonWhitespaceCodePoints": 86,
+        "utf8Bytes": 104,
+        "codePoints": 104,
+        "nonWhitespaceCodePoints": 91,
         "lines": 1,
-        "surfaceLexemes": 16
+        "surfaceLexemes": 17
       },
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:1e214b36c818d7cc86a79a005f345e39cd2eb96b325c1ef388d9a32845f27900",
+        "sourceDigest": "sha256:d249dab4529cec2ae5196dd4ce7d5e8d57a27efe0f5bd3ec868f10c1d061c7b7",
         "metrics": {
-          "utf8Bytes": 125,
-          "codePoints": 125,
-          "nonWhitespaceCodePoints": 113,
-          "lines": 2,
-          "surfaceLexemes": 23
+          "utf8Bytes": 177,
+          "codePoints": 177,
+          "nonWhitespaceCodePoints": 159,
+          "lines": 3,
+          "surfaceLexemes": 34
         }
       },
       "alternatives": [
@@ -3031,22 +3031,22 @@
     {
       "id": "R0-arena-scope",
       "task": {
-        "utf8Bytes": 105,
-        "codePoints": 105,
-        "nonWhitespaceCodePoints": 89,
+        "utf8Bytes": 97,
+        "codePoints": 97,
+        "nonWhitespaceCodePoints": 82,
         "lines": 1,
-        "surfaceLexemes": 20
+        "surfaceLexemes": 19
       },
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:c99134a766ac963ac7de6ae64aea32d694ef8c15486b9adb3b837f0b8a1a7de0",
+        "sourceDigest": "sha256:8f1f9da040939cf48c804ef16d0ab8078e3491bf6cdcd223dd13a993aeae5aa6",
         "metrics": {
-          "utf8Bytes": 167,
-          "codePoints": 167,
-          "nonWhitespaceCodePoints": 147,
+          "utf8Bytes": 135,
+          "codePoints": 135,
+          "nonWhitespaceCodePoints": 118,
           "lines": 4,
-          "surfaceLexemes": 43
+          "surfaceLexemes": 38
         }
       },
       "alternatives": [

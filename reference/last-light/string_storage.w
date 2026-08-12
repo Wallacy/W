@@ -1,5 +1,6 @@
 // String storage and mutation for the Last Light restaurant.
 
+import iec from std
 import * from std.memory
 import * from std.text
 
@@ -15,8 +16,8 @@ export fn appendToHorizonSign(
 }
 
 export fn joinAnnouncements(
+  allocator memory: ref Allocator,
   lines: ref Array<String>,
-  memory allocator: ref Allocator,
 ): String throws AllocationError {
   var required: usize = 0
   var isFirst = true
@@ -87,29 +88,28 @@ export fn joinPair(left: take String, right: view String): String {
 }
 
 test "reservation makes incremental construction deterministic" for joinAnnouncements {
-  var storage: [u8; 4<KiB>] = [0; 4<KiB>]
-  let memory = Arena.fixed(inout storage)
   let lines = ["Do not panic", "Dessert remains available"]
-
-  let result = try joinAnnouncements(ref lines, memory: ref memory)
-  expect result == "Do not panic\nDessert remains available"
+  allocator memory: .fixed<capacity: 4<iec.KiB>> {
+    let result = try joinAnnouncements(allocator: ref memory, ref lines)
+    expect result == "Do not panic\nDessert remains available"
+  }
 }
 
 test "takeAll moves a frame and leaves a reusable String" {
-  var storage: [u8; 4<KiB>] = [0; 4<KiB>]
-  let memory = Arena.fixed(inout storage)
-  let buffer = AnnouncementBuffer(memory: ref memory)
+  allocator memory: .fixed<capacity: 4<iec.KiB>> {
+    let buffer = AnnouncementBuffer(memory: ref memory)
 
-  buffer.push("Last")
-  buffer.push(" orders")
-  buffer.finishLine()
+    buffer.push("Last")
+    buffer.push(" orders")
+    buffer.finishLine()
 
-  let first = buffer.drain()
-  expect first == "Last orders\n"
+    let first = buffer.drain()
+    expect first == "Last orders\n"
 
-  buffer.push("Closed")
-  let second = buffer.drain()
-  expect second == "Closed"
+    buffer.push("Closed")
+    let second = buffer.drain()
+    expect second == "Closed"
+  }
 }
 
 test "a consuming conversion preserves the UTF-8 bytes" for encodeAnnouncement {

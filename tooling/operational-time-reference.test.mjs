@@ -44,7 +44,7 @@ test("provider samples are nondecreasing and expose honest clock facts", () => {
     factSource: "provider",
     samples: ["4", "4", "9"],
     resolutionNanoseconds: "1",
-    suspendAccounting: "unspecified",
+    hostSuspendPolicy: "unspecified",
   })
   const regressed = deriveOperationalTime({
     subject: "clock",
@@ -52,7 +52,7 @@ test("provider samples are nondecreasing and expose honest clock facts", () => {
     factSource: "provider",
     samples: ["9", "8"],
     resolutionNanoseconds: "1",
-    suspendAccounting: "included",
+    hostSuspendPolicy: "included",
   })
   assert.equal(valid.nondecreasing, true)
   assert.equal(valid.steadyFrequencyPromised, false)

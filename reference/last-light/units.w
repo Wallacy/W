@@ -30,7 +30,7 @@ export alias ApplauseLevel = Quantity<Applause, u64>
 export const serviceTemperature = 180<degC>
 export const calibrationDistance = 2<smoot>
 export const applauseThreshold = 3<ovation>
-export const commandLimit = 64<KiB>
+export const commandLimit = 64<iec.KiB>
 
 export fn energy(power: Power, during duration: PhysicalDuration): Energy {
   return power * duration

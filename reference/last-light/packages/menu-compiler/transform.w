@@ -1,5 +1,6 @@
 // Hermetic build-transform entry for kitchen cards.
 
+import iec from std
 import build from std
 import {
   MenuBytecode,
@@ -18,7 +19,7 @@ export enum MenuTransformError: Error {
 async fn transform(ctx: build.Context): () throws MenuTransformError {
   let source = try await ctx.read(
     string: menuSource,
-    maximumBytes: 64<KiB>,
+    maximumBytes: 64<iec.KiB>,
   )
   let compiled = try compileMenu(source)
   let MenuBytecode(bytes, _) = take compiled

@@ -1,5 +1,6 @@
 // Dedicated HTTP component for the captive portal.
 
+import iec from std
 import http from std
 import json from std.json
 import {
@@ -36,7 +37,7 @@ fn wifiProblemCode(error: ref WifiAppError): ProblemCode? {
 
 fn wifiProblemResponse(code: ProblemCode): http.Response throws WifiAppError {
   do {
-    return try problemResponse(code: code, maximumBytes: 4<KiB>)
+    return try problemResponse(code: code, maximumBytes: 4<iec.KiB>)
   } catch error {
     throw .response(error)
   }
@@ -50,7 +51,7 @@ async fn handleWifi(
     case (.post, "/login"):
       let document: LoginDocument
       do {
-        document = try await (take request).json<LoginDocument>(maximumBytes: 4<KiB>)
+        document = try await (take request).json<LoginDocument>(maximumBytes: 4<iec.KiB>)
       } catch error {
         throw .decode(error)
       }
@@ -69,7 +70,7 @@ async fn handleWifi(
       let output = SessionDocument(session: ref session)
       let response: http.Response
       do {
-        response = try http.Response.json(value: ref output, maximumBytes: 4<KiB>)
+        response = try http.Response.json(value: ref output, maximumBytes: 4<iec.KiB>)
       } catch error {
         throw .response(error)
       }
@@ -77,7 +78,7 @@ async fn handleWifi(
     case (.post, "/logout"):
       let document: RevokeDocument
       do {
-        document = try await (take request).json<RevokeDocument>(maximumBytes: 1<KiB>)
+        document = try await (take request).json<RevokeDocument>(maximumBytes: 1<iec.KiB>)
       } catch error {
         throw .decode(error)
       }

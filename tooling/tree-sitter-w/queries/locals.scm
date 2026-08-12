@@ -9,6 +9,7 @@
 (catch_clause) @local.scope
 
 (parameter name: (identifier) @local.definition)
+(allocator_statement name: (identifier) @local.definition)
 (set_accessor parameter: (identifier) @local.definition)
 (behavior_parameter name: (identifier) @local.definition)
 (closure_parameter name: (identifier) @local.definition)

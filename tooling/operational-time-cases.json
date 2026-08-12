@@ -94,6 +94,41 @@
       "expect": { "accepted": false, "reason": "ambientClockForbidden" }
     },
     {
+      "id": "TIME0-POS-default-root-clock-may-report-unspecified",
+      "kind": "positive",
+      "decisions": ["W-1311", "W-1331"],
+      "input": { "subject": "clock", "operation": "defaultAcquire", "root": true, "capabilities": ["clock"], "providerPolicy": "unspecified" },
+      "expect": { "accepted": true, "selection": "default", "hostSuspendPolicy": "unspecified", "mayReportUnspecified": true, "retainedOwner": true, "rootBound": true }
+    },
+    {
+      "id": "TIME0-POS-active-host-suspend-included",
+      "kind": "positive",
+      "decisions": ["W-1311", "W-1331"],
+      "input": { "subject": "clock", "operation": "selectAcquire", "root": true, "capabilities": ["clock"], "hostSuspendPolicy": "included", "providerPolicies": ["included", "excluded"] },
+      "expect": { "accepted": true, "selection": "active", "hostSuspendPolicy": "included", "retainedOwner": true, "rootBound": true }
+    },
+    {
+      "id": "TIME0-POS-active-host-suspend-excluded",
+      "kind": "positive",
+      "decisions": ["W-1311", "W-1331"],
+      "input": { "subject": "clock", "operation": "selectAcquire", "root": true, "capabilities": ["clock"], "hostSuspendPolicy": "excluded", "providerPolicies": ["excluded"] },
+      "expect": { "accepted": true, "selection": "active", "hostSuspendPolicy": "excluded" }
+    },
+    {
+      "id": "TIME0-NEG-active-unspecified-request",
+      "kind": "negative",
+      "decisions": ["W-1331"],
+      "input": { "subject": "clock", "operation": "selectAcquire", "root": true, "capabilities": ["clock"], "hostSuspendPolicy": "unspecified" },
+      "expect": { "accepted": false, "reason": "activeHostSuspendPolicySubsetRequired", "requested": "unspecified", "providerCalled": false }
+    },
+    {
+      "id": "TIME0-NEG-active-provider-unsupported",
+      "kind": "negative",
+      "decisions": ["W-1331"],
+      "input": { "subject": "clock", "operation": "selectAcquire", "root": true, "capabilities": ["clock"], "hostSuspendPolicy": "included", "providerPolicies": ["excluded"] },
+      "expect": { "accepted": false, "reason": "hostSuspendPolicyUnsupported", "requested": "included", "providerCalled": true }
+    },
+    {
       "id": "TIME0-POS-runtime-internal-clock-does-not-grant-authority",
       "kind": "positive",
       "decisions": ["W-1311"],
@@ -104,78 +139,78 @@
       "id": "TIME0-POS-provider-counts-suspend",
       "kind": "positive",
       "decisions": ["W-1313"],
-      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["1", "2", "2"], "resolutionNanoseconds": "1", "suspendAccounting": "included" },
-      "expect": { "accepted": true, "nondecreasing": true, "suspendAccounting": "included", "steadyFrequencyPromised": false, "hardRealtimePromised": false }
+      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["1", "2", "2"], "resolutionNanoseconds": "1", "hostSuspendPolicy": "included" },
+      "expect": { "accepted": true, "nondecreasing": true, "hostSuspendPolicy": "included", "steadyFrequencyPromised": false, "hardRealtimePromised": false }
     },
     {
       "id": "TIME0-POS-provider-pauses-during-suspend",
       "kind": "positive",
       "decisions": ["W-1313"],
-      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["10", "10", "12"], "resolutionNanoseconds": "2", "suspendAccounting": "excluded" },
-      "expect": { "accepted": true, "resolutionNanoseconds": "2", "suspendAccounting": "excluded", "rawTicksPublic": false }
+      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["10", "10", "12"], "resolutionNanoseconds": "2", "hostSuspendPolicy": "excluded" },
+      "expect": { "accepted": true, "resolutionNanoseconds": "2", "hostSuspendPolicy": "excluded", "rawTicksPublic": false }
     },
     {
       "id": "TIME0-POS-provider-suspend-policy-unspecified",
       "kind": "positive",
       "decisions": ["W-1313"],
-      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["7"], "resolutionNanoseconds": "100", "suspendAccounting": "unspecified" },
-      "expect": { "accepted": true, "sampleCount": 1, "suspendAccounting": "unspecified" }
+      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["7"], "resolutionNanoseconds": "100", "hostSuspendPolicy": "unspecified" },
+      "expect": { "accepted": true, "sampleCount": 1, "hostSuspendPolicy": "unspecified" }
     },
     {
       "id": "TIME0-POS-deadline-includes-host-suspend",
       "kind": "positive",
       "decisions": ["W-1313", "W-1314"],
-      "input": { "subject": "clock", "operation": "deadlineHostSuspend", "factSource": "provider", "activeNanoseconds": "60", "hostSuspendNanoseconds": "50", "deadlineNanoseconds": "100", "suspendAccounting": "included" },
-      "expect": { "accepted": true, "elapsedNanoseconds": "110", "deadlineReached": true, "suspendAccounting": "included", "hostSuspended": true }
+      "input": { "subject": "clock", "operation": "deadlineHostSuspend", "factSource": "provider", "activeNanoseconds": "60", "hostSuspendNanoseconds": "50", "deadlineNanoseconds": "100", "hostSuspendPolicy": "included" },
+      "expect": { "accepted": true, "elapsedNanoseconds": "110", "deadlineReached": true, "hostSuspendPolicy": "included", "hostSuspended": true }
     },
     {
       "id": "TIME0-POS-deadline-excludes-host-suspend",
       "kind": "positive",
       "decisions": ["W-1313", "W-1314"],
-      "input": { "subject": "clock", "operation": "deadlineHostSuspend", "factSource": "provider", "activeNanoseconds": "60", "hostSuspendNanoseconds": "50", "deadlineNanoseconds": "100", "suspendAccounting": "excluded" },
-      "expect": { "accepted": true, "elapsedNanoseconds": "60", "deadlineReached": false, "suspendAccounting": "excluded", "hostSuspended": true }
+      "input": { "subject": "clock", "operation": "deadlineHostSuspend", "factSource": "provider", "activeNanoseconds": "60", "hostSuspendNanoseconds": "50", "deadlineNanoseconds": "100", "hostSuspendPolicy": "excluded" },
+      "expect": { "accepted": true, "elapsedNanoseconds": "60", "deadlineReached": false, "hostSuspendPolicy": "excluded", "hostSuspended": true }
     },
     {
       "id": "TIME0-POS-deadline-unspecified-cannot-infer",
       "kind": "positive",
       "decisions": ["W-1313", "W-1314"],
-      "input": { "subject": "clock", "operation": "deadlineHostSuspend", "factSource": "provider", "activeNanoseconds": "60", "hostSuspendNanoseconds": "50", "deadlineNanoseconds": "100", "suspendAccounting": "unspecified" },
-      "expect": { "accepted": true, "suspendAccounting": "unspecified", "deadlineReached": null, "elapsedNanoseconds": null, "inferenceAllowed": false, "hostSuspended": true }
+      "input": { "subject": "clock", "operation": "deadlineHostSuspend", "factSource": "provider", "activeNanoseconds": "60", "hostSuspendNanoseconds": "50", "deadlineNanoseconds": "100", "hostSuspendPolicy": "unspecified" },
+      "expect": { "accepted": true, "hostSuspendPolicy": "unspecified", "deadlineReached": null, "elapsedNanoseconds": null, "inferenceAllowed": false, "hostSuspended": true }
     },
     {
       "id": "TIME0-NEG-profile-requires-suspend-case",
       "kind": "negative",
       "decisions": ["W-1313", "W-1314"],
-      "input": { "subject": "clock", "operation": "deadlineHostSuspend", "factSource": "provider", "activeNanoseconds": "60", "hostSuspendNanoseconds": "50", "deadlineNanoseconds": "100", "suspendAccounting": "unspecified", "requiredSuspendAccounting": "included" },
-      "expect": { "accepted": false, "reason": "suspendAccountingRequired", "required": "included", "actual": "unspecified" }
+      "input": { "subject": "clock", "operation": "deadlineHostSuspend", "factSource": "provider", "activeNanoseconds": "60", "hostSuspendNanoseconds": "50", "deadlineNanoseconds": "100", "hostSuspendPolicy": "unspecified", "requiredHostSuspendPolicy": "included" },
+      "expect": { "accepted": false, "reason": "hostSuspendPolicyRequired", "required": "included", "actual": "unspecified" }
     },
     {
       "id": "TIME0-NEG-clock-regression",
       "kind": "negative",
       "decisions": ["W-1313"],
-      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["8", "7"], "resolutionNanoseconds": "1", "suspendAccounting": "included" },
+      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["8", "7"], "resolutionNanoseconds": "1", "hostSuspendPolicy": "included" },
       "expect": { "accepted": false, "reason": "clockRegressed" }
     },
     {
       "id": "TIME0-NEG-zero-resolution",
       "kind": "negative",
       "decisions": ["W-1313"],
-      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["1"], "resolutionNanoseconds": "0", "suspendAccounting": "included" },
+      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["1"], "resolutionNanoseconds": "0", "hostSuspendPolicy": "included" },
       "expect": { "accepted": false, "reason": "invalidResolution" }
     },
     {
       "id": "TIME0-NEG-caller-invents-provider-facts",
       "kind": "negative",
       "decisions": ["W-1313"],
-      "input": { "subject": "clock", "operation": "samples", "factSource": "caller", "samples": ["1"], "resolutionNanoseconds": "1", "suspendAccounting": "included" },
+      "input": { "subject": "clock", "operation": "samples", "factSource": "caller", "samples": ["1"], "resolutionNanoseconds": "1", "hostSuspendPolicy": "included" },
       "expect": { "accepted": false, "reason": "providerClockFactsRequired" }
     },
     {
       "id": "TIME0-NEG-invalid-suspend-policy",
       "kind": "negative",
       "decisions": ["W-1313"],
-      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["1"], "resolutionNanoseconds": "1", "suspendAccounting": "alwaysSteady" },
-      "expect": { "accepted": false, "reason": "invalidSuspendAccounting" }
+      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["1"], "resolutionNanoseconds": "1", "hostSuspendPolicy": "alwaysSteady" },
+      "expect": { "accepted": false, "reason": "invalidHostSuspendPolicy" }
     },
     {
       "id": "TIME0-POS-instant-forward-duration",

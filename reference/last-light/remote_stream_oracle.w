@@ -1,3 +1,5 @@
+import iec from std
+
 // Pure oracle for service stream eligibility, credits, terminals, and routing.
 
 export struct StreamCreditTotals {
@@ -327,16 +329,16 @@ test "stream credit totals never decrease" for creditUpdateIsValid {
 }
 
 test "aggregate limits prevent multiplication by open streams" for aggregateGrantFits {
-  let limit = StreamCreditTotals(items: 256, bytes: 16MiB)
+  let limit = StreamCreditTotals(items: 256, bytes: 16<iec.MiB>)
 
   expect aggregateGrantFits(
     limit: limit,
-    reserved: StreamCreditTotals(items: 248, bytes: 15MiB),
-    requested: StreamCreditTotals(items: 8, bytes: 1MiB),
+    reserved: StreamCreditTotals(items: 248, bytes: 15<iec.MiB>),
+    requested: StreamCreditTotals(items: 8, bytes: 1<iec.MiB>),
   )
   expect !aggregateGrantFits(
     limit: limit,
-    reserved: StreamCreditTotals(items: 256, bytes: 16MiB),
+    reserved: StreamCreditTotals(items: 256, bytes: 16<iec.MiB>),
     requested: StreamCreditTotals(items: 1, bytes: 1),
   )
 }

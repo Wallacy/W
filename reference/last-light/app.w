@@ -1,5 +1,6 @@
 // Native handlers for CLI, a minimal ANSI TUI, signals, and HTTP.
 
+import iec from std
 import http from std
 import std.io
 import {
@@ -31,11 +32,11 @@ import { commandLimit } from units
 const nativeServerLimits = http.ServerLimits(
   activeRequests: 1_024,
   queuedRequests: 2_048,
-  queuedBytes: 64<MiB>,
+  queuedBytes: 64<iec.MiB>,
   connections: 8_192,
   message: http.MessageLimits(
-    targetBytes: 16<KiB>,
-    headerBytes: 64<KiB>,
+    targetBytes: 16<iec.KiB>,
+    headerBytes: 64<iec.KiB>,
     headerFields: 128,
     bodyBytes: commandLimit,
   ),
