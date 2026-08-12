@@ -1441,11 +1441,12 @@ Aceite:
 
 - children mantêm descendants vivos e o parent fraco não forma ciclo forte;
 - uma closure escapante escolhe `take`, `copy` ou `weak` para owners move-first;
-- `capture(weak hub)` permite callback armazenado sem reter o próprio hub;
+- `<[weak hub]>` permite callback armazenado sem reter o próprio hub;
 - ciclo forte fechado e destruction-dependent falha com caminho causal;
 - ciclo dinâmico que nenhum root externo alcança só é reportado depois do drain
   e nunca é coletado;
-- `upgrade()` retorna ausência depois do último shared owner;
+- `upgrade()` retorna `some` quando adquire antes do strong release final e
+  `none` depois do último shared owner;
 - `upgrade()` e o último release possuem uma ordem linearizável;
 - o value morre no strong zero e o control block no weak zero;
 - um borrow fica ligado ao strong handle que o criou; outro alias pode morrer;
@@ -2098,6 +2099,10 @@ Famílias: placement, allocator, arena, budget, escape e OOM.
 Aceite:
 
 - um local síncrono fixo que não escapa não usa o allocator geral;
+- placement inferido não exige syntax no source;
+- um caso `Arena.fixed` mantém capacity bounded; `clear` ocorre somente para
+  reuso antecipado após `rehome`;
+- o escape de um valor ligado à Arena é rejeitado antes do runtime;
 - `object` não implica heap;
 - somente calls com `using: ref staging` usam a Arena;
 - `tryReserve` falha antes de consumir os elementos;
@@ -2127,12 +2132,15 @@ Aceite:
   o profile.
 
 O oracle executa `stageMenu` com um allocator de falha injetada em cada
-allocation. Antes de `rehome`, toda falha limpa os valores pela Arena. Durante
-`rehome`, toda falha limpa source e destino parcial uma vez. Depois do success,
-limpar a Arena não altera o snapshot. O teste repete com allocator do sistema,
-buffer fixo e os profiles `benchmark` e `benchmark-mimalloc`. Os valores, errors
-e drops são os mesmos. Cada allocation mantém a origem declarada; provider
-measurements podem mudar.
+allocation. Scope exit e unwind limpam valores dependentes e o owner Arena.
+Se o provider raw não executa drops W, o drop ledger do compiler os executa
+antes do bulk release.
+Antes de `rehome`, toda falha limpa os valores pela Arena. Durante `rehome`,
+toda falha limpa source e destino parcial uma vez. Um batch que reutiliza a
+capacity chama `clear` somente depois de `rehome`. O teste repete com allocator
+do sistema, buffer fixo e os profiles `benchmark` e `benchmark-mimalloc`. Os
+valores, errors e drops são os mesmos. Cada allocation mantém a origem
+declarada; provider measurements podem mudar.
 
 ### 3.34 As Três Últimas Noites
 
@@ -2205,16 +2213,26 @@ alega execução enquanto `std.net@1` e a capability do host estiverem missing.
 cada argumento como `OsString`; `Context` projeta somente as capabilities do
 produto, inclusive o `time.Clock` monotônico quando `.clock` está presente;
 `ExitCode` separa conclusão portátil de fault. `process.args` e
-`process.context` tomam empréstimos do mesmo owner do root. Eles não criam um
-singleton ambiental. PR0 deriva stdio, signals e drain em um oracle host, mas
+`process.context` tomam empréstimos do mesmo owner do root. Dentro de um entry,
+`process.clock` é uma projection curta com a mesma identity, origin, authority
+e lifetime de `process.context.clock`. `process.deadline`
+preserva value identity, origin e lifetime de `process.context.deadline`, sem
+ampliar authority (`authorityExpanded: false`). A availability de cada alias é a
+da projection longa correspondente. Eles não criam um singleton ambiental. PR0
+deriva stdio, signals e drain em um oracle host, mas
 não executa W, o scheduler, o sistema operacional ou o provider
 `std.process@1`.
 
 `time_oracle.w` separa `Duration` portátil de `Clock`, `Instant` e `Deadline`
 root-scoped. TIME0 deriva clock não regressivo, resolução, suspend accounting,
 origem, expiration sem disparo antecipado, cancellation drain e clock virtual.
-Ele não executa W, timer, scheduler, sistema operacional ou o provider
-`std.time@1`. Tempo civil não faz parte da capability `.clock`.
+`SuspendAccounting` descreve somente suspensão do HOST/SO: `.included` soma o
+intervalo ao deadline, `.excluded` pausa a medição e `.unspecified` não permite
+inferência. Ele não descreve coroutine, task ou `await`. Com 60 ms ativos, 50 ms
+de HOST/SO suspend e deadline de 100 ms, included alcança, excluded não alcança
+e unspecified exige um case explícito se o profile o exigir. O oracle não
+executa W, timer, scheduler, sistema operacional ou o provider `std.time@1`.
+Tempo civil não faz parte da capability `.clock`.
 
 O oracle HTTP também reserva uma consulta RestPC segura e idempotente. O
 request usa o método QUERY padronizado pelo RFC 10008. O content evita uma URI

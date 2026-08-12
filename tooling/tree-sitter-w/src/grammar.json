@@ -9037,42 +9037,34 @@
         "members": [
           {
             "type": "STRING",
-            "value": "capture"
+            "value": "<"
           },
           {
             "type": "STRING",
-            "value": "("
+            "value": "["
           },
           {
-            "type": "CHOICE",
+            "type": "SEQ",
             "members": [
               {
-                "type": "SEQ",
-                "members": [
-                  {
-                    "type": "SYMBOL",
-                    "name": "capture_item"
-                  },
-                  {
-                    "type": "REPEAT",
-                    "content": {
-                      "type": "SEQ",
-                      "members": [
-                        {
-                          "type": "STRING",
-                          "value": ","
-                        },
-                        {
-                          "type": "SYMBOL",
-                          "name": "capture_item"
-                        }
-                      ]
-                    }
-                  }
-                ]
+                "type": "SYMBOL",
+                "name": "capture_item"
               },
               {
-                "type": "BLANK"
+                "type": "REPEAT",
+                "content": {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "STRING",
+                      "value": ","
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "capture_item"
+                    }
+                  ]
+                }
               }
             ]
           },
@@ -9090,7 +9082,11 @@
           },
           {
             "type": "STRING",
-            "value": ")"
+            "value": "]"
+          },
+          {
+            "type": "STRING",
+            "value": ">"
           },
           {
             "type": "SYMBOL",

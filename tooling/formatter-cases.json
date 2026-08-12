@@ -417,13 +417,13 @@
       "decisions": ["W-006", "W-197", "W-708"],
       "input": {
         "lines": [
-          "fn ticketSequence(initial:usize):some mut fn():usize{var next=initial return capture(take next)()=>{next+=1 return next}}"
+          "fn ticketSequence(initial:usize):some mut fn():usize{var next=initial return <[take next]>()=>{next+=1 return next}}"
         ]
       },
       "output": [
         "fn ticketSequence(initial: usize): some mut fn(): usize {",
         "  var next = initial",
-        "  return capture(take next) () => {",
+        "  return <[take next]> () => {",
         "    next += 1",
         "    return next",
         "  }",

@@ -78,7 +78,7 @@ export mut async fn scoreScientific<samples: usize>(
   sensor sourceSensor: ref BlackHoleSensor,
 ): Scores throws dlpack.ViewError<ScoreError> {
   return try await imported.withView(
-    body: capture(ref sourceSensor) (view) =>
+    body: <[ref sourceSensor]> (view) =>
       try await scoreView<samples>(view, sensor: ref sourceSensor),
   )
 }

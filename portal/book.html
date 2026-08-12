@@ -124,7 +124,7 @@ fn reserve(for guest: GuestId, seats: GuestCount): Reservation throws BookingErr
           <p><code>T?</code> contém <code>.some(T)</code> ou <code>.none</code>. Errors recuperáveis usam
             <code>throws E</code>, <code>try</code> e cases tipados. Conversão implícita exige uma rota única,
             total e sem perda.</p>
-          <div class="code-shell"><pre><code>let mapper = capture(take table, ref metrics) (item) =&gt; {
+          <div class="code-shell"><pre><code>let mapper = &lt;[take table, ref metrics]&gt; (item) =&gt; {
   return table.lookup(item) ?? metrics.fallback
 }</code></pre></div>
           <p>Closures inferem captures locais. Uma closure que escapa ou cruza um executor torna

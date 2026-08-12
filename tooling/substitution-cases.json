@@ -843,7 +843,7 @@
       "task": "Create an inline welcome transformation without looking like a nested declaration.",
       "selected": {
         "language": "w",
-        "source": ["let greet = capture(copy gate) (arrival) => Welcome(orderId: arrival.orderId, gate: gate)"]
+        "source": ["let greet = <[copy gate]> (arrival) => Welcome(orderId: arrival.orderId, gate: gate)"]
       },
       "alternatives": [
         {

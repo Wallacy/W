@@ -1869,14 +1869,14 @@
       "source": [
         "object MenuSection { title: String }",
         "fn makeObserver(root: shared MenuSection): some fn(): String? {",
-        "  return capture(weak root) () => {",
+        "  return <[weak root]> () => {",
         "    guard let root = root.upgrade() else return .none",
         "    return .some(copy root.title)",
         "  }",
         "}"
       ],
       "expect": {
-        "focus": { "text": "capture(weak root)" },
+        "focus": { "text": "<[weak root]>" },
         "semanticResult": {
           "resultType": "some fn(): String?",
           "category": "value",
@@ -1956,7 +1956,7 @@
         "  fn refresh() {}",
         "}",
         "fn attach(hub: shared ObserverHub) {",
-        "  hub.add(capture(weak hub) () => {",
+        "  hub.add(<[weak hub]> () => {",
         "    guard let hub = hub.upgrade() else return ()",
         "    hub.refresh()",
         "  })",
@@ -2010,7 +2010,7 @@
         "  fn refresh() {}",
         "}",
         "fn attach(hub: shared ObserverHub) {",
-        "  hub.add(capture(copy hub) () => hub.refresh())",
+        "  hub.add(<[copy hub]> () => hub.refresh())",
         "}"
       ],
       "expect": {
@@ -2019,14 +2019,14 @@
             "code": "W-OWNERSHIP-0014",
             "phase": "semantic.ownership",
             "severity": "error",
-            "primary": { "text": "capture(copy hub)" },
+            "primary": { "text": "<[copy hub]>" },
             "labels": [
               { "role": "cycle-edge", "selector": { "text": "lock callbacks" } },
-              { "role": "cycle-edge", "selector": { "text": "capture(copy hub)" } }
+              { "role": "cycle-edge", "selector": { "text": "<[copy hub]>" } }
             ],
             "facts": {
               "cycle": ["hub", "callback", "hub"],
-              "edgeOrigins": ["callbacks", "capture(copy hub)"],
+              "edgeOrigins": ["callbacks", "<[copy hub]>"],
               "releasePlan": "deinit-only"
             },
             "notes": [],

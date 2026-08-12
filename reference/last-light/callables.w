@@ -38,7 +38,7 @@ export fn recoverableRoute(
   gate entryGate: usize,
   memory allocator: ref Allocator,
 ): WelcomeRoute throws AllocationError {
-  let concrete = capture(copy entryGate) (arrival) => Welcome(
+  let concrete = <[copy entryGate]> (arrival) => Welcome(
     orderId: arrival.orderId,
     gate: entryGate,
   )
@@ -52,7 +52,7 @@ export fn ticketSequence(
 ): some mut fn(): usize {
   var next = initial
 
-  return capture(take next) () => {
+  return <[take next]> () => {
     next += 1
     return next
   }
@@ -61,7 +61,7 @@ export fn ticketSequence(
 export fn finalManifest(
   orderIds: take Array<OrderId>,
 ): some take fn(): Array<OrderId> {
-  return capture(take orderIds) () => take orderIds
+  return <[take orderIds]> () => take orderIds
 }
 
 test "a thin function pointer keeps calls positional" for standardWelcome {
@@ -83,7 +83,7 @@ test "an opaque callable stays specialized" for welcome {
 test "an erased callable owns its invocation environment" for route {
   let gate = 2
   let handler: any fn(Arrival): Welcome =
-    capture(copy gate) (arrival) => Welcome(orderId: arrival.orderId, gate: gate)
+    <[copy gate]> (arrival) => Welcome(orderId: arrival.orderId, gate: gate)
   let selected = route(take handler)
   let result = selected.handler(Arrival(orderId: 44, guests: try GuestCount(4)))
 

@@ -743,7 +743,7 @@ type SensorCallback =
 
 fn counter(initial: usize): some mut fn(): usize {
   var next = initial
-  return capture(take next) () => {
+  return <[take next]> () => {
     next += 1
     return next
   }

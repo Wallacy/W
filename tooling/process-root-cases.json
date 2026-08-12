@@ -232,7 +232,7 @@
     {
       "id": "PR0-POS-root-deadline-is-not-clock-authority",
       "kind": "positive",
-      "decisions": ["W-1298", "W-1301"],
+      "decisions": ["W-1298", "W-1312"],
       "input": {
         "subject": "context",
         "operation": "project",
@@ -287,6 +287,55 @@
         "reason": "capabilityMissing",
         "requirement": "clock",
         "providerCalled": false
+      }
+    },
+    {
+      "id": "PR0-POS-short-clock-projection-reuses-context",
+      "kind": "positive",
+      "decisions": ["W-1296", "W-1298", "W-1311"],
+      "input": {
+        "subject": "context",
+        "operation": "shortProjection",
+        "root": true,
+        "profile": "native-process",
+        "member": "clock",
+        "capabilities": ["clock"]
+      },
+      "expect": {
+        "accepted": true,
+        "member": "clock",
+        "shortProjection": "process.clock",
+        "equivalentTo": "process.context.clock",
+        "sameIdentity": true,
+        "sameOrigin": true,
+        "sameAuthority": true,
+        "rootBound": true,
+        "serializable": false,
+        "authorityExpanded": false
+      }
+    },
+    {
+      "id": "PR0-POS-short-deadline-projection-reuses-context",
+      "kind": "positive",
+      "decisions": ["W-1296", "W-1298", "W-1312"],
+      "input": {
+        "subject": "context",
+        "operation": "shortProjection",
+        "root": true,
+        "profile": "native-process",
+        "member": "deadline",
+        "capabilities": []
+      },
+      "expect": {
+        "accepted": true,
+        "member": "deadline",
+        "shortProjection": "process.deadline",
+        "equivalentTo": "process.context.deadline",
+        "sameIdentity": true,
+        "sameOrigin": true,
+        "rootBound": true,
+        "serializable": false,
+        "authorityExpanded": false
       }
     },
     {

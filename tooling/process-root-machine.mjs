@@ -116,6 +116,32 @@ function deriveContext(input) {
       authorityExpanded: false,
     }
   }
+  if (input.operation === "shortProjection") {
+    if (!(input.member === "clock" || input.member === "deadline")) {
+      return { accepted: false, reason: "unknownMember" }
+    }
+    const requirement = input.member === "clock" ? "clock" : null
+    if (requirement !== null && !(input.capabilities ?? []).includes(requirement)) {
+      return {
+        accepted: false,
+        reason: "capabilityMissing",
+        requirement,
+        providerCalled: false,
+      }
+    }
+    return {
+      accepted: true,
+      member: input.member,
+      shortProjection: input.member === "clock" ? "process.clock" : "process.deadline",
+      equivalentTo: input.member === "clock" ? "process.context.clock" : "process.context.deadline",
+      sameIdentity: true,
+      sameOrigin: true,
+      ...(input.member === "clock" ? { sameAuthority: true } : {}),
+      rootBound: true,
+      serializable: false,
+      authorityExpanded: false,
+    }
+  }
   if (input.operation !== "project") return { accepted: false, reason: "unknownContextOperation" }
   if (!contextRequirements.has(input.member)) return { accepted: false, reason: "unknownMember" }
   const requirement = contextRequirements.get(input.member)

@@ -15,7 +15,6 @@ export fn stageMenu(
 ): MenuSnapshot throws AllocationError {
   var storage: [u8; 2<MiB>] = [0; 2<MiB>]
   var staging = Arena.fixed(inout storage)
-  defer { staging.clear() }
   var stagedDishes = Array<String>(using: ref staging)
   try stagedDishes.tryReserve(minimumCapacity: menuDishes.count)
 

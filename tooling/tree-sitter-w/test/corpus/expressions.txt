@@ -400,7 +400,7 @@ fn build(model: take Model, cache: ref Cache) {
   let courses = [.broth, .cake]
   let prices = [.broth: 12<cr>, .cake: 42<cr>]
   let digest = [0_u8; 32]
-  let estimate = capture(take model, ref cache) (input: ref Input) => {
+  let estimate = <[take model, ref cache]> (input: ref Input) => {
     trace(input)
     model.score(input, cache: cache)
   }
@@ -502,6 +502,47 @@ fn build(model: take Model, cache: ref Cache) {
                     (argument
                       (identifier)
                       (identifier))))))))))))
+
+==================
+Legacy capture syntax is rejected before W 1.0
+==================
+
+let invalid = capture(take model) () => model
+
+---
+
+(source_file
+  (binding_declaration
+    (pattern
+      (identifier))
+    (call_expression
+      (call_expression
+        (identifier)
+        (argument_list
+          (argument
+            (unary_expression
+              (identifier)))))
+      (argument_list)))
+  (ERROR)
+  (expression_statement
+    (identifier)))
+
+==================
+Empty explicit capture list is rejected
+==================
+
+let invalid = <[]> () => model
+
+---
+
+(source_file
+  (binding_declaration
+    (pattern
+      (identifier))
+    (ERROR)
+    (closure_expression
+      (closure_parameters)
+      (identifier))))
 
 ==================
 Unsafe pipeline and transaction expressions

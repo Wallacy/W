@@ -112,6 +112,8 @@ hermético do adapter nem publicam evidência de build.
   corte reconhece a forma canônica de um hash;
 - patterns e captures de closure estão no subset estrutural; escape, mode e drop
   dependem do type checker;
+- captures explícitas usam o prefixo contextual `<[mode name, ...]>`; a forma
+  anterior `capture(...)` não é mantida como syntax vigente;
 - parser normativo e compartilhamento de CST seguem gates de protótipo; esta
   gramática continua uma projeção de tooling.
 

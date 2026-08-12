@@ -67,7 +67,6 @@
   "async"
   "atomic"
   "await"
-  "capture"
   "const"
   "copy"
   "deployment"

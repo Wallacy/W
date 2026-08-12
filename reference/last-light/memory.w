@@ -49,6 +49,38 @@ export object MenuSection {
   }
 }
 
+export fn weakUpgradeSuccess(root: shared MenuSection): String? {
+  let weakRoot = root.weak()
+  guard let owner = weakRoot.upgrade() else return .none
+  return .some(copy owner.title)
+}
+
+export fn weakAfterLastOwner(root: take shared MenuSection): weak MenuSection? {
+  let weakRoot = root.weak()
+  return weakRoot
+}
+
+test "upgrade returns a new strong owner while payload lives" {
+  let root: shared MenuSection = MenuSection(
+    title: "Dinner",
+    parent: .none,
+    children: [],
+  )
+  let title = weakUpgradeSuccess(copy root)
+  expect title == .some("Dinner")
+}
+
+test "upgrade returns none after the last strong owner" {
+  let root: shared MenuSection = MenuSection(
+    title: "Expired",
+    parent: .none,
+    children: [],
+  )
+  // `take root` consumes the last strong owner before this upgrade.
+  let weakRoot = weakAfterLastOwner(take root)
+  expect weakRoot.upgrade() == .none
+}
+
 export enum SharedCyclePhase {
   compile
   drainedBoundary
@@ -122,7 +154,7 @@ export object MenuObserverHub {
 // `weak` with `copy` would form a closed strong cycle whose two edges depend on
 // the destructors inside that same cycle.
 export fn installMenuObserver(hub: shared MenuObserverHub) {
-  hub.observe(capture(weak hub) () => {
+  hub.observe(<[weak hub]> () => {
     guard let hub = hub.upgrade() else return ()
     if hub.observerCount() == 0 { return () }
   })

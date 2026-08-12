@@ -1543,11 +1543,26 @@ declara que ciclos fortes não são liberados e usa `Weak` para parent links;
 `Arc::new_cyclic` entrega somente um `Weak` durante a construção.
 
 W escolhe uma fronteira mais estrita: uma closure escapante nunca ganha retain
-ou transferência de owner move-first por inferência. `capture(copy ...)`,
-`capture(take ...)` e `capture(weak ...)` tornam a edge observável. `unowned`
-não entra porque duplicaria `ref` sem prova ou introduziria trap/use-after-free.
+ou transferência de owner move-first por inferência. O prefixo `<[copy name]>`,
+`<[take name]>` e `<[weak name]>` torna a edge observável. `unowned` não entra
+porque duplicaria `ref` sem prova ou introduziria trap/use-after-free.
 O compiler rejeita apenas o componente forte fechado que consegue provar como
 destruction-dependent; grafo dinâmico não recebe certeza inventada.
+
+**Migração pré-1.0.** A forma anterior `capture(mode name, ...)` apareceu em
+prototipagem, mas misturava uma call-like shape com a closure. A forma vigente
+`<[mode name, ...]> (params) => body` separa o contrato contextual do callable.
+O prefixo não é `StaticList` nem argumento genérico. Captures implícitas ficam
+sem prefixo. A forma antiga deve falhar no parser ou no diagnostic de migração.
+Não há camada de compatibilidade. Esta troca preserva a ordem source para
+diagnostics, mas não congela o layout do environment.
+
+`upgrade()` foi mantido como o verbo vigente porque torna a aquisição linearizável
+e o resultado opcional explícito. `share()` cria um novo owner a partir de um
+payload owned e pode escolher um allocator. Uma property futura como `.strong`
+poderia projetar um owner, mas esconderia o momento de aquisição e sua falha.
+Esta comparação permanece uma decisão humana revisável. Ela não muda a forma
+vigente de `upgrade()`.
 
 O artigo
 [Concurrent Cycle Collection in Reference Counted Systems](https://pages.cs.wisc.edu/~cymen/misc/interests/Bacon01Concurrent.pdf)
@@ -1601,6 +1616,18 @@ permite que collections mantenham uma única entrada `using: ref Allocator` sem
 conversão implícita, protocol público de allocation ou segunda família de
 containers. O fact `.arena` habilita `clear`; a instance e o deallocator
 continuam em `AllocationOrigin`, não no tipo.
+
+**Região lexical como alternativa.** Uma proposta `region name(using:, limit:)`
+seria apenas açúcar para `Arena.fixed`, um scope de cleanup e uma capability de
+allocator. Ela não é Forma vigente. O açúcar teria custos de allocator implícito,
+escape de values, `async` atravessando o bloco e regiões aninhadas. A API
+explícita mantém placement, budget, lifetime e `clear` visíveis no call site.
+
+O uso de `Array<String>(using: memory)` segue essa separação. `<>` seleciona
+contratos e especialização estática. `()` recebe a capability runtime e sua
+lifetime. `Array<String, using: memory>()` mistura as duas fases e permanece
+**Rejeitado por enquanto**. O label `using:` também evita colisão com outros
+initializers.
 
 [mimalloc](https://github.com/microsoft/mimalloc) permanece provider candidate,
 não default sem evidência. Suas
@@ -3515,6 +3542,37 @@ root, sem raw timestamp. O provider declara resolução e se system suspend entr
 na conta. `.unspecified` mantém honestidade quando o target não oferece uma
 garantia estável.
 
+**Pesquisa: sensor físico.** Um restaurante pode medir o trânsito de um fóton
+entre dois sensores FPGA com um período em picoseconds. O exemplo usa a
+dimensão SI, um carrier racional exato e um contador físico explícito. O
+contador pertence ao device adapter; o provider continua missing.
+O snippet pressupõe `si` do módulo `std` e imports seletivos de `std.math` e
+`std.time`.
+
+```w
+import si from std
+import { BigInt, Rational } from std.math
+import { Duration } from std.time
+
+unit detectorTick = 4<si.ps>
+alias SensorDuration = Quantity<si.Duration, Rational<BigInt>>
+let tickPeriod: SensorDuration = 1<detectorTick>
+let tickCount: u64 = detector.readTicks()
+let transit: SensorDuration = tickPeriod * tickCount
+let elapsed: Duration = try Duration.exactly(transit)
+```
+
+`si.ps` é a unit SI de picoseconds, não uma dimensão. `detectorTick` é uma unit
+custom derivada dessa unit. Esse caso não transforma picoseconds em resolução de
+`Duration` e não define uma API de device. A conversão é explícita e checked.
+Se a escala não cabe em signed i128 nanoseconds, o adapter mantém a quantity
+física ou devolve um erro de range.
+
+**Pesquisa: tempo civil.** Candidatos como `WallClock` e `Timestamp` poderiam
+separar data UTC, timezone e calendário de `Clock`. Outra opção seria um
+`CivilTime` com `Calendar` e `TimeZone` nominais. Estes exemplos são apenas
+direções de pesquisa. Nenhuma syntax ou API pública foi decidida.
+
 Tempo civil fica separado porque UTC, timezone, calendars, leap seconds e
 serialization têm contratos diferentes. Misturar os dois faria uma correção de
 data alterar timeout ou elapsed time. TIME0 testa as regras de design, mas não
@@ -3569,7 +3627,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-003 | modifiers | ordem fixa antes de `fn` | ordem livre; effects após retorno |
 | W-004 | labels (retired) | regra inicial: primeiro posicional e demais nomeados; W-1290 substitui por parâmetros comuns posicionais em qualquer índice e labels declaradas explicitamente | todos nomeados; inferir label pela posição |
 | W-005 | closure | `(args) => body` | `fn(args) {}`; `{ args in }` |
-| W-006 | capture | inferência + `capture(...)` | `[capture]`; somente inferência |
+| W-006 | capture | inferência + `<[mode name, ...]>` contextual, com migração pré-1.0 | `capture(...)`; `[capture]`; somente inferência |
 | W-007 | visibility | módulo default; `export` individual ou coletivo; `package` não é access modifier | package visibility; `public/private` |
 | W-008 | import seletivo | `{X} from module`; `as` somente dentro das braces | `X from module`; `path.{X}`; imports livres |
 | W-009 | import de módulo | sem `from` achata; `name from origin` cria binding de módulo | namespace sempre; default export; `as` fora das braces |
@@ -3589,7 +3647,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-023 | transfer | last-use + `take` obrigatório na API | move sempre explícito; move implícito amplo |
 | W-024 | copy | implícito só para `Copy`; `copy value` explícito usa `Duplicable` | `.clone()` universal; COW como contrato |
 | W-025 | shared | declaração `shared T` cria o primeiro owner em binding/field; `share(value)` cobre expression context; `try share(value, using:)` cobre allocator recuperável; `copy` e `weak()` são explícitos | `tryShare` separado; ARC implícito; promotion por call/return/inference; block-region-only (retired) |
-| W-026 | region block (retired) | syntax `region name(using:, limit:)` liderava e baixava para `Arena`; a API foi mantida, mas o bloco foi retirado antes de W 1.0 | lifetime annotations; heap por módulo; API sem bloco |
+| W-026 | region block (retired) | syntax `region name(using:, limit:)` liderava e baixava para `Arena`; a API foi mantida, mas o bloco foi retirado antes de W 1.0 | lifetime annotations; heap por módulo; API sem bloco; açúcar lexical para Arena |
 | W-027 | allocator | capability explícita, default fixado pelo product, system portátil e profile substituível | mimalloc universal; allocator por import; default thread-local mutável |
 | W-028 | OOM | fallible explícito; geral aborta boundary | throws universal; abort de process sempre |
 | W-029 | layout | W opaco; C/schema explícitos | layout W estável universal |
@@ -4859,7 +4917,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1293 | categorias das formas de memória | `shared T` e `weak T` são tipos de handle; `ref T`, `inout T` e `view T` são tipos dependentes; `take T` e `const T` são contratos; `atomic` modifica storage e baixa para `Atomic<T>` | `Shared<T>` público, `atomic T`, allocator no tipo shared ou tratar toda keyword como modifier equivalente |
 | W-1294 | uma abstração de allocator | `Arena` é alias de `Allocator<(.arena)>`; refined-to-base permite a única entrada `ref Allocator`, enquanto origin preserva instance, lifetime e deallocator | protocol de allocator público, conversão implícita de Arena, API `allocator` duplicada ou Arena como segundo provider |
 | W-1295 | payload de budget de allocation | `BudgetExceeded` publica limit, committed e requested bytes; overflow usa `.sizeOverflow`, e identidade física fica no diagnostic sidecar | erro Boolean, bytes disponíveis globais, provider identity no valor ou payload truncado após overflow |
-| W-1296 | root de processo único | host cria Arguments e Context; handler explícito recebe owners e entry curto empresta via `process.args`/`process.context`, sem binding oculto | descartar argv, injetar args/ctx, singleton process ou duplicar projections |
+| W-1296 | root de processo único | host cria Arguments e Context; handler explícito recebe owners e entry curto empresta via `process.args`/`process.context`; `process.clock` preserva identity/origin/authority/lifetime da projection longa, e `process.deadline` preserva value identity/origin/lifetime sem ampliar authority | descartar argv, injetar args/ctx, singleton process, lookup global ou duplicar projections |
 | W-1297 | argumentos nativos | Arguments preserva OsString ordenado, empresta por get/iteração e oferece comparação textual exata sem lossy decode | Array<String>, locale, normalização, cópia por projection ou acesso sem bound |
 | W-1298 | Context por capability | getters retornam owners retidos root-scoped; reachability exige stdio/network/clock/signals/services individualmente | mapa universal, capability opcional runtime, Context serializable ou getter ambiental |
 | W-1299 | stdio de processo | Input usa um cursor ByteSource e stream de linhas UTF-8 bounded; Output usa progress e calls sem byte interleaving | readline global, decode lossy, newline implícito, collect ou concorrência sem admission |
@@ -4873,13 +4931,13 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1307 | interferência de arquivo | shared File usa I/O posicional; ranges disjuntos e read/read são paralelos, overlap unordered é provider-ordered com warning e append atomiza somente offset; sem ordering ele também interfere com I/O posicional | cursor compartilhado, lock implícito, tratar recurso externo como data race W ou prometer ordem de append |
 | W-1308 | IoError portátil | kind fechado, operação lógica W e cause opaco bounded; adapter de domínio pode promover o snapshot | errno público, syscall como operação, cause serializável ou enum non-exhaustive |
 | W-1309 | controle de I/O | wouldBlock suspende, interrupção sem progress repete, EOF usa ReadStep e cancellation usa TaskOutcome | transformar controle em IoError ou oferecer retryable Boolean |
-| W-1310 | Duration operacional | total signed exato de nanoseconds em i128, layout opaco, arithmetic checked e conversão de unit exata | unsigned duration, float, infinity, wraparound ou layout público |
-| W-1311 | Clock por capability | `.clock` projeta owner monotônico root-scoped; runtime interno não concede leitura à aplicação | global clock, constructor público, lookup ambiental ou `.monotonicClock` paralelo |
+| W-1310 | Duration operacional | total signed exato de nanoseconds em i128, layout opaco, arithmetic checked e conversão de unit exata; quantities físicas ficam em Pesquisa | unsigned duration, float, infinity, wraparound, picoseconds no baseline ou layout público |
+| W-1311 | Clock por capability | `.clock` projeta owner monotônico root-scoped; runtime interno não concede leitura à aplicação; `process.clock` é alias por identidade/origem/authority | global clock, constructor público, lookup ambiental, `Clock.current` ou `.monotonicClock` paralelo |
 | W-1312 | origem temporal local | Instant e Deadline são opacos, dependem do root e não cruzam service/wire/storage/foreign; Duration cruza | raw ticks públicos, serializar Instant, comparar roots ou identity generic na syntax |
-| W-1313 | profile monotônico honesto | now não regride; resolução positiva e suspend accounting included/excluded/unspecified são facts do provider; sem steadiness ou hard real-time | frequência constante universal, bool do caller, esconder suspend policy ou timing como prova |
+| W-1313 | profile monotônico honesto | now não regride; resolução positiva e `SuspendAccounting` descreve somente suspensão do HOST/SO; included, excluded e unspecified afetam deadline de modo explícito | frequência constante universal, bool do caller, inferir política unspecified, tratar await/coroutine como suspensão do host ou timing como prova |
 | W-1314 | expiration estruturada | deadline relativo nonnegative, zero imediato, nunca early; retorno pode atrasar e expiration cancela com cleanup drain | matar thread, alarme exato, rollback, error da aplicação ou liberar recursos cedo |
 | W-1315 | tempo civil separado | `.clock` não fornece data, timezone ou calendário; contrato civil futuro terá capability e values próprios e nunca dirige deadline | `now()` global de parede, timestamp em Instant ou calendário implícito no runtime |
-| W-1316 | evidence TIME0 | source W, 43 casos e oito testes host cobrem Duration, Clock, origin, profile, deadline, boundaries e clock virtual sem alegar provider | timing real como oracle, expected echo, chamar modelo de scheduler ou provider |
+| W-1316 | evidence TIME0 | source W, 47 casos e oito testes host cobrem Duration, Clock, origin, profile, suspensão do HOST/SO, deadline, boundaries e clock virtual sem alegar provider | timing real como oracle, expected echo, chamar modelo de scheduler ou provider |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

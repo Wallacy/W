@@ -36,7 +36,7 @@ fn standardWelcome(arrival: Arrival = Arrival(orderId: 0)): Welcome {
 }
 
 fn route(named gate: usize): any Callable<Arrival, Welcome> {
-  return capture(copy gate) (arrival) => Welcome(
+  return <[copy gate]> (arrival) => Welcome(
     orderId: arrival.orderId,
     gate: gate,
   )
@@ -45,14 +45,14 @@ fn route(named gate: usize): any Callable<Arrival, Welcome> {
 fn ticketSequence(named initial: usize): some MutableCallable<(), usize> {
   var next = initial
 
-  return capture(take next) () => {
+  return <[take next]> () => {
     next += 1
     return next
   }
 }
 
 fn finalManifest(orderIds: take Array<u64>): some ConsumingCallable<(), Array<u64>> {
-  return capture(take orderIds) () => take orderIds
+  return <[take orderIds]> () => take orderIds
 }
 
 fn recoverableRoute(

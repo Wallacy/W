@@ -35,6 +35,15 @@ test "portable signals are explicit values" {
 }
 
 // Compile-fail assays:
+// In a native-process entry body, the short projections are equivalent:
+// let started = process.clock.now()
+// let deadline = process.deadline
+// let elapsed = process.clock.duration(from: started, to: process.clock.now())
+// `process.clock` keeps identity, origin, authority, and lifetime from
+// `process.context.clock`. `process.deadline` keeps value identity, origin,
+// and lifetime from `process.context.deadline`; Deadline is not authority, so
+// the short projection keeps `authorityExpanded: false`.
+// Each short projection has the availability of its long projection.
 // entry { serialize(process.context) }
 // entry { service.send(process.context) }
 // entry { let hidden = process.ctx }
