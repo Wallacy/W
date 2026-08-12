@@ -13,7 +13,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/callables.w",
     "symbol": "ticketSequence",
-    "digest": "sha256:88ef6d62d45359d25651734292ea83127ff2242570f85d7f184cfc55c7676873"
+    "digest": "sha256:3b7e86258adc41fc3c0610465ba5d706350c5749813f7bfdd4ac9121d5142a4c"
   },
   "variants": [
     {
@@ -21,7 +21,7 @@
       "role": "selected",
       "language": "w",
       "path": "separated.w",
-      "digest": "sha256:970f6cdd67a34768bd4a85ac12ca833e7f52cb1f00a556205343a2a0eb7dc25f",
+      "digest": "sha256:87746f980c5dd4b968525e498f461cd1c089e62cb57916d604ccda9a5acfd0d7",
       "changedConstructs": [
         "fn, some fn, and any fn expose representation",
         "fn, mut fn, and take fn expose environment access",
@@ -47,7 +47,7 @@
       "role": "alternative",
       "language": "w-alternative",
       "path": "protocols.w",
-      "digest": "sha256:350b442133e587d858189bc80b4ec1e0ff507cd9138467e586865f6cebcf8cd1",
+      "digest": "sha256:9b5b5e39c917a96794b19d89670d59e7d7f0f82ef80763e5a86f25d2630d68cf",
       "changedConstructs": [
         "Callable, MutableCallable, and ConsumingCallable are nominal protocols",
         "call uses a protocol method and nominal conformance",

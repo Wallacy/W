@@ -15,27 +15,27 @@ export fn stageMenu(
 ): MenuSnapshot throws AllocationError {
   var storage: [u8; 2<MiB>] = [0; 2<MiB>]
   var staging = Arena.fixed(inout storage)
-  var stagedDishes = Array<String>(using: ref staging)
+  var stagedDishes = Array<String>(allocator: ref staging)
   try stagedDishes.tryReserve(minimumCapacity: menuDishes.count)
 
   for ref dish in menuDishes {
-    let stagedDish = try dish.tryDuplicate(using: ref staging)
+    let stagedDish = try dish.tryDuplicate(allocator: ref staging)
     stagedDishes.append(take stagedDish)
   }
 
   let staged = MenuSnapshot(
-    title: try title.tryDuplicate(using: ref staging),
+    title: try title.tryDuplicate(allocator: ref staging),
     dishes: take stagedDishes,
   )
   // Rehome changes allocation origins. It does not erase a borrow origin.
   // The result interface maps owned storage to the `memory` parameter.
-  return try (take staged).rehome(using: destination)
+  return try (take staged).rehome(allocator: destination)
 }
 
 export fn countEmergencyTokens(source: ref String): usize throws AllocationError {
   var storage: [u8; 64<KiB>] = [0; 64<KiB>]
   let scratch = Arena.fixed(inout storage)
-  var separators = Array<usize>(using: ref scratch)
+  var separators = Array<usize>(allocator: ref scratch)
   try separators.tryReserve(minimumCapacity: source.bytes.count)
 
   var offset: usize = 0
@@ -58,7 +58,7 @@ fn snapshotBytes(snapshot: take MenuSnapshot): usize {
 export async fn countStagedMenuInParallel(
   title: ref String,
   dishes: ref Array<String>,
-  processMemory: ref Allocator<(.crossDomain)>,
+  processMemory: ref Allocator,
 ): usize throws AllocationError {
   let snapshot = try stageMenu(title, dishes: dishes, memory: processMemory)
   spawn<.compute> let count = snapshotBytes(take snapshot)

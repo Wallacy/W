@@ -51,7 +51,7 @@ test("context does not promote an argument or return to shared", () => {
   assert.deepEqual(result.state.owners, {})
 })
 
-test("custom allocation remains an explicit recoverable share operation", () => {
+test("custom allocation share calls are retired while construction remains blocked", () => {
   const result = runScopedLockOperations([{
     op: "share",
     owner: "ledger",
@@ -65,7 +65,8 @@ test("custom allocation remains an explicit recoverable share operation", () => 
     boundary: "restaurant",
     value: "menu",
   }])
-  assert.equal(result.state.owners.ledger.allocation, "request.arena")
+  assert.equal(result.error, "retiredSharedConstructionCall")
+  assert.deepEqual(result.state.owners, {})
 })
 
 test("unlock publishes a release acquire edge", () => {

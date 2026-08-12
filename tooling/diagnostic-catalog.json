@@ -1539,7 +1539,7 @@
       "state": "active",
       "phase": "semantic.ownership",
       "defaultSeverity": "error",
-      "meaning": "a unique owner is used where shared ownership is required without an explicit share operation",
+      "meaning": "a unique owner is used where shared ownership is required without a written shared binding and explicit move",
       "requiredFacts": {
         "actualType": "string",
         "context": "string",
@@ -2118,7 +2118,7 @@
       "state": "active",
       "phase": "semantic.ownership",
       "defaultSeverity": "error",
-      "meaning": "share receives a payload with a dynamic borrow origin",
+      "meaning": "shared construction receives a payload with a dynamic borrow origin",
       "requiredFacts": {
         "operation": "string",
         "owner": "string",
@@ -2126,7 +2126,7 @@
       },
       "labelRoles": {
         "dependent-value": { "minimum": 1, "maximum": 1 },
-        "share-call": { "minimum": 1, "maximum": 1 }
+        "shared-binding": { "minimum": 1, "maximum": 1 }
       },
       "fixes": {
         "materialize-before-share": "review"

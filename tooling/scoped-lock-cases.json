@@ -23,14 +23,14 @@
       "expect": { "status": "accepted", "allocation": "product.default" }
     },
     {
-      "id": "LM1-accepted-custom-allocator-share",
-      "kind": "accepted",
-      "source": { "path": "reference/last-light/memory.w", "symbol": "using: memory" },
+      "id": "LM1-rejected-custom-allocator-share",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/memory.w", "symbol": "let root: shared MenuSection = take owner" },
       "decisions": ["W-1256"],
       "operations": [
         { "op": "share", "owner": "root", "form": "share", "explicitOperation": true, "source": "binding", "take": true, "lifetimeIndependent": true, "allocator": "request.arena", "recoverable": true, "boundary": "restaurant", "value": "menu" }
       ],
-      "expect": { "status": "accepted", "allocation": "request.arena" }
+      "expect": { "status": "rejected", "error": "retiredSharedConstructionCall" }
     },
     {
       "id": "LM1-accepted-sync-read",
@@ -233,7 +233,7 @@
     {
       "id": "LM1-rejected-inferred-shared-promotion",
       "kind": "rejected",
-      "source": { "path": "reference/last-light/memory.w", "symbol": "share" },
+      "source": { "path": "reference/last-light/memory.w", "symbol": "let root: shared MenuSection" },
       "decisions": ["W-1256"],
       "operations": [{ "op": "declareShared", "owner": "root", "form": "declaration", "context": "binding", "explicitSharedType": false, "source": "temporary", "lifetimeIndependent": true, "boundary": "restaurant", "value": "menu" }],
       "expect": { "status": "rejected", "error": "W-OWNERSHIP-0013" }
@@ -241,7 +241,7 @@
     {
       "id": "LM1-rejected-existing-owner-without-take",
       "kind": "rejected",
-      "source": { "path": "reference/last-light/memory.w", "symbol": "return root" },
+      "source": { "path": "reference/last-light/memory.w", "symbol": "return take root" },
       "decisions": ["W-1256"],
       "operations": [{ "op": "declareShared", "owner": "root", "form": "declaration", "context": "binding", "explicitSharedType": true, "source": "binding", "take": false, "lifetimeIndependent": true, "boundary": "restaurant", "value": "menu" }],
       "expect": { "status": "rejected", "error": "W-OWNERSHIP-0010" }
@@ -249,7 +249,7 @@
     {
       "id": "LM1-rejected-borrow-dependent-shared",
       "kind": "rejected",
-      "source": { "path": "reference/last-light/memory.w", "symbol": "borrow-independent" },
+      "source": { "path": "reference/last-light/memory.w", "symbol": "borrowed scalar view remains" },
       "decisions": ["W-1256"],
       "operations": [{ "op": "declareShared", "owner": "root", "form": "declaration", "context": "binding", "explicitSharedType": true, "source": "temporary", "lifetimeIndependent": false, "boundary": "restaurant", "value": "view" }],
       "expect": { "status": "rejected", "error": "W-BORROW-0010" }

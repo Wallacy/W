@@ -1,7 +1,7 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "66376214d8eedcb88ed40656897ee38843b00b4bfce23a99908a66d5c534d512",
+  "catalogDigest": "d1b49f68e969b742d8f8dd3d0f565be31f8951a7dac48971b3636baa6fa6a111",
   "summary": {
     "modules": 29,
     "catalogedApis": 377,
@@ -4825,14 +4825,14 @@
           "refined-to-base"
         ]
       },
-      "catalogedDeclarationsDigest": "c616b949a546448d658d3963b6ca13821b8a8cf5f53ca2e76b9981e58052817f",
+      "catalogedDeclarationsDigest": "ac9a45c7b7fe3b4839a7c89db13847b5e440d4427b7813049daa9a7a6087f1e1",
       "apis": [
         {
           "symbol": "AllocationError",
           "kind": "enum",
           "signature": "export enum AllocationError: Error",
           "declarationDigest": "80b6885f1fc0a262f1e8aafb76234eefa52904a87baa4196e7f9236b463b52c9",
-          "line": 27,
+          "line": 25,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -4840,40 +4840,40 @@
           "symbol": "Allocator",
           "kind": "struct",
           "signature": "export struct Allocator",
-          "declarationDigest": "8c72f5a9398baff294fa7a772feb5dc238a25b17aa4b87feefc796941b883e48",
-          "line": 35,
+          "declarationDigest": "0b9c77f5bf13647a184fb0e3682db512154e951d56acf20f67d3b0f4841464ec",
+          "line": 33,
           "profile": "allocator-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "Arena",
+          "kind": "struct",
+          "signature": "export struct Arena",
+          "declarationDigest": "2d6c9ae088f4dde5f5cd98a06e0b3085fb9f3a97d49b9aef0dc9a6903bcbda07",
+          "line": 49,
+          "profile": "arena-fixed",
           "members": [
             {
               "symbol": "fixed",
               "overloads": [
                 {
                   "signature": "export static fn fixed<capacity: usize>( _ storage: inout [u8; capacity], ): Arena",
-                  "line": 42
+                  "line": 52
                 }
               ],
               "profile": "arena-fixed"
             },
             {
-              "symbol": "clear",
+              "symbol": "reset",
               "overloads": [
                 {
-                  "signature": "export mut fn clear()",
-                  "line": 57
+                  "signature": "export mut fn reset()",
+                  "line": 59
                 }
               ],
-              "profile": "arena-clear"
+              "profile": "arena-reset"
             }
           ],
-          "status": "draft"
-        },
-        {
-          "symbol": "Arena",
-          "kind": "alias",
-          "signature": "export alias Arena = Allocator<(.arena)>",
-          "declarationDigest": "2cd14c026a60609bac666cf87d19c0e97bc31c8c7b5890f082ceda17c4c56058",
-          "line": 54,
-          "profile": "allocator-carrier",
           "status": "draft"
         },
         {
@@ -4881,7 +4881,7 @@
           "kind": "struct",
           "signature": "export struct BudgetExceeded: Copy & Equatable",
           "declarationDigest": "49b0f6ec5ec9c1ac1295aca7f8cfc2f71cb924d9b87ef4da603eb81c02d698af",
-          "line": 21,
+          "line": 19,
           "profile": "value-contract",
           "status": "draft"
         }

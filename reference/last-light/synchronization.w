@@ -291,4 +291,4 @@ test "a published menu exposes one complete revision" {
 // copy snapshots
 // var atomic pointer: c.ptr<Menu> = rawMenu
 // var atomic pair: (u64, u64) = (0, 0)
-// var atomic owner: shared PublishedMenu = share(menu)
+// var atomic owner: shared PublishedMenu = PublishedMenu(menu: take menu)

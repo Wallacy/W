@@ -32,7 +32,7 @@ export fn joinAnnouncements(
     isFirst = false
   }
 
-  var output = String(using: allocator)
+  var output = String(allocator: allocator)
   try output.tryReserve(minimumBytes: required)
   isFirst = true
 
@@ -49,7 +49,7 @@ export object AnnouncementBuffer {
   var text: String
 
   export init(memory: ref Allocator) {
-    self.text = String(using: memory)
+    self.text = String(allocator: memory)
   }
 
   mut fn push(chunk: view String) {

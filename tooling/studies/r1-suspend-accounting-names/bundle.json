@@ -84,6 +84,6 @@
   ],
   "presentationOrders": [["suspend-accounting", "host-suspend-policy"], ["host-suspend-policy", "suspend-accounting"]],
   "blinding": { "participantLabels": { "suspend-accounting": "A", "host-suspend-policy": "B" }, "hide": ["id", "role", "path", "changedConstructs"] },
-  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:f12fcf850126f3a903f8676fe692e98a63717a8aec09f8b9fed6a73a9fe190c9" },
+  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:4742fa44dd95aefcac2fdb5637dac8a27c4ca54c2431a541aee10fba667fbece" },
   "evidence": { "current": ["tree-sitter-parse", "host-oracle"], "missing": ["w-compile", "w-run", "human-study", "model-study"] }
 }

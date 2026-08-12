@@ -44,23 +44,29 @@ export object MenuSection {
   children: Array<shared MenuSection>
 
   fn parentTitle(): String? {
-    guard let parent = parent.upgrade() else return .none
+    guard let parent = parent else return .none
     return .some(copy parent.title)
   }
 }
 
 export fn weakUpgradeSuccess(root: shared MenuSection): String? {
-  let weakRoot = root.weak()
-  guard let owner = weakRoot.upgrade() else return .none
+  let weakRoot: weak MenuSection? = root
+  guard let owner = weakRoot else return .none
   return .some(copy owner.title)
 }
 
 export fn weakAfterLastOwner(root: take shared MenuSection): weak MenuSection? {
-  let weakRoot = root.weak()
+  let weakRoot: weak MenuSection? = root
   return weakRoot
 }
 
-test "upgrade returns a new strong owner while payload lives" {
+export fn weakPreserved(root: shared MenuSection): weak MenuSection? {
+  let weakRoot: weak MenuSection? = root
+  let other: weak MenuSection? = weakRoot
+  return other
+}
+
+test "weak binding reads a new strong owner while payload lives" {
   let root: shared MenuSection = MenuSection(
     title: "Dinner",
     parent: .none,
@@ -70,15 +76,19 @@ test "upgrade returns a new strong owner while payload lives" {
   expect title == .some("Dinner")
 }
 
-test "upgrade returns none after the last strong owner" {
+test "weak binding reads none after the last strong owner" {
   let root: shared MenuSection = MenuSection(
     title: "Expired",
     parent: .none,
     children: [],
   )
-  // `take root` consumes the last strong owner before this upgrade.
+  // `take root` consumes the last strong owner before this weak read.
   let weakRoot = weakAfterLastOwner(take root)
-  expect weakRoot.upgrade() == .none
+  if let _ = weakRoot {
+    expect false
+  } else {
+    expect true
+  }
 }
 
 export enum SharedCyclePhase {
@@ -155,7 +165,7 @@ export object MenuObserverHub {
 // the destructors inside that same cycle.
 export fn installMenuObserver(hub: shared MenuObserverHub) {
   hub.observe(<[weak hub]> () => {
-    guard let hub = hub.upgrade() else return ()
+    guard let hub = hub else return ()
     if hub.observerCount() == 0 { return () }
   })
 }
@@ -198,24 +208,19 @@ export fn makeMenuRoot(title: String): shared MenuSection {
     parent: .none,
     children: [],
   )
-  return root
+  return take root
 }
 
-// The fallible result is borrow-independent. Its control block records
-// `memory` in AllocationOriginMap, so the allocator instance must outlive every
-// strong and weak handle.
-export fn makeMenuRoot(
-  title: String,
-  memory: ref Allocator,
-): shared MenuSection throws AllocationError {
-  return try share(
-    MenuSection(
-      title: take title,
-      parent: .none,
-      children: [],
-    ),
-    using: memory,
+// An expression that needs a shared owner creates a binding first. The move is
+// explicit and no argument or return context promotes the owner implicitly.
+export fn makeRequestMenuRoot(title: String): shared MenuSection {
+  let owner = MenuSection(
+    title: take title,
+    parent: .none,
+    children: [],
   )
+  let root: shared MenuSection = take owner
+  return take root
 }
 
 // The borrowed scalar view remains live across one suspension. The compiler

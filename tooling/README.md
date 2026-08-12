@@ -37,7 +37,7 @@ linguagem.
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
 | `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 510/1322 decisões estão classificadas (158 source, 398 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 54 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 186 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 29 bundles R1, 72 variantes e 116 tarefas; 45/74 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
+| `studies/*/bundle.json` + checker | 29 bundles R1, 73 variantes e 116 tarefas; 45/74 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
 | `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
 | `tabular-adapter-cases.json` + máquina/checker/snapshot | TAB1 deriva source kind, u64 snapshot offsets/short reads, nominal schema identity, publication, CSV tokenizer/nulls, Parquet footer/page/mapping/key/commit, Arrow IPC dictionary/buffer, borrowed view, copy materialization, progress/cancel, provenance, C quota/trust/release; 86 casos e 193 operações (36 aceitos + 50 rejeitados) | oracle host independente; símbolos Last Light são cross-linked; não implementa reader CSV/Parquet/Arrow, compiler, runtime ou provider |
@@ -54,7 +54,7 @@ linguagem.
 | `channel-cases.json` + máquina CH0 | 47 sequências e 333 operações (28 aceitas + 19 rejeitadas), 12 testes host; ownership linear, capacity 0/1/64, admission FIFO, permits, cancellation, close, abort, happens-before e estratégias ring/mutex | oracle host bounded; não implementa checker, scheduler, runtime, allocator ou provider `Channel` W |
 | `context-local-cases.json` + máquina CTX0 | 25 casos e 94 operações (10 aceitos + 15 rejeitados), seis testes host; descriptor nominal, default, rebind, child snapshot, drain, boundaries, TLS físico, migration e availability | oracle host de contexto estruturado; não implementa compiler, scheduler, TLS nativo ou provider runtime |
 | `interference-layout-cases.json` + máquina IL0 | 30 casos e 140 operações (22 aceitos + 8 rejeitados), nove testes host; layout privado, fallback, footprint, partition, atomic global e boundary física | oracle host de decisão de layout; não mede cache nem implementa compiler, allocator ou backend |
-| `scoped-lock-cases.json` + máquina LM1 | 39 casos e 86 operações (21 aceitos + 17 rejeitados + uma fault), onze testes host; declaração `shared`, três formas de lock, busy sem body, ordem do provider não normativa, cancellation, boundary, drain e seleção lock-avoiding | oracle host da construção `lock`; não implementa compiler, scheduler, runtime ou provider |
+| `scoped-lock-cases.json` + máquina LM1 | 39 casos e 86 operações (20 aceitos + 18 rejeitados + uma fault), onze testes host; declaração `shared`, três formas de lock, busy sem body, ordem do provider não normativa, cancellation, boundary, drain e seleção lock-avoiding | oracle host da construção `lock`; não implementa compiler, scheduler, runtime ou provider |
 | `snapshot-cell-cases.json` + máquina SP0 | 27 casos e 82 operações (14 aceitos + 12 rejeitados + uma fault), sete testes host; publication order, version stability, retirement bounded, drop único e quatro estratégias equivalentes | oracle host de snapshot publicado; não implementa compiler, runtime, scheduler ou provider `std.sync@1` |
 | `lazy-behavior-cases.json` + máquina LZ0 | winner, waiters, lowering, publication edge, reentrada, cancellation, mutation e drop | oracle host de `Lazy`; não implementa compiler, runtime ou provider de parking |
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
@@ -93,19 +93,20 @@ Os quatro bundles independentes preservam os invariantes do design e não mudam
 - [`r1-suspend-accounting-names`](studies/r1-suspend-accounting-names) compara
   `SuspendAccounting` com `HostSuspendPolicy` e rejeita Boolean e suspensão de
   `await`, task ou coroutine como fato de HOST/SO.
-- [`r1-weak-owner-acquisition`](studies/r1-weak-owner-acquisition) compara
-  `upgrade()`, property `strong` e method `strong()` para owners live e expired.
+- [`r1-weak-owner-acquisition`](studies/r1-weak-owner-acquisition) compara a
+  leitura contextual `weak T?` com as formas `upgrade()`, property `strong` e
+  method `strong()` aposentadas para owners live e expired.
 - [`r1-arena-scope`](studies/r1-arena-scope) compara `Arena.fixed`, uma região
   lexical reservada e scope por closure. A região usa `reserved-not-parsed`.
 - [`r1-allocator-runtime-slot`](studies/r1-allocator-runtime-slot) compara o
-  slot runtime `using: memory` com um envelope contextual candidato fora de
-  type identity e comptime. O bundle
-  não promove essa grafia para o design corrente.
+  control argument `allocator: memory` da construction expression com um
+  envelope genérico rejeitado, além de colisão, ordem e ausência de allocation
+  site. `using:` continua um label local livre.
 
 Cada bundle usa quatro tasks em ordem `explain`, `recall`, `repair`, `change`,
-ordens counterbalanced, blinding, sourceBase e digests. Há 72 variantes totais,
-71 variantes `.w` parseadas pelo Tree-sitter e uma proposta textual `.txt`
-`reserved-not-parsed`; o witness region não faz parte do parse 71/71. Parse
+ordens counterbalanced, blinding, sourceBase e digests. Há 73 variantes totais,
+72 variantes `.w` parseadas pelo Tree-sitter e uma proposta textual `.txt`
+`reserved-not-parsed`; o witness region não faz parte do parse 72/72. Parse
 Tree-sitter das variantes `.w` e host oracle são evidência corrente. `w-compile`, `w-run`,
 `human-study` e `model-study` permanecem missing.
 

@@ -4,7 +4,7 @@ object MenuSection {
   title: String
 }
 
-// Research alternative. The method must retain the same atomic boundary.
+// Retired alternative. The method spelling is rejected before W 1.0.
 export fn acquireOwner(root: shared MenuSection): shared MenuSection? {
   let weakRoot = root.weak()
   let owner = weakRoot.strong()

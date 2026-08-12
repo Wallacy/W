@@ -15,7 +15,7 @@ fn makeRoot(title: String): shared MenuSection {
     parent: .none,
     children: [],
   )
-  return root
+  return take root
 }
 
 test "shared construction is explicit in the declaration" {

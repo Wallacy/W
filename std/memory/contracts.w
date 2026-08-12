@@ -1,11 +1,9 @@
 // Allocator capabilities and bounded arenas.
 //
-// Allocator is one opaque capability family. Arena is a transparent
-// refinement of that family; it is not a second allocation protocol. The
-// compiler binds `.arena`, `.crossDomain`, origins, and dependent lifetimes to
-// the validated handle returned by the provider. The private initializer
-// prevents source from forging these facts. Transparent alias member lookup
-// makes `Arena.fixed` resolve to `Allocator.fixed`.
+// Allocator is one opaque capability family. Arena is a distinct scoped
+// monotonic capability. The compiler binds provider facts, origins, mobility,
+// and dependent lifetimes to the validated handle. These facts are not source
+// refinements. The private initializer prevents source from forging them.
 
 foreign intrinsic from "std.memory@1" {
   type AllocatorHandle
@@ -14,7 +12,7 @@ foreign intrinsic from "std.memory@1" {
     storage: inout [u8; capacity],
   ): AllocatorHandle
 
-  fn stdMemoryClearArena(handle: inout AllocatorHandle)
+  fn stdMemoryResetArena(handle: inout AllocatorHandle)
   fn stdMemoryDropAllocator(handle: inout AllocatorHandle)
 }
 
@@ -39,22 +37,30 @@ export struct Allocator {
     self.handle = validatedRaw
   }
 
-  export static fn fixed<capacity: usize>(
-    _ storage: inout [u8; capacity],
-  ): Arena {
-    let raw = unsafe { stdMemoryFixedArena(inout storage) }
-    return Allocator(validatedRaw: raw)
-  }
-
   deinit {
     unsafe { stdMemoryDropAllocator(inout handle) }
   }
 }
 
-export alias Arena = Allocator<(.arena)>
+// Draft contract: Arena is intended as a nominal scoped capability. This
+// source declaration does not prove sealing or refinement-to-base coercion;
+// that interface remains provider/compiler work. Until that gate exists,
+// allocating APIs receive Arena explicitly.
+export struct Arena {
+  handle: AllocatorHandle
 
-extension Allocator<(.arena)> {
-  export mut fn clear() {
-    unsafe { stdMemoryClearArena(inout handle) }
+  export static fn fixed<capacity: usize>(
+    _ storage: inout [u8; capacity],
+  ): Arena {
+    let raw = unsafe { stdMemoryFixedArena(inout storage) }
+    return Arena(handle: raw)
+  }
+
+  export mut fn reset() {
+    unsafe { stdMemoryResetArena(inout handle) }
+  }
+
+  deinit {
+    unsafe { stdMemoryDropAllocator(inout handle) }
   }
 }

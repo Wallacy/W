@@ -1676,6 +1676,7 @@ function applyOperation(state, operation) {
       };
       return;
     }
+    case "readWeak":
     case "upgradeWeak": {
       const source = requireBinding(state, operation.from);
       if (!source.weakBlock) throw new HirMemoryError("operationRequiresWeakOwner");
@@ -2100,6 +2101,7 @@ export function validateMemoryOperation(operation) {
     case "copyWeak":
     case "makeWeak":
       return hasString("from") && hasString("to") && operation.from !== operation.to;
+    case "readWeak":
     case "upgradeWeak":
       return (
         hasString("from") &&

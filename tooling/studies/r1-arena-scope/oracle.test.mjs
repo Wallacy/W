@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test"
 
-const forms = ["fixed-using", "reserved-region", "scope-closure"]
+const forms = ["fixed-arena", "reserved-region", "scope-closure"]
 
 function runArena(input, form) {
   const trace = ["construct-fixed-storage", "construct-arena"]
   const reject = (reason) => ({ status: "rejected", reason, trace })
 
   if (input.escape) return reject("arena-storage-escape")
-  if (input.clearBeforeRehome) return reject("clear-with-live-arena-value")
+  if (input.resetBeforeRehome) return reject("reset-with-live-arena-value")
   if (input.osAllocation) return reject("fixed-arena-calls-no-OS-allocation")
 
   trace.push("allocate-W-value")
@@ -29,14 +29,14 @@ function runArena(input, form) {
   }
 
   trace.push("drop-W-value")
-  trace.push("clear-arena")
+  trace.push("reset-arena")
   trace.push("bulk-release-arena")
   trace.push("release-fixed-storage")
   return { status: "accepted", result: input.payloadBytes, cleanupTrace: trace, form }
 }
 
 describe("R1 Arena scope host oracle", () => {
-  test("baseline and proposal forms preserve output and cleanup order", () => {
+  test("problem-first Arena forms preserve output and cleanup order", () => {
     const input = { payloadBytes: 12 }
     const outcomes = forms.map((form) => runArena(input, form))
     for (const outcome of outcomes) {
@@ -56,9 +56,9 @@ describe("R1 Arena scope host oracle", () => {
     }
   })
 
-  test("clear requires rehome and escape is rejected", () => {
+  test("reset requires rehome and escape is rejected", () => {
     for (const form of forms) {
-      expect(runArena({ payloadBytes: 3, clearBeforeRehome: true }, form).reason).toBe("clear-with-live-arena-value")
+      expect(runArena({ payloadBytes: 3, resetBeforeRehome: true }, form).reason).toBe("reset-with-live-arena-value")
       expect(runArena({ payloadBytes: 3, escape: true }, form).reason).toBe("arena-storage-escape")
     }
   })

@@ -283,9 +283,9 @@ fn pinState(state: take BellState): Pinned<BellState> throws AllocationError {
 fn decodeMenu(payload: ref Bytes, memory: ref Allocator): Menu throws AllocationError {
   var storage: [u8; 8<MiB>] = [0; 8<MiB>]
   var scratch = Arena.fixed(inout storage)
-  let parsed = try Menu.parse(payload, using: scratch)
-  let result = try (take parsed).rehome(using: memory)
-  scratch.clear()
+  let parsed = try Menu.parse(payload, allocator: scratch)
+  let result = try (take parsed).rehome(allocator: memory)
+  scratch.reset()
   return result
 }
 
