@@ -16,6 +16,7 @@
     "check:boundary": "bun tooling/check-boundary-effect-cases.mjs",
     "check:service-recovery": "bun test tooling/service-recovery-reference.test.mjs && bun tooling/check-service-recovery-cases.mjs",
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
+    "check:semantic-matrix": "bun tooling/check-semantic-diagnostic-matrix.mjs && bun test tooling/semantic-diagnostic-matrix-reference.test.mjs",
     "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",
     "check:execution-ergonomics": "bun test tooling/execution-ergonomics-reference.test.mjs && bun tooling/check-execution-ergonomics-cases.mjs",
     "check:process-root": "bun test tooling/process-root-reference.test.mjs && bun tooling/check-process-root-cases.mjs",

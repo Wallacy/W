@@ -1837,6 +1837,7 @@
       "rule": "W-1256",
       "baseline": "S0-POS-shared-declaration-default-allocation",
       "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:63a624bc9fcf616e12a53db21f37306bb1efd1814721ce92604be142574faa61" },
       "source": [
         "struct Menu { title: String }",
         "fn shareMenu(value: take Menu): shared Menu {",
@@ -1910,6 +1911,7 @@
       "rule": "W-1206",
       "baseline": "S0-POS-explicit-weak-escaping-capture",
       "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:bb04153a1f7b1bf3e208cab1dc39d84a80f60c2fde65556530ed655c41648ce0" },
       "source": [
         "object MenuSection { title: String }",
         "fn makeObserver(root: shared MenuSection): some fn(): String {",
@@ -1999,6 +2001,7 @@
       "rule": "W-1207",
       "baseline": "S0-POS-weak-capture-breaks-owner-cycle",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:aa13147fc5b5a258ca271a4ed3fc23c0b25571d6af4c62f646972c5d8b007a45" },
       "source": [
         "object ObserverHub {",
         "  callbacks: shared Array<any fn(): ()> = []",
@@ -2041,6 +2044,7 @@
       "rule": "W-770",
       "baseline": "S0-POS-expr-mutable-assignment",
       "failureField": "category",
+      "failureEvidence": { "field": "category", "baselineValueDigest": "sha256:a0b7821a11db531982044ca5ca2e788e2d749d6b696cd3aa4172342f584f2ee1" },
       "source": [
         "struct Order {",
         "  label: String",
@@ -2076,6 +2080,7 @@
       "rule": "W-770",
       "baseline": "S0-POS-expr-assignment-unit",
       "failureField": "resultType",
+      "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:ed2d55db58ccfecfe4914fde9cd081d5a26281c12af2294f649a88301ca73dc4" },
       "source": [
         "fn update(): Int {",
         "  var count = 0",
@@ -2109,6 +2114,7 @@
       "rule": "W-768",
       "baseline": "S0-POS-expr-optional-postfix",
       "failureField": "resultType",
+      "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:8f42ab1c1dd1c278a7bee49644a1701d74298bb3b06fb95421b6f15315634cae" },
       "source": [
         "fn countName(count: Int): String? {",
         "  return count?.name",
@@ -2141,6 +2147,7 @@
       "rule": "W-773",
       "baseline": "S0-POS-expr-final-each",
       "failureField": "evaluationGraph",
+      "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:b507d1fdd0de984d1e9544d6b9f8cafdac50081b7e2f9b852cdc52a7715000a0" },
       "source": [
         "fn estimate(base: Int, named courses: Int...): Int {",
         "  return base",
@@ -2177,6 +2184,7 @@
       "rule": "W-774",
       "baseline": "S0-POS-effect-prefix-order",
       "failureField": "effectSummary",
+      "failureEvidence": { "field": "effectSummary", "baselineValueDigest": "sha256:cf542228b322a63a2e545c71ce0666ac47f1e796ed22bbc3876196de3da77800" },
       "source": [
         "async fn load(kitchen: ref Kitchen): Menu throws MenuError {",
         "  return await try kitchen.loadMenu()",
@@ -2210,6 +2218,7 @@
       "rule": "W-774",
       "baseline": "S0-POS-ownership-prefix-place",
       "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:27dea9fbe13907a46f996c4a903767d72e9aa4906e54661273ab0f99866a1fa7" },
       "source": [
         "fn inspectDish() {",
         "  inspect(ref makeDish())",
@@ -2242,6 +2251,7 @@
       "rule": "W-174",
       "baseline": "S0-POS-consuming-receiver-explicit",
       "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:058efb57009b8da013431f2476af5e0f8f4a5fcf96dd2ea2d8628e010eb130ca" },
       "source": [
         "object CommandStream {",
         "  take fn finish(): usize { return 0 }",
@@ -2280,6 +2290,7 @@
       "rule": "W-263",
       "baseline": "S0-POS-const-safe-call",
       "failureField": "effectSummary",
+      "failureEvidence": { "field": "effectSummary", "baselineValueDigest": "sha256:a3aec2512eaefa3e2ada7d4d203e8868a7362cabb709b81b9effcd6b89d8e9b5" },
       "source": [
         "const fn currentTick(): u64 {",
         "  return clock.now()",
@@ -2314,6 +2325,7 @@
       "rule": "W-270",
       "baseline": "S0-POS-const-acyclic-dependency",
       "failureField": "evaluationGraph",
+      "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:c05b2f42ca508d10ac138f7bf0b6faff7093a8af16e6c406f435e42bde5512bf" },
       "source": [
         "const left = right + 1",
         "const right = left + 1"
@@ -2345,6 +2357,7 @@
       "rule": "W-270",
       "baseline": "S0-POS-const-within-quota",
       "failureField": "evaluationGraph",
+      "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:0498ae8071329957c08dc640ca2c845f677c5f6eea3763594f8488ffe6a756a7" },
       "source": [
         "const fn recipeSteps(): u32 {",
         "  var step = 0_u32",
@@ -2383,6 +2396,7 @@
       "rule": "W-331",
       "baseline": "S0-POS-const-stage-path",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:9b922f9fc41226be5562eefce7a99fa017434a44dcc7edd0f68d26168f2acfcd" },
       "source": [
         "enum ServiceStage {",
         "  accepted",
@@ -2425,6 +2439,7 @@
       "rule": "W-265",
       "baseline": "S0-POS-const-handled-error",
       "failureField": "flow",
+      "failureEvidence": { "field": "flow", "baselineValueDigest": "sha256:463224d436baef5ede059ea83c40cd9f4b6ee21eb5598fcb6563d37e7ef6b34d" },
       "source": [
         "enum PortError: Error {",
         "  invalid",
@@ -2462,6 +2477,7 @@
       "rule": "W-265",
       "baseline": "S0-POS-const-index-bounds",
       "failureField": "flow",
+      "failureEvidence": { "field": "flow", "baselineValueDigest": "sha256:463224d436baef5ede059ea83c40cd9f4b6ee21eb5598fcb6563d37e7ef6b34d" },
       "source": [
         "const ingredient = [1, 2][4]"
       ],
@@ -2493,6 +2509,7 @@
       "rule": "W-548",
       "baseline": "S0-POS-const-call-parameter",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:a773d1c01adbb4f564a9c34fb0b35fef60f3adc086c32e5742a5cfb521c76bce" },
       "source": [
         "struct Query {}",
         "struct PreparedQuery {}",
@@ -2532,6 +2549,7 @@
       "rule": "W-302",
       "baseline": "S0-POS-type-enum-subset",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:e894cc41751fe2ef385c741c207728a88fdb1e7de8efb37846015bc00d529acf" },
       "source": [
         "enum ServiceStage {",
         "  accepted",
@@ -2573,6 +2591,7 @@
       "rule": "W-388",
       "baseline": "S0-POS-type-total-conversion",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:d0cc831b647b1d505bdecdfeccfad2138d326bcad91a7ef7d8c2a862d4267c8f" },
       "source": [
         "fn seat(count: u16) {}",
         "fn arrange(wide: u32) {",
@@ -2608,6 +2627,7 @@
       "rule": "W-285",
       "baseline": "S0-POS-generic-expected-inference",
       "failureField": "resultType",
+      "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:d5d01467a8641748a8e5f80f38200c7b0476f1d559ea650e9839ca85468f8c9c" },
       "source": [
         "protocol Default {}",
         "fn make<T: Default>(): T {",
@@ -2646,6 +2666,7 @@
       "rule": "W-297",
       "baseline": "S0-POS-generic-stable-recursion",
       "failureField": "evaluationGraph",
+      "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:31248f79c0fd28f5fc29c586e58e2db21c19b2683c764e7cb4557c6411645d5c" },
       "source": [
         "fn expand<T>(value: T): usize {",
         "  return expand<Array<T>>([value])",
@@ -2682,6 +2703,7 @@
       "rule": "W-1155",
       "baseline": "S0-POS-generic-parameter-kinds",
       "failureField": "resultType",
+      "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:de5b8ae8f606cd185cae933a67198f67b66051b38e8f066fe7a1cc5c6f3f83ad" },
       "source": [
         "struct Box<T> {}",
         "protocol Encodable {}",
@@ -2717,6 +2739,7 @@
       "rule": "W-765",
       "baseline": "S0-POS-pattern-capture-modality",
       "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:4eb6866bd4e8b53b8551a6fd3d3e9a0754d6684c80278d489bbccf50b2889f4e" },
       "source": [
         "enum KitchenOutcome {",
         "  ready(Dish)",
@@ -2756,6 +2779,7 @@
       "rule": "W-767",
       "baseline": "S0-POS-pattern-payload-shape",
       "failureField": "evaluationGraph",
+      "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:398bc79d0a483936cdb01dead98476f46bad25f8f5ffaf358a53c18ecbd8582b" },
       "source": [
         "enum OvenReading {",
         "  stable(i32)",
@@ -2797,6 +2821,7 @@
       "rule": "W-767",
       "baseline": "S0-POS-pattern-visible-field",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:8b947bc7dd470f8e9a10a566334055d22d69f8231e8f1d1974a853b7068c513b" },
       "source": [
         "enum TicketState {",
         "  open",
@@ -2842,6 +2867,7 @@
       "rule": "W-764",
       "baseline": "S0-POS-pattern-visible-aggregate",
       "failureField": "evaluationGraph",
+      "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:1d63ae706dd6eff6a6361fb70abc4260411b4646541341445eadca16d5b64c08" },
       "source": [
         "object KitchenVault { var code: Int = 0 }",
         "fn codeOf(vault: ref KitchenVault): Int {",
@@ -2878,6 +2904,7 @@
       "rule": "W-766",
       "baseline": "S0-POS-pattern-readonly-guard",
       "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:440f3a3b4fcd5ab48f9a4b379190e339a75afd7e6314c1722510340fdb6c44e3" },
       "source": [
         "enum DishOutcome {",
         "  ready(Dish)",
@@ -2919,6 +2946,7 @@
       "rule": "W-764",
       "baseline": "S0-POS-pattern-compatible-range",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:3410b3d5304fba0600340324f7d442031c6cb8872be6ad06a7fc779525da616b" },
       "source": [
         "fn isEarlyCourse(value: Int<(0...9)>): Bool {",
         "  return switch value {",
@@ -2954,6 +2982,7 @@
       "rule": "W-764",
       "baseline": "S0-POS-match-exhaustive",
       "failureField": "flow",
+      "failureEvidence": { "field": "flow", "baselineValueDigest": "sha256:463224d436baef5ede059ea83c40cd9f4b6ee21eb5598fcb6563d37e7ef6b34d" },
       "source": [
         "enum WorkStage {",
         "  preparing",
@@ -2991,6 +3020,7 @@
       "rule": "W-764",
       "baseline": "S0-POS-match-reachable-case",
       "failureField": "evaluationGraph",
+      "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:e7962f109eac4f0cf8a6da67c0edc08ae08c27a7696168c90a3e004209ae9d0a" },
       "source": [
         "enum WorkSignal {",
         "  preparing",
@@ -3031,6 +3061,7 @@
       "rule": "W-764",
       "baseline": "S0-POS-match-contextual-enum",
       "failureField": "resultType",
+      "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:05c386ea4e487b01ee842497451b0b667bcb1eabcaae7f3e47c78b33854fa0bd" },
       "source": [
         "enum KitchenSignal {",
         "  ready",
@@ -3066,6 +3097,7 @@
       "rule": "W-757",
       "baseline": "S0-POS-contract-known-slot",
       "failureField": "resultType",
+      "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:de5b8ae8f606cd185cae933a67198f67b66051b38e8f066fe7a1cc5c6f3f83ad" },
       "source": [
         "struct Matrix<Element, rows: usize, columns: usize> {}",
         "type KitchenBatch = Matrix<Dish, decks: 3, columns: 4>"
@@ -3097,6 +3129,7 @@
       "rule": "W-757",
       "baseline": "S0-POS-contract-kind",
       "failureField": "resultType",
+      "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:eaf65d829f52334142fa03946a90f6110bb318d51d0930b5079f6858a956cb43" },
       "source": [
         "struct Buffer<capacity: usize> {}",
         "type MenuBuffer = Buffer<capacity: Dish>"
@@ -3130,6 +3163,7 @@
       "rule": "W-757",
       "baseline": "S0-POS-contract-bool-predicate",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:dd7a4b270de633ad85ca0ce723a9c2cac7f1034ed60c180b94a8c9d85901d17a" },
       "source": [
         "type BoundedOrders = Array<Order><(.count + 64)>"
       ],
@@ -3160,6 +3194,7 @@
       "rule": "W-1288",
       "baseline": "S0-POS-contract-explicit-refinement-subject",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:bc649d6a653ae3117cb1e47ccff34374e2a03b019832f2a3dd90f15b65776b6b" },
       "source": [
         "const value: Bool = true",
         "type InvalidLabel = String<(value)>"
@@ -3191,6 +3226,7 @@
       "rule": "W-1288",
       "baseline": "S0-POS-contract-value-remains-lexical-outside-refinement",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:785f63da82905d6a9c33e25091e2d14dd2f6da7e40dd22a35a8a122edc30b4d7" },
       "source": [
         "struct Buffer<count: usize> {}",
         "type InvalidBuffer = Buffer<(.count)>"
@@ -3224,6 +3260,7 @@
       "rule": "W-757",
       "baseline": "S0-POS-contract-ordered-slots",
       "failureField": "evaluationGraph",
+      "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:b203b927dc26cd24dbf8ee450ab5e4557fd70db2dff9dbb836786c14c0ab883b" },
       "source": [
         "struct Tensor<Element, rows: usize, columns: usize> {}",
         "type SensorTile = Tensor<Reading, rows: 2, rows: 8>"
@@ -3257,6 +3294,7 @@
       "rule": "W-757",
       "baseline": "S0-POS-contract-composable-envelope",
       "failureField": "resultType",
+      "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:25ba04ca2e22efee7350e2fc067993eafe281838012b6a30a58b095449948b9f" },
       "source": [
         "type SmallQueue = Array<Order><[.ready]>"
       ],
@@ -3287,6 +3325,7 @@
       "rule": "W-757",
       "baseline": "S0-POS-contract-sequential-static-list",
       "failureField": "resultType",
+      "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:bf651d2ebaf5a6f8d7484187e9d42dc9e70b6d78ca1ce39404c766c2e37aba1b" },
       "source": [
         "type BoundedStages = StaticList<[ServiceStage, (.count <= 8)]>"
       ],
@@ -3318,6 +3357,7 @@
       "rule": "W-925",
       "baseline": "S0-POS-module-domain-requirement",
       "failureField": "resultType",
+      "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b" },
       "source": [
         "module kitchen<domains: [.serial(.thermal)], parallelDefault: .compute>"
       ],
@@ -3348,6 +3388,7 @@
       "rule": "W-784",
       "baseline": "S0-POS-condition-requires-bool",
       "failureField": "resultType",
+      "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:25eaeffadb79e227556761d72e4aa188ba32692fec92b114f8faa4036d9df891" },
       "source": [
         "fn invalidCondition() {",
         "  if 1 { record() }",
@@ -3374,6 +3415,7 @@
       "rule": "W-789",
       "baseline": "S0-POS-child-call-root",
       "failureField": "evaluationGraph",
+      "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:7f3e778794967e1bee7c36a47078ee210a717f7bb49e47e18391ffc0f3053c4f" },
       "source": [
         "fn invalidChild(source: ref Source) {",
         "  async let total = loadLeft(source) + loadRight(source)",
@@ -3400,6 +3442,7 @@
       "rule": "W-787",
       "baseline": "S0-POS-branch-owner-join",
       "failureField": "resultType",
+      "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:6a3a175b4f726bdff3010f483d46378588a786844f885550585c7a66ae8c12a5" },
       "source": [
         "fn mixed(flag: Bool): Int {",
         "  return if flag { 1 } else { \"one\" }",
@@ -3429,6 +3472,7 @@
       "rule": "W-784",
       "baseline": "S0-POS-definite-initialization",
       "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945" },
       "source": [
         "fn readBeforeInitialization() {",
         "  var ticket: Ticket",
@@ -3466,6 +3510,7 @@
       "rule": "W-787",
       "baseline": "S0-POS-owner-at-branch-join",
       "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945" },
       "source": [
         "fn maybeDispatch(order: take Order, remotely: Bool) {",
         "  if remotely { send(take order) }",
@@ -3498,6 +3543,7 @@
       "rule": "W-787",
       "baseline": "S0-POS-borrow-ended-before-mutation",
       "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:041cd7fc517cbd6a7f7eb271604c1b58f542728b3bd522c887fd005635d52d93" },
       "source": [
         "fn mutateWhileBorrowed(values: inout Array<Int>) {",
         "  let ref first = values[0]",
@@ -3529,6 +3575,7 @@
       "rule": "W-786",
       "baseline": "S0-POS-handled-call-effects",
       "failureField": "effectSummary",
+      "failureEvidence": { "field": "effectSummary", "baselineValueDigest": "sha256:9ab14a9d87984515eff97bb02825cfe21a2f0d2ba828297b6fa6bb32e16ac303" },
       "source": [
         "async fn load(client: ref MenuClient): Menu throws MenuError {",
         "  return client.loadMenu()",
@@ -3565,6 +3612,7 @@
       "rule": "W-781",
       "baseline": "S0-POS-control-owner",
       "failureField": "flow",
+      "failureEvidence": { "field": "flow", "baselineValueDigest": "sha256:f0c5a7915b419f65eab24c2e4a3ff376798a69e8f1a19275234358e746e8dd76" },
       "source": [
         "fn wrongTarget() {",
         "  break missingLoop",
@@ -3591,6 +3639,7 @@
       "rule": "W-784",
       "baseline": "S0-POS-total-return",
       "failureField": "flow",
+      "failureEvidence": { "field": "flow", "baselineValueDigest": "sha256:6be2987bb1fe9f384a95cd8ffb03a8febb06f20d64cd51c19b3dbc7c45849f2e" },
       "source": [
         "fn incomplete(flag: Bool): Ticket {",
         "  if flag { return Ticket() }",
@@ -3627,6 +3676,7 @@
       "rule": "W-790",
       "baseline": "S0-POS-explicit-discard",
       "failureField": "category",
+      "failureEvidence": { "field": "category", "baselineValueDigest": "sha256:a98a0035a4b1c4b42aba9045bcbb07236fece60deb11037b85bd8fc9d11f2c4f" },
       "source": [
         "fn ignoreInsertion(prices: inout Set<Course>) {",
         "  prices.add(.horizonCake)",
@@ -3661,6 +3711,7 @@
       "rule": "W-786",
       "baseline": "S0-POS-transaction-capability",
       "failureField": "effectSummary",
+      "failureEvidence": { "field": "effectSummary", "baselineValueDigest": "sha256:0c52f9868e24160d669798e9430172e00a001197e71f3357749f2e599035b045" },
       "source": [
         "async fn chargeInsideTransaction(store: ref Store, payments: ref PaymentService): Receipt throws AppError {",
         "  return try await transaction tx = store {",
@@ -3692,6 +3743,7 @@
       "rule": "W-929",
       "baseline": "S0-POS-share-lifetime-independent",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:a0d9da41d0ce92f922e2c00144cbef1d35a03d3b41c430fc3e94dcd2bd295163" },
       "source": [
         "struct MenuView { title: view String }",
         "fn shareMenuView(value: take MenuView, memory: ref Allocator): shared MenuView throws AllocationError {",
@@ -3761,6 +3813,7 @@
       "rule": "W-1156",
       "baseline": "S0-POS-generic-multiple-unlabeled-values",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:2898cc641bd9a2f99d3c86adf43fe0f62115df7a3a7ccadd03d9f9d166078ab3" },
       "source": [
         "struct Ordered<_ left: usize, right: usize> {}",
         "type InvalidOrder = Ordered<right: 1, 2>"
@@ -3834,6 +3887,7 @@
       "rule": "W-1156",
       "baseline": "S0-POS-generic-positional-to-named",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:02b6f43e58386a96dd3777b738a8fe18a788c086a02e850e4d9cc195c4662d16" },
       "source": [
         "protocol Encodable {}",
         "struct Invalid<_ T: Encodable> {}"
@@ -3901,6 +3955,7 @@
       "rule": "W-1156",
       "baseline": "S0-POS-generic-named-argument-order",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:d9042451c49e34865a6c0ebf7adb368fe84eb2a4cfb9339b599c114b675a026c" },
       "source": [
         "struct ServiceProfile<tables: usize, courses: usize> {}",
         "type InvalidProfile = ServiceProfile<courses: 4, tables: 8>"
@@ -3966,6 +4021,7 @@
       "rule": "W-1156",
       "baseline": "S0-POS-generic-associated-contract-lookup",
       "failureField": "evaluationGraph",
+      "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:31297c3bd1c8481d29241f90c72a67a5d7cd9b22e6ee03e3fe01f887882f1d84" },
       "source": [
         "struct Matrix<rows: usize> {",
         "  rows: usize",
@@ -4035,6 +4091,7 @@
       "rule": "W-1156",
       "baseline": "S0-POS-generic-unlabeled-associated-contract-lookup",
       "failureField": "evaluationGraph",
+      "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:b2bf4369b853643c6c4f80a835e070adabff9210dfb099aa8b4ec8839b0c3e0d" },
       "source": [
         "enum OvenSessionState {",
         "  ready",
@@ -4123,6 +4180,7 @@
       "rule": "W-1278",
       "baseline": "S0-POS-refinement-preserving-mutation",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:41b3597d1b804045c5602551340bbf8af93588d47b1ebd10441081b17b884466" },
       "source": [
         "type HorizonLabel = String<(.bytes.count <= 64)>",
         "fn appendUnchecked(label: inout HorizonLabel, suffix: view String) {",
@@ -4201,6 +4259,7 @@
       "rule": "W-1291",
       "baseline": "S0-POS-parameter-contract-after-binding",
       "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:0ee8151053a76efd2f8a0fbdcb41864503cf5e5fda1519a7477eb1f52e7720f6" },
       "source": [
         "fn consume(take value: Menu) {}"
       ],
@@ -4336,6 +4395,7 @@
       "rule": "W-1292",
       "baseline": "S0-POS-existing-borrow-call-without-marker",
       "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:13cb025a99699ef295a69ae9fbec87efb7aee16bcc4cbb0f005ecd5bcf362ec3" },
       "source": [
         "fn inspect(value: ref Menu) {}",
         "fn invalid(menu: Menu) { inspect(menu) }"
@@ -4370,6 +4430,7 @@
       "rule": "W-1292",
       "baseline": "S0-POS-fresh-owner-satisfies-take",
       "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:aeee6b98d3144c1bb7348b6480e397c33a7c0abb03b1afaf8d4db19587204c57" },
       "source": [
         "fn inspect(value: ref Order) {}",
         "fn invalid() { inspect(ref Order()) }"
@@ -4401,6 +4462,7 @@
       "rule": "W-1292",
       "baseline": "S0-POS-owned-place-explicit-ref",
       "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:13cb025a99699ef295a69ae9fbec87efb7aee16bcc4cbb0f005ecd5bcf362ec3" },
       "source": [
         "fn inspect(value: ref Menu) {}",
         "fn invalid(menu: Menu) { inspect(take menu) }"
@@ -4423,6 +4485,158 @@
               "reason": "operation-does-not-match-parameter-contract",
               "suppliedOperation": "take"
             },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-POS-checker-context-explicit",
+      "kind": "positive",
+      "rule": "W-785",
+      "source": [
+        "fn contextCheck(value: Ticket): Ticket {",
+        "  return value",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "return value" },
+        "semanticResult": {
+          "resultType": "Ticket",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "checker-context", "subject": "scope", "value": "contextCheck" },
+            { "kind": "checker-context", "subject": "expected", "value": "Ticket" },
+            { "kind": "checker-context", "subject": "owners", "value": "value:available" },
+            { "kind": "checker-context", "subject": "effects", "value": "none" },
+            { "kind": "checker-context", "subject": "controls", "value": "function" },
+            { "kind": "checker-context", "subject": "facts", "value": "value:Ticket" },
+            { "kind": "checker-context", "subject": "constMode", "value": "runtime" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "context", "operation": "check-context", "subject": "contextCheck" },
+              { "id": "read", "operation": "read", "subject": "value" },
+              { "id": "return", "operation": "return", "subject": "value" }
+            ],
+            "edges": [
+              { "from": "context", "to": "read", "kind": "next" },
+              { "from": "read", "to": "return", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-checker-context-implicit",
+      "kind": "negative",
+      "rule": "W-785",
+      "baseline": "S0-POS-checker-context-explicit",
+      "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:580b25cc5e3842fea6a365c6ac08068f0b5b218114fc21374b7e1e35f5e6dd82" },
+      "source": [
+        "fn contextCheck(value: Ticket): Ticket {",
+        "  return value",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "return value" },
+            "labels": [],
+            "facts": { "actual": "implicit-context", "expected": "explicit-CheckerContext" },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-POS-loop-fixed-point",
+      "kind": "positive",
+      "rule": "W-788",
+      "source": [
+        "fn fixedPoint(values: Array<Int>): Int {",
+        "  var index = 0",
+        "  while index < values.count {",
+        "    index += 1",
+        "    continue",
+        "  }",
+        "  return index",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "while index < values.count" },
+        "semanticResult": {
+          "resultType": "Int",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [{ "operation": "mutate", "place": "index", "path": "loop" }],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "loop-fixed-point", "subject": "entry", "value": "index:available" },
+            { "kind": "loop-fixed-point", "subject": "continue", "value": "index:available" },
+            { "kind": "loop-fixed-point", "subject": "back-edge", "value": "index:available" },
+            { "kind": "loop-fixed-point", "subject": "break", "value": "index:available" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "entry", "operation": "loop-entry", "subject": "index" },
+              { "id": "condition", "operation": "compare", "subject": "index < values.count" },
+              { "id": "body", "operation": "mutate", "subject": "index" },
+              { "id": "continue", "operation": "continue", "subject": "loop" },
+              { "id": "back-edge", "operation": "fixed-point", "subject": "loop" },
+              { "id": "break", "operation": "break", "subject": "loop" },
+              { "id": "return", "operation": "return", "subject": "index" }
+            ],
+            "edges": [
+              { "from": "entry", "to": "condition", "kind": "entry" },
+              { "from": "condition", "to": "body", "kind": "true" },
+              { "from": "body", "to": "continue", "kind": "next" },
+              { "from": "continue", "to": "back-edge", "kind": "continue" },
+              { "from": "back-edge", "to": "condition", "kind": "back-edge" },
+              { "from": "condition", "to": "break", "kind": "false" },
+              { "from": "break", "to": "return", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-loop-unsafe-back-edge",
+      "kind": "negative",
+      "rule": "W-788",
+      "baseline": "S0-POS-loop-fixed-point",
+      "failureField": "ownerDelta",
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:ba83c9ba4c31c861089553b045c113b166ba281cab3f3fef6f07874e1df13013" },
+      "source": [
+        "fn fixedPoint(values: Array<Int>): Int {",
+        "  var index = 0",
+        "  while index < values.count {",
+        "    take values",
+        "    continue",
+        "  }",
+        "  return index",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "take values" },
+            "labels": [],
+            "facts": { "actual": "moved-on-back-edge", "expected": "available-at-loop-entry" },
             "notes": [],
             "fixes": []
           }

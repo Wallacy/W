@@ -15,7 +15,6 @@ const writeSnapshot = process.argv.includes("--write")
 const phases = [
   "source.lex",
   "source.parse",
-  "source.lower",
   "source.format",
   "source.validate",
   "source.context",
@@ -25,7 +24,6 @@ const phases = [
   "source.capability",
   "source.fetch",
   "source.provenance",
-  "semantic.resolve",
   "semantic.const",
   "semantic.type",
   "semantic.ownership",
@@ -33,12 +31,10 @@ const phases = [
   "semantic.flow",
   "semantic.capability",
   "interface",
-  "abi",
   "link",
   "build",
   "package",
   "test",
-  "lint",
 ]
 const severities = new Set(["error", "warning", "information"])
 const applicabilities = new Set(["machine", "review", "placeholder"])
@@ -485,6 +481,16 @@ for (const [sourceOrdinal, testCase] of corpus.cases.entries()) {
       usedBaselines.has(testCase.baseline)
     ) {
       fail(`${testCase.id} needs a unique positive baseline for ${testCase.rule}`)
+    }
+    const canonical = (value) => {
+      if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`
+      if (value !== null && typeof value === "object") return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`
+      return JSON.stringify(value)
+    }
+    const baselineValue = baseline.expect.semanticResult[testCase.failureField]
+    const expectedEvidence = `sha256:${createHash("sha256").update(canonical(baselineValue), "utf8").digest("hex")}`
+    if (!testCase.failureEvidence || testCase.failureEvidence.field !== testCase.failureField || testCase.failureEvidence.baselineValueDigest !== expectedEvidence) {
+      fail(`${testCase.id} has failureEvidence that does not match ${testCase.failureField}`)
     }
     usedBaselines.add(testCase.baseline)
     resultCandidates.push({

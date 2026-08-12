@@ -1,0 +1,3652 @@
+{
+  "$schema": "w-semantic-diagnostic-matrix-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "SDM0-accepted-s0-interface-context",
+      "kind": "accepted",
+      "decisions": [
+        "W-785",
+        "W-791",
+        "W-810",
+        "W-811",
+        "W-812",
+        "W-813",
+        "W-814"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "s0",
+            "text": "let café = value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "menu.check",
+              "expected": {
+                "type": "Ticket",
+                "use": "return"
+              },
+              "owners": {
+                "value": "available"
+              },
+              "effects": {
+                "signature": [],
+                "control": [],
+                "operational": []
+              },
+              "controls": {
+                "function": "menu.check"
+              },
+              "facts": {
+                "valueType": "Ticket",
+                "target": "host"
+              },
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [
+              {
+                "name": "core",
+                "facts": {
+                  "type": "Ticket",
+                  "flow": "next"
+                }
+              },
+              {
+                "name": "ownership",
+                "facts": {
+                  "value": "available"
+                }
+              }
+            ],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "context",
+            "operation": "check-context",
+            "subject": "menu.check",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "context",
+                "subject": "scope",
+                "value": "menu.check"
+              },
+              {
+                "kind": "context",
+                "subject": "expected",
+                "value": "Ticket"
+              }
+            ],
+            "edges": []
+          },
+          {
+            "op": "node",
+            "id": "return",
+            "operation": "return",
+            "subject": "café",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [
+              {
+                "operation": "borrow",
+                "place": "value",
+                "type": "ref Ticket"
+              }
+            ],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "encoding",
+                "subject": "source",
+                "value": "utf8"
+              }
+            ],
+            "edges": [
+              {
+                "from": "context",
+                "to": "return",
+                "kind": "next"
+              }
+            ]
+          },
+          {
+            "op": "focus",
+            "source": "s0",
+            "startByte": 4,
+            "endByte": 9
+          }
+        ]
+      },
+      "expect": {
+        "status": "accepted",
+        "contextFields": 7,
+        "semanticFields": 7,
+        "diagnostics": 0
+      }
+    },
+    {
+      "id": "SDM0-accepted-loop-fixed-point",
+      "kind": "accepted",
+      "decisions": [
+        "W-788",
+        "W-813",
+        "W-814"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "loop",
+            "text": "while index < values.count { continue }\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "fixedPoint",
+              "expected": {
+                "type": "Int"
+              },
+              "owners": {
+                "index": "available",
+                "values": "available"
+              },
+              "effects": {},
+              "controls": {
+                "loop": "fixedPoint"
+              },
+              "facts": {
+                "indexType": "Int"
+              },
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [
+              {
+                "name": "flow",
+                "facts": {
+                  "loop": "fixed-point"
+                }
+              }
+            ],
+            "backendSchemas": []
+          },
+          {
+            "op": "loop",
+            "id": "fixedPoint",
+            "entry": [
+              {
+                "place": "index",
+                "state": "available"
+              }
+            ],
+            "continues": [
+              {
+                "place": "index",
+                "state": "available"
+              }
+            ],
+            "backEdges": [
+              {
+                "target": "fixedPoint",
+                "state": [
+                  {
+                    "place": "index",
+                    "state": "available"
+                  }
+                ]
+              }
+            ],
+            "breaks": [
+              [
+                {
+                  "place": "index",
+                  "state": "available"
+                }
+              ]
+            ],
+            "widening": {
+              "mode": "monotone",
+              "acceptsMove": false
+            }
+          },
+          {
+            "op": "node",
+            "id": "loop-result",
+            "operation": "fixed-point",
+            "subject": "fixedPoint",
+            "resultType": "Int",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [
+              {
+                "operation": "mutate",
+                "place": "index",
+                "path": "loop"
+              }
+            ],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "loop",
+                "subject": "entry",
+                "value": "available"
+              },
+              {
+                "kind": "loop",
+                "subject": "continue",
+                "value": "available"
+              },
+              {
+                "kind": "loop",
+                "subject": "back-edge",
+                "value": "available"
+              },
+              {
+                "kind": "loop",
+                "subject": "break",
+                "value": "available"
+              }
+            ],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "loop",
+            "startByte": 0,
+            "endByte": 5
+          }
+        ]
+      },
+      "expect": {
+        "status": "accepted",
+        "fixedPoint": true,
+        "loopEdges": 1
+      }
+    },
+    {
+      "id": "SDM0-rejected-loop-move",
+      "kind": "negative",
+      "decisions": [
+        "W-788"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "loop-bad",
+            "text": "while true { take value }\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "badLoop",
+              "expected": {
+                "type": "Ticket"
+              },
+              "owners": {
+                "value": "available"
+              },
+              "effects": {},
+              "controls": {
+                "loop": "badLoop"
+              },
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "loop",
+            "id": "badLoop",
+            "entry": [
+              {
+                "place": "value",
+                "state": "available"
+              }
+            ],
+            "continues": [
+              {
+                "place": "value",
+                "state": "moved"
+              }
+            ],
+            "backEdges": [
+              {
+                "target": "badLoop",
+                "state": [
+                  {
+                    "place": "value",
+                    "state": "moved"
+                  }
+                ]
+              }
+            ],
+            "breaks": [],
+            "widening": {
+              "mode": "monotone",
+              "acceptsMove": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixLoopUnsafeWidening"
+      }
+    },
+    {
+      "id": "SDM0-accepted-d0-causality",
+      "kind": "accepted",
+      "decisions": [
+        "W-792",
+        "W-793",
+        "W-794",
+        "W-795",
+        "W-797",
+        "W-798"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "diag",
+            "text": "return value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "diagnostic",
+              "expected": {
+                "type": "Ticket"
+              },
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "diagnostic-node",
+            "operation": "return",
+            "subject": "value",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "diag",
+            "startByte": 0,
+            "endByte": 6
+          },
+          {
+            "op": "diagnostic",
+            "id": "root",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 0,
+              "endByte": 6
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Int",
+              "expected": "Ticket"
+            },
+            "notes": [
+              {
+                "key": "first-failure",
+                "arguments": {
+                  "field": "resultType"
+                }
+              }
+            ],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "child",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 7,
+              "endByte": 12
+            },
+            "labels": [],
+            "facts": {
+              "actual": "poisoned",
+              "expected": "usable"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": "root"
+          }
+        ]
+      },
+      "expect": {
+        "status": "accepted",
+        "semanticOutcome": "rejected",
+        "diagnostics": 2,
+        "childRoot": "root"
+      }
+    },
+    {
+      "id": "SDM0-rejected-fix-proof",
+      "kind": "negative",
+      "decisions": [
+        "W-801"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "fix",
+            "text": "unused\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "fix",
+              "expected": null,
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "discard",
+            "operation": "discard",
+            "subject": "unused",
+            "resultType": "()",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "fix",
+            "startByte": 0,
+            "endByte": 6
+          },
+          {
+            "op": "diagnostic",
+            "id": "fix-diagnostic",
+            "code": "W-USE-0001",
+            "phase": "semantic.flow",
+            "severity": "error",
+            "primary": {
+              "source": "fix",
+              "startByte": 0,
+              "endByte": 6
+            },
+            "labels": [],
+            "facts": {
+              "resultType": "Int"
+            },
+            "notes": [],
+            "fixes": [
+              {
+                "id": "discard-value",
+                "titleKey": "diagnostic.fix.discard",
+                "applicability": "review",
+                "proof": {
+                  "source": "fix",
+                  "digest": "sha256:placeholder"
+                },
+                "edits": [
+                  {
+                    "source": "fix",
+                    "startByte": 0,
+                    "endByte": 0,
+                    "text": "let _ = "
+                  }
+                ]
+              }
+            ],
+            "root": null
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixFixStale"
+      }
+    },
+    {
+      "id": "SDM0-accepted-truncation",
+      "kind": "accepted",
+      "decisions": [
+        "W-799"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "limited",
+            "text": "diagnostic stream\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "limit",
+              "expected": null,
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "limited-node",
+            "operation": "read",
+            "subject": "diagnostic",
+            "resultType": "Int",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "limited",
+            "startByte": 0,
+            "endByte": 0
+          },
+          {
+            "op": "limit",
+            "maximum": 1
+          },
+          {
+            "op": "diagnostic",
+            "id": "one",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "limited",
+              "startByte": 0,
+              "endByte": 4
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Int",
+              "expected": "Ticket"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "two",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "limited",
+              "startByte": 5,
+              "endByte": 12
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Bool",
+              "expected": "Ticket"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": null
+          }
+        ]
+      },
+      "expect": {
+        "status": "accepted",
+        "semanticOutcome": "rejected",
+        "diagnostics": 2,
+        "code": "W-DIAGNOSTIC-0001",
+        "lastCode": "W-DIAGNOSTIC-0001",
+        "incomplete": true
+      }
+    },
+    {
+      "id": "SDM0-accepted-lex-parse-catalog",
+      "kind": "accepted",
+      "decisions": [
+        "W-815",
+        "W-816",
+        "W-818",
+        "W-819",
+        "W-820"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "lex",
+            "text": "\"unterminated"
+          },
+          {
+            "op": "source",
+            "id": "parse",
+            "text": "if (value"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "parse",
+              "expected": null,
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "parse-node",
+            "operation": "parse",
+            "subject": "if",
+            "resultType": "()",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "parse",
+            "startByte": 0,
+            "endByte": 2
+          },
+          {
+            "op": "diagnostic",
+            "id": "lex-root",
+            "code": "W-LEX-0001",
+            "phase": "source.lex",
+            "severity": "error",
+            "primary": {
+              "source": "lex",
+              "startByte": 0,
+              "endByte": 1
+            },
+            "labels": [
+              {
+                "role": "opening-delimiter",
+                "source": "lex",
+                "startByte": 0,
+                "endByte": 1
+              }
+            ],
+            "facts": {
+              "construct": "string-literal",
+              "delimiter": "quote",
+              "reachedEof": true
+            },
+            "notes": [],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "parse-root",
+            "code": "W-PARSE-0001",
+            "phase": "source.parse",
+            "severity": "error",
+            "primary": {
+              "source": "parse",
+              "startByte": 3,
+              "endByte": 4
+            },
+            "labels": [],
+            "facts": {
+              "actual": "(",
+              "construct": "if-condition",
+              "expected": [
+                "expression",
+                "value"
+              ]
+            },
+            "notes": [],
+            "fixes": [],
+            "root": null
+          }
+        ]
+      },
+      "expect": {
+        "status": "accepted",
+        "semanticOutcome": "rejected",
+        "diagnostics": 2,
+        "families": [
+          "LEX",
+          "PARSE"
+        ]
+      }
+    },
+    {
+      "id": "SDM0-accepted-warning-promotion",
+      "kind": "accepted",
+      "decisions": [
+        "W-800"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "warning",
+            "text": "value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "warning",
+              "expected": null,
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "warning-node",
+            "operation": "read",
+            "subject": "value",
+            "resultType": "Int",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "warning",
+            "startByte": 0,
+            "endByte": 5
+          },
+          {
+            "op": "policy",
+            "promote": [
+              "W-SDM-9001"
+            ],
+            "demote": [],
+            "sourceSuppression": false
+          },
+          {
+            "op": "diagnostic",
+            "id": "promotion-warning",
+            "code": "W-SDM-9001",
+            "phase": "semantic.effect",
+            "severity": "warning",
+            "primary": {
+              "source": "warning",
+              "startByte": 0,
+              "endByte": 5
+            },
+            "labels": [],
+            "facts": {
+              "actual": "fixture"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": null
+          }
+        ],
+        "catalogFixture": {
+          "codes": [
+            {
+              "code": "W-SDM-9001",
+              "state": "active",
+              "phase": "semantic.effect",
+              "defaultSeverity": "warning",
+              "meaning": "SDM fixture warning",
+              "requiredFacts": {
+                "actual": "string"
+              },
+              "labelRoles": {},
+              "fixes": {}
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": "accepted",
+        "semanticOutcome": "rejected",
+        "diagnostics": 1,
+        "promoted": "W-SDM-9001"
+      }
+    },
+    {
+      "id": "SDM0-rejected-context-missing",
+      "kind": "negative",
+      "decisions": [
+        "W-785"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "s0",
+            "text": "let café = value\n"
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [
+              {
+                "name": "core",
+                "facts": {
+                  "type": "Ticket",
+                  "flow": "next"
+                }
+              },
+              {
+                "name": "ownership",
+                "facts": {
+                  "value": "available"
+                }
+              }
+            ],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "context",
+            "operation": "check-context",
+            "subject": "menu.check",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "context",
+                "subject": "scope",
+                "value": "menu.check"
+              },
+              {
+                "kind": "context",
+                "subject": "expected",
+                "value": "Ticket"
+              }
+            ],
+            "edges": []
+          },
+          {
+            "op": "node",
+            "id": "return",
+            "operation": "return",
+            "subject": "café",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [
+              {
+                "operation": "borrow",
+                "place": "value",
+                "type": "ref Ticket"
+              }
+            ],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "encoding",
+                "subject": "source",
+                "value": "utf8"
+              }
+            ],
+            "edges": [
+              {
+                "from": "context",
+                "to": "return",
+                "kind": "next"
+              }
+            ]
+          },
+          {
+            "op": "focus",
+            "source": "s0",
+            "startByte": 4,
+            "endByte": 9
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixContextMissing"
+      }
+    },
+    {
+      "id": "SDM0-rejected-graph-dangling",
+      "kind": "negative",
+      "decisions": [
+        "W-791"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "s0",
+            "text": "let café = value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "menu.check",
+              "expected": {
+                "type": "Ticket",
+                "use": "return"
+              },
+              "owners": {
+                "value": "available"
+              },
+              "effects": {
+                "signature": [],
+                "control": [],
+                "operational": []
+              },
+              "controls": {
+                "function": "menu.check"
+              },
+              "facts": {
+                "valueType": "Ticket",
+                "target": "host"
+              },
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [
+              {
+                "name": "core",
+                "facts": {
+                  "type": "Ticket",
+                  "flow": "next"
+                }
+              },
+              {
+                "name": "ownership",
+                "facts": {
+                  "value": "available"
+                }
+              }
+            ],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "context",
+            "operation": "check-context",
+            "subject": "menu.check",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "context",
+                "subject": "scope",
+                "value": "menu.check"
+              },
+              {
+                "kind": "context",
+                "subject": "expected",
+                "value": "Ticket"
+              }
+            ],
+            "edges": [
+              {
+                "from": "context",
+                "to": "missing",
+                "kind": "next"
+              }
+            ]
+          },
+          {
+            "op": "node",
+            "id": "return",
+            "operation": "return",
+            "subject": "café",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [
+              {
+                "operation": "borrow",
+                "place": "value",
+                "type": "ref Ticket"
+              }
+            ],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "encoding",
+                "subject": "source",
+                "value": "utf8"
+              }
+            ],
+            "edges": [
+              {
+                "from": "context",
+                "to": "return",
+                "kind": "next"
+              }
+            ]
+          },
+          {
+            "op": "focus",
+            "source": "s0",
+            "startByte": 4,
+            "endByte": 9
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixGraphDanglingEdge"
+      }
+    },
+    {
+      "id": "SDM0-rejected-backend-schema",
+      "kind": "negative",
+      "decisions": [
+        "W-791"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "s0",
+            "text": "let café = value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "menu.check",
+              "expected": {
+                "type": "Ticket",
+                "use": "return"
+              },
+              "owners": {
+                "value": "available"
+              },
+              "effects": {
+                "signature": [],
+                "control": [],
+                "operational": []
+              },
+              "controls": {
+                "function": "menu.check"
+              },
+              "facts": {
+                "valueType": "Ticket",
+                "target": "host"
+              },
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [
+              {
+                "name": "core",
+                "facts": {
+                  "type": "Ticket",
+                  "flow": "next"
+                }
+              },
+              {
+                "name": "ownership",
+                "facts": {
+                  "value": "available"
+                }
+              }
+            ],
+            "backendSchemas": [
+              "backend-result-v1"
+            ]
+          },
+          {
+            "op": "node",
+            "id": "context",
+            "operation": "check-context",
+            "subject": "menu.check",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "context",
+                "subject": "scope",
+                "value": "menu.check"
+              },
+              {
+                "kind": "context",
+                "subject": "expected",
+                "value": "Ticket"
+              }
+            ],
+            "edges": []
+          },
+          {
+            "op": "node",
+            "id": "return",
+            "operation": "return",
+            "subject": "café",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [
+              {
+                "operation": "borrow",
+                "place": "value",
+                "type": "ref Ticket"
+              }
+            ],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "encoding",
+                "subject": "source",
+                "value": "utf8"
+              }
+            ],
+            "edges": [
+              {
+                "from": "context",
+                "to": "return",
+                "kind": "next"
+              }
+            ]
+          },
+          {
+            "op": "focus",
+            "source": "s0",
+            "startByte": 4,
+            "endByte": 9
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixBackendSchemaPresent"
+      }
+    },
+    {
+      "id": "SDM0-rejected-domain-schema-mutation",
+      "kind": "negative",
+      "decisions": [
+        "W-791"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "s0",
+            "text": "let café = value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "menu.check",
+              "expected": {
+                "type": "Ticket",
+                "use": "return"
+              },
+              "owners": {
+                "value": "available"
+              },
+              "effects": {
+                "signature": [],
+                "control": [],
+                "operational": []
+              },
+              "controls": {
+                "function": "menu.check"
+              },
+              "facts": {
+                "valueType": "Ticket",
+                "target": "host"
+              },
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [
+              {
+                "name": "core",
+                "facts": {
+                  "type": "Ticket",
+                  "flow": "next"
+                }
+              },
+              {
+                "name": "ownership",
+                "facts": {
+                  "value": "available"
+                }
+              },
+              {
+                "name": "backend",
+                "facts": {},
+                "category": "value"
+              }
+            ],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "context",
+            "operation": "check-context",
+            "subject": "menu.check",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "context",
+                "subject": "scope",
+                "value": "menu.check"
+              },
+              {
+                "kind": "context",
+                "subject": "expected",
+                "value": "Ticket"
+              }
+            ],
+            "edges": []
+          },
+          {
+            "op": "node",
+            "id": "return",
+            "operation": "return",
+            "subject": "café",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [
+              {
+                "operation": "borrow",
+                "place": "value",
+                "type": "ref Ticket"
+              }
+            ],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "encoding",
+                "subject": "source",
+                "value": "utf8"
+              }
+            ],
+            "edges": [
+              {
+                "from": "context",
+                "to": "return",
+                "kind": "next"
+              }
+            ]
+          },
+          {
+            "op": "focus",
+            "source": "s0",
+            "startByte": 4,
+            "endByte": 9
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixDomainSchemaMutation"
+      }
+    },
+    {
+      "id": "SDM0-rejected-secret-fact",
+      "kind": "negative",
+      "decisions": [
+        "W-794"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "s0",
+            "text": "let café = value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "menu.check",
+              "expected": {
+                "type": "Ticket",
+                "use": "return"
+              },
+              "owners": {
+                "value": "available"
+              },
+              "effects": {
+                "signature": [],
+                "control": [],
+                "operational": []
+              },
+              "controls": {
+                "function": "menu.check"
+              },
+              "facts": {
+                "token": "private"
+              },
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [
+              {
+                "name": "core",
+                "facts": {
+                  "type": "Ticket",
+                  "flow": "next"
+                }
+              },
+              {
+                "name": "ownership",
+                "facts": {
+                  "value": "available"
+                }
+              }
+            ],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "context",
+            "operation": "check-context",
+            "subject": "menu.check",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "context",
+                "subject": "scope",
+                "value": "menu.check"
+              },
+              {
+                "kind": "context",
+                "subject": "expected",
+                "value": "Ticket"
+              }
+            ],
+            "edges": []
+          },
+          {
+            "op": "node",
+            "id": "return",
+            "operation": "return",
+            "subject": "café",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [
+              {
+                "operation": "borrow",
+                "place": "value",
+                "type": "ref Ticket"
+              }
+            ],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "encoding",
+                "subject": "source",
+                "value": "utf8"
+              }
+            ],
+            "edges": [
+              {
+                "from": "context",
+                "to": "return",
+                "kind": "next"
+              }
+            ]
+          },
+          {
+            "op": "focus",
+            "source": "s0",
+            "startByte": 4,
+            "endByte": 9
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixSecretFact"
+      }
+    },
+    {
+      "id": "SDM0-rejected-overlap-fix",
+      "kind": "negative",
+      "decisions": [
+        "W-796"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "fix",
+            "text": "unused\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "fix",
+              "expected": null,
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "discard",
+            "operation": "discard",
+            "subject": "unused",
+            "resultType": "()",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "fix",
+            "startByte": 0,
+            "endByte": 6
+          },
+          {
+            "op": "diagnostic",
+            "id": "fix-diagnostic",
+            "code": "W-USE-0001",
+            "phase": "semantic.flow",
+            "severity": "error",
+            "primary": {
+              "source": "fix",
+              "startByte": 0,
+              "endByte": 6
+            },
+            "labels": [],
+            "facts": {
+              "resultType": "Int"
+            },
+            "notes": [],
+            "fixes": [
+              {
+                "id": "discard-value",
+                "titleKey": "diagnostic.fix.discard",
+                "applicability": "review",
+                "proof": {
+                  "source": "fix",
+                  "digest": "sha256:2a37b3fecb9e5b1ea21167eae81c526f9a1449a226ccb1ce87b83e068ae79f23"
+                },
+                "edits": [
+                  {
+                    "source": "fix",
+                    "startByte": 0,
+                    "endByte": 4,
+                    "text": "let _ = "
+                  },
+                  {
+                    "source": "fix",
+                    "startByte": 3,
+                    "endByte": 5,
+                    "text": "x"
+                  }
+                ]
+              }
+            ],
+            "root": null
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixFixOverlap"
+      }
+    },
+    {
+      "id": "SDM0-rejected-causal-dangling",
+      "kind": "negative",
+      "decisions": [
+        "W-797"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "diag",
+            "text": "return value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "diagnostic",
+              "expected": {
+                "type": "Ticket"
+              },
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "diagnostic-node",
+            "operation": "return",
+            "subject": "value",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "diag",
+            "startByte": 0,
+            "endByte": 6
+          },
+          {
+            "op": "diagnostic",
+            "id": "root",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 0,
+              "endByte": 6
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Int",
+              "expected": "Ticket"
+            },
+            "notes": [
+              {
+                "key": "first-failure",
+                "arguments": {
+                  "field": "resultType"
+                }
+              }
+            ],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "child",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 7,
+              "endByte": 12
+            },
+            "labels": [],
+            "facts": {
+              "actual": "poisoned",
+              "expected": "usable"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": "missing"
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixDiagnosticDanglingRoot"
+      }
+    },
+    {
+      "id": "SDM0-rejected-poison-cascade",
+      "kind": "negative",
+      "decisions": [
+        "W-798"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "diag",
+            "text": "return value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "diagnostic",
+              "expected": {
+                "type": "Ticket"
+              },
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "diagnostic-node",
+            "operation": "return",
+            "subject": "value",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "diag",
+            "startByte": 0,
+            "endByte": 6
+          },
+          {
+            "op": "diagnostic",
+            "id": "root",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 0,
+              "endByte": 6
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Int",
+              "expected": "Ticket"
+            },
+            "notes": [
+              {
+                "key": "first-failure",
+                "arguments": {
+                  "field": "resultType"
+                }
+              }
+            ],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "child",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 7,
+              "endByte": 12
+            },
+            "labels": [],
+            "facts": {
+              "actual": "poisoned",
+              "expected": "usable"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": "root",
+            "poison": true
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixPoisonCascade"
+      }
+    },
+    {
+      "id": "SDM0-rejected-phase-mismatch",
+      "kind": "negative",
+      "decisions": [
+        "W-794"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "diag",
+            "text": "return value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "diagnostic",
+              "expected": {
+                "type": "Ticket"
+              },
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "diagnostic-node",
+            "operation": "return",
+            "subject": "value",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "diag",
+            "startByte": 0,
+            "endByte": 6
+          },
+          {
+            "op": "diagnostic",
+            "id": "root",
+            "code": "W-SEM-0001",
+            "phase": "semantic.flow",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 0,
+              "endByte": 6
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Int",
+              "expected": "Ticket"
+            },
+            "notes": [
+              {
+                "key": "first-failure",
+                "arguments": {
+                  "field": "resultType"
+                }
+              }
+            ],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "child",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 7,
+              "endByte": 12
+            },
+            "labels": [],
+            "facts": {
+              "actual": "poisoned",
+              "expected": "usable"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": "root"
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixDiagnosticPhase"
+      }
+    },
+    {
+      "id": "SDM0-rejected-profile-override",
+      "kind": "negative",
+      "decisions": [
+        "W-818"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "s0",
+            "text": "let café = value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "menu.check",
+              "expected": {
+                "type": "Ticket",
+                "use": "return"
+              },
+              "owners": {
+                "value": "available"
+              },
+              "effects": {
+                "signature": [],
+                "control": [],
+                "operational": []
+              },
+              "controls": {
+                "function": "menu.check"
+              },
+              "facts": {
+                "valueType": "Ticket",
+                "target": "host"
+              },
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [
+              {
+                "name": "core",
+                "facts": {
+                  "type": "Ticket",
+                  "flow": "next"
+                }
+              },
+              {
+                "name": "ownership",
+                "facts": {
+                  "value": "available"
+                }
+              }
+            ],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "context",
+            "operation": "check-context",
+            "subject": "menu.check",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "context",
+                "subject": "scope",
+                "value": "menu.check"
+              },
+              {
+                "kind": "context",
+                "subject": "expected",
+                "value": "Ticket"
+              }
+            ],
+            "edges": []
+          },
+          {
+            "op": "node",
+            "id": "return",
+            "operation": "return",
+            "subject": "café",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [
+              {
+                "operation": "borrow",
+                "place": "value",
+                "type": "ref Ticket"
+              }
+            ],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "encoding",
+                "subject": "source",
+                "value": "utf8"
+              }
+            ],
+            "edges": [
+              {
+                "from": "context",
+                "to": "return",
+                "kind": "next"
+              }
+            ]
+          },
+          {
+            "op": "focus",
+            "source": "s0",
+            "startByte": 4,
+            "endByte": 9
+          }
+        ],
+        "catalogMutation": {
+          "op": "profile-override",
+          "code": "W-PARSE-0001",
+          "field": "phase",
+          "value": "source.lex"
+        }
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixProfileOverride"
+      }
+    },
+    {
+      "id": "SDM0-rejected-retired-code",
+      "kind": "negative",
+      "decisions": [
+        "W-819"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "diag",
+            "text": "return value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "diagnostic",
+              "expected": {
+                "type": "Ticket"
+              },
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "diagnostic-node",
+            "operation": "return",
+            "subject": "value",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "diag",
+            "startByte": 0,
+            "endByte": 6
+          },
+          {
+            "op": "diagnostic",
+            "id": "root",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 0,
+              "endByte": 6
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Int",
+              "expected": "Ticket"
+            },
+            "notes": [
+              {
+                "key": "first-failure",
+                "arguments": {
+                  "field": "resultType"
+                }
+              }
+            ],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "child",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 7,
+              "endByte": 12
+            },
+            "labels": [],
+            "facts": {
+              "actual": "poisoned",
+              "expected": "usable"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": "root"
+          }
+        ],
+        "catalogMutation": {
+          "op": "lifecycle",
+          "code": "W-SEM-0001",
+          "field": "state",
+          "value": "retired"
+        }
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixDiagnosticCatalog"
+      }
+    },
+    {
+      "id": "SDM0-rejected-namespace",
+      "kind": "negative",
+      "decisions": [
+        "W-815"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "diag",
+            "text": "return value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "diagnostic",
+              "expected": {
+                "type": "Ticket"
+              },
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "diagnostic-node",
+            "operation": "return",
+            "subject": "value",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "diag",
+            "startByte": 0,
+            "endByte": 6
+          },
+          {
+            "op": "diagnostic",
+            "id": "root",
+            "code": "W-TYPE-CONTRACT-1",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 0,
+              "endByte": 6
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Int",
+              "expected": "Ticket"
+            },
+            "notes": [
+              {
+                "key": "first-failure",
+                "arguments": {
+                  "field": "resultType"
+                }
+              }
+            ],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "child",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 7,
+              "endByte": 12
+            },
+            "labels": [],
+            "facts": {
+              "actual": "poisoned",
+              "expected": "usable"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": "root"
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixDiagnosticNamespace"
+      }
+    },
+    {
+      "id": "SDM0-rejected-invalid-utf8-span",
+      "kind": "negative",
+      "decisions": [
+        "W-793"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "s0",
+            "text": "let café = value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "menu.check",
+              "expected": {
+                "type": "Ticket",
+                "use": "return"
+              },
+              "owners": {
+                "value": "available"
+              },
+              "effects": {
+                "signature": [],
+                "control": [],
+                "operational": []
+              },
+              "controls": {
+                "function": "menu.check"
+              },
+              "facts": {
+                "valueType": "Ticket",
+                "target": "host"
+              },
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [
+              {
+                "name": "core",
+                "facts": {
+                  "type": "Ticket",
+                  "flow": "next"
+                }
+              },
+              {
+                "name": "ownership",
+                "facts": {
+                  "value": "available"
+                }
+              }
+            ],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "context",
+            "operation": "check-context",
+            "subject": "menu.check",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "context",
+                "subject": "scope",
+                "value": "menu.check"
+              },
+              {
+                "kind": "context",
+                "subject": "expected",
+                "value": "Ticket"
+              }
+            ],
+            "edges": []
+          },
+          {
+            "op": "node",
+            "id": "return",
+            "operation": "return",
+            "subject": "café",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [
+              {
+                "operation": "borrow",
+                "place": "value",
+                "type": "ref Ticket"
+              }
+            ],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "encoding",
+                "subject": "source",
+                "value": "utf8"
+              }
+            ],
+            "edges": [
+              {
+                "from": "context",
+                "to": "return",
+                "kind": "next"
+              }
+            ]
+          },
+          {
+            "op": "focus",
+            "source": "s0",
+            "startByte": 8,
+            "endByte": 9
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixSpanSplitsCodePoint"
+      }
+    },
+    {
+      "id": "SDM0-rejected-error-demotion",
+      "kind": "negative",
+      "decisions": [
+        "W-800"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "diag",
+            "text": "return value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "diagnostic",
+              "expected": {
+                "type": "Ticket"
+              },
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "diagnostic-node",
+            "operation": "return",
+            "subject": "value",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "policy",
+            "promote": [],
+            "demote": [
+              "W-SEM-0001"
+            ],
+            "sourceSuppression": false
+          },
+          {
+            "op": "focus",
+            "source": "diag",
+            "startByte": 0,
+            "endByte": 6
+          },
+          {
+            "op": "diagnostic",
+            "id": "root",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 0,
+              "endByte": 6
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Int",
+              "expected": "Ticket"
+            },
+            "notes": [
+              {
+                "key": "first-failure",
+                "arguments": {
+                  "field": "resultType"
+                }
+              }
+            ],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "child",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 7,
+              "endByte": 12
+            },
+            "labels": [],
+            "facts": {
+              "actual": "poisoned",
+              "expected": "usable"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": "root"
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixPolicyDemotesError"
+      }
+    },
+    {
+      "id": "SDM0-rejected-source-suppression",
+      "kind": "negative",
+      "decisions": [
+        "W-800"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "diag",
+            "text": "return value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "diagnostic",
+              "expected": {
+                "type": "Ticket"
+              },
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "diagnostic-node",
+            "operation": "return",
+            "subject": "value",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "policy",
+            "promote": [],
+            "demote": [],
+            "sourceSuppression": true
+          },
+          {
+            "op": "focus",
+            "source": "diag",
+            "startByte": 0,
+            "endByte": 6
+          },
+          {
+            "op": "diagnostic",
+            "id": "root",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 0,
+              "endByte": 6
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Int",
+              "expected": "Ticket"
+            },
+            "notes": [
+              {
+                "key": "first-failure",
+                "arguments": {
+                  "field": "resultType"
+                }
+              }
+            ],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "child",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 7,
+              "endByte": 12
+            },
+            "labels": [],
+            "facts": {
+              "actual": "poisoned",
+              "expected": "usable"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": "root"
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixSourceSuppression"
+      }
+    },
+    {
+      "id": "SDM0-rejected-intent-guessing",
+      "kind": "negative",
+      "decisions": [
+        "W-817"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "s0",
+            "text": "let café = value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "menu.check",
+              "expected": {
+                "type": "Ticket",
+                "use": "return"
+              },
+              "owners": {
+                "value": "available"
+              },
+              "effects": {
+                "signature": [],
+                "control": [],
+                "operational": []
+              },
+              "controls": {
+                "function": "menu.check"
+              },
+              "facts": {
+                "valueType": "Ticket",
+                "target": "host"
+              },
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [
+              {
+                "name": "core",
+                "facts": {
+                  "type": "Ticket",
+                  "flow": "next"
+                }
+              },
+              {
+                "name": "ownership",
+                "facts": {
+                  "value": "available"
+                }
+              }
+            ],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "context",
+            "operation": "check-context",
+            "subject": "menu.check",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "context",
+                "subject": "scope",
+                "value": "menu.check"
+              },
+              {
+                "kind": "context",
+                "subject": "expected",
+                "value": "Ticket"
+              }
+            ],
+            "edges": []
+          },
+          {
+            "op": "node",
+            "id": "return",
+            "operation": "return",
+            "subject": "café",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [
+              {
+                "operation": "borrow",
+                "place": "value",
+                "type": "ref Ticket"
+              }
+            ],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "encoding",
+                "subject": "source",
+                "value": "utf8"
+              }
+            ],
+            "edges": [
+              {
+                "from": "context",
+                "to": "return",
+                "kind": "next"
+              }
+            ]
+          },
+          {
+            "op": "focus",
+            "source": "s0",
+            "startByte": 4,
+            "endByte": 9
+          },
+          {
+            "op": "intent",
+            "text": "the author intended another statement"
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixIntentGuessing"
+      }
+    },
+    {
+      "id": "SDM0-rejected-silent-truncation",
+      "kind": "negative",
+      "decisions": [
+        "W-799"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "limited",
+            "text": "diagnostic stream\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "limit",
+              "expected": null,
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "limited-node",
+            "operation": "read",
+            "subject": "diagnostic",
+            "resultType": "Int",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "limited",
+            "startByte": 0,
+            "endByte": 0
+          },
+          {
+            "op": "limit",
+            "maximum": 1
+          },
+          {
+            "op": "diagnostic",
+            "id": "one",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "limited",
+              "startByte": 0,
+              "endByte": 4
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Int",
+              "expected": "Ticket"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "two",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "limited",
+              "startByte": 5,
+              "endByte": 12
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Bool",
+              "expected": "Ticket"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "truncation",
+            "mode": "silent"
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixSilentTruncation"
+      }
+    },
+    {
+      "id": "SDM0-accepted-fix-proof",
+      "kind": "accepted",
+      "decisions": [
+        "W-796",
+        "W-801"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "fix",
+            "text": "unused\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "fix",
+              "expected": null,
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "discard",
+            "operation": "discard",
+            "subject": "unused",
+            "resultType": "()",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "fix",
+            "startByte": 0,
+            "endByte": 6
+          },
+          {
+            "op": "diagnostic",
+            "id": "fix-diagnostic",
+            "code": "W-USE-0001",
+            "phase": "semantic.flow",
+            "severity": "error",
+            "primary": {
+              "source": "fix",
+              "startByte": 0,
+              "endByte": 6
+            },
+            "labels": [],
+            "facts": {
+              "resultType": "Int"
+            },
+            "notes": [],
+            "fixes": [
+              {
+                "id": "discard-value",
+                "titleKey": "diagnostic.fix.discard",
+                "applicability": "review",
+                "proof": {
+                  "source": "fix",
+                  "digest": "sha256:2a37b3fecb9e5b1ea21167eae81c526f9a1449a226ccb1ce87b83e068ae79f23"
+                },
+                "edits": [
+                  {
+                    "source": "fix",
+                    "startByte": 0,
+                    "endByte": 0,
+                    "text": "let _ = "
+                  }
+                ]
+              }
+            ],
+            "root": null
+          }
+        ]
+      },
+      "expect": {
+        "status": "accepted",
+        "semanticOutcome": "rejected",
+        "diagnostics": 1
+      }
+    },
+    {
+      "id": "SDM0-accepted-intent-boundary",
+      "kind": "accepted",
+      "decisions": [
+        "W-817"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "s0",
+            "text": "let café = value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "menu.check",
+              "expected": {
+                "type": "Ticket",
+                "use": "return"
+              },
+              "owners": {
+                "value": "available"
+              },
+              "effects": {
+                "signature": [],
+                "control": [],
+                "operational": []
+              },
+              "controls": {
+                "function": "menu.check"
+              },
+              "facts": {
+                "valueType": "Ticket",
+                "target": "host"
+              },
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [
+              {
+                "name": "core",
+                "facts": {
+                  "type": "Ticket",
+                  "flow": "next"
+                }
+              },
+              {
+                "name": "ownership",
+                "facts": {
+                  "value": "available"
+                }
+              }
+            ],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "context",
+            "operation": "check-context",
+            "subject": "menu.check",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "context",
+                "subject": "scope",
+                "value": "menu.check"
+              },
+              {
+                "kind": "context",
+                "subject": "expected",
+                "value": "Ticket"
+              }
+            ],
+            "edges": []
+          },
+          {
+            "op": "node",
+            "id": "return",
+            "operation": "return",
+            "subject": "café",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [
+              {
+                "operation": "borrow",
+                "place": "value",
+                "type": "ref Ticket"
+              }
+            ],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [
+              {
+                "kind": "encoding",
+                "subject": "source",
+                "value": "utf8"
+              }
+            ],
+            "edges": [
+              {
+                "from": "context",
+                "to": "return",
+                "kind": "next"
+              }
+            ]
+          },
+          {
+            "op": "focus",
+            "source": "s0",
+            "startByte": 4,
+            "endByte": 9
+          }
+        ]
+      },
+      "expect": {
+        "status": "accepted",
+        "contextFields": 7,
+        "semanticFields": 7,
+        "diagnostics": 0
+      }
+    },
+    {
+      "id": "SDM0-rejected-note-secret",
+      "kind": "negative",
+      "decisions": [
+        "W-795"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "diag",
+            "text": "return value\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "diagnostic",
+              "expected": {
+                "type": "Ticket"
+              },
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "diagnostic-node",
+            "operation": "return",
+            "subject": "value",
+            "resultType": "Ticket",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "diag",
+            "startByte": 0,
+            "endByte": 6
+          },
+          {
+            "op": "diagnostic",
+            "id": "root",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 0,
+              "endByte": 6
+            },
+            "labels": [],
+            "facts": {
+              "actual": "Int",
+              "expected": "Ticket"
+            },
+            "notes": [
+              {
+                "key": "secret-note",
+                "arguments": {
+                  "token": "private"
+                }
+              }
+            ],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "child",
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": {
+              "source": "diag",
+              "startByte": 7,
+              "endByte": 12
+            },
+            "labels": [],
+            "facts": {
+              "actual": "poisoned",
+              "expected": "usable"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": "root"
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixSecretFact"
+      }
+    },
+    {
+      "id": "SDM0-rejected-loop-backedge",
+      "kind": "negative",
+      "decisions": [
+        "W-788"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "loop-bad",
+            "text": "while true { take value }\n"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "badLoop",
+              "expected": {
+                "type": "Ticket"
+              },
+              "owners": {
+                "value": "available"
+              },
+              "effects": {},
+              "controls": {
+                "loop": "badLoop"
+              },
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "loop",
+            "id": "badLoop",
+            "entry": [
+              {
+                "place": "value",
+                "state": "available"
+              }
+            ],
+            "continues": [
+              {
+                "place": "value",
+                "state": "available"
+              }
+            ],
+            "backEdges": [
+              {
+                "target": "badLoop",
+                "state": [
+                  {
+                    "place": "value",
+                    "state": "moved"
+                  }
+                ]
+              }
+            ],
+            "breaks": [],
+            "widening": {
+              "mode": "monotone",
+              "acceptsMove": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixLoopUnsafeBackEdge"
+      }
+    },
+    {
+      "id": "SDM0-rejected-parse-profile-facts",
+      "kind": "negative",
+      "decisions": [
+        "W-819"
+      ],
+      "input": {
+        "events": [
+          {
+            "op": "source",
+            "id": "lex",
+            "text": "\"unterminated"
+          },
+          {
+            "op": "source",
+            "id": "parse",
+            "text": "if (value"
+          },
+          {
+            "op": "context",
+            "context": {
+              "scope": "parse",
+              "expected": null,
+              "owners": {},
+              "effects": {},
+              "controls": {},
+              "facts": {},
+              "constMode": "runtime"
+            }
+          },
+          {
+            "op": "interface",
+            "schemaId": "w-ast-hir-s0",
+            "version": 1,
+            "domains": [],
+            "backendSchemas": []
+          },
+          {
+            "op": "node",
+            "id": "parse-node",
+            "operation": "parse",
+            "subject": "if",
+            "resultType": "()",
+            "category": "value",
+            "flow": {
+              "kind": "next"
+            },
+            "ownerDelta": [],
+            "effectSummary": {
+              "signature": [],
+              "control": [],
+              "operational": []
+            },
+            "proofFacts": [],
+            "edges": []
+          },
+          {
+            "op": "focus",
+            "source": "parse",
+            "startByte": 0,
+            "endByte": 2
+          },
+          {
+            "op": "diagnostic",
+            "id": "lex-root",
+            "code": "W-LEX-0001",
+            "phase": "source.lex",
+            "severity": "error",
+            "primary": {
+              "source": "lex",
+              "startByte": 0,
+              "endByte": 1
+            },
+            "labels": [
+              {
+                "role": "opening-delimiter",
+                "source": "lex",
+                "startByte": 0,
+                "endByte": 1
+              }
+            ],
+            "facts": {
+              "construct": "string-literal",
+              "delimiter": "quote",
+              "reachedEof": true
+            },
+            "notes": [],
+            "fixes": [],
+            "root": null
+          },
+          {
+            "op": "diagnostic",
+            "id": "parse-root",
+            "code": "W-PARSE-0001",
+            "phase": "source.parse",
+            "severity": "error",
+            "primary": {
+              "source": "parse",
+              "startByte": 3,
+              "endByte": 4
+            },
+            "labels": [],
+            "facts": {
+              "construct": "if-condition",
+              "actual": "(",
+              "expected": "expression"
+            },
+            "notes": [],
+            "fixes": [],
+            "root": null
+          }
+        ]
+      },
+      "expect": {
+        "status": "rejected",
+        "error": "matrixRequiredFactInvalid"
+      }
+    }
+  ]
+}

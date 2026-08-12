@@ -390,6 +390,15 @@ const semanticCorpus = JSON.parse(
 const semanticCases = semanticCorpus.cases.length;
 const semanticPositiveCases = semanticCorpus.cases.filter((testCase) => testCase.kind === "positive").length;
 const semanticNegativeCases = semanticCorpus.cases.filter((testCase) => testCase.kind === "negative").length;
+const semanticMatrixCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostic-matrix-cases.json"), "utf8"),
+);
+const semanticMatrixCases = semanticMatrixCorpus.cases.length;
+const semanticMatrixAcceptedCases = semanticMatrixCorpus.cases.filter((testCase) => testCase.kind === "accepted").length;
+const semanticMatrixOracleAcceptedCases = semanticMatrixCorpus.cases.filter((testCase) => testCase.kind === "accepted").length;
+const semanticMatrixSemanticAcceptedCases = semanticMatrixCorpus.cases.filter((testCase) => testCase.expect?.semanticOutcome === "accepted" || (testCase.expect?.semanticOutcome === undefined && testCase.kind === "accepted")).length;
+const semanticMatrixSemanticRejectedCases = semanticMatrixCorpus.cases.filter((testCase) => testCase.expect?.semanticOutcome === "rejected").length;
+const semanticMatrixDecisions = new Set(semanticMatrixCorpus.cases.flatMap((testCase) => testCase.decisions ?? []));
 const formatterCases = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "formatter-cases.json"), "utf8"),
 ).cases.length;
@@ -1164,6 +1173,9 @@ output.push(
 );
 output.push(
   `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,
+);
+output.push(
+  `| matriz host SDM0 | ${semanticMatrixCases} (${semanticMatrixOracleAcceptedCases} oracle aceitos + ${semanticMatrixCases - semanticMatrixOracleAcceptedCases} oracle rejeitados; ${semanticMatrixSemanticAcceptedCases} outcomes aceitos + ${semanticMatrixSemanticRejectedCases} rejeitados; ${semanticMatrixDecisions.size} decisões) |`,
 );
 output.push(`| outcomes SemanticResult S0 | ${semanticResultSnapshots} |`);
 output.push(`| snapshots de diagnostic D0 | ${diagnosticSnapshots} |`);

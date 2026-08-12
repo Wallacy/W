@@ -26210,9 +26210,15 @@ graphemes e largura do terminal não alteram offsets canônicos.
 ```text
 source.lex
 source.parse
-source.lower
 source.format
-semantic.resolve
+source.validate
+source.context
+source.entry
+source.resolution
+source.roots
+source.capability
+source.fetch
+source.provenance
 semantic.const
 semantic.type
 semantic.ownership
@@ -26220,12 +26226,10 @@ semantic.effect
 semantic.flow
 semantic.capability
 interface
-abi
 link
 build
 package
 test
-lint
 ```
 
 A primeira fase incapaz de produzir seu output emite o root diagnostic. Uma
@@ -28626,6 +28630,10 @@ pública; não são lacunas de syntax ou semântica para o freeze.
 
 Contagens de casos, operações, APIs e cobertura são projeções. Elas ficam
 em [`DESIGN-INDEX.md`](DESIGN-INDEX.md), não neste contrato.
+
+SDM0 fecha a evidência do checker e diagnostics com matriz host, pares source
+S0 para W-785/W-788 e cobertura derivada dos contratos W-791–W-820. O método,
+os limites e as métricas ficam em [`RATIONALE.md` §1.24](RATIONALE.md#124-evidência-sdm0-matriz-de-diagnostics-e-resultado-semântico).
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da

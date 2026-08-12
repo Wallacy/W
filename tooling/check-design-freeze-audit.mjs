@@ -7,6 +7,7 @@ import {
   ledgerRows,
   ledgerThemeById,
 } from "./design-ledger.mjs";
+import { deriveSemanticRulePairs } from "./semantic-diagnostic-pairs.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const wDirectory = path.resolve(toolingDirectory, "..");
@@ -93,7 +94,18 @@ const knownEvidenceIds = new Set((substitutions.cases ?? []).map((testCase) => t
 const oracleByDecision = new Map();
 for (const file of corpusFiles) {
   const corpus = JSON.parse(fs.readFileSync(path.join(toolingDirectory, file), "utf8"));
-  for (const [caseIndex, testCase] of (corpus.cases ?? []).entries()) {
+  const corpusCases = corpus.cases ?? [];
+  const ruleCases = corpusCases.filter((testCase) => testCase.rule !== undefined);
+  const hasRuleCases = ruleCases.length > 0;
+  let validatedPairs = null;
+  if (hasRuleCases) {
+    try {
+      validatedPairs = deriveSemanticRulePairs(ruleCases, ledgerIds);
+    } catch (error) {
+      errors.push(error.message);
+    }
+  }
+  for (const [caseIndex, testCase] of corpusCases.entries()) {
     knownEvidenceIds.add(testCase.id);
     const decisions =
       testCase.decisions ??
@@ -118,6 +130,14 @@ for (const file of corpusFiles) {
       cases.push(testCase.id);
       oracleByDecision.set(decision, cases);
     }
+  }
+  if (validatedPairs !== null) {
+      for (const [decision, pair] of validatedPairs) {
+        for (const testCase of [...pair.positives, ...pair.negatives]) knownEvidenceIds.add(testCase.id);
+        const cases = oracleByDecision.get(decision) ?? [];
+        cases.push(...pair.positives.map((testCase) => testCase.id), ...pair.negatives.map((testCase) => testCase.id));
+        oracleByDecision.set(decision, cases);
+      }
   }
 }
 
