@@ -1,0 +1,243 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-pattern-surface",
+  "title": "Nominal and open patterns at the Last Light restaurant",
+  "r0Cases": [
+    "R0-nominal-struct-pattern",
+    "R0-tuple-scrutinee",
+    "R0-closed-patterns",
+    "R0-external-pattern-rest"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/domain.w",
+    "symbol": "classifyParty",
+    "digest": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553"
+  },
+  "variants": [
+    {
+      "id": "nominal-open-patterns",
+      "role": "selected",
+      "language": "w",
+      "path": "nominal-open-patterns.w",
+      "digest": "sha256:fd45fd1b44e51af435ec18b11ee464b02d621bebb24676a00de0bb9a4a66a4ac",
+      "changedConstructs": [
+        "nominal nested struct pattern",
+        "tuple scrutinee",
+        "closed route cases",
+        "field-set open rest"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The selected source actively consumes nominal fields, derives a field set, and keeps route cases closed."
+      }
+    },
+    {
+      "id": "reserved-structural-patterns",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "reserved-structural-patterns.txt",
+      "digest": "sha256:59b2dc3163995c83ff35a0d8ebced250ace574f9edf549cd80b7374ad5ae0a76",
+      "changedConstructs": [
+        "structural record pattern",
+        "multi-subject switch",
+        "implicit open pattern",
+        "custom pattern protocol dispatch"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Structural, multi-subject, implicit-open, and custom-dispatch forms are reserved witnesses."
+      }
+    }
+  ],
+  "entry": "patternSurfaceEntry",
+  "inputs": [
+    {
+      "id": "primary-open-order",
+      "operation": "nominal-open",
+      "order": {
+        "id": 101,
+        "guest": { "name": "Ada Quasar" },
+        "stage": "accepted",
+        "guests": 2,
+        "route": "menu",
+        "newField": "horizon-note",
+        "newFieldValue": "clear"
+      },
+      "expected": {
+        "name": "Ada Quasar",
+        "party": "intimate",
+        "route": "show",
+        "consumed": ["id", "guest", "stage", "guests", "route", "newField"],
+        "ownerConsumed": true,
+        "openRest": { "horizon-note": "clear" }
+      }
+    },
+    {
+      "id": "adversarial-unknown-route",
+      "operation": "nominal-open",
+      "order": {
+        "id": 0,
+        "guest": { "name": "" },
+        "stage": "unknown",
+        "guests": 0,
+        "route": "unknown",
+        "newField": "future",
+        "newFieldValue": "pending"
+      },
+      "expected": {
+        "name": "",
+        "party": "regular",
+        "route": "reject",
+        "consumed": ["id", "guest", "stage", "guests", "route", "newField"],
+        "ownerConsumed": true,
+        "openRest": { "future": "pending" }
+      }
+    },
+    {
+      "id": "closed-route-candidate",
+      "operation": "closed-route",
+      "order": {
+        "id": 101,
+        "guest": { "name": "Ada Quasar" },
+        "stage": "accepted",
+        "guests": 2,
+        "route": "menu",
+        "newField": "horizon-note",
+        "newFieldValue": "clear"
+      },
+      "expected": { "route": "show", "consumed": ["route"], "effects": [] }
+    },
+    {
+      "id": "unknown-route-candidate",
+      "operation": "unknown-route",
+      "order": {
+        "id": 0,
+        "guest": { "name": "" },
+        "stage": "unknown",
+        "guests": 0,
+        "route": "unknown",
+        "newField": "future",
+        "newFieldValue": "pending"
+      },
+      "expected": { "accepted": false, "cause": "unknown-route", "effects": [] }
+    },
+    {
+      "id": "structural-pattern-candidate",
+      "operation": "structural-pattern",
+      "order": {
+        "id": 101,
+        "guest": { "name": "Ada Quasar" },
+        "stage": "accepted",
+        "guests": 2,
+        "route": "menu",
+        "newField": "horizon-note",
+        "newFieldValue": "clear"
+      },
+      "expected": { "accepted": false, "cause": "structural-pattern", "effects": [] }
+    },
+    {
+      "id": "multi-subject-switch-candidate",
+      "operation": "multi-subject-switch",
+      "order": {
+        "id": 101,
+        "guest": { "name": "Ada Quasar" },
+        "stage": "accepted",
+        "guests": 2,
+        "route": "menu",
+        "newField": "horizon-note",
+        "newFieldValue": "clear"
+      },
+      "expected": { "accepted": false, "cause": "multi-subject-switch", "effects": [] }
+    },
+    {
+      "id": "implicit-open-pattern-candidate",
+      "operation": "implicit-open-pattern",
+      "order": {
+        "id": 101,
+        "guest": { "name": "Ada Quasar" },
+        "stage": "accepted",
+        "guests": 2,
+        "route": "menu",
+        "newField": "horizon-note",
+        "newFieldValue": "clear"
+      },
+      "expected": { "accepted": false, "cause": "implicit-open-pattern", "effects": [] }
+    },
+    {
+      "id": "custom-pattern-dispatch-candidate",
+      "operation": "custom-pattern-dispatch",
+      "order": {
+        "id": 101,
+        "guest": { "name": "Ada Quasar" },
+        "stage": "accepted",
+        "guests": 2,
+        "route": "menu",
+        "newField": "horizon-note",
+        "newFieldValue": "clear"
+      },
+      "expected": { "accepted": false, "cause": "custom-pattern-dispatch", "effects": [] }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain how nominal identity, tuple subjects, closed routes, and explicit field-set rest affect one order."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the nominal fields, tuple route, closed cases, and open rest.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a pattern defect without hiding ownership consumption or accepting an unknown route.",
+      "mutations": {
+        "nominal-open-patterns": "Restore nominal constructors, tuple subjects, closed cases, field-set derivation, and open rest.",
+        "reserved-structural-patterns": "Reject structural, multi-subject, implicit-open, and custom dispatch witnesses."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add one stored order field and include it in the explicit open-rest field set."
+    }
+  ],
+  "presentationOrders": [
+    [
+      "nominal-open-patterns",
+      "reserved-structural-patterns"
+    ],
+    [
+      "reserved-structural-patterns",
+      "nominal-open-patterns"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "nominal-open-patterns": "A",
+      "reserved-structural-patterns": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:e83bedb7831e304f179cc74aeed4b9b6bc1243d1b50e760ba144cda526aacf74"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
+  }
+}

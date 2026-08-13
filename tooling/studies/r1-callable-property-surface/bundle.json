@@ -1,0 +1,265 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-callable-property-surface",
+  "title": "Property-safe and callable surfaces at the Last Light restaurant",
+  "r0Cases": [
+    "R0-property-safe-computed",
+    "R0-inline-language-slot",
+    "R0-closure-arrow"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/kitchen.w",
+    "symbol": "export isIdle",
+    "digest": "sha256:8befddb7e6db65936a2ad13a375e44cb8ac5fcd41d3e3cce837267dbbb6abfe4"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/hardware.w",
+      "symbol": "unsafe fn<C> legacyProbeStatus",
+      "digest": "sha256:a6bda1f654a7ec8880ce746e45460000fdc69910af19366de5ddd5d0fc87323c"
+    },
+    {
+      "path": "../../../reference/last-light/callables.w",
+      "symbol": "let concrete = <[copy entryGate]>",
+      "digest": "sha256:9b8c63d17e3293322ac8e589fa87092c73cfb912b0985260275a733d28ee0368"
+    }
+  ],
+  "variants": [
+    {
+      "id": "property-safe-closure-island",
+      "role": "selected",
+      "language": "w",
+      "path": "property-safe-closure-island.w",
+      "digest": "sha256:a0e5f598dd229432ae3c93b8dd0202470124484724b7d89675e8ffe1f2a7643c",
+      "changedConstructs": [
+        "effect-free computed property",
+        "fn<C> inline language island",
+        "capture-marked closure arrow"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The selected fixture actively combines the safe property, C island, and explicit closure capture."
+      }
+    },
+    {
+      "id": "mandatory-method-equivalent",
+      "role": "alternative",
+      "language": "w",
+      "path": "mandatory-method-equivalent.w",
+      "digest": "sha256:2cd0701f11942d93ec1edc449781d9fbd4574e2c72deac6b7bbfd221d6940306",
+      "changedConstructs": [
+        "mandatory method equivalent for property projection"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The method candidate remains parseable and has comparable value semantics."
+      }
+    },
+    {
+      "id": "named-language-slot",
+      "role": "alternative",
+      "language": "w",
+      "path": "named-language-slot.w",
+      "digest": "sha256:f06f3a150f2cf93cb4e40e144000624c4d3588f8bd020d2d9c4d359dd092caac",
+      "changedConstructs": [
+        "named primary-language slot spelling"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The named slot is an active spelling candidate for the same foreign callable."
+      }
+    },
+    {
+      "id": "anonymous-fn",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "anonymous-fn.txt",
+      "digest": "sha256:c5a7641862161835e259a8df398ed9e06d53d3cc1ea66e60f6a38bd8d1286059",
+      "changedConstructs": [
+        "anonymous fn block instead of closure arrow"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "The anonymous function is a reserved textual comparison witness."
+      }
+    },
+    {
+      "id": "effectful-property",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "reserved-effectful-property.txt",
+      "digest": "sha256:cd9193834b69867823c51fed0449a49ae177e109708bb5cc4548eb48cb7ca248",
+      "changedConstructs": [
+        "effectful property access"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "The effectful property is a reserved rejection witness."
+      }
+    }
+  ],
+  "entry": "callableSurfaceEntry",
+  "inputs": [
+    {
+      "id": "primary-idle",
+      "operation": "selected-property",
+      "accumulatedError": 0,
+      "previousError": 0,
+      "status": 0,
+      "arrival": 17,
+      "gate": 3,
+      "expected": { "kind": "value", "idle": true, "effects": false }
+    },
+    {
+      "id": "adversarial-probe-failure",
+      "operation": "selected-property",
+      "accumulatedError": 0.5,
+      "previousError": 0,
+      "status": -1,
+      "arrival": 0,
+      "gate": 0,
+      "expected": { "kind": "value", "idle": false, "effects": false }
+    },
+    {
+      "id": "method-candidate",
+      "operation": "mandatory-method",
+      "accumulatedError": 0,
+      "previousError": 0,
+      "status": 0,
+      "arrival": 17,
+      "gate": 3,
+      "expected": { "kind": "value", "idle": true, "effects": false }
+    },
+    {
+      "id": "foreign-candidate",
+      "operation": "fn-c",
+      "accumulatedError": 0,
+      "previousError": 0,
+      "status": -1,
+      "arrival": 0,
+      "gate": 0,
+      "expected": { "kind": "value", "probe": -1 }
+    },
+    {
+      "id": "closure-candidate",
+      "operation": "closure-arrow",
+      "accumulatedError": 0,
+      "previousError": 0,
+      "status": 0,
+      "arrival": 17,
+      "gate": 3,
+      "expected": { "kind": "value", "welcome": 20, "capture": true }
+    },
+    {
+      "id": "named-language-slot-candidate",
+      "operation": "named-language-slot",
+      "accumulatedError": 0,
+      "previousError": 0,
+      "status": -1,
+      "arrival": 0,
+      "gate": 0,
+      "expected": { "kind": "value", "probe": -1 }
+    },
+    {
+      "id": "anonymous-fn-candidate",
+      "operation": "anonymous-fn",
+      "accumulatedError": 0,
+      "previousError": 0,
+      "status": 0,
+      "arrival": 17,
+      "gate": 3,
+      "expected": { "kind": "value", "welcome": 20, "capture": true }
+    },
+    {
+      "id": "effectful-property-candidate",
+      "operation": "effectful-property",
+      "accumulatedError": 0,
+      "previousError": 0,
+      "status": 0,
+      "arrival": 17,
+      "gate": 3,
+      "expected": { "kind": "rejected", "cause": "effectful-property" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain which candidates are value-safe, foreign, effectful, or closure callables."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the property, C island, and capture-marked closure forms.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a callable defect without hiding effects or dropping the closure capture.",
+      "mutations": {
+        "property-safe-closure-island": "Restore the property, fn<C> body, and capture marker.",
+        "mandatory-method-equivalent": "Keep the method candidate comparable to the property value.",
+        "named-language-slot": "Keep the named slot separate from the selected fn<C> spelling.",
+        "anonymous-fn": "Keep the anonymous function separate from the closure arrow.",
+        "effectful-property": "Reject suspension and failure in member access."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a second captured gate value while preserving property, probe, and closure outcomes."
+    }
+  ],
+  "presentationOrders": [
+    [
+      "property-safe-closure-island",
+      "mandatory-method-equivalent",
+      "named-language-slot",
+      "anonymous-fn",
+      "effectful-property"
+    ],
+    [
+      "effectful-property",
+      "anonymous-fn",
+      "named-language-slot",
+      "mandatory-method-equivalent",
+      "property-safe-closure-island"
+    ],
+    [
+      "named-language-slot",
+      "property-safe-closure-island",
+      "effectful-property",
+      "mandatory-method-equivalent",
+      "anonymous-fn"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "property-safe-closure-island": "A",
+      "mandatory-method-equivalent": "B",
+      "named-language-slot": "C",
+      "anonymous-fn": "D",
+      "effectful-property": "E"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:9ba8cedc8415e119d049cfa29eec84b57a76835af8f4338baeff0b680fb6d1ff"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
+  }
+}

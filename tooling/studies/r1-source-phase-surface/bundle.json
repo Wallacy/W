@@ -1,0 +1,164 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-source-phase-surface",
+  "title": "Import phase and function bodies at the Last Light restaurant",
+  "r0Cases": [
+    "R0-import-phase",
+    "R0-function-body"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/app.w",
+    "symbol": "runConsole",
+    "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29"
+  },
+  "variants": [
+    {
+      "id": "imports-first-body",
+      "role": "selected",
+      "language": "w",
+      "path": "imports-first-body.w",
+      "digest": "sha256:af8083ffdd10a39047b3a260703ae271c44cb6970ebe04b34eca4ed5d8a1ba62",
+      "changedConstructs": [
+        "imports before declarations",
+        "implemented function body"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The selected source actively orders imports before declarations and includes a function body."
+      }
+    },
+    {
+      "id": "reserved-interleaved-prototype",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "reserved-interleaved-prototype.txt",
+      "digest": "sha256:988d235c217535e42c1f88e0f714d75943959cb71d75b45cff66c8ff6e6a2797",
+      "changedConstructs": [
+        "import after declaration",
+        "prototype without body"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "The interleaved import and prototype are reserved rejection witnesses."
+      }
+    }
+  ],
+  "entry": "sourcePhaseEntry",
+  "inputs": [
+    {
+      "id": "primary-order",
+      "operation": "analyze-source",
+      "sourceItems": [
+        { "kind": "import", "name": "kitchen" },
+        { "kind": "import", "name": "units.Temperature" },
+        { "kind": "declaration", "name": "helper" },
+        { "kind": "body", "name": "sourcePhaseEntry" }
+      ],
+      "expected": {
+        "firstDeclaration": 2,
+        "importAfterDeclaration": false,
+        "bodyPresent": true,
+        "importsFirst": true,
+        "imports": ["kitchen", "units.Temperature"]
+      }
+    },
+    {
+      "id": "boundary-body",
+      "operation": "analyze-source",
+      "sourceItems": [
+        { "kind": "import", "name": "std.io" },
+        { "kind": "body", "name": "sourcePhaseEntry" }
+      ],
+      "expected": {
+        "firstDeclaration": 1,
+        "importAfterDeclaration": false,
+        "bodyPresent": true,
+        "importsFirst": true,
+        "imports": ["std.io"]
+      }
+    },
+    {
+      "id": "interleaved-import",
+      "operation": "interleaved-import",
+      "sourceItems": [
+        { "kind": "import", "name": "kitchen" },
+        { "kind": "declaration", "name": "helper" },
+        { "kind": "import", "name": "units.Temperature" },
+        { "kind": "prototype", "name": "sourcePhaseEntry" },
+        { "kind": "body", "name": "sourcePhaseEntry" }
+      ],
+      "expected": { "accepted": false, "cause": "interleaved-import-and-prototype" }
+    },
+    {
+      "id": "prototype-without-body",
+      "operation": "prototype-without-body",
+      "sourceItems": [
+        { "kind": "import", "name": "kitchen" },
+        { "kind": "prototype", "name": "sourcePhaseEntry" }
+      ],
+      "expected": { "accepted": false, "cause": "prototype-without-body" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain how the source-item sequence separates import discovery from declarations and implemented bodies."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the import sequence, first declaration, and body marker.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a source-phase defect without moving imports after declarations or replacing a body with a prototype.",
+      "mutations": {
+        "imports-first-body": "Restore import items before declarations and keep the implemented body.",
+        "reserved-interleaved-prototype": "Reject the interleaved import and prototype operation."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add one selective import before the first declaration while preserving the body marker."
+    }
+  ],
+  "presentationOrders": [
+    [
+      "imports-first-body",
+      "reserved-interleaved-prototype"
+    ],
+    [
+      "reserved-interleaved-prototype",
+      "imports-first-body"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "imports-first-body": "A",
+      "reserved-interleaved-prototype": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:4a78798c88c17fb98891c78148b618bca2ca5bd30d71403304c9bed571d132a0"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
+  }
+}

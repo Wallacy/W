@@ -1,0 +1,194 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-static-contract-syntax",
+  "title": "Attached and nested contracts at the Last Light restaurant",
+  "r0Cases": [
+    "R0-attached-contract",
+    "R0-nested-contract-close",
+    "R0-local-contract-versus-record"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/generics.w",
+    "symbol": "Matrix<Element, rows: usize, columns: usize>",
+    "digest": "sha256:76cccac6b23c47cb1b1e0c6f72f2bf4ed94d57069e06a3e54e093114e94b899b"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/package.w",
+      "symbol": "package {",
+      "digest": "sha256:b948a12612d0e656cbc4fba5809ef18c6ab4af8f085e55377f049ad55c469796"
+    }
+  ],
+  "variants": [
+    {
+      "id": "attached-contract",
+      "role": "selected",
+      "language": "w",
+      "path": "attached-contract.w",
+      "digest": "sha256:c9d48d49fc008c65d982ccf588e151500285506bf12641046e2bcc6c5f087eab",
+      "changedConstructs": [
+        "attached Array<Dish> envelope",
+        "nested >> close",
+        "active Tensor contract with attached nested envelopes"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The selected source keeps contract envelopes attached and nests them without spacing."
+      }
+    },
+    {
+      "id": "spaced-close",
+      "role": "alternative",
+      "language": "w",
+      "path": "spaced-close.w",
+      "digest": "sha256:e5386d3fe22c7835b1a0a865c9d7ad21959ae3c90d4f25172359c1e21e1e0257",
+      "changedConstructs": [
+        "mandatory whitespace before nested close",
+        "active nested envelope comparison"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The alternative changes only the nested close separator and remains source-shaped W."
+      }
+    },
+    {
+      "id": "reserved-contract",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "reserved-contract.txt",
+      "digest": "sha256:dc24133586632476d6d943267bde407897ce57b7fa5272af4c56555a1692e424",
+      "changedConstructs": [
+        "whitespace-detached envelope",
+        "angular build record"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Detached and angular build-record forms are rejected or non-W witnesses."
+      }
+    }
+  ],
+  "entry": "staticSyntaxEntry",
+  "inputs": [
+    {
+      "id": "primary-nested",
+      "rows": 8,
+      "columns": 4,
+      "dish": "nebula",
+      "operation": "attached-contract",
+      "expected": { "accepted": true, "area": 32, "nested": true, "localContract": true }
+    },
+    {
+      "id": "adversarial-empty-boundary",
+      "rows": 0,
+      "columns": 1,
+      "dish": "",
+      "operation": "attached-contract",
+      "expected": { "accepted": true, "area": 0, "nested": true, "localContract": true }
+    },
+    {
+      "id": "spaced-close-candidate",
+      "rows": 8,
+      "columns": 4,
+      "dish": "nebula",
+      "operation": "spaced-close",
+      "expected": { "accepted": true, "area": 32, "nested": true, "close": "spaced" }
+    },
+    {
+      "id": "detached-envelope-candidate",
+      "rows": 8,
+      "columns": 4,
+      "dish": "nebula",
+      "operation": "detached-envelope",
+      "expected": { "accepted": false, "cause": "detached-envelope" }
+    },
+    {
+      "id": "manifest-comparison",
+      "rows": 0,
+      "columns": 1,
+      "dish": "",
+      "operation": "manifest-comparison",
+      "manifestName": "last-light/restaurant",
+      "manifestVersion": "0.1.0",
+      "expected": { "accepted": true, "manifest": "last-light/restaurant", "version": "0.1.0", "localContract": true }
+    },
+    {
+      "id": "angular-record-candidate",
+      "rows": 8,
+      "columns": 4,
+      "dish": "nebula",
+      "operation": "angular-record",
+      "expected": { "accepted": false, "cause": "angular-record" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain how the attached envelope, nested close, and local contract remain distinct from a package record."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the three type and contract declarations.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared close or envelope defect without changing rows, columns, or local contract identity.",
+      "mutations": {
+        "attached-contract": "Restore attached Array<Dish>, >>, and the active package manifest.",
+        "spaced-close": "Restore the declared separator before the nested close.",
+        "reserved-contract": "Reject the detached envelope and angular record before parsing."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Insert a third nested collection layer and preserve the shape area calculation."
+    }
+  ],
+  "presentationOrders": [
+    [
+      "attached-contract",
+      "spaced-close",
+      "reserved-contract"
+    ],
+    [
+      "spaced-close",
+      "reserved-contract",
+      "attached-contract"
+    ],
+    [
+      "reserved-contract",
+      "attached-contract",
+      "spaced-close"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "attached-contract": "A",
+      "spaced-close": "B",
+      "reserved-contract": "C"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:b4dcc436de9232b88ae4f792c47926f1f343e320ccb42691a89297424128526a"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
+  }
+}

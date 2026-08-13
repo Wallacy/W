@@ -1,0 +1,5 @@
+R1S1 reserved witnesses derived from generics.w::Matrix.
+staticSyntaxEntry
+
+type Menu = Array <Dish>
+package<name: "last-light", products: [...]>

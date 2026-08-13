@@ -35,9 +35,9 @@ linguagem.
 | `operational-time-cases.json` + máquina/checker/snapshot | TIME0 cobre 52 casos/277 operações (27 aceitos + 25 rejeitados) para Duration exata, Clock root-scoped, origin, default/active HostSuspendPolicy, profile monotônico, deadlines, boundaries e clock virtual; oito testes host usam entradas independentes | oracle host de design; não executa W, clock, timer, scheduler, OS ou provider `std.time@1` |
 | `kernel-module-cases.json` + máquina/checker/snapshot | KM0 cobre 32 casos/218 operações (6 aceitos + 26 rejeitados) para head de síntese, identities, call graph, famílias genéricas, artifacts source-backed/closed e ausência de JIT; nove testes host usam inputs independentes | oracle host de design; não executa W, compiler, kernel, linker, driver ou provider |
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 521/1338 decisões estão classificadas (162 source, 409 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 58 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 541/1347 decisões estão classificadas (167 source, 429 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 63 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 186 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 29 bundles R1, 73 variantes e 116 tarefas; 45/74 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
+| `studies/*/bundle.json` + checker | 37 bundles R1, 95 variantes e 148 tarefas; 66/74 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
 | `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
 | `tabular-adapter-cases.json` + máquina/checker/snapshot | TAB1 deriva source kind, u64 snapshot offsets/short reads, nominal schema identity, publication, CSV tokenizer/nulls, Parquet footer/page/mapping/key/commit, Arrow IPC dictionary/buffer, borrowed view, copy materialization, progress/cancel, provenance, C quota/trust/release; 86 casos e 193 operações (36 aceitos + 50 rejeitados) | oracle host independente; símbolos Last Light são cross-linked; não implementa reader CSV/Parquet/Arrow, compiler, runtime ou provider |
@@ -106,11 +106,48 @@ Os quatro bundles independentes preservam os invariantes do design e não mudam
   site. `using:` continua um label local livre.
 
 Cada bundle usa quatro tasks em ordem `explain`, `recall`, `repair`, `change`,
-ordens counterbalanced, blinding, sourceBase e digests. Há 73 variantes totais,
-72 variantes `.w` parseadas pelo Tree-sitter e uma proposta textual `.txt`
-`reserved-not-parsed`; o witness region não faz parte do parse 72/72. Parse
-Tree-sitter das variantes `.w` e host oracle são evidência corrente. `w-compile`, `w-run`,
-`human-study` e `model-study` permanecem missing.
+ordens counterbalanced, blinding, sourceBase e digests. No checkpoint R1H0,
+havia 73 variantes totais, 72 variantes `.w` parseadas pelo Tree-sitter e uma
+proposta textual `.txt` `reserved-not-parsed`; o witness region não fazia parte
+do parse 72/72. Parse Tree-sitter das variantes `.w` e host oracle são evidência
+corrente. `w-compile`, `w-run`, `human-study` e `model-study` permanecem missing.
+
+### R1S1 — estrutura de source e formatter
+
+R1S1 adiciona oito bundles em sete famílias e promove 21 casos R0.
+Os bundles usam symbols reais de `reference/last-light`.
+Eles preservam o Restaurante no Fim do Universo como contexto adversarial:
+
+- [`r1-source-boundaries`](studies/r1-source-boundaries) fixa newline, semicolon,
+  discard e formatter.
+- [`r1-static-contract-syntax`](studies/r1-static-contract-syntax) fixa envelopes
+  attached, close nested e contrato local.
+- [`r1-data-declaration-surface`](studies/r1-data-declaration-surface) separa
+  struct transparente e object encapsulado.
+- [`r1-manifest-surface`](studies/r1-manifest-surface) compara o manifest
+  data-only com o witness de package inline.
+- [`r1-pattern-surface`](studies/r1-pattern-surface) cobre patterns nominais,
+  tuple scrutinee, cases fechados e rest externo.
+- [`r1-callable-property-surface`](studies/r1-callable-property-surface) cobre
+  property segura, slot de linguagem e closure arrow.
+- [`r1-source-phase-surface`](studies/r1-source-phase-surface) fixa imports antes
+  das declarations e body implementado.
+- [`r1-delimited-value-surface`](studies/r1-delimited-value-surface) fixa matrix
+  nested e tuple singleton.
+
+As variantes `selected` usam as formas correntes de R0. As alternativas vêm
+somente do registro R0. Witnesses textuais usam caminho não-`.w` e
+`reserved-not-parsed` quando a grammar não aceita a forma. As variantes `.w`
+parseiam sem recovery. Cada bundle fixa primary, adversarial, quatro tasks,
+ordens contrabalançadas, blinding, digests e host oracle independente.
+
+O checker deriva 37 bundles, 95 variantes, 148 tasks e 66/74 casos R0
+promovidos. O conjunto contém 85 variantes `.w` parseadas e dez witnesses
+reservados fora do parse. `sourceRefs` sustentam constructs adicionais de fontes
+reais sem criar uma segunda autoridade. Cada oracle compara todos os inputs com
+`expected` após derivação independente. Parse Tree-sitter e host oracle são
+evidência corrente. `w-compile`, `w-run`, `human-study` e `model-study`
+permanecem missing.
 
 ### Workflow single-file PYN1
 

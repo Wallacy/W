@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateSourceRefs } from "./study-source-refs.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const wDirectory = path.resolve(toolingDirectory, "..");
@@ -125,6 +126,15 @@ for (const bundleFile of bundleFiles) {
   ) {
     errors.push(`${location}.sourceBase.symbol is absent from the source base.`);
   }
+
+  errors.push(...validateSourceRefs({
+    bundleDirectory,
+    wDirectory,
+    sourceBaseFile: sourceBase,
+    sourceBaseSymbol: bundle.sourceBase?.symbol,
+    sourceRefs: bundle.sourceRefs,
+    location,
+  }));
 
   if (!Array.isArray(bundle.variants) || bundle.variants.length < 2) {
     errors.push(`${location}.variants must contain at least two variants.`);

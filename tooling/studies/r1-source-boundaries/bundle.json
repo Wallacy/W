@@ -1,0 +1,165 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-source-boundaries",
+  "title": "Source boundaries and fixed formatting at the Last Light restaurant",
+  "r0Cases": [
+    "R0-newline-whitespace",
+    "R0-semicolon-boundary",
+    "R0-fixed-formatter",
+    "R0-discard-semicolon"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/formatting.w",
+    "symbol": "oneLine",
+    "digest": "sha256:bd71e5e93863f389cfa5212549e081affe42934eebec2aeec9620297f6076f64"
+  },
+  "variants": [
+    {
+      "id": "selected-boundaries",
+      "role": "selected",
+      "language": "w",
+      "path": "selected-boundaries.w",
+      "digest": "sha256:32bc5b58ac5501e4ad5f420e936f68191aae45b6025c70fc019b95ad12ac84c8",
+      "changedConstructs": [
+        "newline return value",
+        "forced semicolon discard operation",
+        "fixed formatter policy over source items"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The selected source actively contains newline, discard, and formatter fixture operations."
+      }
+    },
+    {
+      "id": "reserved-boundaries",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "reserved-boundaries.txt",
+      "digest": "sha256:8d18370a41c88158aefa4cfed58cc1d6475961375f9dbff091492e57f90523aa",
+      "changedConstructs": [
+        "automatic semicolon insertion",
+        "environmental formatter policy"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "The automatic insertion and environmental policy forms are reserved witnesses."
+      }
+    }
+  ],
+  "entry": "sourceBoundaryEntry",
+  "inputs": [
+    {
+      "id": "newline-primary",
+      "operation": "newline-return",
+      "returnValue": 42,
+      "expected": { "value": 42 }
+    },
+    {
+      "id": "newline-boundary",
+      "operation": "newline-return",
+      "returnValue": 0,
+      "expected": { "value": 0 }
+    },
+    {
+      "id": "forced-semicolon",
+      "operation": "forced-semicolon",
+      "traceValue": "ready",
+      "stage": "accepted",
+      "expected": { "stage": "accepted", "trace": ["ready"], "semicolon": true }
+    },
+    {
+      "id": "discard-boundary",
+      "operation": "discard",
+      "traceValue": "",
+      "stage": "reserving",
+      "expected": { "stage": "reserving", "trace": [], "discarded": true }
+    },
+    {
+      "id": "formatter-order",
+      "operation": "formatter-policy",
+      "orderLabel": "presentation-label",
+      "items": [
+        { "kind": "import", "value": "kitchen" },
+        { "kind": "declaration", "value": "fn serve(order: Order) { serve(order) }" }
+      ],
+      "expected": { "canonical": "import kitchen\nfn serve(order: Order) { serve(order) }", "orderLabel": "import-declaration" }
+    },
+    {
+      "id": "automatic-insertion",
+      "operation": "automatic-semicolon-insertion",
+      "expected": { "accepted": false, "cause": "automatic-semicolon-insertion" }
+    },
+    {
+      "id": "environmental-formatter-candidate",
+      "operation": "environmental-formatter-policy",
+      "items": [
+        { "kind": "import", "value": "kitchen" },
+        { "kind": "declaration", "value": "fn serve(order: Order) { serve(order) }" }
+      ],
+      "policy": { "columnWidth": 80, "sortImports": true },
+      "expected": { "accepted": false, "cause": "environmental-formatter-policy" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain how newline, forced semicolon, discard, and formatter operations affect source boundaries."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the return, discard, and fixed-format operations.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a boundary defect without inventing an effect or changing source-item order.",
+      "mutations": {
+        "selected-boundaries": "Restore the newline return, forced semicolon, discard operation, and formatter sequence.",
+        "reserved-boundaries": "Reject automatic semicolon insertion and environmental formatter policy."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add one source item before the declaration while preserving fixed order and discard semantics."
+    }
+  ],
+  "presentationOrders": [
+    [
+      "selected-boundaries",
+      "reserved-boundaries"
+    ],
+    [
+      "reserved-boundaries",
+      "selected-boundaries"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "selected-boundaries": "A",
+      "reserved-boundaries": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:3f2a97135469987fd6bf0440a4f0e788485e79e742fde290a1e6d866a460ab76"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
+  }
+}

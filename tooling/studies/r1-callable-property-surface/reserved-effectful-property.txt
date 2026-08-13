@@ -1,0 +1,4 @@
+R1S1 reserved callable witnesses derived from kitchen.w::isIdle and hardware.w::legacyProbeStatus.
+callableSurfaceEntry
+
+isIdle: Bool { async get throws SensorError => readRemoteState() }

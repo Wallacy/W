@@ -1,0 +1,9 @@
+R1S1 reserved witnesses derived from formatting.w::oneLine.
+sourceBoundaryEntry
+
+return
+42
+
+automatic-semicolon-insertion
+columnWidth = project.setting
+sortImports = project.setting
