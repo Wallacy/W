@@ -156,8 +156,8 @@ for (const bundleFile of bundleFiles) {
       variantIds.add(variant.id);
     }
     if (variant.role === "selected") selectedCount += 1;
-    if (!["selected", "alternative"].includes(variant.role)) {
-      errors.push(`${variantLocation}.role must be selected or alternative.`);
+    if (!["selected", "alternative", "research-candidate", "rejected-witness"].includes(variant.role)) {
+      errors.push(`${variantLocation}.role must be selected, alternative, research-candidate, or rejected-witness.`);
     }
     requireString(variant.language, `${variantLocation}.language`);
     const variantFile = resolveContained(

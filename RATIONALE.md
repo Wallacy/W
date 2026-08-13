@@ -1782,6 +1782,60 @@ FFI e estudos humanos ou de modelo permanecem missing. A rota ATOM0 continua
 composable para wrappers. O record derivado e a reclamation adapter continuam
 **Pesquisa**.
 
+#### 1.4.8 GEN1 — suspensão incremental e ergonomia
+
+GEN1 informa e estreita o gate de design `GEN0-R1` sem promover uma primitive de frame. O
+estudo durável está em
+[`tooling/studies/gen1-incremental-suspension`](tooling/studies/gen1-incremental-suspension),
+com corpus, máquina, snapshot e teste host em
+[`tooling/gen1-incremental-suspension-cases.json`](tooling/gen1-incremental-suspension-cases.json),
+[`tooling/gen1-incremental-suspension-machine.mjs`](tooling/gen1-incremental-suspension-machine.mjs),
+[`tooling/gen1-incremental-suspension-results.snapshot.jsonl`](tooling/gen1-incremental-suspension-results.snapshot.jsonl)
+e [`tooling/gen1-incremental-suspension-reference.test.mjs`](tooling/gen1-incremental-suspension-reference.test.mjs).
+As variantes reutilizam `streams.w`, `execution.w`, `state_transitions.w`, os
+oracles de ownership/lifecycle/scheduler/liveness e `restaurant.w` por
+`sourceRefs` e digest. As três variantes `.w` são witnesses parseáveis;
+`compiler-stream-block.txt` é um Research witness reservado e
+`public-resumable-frame.txt` é um witness reservado intencionalmente rejeitado.
+
+O mesmo trace do restaurante é executado por duas máquinas independentes: um
+frame com program counter e slots suspensos, e um loop que retorna estado e
+token linear. A equivalência exige
+o mesmo grafo de owners, commits e happens-before, resultado tipado,
+cancelamento e sequência cleanup/drop/drain. Só packing e trace físico mudam.
+O corpus cobre pull simples, locals vivos na travessia, diálogo com valor de
+resume, failure typed continuável ou terminal, delegação equivalente a
+`yield-from`, view borrowed e `next`, canais cap0/cap1, cancel antes/depois do
+commit, child nested, lease de callback FFI e resume terminal/double/concurrent/
+late.
+
+O estudo mede declarações source reais por slices aplicáveis, não repete
+`expected`: conceitos públicos, handoffs de ownership, pontos explícitos de
+effect/cancel/cleanup, estado oculto, adições públicas de type/ABI e operações
+de source. Cada símbolo é único, tem digest próprio e só é comparado no mesmo
+cenário. LOC é somente contexto. A composição A (`Stream`/adapters/tasks), a máquina nominal B
+e os canais bounded C cobrem os traces do oracle. As slices de ergonomia
+comparam somente o mesmo cenário. O helper constrói dois pares de `Channel`
+bounded e devolve endpoints owned; ele resolve somente diálogo. O frame/resume
+público é intencionalmente rejeitado. Um bloco Stream compiler-owned permanece
+Research-candidate se mantiver `some Stream<Item,Failure>`, captures explícitos,
+capacity/prefetch, emissão de item `Result`, cancelamento, cleanup, effects e
+view bounded sem identidade/ABI pública. GEN0 continua `composable` para o
+problema comum e `GEN0-custom-frame` continua Research. A pergunta ergonômica
+fica aberta: diferenças estruturais são observações, não prova humana; falta
+evidência humana/modelo. Compile, run e provider também permanecem missing. Não
+há fechamento de gate.
+
+Antes dos witnesses reservados, o fixture parseável `builder-helper.w` mede um
+helper de biblioteca que cria e devolve dois pares de endpoints com `capacity`
+explícito. Ele é evidência de ergonomia somente para diálogo, não um novo
+contrato de channel ou de suspensão.
+
+As comparações registradas no estudo usam somente fontes primárias: o draft C23
+N3096, POSIX cancellation e message queues, LLVM Coroutines, Rust Reference e
+std `Future`/MPSC/scoped threads, e Python Language Reference, PEP 342/380 e
+asyncio TaskGroup/Queue. Elas são limites comparativos, não contratos herdados.
+
 ### 1.5 Memória, layout, errors e cleanup
 
 Esta seção preserva precedentes usados nas seções 9 a 11 de `DESIGN.md`. W usa
@@ -4109,6 +4163,17 @@ e owner table, e C testa composition com `SnapshotCell` ou adapter `unsafe`
 bounded. A rota do problema permanece Componível. Os requisitos de target,
 reclamation, interface mutation e FFI drain continuam gates **Pesquisa**.
 
+GEN0-R1 agora possui o bundle durável
+[`GEN1`](tooling/studies/gen1-incremental-suspension) com path, digest e claim
+em `nextStudyGate.studyRefs` do CAP0. O bundle compara a composição atual A
+(`Stream`/adapters/tasks), a máquina nominal B, os canais bounded C, um witness
+Research de bloco Stream compiler-owned e um witness E de frame público
+rejeitado. Ele cobre pull, travessia, diálogo, failure, delegação, view,
+backpressure, cancelamento, children e FFI lease nas duas lowerings do gate.
+As métricas de ergonomia vêm de símbolos source únicos nas slices do mesmo
+cenário; a fila de documentação continua `queued`. O estudo informa e estreita
+o gate, mas não é implementação, compilação, execução ou estudo humano/modelo.
+
 Assim, DYN0 não classifica o problema inteiro como rejeitado. O problema
 compõe com gerações tipadas. Somente o mecanismo de eval arbitrário recebe
 `foreignMechanismDisposition: intentionally-rejected`. O mesmo cuidado vale
@@ -5534,6 +5599,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1350 | interface, callable, lifecycle e evidência | signature/HIR/ABI preservam slot; overload usa W-LABEL-0004, initializer usa W-ALLOCATOR-0011; callable/capture/lifecycle/explainability e status permanecem explícitos | default parameter, ABI oculto, capture ou rehome implícito, claims de implementação |
 | W-1351 | expressividade de borrow de ordem superior | BRX0 fecha receiver e body-derived mapping; callable cria loan por invocation, stream item fica preso ao receiver/storage e adapters preservam OriginSet; free/protocol bodyless com dois inputs permanece Research por causa do default all-inputs; relation schema e carrier nominal são candidatos, sem syntax de lifetime, GAT ou metadata runtime | copiar lifetime names de Rust, promover relation syntax, tratar aggregate como mesmo resultado, esconder mapping em `any fn`, ou alegar compiler/runtime/provider |
 | W-1352 | estudo ATOM1 de extensibilidade atômica | um oracle adversarial separa record value-only (A), handle geracional com owner table (B) e retirement/reclamation (C); packing, SnapshotCell, domain e lock continuam atuais; carrier canônico sintetizado é o candidato Research preferido, raw-layout é rejeitado, e adapter de reclamation permanece Research, com target progress, interface identity e foreign boundary explícitos | pointer/owner safe por atomicidade, acoplar padding/layout de T ao carrier, protocol user-defined para qualquer record, generation sem owner table, RCU universal safe, reclamation sem quiescence/drop, ou claims de compiler/runtime/provider |
+| W-1353 | método e invariantes de GEN1 | o oracle compara as mesmas traces em duas máquinas independentes (`switched-resume-frame` com slots/PC e `returned-continuation-state-loop` com estado/token); owner graph, commit/HB, resultado, cancelamento e cleanup/drop/drain são invariantes. A/B/C permanecem composáveis no escopo observado. Ver W-454–469, W-1161/W-1163, W-1185/W-1186 e W-1240 para contratos existentes. | frame de usuário como ABI, lowering que altera ownership, metadata de runtime, caller echo ou tratar trace físico como semântica |
+| W-1354 | dispositions de evidência e ergonomia de GEN1 | métricas estruturais de símbolos source e slices do mesmo cenário deixam a pergunta ergonômica aberta (`observedStructuralDifference` + `humanDecisionPending`); o builder bounded é current-candidate somente para diálogo; frame/resume público é intencionalmente rejeitado; bloco Stream compiler-owned é Research-candidate sob captures, capacity/prefetch, `Result` item, cancelamento, cleanup, effects e ausência de identidade/ABI pública. O oracle informa/estreita `GEN0-R1`; compile, run, provider e estudos humano/modelo continuam ausentes. | `yield` ambiental com frame público, lifetime/effect/ABI ocultos, LOC como decisão, promover bloco compiler-owned sem prova, promover D por obrigação ou declarar fechamento por oracle |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

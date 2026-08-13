@@ -949,7 +949,8 @@
         "current": [
           "source-w",
           "host-oracle",
-          "design-ledger"
+          "design-ledger",
+          "gen1-design-oracle"
         ],
         "missing": [
           "w-compile",
@@ -976,7 +977,14 @@
           "two target lowerings",
           "cleanup trace"
         ],
-        "stopCondition": "Keep Stream and async composition if custom suspension adds hidden frame or cleanup state."
+        "stopCondition": "Keep Stream and async composition if custom suspension adds hidden frame or cleanup state.",
+        "studyRefs": [
+          {
+            "path": "tooling/studies/gen1-incremental-suspension/bundle.json",
+            "digest": "sha256:8381d44a4e9faf8e6c6a48502e85f98a46bfd1d323a6d6a783fa0b24016c9d97",
+            "claim": "GEN1 informs and narrows the GEN0-R1 Research question with independent lowerings, source-shaped A/B/C variants, a dialogue-only bounded helper, separate compiler-owned Stream Research and public-frame rejected witnesses, and structural same-scenario ergonomics; it does not close the gate."
+          }
+        ]
       },
       "documentation": {
         "question": "When is a W Stream enough, and when would custom suspension need a new contract?",
