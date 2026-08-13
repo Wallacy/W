@@ -1,0 +1,138 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-manifest-surface",
+  "title": "Data-only package manifests at the Last Light restaurant",
+  "r0Cases": [
+    "R0-manifest-record"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/package.w",
+    "symbol": "package {",
+    "digest": "sha256:b948a12612d0e656cbc4fba5809ef18c6ab4af8f085e55377f049ad55c469796"
+  },
+  "variants": [
+    {
+      "id": "data-only-package",
+      "role": "selected",
+      "language": "w-manifest",
+      "path": "data-only-package.w",
+      "digest": "sha256:0c49c728aa48878b8cb51f736a300ed9d6e42b7ecdc2ca5a19ee3052c3d1d0e0",
+      "changedConstructs": [
+        "data-only package block",
+        "schema and registry authority fields",
+        "manifest entry without executable module source"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The selected fixture contains an active package block and no inline contract syntax."
+      }
+    },
+    {
+      "id": "inline-package-record",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "inline-package-record.txt",
+      "digest": "sha256:4d625dcfd9bfce5fd58b67bec66627ab4933dfd5638b4fc983cb3be86be9fe81",
+      "changedConstructs": [
+        "inline angular package record"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "The inline package record is a reserved rejection witness."
+      }
+    }
+  ],
+  "entry": "package",
+  "inputs": [
+    {
+      "id": "primary-manifest",
+      "operation": "data-only-package",
+      "name": "last-light/restaurant",
+      "version": "0.1.0",
+      "edition": "2026",
+      "expected": {
+        "accepted": true,
+        "manifest": { "name": "last-light/restaurant", "version": "0.1.0", "edition": "2026" },
+        "executableSource": false
+      }
+    },
+    {
+      "id": "boundary-manifest",
+      "operation": "invalid-name",
+      "name": "",
+      "version": "0.0.0",
+      "edition": "2026",
+      "expected": { "accepted": false, "cause": "invalid-name" }
+    },
+    {
+      "id": "inline-candidate",
+      "operation": "inline-package-record",
+      "name": "last-light/restaurant",
+      "version": "0.1.0",
+      "edition": "2026",
+      "expected": { "accepted": false, "cause": "inline-package-contract" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain why package data stays in a data-only manifest instead of an executable source contract."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the schema, authority, name, version, and edition fields.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a manifest defect without adding an inline package record.",
+      "mutations": {
+        "data-only-package": "Restore the active package block and its data-only fields.",
+        "inline-package-record": "Reject the angular package record before source parsing."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add one manifest metadata field while keeping the package document data-only."
+    }
+  ],
+  "presentationOrders": [
+    [
+      "data-only-package",
+      "inline-package-record"
+    ],
+    [
+      "inline-package-record",
+      "data-only-package"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "data-only-package": "A",
+      "inline-package-record": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:9cc387eb877ac9f1935b752e0f68ba0ec43128d825f7c3571a7a6eb499bd33b2"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
+  }
+}

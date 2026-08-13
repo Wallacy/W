@@ -1,0 +1,4 @@
+R1S1 reserved delimiter witness derived from oracle.w::forecast.
+delimitedValueEntry
+
+let transform = [1.0, 0.0; 0.0, 1.0]

@@ -1,0 +1,7 @@
+R1S1 reserved pattern witnesses derived from domain.w::classifyParty.
+patternSurfaceEntry
+
+let { id: orderId, guest: { name } } = take order
+switch stage, guests { case .accepted, 1...4: .intimate }
+let ref Order(guest, items) = order
+case let RoutePattern(request): showMenu()

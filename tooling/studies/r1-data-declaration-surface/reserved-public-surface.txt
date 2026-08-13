@@ -1,0 +1,13 @@
+R1S1 reserved declaration witness derived from billing.w::MenuItem and kitchen.w::StockReservation.
+dataSurfaceEntry
+
+export struct MenuItem {
+  export course: Course
+  export label: DishLabel
+  export price: Money
+}
+
+export object StockReservation {
+  export var reserved: usize
+  export init(reserved: usize)
+}

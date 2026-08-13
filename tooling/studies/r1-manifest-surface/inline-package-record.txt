@@ -1,0 +1,4 @@
+R1S1 reserved manifest witness derived from package.w::package.
+package
+
+package<name: "last-light/restaurant", version: "0.1.0", products: [...]>

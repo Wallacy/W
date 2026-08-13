@@ -1,0 +1,169 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-delimited-value-surface",
+  "title": "Nested and singleton delimited values at the Last Light restaurant",
+  "r0Cases": [
+    "R0-nested-matrix-literal",
+    "R0-single-tuple-comma"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/oracle.w",
+    "symbol": "forecast",
+    "digest": "sha256:d585ab8bdae4aabe7c73ec0d701d5236fa87e50bd5f2b16f9ef112a05e5c9b8b"
+  },
+  "variants": [
+    {
+      "id": "nested-and-singleton",
+      "role": "selected",
+      "language": "w",
+      "path": "nested-and-singleton.w",
+      "digest": "sha256:0f2653a400ae9103e67372489e1042d46600c50ac1720709024b82e025b6015e",
+      "changedConstructs": [
+        "nested collection matrix literal",
+        "trailing-comma singleton tuple",
+        "one-time tuple destructure"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The selected source actively distinguishes nested collections from singleton tuple destructure."
+      }
+    },
+    {
+      "id": "grouped-scalar",
+      "role": "alternative",
+      "language": "w",
+      "path": "grouped-value.w",
+      "digest": "sha256:e27c726120c1cb892482522a74b0cafa22a874f55bc9a4abea618f8e5d4d9d95",
+      "changedConstructs": [
+        "parenthesized scalar grouping without tuple comma"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The grouping candidate is active W and has no tuple destructure."
+      }
+    },
+    {
+      "id": "reserved-semicolon-matrix",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "reserved-semicolon-matrix.txt",
+      "digest": "sha256:728d98e9eb4bcb37f8f8bc93edaf02d8c8e3a7b77ac34b2dd704c5844bccefb3",
+      "changedConstructs": [
+        "semicolon row separator"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "The semicolon matrix spelling is a reserved rejection witness."
+      }
+    }
+  ],
+  "entry": "delimitedValueEntry",
+  "inputs": [
+    {
+      "id": "primary-two-by-two",
+      "operation": "nested-matrix",
+      "dish": "nebula",
+      "rows": [[1, 0], [0, 1]],
+      "expected": { "accepted": true, "shape": [2, 2], "tupleArity": 1, "ownerConsumed": true, "destructured": ["only"] }
+    },
+    {
+      "id": "boundary-empty-matrix",
+      "operation": "nested-matrix",
+      "dish": "",
+      "rows": [],
+      "expected": { "accepted": true, "shape": [0, 0], "tupleArity": 1, "ownerConsumed": true, "destructured": ["only"] }
+    },
+    {
+      "id": "ragged-adversarial",
+      "operation": "ragged-matrix",
+      "dish": "nebula",
+      "rows": [[1], [1, 2]],
+      "expected": { "accepted": false, "cause": "ragged-matrix", "ownerConsumed": false }
+    },
+    {
+      "id": "grouped-scalar-candidate",
+      "operation": "grouped-scalar",
+      "dish": "nebula",
+      "rows": [[1, 0], [0, 1]],
+      "expected": { "accepted": true, "grouped": true, "tupleArity": 0, "ownerConsumed": false }
+    },
+    {
+      "id": "semicolon-candidate",
+      "operation": "semicolon-matrix",
+      "dish": "nebula",
+      "rows": [[1, 0], [0, 1]],
+      "expected": { "accepted": false, "cause": "semicolon-row-separator", "ownerConsumed": false }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain which brackets create nested collections and which comma creates a singleton tuple."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the nested literal, tuple destructure, and grouped scalar.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a delimiter defect without changing matrix shape or consuming an owner twice.",
+      "mutations": {
+        "nested-and-singleton": "Restore nested brackets, the trailing comma, and one-time tuple destructure.",
+        "grouped-scalar": "Keep grouping distinct from tuple construction and ownership consumption.",
+        "reserved-semicolon-matrix": "Reject the semicolon row-separator operation."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add one matrix row while preserving singleton tuple arity and one-time owner consumption."
+    }
+  ],
+  "presentationOrders": [
+    [
+      "nested-and-singleton",
+      "grouped-scalar",
+      "reserved-semicolon-matrix"
+    ],
+    [
+      "grouped-scalar",
+      "reserved-semicolon-matrix",
+      "nested-and-singleton"
+    ],
+    [
+      "reserved-semicolon-matrix",
+      "nested-and-singleton",
+      "grouped-scalar"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "nested-and-singleton": "A",
+      "grouped-scalar": "B",
+      "reserved-semicolon-matrix": "C"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:0cfe6a3de2b4344b5cd271d2755ea156225e63ac132b2bf026ae8b94562c35fd"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
+  }
+}

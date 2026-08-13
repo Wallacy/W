@@ -1347,6 +1347,55 @@ ou [`mach_absolute_time`](https://developer.apple.com/documentation/kernel/14624
 Essas fontes sustentam que included/excluded é uma propriedade do provider;
 elas não justificam um relógio global ou uma inferência de `.unspecified`.
 
+#### 1.3.29 R1S1 — estrutura de source e formatter
+
+R1S1 promove 21 casos R0 em oito bundles organizados em sete famílias.
+O contexto concreto usa estas fontes centrais: `formatting.w`, `generics.w`,
+`package.w`, `domain.w`, `billing.w`, `kitchen.w`, `hardware.w`, `callables.w`,
+`app.w` e `oracle.w`. Os bundles também podem usar outras fontes reais via
+`sourceRefs`. Cada bundle fixa um
+`sourceBase` e um symbol real. Snippets compostos ficam na variante e não
+alteram o source base. Um `sourceRefs` opcional sustenta constructs adicionais
+de fontes reais sem criar uma segunda autoridade.
+
+Os bundles são:
+
+- [`r1-source-boundaries`](tooling/studies/r1-source-boundaries), para newline,
+  semicolon e formatter fixo;
+- [`r1-static-contract-syntax`](tooling/studies/r1-static-contract-syntax), para
+  envelopes ligados, closes nested e contrato local;
+- [`r1-data-declaration-surface`](tooling/studies/r1-data-declaration-surface),
+  para struct transparente e object encapsulado;
+- [`r1-manifest-surface`](tooling/studies/r1-manifest-surface), para o manifest
+  data-only e o witness de package inline;
+- [`r1-pattern-surface`](tooling/studies/r1-pattern-surface), para patterns
+  nominais, tuple scrutinee, cases fechados e rest externo;
+- [`r1-callable-property-surface`](tooling/studies/r1-callable-property-surface),
+  para property segura, slot de linguagem e closure;
+- [`r1-source-phase-surface`](tooling/studies/r1-source-phase-surface), para
+  import phase e body de function;
+- [`r1-delimited-value-surface`](tooling/studies/r1-delimited-value-surface),
+  para matrix nested e tuple de um elemento.
+
+A variante `selected` preserva as formas vigentes dos casos R0. Cada
+`alternative` usa somente uma forma já registrada no caso correspondente. Uma
+forma que a grammar corrente não aceita usa witness textual não-`.w` com
+`parseEvidence.status: reserved-not-parsed`. As variantes `.w` passam pelo
+Tree-sitter sem recovery.
+
+Os inputs incluem casos primary, adversariais e candidatos explícitos para cada
+variante. Cada oracle remove `expected` antes de derivar o outcome e compara o
+resultado exato de cada input. Eles cobrem fronteiras vazias e de limite,
+nesting, effects, ownership, open-pattern e import-order conforme o grupo.
+O oracle não compila nem executa W.
+
+Todos os bundles permanecem `design-oracle-input`. Tree-sitter parse e host
+oracle são evidência corrente. `w-compile`, `w-run`, `human-study` e
+`model-study` permanecem missing. A contagem é derivada pelos scripts. Ela
+fecha em 37 bundles, 95 variantes, 148 tasks e 66/74 casos R0 promovidos.
+O conjunto contém 85 variantes `.w` parseadas e dez witnesses reservados fora
+do parse.
+
 ### 1.4 Concorrência, paralelismo e execução
 
 Esta seção preserva comparação, precedentes e alternativas. A seção 12 de
@@ -5155,3 +5204,12 @@ esses roots preservados.
 | W-1336 | provider profile e origin map SHC0 | admission/open é separado da construção; `AllocationOriginMap` inclui `$storage`, `$controlBlock` e record com origin/deallocator/mobility/lifetime/adoption/bulk; payload shareability vem do tipo/HIR, contador do plano de control block e mobility da travessia do map; profile/recipe fecha progress e limits | descriptor sozinho como prova, allocator no tipo, origem escondida no pointer, plan open dentro do initializer, caller flags |
 | W-1337 | failure e boundary SHC0 | falha consuming limpa prepublication exatamente uma vez; `rehome` unique precede shared cross-domain e altera origin/mobility sem provar shareability; boundary exige payload shareable, contador thread-safe e todas origins móveis; shared não é rehomable; nested calls não herdam allocator | restauração implícita, shared rehome, propagação transitive, boundary local, flags caller divergentes |
 | W-1338 | evidence SHC0 e FFI | oracle independente e fixture do restaurante cobrem default/custom/try, weak, rehome, nested origins e cycles; `memory.w::watchClosingBell`/`BellLease` fornece a fonte FFI, enquanto os casos exigem unregister para fechar admission, drain in-flight, destroy/unpin/reclaim em ordem; `BellLease` não prova drain pelo header; lease externa fecha e drena separadamente no ASC0; métricas não alegam runtime | M1 interno chamado source, API FFI inventada no fixture SHC0, callback local escapante, drain antes de unregister, facts FFI incompletos, oracle como compiler/provider |
+| W-1339 | fronteira de evidência R1S1 | oito bundles em sete famílias registram `design-oracle-input`; parse Tree-sitter e host oracle são evidência corrente, enquanto compile, run e estudos permanecem missing; witnesses reservados declaram `reserved-not-parsed` | chamar parse ou oracle host de execução W, declarar participante inexistente, ocultar witness |
+| W-1340 | bundle R1S1 de fronteiras source | `r1-source-boundaries` separa operações de newline, forced semicolon, discard e formatter; a canonização deriva da sequência de source items e usa `formatting.w` como source base | automatic semicolon insertion, remoção por aparência, policy de formatter ambiental ou fonte sem relação |
+| W-1341 | bundle R1S1 de contratos syntax | `r1-static-contract-syntax` compara envelope attached, close nested e contrato local no fixture `generics.w`; `package.w` é source reference e o manifest angular fica em witness textual | reparsing por whitespace, close obrigatório inventado ou package record tratado como contrato local |
+| W-1342 | família R1S1 de declarations | `r1-manifest-surface` cobre manifest data-only e `r1-data-declaration-surface` cobre `billing.w::MenuItem` e `kitchen.w::StockReservation`; field export e projection segura são alternativas, enquanto storage público é rejeitado | package inline, export total implícito ou constructor público sintetizado |
+| W-1343 | bundle R1S1 de patterns | `r1-pattern-surface` compara identity nominal, tuple scrutinee, cases fechados e field-set/open-rest derivado de `newField`; structural, multi-subject, implicit-open e custom dispatch são witnesses | pattern estrutural sem nominalidade, exaustividade aberta implícita, route error escolhido por dado ou handler que esconde effects |
+| W-1344 | bundle R1S1 de callable e property | `r1-callable-property-surface` usa `kitchen.w::isIdle`, `hardware.w::legacyProbeStatus` e `callables.w` para a closure; separa property/method, effectful property, `fn<C>`/slot nomeado e closure/anonymous-fn | suspension ou failure escondidas em member access, capture omitido, status runtime usado para rejeitar sintaxe ou linguagem estrangeira reparseada |
+| W-1345 | bundle R1S1 de fases source | `r1-source-phase-surface` deriva first declaration, import-after-declaration e body presence de uma sequência de source items; interleaved import e prototype são operations adversariais explícitas | descoberta por scan de arrays já classificadas, prototype solto, empty import como prova ou ordem de import ambiental |
+| W-1346 | bundle R1S1 de values delimitados | `r1-delimited-value-surface` separa matrix nested, tuple singleton, grouped scalar, ragged adversarial e semicolon rejection causal; owner consumption fica explícito | semicolon com significado de row, grouping tratado como tuple, ragged ad hoc ou owner consumido duas vezes |
+| W-1347 | métricas e fechamento R1S1 | scripts derivam oito bundles, 95 variantes, 148 tasks e promoção de 66/74 casos R0; nenhuma métrica afirma compilação, execução ou estudo humano/modelo | contagem manual, promoção por digest ou tratar design-oracle-input como ratificação |

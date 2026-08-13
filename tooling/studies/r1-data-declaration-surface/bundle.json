@@ -1,0 +1,190 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-data-declaration-surface",
+  "title": "Transparent records and encapsulated objects at the Last Light restaurant",
+  "r0Cases": [
+    "R0-transparent-struct",
+    "R0-encapsulated-object"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/billing.w",
+    "symbol": "export struct MenuItem",
+    "digest": "sha256:0e8390f3abf494acd581898734d0bf8fcf00190973423143194d390dcd4e41e7"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/kitchen.w",
+      "symbol": "export object StockReservation",
+      "digest": "sha256:8befddb7e6db65936a2ad13a375e44cb8ac5fcd41d3e3cce837267dbbb6abfe4"
+    }
+  ],
+  "variants": [
+    {
+      "id": "transparent-and-encapsulated",
+      "role": "selected",
+      "language": "w",
+      "path": "transparent-and-encapsulated.w",
+      "digest": "sha256:2a632bc625e55f1a0ac4dae0d7f8ef61a22cbbeeb93fdf751dea7362a9784db0",
+      "changedConstructs": [
+        "transparent MenuItem fields",
+        "encapsulated StockReservation storage",
+        "exported release behavior"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The selected fixture contains active struct and object declarations with separate visibility rules."
+      }
+    },
+    {
+      "id": "field-by-field-exports",
+      "role": "alternative",
+      "language": "w",
+      "path": "field-by-field-exports.w",
+      "digest": "sha256:592f00b2bfeac3fa54770385b2120e39417dd51685e6d16699cb1a7ab8711c74",
+      "changedConstructs": [
+        "repeated field export spelling",
+        "same object storage boundary"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The alternative actively repeats field visibility while preserving object encapsulation."
+      }
+    },
+    {
+      "id": "public-storage",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "reserved-public-surface.txt",
+      "digest": "sha256:448166efb7b24167408059171e8fc3147836ec80d58629bdc3c1ddc0225950a8",
+      "changedConstructs": [
+        "public mutable reservation storage",
+        "synthesized public initializer"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "The public-storage form is a reserved rejection witness."
+      }
+    }
+  ],
+  "entry": "dataSurfaceEntry",
+  "inputs": [
+    {
+      "id": "primary-reservation",
+      "operation": "transparent-and-encapsulated",
+      "code": "nebula",
+      "price": 4200,
+      "reserved": 3,
+      "expected": {
+        "accepted": true,
+        "item": { "code": "nebula", "price": 4200 },
+        "storageVisible": false,
+        "released": 0
+      }
+    },
+    {
+      "id": "boundary-reservation",
+      "operation": "transparent-and-encapsulated",
+      "code": "",
+      "price": 0,
+      "reserved": 0,
+      "expected": {
+        "accepted": true,
+        "item": { "code": "", "price": 0 },
+        "storageVisible": false,
+        "released": 0
+      }
+    },
+    {
+      "id": "field-export-candidate",
+      "operation": "field-by-field-exports",
+      "code": "nebula",
+      "price": 4200,
+      "reserved": 3,
+      "expected": {
+        "accepted": true,
+        "item": { "code": "nebula", "price": 4200 },
+        "storageVisible": false,
+        "released": 0
+      }
+    },
+    {
+      "id": "public-storage-candidate",
+      "operation": "public-storage",
+      "code": "nebula",
+      "price": 4200,
+      "reserved": 3,
+      "expected": { "accepted": false, "cause": "public-storage" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain why transparent fields and object storage have separate visibility and ownership contracts."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct MenuItem fields and the StockReservation release boundary.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a declaration defect without exposing reservation storage or changing field visibility.",
+      "mutations": {
+        "transparent-and-encapsulated": "Restore the active transparent struct and private reservation storage.",
+        "field-by-field-exports": "Keep repeated field exports explicit and preserve object release behavior.",
+        "public-storage": "Reject public mutable storage and the synthesized initializer."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add one public read-only MenuItem field while keeping reservation mutation behind release behavior."
+    }
+  ],
+  "presentationOrders": [
+    [
+      "transparent-and-encapsulated",
+      "field-by-field-exports",
+      "public-storage"
+    ],
+    [
+      "field-by-field-exports",
+      "public-storage",
+      "transparent-and-encapsulated"
+    ],
+    [
+      "public-storage",
+      "transparent-and-encapsulated",
+      "field-by-field-exports"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "transparent-and-encapsulated": "A",
+      "field-by-field-exports": "B",
+      "public-storage": "C"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:ec048d668119890e23a287436a9bf39881fa90035afa0a1916d22c7b7c597ddb"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
+  }
+}

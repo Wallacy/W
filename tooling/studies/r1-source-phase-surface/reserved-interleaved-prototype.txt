@@ -1,0 +1,6 @@
+R1S1 reserved source-phase witnesses derived from app.w::runConsole.
+sourcePhaseEntry
+
+fn bake(order: Order): Dish { ... }
+import kitchen
+fn targetTemperature(): Celsius

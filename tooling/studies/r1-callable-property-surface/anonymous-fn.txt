@@ -1,0 +1,6 @@
+R1S1 anonymous-fn comparison witness derived from kitchen.w::isIdle.
+callableSurfaceEntry
+
+let greet = fn(arrival) {
+  return Welcome(orderId: arrival.orderId, gate: gate)
+}
