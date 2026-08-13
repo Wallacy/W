@@ -17,6 +17,7 @@
     "check:boundary": "bun tooling/check-boundary-effect-cases.mjs",
     "check:service-recovery": "bun test tooling/service-recovery-reference.test.mjs && bun tooling/check-service-recovery-cases.mjs",
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
+    "check:borrow-expressivity": "bun test tooling/borrow-expressivity-reference.test.mjs && bun tooling/check-borrow-expressivity-cases.mjs && bun test tooling/studies/r1-borrow-expressivity/oracle.test.mjs && bun run --cwd tooling/tree-sitter-w parse:borrow-expressivity",
     "check:frontend-freeze": "bun test tooling/frontend-freeze-guards.test.mjs && bun tooling/check-frontend-freeze.mjs",
     "check:semantic-matrix": "bun tooling/check-semantic-diagnostic-matrix.mjs && bun test tooling/semantic-diagnostic-matrix-reference.test.mjs",
     "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",

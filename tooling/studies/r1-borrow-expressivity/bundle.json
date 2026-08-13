@@ -1,0 +1,133 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-borrow-expressivity",
+  "title": "Higher-order borrowed results at the Last Light restaurant",
+  "r0Cases": [
+    "R0-borrow-bodyless-relation"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/borrow_expressivity.w",
+    "symbol": "selectPrimary",
+    "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709"
+  },
+  "variants": [
+    {
+      "id": "baseline",
+      "role": "selected",
+      "language": "w",
+      "path": "baseline.w",
+      "digest": "sha256:1d36eda292f69ef9d3665e335a5e818b0280f645d9fd708172bd6f5ce6f52cae",
+      "changedConstructs": [
+        "member receiver uses the current dependency-slot rule",
+        "body-derived free mapping remains exact",
+        "bodyless free requirements retain the all-inputs default",
+        "no source lifetime names or runtime metadata"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Tree-sitter parse completed without recovery errors."
+      }
+    },
+    {
+      "id": "aggregate",
+      "role": "alternative",
+      "language": "w-alternative",
+      "path": "aggregate.w",
+      "digest": "sha256:10183ea6f39d7520a03e85a291325089bd166233ecb32bf5d0b32c2c9762309d",
+      "changedConstructs": [
+        "nominal sum carries primary or fallback",
+        "direct borrowed result becomes an owned aggregate API",
+        "caller observes an API shape change"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Tree-sitter parse completed without recovery errors."
+      }
+    },
+    {
+      "id": "relation-schema",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "relation-schema.txt",
+      "digest": "sha256:e62aca3c2838dba92684f442e7749f7526803d900700c300c483f5dc3781b7d6",
+      "changedConstructs": [
+        "research-only result-to-input relation pair",
+        "missing, stale, duplicate, and forged mappings are rejected",
+        "candidate has no promoted source spelling"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "This is a prose witness for a Research candidate, not W source."
+      }
+    }
+  ],
+  "entry": "observeBorrowExpressivity",
+  "inputs": [
+    {
+      "id": "receiver-and-single-source",
+      "gate": "A1",
+      "expected": {
+        "decision": "accepted",
+        "mapping": "receiver-only"
+      }
+    },
+    {
+      "id": "primary-and-fallback-bodyless",
+      "gate": "A2/B1",
+      "expected": {
+        "decision": "research-blocker",
+        "mapping": "all-inputs-default",
+        "relation": "candidate-only"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain which cases close with a receiver or body-derived dependency slot, why bodyless primary/fallback stays conservative, and why the aggregate is an API change."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct A1, A2, B1, and B2 and name the evidence that is still missing.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared mutation by removing one missing, stale, duplicate, or forged relation/mapping entry without adding lifetime syntax.",
+      "mutations": {
+        "baseline": "Change a bodyless primary/fallback requirement to an exact body-derived receiver case.",
+        "aggregate": "Remove the sum return and restore the direct borrowed result contract.",
+        "relation-schema": "Restore the missing result-to-primary relation pair and keep the witness reserved."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Choose whether a future relation schema or a nominal aggregate best serves the two-input requirement, while preserving receiver, callable, stream, and boundary facts."
+    }
+  ],
+  "presentationOrders": [
+    ["baseline", "aggregate", "relation-schema"],
+    ["aggregate", "relation-schema", "baseline"],
+    ["relation-schema", "baseline", "aggregate"],
+    ["baseline", "relation-schema", "aggregate"],
+    ["relation-schema", "aggregate", "baseline"],
+    ["aggregate", "baseline", "relation-schema"]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "baseline": "A",
+      "aggregate": "B",
+      "relation-schema": "C"
+    },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:55fa4f14137ca80f92fd3ebc67a7e2bf26691233da39deec7c363adcdae429c7"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}

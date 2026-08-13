@@ -7642,6 +7642,12 @@ não são comparadas entre si. Mudar o mapping é mudança relevante de API e
 source-compatibility. `interface.lock` detecta a mudança. W não aceita lifetime
 annotation no source.
 
+BRX0 (W-1351) mantém essa fronteira: receiver-only member requirements e
+body-derived free mappings são expressivos; um free/protocol requirement
+bodyless com dois inputs continua Research porque o default corrente publica
+todos os inputs compatíveis. O estudo compara um schema relacional e um carrier
+nominal sem promover nova syntax, GAT ou metadata de lifetime em runtime.
+
 ##### 9.2.1.1 Escapes, destruction e diagnostics
 
 **Exemplo:** `return document` é aceito quando todas as origins de `document`
@@ -29033,6 +29039,13 @@ formatter. Esse oracle não é uma implementação de formatter, parser, compile
 runtime ou provider.
 O método e os 21 vínculos atuais ficam em
 [`RATIONALE.md` §1.25](RATIONALE.md#125-evidência-fz0-de-frontend).
+
+BRX0 mantém aberto somente o blocker de expressividade bodyless multi-input:
+[`tooling/borrow-expressivity-cases.json`](tooling/borrow-expressivity-cases.json)
+e seu snapshot host devem permanecer verdes enquanto Sol não ratificar uma
+composição relacional ou nominal. A contagem e a decisão são projeções em
+[`RATIONALE.md` §1.26](RATIONALE.md#126-evidência-brx0-de-expressividade-de-borrow-de-ordem-superior);
+isso não é implementação de compiler, runtime ou provider.
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da

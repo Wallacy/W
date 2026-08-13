@@ -191,6 +191,7 @@ alvo de execução independente.
 | `shared_control_oracle.w` | construção declarativa `shared T`, `try` fora do tipo, origins `$storage`/`$controlBlock`, weak lifetime e rehome; a fonte FFI canônica está em `memory.w` |
 | `hir_memory_oracle.w` | PlaceId, LoanId, reborrow, OriginSet, suspensão, representação e ABI |
 | `borrowed_values.w` | kitchens disjuntas, stored `ref`/`view`/`inout`, Array de refs, reborrow e await stable |
+| `borrow_expressivity.w` | callable borrowed por invocation, cursor lending, adapters source-shaped e o limite bodyless multi-input |
 | `allocation.w` | placement, origem, mobilidade, allocator scope, budget e rehome |
 | `allocator_oracle.w` | layout físico, provider, resize, progress e reclamation A0 |
 | `representation_oracle.w` | matriz de representação por fronteira e fallback portátil |
@@ -2776,6 +2777,24 @@ com estados pequenos. O corpus M1 em `tooling/memory-transition-cases.json`
 possui 185 casos e 606 operações. Ele é uma referência de contrato, não o
 futuro verifier.
 O compiler deve substituir esse modelo por HIR real no gate SH3/SH4.
+
+### 3.44.0.1 Expressividade de borrow BRX0
+
+`borrow_expressivity.w` é o fixture source-shaped para o estudo R1
+[`tooling/studies/r1-borrow-expressivity`](../../tooling/studies/r1-borrow-expressivity).
+O checker BRX0 deriva 22 casos: 15 mappings aceitos, sete blockers Research e
+quatro negativos de invocation. Ele cobre callable fresh-loan, cursor lending,
+storage reuse, adapters `map`/`filter`/chain, await, closure storage, `any fn`,
+boundaries e drift/mutations de witness, implementation, `interface.lock` e
+mapping-component digest. O item borrowed do adapter nasce no `next` do
+receiver/storage; a factory que recebe `take` publica um owner adapter.
+
+O limite atual é intencional: member receiver e body-derived mapping fecham,
+mas free/protocol requirement bodyless com `primary` e `fallback` só consegue o
+default all-inputs. Relation schema e carrier nominal são candidatos de
+Research; nenhum introduz lifetime syntax, GAT, compiler/runtime/provider ou
+metadata de lifetime em runtime. Parse Tree-sitter e host oracle são a
+evidência corrente; compile, run e estudos humano/modelo permanecem missing.
 
 ### 3.44.1 Oracle SHC0 de construção shared
 
