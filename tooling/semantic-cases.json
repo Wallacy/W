@@ -4687,6 +4687,157 @@
       "resolvedContext": {"originMobility": "local", "allOrigins": ["request", "request"]},
       "source": ["fn send(root: shared Menu) throws BoundaryError {", "  sendToProcess(root)", "}"],
       "expect": {"diagnostics": [{"code": "W-ALLOCATOR-0003", "phase": "semantic.ownership", "severity": "error", "primary": {"text": "sendToProcess(root)"}, "labels": [], "facts": {"allocator": "request", "boundary": "process", "origin": "local", "reason": "rehome-or-stable-storage-required"}, "notes": [], "fixes": []}]}
+    },
+    {
+      "id": "S0-POS-contextual-slot-standard-shape",
+      "kind": "positive",
+      "rule": "W-1330",
+      "source": [
+        "fn decode(allocator memory: ref Allocator, payload: ref Bytes): Document { return parse(payload) }"
+      ],
+      "expect": {
+        "focus": {"text": "fn decode(allocator memory: ref Allocator, payload: ref Bytes): Document { return parse(payload) }"},
+        "semanticResult": {
+          "resultType": null,
+          "category": "declaration",
+          "flow": {"kind": "next"},
+          "ownerDelta": [],
+          "effectSummary": {"signature": [], "control": [], "operational": []},
+          "proofFacts": [{"kind": "contextual-allocator-slot", "subject": "decode", "value": "first-standard-ref"}],
+          "evaluationGraph": {"nodes": [{"id": "slot", "operation": "publish-contextual-allocator", "subject": "decode"}], "edges": []}
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-contextual-slot-missing-standard-ref",
+      "kind": "negative",
+      "rule": "W-1330",
+      "baseline": "S0-POS-contextual-slot-standard-shape",
+      "failureField": "proofFacts",
+      "failureEvidence": {"field": "proofFacts", "baselineValueDigest": "sha256:e85554545018af2cddbfeadb69dd16dd0b37d2f4b422e81812a2a45b9258e4cb"},
+      "source": [
+        "fn decode(allocator memory: Allocator, payload: ref Bytes): Document { return parse(payload) }"
+      ],
+      "expect": {
+        "diagnostics": [{"code": "W-ALLOCATOR-0001", "phase": "semantic.capability", "severity": "error", "primary": {"text": "fn decode(allocator memory: Allocator, payload: ref Bytes): Document { return parse(payload) }"}, "labels": [], "facts": {"declaration": "decode", "parameter": "memory", "reason": "standardRefAllocatorRequired"}, "notes": [], "fixes": []}]
+      }
+    },
+    {
+      "id": "S0-POS-contextual-call-omission",
+      "kind": "positive",
+      "rule": "W-1350",
+      "source": [
+        "fn stage(allocator memory: ref Allocator, payload: ref Bytes): Document {",
+        "  return parse(payload)",
+        "}",
+        "fn caller(allocator current: ref Allocator, payload: ref Bytes): Document {",
+        "  return stage(ref payload)",
+        "}"
+      ],
+      "expect": {
+        "focus": {"text": "stage(ref payload)"},
+        "semanticResult": {
+          "resultType": "Document",
+          "category": "value",
+          "flow": {"kind": "next"},
+          "ownerDelta": [],
+          "effectSummary": {"signature": [], "control": [], "operational": []},
+          "proofFacts": [{"kind": "allocator-resolution", "subject": "stage", "value": "contextualParameter"}],
+          "evaluationGraph": {"nodes": [{"id": "call", "operation": "insert-contextual-allocator", "subject": "stage"}, {"id": "origin", "operation": "materialize-origin", "subject": "currentAllocator"}], "edges": [{"from": "call", "to": "origin", "kind": "before-ownership"}]}
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-contextual-call-missing-current",
+      "kind": "negative",
+      "rule": "W-1350",
+      "baseline": "S0-POS-contextual-call-omission",
+      "failureField": "proofFacts",
+      "failureEvidence": {"field": "proofFacts", "baselineValueDigest": "sha256:2fa5720d16c01e9d72a851aca07a8ca880c70327f5adc8bb5277bb4ac2a502ae"},
+      "source": [
+        "fn stage(allocator memory: ref Allocator, payload: ref Bytes): Document {",
+        "  return parse(payload)",
+        "}",
+        "fn caller(payload: ref Bytes): Document {",
+        "  return stage(ref payload)",
+        "}"
+      ],
+      "resolvedContext": {"rootAllocator": ".none", "available": []},
+      "expect": {"diagnostics": [{"code": "W-ALLOCATOR-0010", "phase": "semantic.capability", "severity": "error", "primary": {"text": "stage(ref payload)"}, "labels": [], "facts": {"expected": "Allocator", "available": [], "reason": "missingCurrentAllocator"}, "notes": [], "fixes": []}]}
+    },
+    {
+      "id": "S0-POS-overload-contextual-shapes-disjoint",
+      "kind": "positive",
+      "rule": "W-1350",
+      "source": [
+        "fn decode(allocator memory: ref Allocator, payload: ref Bytes): Document { return parse(payload) }",
+        "fn decode(payload: ref Bytes, mode: DecodeMode): Document { return parse(payload) }"
+      ],
+      "expect": {
+        "focus": {"text": "fn decode(allocator memory: ref Allocator, payload: ref Bytes): Document { return parse(payload) }"},
+        "semanticResult": {
+          "resultType": null,
+          "category": "declaration",
+          "flow": {"kind": "next"},
+          "ownerDelta": [],
+          "effectSummary": {"signature": [], "control": [], "operational": []},
+          "proofFacts": [{"kind": "overload-shape", "subject": "decode", "value": "disjoint-after-omission"}],
+          "evaluationGraph": {"nodes": [{"id": "overload", "operation": "check-source-shapes", "subject": "decode"}], "edges": []}
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-overload-contextual-shape-collision",
+      "kind": "negative",
+      "rule": "W-1350",
+      "baseline": "S0-POS-overload-contextual-shapes-disjoint",
+      "failureField": "proofFacts",
+      "failureEvidence": {"field": "proofFacts", "baselineValueDigest": "sha256:1408c172135bb6f39a0c170b7f26b4d3b5a4c272c4e788a410c6fa8c4fef9977"},
+      "source": [
+        "fn decode(allocator memory: ref Allocator, payload: ref Bytes): Document { return parse(payload) }",
+        "fn decode(payload: ref Bytes): Document { return parse(payload) }"
+      ],
+      "expect": {"diagnostics": [{"code": "W-LABEL-0004", "phase": "semantic.type", "severity": "error", "primary": {"text": "fn decode(payload: ref Bytes): Document { return parse(payload) }"}, "labels": [], "facts": {"declarations": ["decode-contextual", "decode-ordinary"], "forms": ["positional"], "reason": "contextualOmissionOverloadCollision"}, "notes": [], "fixes": []}]}
+    },
+    {
+      "id": "S0-POS-initializer-no-contextual-slot",
+      "kind": "positive",
+      "rule": "W-1350",
+      "source": [
+        "struct Menu {",
+        "  init(title: String) { }",
+        "}"
+      ],
+      "expect": {
+        "focus": {"text": "init(title: String) { }"},
+        "semanticResult": {
+          "resultType": null,
+          "category": "declaration",
+          "flow": {"kind": "next"},
+          "ownerDelta": [],
+          "effectSummary": {"signature": [], "control": [], "operational": []},
+          "proofFacts": [{"kind": "initializer-slot", "subject": "init", "value": "ordinary"}],
+          "evaluationGraph": {"nodes": [{"id": "initializer", "operation": "check-control-argument-separation", "subject": "init"}], "edges": []}
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-initializer-contextual-slot",
+      "kind": "negative",
+      "rule": "W-1350",
+      "baseline": "S0-POS-initializer-no-contextual-slot",
+      "failureField": "proofFacts",
+      "failureEvidence": {"field": "proofFacts", "baselineValueDigest": "sha256:aa44f7694d6fab9f5613b2e47ae71d724b7b35aadd244c8c15f3099e351cedac"},
+      "source": [
+        "struct Menu {",
+        "  init(allocator memory: ref Allocator, title: String) { }",
+        "}"
+      ],
+      "expect": {"diagnostics": [{"code": "W-ALLOCATOR-0011", "phase": "semantic.capability", "severity": "error", "primary": {"text": "init(allocator memory: ref Allocator, title: String)"}, "labels": [], "facts": {"declaration": "init", "kind": "initializer", "reason": "contextualAllocatorInInitializer"}, "notes": [], "fixes": []}]}
     }
   ]
 }

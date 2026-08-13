@@ -371,6 +371,17 @@ module.exports = grammar({
     parameter: ($) =>
       choice(
         seq(
+          field("name", alias("allocator", $.identifier)),
+          ":",
+          optional(
+            choice(
+              field("ownership", choice("ref", "inout", "take")),
+              field("const_requirement", "const"),
+            ),
+          ),
+          field("type", alias($.non_borrowed_type, $.type)),
+        ),
+        seq(
           "allocator",
           field("name", $.identifier),
           ":",
@@ -1089,8 +1100,7 @@ module.exports = grammar({
       seq(
         optional("try"),
         "allocator",
-        field("name", $.identifier),
-        ":",
+        optional(seq(field("name", $.identifier), ":")),
         field("plan", choice($.allocator_builtin_plan, $._expression)),
         field("body", $.block),
       ),

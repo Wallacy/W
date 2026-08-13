@@ -779,7 +779,7 @@ guard_statement = "guard" condition "else" (block | statement) ;
 
 do_statement = "do" block catch_clause+ ;
 catch_clause = "catch" (pattern ("if" expression)?)? block ;
-allocator_statement = "try"? "allocator" identifier ":" allocator_plan block ;
+allocator_statement = "try"? "allocator" (identifier ":")? allocator_plan block ;
 allocator_plan = contextual_member allocator_contract?
                | expression ;
 allocator_contract = "<" static_argument ("," static_argument)* ","? ">" ;
@@ -798,12 +798,14 @@ O parser aplica estas decisões antes do type checker:
 | `while` após body de `repeat` | pertence ao `repeat` |
 | `identifier : {` | block rotulado |
 
-`allocator` é contextual somente na posição `allocator name: plan { ... }` e
-como prefixo do primeiro parâmetro contextual de uma função. Em qualquer outra
-posição, o checker pode diagnosticar um identifier ou label inválido. O plan
-`.fixed<capacity: N>` usa `allocator_contract`; um plan customizado usa uma
-expression de provider. O parser preserva os dois como `allocator_plan` e o
-checker valida provider, target, capacity e lifecycle.
+`allocator` é contextual na posição `allocator name: plan { ... }` ou
+`allocator plan { ... }`, e como prefixo do primeiro parâmetro contextual de uma
+função. Um parâmetro `allocator: Allocator` sem nome interno contextual é um
+parâmetro callable comum. Em qualquer outra posição, o checker pode diagnosticar
+um identifier ou label inválido. O plan `.fixed<capacity: N>` usa
+`allocator_contract`; um plan customizado usa uma expression de provider. O
+parser preserva os dois como `allocator_plan` e o checker valida provider,
+target, capacity e lifecycle.
 
 O formatter remove um semicolon somente quando o reparse preserva os mesmos
 statement nodes e o mesmo papel yield/discard. Se a remoção unir expressions ou
@@ -4235,10 +4237,12 @@ deve ser o primeiro parâmetro explícito e não pode repetir. O label externo �
 `allocator:` e o nome interno é `name`. O parâmetro entra na signature, nos
 resource/interface facts e na ABI. Se uma declaração também publicar um effect
 row, o row conserva esse slot; o allocator não inventa um effect genérico. O
-body usa `name` como default lexical para
+body usa `name` como referência lexical para
 construction expressions diretas que omitem `allocator:`. Uma call a outra
-função não recebe esse default. O checker rejeita parâmetro não primeiro,
-duplicado ou oculto por overload.
+função com o slot contextual pode omitir `allocator:`: W-1349 insere
+`ref currentAllocator` na HIR. Um parâmetro comum chamado `allocator` ou apenas
+tipado `Allocator` não participa. O checker rejeita parâmetro contextual não
+primeiro, duplicado ou oculto por overload.
 
 ```w
 fn decode(allocator memory: ref Allocator, frame: ref Bytes): Frame {
@@ -8164,10 +8168,12 @@ fn plate(name: String): Dish {
 ```
 
 **W-1327 — declaração lexical de allocator:** `allocator` é uma declaração
-contextual que cria um owner e um capability binding nomeado. O plan adquire o
-provider antes do body. Uma construction expression direta dentro do body que
-omite `allocator:` usa o binding lexical mais interno. O default não atravessa
-uma call arbitrária.
+contextual que cria sempre um owner, uma lease e um scope. A forma nomeada é
+`[try] allocator name: plan { body }`. A forma anônima é
+`[try] allocator plan { body }`. O `:` é obrigatório somente quando existe o
+binding source. O plan pode ser built-in ou uma expression customizada. A forma
+anônima não cria identifier nem binding sintético observável. O plan adquire o
+provider antes do body.
 
 O primeiro exemplo assume um target/profile que prova a reserva estática, a
 admission infallible e a recursion alcançável fechada. Em um profile que não
@@ -8176,19 +8182,20 @@ prova esses fatos, a mesma declaração usa `try allocator`.
 ```w
 import iec from std
 
+struct Frame {}
+
 allocator scratch: .fixed<capacity: 64<iec.KiB>> {
   var frames = Array<Frame>()
-  let decoded = try decode(allocator: ref scratch, frame: ref frame)
+  // The body does not name the lease; direct construction uses it as current.
 }
 ```
 
-Uma construção direta é aquela que o checker associa ao contrato de alocação da
-construction expression no mesmo body. Uma call a `decode` não recebe o
-allocator por herança. O parâmetro contextual precisa aparecer explicitamente.
-`T(allocator: other, ...)` substitui o binding lexical para essa construção.
-Bindings seguem a regra lexical nominal geral de W. O binding mais interno
-vence para uma construction direta. Esta decisão não cria uma regra especial
-de shadowing para `allocator`.
+Uma construction direta é aquela que o checker associa ao contrato de alocação
+da construction expression no mesmo body. Sem `allocator:` ela usa o allocator
+corrente. Uma call usa o mesmo contexto somente quando o callee publica o slot
+contextual fechado em W-1349. `T(allocator: other, ...)` continua substituindo o
+allocator corrente para essa construction. Bindings nomeados seguem a regra
+lexical nominal geral de W. A forma anônima não pode ser referida pelo body.
 
 O caso que justifica o bloco tem muitos temporários com lifetime homogêneo. No
 restaurante, um decoder processa milhares de frames por batch. Um bloco fecha a
@@ -8199,15 +8206,19 @@ somente então faz reclaim físico. O mesmo caminho vale para `return`, `break`,
 ```w
 import iec from std
 
+fn decode(allocator memory: ref Allocator, frame: ref Bytes): Frame {
+  return Frame()
+}
+
 fn decodeTelemetry(
   allocator memory: ref Allocator,
   frames: ref Array<Bytes>,
 ): Array<Frame> throws AllocationError {
   // This profile proves static admission and closed recursion.
-  allocator scratch: .fixed<capacity: 64<iec.KiB>> {
+  allocator .fixed<capacity: 64<iec.KiB>> {
     var result = Array<Frame>(allocator: memory)
     for ref frame in frames {
-      let decoded = try decode(allocator: ref scratch, frame: ref frame)
+      let decoded = decode(ref frame)
       result.append(try (take decoded).rehome(allocator: memory))
     }
     return take result
@@ -8279,6 +8290,48 @@ child, wait ou dependent ativo e registra a primeira causa.
 Nenhuma call promove unique para shared. A forma `shared` declarada no binding
 continua o caminho corrente para o primeiro owner.
 
+**W-1348 — formas e contexto corrente:** o owner, a lease e o scope existem nas
+formas nomeada e anônima. A aquisição fallible usa `try` antes de `allocator`; se
+falha, não entra no body, não cria binding, lease ou contexto, e o diagnostic
+aponta o plan/range. O allocator corrente é uma stack semântica: root product
+quando publicado, slot contextual de função e leases lexicais. A prioridade de
+resolução é `explicit` > lexical innermost > `contextualParameter` >
+`productDefault`. O item mais interno vence; `scope exit` drena dependents e
+fecha a lease antes do pop. Root `.none` deixa a stack vazia. A função sem slot
+começa seu body somente com o próprio root; ela não recebe o lexical allocator do
+caller. O nome anônimo não cria identifier ou binding sintético observável.
+
+**W-1349 — conclusão contextual de call:** somente um callee com exatamente um
+slot keyword `allocator name: ref Allocator`, primeiro parâmetro explícito e
+identity standard participa da omissão. O compiler materializa `ref
+currentAllocator` antes de ownership/effects. `allocator:` explícito continua
+válido e faz override. Um parâmetro comum chamado `allocator`, ou apenas tipado
+`Allocator`, usa a resolução normal de labels. Cada função intermediária entra
+com o argumento materializado quando declara o slot; sem slot, ela reinicia no
+root e uma call seguinte pode usar o product default ou falhar em `.none`. Root
+incompatível falha antes do body. `W-ALLOCATOR-0010` cobre somente slot
+contextual genuíno sem current compatível. As transições de cadeia registram
+cada entrada/saída e `resolutionSource`.
+
+**W-1350 — interface, callable, lifecycle e evidência:** o slot permanece na
+semantic signature, function type, resource/interface facts, `AllocationOriginMap`
+e ABI; omission é source sugar e não altera type, identity, error ou effects.
+Initializer/construction declaration não pode declarar o slot contextual;
+`allocator:` é control argument compiler-owned. Foreign ABI mantém
+W-ALLOCATOR-0008. Overloads que colidem após omissão reutilizam W-LABEL-0004;
+initializer contextual usa W-ALLOCATOR-0011. Function values preservam o slot e
+throws/error; invocation pode preenchê-lo. Block externo não é capture implícita:
+closure usa slot próprio ou capture explícita; sem ambos, o body resolve pelo
+root e não pelo lease externo. O argumento implícito preserva lifetime, origin,
+mobility e contracts; não faz rehome, copy ou amplia authority. `await` estável
+segue W-1329; spawn/service/channel/callback e origin local seguem os gates
+vigentes. `resolutionSource` fechado é `explicit`, `lexicalBlock`,
+`contextualParameter` ou `productDefault`; `w explain memory` mostra identity,
+origin e insertion, sem expor binding anônimo. Named scope e explicit call são
+a Forma vigente para override, APIs ordinárias e rehome. Propagação sem
+signature, inferência por nome/tipo, `using`, capture escondida e contexto
+universal continuam rejeitados.
+
 ### 9.6 Allocator e origem
 
 `Allocator` é uma capability opaca de baseline. Código safe pode passá-la a APIs
@@ -8287,12 +8340,12 @@ de allocate, resize e deallocate.
 
 **W-1330 — parâmetro contextual de allocator:** uma função pode declarar no
 máximo um parâmetro contextual `allocator name: ref Allocator`. Ele deve ser o
-primeiro parâmetro explícito e fica na signature semântica, nos resource e
-interface facts e na ABI. Só participa de um effect row quando a linguagem
-declarar esse row explicitamente; o slot não inventa um effect genérico.
-O slot fornece o default lexical somente para construções diretas no body da
-função. A call de uma função chamada não herda o slot. Function types,
-closures, callbacks e HIR preservam o slot e sua origem. Uma foreign ABI deve
+primeiro parâmetro explícito e fica na signature semântica, no function type, nos
+resource e interface facts, no `AllocationOriginMap` e na ABI. Só participa de
+um effect row quando a linguagem declarar esse row explicitamente. O slot não
+inventa um effect genérico. Ele fornece o allocator corrente no body e publica o
+slot para a conclusão contextual de calls definida em W-1349. Function values,
+closures, callbacks e HIR preservam o slot e sua origin. Uma foreign ABI deve
 publicar o slot ou rejeitar a função. Um parâmetro não primeiro ou duplicado
 produz diagnostic antes da resolução de overload.
 
@@ -8310,8 +8363,9 @@ let callback: Decoder = decode
 Function types e callbacks preservam esse primeiro slot. Uma declaração
 `foreign<abi: .c> fn decode(allocator memory: ref Allocator, ...)` precisa
 publicar uma lowering ABI para o slot; se a ABI não o representa, o checker
-rejeita a declaração. O callee nunca recebe um allocator por propagação
-transitiva.
+rejeita a declaração. O callee recebe a omissão contextual somente quando cada
+função intermediária publica o mesmo slot. Não existe propagação transitiva
+fora dessa cadeia explícita.
 
 `Array<String>(allocator: memory)` preserva o initializer vigente. O envelope
 `<>` seleciona contratos e especialização estática. Os parênteses `()` recebem
@@ -8345,9 +8399,12 @@ origem necessária para resize e drop; ele não consulta um default novo depois.
 
 Fora de um allocator block, uma construction expression sem `allocator:` usa o
 default geral fixado pelo product e pelo host adapter. Dentro de um block, o
-binding lexical mais interno vence. Um parâmetro contextual fornece o mesmo
-default lexical no body da função. Nenhuma destas escolhas propaga para uma
-função chamada:
+allocator lexical mais interno vence. Um parâmetro contextual fornece o mesmo
+allocator corrente no body da função. Uma call pode omitir `allocator:` somente
+quando o callee satisfaz W-1349. A omissão propaga por uma cadeia somente quando
+cada função intermediária declara o slot. Uma função sem slot não herda o
+allocator lexical do caller; o body começa com o próprio root (ou `.none`) e
+resolve suas próprias calls nesse contexto:
 
 ```w
 import iec from std
@@ -8682,7 +8739,7 @@ Os diagnostics mínimos do contrato de allocator são:
 
 | Code | Condição |
 |---|---|
-| `W-ALLOCATOR-0001` | parâmetro contextual não é primeiro ou aparece mais de uma vez |
+| `W-ALLOCATOR-0001` | slot contextual não é o único primeiro `allocator name: ref Allocator` standard |
 | `W-ALLOCATOR-0002` | value, borrow, child, wait ou dependent escapa do allocator scope |
 | `W-ALLOCATOR-0003` | origem local alcança spawn, service, channel ou callback escapante sem mobilidade; `await` só falha sem owner/lifetime estáveis |
 | `W-ALLOCATOR-0004` | plan customizado não publica `providerDigest: [u8; 32]` não nulo, version, failure, deallocator, mobility ou `const descriptor`/`take fn open()` |
@@ -8691,6 +8748,8 @@ Os diagnostics mínimos do contrato de allocator são:
 | `W-ALLOCATOR-0007` | aquisição ou admission do plan falha antes de criar binding/body |
 | `W-ALLOCATOR-0008` | ABI foreign omite o slot contextual explícito de allocator |
 | `W-ALLOCATOR-0009` | fixed não prova reservation/admission infallible e omite `try allocator` |
+| `W-ALLOCATOR-0010` | slot contextual omitido sem allocator corrente compatível; facts incluem expected, available e reason |
+| `W-ALLOCATOR-0011` | initializer ou construction declaration declara slot contextual |
 
 ### 9.7 Provenance, pointer e address
 

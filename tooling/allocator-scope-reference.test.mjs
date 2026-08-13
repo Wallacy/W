@@ -3,7 +3,7 @@ import test from "node:test"
 import { runAllocatorScope } from "./allocator-scope-machine.mjs"
 
 test("direct construction uses lexical plan and explicit override changes origin", () => {
-  const local = runAllocatorScope({ plan: "fixed", operations: [{ op: "construct", explicitAllocator: "none" }] })
+  const local = runAllocatorScope({ plan: "fixed", scope: "scratch", operations: [{ op: "construct", explicitAllocator: "none" }] })
   const other = runAllocatorScope({ plan: "fixed", operations: [{ op: "construct", explicitAllocator: "other" }] })
   assert.equal(local.origin, "scratch")
   assert.equal(other.origin, "other")
@@ -63,4 +63,102 @@ test("custom plans use fixed descriptor facts and one lease close", () => {
     operations: [descriptor, { op: "open", outcome: "success" }, { op: "close" }, { op: "close" }],
   })
   assert.equal(secondClose.reason, "customLeaseClosedTwice")
+})
+
+test("contextual calls use product root or reject an explicit none root", () => {
+  const fallback = runAllocatorScope({
+    rootAllocator: "system",
+    operations: [{ op: "contextualCall", slot: { contextual: true, identity: "standard" } }],
+  })
+  assert.equal(fallback.resolutionSource, "productDefault")
+  assert.equal(fallback.origin, "system")
+
+  const none = runAllocatorScope({
+    rootAllocator: ".none",
+    operations: [{ op: "contextualCall", slot: { contextual: true, identity: "standard" } }],
+  })
+  assert.equal(none.code, "W-ALLOCATOR-0010")
+  assert.deepEqual(none.available, [])
+})
+
+test("allocator resolution keeps explicit, lexical, parameter, and root priority", () => {
+  const lexical = runAllocatorScope({
+    rootAllocator: "root",
+    contextualParameter: { identity: "parameter", mobility: "local" },
+    lexicalBlocks: [{ identity: "outer", name: "outer" }, { identity: "inner", name: "inner" }],
+    operations: [{ op: "contextualCall", slot: { contextual: true, identity: "standard" } }],
+  })
+  assert.equal(lexical.origin, "inner")
+  assert.equal(lexical.resolutionSource, "lexicalBlock")
+
+  const parameter = runAllocatorScope({
+    rootAllocator: "root",
+    contextualParameter: { identity: "parameter", mobility: "local" },
+    operations: [{ op: "contextualCall", slot: { contextual: true, identity: "standard" } }],
+  })
+  assert.equal(parameter.origin, "parameter")
+  assert.equal(parameter.resolutionSource, "contextualParameter")
+
+  const root = runAllocatorScope({
+    rootAllocator: "root",
+    operations: [{ op: "contextualCall", slot: { contextual: true, identity: "standard" } }],
+  })
+  assert.equal(root.origin, "root")
+  assert.equal(root.resolutionSource, "productDefault")
+
+  const result = runAllocatorScope({
+    rootAllocator: "root",
+    contextualParameter: { identity: "parameter", mobility: "local" },
+    lexicalBlocks: [
+      { identity: "outer", name: "outer", mobility: "local" },
+      { identity: "inner", name: "inner", mobility: "local" },
+    ],
+    operations: [
+      { op: "contextualCall", slot: { contextual: true, identity: "standard" } },
+      { op: "popContext" },
+      { op: "contextualCall", explicitAllocator: "outer", slot: { contextual: true, identity: "standard" } },
+    ],
+  })
+  assert.equal(result.resolutionSource, "explicit")
+  assert.equal(result.origin, "outer")
+  assert.equal(result.mobility, "local")
+})
+
+test("contextual chain restores the caller stack before the next call", () => {
+  const result = runAllocatorScope({
+    rootAllocator: "system",
+    lexicalBlocks: [{ identity: "caller", name: "caller", mobility: "local" }],
+    operations: [
+      {
+        op: "contextualChain",
+        links: [
+          { declaration: "stage", slot: { contextual: true, identity: "standard" } },
+          { declaration: "decode", slot: { contextual: true, identity: "standard" } },
+        ],
+      },
+      { op: "contextualCall", slot: { contextual: true, identity: "standard" } },
+    ],
+  })
+  assert.equal(result.origin, "caller")
+  assert.equal(result.resolutionSource, "lexicalBlock")
+})
+
+test("explicit external allocator needs mobility facts before a boundary", () => {
+  const accepted = runAllocatorScope({
+    operations: [
+      { op: "construct", explicitAllocator: "process", explicitMobility: "crossDomain" },
+      { op: "boundary", kind: "spawn" },
+    ],
+  })
+  assert.equal(accepted.origin, "process")
+  assert.equal(accepted.mobility, "crossDomain")
+
+  const unknown = runAllocatorScope({
+    operations: [
+      { op: "construct", explicitAllocator: "external" },
+      { op: "boundary", kind: "spawn" },
+    ],
+  })
+  assert.equal(unknown.code, "W-ALLOCATOR-0003")
+  assert.equal(unknown.reason, "unknownMobilityBoundary")
 })

@@ -500,6 +500,48 @@
           "role": "foreign-body"
         }
       ]
+    },
+    {
+      "id": "F0-allocator-anonymous-contextual-call",
+      "decisions": ["W-1348", "W-1350"],
+      "input": {
+        "lines": [
+          "fn stage(allocator memory:ref Allocator,title:ref String,dishes menuDishes:ref Array<String>):MenuSnapshot{",
+          "allocator .fixed<capacity:64<iec.KiB>>{",
+          "let snapshot=stage(ref title,dishes:ref dishes)",
+          "}",
+          "}"
+        ]
+      },
+      "output": [
+        "fn stage(allocator memory: ref Allocator, title: ref String, dishes menuDishes: ref Array<String>): MenuSnapshot {",
+        "  allocator .fixed<capacity: 64<iec.KiB>> {",
+        "    let snapshot = stage(ref title, dishes: ref dishes)",
+        "  }",
+        "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-allocator-named-override",
+      "decisions": ["W-1348", "W-1350"],
+      "input": {
+        "lines": [
+          "fn caller(allocator memory:ref Allocator,title:ref String){",
+          "allocator scratch:.fixed<capacity:64<iec.KiB>>{",
+          "let snapshot=stage(allocator:ref memory,ref title)",
+          "}",
+          "}"
+        ]
+      },
+      "output": [
+        "fn caller(allocator memory: ref Allocator, title: ref String) {",
+        "  allocator scratch: .fixed<capacity: 64<iec.KiB>> {",
+        "    let snapshot = stage(allocator: ref memory, ref title)",
+        "  }",
+        "}"
+      ],
+      "requiredSemicolons": []
     }
   ]
 }

@@ -1103,7 +1103,7 @@
       "state": "active",
       "phase": "semantic.capability",
       "defaultSeverity": "error",
-      "meaning": "an allocator contextual parameter is not first or is repeated",
+      "meaning": "an allocator contextual parameter is not the unique first standard ref Allocator slot",
       "requiredFacts": { "declaration": "string", "parameter": "string", "reason": "string" },
       "labelRoles": {},
       "fixes": {}
@@ -1185,6 +1185,26 @@
       "defaultSeverity": "error",
       "meaning": "a fixed allocator reservation or admission is not proven infallible and the declaration omits try",
       "requiredFacts": { "allocator": "string", "target": "string", "profile": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-ALLOCATOR-0010",
+      "state": "active",
+      "phase": "semantic.capability",
+      "defaultSeverity": "error",
+      "meaning": "a contextual allocator slot is omitted without a compatible current allocator",
+      "requiredFacts": { "expected": "string", "available": "string-set", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-ALLOCATOR-0011",
+      "state": "active",
+      "phase": "semantic.capability",
+      "defaultSeverity": "error",
+      "meaning": "an initializer or construction declaration declares a contextual allocator slot",
+      "requiredFacts": { "declaration": "string", "kind": "string", "reason": "string" },
       "labelRoles": {},
       "fixes": {}
     },

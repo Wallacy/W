@@ -411,6 +411,10 @@ const requiredDiagnostics = [
       [...table.matchAll(/`(W-[A-Z]+-[0-9]{4})`/g)].map((match) => match[1]),
     ),
   ),
+  "W-ALLOCATOR-0001",
+  "W-ALLOCATOR-0010",
+  "W-ALLOCATOR-0011",
+  "W-LABEL-0004",
 ].filter((code) => !code.startsWith("W-PARSE-"))
 
 const ids = new Set()
