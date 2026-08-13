@@ -35,6 +35,7 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - `if`, `guard`, loops, `switch`, `do`/`catch`, `defer` e retornos;
 - calls, members, tuples, coleções, literais e precedência candidata;
 - queries de highlights, locals e folds;
+- declaração `allocator` nomeada ou anônima, plans built-in e custom;
 - casos estruturais internos, incluindo a superfície integrada vigente.
 
 Na raiz de módulo, a projeção Tree-sitter mantém declarations e statements em

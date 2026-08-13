@@ -124,3 +124,199 @@ try allocator request: RestaurantPool(backing: ref processMemory, budget: 4<iec.
             (argument
               (identifier)
               (identifier))))))))
+
+==================
+Anonymous fixed allocator scope
+==================
+
+allocator .fixed<capacity: 64<iec.KiB>> {
+  let local = Array<String>()
+}
+
+---
+
+(source_file
+  (allocator_statement
+    (allocator_builtin_plan
+      (contextual_member_expression
+        (identifier))
+      (type_arguments
+        (type_argument
+          (identifier)
+          (static_argument_value
+            (quantity_literal)))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))))
+          (argument_list))))))
+
+==================
+Anonymous fallible custom allocator plan
+==================
+
+try allocator RestaurantPool(backing: ref processMemory, budget: 4<iec.MiB>) {
+  let order = Order(id: id)
+}
+
+---
+
+(source_file
+  (allocator_statement
+    (call_expression
+      (identifier)
+      (argument_list
+        (argument
+          (identifier)
+          (unary_expression
+            (identifier)))
+        (argument
+          (identifier)
+          (quantity_literal))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier)
+              (identifier))))))))
+
+==================
+Ordinary allocator-named parameter
+==================
+
+fn ordinary(allocator: ref Allocator) {
+  let value = Array<String>()
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))))
+          (argument_list))))))
+
+==================
+Anonymous allocator expression without a binding colon
+==================
+
+allocator scratch.fixed<capacity: 64<iec.KiB>> {
+  let local = Array<String>()
+}
+
+---
+
+(source_file
+  (allocator_statement
+    (generic_application_expression
+      (member_expression
+        (identifier)
+        (identifier))
+      (generic_call_arguments
+        (type_argument
+          (identifier)
+          (static_argument_value
+            (quantity_literal)))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))))
+          (argument_list))))))
+
+==================
+Contextual allocator missing ref is semantic input
+==================
+
+fn bad(allocator memory: Allocator) {
+  let local = Array<String>()
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))))
+          (argument_list))))))
+
+==================
+Initializer contextual allocator is semantic input
+==================
+
+struct Menu {
+  init(allocator memory: ref Allocator, title: String) {}
+}
+
+---
+
+(source_file
+  (struct_declaration
+    (type_identifier)
+    (type_body
+      (initializer_declaration
+        (parameter_list
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier))))
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (block)))))

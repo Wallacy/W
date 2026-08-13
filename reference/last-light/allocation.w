@@ -19,7 +19,8 @@ export fn stageMenu(
 ): MenuSnapshot throws AllocationError {
   // This fixture assumes the selected profile proves fixed admission
   // infallible. A dynamic reservation uses `try allocator`.
-  allocator scratch: .fixed<capacity: 2<iec.MiB>> {
+  // The body does not name this lease; the block is anonymous.
+  allocator .fixed<capacity: 2<iec.MiB>> {
     var stagedDishes = Array<String>()
     try stagedDishes.tryReserve(minimumCapacity: menuDishes.count)
 
@@ -38,7 +39,8 @@ export fn stageMenu(
 }
 
 export fn countEmergencyTokens(source: ref String): usize throws AllocationError {
-  allocator scratch: .fixed<capacity: 64<iec.KiB>> {
+  // The body does not name the capability, so the scope is anonymous.
+  allocator .fixed<capacity: 64<iec.KiB>> {
     var separators = Array<usize>()
     try separators.tryReserve(minimumCapacity: source.bytes.count)
 
@@ -61,29 +63,76 @@ fn snapshotBytes(snapshot: take MenuSnapshot): usize {
 }
 
 export async fn countStagedMenuInParallel(
+  allocator processMemory: ref Allocator,
   title: ref String,
   dishes: ref Array<String>,
-  processMemory: ref Allocator,
 ): usize throws AllocationError {
-  let snapshot = try stageMenu(allocator: ref processMemory, ref title, dishes: ref dishes)
+  // The callee publishes the contextual slot. The compiler inserts
+  // `allocator: ref processMemory` at this call.
+  let snapshot = try stageMenu(ref title, dishes: ref dishes)
   spawn<.compute> let count = snapshotBytes(take snapshot)
   return await count
 }
+
+fn nestedAllocatorScopes() {
+  allocator outer: .fixed<capacity: 64<iec.KiB>> {
+    allocator inner: .fixed<capacity: 64<iec.KiB>> {
+      let local = Array<String>()
+      // Explicit control argument overrides the innermost lease.
+      let portable = Array<String>(allocator: outer)
+    }
+  }
+}
+
+fn rootDefaultConstruction(
+  title: ref String,
+  dishes: ref Array<String>,
+): MenuSnapshot throws AllocationError {
+  // The product/host general allocator is the root current allocator here.
+  let names = Array<String>()
+  // Root context also completes a contextual call when the profile publishes it.
+  return try stageMenu(ref title, dishes: ref dishes)
+}
+
+fn ordinaryAllocatorParameter(allocator: ref Allocator) {
+  // A common parameter named allocator is not a contextual slot.
+  let names = Array<String>()
+}
+
+fn rootFallbackAfterIntermediary(
+  title: ref String,
+  dishes: ref Array<String>,
+): MenuSnapshot throws AllocationError {
+  // A function without the slot does not inherit the caller block. Its own
+  // product root completes this call, or `.none` rejects it before the body.
+  return try stageMenu(ref title, dishes: ref dishes)
+}
+
+type ContextualDecoder = fn(
+  allocator memory: ref Allocator,
+  ref String,
+  ref Array<String>,
+): MenuSnapshot throws AllocationError
+let contextualDecoder: ContextualDecoder = stageMenu
 
 test "a staged menu leaves its temporary allocator scope" for stageMenu {
   let title = "Menu at the Observable Edge"
   let dishes = ["Photon soup", "Patient comet cake"]
 
   allocator destination: .fixed<capacity: 8<iec.MiB>> {
-    let snapshot = try stageMenu(allocator: ref destination, ref title, dishes: ref dishes)
+    // The block is the current context for this contextual call.
+    let snapshot = try stageMenu(ref title, dishes: ref dishes)
     expect snapshot.title == title
     expect snapshot.dishes == dishes
   }
 
   // Compile-fail assay: local fixed storage cannot cross an execution domain.
-  // let count = await countStagedMenuInParallel(
-  //   ref title,
-  //   dishes: ref dishes,
-  //   processMemory: ref destination,
-  // )
+  // let local = Array<String>()
+  // spawn<.compute> let invalid = consume(take local)
 }
+
+// Compile-fail assays kept source-shaped for the design oracle:
+// - `memory: .none` rejects the omitted root allocator before the body.
+// - a custom plan whose `open()` fails enters neither body nor binding.
+// - an outer allocator is not captured by a stored/escaping closure without
+//   an explicit capture or its own contextual slot.

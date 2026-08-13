@@ -636,6 +636,24 @@
       "source": "std.io module metadata",
       "input": { "std": { "modules": [{ "id": "std.io", "tier": "old" }] } },
       "expect": { "diagnostic": "W-STD-0001" }
+    },
+    {
+      "id": "EE-POS-contextual-allocator-omission",
+      "kind": "positive",
+      "source": "fn stage(allocator memory: ref Allocator, payload: ref Bytes) {}\nfn caller(allocator current: ref Allocator, payload: ref Bytes) { stage(payload) }",
+      "expect": { "callableName": "stage", "callShapes": ["positional", "allocator:|positional"] }
+    },
+    {
+      "id": "EE-NEG-ordinary-allocator-is-label-call",
+      "kind": "negative",
+      "source": "fn ordinary(allocator: ref Allocator, payload: ref Bytes) {}\nfn caller(payload: ref Bytes) { ordinary(payload) }",
+      "expect": { "diagnostic": "W-LABEL-0005", "callableName": "ordinary" }
+    },
+    {
+      "id": "EE-NEG-contextual-omission-overload-collision",
+      "kind": "negative",
+      "source": "fn decode(allocator memory: ref Allocator, payload: ref Bytes) {}\nfn decode(payload: ref Bytes) {}",
+      "expect": { "diagnostic": "W-LABEL-0004", "callableName": "decode" }
     }
   ]
 }

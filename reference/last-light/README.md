@@ -2108,8 +2108,12 @@ Aceite:
   tipados e só depois recupera o storage;
 - o escape de um valor ligado ao allocator é rejeitado antes do runtime;
 - `object` não implica heap;
-- somente construções diretas no bloco omitem `allocator:`; uma função chamada
-  recebe `allocator: ref memory` explicitamente;
+- construções diretas usam o allocator corrente;
+- uma call a um callee com o slot contextual standard pode omitir `allocator:`;
+  o compiler insere a referência corrente;
+- cada função intermediária precisa declarar o slot para propagar a call;
+  uma função sem slot não herda o block;
+- `allocator:` explícito continua válido para override e rehome;
 - `tryReserve` falha antes de consumir os elementos;
 - cada string duplicada mantém a origem do allocator;
 - `.fixed` fornece uma capability scoped de `Allocator`; `.bounded` permanece
@@ -2132,6 +2136,13 @@ Aceite:
 - `.budgetExceeded` não vira `.outOfMemory`;
 - drop executa em ordem inversa da construção concluída;
 - um child paralelo não compartilha o allocator default;
+- um bloco anônimo cria owner, lease e scope, mas não cria binding observável;
+- o root product default preenche a call somente quando publica um allocator;
+  root `.none` rejeita a omissão;
+- parâmetro comum chamado `allocator` não é contextual;
+- function values preservam o slot; uma closure armazenada/escapante exige
+  capture explícita e uma closure não escapante pode inferir `ref` sem tornar o
+  allocator externo o current context;
 - `.fixed` não pede storage ao OS quando o profile fornece placement suportado;
 - `.fixed` sem `try` exige reservation estática, admission infallible e recursion
   fechada no profile; admission dinâmica exige `try allocator`;
@@ -2160,6 +2171,32 @@ Aceite:
 - o snapshot retornado não depende do allocator temporário;
 - `w check memory --require no-general-allocation` mostra a call chain que viola
   o profile.
+
+O caso problem-first usa ambas as formas:
+
+```w
+allocator .fixed<capacity: 64<iec.KiB>> {
+  let snapshot = try stageMenu(ref title, dishes: ref dishes)
+}
+
+allocator outer: .fixed<capacity: 2<iec.MiB>> {
+  allocator inner: .fixed<capacity: 64<iec.KiB>> {
+    let snapshot = try stageMenu(ref title, dishes: ref dishes)
+    let portable = Array<String>(allocator: outer)
+  }
+}
+```
+
+`stageMenu` declara o slot contextual primeiro. A call omite o label e recebe a
+lease corrente. O primeiro block demonstra a forma anônima. `outer`
+demonstra override explícito e `inner` demonstra a precedência innermost.
+`rootFallbackAfterIntermediary` perde o lexical caller context e usa somente o
+root do próprio profile; sob `.none` a mesma call falha. `countStagedMenuInParallel`
+preserva o slot no function value. Uma closure armazenada não captura `outer`
+sem capture explícita; uma closure local pode referi-lo sem capture observável,
+mas suas allocations seguem o root ou o próprio slot. A matriz ASC0 também cobre overload
+collision, initializer rejection, `.none`, requirement incompatível, await
+stable e spawn de origin local.
 
 O oracle host executa um modelo source-shaped de `stageMenu` com uma falha
 injetada em cada allocation; isso não é execução do compiler, runtime ou

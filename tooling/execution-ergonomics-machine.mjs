@@ -105,7 +105,17 @@ function parseParameter(raw, index) {
     external = tokens[0]
     internal = tokens[1]
       .replace(/:.*/, "")
-    return { index, internal, external, policy: `required(${external})`, forms: [`${external}:`], hasDefault, variadic }
+    const contextualAllocator = /^allocator\s+[A-Za-z_][A-Za-z0-9_]*\s*:\s*ref\s+Allocator(?:\b|\s|<)/.test(cleaned)
+    return {
+      index,
+      internal,
+      external,
+      policy: `required(${external})`,
+      forms: [`${external}:`],
+      hasDefault,
+      variadic,
+      contextualAllocator,
+    }
   }
   const nameToken = tokens.find((token) => /^[A-Za-z_][A-Za-z0-9_]*:/.test(token))
   if (!nameToken) {
@@ -437,7 +447,9 @@ function completeCallShapes(parameters) {
       continue
     }
     const extended = shapes.flatMap((shape) => parameter.forms.map((form) => [...shape, form]))
-    shapes = parameter.hasDefault ? [...shapes, ...extended] : extended
+    shapes = parameter.hasDefault || parameter.contextualAllocator
+      ? [...shapes, ...extended]
+      : extended
   }
   return shapes.map((shape) => shape.join("|"))
 }
@@ -451,7 +463,7 @@ function epsilonClosure(parameters, initialStates) {
     const parameter = parameters[parameterIndex]
     const continuation = state % 2 === 1
     if (!parameter) continue
-    if (!continuation && !parameter.hasDefault && !parameter.variadic) continue
+    if (!continuation && !parameter.hasDefault && !parameter.variadic && !parameter.contextualAllocator) continue
     const next = (parameterIndex + 1) * 2
     if (!states.has(next)) {
       states.add(next)
@@ -507,14 +519,14 @@ export function acceptsCallContract(parameters, args) {
     }
     const parameter = parameters[parameterIndex]
     if (argumentIndex === args.length) {
-      const accepted = (parameter.hasDefault || parameter.variadic)
+      const accepted = (parameter.hasDefault || parameter.variadic || parameter.contextualAllocator)
         && visit(parameterIndex + 1, argumentIndex, false)
       memo.set(key, accepted)
       return accepted
     }
     const argument = args[argumentIndex]
     let accepted = false
-    if ((parameter.hasDefault || parameter.variadic)
+    if ((parameter.hasDefault || parameter.variadic || parameter.contextualAllocator)
       && visit(parameterIndex + 1, argumentIndex, false)) {
       accepted = true
     }

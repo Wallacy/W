@@ -1283,10 +1283,17 @@ endereço reutilizado.
 
 O bundle [`r1-arena-scope`](tooling/studies/r1-arena-scope) fica como evidência
 histórica de uma API retirada. ASC0 escolhe a declaração lexical
-`allocator scratch: .fixed<capacity: N> { ... }`, com construction sites diretos
-usando o binding mais interno e calls desacopladas recebendo o parâmetro
-contextual `allocator name: ref Allocator` explicitamente. O bloco fecha
-admission, children/waits/loans/dependents, typed drops e só então storage.
+`allocator scratch: .fixed<capacity: N> { ... }` ou a forma anônima
+`allocator .fixed<capacity: N> { ... }`. Construções diretas e calls cujo callee
+publica o slot contextual usam o allocator corrente. A omissão é preenchida
+somente por um slot `allocator name: ref Allocator` primeiro, único e standard.
+O bloco fecha admission, children/waits/loans/dependents, typed drops e só então
+storage.
+
+A restrição anterior, que exigia `allocator:` explícito em toda call, foi
+substituída por W-1349. Ela escondia a continuidade do caso de uso sem criar
+uma prova adicional. A assinatura continua explícita para type, HIR e ABI, e a
+forma explícita continua disponível para override e APIs ordinárias.
 
 Todos os inputs preservam storage fixed e bounded, ausência de alocação do OS,
 drop ledger antes de bulk release, proibição de escape, `rehome` antes de uma
@@ -1793,14 +1800,17 @@ informam strong failure, resize in-place e relocation. W deixa fallback e
 commit no caller e registra origem por receipt.
 
 ASC0 substitui a antiga surface `Arena` por uma declaração lexical:
-`allocator scratch: .fixed<capacity: N> { ... }`. O binding cria owner e
-capability scoped. Construction sites diretos no corpo omitem `allocator:` e
-usam o binding mais interno; calls arbitrárias não recebem uma propagação
-ambiental. Um parâmetro contextual pode aparecer somente primeiro e uma vez:
+`allocator scratch: .fixed<capacity: N> { ... }` ou
+`allocator .fixed<capacity: N> { ... }`. O bloco cria owner, lease e scope.
+Construction sites diretos no corpo usam o allocator corrente. Calls cujo callee
+publica `allocator name: ref Allocator` no primeiro slot também podem omitir
+`allocator:`. A assinatura permanece explícita, e a cadeia só propaga quando
+cada intermediário publica o slot. Um parâmetro contextual pode aparecer somente
+primeiro e uma vez:
 `fn decode(allocator memory: ref Allocator, frame: ref Bytes): Frame`.
-Esse slot entra em signature, resource/interface facts, HIR e ABI, mas só fornece default lexical
-ao corpo da função. Provider facts, mobility e origin ficam na HIR e no
-`AllocationOriginMap`, não em um tipo source refinado.
+Esse slot entra em signature, resource/interface facts, HIR e ABI. Provider
+facts, mobility e origin ficam na HIR e no `AllocationOriginMap`, não em um tipo
+source refinado.
 
 `.fixed<capacity: N>` usa reserva de lowering por frame, task ou agregado, sem
 buffer de caller. Placement e capacity são gates de target/profile; recursion
@@ -5192,10 +5202,10 @@ esses roots preservados.
 | W-1324 | phases | DESIGN/catalog/machine share closed ordered set | missing phase, alias, drift, lifecycle |
 | W-1325 | ASC0 memory transition evidence | M1 covers contextual weak transitions; four R1 host oracles cover weak acquisition, Arena problem matrix, allocator control-label reservation/mobility and suspend deadline outcomes; none executes compiler, runtime or provider | expected echo, provider execution, inferred label semantics, weak payload access |
 | W-1326 | allocator control argument | `allocator:` is reserved only in construction expressions, appears before ordinary arguments, stays outside overload/initializer signature, and governs published allocation sites only; `using:` remains free elsewhere | global reservation of `allocator:`, propagation to arbitrary initializer allocations, user-defined allocator meaning, inference by label text |
-| W-1327 | declaração lexical de allocator | `allocator name: plan { ... }` cria owner/capability lexical; construction direta usa o binding mais interno; nomes seguem a regra lexical nominal geral sem regra especial de allocator | `Arena.fixed`, região sem binding, contexto ambiental transitivo, regra especial de shadowing para allocator |
+| W-1327 | declaração lexical de allocator (estendido por W-1348) | `allocator name: plan { ... }` e `allocator plan { ... }` criam owner/lease/scope; construction direta usa a stack corrente; nome anônimo não cria binding observável | `Arena.fixed`, scope sem owner/lease, região implícita ambiental, contexto ambiental transitivo, regra especial de shadowing para allocator |
 | W-1328 | plans fixed, bounded e custom | `.fixed<capacity: N>` reserva storage por lowering sob gates de placement/admission; recursion multiplica reservation; `.bounded<budget: N>` permanece Research; `AllocatorPlan` publica `providerDigest: [u8; 32]`, version/failure/deallocator/mobility, `const descriptor` e consuming `open()`; a lease fecha em `deinit`; acquisition fallible usa `try allocator` | enum fechado de providers, promessa de O(1) total, raw provider sem contract, fallback oculto |
 | W-1329 | lifecycle, escape e rehome | close drena children/waits/loans/dependents, executa drops tipados e só então reclaim; unwind é uniforme; origin local sobrevive a `await` na mesma task com owner/lifetime estáveis, mas exige `rehome` antes de spawn/service/channel | reset comum, detached work, escape unchecked, drop após bulk release |
-| W-1330 | parâmetro contextual de allocator | primeiro e único slot `allocator name: ref Allocator` entra signature/resource facts/ABI/HIR e só fornece default lexical ao corpo; function types/callbacks preservam slot | parâmetro oculto em toda função, slot não primeiro/duplicado, propagação transitive, ABI foreign escondida |
+| W-1330 | parâmetro contextual de allocator (estendido por W-1349/W-1350) | primeiro e único slot `allocator name: ref Allocator` entra signature/resource facts/ABI/HIR, publica conclusão contextual de call e preserva function type/callable/lifecycle facts | parâmetro oculto em toda função, slot não primeiro/duplicado, propagação sem slot, ABI foreign escondida |
 | W-1331 | aquisição ativa de clock | `process.clock()`/`ctx.clock()` selecionam default nonthrowing quando capability está disponível; `hostSuspend:` seleciona policy com `HostSuspendPolicy<[.included, .excluded]>`; `Clock.hostSuspendPolicy` é passive fact e `.unspecified` é diagnostic | `SuspendAccounting`, `suspendAccounting()`, `time.clock()` ambiental, inferência provider |
 | W-1332 | binding explícito de units | `250<ms>` exige import seletivo/flattened de `std.si`; `import si from std` exige `250<si.ms>`; registry ambient não existe | ms global, qualificação inconsistente, source sem binding |
 | W-1333 | evidence ASC0 | Last Light, corpus, parser, HIR e oracles cobrem allocator scope, clock active/default e units; nenhum declara compiler/runtime/provider implementado | expected echo, check como execução, compatibility pre-1.0 |
@@ -5213,3 +5223,6 @@ esses roots preservados.
 | W-1345 | bundle R1S1 de fases source | `r1-source-phase-surface` deriva first declaration, import-after-declaration e body presence de uma sequência de source items; interleaved import e prototype são operations adversariais explícitas | descoberta por scan de arrays já classificadas, prototype solto, empty import como prova ou ordem de import ambiental |
 | W-1346 | bundle R1S1 de values delimitados | `r1-delimited-value-surface` separa matrix nested, tuple singleton, grouped scalar, ragged adversarial e semicolon rejection causal; owner consumption fica explícito | semicolon com significado de row, grouping tratado como tuple, ragged ad hoc ou owner consumido duas vezes |
 | W-1347 | métricas e fechamento R1S1 | scripts derivam oito bundles, 95 variantes, 148 tasks e promoção de 66/74 casos R0; nenhuma métrica afirma compilação, execução ou estudo humano/modelo | contagem manual, promoção por digest ou tratar design-oracle-input como ratificação |
+| W-1348 | formas e stack corrente ASC0 | named/anonymous cria owner, lease e scope; root, parâmetro e lexical formam stack com prioridade explícita; open failure não publica contexto/binding | binding sintético, ambient lookup, fallback de acquisition ou herança lexical entre funções |
+| W-1349 | conclusão contextual de call | slot standard primeiro recebe `ref currentAllocator`; cadeia entra no callee e sem slot reinicia no root; W-ALLOCATOR-0010 cobre somente slot contextual sem current | inferência por nome/tipo, parâmetro comum ou propagação sem slot |
+| W-1350 | interface, callable, lifecycle e evidência | signature/HIR/ABI preservam slot; overload usa W-LABEL-0004, initializer usa W-ALLOCATOR-0011; callable/capture/lifecycle/explainability e status permanecem explícitos | default parameter, ABI oculto, capture ou rehome implícito, claims de implementação |

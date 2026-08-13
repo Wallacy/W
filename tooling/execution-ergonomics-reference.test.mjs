@@ -548,3 +548,36 @@ test("flat std derives authority and rejects tier fields", () => {
   const invalid = deriveExecutionErgonomics("std.io", { std: { modules: [{ id: "std.io", tier: "old" }] } })
   assert.equal(invalid.std.hasTierField, true)
 })
+
+test("allocator contextual and ordinary declarations expose distinct call shapes", () => {
+  const contextual = deriveExecutionErgonomics(`
+    fn stage(allocator memory: ref Allocator, payload: ref Bytes) {}
+    fn caller(allocator current: ref Allocator, payload: ref Bytes) { stage(payload) }
+  `)
+  const stage = contextual.labels.declarations.find((declaration) => declaration.name === "stage")
+  assert.equal(stage.params[0].contextualAllocator, true)
+  assert.deepEqual(stage.callShapes, ["positional", "allocator:|positional"])
+  assert.deepEqual(contextual.labels.diagnostics, [])
+
+  const ordinary = deriveExecutionErgonomics(`
+    fn ordinary(allocator: ref Allocator, payload: ref Bytes) {}
+    fn caller(payload: ref Bytes) { ordinary(payload) }
+  `)
+  const ordinaryDeclaration = ordinary.labels.declarations.find((declaration) => declaration.name === "ordinary")
+  assert.equal(ordinaryDeclaration.params[0].contextualAllocator, undefined)
+  assert.deepEqual(ordinaryDeclaration.callShapes, ["positional|positional"])
+  assert.ok(summarizeDiagnostics(ordinary).includes("W-LABEL-0005"))
+})
+
+test("allocator contextual omission collision is derived from declarations", () => {
+  const result = deriveExecutionErgonomics(`
+    fn decode(allocator memory: ref Allocator, payload: ref Bytes) {}
+    fn decode(payload: ref Bytes) {}
+  `)
+  const declarations = result.labels.declarations.filter((declaration) => declaration.name === "decode")
+  assert.deepEqual(declarations.map((declaration) => declaration.callShapes), [
+    ["positional", "allocator:|positional"],
+    ["positional"],
+  ])
+  assert.ok(summarizeDiagnostics(result).includes("W-LABEL-0004"))
+})
