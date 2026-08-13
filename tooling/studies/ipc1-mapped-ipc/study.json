@@ -1,0 +1,40 @@
+{
+  "$schema": "w-ipc1-mapped-ipc-study-1",
+  "status": "design-oracle-input",
+  "id": "IPC1",
+  "gate": "IPC0-R1",
+  "title": "Mapped immutable snapshots and bounded process-shared channels",
+  "entry": "Ipc1MappedIpc",
+  "variants": [
+    { "id": "current-snapshot", "language": "w", "path": "current-snapshot.w", "role": "current", "changedConstructs": ["SnapshotByteSource", "bounded snapshot"], "parseEvidence": { "status": "tree-sitter-parse", "note": "Current baseline source shape." }, "digest": "sha256:5ddd667301ddc28ad0f08a4f447b15c7d26f8e1c01c0bc3134c2b49baadeb270" },
+    { "id": "current-channel", "language": "w", "path": "current-channel.w", "role": "current", "changedConstructs": ["Channel", "send/receive ownership"], "parseEvidence": { "status": "tree-sitter-parse", "note": "Current typed channel source shape." }, "digest": "sha256:fb055a2c635ab4140b4a54db401b4287f8fcc225b3a389925a8bb9db133f232b" },
+    { "id": "mapped-immutable", "language": "w-reserved", "path": "mapped-immutable.txt", "role": "research", "changedConstructs": ["relative layout", "validated generation"], "parseEvidence": { "status": "reserved-not-parsed", "note": "Hypothetical mapped surface remains reserved text." }, "digest": "sha256:817a541d5c4171f7852aa7d10698963f76298bb0470a1b7fc82bf9cd7937754a" },
+    { "id": "mapped-channel", "language": "w-reserved", "path": "mapped-channel.txt", "role": "research", "changedConstructs": ["bounded wire carrier", "provider atomics"], "parseEvidence": { "status": "reserved-not-parsed", "note": "Hypothetical mapped surface remains reserved text." }, "digest": "sha256:8d08dc9fc249740c7effe4ef57af3213cc16ad36c5a481b6c2b6c48ec3c82a9c" },
+    { "id": "provider-adapter", "language": "w-reserved", "path": "provider-adapter.txt", "role": "research", "changedConstructs": ["unsafe adapter", "lease close"], "parseEvidence": { "status": "reserved-not-parsed", "note": "Hypothetical provider surface remains reserved text." }, "digest": "sha256:e93182b4d8acdf375b3fd23b50db91e2477d1e1d531fe8fd3f21d0bba0f78265" },
+    { "id": "reserved-native-pointer", "language": "w-reserved", "path": "reserved-native-pointer.txt", "role": "rejected", "changedConstructs": ["native pointer", "implicit mapping"], "parseEvidence": { "status": "reserved-not-parsed", "note": "Rejected witness remains textual." }, "digest": "sha256:4260f050520430d15058d1867f2362c2da0cacb8ddd9ddabbda8310bc7b86d50" },
+    { "id": "reserved-hidden-provider", "language": "w-reserved", "path": "reserved-hidden-provider.txt", "role": "rejected", "changedConstructs": ["hidden lock", "automatic repair"], "parseEvidence": { "status": "reserved-not-parsed", "note": "Rejected witness remains textual." }, "digest": "sha256:22b88069503e7311f1f9e0a44b377fb269c508d0fe76d919d98190b0a5100cdd" }
+  ],
+  "sourceRefs": [
+    { "path": "../../../reference/last-light/data_formats.w", "symbol": "export async fn archiveParquet", "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab", "claim": "Last Light bounded snapshot archive." },
+    { "path": "../../../reference/last-light/data_formats.w", "symbol": "export async fn handoffArrow", "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab", "claim": "Last Light typed Arrow handoff." },
+    { "path": "../../../reference/last-light/fs_oracle.w", "symbol": "export async fn snapshotRecipe", "digest": "sha256:11fed22d22c0af56297676c5a8e63c789012676945afc8c192509bd8d99c8393", "claim": "Last Light stable file snapshot." },
+    { "path": "../../../reference/last-light/fs_oracle.w", "symbol": "export async fn publishStagedRecipe", "digest": "sha256:11fed22d22c0af56297676c5a8e63c789012676945afc8c192509bd8d99c8393", "claim": "Last Light staged publish and durability receipt." },
+    { "path": "../../../reference/last-light/synchronization.w", "symbol": "export object HorizonTelemetryEpoch", "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6", "claim": "Last Light telemetry generation source." },
+    { "path": "../../../reference/last-light/synchronization.w", "symbol": "export unsafe fn releaseTelemetryFence", "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6", "claim": "Last Light explicit release fence source." },
+    { "path": "../../../reference/last-light/memory.w", "symbol": "export fn installMenuObserver", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "Last Light explicit callback lease source." }
+  ],
+  "providerRefs": [
+    { "binding": "posix-file-durable", "targetKind": "posix", "objectIdentity": "posix-file:restaurant-menu", "digest": "sha256:63b0c15be5867b83cb1966eccfde7ee50ac1f8330d73b348eb3cb6cd79ee2500", "claim": "Authoritative POSIX file-backed durable snapshot profile." },
+    { "binding": "windows-file-durable", "targetKind": "windows", "objectIdentity": "windows-file:restaurant-menu", "digest": "sha256:0ffd4bc01e3d8d1981805612bcaf875db18f249aa490bc26d38b5e76078d6ae0", "claim": "Authoritative Windows file-backed durable snapshot profile." },
+    { "binding": "posix-shm-volatile", "targetKind": "posix", "objectIdentity": "posix-shm:restaurant-channel", "digest": "sha256:502f3f8cd5de8f65f6562e786ab1b912165d3ffbe59485aefc23fad1457fcbb5", "claim": "Authoritative POSIX shm volatile wire-carrier profile." },
+    { "binding": "windows-pagefile-volatile", "targetKind": "windows", "objectIdentity": "windows-pagefile:restaurant-channel", "digest": "sha256:994202279986c078669ede8f1ece95ff89fd20c926434bddfd33a6df1da41eb5", "claim": "Authoritative Windows pagefile volatile wire-carrier profile." },
+    { "binding": "posix-robust-blocking", "targetKind": "posix", "objectIdentity": "posix-shm:restaurant-robust-channel", "digest": "sha256:c2825d19bafdd07226630a4f24e2181226058c695f9019db1551d1ab4f1f0626", "claim": "Separate POSIX robust blocking profile." },
+    { "binding": "windows-robust-blocking", "targetKind": "windows", "objectIdentity": "windows-pagefile:restaurant-robust-channel", "digest": "sha256:792d537c1024cf6655216f55bdd94184a72425d01a33f4a24dc30dc05569dab7", "claim": "Separate Windows robust blocking profile." }
+  ],
+  "corpus": { "path": "../../ipc1-mapped-ipc-cases.json", "digest": "sha256:a5ee8e208ab0bec9b87f615f9e0e3f18ddc58d5b02f0aacde9e331496292d346" },
+  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:b2bb67584c68d24340d539b67e777adce02204932ace1f8ffa1e0e0bfedb3fb8" },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle", "target-projections", "official-primary-refs"],
+    "missing": ["w-compile", "w-run", "provider", "two-process-posix-probe", "two-process-windows-probe", "human-study", "model-study"]
+  }
+}

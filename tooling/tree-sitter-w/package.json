@@ -76,6 +76,7 @@
     "check:study-bundles": "bun ../check-study-bundles.mjs",
     "check:gen1": "bun test ../gen1-incremental-suspension-reference.test.mjs && bun ../check-gen1-incremental-suspension.mjs",
     "check:atom1": "bun test ../studies/atom1-atomic-extensibility/oracle.test.mjs && bun ../check-atom1-atomic-extensibility.mjs",
+    "check:ipc1": "bun test ../ipc1-mapped-ipc-reference.test.mjs && bun test ../studies/ipc1-mapped-ipc/oracle.test.mjs && bun ../check-ipc1-mapped-ipc.mjs",
     "check:borrow-expressivity": "bun test ../borrow-expressivity-reference.test.mjs && bun ../check-borrow-expressivity-cases.mjs && bun test ../studies/r1-borrow-expressivity/oracle.test.mjs && bun run parse:borrow-expressivity",
     "check:study-oracles": "bun test ../studies",
     "update:substitution-surface": "bun ../substitution-surface.mjs --write",

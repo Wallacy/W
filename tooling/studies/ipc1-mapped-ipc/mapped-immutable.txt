@@ -1,0 +1,8 @@
+IPC1 Research witness: Ipc1MappedIpc immutable mapped snapshot.
+
+Pointer-free relative layout uses a validated header with magic, version,
+schema digest, layout digest, length, alignment, endian, and generation.
+Publication releases logical visibility after validation. A requested
+durability operation succeeds only after its data and metadata receipt; a
+crash between release and receipt is unknownDurability. A lease ends before
+unmap. This witness is reserved text, not W syntax or an API.

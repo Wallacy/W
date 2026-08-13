@@ -1,0 +1,9 @@
+IPC1 Research witness: Ipc1MappedIpc bounded mapped channel.
+
+Capacity is mandatory, including an explicit cap0 rendezvous. The carrier is
+wire/bytes, not generic Channel<T> storage. Slots use relative offsets and
+provider-proved process-shared atomic width, order, alignment, progress, and
+wait/wake. The sender owns local bytes before commit; the mapped generation
+owns bytes after commit and the receiver materializes a new W owner. A process
+crash faults the generation. This witness is reserved text, not W syntax or an
+API.

@@ -58,6 +58,7 @@
     "check:gen1": "bun test tooling/gen1-incremental-suspension-reference.test.mjs && bun tooling/check-gen1-incremental-suspension.mjs",
     "check:capability-matrix": "bun tooling/check-capability-matrix.mjs && bun test tooling/capability-matrix-reference.test.mjs",
     "check:atom1": "bun test tooling/studies/atom1-atomic-extensibility/oracle.test.mjs && bun tooling/check-atom1-atomic-extensibility.mjs",
+    "check:ipc1": "bun test tooling/ipc1-mapped-ipc-reference.test.mjs && bun test tooling/studies/ipc1-mapped-ipc/oracle.test.mjs && bun tooling/check-ipc1-mapped-ipc.mjs",
     "check:wmeta": "bun run --cwd tooling/tree-sitter-w check:wmeta",
     "measure:substitutions": "bun tooling/substitution-surface.mjs --write",
     "measure:std": "bun tooling/check-std-api-contracts.mjs --write",

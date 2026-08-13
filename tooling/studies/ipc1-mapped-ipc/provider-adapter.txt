@@ -1,0 +1,6 @@
+IPC1 Research witness: Ipc1MappedIpc unsafe provider adapter.
+
+The provider is authoritative for mapping, lease, layout, atomics, durability,
+delete, and crash facts. Close order is stop-access, drain, unmap, close-handle.
+No callback or access occurs after unmap. This witness is reserved text, not W
+syntax or an API.
