@@ -1,0 +1,159 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-gen1-incremental-suspension",
+  "title": "Incremental suspension ergonomics and lowering at the Last Light restaurant",
+  "r0Cases": ["R0-consuming-call", "R0-fail-fast-arbitration", "R0-cancellation-control-effect"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/streams.w",
+    "symbol": "serveOneByOne",
+    "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/execution.w",
+      "symbol": "executionForms",
+      "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed"
+    },
+    {
+      "path": "../../../reference/last-light/state_transitions.w",
+      "symbol": "OvenSession",
+      "digest": "sha256:33e42872928481b2db314d8351af53188dfbd3220808bb4f42b635d65924de3f"
+    },
+    {
+      "path": "../../../reference/last-light/ownership_execution_oracle.w",
+      "symbol": "fourOwnershipForms",
+      "digest": "sha256:a9ca613ffbca8c54e33fe67fb1ae1892ddf25f5b4a489aefb55e54eb3262ca13"
+    },
+    {
+      "path": "../../../reference/last-light/lifecycle_oracle.w",
+      "symbol": "TaskLifecycle",
+      "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de"
+    },
+    {
+      "path": "../../../reference/last-light/scheduler_oracle.w",
+      "symbol": "ReplayComparison",
+      "digest": "sha256:d2f2732b896553128b1e1826aaa0a833ed1e5fa9bb211dda611801ebc5f795ef"
+    },
+    {
+      "path": "../../../reference/last-light/liveness_oracle.w",
+      "symbol": "FrameReclaimGate",
+      "digest": "sha256:447a3fc9252312c7403450a861a75324bb34e1a91df9a7a7981d0bc0b38b4119"
+    },
+    {
+      "path": "../../../reference/last-light/restaurant.w",
+      "symbol": "prepareDish",
+      "digest": "sha256:6b934c27deeba2f94c1af4423dec7ca6f8a679338d4a6ea0f903c36c5cdb4a32"
+    }
+  ],
+  "helpers": [
+    {
+      "id": "bounded-dialogue-builder",
+      "path": "builder-helper.w",
+      "symbol": "makeDialogue",
+      "digest": "sha256:b40886f324936d668bf10ed3ba98c0c2d0db5d7f8e97c86c2e576c681c4b6e07",
+      "claim": "library helper keeps channel capacity explicit before any syntax candidate"
+    }
+  ],
+  "variants": [
+    {
+      "id": "stream-structured",
+      "role": "selected",
+      "disposition": "current-composable",
+      "language": "w",
+      "path": "stream-structured.w",
+      "digest": "sha256:8c17a7e5c241fb46a91f78b7351bf3f92027f58f5928f48389d6b0f184c8f3be",
+      "changedConstructs": ["Stream pull", "for try await", "explicit cancel", "structured task boundary"],
+      "parseEvidence": {"status": "tree-sitter-parse", "note": "Parseable source witness for the current composition."}
+    },
+    {
+      "id": "nominal-state-machine",
+      "role": "alternative",
+      "disposition": "current-composable",
+      "language": "w",
+      "path": "nominal-state-machine.w",
+      "digest": "sha256:073da2e348d930bad628592b170291e8be39cc72bcf74614f9de9a59f16e726d",
+      "changedConstructs": ["nominal state enum", "owned session record", "explicit resume step", "typed terminal error"],
+      "parseEvidence": {"status": "tree-sitter-parse", "note": "Parseable source witness for explicit state."}
+    },
+    {
+      "id": "dual-bounded-channels",
+      "role": "alternative",
+      "disposition": "current-composable",
+      "language": "w",
+      "path": "dual-bounded-channels.w",
+      "digest": "sha256:9c3cb9f52daf572995b45dd4e3599a928bce7b0ba92e8b03301c87716f195f6e",
+      "changedConstructs": ["request channel", "response channel", "bounded ownership handoff", "typed receive failure"],
+      "parseEvidence": {"status": "tree-sitter-parse", "note": "Parseable source witness for two bounded channels."}
+    },
+    {
+      "id": "compiler-stream-block",
+      "role": "research-candidate",
+      "disposition": "research-candidate",
+      "language": "w-reserved",
+      "path": "compiler-stream-block.txt",
+      "digest": "sha256:e2ac8d351ea1c3a05a59fa5c16d0c9bd66186ee98b12bab727ccab1872d49b7d",
+      "hiddenStatePolicy": "compiler-owned",
+      "changedConstructs": ["some Stream<Item, Failure> contract", "explicit capture modes", "explicit capacity and prefetch", "item-only Result emission", "compiler-owned suspension storage"],
+      "parseEvidence": {"status": "reserved-not-parsed", "note": "Textual Research witness only; no grammar or public frame contract."}
+    },
+    {
+      "id": "public-resumable-frame",
+      "role": "rejected-witness",
+      "disposition": "intentionally-rejected",
+      "language": "w-reserved",
+      "path": "public-resumable-frame.txt",
+      "digest": "sha256:ffa685c8fddb30dd0bc036f60b01db6888dd79aba97952a07f035401af7db717",
+      "changedConstructs": ["public resume protocol", "public frame identity", "scheduler handle", "runtime metadata", "implicit ABI"],
+      "parseEvidence": {"status": "reserved-not-parsed", "note": "Textual rejected witness only; public frame identity is not accepted by the design."}
+    }
+  ],
+  "scenarioSlices": [
+    {
+      "scenario": "pull-simple",
+      "implementations": [{"variant": "stream-structured", "symbol": "observeSuspension", "digest": "sha256:960e3f002aa8503b978b39e9d1f9dc897e84f5d58bd3b9258b1677e8c30d68ea", "applicability": "Stream pull source"}]
+    },
+    {
+      "scenario": "traversal-local-retention",
+      "implementations": [
+        {"variant": "stream-structured", "symbol": "observeTraversal", "digest": "sha256:a7e10c8f4ec37a6507d2cdc6bb74540bd5eb1157b7eb1e969541694bd3a25e3d", "applicability": "Stream borrowed traversal"},
+        {"variant": "nominal-state-machine", "symbol": "observeTraversal", "digest": "sha256:cf1b3e9d79a69703fd3382e23fbb717740a45e9a88da1313f4e77bea15ca4452", "applicability": "nominal cursor traversal"}
+      ]
+    },
+    {
+      "scenario": "dialogue-resume-value",
+      "implementations": [
+        {"variant": "nominal-state-machine", "symbol": "observeSuspension", "digest": "sha256:cc6b7a8bb2bb6c6c0cf7bddd2eaafb1e8b493e321c6d7a0c146b17b9253c6160", "applicability": "nominal dialogue state"},
+        {"variant": "dual-bounded-channels", "symbol": "observeDialogue", "digest": "sha256:16a92b495db456d6785fcdb585c01367101198abb0d8df0c969d3dee9214070f", "applicability": "dual bounded channels"},
+        {"variant": "bounded-dialogue-builder", "symbol": "makeDialogue", "digest": "sha256:913b3cd0be36f2ecbef356c7a58c1a1e70420fbb0b1a0949812d0c9c2cb5b299", "applicability": "bounded channel library helper"}
+      ]
+    },
+    {
+      "scenario": "delegation-equivalent",
+      "implementations": [
+        {"variant": "stream-structured", "symbol": "observeDelegation", "digest": "sha256:5cd6eff17e7d89c7c087009bad064261eb225ecb6158aad2c6c2345fbab99183", "applicability": "structured Stream child"},
+        {"variant": "nominal-state-machine", "symbol": "observeDelegation", "digest": "sha256:2a60ff7b8e971dc205a52cac5c07207544e8341687baedff517ebca3ddf03f6c", "applicability": "nominal child state"}
+      ]
+    }
+  ],
+  "entry": "observeSuspension",
+  "inputs": [
+    {"id": "restaurant-simple-pull", "scenario": "pull-simple", "expected": {"status": "accepted", "result": "terminal-none"}},
+    {"id": "restaurant-dialogue", "scenario": "dialogue-resume-value", "expected": {"status": "accepted", "result": "reply-committed"}},
+    {"id": "adversarial-late-resume", "scenario": "late-resume", "expected": {"status": "rejected", "reason": "resume-terminal"}}
+  ],
+  "tasks": [
+    {"kind": "explain", "instruction": "Compare pull, explicit state, bounded channels, and the reserved resume witness for the restaurant traces."},
+    {"kind": "recall", "instruction": "After the controlled delay, reconstruct the owner handoffs, commit points, and cleanup order.", "minimumDelaySeconds": 1},
+    {"kind": "repair", "instruction": "Repair the variant that resumes after terminal state and the variant that lets a view escape.", "mutations": {"stream-structured": "Keep next and cancel explicit.", "nominal-state-machine": "Add a terminal state check before resume.", "dual-bounded-channels": "Keep send and receive endpoints bounded and owned.", "compiler-stream-block": "Keep captures, capacity, prefetch, cleanup and item-only emission explicit.", "public-resumable-frame": "Keep the public frame witness rejected instead of adding source syntax."}},
+    {"kind": "change", "instruction": "Add a bounded restaurant dialogue without hiding failure, cancellation, cleanup, or ABI identity."}
+  ],
+  "presentationOrders": [
+    ["stream-structured", "nominal-state-machine", "dual-bounded-channels", "compiler-stream-block", "public-resumable-frame"],
+    ["public-resumable-frame", "compiler-stream-block", "dual-bounded-channels", "nominal-state-machine", "stream-structured"],
+    ["dual-bounded-channels", "stream-structured", "public-resumable-frame", "compiler-stream-block", "nominal-state-machine"]
+  ],
+  "blinding": {"participantLabels": {"stream-structured": "A", "nominal-state-machine": "B", "dual-bounded-channels": "C", "compiler-stream-block": "D", "public-resumable-frame": "E"}, "hide": ["id", "role", "disposition", "path", "changedConstructs"]},
+  "oracle": {"path": "oracle.test.mjs", "digest": "sha256:3ce3c58e99a38e88bc433fb1f71db7e9955fb42d1d7d2af5858f539a684f4be4"},
+  "evidence": {"current": ["tree-sitter-parse", "host-oracle"], "missing": ["w-compile", "w-run", "human-study", "model-study"]}
+}

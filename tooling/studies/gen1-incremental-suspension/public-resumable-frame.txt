@@ -1,0 +1,13 @@
+RESERVED WITNESS — intentionally rejected; not parseable and not normative.
+
+protocol Resumable<Resume, Yield, Failure> {
+  mut async fn resume(input: Resume): Yield? throws Failure
+  take async fn cancel(): () throws Failure
+}
+
+public frame identity: observeSuspension
+public resume token and scheduler handle
+runtime metadata and implicit ABI
+fn observeSuspension(mut frame: Resumable<Answer, Course, DialogueFailure>) {
+  yield frame.resume(answer)
+}

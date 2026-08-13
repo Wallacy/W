@@ -28245,6 +28245,25 @@ Uma pesquisa só avança quando possui:
 5. impacto em parser, formatter, metadata e packages;
 6. decisão registrada por diff e teste.
 
+### 23.8 GEN0-R1 — suspensão incremental
+
+O frame bidirecional customizado continua **Pesquisa**. O estudo durável
+[`GEN1`](tooling/studies/gen1-incremental-suspension) compara `Stream`, máquina
+de estados nominal e canais bounded em duas lowerings, sem adicionar `yield`,
+frame, lifetime ou ABI implícitos ao core. A composição vigente e os gates de
+ownership, cancellation, cleanup e FFI continuam nos contratos das seções 9,
+11 e 12; esta referência apenas aponta a evidência do gate.
+O estudo informa e estreita esta pesquisa; não fecha um gate de design por
+oracle host. A promoção continua dependente de compile, run, provider e
+evidência humana/modelo. As métricas de ergonomia usam somente símbolos
+source únicos e digests das slices aplicáveis ao mesmo cenário.
+O próximo passo de pesquisa, depois de std helper/adapters, é no máximo um
+bloco Stream compiler-owned com contrato `some Stream<Item,Failure>` e
+captures/capacity/prefetch/cancelamento/cleanup explícitos. Ele não publica
+frame, resume token, scheduler, lifetime, runtime metadata ou ABI; o witness
+continua Research e não é nova syntax vigente.
+**Fonte de exemplo:** `reference/last-light/streams.w::serveOneByOne`.
+
 ## 24. Design freeze e pendências
 
 Esta seção reúne somente auditorias que ainda fecham contratos, ausências

@@ -1,0 +1,21 @@
+RESERVED WITNESS — research candidate for a compiler-owned Stream block;
+not parseable, not grammar, and not a public frame or ABI.
+
+some Stream<Item, Failure> observeSuspension(
+  capture source: take some Stream<view Item, Failure>,
+  capacity: 1,
+  prefetch: 0,
+  cancellation: explicit,
+  cleanup: structured,
+  effects: throws Failure,
+) {
+  emit Result<Item, Failure> item
+  yield only item
+  view does not escape
+}
+
+The compiler owns suspension storage. The source contract owns capacity,
+prefetch, cancellation, cleanup, effects, and item-only emission. No public
+frame identity, resume token, scheduler handle, runtime metadata, or ABI is
+introduced. This witness remains Research until compiler/lowering and
+human/model evidence exist.

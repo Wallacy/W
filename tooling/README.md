@@ -28,6 +28,7 @@ linguagem.
 | `borrow-expressivity-cases.json` + máquina/checker/test + snapshot | BRX0 deriva 22 casos (15 mappings aceitos, sete blockers Research e quatro negativos de invocation) para receiver/body mapping, callable loans, lending cursor, adapter OriginSet, await, escapes, `any fn`, boundaries e drift/mutations de interface | oracle host de design; free/protocol bodyless com dois inputs permanece Research; não implementa compiler, runtime, provider nem metadata de lifetime |
 | `studies/atom1-atomic-extensibility/study.json` + `atom1-atomic-extensibility-cases.json` + máquina/checker/test + snapshot | ATOM1 separa atualização de record value-only (A), handle geracional/owner (B) e retirement/reclamation (C); 70 casos cobrem carrier canônico versus raw-layout, facts derivados de fields, zero-bit rejection, packing, SnapshotCell/domain, target native/lock-free/fallback, widths até 128 bits, proofs de pointer, eventos de reclamation, foreign boundaries, shutdown e drain FFI | oracle host de design; o carrier canônico e o adapter de reclamation permanecem Research; não implementa compiler, runtime, provider ou FFI |
 | `capability-matrix-cases.json` + máquina/checker/test + snapshot | CAP0 consolida oito eixos por problema comum, tenta composição W com Last Light, preserva invariantes e deriva rotas `current`/`composable`/`research` pelas subcapacidades do problema; 149 refs primárias ou source-backed e oito filas de documentação futura | fonte editorial de staging; não mede maturidade, não copia features e não implementa compiler, runtime ou provider |
+| `gen1-incremental-suspension-cases.json` + máquina/checker/test + snapshot | GEN1 informa/estreita GEN0-R1 com 23 traces de pull, travessia, diálogo, failure, delegação, view, backpressure, cancelamento, children e FFI; compara Stream/state/channels e dois witnesses reservados em duas máquinas independentes e deriva métricas estruturais de símbolos source únicos por slices do mesmo cenário | oracle host de design; não executa W, compiler, runtime, provider ou estudo humano/modelo; bloco Stream compiler-owned é Research e frame público é rejeitado |
 | `semantic-diagnostic-matrix-cases.json` + máquina/checker/test | SDM0 deriva SemanticResult, CheckerContext, loop fixed point, AST→HIR schema, D0 records, causality, ordering, limits, policy, lex/parse boundary e cobertura de meta contracts | oracle host independente; não implementa checker, compiler, formatter ou runtime |
 | `execution-ergonomics-cases.json` + máquina/checker/snapshot | 80 casos (32 positivos, 46 negativos e duas informações) derivam labels, parâmetros, slots allocator contextuais/ordinários e collision, operações explícitas de ownership, suspension, placement, barriers, process projections, doctests, std e lanes seriais dinâmicas; 26 testes host usam entradas independentes | oracle host de design; não executa W nem implementa S0, scheduler, pool ou provider |
 | `check-source-call-shapes.mjs` | aplica labels, posição do contrato e operações explicitamente incompatíveis aos sources do Última Luz e da std | auditoria source; owner place sem marker exige type/value category em S0; member/import é conservador e não executa W |
@@ -39,9 +40,9 @@ linguagem.
 | `operational-time-cases.json` + máquina/checker/snapshot | TIME0 cobre 52 casos/277 operações (27 aceitos + 25 rejeitados) para Duration exata, Clock root-scoped, origin, default/active HostSuspendPolicy, profile monotônico, deadlines, boundaries e clock virtual; oito testes host usam entradas independentes | oracle host de design; não executa W, clock, timer, scheduler, OS ou provider `std.time@1` |
 | `kernel-module-cases.json` + máquina/checker/snapshot | KM0 cobre 32 casos/218 operações (6 aceitos + 26 rejeitados) para head de síntese, identities, call graph, famílias genéricas, artifacts source-backed/closed e ausência de JIT; nove testes host usam inputs independentes | oracle host de design; não executa W, compiler, kernel, linker, driver ou provider |
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 547/1351 decisões estão classificadas (170 source, 432 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 63 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 547/1354 decisões estão classificadas (170 source, 432 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 63 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 190 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 38 bundles R1, 98 variantes e 152 tarefas; 67/75 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
+| `studies/*/bundle.json` + checker | 39 bundles R1, 103 variantes e 156 tarefas; 67/75 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
 | `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
 | `tabular-adapter-cases.json` + máquina/checker/snapshot | TAB1 deriva source kind, u64 snapshot offsets/short reads, nominal schema identity, publication, CSV tokenizer/nulls, Parquet footer/page/mapping/key/commit, Arrow IPC dictionary/buffer, borrowed view, copy materialization, progress/cancel, provenance, C quota/trust/release; 86 casos e 193 operações (36 aceitos + 50 rejeitados) | oracle host independente; símbolos Last Light são cross-linked; não implementa reader CSV/Parquet/Arrow, compiler, runtime ou provider |
@@ -452,6 +453,39 @@ bun tooling/check-capability-matrix.mjs --write
 
 O script `check:capability-matrix` do pacote Tree-sitter entra na cadeia
 `check:docs`; a execução ampla desse gate continua separada da validação local.
+
+### GEN1 — suspensão incremental
+
+[`gen1-incremental-suspension-machine.mjs`](gen1-incremental-suspension-machine.mjs)
+é um oracle host que informa/estreita o gate `GEN0-R1`. Ele executa os mesmos traces nas
+lowerings `switched-resume-frame` e
+`returned-continuation-state-loop`, comparando owner graph, commit/HB, resultado
+typed, cancelamento e cleanup/drop/drain. O trace físico e o packing podem
+mudar. O corpus é
+[`gen1-incremental-suspension-cases.json`](gen1-incremental-suspension-cases.json)
+e o snapshot é
+[`gen1-incremental-suspension-results.snapshot.jsonl`](gen1-incremental-suspension-results.snapshot.jsonl).
+O estudo mantém as variantes em
+[`studies/gen1-incremental-suspension`](studies/gen1-incremental-suspension):
+Stream/adapters/tasks, máquina nominal, dois canais bounded, um witness textual
+Research de bloco Stream compiler-owned e um witness textual rejeitado de frame
+público.
+
+As métricas são derivadas de declarações source reais e únicas nas slices do
+mesmo cenário: conceitos públicos, handoffs de ownership, effects/cancel/
+cleanup explícitos, estado oculto, adições públicas de type/ABI e operações de
+source. LOC é secundário. Use:
+
+```sh
+bun test tooling/gen1-incremental-suspension-reference.test.mjs
+bun tooling/check-gen1-incremental-suspension.mjs
+```
+
+O bundle registra fontes primárias C/POSIX/LLVM/Rust/Python e permanece
+`design-oracle-input`. Compile, run, provider, estudo humano e estudo de modelo
+continuam missing. A integração com `check:docs` ocorre pelo `check:studies`
+root, pelo parse de studies e por `check:links`; a documentação do CAP0 mantém
+`docsStatus: queued`.
 
 ## Caminho até o browser
 
