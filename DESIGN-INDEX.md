@@ -28,8 +28,8 @@
 | requisitos de ratificação comparativa | 74 |
 | casos de substituição estruturados | 74/74 |
 | decisões referenciadas por casos R0 | 167/1347 |
-| decisões classificadas para design freeze | 521/1347 (167 source + 409 oracle + 8 explícitas; 63 overlaps) |
-| decisões ainda sem classe de freeze | 826 |
+| decisões classificadas para design freeze | 541/1347 (167 source + 429 oracle + 8 explícitas; 63 overlaps) |
+| decisões ainda sem classe de freeze | 806 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 186 |
 | surface lexemes das formas vigentes R0 | 1573 total; mediana 17; máximo 58 |
