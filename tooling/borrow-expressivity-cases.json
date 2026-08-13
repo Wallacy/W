@@ -1,0 +1,540 @@
+{
+  "$schema": "w-borrow-expressivity-cases-1",
+  "status": "design-oracle-input-brx0",
+  "id": "BRX0-higher-order-borrow-expressivity",
+  "machine": "borrow-expressivity-machine-brx0",
+  "sourceBase": {
+    "path": "../reference/last-light/borrow_expressivity.w",
+    "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709",
+    "symbols": [
+      "freshGreeting",
+      "selectPrimary",
+      "MenuCursor",
+      "MenuSelection",
+      "mapBorrowedLines",
+      "filterBorrowedLines",
+      "mapThenFilterBorrowedLines",
+      "nextMappedLine",
+      "callableBorrow",
+      "erasedHandler",
+      "storeErasedHandler",
+      "awaitBorrowedLine",
+      "storeBorrowedHandler",
+      "escapeErasedResult"
+    ]
+  },
+  "coverage": [
+    "callable",
+    "per-invocation-loan",
+    "lending-cursor",
+    "storage-reuse",
+    "two-independent-inputs",
+    "protocol-requirement",
+    "map",
+    "filter",
+    "chain",
+    "async-await",
+    "escape",
+    "any-fn-erasure",
+    "closure-storage",
+    "boundary",
+    "artifact-drift",
+    "mutation-missing",
+    "mutation-stale",
+    "mutation-duplicate",
+    "mutation-forged",
+    "no-runtime-lifetime-metadata"
+  ],
+  "cases": [
+    {
+      "id": "BRX0-callable-fresh-loan",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "freshGreeting" },
+      "decisionIds": ["W-194", "W-914"],
+      "coverage": ["callable", "per-invocation-loan"],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [{ "slot": "line", "mode": "ref" }],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [{ "operation": "return", "result": "result", "source": "line" }]
+      },
+      "invocation": { "kind": "callable", "parameter": "line", "calls": 3 },
+      "expected": {
+        "decision": "accepted",
+        "invocation": { "status": "accepted", "freshLoanCount": 3, "invocationEdgeCount": 3 },
+        "artifacts": { "status": "not-requested" },
+        "forms": { "A1_bodyDerivedFree": "closes" }
+      }
+    },
+    {
+      "id": "BRX0-lending-cursor-live-view",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "nextMappedLine" },
+      "decisionIds": ["W-457", "W-914"],
+      "coverage": ["lending-cursor", "storage-reuse"],
+      "declaration": {
+        "kind": "instance",
+        "body": true,
+        "inputs": [{ "slot": "receiver", "mode": "inout" }],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [{ "operation": "return", "result": "result", "source": "receiver" }]
+      },
+      "invocation": { "kind": "stream-next", "viewLive": true, "reusesStorage": true },
+      "expected": {
+        "decision": "accepted",
+        "invocation": { "status": "rejected", "code": "W-BORROW-0006" },
+        "artifacts": { "status": "not-requested" },
+        "forms": { "A1_memberReceiver": "closes" }
+      }
+    },
+    {
+      "id": "BRX0-lending-cursor-view-ended",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "nextMappedLine" },
+      "decisionIds": ["W-457", "W-914"],
+      "coverage": ["lending-cursor", "storage-reuse"],
+      "declaration": {
+        "kind": "instance",
+        "body": true,
+        "inputs": [{ "slot": "receiver", "mode": "inout" }],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [{ "operation": "return", "result": "result", "source": "receiver" }]
+      },
+      "invocation": { "kind": "stream-next", "viewLive": false, "reusesStorage": true },
+      "expected": {
+        "decision": "accepted",
+        "invocation": { "status": "accepted", "nextAllowedWhileViewLive": true },
+        "artifacts": { "status": "not-requested" },
+        "forms": { "A1_memberReceiver": "closes" }
+      }
+    },
+    {
+      "id": "BRX0-select-bodyless-two-inputs",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "selectPrimary" },
+      "decisionIds": ["W-914"],
+      "coverage": ["two-independent-inputs", "protocol-requirement"],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          { "slot": "primary", "mode": "ref" },
+          { "slot": "fallback", "mode": "ref" }
+        ],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "forms": {
+          "A2_freeAllInputs": "conservative-all-inputs",
+          "B1_relationalSchema": "candidate-missing",
+          "B2_returnAggregate": "does-not-preserve-direct-result"
+        },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-select-relational-candidate",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "selectPrimary" },
+      "decisionIds": ["W-914"],
+      "coverage": ["two-independent-inputs"],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          { "slot": "primary", "mode": "ref" },
+          { "slot": "fallback", "mode": "ref" }
+        ],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }],
+        "relationSchema": {
+          "pairs": [{ "result": "result", "sources": ["primary"] }]
+        }
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "relationalExact": true,
+        "forms": {
+          "A2_freeAllInputs": "conservative-all-inputs",
+          "B1_relationalSchema": "candidate-closes"
+        },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-protocol-bodyless-requirement",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "MenuSelection" },
+      "decisionIds": ["W-457", "W-914"],
+      "coverage": ["protocol-requirement", "two-independent-inputs"],
+      "declaration": {
+        "kind": "free",
+        "protocolRequirement": true,
+        "body": false,
+        "inputs": [
+          { "slot": "primary", "mode": "ref" },
+          { "slot": "fallback", "mode": "ref" }
+        ],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "forms": { "A2_freeAllInputs": "conservative-all-inputs" },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-map-filter-chain-origin",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "nextMappedLine" },
+      "decisionIds": ["W-457", "W-914"],
+      "coverage": ["map", "filter", "chain"],
+      "declaration": {
+        "kind": "instance",
+        "body": true,
+        "inputs": [
+          { "slot": "receiver", "mode": "inout", "origin": "receiver.storage" }
+        ],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [
+          { "operation": "adapter", "adapter": "map", "input": "receiver", "output": "mapped" },
+          { "operation": "adapter", "adapter": "filter", "input": "mapped", "output": "filtered" },
+          { "operation": "return", "result": "result", "source": "filtered" }
+        ]
+      },
+      "expected": {
+        "decision": "accepted",
+        "forms": { "A1_memberReceiver": "closes" },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-map-filter-single-adapters",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "mapBorrowedLines" },
+      "decisionIds": ["W-457"],
+      "coverage": ["map", "filter"],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [{ "slot": "source", "mode": "take" }],
+        "results": [{ "slot": "result", "mode": "value" }],
+        "adapterConstruction": true,
+        "bodyTrace": []
+      },
+      "expected": {
+        "decision": "accepted",
+        "forms": { "A1_bodyDerivedFree": "closes" },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-await-stable-borrow",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "awaitBorrowedLine" },
+      "decisionIds": ["W-104", "W-912"],
+      "coverage": ["async-await"],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [{ "slot": "line", "mode": "ref" }],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [{ "operation": "return", "result": "result", "source": "line" }]
+      },
+      "invocation": { "await": true, "ownerStable": true, "storageStable": true },
+      "expected": {
+        "decision": "accepted",
+        "invocation": { "status": "accepted", "suspension": "accepted" },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-await-unstable-borrow",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "awaitBorrowedLine" },
+      "decisionIds": ["W-104", "W-912"],
+      "coverage": ["async-await"],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [{ "slot": "line", "mode": "ref" }],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [{ "operation": "return", "result": "result", "source": "line" }]
+      },
+      "invocation": { "await": true, "ownerStable": false, "storageStable": true },
+      "expected": {
+        "decision": "accepted",
+        "invocation": { "status": "rejected", "code": "W-BORROW-0007" },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-closure-storage-escape",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "escapeErasedResult" },
+      "decisionIds": ["W-194", "W-912"],
+      "coverage": ["escape", "closure-storage"],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [{ "slot": "line", "mode": "ref" }],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [{ "operation": "return", "result": "result", "source": "line" }]
+      },
+      "invocation": { "closureStorage": { "storage": "heap", "escape": true } },
+      "expected": {
+        "decision": "accepted",
+        "invocation": { "status": "rejected", "code": "W-BORROW-0003" },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-erased-handler-storage-accepted",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "storeErasedHandler" },
+      "decisionIds": ["W-194", "W-914"],
+      "coverage": ["any-fn-erasure", "closure-storage"],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [{ "slot": "handler", "mode": "take" }],
+        "results": [{ "slot": "result", "mode": "value" }],
+        "bodyTrace": []
+      },
+      "invocation": {
+        "erasure": "any-fn",
+        "closureStorage": { "storage": "heap", "escape": true, "returnedView": false }
+      },
+      "expected": {
+        "decision": "accepted",
+        "invocation": { "status": "accepted", "erasure": "accepted-storage" },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-any-fn-erasure-preserves-mapping",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "storeErasedHandler" },
+      "decisionIds": ["W-194", "W-914"],
+      "coverage": ["any-fn-erasure", "closure-storage"],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [{ "slot": "line", "mode": "ref" }],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [{ "operation": "return", "result": "result", "source": "line" }]
+      },
+      "invocation": {
+        "erasure": "any-fn",
+        "closureStorage": { "storage": "inline", "escape": false }
+      },
+      "expected": {
+        "decision": "accepted",
+        "invocation": { "status": "accepted", "erasure": "preserves-mapping" },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-channel-boundary-negative",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "callableBorrow" },
+      "decisionIds": ["W-912"],
+      "coverage": ["boundary", "escape"],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [{ "slot": "line", "mode": "ref" }],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [{ "operation": "return", "result": "result", "source": "line" }]
+      },
+      "invocation": { "boundary": "channel" },
+      "expected": {
+        "decision": "accepted",
+        "invocation": { "status": "rejected", "code": "W-BORROW-0003" },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-witness-mapping-drift",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "selectPrimary" },
+      "decisionIds": ["W-914"],
+      "coverage": ["artifact-drift"],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          { "slot": "primary", "mode": "ref" },
+          { "slot": "fallback", "mode": "ref" }
+        ],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+      },
+      "artifacts": {
+        "implementationMapping": { "result": ["primary"] },
+        "witnessMapping": { "result": ["fallback"] }
+      },
+      "expected": {
+        "decision": "accepted",
+        "artifacts": { "status": "rejected", "codes": ["interfaceWitnessMismatch"] }
+      }
+    },
+    {
+      "id": "BRX0-interface-lock-mapping-drift",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "selectPrimary" },
+      "decisionIds": ["W-914"],
+      "coverage": ["artifact-drift", "mutation-stale"],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          { "slot": "primary", "mode": "ref" },
+          { "slot": "fallback", "mode": "ref" }
+        ],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+      },
+      "artifacts": {
+        "implementationMapping": { "result": ["primary"] },
+        "interfaceLockMapping": { "result": ["fallback"] }
+      },
+      "expected": {
+        "decision": "accepted",
+        "artifacts": { "status": "rejected", "codes": ["interfaceMappingChanged"] }
+      }
+    },
+    {
+      "id": "BRX0-mapping-component-digest-stale",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "selectPrimary" },
+      "decisionIds": ["W-914"],
+      "coverage": ["artifact-drift", "mutation-stale"],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          { "slot": "primary", "mode": "ref" },
+          { "slot": "fallback", "mode": "ref" }
+        ],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+      },
+      "artifacts": {
+        "implementationMapping": { "result": ["primary"] },
+        "mappingComponentDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "decision": "accepted",
+        "artifacts": { "status": "rejected", "codes": ["interfaceLockMismatch"] }
+      }
+    },
+    {
+      "id": "BRX0-relation-missing-mapping",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "selectPrimary" },
+      "decisionIds": ["W-914"],
+      "coverage": ["mutation-missing", "two-independent-inputs"],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          { "slot": "primary", "mode": "ref" },
+          { "slot": "fallback", "mode": "ref" }
+        ],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+      },
+      "artifacts": {
+        "implementationMapping": { "result": ["primary"] },
+        "mappingPairs": []
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "artifacts": { "status": "rejected", "codes": ["researchRelationMissing"] }
+      }
+    },
+    {
+      "id": "BRX0-relation-duplicate-result",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "selectPrimary" },
+      "decisionIds": ["W-914"],
+      "coverage": ["mutation-duplicate", "two-independent-inputs"],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          { "slot": "primary", "mode": "ref" },
+          { "slot": "fallback", "mode": "ref" }
+        ],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+      },
+      "artifacts": {
+        "implementationMapping": { "result": ["primary"] },
+        "mappingPairs": [
+          { "result": "result", "sources": ["primary"] },
+          { "result": "result", "sources": ["fallback"] }
+        ]
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "artifacts": { "status": "rejected", "codes": ["researchRelationDuplicate"] }
+      }
+    },
+    {
+      "id": "BRX0-relation-duplicate-source",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "selectPrimary" },
+      "decisionIds": ["W-914"],
+      "coverage": ["mutation-duplicate", "two-independent-inputs"],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          { "slot": "primary", "mode": "ref" },
+          { "slot": "fallback", "mode": "ref" }
+        ],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+      },
+      "artifacts": {
+        "implementationMapping": { "result": ["primary"] },
+        "mappingPairs": [{ "result": "result", "sources": ["primary", "primary"] }]
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "artifacts": { "status": "rejected", "codes": ["researchRelationDuplicate"] }
+      }
+    },
+    {
+      "id": "BRX0-relation-forged-source",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "selectPrimary" },
+      "decisionIds": ["W-914"],
+      "coverage": ["mutation-forged", "two-independent-inputs"],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          { "slot": "primary", "mode": "ref" },
+          { "slot": "fallback", "mode": "ref" }
+        ],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+      },
+      "artifacts": {
+        "implementationMapping": { "result": ["primary"] },
+        "mappingPairs": [{ "result": "result", "sources": ["ghost"] }]
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "artifacts": { "status": "rejected", "codes": ["researchRelationForged"] }
+      }
+    },
+    {
+      "id": "BRX0-zero-runtime-lifetime-metadata",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "filterBorrowedLines" },
+      "decisionIds": ["W-914", "W-912"],
+      "coverage": ["no-runtime-lifetime-metadata"],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [{ "slot": "source", "mode": "view" }],
+        "results": [{ "slot": "result", "mode": "view" }],
+        "bodyTrace": [
+          { "operation": "adapter", "adapter": "filter", "input": "source", "output": "filtered" },
+          { "operation": "return", "result": "result", "source": "filtered" }
+        ]
+      },
+      "expected": {
+        "decision": "accepted",
+        "runtimeLifetimeMetadataCount": 0,
+        "artifacts": { "status": "not-requested" }
+      }
+    }
+  ]
+}

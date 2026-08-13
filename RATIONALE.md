@@ -162,7 +162,8 @@ O corpus compara, no mínimo:
 - nomenclatura `SuspendAccounting` para suspensão HOST/SO contra `HostSuspendPolicy`, booleano e estados inferidos;
 - aquisição contextual de owner a partir de `weak T?` contra property `strong` e method `strong()`;
 - escopo `Arena.fixed` contra região lexical reservada e scope por closure;
-- slot runtime de allocator em `Array<String>(allocator: memory)` contra envelope genérico.
+- slot runtime de allocator em `Array<String>(allocator: memory)` contra envelope genérico;
+- relação bodyless de borrow entre dois inputs independentes contra mapping implícito sem prova, comparando receiver preciso, relation-schema Research e carrier nominal.
 
 ### 1.1 Cobertura de substituições
 
@@ -5226,6 +5227,7 @@ esses roots preservados.
 | W-1348 | formas e stack corrente ASC0 | named/anonymous cria owner, lease e scope; root, parâmetro e lexical formam stack com prioridade explícita; open failure não publica contexto/binding | binding sintético, ambient lookup, fallback de acquisition ou herança lexical entre funções |
 | W-1349 | conclusão contextual de call | slot standard primeiro recebe `ref currentAllocator`; cadeia entra no callee e sem slot reinicia no root; W-ALLOCATOR-0010 cobre somente slot contextual sem current | inferência por nome/tipo, parâmetro comum ou propagação sem slot |
 | W-1350 | interface, callable, lifecycle e evidência | signature/HIR/ABI preservam slot; overload usa W-LABEL-0004, initializer usa W-ALLOCATOR-0011; callable/capture/lifecycle/explainability e status permanecem explícitos | default parameter, ABI oculto, capture ou rehome implícito, claims de implementação |
+| W-1351 | expressividade de borrow de ordem superior | BRX0 fecha receiver e body-derived mapping; callable cria loan por invocation, stream item fica preso ao receiver/storage e adapters preservam OriginSet; free/protocol bodyless com dois inputs permanece Research por causa do default all-inputs; relation schema e carrier nominal são candidatos, sem syntax de lifetime, GAT ou metadata runtime | copiar lifetime names de Rust, promover relation syntax, tratar aggregate como mesmo resultado, esconder mapping em `any fn`, ou alegar compiler/runtime/provider |
 
 ### 1.25 Evidência FZ0 de frontend
 
@@ -5268,3 +5270,64 @@ que preserva estrutura e localizações sem prometer semântica. A exigência de
 snapshot sem diagnostics extras também é compatível com o fluxo de UI tests do
 [rustc Dev Guide](https://rustc-dev-guide.rust-lang.org/tests/ui.html); nenhuma
 dessas fontes é surface copiada para W.
+
+### 1.26 Evidência BRX0 de expressividade de borrow de ordem superior
+
+BRX0 audita o limite de provenance para resultados borrowed sem introduzir
+nomes de lifetime no source. O source fixture parseável
+[`reference/last-light/borrow_expressivity.w`](reference/last-light/borrow_expressivity.w)
+usa Last Light como produto real. A máquina host
+[`tooling/borrow-expressivity-machine.mjs`](tooling/borrow-expressivity-machine.mjs)
+deriva mappings e edges de `inputs`, `results`, `bodyTrace`, `problemTrace` e
+pares estruturados; ela não lê um mapping esperado para decidir o resultado.
+
+O corpus
+[`tooling/borrow-expressivity-cases.json`](tooling/borrow-expressivity-cases.json)
+tem 22 casos: 15 mappings aceitos, sete blockers Research e quatro negativos
+de invocation. O snapshot
+[`tooling/borrow-expressivity-results.snapshot.jsonl`](tooling/borrow-expressivity-results.snapshot.jsonl)
+é escrito pelo checker
+[`tooling/check-borrow-expressivity-cases.mjs`](tooling/check-borrow-expressivity-cases.mjs)
+e registra mappings, OriginSets deduplicados, edges individuais, diagnostics,
+artefatos e digest do componente de mapping. Os testes host independentes em
+[`tooling/borrow-expressivity-reference.test.mjs`](tooling/borrow-expressivity-reference.test.mjs)
+passam sete grupos adversariais.
+
+O resultado é uma decisão B restrita, não uma mudança de grammar. A1 fecha
+member requirement quando o receiver é a única origem compatível; body-derived
+free mapping fecha quando o body fornece a origem exata; callable cria loan
+fresh por invocation e liga o resultado ao último uso, sem deixar edge
+persistent entre calls; `any fn` conserva o mapping e rejeita somente escape
+dinâmico. Stream `next` bloqueia enquanto uma view live conflita com storage
+reutilizado e permite o próximo item depois do fim da view. Factory de
+`map`/`filter` move source para um adapter owner; o `next` do adapter é a
+operação receiver-shaped, e o trace host deriva união/transitividade de
+OriginSet para o item.
+
+A2 permanece deliberadamente conservador: free ou protocol requirement
+bodyless com `primary` e `fallback` publica ambos os inputs compatíveis, mesmo
+quando o problem trace exige somente `primary`. O fallback pode morrer, mas o
+default vigente não pode provar isso. B1 (pares relacionais no schema) fecha
+esse exemplo no oracle de Research; B2 (sum/aggregate nominal) é uma mudança
+de API e não preserva o resultado borrowed direto. O corpus injeta mapping
+missing, stale, duplicate (result e source) e forged, além de witness,
+implementation, `interface.lock` e mapping-component digest divergentes.
+
+Os precedentes externos servem somente como limite comparativo. O
+[Rust Reference, associated items](https://doc.rust-lang.org/stable/reference/items/associated-items.html)
+usa GAT para o padrão `LendingIterator`, porque o tipo do item varia com o
+borrow do receiver; BRX0 não copia essa syntax. O
+[Swift SE-0456](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0456-stdlib-span-properties.md)
+fecha o caso estreito de property/member `Span` por dependency inferida do
+callee, mas mantém relações gerais dependentes de anotações explícitas. Isso
+apoia A1 sem provar uma solução para A2; a comparação não é uma decisão de
+compatibilidade ou de implementação de W.
+
+O estudo R1 em
+[`tooling/studies/r1-borrow-expressivity`](tooling/studies/r1-borrow-expressivity)
+separa baseline, aggregate e witness de relation schema. A evidência atual é
+parse Tree-sitter e oracle host; compile, run, estudo humano e estudo de modelo
+continuam missing. BRX0 não implementa compiler, runtime ou provider e não
+publica lifetime metadata em runtime. A decisão fica Research até Sol autorizar
+um mecanismo relacional mínimo ou uma composição nominal que preserve o
+contrato, sem promover syntax normativa.

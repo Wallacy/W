@@ -1740,6 +1740,37 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-borrow-bodyless-relation",
+      "reviewItem": "relação bodyless de borrow entre dois inputs independentes contra mapping implícito sem prova, comparando receiver preciso, relation-schema Research e carrier nominal",
+      "decisions": ["W-457", "W-914", "W-1351"],
+      "task": "Select primary or fallback without keeping a dead input alive through an all-inputs default, and compare the receiver, relation-schema and nominal alternatives.",
+      "selected": {
+        "language": "w",
+        "source": ["export protocol MenuSelection {", "  static fn select(primary: ref String, fallback: ref String): view String", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "member-receiver-precise",
+          "language": "w",
+          "source": ["export protocol Cursor<Item> {", "  mut async fn next(): view Item?", "}"],
+          "expectedDifference": "A member receiver supplies one compatible origin, so the current bodyless member rule can close the lending cursor case."
+        },
+        {
+          "name": "relation-schema-candidate",
+          "language": "w-reserved",
+          "source": ["relation result <- primary", "input fallback remains independent"],
+          "expectedDifference": "A relation pair could publish primary-only provenance, but it remains a Research witness without promoted W syntax."
+        },
+        {
+          "name": "nominal-aggregate-api",
+          "language": "w-alternative",
+          "source": ["enum SelectedLine {", "  primary(String)", "  fallback(String)", "}"],
+          "expectedDifference": "A nominal aggregate changes the API and ownership shape; it does not preserve the direct borrowed result."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }
