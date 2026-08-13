@@ -73,6 +73,18 @@ describe("CAP0 capability matrix host oracle", () => {
     expect(errors.some((error) => error.includes("duplicates source reference"))).toBe(true);
   });
 
+  test("ATOM1 study refs require durable paths, digests, claims, and no duplicates", () => {
+    const corpus = readCorpus();
+    const studyRefs = corpus.axes.find((axis) => axis.id === "ATOM0").nextStudyGate.studyRefs;
+    studyRefs[0].digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+    studyRefs[1].path = "tooling/studies/atom1-atomic-extensibility/missing.md";
+    studyRefs.push({ ...studyRefs[2] });
+    const errors = check(corpus);
+    expect(errors.some((error) => error.includes("nextStudyGate.studyRefs[0].digest is stale"))).toBe(true);
+    expect(errors.some((error) => error.includes("nextStudyGate.studyRefs[1].path references a missing file"))).toBe(true);
+    expect(errors.some((error) => error.includes("duplicates study reference"))).toBe(true);
+  });
+
   test("canonical and W teaching refs require a fresh digest and unique symbol", () => {
     const corpus = readCorpus();
     corpus.axes[0].lastLight.canonicalSource.digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000";

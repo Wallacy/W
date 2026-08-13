@@ -1,0 +1,103 @@
+{
+  "$schema": "w-atomic-extensibility-study-1",
+  "status": "design-oracle-input",
+  "id": "ATOM1",
+  "gate": "ATOM0-G1",
+  "title": "Atomic value derivation, generational handles, and reclamation boundaries",
+  "entry": "SignEpochWord",
+  "variants": [
+    {
+      "id": "current-composition",
+      "language": "w",
+      "path": "current-composition.w",
+      "role": "current"
+    },
+    {
+      "id": "derived-record",
+      "language": "w",
+      "path": "derived-record.w",
+      "role": "research"
+    },
+    {
+      "id": "generational-handle",
+      "language": "w",
+      "path": "generational-handle.w",
+      "role": "current"
+    },
+    {
+      "id": "snapshot-cell",
+      "language": "w",
+      "path": "snapshot-cell.w",
+      "role": "current"
+    },
+    {
+      "id": "unsafe-adapter",
+      "language": "w",
+      "path": "unsafe-adapter.w",
+      "role": "research"
+    },
+    {
+      "id": "reserved-universal",
+      "language": "w-reserved",
+      "path": "reserved-universal-atomic.txt",
+      "role": "rejected"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/synchronization.w",
+      "symbol": "export object HorizonTelemetryEpoch",
+      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+      "claim": "Last Light value-only telemetry epoch source"
+    },
+    {
+      "path": "../../../reference/last-light/synchronization.w",
+      "symbol": "export object HorizonMenuPublication",
+      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+      "claim": "Last Light menu publication owner source"
+    },
+    {
+      "path": "../../../reference/last-light/memory.w",
+      "symbol": "export object BellLease",
+      "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+      "claim": "Last Light lease lifetime and retirement source"
+    },
+    {
+      "path": "../../../reference/last-light/memory.w",
+      "symbol": "export fn watchClosingBell",
+      "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+      "claim": "Last Light callback drain source"
+    },
+    {
+      "path": "../../../reference/last-light/abi.w",
+      "symbol": "export foreign c",
+      "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40",
+      "claim": "Last Light ABI boundary source"
+    }
+  ],
+  "corpus": {
+    "path": "../../atom1-atomic-extensibility-cases.json",
+    "status": "host-derived",
+    "digest": "sha256:2527e660a83b832d045412fa5ac948195812edea5f559285ec82f3d2d44f9f6e"
+  },
+  "oracle": {
+    "path": "../../atom1-atomic-extensibility-machine.mjs",
+    "status": "independent-host-oracle",
+    "digest": "sha256:6de57a612ea226e92d3023846017e9ab6156c6473b02eac475de07f9bb91e839"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle",
+      "source-ref"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "target-probe",
+      "provider",
+      "human-study",
+      "model-study"
+    ]
+  }
+}

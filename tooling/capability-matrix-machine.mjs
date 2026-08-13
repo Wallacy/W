@@ -13,7 +13,7 @@ const REQUIRED_PRESERVE_PATTERNS = [
   /interface.*ABI identities/iu,
 ];
 const FORBIDDEN_KEYS = /^(?:maturity|popularity|community|featurecopying|feature-copying|stars|downloads|benchmarkscore|implementationstatus)$/iu;
-const OFFICIAL_HOSTS = new Set(["www.open-std.org", "open-std.org", "doc.rust-lang.org", "docs.python.org", "pubs.opengroup.org"]);
+const OFFICIAL_HOSTS = new Set(["www.open-std.org", "open-std.org", "doc.rust-lang.org", "docs.python.org", "pubs.opengroup.org", "llvm.org", "www.llvm.org", "docs.kernel.org"]);
 
 export function deriveRoute(axis) {
   const problemSubcapabilities = (axis.coverage?.subcapabilities ?? []).filter((subcapability) => subcapability.scope === "problem" && subcapability.role === "problem");
@@ -51,7 +51,7 @@ function collectSourceRefs(value, base = "root") {
   return refs;
 }
 
-function validateLocalRef(ref, location, root, errors, { requireDigest = false, requireUniqueSymbol = false } = {}) {
+function validateLocalRef(ref, location, root, errors, { requireDigest = false, requireUniqueSymbol = false, requireClaim = false, requireSymbol = true } = {}) {
   if (!ref || typeof ref !== "object" || Array.isArray(ref)) {
     errors.push(`${location} must be an object.`);
     return;
@@ -68,8 +68,9 @@ function validateLocalRef(ref, location, root, errors, { requireDigest = false, 
       return;
     }
     const source = fs.readFileSync(resolved, "utf8");
-    if (!nonEmpty(ref.symbol)) errors.push(`${location}.symbol must be present for a local source ref.`);
-    else {
+    if (requireClaim && !nonEmpty(ref.claim)) errors.push(`${location}.claim must be present for a durable study ref.`);
+    if (requireSymbol && !nonEmpty(ref.symbol)) errors.push(`${location}.symbol must be present for a local source ref.`);
+    else if (nonEmpty(ref.symbol)) {
       const escaped = String(ref.symbol).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
       const count = (source.match(new RegExp(`\\b${escaped}\\b`, "gu")) ?? []).length;
       if (count === 0 && !source.includes(ref.symbol)) errors.push(`${location}.symbol is absent from ${ref.path}.`);
@@ -157,6 +158,7 @@ export function validateCapabilityMatrix(corpus, { root = process.cwd(), checkSo
   const ids = new Set();
   const results = [];
   const seenSourceRefs = new Set();
+  const seenStudyRefs = new Set();
   const docsTargets = new Set();
   for (const [index, axis] of (corpus.axes ?? []).entries()) {
     const location = `axes[${index}]`;
@@ -243,6 +245,16 @@ export function validateCapabilityMatrix(corpus, { root = process.cwd(), checkSo
       errors.push(`${location}.nextStudyGate.kind design has no Research subcapability focus.`);
     } else if (hasOwn(axis.nextStudyGate ?? {}, "forSubcapability")) {
       errors.push(`${location}.nextStudyGate.forSubcapability is only valid for a design gate.`);
+    }
+    if (hasOwn(axis.nextStudyGate ?? {}, "studyRefs")) {
+      if (!Array.isArray(axis.nextStudyGate.studyRefs) || axis.nextStudyGate.studyRefs.length === 0) errors.push(`${location}.nextStudyGate.studyRefs must be a non-empty array.`);
+      for (const [studyIndex, studyRef] of (axis.nextStudyGate.studyRefs ?? []).entries()) {
+        const studyLocation = `${location}.nextStudyGate.studyRefs[${studyIndex}]`;
+        if (checkSources) validateLocalRef(studyRef, studyLocation, root, errors, { requireDigest: true, requireClaim: true, requireSymbol: false });
+        const key = `${studyRef?.path ?? ""}\0${studyRef?.claim ?? ""}`;
+        if (seenStudyRefs.has(key)) errors.push(`${studyLocation} duplicates study reference ${key}.`);
+        seenStudyRefs.add(key);
+      }
     }
     validateDocs(axis, location, errors, derivedRoute, docsTargets, root, checkSources);
     if (checkSources) {

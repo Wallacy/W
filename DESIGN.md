@@ -11874,6 +11874,11 @@ comum usa integer handle, lock, domain barrier ou `SnapshotCell`. Um provider
 trusted pode usar uma operação raw target-specific atrás de uma interface
 `unsafe`; ela não amplia o conjunto de `Atomic<T>`.
 
+O estudo **Pesquisa** [`ATOM1`](tooling/studies/atom1-atomic-extensibility/README.md)
+examina a derivação fechada de um record value-only e separa owner/lifetime de
+retirement/reclamation. Ele não altera a Forma vigente nem promove `Atomic<T>`
+para pointer, owner, palavra dupla ou RCU universal.
+
 ```w
 enum SignState {
   dark

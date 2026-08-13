@@ -234,10 +234,11 @@
       },
       "capabilityLevelsBasis": "sameProblem",
       "evidence": {
-        "current": [
-          "source-w",
-          "host-oracle",
-          "design-ledger"
+          "current": [
+            "source-w",
+            "host-oracle",
+            "design-ledger",
+            "atom1-design-oracle"
         ],
         "missing": [
           "w-compile",
@@ -577,7 +578,8 @@
         "current": [
           "source-w",
           "host-oracle",
-          "design-ledger"
+          "design-ledger",
+          "atom1-design-oracle"
         ],
         "missing": [
           "w-compile",
@@ -602,7 +604,25 @@
           "two target profiles for the new primitive",
           "pointer-width and word-pair representation proof",
           "reclamation and foreign callback drain",
-          "diagnostic and interface mutation set"
+          "diagnostic and interface mutation set",
+          "ATOM1 adversarial A/B/C study artifacts"
+        ],
+        "studyRefs": [
+          {
+            "path": "tooling/studies/atom1-atomic-extensibility/README.md",
+            "digest": "sha256:852b8ec5921098349c5ed0cca66d02c1e466145f9726633ff10b2cb5c060499e",
+            "claim": "ATOM1 study scope and nonnormative evidence"
+          },
+          {
+            "path": "tooling/atom1-atomic-extensibility-cases.json",
+            "digest": "sha256:2527e660a83b832d045412fa5ac948195812edea5f559285ec82f3d2d44f9f6e",
+            "claim": "ATOM1 adversarial A/B/C oracle corpus"
+          },
+          {
+            "path": "tooling/atom1-atomic-extensibility-machine.mjs",
+            "digest": "sha256:6de57a612ea226e92d3023846017e9ab6156c6473b02eac475de07f9bb91e839",
+            "claim": "ATOM1 independent host derivation machine"
+          }
         ],
         "stopCondition": "Keep the wrapper route and reject the new primitive if representation, reclamation, or interface identity needs ambient authority."
       },
