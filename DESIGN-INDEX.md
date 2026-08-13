@@ -16,10 +16,10 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 29611 |
-| tokens aproximados de `DESIGN.md` | 312600 |
-| linhas de `RATIONALE.md` | 5229 |
-| tokens aproximados de `RATIONALE.md` | 136400 |
+| linhas de `DESIGN.md` | 29629 |
+| tokens aproximados de `DESIGN.md` | 312900 |
+| linhas de `RATIONALE.md` | 5271 |
+| tokens aproximados de `RATIONALE.md` | 137100 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 338/338 |
 | decisões | 1350 (W-001–W-1350) |
@@ -157,9 +157,9 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 21 | 24305–26321 | 19100 | Packages, builds e releases |
 | 22 | 26322–26832 | 4900 | Tooling e interface para máquinas |
 | 23 | 26833–28236 | 16600 | Protocolos e pesquisas de ecossistema |
-| 24 | 28237–29074 | 11500 | Design freeze e pendências |
-| 25 | 29075–29285 | 1900 | Produto de referência Última Luz |
-| 26 | 29286–29611 | 4000 | Plano de implementação |
+| 24 | 28237–29092 | 11800 | Design freeze e pendências |
+| 25 | 29093–29303 | 1900 | Produto de referência Última Luz |
+| 26 | 29304–29629 | 4000 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
@@ -167,7 +167,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 |---:|---:|---:|---|
 | 1 | 14–3794 | 57200 | Evidência comparativa |
 | 2 | 3795–3825 | 500 | Proveniência |
-| 3 | 3826–5229 | 78600 | Ledger |
+| 3 | 3826–5271 | 79300 | Ledger |
 
 ## Bundles de leitura
 
@@ -179,7 +179,7 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | segurança e execução | 9, 10, 11, 12, 13 | 7371–15104 | 83900 | ownership, errors, tasks, domains, services e entries |
 | std e performance | 14, 15, 16, 17, 18, 19 | 15105–22798 | 87000 | módulos, números, texto, tensors, custo, C e unsafe |
 | compiler e distribuição | 20, 21, 22, 23 | 22799–28236 | 56700 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 28237–29611 | 17400 | freeze, Última Luz, gates e roadmap |
+| validação e decisões | 24, 25, 26 | 28237–29629 | 17700 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

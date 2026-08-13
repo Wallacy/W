@@ -1,0 +1,179 @@
+{
+  "$schema": "w-frontend-freeze-cases-1",
+  "status": "design-oracle-input",
+  "families": [
+    {
+      "id": "FZ0-G0-statements-control",
+      "family": "G0",
+      "construction": "labeled control and post-test statements",
+      "decisions": ["W-732", "W-746", "W-747", "W-781"],
+      "sourceRef": {
+        "path": "reference/last-light/semantic_matrix.w",
+        "symbol": "fixed: while",
+        "digest": "sha256:e8c91b52a9d9806ad44299aec96b41846bdaf1d8d4df1f2b2a8ce3d0b80bca5d"
+      },
+      "positive": {
+        "formatterCases": ["F0-labeled-repeat-loop", "F0-labeled-control"],
+        "markers": ["fixed: while", "repeat", "while network.isAvailable"]
+      },
+      "adversarial": {
+        "kind": "syntax-invalid",
+        "basis": {
+          "formatterCase": "F0-value-block-boundary",
+          "remove": " else"
+        },
+        "failureField": "parseDiagnostic",
+        "diagnostic": {
+          "code": "W-PARSE-0021",
+          "phase": "source.parse",
+          "facts": {
+            "actual": "if expression",
+            "construct": "value-producing conditional",
+            "expected": ["else", "alternative block"],
+            "mutation": {
+              "basis": "F0-value-block-boundary",
+              "removed": " else",
+              "recovery": { "kinds": ["ERROR"], "count": 3 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "FZ0-G1-declarations-and-roots",
+      "family": "G1",
+      "construction": "script header and implicit script entry",
+      "decisions": ["W-1046", "W-1047", "W-1056"],
+      "sourceRef": {
+        "path": "reference/last-light/horizon_script.w",
+        "symbol": "print(result)",
+        "digest": "sha256:2bf5fe7bf3fecdf8b22ce3c3412b74fb9c34460d97a5060d5474b783dda82403"
+      },
+      "positive": {
+        "formatterCase": "F0-script-header",
+        "workflowCase": "PYN1-implicit-entry-runs-default",
+        "workflowExpected": { "status": "accepted" },
+        "markers": ["script", "entry", "print(result)"]
+      },
+      "adversarial": {
+        "kind": "source-waiver",
+        "reason": "PYN1 rejects entry-order and explicit/implicit mixing, but no S0 SemanticResult pair exists for the root-only workflow contract.",
+        "workflowOutcomes": [
+          { "id": "PYN1-implicit-declaration-after-statement", "code": "declarationAfterStatement", "at": "last", "reason": "declaration-order" },
+          { "id": "PYN1-explicit-and-implicit-entry", "code": "explicitImplicitEntry", "at": "last", "reason": "entry-form-mixing" },
+          { "id": "PYN1-implicit-root-import-rejected", "code": "scriptImportForbidden", "at": "last", "reason": "root-import-boundary" }
+        ],
+        "failureField": "entryForm",
+        "diagnostic": {
+          "code": "W-SCRIPT-0005",
+          "phase": "source.entry",
+          "facts": {
+            "actual": "implicit script entry conflicts with root declaration order",
+            "construct": "script entry",
+            "expected": ["implicit root-only entry"],
+            "entryForm": "implicit",
+            "reason": "root-only-entry-contract",
+            "waiver": true,
+            "workflowOutcomes": [
+              { "id": "PYN1-implicit-declaration-after-statement", "code": "declarationAfterStatement", "at": "last", "reason": "declaration-order" },
+              { "id": "PYN1-explicit-and-implicit-entry", "code": "explicitImplicitEntry", "at": "last", "reason": "entry-form-mixing" },
+              { "id": "PYN1-implicit-root-import-rejected", "code": "scriptImportForbidden", "at": "last", "reason": "root-import-boundary" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "FZ0-G2-types-and-contracts",
+      "family": "G2",
+      "construction": "generic type and optional value labels",
+      "decisions": ["W-1155", "W-1160", "W-1290"],
+      "sourceRef": {
+        "path": "reference/last-light/generics.w",
+        "symbol": "struct StaticWindow<",
+        "digest": "sha256:76cccac6b23c47cb1b1e0c6f72f2bf4ed94d57069e06a3e54e093114e94b899b"
+      },
+      "positive": {
+        "formatterCases": ["F0-contracts-and-source-order", "F0-optional-label-slots"],
+        "semanticCase": "S0-POS-generic-parameter-kinds",
+        "markers": ["StaticWindow", "rows:", "_ stages", "<(.count <= 64)>"]
+      },
+      "adversarial": {
+        "kind": "semantic-inversion",
+        "semanticCase": "S0-NEG-generic-parameter-domain",
+        "baseline": "S0-POS-generic-parameter-kinds",
+        "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:de5b8ae8f606cd185cae933a67198f67b66051b38e8f066fe7a1cc5c6f3f83ad" },
+        "failureField": "resultType"
+      }
+    },
+    {
+      "id": "FZ0-G3-patterns",
+      "family": "G3",
+      "construction": "nominal pattern capture and case payload",
+      "decisions": ["W-765"],
+      "sourceRef": {
+        "path": "reference/last-light/command.w",
+        "symbol": "case \"place\": .place",
+        "digest": "sha256:9806fe85cb91023b2da49dd16e47b86f4e6e174f7004fdedbca075ef43df4755"
+      },
+      "positive": {
+        "formatterCase": "F0-enum-subset-switch",
+        "semanticCase": "S0-POS-pattern-capture-modality",
+        "markers": ["switch", "case", "let"]
+      },
+      "adversarial": {
+        "kind": "semantic-inversion",
+        "semanticCase": "S0-NEG-pattern-capture-modality",
+        "baseline": "S0-POS-pattern-capture-modality",
+        "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:4eb6866bd4e8b53b8551a6fd3d3e9a0754d6684c80278d489bbccf50b2889f4e" },
+        "failureField": "ownerDelta"
+      }
+    },
+    {
+      "id": "FZ0-G4-expressions-and-execution",
+      "family": "G4",
+      "construction": "direct call, await, async let, spawn, and explicit captures",
+      "decisions": ["W-006", "W-039", "W-197", "W-350", "W-725", "W-774", "W-927", "W-1162"],
+      "sourceRef": {
+        "path": "reference/last-light/execution.w",
+        "symbol": "async let childTask = mixJob",
+        "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed"
+      },
+      "positive": {
+        "formatterCases": ["F0-spawn-domain-slots", "F0-explicit-capture-closure", "F0-effect-prefix-order"],
+        "semanticCase": "S0-POS-effect-prefix-order",
+        "markers": ["async let", "spawn<.compute>", "try await", "<[take"]
+      },
+      "adversarial": {
+        "kind": "semantic-inversion",
+        "semanticCase": "S0-NEG-effect-prefix-order",
+        "baseline": "S0-POS-effect-prefix-order",
+        "failureEvidence": { "field": "effectSummary", "baselineValueDigest": "sha256:cf542228b322a63a2e545c71ce0666ac47f1e796ed22bbc3876196de3da77800" },
+        "failureField": "effectSummary"
+      }
+    },
+    {
+      "id": "FZ0-G5-integration-and-allocator",
+      "family": "G5",
+      "construction": "contextual allocator scope, optional labels, and recovery boundary",
+      "decisions": ["W-1348", "W-1350"],
+      "sourceRef": {
+        "path": "reference/last-light/allocation.w",
+        "symbol": "allocator .fixed<capacity: 2<iec.MiB>>",
+        "digest": "sha256:eb65b28572bd3faa31de1e2b2b8de0101ae0a5cf4cf8ee8eee69a61bdfce2da7"
+      },
+      "positive": {
+        "formatterCases": ["F0-allocator-anonymous-contextual-call", "F0-allocator-named-override"],
+        "semanticCase": "S0-POS-contextual-call-omission",
+        "markers": ["allocator", ".fixed", "allocator:", "stage(ref payload)"]
+      },
+      "adversarial": {
+        "kind": "semantic-inversion",
+        "semanticCase": "S0-NEG-contextual-call-missing-current",
+        "baseline": "S0-POS-contextual-call-omission",
+        "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:2fa5720d16c01e9d72a851aca07a8ca880c70327f5adc8bb5277bb4ac2a502ae" },
+        "failureField": "proofFacts"
+      }
+    }
+  ]
+}
