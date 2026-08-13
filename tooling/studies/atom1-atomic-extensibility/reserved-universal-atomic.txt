@@ -1,0 +1,6 @@
+ATOM1 reserved witnesses. These are not current W syntax or semantics.
+
+protocol AtomicValue<T> where userDefinedRepresentation<T>
+var atomic pointer: *Menu
+Atomic<Pair<u64, u64>, reclamation: .rcu>
+rcu domain menu using gracePeriod and retire callback

@@ -1691,6 +1691,97 @@ O modelo LZ0 mede a semântica comum entre lowerings. Ele não escolhe a primiti
 do provider. Futex, parking lot, mutex interno ou uma forma target-specific são
 alternativas físicas, desde que preservem winner, edges, cancellation e drop.
 
+#### 1.4.7 ATOM1 — extensibilidade atômica e reclamation
+
+ATOM1 é um estudo adversarial e não normativo para o gate ATOM0-G1. O estudo
+usa o restaurante Last Light e separa três problemas que não compartilham um
+contrato de lifetime:
+
+| Eixo | Caso | Resultado do estudo |
+|---|---|---|
+| A | `SignEpochWord { state: SignState, generation: u32 }` publica uma versão. | Packing inteiro, `SnapshotCell`, lock ou domain continuam atuais. O carrier canônico sintetizado é o candidato **Pesquisa** preferido; raw-layout é rejeitado. |
+| B | `MenuHandle { slot: u32, generation: u32 }` identifica um `Menu`. | O handle inteiro pode ser atômico. A owner table valida a generation antes do dereference. Tagged pointer permanece unsafe. |
+| C | Readers observam snapshots e nodes aposentados. | `SnapshotCell` é a composição atual. Reclamation universal exige adapter `unsafe` especializado. |
+
+O candidato A preferido é um carrier canônico sintetizado pelo compiler atrás
+da forma de estudo `var atomic word: SignEpochWord`. Ele não adiciona syntax,
+protocol ou annotation. A alternativa raw-layout é rejeitada por enquanto:
+ela acopla padding, alignment e ABI de `T` à primitive target. O oracle deriva
+uma codificação injetiva de `record.fields`; os três cases de `SignState` usam 2
+bits e `generation: u32` usa 32 bits, portanto o carrier opaco mínimo é 34 bits
+(por exemplo, `u64`). Inteiros fixos até `u128`/`i128` podem medir carriers de
+até 128 bits; `usize`/`isize` são rejeitados no estudo mínimo por dependerem do
+target. Layout raw de `T` pode ser validado como receipt de ABI, mas padding,
+alignment, inicialização e extent são ignorados na seleção do carrier opaco.
+Eles não são autoridade de elegibilidade nem podem ser forjados pelo caller.
+Uma codificação de largura zero, como um enum de um case, é rejeitada com
+diagnóstico próprio: não existe carrier ou atomic location para publicar.
+
+O oracle deriva `Copy`, `lifetimeIndependent` e `dropFree` de `record.fields`;
+facts fornecidos pelo caller são dados não confiáveis e não têm autoridade.
+Kinds desconhecidos, nested record sem medição, enum payload, field pointer,
+owner, borrow, view ou allocator origin, encoding custom ou non-injective e
+bits excessivos rejeitam a derivação. O candidato exige uma encoding canônica
+injectiva, igualdade da representação canônica para CAS e um carrier opaco em
+uma extensão atômica suportada. Fetch arithmetic genérico é rejeitado e a
+order success/failure continua estática. `Atomic<T>`/`var atomic` não cruza C
+ABI diretamente.
+
+O profile do target seleciona o carrier e separa `nativeAtomicWidthsBytes`,
+`lockFreeWidthsBytes` e `fallbackCapability`. Um extent sem primitive nativa só
+usa fallback quando o provider declarado é compatível com o contexto
+blocking/task-safe/freestanding/signal-or-interrupt/cooperative-worker.
+Carrier nativo sem lock-free exige fallback compatível; `lockFree: true` rejeita
+fallback, allocation e blocking. O resultado não altera a identidade lógica do
+tipo. `SemanticInterfaceKey` muda quando a declaração pública ou requirement
+muda. O carrier selecionado entra em `WAbiKey`/RepresentationMap somente quando
+`Atomic<T>` cruza o W ABI exato. Mudança apenas no provider digest muda
+recipe/RuntimeClosure/artifact evidence, não a `SemanticInterfaceKey`.
+
+O caso B aceita somente um value-only handle com packing/unpacking canônico dos
+dois `u32` em `u64` e uma owner table source-shaped que owns `Menu`, compara a
+generation antes de acessar e retorna `Optional`/`Bool`. Uma generation stale
+retorna rejeição sem dereference; o oracle registra um dereference para um handle
+válido, zero para stale e zero para wrap. Uma generation curta pode repetir um
+valor. O estudo marca esse wrap como **Pesquisa**. Um CAS de tagged pointer não
+prova provenance, lifetime, ABA ou reclamation. Mesmo com receipts completos,
+esses proofs só levam a adapter `unsafe` **Pesquisa**, com promoção de wrapper
+safe ainda não provada.
+
+O caso C registra mutations adversariais: registration ausente, retire antes
+de unlink, reclaim antes de drop/quiescence, retired set sem bound, deleter em
+outro domain, shutdown com participants/readers/retired/callbacks vivos, orders,
+progress, fault e participant duplicados, além de reclaim/drop duplicado. Os
+eventos fechados exigem `register -> access`, `unlink -> retire`,
+`quiescence -> drop -> reclaim`, participant drain/unregister e, somente no
+`foreignBoundary: persistent-callback`, `unregister -> in-flight drain ->
+destroy -> unpin`; shutdown só ocorre com todos os contadores em zero. Cada
+mutation é rejeitada. Um adapter completo nomeia
+participants, bounds, registration, retire, quiescence, deleter context,
+shutdown, orders, progress, fault behavior e foreign boundary. Mesmo completo, ele
+permanece `unsafe` e **Pesquisa**.
+
+O oracle host e as variantes estão em
+[`tooling/studies/atom1-atomic-extensibility`](tooling/studies/atom1-atomic-extensibility),
+com corpus, máquina e snapshot em `tooling/atom1-atomic-extensibility-*`.
+As variantes W são parseáveis. O witness universal fica em texto reservado.
+O estudo referencia `HorizonTelemetryEpoch`, `HorizonMenuPublication`,
+`BellLease`, `watchClosingBell` e `foreign c` sem alterar Last Light.
+
+As fontes primárias sustentam limites diferentes. O
+[`cmpxchg` do LLVM LangRef](https://llvm.org/docs/LangRef.html#cmpxchg-instruction)
+exige valor integer ou pointer com width potência de dois, alignment válido e
+orders success/failure separadas. A documentação de
+[`core::sync::atomic` do Rust](https://doc.rust-lang.org/stable/core/sync/atomic/index.html)
+trata as widths suportadas como facts do target. A documentação de
+[RCU do Linux](https://docs.kernel.org/RCU/whatisRCU.html) separa removal
+de reclamation e aguarda readers anteriores antes do reuse.
+
+ATOM1 não fecha o gate. `w-compile`, `w-run`, probes de target, provider, drain
+FFI e estudos humanos ou de modelo permanecem missing. A rota ATOM0 continua
+composable para wrappers. O record derivado e a reclamation adapter continuam
+**Pesquisa**.
+
 ### 1.5 Memória, layout, errors e cleanup
 
 Esta seção preserva precedentes usados nas seções 9 a 11 de `DESIGN.md`. W usa
@@ -4010,6 +4101,14 @@ Os resultados atuais são estes:
 | SRV0 | Vigente | Services, faults, generations e recovery actions formam o design. Journal e crash provider são gates de evidência. |
 | DYN0 | Componível | Dados, plugins tipados, generations, REPL e transforms atendem hot change. Eval e active-frame patching são rejeitados como mecanismos. |
 
+ATOM0-G1 agora possui o estudo durável
+[`ATOM1`](tooling/studies/atom1-atomic-extensibility/README.md). O corpus e o
+snapshot registram as três fronteiras sem promover a extensão: A testa a
+derivação do carrier canônico value-only (e rejeita raw-layout), B testa handle
+e owner table, e C testa composition com `SnapshotCell` ou adapter `unsafe`
+bounded. A rota do problema permanece Componível. Os requisitos de target,
+reclamation, interface mutation e FFI drain continuam gates **Pesquisa**.
+
 Assim, DYN0 não classifica o problema inteiro como rejeitado. O problema
 compõe com gerações tipadas. Somente o mecanismo de eval arbitrário recebe
 `foreignMechanismDisposition: intentionally-rejected`. O mesmo cuidado vale
@@ -5434,6 +5533,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1349 | conclusão contextual de call | slot standard primeiro recebe `ref currentAllocator`; cadeia entra no callee e sem slot reinicia no root; W-ALLOCATOR-0010 cobre somente slot contextual sem current | inferência por nome/tipo, parâmetro comum ou propagação sem slot |
 | W-1350 | interface, callable, lifecycle e evidência | signature/HIR/ABI preservam slot; overload usa W-LABEL-0004, initializer usa W-ALLOCATOR-0011; callable/capture/lifecycle/explainability e status permanecem explícitos | default parameter, ABI oculto, capture ou rehome implícito, claims de implementação |
 | W-1351 | expressividade de borrow de ordem superior | BRX0 fecha receiver e body-derived mapping; callable cria loan por invocation, stream item fica preso ao receiver/storage e adapters preservam OriginSet; free/protocol bodyless com dois inputs permanece Research por causa do default all-inputs; relation schema e carrier nominal são candidatos, sem syntax de lifetime, GAT ou metadata runtime | copiar lifetime names de Rust, promover relation syntax, tratar aggregate como mesmo resultado, esconder mapping em `any fn`, ou alegar compiler/runtime/provider |
+| W-1352 | estudo ATOM1 de extensibilidade atômica | um oracle adversarial separa record value-only (A), handle geracional com owner table (B) e retirement/reclamation (C); packing, SnapshotCell, domain e lock continuam atuais; carrier canônico sintetizado é o candidato Research preferido, raw-layout é rejeitado, e adapter de reclamation permanece Research, com target progress, interface identity e foreign boundary explícitos | pointer/owner safe por atomicidade, acoplar padding/layout de T ao carrier, protocol user-defined para qualquer record, generation sem owner table, RCU universal safe, reclamation sem quiescence/drop, ou claims de compiler/runtime/provider |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

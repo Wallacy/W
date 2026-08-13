@@ -1,0 +1,4401 @@
+{
+  "$schema": "w-atom1-atomic-extensibility-cases-1",
+  "status": "design-oracle-input",
+  "restaurant": "Last Light",
+  "cases": [
+    {
+      "id": "A-sign-epoch-scalar-packing",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "scalar-packing",
+      "encoding": "canonical-u64",
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "packing": {
+        "carrier": "u64",
+        "stateBits": 2,
+        "generationBits": 32,
+        "totalBits": 34,
+        "encode": "canonical",
+        "decode": "canonical",
+        "invalidState": "reject",
+        "generationOverflow": "reject",
+        "examples": [
+          {
+            "stateCode": 2,
+            "generation": 7,
+            "encoded": "30"
+          },
+          {
+            "stateCode": 0,
+            "generation": 4294967295,
+            "encoded": "17179869180"
+          }
+        ]
+      }
+    },
+    {
+      "id": "A-sign-epoch-snapshot-cell",
+      "axis": "A",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "snapshot-cell",
+      "payload": {
+        "transferable": true,
+        "shareable": true,
+        "lifetimeIndependent": true,
+        "immutableVersion": true
+      }
+    },
+    {
+      "id": "A-sign-epoch-lock-domain",
+      "axis": "A",
+      "restaurantSymbol": "recordOnApologyDomain",
+      "route": "lock-domain",
+      "composition": {
+        "domain": "spawn<.apology>",
+        "turn": "assignOnApologyDomain",
+        "structured": true
+      },
+      "operations": [
+        "domain-barrier",
+        "lock-short"
+      ]
+    },
+    {
+      "id": "A-sign-epoch-derived-x64",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-derived-fallback",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "armv7-m",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "fallbackCapability": {
+          "kind": "parking-table",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-padding",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "PaddedWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 16,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "atomicEligibilityLayout": "raw"
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "allocator-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": true
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-drop-field",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "DropWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "label",
+            "kind": "drop"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-unknown-field",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "UnknownWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "mystery",
+            "kind": "futureAtomicKind"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-forged-facts",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "ForgedWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "facts": {
+          "copy": true,
+          "lifetimeIndependent": true,
+          "dropFree": true,
+          "pointer": false,
+          "owner": false
+        }
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-scalar-invalid-state",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "scalar-packing",
+      "packing": {
+        "carrier": "u64",
+        "stateBits": 2,
+        "generationBits": 32,
+        "totalBits": 34,
+        "encode": "canonical",
+        "decode": "canonical",
+        "invalidState": "accept",
+        "generationOverflow": "reject"
+      }
+    },
+    {
+      "id": "A-sign-epoch-scalar-generation-overflow",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "scalar-packing",
+      "packing": {
+        "carrier": "u64",
+        "stateBits": 2,
+        "generationBits": 32,
+        "totalBits": 34,
+        "encode": "canonical",
+        "decode": "canonical",
+        "invalidState": "reject",
+        "generationOverflow": "wrap"
+      }
+    },
+    {
+      "id": "A-sign-epoch-fallback-cooperative-blocking",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "CooperativeFallbackWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "cooperative-worker",
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "context": {
+        "cooperativeWorker": true,
+        "signalOrInterrupt": false,
+        "freestanding": false
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false
+    },
+    {
+      "id": "A-sign-epoch-fallback-parking-safe",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "ParkingFallbackWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "cooperative-worker-parking",
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "fallbackCapability": {
+          "kind": "parking-table",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "context": {
+        "cooperativeWorker": true,
+        "signalOrInterrupt": false,
+        "freestanding": false
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false
+    },
+    {
+      "id": "A-sign-epoch-lockfree-fallback-forbidden",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "LockFreeFallbackWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "freestanding",
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "fallbackCapability": {
+          "kind": "allocator-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": true
+        }
+      },
+      "context": {
+        "cooperativeWorker": false,
+        "signalOrInterrupt": false,
+        "freestanding": true
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": true
+    },
+    {
+      "id": "A-sign-epoch-pointer-field",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "PointerWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "address",
+            "kind": "pointer"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-too-wide-lockfree",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "WideWord",
+        "sizeBytes": 16,
+        "alignmentBytes": 16,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "atomicEligibilityLayout": "raw"
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-misaligned",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "MisalignedWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 4,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "atomicEligibilityLayout": "raw"
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-fetch-arithmetic",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "fetchAdd"
+      ],
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-invalid-order",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "release",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-interface-drift",
+      "axis": "A",
+      "restaurantSymbol": "foreign c",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "interface": {
+        "semanticInterfaceKey": "w:atom1:sign-epoch:v1",
+        "candidateKey": "w:atom1:sign-epoch:v2",
+        "wAbiKey": "abi:atom1:sign-epoch:v1",
+        "candidateAbiKey": "abi:atom1:sign-epoch:v2",
+        "providerDigest": "sha256:provider-v1",
+        "candidateProviderDigest": "sha256:provider-v2"
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-uninitialized",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "UninitializedWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": false,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "atomicEligibilityLayout": "raw"
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-noncanonical",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "NoncanonicalWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": false,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "atomicEligibilityLayout": "raw"
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "B-menu-handle-generation",
+      "axis": "B",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "integer-handle",
+      "handle": {
+        "slotBits": 32,
+        "generationBits": 32,
+        "packedCarrier": "u64"
+      },
+      "ownerTable": {
+        "present": true,
+        "generationCheck": true,
+        "dereferenceAfterCheck": true,
+        "ownsPayload": true,
+        "returnsOptional": true,
+        "packedCarrier": "u64",
+        "sourceShape": true,
+        "payloadType": "Menu",
+        "resolveResult": "Optional<Menu>"
+      },
+      "operations": [
+        {
+          "op": "pack",
+          "handle": {
+            "slot": 4,
+            "generation": 7
+          },
+          "packed": "30064771076"
+        },
+        {
+          "op": "unpack",
+          "packed": "30064771076",
+          "handle": {
+            "slot": 4,
+            "generation": 7
+          }
+        },
+        {
+          "op": "install",
+          "slot": 4,
+          "generation": 7
+        },
+        {
+          "op": "resolve",
+          "slot": 4,
+          "generation": 7
+        }
+      ]
+    },
+    {
+      "id": "B-menu-handle-stale-generation",
+      "axis": "B",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "integer-handle",
+      "handle": {
+        "slotBits": 32,
+        "generationBits": 32,
+        "packedCarrier": "u64"
+      },
+      "ownerTable": {
+        "present": true,
+        "generationCheck": true,
+        "dereferenceAfterCheck": true,
+        "ownsPayload": true,
+        "returnsOptional": true,
+        "packedCarrier": "u64",
+        "sourceShape": true,
+        "payloadType": "Menu",
+        "resolveResult": "Optional<Menu>"
+      },
+      "operations": [
+        {
+          "op": "install",
+          "slot": 4,
+          "generation": 7
+        },
+        {
+          "op": "reuse",
+          "slot": 4,
+          "generation": 8
+        },
+        {
+          "op": "resolve",
+          "slot": 4,
+          "generation": 7
+        }
+      ]
+    },
+    {
+      "id": "B-menu-handle-generation-wrap",
+      "axis": "B",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "integer-handle",
+      "handle": {
+        "slotBits": 32,
+        "generationBits": 2,
+        "packedCarrier": "u64"
+      },
+      "ownerTable": {
+        "present": true,
+        "generationCheck": true,
+        "dereferenceAfterCheck": true,
+        "ownsPayload": true,
+        "returnsOptional": true,
+        "packedCarrier": "u64",
+        "sourceShape": true,
+        "payloadType": "Menu",
+        "resolveResult": "Optional<Menu>"
+      },
+      "operations": [
+        {
+          "op": "install",
+          "slot": 4,
+          "generation": 1
+        },
+        {
+          "op": "reuse",
+          "slot": 4,
+          "generation": 2
+        },
+        {
+          "op": "reuse",
+          "slot": 4,
+          "generation": 3
+        },
+        {
+          "op": "reuse",
+          "slot": 4,
+          "generation": 0
+        },
+        {
+          "op": "reuse",
+          "slot": 4,
+          "generation": 1
+        },
+        {
+          "op": "resolve",
+          "slot": 4,
+          "generation": 1
+        }
+      ]
+    },
+    {
+      "id": "B-menu-handle-owner-table-missing",
+      "axis": "B",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "integer-handle",
+      "handle": {
+        "slotBits": 32,
+        "generationBits": 32,
+        "packedCarrier": "u64"
+      },
+      "ownerTable": {
+        "present": false,
+        "generationCheck": false,
+        "dereferenceAfterCheck": false,
+        "ownsPayload": true,
+        "returnsOptional": true,
+        "packedCarrier": "u64"
+      },
+      "operations": [
+        {
+          "op": "resolve",
+          "slot": 4,
+          "generation": 7
+        }
+      ]
+    },
+    {
+      "id": "B-tagged-pointer-cas-without-reclamation",
+      "axis": "B",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "tagged-pointer",
+      "pointer": {
+        "cas": true,
+        "tagBits": 16,
+        "provenance": false,
+        "lifetime": false,
+        "abaProof": false
+      },
+      "reclamation": {
+        "registration": false,
+        "quiescence": false,
+        "shutdown": false
+      }
+    },
+    {
+      "id": "B-tagged-pointer-specialized-adapter",
+      "axis": "B",
+      "restaurantSymbol": "BellLease",
+      "route": "tagged-pointer",
+      "pointer": {
+        "cas": true,
+        "tagBits": 16,
+        "provenance": false,
+        "lifetime": false,
+        "abaProof": false
+      },
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": false,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "none"
+      }
+    },
+    {
+      "id": "B-tagged-pointer-provenance-receipts",
+      "axis": "B",
+      "restaurantSymbol": "BellLease",
+      "route": "tagged-pointer",
+      "pointer": {
+        "cas": true,
+        "tagBits": 16,
+        "provenance": true,
+        "lifetime": true,
+        "abaProof": true
+      },
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": false,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "none"
+      }
+    },
+    {
+      "id": "C-menu-snapshot-cell",
+      "axis": "C",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "snapshot-cell",
+      "payload": {
+        "transferable": true,
+        "shareable": true,
+        "lifetimeIndependent": true
+      },
+      "operations": [
+        "read",
+        "publish"
+      ],
+      "retireCallback": false
+    },
+    {
+      "id": "C-menu-domain-barrier",
+      "axis": "C",
+      "restaurantSymbol": "recordOnApologyDomain",
+      "route": "domain-service",
+      "operations": [
+        "spawn-barrier",
+        "join",
+        "cleanup"
+      ]
+    },
+    {
+      "id": "C-reclamation-missing-registration",
+      "axis": "C",
+      "restaurantSymbol": "BellLease",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task"
+        ],
+        "registration": false,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-before-unlink",
+      "axis": "C",
+      "restaurantSymbol": "BellLease",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task"
+        ],
+        "registration": true,
+        "retire": "before-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-before-quiescence",
+      "axis": "C",
+      "restaurantSymbol": "BellLease",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "immediate-reclaim",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-unbounded-retired",
+      "axis": "C",
+      "restaurantSymbol": "BellLease",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": "unbounded",
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-wrong-deleter-domain",
+      "axis": "C",
+      "restaurantSymbol": "BellLease",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "foreign-callback",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-live-shutdown",
+      "axis": "C",
+      "restaurantSymbol": "BellLease",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "stop-with-live-participants",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-missing-ffi-drain",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": false,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-complete-unsafe-schema",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": false,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "none"
+      }
+    },
+    {
+      "id": "C-reclamation-order-swapped",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-duplicate-participant",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task",
+          "reader-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-invalid-order",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "not-an-order"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-invalid-progress",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "maybe-lockfree",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-invalid-fault",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "ignore-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-double-reclaim",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-double-drop",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-shutdown-retired",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "shutdown"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-shutdown-reader",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "shutdown"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-shutdown-callback",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "shutdown"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "A-sign-epoch-fallback-signal-blocking",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "CooperativeFallbackWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "signal-handler",
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "context": {
+        "cooperativeWorker": false,
+        "signalOrInterrupt": true,
+        "freestanding": false
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false
+    },
+    {
+      "id": "A-sign-epoch-fallback-freestanding-blocking",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "CooperativeFallbackWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "freestanding-worker",
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "context": {
+        "cooperativeWorker": false,
+        "signalOrInterrupt": false,
+        "freestanding": true
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": false
+    },
+    {
+      "id": "C-reclamation-complete-ffi-schema",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "persistent-callback"
+      }
+    },
+    {
+      "id": "C-reclamation-none-with-ffi-events",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "none"
+      }
+    },
+    {
+      "id": "A-sign-epoch-raw-layout-candidate",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "atomicEligibilityLayout": "raw"
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-enum-payload",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3,
+            "payload": true
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-custom-encoding",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "encoding": "custom"
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-native-carrier-not-lockfree",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "parking-table",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": false,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-semantic-contract-drift",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      },
+      "interface": {
+        "semanticInterfaceKey": "w:atom1:sign-epoch:v1",
+        "candidateKey": "w:atom1:sign-epoch:v2",
+        "wAbiKey": "abi:atom1:sign-epoch:v1",
+        "candidateAbiKey": "abi:atom1:sign-epoch:v1",
+        "crossesWAbi": true,
+        "providerDigest": "sha256:provider-v1",
+        "candidateProviderDigest": "sha256:provider-v1"
+      }
+    },
+    {
+      "id": "A-sign-epoch-wabi-carrier-drift",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      },
+      "interface": {
+        "semanticInterfaceKey": "w:atom1:sign-epoch:v1",
+        "candidateKey": "w:atom1:sign-epoch:v1",
+        "wAbiKey": "abi:atom1:sign-epoch:v1",
+        "candidateAbiKey": "abi:atom1:sign-epoch:v2",
+        "crossesWAbi": true,
+        "providerDigest": "sha256:provider-v1",
+        "candidateProviderDigest": "sha256:provider-v1"
+      }
+    },
+    {
+      "id": "A-sign-epoch-provider-digest-change",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      },
+      "interface": {
+        "semanticInterfaceKey": "w:atom1:sign-epoch:v1",
+        "candidateKey": "w:atom1:sign-epoch:v1",
+        "wAbiKey": "abi:atom1:sign-epoch:v1",
+        "candidateAbiKey": "abi:atom1:sign-epoch:v1",
+        "crossesWAbi": true,
+        "providerDigest": "sha256:provider-v1",
+        "candidateProviderDigest": "sha256:provider-v2"
+      }
+    },
+    {
+      "id": "A-sign-epoch-ffi-direct-carrier",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 8,
+        "extentCount": 1,
+        "paddingBits": 0,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      },
+      "interface": {
+        "semanticInterfaceKey": "w:atom1:sign-epoch:v1",
+        "candidateKey": "w:atom1:sign-epoch:v1",
+        "wAbiKey": "abi:atom1:sign-epoch:v1",
+        "candidateAbiKey": "abi:atom1:sign-epoch:v1",
+        "crossesWAbi": true,
+        "directFFI": true,
+        "providerDigest": "sha256:provider-v1",
+        "candidateProviderDigest": "sha256:provider-v1"
+      }
+    },
+    {
+      "id": "C-reclamation-cross-participant-reader-exit",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu-workers",
+        "participants": [
+          "reader-task",
+          "writer-task"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 64,
+        "quiescence": "domain-barrier",
+        "deleterContext": "menu-workers",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": false,
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader-task"
+          },
+          {
+            "op": "register",
+            "participant": "writer-task"
+          },
+          {
+            "op": "access",
+            "participant": "reader-task"
+          },
+          {
+            "op": "readerExit",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader-task"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "writer-task"
+          },
+          {
+            "op": "unregister",
+            "participant": "writer-task"
+          },
+          {
+            "op": "shutdown"
+          }
+        ],
+        "foreignBoundary": "none"
+      }
+    },
+    {
+      "id": "A-sign-epoch-layout-receipt-ignored",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "SignEpochWord",
+        "sizeBytes": 8,
+        "alignmentBytes": 4,
+        "extentCount": 1,
+        "paddingBits": 16,
+        "canonical": true,
+        "fullyInitialized": true,
+        "bitwiseEquality": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "blocking": true,
+          "taskSafe": false,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true,
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": false,
+        "freestanding": false,
+        "signalOrInterrupt": false
+      }
+    },
+    {
+      "id": "A-sign-epoch-bool-bit",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "BoolWord",
+        "fields": [
+          {
+            "name": "enabled",
+            "kind": "bool"
+          }
+        ]
+      },
+      "target": {
+        "id": "bool-native",
+        "lockFreeWidthsBytes": [
+          1
+        ],
+        "nativeAtomicWidthsBytes": [
+          1
+        ],
+        "fallbackCapability": {
+          "kind": "none",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true
+    },
+    {
+      "id": "A-sign-epoch-target-sized-field",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "TargetSizedWord",
+        "fields": [
+          {
+            "name": "slot",
+            "kind": "usize"
+          }
+        ]
+      }
+    },
+    {
+      "id": "A-sign-epoch-wide96-lockfree",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "Wide96Word",
+        "fields": [
+          {
+            "name": "low",
+            "kind": "u64"
+          },
+          {
+            "name": "high",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "wide16-lockfree",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8,
+          16
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8,
+          16
+        ],
+        "fallbackCapability": {
+          "kind": "none",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true
+    },
+    {
+      "id": "A-sign-epoch-wide96-fallback",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "Wide96Word",
+        "fields": [
+          {
+            "name": "low",
+            "kind": "u64"
+          },
+          {
+            "name": "high",
+            "kind": "u32"
+          }
+        ]
+      },
+      "target": {
+        "id": "wide16-fallback",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "parking-table",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": false
+    },
+    {
+      "id": "A-sign-epoch-wide128-lockfree",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "Wide128Word",
+        "fields": [
+          {
+            "name": "low",
+            "kind": "u64"
+          },
+          {
+            "name": "high",
+            "kind": "u64"
+          }
+        ]
+      },
+      "target": {
+        "id": "wide16-lockfree",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8,
+          16
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8,
+          16
+        ],
+        "fallbackCapability": {
+          "kind": "none",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true
+    },
+    {
+      "id": "A-sign-epoch-wide128-lockfree-forbidden",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "Wide128Word",
+        "fields": [
+          {
+            "name": "low",
+            "kind": "u64"
+          },
+          {
+            "name": "high",
+            "kind": "u64"
+          }
+        ]
+      },
+      "target": {
+        "id": "wide16-missing",
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "fallbackCapability": {
+          "kind": "parking-table",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "lockFreeRequested": true
+    },
+    {
+      "id": "A-sign-epoch-zero-bit-enum",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "derived-record",
+      "record": {
+        "name": "UnitEnumWord",
+        "fields": [
+          {
+            "name": "only",
+            "kind": "enum",
+            "caseCount": 1
+          }
+        ]
+      },
+      "target": {
+        "id": "zero-bit-target",
+        "lockFreeWidthsBytes": [
+          1
+        ],
+        "nativeAtomicWidthsBytes": [
+          1
+        ],
+        "fallbackCapability": {
+          "kind": "none",
+          "blocking": false,
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lockFreeRequested": true
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, test } from "bun:test";
+import { fileURLToPath } from "node:url";
+import { evaluateAtom1Case, validateAtom1 } from "../../atom1-atomic-extensibility-machine.mjs";
+import { validateAtom1StudyManifest } from "../../atom1-atomic-extensibility-manifest.mjs";
+
+const toolingDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const corpus = JSON.parse(fs.readFileSync(path.join(toolingDirectory, "atom1-atomic-extensibility-cases.json"), "utf8"));
+const studyDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
+const manifest = JSON.parse(fs.readFileSync(path.join(studyDirectory, "study.json"), "utf8"));
+const byId = new Map(corpus.cases.map((testCase) => [testCase.id, testCase]));
+
+describe("ATOM1 atomic extensibility host oracle", () => {
+  test("the corpus separates A, B, and C and validates its Last Light symbols", () => {
+    const checked = validateAtom1(corpus, { root: path.resolve(toolingDirectory, "..") });
+    expect(checked.errors).toEqual([]);
+    expect(new Set(checked.results.map((item) => item.axis))).toEqual(new Set(["A", "B", "C"]));
+  });
+
+  test("A derives a value-only record but keeps the result in Research", () => {
+    const accepted = evaluateAtom1Case(byId.get("A-sign-epoch-derived-x64"));
+    expect(accepted.status).toBe("candidate-research");
+    expect(accepted.progress).toBe("profile-lockfree");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-padding")).code).toBe("raw-layout-coupling-rejected");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-pointer-field")).code).toBe("atomic-value-lifetime-or-provenance");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-uninitialized")).code).toBe("raw-layout-coupling-rejected");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-raw-layout-candidate")).code).toBe("raw-layout-coupling-rejected");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-enum-payload")).code).toBe("enum-descriptor-invalid");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-custom-encoding")).code).toBe("custom-encoding-noninvertible");
+    const layoutReceipt = evaluateAtom1Case(byId.get("A-sign-epoch-layout-receipt-ignored"));
+    expect(layoutReceipt.status).toBe("candidate-research");
+    expect(layoutReceipt.carrierBytes).toBe(8);
+    const partialReceipt = structuredClone(byId.get("A-sign-epoch-layout-receipt-ignored"));
+    delete partialReceipt.record.fullyInitialized;
+    expect(evaluateAtom1Case(partialReceipt).code).toBe("layout-receipt-schema");
+    const boolBit = evaluateAtom1Case(byId.get("A-sign-epoch-bool-bit"));
+    expect(boolBit.status).toBe("candidate-research");
+    expect(boolBit.canonicalBits).toBe(1);
+    expect(boolBit.carrierBytes).toBe(1);
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-target-sized-field")).code).toBe("target-sized-field-unsupported");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-zero-bit-enum")).code).toBe("canonical-carrier-zero-width");
+    const wide96 = evaluateAtom1Case(byId.get("A-sign-epoch-wide96-lockfree"));
+    expect(wide96.status).toBe("candidate-research");
+    expect(wide96.canonicalBits).toBe(96);
+    expect(wide96.carrierBytes).toBe(16);
+    const wide96Fallback = evaluateAtom1Case(byId.get("A-sign-epoch-wide96-fallback"));
+    expect(wide96Fallback.status).toBe("fallback-declared");
+    expect(wide96Fallback.canonicalBits).toBe(96);
+    expect(wide96Fallback.carrierBytes).toBe(16);
+    const wide128 = evaluateAtom1Case(byId.get("A-sign-epoch-wide128-lockfree"));
+    expect(wide128.status).toBe("candidate-research");
+    expect(wide128.canonicalBits).toBe(128);
+    expect(wide128.carrierBytes).toBe(16);
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-wide128-lockfree-forbidden")).code).toBe("target-lockfree-unavailable");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-scalar-packing")).roundTrips).toBe(2);
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-drop-field")).code).toBe("drop-required");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-unknown-field")).code).toBe("unknown-field-kind");
+    const forgedFacts = structuredClone(byId.get("A-sign-epoch-derived-x64"));
+    forgedFacts.record.facts = { copy: false, lifetimeIndependent: false, dropFree: false, pointer: true };
+    const derived = evaluateAtom1Case(forgedFacts);
+    expect(derived.status).toBe("candidate-research");
+    expect(derived.callerFactsIgnored).toBe(true);
+  });
+
+  test("A changes target progress without changing value identity", () => {
+    const input = structuredClone(byId.get("A-sign-epoch-derived-x64"));
+    input.target.nativeAtomicWidthsBytes = [];
+    input.target.lockFreeWidthsBytes = [];
+    input.context = { blockingAllowed: true, taskSafe: false, cooperativeWorker: false, freestanding: false, signalOrInterrupt: false };
+    input.lockFreeRequested = false;
+    const fallback = evaluateAtom1Case(input);
+    expect(fallback.status).toBe("fallback-declared");
+    expect(fallback.target).toBe("x86_64");
+    expect(fallback.code).toBe("declared-target-fallback");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-fallback-cooperative-blocking")).code).toBe("fallback-context-incompatible");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-fallback-signal-blocking")).code).toBe("fallback-context-incompatible");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-fallback-freestanding-blocking")).code).toBe("fallback-context-incompatible");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-fallback-parking-safe")).status).toBe("fallback-declared");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-lockfree-fallback-forbidden")).code).toBe("target-lockfree-unavailable");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-native-carrier-not-lockfree")).code).toBe("native-carrier-not-lockfree-fallback");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-semantic-contract-drift")).code).toBe("semantic-interface-drift");
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-wabi-carrier-drift")).code).toBe("w-abi-carrier-drift");
+    const providerChange = evaluateAtom1Case(byId.get("A-sign-epoch-provider-digest-change"));
+    expect(providerChange.status).toBe("candidate-research");
+    expect(providerChange.providerDigestChanged).toBe(true);
+    expect(evaluateAtom1Case(byId.get("A-sign-epoch-ffi-direct-carrier")).code).toBe("ffi-direct-carrier-forbidden");
+  });
+
+  test("B rejects stale generation before dereference and exposes wrap risk", () => {
+    const stale = evaluateAtom1Case(byId.get("B-menu-handle-stale-generation"));
+    expect(stale.status).toBe("handle-current");
+    expect(stale.code).toBe("stale-generation");
+    expect(stale.dereference).toBe(false);
+    expect(stale.dereferenceCount).toBe(0);
+    expect(evaluateAtom1Case(byId.get("B-menu-handle-generation")).dereferenceCount).toBe(1);
+    expect(evaluateAtom1Case(byId.get("B-menu-handle-generation-wrap")).code).toBe("generation-wrap-alias");
+    expect(evaluateAtom1Case(byId.get("B-menu-handle-generation-wrap")).dereferenceCount).toBe(0);
+    expect(evaluateAtom1Case(byId.get("B-tagged-pointer-cas-without-reclamation")).status).toBe("research-blocker");
+    expect(evaluateAtom1Case(byId.get("B-tagged-pointer-specialized-adapter")).code).toBe("pointer-proof-missing");
+    const receipts = evaluateAtom1Case(byId.get("B-tagged-pointer-provenance-receipts"));
+    expect(receipts.status).toBe("adapter-research");
+    expect(receipts.unsafeCoreRequired).toBe(true);
+    expect(receipts.safeWrapperPromotion).toBe("unproven");
+  });
+
+  test("C keeps SnapshotCell current and rejects unsafe reclamation mutations", () => {
+    expect(evaluateAtom1Case(byId.get("C-menu-snapshot-cell")).status).toBe("snapshot-current");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-missing-registration")).code).toBe("registration-required");
+    const invalidRegistration = structuredClone(byId.get("C-reclamation-complete-unsafe-schema"));
+    invalidRegistration.reclamation.registration = "yes";
+    expect(evaluateAtom1Case(invalidRegistration).code).toBe("registration-schema-invalid");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-before-unlink")).code).toBe("retire-before-unlink");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-before-quiescence")).code).toBe("reclaim-before-quiescence");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-unbounded-retired")).code).toBe("reclamation-schema-incomplete");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-wrong-deleter-domain")).code).toBe("wrong-deleter-domain");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-live-shutdown")).code).toBe("shutdown-nonquiescent");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-missing-ffi-drain")).code).toBe("foreign-drain-missing");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-complete-unsafe-schema")).status).toBe("adapter-research");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-complete-ffi-schema")).status).toBe("adapter-research");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-none-with-ffi-events")).code).toBe("foreign-boundary-events-forbidden");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-order-swapped")).code).toBe("retire-before-unlink");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-duplicate-participant")).code).toBe("duplicate-participant");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-invalid-order")).code).toBe("memory-order-invalid");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-invalid-progress")).code).toBe("target-progress-invalid");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-invalid-fault")).code).toBe("fault-behavior-invalid");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-double-reclaim")).code).toBe("reclaim-double");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-double-drop")).code).toBe("drop-double-or-before-quiescence");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-shutdown-retired")).code).toBe("shutdown-nonquiescent");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-shutdown-reader")).code).toBe("shutdown-nonquiescent");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-shutdown-callback")).code).toBe("shutdown-nonquiescent");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-cross-participant-reader-exit")).code).toBe("reader-exit-underflow");
+  });
+
+  test("ATOM1 manifest mutations cannot forge durable evidence", () => {
+    const staleDigest = structuredClone(manifest);
+    staleDigest.sourceRefs[0].digest = "sha256:stale";
+    expect(validateAtom1StudyManifest(staleDigest, { studyDirectory }).some((error) => error.includes("digest is stale"))).toBe(true);
+    const missingSymbol = structuredClone(manifest);
+    missingSymbol.sourceRefs[0].symbol = "NotInLastLight";
+    expect(validateAtom1StudyManifest(missingSymbol, { studyDirectory }).some((error) => error.includes("symbol is absent"))).toBe(true);
+    const ambiguousSymbol = structuredClone(manifest);
+    ambiguousSymbol.sourceRefs[0].symbol = "HorizonTelemetryEpoch";
+    expect(validateAtom1StudyManifest(ambiguousSymbol, { studyDirectory }).some((error) => error.includes("symbol must occur exactly once"))).toBe(true);
+    const duplicateRef = structuredClone(manifest);
+    duplicateRef.sourceRefs.push(structuredClone(duplicateRef.sourceRefs[0]));
+    expect(validateAtom1StudyManifest(duplicateRef, { studyDirectory }).some((error) => error.includes("source reference is duplicated"))).toBe(true);
+    const staleCorpus = structuredClone(manifest);
+    staleCorpus.corpus.digest = "sha256:stale";
+    expect(validateAtom1StudyManifest(staleCorpus, { studyDirectory }).some((error) => error.includes("corpus digest is stale"))).toBe(true);
+  });
+});
