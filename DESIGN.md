@@ -28992,7 +28992,7 @@ evidência de design:
 
 | Artefato | Contrato corrente | Prova de design restante |
 |---|---|---|
-| grammar e formatter | G0–G5, CST lossless, recovery, F0 idempotente e FB0 para body estrangeiro opaco | cobrir cada construção normalizada e fuzzar edits, recovery e limits do external scanner; scanners de adapters além de C são providers, não novas regras W |
+| grammar e formatter | G0–G5, CST lossless, recovery, F0 CST-equivalente com alvo canônico e FB0 para body estrangeiro opaco | cobrir cada construção normalizada, provar idempotência real do formatter e fuzzar edits, recovery e limits do external scanner; scanners de adapters além de C são providers, não novas regras W |
 | checker e diagnostics | S0 integra type, effects, ownership, flow e evaluation; D0 fixa record e causalidade | ligar cada regra a success, inversão e campo de falha exato |
 | std | módulos possuem declarations e profiles; os oito carriers Web possuem interface; providers executáveis continuam missing | validar adapters byte-exact, limits e cada superfície restante com outro consumer |
 | workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, dependency lock, sessão, notebook, apresentação, dados e tensor interop | fechar providers executáveis, bridge Python/DLPack real e latency gates |
@@ -29015,6 +29015,24 @@ em [`DESIGN-INDEX.md`](DESIGN-INDEX.md), não neste contrato.
 SDM0 fecha a evidência do checker e diagnostics com matriz host, pares source
 S0 para W-785/W-788 e cobertura derivada dos contratos W-791–W-820. O método,
 os limites e as métricas ficam em [`RATIONALE.md` §1.24](RATIONALE.md#124-evidência-sdm0-matriz-de-diagnostics-e-resultado-semântico).
+
+FZ0 fecha o primeiro ciclo uniforme de frontend em
+[`tooling/frontend-freeze-cases.json`](tooling/frontend-freeze-cases.json) e
+[`tooling/check-frontend-freeze.mjs`](tooling/check-frontend-freeze.mjs). A
+matriz possui exatamente as famílias normalizadas G0–G5. Cada família liga uma
+fonte real de Última Luz, com digest e símbolo único, a parse sem recovery, a
+pares F0 input/output cujo CST nomeado é igual e cuja saída alvo satisfaz a forma
+canônica, e a uma evidência adversarial. A evidência adversarial é uma mutação
+syntax-invalid com D0 `source.parse`, uma inversão semântica S0 com positivo,
+negativo, `failureField`, `requiredFacts` do catálogo e D0 exatos, ou um waiver
+de source com razão e casos PYN1 rejeitados. O checker rejeita refs ausentes,
+stale ou duplicadas, expected
+echo e decisões não exercitadas pelo vínculo F0/S0. F0 prova somente o oracle
+byte/CST e a forma alvo; não prova idempotência de uma implementação de
+formatter. Esse oracle não é uma implementação de formatter, parser, compiler,
+runtime ou provider.
+O método e os 21 vínculos atuais ficam em
+[`RATIONALE.md` §1.25](RATIONALE.md#125-evidência-fz0-de-frontend).
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da

@@ -5226,3 +5226,45 @@ esses roots preservados.
 | W-1348 | formas e stack corrente ASC0 | named/anonymous cria owner, lease e scope; root, parâmetro e lexical formam stack com prioridade explícita; open failure não publica contexto/binding | binding sintético, ambient lookup, fallback de acquisition ou herança lexical entre funções |
 | W-1349 | conclusão contextual de call | slot standard primeiro recebe `ref currentAllocator`; cadeia entra no callee e sem slot reinicia no root; W-ALLOCATOR-0010 cobre somente slot contextual sem current | inferência por nome/tipo, parâmetro comum ou propagação sem slot |
 | W-1350 | interface, callable, lifecycle e evidência | signature/HIR/ABI preservam slot; overload usa W-LABEL-0004, initializer usa W-ALLOCATOR-0011; callable/capture/lifecycle/explainability e status permanecem explícitos | default parameter, ABI oculto, capture ou rehome implícito, claims de implementação |
+
+### 1.25 Evidência FZ0 de frontend
+
+FZ0 fecha o primeiro ciclo de ratificação uniforme para source, CST/formatter e
+diagnostics. O corpus único em `tooling/frontend-freeze-cases.json` tem seis
+famílias normalizadas, G0–G5, e o snapshot é derivado pelo checker, não escrito
+por uma segunda tabela. Cada família aponta para um arquivo real de
+`reference/last-light/`, com digest SHA-256 e símbolo que ocorre uma vez. O
+checker faz parse do arquivo e rejeita recovery; para cada família ele também
+faz parse independente dos F0 input/output, rejeita recovery, compara a CST
+nomeada e verifica a forma canônica de bytes (LF, indentação, limite de linha e
+newline final). Esses F0 pares são oracles byte/CST. O checker não chama nem
+simula um formatter.
+
+As evidências adversariais têm três formas separadas. A mutação syntax-invalid
+remove um token de um F0 e exige recovery mais um D0 `source.parse` com facts
+exatos. A inversão syntax-valid usa um par S0 positivo/negativo com a mesma
+regra, baseline, `failureField`, digest do valor de baseline e um único D0
+catalogado com os `requiredFacts` do catálogo; ela cobre parâmetros de valor
+genéricos, captures `<[...]>`, quatro formas de execução e o slot contextual de
+allocator. O waiver de source só
+aparece para a entrada implícita de script: PYN1 fornece as rejeições de ordem,
+mistura explícita/implícita e import de raiz, com motivo registrado porque não
+há uma inversão S0 genuína para esse contrato de workflow. Labels opcionais e
+as formas named/anonymous do allocator ficam nos pares F0, e os markers exigem
+que a mesma construção apareça na fonte Última Luz e na evidência positiva.
+Esse D0 é um registro de waiver: sua phase, `failureField`, `waiver` flag e
+lista de outcomes ligam cada rejeição PYN1 ao código e à razão correspondentes;
+ele não é output de um compiler nem substitui um par S0.
+
+O Restaurante no Fim do Universo fornece os seis witnesses reais (`semantic_matrix.w`,
+`horizon_script.w`, `generics.w`, `command.w`, `execution.w` e `allocation.w`).
+O checker rejeita refs missing, stale ou duplicadas, pares expected-echo e
+decisões que não sejam exercitadas pelo F0/S0 ligado; o snapshot atual registra
+21 decisões, uma mutação syntax-invalid, quatro inversões S0 e um waiver. A
+separação entre recovery estrutural e diagnóstico exato segue a descrição do
+Recovery AST e da verificação `-verify` no
+[Clang Internals Manual](https://clang.llvm.org/docs/InternalsManual.html#recovery-ast),
+que preserva estrutura e localizações sem prometer semântica. A exigência de
+snapshot sem diagnostics extras também é compatível com o fluxo de UI tests do
+[rustc Dev Guide](https://rustc-dev-guide.rust-lang.org/tests/ui.html); nenhuma
+dessas fontes é surface copiada para W.
