@@ -1587,7 +1587,7 @@ function applyOperation(state, operation) {
       if (state.bindings[operation.to]) {
         throw new HirMemoryError("moveTargetAlreadyInitialized");
       }
-      requireAllocator(state, operation.using);
+      const sharedAllocator = requireAllocator(state, operation.using);
       if (
         storageOrigins(payload).some(
           (origin) => !allocatorOutlives(state, origin, operation.using),
@@ -1606,9 +1606,21 @@ function applyOperation(state, operation) {
       const blockId = `c${state.nextControlBlock ?? 0}`;
       state.nextControlBlock = (state.nextControlBlock ?? 0) + 1;
       source.state = "moved";
+      const controlBlockOrigin = operation.controlBlockOrigin ?? operation.using;
       blocks[blockId] = {
         payload: source.payload,
         allocator: operation.using,
+        allocatorContract: operation.allocatorContract ?? operation.using,
+        controlBlockOrigin,
+        controlBlockDeallocator: operation.controlBlockDeallocator ?? "provider",
+        controlBlockMobility: operation.controlBlockMobility ?? sharedAllocator.mobility ?? "local",
+        controlBlockLifetime: operation.controlBlockLifetime ?? sharedAllocator.lifetime ?? null,
+        controlBlockAdoptionFamily: operation.controlBlockAdoptionFamily ?? sharedAllocator.adoptionFamily ?? null,
+        controlBlockBulkReleaseOwner: operation.controlBlockBulkReleaseOwner ?? null,
+        allocationOriginMap: {
+          "$storage": storageOrigins(payload),
+          "$controlBlock": controlBlockOrigin,
+        },
         strong: 1,
         weak: 0,
         payloadAlive: true,
@@ -2095,7 +2107,16 @@ export function validateMemoryOperation(operation) {
         (operation.outcome === undefined || ALLOCATION_OUTCOMES.has(operation.outcome)) &&
         (operation.result === undefined || hasString("result")) &&
         (operation.bytes === undefined || (Number.isSafeInteger(operation.bytes) && operation.bytes >= 0)) &&
-        (operation.threadSafe === undefined || typeof operation.threadSafe === "boolean")
+        (operation.threadSafe === undefined || typeof operation.threadSafe === "boolean") &&
+        [
+          "allocatorContract",
+          "controlBlockOrigin",
+          "controlBlockDeallocator",
+          "controlBlockMobility",
+          "controlBlockLifetime",
+          "controlBlockAdoptionFamily",
+          "controlBlockBulkReleaseOwner",
+        ].every((field) => operation[field] === undefined || hasString(field))
       );
     case "copyShared":
     case "copyWeak":

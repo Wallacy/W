@@ -27,7 +27,9 @@ export enum AllocationError: Error {
 
 // These values form the source-neutral descriptor accepted by a custom plan.
 // They describe the contract; they do not expose a raw provider or a public
-// allocation operation.
+// allocation operation. Adoption families, progress classes, object limits and
+// allocation domains are provider-profile/recipe facts. A descriptor without
+// that join cannot prove a fallible shared construction.
 export enum AllocatorFailureMode: Copy & Equatable {
   infallible
   fallible
@@ -83,8 +85,9 @@ export protocol AllocatorPlan {
 // reserves storage under target/profile gates. A custom plan publishes the
 // source-neutral AllocatorPlan descriptor: providerDigest, version, failure,
 // deallocator, and mobility. These data-only facts are separate from the
-// executable open hook. The compiler runs open before the body and
-// performs structured drain and typed drops before AllocatorLease deinit. The
-// source contract deliberately does not expose reset or manual close: a common
-// allocator block closes, drains, drops, and then reclaims its storage as one
-// lifecycle.
+// executable open hook and are joined with the provider profile/recipe before
+// any payload or hidden shared control-block site is admitted. The compiler
+// runs open before the body and performs structured drain and typed drops
+// before AllocatorLease deinit. The source contract deliberately does not
+// expose reset or manual close: a common allocator block closes, drains, drops,
+// and then reclaims its storage as one lifecycle.

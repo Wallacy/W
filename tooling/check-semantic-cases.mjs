@@ -421,6 +421,23 @@ const resultCandidates = []
 const casesById = new Map(corpus.cases.map((testCase) => [testCase.id, testCase]))
 const usedBaselines = new Set()
 
+function validateResolvedSidecars(testCase) {
+  for (const name of ["analysisFacts", "resolvedContext"]) {
+    if (testCase[name] !== undefined &&
+        (!testCase[name] || typeof testCase[name] !== "object" || Array.isArray(testCase[name]))) {
+      fail(`${testCase.id}.${name} must be an object sidecar`)
+    }
+  }
+  if (testCase.analysisFacts) {
+    if (testCase.analysisFacts.payloadShareable !== undefined && typeof testCase.analysisFacts.payloadShareable !== "boolean") {
+      fail(`${testCase.id}.analysisFacts.payloadShareable must be boolean`)
+    }
+    if (testCase.analysisFacts.counterThreadSafe !== undefined && typeof testCase.analysisFacts.counterThreadSafe !== "boolean") {
+      fail(`${testCase.id}.analysisFacts.counterThreadSafe must be boolean`)
+    }
+  }
+}
+
 for (const [sourceOrdinal, testCase] of corpus.cases.entries()) {
   if (!/^S0-(POS|NEG)-[a-z0-9-]+$/.test(testCase.id)) {
     fail(`invalid id ${JSON.stringify(testCase.id)}`)
@@ -439,6 +456,7 @@ for (const [sourceOrdinal, testCase] of corpus.cases.entries()) {
   if (!Array.isArray(testCase.source) || testCase.source.length === 0) {
     fail(`${testCase.id} has no source`)
   }
+  validateResolvedSidecars(testCase)
   if (testCase.source.some((line) => typeof line !== "string" || line.includes("\r"))) {
     fail(`${testCase.id} source must be an array of LF-safe strings`)
   }

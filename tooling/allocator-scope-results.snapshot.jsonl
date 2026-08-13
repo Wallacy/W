@@ -8,7 +8,7 @@
 {"id":"ASC0-NEG-scope-escape","kind":"negative","decisions":["W-1329"],"result":{"accepted":false,"reason":"scopeEscape"}}
 {"id":"ASC0-NEG-local-origin-spawn","kind":"negative","decisions":["W-1329"],"result":{"accepted":false,"reason":"localOriginBoundary"}}
 {"id":"ASC0-POS-rehome-before-boundary","kind":"positive","decisions":["W-1329"],"result":{"accepted":true,"closed":false,"origin":"process","mobility":"crossDomain","plan":"fixed"}}
-{"id":"ASC0-POS-async-stable-owner","kind":"positive","decisions":["W-1329"],"result":{"accepted":true,"closed":false,"origin":"process","mobility":"local","plan":"fixed"}}
+{"id":"ASC0-POS-async-stable-owner","kind":"positive","decisions":["W-1329"],"result":{"accepted":true,"closed":false,"origin":"local","mobility":"local","plan":"fixed"}}
 {"id":"ASC0-NEG-async-unstable-owner","kind":"negative","decisions":["W-1329"],"result":{"accepted":false,"reason":"unstableOwnerAcrossAwait"}}
 {"id":"ASC0-NEG-fixed-unsupported-target","kind":"negative","decisions":["W-1328"],"result":{"accepted":false,"reason":"fixedUnsupportedTarget"}}
 {"id":"ASC0-NEG-fixed-capacity-overflow","kind":"negative","decisions":["W-1328"],"result":{"accepted":false,"reason":"capacityOverflow"}}
@@ -21,9 +21,11 @@
 {"id":"ASC0-NEG-custom-lease-backing-lifetime","kind":"negative","decisions":["W-1328"],"result":{"accepted":false,"reason":"leaseBackingLifetime"}}
 {"id":"ASC0-NEG-custom-open-failure","kind":"negative","decisions":["W-1328"],"result":{"accepted":false,"reason":"planAdmissionFailed","bodyEntered":false,"bindingCreated":false,"leaseCreated":false,"providerCloseCount":0,"deinitCount":0}}
 {"id":"ASC0-NEG-custom-lease-second-close","kind":"negative","decisions":["W-1328","W-1329"],"result":{"accepted":false,"reason":"customLeaseClosedTwice"}}
+{"id":"ASC0-NEG-custom-open-twice","kind":"negative","decisions":["W-1328"],"result":{"accepted":false,"reason":"customPlanOpenedTwice"}}
 {"id":"ASC0-POS-custom-provider-contract","kind":"positive","decisions":["W-1328"],"result":{"accepted":true,"closed":true,"typedDrops":2,"typedDropsBeforeReclaim":true,"reclaimed":true,"leaseCreated":true,"leaseClosed":true,"providerCloseCount":1,"deinitCount":1,"mobility":"crossDomain","plan":"custom"}}
 {"id":"ASC0-NEG-custom-plan-admission","kind":"negative","decisions":["W-1328"],"result":{"accepted":false,"reason":"planAdmissionFailed","bodyEntered":false,"bindingCreated":false}}
 {"id":"ASC0-NEG-close-undrained-child","kind":"negative","decisions":["W-1329"],"result":{"accepted":false,"reason":"undrainedClose","active":["child"],"typedDropsBeforeReclaim":false,"reclaimed":false}}
 {"id":"ASC0-NEG-close-undrained-wait","kind":"negative","decisions":["W-1329"],"result":{"accepted":false,"reason":"undrainedClose","active":["wait"],"typedDropsBeforeReclaim":false,"reclaimed":false}}
 {"id":"ASC0-NEG-close-live-loan","kind":"negative","decisions":["W-1329"],"result":{"accepted":false,"reason":"undrainedClose","active":["loan"],"typedDropsBeforeReclaim":false,"reclaimed":false}}
 {"id":"ASC0-POS-close-after-drain","kind":"positive","decisions":["W-1329"],"result":{"accepted":true,"closed":true,"typedDrops":3,"typedDropsBeforeReclaim":true,"reclaimed":true}}
+{"id":"ASC0-NEG-bounded-research","kind":"negative","decisions":["W-1328"],"result":{"accepted":false,"reason":"unknownPlan"}}

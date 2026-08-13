@@ -268,6 +268,7 @@ const oracleCorpusFiles = [
   "semantic-cases.json",
   "formatter-cases.json",
   "memory-transition-cases.json",
+  "shared-control-cases.json",
   "allocation-cases.json",
   "layout-abi-cases.json",
   "execution-concurrency-cases.json",
@@ -413,6 +414,20 @@ const memoryTransitionOperations = memoryTransitionCorpus.cases.reduce(
 const acceptedMemoryTransitions = memoryTransitionCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
+const sharedControlCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "shared-control-cases.json"), "utf8"),
+);
+const sharedControlCases = sharedControlCorpus.cases.length;
+const sharedControlOperations = sharedControlCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const sharedControlStatusCounts = Object.fromEntries(
+  ["accepted", "error", "fault", "rejected"].map((status) => [
+    status,
+    sharedControlCorpus.cases.filter((testCase) => testCase.expected.status === status).length,
+  ]),
+);
 const allocationCorpus = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "allocation-cases.json"), "utf8"),
 );
@@ -988,6 +1003,9 @@ output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| pares canônicos do formatter F0 | ${formatterCases} |`);
 output.push(
   `| casos/operações do kernel de memória M1 | ${memoryTransitionCases}/${memoryTransitionOperations} (${acceptedMemoryTransitions} aceitos + ${memoryTransitionCases - acceptedMemoryTransitions} rejeitados) |`,
+);
+output.push(
+  `| casos/operações do control block shared SHC0 | ${sharedControlCases}/${sharedControlOperations} (${sharedControlStatusCounts.accepted} aceitos + ${sharedControlStatusCounts.error} errors + ${sharedControlStatusCounts.fault} faults + ${sharedControlStatusCounts.rejected} rejeitados) |`,
 );
 output.push(
   `| casos/operações do kernel de allocation físico A0 | ${allocationCases}/${allocationOperations} (${acceptedAllocationCases} aceitos + ${allocationCases - acceptedAllocationCases} rejeitados) |`,

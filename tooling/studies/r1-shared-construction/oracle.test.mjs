@@ -16,37 +16,32 @@ function constructShared(input) {
     return reject("context-cannot-promote")
   }
   if (declarative && !input.explicitSharedType) return reject("shared-type-not-written")
-  if (input.source === "binding" && !input.take) return reject("missing-take")
+  if (["binding", "existing"].includes(input.source) && !input.take) return reject("missing-take")
   if (!input.lifetimeIndependent) return reject("lifetime-dependent")
 
-  const recoverable = false
-  if (input.allocator !== "product.default") {
-    return {
-      status: "blocked",
-      reason: "custom-allocator-construction-contract-missing",
-      resultType: "shared MenuSection",
-      trace,
-    }
-  }
+  const recoverable = input.allocator !== "product.default"
+  if (recoverable && input.try !== true) return reject("missing-try")
+  if (recoverable && input.providerProfileJoined !== true) return reject("provider-profile-join-missing")
 
   trace.push({ operation: "consume-source", source: input.source })
   trace.push({
     operation: declarative ? "resolve-written-shared-type" : "resolve-share-operation",
     context: input.context,
   })
-  trace.push({ operation: "allocate-control", allocator: input.allocator })
+  trace.push({ operation: "stage-payload-and-control", allocator: input.allocator, physicalOrder: "unspecified" })
 
   if (input.failure) {
-    trace.push({ operation: "drop-source", count: 1 })
-    trace.push({ operation: "release-partial-control", count: 1 })
+    trace.push({ operation: "cleanup", payload: 1, partialControlBlock: 1 })
     return {
       status: recoverable ? "allocation-error" : "panic",
       reason: input.failure,
       published: false,
+      cleanup: { payloadDropCount: 1, partialControlBlockDropCount: 1 },
       trace,
     }
   }
 
+  trace.push({ operation: "initialize-staged-values", strong: 1, weak: 0 })
   trace.push({ operation: "publish-shared-owner", strong: 1, weak: 0 })
   return {
     status: "accepted",
@@ -79,7 +74,9 @@ describe("R1 shared-construction host oracle", () => {
       context: "binding",
       explicitSharedType: true,
       source: "temporary",
-      allocator: "product.default",
+      allocator: "request.arena",
+      try: true,
+      providerProfileJoined: true,
       lifetimeIndependent: true,
     })
     expect(normal).toMatchObject({
@@ -91,7 +88,7 @@ describe("R1 shared-construction host oracle", () => {
     expect(recoverable).toMatchObject({
       status: "accepted",
       resultType: "shared MenuSection",
-      failurePolicy: "normal OOM",
+      failurePolicy: "throws AllocationError",
     })
     expect(recoverable.resultType).toBe(normal.resultType)
   })
@@ -157,11 +154,14 @@ describe("R1 shared-construction host oracle", () => {
       explicitSharedType: true,
       source: "temporary",
       allocator: "request.arena",
+      try: true,
+      providerProfileJoined: true,
       lifetimeIndependent: true,
       failure: "budgetExceeded",
     })
-    expect(result.status).toBe("blocked")
-    expect(result.reason).toBe("custom-allocator-construction-contract-missing")
+    expect(result.status).toBe("allocation-error")
+    expect(result.reason).toBe("budgetExceeded")
+    expect(result.cleanup).toEqual({ payloadDropCount: 1, partialControlBlockDropCount: 1 })
   })
 
   test("existing owners require take and borrowed payloads remain rejected", () => {

@@ -51,7 +51,7 @@ test("context does not promote an argument or return to shared", () => {
   assert.deepEqual(result.state.owners, {})
 })
 
-test("custom allocation share calls are retired while construction remains blocked", () => {
+test("custom allocation share calls are retired even with declarative construction closed", () => {
   const result = runScopedLockOperations([{
     op: "share",
     owner: "ledger",

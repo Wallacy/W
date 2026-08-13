@@ -113,6 +113,23 @@ struct HirAllocationOrigin {
   mobility: HirAllocatorMobility
 }
 
+// SHC0 keeps the hidden control-block receipt distinct from payload storage.
+// Provider profile facts join the descriptor before this record is published.
+struct HirSharedControlOrigin {
+  contract: String
+  instance: String
+  lifetime: String
+  deallocator: String
+  mobility: HirAllocatorMobility
+  adoptionFamily: String
+  bulkReleaseOwner: String?
+}
+
+struct HirAllocationOriginMap {
+  storage: Array<HirAllocationOrigin>
+  controlBlock: HirSharedControlOrigin
+}
+
 struct HirStorageFacts {
   origins: Array<HirAllocationOrigin>
 }
@@ -278,6 +295,25 @@ const fn storageCanCrossDomain(storage: ref HirStorageFacts): Bool {
 
 const fn canCreateShared(payload: ref HirDependentPayload): Bool {
   return payload.lifetimeIndependent
+}
+
+test "SHC0 origin map names payload and hidden control block paths" {
+  let map = HirAllocationOriginMap(
+    storage: [HirAllocationOrigin(allocator: "request", mobility: .crossDomain)],
+    controlBlock: HirSharedControlOrigin(
+      contract: "restaurant-pool-v1",
+      instance: "request",
+      lifetime: "request",
+      deallocator: "provider",
+      mobility: .crossDomain,
+      adoptionFamily: "shared-control",
+      bulkReleaseOwner: "request",
+    ),
+  )
+  expect map.storage[0].allocator == "request"
+  expect map.controlBlock.deallocator == "provider"
+  expect map.controlBlock.mobility == .crossDomain
+  expect map.controlBlock.adoptionFamily == "shared-control"
 }
 
 fn releaseStrong(counts: HirSharedCounts): HirSharedCounts? {

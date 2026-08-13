@@ -2201,6 +2201,8 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 | `W-OWNERSHIP-0014` | grafo fechado contém ciclo forte que só poderia terminar pelo próprio `deinit` |
 | `W-OWNERSHIP-0015` | closure escapante exigiria retain ou transferência implícita de owner move-first |
 | `W-OWNERSHIP-0016` | prefix de parâmetro aparece antes do binding ou `copy` tenta virar modo de parâmetro |
+| `W-ALLOCATOR-0003` | origem local alcança boundary async, service ou callback escapante sem storage estável ou `rehome` |
+| `W-ALLOCATOR-0004` | plan customizado não fecha o join de provider profile, recipe e descriptor |
 | `W-OWNERSHIP-0017` | operação no call site não satisfaz o contrato ou um owner place omite a operação exigida |
 
 O code pertence à primeira fase que perde um resultado válido. Uma cadeia
@@ -2743,6 +2745,8 @@ As famílias específicas usam estes códigos:
 | `W-OWNERSHIP-0014` | componente forte fechado depende do próprio `deinit` para romper o ciclo |
 | `W-OWNERSHIP-0015` | capture escapante de owner move-first não escolhe `take`, `copy` ou `weak` |
 | `W-OWNERSHIP-0016` | ownership ou requisito de parâmetro aparece no lado dos labels |
+| `W-ALLOCATOR-0003` | origem local alcança boundary async, service ou callback escapante sem storage estável ou `rehome` |
+| `W-ALLOCATOR-0004` | plan customizado não fecha o join de provider profile, recipe e descriptor |
 | `W-OWNERSHIP-0017` | argumento usa operação incompatível ou owner place omite `ref`, `inout` ou `take` |
 
 Um enum curto sem expected type falha sem busca global por case name. O
@@ -7945,11 +7949,47 @@ let invalid: shared MenuView = take borrowed
 // W-BORROW-0010: a declaração shared não prolonga a origin de title.
 ```
 
-Uma declaração `shared` segue a policy normal de allocation. Uma falha limpa o
-temporary e o control block parcial uma vez. Factories que exigem recovery
-continuam em Pesquisa. Um allocator customizado só pode ser selecionado quando
-a expression publica o descriptor lógico `AllocatorPlan`; interface executável,
-provider e lowering continuam gates de implementação.
+Uma declaração `shared` segue a policy normal de allocation quando usa o
+product default. A forma recuperável também permanece declarativa: quando o
+initializer ou qualquer allocation site publicado pela construção é fallible,
+o source escreve `try` na expression, nunca no tipo:
+
+```w
+let root: shared MenuSection = try MenuSection(
+  allocator: memory,
+  title: take title,
+  parent: .none,
+  children: [],
+)
+
+try allocator request: RestaurantPool(backing: ref processMemory, budget: 4<iec.MiB>) {
+  let local: shared MenuSection = try MenuSection(
+    title: "Dinner",
+    parent: .none,
+    children: [],
+  )
+}
+```
+
+`try` cobre o initializer e todos os allocation sites publicados pelo
+construction contract, inclusive `result.$controlBlock` e um envelope de
+payload quando a implementação não co-aloca os dois. A pipeline prova
+`.lifetimeIndependent` e as origins antes de entrar na fase lógica de staging e
+initialization. Ela grava `strong = 1` e `weak = 0` e só então cruza uma única
+fronteira atômica de publicação; nenhuma ordem física de reserve/init é
+prometida. Falha antes da publicação limpa o payload inicializado e cada bloco
+parcial exatamente uma vez, sem publicar um handle. Para um owner existente,
+`try (take owner)` continua consuming: a falha não restaura o source. Sob um
+allocator lexical, essa forma escolhe a origin contextual sem uma construction
+call de abertura separada: `let root: shared T = try (take owner)`.
+
+O optimizer pode co-alocar payload e control block, mas o source não promete
+layout nem número de allocations. `allocator:` e o binding lexical controlam
+somente os sites publicados pelo contract; eles não retargetam calls de fields
+ou allocations arbitrárias no initializer. A forma sem binding local não
+promove argumento, return ou inference, e `shared T` continua o tipo prefixo.
+O contrato executável de provider/lowering é evidenciado pelo oracle SHC0;
+ele não cria `share`, `try share` ou um container público.
 
 `shared T` e `weak T` são move-first. `copy handle` cria outro owner e torna o
 retain visível no source. Uma função pode mover seu último shared handle sem
@@ -8034,6 +8074,80 @@ handle de service mantém identity e capability, não ownership direto do estado
 `w explain memory` mostra retains, releases, edges fortes/fracas, possíveis
 ciclos, planos de ruptura e a razão de uma contagem atômica. Um grafo dinâmico
 sem censo instrumentado permanece `unknown`; tooling não inventa prova global.
+
+#### 9.4.2 SHC0 — construção declarativa e control block
+
+**W-1334 — contrato de construção shared:** somente um binding ou stored field
+que escreve literalmente `shared T` pode iniciar o primeiro owner. O expected
+type não promove uma call em argumento, return ou inference; um owner existente
+usa `take`. `try` fica fora do tipo e é obrigatório quando o initializer ou um
+site publicado de payload/control block pode falhar. A forma vigente é, por
+exemplo, `let root: shared T = try T(allocator: memory, ...)`.
+
+**W-1335 — publicação e lifecycle:** a construção é consuming e tem uma única
+fronteira de publicação. Antes dela, a HIR prova lifetime, mobility e origins e
+entra numa fase lógica de staging/initialization para payload e control block.
+A ordem física e a co-allocation são escolhas do optimizer; o contrato fixa
+somente a fronteira atômica de publicação e o cleanup exactly-once. Falha de
+plan open não entra no body nem cria binding; falha posterior limpa os valores
+inicializados e cada bloco parcial uma vez. Strong zero executa o `deinit` do
+payload uma vez e libera o control block imediatamente quando `weak == 0`;
+weak zero só libera o block quando `strong == 0`. Um weak handle retém o block
+e sua origin até weak zero, inclusive depois de strong zero. O oracle separa
+`accepted`, `error`, `fault` e `rejected`: `AllocationError` e initializer error
+limpam sem publicar e produzem `error`, normal product OOM produz `fault`,
+compiler invariant produz `fault` e erro de contrato produz `rejected`.
+
+**W-1336 — profile e origin map:** a aquisição/admission de um allocator lexical
+ou custom é um passo anterior e separado. `allocator: memory` recebe a
+capability/profile já aberta; `try` na construção cobre somente o initializer e
+os sites publicados de payload/control block, nunca `AllocatorPlan.open`. O
+initializer e o site allocator têm facts separados (`initializerThrows` e
+`failure`). `try` é obrigatório se qualquer eixo é fallible e é redundante se
+nenhum eixo pode falhar.
+Quando ambos os eixos são fallible, a construction expõe uma error edge para
+cada tipo de erro. Se initializer e allocator usam o mesmo tipo, as edges
+colapsam em uma só (por exemplo, ambas usam `AllocationError`). Quando os
+tipos são distintos, o caller deve declarar exatamente essas edges, sem
+extras ou duplicatas, no error set ou enum explícito. W não cria uma união
+implícita.
+O profile do provider não contém fatos de tipo ou de lowering:
+`payloadShareable` vem do tipo/HIR, `counterThreadSafe` vem do plano
+de control block e mobility de todas as origins vem da travessia do
+`AllocationOriginMap`. Um map ausente depois de um join válido é falha de
+invariante do compiler, não um diagnostic source. O mapping semântico contém
+pelo menos `result.$storage` e
+`result.$controlBlock`, cada um com allocator input slot, product default ou
+runtime owner. A origin do control block inclui allocator contract, instance e
+lifetime, deallocator, mobility, adoption family e bulk-release owner quando
+presente. Progress, limits e adoption não são inferidos do descriptor isolado:
+eles vêm do join entre provider profile, recipe e descriptor validado.
+
+**W-1337 — failure e boundaries:** uma origin local pode sobreviver a um
+`await` na mesma task quando owner/lifetime estão estáveis e o scope permanece
+aberto. Spawn, channel, service, callback escapante e domain boundary exigem
+facts de mobilidade. Para cruzar domain, o caller faz `rehome` consuming no
+payload unique antes da promoção e constrói o shared no allocator
+`crossDomain`; `rehome` altera origin e mobility, mas não payload shareability.
+Um shared handle não é rehomable. Nested field calls preservam
+suas próprias origins. Co-allocation é uma otimização sem promessa observável.
+
+**W-1338 — FFI e restaurant evidence:** callback persistente exige pin, lease,
+revoke/unregister para fechar admission, drain dos callbacks in-flight e só
+depois destroy, unpin e reclaim. A ordem é unregister-before-drain-before-
+destroy. O source canônico `memory.w::watchClosingBell` constrói `BellLease`
+e chama `ll_bell_unsubscribe`, mas o header não prova que essa função drena
+callbacks. Portanto SHC0 exige um fact explícito
+de unregister/revoke, in-flight drain, destroy, unpin e reclaim. A ausência do
+drain é um caso adversarial, não uma promessa de `BellLease`. A origin deve
+satisfazer a boundary. O fixture
+[`shared_control_oracle.w`](reference/last-light/shared_control_oracle.w) usa
+menu, parent weak, request failure e rehome; os casos FFI referem
+[`memory.w`](reference/last-light/memory.w)::`watchClosingBell`/`BellLease`.
+O corpus
+[`shared-control-cases.json`](tooling/shared-control-cases.json) e sua máquina
+SHC0 são oracles host independentes; operações internas como `share` ou
+`upgradeWeak` no M1 não são syntax W.
 
 ### 9.5 Declaração lexical de allocator
 
@@ -8123,8 +8237,8 @@ exhaustion ocorre antes do body e não cria binding. Não existe panic fallback
 oculto.
 
 `.bounded<budget: N>` é um plan de Pesquisa até existir um provider closeable.
-Ele limita bytes committed sobre um backing provider, mas não promete storage
-fixo, ausência de OS ou bulk reclaim.
+ASC0 não o admite como plan ativo; ele limita bytes committed sobre um backing
+provider, mas não promete storage fixo, ausência de OS ou bulk reclaim.
 
 ```w
 import iec from std
@@ -8398,9 +8512,10 @@ promete esse caminho.
 container e seus elements anteriores permanecem válidos. O destino parcial é
 limpo antes do retorno.
 
-`rehome`, `share`, `pin` e `erase` continuam operações consuming. A falha delas
-segue W-930 e não restaura o source. `attemptRehome` pode devolver o source num
-outcome explícito.
+`rehome`, `share`, `pin` e `erase` continuam operações consuming internas. A
+falha delas segue W-930 e não restaura o source. `rehome` aplica-se ao payload
+unique antes da construção shared; não existe `rehome` de um shared handle. Uma
+API `attemptRehome` não pertence à surface vigente.
 
 Um provider pode devolver mais bytes que o pedido. O container pode usar essa
 capacity quando o profile permite. Um budget de allocator block cobra o span lógico
@@ -8473,14 +8588,25 @@ interface checking. Ele não substitui a lista de allocations usada para drop.
 
 ```text
 AllocationOriginMap = {
-  result storage path -> allocator input slot, product default or runtime owner
+  result.$storage -> allocator input slot, product default or runtime owner,
+  result.$controlBlock -> ControlBlockOriginRecord {
+    origin, allocator contract, instance, lifetime, deallocator, mobility,
+    adoption family, bulk-release owner?
+  }
 }
 ```
 
 Uma função que devolve storage criado com `ref Allocator` publica esse mapping
-na interface sem exigir annotation no source. O mapping participa da
+na interface sem exigir annotation no source. Para uma construção shared, os
+paths ocultos `result.$storage` e `result.$controlBlock` entram no mapping,
+mesmo quando a implementação os co-aloca. O mapping participa da
 `SemanticInterfaceKey`. Trocar `parameter:memory` pelo allocator default é uma
 mudança de interface, mesmo quando os bytes físicos e o tipo nominal não mudam.
+
+O descriptor `AllocatorPlan` não contém sozinho adoption family, progress ou
+limits. Esses facts entram no mapping e na origin somente depois do join com o
+`AllocatorProviderProfile` da recipe e o provider versionado. Um descriptor
+válido sem esse join não fecha uma construção fallible.
 
 **Exemplo:** `stageMenu(..., memory:)` publica
 `result.$storage -> parameter:memory` depois de `rehome`. O caller não pode
@@ -8558,7 +8684,7 @@ Os diagnostics mínimos do contrato de allocator são:
 |---|---|
 | `W-ALLOCATOR-0001` | parâmetro contextual não é primeiro ou aparece mais de uma vez |
 | `W-ALLOCATOR-0002` | value, borrow, child, wait ou dependent escapa do allocator scope |
-| `W-ALLOCATOR-0003` | origem local alcança spawn, service, channel, callback ou await sem estabilidade/rehome |
+| `W-ALLOCATOR-0003` | origem local alcança spawn, service, channel ou callback escapante sem mobilidade; `await` só falha sem owner/lifetime estáveis |
 | `W-ALLOCATOR-0004` | plan customizado não publica `providerDigest: [u8; 32]` não nulo, version, failure, deallocator, mobility ou `const descriptor`/`take fn open()` |
 | `W-ALLOCATOR-0005` | fixed capacity ou placement não atende target/profile |
 | `W-ALLOCATOR-0006` | close começa com child, wait, loan ou dependent não drenado |
@@ -28855,7 +28981,8 @@ estratégia de lowering quando os facts permitirem.
 O parser, a fixture e o oracle ASC0 são somente evidência de design: não existe
 compiler, runtime, lowering físico ou provider executável para esta surface.
 Três contratos permanecem explicitamente bloqueados e não são comportamento
-implementado:
+implementado. O contrato source de construção shared foi fechado por SHC0, mas
+o compiler/runtime/provider ainda precisa substituir o oracle:
 
 1. O provider `AllocatorPlan` customizado, seu `providerDigest`, versão,
    admission, lease e lifecycle ainda exigem lowering executável do
@@ -28866,12 +28993,13 @@ implementado:
 2. Placement físico de `.fixed` por frame/task/agregado e suas resource gates
    ainda não estão implementados. O profile deve fechar reservation,
    recursion, overflow e falha de admission antes de o body entrar.
-3. A construção de control block `shared` com allocator customizado e falha
-   recuperável ainda não possui construction contract fechado. `allocator:` é
-   reservado como control argument somente quando a construção publica um
-   allocation site; `share`/`try share` não retornam como caminho corrente. O
-   caso permanece Pesquisa/blocker, sem call de linguagem ou implementação
-   runtime.
+3. **Gate de implementação:** SHC0 fecha a construction contract declarativa para control block `shared`
+   com allocator customizado e falha recuperável: `try` fica fora do tipo,
+   cobre payload e `result.$controlBlock`, a publicação é atômica e cleanup
+   pré-publicação ocorre uma vez. O provider físico, a lowering e o runtime
+   ainda não existem; eles devem consumir o `AllocationOriginMap` com os paths
+   `$storage` e `$controlBlock`. `share`/`try share` não retornam como caminho
+   corrente e não há container público.
 
 A ordem recomendada de fechamento é:
 

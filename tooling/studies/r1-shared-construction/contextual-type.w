@@ -18,6 +18,19 @@ fn makeRoot(title: String): shared MenuSection {
   return take root
 }
 
+fn makeRequestRoot(
+  allocator memory: ref Allocator,
+  title: String,
+): shared MenuSection throws AllocationError {
+  let root: shared MenuSection = try MenuSection(
+    allocator: memory,
+    title: take title,
+    parent: .none,
+    children: [],
+  )
+  return take root
+}
+
 test "shared construction is explicit in the declaration" {
   let root = makeRoot("Dinner")
   expect root.title == "Dinner"
