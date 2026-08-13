@@ -16,29 +16,30 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 29424 |
-| tokens aproximados de `DESIGN.md` | 309500 |
-| linhas de `RATIONALE.md` | 5134 |
-| tokens aproximados de `RATIONALE.md` | 133600 |
+| linhas de `DESIGN.md` | 29552 |
+| tokens aproximados de `DESIGN.md` | 311500 |
+| linhas de `RATIONALE.md` | 5158 |
+| tokens aproximados de `RATIONALE.md` | 134600 |
 | seções numeradas | 27 |
-| seções terminais com evidência local | 337/337 |
-| decisões | 1333 (W-001–W-1333) |
+| seções terminais com evidência local | 338/338 |
+| decisões | 1338 (W-001–W-1338) |
 | famílias de viabilidade | 182 |
 | slices normativos de grammar | 6 |
 | requisitos de ratificação comparativa | 74 |
 | casos de substituição estruturados | 74/74 |
-| decisões referenciadas por casos R0 | 162/1333 |
-| decisões classificadas para design freeze | 514/1333 (162 source + 400 oracle + 8 explícitas; 56 overlaps) |
-| decisões ainda sem classe de freeze | 819 |
+| decisões referenciadas por casos R0 | 167/1338 |
+| decisões classificadas para design freeze | 521/1338 (167 source + 409 oracle + 8 explícitas; 63 overlaps) |
+| decisões ainda sem classe de freeze | 817 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 186 |
-| surface lexemes das formas vigentes R0 | 1556 total; mediana 17; máximo 58 |
+| surface lexemes das formas vigentes R0 | 1573 total; mediana 17; máximo 58 |
 | bundles executáveis R1 | 29 |
 | variantes/tarefas R1 | 73/116 |
 | casos R0 promovidos a R1 | 45/74 |
 | casos do corpus Tree-sitter | 115 |
 | pares canônicos do formatter F0 | 25 |
 | casos/operações do kernel de memória M1 | 185/606 (82 aceitos + 103 rejeitados) |
+| casos/operações do control block shared SHC0 | 45/84 (16 aceitos + 6 errors + 3 faults + 20 rejeitados) |
 | casos/operações do kernel de allocation físico A0 | 48/123 (15 aceitos + 33 rejeitados) |
 | casos/operações do kernel de layout e ABI L0 | 78/96 (27 aceitos + 51 rejeitados) |
 | casos/operações do kernel de execução E0 | 73/677 (38 aceitos + 35 rejeitados; 10/10 origens happens-before) |
@@ -70,14 +71,14 @@
 | casos/operações do filesystem FS0 | 99/665 (40 aceitos + 59 rejeitados; host oracle não executa syscalls/provider) |
 | casos/operações de erro portátil de I/O IOE0 | 44/219 (32 aceitos + 12 rejeitados; host oracle não executa W/provider) |
 | casos/operações de tempo operacional TIME0 | 52/277 (27 aceitos + 25 rejeitados; host oracle não executa clock/timer/provider) |
-| casos do corpus semântico S0 | 128 (64 positivos + 64 negativos) |
+| casos do corpus semântico S0 | 132 (66 positivos + 66 negativos) |
 | matriz host SDM0 | 30 (8 oracle aceitos + 22 oracle rejeitados; 3 outcomes aceitos + 5 rejeitados; 24 decisões) |
-| outcomes SemanticResult S0 | 128 |
-| snapshots de diagnostic D0 | 64 |
+| outcomes SemanticResult S0 | 132 |
+| snapshots de diagnostic D0 | 66 |
 | snapshots F0 no formato D0 | 25 |
 | codes D0 catalogados | 275/181 |
-| sources W no root do Última Luz | 98 |
-| sources W em todo o Última Luz | 106 |
+| sources W no root do Última Luz | 99 |
+| sources W em todo o Última Luz | 107 |
 | sources W no rascunho da std | 31 |
 | módulos/APIs catalogados da std | 31/422 |
 | superfícies qualificadas da std usadas pelo Última Luz | 92 |
@@ -135,38 +136,38 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 0 | 15–230 | 2700 | Como ler este documento |
 | 1 | 231–254 | 300 | Limite da alegação |
 | 2 | 255–280 | 400 | Invariantes |
-| 3 | 281–3346 | 31500 | Contratos estáticos e orçamento de símbolos |
-| 4 | 3347–3409 | 400 | Superfície integrada |
-| 5 | 3410–3717 | 2700 | Source, nomes e edição |
-| 6 | 3718–4123 | 3700 | Módulos, imports e visibilidade |
-| 7 | 4124–4870 | 7100 | Bindings, funções e closures |
-| 8 | 4871–7362 | 19700 | Tipos e conversões |
-| 9 | 7363–9125 | 20200 | Memória, layout e alocação |
-| 10 | 9126–9248 | 1400 | Property behaviors |
-| 11 | 9249–9613 | 2900 | Erros, panic, OOM e cleanup |
-| 12 | 9614–12642 | 33600 | Concorrência, paralelismo e execução |
-| 13 | 12643–14919 | 23000 | Módulos de execução, services e entries |
-| 14 | 14920–18866 | 50200 | Prelude e standard library |
-| 15 | 18867–19596 | 7400 | Números, ranges e unidades |
-| 16 | 19597–21196 | 13500 | Texto, bytes e collections |
-| 17 | 21197–21546 | 4100 | Matrizes, tensors e ML |
-| 18 | 21547–22038 | 4900 | Performance e custo |
-| 19 | 22039–22613 | 6900 | FFI, unsafe e ilhas de linguagem |
-| 20 | 22614–24119 | 16100 | Compilador e bootstrap |
-| 21 | 24120–26136 | 19100 | Packages, builds e releases |
-| 22 | 26137–26647 | 4900 | Tooling e interface para máquinas |
-| 23 | 26648–28051 | 16600 | Protocolos e pesquisas de ecossistema |
-| 24 | 28052–28887 | 11400 | Design freeze e pendências |
-| 25 | 28888–29098 | 1900 | Produto de referência Última Luz |
-| 26 | 29099–29424 | 4000 | Plano de implementação |
+| 3 | 281–3350 | 31600 | Contratos estáticos e orçamento de símbolos |
+| 4 | 3351–3413 | 400 | Superfície integrada |
+| 5 | 3414–3721 | 2700 | Source, nomes e edição |
+| 6 | 3722–4127 | 3700 | Módulos, imports e visibilidade |
+| 7 | 4128–4874 | 7100 | Bindings, funções e closures |
+| 8 | 4875–7366 | 19700 | Tipos e conversões |
+| 9 | 7367–9251 | 22100 | Memória, layout e alocação |
+| 10 | 9252–9374 | 1400 | Property behaviors |
+| 11 | 9375–9739 | 2900 | Erros, panic, OOM e cleanup |
+| 12 | 9740–12768 | 33600 | Concorrência, paralelismo e execução |
+| 13 | 12769–15045 | 23000 | Módulos de execução, services e entries |
+| 14 | 15046–18992 | 50200 | Prelude e standard library |
+| 15 | 18993–19722 | 7400 | Números, ranges e unidades |
+| 16 | 19723–21322 | 13500 | Texto, bytes e collections |
+| 17 | 21323–21672 | 4100 | Matrizes, tensors e ML |
+| 18 | 21673–22164 | 4900 | Performance e custo |
+| 19 | 22165–22739 | 6900 | FFI, unsafe e ilhas de linguagem |
+| 20 | 22740–24245 | 16100 | Compilador e bootstrap |
+| 21 | 24246–26262 | 19100 | Packages, builds e releases |
+| 22 | 26263–26773 | 4900 | Tooling e interface para máquinas |
+| 23 | 26774–28177 | 16600 | Protocolos e pesquisas de ecossistema |
+| 24 | 28178–29015 | 11500 | Design freeze e pendências |
+| 25 | 29016–29226 | 1900 | Produto de referência Última Luz |
+| 26 | 29227–29552 | 4000 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 14–3716 | 56100 | Evidência comparativa |
-| 2 | 3717–3747 | 500 | Proveniência |
-| 3 | 3748–5134 | 76900 | Ledger |
+| 1 | 14–3735 | 56400 | Evidência comparativa |
+| 2 | 3736–3766 | 500 | Proveniência |
+| 3 | 3767–5158 | 77600 | Ledger |
 
 ## Bundles de leitura
 
@@ -174,11 +175,11 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 
 | Bundle | Seções | Linhas | Tokens aproximados | Foco |
 |---|---:|---:|---:|---|
-| orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 15–7362 | 68500 | promessa, símbolos, source, módulos, funções e tipos |
-| segurança e execução | 9, 10, 11, 12, 13 | 7363–14919 | 81100 | ownership, errors, tasks, domains, services e entries |
-| std e performance | 14, 15, 16, 17, 18, 19 | 14920–22613 | 87000 | módulos, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 22614–28051 | 56700 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 28052–29424 | 17300 | freeze, Última Luz, gates e roadmap |
+| orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 15–7366 | 68600 | promessa, símbolos, source, módulos, funções e tipos |
+| segurança e execução | 9, 10, 11, 12, 13 | 7367–15045 | 83000 | ownership, errors, tasks, domains, services e entries |
+| std e performance | 14, 15, 16, 17, 18, 19 | 15046–22739 | 87000 | módulos, números, texto, tensors, custo, C e unsafe |
+| compiler e distribuição | 20, 21, 22, 23 | 22740–28177 | 56700 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26 | 28178–29552 | 17400 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

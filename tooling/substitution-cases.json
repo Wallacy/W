@@ -1546,13 +1546,14 @@
     {
       "id": "R0-shared-construction",
       "reviewItem": "declaração `let x: shared T = value` e movimento explícito com `take` contra factory nominal, `share`/`try share` aposentados e promotion em calls",
-      "decisions": ["W-025", "W-255", "W-415", "W-929", "W-930", "W-1177", "W-1256"],
-      "task": "Create the first shared menu owner with a declarative binding, move an existing owner with take, and keep custom control-block allocation in research.",
+      "decisions": ["W-025", "W-255", "W-415", "W-929", "W-930", "W-1177", "W-1256", "W-1334", "W-1335", "W-1336", "W-1337", "W-1338"],
+      "task": "Create the first shared menu owner with a declarative binding, move an existing owner with take, and use try outside the type for custom control-block allocation.",
       "selected": {
         "language": "w",
         "source": [
           "let root: shared MenuSection = MenuSection(title: \"Dinner\")",
-          "let local: shared MenuSection = take draft"
+          "let local: shared MenuSection = take draft",
+          "let local: shared MenuSection = try MenuSection(allocator: memory, ...)"
         ]
       },
       "alternatives": [
@@ -1566,7 +1567,7 @@
           "name": "distinct-try-share",
           "language": "w-rejected",
           "source": ["let local = try tryShare(take draft, using: memory)"],
-          "expectedDifference": "The try share call is retired before W 1.0; custom control-block allocator construction remains a research blocker."
+          "expectedDifference": "The tryShare call is retired before W 1.0; replace it with a declarative shared binding and try outside the type: let local: shared MenuSection = try MenuSection(allocator: memory, ...)."
         },
         {
           "name": "contextual-argument-promotion",

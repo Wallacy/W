@@ -188,6 +188,7 @@ alvo de execução independente.
 | `abi.w` | façade C escrita em W, carriers e export exato |
 | `abi_oracle.w` | reuse W exact, expectativa de import, call shape e fallback de boundary |
 | `memory.w` | ownership, shared/weak, ciclos, Address, provenance, pinning e callback C |
+| `shared_control_oracle.w` | construção declarativa `shared T`, `try` fora do tipo, origins `$storage`/`$controlBlock`, weak lifetime e rehome; a fonte FFI canônica está em `memory.w` |
 | `hir_memory_oracle.w` | PlaceId, LoanId, reborrow, OriginSet, suspensão, representação e ABI |
 | `borrowed_values.w` | kitchens disjuntas, stored `ref`/`view`/`inout`, Array de refs, reborrow e await stable |
 | `allocation.w` | placement, origem, mobilidade, allocator scope, budget e rehome |
@@ -1476,7 +1477,8 @@ Aceite:
   completo;
 - falha de argumento, allocation ou initializer não publica endereço;
 - self-reference safe não obtém acesso ao `self` parcial;
-- falha de `pin`, `share` ou `rehome` consome e limpa o source uma vez;
+- falha de construção `shared` declarativa, `pin` ou `rehome` consome e limpa o
+  source uma vez; `share` permanece somente operação conceitual interna;
 - não existe `unpin` irrestrito depois que o endereço é publicado;
 - a lease mantém o bell e o callback state vivos até unsubscribe;
 - unsubscribe ocorre antes de liberar o callback state;
@@ -2110,8 +2112,8 @@ Aceite:
   recebe `allocator: ref memory` explicitamente;
 - `tryReserve` falha antes de consumir os elementos;
 - cada string duplicada mantém a origem do allocator;
-- `.fixed` fornece uma capability scoped de `Allocator`; `.bounded` é um budget
-  sobre provider e não promete storage fixo;
+- `.fixed` fornece uma capability scoped de `Allocator`; `.bounded` permanece
+  Research e não é um plan ativo do oracle ASC0;
 - reuso/reset não é a surface comum; o bloco exige que nenhum child, wait, loan
   ou dependent permaneça aberto;
 - a origem registra instance lifetime, deallocator, mobility e adoption family;
@@ -2120,7 +2122,8 @@ Aceite:
   cruza `spawn`; origens locais são rejeitadas, salvo `rehome` antes da fronteira;
 - `rehome` move storage independente e realoca somente storage dependente;
 - uma falha de `rehome` consome e limpa o snapshot e o destino parcial;
-- `attemptRehome` devolve o snapshot no outcome quando retry é necessário;
+- não existe `attemptRehome` na surface vigente; `rehome` consuming não restaura
+  o source;
 - o budget cobra alignment, padding, growth retido e metadata de drop;
 - `.budgetExceeded` informa `limitBytes`, `committedBytes` e `requestedBytes`
   sem a identidade do provider;
@@ -2715,7 +2718,8 @@ Aceite:
 - `.lifetimeIndependent` observa somente ausência de origin dinâmica;
 - storage local continua local mesmo quando o payload é lifetime-independent;
 - rehome reescreve storage origin sem apagar borrow origin;
-- strong zero destrói o payload uma vez e weak zero libera o control block;
+- strong zero destrói o payload uma vez e libera o control block se não há weak;
+  weak zero libera o block somente depois de strong zero;
 - erasure inline preserva origins; spill adiciona box origin sem apagar edges;
 - falha consuming de pin/share/rehome/erase não restaura o source;
 - service, wire, persistence e FFI aplicam gates próprios depois de lifetime;
@@ -2732,9 +2736,68 @@ Aceite:
 
 O modelo Node em `tooling/hir-memory-reference.test.mjs` repete essas regras
 com estados pequenos. O corpus M1 em `tooling/memory-transition-cases.json`
-possui 164 casos e 579 operações. Ele é uma referência de contrato, não o
+possui 185 casos e 606 operações. Ele é uma referência de contrato, não o
 futuro verifier.
 O compiler deve substituir esse modelo por HIR real no gate SH3/SH4.
+
+### 3.44.1 Oracle SHC0 de construção shared
+
+Famílias: binding declarativo, `try` fora do tipo, publicação atômica,
+`AllocationOriginMap`, lifecycle strong/weak, allocator profile, rehome,
+boundaries, FFI e co-allocation.
+
+`shared_control_oracle.w` é o fixture do restaurante para a construction
+contract. `tooling/shared-control-cases.json` possui 45 casos e 84 operações
+(16 accepted, 6 error, 3 fault e 20 rejected); `shared-control-machine.mjs` e o teste host são
+um oracle independente de M1. Nenhum deles compila, executa ou aloca W.
+
+O oracle distingue contrato rejeitado, `AllocationError`/initializer error,
+normal product OOM e compiler invariant. Somente o primeiro é `rejected`.
+
+Aceite:
+
+- `let root: shared T = T(...)` usa o product default sem `try` quando OOM é
+  normal; `let root: shared T = try T(allocator: memory, ...)` cobre cada site
+  fallible publicado pelo contract;
+- a declaração exige binding/field explícito, payload lifetime-independent e
+  `take` para owner existente; argumento, return e inference não promovem;
+- a admission/open lexical ou custom ocorre antes da construção. `allocator:
+  memory` usa a capability/profile já aberta; `try` na construção cobre
+  initializer e sites publicados, não `AllocatorPlan.open`. `initializerThrows`
+  e o `failure` do site allocator são eixos distintos;
+- quando ambos os eixos são fallible, o caller declara `InitializerError` e
+  `AllocationError` no error set; se o tipo é o mesmo, as edges colapsam em uma,
+  e, se são distintos, o set deve ser exato e sem duplicatas. W não cria uma
+  união implícita;
+- a pipeline prova facts e entra numa fase lógica de staging/initialization,
+  grava `strong = 1`/`weak = 0` e cruza uma fronteira atômica; ordem física e
+  co-allocation não são promessa. Falha prepublication limpa cada
+  payload/bloco parcial exatamente uma vez;
+- `AllocationOriginMap` contém `$storage`, `$controlBlock` e o record do block
+  (origin, allocator contract, instance, deallocator, mobility, lifetime,
+  adoption family e bulk owner); weak mantém o block e essa origin até weak
+  zero, inclusive após strong zero, e strong zero deinit o payload uma vez;
+- aquisição weak live cria um owner strong; acquisition após strong zero devolve
+  none sem resurrect. Strong-only final release libera o block imediatamente;
+- `rehome` unique ocorre antes de shared cross-domain; shared não é rehomable;
+  a promoção consome o valor rehomed inteiro (parent/children preservados), e
+  nested field calls não herdam allocator;
+- FFI persistente exige origin cross-domain, payload shareable, contador
+  thread-safe, pin, lease, unregister para fechar admission, drain in-flight,
+  destroy, unpin e a ordem `unregister-before-drain-before-destroy`;
+- `memory.w::watchClosingBell` constrói `BellLease` e chama
+  `ll_bell_unsubscribe`, mas o header não prova o drain. SHC0 exige fact
+  explícito de unregister/revoke e drain. A ausência do drain é um caso
+  adversarial;
+- o close/drain da lease allocator externa pertence ao ASC0. SHC0 só conserva
+  o control block até weak zero;
+  ciclos fortes fechados continuam rejeitados e edge weak quebra o SCC;
+- co-allocation é uma escolha do optimizer, não uma promessa de layout ou
+  contagem de allocations.
+
+Os casos usam operations conceituais somente dentro do oracle. O texto source
+vigente não possui `share`, `try share`, `tryShare`, `Shared<T>` ou container
+nominal público.
 
 ### 3.45 Kernel A0 de allocation física
 

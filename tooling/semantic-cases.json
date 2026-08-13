@@ -4645,6 +4645,48 @@
           }
         ]
       }
+    },
+    {
+      "id": "S0-POS-shared-profile-sidecar",
+      "kind": "positive",
+      "rule": "W-1336",
+      "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true},
+      "resolvedContext": {"providerProfile": "joined", "allocationOriginMap": {"$controlBlock": "memory"}},
+      "source": ["struct Menu { title: String }", "fn make(memory: ref Allocator): shared Menu throws AllocationError {", "  let root: shared Menu = try Menu(allocator: memory, title: \"Dinner\")", "  return take root", "}"],
+      "expect": {"focus": {"text": "let root: shared Menu = try Menu(allocator: memory, title: \"Dinner\")"}, "semanticResult": {"resultType": "shared Menu", "category": "value", "flow": {"kind": "next"}, "ownerDelta": [], "effectSummary": {"signature": [], "control": [], "operational": ["allocation"]}, "proofFacts": [{"kind": "allocation-origin", "subject": "root.$controlBlock", "value": "memory"}], "evaluationGraph": {"nodes": [{"id": "binding", "operation": "bind-explicit-shared-owner", "subject": "shared Menu"}], "edges": []}}, "diagnostics": []}
+    },
+    {
+      "id": "S0-NEG-shared-profile-sidecar-missing",
+      "kind": "negative",
+      "rule": "W-1336",
+      "baseline": "S0-POS-shared-profile-sidecar",
+      "failureField": "proofFacts",
+      "failureEvidence": {"field": "proofFacts", "baselineValueDigest": "sha256:a54b65f14f19aff34803138136bd2cb7f066ec02d2cbd7ee6bd48deb06ec7381"},
+      "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true},
+      "resolvedContext": {"providerProfile": "missing", "allocationOriginMap": {"$controlBlock": "memory"}},
+      "source": ["struct Menu { title: String }", "fn make(memory: ref Allocator): shared Menu throws AllocationError {", "  let root: shared Menu = try Menu(allocator: memory, title: \"Dinner\")", "  return take root", "}"],
+      "expect": {"diagnostics": [{"code": "W-ALLOCATOR-0004", "phase": "semantic.capability", "severity": "error", "primary": {"text": "allocator: memory"}, "labels": [], "facts": {"plan": "memory", "provider": "memory", "missingFacts": ["providerProfile"]}, "notes": [], "fixes": []}]}
+    },
+    {
+      "id": "S0-POS-shared-boundary-sidecar",
+      "kind": "positive",
+      "rule": "W-1337",
+      "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true},
+      "resolvedContext": {"originMobility": "crossDomain", "allOrigins": ["process", "process"]},
+      "source": ["fn send(root: shared Menu) throws BoundaryError {", "  sendToProcess(root)", "}"],
+      "expect": {"focus": {"text": "sendToProcess(root)"}, "semanticResult": {"resultType": null, "category": "declaration", "flow": {"kind": "next"}, "ownerDelta": [], "effectSummary": {"signature": [], "control": [], "operational": []}, "proofFacts": [{"kind": "boundary-facts", "subject": "root", "value": "crossDomain"}], "evaluationGraph": {"nodes": [{"id": "boundary", "operation": "check-shared-boundary", "subject": "root"}], "edges": []}}, "diagnostics": []}
+    },
+    {
+      "id": "S0-NEG-shared-boundary-sidecar-local",
+      "kind": "negative",
+      "rule": "W-1337",
+      "baseline": "S0-POS-shared-boundary-sidecar",
+      "failureField": "proofFacts",
+      "failureEvidence": {"field": "proofFacts", "baselineValueDigest": "sha256:4f2f101998ce940386a4c71fd47909124375dda96d72ed9e4c696e62ea40f326"},
+      "analysisFacts": {"payloadShareable": false, "counterThreadSafe": true},
+      "resolvedContext": {"originMobility": "local", "allOrigins": ["request", "request"]},
+      "source": ["fn send(root: shared Menu) throws BoundaryError {", "  sendToProcess(root)", "}"],
+      "expect": {"diagnostics": [{"code": "W-ALLOCATOR-0003", "phase": "semantic.ownership", "severity": "error", "primary": {"text": "sendToProcess(root)"}, "labels": [], "facts": {"allocator": "request", "boundary": "process", "origin": "local", "reason": "rehome-or-stable-storage-required"}, "notes": [], "fixes": []}]}
     }
   ]
 }

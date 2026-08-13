@@ -922,6 +922,42 @@ test("M1 keeps weak storage until the last weak handle and drops payload once", 
   assert.equal(result.state.payloads.p0.dropCount, 1);
 });
 
+test("M1 records hidden shared control-block origin facts", () => {
+  const result = runMemoryProgram([
+    {
+      op: "defineAllocator",
+      allocator: "request",
+      lifetime: "scoped",
+      mobility: "crossDomain",
+      adoptionFamily: "shared-control",
+      limit: 256,
+    },
+    { op: "initialize", binding: "menu", using: "request", bytes: 32 },
+    {
+      op: "share",
+      from: "menu",
+      to: "root",
+      using: "request",
+      bytes: 16,
+      threadSafe: true,
+      controlBlockOrigin: "request",
+      controlBlockDeallocator: "provider",
+      controlBlockMobility: "crossDomain",
+      controlBlockLifetime: "scoped",
+      controlBlockAdoptionFamily: "shared-control",
+      controlBlockBulkReleaseOwner: "request",
+    },
+  ]);
+  assert.equal(result.status, "accepted");
+  assert.deepEqual(result.state.controlBlocks.c0.allocationOriginMap, {
+    "$storage": ["request"],
+    "$controlBlock": "request",
+  });
+  assert.equal(result.state.controlBlocks.c0.controlBlockDeallocator, "provider");
+  assert.equal(result.state.controlBlocks.c0.controlBlockMobility, "crossDomain");
+  assert.equal(result.state.controlBlocks.c0.controlBlockAdoptionFamily, "shared-control");
+});
+
 test("M1 consuming allocation failure drops the source before propagation", () => {
   const result = runMemoryProgram([
     { op: "initialize", binding: "bellState" },

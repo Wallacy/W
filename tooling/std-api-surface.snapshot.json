@@ -4900,7 +4900,7 @@
           "refined-to-base"
         ]
       },
-      "catalogedDeclarationsDigest": "afcd80214c15a355377f97b7d4ec3fc936acc28488aac71e773c85a737e910b5",
+      "catalogedDeclarationsDigest": "188e37c066a838e0fa399849921a7502cae2e0e1969e86f1172867f7c9b8e10b",
       "apis": [
         {
           "symbol": "AllocationError",
@@ -4916,7 +4916,7 @@
           "kind": "struct",
           "signature": "export struct Allocator",
           "declarationDigest": "5f4481d4ab8030acba90c0894e25972e950bb60f24dec95baed4f82d4092b376",
-          "line": 54,
+          "line": 56,
           "profile": "allocator-carrier",
           "status": "draft"
         },
@@ -4925,7 +4925,7 @@
           "kind": "enum",
           "signature": "export enum AllocatorDeallocator: Copy & Equatable",
           "declarationDigest": "9c5257233e330296eec131427eb4ccd7dd08da88ad8421cafd7f242a5af18689",
-          "line": 36,
+          "line": 38,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -4934,7 +4934,7 @@
           "kind": "enum",
           "signature": "export enum AllocatorFailureMode: Copy & Equatable",
           "declarationDigest": "ba6d84b14b988e76356e8f978dbc072e1c8d8e57dbff17791ba8ee7a81bb2177",
-          "line": 31,
+          "line": 33,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -4943,7 +4943,7 @@
           "kind": "alias",
           "signature": "export alias AllocatorLease = Allocator",
           "declarationDigest": "de4fe5bdc91c6bd5308ad7225a7a7d3532c1555fdff68b490a23ff5ff6474d71",
-          "line": 70,
+          "line": 72,
           "profile": "allocator-lease",
           "status": "draft"
         },
@@ -4952,7 +4952,7 @@
           "kind": "enum",
           "signature": "export enum AllocatorMobility: Copy & Equatable",
           "declarationDigest": "a8c5fc04852a17a3dbc58182fc1f77dbf48455668ebb04dad495bcbcc966ff09",
-          "line": 41,
+          "line": 43,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -4961,7 +4961,7 @@
           "kind": "protocol",
           "signature": "export protocol AllocatorPlan",
           "declarationDigest": "d2e0c67c35b22547d968ece6c245167c6553856a1fbb7116cc57a60194a70dc6",
-          "line": 77,
+          "line": 79,
           "profile": "allocator-plan",
           "status": "draft"
         },
@@ -4970,7 +4970,7 @@
           "kind": "struct",
           "signature": "export struct AllocatorPlanDescriptor: Copy & Equatable",
           "declarationDigest": "3ccfe9ceeb72863a1b0a9afd4e9a046d461cfc0b1a444edb9e4c790d72c48ed6",
-          "line": 46,
+          "line": 48,
           "profile": "allocator-plan-descriptor",
           "status": "draft"
         },

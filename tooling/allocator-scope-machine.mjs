@@ -1,4 +1,6 @@
-const activePlans = new Set(["fixed", "bounded", "custom"])
+// `.bounded` remains Research. ASC0 accepts only plans with a closed lexical
+// admission contract; a future provider study gets its own oracle.
+const activePlans = new Set(["fixed", "custom"])
 
 export function runAllocatorScope(input) {
   if (!input || typeof input !== "object") return { accepted: false, reason: "invalidInput" }
@@ -138,6 +140,9 @@ export function runAllocatorScope(input) {
       // A failed open admits neither body nor binding and creates no lease.
       if (state.plan !== "custom" || state.customPlanValidated !== true) {
         return { accepted: false, reason: "customDescriptorRequired" }
+      }
+      if (state.customLeaseCreated) {
+        return { accepted: false, reason: "customPlanOpenedTwice" }
       }
       if (!["success", "failure"].includes(operation.outcome)) {
         return { accepted: false, reason: "customPlanOpenOutcome" }

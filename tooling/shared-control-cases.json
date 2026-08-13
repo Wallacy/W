@@ -1,0 +1,412 @@
+{
+  "$schema": "w-shared-control-cases-shc0",
+  "status": "design-oracle-input-shc0",
+  "machine": "shared-control-machine-shc0",
+  "cases": [
+    {
+      "id": "SHC0-POS-default-declarative",
+      "kind": "positive",
+      "decisions": ["W-1256", "W-1334"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "makeRequestMenu"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "normal-oom", "lifetimeIndependent": true, "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}],
+      "expected": {"status": "accepted", "facts": {"published": true, "strong": 1}}
+    },
+    {
+      "id": "SHC0-POS-custom-fallible-success",
+      "kind": "positive",
+      "decisions": ["W-1328", "W-1334", "W-1336"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "makeRequestMenu"}],
+      "operations": [
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "local", "lifetime": "allocator-scope", "progress": "bounded", "adoptionFamily": "shared-control", "limits": {"maxObjectBytes": 4096}, "recipeJoined": true}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "custom", "failure": "fallible", "try": true, "initializerThrows": false, "lifetimeIndependent": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "originMap": {"$storage": "lexical", "$controlBlock": "lexical"}},
+        {"op": "coallocate", "promised": false}
+      ],
+      "expected": {"status": "accepted", "facts": {"published": true, "coallocationPromised": false, "allocationOriginMap": {"$storage": "lexical", "$controlBlock": "lexical"}}}
+    },
+    {
+      "id": "SHC0-POS-init-fallible-allocator-infallible",
+      "kind": "positive",
+      "decisions": ["W-1334", "W-1337"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "initializerThrows": true, "try": true, "lifetimeIndependent": true, "payloadInit": "success", "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}],
+      "expected": {"status": "accepted", "facts": {"published": true}}
+    },
+    {
+      "id": "SHC0-POS-init-infallible-allocator-fallible",
+      "kind": "positive",
+      "decisions": ["W-1334", "W-1336"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "local", "lifetime": "allocator-scope", "progress": "bounded", "adoptionFamily": "shared-control", "limits": {"maxObjectBytes": 4096}, "recipeJoined": true}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "custom", "failure": "fallible", "initializerThrows": false, "try": true, "lifetimeIndependent": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "originMap": {"$storage": "lexical", "$controlBlock": "lexical"}}
+      ],
+      "expected": {"status": "accepted", "facts": {"published": true}}
+    },
+    {
+      "id": "SHC0-POS-both-fallible",
+      "kind": "positive",
+      "decisions": ["W-1334", "W-1337"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "local", "lifetime": "allocator-scope", "progress": "bounded", "adoptionFamily": "shared-control", "limits": {"maxObjectBytes": 4096}, "recipeJoined": true}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "custom", "failure": "fallible", "initializerThrows": true, "initializerError": "InitializerError", "allocationError": "AllocationError", "try": true, "errorSet": ["InitializerError", "AllocationError"], "lifetimeIndependent": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "originMap": {"$storage": "lexical", "$controlBlock": "lexical"}}
+      ],
+      "expected": {"status": "accepted", "facts": {"published": true}}
+    },
+    {
+      "id": "SHC0-POS-both-fallible-error-collapse",
+      "kind": "positive",
+      "decisions": ["W-1334"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:abababababababababababababababababababababababababababababababab", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "local", "lifetime": "allocator-scope", "progress": "bounded", "adoptionFamily": "shared-control", "limits": {"maxObjectBytes": 4096}, "recipeJoined": true}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "custom", "failure": "fallible", "initializerThrows": true, "initializerError": "AllocationError", "allocationError": "AllocationError", "try": true, "errorSet": ["AllocationError"], "lifetimeIndependent": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "originMap": {"$storage": "lexical", "$controlBlock": "lexical"}}
+      ],
+      "expected": {"status": "accepted", "facts": {"published": true, "initializerError": "AllocationError", "allocationError": "AllocationError", "errorEdges": ["AllocationError"], "errorSet": ["AllocationError"]}}
+    },
+    {
+      "id": "SHC0-NEG-invalid-error-set-mapping",
+      "kind": "negative",
+      "decisions": ["W-1334"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "local", "lifetime": "allocator-scope", "progress": "bounded", "adoptionFamily": "shared-control", "limits": {"maxObjectBytes": 4096}, "recipeJoined": true}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "custom", "failure": "fallible", "initializerThrows": true, "initializerError": "InitializerError", "allocationError": "AllocationError", "try": true, "errorSet": ["InitializerError", "AllocationError", "AllocationError", "ExtraError"], "lifetimeIndependent": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "originMap": {"$storage": "lexical", "$controlBlock": "lexical"}}
+      ],
+      "expected": {"status": "rejected", "code": "SHC0-ERROR-SET", "diagnostic": "W-EFFECT-0010", "operation": 1, "facts": {"errorEdges": ["InitializerError", "AllocationError"], "errorSet": ["InitializerError", "AllocationError", "AllocationError", "ExtraError"], "published": false}}
+    },
+    {
+      "id": "SHC0-NEG-default-oom-init-fallible",
+      "kind": "negative",
+      "decisions": ["W-930", "W-1334", "W-1337"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "normal-oom", "initializerThrows": true, "try": true, "lifetimeIndependent": true, "payloadReserve": "oom", "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}],
+      "expected": {"status": "fault", "code": "SHC0-RESERVE-FAILURE", "operation": 0, "facts": {"sourceConsumed": true, "published": false, "failureKind": "normal-oom", "cleanup": {"payloadDropCount": 0, "partialControlBlockDropCount": 0}}}
+    },
+    {
+      "id": "SHC0-NEG-both-fallible-missing-error-set",
+      "kind": "negative",
+      "decisions": ["W-1334"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:3434343434343434343434343434343434343434343434343434343434343434", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "local", "lifetime": "allocator-scope", "progress": "bounded", "adoptionFamily": "shared-control", "limits": {"maxObjectBytes": 4096}, "recipeJoined": true}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "custom", "failure": "fallible", "initializerThrows": true, "initializerError": "InitializerError", "allocationError": "AllocationError", "try": true, "lifetimeIndependent": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "originMap": {"$storage": "lexical", "$controlBlock": "lexical"}}
+      ],
+      "expected": {"status": "rejected", "code": "SHC0-ERROR-SET", "diagnostic": "W-EFFECT-0010", "operation": 1, "facts": {"errorEdges": ["InitializerError", "AllocationError"], "published": false}}
+    },
+    {
+      "id": "SHC0-NEG-custom-missing-try",
+      "kind": "negative",
+      "decisions": ["W-1334"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "local", "lifetime": "allocator-scope", "progress": "bounded", "adoptionFamily": "shared-control", "limits": {"maxObjectBytes": 4096}, "recipeJoined": true}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "custom", "failure": "fallible", "initializerThrows": false, "try": false, "lifetimeIndependent": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "originMap": {"$storage": "lexical", "$controlBlock": "lexical"}}
+      ],
+      "expected": {"status": "rejected", "code": "SHC0-MISSING-TRY", "diagnostic": "W-EFFECT-0010", "operation": 1, "facts": {"published": false}}
+    },
+    {
+      "id": "SHC0-NEG-redundant-try",
+      "kind": "negative",
+      "decisions": ["W-033", "W-1334"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "initializerThrows": false, "try": true, "lifetimeIndependent": true, "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}],
+      "expected": {"status": "rejected", "code": "SHC0-REDUNDANT-TRY", "diagnostic": "W-EFFECT-0010", "operation": 0}
+    },
+    {
+      "id": "SHC0-NEG-plan-open-failure",
+      "kind": "negative",
+      "decisions": ["W-1328", "W-1336"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [{"op": "openPlan", "allocator": "custom", "outcome": "failure", "providerProfile": {"providerDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "local", "lifetime": "allocator-scope", "progress": "bounded", "adoptionFamily": "shared-control", "limits": {"maxObjectBytes": 4096}, "recipeJoined": true}}],
+      "expected": {"status": "error", "code": "SHC0-PLAN-OPEN-FAILURE", "diagnostic": "W-ALLOCATOR-0007", "operation": 0, "facts": {"bodyEntered": false, "bindingCreated": false, "failureKind": "AllocationError", "published": false}}
+    },
+    {
+      "id": "SHC0-NEG-infallible-plan-cannot-fail",
+      "kind": "negative",
+      "decisions": ["W-1328", "W-1336"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [{"op": "openPlan", "allocator": "custom", "outcome": "failure", "providerProfile": {"providerDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666", "version": 1, "failure": "infallible", "deallocator": "provider", "mobility": "local", "lifetime": "allocator-scope", "progress": "bounded", "adoptionFamily": "shared-control", "limits": {"maxObjectBytes": 4096}, "recipeJoined": true}}],
+      "expected": {"status": "fault", "code": "SHC0-PLAN-OPEN-CONTRADICTION", "diagnostic": "W-ALLOCATOR-0004", "operation": 0}
+    },
+    {
+      "id": "SHC0-NEG-payload-reserve-failure",
+      "kind": "negative",
+      "decisions": ["W-930", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "fallible", "try": true, "initializerThrows": false, "lifetimeIndependent": true, "payloadReserve": "oom", "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}],
+      "expected": {"status": "error", "code": "SHC0-RESERVE-FAILURE", "operation": 0, "facts": {"sourceConsumed": true, "published": false, "failureKind": "AllocationError", "cleanup": {"payloadDropCount": 0, "partialControlBlockDropCount": 0}}}
+    },
+    {
+      "id": "SHC0-NEG-payload-init-failure",
+      "kind": "negative",
+      "decisions": ["W-930", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "initializerThrows": true, "try": true, "lifetimeIndependent": true, "payloadInit": "init-failure", "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}],
+      "expected": {"status": "error", "code": "SHC0-PAYLOAD-INIT-FAILURE", "operation": 0, "facts": {"sourceConsumed": true, "published": false, "failureKind": "InitializerError", "cleanup": {"payloadDropCount": 1, "partialControlBlockDropCount": 0}}}
+    },
+    {
+      "id": "SHC0-NEG-control-reserve-failure",
+      "kind": "negative",
+      "decisions": ["W-930", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "fallible", "try": true, "initializerThrows": false, "lifetimeIndependent": true, "controlReserve": "oom", "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}],
+      "expected": {"status": "error", "code": "SHC0-CONTROL-RESERVE-FAILURE", "operation": 0, "facts": {"sourceConsumed": true, "published": false, "failureKind": "AllocationError", "cleanup": {"payloadDropCount": 1, "partialControlBlockDropCount": 0}}}
+    },
+    {
+      "id": "SHC0-NEG-control-init-failure",
+      "kind": "negative",
+      "decisions": ["W-930", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "fallible", "try": true, "initializerThrows": false, "lifetimeIndependent": true, "controlInit": "init-failure", "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}],
+      "expected": {"status": "error", "code": "SHC0-CONTROL-INIT-FAILURE", "operation": 0, "facts": {"sourceConsumed": true, "published": false, "failureKind": "AllocationError", "cleanup": {"payloadDropCount": 1, "partialControlBlockDropCount": 1}}}
+    },
+    {
+      "id": "SHC0-NEG-existing-owner-consuming-failure",
+      "kind": "negative",
+      "decisions": ["W-930", "W-1334"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "promoteExisting"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "existing", "take": true, "allocator": "product.default", "failure": "infallible", "initializerThrows": true, "try": true, "lifetimeIndependent": true, "payloadInit": "init-failure", "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}],
+      "expected": {"status": "error", "code": "SHC0-PAYLOAD-INIT-FAILURE", "operation": 0, "facts": {"sourceConsumed": true, "published": false, "failureKind": "InitializerError"}}
+    },
+    {
+      "id": "SHC0-NEG-borrowed-before-allocation",
+      "kind": "negative",
+      "decisions": ["W-1334"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "borrowed", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}],
+      "expected": {"status": "rejected", "code": "SHC0-BORROWED-PAYLOAD", "diagnostic": "W-BORROW-0010", "operation": 0, "facts": {"sourceConsumed": false, "published": false}}
+    },
+    {
+      "id": "SHC0-POS-existing-owner-lexical-fallible",
+      "kind": "positive",
+      "decisions": ["W-930", "W-1334", "W-1336"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "promoteExisting"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "existing", "take": true, "allocator": "lexical", "failure": "fallible", "try": true, "initializerThrows": false, "lifetimeIndependent": true, "allocatorScope": "restaurant-request", "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "originMap": {"$storage": "lexical", "$controlBlock": "lexical"}}],
+      "expected": {"status": "accepted", "facts": {"published": true, "strong": 1}}
+    },
+    {
+      "id": "SHC0-POS-strong-only-final-release",
+      "kind": "positive",
+      "decisions": ["W-931", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "weakParent"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}, {"op": "strongDrop"}],
+      "expected": {"status": "accepted", "facts": {"published": true, "strong": 0, "weak": 0, "payloadAlive": false, "blockAlive": false, "payloadDeinitCount": 1, "controlBlockDeinitCount": 1}}
+    },
+    {
+      "id": "SHC0-POS-weak-drop-while-strong-alive",
+      "kind": "positive",
+      "decisions": ["W-931", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "weakParent"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}, {"op": "makeWeak"}, {"op": "weakDrop"}],
+      "expected": {"status": "accepted", "facts": {"strong": 1, "weak": 0, "payloadAlive": true, "blockAlive": true, "controlBlockDeinitCount": 0}}
+    },
+    {
+      "id": "SHC0-POS-weak-acquire-live-and-drop",
+      "kind": "positive",
+      "decisions": ["W-931", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "weakParent"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}, {"op": "makeWeak"}, {"op": "weakAcquire"}, {"op": "strongDrop"}, {"op": "strongDrop"}, {"op": "weakDrop"}],
+      "expected": {"status": "accepted", "facts": {"strong": 0, "weak": 0, "payloadAlive": false, "blockAlive": false, "payloadDeinitCount": 1, "controlBlockDeinitCount": 1}}
+    },
+    {
+      "id": "SHC0-POS-weak-acquire-expired",
+      "kind": "positive",
+      "decisions": ["W-931", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "weakParent"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}, {"op": "makeWeak"}, {"op": "strongDrop"}, {"op": "weakAcquire"}, {"op": "weakDrop"}],
+      "expected": {"status": "accepted", "facts": {"strong": 0, "weak": 0, "payloadAlive": false, "blockAlive": false, "payloadDeinitCount": 1, "controlBlockDeinitCount": 1}}
+    },
+    {
+      "id": "SHC0-NEG-outer-lease-delegated",
+      "kind": "negative",
+      "outerAllocatorLease": "ASC0",
+      "decisions": ["W-931", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "weakParent"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "originMap": {"$storage": "request", "$controlBlock": "request"}}, {"op": "makeWeak"}, {"op": "strongDrop"}, {"op": "allocatorClose"}],
+      "expected": {"status": "rejected", "code": "SHC0-OUTER-LEASE-OWNERSHIP", "operation": 3, "facts": {"published": true, "strong": 0, "weak": 1, "owner": "ASC0"}}
+    },
+    {
+      "id": "SHC0-POS-rehome-before-cross-domain",
+      "kind": "positive",
+      "decisions": ["W-930", "W-932", "W-1334", "W-1336"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "crossDomainOrder"}],
+      "operations": [
+        {"op": "rehomePayload", "sourceUnique": true, "destinationOrigin": "process", "destinationMobility": "crossDomain"},
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "crossDomain", "lifetime": "process", "progress": "bounded", "adoptionFamily": "process", "limits": {"maxObjectBytes": 8192}, "recipeJoined": true, "bulkReleaseOwner": "process-bulk"}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "existing", "take": true, "lifetimeIndependent": true, "allocator": "custom", "failure": "fallible", "try": true, "crossDomain": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "payloadOrigin": "process", "controlBlockOrigin": "process", "originMap": {"$storage": "process", "$controlBlock": "process"}},
+        {"op": "boundary"}
+      ],
+      "expected": {"status": "accepted", "facts": {"published": true, "allOriginsCrossDomain": true, "allocationOriginMap": {"$storage": "process", "$controlBlock": "process"}}}
+    },
+    {
+      "id": "SHC0-NEG-cross-domain-facts-missing",
+      "kind": "negative",
+      "decisions": ["W-932", "W-1336", "W-1337"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "crossDomainOrder"}],
+      "operations": [
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:7878787878787878787878787878787878787878787878787878787878787878", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "crossDomain", "lifetime": "process", "progress": "bounded", "adoptionFamily": "process", "limits": {"maxObjectBytes": 8192}, "recipeJoined": true}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "lifetimeIndependent": true, "allocator": "custom", "failure": "fallible", "try": true, "crossDomain": true, "analysisFacts": {"payloadShareable": false, "counterThreadSafe": false}, "payloadOrigin": "process", "controlBlockOrigin": "process", "originMap": {"$storage": "process", "$controlBlock": "process"}}
+      ],
+      "expected": {"status": "rejected", "code": "SHC0-CROSS-DOMAIN-FACTS", "diagnostic": "W-ALLOCATOR-0003", "operation": 1, "facts": {"payloadShareable": false, "counterThreadSafe": false, "allOriginsCrossDomain": true, "published": false}}
+    },
+    {
+      "id": "SHC0-NEG-caller-control-mobility-diverges",
+      "kind": "negative",
+      "decisions": ["W-1336", "W-1337"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "crossDomainOrder"}],
+      "operations": [
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:7979797979797979797979797979797979797979797979797979797979797979", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "crossDomain", "lifetime": "process", "progress": "bounded", "adoptionFamily": "process", "limits": {"maxObjectBytes": 8192}, "recipeJoined": true}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "lifetimeIndependent": true, "allocator": "custom", "failure": "fallible", "try": true, "crossDomain": true, "controlBlockMobility": "local", "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "payloadOrigin": "process", "controlBlockOrigin": "process", "originMap": {"$storage": "process", "$controlBlock": "process"}}
+      ],
+      "expected": {"status": "rejected", "code": "SHC0-CALLER-FACT", "operation": 1}
+    },
+    {
+      "id": "SHC0-NEG-reachable-nested-local-origin",
+      "kind": "negative",
+      "decisions": ["W-932", "W-1336", "W-1337"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "crossDomainOrder"}],
+      "operations": [
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "crossDomain", "lifetime": "process", "progress": "bounded", "adoptionFamily": "process", "limits": {"maxObjectBytes": 8192}, "recipeJoined": true}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "lifetimeIndependent": true, "allocator": "custom", "failure": "fallible", "try": true, "crossDomain": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "payloadOrigin": "process", "controlBlockOrigin": "process", "originMap": {"$storage": "process", "$controlBlock": "process", "reachable": {"nestedPayload": "local"}}}
+      ],
+      "expected": {"status": "rejected", "code": "SHC0-CROSS-DOMAIN-FACTS", "diagnostic": "W-ALLOCATOR-0003", "operation": 1, "facts": {"payloadShareable": true, "counterThreadSafe": true, "allOriginsCrossDomain": false, "published": false}}
+    },
+    {
+      "id": "SHC0-NEG-caller-rehome-flag-diverges",
+      "kind": "negative",
+      "decisions": ["W-930", "W-1337"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "crossDomainOrder"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "existing", "take": true, "lifetimeIndependent": true, "allocator": "product.default", "failure": "infallible", "crossDomain": true, "rehomed": true, "payloadOrigin": "process", "controlBlockOrigin": "process", "originMap": {"$storage": "process", "$controlBlock": "process"}}],
+      "expected": {"status": "rejected", "code": "SHC0-CALLER-FACT", "operation": 0}
+    },
+    {
+      "id": "SHC0-NEG-local-origin-boundary",
+      "kind": "negative",
+      "decisions": ["W-1329", "W-1337"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "crossDomainOrder"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "payloadOrigin": "request", "controlBlockOrigin": "request", "originMap": {"$storage": "request", "$controlBlock": "request"}}, {"op": "boundary"}],
+      "expected": {"status": "rejected", "code": "SHC0-LOCAL-ORIGIN-BOUNDARY", "diagnostic": "W-ALLOCATOR-0003", "operation": 1, "facts": {"published": true}}
+    },
+    {
+      "id": "SHC0-NEG-shared-not-rehomable",
+      "kind": "negative",
+      "decisions": ["W-930", "W-1337"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "crossDomainOrder"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}, {"op": "rehomeShared"}],
+      "expected": {"status": "rejected", "code": "SHC0-SHARED-REHOME", "diagnostic": "W-OWNERSHIP-0017", "operation": 1, "facts": {"published": true}}
+    },
+    {
+      "id": "SHC0-POS-nested-field-origin-independent",
+      "kind": "positive",
+      "decisions": ["W-1326", "W-1334"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "makeRequestMenu"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}, {"op": "nestedField", "inheritAllocator": false, "allocator": "field-default"}],
+      "expected": {"status": "accepted", "facts": {"published": true}}
+    },
+    {
+      "id": "SHC0-NEG-call-promotion",
+      "kind": "negative",
+      "decisions": ["W-1256", "W-1334"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "makeRequestMenu"}],
+      "operations": [{"op": "callPromotion"}],
+      "expected": {"status": "rejected", "code": "SHC0-CONTEXT-PROMOTION", "diagnostic": "W-OWNERSHIP-0013", "operation": 0}
+    },
+    {
+      "id": "SHC0-NEG-return-promotion",
+      "kind": "negative",
+      "decisions": ["W-1256", "W-1334"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "makeRequestMenu"}],
+      "operations": [{"op": "returnPromotion"}],
+      "expected": {"status": "rejected", "code": "SHC0-CONTEXT-PROMOTION", "diagnostic": "W-OWNERSHIP-0013", "operation": 0}
+    },
+    {
+      "id": "SHC0-NEG-coallocation-promise",
+      "kind": "negative",
+      "decisions": ["W-1334", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "makeRequestMenu"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}, {"op": "coallocate", "promised": true}],
+      "expected": {"status": "rejected", "code": "SHC0-COALLOCATION-PROMISE", "operation": 1, "facts": {"published": true}}
+    },
+    {
+      "id": "SHC0-POS-coallocation-optimization",
+      "kind": "positive",
+      "decisions": ["W-1334", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "makeRequestMenu"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}, {"op": "coallocate", "promised": false}],
+      "expected": {"status": "accepted", "facts": {"published": true, "coallocationPromised": false}}
+    },
+    {
+      "id": "SHC0-NEG-ffi-local-origin",
+      "kind": "negative",
+      "decisions": ["W-1335", "W-1338"],
+      "references": [{"path": "../reference/last-light/memory.w", "symbol": "watchClosingBell"}, {"path": "../reference/last-light/memory.w", "symbol": "BellLease"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "payloadOrigin": "request", "controlBlockOrigin": "request", "originMap": {"$storage": "request", "$controlBlock": "request"}}, {"op": "ffiPersistent", "pinned": true, "lease": true, "destroy": true, "unpin": true, "reclaim": true, "unregister": true, "inFlightDrained": true, "order": "unregister-before-drain-before-destroy"}],
+      "expected": {"status": "rejected", "code": "SHC0-FFI-LOCAL-ORIGIN", "diagnostic": "W-ALLOCATOR-0003", "operation": 1, "facts": {"published": true}}
+    },
+    {
+      "id": "SHC0-POS-ffi-process-pinned-lease",
+      "kind": "positive",
+      "decisions": ["W-1335", "W-1338"],
+      "references": [{"path": "../reference/last-light/memory.w", "symbol": "watchClosingBell"}, {"path": "../reference/last-light/memory.w", "symbol": "BellLease"}],
+      "operations": [
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "crossDomain", "lifetime": "process", "progress": "bounded", "adoptionFamily": "process", "limits": {"maxObjectBytes": 8192}, "recipeJoined": true, "bulkReleaseOwner": "process-bulk"}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "custom", "failure": "fallible", "try": true, "initializerThrows": false, "lifetimeIndependent": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "payloadOrigin": "process", "controlBlockOrigin": "process", "originMap": {"$storage": "process", "$controlBlock": "process"}},
+        {"op": "ffiPersistent", "pinned": true, "lease": true, "destroy": true, "unpin": true, "reclaim": true, "unregister": true, "inFlightDrained": true, "order": "unregister-before-drain-before-destroy"}
+      ],
+      "expected": {"status": "accepted", "facts": {"ffiPinned": true, "ffiLease": true, "ffiUnregistered": true, "ffiInFlightDrained": true, "published": true}}
+    },
+    {
+      "id": "SHC0-NEG-ffi-missing-drain",
+      "kind": "negative",
+      "decisions": ["W-1335", "W-1338"],
+      "references": [{"path": "../reference/last-light/memory.w", "symbol": "watchClosingBell"}, {"path": "../reference/last-light/memory.w", "symbol": "BellLease"}],
+      "operations": [
+        {"op": "openPlan", "allocator": "custom", "outcome": "success", "providerProfile": {"providerDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999", "version": 1, "failure": "fallible", "deallocator": "provider", "mobility": "crossDomain", "lifetime": "process", "progress": "bounded", "adoptionFamily": "process", "limits": {"maxObjectBytes": 8192}, "recipeJoined": true}},
+        {"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "custom", "failure": "fallible", "try": true, "initializerThrows": false, "lifetimeIndependent": true, "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true}, "payloadOrigin": "process", "controlBlockOrigin": "process", "originMap": {"$storage": "process", "$controlBlock": "process"}},
+        {"op": "ffiPersistent", "pinned": true, "lease": true, "destroy": true, "unpin": true, "reclaim": true, "unregister": true, "inFlightDrained": false, "order": "unregister-before-drain-before-destroy"}
+      ],
+      "expected": {"status": "rejected", "code": "SHC0-FFI-LEASE-FACTS", "diagnostic": "W-OWNERSHIP-0017", "operation": 2, "facts": {"published": true}}
+    },
+    {
+      "id": "SHC0-NEG-closed-strong-cycle",
+      "kind": "negative",
+      "decisions": ["W-1207", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "weakParent"}],
+      "operations": [{"op": "cycle", "closedStrong": true}],
+      "expected": {"status": "rejected", "code": "SHC0-CLOSED-STRONG-CYCLE", "operation": 0, "facts": {"published": false}}
+    },
+    {
+      "id": "SHC0-POS-weak-cycle-break",
+      "kind": "positive",
+      "decisions": ["W-1207", "W-1335"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "weakParent"}],
+      "operations": [{"op": "cycle", "closedStrong": false, "weakBreak": true}],
+      "expected": {"status": "accepted", "facts": {"published": false}}
+    },
+    {
+      "id": "SHC0-NEG-control-origin-map-missing",
+      "kind": "negative",
+      "decisions": ["W-932", "W-1336"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "crossDomainOrder"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "originMap": {"$storage": "product.default"}}],
+      "expected": {"status": "fault", "code": "SHC0-CONTROL-BLOCK-ORIGIN-INVARIANT", "operation": 0, "facts": {"sourceConsumed": false, "published": false}}
+    },
+    {
+      "id": "SHC0-NEG-try-on-type",
+      "kind": "negative",
+      "decisions": ["W-033", "W-1334"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [{"op": "construct", "context": "binding", "typeSpelling": "try shared T", "source": "temporary", "allocator": "product.default", "failure": "infallible", "lifetimeIndependent": true, "originMap": {"$storage": "product.default", "$controlBlock": "product.default"}}],
+      "expected": {"status": "rejected", "code": "SHC0-TRY-OUTSIDE-TYPE", "diagnostic": "W-EFFECT-0010", "operation": 0, "facts": {"published": false}}
+    },
+    {
+      "id": "SHC0-NEG-custom-descriptor-without-profile",
+      "kind": "negative",
+      "decisions": ["W-1328", "W-1336"],
+      "references": [{"path": "../reference/last-light/shared_control_oracle.w", "symbol": "sharedFailure"}],
+      "operations": [{"op": "openPlan", "allocator": "custom", "outcome": "success"}],
+      "expected": {"status": "rejected", "code": "SHC0-PROVIDER-PROFILE-JOIN", "diagnostic": "W-ALLOCATOR-0004", "operation": 0, "facts": {"published": false}}
+    }
+  ]
+}

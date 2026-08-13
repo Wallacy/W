@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:7345a75407b3e60cf76eeac7c19cbbd666c95d1887e4094f7f17f6ab8ff7df4e",
+  "corpusDigest": "sha256:902217456dc2e13bae50b78cf39495f2a96bd42aa0ad564732581cf185c5c3f4",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -2803,22 +2803,22 @@
     {
       "id": "R0-shared-construction",
       "task": {
-        "utf8Bytes": 150,
-        "codePoints": 150,
-        "nonWhitespaceCodePoints": 128,
+        "utf8Bytes": 162,
+        "codePoints": 162,
+        "nonWhitespaceCodePoints": 137,
         "lines": 1,
-        "surfaceLexemes": 28
+        "surfaceLexemes": 31
       },
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:771b2ae76cef8f1f0e3aa221110d6ea395851ad7f96668ac23d897973760179e",
+        "sourceDigest": "sha256:81ebde4270e00aba344fca0c45ace31a9b11cc77bb1221541e9303fc94193d21",
         "metrics": {
-          "utf8Bytes": 102,
-          "codePoints": 102,
-          "nonWhitespaceCodePoints": 89,
-          "lines": 2,
-          "surfaceLexemes": 20
+          "utf8Bytes": 174,
+          "codePoints": 174,
+          "nonWhitespaceCodePoints": 152,
+          "lines": 3,
+          "surfaceLexemes": 37
         }
       },
       "alternatives": [

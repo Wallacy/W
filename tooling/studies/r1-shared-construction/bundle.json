@@ -33,7 +33,7 @@
       "changedConstructs": [
         "retired tryShare verb",
         "allocator in rejected recoverable path",
-        "research blocker"
+        "superseded custom-recovery alternative"
       ]
     },
     {
@@ -41,11 +41,12 @@
       "role": "selected",
       "language": "w",
       "path": "contextual-type.w",
-      "digest": "sha256:6f8e3655a266e7196172c0ae2a110f38bf629b9e7efe301097e67083c1ffb072",
+      "digest": "sha256:e087cb38585390bbf12231ebcd5e33edab67ad3988669fdfb6ed2de0904ec337",
       "changedConstructs": [
         "written shared declaration",
         "binding-only allocation",
-        "explicit ownership qualifier"
+        "explicit ownership qualifier",
+        "try outside type for custom construction"
       ]
     }
   ],
@@ -61,11 +62,13 @@
       }
     },
     {
-      "id": "bounded-recovery",
+      "id": "custom-recovery",
       "expected": {
-        "status": "blocked",
-        "reason": "custom-allocator-construction-contract-missing",
+        "status": "accepted",
         "resultType": "shared MenuSection",
+        "failurePolicy": "throws AllocationError",
+        "tryOutsideType": true,
+        "controlBlockOriginMapped": true,
         "typeIdentityUnchanged": true
       }
     },
@@ -84,7 +87,7 @@
   "tasks": [
     {
       "kind": "explain",
-      "instruction": "Explain where shared ownership begins, why shared T is a prefix type, why custom allocator construction remains a research blocker, and why origin does not change type identity."
+      "instruction": "Explain where shared ownership begins, why shared T is a prefix type, how SHC0 closes custom fallible construction with try outside the type, and why origin does not change type identity."
     },
     {
       "kind": "recall",
@@ -96,8 +99,8 @@
       "instruction": "Repair missing take, argument or return promotion, or a custom allocator request without restoring share calls.",
       "mutations": {
         "overloaded-share": "Reject share as a current construction path and use a written shared declaration.",
-        "distinct-try-share": "Record the missing custom construction contract as research without restoring a call.",
-        "contextual-type": "Keep the shared expectation on a binding and move existing owners with take."
+        "distinct-try-share": "Keep the retired tryShare alternative out of the selected contract; route custom recovery to contextual-type.",
+        "contextual-type": "Keep the shared expectation on a binding, write try outside the type for custom recovery, and move existing owners with take."
       }
     },
     {
@@ -137,7 +140,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:b61dbb37b5fdfb5a3efbec1cbb7f329a51b042da57b30d064f31dea6ce11c27e"
+    "digest": "sha256:5b5bf442d7d38c472961b5f5125e6f85aed5973b85d424b3a3b1f5b0ba373e2e"
   },
   "evidence": {
     "current": [
