@@ -7,7 +7,9 @@ const rootDirectory = path.resolve(toolingDirectory, "..");
 const rationalePath = path.join(rootDirectory, "RATIONALE.md");
 
 export const rationaleText = fs.readFileSync(rationalePath, "utf8");
-export const ledgerRows = [...rationaleText.matchAll(/^\| (W-\d{3,}) \| ([^|]+) \|/gm)].map(
+const ledgerStart = rationaleText.indexOf("## 3. Ledger");
+if (ledgerStart < 0) throw new Error("design ledger heading is missing");
+export const ledgerRows = [...rationaleText.slice(ledgerStart).matchAll(/^\| (W-\d{3,}) \| ([^|]+) \|/gm)].map(
   (match) => ({ id: match[1], theme: match[2].trim() }),
 );
 

@@ -26,6 +26,7 @@ linguagem.
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
 | `frontend-freeze-cases.json` + `check-frontend-freeze.mjs` + guards/test + snapshot | FZ0 ratifica as seis famílias normalizadas G0–G5 com source Last Light real (digest/symbol), parse sem recovery, pares F0 CST-equivalentes com alvo byte canônico, inversão S0 ou waiver PYN1 e D0 exato; 21 decisões são cobertas sem duplicatas ou expected echo | oracle de design; F0 não prova idempotência nem implementa formatter, e o checker não implementa parser, compiler, runtime ou provider |
 | `borrow-expressivity-cases.json` + máquina/checker/test + snapshot | BRX0 deriva 22 casos (15 mappings aceitos, sete blockers Research e quatro negativos de invocation) para receiver/body mapping, callable loans, lending cursor, adapter OriginSet, await, escapes, `any fn`, boundaries e drift/mutations de interface | oracle host de design; free/protocol bodyless com dois inputs permanece Research; não implementa compiler, runtime, provider nem metadata de lifetime |
+| `capability-matrix-cases.json` + máquina/checker/test + snapshot | CAP0 consolida oito eixos por problema comum, tenta composição W com Last Light, preserva invariantes e deriva rotas `current`/`composable`/`research` pelas subcapacidades do problema; 149 refs primárias ou source-backed e oito filas de documentação futura | fonte editorial de staging; não mede maturidade, não copia features e não implementa compiler, runtime ou provider |
 | `semantic-diagnostic-matrix-cases.json` + máquina/checker/test | SDM0 deriva SemanticResult, CheckerContext, loop fixed point, AST→HIR schema, D0 records, causality, ordering, limits, policy, lex/parse boundary e cobertura de meta contracts | oracle host independente; não implementa checker, compiler, formatter ou runtime |
 | `execution-ergonomics-cases.json` + máquina/checker/snapshot | 80 casos (32 positivos, 46 negativos e duas informações) derivam labels, parâmetros, slots allocator contextuais/ordinários e collision, operações explícitas de ownership, suspension, placement, barriers, process projections, doctests, std e lanes seriais dinâmicas; 26 testes host usam entradas independentes | oracle host de design; não executa W nem implementa S0, scheduler, pool ou provider |
 | `check-source-call-shapes.mjs` | aplica labels, posição do contrato e operações explicitamente incompatíveis aos sources do Última Luz e da std | auditoria source; owner place sem marker exige type/value category em S0; member/import é conservador e não executa W |
@@ -420,6 +421,36 @@ integrações de editor.
    `bun run check:borrow-expressivity` no root. O checker mantém o blocker
    bodyless multi-input como Research e exige parse, oracle host e artefatos de
    mapping consistentes.
+16. Para validar CAP0 sem compiler ou runtime, execute
+   `bun run check:capability-matrix` no root. O checker deriva oito rotas por
+   subcapacidade, valida 149 refs e 15 subcapabilities, e mantém a fila
+   editorial de oito docs.
+
+### CAP0 — matriz de capacidades por problema
+
+[`capability-matrix-cases.json`](capability-matrix-cases.json) é a fonte
+editorial de staging para os oito eixos CAP0. O checker deriva a rota a partir
+das subcapacidades marcadas como problema e escreve
+[`capability-matrix-results.snapshot.jsonl`](capability-matrix-results.snapshot.jsonl).
+Cada eixo mantém um cenário Last Light, fontes primárias C/Rust/Python, riscos
+de composição, subcapacidades mistas e um alvo estável para documentação futura.
+Os exemplos estrangeiros são pseudocódigo original curto (não citações); o
+exemplo W é somente um `source-ref` para Last Light. `renderHint: paired`
+preserva o formato lado a lado para os guias futuros, sem publicar o Book agora.
+Research subcapabilities apontam para gates `kind: design`; gates `kind: evidence`
+guardam apenas provider/execution evidence.
+O snapshot registra `routeCounts` (5 composable, 1 current, 2 research),
+`canonicalSourceCount` (8) e `documentationQueuedCount` (8).
+
+Use os gates locais:
+
+```sh
+bun run check:capability-matrix
+bun tooling/check-capability-matrix.mjs --write
+```
+
+O script `check:capability-matrix` do pacote Tree-sitter entra na cadeia
+`check:docs`; a execução ampla desse gate continua separada da validação local.
 
 ## Caminho até o browser
 
