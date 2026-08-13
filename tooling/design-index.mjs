@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ledgerIds } from "./design-ledger.mjs";
+import { deriveSemanticRulePairs } from "./semantic-diagnostic-pairs.mjs";
 import { expandInterferenceLayoutOperations } from "./interference-layout-machine.mjs";
 import {
   countKernelModuleOperations,
@@ -268,7 +269,6 @@ const oracleCorpusFiles = [
   "semantic-cases.json",
   "formatter-cases.json",
   "memory-transition-cases.json",
-  "shared-control-cases.json",
   "allocation-cases.json",
   "layout-abi-cases.json",
   "execution-concurrency-cases.json",
@@ -306,11 +306,16 @@ const oracleFreezeDecisionIds = new Set(
     const corpus = JSON.parse(
       fs.readFileSync(path.join(wDirectory, "tooling", file), "utf8"),
     );
-    return corpus.cases.flatMap(
+    const decisions = corpus.cases.flatMap(
       (testCase) =>
         testCase.decisions ??
         (["script-workflow-cases.json", "repl-session-cases.json"].includes(file) ? corpus.decisions ?? [] : []),
     );
+    const ruleCases = corpus.cases.filter((testCase) => testCase.rule !== undefined);
+    const semanticPairDecisions = ruleCases.length > 0
+      ? [...deriveSemanticRulePairs(ruleCases, ledgerIds).keys()]
+      : [];
+    return [...decisions, ...semanticPairDecisions];
   }),
 );
 const classifiedFreezeDecisionIds = new Set([
