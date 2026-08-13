@@ -1985,12 +1985,17 @@
         "current": [
           "source-w",
           "host-oracle",
-          "design-ledger"
+          "design-ledger",
+          "ipc1-study",
+          "ipc1-target-projections",
+          "official-primary-refs"
         ],
         "missing": [
           "w-compile",
           "w-run",
           "two-process-map-probe",
+          "two-process-posix-probe",
+          "two-process-windows-probe",
           "provider"
         ],
         "sourceRefs": [
@@ -2012,7 +2017,24 @@
           "layout and ABI digest",
           "capability close ordering"
         ],
-        "stopCondition": "Use snapshots and wWire when a mapped region cannot prove process lifetime or layout."
+        "stopCondition": "Use snapshots and typed wire when a mapped region cannot prove process lifetime or layout.",
+        "studyRefs": [
+          {
+            "path": "tooling/studies/ipc1-mapped-ipc/README.md",
+            "digest": "sha256:a98e8df6c8b97c3f7cebe3b8500ffa4a999dd99513e515f3a102732a4773df26",
+            "claim": "IPC1 mapped memory and process-shared IPC adversarial study."
+          },
+          {
+            "path": "tooling/studies/ipc1-mapped-ipc/study.json",
+            "digest": "sha256:27b1c28a6b27f1c8ffde82852bb0a22e6b13c06e29447a0cae84ef99826b110b",
+            "claim": "IPC1 study manifest binds current, Research, and rejected witnesses."
+          },
+          {
+            "path": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl",
+            "digest": "sha256:e9de2979dcc1fd9feb254c5a79080a0133a40b86479330b22762a5f734b5df80",
+            "claim": "IPC1 host oracle snapshot with POSIX and Windows projections."
+          }
+        ]
       },
       "documentation": {
         "question": "Why is W shared ownership not process-shared mmap?",

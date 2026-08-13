@@ -1,0 +1,3 @@
+IPC1 reserved rejected witness: Ipc1MappedIpc as a universal Mapped<T> or ref T
+with native pointer fields, raw address equality, and implicit mmap. This text
+is not W source and must remain reserved-not-parsed.

@@ -1,0 +1,6113 @@
+{
+  "$schema": "w-ipc1-mapped-ipc-1",
+  "status": "design-oracle-input-ipc1",
+  "id": "IPC1",
+  "gate": "IPC0-R1",
+  "title": "Mapped immutable snapshots and bounded process-shared wire carriers",
+  "method": {
+    "compare": "same-logical-outcome",
+    "targets": [
+      "posix",
+      "windows"
+    ],
+    "reducerRule": "Independent POSIX and Windows event reducers feed one compact logical contract. Expected fields never select an outcome."
+  },
+  "providers": {
+    "posix-file-durable": {
+      "targetKind": "posix",
+      "objectIdentity": "posix-file:restaurant-menu",
+      "generation": "posix-file-v1",
+      "authoritative": true,
+      "profileKind": "file-durable",
+      "accessRights": [
+        "read",
+        "write"
+      ],
+      "leaseLifecycle": [
+        "open-file",
+        "mmap",
+        "msync",
+        "fsync",
+        "munmap",
+        "close"
+      ],
+      "addressIndependent": true,
+      "atomic": {
+        "processShared": true,
+        "widths": [
+          4,
+          8
+        ],
+        "orders": [
+          "relaxed",
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "alignments": [
+          4,
+          8
+        ],
+        "progress": [
+          "lock-free"
+        ],
+        "waitWake": "polling"
+      },
+      "backing": {
+        "kind": "file",
+        "volatile": false,
+        "durable": true
+      },
+      "flushReceipt": {
+        "operations": [
+          "msync",
+          "fsync"
+        ],
+        "success": "data-and-metadata-receipt",
+        "failure": "unknownDurability"
+      },
+      "deleteBehavior": {
+        "discovery": "file name removal is a separate file-system operation",
+        "existingLease": "existing mappings remain until their own unmap and close",
+        "portableImmediateWithdrawal": false
+      },
+      "crashOutcome": {
+        "inFlight": "staged generation is discarded",
+        "published": "release visibility is known; durability is unknown without receipt"
+      },
+      "allowedLayouts": [
+        {
+          "layoutId": "immutable-menu",
+          "digest": "sha256:38e45faa3b2737085dc6bf63d20db66209f870052f74bb518363c4ea95a82d28"
+        },
+        {
+          "layoutId": "immutable-telemetry",
+          "digest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2"
+        }
+      ],
+      "allowedSchemas": [
+        {
+          "schemaId": "menu.v1",
+          "digest": "sha256:525c246d9da7e213d64bc622fe7c5442dc4589a35805c4fcf86aff2b201f5174"
+        },
+        {
+          "schemaId": "telemetry.v1",
+          "digest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203"
+        }
+      ]
+    },
+    "windows-file-durable": {
+      "targetKind": "windows",
+      "objectIdentity": "windows-file:restaurant-menu",
+      "generation": "windows-file-v1",
+      "authoritative": true,
+      "profileKind": "file-durable",
+      "accessRights": [
+        "read",
+        "write"
+      ],
+      "leaseLifecycle": [
+        "CreateFile",
+        "CreateFileMapping",
+        "MapViewOfFile",
+        "FlushViewOfFile",
+        "FlushFileBuffers",
+        "UnmapViewOfFile",
+        "CloseHandle"
+      ],
+      "addressIndependent": true,
+      "atomic": {
+        "processShared": true,
+        "widths": [
+          4,
+          8
+        ],
+        "orders": [
+          "relaxed",
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "alignments": [
+          4,
+          8
+        ],
+        "progress": [
+          "lock-free"
+        ],
+        "waitWake": "polling"
+      },
+      "backing": {
+        "kind": "file",
+        "volatile": false,
+        "durable": true
+      },
+      "flushReceipt": {
+        "operations": [
+          "FlushViewOfFile",
+          "FlushFileBuffers"
+        ],
+        "success": "data-and-metadata-receipt",
+        "failure": "unknownDurability"
+      },
+      "deleteBehavior": {
+        "discovery": "file name removal is a separate file-system operation; mapping names have no portable unlink",
+        "existingLease": "existing views remain until their own unmap and handle close",
+        "portableImmediateWithdrawal": false
+      },
+      "crashOutcome": {
+        "inFlight": "staged generation is discarded",
+        "published": "release visibility is known; durability is unknown without receipt"
+      },
+      "allowedLayouts": [
+        {
+          "layoutId": "immutable-menu",
+          "digest": "sha256:38e45faa3b2737085dc6bf63d20db66209f870052f74bb518363c4ea95a82d28"
+        },
+        {
+          "layoutId": "immutable-telemetry",
+          "digest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2"
+        }
+      ],
+      "allowedSchemas": [
+        {
+          "schemaId": "menu.v1",
+          "digest": "sha256:525c246d9da7e213d64bc622fe7c5442dc4589a35805c4fcf86aff2b201f5174"
+        },
+        {
+          "schemaId": "telemetry.v1",
+          "digest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203"
+        }
+      ]
+    },
+    "posix-shm-volatile": {
+      "targetKind": "posix",
+      "objectIdentity": "posix-shm:restaurant-channel",
+      "generation": "posix-shm-v1",
+      "authoritative": true,
+      "profileKind": "volatile-channel",
+      "accessRights": [
+        "read",
+        "write"
+      ],
+      "leaseLifecycle": [
+        "shm_open",
+        "mmap",
+        "munmap",
+        "close",
+        "shm_unlink"
+      ],
+      "addressIndependent": true,
+      "atomic": {
+        "processShared": true,
+        "widths": [
+          4,
+          8
+        ],
+        "orders": [
+          "relaxed",
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "alignments": [
+          4,
+          8
+        ],
+        "progress": [
+          "lock-free"
+        ],
+        "waitWake": "polling"
+      },
+      "backing": {
+        "kind": "shm",
+        "volatile": true,
+        "durable": false
+      },
+      "flushReceipt": {
+        "operations": [],
+        "success": "volatile-only",
+        "failure": "unsupported"
+      },
+      "deleteBehavior": {
+        "discovery": "shm_unlink removes the POSIX discovery name",
+        "existingLease": "existing mappings remain until their own unmap and close",
+        "portableImmediateWithdrawal": true
+      },
+      "crashOutcome": {
+        "inFlight": "channel generation faults",
+        "published": "channel generation remains volatile"
+      },
+      "allowedLayouts": [
+        {
+          "layoutId": "channel-cap0",
+          "digest": "sha256:d00a3f256d36179dd176760c1e517a22461419be5848b47e05f73a59475955df"
+        },
+        {
+          "layoutId": "channel-capN",
+          "digest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e"
+        },
+        {
+          "layoutId": "channel-capN-tight",
+          "digest": "sha256:dd49ccc985420bf5be4e5ede549dde5f29f7521b41b411e50d448a93b8a58ff7"
+        },
+        {
+          "layoutId": "channel-capN-tight",
+          "digest": "sha256:dd49ccc985420bf5be4e5ede549dde5f29f7521b41b411e50d448a93b8a58ff7"
+        },
+        {
+          "layoutId": "channel-width16",
+          "digest": "sha256:3269eb9960b0ae8551811875095bc37a5f451c8de5d5e83a81f6d6684c36eea0"
+        },
+        {
+          "layoutId": "channel-order-sequential",
+          "digest": "sha256:86497e7bbd60f6289e13a73bea1df74a0f69afc7f93efad05d80cd8b2a3ce500"
+        },
+        {
+          "layoutId": "channel-alignment16",
+          "digest": "sha256:e335933f4af979e1e6aae528c65cebaca99c7d11159fad8788bc246476fd9a0f"
+        },
+        {
+          "layoutId": "channel-progress-blocking",
+          "digest": "sha256:41dcb9779f33437f10397f96245d21e7b113dd7564ca470b1427c092997674e2"
+        }
+      ],
+      "allowedSchemas": [
+        {
+          "schemaId": "channel.v1",
+          "digest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282"
+        }
+      ]
+    },
+    "windows-pagefile-volatile": {
+      "targetKind": "windows",
+      "objectIdentity": "windows-pagefile:restaurant-channel",
+      "generation": "windows-pagefile-v1",
+      "authoritative": true,
+      "profileKind": "volatile-channel",
+      "accessRights": [
+        "read",
+        "write"
+      ],
+      "leaseLifecycle": [
+        "CreateFileMapping",
+        "MapViewOfFile",
+        "UnmapViewOfFile",
+        "CloseHandle"
+      ],
+      "addressIndependent": true,
+      "atomic": {
+        "processShared": true,
+        "widths": [
+          4,
+          8
+        ],
+        "orders": [
+          "relaxed",
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "alignments": [
+          4,
+          8
+        ],
+        "progress": [
+          "lock-free"
+        ],
+        "waitWake": "polling"
+      },
+      "backing": {
+        "kind": "pagefile",
+        "volatile": true,
+        "durable": false
+      },
+      "flushReceipt": {
+        "operations": [],
+        "success": "volatile-only",
+        "failure": "unsupported"
+      },
+      "deleteBehavior": {
+        "discovery": "kernel object name remains while references exist; no portable unlink",
+        "existingLease": "existing views remain until their own unmap and handle close",
+        "portableImmediateWithdrawal": false
+      },
+      "crashOutcome": {
+        "inFlight": "channel generation faults",
+        "published": "channel generation remains volatile"
+      },
+      "allowedLayouts": [
+        {
+          "layoutId": "channel-cap0",
+          "digest": "sha256:d00a3f256d36179dd176760c1e517a22461419be5848b47e05f73a59475955df"
+        },
+        {
+          "layoutId": "channel-capN",
+          "digest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e"
+        },
+        {
+          "layoutId": "channel-width16",
+          "digest": "sha256:3269eb9960b0ae8551811875095bc37a5f451c8de5d5e83a81f6d6684c36eea0"
+        },
+        {
+          "layoutId": "channel-order-sequential",
+          "digest": "sha256:86497e7bbd60f6289e13a73bea1df74a0f69afc7f93efad05d80cd8b2a3ce500"
+        },
+        {
+          "layoutId": "channel-alignment16",
+          "digest": "sha256:e335933f4af979e1e6aae528c65cebaca99c7d11159fad8788bc246476fd9a0f"
+        },
+        {
+          "layoutId": "channel-progress-blocking",
+          "digest": "sha256:41dcb9779f33437f10397f96245d21e7b113dd7564ca470b1427c092997674e2"
+        }
+      ],
+      "allowedSchemas": [
+        {
+          "schemaId": "channel.v1",
+          "digest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282"
+        }
+      ]
+    },
+    "posix-robust-blocking": {
+      "targetKind": "posix",
+      "objectIdentity": "posix-shm:restaurant-robust-channel",
+      "generation": "posix-robust-v1",
+      "authoritative": true,
+      "profileKind": "robust-blocking",
+      "accessRights": [
+        "read",
+        "write"
+      ],
+      "leaseLifecycle": [
+        "shm_open",
+        "mmap",
+        "munmap",
+        "close",
+        "shm_unlink"
+      ],
+      "addressIndependent": true,
+      "atomic": {
+        "processShared": true,
+        "widths": [
+          4,
+          8
+        ],
+        "orders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "alignments": [
+          4,
+          8
+        ],
+        "progress": [
+          "blocking"
+        ],
+        "waitWake": "kernel"
+      },
+      "backing": {
+        "kind": "shm",
+        "volatile": true,
+        "durable": false
+      },
+      "flushReceipt": {
+        "operations": [],
+        "success": "volatile-only",
+        "failure": "unsupported"
+      },
+      "deleteBehavior": {
+        "discovery": "shm_unlink removes the POSIX discovery name",
+        "existingLease": "existing mappings remain until their own unmap and close",
+        "portableImmediateWithdrawal": true
+      },
+      "crashOutcome": {
+        "inFlight": "owner death reports typed generation fault",
+        "published": "no hidden repair; supervisor opens a higher generation"
+      },
+      "allowedLayouts": [
+        {
+          "layoutId": "channel-robust",
+          "digest": "sha256:8d11ed221f90f038690d6359c33d3ab0dbb4c372b66453dcc77fea169be388ea"
+        }
+      ],
+      "allowedSchemas": [
+        {
+          "schemaId": "channel.v1",
+          "digest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282"
+        }
+      ]
+    },
+    "windows-robust-blocking": {
+      "targetKind": "windows",
+      "objectIdentity": "windows-pagefile:restaurant-robust-channel",
+      "generation": "windows-robust-v1",
+      "authoritative": true,
+      "profileKind": "robust-blocking",
+      "accessRights": [
+        "read",
+        "write"
+      ],
+      "leaseLifecycle": [
+        "CreateFileMapping",
+        "MapViewOfFile",
+        "UnmapViewOfFile",
+        "CloseHandle"
+      ],
+      "addressIndependent": true,
+      "atomic": {
+        "processShared": true,
+        "widths": [
+          4,
+          8
+        ],
+        "orders": [
+          "acquire",
+          "release",
+          "acquireRelease"
+        ],
+        "alignments": [
+          4,
+          8
+        ],
+        "progress": [
+          "blocking"
+        ],
+        "waitWake": "kernel"
+      },
+      "backing": {
+        "kind": "pagefile",
+        "volatile": true,
+        "durable": false
+      },
+      "flushReceipt": {
+        "operations": [],
+        "success": "volatile-only",
+        "failure": "unsupported"
+      },
+      "deleteBehavior": {
+        "discovery": "kernel object name remains while references exist; no portable unlink",
+        "existingLease": "existing views remain until their own unmap and handle close",
+        "portableImmediateWithdrawal": false
+      },
+      "crashOutcome": {
+        "inFlight": "owner death reports typed generation fault",
+        "published": "no hidden repair; supervisor opens a higher generation"
+      },
+      "allowedLayouts": [
+        {
+          "layoutId": "channel-robust",
+          "digest": "sha256:8d11ed221f90f038690d6359c33d3ab0dbb4c372b66453dcc77fea169be388ea"
+        }
+      ],
+      "allowedSchemas": [
+        {
+          "schemaId": "channel.v1",
+          "digest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282"
+        }
+      ]
+    }
+  },
+  "layouts": {
+    "immutable-menu": {
+      "mappedExtent": 4096,
+      "canonicalRepresentation": "fixed-width-little-endian",
+      "schemaDigest": "sha256:525c246d9da7e213d64bc622fe7c5442dc4589a35805c4fcf86aff2b201f5174",
+      "segments": [
+        {
+          "name": "header",
+          "offset": 0,
+          "length": 64,
+          "fields": [
+            {
+              "kind": "fixed-scalar",
+              "offset": 0,
+              "length": 4,
+              "alignment": 4
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 4,
+              "length": 4,
+              "alignment": 4
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 8,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 16,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 24,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 32,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 40,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 48,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 56,
+              "length": 8,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "payload",
+          "offset": 64,
+          "length": 4032,
+          "fields": [
+            {
+              "kind": "bytes-extent",
+              "offset": 64,
+              "length": 4032,
+              "alignment": 1
+            }
+          ]
+        }
+      ],
+      "layoutId": "immutable-menu",
+      "schemaId": "menu.v1",
+      "layoutDigest": "sha256:38e45faa3b2737085dc6bf63d20db66209f870052f74bb518363c4ea95a82d28"
+    },
+    "immutable-telemetry": {
+      "mappedExtent": 4096,
+      "canonicalRepresentation": "fixed-width-little-endian",
+      "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+      "segments": [
+        {
+          "name": "header",
+          "offset": 0,
+          "length": 64,
+          "fields": [
+            {
+              "kind": "fixed-scalar",
+              "offset": 0,
+              "length": 4,
+              "alignment": 4
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 4,
+              "length": 4,
+              "alignment": 4
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 8,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 16,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 24,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 32,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 40,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 48,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 56,
+              "length": 8,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "payload",
+          "offset": 64,
+          "length": 4032,
+          "fields": [
+            {
+              "kind": "bytes-extent",
+              "offset": 64,
+              "length": 4032,
+              "alignment": 1
+            }
+          ]
+        }
+      ],
+      "layoutId": "immutable-telemetry",
+      "schemaId": "telemetry.v1",
+      "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2"
+    },
+    "channel-cap0": {
+      "mappedExtent": 4096,
+      "canonicalRepresentation": "fixed-width-little-endian",
+      "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+      "wireCarrier": true,
+      "control": {
+        "width": 8,
+        "order": "acquireRelease",
+        "alignment": 8,
+        "progress": "lock-free",
+        "waitWake": "polling"
+      },
+      "segments": [
+        {
+          "name": "header",
+          "offset": 0,
+          "length": 64,
+          "fields": [
+            {
+              "kind": "fixed-scalar",
+              "offset": 0,
+              "length": 64,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "control",
+          "offset": 64,
+          "length": 32,
+          "fields": [
+            {
+              "kind": "atomic-control",
+              "offset": 64,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 72,
+              "length": 8,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "slots",
+          "offset": 96,
+          "length": 0,
+          "fields": []
+        }
+      ],
+      "layoutId": "channel-cap0",
+      "schemaId": "channel.v1",
+      "maxSlotCount": 0,
+      "maxSlotSize": 0,
+      "cap0": true,
+      "layoutDigest": "sha256:d00a3f256d36179dd176760c1e517a22461419be5848b47e05f73a59475955df"
+    },
+    "channel-capN": {
+      "mappedExtent": 4096,
+      "canonicalRepresentation": "fixed-width-little-endian",
+      "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+      "wireCarrier": true,
+      "control": {
+        "width": 8,
+        "order": "acquireRelease",
+        "alignment": 8,
+        "progress": "lock-free",
+        "waitWake": "polling"
+      },
+      "segments": [
+        {
+          "name": "header",
+          "offset": 0,
+          "length": 64,
+          "fields": [
+            {
+              "kind": "fixed-scalar",
+              "offset": 0,
+              "length": 64,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "control",
+          "offset": 64,
+          "length": 32,
+          "fields": [
+            {
+              "kind": "atomic-control",
+              "offset": 64,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 72,
+              "length": 8,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "slots",
+          "offset": 96,
+          "length": 4000,
+          "fields": [
+            {
+              "kind": "bytes-extent",
+              "offset": 96,
+              "length": 4000,
+              "alignment": 1
+            }
+          ]
+        }
+      ],
+      "layoutId": "channel-capN",
+      "schemaId": "channel.v1",
+      "maxSlotCount": 4,
+      "maxSlotSize": 1000,
+      "cap0": false,
+      "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e"
+    },
+    "channel-capN-tight": {
+      "mappedExtent": 4096,
+      "canonicalRepresentation": "fixed-width-little-endian",
+      "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+      "wireCarrier": true,
+      "control": {"width": 8, "order": "acquireRelease", "alignment": 8, "progress": "lock-free", "waitWake": "polling"},
+      "segments": [
+        {"name": "header", "offset": 0, "length": 64, "fields": [{"kind": "fixed-scalar", "offset": 0, "length": 64, "alignment": 8}]},
+        {"name": "control", "offset": 64, "length": 32, "fields": [{"kind": "atomic-control", "offset": 64, "length": 8, "alignment": 8}, {"kind": "fixed-scalar", "offset": 72, "length": 8, "alignment": 8}]},
+        {"name": "slots", "offset": 96, "length": 3999, "fields": [{"kind": "bytes-extent", "offset": 96, "length": 3999, "alignment": 1}]}
+      ],
+      "layoutId": "channel-capN-tight",
+      "schemaId": "channel.v1",
+      "maxSlotCount": 4,
+      "maxSlotSize": 1000,
+      "cap0": false,
+      "layoutDigest": "sha256:dd49ccc985420bf5be4e5ede549dde5f29f7521b41b411e50d448a93b8a58ff7"
+    },
+    "channel-robust": {
+      "mappedExtent": 4096,
+      "canonicalRepresentation": "fixed-width-little-endian",
+      "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+      "wireCarrier": true,
+      "control": {
+        "width": 8,
+        "order": "acquireRelease",
+        "alignment": 8,
+        "progress": "blocking",
+        "waitWake": "kernel"
+      },
+      "segments": [
+        {
+          "name": "header",
+          "offset": 0,
+          "length": 64,
+          "fields": [
+            {
+              "kind": "fixed-scalar",
+              "offset": 0,
+              "length": 64,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "control",
+          "offset": 64,
+          "length": 32,
+          "fields": [
+            {
+              "kind": "atomic-control",
+              "offset": 64,
+              "length": 8,
+              "alignment": 8
+            },
+            {
+              "kind": "fixed-scalar",
+              "offset": 72,
+              "length": 8,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "slots",
+          "offset": 96,
+          "length": 4000,
+          "fields": [
+            {
+              "kind": "bytes-extent",
+              "offset": 96,
+              "length": 4000,
+              "alignment": 1
+            }
+          ]
+        }
+      ],
+      "layoutId": "channel-robust",
+      "schemaId": "channel.v1",
+      "maxSlotCount": 4,
+      "maxSlotSize": 1000,
+      "cap0": false,
+      "layoutDigest": "sha256:8d11ed221f90f038690d6359c33d3ab0dbb4c372b66453dcc77fea169be388ea"
+    },
+    "channel-width16": {
+      "mappedExtent": 4096,
+      "canonicalRepresentation": "fixed-width-little-endian",
+      "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+      "wireCarrier": true,
+      "control": {
+        "width": 16,
+        "order": "acquireRelease",
+        "alignment": 8,
+        "progress": "lock-free",
+        "waitWake": "polling"
+      },
+      "segments": [
+        {
+          "name": "header",
+          "offset": 0,
+          "length": 64,
+          "fields": [
+            {
+              "kind": "fixed-scalar",
+              "offset": 0,
+              "length": 64,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "control",
+          "offset": 64,
+          "length": 32,
+          "fields": [
+            {
+              "kind": "atomic-control",
+              "offset": 64,
+              "length": 16,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "slots",
+          "offset": 96,
+          "length": 4000,
+          "fields": [
+            {
+              "kind": "bytes-extent",
+              "offset": 96,
+              "length": 4000,
+              "alignment": 1
+            }
+          ]
+        }
+      ],
+      "layoutId": "channel-width16",
+      "schemaId": "channel.v1",
+      "maxSlotCount": 4,
+      "maxSlotSize": 1000,
+      "cap0": false,
+      "layoutDigest": "sha256:3269eb9960b0ae8551811875095bc37a5f451c8de5d5e83a81f6d6684c36eea0"
+    },
+    "channel-order-sequential": {
+      "mappedExtent": 4096,
+      "canonicalRepresentation": "fixed-width-little-endian",
+      "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+      "wireCarrier": true,
+      "control": {
+        "width": 8,
+        "order": "sequential",
+        "alignment": 8,
+        "progress": "lock-free",
+        "waitWake": "polling"
+      },
+      "segments": [
+        {
+          "name": "header",
+          "offset": 0,
+          "length": 64,
+          "fields": [
+            {
+              "kind": "fixed-scalar",
+              "offset": 0,
+              "length": 64,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "control",
+          "offset": 64,
+          "length": 32,
+          "fields": [
+            {
+              "kind": "atomic-control",
+              "offset": 64,
+              "length": 8,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "slots",
+          "offset": 96,
+          "length": 4000,
+          "fields": [
+            {
+              "kind": "bytes-extent",
+              "offset": 96,
+              "length": 4000,
+              "alignment": 1
+            }
+          ]
+        }
+      ],
+      "layoutId": "channel-order-sequential",
+      "schemaId": "channel.v1",
+      "maxSlotCount": 4,
+      "maxSlotSize": 1000,
+      "cap0": false,
+      "layoutDigest": "sha256:86497e7bbd60f6289e13a73bea1df74a0f69afc7f93efad05d80cd8b2a3ce500"
+    },
+    "channel-alignment16": {
+      "mappedExtent": 4096,
+      "canonicalRepresentation": "fixed-width-little-endian",
+      "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+      "wireCarrier": true,
+      "control": {
+        "width": 8,
+        "order": "acquireRelease",
+        "alignment": 16,
+        "progress": "lock-free",
+        "waitWake": "polling"
+      },
+      "segments": [
+        {
+          "name": "header",
+          "offset": 0,
+          "length": 64,
+          "fields": [
+            {
+              "kind": "fixed-scalar",
+              "offset": 0,
+              "length": 64,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "control",
+          "offset": 64,
+          "length": 32,
+          "fields": [
+            {
+              "kind": "atomic-control",
+              "offset": 64,
+              "length": 8,
+              "alignment": 16
+            }
+          ]
+        },
+        {
+          "name": "slots",
+          "offset": 96,
+          "length": 4000,
+          "fields": [
+            {
+              "kind": "bytes-extent",
+              "offset": 96,
+              "length": 4000,
+              "alignment": 1
+            }
+          ]
+        }
+      ],
+      "layoutId": "channel-alignment16",
+      "schemaId": "channel.v1",
+      "maxSlotCount": 4,
+      "maxSlotSize": 1000,
+      "cap0": false,
+      "layoutDigest": "sha256:e335933f4af979e1e6aae528c65cebaca99c7d11159fad8788bc246476fd9a0f"
+    },
+    "channel-progress-blocking": {
+      "mappedExtent": 4096,
+      "canonicalRepresentation": "fixed-width-little-endian",
+      "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+      "wireCarrier": true,
+      "control": {
+        "width": 8,
+        "order": "acquireRelease",
+        "alignment": 8,
+        "progress": "blocking",
+        "waitWake": "kernel"
+      },
+      "segments": [
+        {
+          "name": "header",
+          "offset": 0,
+          "length": 64,
+          "fields": [
+            {
+              "kind": "fixed-scalar",
+              "offset": 0,
+              "length": 64,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "control",
+          "offset": 64,
+          "length": 32,
+          "fields": [
+            {
+              "kind": "atomic-control",
+              "offset": 64,
+              "length": 8,
+              "alignment": 8
+            }
+          ]
+        },
+        {
+          "name": "slots",
+          "offset": 96,
+          "length": 4000,
+          "fields": [
+            {
+              "kind": "bytes-extent",
+              "offset": 96,
+              "length": 4000,
+              "alignment": 1
+            }
+          ]
+        }
+      ],
+      "layoutId": "channel-progress-blocking",
+      "schemaId": "channel.v1",
+      "maxSlotCount": 4,
+      "maxSlotSize": 1000,
+      "cap0": false,
+      "layoutDigest": "sha256:41dcb9779f33437f10397f96245d21e7b113dd7564ca470b1427c092997674e2"
+    }
+  },
+  "officialSources": [
+    {
+      "id": "posix-mmap",
+      "url": "https://pubs.opengroup.org/onlinepubs/9799919799/functions/mmap.html",
+      "claim": "POSIX Issue 8 maps bytes at process-selected addresses."
+    },
+    {
+      "id": "posix-shm-open",
+      "url": "https://pubs.opengroup.org/onlinepubs/9799919799/functions/shm_open.html",
+      "claim": "POSIX shared memory names and descriptors."
+    },
+    {
+      "id": "posix-shm-unlink",
+      "url": "https://pubs.opengroup.org/onlinepubs/9799919799/functions/shm_unlink.html",
+      "claim": "POSIX removes a shared memory name while references can remain."
+    },
+    {
+      "id": "posix-msync",
+      "url": "https://pubs.opengroup.org/onlinepubs/9799919799/functions/msync.html",
+      "claim": "POSIX msync reports requested memory synchronization."
+    },
+    {
+      "id": "posix-memory-sync",
+      "url": "https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap04.html#tag_04_12",
+      "claim": "POSIX defines memory synchronization relationships."
+    },
+    {
+      "id": "posix-robust-mutex",
+      "url": "https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_mutexattr_setrobust.html",
+      "claim": "POSIX robust synchronization reports owner death without repairing state."
+    },
+    {
+      "id": "windows-create-file-mapping",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createfilemappinga",
+      "claim": "Windows creates named file-mapping objects and handles."
+    },
+    {
+      "id": "windows-map-view",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile",
+      "claim": "Windows maps a view into a process address space."
+    },
+    {
+      "id": "windows-interlocked",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winnt/nf-winnt-interlockedcompareexchange64",
+      "claim": "Windows Interlocked operations have width and alignment requirements."
+    },
+    {
+      "id": "windows-flush-view",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-flushviewoffile",
+      "claim": "FlushViewOfFile writes mapped pages but is not a metadata receipt."
+    },
+    {
+      "id": "windows-flush-file",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers",
+      "claim": "FlushFileBuffers supplies the separate file-system flush operation."
+    },
+    {
+      "id": "rust-atomic",
+      "url": "https://doc.rust-lang.org/std/sync/atomic/",
+      "claim": "Rust atomic support depends on the target."
+    },
+    {
+      "id": "rust-arc",
+      "url": "https://doc.rust-lang.org/std/sync/struct.Arc.html",
+      "claim": "Rust Arc shared ownership is process-local."
+    },
+    {
+      "id": "rust-ffi",
+      "url": "https://doc.rust-lang.org/reference/items/external-blocks.html",
+      "claim": "Rust external blocks define an FFI boundary for mapping adapters."
+    },
+    {
+      "id": "python-shared-memory",
+      "url": "https://docs.python.org/3.14/library/multiprocessing.shared_memory.html",
+      "claim": "Python SharedMemory exposes close and unlink lifecycle operations."
+    }
+  ],
+  "sourceRefs": [
+    {
+      "id": "archive-parquet",
+      "path": "reference/last-light/data_formats.w",
+      "symbol": "export async fn archiveParquet",
+      "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab",
+      "claim": "Last Light bounded snapshot archive."
+    },
+    {
+      "id": "handoff-arrow",
+      "path": "reference/last-light/data_formats.w",
+      "symbol": "export async fn handoffArrow",
+      "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab",
+      "claim": "Last Light typed Arrow handoff."
+    },
+    {
+      "id": "trusted-c-array",
+      "path": "reference/last-light/data_formats.w",
+      "symbol": "export fn importTrustedCArray",
+      "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab",
+      "claim": "Last Light trusted C data import boundary."
+    },
+    {
+      "id": "snapshot-recipe",
+      "path": "reference/last-light/fs_oracle.w",
+      "symbol": "export async fn snapshotRecipe",
+      "digest": "sha256:11fed22d22c0af56297676c5a8e63c789012676945afc8c192509bd8d99c8393",
+      "claim": "Last Light stable file snapshot."
+    },
+    {
+      "id": "publish-staged-recipe",
+      "path": "reference/last-light/fs_oracle.w",
+      "symbol": "export async fn publishStagedRecipe",
+      "digest": "sha256:11fed22d22c0af56297676c5a8e63c789012676945afc8c192509bd8d99c8393",
+      "claim": "Last Light staged publish and durability receipt."
+    },
+    {
+      "id": "telemetry-object",
+      "path": "reference/last-light/synchronization.w",
+      "symbol": "export object HorizonTelemetryEpoch",
+      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+      "claim": "Last Light telemetry generation source."
+    },
+    {
+      "id": "release-fence",
+      "path": "reference/last-light/synchronization.w",
+      "symbol": "export unsafe fn releaseTelemetryFence",
+      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+      "claim": "Last Light explicit release fence source."
+    },
+    {
+      "id": "observer-install",
+      "path": "reference/last-light/memory.w",
+      "symbol": "export fn installMenuObserver",
+      "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+      "claim": "Last Light explicit callback lease source."
+    }
+  ],
+  "requiredCaseIds": [
+    "IPC1-baseline-snapshot-wire",
+    "IPC1-live-horizon-address-independent",
+    "IPC1-menu-immutable-publish",
+    "IPC1-reject-corrupt-magic",
+    "IPC1-reject-corrupt-schema",
+    "IPC1-reject-corrupt-layout",
+    "IPC1-reject-corrupt-length",
+    "IPC1-reject-corrupt-endian",
+    "IPC1-reject-corrupt-alignment",
+    "IPC1-reject-corrupt-schema-digest",
+    "IPC1-reject-corrupt-offset",
+    "IPC1-reject-corrupt-extent",
+    "IPC1-reject-corrupt-overlap",
+    "IPC1-reject-corrupt-overflow",
+    "IPC1-writer-crash-before-publish",
+    "IPC1-publish-before-durability-unknown",
+    "IPC1-publish-after-durability-receipt",
+    "IPC1-stale-generation-reject",
+    "IPC1-stale-generation-remap",
+    "IPC1-publish-before-validate-reject",
+    "IPC1-read-before-validate-reject",
+    "IPC1-receipt-before-request-reject",
+    "IPC1-duplicate-publish-reject",
+    "IPC1-generation-nonmonotonic-reject",
+    "IPC1-channel-cap0-rendezvous",
+    "IPC1-channel-capn-bounded",
+    "IPC1-channel-full-backpressure",
+    "IPC1-channel-cancel-before-commit",
+    "IPC1-channel-cancel-after-commit",
+    "IPC1-channel-crash-writing-fault",
+    "IPC1-channel-committed-full-survives-producer-crash",
+    "IPC1-channel-crash-reading-reopen",
+    "IPC1-channel-double-materialize-reject",
+    "IPC1-atomic-width-unsupported",
+    "IPC1-atomic-order-unsupported",
+    "IPC1-atomic-alignment-unsupported",
+    "IPC1-atomic-progress-unsupported",
+    "IPC1-hidden-lock-reject",
+    "IPC1-fallback-to-snapshot",
+    "IPC1-robust-owner-death-fault",
+    "IPC1-robust-cooperative-reject",
+    "IPC1-unlink-last-lease-lifecycle",
+    "IPC1-shm-unlink-live-lease",
+    "IPC1-immediate-name-withdrawal-unsupported",
+    "IPC1-sync-object-after-last-unmap-reject",
+    "IPC1-resize-live-view-reject",
+    "IPC1-view-escape-after-unmap-reject",
+    "IPC1-ffi-close-order",
+    "IPC1-ffi-close-before-unmap-reject",
+    "IPC1-unmap-active-callback-reject",
+    "IPC1-unmap-active-loan-reject",
+    "IPC1-double-close-reject",
+    "IPC1-generation-mismatch-reject",
+    "IPC1-provider-authoritative",
+    "IPC1-provider-durable-requirement-reject",
+    "IPC1-snapshot-bytes-diverge",
+    "IPC1-channel-crash-reading-fault",
+    "IPC1-channel-oversized-payload-reject",
+    "IPC1-channel-corrupt-slot-header-reject",
+    "IPC1-channel-slot-schema-mismatch-reject",
+    "IPC1-channel-slot-checksum-reject",
+    "IPC1-channel-capacity-header-mismatch",
+    "IPC1-channel-header-schema-mismatch",
+    "IPC1-channel-empty-trace-reject",
+    "IPC1-channel-unrelated-process-crash-no-fault",
+    "IPC1-channel-capacity-slots-overflow",
+    "IPC1-lifecycle-empty-trace-reject"
+  ],
+  "cases": [
+    {
+      "id": "IPC1-baseline-snapshot-wire",
+      "axis": "baseline",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "snapshot-recipe",
+        "archive-parquet",
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "snapshot"
+        },
+        {
+          "op": "wire"
+        },
+        {
+          "op": "service"
+        }
+      ],
+      "input": {},
+      "expected": {
+        "status": "accepted",
+        "code": "snapshot-wire-service"
+      }
+    },
+    {
+      "id": "IPC1-live-horizon-address-independent",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object",
+        "release-fence"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "process": "writer",
+          "generation": 7,
+          "objectId": "telemetry.v1-g7",
+          "address": "0x1000"
+        },
+        {
+          "op": "map",
+          "process": "reader",
+          "generation": 7,
+          "objectId": "telemetry.v1-g7",
+          "address": "0x2000"
+        },
+        {
+          "op": "validate",
+          "process": "writer",
+          "objectId": "telemetry.v1-g7",
+          "generation": 7
+        },
+        {
+          "op": "validate",
+          "process": "reader",
+          "objectId": "telemetry.v1-g7",
+          "generation": 7
+        },
+        {
+          "op": "view",
+          "process": "reader"
+        },
+        {
+          "op": "stage",
+          "objectId": "telemetry.v1-g8",
+          "generation": 8
+        },
+        {
+          "op": "validate",
+          "objectId": "telemetry.v1-g8",
+          "generation": 8
+        },
+        {
+          "op": "hash"
+        },
+        {
+          "op": "publish-selector",
+          "objectId": "telemetry.v1-g8",
+          "generation": 8
+        },
+        {
+          "op": "read",
+          "process": "reader",
+          "objectId": "telemetry.v1-g7",
+          "leaseGeneration": 7
+        },
+        {
+          "op": "drop-view",
+          "process": "reader"
+        },
+        {
+          "op": "unmap",
+          "process": "reader"
+        },
+        {
+          "op": "unmap",
+          "process": "writer"
+        }
+      ],
+      "input": {
+        "snapshotBytes": [
+          87,
+          73,
+          80,
+          67,
+          49
+        ],
+        "layoutId": "immutable-telemetry",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g7",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 7
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "immutable-generation"
+      }
+    },
+    {
+      "id": "IPC1-menu-immutable-publish",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "archive-parquet",
+        "publish-staged-recipe"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "process": "writer",
+          "generation": 8,
+          "objectId": "menu.v1-g8"
+        },
+        {
+          "op": "validate",
+          "process": "writer",
+          "objectId": "menu.v1-g8",
+          "generation": 8
+        },
+        {
+          "op": "view",
+          "process": "writer"
+        },
+        {
+          "op": "stage",
+          "objectId": "menu.v1-g9",
+          "generation": 9
+        },
+        {
+          "op": "validate",
+          "objectId": "menu.v1-g9",
+          "generation": 9
+        },
+        {
+          "op": "hash"
+        },
+        {
+          "op": "request-durability"
+        },
+        {
+          "op": "flush-data"
+        },
+        {
+          "op": "flush-metadata"
+        },
+        {
+          "op": "publish-selector",
+          "objectId": "menu.v1-g9",
+          "generation": 9
+        },
+        {
+          "op": "flush-selector"
+        },
+        {
+          "op": "receipt"
+        },
+        {
+          "op": "drop-view",
+          "process": "writer"
+        },
+        {
+          "op": "unmap",
+          "process": "writer"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "input": {
+        "snapshotBytes": [
+          77,
+          69,
+          78,
+          85
+        ],
+        "layoutId": "immutable-menu",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "menu.v1",
+          "schemaId": "menu.v1",
+          "layoutId": "immutable-menu",
+          "objectId": "menu.v1-g8",
+          "schemaDigest": "sha256:525c246d9da7e213d64bc622fe7c5442dc4589a35805c4fcf86aff2b201f5174",
+          "layoutDigest": "sha256:38e45faa3b2737085dc6bf63d20db66209f870052f74bb518363c4ea95a82d28",
+          "length": 512,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 8
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "immutable-generation"
+      }
+    },
+    {
+      "id": "IPC1-reject-corrupt-magic",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "generation": 1
+        },
+        {
+          "op": "validate"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "header": {
+          "magic": "BAD",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g1",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "header-magic-invalid"
+      }
+    },
+    {
+      "id": "IPC1-reject-corrupt-schema",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g1",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "header-schema-invalid"
+      }
+    },
+    {
+      "id": "IPC1-reject-corrupt-layout",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "layoutMutation": {
+          "kind": "nativePointer"
+        },
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g1",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "non-relocatable-value"
+      }
+    },
+    {
+      "id": "IPC1-reject-corrupt-length",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g1",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 0,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "header-length-invalid"
+      }
+    },
+    {
+      "id": "IPC1-reject-corrupt-endian",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g1",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 8,
+          "endian": "big",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "header-endian-invalid"
+      }
+    },
+    {
+      "id": "IPC1-reject-corrupt-alignment",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g1",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 3,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "header-alignment-invalid"
+      }
+    },
+    {
+      "id": "IPC1-reject-corrupt-schema-digest",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g1",
+          "schemaDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "header-digest-mismatch"
+      }
+    },
+    {
+      "id": "IPC1-reject-corrupt-offset",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "layoutMutation": {
+          "kind": "offset",
+          "segment": "payload",
+          "value": -1
+        },
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g1",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "layout-invalid"
+      }
+    },
+    {
+      "id": "IPC1-reject-corrupt-extent",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "layoutMutation": {
+          "kind": "extent",
+          "value": 128
+        },
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g1",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "layout-bounds"
+      }
+    },
+    {
+      "id": "IPC1-reject-corrupt-overlap",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "layoutMutation": {
+          "kind": "overlap"
+        },
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g1",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "layout-overlap"
+      }
+    },
+    {
+      "id": "IPC1-reject-corrupt-overflow",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "layoutMutation": {
+          "kind": "overflow"
+        },
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g1",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "layout-bounds"
+      }
+    },
+    {
+      "id": "IPC1-writer-crash-before-publish",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "publish-staged-recipe"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "process": "writer",
+          "generation": 9,
+          "objectId": "menu.v1-g9"
+        },
+        {
+          "op": "validate",
+          "process": "writer",
+          "objectId": "menu.v1-g9",
+          "generation": 9
+        },
+        {
+          "op": "view",
+          "process": "writer"
+        },
+        {
+          "op": "stage",
+          "objectId": "menu.v1-g10",
+          "generation": 10
+        },
+        {
+          "op": "validate",
+          "objectId": "menu.v1-g10",
+          "generation": 10
+        },
+        {
+          "op": "crash",
+          "process": "writer"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-menu",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "menu.v1",
+          "schemaId": "menu.v1",
+          "layoutId": "immutable-menu",
+          "objectId": "menu.v1-g9",
+          "schemaDigest": "sha256:525c246d9da7e213d64bc622fe7c5442dc4589a35805c4fcf86aff2b201f5174",
+          "layoutDigest": "sha256:38e45faa3b2737085dc6bf63d20db66209f870052f74bb518363c4ea95a82d28",
+          "length": 512,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 9
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "writer-crash-before-selector"
+      }
+    },
+    {
+      "id": "IPC1-publish-before-durability-unknown",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "publish-staged-recipe"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "process": "writer",
+          "generation": 10,
+          "objectId": "menu.v1-g10"
+        },
+        {
+          "op": "validate",
+          "process": "writer",
+          "objectId": "menu.v1-g10",
+          "generation": 10
+        },
+        {
+          "op": "view",
+          "process": "writer"
+        },
+        {
+          "op": "stage",
+          "objectId": "menu.v1-g11",
+          "generation": 11
+        },
+        {
+          "op": "validate",
+          "objectId": "menu.v1-g11",
+          "generation": 11
+        },
+        {
+          "op": "hash"
+        },
+        {
+          "op": "request-durability"
+        },
+        {
+          "op": "flush-data"
+        },
+        {
+          "op": "flush-metadata"
+        },
+        {
+          "op": "publish-selector",
+          "objectId": "menu.v1-g11",
+          "generation": 11
+        },
+        {
+          "op": "crash",
+          "process": "writer"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-menu",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "menu.v1",
+          "schemaId": "menu.v1",
+          "layoutId": "immutable-menu",
+          "objectId": "menu.v1-g10",
+          "schemaDigest": "sha256:525c246d9da7e213d64bc622fe7c5442dc4589a35805c4fcf86aff2b201f5174",
+          "layoutDigest": "sha256:38e45faa3b2737085dc6bf63d20db66209f870052f74bb518363c4ea95a82d28",
+          "length": 512,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 10
+        }
+      },
+      "expected": {
+        "status": "unknown",
+        "code": "unknownDurability"
+      }
+    },
+    {
+      "id": "IPC1-publish-after-durability-receipt",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "publish-staged-recipe"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "process": "writer",
+          "generation": 11,
+          "objectId": "menu.v1-g11"
+        },
+        {
+          "op": "validate",
+          "process": "writer",
+          "objectId": "menu.v1-g11",
+          "generation": 11
+        },
+        {
+          "op": "view",
+          "process": "writer"
+        },
+        {
+          "op": "stage",
+          "objectId": "menu.v1-g12",
+          "generation": 12
+        },
+        {
+          "op": "validate",
+          "objectId": "menu.v1-g12",
+          "generation": 12
+        },
+        {
+          "op": "hash"
+        },
+        {
+          "op": "request-durability"
+        },
+        {
+          "op": "flush-data"
+        },
+        {
+          "op": "flush-metadata"
+        },
+        {
+          "op": "publish-selector",
+          "objectId": "menu.v1-g12",
+          "generation": 12
+        },
+        {
+          "op": "flush-selector"
+        },
+        {
+          "op": "receipt"
+        },
+        {
+          "op": "crash",
+          "process": "writer"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-menu",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "menu.v1",
+          "schemaId": "menu.v1",
+          "layoutId": "immutable-menu",
+          "objectId": "menu.v1-g11",
+          "schemaDigest": "sha256:525c246d9da7e213d64bc622fe7c5442dc4589a35805c4fcf86aff2b201f5174",
+          "layoutDigest": "sha256:38e45faa3b2737085dc6bf63d20db66209f870052f74bb518363c4ea95a82d28",
+          "length": 512,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 11
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "published-after-receipt"
+      }
+    },
+    {
+      "id": "IPC1-stale-generation-reject",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "process": "reader",
+          "generation": 12,
+          "objectId": "telemetry.v1-g12"
+        },
+        {
+          "op": "validate",
+          "process": "reader",
+          "objectId": "telemetry.v1-g12",
+          "generation": 12
+        },
+        {
+          "op": "view",
+          "process": "reader"
+        },
+        {
+          "op": "read",
+          "process": "reader",
+          "objectId": "telemetry.v1-g11",
+          "leaseGeneration": 11
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g12",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 12
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "stale-generation"
+      }
+    },
+    {
+      "id": "IPC1-stale-generation-remap",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "process": "reader",
+          "generation": 12,
+          "objectId": "telemetry.v1-g12"
+        },
+        {
+          "op": "validate",
+          "process": "reader",
+          "objectId": "telemetry.v1-g12",
+          "generation": 12
+        },
+        {
+          "op": "view",
+          "process": "reader"
+        },
+        {
+          "op": "observe-generation",
+          "process": "reader",
+          "expectedGeneration": 13,
+          "objectId": "telemetry.v1-g13"
+        },
+        {
+          "op": "drop-view",
+          "process": "reader"
+        },
+        {
+          "op": "unmap",
+          "process": "reader"
+        },
+        {
+          "op": "map",
+          "process": "reader",
+          "generation": 13,
+          "objectId": "telemetry.v1-g13"
+        },
+        {
+          "op": "validate",
+          "process": "reader",
+          "objectId": "telemetry.v1-g13",
+          "generation": 13
+        },
+        {
+          "op": "view",
+          "process": "reader"
+        },
+        {
+          "op": "read",
+          "process": "reader",
+          "objectId": "telemetry.v1-g13",
+          "leaseGeneration": 13
+        },
+        {
+          "op": "drop-view",
+          "process": "reader"
+        },
+        {
+          "op": "unmap",
+          "process": "reader"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g12",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 12
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "generation-remap"
+      }
+    },
+    {
+      "id": "IPC1-publish-before-validate-reject",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "publish-staged-recipe"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "process": "writer",
+          "generation": 1,
+          "objectId": "menu.v1-g1"
+        },
+        {
+          "op": "view",
+          "process": "writer"
+        },
+        {
+          "op": "stage",
+          "objectId": "menu.v1-g2",
+          "generation": 2
+        },
+        {
+          "op": "publish-selector",
+          "objectId": "menu.v1-g2",
+          "generation": 2
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-menu",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "menu.v1",
+          "schemaId": "menu.v1",
+          "layoutId": "immutable-menu",
+          "objectId": "menu.v1-g1",
+          "schemaDigest": "sha256:525c246d9da7e213d64bc622fe7c5442dc4589a35805c4fcf86aff2b201f5174",
+          "layoutDigest": "sha256:38e45faa3b2737085dc6bf63d20db66209f870052f74bb518363c4ea95a82d28",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "view-before-validate"
+      }
+    },
+    {
+      "id": "IPC1-read-before-validate-reject",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "process": "reader",
+          "generation": 1,
+          "objectId": "telemetry.v1-g1"
+        },
+        {
+          "op": "read",
+          "process": "reader"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-telemetry",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "telemetry.v1",
+          "schemaId": "telemetry.v1",
+          "layoutId": "immutable-telemetry",
+          "objectId": "telemetry.v1-g1",
+          "schemaDigest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203",
+          "layoutDigest": "sha256:cc98c8b422f0695bae2b848039b538f3a5d9be504d6e7f627b64c85a9b1d6be2",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "read-before-validate"
+      }
+    },
+    {
+      "id": "IPC1-receipt-before-request-reject",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "publish-staged-recipe"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "process": "writer",
+          "generation": 1,
+          "objectId": "menu.v1-g1"
+        },
+        {
+          "op": "validate",
+          "process": "writer",
+          "objectId": "menu.v1-g1",
+          "generation": 1
+        },
+        {
+          "op": "view",
+          "process": "writer"
+        },
+        {
+          "op": "stage",
+          "objectId": "menu.v1-g2",
+          "generation": 2
+        },
+        {
+          "op": "validate",
+          "objectId": "menu.v1-g2",
+          "generation": 2
+        },
+        {
+          "op": "hash"
+        },
+        {
+          "op": "publish-selector",
+          "objectId": "menu.v1-g2",
+          "generation": 2
+        },
+        {
+          "op": "receipt"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-menu",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "menu.v1",
+          "schemaId": "menu.v1",
+          "layoutId": "immutable-menu",
+          "objectId": "menu.v1-g1",
+          "schemaDigest": "sha256:525c246d9da7e213d64bc622fe7c5442dc4589a35805c4fcf86aff2b201f5174",
+          "layoutDigest": "sha256:38e45faa3b2737085dc6bf63d20db66209f870052f74bb518363c4ea95a82d28",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "receipt-before-request"
+      }
+    },
+    {
+      "id": "IPC1-duplicate-publish-reject",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "publish-staged-recipe"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "process": "writer",
+          "generation": 1,
+          "objectId": "menu.v1-g1"
+        },
+        {
+          "op": "validate",
+          "process": "writer",
+          "objectId": "menu.v1-g1",
+          "generation": 1
+        },
+        {
+          "op": "view",
+          "process": "writer"
+        },
+        {
+          "op": "stage",
+          "objectId": "menu.v1-g2",
+          "generation": 2
+        },
+        {
+          "op": "validate",
+          "objectId": "menu.v1-g2",
+          "generation": 2
+        },
+        {
+          "op": "hash"
+        },
+        {
+          "op": "publish-selector",
+          "objectId": "menu.v1-g2",
+          "generation": 2
+        },
+        {
+          "op": "publish-selector",
+          "objectId": "menu.v1-g2",
+          "generation": 2
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-menu",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "menu.v1",
+          "schemaId": "menu.v1",
+          "layoutId": "immutable-menu",
+          "objectId": "menu.v1-g1",
+          "schemaDigest": "sha256:525c246d9da7e213d64bc622fe7c5442dc4589a35805c4fcf86aff2b201f5174",
+          "layoutDigest": "sha256:38e45faa3b2737085dc6bf63d20db66209f870052f74bb518363c4ea95a82d28",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "duplicate-selector-publish"
+      }
+    },
+    {
+      "id": "IPC1-generation-nonmonotonic-reject",
+      "axis": "immutable",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "publish-staged-recipe"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "process": "writer",
+          "generation": 7,
+          "objectId": "menu.v1-g7"
+        },
+        {
+          "op": "validate",
+          "process": "writer",
+          "objectId": "menu.v1-g7",
+          "generation": 7
+        },
+        {
+          "op": "view",
+          "process": "writer"
+        },
+        {
+          "op": "stage",
+          "objectId": "menu.v1-g6",
+          "generation": 6
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-menu",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "menu.v1",
+          "schemaId": "menu.v1",
+          "layoutId": "immutable-menu",
+          "objectId": "menu.v1-g7",
+          "schemaDigest": "sha256:525c246d9da7e213d64bc622fe7c5442dc4589a35805c4fcf86aff2b201f5174",
+          "layoutDigest": "sha256:38e45faa3b2737085dc6bf63d20db66209f870052f74bb518363c4ea95a82d28",
+          "length": 1,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 7
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "generation-not-monotonic"
+      }
+    },
+    {
+      "id": "IPC1-channel-cap0-rendezvous",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "generation": 1
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s0",
+          "process": "writer"
+        },
+        {
+          "op": "receive",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "write",
+          "sendId": "s0",
+          "bytes": [
+            1,
+            2
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s0",
+          "process": "writer"
+        },
+        {
+          "op": "read",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "release",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "drop-view"
+        },
+        {
+          "op": "unmap"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-cap0",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-cap0",
+          "objectId": "channel-cap0-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:d00a3f256d36179dd176760c1e517a22461419be5848b47e05f73a59475955df",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 0,
+          "slotSize": 0
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "rendezvous-channel"
+      }
+    },
+    {
+      "id": "IPC1-channel-capn-bounded",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s0",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s0",
+          "bytes": [
+            1
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s0",
+          "process": "writer"
+        },
+        {
+          "op": "receive",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "read",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "release",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "drop-view"
+        },
+        {
+          "op": "unmap"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 4,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "bounded-mapped-channel"
+      }
+    },
+    {
+      "id": "IPC1-channel-full-backpressure",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s1",
+          "bytes": [
+            1
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "offer",
+          "sendId": "s2",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s2",
+          "bytes": [
+            2
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s2",
+          "process": "writer"
+        },
+        {
+          "op": "offer",
+          "sendId": "s3",
+          "process": "writer"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 2,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "backpressure"
+      }
+    },
+    {
+      "id": "IPC1-channel-cancel-before-commit",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "cancel",
+          "sendId": "s1"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-cap0",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-cap0",
+          "objectId": "channel-cap0-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:d00a3f256d36179dd176760c1e517a22461419be5848b47e05f73a59475955df",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 0,
+          "slotSize": 0
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "cancel-before-commit"
+      }
+    },
+    {
+      "id": "IPC1-channel-cancel-after-commit",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s1",
+          "bytes": [
+            1
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "cancel",
+          "sendId": "s1"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 1,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "cancel-after-commit"
+      }
+    },
+    {
+      "id": "IPC1-channel-crash-writing-fault",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s1",
+          "bytes": [
+            1
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "crash",
+          "process": "writer"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 2,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "faulted",
+        "code": "generation-fault"
+      }
+    },
+    {
+      "id": "IPC1-channel-committed-full-survives-producer-crash",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s1",
+          "bytes": [
+            1
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "offer",
+          "sendId": "s2",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s2",
+          "bytes": [
+            2
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s2",
+          "process": "writer"
+        },
+        {
+          "op": "crash",
+          "process": "writer"
+        },
+        {
+          "op": "receive",
+          "sendId": "s1",
+          "process": "reader"
+        },
+        {
+          "op": "materialize",
+          "sendId": "s1",
+          "process": "reader"
+        },
+        {
+          "op": "release",
+          "sendId": "s1",
+          "process": "reader"
+        },
+        {
+          "op": "drop-view"
+        },
+        {
+          "op": "unmap"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 2,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "committed-full-survives-producer-crash"
+      }
+    },
+    {
+      "id": "IPC1-channel-crash-reading-reopen",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "generation": 1
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s1",
+          "bytes": [
+            1
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "receive",
+          "sendId": "s1",
+          "process": "reader"
+        },
+        {
+          "op": "crash",
+          "process": "reader"
+        },
+        {
+          "op": "stop-access"
+        },
+        {
+          "op": "drain"
+        },
+        {
+          "op": "drop-view"
+        },
+        {
+          "op": "unmap"
+        },
+        {
+          "op": "close"
+        },
+        {
+          "op": "reopen",
+          "generation": 2
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 2,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "generation-reopened"
+      }
+    },
+    {
+      "id": "IPC1-channel-double-materialize-reject",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s1",
+          "bytes": [
+            1
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "receive",
+          "sendId": "s1",
+          "process": "reader"
+        },
+        {
+          "op": "read",
+          "sendId": "s1",
+          "process": "reader"
+        },
+        {
+          "op": "read",
+          "sendId": "s1",
+          "process": "reader"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 1,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "double-materialize"
+      }
+    },
+    {
+      "id": "IPC1-atomic-width-unsupported",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "release-fence"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-width16",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-width16",
+          "objectId": "channel-width16-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:3269eb9960b0ae8551811875095bc37a5f451c8de5d5e83a81f6d6684c36eea0",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 1,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "atomic-width-unsupported"
+      }
+    },
+    {
+      "id": "IPC1-atomic-order-unsupported",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "release-fence"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-order-sequential",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-order-sequential",
+          "objectId": "channel-order-sequential-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:86497e7bbd60f6289e13a73bea1df74a0f69afc7f93efad05d80cd8b2a3ce500",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 1,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "atomic-order-unsupported"
+      }
+    },
+    {
+      "id": "IPC1-atomic-alignment-unsupported",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "release-fence"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-alignment16",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-alignment16",
+          "objectId": "channel-alignment16-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:e335933f4af979e1e6aae528c65cebaca99c7d11159fad8788bc246476fd9a0f",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 1,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "atomic-alignment-unsupported"
+      }
+    },
+    {
+      "id": "IPC1-atomic-progress-unsupported",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "release-fence"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-progress-blocking",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-progress-blocking",
+          "objectId": "channel-progress-blocking-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:41dcb9779f33437f10397f96245d21e7b113dd7564ca470b1427c092997674e2",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 1,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "atomic-progress-unsupported"
+      }
+    },
+    {
+      "id": "IPC1-hidden-lock-reject",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "layoutMutation": {
+          "kind": "hiddenMechanism",
+          "value": "lock"
+        },
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 1,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "hidden-provider-state"
+      }
+    },
+    {
+      "id": "IPC1-fallback-to-snapshot",
+      "axis": "provider",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "snapshot-recipe",
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "provider-open"
+        },
+        {
+          "op": "fallback",
+          "route": "snapshot-wire-service"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-width16"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "fallback-snapshot"
+      }
+    },
+    {
+      "id": "IPC1-robust-owner-death-fault",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-robust-blocking",
+        "windows": "windows-robust-blocking"
+      },
+      "sourceRefIds": [
+        "release-fence"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "require",
+          "execution": "blocking-service"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s1",
+          "bytes": [
+            1
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "acquire-guard",
+          "process": "writer"
+        },
+        {
+          "op": "hold-guard",
+          "process": "writer"
+        },
+        {
+          "op": "owner-death",
+          "process": "writer"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-robust",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-robust",
+          "objectId": "channel-robust-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:8d11ed221f90f038690d6359c33d3ab0dbb4c372b66453dcc77fea169be388ea",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 1,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "faulted",
+        "code": "generation-fault"
+      }
+    },
+    {
+      "id": "IPC1-robust-cooperative-reject",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-robust-blocking",
+        "windows": "windows-robust-blocking"
+      },
+      "sourceRefIds": [
+        "release-fence"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "require",
+          "execution": "cooperative-worker"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-robust",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-robust",
+          "objectId": "channel-robust-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:8d11ed221f90f038690d6359c33d3ab0dbb4c372b66453dcc77fea169be388ea",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 1,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "fallback-context-incompatible"
+      }
+    },
+    {
+      "id": "IPC1-unlink-last-lease-lifecycle",
+      "axis": "lifecycle",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "snapshot-recipe",
+        "publish-staged-recipe"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "generation": 1
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "remove-name"
+        },
+        {
+          "op": "drop-view"
+        },
+        {
+          "op": "unmap"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-menu"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "name-discovery-target-specific"
+      }
+    },
+    {
+      "id": "IPC1-shm-unlink-live-lease",
+      "axis": "lifecycle",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "snapshot-recipe",
+        "publish-staged-recipe"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "generation": 1
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "remove-name"
+        },
+        {
+          "op": "drop-view"
+        },
+        {
+          "op": "unmap"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "name-discovery-target-specific"
+      }
+    },
+    {
+      "id": "IPC1-immediate-name-withdrawal-unsupported",
+      "axis": "lifecycle",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "snapshot-recipe",
+        "publish-staged-recipe"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "withdraw-name"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-menu"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "name-withdrawal-unsupported"
+      }
+    },
+    {
+      "id": "IPC1-sync-object-after-last-unmap-reject",
+      "axis": "lifecycle",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "drop-view"
+        },
+        {
+          "op": "unmap"
+        },
+        {
+          "op": "sync"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "sync-object-after-last-unmap"
+      }
+    },
+    {
+      "id": "IPC1-resize-live-view-reject",
+      "axis": "lifecycle",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "telemetry-object"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "resize"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "resize-live-view"
+      }
+    },
+    {
+      "id": "IPC1-view-escape-after-unmap-reject",
+      "axis": "lifecycle",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "release-fence"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "drop-view"
+        },
+        {
+          "op": "unmap"
+        },
+        {
+          "op": "read"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "lease-access-after-close"
+      }
+    },
+    {
+      "id": "IPC1-ffi-close-order",
+      "axis": "lifecycle",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "observer-install"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "register-callback"
+        },
+        {
+          "op": "stop-access"
+        },
+        {
+          "op": "unregister-callback"
+        },
+        {
+          "op": "drain"
+        },
+        {
+          "op": "drop-view"
+        },
+        {
+          "op": "unmap"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "ffi-lease-close"
+      }
+    },
+    {
+      "id": "IPC1-ffi-close-before-unmap-reject",
+      "axis": "lifecycle",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "observer-install"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "close-before-unmap"
+      }
+    },
+    {
+      "id": "IPC1-unmap-active-callback-reject",
+      "axis": "lifecycle",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "observer-install"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "register-callback"
+        },
+        {
+          "op": "unmap"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "unmap-with-active-lease"
+      }
+    },
+    {
+      "id": "IPC1-unmap-active-loan-reject",
+      "axis": "lifecycle",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "observer-install"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "loan"
+        },
+        {
+          "op": "unmap"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "unmap-with-active-lease"
+      }
+    },
+    {
+      "id": "IPC1-double-close-reject",
+      "axis": "lifecycle",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "observer-install"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "unmap"
+        },
+        {
+          "op": "close"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "double-close"
+      }
+    },
+    {
+      "id": "IPC1-generation-mismatch-reject",
+      "axis": "lifecycle",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "snapshot-recipe"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "generation": 2
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "open",
+          "generation": 1
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "generation-mismatch"
+      }
+    },
+    {
+      "id": "IPC1-provider-authoritative",
+      "axis": "provider",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "release-fence"
+      ],
+      "operations": [
+        {
+          "op": "provider-open"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-menu"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "provider-authoritative"
+      }
+    },
+    {
+      "id": "IPC1-provider-durable-requirement-reject",
+      "axis": "provider",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "publish-staged-recipe"
+      ],
+      "operations": [
+        {
+          "op": "provider-open"
+        },
+        {
+          "op": "require",
+          "backing": "durable"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "durability-unavailable"
+      }
+    },
+    {
+      "id": "IPC1-snapshot-bytes-diverge",
+      "axis": "provider",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-file-durable",
+        "windows": "windows-file-durable"
+      },
+      "sourceRefIds": [
+        "archive-parquet",
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "provider-open"
+        },
+        {
+          "op": "compare"
+        }
+      ],
+      "input": {
+        "layoutId": "immutable-menu",
+        "snapshotBytesByTarget": {
+          "posix": [
+            87,
+            73,
+            80,
+            67,
+            49
+          ],
+          "windows": [
+            87,
+            73,
+            80,
+            67,
+            50
+          ]
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "snapshot-bytes-diverge"
+      }
+    },
+    {
+      "id": "IPC1-channel-crash-reading-fault",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map",
+          "generation": 1
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s1",
+          "bytes": [
+            1
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s1",
+          "process": "writer"
+        },
+        {
+          "op": "receive",
+          "sendId": "s1",
+          "process": "reader"
+        },
+        {
+          "op": "crash",
+          "process": "reader"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 2,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "faulted",
+        "code": "generation-fault"
+      }
+    },
+    {
+      "id": "IPC1-channel-oversized-payload-reject",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s0",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s0",
+          "bytes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86,
+            87,
+            88,
+            89,
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114,
+            115,
+            116,
+            117,
+            118,
+            119,
+            120,
+            121,
+            122,
+            123,
+            124,
+            125,
+            126,
+            127,
+            128,
+            129,
+            130,
+            131,
+            132,
+            133,
+            134,
+            135,
+            136,
+            137,
+            138,
+            139,
+            140,
+            141,
+            142,
+            143,
+            144,
+            145,
+            146,
+            147,
+            148,
+            149,
+            150,
+            151,
+            152,
+            153,
+            154,
+            155,
+            156,
+            157,
+            158,
+            159,
+            160,
+            161,
+            162,
+            163,
+            164,
+            165,
+            166,
+            167,
+            168,
+            169,
+            170,
+            171,
+            172,
+            173,
+            174,
+            175,
+            176,
+            177,
+            178,
+            179,
+            180,
+            181,
+            182,
+            183,
+            184,
+            185,
+            186,
+            187,
+            188,
+            189,
+            190,
+            191,
+            192,
+            193,
+            194,
+            195,
+            196,
+            197,
+            198,
+            199,
+            200,
+            201,
+            202,
+            203,
+            204,
+            205,
+            206,
+            207,
+            208,
+            209,
+            210,
+            211,
+            212,
+            213,
+            214,
+            215,
+            216,
+            217,
+            218,
+            219,
+            220,
+            221,
+            222,
+            223,
+            224,
+            225,
+            226,
+            227,
+            228,
+            229,
+            230,
+            231,
+            232,
+            233,
+            234,
+            235,
+            236,
+            237,
+            238,
+            239,
+            240,
+            241,
+            242,
+            243,
+            244,
+            245,
+            246,
+            247,
+            248,
+            249,
+            250,
+            251,
+            252,
+            253,
+            254,
+            255,
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86,
+            87,
+            88,
+            89,
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114,
+            115,
+            116,
+            117,
+            118,
+            119,
+            120,
+            121,
+            122,
+            123,
+            124,
+            125,
+            126,
+            127,
+            128,
+            129,
+            130,
+            131,
+            132,
+            133,
+            134,
+            135,
+            136,
+            137,
+            138,
+            139,
+            140,
+            141,
+            142,
+            143,
+            144,
+            145,
+            146,
+            147,
+            148,
+            149,
+            150,
+            151,
+            152,
+            153,
+            154,
+            155,
+            156,
+            157,
+            158,
+            159,
+            160,
+            161,
+            162,
+            163,
+            164,
+            165,
+            166,
+            167,
+            168,
+            169,
+            170,
+            171,
+            172,
+            173,
+            174,
+            175,
+            176,
+            177,
+            178,
+            179,
+            180,
+            181,
+            182,
+            183,
+            184,
+            185,
+            186,
+            187,
+            188,
+            189,
+            190,
+            191,
+            192,
+            193,
+            194,
+            195,
+            196,
+            197,
+            198,
+            199,
+            200,
+            201,
+            202,
+            203,
+            204,
+            205,
+            206,
+            207,
+            208,
+            209,
+            210,
+            211,
+            212,
+            213,
+            214,
+            215,
+            216,
+            217,
+            218,
+            219,
+            220,
+            221,
+            222,
+            223,
+            224,
+            225,
+            226,
+            227,
+            228,
+            229,
+            230,
+            231,
+            232,
+            233,
+            234,
+            235,
+            236,
+            237,
+            238,
+            239,
+            240,
+            241,
+            242,
+            243,
+            244,
+            245,
+            246,
+            247,
+            248,
+            249,
+            250,
+            251,
+            252,
+            253,
+            254,
+            255,
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86,
+            87,
+            88,
+            89,
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114,
+            115,
+            116,
+            117,
+            118,
+            119,
+            120,
+            121,
+            122,
+            123,
+            124,
+            125,
+            126,
+            127,
+            128,
+            129,
+            130,
+            131,
+            132,
+            133,
+            134,
+            135,
+            136,
+            137,
+            138,
+            139,
+            140,
+            141,
+            142,
+            143,
+            144,
+            145,
+            146,
+            147,
+            148,
+            149,
+            150,
+            151,
+            152,
+            153,
+            154,
+            155,
+            156,
+            157,
+            158,
+            159,
+            160,
+            161,
+            162,
+            163,
+            164,
+            165,
+            166,
+            167,
+            168,
+            169,
+            170,
+            171,
+            172,
+            173,
+            174,
+            175,
+            176,
+            177,
+            178,
+            179,
+            180,
+            181,
+            182,
+            183,
+            184,
+            185,
+            186,
+            187,
+            188,
+            189,
+            190,
+            191,
+            192,
+            193,
+            194,
+            195,
+            196,
+            197,
+            198,
+            199,
+            200,
+            201,
+            202,
+            203,
+            204,
+            205,
+            206,
+            207,
+            208,
+            209,
+            210,
+            211,
+            212,
+            213,
+            214,
+            215,
+            216,
+            217,
+            218,
+            219,
+            220,
+            221,
+            222,
+            223,
+            224,
+            225,
+            226,
+            227,
+            228,
+            229,
+            230,
+            231,
+            232,
+            233,
+            234,
+            235,
+            236,
+            237,
+            238,
+            239,
+            240,
+            241,
+            242,
+            243,
+            244,
+            245,
+            246,
+            247,
+            248,
+            249,
+            250,
+            251,
+            252,
+            253,
+            254,
+            255,
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86,
+            87,
+            88,
+            89,
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114,
+            115,
+            116,
+            117,
+            118,
+            119,
+            120,
+            121,
+            122,
+            123,
+            124,
+            125,
+            126,
+            127,
+            128,
+            129,
+            130,
+            131,
+            132,
+            133,
+            134,
+            135,
+            136,
+            137,
+            138,
+            139,
+            140,
+            141,
+            142,
+            143,
+            144,
+            145,
+            146,
+            147,
+            148,
+            149,
+            150,
+            151,
+            152,
+            153,
+            154,
+            155,
+            156,
+            157,
+            158,
+            159,
+            160,
+            161,
+            162,
+            163,
+            164,
+            165,
+            166,
+            167,
+            168,
+            169,
+            170,
+            171,
+            172,
+            173,
+            174,
+            175,
+            176,
+            177,
+            178,
+            179,
+            180,
+            181,
+            182,
+            183,
+            184,
+            185,
+            186,
+            187,
+            188,
+            189,
+            190,
+            191,
+            192,
+            193,
+            194,
+            195,
+            196,
+            197,
+            198,
+            199,
+            200,
+            201,
+            202,
+            203,
+            204,
+            205,
+            206,
+            207,
+            208,
+            209,
+            210,
+            211,
+            212,
+            213,
+            214,
+            215,
+            216,
+            217,
+            218,
+            219,
+            220,
+            221,
+            222,
+            223,
+            224,
+            225,
+            226,
+            227,
+            228,
+            229,
+            230,
+            231,
+            232
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s0",
+          "process": "writer"
+        },
+        {
+          "op": "receive",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "read",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "release",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "drop-view",
+          "process": "reader"
+        },
+        {
+          "op": "unmap"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 4,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "payload-too-large"
+      }
+    },
+    {
+      "id": "IPC1-channel-corrupt-slot-header-reject",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s0",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s0",
+          "bytes": [
+            1
+          ],
+          "process": "writer",
+          "slotHeaderCorrupt": true
+        },
+        {
+          "op": "commit",
+          "sendId": "s0",
+          "process": "writer"
+        },
+        {
+          "op": "receive",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "read",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "release",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "drop-view",
+          "process": "reader"
+        },
+        {
+          "op": "unmap"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 4,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "slot-header-invalid"
+      }
+    },
+    {
+      "id": "IPC1-channel-slot-schema-mismatch-reject",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s0",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s0",
+          "bytes": [
+            1
+          ],
+          "process": "writer",
+          "schemaId": "wrong.v1"
+        },
+        {
+          "op": "commit",
+          "sendId": "s0",
+          "process": "writer"
+        },
+        {
+          "op": "receive",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "read",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "release",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "drop-view",
+          "process": "reader"
+        },
+        {
+          "op": "unmap"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 4,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "slot-schema-mismatch"
+      }
+    },
+    {
+      "id": "IPC1-channel-slot-checksum-reject",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s0",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s0",
+          "bytes": [
+            1
+          ],
+          "process": "writer",
+          "checksum": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        },
+        {
+          "op": "commit",
+          "sendId": "s0",
+          "process": "writer"
+        },
+        {
+          "op": "receive",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "read",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "release",
+          "sendId": "s0",
+          "process": "reader"
+        },
+        {
+          "op": "drop-view",
+          "process": "reader"
+        },
+        {
+          "op": "unmap"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 4,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "slot-checksum-invalid"
+      }
+    },
+    {
+      "id": "IPC1-channel-capacity-header-mismatch",
+      "axis": "channel",
+      "targets": ["posix", "windows"],
+      "providerBindings": {"posix": "posix-shm-volatile", "windows": "windows-pagefile-volatile"},
+      "sourceRefIds": ["handoff-arrow"],
+      "operations": [{"op": "map"}, {"op": "validate"}, {"op": "view"}],
+      "input": {"layoutId": "channel-capN", "header": {"magic": "WIPC1", "version": 1, "schema": "channel.v1", "schemaId": "channel.v1", "layoutId": "channel-capN", "objectId": "channel-capN-g1", "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282", "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e", "length": 4096, "alignment": 8, "endian": "little", "generation": 1, "slotCount": 0, "slotSize": 1000}},
+      "expected": {"status": "rejected", "code": "channel-capacity-mismatch"}
+    },
+    {
+      "id": "IPC1-channel-header-schema-mismatch",
+      "axis": "channel",
+      "targets": ["posix", "windows"],
+      "providerBindings": {"posix": "posix-shm-volatile", "windows": "windows-pagefile-volatile"},
+      "sourceRefIds": ["handoff-arrow"],
+      "operations": [{"op": "map"}, {"op": "validate"}, {"op": "view"}],
+      "input": {"layoutId": "channel-capN", "header": {"magic": "WIPC1", "version": 1, "schema": "channel.v1", "schemaId": "wrong.v1", "layoutId": "channel-capN", "objectId": "channel-capN-g1", "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282", "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e", "length": 4096, "alignment": 8, "endian": "little", "generation": 1, "slotCount": 4, "slotSize": 1000}},
+      "expected": {"status": "rejected", "code": "channel-header-mismatch"}
+    },
+    {
+      "id": "IPC1-channel-empty-trace-reject",
+      "axis": "channel",
+      "targets": ["posix", "windows"],
+      "providerBindings": {"posix": "posix-shm-volatile", "windows": "windows-pagefile-volatile"},
+      "sourceRefIds": ["handoff-arrow"],
+      "operations": [],
+      "input": {"layoutId": "channel-capN", "header": {"magic": "WIPC1", "version": 1, "schema": "channel.v1", "schemaId": "channel.v1", "layoutId": "channel-capN", "objectId": "channel-capN-g1", "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282", "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e", "length": 4096, "alignment": 8, "endian": "little", "generation": 1, "slotCount": 4, "slotSize": 1000}},
+      "expected": {"status": "rejected", "code": "incomplete-channel-trace"}
+    },
+    {
+      "id": "IPC1-channel-unrelated-process-crash-no-fault",
+      "axis": "channel",
+      "targets": ["posix", "windows"],
+      "providerBindings": {"posix": "posix-shm-volatile", "windows": "windows-pagefile-volatile"},
+      "sourceRefIds": ["handoff-arrow"],
+      "operations": [
+        {"op": "map", "generation": 1}, {"op": "validate"}, {"op": "view"},
+        {"op": "offer", "sendId": "u1", "process": "writer"},
+        {"op": "write", "sendId": "u1", "bytes": [7], "process": "writer"},
+        {"op": "commit", "sendId": "u1", "process": "writer"},
+        {"op": "crash", "process": "watchdog"},
+        {"op": "receive", "sendId": "u1", "process": "reader"},
+        {"op": "materialize", "sendId": "u1", "process": "reader"},
+        {"op": "release", "sendId": "u1", "process": "reader"},
+        {"op": "drop-view"}, {"op": "unmap"}, {"op": "close"}
+      ],
+      "input": {"layoutId": "channel-capN", "header": {"magic": "WIPC1", "version": 1, "schema": "channel.v1", "schemaId": "channel.v1", "layoutId": "channel-capN", "objectId": "channel-capN-g1", "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282", "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e", "length": 4096, "alignment": 8, "endian": "little", "generation": 1, "slotCount": 1, "slotSize": 1000}},
+      "expected": {"status": "accepted", "code": "unrelated-process-crash-no-fault"}
+    },
+    {
+      "id": "IPC1-channel-capacity-slots-overflow",
+      "axis": "channel",
+      "targets": ["posix", "windows"],
+      "providerBindings": {"posix": "posix-shm-volatile", "windows": "windows-pagefile-volatile"},
+      "sourceRefIds": ["handoff-arrow"],
+      "operations": [{"op": "map", "generation": 1}, {"op": "validate"}, {"op": "view"}],
+      "input": {"layoutId": "channel-capN-tight", "header": {"magic": "WIPC1", "version": 1, "schema": "channel.v1", "schemaId": "channel.v1", "layoutId": "channel-capN-tight", "objectId": "channel-capN-tight-g1", "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282", "layoutDigest": "sha256:dd49ccc985420bf5be4e5ede549dde5f29f7521b41b411e50d448a93b8a58ff7", "length": 4096, "alignment": 8, "endian": "little", "generation": 1, "slotCount": 4, "slotSize": 1000}},
+      "expected": {"status": "rejected", "code": "channel-capacity-bounds"}
+    },
+    {
+      "id": "IPC1-lifecycle-empty-trace-reject",
+      "axis": "lifecycle",
+      "targets": ["posix", "windows"],
+      "providerBindings": {"posix": "posix-shm-volatile", "windows": "windows-pagefile-volatile"},
+      "sourceRefIds": ["handoff-arrow"],
+      "operations": [],
+      "input": {"layoutId": "channel-capN"},
+      "expected": {"status": "rejected", "code": "incomplete-lifecycle-trace"}
+    }
+  ],
+  "schemas": {
+    "menu.v1": {
+      "schemaId": "menu.v1",
+      "kind": "immutable-snapshot",
+      "canonical": "fixed-width-little-endian",
+      "fields": [
+        "menu-id",
+        "item-count",
+        "item-bytes"
+      ],
+      "digest": "sha256:525c246d9da7e213d64bc622fe7c5442dc4589a35805c4fcf86aff2b201f5174"
+    },
+    "telemetry.v1": {
+      "schemaId": "telemetry.v1",
+      "kind": "immutable-snapshot",
+      "canonical": "fixed-width-little-endian",
+      "fields": [
+        "epoch",
+        "horizon",
+        "sample-bytes"
+      ],
+      "digest": "sha256:c871525891ae3856833eff581b37d13bdff400ea57ac6610abef1a914e81d203"
+    },
+    "channel.v1": {
+      "schemaId": "channel.v1",
+      "kind": "wire-carrier",
+      "canonical": "fixed-width-little-endian",
+      "fields": [
+        "slot-header",
+        "payload-length",
+        "payload-bytes",
+        "checksum"
+      ],
+      "digest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282"
+    }
+  }
+}

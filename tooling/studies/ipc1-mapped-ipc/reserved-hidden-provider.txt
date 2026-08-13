@@ -1,0 +1,3 @@
+IPC1 reserved rejected witness: Ipc1MappedIpc with a hidden allocator, lock,
+scheduler, automatic crash repair, or caller-forged provider facts. This text is
+not W source and must remain reserved-not-parsed.

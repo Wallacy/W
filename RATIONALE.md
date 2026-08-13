@@ -1836,6 +1836,130 @@ N3096, POSIX cancellation e message queues, LLVM Coroutines, Rust Reference e
 std `Future`/MPSC/scoped threads, e Python Language Reference, PEP 342/380 e
 asyncio TaskGroup/Queue. Elas são limites comparativos, não contratos herdados.
 
+#### 1.4.9 IPC1 — memória mapeada e IPC process-shared
+
+IPC1 informa e estreita o gate de design `IPC0-R1`. O estudo não promove API,
+syntax, compiler, runtime ou provider. A rota do problema continua **Pesquisa**.
+O baseline recomendado permanece `SnapshotByteSource`, wire tipado, Arrow e
+service channel bounded. O estudo usa o Restaurante no Fim do Universo para
+comparar uma telemetria de horizonte e um snapshot de menu.
+
+O candidato A é um snapshot mapeado imutável. Seu layout é relocatable e
+pointer-free. O payload usa offsets e índices relativos, nunca pointers,
+owners, borrows, capabilities ou values com drop. O header publica magic,
+version, schema identity, schema digest, layout digest, length, alignment,
+endianness e generation. O reader valida esses campos antes de criar a view.
+
+Cada generation é um objeto/extent imutável separado. Um catálogo/selector
+publica a generation corrente; a lease guarda `objectIdentity+generation` e
+impede reuso enquanto permanece viva. O writer faz stage e hash de um objeto
+novo. Para uma requisição durable, a ordem é request, flush de dados e
+metadata, release do selector, flush do selector/namespace e receipt terminal.
+Uma publicação visibility-only não inventa receipt. Um crash antes do release
+do selector mantém a generation anterior. Um crash depois do selector e antes
+do receipt deixa visibility viva, mas recovered current desconhecida; um crash
+depois do receipt é sucesso. O resultado não pode inferir sucesso físico a
+partir de uma write ou de `FlushViewOfFile` isolado.
+
+O reader observa uma generation imutável por uma lease. Uma generation stale
+exige `observe-generation`, drop/close, unmap e remap explícito; um read com
+lease divergente é rejeitado. A view não escapa de seu lease e `drop-view` vem
+antes de unmap. Resize ou truncate com views vivas é rejeitado. O último unmap
+encerra synchronization objects que já não têm owner. `shm_unlink` remove o
+nome POSIX, mas referências existentes mantêm o objeto. No Windows, mapping
+handles e views têm lifetimes separados.
+Essas diferenças físicas retornam outcomes normalizados, não uma equivalência
+de nomes ou handles.
+
+O candidato B é um carrier de bytes/wire bounded em memória mapeada, não um
+`Channel<T>` genérico nem uma coleção de referências compartilhadas. Capacidade,
+slot count, slot size, schema, layout digest e generation vêm do header
+mapeado validado, nunca de `input.capacity`; `header.length` é igual ao extent
+mapeado e `slotCount*slotSize` cabe no segmento `slots`. Cap0 não tem slots e exige
+rendezvous send/receive pareado; capN deriva ocupação dos slots. O contrato
+existente de `Channel` permanece: o owner local retorna antes de commit e o
+carrier recebe bytes wire canônicos depois de commit; o receiver valida
+length/schema/checksum e materializa um novo owner W.
+Cancelamento antes do commit devolve o owner. Cancelamento depois do commit
+mantém o payload no channel. Backpressure bloqueia ou falha de forma explícita.
+O trace prova no máximo um owner por slot committed, não exactly-once
+distribuído. O estudo não cria um channel raw de shared references.
+
+Cada slot usa layout relativo e facts do provider para width, order, alignment e
+lock-free progress do atomic process-shared. Um atomic comum de W ou uma `Arc` não prova
+escopo entre processos. Width, order, alignment e progress não podem ser
+forjados pelo caller. Um producer que falha em writing faulta a generation;
+um slot full já committed sobrevive e pode ser materializado pelo reader depois
+do crash do producer. Um reader que falha em reading/materialize faulta a
+generation. Um supervisor pode abrir uma generation nova somente após a ordem
+total fault, stop-access, drain, drop-view, unmap, close e reopen de generation
+maior. Não existe
+reparo in-place oculto. Um provider lock-free é preferido. Um fallback blocking
+robust é profile separado e não bloqueia worker cooperativo de modo invisível.
+
+O provider é a autoridade para target kind POSIX ou Windows, object identity,
+generation, access rights, lease/unmap, address independence, schema/layout
+digests, atomics process-shared, backing volatile/durable, flush receipt, delete
+behavior e crash outcome; apenas `allowedLayouts[]` e `allowedSchemas[]` são
+autoridade, sem digests provider singulares. O adapter `unsafe` precisa
+conservar a ordem stop-access, unregister-callback, drain, drop-view, unmap e
+close-handle. Nenhum callback ou access ocorre após unmap. O fallback explícito para snapshot/wire é o resultado quando um target
+não prova layout, lifetime, atomic scope ou crash.
+
+O corpus separa famílias de backing: POSIX file-backed e Windows file-backed
+podem publicar snapshots duráveis somente com receipt de dados e metadata;
+POSIX `shm_open` e Windows pagefile mappings publicam carriers voláteis, sem
+promessa de durabilidade após reboot. Windows não recebe um `unlink` POSIX
+inventado: o nome do kernel object permanece enquanto houver referências, e
+withdrawal imediato é unsupported ou exige broker/versioned-name Research.
+
+O corpus usa duas reducers independentes com state/event derivado de operações
+ordenadas. A reducer POSIX registra `open-file`/`shm_open`, `mmap`, `msync`,
+`fsync`, `shm_unlink` e `munmap`; a reducer Windows registra
+`CreateFileMapping`, `MapViewOfFile`, `Interlocked`, `FlushViewOfFile`,
+`FlushFileBuffers`, `UnmapViewOfFile` e `CloseHandle`. Cada caso seleciona um
+binding publicado, mas facts vêm da tabela provider. Cada caso precisa das duas
+projeções e de um compact logical outcome igual; divergência é rejeitada. O
+expected do caso é uma asserção. Ele não seleciona o resultado da máquina.
+
+O estudo cobre horizon writer/reader em bases diferentes, generation objects e
+selector catalog, menu publication, header corrupto, offsets/extents/overlap/
+overflow, stale generation, unlink e last-handle lifecycle, crash antes e
+depois da publicação, durability receipt, cap0/capN, full/backpressure,
+commit/cancelamento, checksum e slot header, crash por actor em cada estado,
+recovery ordering, unrelated-process no-fault continuation, terminal channel e
+lifecycle audits, atomic unsupported, provider binding/fact mutations, view
+escape, resize, FFI close ordering e fallback ao baseline.
+As variantes `.w` cobrem somente composições vigentes. Os candidatos mapped,
+pointer nativo e provider oculto permanecem textos `w-reserved` com estado
+Research ou rejeitado.
+
+As fontes primárias são POSIX Issue 8 para
+[`mmap`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/mmap.html),
+[`shm_open`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/shm_open.html),
+[`shm_unlink`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/shm_unlink.html),
+[`msync`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/msync.html)
+e [memory synchronization](https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap04.html#tag_04_12).
+As fontes Microsoft são [`CreateFileMapping`](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createfilemappinga),
+[`MapViewOfFile`](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile),
+[`InterlockedCompareExchange64`](https://learn.microsoft.com/en-us/windows/win32/api/winnt/nf-winnt-interlockedcompareexchange64),
+[`FlushViewOfFile`](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-flushviewoffile)
+e [`FlushFileBuffers`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers).
+Rust [`atomic`](https://doc.rust-lang.org/std/sync/atomic/), [`Arc`](https://doc.rust-lang.org/std/sync/struct.Arc.html)
+e [external blocks](https://doc.rust-lang.org/reference/items/external-blocks.html)
+separam target facts, ownership process-local e FFI. Python
+[`SharedMemory`](https://docs.python.org/3.14/library/multiprocessing.shared_memory.html)
+expõe close/unlink e tracker lifecycle sem definir o layout tipado de IPC1.
+
+O produto durável está em
+[`tooling/studies/ipc1-mapped-ipc`](tooling/studies/ipc1-mapped-ipc), com corpus,
+reducers, checker, teste host e snapshot em `tooling/ipc1-mapped-ipc-*`.
+O CAP0 registra esses refs em `IPC0-R1`, mas preserva `Research` e os probes
+POSIX/Windows, `w-compile`, `w-run` e provider como evidência missing. A fila de
+documentação mantém exemplos pareados de C/POSIX, Rust e Python para o guia
+`guides/problems/process-shared-data`. LOC ou ergonomia estrutural não fecham
+essa fila.
+
 ### 1.5 Memória, layout, errors e cleanup
 
 Esta seção preserva precedentes usados nas seções 9 a 11 de `DESIGN.md`. W usa
@@ -5601,6 +5725,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1352 | estudo ATOM1 de extensibilidade atômica | um oracle adversarial separa record value-only (A), handle geracional com owner table (B) e retirement/reclamation (C); packing, SnapshotCell, domain e lock continuam atuais; carrier canônico sintetizado é o candidato Research preferido, raw-layout é rejeitado, e adapter de reclamation permanece Research, com target progress, interface identity e foreign boundary explícitos | pointer/owner safe por atomicidade, acoplar padding/layout de T ao carrier, protocol user-defined para qualquer record, generation sem owner table, RCU universal safe, reclamation sem quiescence/drop, ou claims de compiler/runtime/provider |
 | W-1353 | método e invariantes de GEN1 | o oracle compara as mesmas traces em duas máquinas independentes (`switched-resume-frame` com slots/PC e `returned-continuation-state-loop` com estado/token); owner graph, commit/HB, resultado, cancelamento e cleanup/drop/drain são invariantes. A/B/C permanecem composáveis no escopo observado. Ver W-454–469, W-1161/W-1163, W-1185/W-1186 e W-1240 para contratos existentes. | frame de usuário como ABI, lowering que altera ownership, metadata de runtime, caller echo ou tratar trace físico como semântica |
 | W-1354 | dispositions de evidência e ergonomia de GEN1 | métricas estruturais de símbolos source e slices do mesmo cenário deixam a pergunta ergonômica aberta (`observedStructuralDifference` + `humanDecisionPending`); o builder bounded é current-candidate somente para diálogo; frame/resume público é intencionalmente rejeitado; bloco Stream compiler-owned é Research-candidate sob captures, capacity/prefetch, `Result` item, cancelamento, cleanup, effects e ausência de identidade/ABI pública. O oracle informa/estreita `GEN0-R1`; compile, run, provider e estudos humano/modelo continuam ausentes. | `yield` ambiental com frame público, lifetime/effect/ABI ocultos, LOC como decisão, promover bloco compiler-owned sem prova, promover D por obrigação ou declarar fechamento por oracle |
+| W-1355 | baseline e candidatos IPC1 | IPC0 permanece Research; SnapshotByteSource, wire tipado, Arrow e service channel bounded são baseline; IPC1 materializa candidato de snapshot mapeado imutável e candidato de channel/log bounded sem promover API, syntax, compiler, runtime ou provider | `Mapped<T>` universal, `shared T` como IPC, mmap invisível, raw pointer ou tratar estudo como comportamento implementado |
+| W-1356 | snapshot mapped relocatable, generation objects e selector durability | cada generation é um objeto/extent imutável separado; leases ligam `objectIdentity+generation` e impedem reuso enquanto vivas; layout usa offsets/índices relativos e payload pointer-free; header valida magic/version/schema/schemaDigest/layoutDigest/length/alignment/endian/generation; durable request ordena stage/hash → request → flush data+metadata → release selector → flush selector/namespace → receipt; visibility-only não inventa receipt; crash antes selector preserva a generation anterior, crash pós-selector sem receipt deixa visibility viva mas recovered current desconhecida, e crash pós-receipt é sucesso; stale remap, resize e view escape são explícitos | address equality, cast de struct nativa, publish antes de validation/flush, inferir flush físico, reusar generation com lease, resize com view viva ou access pós-unmap |
+| W-1357 | channel mapped wire carrier, commit/materialization e crash | carrier bounded de bytes (não `Channel<T>` raw) exige cap0 sem slots com rendezvous pareado e capN com ocupação derivada do header validado; header.length iguala o extent e `slotCount*slotSize` cabe em `slots`; owner local retorna antes de commit, commit publica bytes wire canônicos e a generation recebe bytes depois; receiver valida length/schema/checksum e cria owner novo, provando no máximo um owner por slot (não exactly-once distribuído); cancelamento mantém regra existente; provider prova atomic width/order/alignment/lock-free progress/wait-wake; crash de writing faulta generation, full committed sobrevive ao producer e pode ser materializado pelo reader, reading faulta generation e supervisor ordena fault→stop-access→drain→drop-view→unmap→close→reopen sem repair oculto | capacity caller, ordinary atomic como prova process-shared, String/owner no mapping, lock/allocator/scheduler oculto, repair in-place ou worker cooperativo bloqueado invisivelmente |
+| W-1358 | providers POSIX/Windows, backing e reducers | cada case escolhe binding authority: POSIX/Windows file-backed para snapshot durável com data+metadata receipt, POSIX `shm_open`/Windows pagefile para channel volátil; apenas `allowedLayouts[]`/`allowedSchemas[]` e seus digests são autoridade; reducers independentes derivam eventos, lifecycle físico e compact outcome comum; divergência de reducer/provider, facts caller, FFI close fora de ordem e fallback unsupported são rejeitados ou explicitamente normalizados; Windows não finge `unlink` e immediate withdraw retorna unsupported | selecionar resultado pelo expected/flags, equivalência de nome/handle, callback após unmap, `FlushViewOfFile` como durability total ou provider fact inventado |
+| W-1359 | evidence IPC1, CAP0 e documentação | corpus state/event-derived (67 casos, 134 projeções), schema/layout/provider source digests, snapshot e estudo host são design-oracle evidence; `IPC0-R1` recebe studyRefs e mantém probes POSIX/Windows, w-compile, w-run, provider e human/model missing; C/POSIX, Rust e Python ficam na fila `guides/problems/process-shared-data`, com exemplos pareados e refs W | chamar host oracle de execução W, fechar gate por LOC, promover Research a route/API ou omitir exemplos pareados |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

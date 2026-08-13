@@ -22189,6 +22189,18 @@ mudança de layout quando possui facts de acesso e evidence reproduzível.
 partition explícita, preservação de atomic global e boundaries físicas. Ele não
 executa W, não mede cache e não implementa compiler, allocator ou backend.
 
+O estudo **Pesquisa** [`IPC1`](tooling/studies/ipc1-mapped-ipc/README.md)
+examina snapshots file-backed duráveis em generation objects separados por
+selector, carriers shm/pagefile voláteis e IPC process-shared com reducers
+POSIX/Windows, schema/layout digests, layout/bounds, publication/receipt,
+channels bounded wire, materialization at-most-once por slot e crash/recovery
+outcomes. O candidato durable exige request sem escopo caller e a receita
+completa de dados+metadata antes da publicação do selector. O candidato channel
+exige header.length igual ao extent, capacidade limitada pelo segmento `slots`,
+auditoria terminal map→validate→view→close e cleanup ordenado de recovery/FFI.
+Ele informa `IPC0-R1`, mas não promove syntax, API, compiler, runtime ou
+provider.
+
 Locks registram wait time, hold time, contention e owner causal no profile de
 observabilidade. O runtime não inclui endereço bruto ou thread ID no resultado
 do programa.
