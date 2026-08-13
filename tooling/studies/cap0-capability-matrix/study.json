@@ -1,0 +1,23 @@
+{
+  "$schema": "w-capability-study-1",
+  "status": "design-oracle-input-cap0",
+  "id": "CAP0",
+  "corpus": "../../capability-matrix-cases.json",
+  "checker": "../../check-capability-matrix.mjs",
+  "machine": "../../capability-matrix-machine.mjs",
+  "snapshot": "../../capability-matrix-results.snapshot.jsonl",
+  "hostTests": "../../capability-matrix-reference.test.mjs",
+  "axes": ["BRX0", "ATOM0", "GEN0", "SYN0", "CYC0", "IPC0", "SRV0", "DYN0"],
+  "routeClasses": ["current", "composable", "research", "intentionally-rejected"],
+  "metrics": {
+    "axisCount": 8,
+    "subcapabilityCount": 15,
+    "sourceRefCount": 149,
+    "documentationQueuedCount": 8
+  },
+  "evidence": {
+    "current": ["source-w", "host-oracle", "official-primary-refs"],
+    "missing": ["w-compile", "w-run", "provider", "human-study", "model-study"]
+  },
+  "docsStatus": "queued"
+}

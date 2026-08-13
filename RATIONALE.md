@@ -3793,6 +3793,252 @@ serialization têm contratos diferentes. Misturar os dois faria uma correção d
 data alterar timeout ou elapsed time. TIME0 testa as regras de design, mas não
 mede um clock nem implementa scheduler ou timer.
 
+### 1.24 Evidência SDM0: matriz de diagnostics e resultado semântico
+
+SDM0 avança a prova de design pedida em DESIGN §24.4. A matriz host em
+`tooling/semantic-diagnostic-matrix-cases.json` deriva records de eventos
+estruturados. Ela não repete expectativas como resultado de uma máquina W.
+
+O corpus source S0 mantém 132 casos, com 66 positivos e 66 negativos. Cada
+regra source usada no corpus exige um positivo, uma inversão negativa única,
+`rule` igual, `failureField` exato e um diagnostic catalogado. W-785 e W-788
+possuem pares source reais. W-791 e os contratos D0/S0 meta usam o corpus host.
+
+A máquina SDM0 comprova estas dimensões:
+
+- sete campos de `SemanticResult` e sete campos de `CheckerContext` derivados;
+- entry, continue, back-edge e break em fixed point, com widening monotônico;
+- interface AST→HIR única, schema `w-ast-hir-s0` versão 1 e domains que só
+  acrescentam facts;
+- records D0 com spans UTF-8 half-open, fases e catálogo fechados, facts sem
+  segredos, fixes com digest e prova, causalidade, poison, ordenação e limite;
+- política sem demotion de errors e sem supressão source, boundary lex/parse,
+  namespace, profiles, facts de parse e cobertura por decisão.
+
+Os testes host alteram graph edge, contexto implícito, back-edge inseguro,
+schema de backend, fact secreto, fix stale ou sobreposto, poison cascade,
+ordenação, truncation, demotion, namespace, profile e boundary UTF-8. Os
+O source Last Light é um assay de expected-use, owner/effect/control e loop;
+CheckerContext completo continua uma interface interna coberta somente pela
+matriz host. Os checks cobrem o corpus SDM0 regenerado. As contagens de casos, outcomes,
+decisões e mutações ficam no índice gerado. O status continua
+`design-oracle-input`. Nenhuma execução de
+checker, compiler, formatter, runtime ou provider é alegada.
+
+No limite D0, `limit` conta apenas roots normais preservados; o sentinel
+`W-DIAGNOSTIC-0001` é sempre o último record e `facts.emitted` conta somente
+esses roots preservados.
+
+### 1.25 Evidência FZ0 de frontend
+
+FZ0 fecha o primeiro ciclo de ratificação uniforme para source, CST/formatter e
+diagnostics. O corpus único em `tooling/frontend-freeze-cases.json` tem seis
+famílias normalizadas, G0–G5, e o snapshot é derivado pelo checker, não escrito
+por uma segunda tabela. Cada família aponta para um arquivo real de
+`reference/last-light/`, com digest SHA-256 e símbolo que ocorre uma vez. O
+checker faz parse do arquivo e rejeita recovery; para cada família ele também
+faz parse independente dos F0 input/output, rejeita recovery, compara a CST
+nomeada e verifica a forma canônica de bytes (LF, indentação, limite de linha e
+newline final). Esses F0 pares são oracles byte/CST. O checker não chama nem
+simula um formatter.
+
+As evidências adversariais têm três formas separadas. A mutação syntax-invalid
+remove um token de um F0 e exige recovery mais um D0 `source.parse` com facts
+exatos. A inversão syntax-valid usa um par S0 positivo/negativo com a mesma
+regra, baseline, `failureField`, digest do valor de baseline e um único D0
+catalogado com os `requiredFacts` do catálogo; ela cobre parâmetros de valor
+genéricos, captures `<[...]>`, quatro formas de execução e o slot contextual de
+allocator. O waiver de source só
+aparece para a entrada implícita de script: PYN1 fornece as rejeições de ordem,
+mistura explícita/implícita e import de raiz, com motivo registrado porque não
+há uma inversão S0 genuína para esse contrato de workflow. Labels opcionais e
+as formas named/anonymous do allocator ficam nos pares F0, e os markers exigem
+que a mesma construção apareça na fonte Última Luz e na evidência positiva.
+Esse D0 é um registro de waiver: sua phase, `failureField`, `waiver` flag e
+lista de outcomes ligam cada rejeição PYN1 ao código e à razão correspondentes;
+ele não é output de um compiler nem substitui um par S0.
+
+O Restaurante no Fim do Universo fornece os seis witnesses reais (`semantic_matrix.w`,
+`horizon_script.w`, `generics.w`, `command.w`, `execution.w` e `allocation.w`).
+O checker rejeita refs missing, stale ou duplicadas, pares expected-echo e
+decisões que não sejam exercitadas pelo F0/S0 ligado; o snapshot atual registra
+21 decisões, uma mutação syntax-invalid, quatro inversões S0 e um waiver. A
+separação entre recovery estrutural e diagnóstico exato segue a descrição do
+Recovery AST e da verificação `-verify` no
+[Clang Internals Manual](https://clang.llvm.org/docs/InternalsManual.html#recovery-ast),
+que preserva estrutura e localizações sem prometer semântica. A exigência de
+snapshot sem diagnostics extras também é compatível com o fluxo de UI tests do
+[rustc Dev Guide](https://rustc-dev-guide.rust-lang.org/tests/ui.html); nenhuma
+dessas fontes é surface copiada para W.
+
+### 1.26 Evidência BRX0 de expressividade de borrow de ordem superior
+
+BRX0 audita o limite de provenance para resultados borrowed sem introduzir
+nomes de lifetime no source. O source fixture parseável
+[`reference/last-light/borrow_expressivity.w`](reference/last-light/borrow_expressivity.w)
+usa Last Light como produto real. A máquina host
+[`tooling/borrow-expressivity-machine.mjs`](tooling/borrow-expressivity-machine.mjs)
+deriva mappings e edges de `inputs`, `results`, `bodyTrace`, `problemTrace` e
+pares estruturados; ela não lê um mapping esperado para decidir o resultado.
+
+O corpus
+[`tooling/borrow-expressivity-cases.json`](tooling/borrow-expressivity-cases.json)
+tem 22 casos: 15 mappings aceitos, sete blockers Research e quatro negativos
+de invocation. O snapshot
+[`tooling/borrow-expressivity-results.snapshot.jsonl`](tooling/borrow-expressivity-results.snapshot.jsonl)
+é escrito pelo checker
+[`tooling/check-borrow-expressivity-cases.mjs`](tooling/check-borrow-expressivity-cases.mjs)
+e registra mappings, OriginSets deduplicados, edges individuais, diagnostics,
+artefatos e digest do componente de mapping. Os testes host independentes em
+[`tooling/borrow-expressivity-reference.test.mjs`](tooling/borrow-expressivity-reference.test.mjs)
+passam sete grupos adversariais.
+
+O resultado é uma decisão B restrita, não uma mudança de grammar. A1 fecha
+member requirement quando o receiver é a única origem compatível; body-derived
+free mapping fecha quando o body fornece a origem exata; callable cria loan
+fresh por invocation e liga o resultado ao último uso, sem deixar edge
+persistent entre calls; `any fn` conserva o mapping e rejeita somente escape
+dinâmico. Stream `next` bloqueia enquanto uma view live conflita com storage
+reutilizado e permite o próximo item depois do fim da view. Factory de
+`map`/`filter` move source para um adapter owner; o `next` do adapter é a
+operação receiver-shaped, e o trace host deriva união/transitividade de
+OriginSet para o item.
+
+A2 permanece deliberadamente conservador: free ou protocol requirement
+bodyless com `primary` e `fallback` publica ambos os inputs compatíveis, mesmo
+quando o problem trace exige somente `primary`. O fallback pode morrer, mas o
+default vigente não pode provar isso. B1 (pares relacionais no schema) fecha
+esse exemplo no oracle de Research; B2 (sum/aggregate nominal) é uma mudança
+de API e não preserva o resultado borrowed direto. O corpus injeta mapping
+missing, stale, duplicate (result e source) e forged, além de witness,
+implementation, `interface.lock` e mapping-component digest divergentes.
+
+Os precedentes externos servem somente como limite comparativo. O
+[Rust Reference, associated items](https://doc.rust-lang.org/stable/reference/items/associated-items.html)
+usa GAT para o padrão `LendingIterator`, porque o tipo do item varia com o
+borrow do receiver; BRX0 não copia essa syntax. O
+[Swift SE-0456](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0456-stdlib-span-properties.md)
+fecha o caso estreito de property/member `Span` por dependency inferida do
+callee, mas mantém relações gerais dependentes de anotações explícitas. Isso
+apoia A1 sem provar uma solução para A2; a comparação não é uma decisão de
+compatibilidade ou de implementação de W.
+
+O estudo R1 em
+[`tooling/studies/r1-borrow-expressivity`](tooling/studies/r1-borrow-expressivity)
+separa baseline, aggregate e witness de relation schema. A evidência atual é
+parse Tree-sitter e oracle host; compile, run, estudo humano e estudo de modelo
+continuam missing. BRX0 não implementa compiler, runtime ou provider e não
+publica lifetime metadata em runtime. A decisão fica Research até Sol autorizar
+um mecanismo relacional mínimo ou uma composição nominal que preserve o
+contrato, sem promover syntax normativa.
+
+### 1.27 CAP0 — matriz de capacidades por problema
+
+CAP0 é uma fonte editorial de staging para guias futuros. Ele não é um
+contrato adicional em `DESIGN.md`. A matriz estruturada está em
+[`tooling/capability-matrix-cases.json`](tooling/capability-matrix-cases.json).
+O pacote de estudo está em
+[`tooling/studies/cap0-capability-matrix`](tooling/studies/cap0-capability-matrix).
+O estudo usa os oito eixos pedidos: BRX0, ATOM0, GEN0, SYN0, CYC0, IPC0,
+SRV0 e DYN0.
+
+O método começa pelo mesmo problema operacional. A comparação registra um
+mecanismo estrangeiro somente depois de descrever esse problema. C, Rust e
+Python entram por fontes primárias oficiais. A matriz não registra maturidade,
+popularidade, comunidade, downloads ou cópia de feature.
+
+As fontes primárias centrais são o
+[draft C23 N3096](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf),
+o [Rust Reference](https://doc.rust-lang.org/stable/reference/items/associated-items.html),
+o [Python Language Reference](https://docs.python.org/3/reference/expressions.html#yield-expressions),
+e as APIs oficiais de [Python eval/exec](https://docs.python.org/3/library/functions.html#eval),
+[POSIX shm_open](https://pubs.opengroup.org/onlinepubs/9699919799/functions/shm_open.html)
+e [POSIX mmap](https://pubs.opengroup.org/onlinepubs/9699919799/functions/mmap.html).
+Os refs específicos incluem [Rust atomics](https://doc.rust-lang.org/std/sync/atomic/),
+[await](https://doc.rust-lang.org/reference/expressions/await-expr.html),
+[macros](https://doc.rust-lang.org/reference/macros.html),
+[Python class creation](https://docs.python.org/3/reference/datamodel.html#customizing-class-creation),
+[Python shared memory](https://docs.python.org/3/library/multiprocessing.shared_memory.html),
+[POSIX waitpid](https://pubs.opengroup.org/onlinepubs/9699919799/functions/waitpid.html)
+e [sigaction](https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html).
+
+Cada eixo tenta primeiro a composição W vigente. A tentativa usa Last Light
+como cenário concreto e aponta para símbolos reais. A matriz separa três
+dimensões de design:
+
+- `languageDesign` registra o que a forma da linguagem consegue expressar para
+  o mesmo problema;
+- `stdDesign` registra o que a superfície projetada da std cobre para esse
+  problema;
+- `userDefinableInDesign` registra o que uma abstração segura de usuário pode
+  definir para esse problema no design atual.
+
+As justificativas ficam dentro de cada nível. Elas não rebaixam o problema por
+causa de uma extensão Research ou de um mecanismo estrangeiro rejeitado. Os
+componentes da tentativa W têm IDs estáveis; subcapacidades componíveis apontam
+para esses IDs, e subcapacidades Research apontam para o gate e para a evidência
+Last Light que bloqueiam o problema.
+
+Esses campos não alegam compiler, runtime, provider ou standard-library
+implementation. O campo `evidence` mantém essa fronteira explícita.
+
+A `rota` é derivada por
+[`tooling/capability-matrix-machine.mjs`](tooling/capability-matrix-machine.mjs)
+a partir das subcapacidades com `scope`/`role` `problem`, `extension` ou
+`foreign-mechanism`. Cada subcapability Research aponta para um
+`nextStudyGate.kind: design`; gates `kind: evidence` guardam somente prova de
+provider ou execução. A classificação da rota usa somente as subcapacidades do
+problema; uma extensão Research ou um mecanismo estrangeiro rejeitado não
+rebaixa uma rota componível. `exactGap` descreve apenas o residual do problema
+e se alinha à rota. O checker rejeita rota forjada; não aceita um campo de fatos
+que apenas repita a classificação. A matriz escalar não colapsa
+subcapacidades mistas: um problema pode ser componível enquanto uma primitive
+estreita permanece Research ou um mecanismo estrangeiro permanece rejeitado.
+O estudo também rejeita refs locais ausentes ou stale, refs duplicadas na mesma
+lista, campos de maturidade, feature-copying e claims de implementação.
+
+Os resultados atuais são estes:
+
+| Eixo | Rota do problema | Limite deliberado |
+|---|---|---|
+| BRX0 | Pesquisa | Relação bodyless entre inputs independentes continua sem lifetime syntax. |
+| ATOM0 | Componível | Wrapper sobre atomics existentes compõe. Autor de nova primitive atomic ou reclamation exige subestudo de target e lowering confiável. |
+| GEN0 | Componível | Stream, canais e tasks cobrem produção. Frame bidirecional customizado, scheduler ou poll exige subestudo próprio. |
+| SYN0 | Componível | Synthesis compiler-owned e transform hermético cobrem artefatos. Introdução de declarations em processo exige subestudo de provenance, diagnostics e interface. |
+| CYC0 | Componível | Weak edge, owner e drain fecham o grafo. Collector transparente não entra no core. |
+| IPC0 | Pesquisa | Snapshot e IPC tipado compõem. Mapped bytes exigem layout, atomics, crash e capability contract. |
+| SRV0 | Vigente | Services, faults, generations e recovery actions formam o design. Journal e crash provider são gates de evidência. |
+| DYN0 | Componível | Dados, plugins tipados, generations, REPL e transforms atendem hot change. Eval e active-frame patching são rejeitados como mecanismos. |
+
+Assim, DYN0 não classifica o problema inteiro como rejeitado. O problema
+compõe com gerações tipadas. Somente o mecanismo de eval arbitrário recebe
+`foreignMechanismDisposition: intentionally-rejected`. O mesmo cuidado vale
+para CYC0, GEN0 e ATOM0. A matriz não converte um mecanismo estrangeiro em um
+gap por feature.
+
+Cada eixo preserva move-first ownership, `ref`/`inout`/`shared` contextual,
+cleanup estruturado, domains e tasks, typed errors, fault boundaries,
+interface/ABI identity, artifacts reproduzíveis e ausência de authority
+ambiental. O campo `globalSimplification` procura uma regra única que reduza
+primitive, boundary ou lifecycle adicional. O bloco `documentation` mantém
+pergunta, audiência C/Rust/Python, três snippets curtos de pseudocódigo original
+ligados a fontes primárias, exemplo W como `source-ref` com digest, contraste
+pedagógico, when-to-use, target futuro único, `renderHint: paired` e
+`docsStatus: queued`. Os snippets explicam o mecanismo estrangeiro; não são
+citações nem sintaxe W. O W source-ref aponta para Last Light e não duplica
+source em snippet. O conteúdo é staging source para guias pós-freeze, não o
+Book final, sem duplicar a autoridade normativa de `DESIGN.md`.
+
+O snapshot
+[`tooling/capability-matrix-results.snapshot.jsonl`](tooling/capability-matrix-results.snapshot.jsonl)
+é gerado pelo checker. A versão corrente registra oito eixos, 15
+subcapacidades, 149 refs e oito alvos de documentação enfileirados. Os testes host em
+[`tooling/capability-matrix-reference.test.mjs`](tooling/capability-matrix-reference.test.mjs)
+cobrem rota forjada, cobertura adulterada, maturidade, refs missing/stale/
+duplicadas, snippets missing/long/duplicated e W snippet indevido, além de
+documentação ausente. Nenhum desses artefatos afirma compiler, runtime ou
+provider pronto.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
@@ -5159,46 +5405,6 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1320 | R1 escopo de Arena (retired) | estudo histórico compara Arena; ASC0 escolhe bloco lexical allocator, ledger de drops, `rehome` antes da fronteira, escape proibido e cleanup automático | Arena como source surface, escape unchecked, bulk release antes de drop W, ou alocação OS |
 | W-1321 | R1 slot runtime de allocator | `Array<String>(allocator: memory)` preserva capability e origin; `using:` permanece label local livre; `allocator:` é control argument reservado em construction expressions quando o contrato publica allocation sites; mobility é derivada | capability no type identity ou comptime, inferência por texto `using:`, `Allocator<(.crossDomain)>` source-visible, failure tardia ou origin omitida |
 | W-1322 | métricas e fechamento R1H0 | variantes preservam casos e traces quando a forma é genuína ou explicitamente modelada como candidata; selected continua baseline current; métricas não afirmam estudo humano ou de modelo | contar bundles como implementação, promover oracle a runtime, ou declarar ratificação |
-
-Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
-grammar, o formatter, o corpus e a seção semântica correspondente.
-
-### 1.24 Evidência SDM0: matriz de diagnostics e resultado semântico
-
-SDM0 avança a prova de design pedida em DESIGN §24.4. A matriz host em
-`tooling/semantic-diagnostic-matrix-cases.json` deriva records de eventos
-estruturados. Ela não repete expectativas como resultado de uma máquina W.
-
-O corpus source S0 mantém 132 casos, com 66 positivos e 66 negativos. Cada
-regra source usada no corpus exige um positivo, uma inversão negativa única,
-`rule` igual, `failureField` exato e um diagnostic catalogado. W-785 e W-788
-possuem pares source reais. W-791 e os contratos D0/S0 meta usam o corpus host.
-
-A máquina SDM0 comprova estas dimensões:
-
-- sete campos de `SemanticResult` e sete campos de `CheckerContext` derivados;
-- entry, continue, back-edge e break em fixed point, com widening monotônico;
-- interface AST→HIR única, schema `w-ast-hir-s0` versão 1 e domains que só
-  acrescentam facts;
-- records D0 com spans UTF-8 half-open, fases e catálogo fechados, facts sem
-  segredos, fixes com digest e prova, causalidade, poison, ordenação e limite;
-- política sem demotion de errors e sem supressão source, boundary lex/parse,
-  namespace, profiles, facts de parse e cobertura por decisão.
-
-Os testes host alteram graph edge, contexto implícito, back-edge inseguro,
-schema de backend, fact secreto, fix stale ou sobreposto, poison cascade,
-ordenação, truncation, demotion, namespace, profile e boundary UTF-8. Os
-O source Last Light é um assay de expected-use, owner/effect/control e loop;
-CheckerContext completo continua uma interface interna coberta somente pela
-matriz host. Os checks cobrem o corpus SDM0 regenerado. As contagens de casos, outcomes,
-decisões e mutações ficam no índice gerado. O status continua
-`design-oracle-input`. Nenhuma execução de
-checker, compiler, formatter, runtime ou provider é alegada.
-
-No limite D0, `limit` conta apenas roots normais preservados; o sentinel
-`W-DIAGNOSTIC-0001` é sempre o último record e `facts.emitted` conta somente
-esses roots preservados.
-
 | W-1323 | SDM0 | derive S0/D0; pairs W-785/W-788; meta W-791..820 | echo, pair, backend, global, secret |
 | W-1324 | phases | DESIGN/catalog/machine share closed ordered set | missing phase, alias, drift, lifecycle |
 | W-1325 | ASC0 memory transition evidence | M1 covers contextual weak transitions; four R1 host oracles cover weak acquisition, Arena problem matrix, allocator control-label reservation/mobility and suspend deadline outcomes; none executes compiler, runtime or provider | expected echo, provider execution, inferred label semantics, weak payload access |
@@ -5229,105 +5435,5 @@ esses roots preservados.
 | W-1350 | interface, callable, lifecycle e evidência | signature/HIR/ABI preservam slot; overload usa W-LABEL-0004, initializer usa W-ALLOCATOR-0011; callable/capture/lifecycle/explainability e status permanecem explícitos | default parameter, ABI oculto, capture ou rehome implícito, claims de implementação |
 | W-1351 | expressividade de borrow de ordem superior | BRX0 fecha receiver e body-derived mapping; callable cria loan por invocation, stream item fica preso ao receiver/storage e adapters preservam OriginSet; free/protocol bodyless com dois inputs permanece Research por causa do default all-inputs; relation schema e carrier nominal são candidatos, sem syntax de lifetime, GAT ou metadata runtime | copiar lifetime names de Rust, promover relation syntax, tratar aggregate como mesmo resultado, esconder mapping em `any fn`, ou alegar compiler/runtime/provider |
 
-### 1.25 Evidência FZ0 de frontend
-
-FZ0 fecha o primeiro ciclo de ratificação uniforme para source, CST/formatter e
-diagnostics. O corpus único em `tooling/frontend-freeze-cases.json` tem seis
-famílias normalizadas, G0–G5, e o snapshot é derivado pelo checker, não escrito
-por uma segunda tabela. Cada família aponta para um arquivo real de
-`reference/last-light/`, com digest SHA-256 e símbolo que ocorre uma vez. O
-checker faz parse do arquivo e rejeita recovery; para cada família ele também
-faz parse independente dos F0 input/output, rejeita recovery, compara a CST
-nomeada e verifica a forma canônica de bytes (LF, indentação, limite de linha e
-newline final). Esses F0 pares são oracles byte/CST. O checker não chama nem
-simula um formatter.
-
-As evidências adversariais têm três formas separadas. A mutação syntax-invalid
-remove um token de um F0 e exige recovery mais um D0 `source.parse` com facts
-exatos. A inversão syntax-valid usa um par S0 positivo/negativo com a mesma
-regra, baseline, `failureField`, digest do valor de baseline e um único D0
-catalogado com os `requiredFacts` do catálogo; ela cobre parâmetros de valor
-genéricos, captures `<[...]>`, quatro formas de execução e o slot contextual de
-allocator. O waiver de source só
-aparece para a entrada implícita de script: PYN1 fornece as rejeições de ordem,
-mistura explícita/implícita e import de raiz, com motivo registrado porque não
-há uma inversão S0 genuína para esse contrato de workflow. Labels opcionais e
-as formas named/anonymous do allocator ficam nos pares F0, e os markers exigem
-que a mesma construção apareça na fonte Última Luz e na evidência positiva.
-Esse D0 é um registro de waiver: sua phase, `failureField`, `waiver` flag e
-lista de outcomes ligam cada rejeição PYN1 ao código e à razão correspondentes;
-ele não é output de um compiler nem substitui um par S0.
-
-O Restaurante no Fim do Universo fornece os seis witnesses reais (`semantic_matrix.w`,
-`horizon_script.w`, `generics.w`, `command.w`, `execution.w` e `allocation.w`).
-O checker rejeita refs missing, stale ou duplicadas, pares expected-echo e
-decisões que não sejam exercitadas pelo F0/S0 ligado; o snapshot atual registra
-21 decisões, uma mutação syntax-invalid, quatro inversões S0 e um waiver. A
-separação entre recovery estrutural e diagnóstico exato segue a descrição do
-Recovery AST e da verificação `-verify` no
-[Clang Internals Manual](https://clang.llvm.org/docs/InternalsManual.html#recovery-ast),
-que preserva estrutura e localizações sem prometer semântica. A exigência de
-snapshot sem diagnostics extras também é compatível com o fluxo de UI tests do
-[rustc Dev Guide](https://rustc-dev-guide.rust-lang.org/tests/ui.html); nenhuma
-dessas fontes é surface copiada para W.
-
-### 1.26 Evidência BRX0 de expressividade de borrow de ordem superior
-
-BRX0 audita o limite de provenance para resultados borrowed sem introduzir
-nomes de lifetime no source. O source fixture parseável
-[`reference/last-light/borrow_expressivity.w`](reference/last-light/borrow_expressivity.w)
-usa Last Light como produto real. A máquina host
-[`tooling/borrow-expressivity-machine.mjs`](tooling/borrow-expressivity-machine.mjs)
-deriva mappings e edges de `inputs`, `results`, `bodyTrace`, `problemTrace` e
-pares estruturados; ela não lê um mapping esperado para decidir o resultado.
-
-O corpus
-[`tooling/borrow-expressivity-cases.json`](tooling/borrow-expressivity-cases.json)
-tem 22 casos: 15 mappings aceitos, sete blockers Research e quatro negativos
-de invocation. O snapshot
-[`tooling/borrow-expressivity-results.snapshot.jsonl`](tooling/borrow-expressivity-results.snapshot.jsonl)
-é escrito pelo checker
-[`tooling/check-borrow-expressivity-cases.mjs`](tooling/check-borrow-expressivity-cases.mjs)
-e registra mappings, OriginSets deduplicados, edges individuais, diagnostics,
-artefatos e digest do componente de mapping. Os testes host independentes em
-[`tooling/borrow-expressivity-reference.test.mjs`](tooling/borrow-expressivity-reference.test.mjs)
-passam sete grupos adversariais.
-
-O resultado é uma decisão B restrita, não uma mudança de grammar. A1 fecha
-member requirement quando o receiver é a única origem compatível; body-derived
-free mapping fecha quando o body fornece a origem exata; callable cria loan
-fresh por invocation e liga o resultado ao último uso, sem deixar edge
-persistent entre calls; `any fn` conserva o mapping e rejeita somente escape
-dinâmico. Stream `next` bloqueia enquanto uma view live conflita com storage
-reutilizado e permite o próximo item depois do fim da view. Factory de
-`map`/`filter` move source para um adapter owner; o `next` do adapter é a
-operação receiver-shaped, e o trace host deriva união/transitividade de
-OriginSet para o item.
-
-A2 permanece deliberadamente conservador: free ou protocol requirement
-bodyless com `primary` e `fallback` publica ambos os inputs compatíveis, mesmo
-quando o problem trace exige somente `primary`. O fallback pode morrer, mas o
-default vigente não pode provar isso. B1 (pares relacionais no schema) fecha
-esse exemplo no oracle de Research; B2 (sum/aggregate nominal) é uma mudança
-de API e não preserva o resultado borrowed direto. O corpus injeta mapping
-missing, stale, duplicate (result e source) e forged, além de witness,
-implementation, `interface.lock` e mapping-component digest divergentes.
-
-Os precedentes externos servem somente como limite comparativo. O
-[Rust Reference, associated items](https://doc.rust-lang.org/stable/reference/items/associated-items.html)
-usa GAT para o padrão `LendingIterator`, porque o tipo do item varia com o
-borrow do receiver; BRX0 não copia essa syntax. O
-[Swift SE-0456](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0456-stdlib-span-properties.md)
-fecha o caso estreito de property/member `Span` por dependency inferida do
-callee, mas mantém relações gerais dependentes de anotações explícitas. Isso
-apoia A1 sem provar uma solução para A2; a comparação não é uma decisão de
-compatibilidade ou de implementação de W.
-
-O estudo R1 em
-[`tooling/studies/r1-borrow-expressivity`](tooling/studies/r1-borrow-expressivity)
-separa baseline, aggregate e witness de relation schema. A evidência atual é
-parse Tree-sitter e oracle host; compile, run, estudo humano e estudo de modelo
-continuam missing. BRX0 não implementa compiler, runtime ou provider e não
-publica lifetime metadata em runtime. A decisão fica Research até Sol autorizar
-um mecanismo relacional mínimo ou uma composição nominal que preserve o
-contrato, sem promover syntax normativa.
+Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
+grammar, o formatter, o corpus e a seção semântica correspondente.

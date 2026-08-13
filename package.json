@@ -55,6 +55,7 @@
     "check:tabular-carrier": "bun test tooling/tabular-carrier-reference.test.mjs && bun tooling/check-tabular-carrier-cases.mjs",
     "check:tabular-adapters": "bun test tooling/tabular-adapter-reference.test.mjs && bun tooling/check-tabular-adapter-cases.mjs",
     "check:studies": "bun tooling/check-study-bundles.mjs && bun test tooling/studies && bun run --cwd tooling/tree-sitter-w parse:studies",
+    "check:capability-matrix": "bun tooling/check-capability-matrix.mjs && bun test tooling/capability-matrix-reference.test.mjs",
     "check:wmeta": "bun run --cwd tooling/tree-sitter-w check:wmeta",
     "measure:substitutions": "bun tooling/substitution-surface.mjs --write",
     "measure:std": "bun tooling/check-std-api-contracts.mjs --write",

@@ -1,0 +1,2805 @@
+{
+  "$schema": "w-capability-matrix-1",
+  "status": "design-oracle-input-cap0",
+  "id": "CAP0",
+  "title": "Capability gaps from common problems at the Last Light restaurant",
+  "method": {
+    "compare": "same-problem",
+    "languages": [
+      "c",
+      "rust",
+      "python"
+    ],
+    "forbid": [
+      "maturity",
+      "feature-copying",
+      "implementation-claims"
+    ],
+    "capabilityLevelsSemantics": "These levels describe only the same-problem design surface. They do not classify extensions or foreign mechanisms and do not claim compiler, runtime, provider, or standard-library implementation.",
+    "levels": [
+      "languageDesign",
+      "stdDesign",
+      "userDefinableInDesign"
+    ],
+    "levelRecordShape": "Each axis level is an object with status yes, partial, or no and a rationale for the same problem only."
+  },
+  "axes": [
+    {
+      "id": "BRX0",
+      "title": "Borrowed higher-order results",
+      "lastLight": {
+        "scenario": "The Last Light menu cursor maps and filters borrowed lines while a caller keeps the source owner live.",
+        "expectedUse": "A receiver or body-derived source closes the result relation. A bodyless primary/fallback requirement stays conservative.",
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/borrow_expressivity.w",
+            "symbol": "MenuCursor",
+            "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709",
+            "claim": "cursor protocol"
+          },
+          {
+            "path": "reference/last-light/borrow_expressivity.w",
+            "symbol": "selectPrimary",
+            "claim": "bodyless two-input requirement"
+          },
+          {
+            "path": "reference/last-light/borrow_expressivity.w",
+            "symbol": "nextMappedLine",
+            "claim": "suspending borrowed result"
+          }
+        ],
+        "canonicalSource": {
+          "path": "reference/last-light/borrow_expressivity.w",
+          "symbol": "MenuCursor",
+          "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709",
+          "claim": "cursor protocol"
+        }
+      },
+      "sameProblem": "Return a view from a generic or higher-order bodyless requirement when independent primary and fallback input places are both available.",
+      "globalSimplification": "Use one derived dependency relation for receiver, callable, and stream cases. Do not add lifetime syntax for a relation that existing facts can derive.",
+      "foreignMechanisms": {
+        "c": [
+          {
+            "problem": "Return a view tied to an input place.",
+            "mechanism": "Pointers and callback conventions carry the address, but the language does not prove the relation or owner validity.",
+            "operationalTradeoff": "The library must document lifetime and alias rules and can fail by undefined behavior.",
+            "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 pointer and function type baseline"
+              }
+            ]
+          }
+        ],
+        "rust": [
+          {
+            "problem": "Return a view tied to an input place.",
+            "mechanism": "Generic associated types express a LendingIterator item type parameterized by the borrow of self.",
+            "operationalTradeoff": "The relation is explicit in the trait contract and must satisfy lifetime bounds.",
+            "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/stable/reference/items/associated-items.html#generic-associated-types",
+                "claim": "GAT and LendingIterator example"
+              }
+            ]
+          }
+        ],
+        "python": [
+          {
+            "problem": "Return a view tied to an input place.",
+            "mechanism": "Generators retain local state and yield values through an iterator object.",
+            "operationalTradeoff": "The interpreter retains frames dynamically, without a static borrow relation for yielded views.",
+            "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/reference/expressions.html#yield-expressions",
+                "claim": "yield suspension and retained state"
+              }
+            ]
+          }
+        ]
+      },
+      "wCurrentComposition": {
+        "attempt": "Use ref, view, inout, receiver-shaped calls, callable invocation loans, stream adapters, and explicit owner boundaries.",
+        "components": [
+          {
+            "component": "receiver/member dependency",
+            "role": "derives one source from the receiver",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/borrow_expressivity.w",
+                "symbol": "selectFromCursor"
+              }
+            ],
+            "id": "receiver-dependency"
+          },
+          {
+            "component": "body-derived mapping",
+            "role": "derives exact source from the body trace",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/borrow_expressivity.w",
+                "symbol": "selectPrimary"
+              }
+            ],
+            "id": "body-derived"
+          },
+          {
+            "component": "stream adapter ownership",
+            "role": "keeps an adapter owner and a bounded item view",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/borrow_expressivity.w",
+                "symbol": "mapThenFilterBorrowedLines"
+              }
+            ],
+            "id": "stream-adapter"
+          },
+          {
+            "component": "structured suspension",
+            "role": "keeps the owner stable across await",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/borrow_expressivity.w",
+                "symbol": "nextMappedLine"
+              }
+            ],
+            "id": "structured-suspension"
+          }
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/borrow_expressivity.w",
+            "symbol": "callableBorrow",
+            "claim": "higher-order invocation"
+          }
+        ]
+      },
+      "exactGap": {
+        "kind": "research",
+        "description": "A bodyless free or protocol requirement with independent primary and fallback inputs needs a precise result-to-input relation.",
+        "boundary": "Do not add lifetime names, GAT syntax, or runtime lifetime metadata while the relation remains unproven.",
+        "notProposed": "A nominal aggregate changes the borrowed result API and does not close the direct relation."
+      },
+      "route": {
+        "classification": "research",
+        "rationale": "Current composition closes receiver and body-derived cases. The independent-input relation needs a bounded study."
+      },
+      "intentionalTradeoff": {
+        "choice": "Keep the all-inputs default for bodyless requirements.",
+        "reason": "Conservative provenance avoids a false proof when the declaration does not identify the source.",
+        "preserved": [
+          "borrow safety",
+          "call-site clarity",
+          "no runtime lifetime state"
+        ],
+        "rejected": [
+          "implicit relation inference from a problem trace",
+          "source lifetime labels"
+        ]
+      },
+      "compositionRisks": {
+        "memory": {
+          "risk": "A view can outlive storage or conflict with a reused cursor buffer.",
+          "mitigation": "Keep OriginSet and stream-item conflicts explicit."
+        },
+        "effects": {
+          "risk": "Suspension can extend a loan beyond a synchronous call.",
+          "mitigation": "Require stable owner facts across await."
+        },
+        "interfaces": {
+          "risk": "A protocol hides the source relation.",
+          "mitigation": "Keep bodyless requirements conservative and record the relation as research."
+        },
+        "concurrency": {
+          "risk": "Concurrent next calls can reuse storage.",
+          "mitigation": "Serialize conflicting cursor operations."
+        },
+        "ffi": {
+          "risk": "Foreign callbacks can return unproven views.",
+          "mitigation": "Require a bounded adapter contract and no hidden owner."
+        },
+        "tooling": {
+          "risk": "A mapping oracle could be mistaken for compiler evidence.",
+          "mitigation": "Separate host mappings from parse and runtime claims."
+        },
+        "lastLight": {
+          "risk": "Menu adapters may hide the source owner.",
+          "mitigation": "Use the cursor and adapter witnesses in the BRX0 corpus."
+        }
+      },
+      "preserveStrengths": [
+        "move-first and ref/inout ownership",
+        "structured cleanup and suspension",
+        "stable callable and interface identity",
+        "no ambient authority",
+        "call-side execution with structured cleanup and domains",
+        "move-first/ref/inout/shared contextual memory",
+        "typed errors and fault boundaries",
+        "reproducible artifacts and no ambient authority",
+        "interface and ABI identities"
+      ],
+      "capabilityLevels": {
+        "languageDesign": {
+          "status": "partial",
+          "rationale": "Receiver/body-derived views compose, but independent bodyless inputs remain conservative."
+        },
+        "stdDesign": {
+          "status": "partial",
+          "rationale": "Stream and adapter surfaces cover common views, not the independent relation."
+        },
+        "userDefinableInDesign": {
+          "status": "partial",
+          "rationale": "A user adapter can identify an owner, but cannot define an unproven relation for a bodyless requirement."
+        }
+      },
+      "capabilityLevelsBasis": "sameProblem",
+      "evidence": {
+        "current": [
+          "source-w",
+          "host-oracle",
+          "design-ledger"
+        ],
+        "missing": [
+          "w-compile",
+          "w-run",
+          "compiler-relation-check",
+          "provider"
+        ],
+        "sourceRefs": [
+          {
+            "path": "tooling/borrow-expressivity-machine.mjs",
+            "symbol": "evaluateBorrowCase",
+            "claim": "derived mapping oracle"
+          }
+        ]
+      },
+      "nextStudyGate": {
+        "gateId": "BRX0-R2",
+        "kind": "design",
+        "forSubcapability": "BRX0-independent-input",
+        "question": "Can a minimal relation record close independent inputs without lifetime syntax or aggregate API changes?",
+        "requiredEvidence": [
+          "two independent relation derivations",
+          "missing and forged mapping rejection",
+          "Last Light adapter witness"
+        ],
+        "stopCondition": "Reject the route if relation facts require runtime lifetime metadata or caller-provided ownership claims."
+      },
+      "documentation": {
+        "question": "How does W keep a borrowed result tied to its real source?",
+        "renderHint": "paired",
+        "wExample": {
+          "exampleKind": "source-ref",
+          "text": "The menu cursor and body trace derive the source relation without source lifetime names.",
+          "sourceRefs": [
+            {
+              "path": "reference/last-light/borrow_expressivity.w",
+              "symbol": "MenuCursor",
+              "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709",
+              "claim": "The menu cursor and body trace derive the source relation without source lifetime names."
+            }
+          ]
+        },
+        "teachingContrast": "Compare the common borrowed-result problem and explain why an unrelated fallback is not inferred.",
+        "whenToUse": "Use a receiver, body-derived mapping, or owned adapter when the result is a view.",
+        "documentationTarget": "guides/problems/borrowed-results",
+        "docsStatus": "queued",
+        "audienceTargets": [
+          "C",
+          "Rust",
+          "Python"
+        ],
+        "foreignExamples": {
+        "c": {
+          "exampleKind": "pseudocode",
+          "text": "C passes a view pointer and callback convention; the caller must preserve the source place.",
+          "snippet": "View pick(View primary, View fallback) {\n    return primary; /* caller keeps primary storage alive */\n}",
+          "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 pointer and function type baseline"
+              }
+            ]
+          },
+        "rust": {
+          "exampleKind": "pseudocode",
+          "text": "Rust names a LendingIterator item relation tied to the borrow of self.",
+          "snippet": "trait Pick {\n    type View<'a> where Self: 'a;\n    fn pick<'a>(&'a self, fallback: &'a [u8]) -> Self::View<'a>;\n}",
+          "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/stable/reference/items/associated-items.html#generic-associated-types",
+                "claim": "GAT and LendingIterator example"
+              }
+            ]
+          },
+        "python": {
+          "exampleKind": "pseudocode",
+          "text": "Python yields retained iterator values without a static borrowed-view relation.",
+          "snippet": "def pick(primary, fallback):\n    source = primary if primary else fallback\n    yield from source",
+          "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/reference/expressions.html#yield-expressions",
+                "claim": "yield suspension and retained state"
+              }
+            ]
+          }
+        }
+      },
+      "coverage": {
+        "currentContract": {
+          "status": "partial",
+          "description": "Receiver and body-derived borrowed results compose; independent bodyless inputs remain conservative."
+        },
+        "subcapabilities": [
+          {
+            "id": "BRX0-independent-input",
+            "scope": "problem",
+            "role": "problem",
+            "classification": "research",
+            "gateId": "BRX0-R2",
+            "problem": "bodyless borrowed result with independent primary and fallback inputs",
+            "description": "A precise result-to-input relation is still a research gap.",
+            "evidenceRefs": [
+              "selectPrimary",
+              "nextMappedLine"
+            ]
+          },
+          {
+            "id": "BRX0-body-derived",
+            "scope": "extension",
+            "role": "extension",
+            "classification": "composable",
+            "problem": "borrowed result derived from receiver or body",
+            "description": "The current relation closes the source when the call or body identifies it.",
+            "componentRefs": [
+              "receiver-dependency",
+              "body-derived"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ATOM0",
+      "title": "Low-level safe library extensibility and custom atomics",
+      "lastLight": {
+        "scenario": "The Last Light controller publishes telemetry epochs with atomics and exposes a narrow C bell callback boundary.",
+        "expectedUse": "A library can wrap atomic state, effects, and foreign resources without making raw pointers or memory order ambient.",
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/synchronization.w",
+            "symbol": "HorizonTelemetryEpoch",
+            "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+            "claim": "atomic publication and wait"
+          },
+          {
+            "path": "reference/last-light/memory.w",
+            "symbol": "watchClosingBell",
+            "claim": "pinned foreign callback lease"
+          },
+          {
+            "path": "reference/last-light/abi.w",
+            "symbol": "foreign c",
+            "claim": "explicit C boundary"
+          }
+        ],
+        "canonicalSource": {
+          "path": "reference/last-light/synchronization.w",
+          "symbol": "releaseTelemetryFence",
+          "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+          "claim": "typed publication and explicit fence"
+        }
+      },
+      "sameProblem": "Build reusable low-level components that expose safe operations while isolating representation, atomic ordering, and foreign resource cleanup.",
+      "globalSimplification": "Use one atomic-location contract and compose it with domains, locks, snapshots, and explicit FFI leases. Do not add a generic primitive for each target representation.",
+      "foreignMechanisms": {
+        "c": [
+          {
+            "problem": "Build reusable low-level components with atomic and foreign state.",
+            "mechanism": "C23 provides _Atomic objects, generic atomic functions, pointers, and implementation-defined library conventions.",
+            "operationalTradeoff": "The caller and library author must maintain representation, ordering, and lifetime invariants manually.",
+            "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 atomics and generic functions"
+              }
+            ]
+          }
+        ],
+        "rust": [
+          {
+            "problem": "Build reusable low-level components with atomic and foreign state.",
+            "mechanism": "The standard atomic module exposes typed orderings and operations, while unsafe and extern blocks isolate unchecked boundaries.",
+            "operationalTradeoff": "Safe wrappers can be user-defined, but their soundness depends on an unsafe proof and target contracts.",
+            "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/std/sync/atomic/",
+                "claim": "typed atomic operations"
+              },
+              {
+                "url": "https://doc.rust-lang.org/reference/items/external-blocks.html",
+                "claim": "extern boundary"
+              }
+            ]
+          }
+        ],
+        "python": [
+          {
+            "problem": "Build reusable low-level components with atomic and foreign state.",
+            "mechanism": "Multiprocessing provides synchronized shared ctypes and process objects, while native extensions provide lower-level interfaces.",
+            "operationalTradeoff": "The abstraction is runtime- and provider-dependent and does not provide a static ownership proof for custom atomics.",
+            "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/library/multiprocessing.html#sharing-state-between-processes",
+                "claim": "shared ctypes and synchronization"
+              }
+            ]
+          }
+        ]
+      },
+      "wCurrentComposition": {
+        "attempt": "Compose atomic storage, typed memory orders, domains, locks, protocols, unsafe blocks, and explicit ABI carriers.",
+        "components": [
+          {
+            "component": "atomic storage and order",
+            "role": "publishes state with checked order pairs",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/synchronization.w",
+                "symbol": "beginAnnouncement"
+              }
+            ],
+            "id": "atomic-storage"
+          },
+          {
+            "component": "domain execution",
+            "role": "moves mutable work to a serial domain",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/synchronization.w",
+                "symbol": "recordOnApologyDomain"
+              }
+            ],
+            "id": "domain-execution"
+          },
+          {
+            "component": "pinned FFI lease",
+            "role": "keeps callback state stable and unregisters it",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/memory.w",
+                "symbol": "BellLease"
+              }
+            ],
+            "id": "pinned-ffi-lease"
+          },
+          {
+            "component": "interface and ABI facts",
+            "role": "keeps foreign shape explicit",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/abi.w",
+                "symbol": "export foreign c"
+              }
+            ],
+            "id": "interface-abi"
+          }
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/synchronization.w",
+            "symbol": "releaseTelemetryFence",
+            "claim": "explicit unsafe fence"
+          }
+        ]
+      },
+      "exactGap": {
+        "kind": "none",
+        "description": "Existing atomic, domain, lock, snapshot, and lease contracts close the safe synchronization wrapper problem.",
+        "boundary": "Keep representation, ordering, and foreign cleanup explicit at the wrapper boundary."
+      },
+      "route": {
+        "classification": "composable",
+        "rationale": "The wrapper problem composes with existing synchronization contracts; new atomic representation and reclamation remain a research subcapability."
+      },
+      "intentionalTradeoff": {
+        "choice": "Keep atomic representation and physical progress outside user type identity.",
+        "reason": "A target can change lock-free support and cache layout without changing the logical value contract.",
+        "preserved": [
+          "typed order checking",
+          "explicit unsafe boundary",
+          "interface identity"
+        ],
+        "rejected": [
+          "universal lock-free promise",
+          "hidden cache isolation",
+          "raw pointer wrapper as safe by naming"
+        ]
+      },
+      "compositionRisks": {
+        "memory": {
+          "risk": "A wrapper can publish a value before its dependent state is visible.",
+          "mitigation": "Use explicit release/acquire edges and snapshot publication."
+        },
+        "effects": {
+          "risk": "A custom operation can hide blocking or failure.",
+          "mitigation": "Keep suspension and failure in the function contract."
+        },
+        "interfaces": {
+          "risk": "A safe wrapper can drift from its foreign carrier.",
+          "mitigation": "Pin ABI facts and provider digest at the boundary."
+        },
+        "concurrency": {
+          "risk": "A user algorithm can assume stronger progress than the target provides.",
+          "mitigation": "Record progress as a target fact and retain a lock/domain fallback."
+        },
+        "ffi": {
+          "risk": "Callback state can move or unregister too early.",
+          "mitigation": "Use pinning, owned leases, and drain before destroy."
+        },
+        "tooling": {
+          "risk": "Atomic order errors may be reported as generic type errors.",
+          "mitigation": "Keep order diagnostics and host mutation checks separate."
+        },
+        "lastLight": {
+          "risk": "Telemetry and bell callbacks can share state without a single owner.",
+          "mitigation": "Use HorizonTelemetryEpoch and BellLease as the concrete route."
+        }
+      },
+      "preserveStrengths": [
+        "typed effects and failures",
+        "structured cleanup",
+        "domain isolation",
+        "reproducible ABI and provider facts",
+        "no ambient authority",
+        "call-side execution with structured cleanup and domains",
+        "move-first/ref/inout/shared contextual memory",
+        "typed errors and fault boundaries",
+        "reproducible artifacts and no ambient authority",
+        "interface and ABI identities"
+      ],
+      "capabilityLevels": {
+        "languageDesign": {
+          "status": "yes",
+          "rationale": "The same-problem wrapper uses explicit atomic, domain, lock, and lease contracts."
+        },
+        "stdDesign": {
+          "status": "partial",
+          "rationale": "The designed synchronization surfaces cover wrappers, while target-specific primitive progress stays outside."
+        },
+        "userDefinableInDesign": {
+          "status": "yes",
+          "rationale": "A library author can compose a safe wrapper over existing W synchronization contracts."
+        }
+      },
+      "capabilityLevelsBasis": "sameProblem",
+      "evidence": {
+        "current": [
+          "source-w",
+          "host-oracle",
+          "design-ledger"
+        ],
+        "missing": [
+          "w-compile",
+          "w-run",
+          "target-lock-free-probe",
+          "provider"
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/synchronization.w",
+            "symbol": "HorizonTelemetryEpoch",
+            "claim": "current composition witness"
+          }
+        ]
+      },
+      "nextStudyGate": {
+        "gateId": "ATOM0-G1",
+        "kind": "design",
+        "forSubcapability": "ATOM0-new-primitive",
+        "question": "Can a package author define a new atomic representation or reclamation primitive while preserving ordering, target progress, and FFI cleanup facts?",
+        "requiredEvidence": [
+          "two target profiles for the new primitive",
+          "pointer-width and word-pair representation proof",
+          "reclamation and foreign callback drain",
+          "diagnostic and interface mutation set"
+        ],
+        "stopCondition": "Keep the wrapper route and reject the new primitive if representation, reclamation, or interface identity needs ambient authority."
+      },
+      "documentation": {
+        "question": "How can a safe W library wrap low-level atomic and foreign state?",
+        "renderHint": "paired",
+        "wExample": {
+          "exampleKind": "source-ref",
+          "text": "The telemetry contract pairs typed orderings with releaseTelemetryFence and a provider-independent state contract.",
+          "sourceRefs": [
+            {
+              "path": "reference/last-light/synchronization.w",
+              "symbol": "releaseTelemetryFence",
+              "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+              "claim": "The telemetry route uses an explicit release fence."
+            }
+          ]
+        },
+        "teachingContrast": "Separate logical atomic operations from target progress and FFI cleanup facts.",
+        "whenToUse": "Use atomic storage for one location, a domain for mutable state, and an explicit FFI lease for foreign resources.",
+        "documentationTarget": "guides/problems/safe-low-level-extensibility",
+        "docsStatus": "queued",
+        "audienceTargets": [
+          "C",
+          "Rust",
+          "Python"
+        ],
+        "foreignExamples": {
+        "c": {
+          "exampleKind": "pseudocode",
+          "text": "C23 _Atomic and generic atomic functions expose operations while representation and lifetime policy stay at the boundary.",
+          "snippet": "_Atomic unsigned epoch = 0;\natomic_store_explicit(&epoch, next, memory_order_release);",
+          "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 atomics and generic functions"
+              }
+            ]
+          },
+        "rust": {
+          "exampleKind": "pseudocode",
+          "text": "Rust atomic types and ordering APIs constrain operations, while custom reclamation remains a library contract.",
+          "snippet": "let epoch = AtomicU64::new(0);\nepoch.store(next, Ordering::Release);",
+          "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/std/sync/atomic/",
+                "claim": "typed atomic operations"
+              },
+              {
+                "url": "https://doc.rust-lang.org/reference/items/external-blocks.html",
+                "claim": "extern boundary"
+              }
+            ]
+          },
+        "python": {
+          "exampleKind": "pseudocode",
+          "text": "Python multiprocessing and shared-memory objects provide process coordination through runtime-managed handles.",
+          "snippet": "with lock:\n    shared.value = next_epoch",
+          "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/library/multiprocessing.html#sharing-state-between-processes",
+                "claim": "shared ctypes and synchronization"
+              }
+            ]
+          }
+        }
+      },
+      "coverage": {
+        "currentContract": {
+          "status": "partial",
+          "description": "Atomic, domain, lock, snapshot, and explicit FFI lease contracts cover application synchronization wrappers."
+        },
+        "subcapabilities": [
+          {
+            "id": "ATOM0-library-wrapper",
+            "scope": "problem",
+            "role": "problem",
+            "classification": "composable",
+            "problem": "safe application/library synchronization over existing atomic, domain, lock, snapshot, or lease contracts",
+            "description": "The Last Light telemetry wrapper is covered by existing W contracts.",
+            "componentRefs": [
+              "atomic-storage",
+              "domain-execution",
+              "pinned-ffi-lease",
+              "interface-abi"
+            ]
+          },
+          {
+            "id": "ATOM0-new-primitive",
+            "scope": "extension",
+            "role": "extension",
+            "classification": "research",
+            "gateId": "ATOM0-G1",
+            "problem": "library author defines a compiler-recognized atomic pointer, word-pair, or reclamation primitive",
+            "description": "New representation and reclamation need a bounded trusted-lowering study."
+          }
+        ]
+      }
+    },
+    {
+      "id": "GEN0",
+      "title": "Generators and custom suspension",
+      "lastLight": {
+        "scenario": "The Last Light kitchen streams bounded orders and parallel-maps work while preserving cancellation and cleanup.",
+        "expectedUse": "Streams, async functions, task domains, and bounded adapters cover production pull work. Bidirectional custom suspension remains a research question.",
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/streams.w",
+            "symbol": "inspectMenuLines",
+            "claim": "borrowed stream iteration"
+          },
+          {
+            "path": "reference/last-light/streams.w",
+            "symbol": "mixOrderStream",
+            "claim": "bounded parallel stream adapter"
+          },
+          {
+            "path": "reference/last-light/execution.w",
+            "symbol": "inferredSuspension",
+            "claim": "execution suspension contract"
+          }
+        ],
+        "canonicalSource": {
+          "path": "reference/last-light/streams.w",
+          "symbol": "inspectMenuLines",
+          "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14",
+          "claim": "bounded stream production"
+        }
+      },
+      "sameProblem": "Pause incremental computation and resume it later while retaining state, ownership, errors, and cancellation semantics.",
+      "globalSimplification": "Use one Stream and structured-task family for incremental work. Add a custom frame only when bounded channels and tasks fail a concrete case.",
+      "foreignMechanisms": {
+        "c": [
+          {
+            "problem": "Pause and resume incremental computation.",
+            "mechanism": "C libraries encode a state machine, callback, or manually managed frame.",
+            "operationalTradeoff": "The frame and cleanup protocol are library conventions with no language-level suspension contract.",
+            "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 function and object model baseline"
+              }
+            ]
+          }
+        ],
+        "rust": [
+          {
+            "problem": "Pause and resume incremental computation.",
+            "mechanism": "Rust async functions and await expressions suspend a typed Future computation.",
+            "operationalTradeoff": "The future state is typed, but custom poll protocols and pinning impose explicit contracts.",
+            "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/reference/expressions/await-expr.html",
+                "claim": "await suspension"
+              }
+            ]
+          }
+        ],
+        "python": [
+          {
+            "problem": "Pause and resume incremental computation.",
+            "mechanism": "yield creates a generator that retains locals, instruction position, evaluation stack, and exception state.",
+            "operationalTradeoff": "The runtime owns the frame and allows send/throw delegation without a static ownership relation.",
+            "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/reference/expressions.html#yield-expressions",
+                "claim": "generator frame retention and send/throw"
+              }
+            ]
+          }
+        ]
+      },
+      "wCurrentComposition": {
+        "attempt": "Compose async functions, Stream pull, two bounded channels for request/response, task groups, domains, cancellation, and explicit cleanup outcomes.",
+        "components": [
+          {
+            "component": "Stream pull",
+            "role": "represents one-directional incremental production",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/streams.w",
+                "symbol": "serveOneByOne"
+              }
+            ],
+            "id": "stream-pull"
+          },
+          {
+            "component": "parallel adapter",
+            "role": "bounds work and defines completion ordering",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/streams.w",
+                "symbol": "mixOrderStream"
+              }
+            ],
+            "id": "parallel-adapter"
+          },
+          {
+            "component": "dual bounded channels",
+            "role": "models bidirectional values and typed failures without a custom frame",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/streams.w",
+                "symbol": "runBoundedOrderWindow"
+              },
+              {
+                "path": "reference/last-light/streams.w",
+                "symbol": "handOffAtRendezvous"
+              }
+            ],
+            "id": "dual-channels"
+          },
+          {
+            "component": "task suspension",
+            "role": "retains structured task state across await",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/execution.w",
+                "symbol": "mixWithTrace"
+              }
+            ],
+            "id": "task-suspension"
+          },
+          {
+            "component": "cancellation",
+            "role": "returns typed control outcome and drains cleanup",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/execution.w",
+                "symbol": "cancellationResult"
+              }
+            ],
+            "id": "cancellation"
+          }
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/streams.w",
+            "symbol": "mirrorReadableBytes",
+            "claim": "structured tee and cleanup"
+          }
+        ]
+      },
+      "exactGap": {
+        "kind": "none",
+        "description": "Streams, channels, and structured tasks close the ordinary incremental production problem.",
+        "boundary": "Keep ownership, errors, cancellation, and cleanup explicit across task and stream boundaries."
+      },
+      "route": {
+        "classification": "composable",
+        "rationale": "Streams, channels, and structured tasks solve the Last Light production problem; only a custom frame or scheduler remains a research subcapability."
+      },
+      "intentionalTradeoff": {
+        "choice": "Prefer one-directional Stream and structured async suspension in the baseline.",
+        "reason": "These forms expose ownership, effects, cancellation, and cleanup at call boundaries.",
+        "preserved": [
+          "bounded backpressure",
+          "typed failure",
+          "structured cleanup"
+        ],
+        "rejected": [
+          "implicit coroutine frame ownership",
+          "unbounded generator send/throw protocol"
+        ]
+      },
+      "compositionRisks": {
+        "memory": {
+          "risk": "A suspended item can retain a buffer or owner too long.",
+          "mitigation": "Bound item views and close streams through owner edges."
+        },
+        "effects": {
+          "risk": "Custom suspension can hide failure and cancellation.",
+          "mitigation": "Keep await, throws, and cancellation in the signature."
+        },
+        "interfaces": {
+          "risk": "A generator protocol can make resume values part of an unstable ABI.",
+          "mitigation": "Keep the research witness non-normative."
+        },
+        "concurrency": {
+          "risk": "Concurrent resume can race one frame.",
+          "mitigation": "Use one structured owner or a channel boundary."
+        },
+        "ffi": {
+          "risk": "Foreign callbacks can resume after their lease closes.",
+          "mitigation": "Require registration ownership and drain."
+        },
+        "tooling": {
+          "risk": "Lowering state can be mistaken for a source feature.",
+          "mitigation": "Record frame facts only in an oracle."
+        },
+        "lastLight": {
+          "risk": "Parallel kitchen work can retain orders after cancellation.",
+          "mitigation": "Use bounded stream adapters and cleanup outcomes."
+        }
+      },
+      "preserveStrengths": [
+        "structured task tree",
+        "explicit cancellation",
+        "typed effects",
+        "bounded channels",
+        "reproducible source artifacts",
+        "call-side execution with structured cleanup and domains",
+        "move-first/ref/inout/shared contextual memory",
+        "typed errors and fault boundaries",
+        "reproducible artifacts and no ambient authority",
+        "interface and ABI identities"
+      ],
+      "capabilityLevels": {
+        "languageDesign": {
+          "status": "partial",
+          "rationale": "Tasks, streams, channels, errors, and cancellation express ordinary incremental production."
+        },
+        "stdDesign": {
+          "status": "yes",
+          "rationale": "Stream, Channel, task, and cancellation surfaces cover the Last Light producer."
+        },
+        "userDefinableInDesign": {
+          "status": "yes",
+          "rationale": "A user can define a typed producer or request/response adapter within those boundaries."
+        }
+      },
+      "capabilityLevelsBasis": "sameProblem",
+      "evidence": {
+        "current": [
+          "source-w",
+          "host-oracle",
+          "design-ledger"
+        ],
+        "missing": [
+          "w-compile",
+          "w-run",
+          "custom-suspension-probe",
+          "provider"
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/execution.w",
+            "symbol": "executionForms",
+            "claim": "execution form oracle"
+          }
+        ]
+      },
+      "nextStudyGate": {
+        "gateId": "GEN0-R1",
+        "kind": "design",
+        "forSubcapability": "GEN0-custom-frame",
+        "question": "Can a bounded bidirectional suspension protocol preserve ownership, effects, cancellation, and ABI identity?",
+        "requiredEvidence": [
+          "resume value and injected failure matrix",
+          "single-owner proof",
+          "two target lowerings",
+          "cleanup trace"
+        ],
+        "stopCondition": "Keep Stream and async composition if custom suspension adds hidden frame or cleanup state."
+      },
+      "documentation": {
+        "question": "When is a W Stream enough, and when would custom suspension need a new contract?",
+        "renderHint": "paired",
+        "wExample": {
+          "exampleKind": "source-ref",
+          "text": "The kitchen uses bounded Stream pull and parallelMap with explicit cancellation and cleanup.",
+          "sourceRefs": [
+            {
+              "path": "reference/last-light/streams.w",
+              "symbol": "mixOrderStream",
+              "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14",
+              "claim": "The kitchen uses bounded Stream pull and parallelMap with explicit cancellation and cleanup."
+            }
+          ]
+        },
+        "teachingContrast": "Contrast a retained generator frame with a W task and stream whose ownership and effects remain at the boundary.",
+        "whenToUse": "Use Stream for pull production and async task suspension for structured work.",
+        "documentationTarget": "guides/problems/incremental-suspension",
+        "docsStatus": "queued",
+        "audienceTargets": [
+          "C",
+          "Rust",
+          "Python"
+        ],
+        "foreignExamples": {
+        "c": {
+          "exampleKind": "pseudocode",
+          "text": "C writes an explicit state machine and callback or poll protocol for incremental production.",
+          "snippet": "if (state == READY) {\n    state = WAITING;\n    return item;\n}",
+          "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 function and object model baseline"
+              }
+            ]
+          },
+        "rust": {
+          "exampleKind": "pseudocode",
+          "text": "Rust async functions and await expressions retain suspended state through a typed Future protocol boundary.",
+          "snippet": "async fn next() -> Option<Item> {\n    await_ready().await;\n    pull().await\n}",
+          "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/reference/expressions/await-expr.html",
+                "claim": "await suspension"
+              }
+            ]
+          },
+        "python": {
+          "exampleKind": "pseudocode",
+          "text": "Python generators retain locals and resume at yield, including send and throw delegation.",
+          "snippet": "def next_item():\n    value = read()\n    yield value",
+          "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/reference/expressions.html#yield-expressions",
+                "claim": "generator frame retention and send/throw"
+              }
+            ]
+          }
+        }
+      },
+      "coverage": {
+        "currentContract": {
+          "status": "partial",
+          "description": "Streams, bounded channels, and structured tasks retain ownership and cleanup across ordinary production and suspension."
+        },
+        "subcapabilities": [
+          {
+            "id": "GEN0-incremental-production",
+            "scope": "problem",
+            "role": "problem",
+            "classification": "composable",
+            "problem": "pause and resume ordinary incremental production with ownership, errors, and cancellation",
+            "description": "Streams, channels, and structured tasks cover the kitchen request/response scenario.",
+            "componentRefs": [
+              "stream-pull",
+              "parallel-adapter",
+              "dual-channels",
+              "task-suspension",
+              "cancellation"
+            ]
+          },
+          {
+            "id": "GEN0-custom-frame",
+            "scope": "extension",
+            "role": "extension",
+            "classification": "research",
+            "gateId": "GEN0-R1",
+            "problem": "one custom bidirectional suspension frame with user scheduler or poll lowering",
+            "description": "This narrower frame protocol is a mechanism study, not a gap in ordinary production."
+          }
+        ]
+      }
+    },
+    {
+      "id": "SYN0",
+      "title": "Typed synthesis and metaprogramming",
+      "lastLight": {
+        "scenario": "The Last Light data path derives a closed telemetry schema and the menu compiler transforms typed input into a versioned artifact.",
+        "expectedUse": "Closed reflection, data synthesis, kernel synthesis, and build transforms remain typed and capability-scoped. Arbitrary source rewriting is not assumed.",
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/reflection.w",
+            "symbol": "ReservationKey",
+            "claim": "opt-in typed reflection"
+          },
+          {
+            "path": "reference/last-light/data_formats.w",
+            "symbol": "telemetrySchema",
+            "claim": "typed schema synthesis"
+          },
+          {
+            "path": "reference/last-light/packages/menu-compiler/transform.w",
+            "symbol": "transform",
+            "claim": "typed build transform"
+          }
+        ],
+        "canonicalSource": {
+          "path": "reference/last-light/packages/menu-compiler/transform.w",
+          "symbol": "maximumBytes",
+          "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744",
+          "claim": "hermetic typed transform"
+        }
+      },
+      "sameProblem": "Derive repetitive declarations or artifacts from typed inputs while preserving interface identity, diagnostics, and reproducible builds.",
+      "globalSimplification": "Use one typed source-to-artifact path with compiler-owned synthesis and hermetic transforms before adding a user phase.",
+      "foreignMechanisms": {
+        "c": [
+          {
+            "problem": "Derive declarations or artifacts from typed inputs.",
+            "mechanism": "The C preprocessor transforms token sequences and _Generic selects expressions before ordinary type checking.",
+            "operationalTradeoff": "The generated text can escape the source type model and has separate diagnostic and build identity risks.",
+            "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 preprocessing and _Generic baseline"
+              }
+            ]
+          }
+        ],
+        "rust": [
+          {
+            "problem": "Derive declarations or artifacts from typed inputs.",
+            "mechanism": "Declarative and procedural macros expand source or token streams during compilation.",
+            "operationalTradeoff": "Expansion is powerful but adds phase, hygiene, dependency, and diagnostic boundaries.",
+            "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/reference/macros.html",
+                "claim": "macro invocation and expansion model"
+              }
+            ]
+          }
+        ],
+        "python": [
+          {
+            "problem": "Derive declarations or artifacts from typed inputs.",
+            "mechanism": "Runtime reflection and dynamic execution can construct or evaluate names and code.",
+            "operationalTradeoff": "The artifact and interface identity can depend on ambient runtime state.",
+            "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/library/functions.html#eval",
+                "claim": "dynamic expression evaluation warning"
+              }
+            ]
+          }
+        ]
+      },
+      "wCurrentComposition": {
+        "attempt": "Compose opt-in reflection, static records, closed data synthesis, compiler-owned kernel heads, and typed build transforms.",
+        "components": [
+          {
+            "component": "opt-in reflection",
+            "role": "exposes nominal type and visible property facts",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/reflection.w",
+                "symbol": "reflectedName"
+              }
+            ],
+            "id": "opt-in-reflection"
+          },
+          {
+            "component": "tabular synthesis",
+            "role": "derives a closed schema from a declared row",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/data_formats.w",
+                "symbol": "TabularTelemetryRow"
+              }
+            ],
+            "id": "tabular-synthesis"
+          },
+          {
+            "component": "kernel synthesis",
+            "role": "keeps specialization compiler-owned and finite",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/ai_harness.w",
+                "symbol": "lastLightKernels"
+              }
+            ],
+            "id": "kernel-synthesis"
+          },
+          {
+            "component": "build transform",
+            "role": "produces typed staged outputs and a manifest",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/packages/menu-compiler/transform.w",
+                "symbol": "transform"
+              }
+            ],
+            "id": "build-transform"
+          }
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/reflection.w",
+            "symbol": "ReservationKey",
+            "claim": "nominal reflection source"
+          }
+        ]
+      },
+      "exactGap": {
+        "kind": "none",
+        "description": "Compiler-owned synthesis and hermetic transforms close the typed artifact derivation problem.",
+        "boundary": "Keep inputs, diagnostics, interface identity, and artifacts within a typed hermetic boundary."
+      },
+      "route": {
+        "classification": "composable",
+        "rationale": "Compiler-owned synthesis and hermetic transforms solve typed artifact derivation; in-process declaration introduction remains a research subcapability."
+      },
+      "intentionalTradeoff": {
+        "choice": "Prefer typed records and compiler-owned synthesis over a universal macro language.",
+        "reason": "The generated interface, diagnostics, and artifact digest remain reviewable and reproducible.",
+        "preserved": [
+          "nominal interface identity",
+          "source provenance",
+          "capability admission",
+          "reproducible artifacts"
+        ],
+        "rejected": [
+          "ambient code generation",
+          "token-level source mutation"
+        ]
+      },
+      "compositionRisks": {
+        "memory": {
+          "risk": "Generated storage can change allocation and ownership without a source witness.",
+          "mitigation": "Require generated fields and allocation sites to remain typed and bounded."
+        },
+        "effects": {
+          "risk": "A synthesis phase can hide I/O or failure.",
+          "mitigation": "Make transform effects and outputs explicit in the build contract."
+        },
+        "interfaces": {
+          "risk": "Generated names can drift from a published interface.",
+          "mitigation": "Hash source, interface, recipe, and artifact separately."
+        },
+        "concurrency": {
+          "risk": "Parallel generation can make artifact order unstable.",
+          "mitigation": "Use canonical input and deterministic ordering."
+        },
+        "ffi": {
+          "risk": "Generated carriers can omit foreign layout facts.",
+          "mitigation": "Require ABI records and target evidence at the boundary."
+        },
+        "tooling": {
+          "risk": "Editor and compiler phases can disagree on generated source.",
+          "mitigation": "Keep one typed transform and a stable source map."
+        },
+        "lastLight": {
+          "risk": "The menu compiler could emit an action with an unproven resource.",
+          "mitigation": "Use the staged transform and manifest witness."
+        }
+      },
+      "preserveStrengths": [
+        "typed diagnostics",
+        "versioned packages",
+        "deterministic artifacts",
+        "explicit effects",
+        "interface and ABI identity",
+        "call-side execution with structured cleanup and domains",
+        "move-first/ref/inout/shared contextual memory",
+        "typed errors and fault boundaries",
+        "reproducible artifacts and no ambient authority",
+        "interface and ABI identities"
+      ],
+      "capabilityLevels": {
+        "languageDesign": {
+          "status": "partial",
+          "rationale": "Compiler-owned synthesis and hermetic transforms express the closed typed artifact problem."
+        },
+        "stdDesign": {
+          "status": "partial",
+          "rationale": "WMeta, ConstIR-like inputs, and transform surfaces cover the staged artifact route."
+        },
+        "userDefinableInDesign": {
+          "status": "yes",
+          "rationale": "A package author can define a hermetic typed transform within this same-problem route; in-process declaration introduction is outside it."
+        }
+      },
+      "capabilityLevelsBasis": "sameProblem",
+      "evidence": {
+        "current": [
+          "source-w",
+          "host-oracle",
+          "design-ledger"
+        ],
+        "missing": [
+          "w-compile",
+          "w-run",
+          "phase-provenance-study",
+          "provider"
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/packages/menu-compiler/transform.w",
+            "symbol": "transform",
+            "claim": "typed transform oracle"
+          }
+        ]
+      },
+      "nextStudyGate": {
+        "gateId": "SYN0-R1",
+        "kind": "design",
+        "forSubcapability": "SYN0-in-process-declaration",
+        "question": "Can a restricted user synthesis phase preserve source maps, interface digests, effects, and deterministic artifacts?",
+        "requiredEvidence": [
+          "phase ordering",
+          "generated interface diff",
+          "failure and cancellation behavior",
+          "two target artifact comparison"
+        ],
+        "stopCondition": "Keep closed synthesis if a user phase needs ambient authority or unstable generated identity."
+      },
+      "documentation": {
+        "question": "How does W derive typed artifacts without ambient source rewriting?",
+        "renderHint": "paired",
+        "wExample": {
+          "exampleKind": "source-ref",
+          "text": "The hermetic menu transform bounds its typed input with maximumBytes before publishing the artifact.",
+          "sourceRefs": [
+            {
+              "path": "reference/last-light/packages/menu-compiler/transform.w",
+              "symbol": "maximumBytes",
+              "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744",
+              "claim": "The hermetic transform applies a byte limit before publishing the artifact."
+            }
+          ]
+        },
+        "teachingContrast": "Explain the difference between closed typed synthesis and arbitrary token or runtime code generation.",
+        "whenToUse": "Use reflection, data synthesis, or a typed build transform when the input and artifact contract are explicit.",
+        "documentationTarget": "guides/problems/typed-artifact-synthesis",
+        "docsStatus": "queued",
+        "audienceTargets": [
+          "C",
+          "Rust",
+          "Python"
+        ],
+        "foreignExamples": {
+        "c": {
+          "exampleKind": "pseudocode",
+          "text": "C preprocessing replaces token sequences and _Generic selects expressions before ordinary type checking; a separate build generator is outside the language.",
+          "snippet": "#define FIELD(T, x) T x\n#define PICK(x) _Generic((x), int: (x))",
+          "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 preprocessing and _Generic baseline"
+              }
+            ]
+          },
+        "rust": {
+          "exampleKind": "pseudocode",
+          "text": "Rust macros expand tokens in a compiler phase with a source and diagnostic boundary.",
+          "snippet": "macro_rules! field {\n    ($name:ident : $ty:ty) => { struct Row { $name: $ty } };\n}",
+          "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/reference/macros.html",
+                "claim": "macro invocation and expansion model"
+              }
+            ]
+          },
+        "python": {
+          "exampleKind": "pseudocode",
+          "text": "Python class construction hooks can derive declarations at runtime, while eval can execute source dynamically; identity and authority need an explicit boundary.",
+          "snippet": "class Row(metaclass=Builder):\n    total: int",
+          "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/reference/datamodel.html#customizing-class-creation",
+                "claim": "class creation hooks"
+              },
+              {
+                "url": "https://docs.python.org/3/library/functions.html#eval",
+                "claim": "dynamic expression evaluation warning"
+              }
+            ]
+          }
+        }
+      },
+      "coverage": {
+        "currentContract": {
+          "status": "partial",
+          "description": "Compiler-owned synthesis, ConstIR-like inputs, WMeta, and hermetic transforms cover typed Last Light artifacts."
+        },
+        "subcapabilities": [
+          {
+            "id": "SYN0-typed-artifact",
+            "scope": "problem",
+            "role": "problem",
+            "classification": "composable",
+            "problem": "derive typed artifacts or declarations through a compiler-owned or hermetic boundary",
+            "description": "Closed synthesis and the menu transform preserve typed identity and reproducible artifacts.",
+            "componentRefs": [
+              "opt-in-reflection",
+              "tabular-synthesis",
+              "kernel-synthesis",
+              "build-transform"
+            ]
+          },
+          {
+            "id": "SYN0-in-process-declaration",
+            "scope": "extension",
+            "role": "extension",
+            "classification": "research",
+            "gateId": "SYN0-R1",
+            "problem": "package author introduces typed declarations in-process with diagnostics and interface identity",
+            "description": "In-process declaration introduction needs a separate phase and identity study."
+          }
+        ]
+      }
+    },
+    {
+      "id": "CYC0",
+      "title": "Cyclic graph ownership and garbage collection",
+      "lastLight": {
+        "scenario": "The Last Light menu graph keeps parent links weak, children shared, and observer callbacks explicitly drained.",
+        "expectedUse": "Cycles with a known weak edge or service boundary compose. A transparent collector is not a baseline memory mechanism.",
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/memory.w",
+            "symbol": "MenuSection",
+            "claim": "weak parent and shared children"
+          },
+          {
+            "path": "reference/last-light/memory.w",
+            "symbol": "expectedSharedCycleDisposition",
+            "claim": "cycle classification oracle"
+          },
+          {
+            "path": "reference/last-light/memory.w",
+            "symbol": "MenuObserverHub",
+            "claim": "callback ownership"
+          }
+        ],
+        "canonicalSource": {
+          "path": "reference/last-light/memory.w",
+          "symbol": "installMenuObserver",
+          "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+          "claim": "weak callback ownership"
+        }
+      },
+      "sameProblem": "Represent a graph with back edges and reclaim resources without leaks, use-after-free, or hidden shutdown order.",
+      "globalSimplification": "Use one owner, weak-edge, and close model. Do not add a second collector lifecycle for graph-shaped data.",
+      "foreignMechanisms": {
+        "c": [
+          {
+            "problem": "Represent and reclaim a graph with back edges.",
+            "mechanism": "Raw pointers and manual destruction represent edges; cycle collection is a library or application policy.",
+            "operationalTradeoff": "The owner graph and release order are not inferred by the language.",
+            "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 pointer and storage baseline"
+              }
+            ]
+          }
+        ],
+        "rust": [
+          {
+            "problem": "Represent and reclaim a graph with back edges.",
+            "mechanism": "Rc and Weak provide reference-counted graph edges with explicit weak back references.",
+            "operationalTradeoff": "A strong cycle remains until an edge is weakened or a separate cycle policy breaks it.",
+            "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/std/rc/struct.Weak.html",
+                "claim": "weak reference cycle breaking"
+              }
+            ]
+          }
+        ],
+        "python": [
+          {
+            "problem": "Represent and reclaim a graph with back edges.",
+            "mechanism": "Reference counting is supplemented by an optional cyclic garbage collector with debugging and uncollectable states.",
+            "operationalTradeoff": "Collection timing and finalization are runtime policy, not a source ownership edge.",
+            "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/library/gc.html",
+                "claim": "cyclic garbage collector interface"
+              }
+            ]
+          }
+        ]
+      },
+      "wCurrentComposition": {
+        "attempt": "Compose shared and weak handles, lexical cleanup, service drain, callback leases, and explicit graph identity.",
+        "components": [
+          {
+            "component": "shared and weak handles",
+            "role": "separate payload ownership from back edges",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/memory.w",
+                "symbol": "weakUpgradeSuccess"
+              }
+            ],
+            "id": "shared-weak-handles"
+          },
+          {
+            "component": "cycle oracle",
+            "role": "classifies break-required and unbreakable cycles",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/memory.w",
+                "symbol": "expectedSharedCycleDisposition"
+              }
+            ],
+            "id": "cycle-oracle"
+          },
+          {
+            "component": "callback lease",
+            "role": "closes admission before destruction",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/memory.w",
+                "symbol": "watchClosingBell"
+              }
+            ],
+            "id": "callback-lease"
+          },
+          {
+            "component": "service drain",
+            "role": "waits for child work at a boundary",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/app.w",
+                "symbol": "shutdown"
+              }
+            ],
+            "id": "service-drain"
+          }
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/memory.w",
+            "symbol": "installMenuObserver",
+            "claim": "weak callback capture"
+          }
+        ]
+      },
+      "exactGap": {
+        "kind": "none",
+        "description": "Owner, weak, and drain or break boundaries close the explicit graph ownership problem.",
+        "boundary": "Keep the owner and drain or break boundary explicit."
+      },
+      "foreignMechanismDisposition": {
+        "classification": "intentionally-rejected",
+        "mechanisms": [
+          "transparent cyclic collector",
+          "hidden finalization order"
+        ],
+        "rationale": "A transparent collector would hide ownership, cleanup, and effect shutdown order from the caller."
+      },
+      "route": {
+        "classification": "composable",
+        "rationale": "Last Light cycles compose with weak edges, owner handles, and drain boundaries. The residual case is an explicit design failure, not a hidden collector."
+      },
+      "intentionalTradeoff": {
+        "choice": "Require an explicit weak edge or lifecycle break for cyclic ownership.",
+        "reason": "Resource cleanup order and external effects stay observable.",
+        "preserved": [
+          "deterministic cleanup",
+          "typed lifecycle",
+          "foreign lease safety"
+        ],
+        "rejected": [
+          "transparent GC in the core",
+          "finalizer ordering as a semantic guarantee"
+        ]
+      },
+      "compositionRisks": {
+        "memory": {
+          "risk": "Strong cycles can retain payloads indefinitely.",
+          "mitigation": "Use weak back edges and cycle disposition checks."
+        },
+        "effects": {
+          "risk": "Finalization can perform I/O or callback effects in an unknown order.",
+          "mitigation": "Move effects into explicit close and drain operations."
+        },
+        "interfaces": {
+          "risk": "A collector can hide ownership from a service interface.",
+          "mitigation": "Expose lifecycle and identity in the interface contract."
+        },
+        "concurrency": {
+          "risk": "Concurrent drops can race cycle classification.",
+          "mitigation": "Use atomic control blocks and structured service boundaries."
+        },
+        "ffi": {
+          "risk": "Foreign registrations can keep a cycle alive.",
+          "mitigation": "Unregister before destroy and require drain."
+        },
+        "tooling": {
+          "risk": "Leak diagnostics can become provider-specific.",
+          "mitigation": "Keep cycle states in an oracle with explicit outcomes."
+        },
+        "lastLight": {
+          "risk": "Observer hubs can retain the restaurant graph.",
+          "mitigation": "Use weak capture and the MenuObserverHub witness."
+        }
+      },
+      "preserveStrengths": [
+        "move-first ownership",
+        "weak acquisition facts",
+        "explicit cleanup",
+        "service recovery boundaries",
+        "no hidden runtime collector",
+        "call-side execution with structured cleanup and domains",
+        "move-first/ref/inout/shared contextual memory",
+        "typed errors and fault boundaries",
+        "reproducible artifacts and no ambient authority",
+        "interface and ABI identities"
+      ],
+      "capabilityLevels": {
+        "languageDesign": {
+          "status": "yes",
+          "rationale": "Owner, weak, shared, close, and drain forms express an explicit graph lifecycle."
+        },
+        "stdDesign": {
+          "status": "partial",
+          "rationale": "The projected memory and service surfaces cover explicit graph edges and drain."
+        },
+        "userDefinableInDesign": {
+          "status": "yes",
+          "rationale": "A user can define an owner graph with weak back edges and an explicit break or drain."
+        }
+      },
+      "capabilityLevelsBasis": "sameProblem",
+      "evidence": {
+        "current": [
+          "source-w",
+          "host-oracle",
+          "design-ledger"
+        ],
+        "missing": [
+          "w-compile",
+          "w-run",
+          "cycle-stress-provider",
+          "provider"
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/memory.w",
+            "symbol": "expectedSharedCycleDisposition",
+            "claim": "cycle oracle"
+          }
+        ]
+      },
+      "nextStudyGate": {
+        "gateId": "CYC0-G1",
+        "kind": "evidence",
+        "question": "Can owner and weak-edge facts classify all Last Light graph shutdowns without a collector?",
+        "requiredEvidence": [
+          "cycle admission matrix",
+          "foreign callback drain",
+          "service boundary crash trace",
+          "leak diagnostics"
+        ],
+        "stopCondition": "Research a new reclamation mechanism only when explicit weak and close composition cannot preserve cleanup."
+      },
+      "documentation": {
+        "question": "How does W close a graph with back edges without a transparent collector?",
+        "renderHint": "paired",
+        "wExample": {
+          "exampleKind": "source-ref",
+          "text": "MenuSection uses a weak parent edge and shared children, and the cycle oracle requires an explicit break or drain.",
+          "sourceRefs": [
+            {
+              "path": "reference/last-light/memory.w",
+              "symbol": "installMenuObserver",
+              "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+              "claim": "MenuSection uses a weak parent edge and shared children, and the cycle oracle requires an explicit break or drain."
+            }
+          ]
+        },
+        "teachingContrast": "Show the ownership edge that makes cleanup predictable, then show why an unbreakable strong cycle is not silently collected.",
+        "whenToUse": "Use weak for back edges and an explicit service or close boundary for external effects.",
+        "documentationTarget": "guides/problems/cyclic-ownership",
+        "docsStatus": "queued",
+        "audienceTargets": [
+          "C",
+          "Rust",
+          "Python"
+        ],
+        "foreignExamples": {
+        "c": {
+          "exampleKind": "pseudocode",
+          "text": "C libraries pair raw pointers with explicit destroy or reference-count conventions for back edges.",
+          "snippet": "Node *parent = child->parent;\nchild->parent = NULL;\nfree(child);",
+          "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 pointer and storage baseline"
+              }
+            ]
+          },
+        "rust": {
+          "exampleKind": "pseudocode",
+          "text": "Rust uses Rc or Arc with Weak edges to make a cycle break explicit.",
+          "snippet": "let child = Rc::new(Node::new());\nlet parent = Rc::downgrade(&child);",
+          "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/std/rc/struct.Weak.html",
+                "claim": "weak reference cycle breaking"
+              }
+            ]
+          },
+        "python": {
+          "exampleKind": "pseudocode",
+          "text": "Python's cyclic collector finds unreachable objects while finalization remains runtime policy.",
+          "snippet": "a.peer = b\nb.peer = a\ngc.collect()",
+          "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/library/gc.html",
+                "claim": "cyclic garbage collector interface"
+              }
+            ]
+          }
+        }
+      },
+      "coverage": {
+        "currentContract": {
+          "status": "partial",
+          "description": "Owner handles, weak edges, shared children, and explicit drain boundaries model the Last Light graph."
+        },
+        "subcapabilities": [
+          {
+            "id": "CYC0-explicit-cycle",
+            "scope": "problem",
+            "role": "problem",
+            "classification": "composable",
+            "problem": "close a graph with explicit owner, weak edge, and drain or break boundary",
+            "description": "The Last Light graph composes with owner handles and explicit close/drain.",
+            "componentRefs": [
+              "shared-weak-handles",
+              "cycle-oracle",
+              "callback-lease",
+              "service-drain"
+            ]
+          },
+          {
+            "id": "CYC0-transparent-collector",
+            "scope": "foreign-mechanism",
+            "role": "foreign-mechanism",
+            "classification": "intentionally-rejected",
+            "problem": "transparent collection of unreachable cyclic objects",
+            "description": "A transparent collector would hide cleanup and finalization policy."
+          }
+        ]
+      }
+    },
+    {
+      "id": "IPC0",
+      "title": "Shared-memory IPC and memory mapping",
+      "lastLight": {
+        "scenario": "The Last Light telemetry path snapshots files, archives Parquet, hands typed rows through Arrow IPC, and imports a trusted C Data carrier.",
+        "expectedUse": "Portable snapshots and typed IPC compose today. A process-shared mapped region needs explicit layout, atomics, crash, and capability contracts.",
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/data_formats.w",
+            "symbol": "archiveParquet",
+            "claim": "bounded snapshot archive"
+          },
+          {
+            "path": "reference/last-light/data_formats.w",
+            "symbol": "handoffArrow",
+            "claim": "typed IPC handoff"
+          },
+          {
+            "path": "reference/last-light/data_formats.w",
+            "symbol": "importTrustedCArray",
+            "claim": "trusted C Data import"
+          },
+          {
+            "path": "reference/last-light/fs_oracle.w",
+            "symbol": "snapshotRecipe",
+            "claim": "stable file snapshot"
+          }
+        ],
+        "canonicalSource": {
+          "path": "reference/last-light/data_formats.w",
+          "symbol": "archiveParquet",
+          "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab",
+          "claim": "bounded snapshot archive"
+        }
+      },
+      "sameProblem": "Share the same backing bytes between processes through a mapped region without invalid pointers, torn values, stale mappings, or undeclared authority.",
+      "globalSimplification": "Use one explicit boundary family: snapshot or typed wire first, mapped bytes only after layout, atomic, crash, and capability facts are proven.",
+      "foreignMechanisms": {
+        "c": [
+          {
+            "problem": "Share data through a process-shared mapped region.",
+            "mechanism": "POSIX shm_open and mmap establish a named object and map bytes into a process address space.",
+            "provenance": "POSIX platform API; this is not a C-language capability.",
+            "operationalTradeoff": "The bytes, layout, synchronization, lifetime, and crash behavior remain application contracts.",
+            "sourceRefs": [
+              {
+                "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/shm_open.html",
+                "claim": "POSIX shared memory object"
+              },
+              {
+                "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/mmap.html",
+                "claim": "POSIX mapping"
+              }
+            ]
+          }
+        ],
+        "rust": [
+          {
+            "problem": "Share data through a process-shared mapped region.",
+            "mechanism": "Rust safe ownership covers process-local values; mapping and process-shared layout require an OS or FFI contract outside std ownership.",
+            "operationalTradeoff": "A mapped pointer is not a valid Rust reference in another address space without a typed representation and synchronization proof.",
+            "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/std/sync/struct.Arc.html",
+                "claim": "Arc is process-local shared ownership"
+              },
+              {
+                "url": "https://doc.rust-lang.org/reference/items/external-blocks.html",
+                "claim": "FFI boundary for mapping provider"
+              }
+            ]
+          }
+        ],
+        "python": [
+          {
+            "problem": "Share data through a process-shared mapped region.",
+            "mechanism": "multiprocessing.shared_memory attaches named volatile blocks and exposes close/unlink lifecycle operations.",
+            "operationalTradeoff": "The block is bytes with restricted values; process cleanup, tracker behavior, and synchronization remain runtime/provider concerns.",
+            "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/library/multiprocessing.shared_memory.html",
+                "claim": "named shared memory lifecycle"
+              }
+            ]
+          }
+        ]
+      },
+      "wCurrentComposition": {
+        "attempt": "Compose root-scoped filesystem, bounded snapshots, wWire/Arrow carriers, C Data adapters, atomics, and explicit service channels.",
+        "components": [
+          {
+            "component": "SnapshotByteSource",
+            "role": "materializes a stable bounded copy",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/fs_oracle.w",
+                "symbol": "snapshotRecipe"
+              }
+            ],
+            "id": "snapshot-byte-source"
+          },
+          {
+            "component": "typed Arrow handoff",
+            "role": "moves rows through an IPC carrier",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/data_formats.w",
+                "symbol": "handoffArrow"
+              }
+            ],
+            "id": "typed-arrow-handoff"
+          },
+          {
+            "component": "trusted C Data import",
+            "role": "checks an explicit foreign schema and ownership",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/data_formats.w",
+                "symbol": "importTrustedCArray"
+              }
+            ],
+            "id": "trusted-c-data"
+          },
+          {
+            "component": "atomic publication",
+            "role": "publishes generations within one process or declared provider",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/synchronization.w",
+                "symbol": "publish"
+              }
+            ],
+            "id": "atomic-publication"
+          }
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/data_formats.w",
+            "symbol": "TabularTelemetryRow",
+            "claim": "typed row carrier"
+          }
+        ]
+      },
+      "exactGap": {
+        "kind": "research",
+        "description": "W has no current safe contract for process-shared mmap bytes with relocatable typed layout, process-shared atomics, crash recovery, and capability lifetime.",
+        "boundary": "Do not treat shared T, a file snapshot, or an in-process atomic as IPC or mmap proof.",
+        "notProposed": "A raw mapped pointer or transparent shared-memory type with hidden process identity."
+      },
+      "route": {
+        "classification": "research",
+        "rationale": "Typed snapshots and IPC compose for Last Light. Mapped shared bytes need a provider and representation study with crash semantics."
+      },
+      "intentionalTradeoff": {
+        "choice": "Use explicit snapshots and carriers for portable boundaries.",
+        "reason": "Copy and schema validation make ownership, layout, and failure observable.",
+        "preserved": [
+          "typed boundary",
+          "bounded allocation",
+          "capability-scoped authority",
+          "reproducible bytes"
+        ],
+        "rejected": [
+          "shared T as IPC",
+          "raw pointer identity across processes",
+          "implicit mmap"
+        ]
+      },
+      "compositionRisks": {
+        "memory": {
+          "risk": "A mapped region can contain stale or torn values.",
+          "mitigation": "Require versioned layout, validation, and process-shared atomic facts."
+        },
+        "effects": {
+          "risk": "Unlink, crash, and remap can change availability.",
+          "mitigation": "Expose typed provider failures and recovery outcomes."
+        },
+        "interfaces": {
+          "risk": "Schema and layout can drift independently.",
+          "mitigation": "Pin interface, layout, and carrier digests."
+        },
+        "concurrency": {
+          "risk": "Two processes can mutate one region without a common order.",
+          "mitigation": "Require an IPC synchronization contract or use immutable snapshots."
+        },
+        "ffi": {
+          "risk": "A foreign map can outlive its authority or deallocator.",
+          "mitigation": "Use explicit lease, unmap, and destroy ownership."
+        },
+        "tooling": {
+          "risk": "Host memory tests can be mistaken for cross-process proof.",
+          "mitigation": "Separate host oracle, provider probe, and W execution evidence."
+        },
+        "lastLight": {
+          "risk": "Telemetry archive can be read while a writer publishes a new version.",
+          "mitigation": "Use SnapshotByteSource and Arrow handoff witnesses."
+        }
+      },
+      "preserveStrengths": [
+        "typed wire and ABI identities",
+        "bounded snapshots",
+        "explicit capability roots",
+        "typed errors",
+        "no pointer authority transfer",
+        "call-side execution with structured cleanup and domains",
+        "move-first/ref/inout/shared contextual memory",
+        "typed errors and fault boundaries",
+        "reproducible artifacts and no ambient authority",
+        "interface and ABI identities"
+      ],
+      "capabilityLevels": {
+        "languageDesign": {
+          "status": "partial",
+          "rationale": "Typed snapshots and boundaries express portable handoff, not process-shared mapped bytes."
+        },
+        "stdDesign": {
+          "status": "partial",
+          "rationale": "The designed data and IPC carriers do not define mapped process-shared atomics or crash recovery."
+        },
+        "userDefinableInDesign": {
+          "status": "partial",
+          "rationale": "A user can define typed IPC or a provider boundary, but not a safe mapped representation in W alone."
+        }
+      },
+      "capabilityLevelsBasis": "sameProblem",
+      "evidence": {
+        "current": [
+          "source-w",
+          "host-oracle",
+          "design-ledger"
+        ],
+        "missing": [
+          "w-compile",
+          "w-run",
+          "two-process-map-probe",
+          "provider"
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/data_formats.w",
+            "symbol": "handoffArrow",
+            "claim": "current typed IPC composition"
+          }
+        ]
+      },
+      "nextStudyGate": {
+        "gateId": "IPC0-R1",
+        "kind": "design",
+        "forSubcapability": "IPC0-mapped-bytes",
+        "question": "Can a relocatable typed mapped region specify layout, atomics, crash recovery, authority, and cleanup on two targets?",
+        "requiredEvidence": [
+          "two-process test",
+          "crash and remap trace",
+          "layout and ABI digest",
+          "capability close ordering"
+        ],
+        "stopCondition": "Use snapshots and wWire when a mapped region cannot prove process lifetime or layout."
+      },
+      "documentation": {
+        "question": "Why is W shared ownership not process-shared mmap?",
+        "renderHint": "paired",
+        "wExample": {
+          "exampleKind": "source-ref",
+          "text": "Last Light snapshots bytes and hands typed rows through Arrow IPC instead of sharing a raw pointer.",
+          "sourceRefs": [
+            {
+              "path": "reference/last-light/data_formats.w",
+              "symbol": "handoffArrow",
+              "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab",
+              "claim": "Last Light snapshots bytes and hands typed rows through Arrow IPC instead of sharing a raw pointer."
+            }
+          ]
+        },
+        "teachingContrast": "Separate bytes, typed validation, atomic publication, process lifetime, and crash recovery before considering a mapped carrier.",
+        "whenToUse": "Use snapshots or typed IPC for portable boundaries. Use a mapped provider only with an explicit layout and crash contract.",
+        "documentationTarget": "guides/problems/process-shared-data",
+        "docsStatus": "queued",
+        "audienceTargets": [
+          "C",
+          "Rust",
+          "Python"
+        ],
+        "foreignExamples": {
+        "c": {
+          "exampleKind": "pseudocode",
+          "text": "C/POSIX shm_open and mmap map bytes into process address spaces; layout, atomics, and crash policy remain platform contracts.",
+          "snippet": "int fd = shm_open(name, O_RDWR, 0600);\nvoid *p = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);",
+          "sourceRefs": [
+              {
+                "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/shm_open.html",
+                "claim": "POSIX shared memory object"
+              },
+              {
+                "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/mmap.html",
+                "claim": "POSIX mapping"
+              }
+            ]
+          },
+        "rust": {
+          "exampleKind": "pseudocode",
+          "text": "Rust Arc provides process-local shared ownership; mapped bytes and process-shared layout require an OS or FFI contract.",
+          "snippet": "let bytes = unsafe { map_region(fd, len)? };\nlet local = Arc::new(bytes);",
+          "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/std/sync/struct.Arc.html",
+                "claim": "Arc is process-local shared ownership"
+              },
+              {
+                "url": "https://doc.rust-lang.org/reference/items/external-blocks.html",
+                "claim": "FFI boundary for mapping provider"
+              }
+            ]
+          },
+        "python": {
+          "exampleKind": "pseudocode",
+          "text": "Python multiprocessing.shared_memory names a byte block; typed validation and process recovery are application contracts.",
+          "snippet": "from multiprocessing import shared_memory\nblock = shared_memory.SharedMemory(name=name)",
+          "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/library/multiprocessing.shared_memory.html",
+                "claim": "named shared memory lifecycle"
+              }
+            ]
+          }
+        }
+      },
+      "coverage": {
+        "currentContract": {
+          "status": "partial",
+          "description": "Typed snapshots and bounded IPC carry Last Light rows; they do not imply process-shared mapped bytes."
+        },
+        "subcapabilities": [
+          {
+            "id": "IPC0-mapped-bytes",
+            "scope": "problem",
+            "role": "problem",
+            "classification": "research",
+            "gateId": "IPC0-R1",
+            "problem": "process-shared mapped bytes with typed validation, atomic publication, process lifetime, and crash recovery",
+            "description": "A mapped carrier needs a provider and explicit layout and crash semantics.",
+            "evidenceRefs": [
+              "handoffArrow",
+              "archiveParquet"
+            ]
+          },
+          {
+            "id": "IPC0-typed-snapshot",
+            "scope": "extension",
+            "role": "extension",
+            "classification": "composable",
+            "problem": "portable typed data handoff",
+            "description": "Snapshots and typed IPC compose without sharing an address or ownership control block.",
+            "componentRefs": [
+              "snapshot-byte-source",
+              "typed-arrow-handoff",
+              "trusted-c-data",
+              "atomic-publication"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SRV0",
+      "title": "Fault supervision and recovery",
+      "lastLight": {
+        "scenario": "The Last Light order coordinator starts keyed work, reports progress, handles typed failures, and recovers only after durable mailbox and generation checks.",
+        "expectedUse": "Structured service turns, typed fault boundaries, idempotency, cancellation, and recovery actions compose. Journal and provider execution remain missing evidence.",
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/supervision.w",
+            "symbol": "orderCoordinators",
+            "claim": "keyed supervisor service"
+          },
+          {
+            "path": "reference/last-light/service_recovery_oracle.w",
+            "symbol": "serviceRecoveryAction",
+            "claim": "fault action oracle"
+          },
+          {
+            "path": "reference/last-light/service_recovery_oracle.w",
+            "symbol": "acceptsRecoveryCompletion",
+            "claim": "generation-gated completion"
+          }
+        ],
+        "canonicalSource": {
+          "path": "reference/last-light/supervision.w",
+          "symbol": "orderCoordinators",
+          "digest": "sha256:329069e4689ee57e05749e7463a5e6bcd2d378d97887a3af550eacc672dbe5f7",
+          "claim": "keyed supervisor service"
+        }
+      },
+      "sameProblem": "Run long-lived work that survives local faults, reports state, avoids duplicate effects, and recovers with an observable boundary.",
+      "globalSimplification": "Use one keyed service and recovery identity across turns, generations, mailbox records, and effects. Keep recovery separate from rollback.",
+      "foreignMechanisms": {
+        "c": [
+          {
+            "problem": "Run and recover long-lived work after faults.",
+            "mechanism": "C applications combine platform process and signal APIs, return codes, journals, and custom supervisor loops.",
+            "provenance": "C23 language baseline plus POSIX process/signal APIs.",
+            "operationalTradeoff": "The fault boundary and idempotency protocol are application conventions.",
+            "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 language baseline"
+              },
+              {
+                "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/waitpid.html",
+                "claim": "POSIX process wait"
+              },
+              {
+                "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html",
+                "claim": "POSIX signal action"
+              }
+            ]
+          }
+        ],
+        "rust": [
+          {
+            "problem": "Run and recover long-lived work after faults.",
+            "mechanism": "Result, panic isolation, and async task runtimes provide typed outcomes and task supervision building blocks.",
+            "operationalTradeoff": "Durable recovery and duplicate-effect control need an application or runtime protocol beyond a local Result.",
+            "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/std/panic/fn.catch_unwind.html",
+                "claim": "panic boundary"
+              },
+              {
+                "url": "https://doc.rust-lang.org/std/result/enum.Result.html",
+                "claim": "typed result"
+              }
+            ]
+          }
+        ],
+        "python": [
+          {
+            "problem": "Run and recover long-lived work after faults.",
+            "mechanism": "multiprocessing processes and pools report exceptions and can be restarted by a supervisor program.",
+            "operationalTradeoff": "Process identity, replay, and exactly-once effects require external state and policy.",
+            "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/library/multiprocessing.html",
+                "claim": "process and pool supervision building blocks"
+              }
+            ]
+          }
+        ]
+      },
+      "wCurrentComposition": {
+        "attempt": "Compose keyed services, structured work, typed service errors, idempotency keys, cancellation, mailbox generations, and explicit drain.",
+        "components": [
+          {
+            "component": "keyed service",
+            "role": "selects one supervisor instance per order",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/supervision.w",
+                "symbol": "orderCoordinators"
+              }
+            ],
+            "id": "keyed-service"
+          },
+          {
+            "component": "typed progress",
+            "role": "separates work state from domain stage",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/supervision.w",
+                "symbol": "FulfillmentSnapshot"
+              }
+            ],
+            "id": "typed-progress"
+          },
+          {
+            "component": "fault action oracle",
+            "role": "maps fault point and provider result to recovery action",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/service_recovery_oracle.w",
+                "symbol": "serviceRecoveryAction"
+              }
+            ],
+            "id": "fault-action"
+          },
+          {
+            "component": "generation gate",
+            "role": "rejects stale completion after restart",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/service_recovery_oracle.w",
+                "symbol": "acceptsRecoveryCompletion"
+              }
+            ],
+            "id": "generation-gate"
+          }
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/supervision.w",
+            "symbol": "fulfillOrder",
+            "claim": "typed cleanup and compensation"
+          }
+        ]
+      },
+      "exactGap": {
+        "kind": "none",
+        "description": "The typed supervisor and recovery contract closes the long-running effect problem.",
+        "boundary": "Keep fault, generation, and recovery boundaries observable; provider durability remains evidence-only."
+      },
+      "route": {
+        "classification": "current",
+        "rationale": "The Last Light fault model has a current language composition. Provider durability remains a separate evidence gate."
+      },
+      "intentionalTradeoff": {
+        "choice": "Separate service recovery from transaction rollback.",
+        "reason": "A crashed provider cannot promise undo of an external effect, so recovery records outcome and idempotency explicitly.",
+        "preserved": [
+          "typed faults",
+          "structured cleanup",
+          "generation identity",
+          "observable recovery"
+        ],
+        "rejected": [
+          "automatic rollback",
+          "retry without effect identity",
+          "global supervisor singleton"
+        ]
+      },
+      "compositionRisks": {
+        "memory": {
+          "risk": "A recovery mailbox can retain payloads after a terminal outcome.",
+          "mitigation": "Bound tickets and drain owners at the service boundary."
+        },
+        "effects": {
+          "risk": "A retry can duplicate payment or serving.",
+          "mitigation": "Require idempotency keys and typed compensation."
+        },
+        "interfaces": {
+          "risk": "A restarted instance can accept stale events.",
+          "mitigation": "Use keyed identity and generation receipts."
+        },
+        "concurrency": {
+          "risk": "Recovery and normal completion can race.",
+          "mitigation": "Use one terminal commit observation and admission close."
+        },
+        "ffi": {
+          "risk": "A provider can lose its external lease during recovery.",
+          "mitigation": "Model unknown outcome and explicit re-admission."
+        },
+        "tooling": {
+          "risk": "A state oracle can be mistaken for durable execution.",
+          "mitigation": "Keep journal and crash checks in the next gate."
+        },
+        "lastLight": {
+          "risk": "Billing can commit while dining fails.",
+          "mitigation": "Use fulfillOrder compensation and service recovery witnesses."
+        }
+      },
+      "preserveStrengths": [
+        "typed errors and fault boundaries",
+        "structured task cleanup",
+        "service interface identity",
+        "explicit capability admission",
+        "reproducible recovery records",
+        "call-side execution with structured cleanup and domains",
+        "move-first/ref/inout/shared contextual memory",
+        "reproducible artifacts and no ambient authority",
+        "interface and ABI identities"
+      ],
+      "capabilityLevels": {
+        "languageDesign": {
+          "status": "yes",
+          "rationale": "Typed faults, service turns, generations, cleanup, and recovery express the same problem."
+        },
+        "stdDesign": {
+          "status": "partial",
+          "rationale": "The designed service and recovery surfaces cover the contract; durability remains an evidence gate."
+        },
+        "userDefinableInDesign": {
+          "status": "yes",
+          "rationale": "A user can define a keyed supervisor and recovery action within typed boundaries."
+        }
+      },
+      "capabilityLevelsBasis": "sameProblem",
+      "evidence": {
+        "current": [
+          "source-w",
+          "host-oracle",
+          "design-ledger"
+        ],
+        "missing": [
+          "w-compile",
+          "w-run",
+          "durable-journal",
+          "crash-provider"
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/service_recovery_oracle.w",
+            "symbol": "mayStartRecoveryTurn",
+            "claim": "recovery admission oracle"
+          }
+        ]
+      },
+      "nextStudyGate": {
+        "gateId": "SRV0-G1",
+        "kind": "evidence",
+        "question": "Can a provider persist generation, mailbox, idempotency, and terminal outcome across a crash?",
+        "requiredEvidence": [
+          "journal adapter",
+          "crash injection",
+          "replay and duplicate-effect test",
+          "two provider profiles"
+        ],
+        "stopCondition": "Keep the language route unchanged when only provider durability is missing."
+      },
+      "documentation": {
+        "question": "How does W supervise a long-running effect without promising rollback?",
+        "renderHint": "paired",
+        "wExample": {
+          "exampleKind": "source-ref",
+          "text": "The order coordinator reports progress, gates events by generation, and compensates payment when serving fails.",
+          "sourceRefs": [
+            {
+              "path": "reference/last-light/supervision.w",
+              "symbol": "fulfillOrder",
+              "digest": "sha256:329069e4689ee57e05749e7463a5e6bcd2d378d97887a3af550eacc672dbe5f7",
+              "claim": "The order coordinator reports progress, gates events by generation, and compensates payment when serving fails."
+            }
+          ]
+        },
+        "teachingContrast": "Separate a typed local fault from a durable recovery turn and its idempotency record.",
+        "whenToUse": "Use a keyed service, structured work, and explicit recovery action for long-running effects.",
+        "documentationTarget": "guides/problems/fault-supervision",
+        "docsStatus": "queued",
+        "audienceTargets": [
+          "C",
+          "Rust",
+          "Python"
+        ],
+        "foreignExamples": {
+        "c": {
+          "exampleKind": "pseudocode",
+          "text": "C reports signals and wait status, so a supervisor must define cleanup, retry, and idempotency around effects.",
+          "snippet": "pid_t pid = waitpid(child, &status, 0);\nif (failed(status)) retry_or_compensate();",
+          "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 language baseline"
+              },
+              {
+                "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/waitpid.html",
+                "claim": "POSIX process wait"
+              },
+              {
+                "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html",
+                "claim": "POSIX signal action"
+              }
+            ]
+          },
+        "rust": {
+          "exampleKind": "pseudocode",
+          "text": "Rust Result and panic boundaries report local outcomes; durable recovery and duplicate-effect policy remain external.",
+          "snippet": "match worker() {\n    Ok(value) => record(value),\n    Err(error) => recover(error),\n}",
+          "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/std/panic/fn.catch_unwind.html",
+                "claim": "panic boundary"
+              },
+              {
+                "url": "https://doc.rust-lang.org/std/result/enum.Result.html",
+                "claim": "typed result"
+              }
+            ]
+          },
+        "python": {
+          "exampleKind": "pseudocode",
+          "text": "Python multiprocessing and exception handling report worker failure; a service must own restart and recovery policy.",
+          "snippet": "p = Process(target=worker)\np.start(); p.join()\nif p.exitcode != 0: restart()",
+          "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/library/multiprocessing.html",
+                "claim": "process and pool supervision building blocks"
+              }
+            ]
+          }
+        }
+      },
+      "coverage": {
+        "currentContract": {
+          "status": "current",
+          "description": "The language design composes typed faults, service turns, generations, cleanup, and recovery actions for the Last Light order."
+        },
+        "subcapabilities": [
+          {
+            "id": "SRV0-supervised-effect",
+            "scope": "problem",
+            "role": "problem",
+            "classification": "current",
+            "problem": "supervise a long-running effect with typed faults, cleanup, generations, and recovery",
+            "description": "The current service and recovery contract resolves the Last Light order problem.",
+            "componentRefs": [
+              "keyed-service",
+              "typed-progress",
+              "fault-action",
+              "generation-gate"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DYN0",
+      "title": "Dynamic evaluation and monkey patching",
+      "lastLight": {
+        "scenario": "The Last Light REPL records binding generations, snapshots values, and drains resources before a session closes. Services and typed transforms provide versioned extension points.",
+        "expectedUse": "Data-driven behavior, typed plugins, service generations, REPL snapshots, and versioned build transforms compose. Arbitrary eval and mutation of active code are not a safe baseline.",
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/repl_session_oracle.w",
+            "symbol": "GenerationReceipt",
+            "claim": "versioned REPL binding"
+          },
+          {
+            "path": "reference/last-light/repl_session_oracle.w",
+            "symbol": "snapshotRetainsValue",
+            "claim": "value snapshot"
+          },
+          {
+            "path": "reference/last-light/reflection.w",
+            "symbol": "reflectedName",
+            "claim": "opt-in metadata reflection"
+          },
+          {
+            "path": "reference/last-light/packages/menu-compiler/transform.w",
+            "symbol": "transform",
+            "claim": "versioned typed extension"
+          }
+        ],
+        "canonicalSource": {
+          "path": "reference/last-light/repl_session_oracle.w",
+          "symbol": "GenerationReceipt",
+          "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461",
+          "claim": "versioned REPL binding"
+        }
+      },
+      "sameProblem": "Change behavior or inspect names after deployment without rebuilding every consumer, while preserving ownership, interface identity, and security boundaries.",
+      "globalSimplification": "Use one versioned generation boundary for data, plugins, services, REPL snapshots, and transforms. Do not mutate active code or frames.",
+      "foreignMechanisms": {
+        "c": [
+          {
+            "problem": "Change behavior or inspect names after deployment.",
+            "mechanism": "C function pointers dispatch through an explicit ABI; generations and ABI identity remain application conventions.",
+            "operationalTradeoff": "Active code and data identity can change without a typed generation or cleanup boundary.",
+            "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 function pointer baseline"
+              }
+            ]
+          }
+        ],
+        "rust": [
+          {
+            "problem": "Change behavior or inspect names after deployment.",
+            "mechanism": "Rust macros generate source before compilation, while trait objects provide typed dynamic dispatch without active-frame mutation.",
+            "operationalTradeoff": "The compiled program does not provide arbitrary source eval or safe mutation of active function bodies.",
+            "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/reference/macros.html",
+                "claim": "compile-time macro expansion"
+              },
+              {
+                "url": "https://doc.rust-lang.org/reference/types/trait-object.html",
+                "claim": "trait object dispatch"
+              }
+            ]
+          }
+        ],
+        "python": [
+          {
+            "problem": "Change behavior or inspect names after deployment.",
+            "mechanism": "eval and exec evaluate code blocks, and module or object attributes can be rebound at runtime.",
+            "operationalTradeoff": "Arbitrary code can access ambient names and can invalidate assumptions held by existing frames and owners.",
+            "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/library/functions.html#eval",
+                "claim": "eval arbitrary expression warning"
+              },
+              {
+                "url": "https://docs.python.org/3/library/functions.html#exec",
+                "claim": "exec dynamic statements"
+              }
+            ]
+          }
+        ]
+      },
+      "wCurrentComposition": {
+        "attempt": "Compose data-driven dispatch, typed plugins, service generations, REPL value snapshots, opt-in reflection, and versioned build transforms.",
+        "components": [
+          {
+            "component": "REPL generation",
+            "role": "records a new binding version without mutating old snapshots",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/repl_session_oracle.w",
+                "symbol": "BindingVersion"
+              }
+            ],
+            "id": "repl-generation"
+          },
+          {
+            "component": "value snapshot",
+            "role": "retains a value independent of later binding invalidation",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/repl_session_oracle.w",
+                "symbol": "snapshotRetainsValue"
+              }
+            ],
+            "id": "value-snapshot"
+          },
+          {
+            "component": "typed service interface",
+            "role": "routes versioned behavior through a boundary",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/supervision.w",
+                "symbol": "OrderCoordinatorApi"
+              }
+            ],
+            "id": "typed-service"
+          },
+          {
+            "component": "opt-in reflection",
+            "role": "inspects nominal metadata without a universal dynamic value",
+            "sourceRefs": [
+              {
+                "path": "reference/last-light/reflection.w",
+                "symbol": "reflectedName"
+              }
+            ],
+            "id": "opt-in-reflection"
+          }
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/repl_session_oracle.w",
+            "symbol": "snapshot",
+            "claim": "session value snapshot"
+          }
+        ]
+      },
+      "exactGap": {
+        "kind": "none",
+        "description": "Typed generations and stable interfaces close the controlled hot-change problem.",
+        "boundary": "Keep generation, interface identity, and authority boundaries explicit."
+      },
+      "foreignMechanismDisposition": {
+        "classification": "intentionally-rejected",
+        "mechanisms": [
+          "arbitrary eval",
+          "active-code monkey patching",
+          "runtime frame mutation"
+        ],
+        "rationale": "These mechanisms bypass typed interfaces, capability admission, ownership, generation cleanup, and reproducible artifacts."
+      },
+      "route": {
+        "classification": "composable",
+        "rationale": "The common problem has typed generation routes. The rejected eval mechanism is recorded separately."
+      },
+      "intentionalTradeoff": {
+        "choice": "Reject arbitrary eval and monkey patching in the language core.",
+        "reason": "A code mutation can invalidate live owners, effect contracts, interface digests, and cleanup paths without a reviewable boundary.",
+        "preserved": [
+          "typed interface identity",
+          "capability admission",
+          "reproducible artifacts",
+          "structured cleanup"
+        ],
+        "rejected": [
+          "ambient eval",
+          "monkey patching active code",
+          "dynamic frame mutation"
+        ]
+      },
+      "compositionRisks": {
+        "memory": {
+          "risk": "A patched function can change ownership or deinit behavior for live values.",
+          "mitigation": "Version behavior behind typed boundaries and immutable snapshots."
+        },
+        "effects": {
+          "risk": "Dynamic code can acquire hidden I/O or capability effects.",
+          "mitigation": "Require explicit effect and capability contracts for plugins and services."
+        },
+        "interfaces": {
+          "risk": "A patch can violate a published interface without a digest change.",
+          "mitigation": "Use versioned interface and artifact identities."
+        },
+        "concurrency": {
+          "risk": "Existing tasks can observe different function bodies.",
+          "mitigation": "Use generation selection at a service boundary, not active mutation."
+        },
+        "ffi": {
+          "risk": "A patched callback can violate foreign ABI or lease cleanup.",
+          "mitigation": "Keep FFI adapters immutable for one generation and drain before replacement."
+        },
+        "tooling": {
+          "risk": "Editor state can diverge from a release artifact.",
+          "mitigation": "Export canonical W or package source from the REPL."
+        },
+        "lastLight": {
+          "risk": "A hot patch could alter billing or cleanup during the final order.",
+          "mitigation": "Use supervisor generations and explicit compensation."
+        }
+      },
+      "preserveStrengths": [
+        "typed errors and effects",
+        "stable ownership and cleanup",
+        "interface and ABI identities",
+        "reproducible artifacts",
+        "no ambient authority",
+        "call-side execution with structured cleanup and domains",
+        "move-first/ref/inout/shared contextual memory",
+        "typed errors and fault boundaries",
+        "reproducible artifacts and no ambient authority"
+      ],
+      "capabilityLevels": {
+        "languageDesign": {
+          "status": "partial",
+          "rationale": "Typed generations, snapshots, services, REPL receipts, and transforms express controlled change."
+        },
+        "stdDesign": {
+          "status": "partial",
+          "rationale": "REPL, service, plugin, and transform surfaces cover controlled generation changes."
+        },
+        "userDefinableInDesign": {
+          "status": "yes",
+          "rationale": "A user can define typed generation or plugin boundaries without active-frame mutation."
+        }
+      },
+      "capabilityLevelsBasis": "sameProblem",
+      "evidence": {
+        "current": [
+          "source-w",
+          "host-oracle",
+          "design-ledger"
+        ],
+        "missing": [
+          "w-compile",
+          "w-run",
+          "generation-provider",
+          "security-review"
+        ],
+        "sourceRefs": [
+          {
+            "path": "reference/last-light/repl_session_oracle.w",
+            "symbol": "GenerationReceipt",
+            "claim": "safe generation alternative"
+          }
+        ]
+      },
+      "nextStudyGate": {
+        "gateId": "DYN0-G1",
+        "kind": "evidence",
+        "question": "Can typed plugin, service generation, and REPL export cover hot-update use cases without active-code mutation?",
+        "requiredEvidence": [
+          "generation compatibility matrix",
+          "drain and rollback trace",
+          "capability audit",
+          "artifact export test"
+        ],
+        "stopCondition": "Do not reopen eval if a typed generation route meets the operational requirement."
+      },
+      "documentation": {
+        "question": "How does W support interactive and hot-update workflows without eval or monkey patching?",
+        "renderHint": "paired",
+        "wExample": {
+          "exampleKind": "source-ref",
+          "text": "The REPL records a binding generation and snapshots values, while services and transforms provide typed extension points.",
+          "sourceRefs": [
+            {
+              "path": "reference/last-light/repl_session_oracle.w",
+              "symbol": "GenerationReceipt",
+              "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461",
+              "claim": "The REPL records a binding generation and snapshots values, while services and transforms provide typed extension points."
+            }
+          ]
+        },
+        "teachingContrast": "Compare versioned data and service generations with mutation of active code or frames.",
+        "whenToUse": "Use typed plugin, service, REPL export, or build-transform boundaries for controlled change.",
+        "documentationTarget": "guides/problems/versioned-dynamic-behavior",
+        "docsStatus": "queued",
+        "audienceTargets": [
+          "C",
+          "Rust",
+          "Python"
+        ],
+        "foreignExamples": {
+        "c": {
+          "exampleKind": "pseudocode",
+          "text": "C function pointers dispatch through an explicit ABI; generations and ABI identity need a boundary.",
+          "snippet": "int (*policy)(Order) = current_policy;\nresult = policy(order);",
+          "sourceRefs": [
+              {
+                "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+                "claim": "C23 function pointer baseline"
+              }
+            ]
+          },
+        "rust": {
+          "exampleKind": "pseudocode",
+          "text": "Rust macros generate source at compile time, and trait objects provide typed dynamic dispatch; neither mutates active frames.",
+          "snippet": "let policy: Box<dyn Policy> = next_policy();\nlet result = policy.run(order);",
+          "sourceRefs": [
+              {
+                "url": "https://doc.rust-lang.org/reference/macros.html",
+                "claim": "compile-time macro expansion"
+              },
+              {
+                "url": "https://doc.rust-lang.org/reference/types/trait-object.html",
+                "claim": "trait object dispatch"
+              }
+            ]
+          },
+        "python": {
+          "exampleKind": "pseudocode",
+          "text": "Python eval and exec run source with ambient globals and locals, including arbitrary-input risk.",
+          "snippet": "code = compile(source, \"<repl>\", \"exec\")\nexec(code, globals, locals)",
+          "sourceRefs": [
+              {
+                "url": "https://docs.python.org/3/library/functions.html#eval",
+                "claim": "eval arbitrary expression warning"
+              },
+              {
+                "url": "https://docs.python.org/3/library/functions.html#exec",
+                "claim": "exec dynamic statements"
+              }
+            ]
+          }
+        }
+      },
+      "coverage": {
+        "currentContract": {
+          "status": "partial",
+          "description": "Versioned REPL bindings, typed services, plugins, and transforms provide controlled change and inspection."
+        },
+        "subcapabilities": [
+          {
+            "id": "DYN0-versioned-change",
+            "scope": "problem",
+            "role": "problem",
+            "classification": "composable",
+            "problem": "inspect and change live policy or behavior with reproducible identity and controlled authority",
+            "description": "Typed generations, services, REPL receipts, and transforms cover the controlled hot-change problem.",
+            "componentRefs": [
+              "repl-generation",
+              "value-snapshot",
+              "typed-service",
+              "opt-in-reflection"
+            ]
+          },
+          {
+            "id": "DYN0-arbitrary-eval",
+            "scope": "foreign-mechanism",
+            "role": "foreign-mechanism",
+            "classification": "intentionally-rejected",
+            "problem": "mutate active code or frames through ambient arbitrary evaluation",
+            "description": "The mechanism breaks interface identity, reproducibility, and authority boundaries."
+          }
+        ]
+      }
+    }
+  ]
+}
