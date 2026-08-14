@@ -1,0 +1,5 @@
+RESERVED C2 ALTERNATIVE — intentionally not selected.
+
+A typed declaration recipe is retained only as a comparison. If it performs
+name, type, ownership, or effect checking itself, it duplicates the frontend;
+if it does not, it is only a second spelling of the generated module artifact.

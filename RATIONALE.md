@@ -4273,7 +4273,7 @@ Os resultados atuais são estes:
 | BRX0 | Pesquisa | Relação bodyless entre inputs independentes continua sem lifetime syntax. |
 | ATOM0 | Componível | Wrapper sobre atomics existentes compõe. Autor de nova primitive atomic ou reclamation exige subestudo de target e lowering confiável. |
 | GEN0 | Componível | Stream, canais e tasks cobrem produção. Frame bidirecional customizado, scheduler ou poll exige subestudo próprio. |
-| SYN0 | Componível | Synthesis compiler-owned e transform hermético cobrem artefatos. Introdução de declarations em processo exige subestudo de provenance, diagnostics e interface. |
+| SYN0 | Componível | Synthesis compiler-owned e transform hermético cobrem artefatos. Introdução de declarations por um generated module separado exige subestudo de provenance, diagnostics e interface; phase in-process permanece rejeitada. |
 | CYC0 | Componível | Weak edge, owner e drain fecham o grafo. Collector transparente não entra no core. |
 | IPC0 | Pesquisa | Snapshot e IPC tipado compõem. Mapped bytes exigem layout, atomics, crash e capability contract. |
 | SRV0 | Vigente | Services, faults, generations e recovery actions formam o design. Journal e crash provider são gates de evidência. |
@@ -4297,6 +4297,68 @@ backpressure, cancelamento, children e FFI lease nas duas lowerings do gate.
 As métricas de ergonomia vêm de símbolos source únicos nas slices do mesmo
 cenário; a fila de documentação continua `queued`. O estudo informa e estreita
 o gate, mas não é implementação, compilação, execução ou estudo humano/modelo.
+
+SYN0-R1 agora possui o estudo durável
+[`SYN1`](tooling/studies/syn1-typed-generation) e o oracle
+[`syn1-typed-generation-machine.mjs`](tooling/syn1-typed-generation-machine.mjs).
+O estudo começa pelo Restaurante: A mantém `Hashable`/`Reflectable`,
+`data.Row`, kernel synthesis finita e declarations manuais; B mantém o
+transform `final.menu` como artifact de dados typed, sem declarations; C
+estuda um W0 build transform que publica um module set content-addressed com
+um ou mais files `.w`, provenance e source map. O Tree-sitter atual valida o
+parse sem recovery. Um `frontendReceipt` Research fornece os facts de type,
+ownership, effect e ConstIR que ainda não possuem evidência de compiler. O
+frontend proposto reabre cada file como source unit nova antes de freeze;
+AST/HIR não é injetada na unidade em execução.
+
+A matriz SYN1 cobre 65 casos host independentes, incluindo 22 outcomes
+candidatos aceitos. Eles não são módulos implementados. Uma mudança de field/enum
+altera content e `SemanticInterfaceKey`; mudança somente de docs/source map ou
+private body não altera a key. Um artifact target-neutral compartilha a mesma
+identity lógica em duas projeções e pode alterar somente o artifact físico;
+facts de product target declarados podem especializar a recipe/interface.
+Host target, mtime, random, time, environment, network e filesystem não
+declarados são negativos. Paths físicos validam authority/provenance, mas não
+entram nas identities. Action events terminam em `tool-finish`; o oracle observa
+somente staged output e parse/source-shape. Um `requiredPhaseTrace` registra o
+contrato candidato parse → name → type → ownership → effect → ConstIR →
+interface diff → freeze → publicação de interface → consumer. Ele não prova
+execução semântica. Ciclos e execução pós-freeze são rejeitados.
+
+A action recipe key deriva tool artifact, execution platform, inputs typed,
+schemas, dependency receipts, output descriptor/source profile, graph receipt,
+product-target/ABI receipts declarados, capabilities, quotas e version; ela
+não contém output digest. O result/module identity deriva do conteúdo de saída.
+Paths de handles read-only ficam fora da key. Tool success pode publicar o
+action result/CAS após validar container/binding/schema/bounds/digests; falha
+posterior de parse/receipt/map preserva esse result, mas não publica interface
+ou compiler cache. Failure, cancellation, quota e panic antes do result
+descartam staging; action events provam cleanup/drain exatamente uma vez.
+Success não inventa cleanup. Source maps só dão fix quando uma mapping cobre o
+span gerado e aponta ao byte span editável com digest atual; source spans podem
+se sobrepor para many-generated-to-one-source, mas generated spans não podem
+ser ambíguos e endpoints respeitam boundaries UTF-8. Diagnóstico gerado sem
+origem não inventa fix. Duplicata, map stale, UTF-8/syntax,
+output/capability/effect/ownership/import/order/collision e source-ref mutation
+são negativos.
+
+C2 (typed declaration recipe/IR fechado) fica rejeitado quando duplica o
+frontend e não resolve nada além de C. Proc macro, annotation, decorator,
+metaclass, eval/exec, textual AST mutation e current-module injection são D,
+intencionalmente rejeitados. A rota do problema SYN0 continua Componível; só a
+subcapability de introdução de declarations permanece Research. As fontes C23,
+Rust (macros, proc macros, Cargo build scripts e `cfg`) e Python (class
+creation, `eval`/`exec`) explicam tradeoffs e não são evidência de W.
+
+O estudo usa source W real com digests e símbolos Last Light, quatro fixtures
+`.w`, quatorze artifacts candidatos `.w` e witnesses `.txt` reservados para as
+dispositions. Ele inclui `reference/last-light/menus/final.menu`, duas
+projections de target, target registry host, mutations e snapshot determinístico.
+Parse Tree-sitter/source-shape, oracle host e refs primárias são evidence current.
+Compiler/name/type/ownership/effect, ConstIR, run, target compiler/provider e
+estudos humano/modelo permanecem
+missing. Nenhum artefato afirma compiler, runtime, provider ou build service
+implementado.
 
 Assim, DYN0 não classifica o problema inteiro como rejeitado. O problema
 compõe com gerações tipadas. Somente o mecanismo de eval arbitrário recebe
@@ -5730,6 +5792,27 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1357 | channel mapped wire carrier, commit/materialization e crash | carrier bounded de bytes (não `Channel<T>` raw) exige cap0 sem slots com rendezvous pareado e capN com ocupação derivada do header validado; header.length iguala o extent e `slotCount*slotSize` cabe em `slots`; owner local retorna antes de commit, commit publica bytes wire canônicos e a generation recebe bytes depois; receiver valida length/schema/checksum e cria owner novo, provando no máximo um owner por slot (não exactly-once distribuído); cancelamento mantém regra existente; provider prova atomic width/order/alignment/lock-free progress/wait-wake; crash de writing faulta generation, full committed sobrevive ao producer e pode ser materializado pelo reader, reading faulta generation e supervisor ordena fault→stop-access→drain→drop-view→unmap→close→reopen sem repair oculto | capacity caller, ordinary atomic como prova process-shared, String/owner no mapping, lock/allocator/scheduler oculto, repair in-place ou worker cooperativo bloqueado invisivelmente |
 | W-1358 | providers POSIX/Windows, backing e reducers | cada case escolhe binding authority: POSIX/Windows file-backed para snapshot durável com data+metadata receipt, POSIX `shm_open`/Windows pagefile para channel volátil; apenas `allowedLayouts[]`/`allowedSchemas[]` e seus digests são autoridade; reducers independentes derivam eventos, lifecycle físico e compact outcome comum; divergência de reducer/provider, facts caller, FFI close fora de ordem e fallback unsupported são rejeitados ou explicitamente normalizados; Windows não finge `unlink` e immediate withdraw retorna unsupported | selecionar resultado pelo expected/flags, equivalência de nome/handle, callback após unmap, `FlushViewOfFile` como durability total ou provider fact inventado |
 | W-1359 | evidence IPC1, CAP0 e documentação | corpus state/event-derived (67 casos, 134 projeções), schema/layout/provider source digests, snapshot e estudo host são design-oracle evidence; `IPC0-R1` recebe studyRefs e mantém probes POSIX/Windows, w-compile, w-run, provider e human/model missing; C/POSIX, Rust e Python ficam na fila `guides/problems/process-shared-data`, com exemplos pareados e refs W | chamar host oracle de execução W, fechar gate por LOC, promover Research a route/API ou omitir exemplos pareados |
+| W-1360 | problema-first SYN1 | SYN1 separa A composition atual, B transform de dados, C generated module artifact, C2 recipe/IR e D mutation dinâmica em 65 casos A/B/C/D; 22 outcomes candidatos aceitos continuam Research e a rota SYN0 permanece Componível | classificar o problema inteiro como macro gap, medir maturidade ou promover o oracle a implementation |
+| W-1361 | A synthesis fechada | `Hashable`/`Reflectable`, generic/protocol composition, JSON, `data.Row`, kernel synthesis finita e declarations manuais preservam identity nominal e constraints fechadas; `Display`, codec genérico e synthesis universal continuam fora | annotation universal, protocol por nome, synthesis parcial ou reflection como trigger de declarations |
+| W-1362 | B artifact typed atual | `final.menu` continua no build transform W0 e publica bytes typed (`MenuBytecode`/resource); quando declarations não são necessárias, runtime lookup ou data artifact é suficiente | fazer o menu compiler emitir declarations ou chamar o output de módulo W sem frontend normal |
+| W-1363 | C módulo gerado separado | o candidato Research produz um module set content-addressed de files `.w`, provenance e source maps; o Tree-sitter atual prova parse sem recovery e um frontendReceipt Research fornece facts sem alegar name/type/ownership/effect/ConstIR de compiler; o frontend proposto reabre source units novas antes de freeze | phase in-process, current-module injection, HIR splice, source que não é W ou compiler claim |
+| W-1364 | C2 recipe/IR | typed declaration recipe/IR é rejeitada quando duplica parse/name/type/ownership/effect checking e não resolve nada além do artifact C; só uma prova futura de ganho adicional poderia reabrir a comparação | segundo type checker, recipe sem provenance ou recipe que escolhe resultado pelo expected |
+| W-1365 | D mutation dinâmica | proc macro, annotation, decorator, metaclass, eval/exec, textual AST mutation e current-module injection são intentionally-rejected por fase/authority/identity não fechadas | copiar proc-macro expansion, `cfg` textual, metaclass runtime ou eval como contrato W |
+| W-1366 | DAG de geração | action events terminam em tool-finish; `observedTrace` alcança somente staged output e parse/source-shape host; `requiredPhaseTrace` registra parse → name → type → ownership → effect → ConstIR → interface diff → freeze → publicação candidata → consumer sem alegar execução de compiler; graph receipt exige dependencies, `tool produces output` e consumers que importam output | phase caller-owned, produces ausente, direção de import inválida, ciclo/reachability quebrada ou tratar required trace como evidence |
+| W-1367 | action/result identity | action recipe key inclui tool artifact/profile/host, entry, execution platform, typed input digest/schema, dependency receipts, output descriptor/source profile, graph receipt, declared target+ABI receipt, capabilities, quotas e version; output digest e paths físicos ficam fora, no result/module ou adapter | incluir output digest/path físico na action key, omitir descriptor/dependency/graph/ABI fact, mtime/random/time/env/network ou cache que escolhe outputs conflitantes |
+| W-1368 | interfaces e docs/maps | public inventory e schema facts derivam `SemanticInterfaceKey`; docs e source-map manifest derivam `DocumentationKey`/`DiagnosticMapKey`; field/enum drift recompila consumers, docs/map/private body-only não | um digest misto, map como API, body privado na key ou fake fix sem editable origin |
+| W-1369 | dois targets | duas projections independentes compartilham logical generated module, interface e diagnostics; target-neutral output mantém semantic/action keys, enquanto physical artifact e WAbiKey podem mudar; facts explícitos produzem variants targetSpecific completas | host target implícito, backend escolher resultado, base singular para targetSpecific ou target triple sozinho como semantic identity |
+| W-1370 | duas publicações, failure e cancellation | tool success publica action-result/CAS após container/binding/schema/bounds/digest; parse/receipt/map failure pode preservar esse result, mas não interface/compiler cache; error/cancel/quota/panic pré-result exige cleanup→drain→discard uma vez; success mantém cleanup zero e `interfacePublished` é somente outcome do contrato Research | cache/interface colapsados, partial action result, compiler cache host inventado, cleanup success, state residual ou cleanup duplo |
+| W-1371 | diagnostics e provenance | generated span só produz fix quando logical SourceId, source digest, byte span editável e unique generated coverage são exatos; source overlap permite many-generated-to-one-source, endpoints respeitam UTF-8 e path editável fica no adapter; generated-only não inventa fix | checkout path em DiagnosticMapKey, overlap source rejeitado, offset mid-sequence, first mapping ou fake fix |
+| W-1372 | hermeticidade e capability | capabilities e authority requests são vazias; handles read-only devem resolver ao source path selecionado ou `module://identity`, cobrem exatamente inputs e ficam fora da action key; I/O ou suspend permanece build transform; undeclared FS, environment, network, clock e random são negados | authority ambient, handle para arquivo alheio, path físico na key, secret access, shell callback ou capability implícita |
+| W-1373 | evidence SYN1 | estudo, cases, machine, manifest, snapshot e testes são source-backed host evidence com refs C/Rust/Python oficiais; Tree-sitter parse/source-shape e target registry fixture são current, enquanto compiler/name/type/ownership/effect/ConstIR, target compiler/provider, run e human/model permanecem missing | chamar Tree-sitter/receipt/registry host de semantic frontend/provider, escolher result por expected, ou fechar gate por snapshot |
+| W-1374 | digests e source inputs SYN1 | todo digest de source/tool/input/output/provenance aceita somente `sha256:` hexadecimal lowercase real; source bytes de `reference/last-light/menus/final.menu` e typed descriptors derivam seus digests, handles read-only cobrem exatamente os inputs declarados e source refs exigem símbolo único | pseudo digest, sourceRef forged/stale, typed input sem schema/digest ou handle ambient |
+| W-1375 | expected, route e eventos SYN1 | expected contém assertions derivadas permitidas; inputs contêm action events strict até finish ou cleanup→drain→discard; status accepted/discarded/rejected é independente da route composable/research/intentionally-rejected; observed/required traces e publications são derivados | expected echo que escolhe outcome, malformed C marcado intentionally-rejected, phases caller-owned ou failure selector |
+| W-1376 | output source-shape SYN1 | UTF-8 e syntax usam o Tree-sitter W real; depois um scanner bounded mascara comments/strings, ignora nested scope, agrupa headers multilinha e deriva somente imports/declarations do profile fechado; frontendReceipt liga facts sem alegar full type-check | regra acidental one-line, entry/service/foreign/test/top-level statement, proxy chamado parser, booleans caller ou compiler claim |
+| W-1377 | module/interface identity SYN1 | `moduleCodeDigest`/result cobre source bytes e private body; `SemanticInterfaceKey` normaliza visibility, generics/statics, effects, throws, ownership, origin/allocation, const, conformance e resource facts; docs/map keys ficam separados | incluir provenance/docs/source map na module key, interface superficial ou private body que força consumer rebuild |
+| W-1378 | target projection SYN1 | target-neutral compartilha module/interface/diagnostic/action identities e deriva WAbi por registry-backed ABI facts; targetSpecific não possui base singular e inclui target identity, semantic+ABI facts e registry digest/revision em action/WAbi receipts por variant | physical artifact como ABI authority, ABI omitida da action key, targetEquivalent caller boolean, base singular ou host target implícito |
+| W-1379 | source-map diagnostics SYN1 | mapping verifica byte bounds/boundaries, logical SourceId/digest, duplicate e overlap no generated axis; source spans podem sobrepor; fix usa a única mapping que cobre o diagnostic, inclusive a segunda; generated-only não inventa fix | first mapping, rejeitar many-to-one source, stale/duplicate map, UTF-8 mid-sequence ou fake fix |
+| W-1380 | manifest evidence SYN1 | study manifest exige roles/language/dispositions/fixture exactos, quatorze artifacts `.w`, target-registry host separado, sourceRefs/officialRefs iguais ao corpus, HTTPS host allowlist, oracle exato e allowlists current/missing; C2/D permanecem rejected | provider-ready forged, registry host tratado como provider, extra/troca de ref, role Research para C2, source symbol repetido ou URL primária trocada |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
