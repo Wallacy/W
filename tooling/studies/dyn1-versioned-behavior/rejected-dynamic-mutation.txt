@@ -1,0 +1,3 @@
+VersionedBehaviorFixture
+Rejected witness: eval/exec, monkey patch, active-frame write, debugger write,
+ambient lookup, native library as a sandbox, or dlclose while a callback is live.

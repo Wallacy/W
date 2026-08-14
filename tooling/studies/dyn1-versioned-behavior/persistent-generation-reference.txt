@@ -1,0 +1,4 @@
+VersionedBehaviorFixture
+Research-only gap: persist a bounded generation reference and re-resolve it after
+restart or deployment. The reference carries digests and interface facts only.
+It never carries heap, task, loan, capability, ServiceRef, or provider handles.

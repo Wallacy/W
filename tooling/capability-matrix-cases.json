@@ -2834,7 +2834,8 @@
         "current": [
           "source-w",
           "host-oracle",
-          "design-ledger"
+          "design-ledger",
+          "dyn1-design-oracle"
         ],
         "missing": [
           "w-compile",
@@ -2860,7 +2861,16 @@
           "capability audit",
           "artifact export test"
         ],
-        "stopCondition": "Do not reopen eval if a typed generation route meets the operational requirement."
+        "stopCondition": "Do not reopen eval if a typed generation route meets the operational requirement.",
+        "studyRefs": [
+          { "path": "tooling/studies/dyn1-versioned-behavior/README.md", "digest": "sha256:15645762fc99ca1584800dfb0cf62d16cf3553fce5a745966373e1ee5a71c67a", "claim": "DYN1 host design-oracle scope and four route dispositions" },
+          { "path": "tooling/dyn1-versioned-behavior-cases.json", "digest": "sha256:0f8203d2f28e539420a278aadeabff29e2121e1a09f920ef9c17dd1a5413f7f0", "claim": "DYN1 event-derived corpus for REPL, generations, export, faults, and rejected mechanisms" },
+          { "path": "tooling/dyn1-versioned-behavior-machine.mjs", "digest": "sha256:4c2b918e89e5f87f61e43aa3ccf638f5b0b83d56152b2ed64d0bb6229dfd5fd4", "claim": "DYN1 independent local/split reducers and receipt validators" },
+          { "path": "tooling/dyn1-versioned-behavior-manifest.mjs", "digest": "sha256:dfa0d6125cf008bdeb16af4f2bc7c729d96523e0fbfe0d2d8b7f29e44b627351", "claim": "DYN1 manifest boundary for source, role, and evidence claims" },
+          { "path": "tooling/check-dyn1-versioned-behavior.mjs", "digest": "sha256:2ab6b2a80376482260be663c7247f17e62d8ecce80bcbda59c7a9de8bb994cb1", "claim": "DYN1 derived metrics and snapshot checker" },
+          { "path": "tooling/dyn1-versioned-behavior-reference.test.mjs", "digest": "sha256:871aa1c4ef4a5bd6dd2c60e89380b6d718998dca9e58b0a16e8b7a3bf96386d6", "claim": "DYN1 host mutation and boundary reference tests" },
+          { "path": "tooling/dyn1-versioned-behavior-results.snapshot.jsonl", "digest": "sha256:62ab8c4f8c0b0970fb794c4e5900b09eff3a1f4fe92cdc111e99f77ccbe30bd7", "claim": "DYN1 derived design-oracle result snapshot" }
+        ]
       },
       "documentation": {
         "question": "How does W support interactive and hot-update workflows without eval or monkey patching?",
