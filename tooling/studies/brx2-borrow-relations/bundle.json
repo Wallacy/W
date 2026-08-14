@@ -1,0 +1,143 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-brx2-borrow-relations",
+  "title": "Requirement-owned relations for borrowed higher-order results",
+  "r0Cases": ["R0-borrow-bodyless-relation"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/borrow_expressivity.w",
+    "symbol": "selectPrimary",
+    "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709"
+  },
+  "entry": "observeBorrowRelation",
+  "variants": [
+    {
+      "id": "baseline",
+      "language": "w",
+      "path": "baseline.w",
+      "role": "selected",
+      "digest": "sha256:e8dd63e7521c9e3f58510fc3cf2323abd774ef2ce71c21f0a41b1371823a7063",
+      "changedConstructs": [
+        "current receiver and body-derived mapping remain unchanged",
+        "bodyless multi-input requirements retain the W-914 default",
+        "no lifetime syntax or runtime relation field"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Fixture is a W source candidate for the existing parser corpus."
+      }
+    },
+    {
+      "id": "nominal-aggregate",
+      "language": "w-alternative",
+      "path": "nominal-aggregate.w",
+      "role": "alternative",
+      "digest": "sha256:6f6b458cd0667e50edcbcb775756fa5e72b0e4ceb0d075ebaae66eaeeaccd594",
+      "changedConstructs": [
+        "owned SelectedLine sum carries the selected input",
+        "direct borrowed result changes to an owned API",
+        "caller observes a nominal result shape change"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Fixture is a parseable alternative source shape."
+      }
+    },
+    {
+      "id": "relation-contract",
+      "language": "w-reserved",
+      "path": "relation-contract.txt",
+      "role": "research-candidate",
+      "digest": "sha256:c5b5045edc3b65b5e647426595af6f7fbbbd8ee7848eeee72f29fbb13c9c5978",
+      "changedConstructs": [
+        "requirement-owned data-only BorrowRelation/1",
+        "provider and witness must publish the same relation digest",
+        "source spelling remains reserved until authority is decided"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "This witness is not W syntax."
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "receiver-or-body",
+      "expected": "current route closes receiver or body-derived relation"
+    },
+    {
+      "id": "independent-bodyless",
+      "expected": "current route remains conservative and Research"
+    },
+    {
+      "id": "relation-authority",
+      "expected": "candidate route requires requirement/interface ownership and exact witnesses"
+    },
+    {
+      "id": "authority-negative",
+      "expected": "caller and runtime metadata routes are rejected"
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain which relation is current, which relation is Research, and who owns a candidate relation."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct A, B, C, and D and name missing evidence.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair one stale, missing, duplicate, forged, divergent, or runtime relation artifact without adding lifetime syntax.",
+      "mutations": {
+        "baseline": "Restore the current W-914 conservative bodyless mapping.",
+        "nominal-aggregate": "Restore the direct borrowed result instead of the owned sum.",
+        "relation-contract": "Restore the requirement-owned sealed relation witness."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Choose whether a future relation schema or an owned aggregate should serve the two-input problem while preserving existing borrow and ABI facts."
+    }
+  ],
+  "presentationOrders": [
+    ["baseline", "nominal-aggregate", "relation-contract"],
+    ["baseline", "relation-contract", "nominal-aggregate"],
+    ["nominal-aggregate", "baseline", "relation-contract"],
+    ["nominal-aggregate", "relation-contract", "baseline"],
+    ["relation-contract", "baseline", "nominal-aggregate"],
+    ["relation-contract", "nominal-aggregate", "baseline"]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "baseline": "A",
+      "nominal-aggregate": "B",
+      "relation-contract": "C"
+    },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:9149e5d8ecf40ff115bb56abd85ca3ef34aeecbb050257247defae20f8488108"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle", "official-primary-refs", "source-ref"],
+    "missing": ["w-compile", "w-run", "hir-verifier", "provider-linker", "foreign-execution", "human-study", "model-study"]
+  },
+  "officialRefs": [
+    {
+      "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+      "claim": "C23 lifetime and restrict are manual pointer contracts."
+    },
+    {
+      "url": "https://doc.rust-lang.org/stable/reference/items/associated-items.html",
+      "claim": "Rust GAT LendingIterator ties an associated item to a receiver lifetime."
+    },
+    {
+      "url": "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0456-stdlib-span-properties.md",
+      "claim": "Swift Span properties infer a narrow callee borrow relation."
+    }
+  ]
+}

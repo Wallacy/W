@@ -1,0 +1,2 @@
+BRX2 rejected witness: a runtime lifetime table or hidden relation carrier
+cannot replace WInterface, OriginSet, HIR edges, or interface.lock.

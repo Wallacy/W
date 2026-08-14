@@ -4201,7 +4201,76 @@ publica lifetime metadata em runtime. A decisão fica Research até Sol autoriza
 um mecanismo relacional mínimo ou uma composição nominal que preserve o
 contrato, sem promover syntax normativa.
 
-### 1.27 CAP0 — matriz de capacidades por problema
+### 1.27 BRX2 — relações de borrow por contrato
+
+BRX2 informa BRX0-R2 sem alterar a regra vigente. A máquina e o corpus em
+[`tooling/brx2-borrow-relations-machine.mjs`](tooling/brx2-borrow-relations-machine.mjs)
+e [`tooling/brx2-borrow-relations-cases.json`](tooling/brx2-borrow-relations-cases.json)
+derivam status, route, relation, edges, `OriginSet`, `SemanticInterfaceKey` e
+digests a partir de inputs estruturados. O fixture Last Light continua sendo
+[`reference/last-light/borrow_expressivity.w`](reference/last-light/borrow_expressivity.w),
+com `selectPrimary` e symbols reais; o estudo em
+[`tooling/studies/brx2-borrow-relations`](tooling/studies/brx2-borrow-relations)
+mantém baseline, aggregate nominal e witness reservado separados.
+
+A é a composição atual: receiver/member e body-derived exact fecham a origem;
+free, static, init e protocol bodyless continuam conservative quando não há
+prova fechada. B é um candidato data-only de schema HIR/WInterface, sem nova
+syntax de lifetime e sem metadata runtime. A relação é owned pelo requirement
+ou pela interface; provider, implementation e cada witness devem prová-la e
+usar slots/modes canônicos, não o caller. Witness específico divergente fica
+rejeitado para generic/open dispatch. O digest relacional participa da
+`SemanticInterfaceKey`, do interface lock e da expectativa provider/consumer;
+substitution exige igualdade exata/invariance, e o ABI/WAbi não ganha carrier.
+Uma definição sealed pode congelar essa relação, mas isso continua candidato
+Research até haver verifier HIR, separate compilation e evidência de provider.
+Conclusão do estudo: existe um fechamento relacional data-only no oracle para
+inputs estruturados, mas ainda não existe um mecanismo fechado comprovado para
+W que preserve simultaneamente W-914, OriginSet, borrow edges,
+`SemanticInterfaceKey`, substitution/variance, separate compilation,
+diagnostics e ABI. A recomendação é manter a relação como Research e não
+promover sua spelling.
+
+C é o aggregate nominal/owned sum: é uma API segura alternativa e muda a forma
+do resultado, portanto não fecha automaticamente o borrowed result direto. D
+rejeita caller/call-site claims, witness-only mapping, Rust-like lifetime/GAT
+spelling, runtime lifetime table, hidden conservative escape, ambient
+inference, macros/annotations e universal conservative escape. O oracle cobre
+56 casos, inclusive múltiplos resultados, branch union, transitive mapping,
+callable fresh loans, any-fn erasure, Stream live view, await cleanup/cancel,
+boundaries, source-overlap edge occurrences, static/immortal non-dynamic edges,
+separate-compilation receipts e stale/missing/duplicate/forged
+relation/interface/provider refs. Invocation status is recorded separately
+from declaration decision; a rejected invocation does not silently count as a
+fully accepted declaration.
+Independent results now derive from non-dependent result slots, while static
+and immortal behavior derives from input slot facts and edges. Legacy result
+flags and `artifacts.verified` are rejected; verification is receipt-based and
+requires scope plus stage.
+The snapshot separates 16 current, 14 Research, and 26 rejected declaration
+routes; 13 exact Research candidates are distinct from 10 exact rejected
+relations, and eight invocation negatives are tracked independently. Forty-eight
+invocations are accepted; eight are rejected, including six cases whose
+declaration decision remains accepted.
+
+As fontes comparativas são evidência, não surface de W: [C23 N3096](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf)
+mostra ponteiros e contratos de validade manuais, sem prova estática da relação;
+[Rust Reference associated items](https://doc.rust-lang.org/stable/reference/items/associated-items.html)
+usa GAT/LendingIterator para amarrar o item ao borrow do receiver; e [Swift
+SE-0456](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0456-stdlib-span-properties.md)
+fecha o caso estreito de borrowing de `Span`. A evidência atual é source-ref,
+parse/oracle host e refs oficiais; case-level `assay.kind: independent-assay` is
+host assay ground truth, not compiler evidence, and is excluded from
+relation/interface keys. A trace is not compiler evidence for a bodyless
+current interface. Compile, run, HIR verifier, provider/linker, foreign execution,
+separate compilation e estudos humano/modelo continuam missing. O gate de
+promoção exige duas derivações independentes, witnesses exatos, lock/provider
+digest agreement, invariance/substitution, ABI sem metadata runtime e
+diagnósticos adversariais. Pare e mantenha Research se qualquer passo exigir
+caller claim, runtime lifetime state, divergência witness-specific ou mudança
+de WAbi/grammar.
+
+### 1.28 CAP0 — matriz de capacidades por problema
 
 CAP0 é uma fonte editorial de staging para guias futuros. Ele não é um
 contrato adicional em `DESIGN.md`. A matriz estruturada está em
@@ -5813,6 +5882,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1378 | target projection SYN1 | target-neutral compartilha module/interface/diagnostic/action identities e deriva WAbi por registry-backed ABI facts; targetSpecific não possui base singular e inclui target identity, semantic+ABI facts e registry digest/revision em action/WAbi receipts por variant | physical artifact como ABI authority, ABI omitida da action key, targetEquivalent caller boolean, base singular ou host target implícito |
 | W-1379 | source-map diagnostics SYN1 | mapping verifica byte bounds/boundaries, logical SourceId/digest, duplicate e overlap no generated axis; source spans podem sobrepor; fix usa a única mapping que cobre o diagnostic, inclusive a segunda; generated-only não inventa fix | first mapping, rejeitar many-to-one source, stale/duplicate map, UTF-8 mid-sequence ou fake fix |
 | W-1380 | manifest evidence SYN1 | study manifest exige roles/language/dispositions/fixture exactos, quatorze artifacts `.w`, target-registry host separado, sourceRefs/officialRefs iguais ao corpus, HTTPS host allowlist, oracle exato e allowlists current/missing; C2/D permanecem rejected | provider-ready forged, registry host tratado como provider, extra/troca de ref, role Research para C2, source symbol repetido ou URL primária trocada |
+| W-1381 | BRX2 problem-first relation study | Last Light `selectPrimary` ancora A receiver/body-derived, B requirement/interface-owned data-only relation, C aggregate nominal e D rejeições; source spelling candidata continua reserved/not-parsed e W-914 não muda | apresentar schema candidato como regra normativa, trocar o problema por feature estrangeira ou usar source sem símbolo real |
+| W-1382 | relation authority and witness proof | requirement/interface owns a relation; provider, implementation e witness devem verificar slots, modes, digest, interface lock e provider expectation; caller/call-site nunca escolhe a relação; witness-specific divergence é rejected em generic/open dispatch | caller claim, witness-only mapping, stale/missing/duplicate/forged slot, mode ilegal, relation digest drift ou divergência de witnesses |
+| W-1383 | BRX2 host oracle and composition | máquina deriva status/route/relation/edges/OriginSet/SemanticInterfaceKey/runtime signature/WAbi de inputs estruturados; effective relation só entra quando é aplicável, relation rejeitada conserva baseline; cobre callable fresh loans, any-fn, múltiplos results, Stream, await, boundaries, substitution/variance e no-runtime-carrier; snapshot e mutation checker são host evidence | expected echo, booleans caller, runtime lifetime table, WAbi carrier ou tratar oracle/parser como compiler/provider |
+| W-1384 | BRX2 promotion gate and stop condition | promoção só após verifier HIR, separate compilation, provider/linker, diagnostics adversariais, invariance/substitution e duas derivações independentes confirmarem relação fechada sem syntax lifetime, metadata runtime ou WAbi drift; até lá route permanece Research | continuar quando relação exige caller ownership, hidden escape, runtime state, witness divergence, ABI mudança ou evidência faltante |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

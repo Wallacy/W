@@ -1,0 +1,7 @@
+BRX2 reserved witness for a requirement-owned BorrowRelation/1.
+
+observeBorrowRelation(primary, fallback) maps result to primary. The record is
+owned by the requirement and its WInterface. Each implementation and witness
+must prove the same canonical relation. This witness is not W syntax and is
+reserved until a human design decision closes the authority and separate
+compilation questions.

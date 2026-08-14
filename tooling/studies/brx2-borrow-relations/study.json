@@ -1,0 +1,86 @@
+{
+  "$schema": "w-brx2-borrow-relations-study-1",
+  "status": "design-oracle-input",
+  "id": "BRX2",
+  "gate": "BRX0-R2",
+  "title": "Requirement-owned relations for borrowed higher-order results",
+  "sourceBase": {
+    "path": "../../../reference/last-light/borrow_expressivity.w",
+    "symbol": "selectPrimary",
+    "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709"
+  },
+  "bundle": "bundle.json",
+  "corpus": "../../brx2-borrow-relations-cases.json",
+  "machine": "../../brx2-borrow-relations-machine.mjs",
+  "checker": "../../check-brx2-borrow-relations.mjs",
+  "snapshot": "../../brx2-borrow-relations-results.snapshot.jsonl",
+  "oracle": "oracle.test.mjs",
+  "artifactRefs": [
+    {
+      "id": "sourceBase",
+      "path": "../../../reference/last-light/borrow_expressivity.w",
+      "symbol": "selectPrimary",
+      "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709",
+      "identity": "selectPrimary"
+    },
+    {
+      "id": "corpus",
+      "path": "../../brx2-borrow-relations-cases.json",
+      "digest": "sha256:489af6b96574cb32575f85d7d630d0d7b23973d6b519a4dce2df1b0559374595",
+      "schema": "w-brx2-borrow-relations-cases-1",
+      "identity": "BRX2-relation-owned-borrow"
+    },
+    {
+      "id": "machine",
+      "path": "../../brx2-borrow-relations-machine.mjs",
+      "digest": "sha256:783691e2c11325b4f13c4d2a7f3ca739d30862b3a94b0f8b4df6f081d675a08e",
+      "identity": "evaluateBorrowRelationCase"
+    },
+    {
+      "id": "checker",
+      "path": "../../check-brx2-borrow-relations.mjs",
+      "digest": "sha256:9169b53e24933d0a8df3d3e5e595439b4461623b5b4e862377e6799a210530b2",
+      "identity": "deriveBorrowRelationCorpus"
+    },
+    {
+      "id": "snapshot",
+      "path": "../../brx2-borrow-relations-results.snapshot.jsonl",
+      "digest": "sha256:907076496847f07cb63dc61018960cfd0246b0b97d57bf650605a6cd8dc646ad",
+      "schema": "w-brx2-borrow-relations-results-1",
+      "identity": "w-brx2-borrow-relations-results-1"
+    },
+    {
+      "id": "bundle",
+      "path": "bundle.json",
+      "digest": "sha256:912bffb1b5983c47a393bd301226255ae65d2b14edae3668beabe44cd41b9c6f",
+      "schema": "w-substitution-study-bundle-1",
+      "identity": "R1-brx2-borrow-relations"
+    }
+  ],
+  "witnesses": [
+    {
+      "path": "relation-contract.txt",
+      "role": "research-candidate",
+      "digest": "sha256:c5b5045edc3b65b5e647426595af6f7fbbbd8ee7848eeee72f29fbb13c9c5978"
+    },
+    {
+      "path": "nominal-aggregate.txt",
+      "role": "alternative",
+      "digest": "sha256:96fb411cad65ad14af34acb144915b6c002fec7720ec2ca040183fa8fdab4d49"
+    },
+    {
+      "path": "rejected-caller-claim.txt",
+      "role": "rejected-witness",
+      "digest": "sha256:6266283e637c72c982acb7e94a155d3eb7ecf506c5504eafe2c1b8d49e880b58"
+    },
+    {
+      "path": "rejected-runtime-metadata.txt",
+      "role": "rejected-witness",
+      "digest": "sha256:89490eb69187535a96364302ae3baaa76840fde5f2ba2889fd2b6545d3b831b5"
+    }
+  ],
+  "evidence": {
+    "current": ["source-w", "tree-sitter-parse", "host-oracle", "official-primary-refs"],
+    "missing": ["w-compile", "w-run", "hir-verifier", "provider-linker", "foreign-execution", "human-study", "model-study"]
+  }
+}

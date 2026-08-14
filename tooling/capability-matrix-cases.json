@@ -238,13 +238,17 @@
             "source-w",
             "host-oracle",
             "design-ledger",
-            "atom1-design-oracle"
+            "atom1-design-oracle",
+            "brx2-study",
+            "brx2-host-oracle"
         ],
-        "missing": [
-          "w-compile",
-          "w-run",
-          "compiler-relation-check",
-          "provider"
+          "missing": [
+            "w-compile",
+            "w-run",
+            "compiler-relation-check",
+            "provider",
+            "hir-verifier",
+            "separate-compilation"
         ],
         "sourceRefs": [
           {
@@ -262,9 +266,28 @@
         "requiredEvidence": [
           "two independent relation derivations",
           "missing and forged mapping rejection",
-          "Last Light adapter witness"
+          "Last Light adapter witness",
+          "requirement/interface ownership and exact slot modes",
+          "provider and interface lock digest agreement"
         ],
-        "stopCondition": "Reject the route if relation facts require runtime lifetime metadata or caller-provided ownership claims."
+        "stopCondition": "Reject the route if relation facts require runtime lifetime metadata or caller-provided ownership claims.",
+        "studyRefs": [
+          {
+            "path": "tooling/studies/brx2-borrow-relations/bundle.json",
+            "digest": "sha256:912bffb1b5983c47a393bd301226255ae65d2b14edae3668beabe44cd41b9c6f",
+            "claim": "BRX2 keeps requirement/interface-owned relation candidates in Research and preserves W-914."
+          },
+          {
+            "path": "tooling/brx2-borrow-relations-machine.mjs",
+            "digest": "sha256:783691e2c11325b4f13c4d2a7f3ca739d30862b3a94b0f8b4df6f081d675a08e",
+            "claim": "The host oracle derives relations, edges, OriginSet, interface keys, and digest drift from structured inputs."
+          }
+        ],
+        "evidenceRefs": [
+          "brx2-study",
+          "brx2-host-oracle",
+          "official-primary-refs"
+        ]
       },
       "documentation": {
         "question": "How does W keep a borrowed result tied to its real source?",
