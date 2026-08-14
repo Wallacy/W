@@ -1,0 +1,50 @@
+{
+  "$schema": "w-cyc1-explicit-cycle-lifecycle-study-1",
+  "status": "design-oracle-input",
+  "id": "CYC1",
+  "gate": "CYC0-G1",
+  "title": "Explicit cycle lifecycle and conditional liveness",
+  "question": "Can W solve explicit graph ownership predictably with weak edges, close/drain, and an opt-in census while preserving deterministic cleanup and rejecting a transparent collector?",
+  "variants": [
+    { "id": "current-weak-owner", "role": "current", "language": "w", "path": "current-weak-owner.w", "digest": "sha256:c7b7064fe3a71ec2a0b4d3166a020997918a07a3011aa9572efbb9f423ac947a" },
+    { "id": "explicit-owner-close", "role": "current", "language": "w", "path": "explicit-owner-close.w", "digest": "sha256:48db2812abb36d3956ced04558e7efdb6d95e05bc2c5754e90b8575fa7f8d0c0" },
+    { "id": "post-init-self-weak", "role": "current", "language": "w", "path": "post-init-self-weak.w", "digest": "sha256:914b17c7589c9f093e98db7c262fcab5ada85537815b3a9e75417cd4c344dc13" },
+    { "id": "conditional-liveness", "role": "research-candidate", "language": "w", "path": "conditional-liveness.w", "digest": "sha256:290e29f7b71a9993a6c706440d4145bfc2fc2f6f568a68945d7966f57df6c73c" },
+    { "id": "transparent-collector", "role": "rejected-witness", "language": "w-reserved", "path": "transparent-collector.txt", "digest": "sha256:a98f468ce08dd37cfe96d3afaece4333f5618e27072e80651c5b1c66a097b180" },
+    { "id": "public-self-weak-constructor", "role": "rejected-witness", "language": "w-reserved", "path": "public-self-weak-constructor.txt", "digest": "sha256:b4cde22d5e6ca7cadf436ae3018f383022a82d4c9b7366610bda947ce2ef1fdb" }
+  ],
+  "sourceRefs": [
+    { "path": "../../../reference/last-light/memory.w", "symbol": "MenuSection", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "weak parent and shared children" },
+    { "path": "../../../reference/last-light/memory.w", "symbol": "installMenuObserver", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "weak callback capture" },
+    { "path": "../../../reference/last-light/memory.w", "symbol": "expectedSharedCycleDisposition", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "cycle disposition oracle" },
+    { "path": "../../../reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "persistent FFI callback lease" },
+    { "path": "../../../reference/last-light/app.w", "symbol": "shutdown", "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29", "claim": "service drain at shutdown" },
+    { "path": "../../../reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de", "claim": "call-cycle and service drain states" },
+    { "path": "../../../reference/last-light/liveness_oracle.w", "symbol": "CommitGate", "digest": "sha256:447a3fc9252312c7403450a861a75324bb34e1a91df9a7a7981d0bc0b38b4119", "claim": "cleanup and runtime quiescence gate" },
+    { "path": "../../../reference/last-light/shared_control_oracle.w", "symbol": "crossDomainOrder", "digest": "sha256:77c0e4bc95a7770f7497599fcd81f8dbaab57afa0b9285f70a89aafe30ba6241", "claim": "cross-domain origin and rehome order" }
+  ],
+  "officialPrimaryRefs": [
+    { "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf", "claim": "C23 pointer, object lifetime, and storage baseline" },
+    { "url": "https://doc.rust-lang.org/std/rc/struct.Rc.html", "claim": "Rust Rc strong ownership and cycle behavior" },
+    { "url": "https://doc.rust-lang.org/std/sync/struct.Arc.html", "claim": "Rust Arc cross-thread reference counting" },
+    { "url": "https://doc.rust-lang.org/std/rc/struct.Weak.html", "claim": "Rust Weak edge and upgrade semantics" },
+    { "url": "https://doc.rust-lang.org/std/ops/trait.Drop.html", "claim": "Rust deterministic Drop ordering boundary" },
+    { "url": "https://docs.python.org/3/library/gc.html", "claim": "Python cyclic garbage collection and debug interface" },
+    { "url": "https://docs.python.org/3/library/weakref.html", "claim": "Python weak references, callbacks, and weak mappings" },
+    { "url": "https://docs.python.org/3/c-api/typeobj.html", "claim": "Python finalization and type lifecycle hooks" },
+    { "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting/", "claim": "Swift ARC weak and unowned references" },
+    { "url": "https://github.com/apple/swift-evolution/blob/main/proposals/0410-atomics.md", "claim": "Swift atomic operations and synchronization proposal" }
+  ],
+  "corpus": { "path": "../../cyc1-explicit-cycle-cases.json", "digest": "sha256:5fc31315a6415b5a50cffb20c8fa18907b9fdc46c7adbafb40c992401a62fb8c" },
+  "oracle": { "path": "../../cyc1-explicit-cycle-machine.mjs", "digest": "sha256:d795c6b5615142aaeb1ca35b2dc9facbb3a68c3ff070eca96b5512d31416ef72" },
+  "referenceTest": { "path": "../../cyc1-explicit-cycle-reference.test.mjs", "digest": "sha256:492e4162e0f3523e894c85c437c2ffe1b9e5c0dcbd7d39c5299c9985ca96aea9" },
+  "checker": { "path": "../../check-cyc1-explicit-cycle.mjs", "digest": "sha256:0c9ce302a2ac6f5fe0450a4e99873a945480987681f809fdc7ed217159a4594b" },
+  "snapshot": { "path": "../../cyc1-explicit-cycle-results.snapshot.jsonl", "digest": "sha256:449c40b13eb15c322fd7aa1245be0dcb1fafecd27e74b7e1559fce1c4529253a" },
+  "studyOracle": { "path": "oracle.test.mjs", "digest": "sha256:def6b7133c719ff534766f3fb81d25a827369c9f05eb1c273c1f29bbe7844f0c" },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle", "source-ref", "official-primary"],
+    "missing": ["w-compile", "w-run", "cycle-stress-provider", "provider", "human-study", "model-study"]
+  },
+  "recommendation": "Keep CYC0 composable with explicit weak edges, close/drain/owner composition, and an opt-in diagnostic census. Keep transparent collection and finalizer semantics rejected. Record conditional weak-key/ephemeron liveness as a separate Research subcapability only.",
+  "stopCondition": "Consider a conditional-liveness primitive only if a bounded problem requires observable key identity or ephemeron semantics and the generation/ID, owner-scoped lease, or detached-value compositions change that requirement or fail under a post-drain census, deterministic cleanup, and no hidden foreign boundary. Until then keep the Research subcapability separate and do not add a collector, finalizer, self-weak constructor, or new syntax."
+}

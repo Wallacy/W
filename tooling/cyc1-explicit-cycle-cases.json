@@ -1,0 +1,501 @@
+{
+  "$schema": "w-cyc1-explicit-cycle-cases-1",
+  "status": "design-oracle-input",
+  "title": "Explicit cycle lifecycle and conditional liveness at the Last Light restaurant",
+  "officialPrimaryRefs": [
+    { "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf", "claim": "C23 storage duration and pointer lifetime" },
+    { "url": "https://doc.rust-lang.org/std/sync/struct.Arc.html", "claim": "Rust Arc and Weak ownership" },
+    { "url": "https://doc.rust-lang.org/stable/std/rc/struct.Rc.html", "claim": "Rust Rc cycle behavior" },
+    { "url": "https://doc.rust-lang.org/std/rc/struct.Weak.html", "claim": "Rust Weak non-owning edge" },
+    { "url": "https://doc.rust-lang.org/reference/destructors.html", "claim": "Rust destructor ordering and caveats" },
+    { "url": "https://docs.python.org/3/library/gc.html", "claim": "Python cyclic garbage collection" },
+    { "url": "https://docs.python.org/3/library/weakref.html", "claim": "Python weak references and finalization" },
+    { "url": "https://docs.python.org/3/c-api/typeobj.html", "claim": "Python finalization, clearing, and resurrection" },
+    { "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting/", "claim": "Swift ARC strong cycles and weak/unowned references" },
+    { "url": "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0410-atomics.md", "claim": "Atomic weak acquisition transaction" }
+  ],
+  "cases": [
+    {
+      "id": "CYC1-POS-menu-weak-parent",
+      "family": "explicit-graph",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "MenuSection" }],
+      "graph": {
+        "nodes": [{ "id": "root", "kind": "menu" }, { "id": "child", "kind": "menu" }],
+        "edges": [
+          { "id": "root-children", "from": "root", "to": "child", "mode": "strong" },
+          { "id": "child-parent", "from": "child", "to": "root", "mode": "weak" }
+        ],
+        "roots": [{ "id": "menu-root", "node": "root" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "accepted", "status": "clean", "code": "no-residual-strong-scc" }
+    },
+    {
+      "id": "CYC1-POS-observer-weak-capture",
+      "family": "explicit-graph",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "installMenuObserver" }],
+      "graph": {
+        "nodes": [{ "id": "hub", "kind": "observer-hub" }, { "id": "callback", "kind": "closure" }],
+        "edges": [
+          { "id": "hub-callbacks", "from": "hub", "to": "callback", "mode": "strong" },
+          { "id": "callback-hub", "from": "callback", "to": "hub", "mode": "weak" }
+        ],
+        "roots": [{ "id": "hub-root", "node": "hub" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "accepted", "status": "clean", "code": "no-residual-strong-scc" }
+    },
+    {
+      "id": "CYC1-NEG-strong-callback-scc",
+      "family": "explicit-graph",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "expectedSharedCycleDisposition" }],
+      "graph": {
+        "nodes": [{ "id": "hub", "kind": "observer-hub" }, { "id": "callback", "kind": "closure" }],
+        "edges": [
+          { "id": "hub-callbacks", "from": "hub", "to": "callback", "mode": "strong", "release": "deinitOnly" },
+          { "id": "callback-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinitOnly" }
+        ],
+        "roots": [{ "id": "hub-root", "node": "hub" }]
+      },
+      "events": [],
+      "expect": { "compileDisposition": "rejected", "status": "compile-rejected", "code": "W-OWNERSHIP-0014" }
+    },
+    {
+      "id": "CYC1-POS-explicit-close-break",
+      "family": "explicit-graph",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "MenuObserverHub" }],
+      "graph": {
+        "nodes": [{ "id": "hub", "kind": "observer-hub" }, { "id": "callback", "kind": "closure" }],
+        "edges": [
+          { "id": "hub-callbacks", "from": "hub", "to": "callback", "mode": "strong", "release": "explicitClose", "owner": "hub" },
+          { "id": "callback-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinitOnly" }
+        ],
+        "roots": [{ "id": "hub-root", "node": "hub" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "close", "owner": "hub", "edges": ["hub-callbacks"] }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "breakable", "status": "clean", "code": "no-residual-strong-scc" }
+    },
+    {
+      "id": "CYC1-POS-lifecycle-drain-break",
+      "family": "explicit-graph",
+      "sourceRefs": [{ "path": "reference/last-light/app.w", "symbol": "shutdown" }],
+      "graph": {
+        "nodes": [{ "id": "service", "kind": "service" }, { "id": "callback", "kind": "callback" }],
+        "edges": [
+          { "id": "service-callback", "from": "service", "to": "callback", "mode": "strong", "release": "lifecycleDrain", "owner": "service" },
+          { "id": "callback-service", "from": "callback", "to": "service", "mode": "strong", "release": "deinitOnly" }
+        ],
+        "roots": [{ "id": "service-root", "node": "service" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "breakable", "status": "clean", "code": "no-residual-strong-scc" }
+    },
+    {
+      "id": "CYC1-NEG-self-cycle",
+      "family": "explicit-graph",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "SharedEdgeRelease" }],
+      "graph": {
+        "nodes": [{ "id": "callback", "kind": "closure" }],
+        "edges": [{ "id": "self", "from": "callback", "to": "callback", "mode": "strong", "release": "deinitOnly" }],
+        "roots": [{ "id": "callback-root", "node": "callback" }]
+      },
+      "events": [],
+      "expect": { "compileDisposition": "rejected", "status": "compile-rejected", "code": "W-OWNERSHIP-0014" }
+    },
+    {
+      "id": "CYC1-DYN-runtime-strong-cycle",
+      "family": "dynamic-graph",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "SharedCycleDisposition" }],
+      "graph": { "identitiesKnown": true, "nodes": [{ "id": "left" }, { "id": "right" }], "edges": [], "roots": [] },
+      "events": [
+        { "op": "admit" },
+        { "op": "addStrong", "edge": { "id": "left-right", "from": "left", "to": "right", "release": "deinitOnly" } },
+        { "op": "addStrong", "edge": { "id": "right-left", "from": "right", "to": "left", "release": "deinitOnly" } },
+        { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }
+      ],
+      "expect": { "compileDisposition": "accepted", "status": "residual-cycle", "code": "W-MEMORY-0001" }
+    },
+    {
+      "id": "CYC1-POS-live-root-after-drain",
+      "family": "dynamic-graph",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "SharedCyclePhase" }],
+      "graph": {
+        "identitiesKnown": false,
+        "nodes": [{ "id": "left" }, { "id": "right" }],
+        "edges": [
+          { "id": "left-right", "from": "left", "to": "right", "mode": "strong", "release": "deinitOnly" },
+          { "id": "right-left", "from": "right", "to": "left", "mode": "strong", "release": "deinitOnly" }
+        ],
+        "roots": [{ "id": "external", "node": "left" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "dynamic-open", "status": "live-root", "code": "live-root-reachable" }
+    },
+    {
+      "id": "CYC1-NEG-residual-after-drain",
+      "family": "dynamic-graph",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "expectedSharedCycleDisposition" }],
+      "graph": {
+        "nodes": [{ "id": "left" }, { "id": "right" }],
+        "edges": [
+          { "id": "left-right", "from": "left", "to": "right", "mode": "strong", "release": "explicitClose", "owner": "left" },
+          { "id": "right-left", "from": "right", "to": "left", "mode": "strong", "release": "deinitOnly" }
+        ],
+        "roots": []
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "breakable", "status": "residual-cycle", "code": "W-MEMORY-0001" }
+    },
+    {
+      "id": "CYC1-NEG-unrelated-root-does-not-hide-residual",
+      "family": "dynamic-graph",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "SharedCycleDisposition" }],
+      "graph": {
+        "identitiesKnown": false,
+        "nodes": [{ "id": "left" }, { "id": "right" }, { "id": "unrelated" }],
+        "edges": [
+          { "id": "left-right", "from": "left", "to": "right", "mode": "strong", "release": "deinitOnly" },
+          { "id": "right-left", "from": "right", "to": "left", "mode": "strong", "release": "deinitOnly" },
+          { "id": "unrelated-weak", "from": "unrelated", "to": "unrelated", "mode": "weak" }
+        ],
+        "roots": [{ "id": "unrelated-root", "node": "unrelated" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "dynamic-open", "status": "residual-cycle", "code": "W-MEMORY-0001" }
+    },
+    {
+      "id": "CYC1-NEG-census-before-drain",
+      "family": "explicit-graph",
+      "sourceRefs": [{ "path": "reference/last-light/liveness_oracle.w", "symbol": "CommitGate" }],
+      "graph": { "nodes": [{ "id": "hub" }], "roots": [{ "id": "hub-root", "node": "hub" }] },
+      "events": [{ "op": "admit" }, { "op": "census" }],
+      "expect": { "compileDisposition": "accepted", "status": "audit-before-drain", "code": "W-MEMORY-AUDIT-BEFORE-DRAIN" }
+    },
+    {
+      "id": "CYC1-POS-ffi-order",
+      "family": "ffi-registration",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "watchClosingBell" }],
+      "graph": {
+        "nodes": [{ "id": "bell" }],
+        "roots": [{ "id": "bell-root", "node": "bell" }],
+        "registrations": [{ "id": "bell-registration", "node": "bell", "foreign": true }],
+        "resources": [{ "id": "bell-lease", "node": "bell", "kind": "ffi-callback", "registration": "bell-registration" }]
+      },
+      "events": [
+        { "op": "admit" }, { "op": "closeAdmission" }, { "op": "unregister", "registration": "bell-registration" },
+        { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "destroy", "resource": "bell-lease" },
+        { "op": "unpin", "resource": "bell-lease" }, { "op": "reclaim", "resource": "bell-lease" }, { "op": "census" }
+      ],
+      "expect": { "compileDisposition": "accepted", "status": "clean", "code": "no-residual-strong-scc" }
+    },
+    {
+      "id": "CYC1-NEG-ffi-inflight",
+      "family": "ffi-registration",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "BellLease" }],
+      "graph": {
+        "nodes": [{ "id": "bell" }],
+        "registrations": [{ "id": "bell-registration", "node": "bell", "foreign": true, "inFlight": 1 }],
+        "resources": [{ "id": "bell-lease", "node": "bell", "kind": "ffi-callback", "registration": "bell-registration" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "unregister", "registration": "bell-registration" }, { "op": "drain", "target": "all" }],
+      "expect": { "compileDisposition": "accepted", "status": "invalid", "code": "drain-with-live-callback" }
+    },
+    {
+      "id": "CYC1-UNK-hidden-foreign-root",
+      "family": "ffi-registration",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "ll_bell_subscribe" }],
+      "graph": {
+        "identitiesKnown": false,
+        "nodes": [{ "id": "bell" }, { "id": "context" }],
+        "edges": [{ "id": "context-bell", "from": "context", "to": "bell", "mode": "strong", "release": "deinitOnly" }],
+        "roots": [{ "id": "foreign-context", "node": "context", "known": false, "authority": "foreign-hidden" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "dynamic-open", "status": "unknown", "code": "W-MEMORY-UNKNOWN-BOUNDARY" }
+    },
+    {
+      "id": "CYC1-POS-adapter-foreign-root",
+      "family": "ffi-registration",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "ll_bell_close" }],
+      "graph": {
+        "identitiesKnown": false,
+        "nodes": [{ "id": "bell" }, { "id": "context" }],
+        "edges": [
+          { "id": "context-bell", "from": "context", "to": "bell", "mode": "strong", "release": "deinitOnly", "authority": "adapter" },
+          { "id": "bell-context", "from": "bell", "to": "context", "mode": "strong", "release": "deinitOnly", "authority": "adapter" }
+        ],
+        "roots": [{ "id": "adapter-context", "node": "context", "known": true, "authority": "adapter" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "dynamic-open", "status": "live-root", "code": "live-root-reachable" }
+    },
+    {
+      "id": "CYC1-POS-service-ref-not-ownership",
+      "family": "service-graph",
+      "sourceRefs": [{ "path": "reference/last-light/app.w", "symbol": "shutdown" }],
+      "graph": {
+        "nodes": [{ "id": "service-a", "kind": "service" }, { "id": "service-b", "kind": "service" }],
+        "edges": [{ "id": "ref", "from": "service-a", "to": "service-b", "mode": "service" }],
+        "roots": [{ "id": "service-root", "node": "service-a" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "accepted", "status": "clean", "code": "no-residual-strong-scc", "serviceRefsAreOwnership": false }
+    },
+    {
+      "id": "CYC1-NEG-service-call-cycle",
+      "family": "service-graph",
+      "sourceRefs": [{ "path": "reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState" }],
+      "service": { "callCycle": "metadata" },
+      "graph": { "nodes": [{ "id": "a", "kind": "service" }, { "id": "b", "kind": "service" }], "edges": [], "roots": [] },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "accepted", "status": "clean", "code": "no-residual-strong-scc", "serviceCallDisposition": "call-cycle" }
+    },
+    {
+      "id": "CYC1-POS-external-service-deadline",
+      "family": "service-graph",
+      "sourceRefs": [{ "path": "reference/last-light/lifecycle_oracle.w", "symbol": "unknownOutcome" }],
+      "service": { "callCycle": "external" },
+      "graph": { "nodes": [{ "id": "a", "kind": "service" }, { "id": "b", "kind": "foreign-service" }], "edges": [], "roots": [] },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "accepted", "status": "clean", "code": "no-residual-strong-scc", "serviceCallDisposition": "deadline" }
+    },
+    {
+      "id": "CYC1-POS-resource-async-finish",
+      "family": "resource-lifecycle",
+      "sourceRefs": [{ "path": "reference/last-light/app.w", "symbol": "await ctx.services.drain" }],
+      "graph": {
+        "nodes": [{ "id": "file" }, { "id": "owner" }],
+        "edges": [
+          { "id": "file-owner", "from": "file", "to": "owner", "release": "lifecycleDrain", "owner": "file-resource" },
+          { "id": "owner-file", "from": "owner", "to": "file", "release": "lifecycleDrain", "owner": "file-resource" }
+        ],
+        "roots": [{ "id": "owner-root", "node": "owner" }],
+      "resources": [{ "id": "file-resource", "node": "file", "kind": "file", "requiresFinish": true }]
+      },
+      "events": [{ "op": "admit" }, { "op": "cancel" }, { "op": "closeAdmission" }, { "op": "drain", "target": "file-resource" }, { "op": "finish", "resource": "file-resource" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "breakable", "status": "clean", "code": "no-residual-strong-scc", "cancellationRequested": true }
+    },
+    {
+      "id": "CYC1-FAULT-panic-fault-boundary",
+      "family": "resource-lifecycle",
+      "sourceRefs": [{ "path": "reference/last-light/liveness_oracle.w", "symbol": "ShutdownAction" }],
+      "graph": { "nodes": [{ "id": "socket" }], "resources": [{ "id": "socket-resource", "node": "socket", "kind": "socket", "requiresFinish": true }] },
+      "events": [{ "op": "admit" }, { "op": "panic" }],
+      "expect": { "status": "fault-boundary", "code": "panic-fault-boundary", "userCleanup": "not-guaranteed" }
+    },
+    {
+      "id": "CYC1-POS-cross-domain-control-block",
+      "family": "concurrency",
+      "sourceRefs": [{ "path": "reference/last-light/shared_control_oracle.w", "symbol": "crossDomainOrder" }],
+      "graph": {
+        "domain": "crossDomain",
+        "counterThreadSafe": true,
+        "originsCrossDomain": true,
+        "nodes": [{ "id": "owner" }, { "id": "child" }],
+        "edges": [{ "id": "owner-child", "from": "owner", "to": "child", "mode": "strong" }],
+        "roots": [{ "id": "owner-root", "node": "owner" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "accepted", "status": "clean", "code": "no-residual-strong-scc" }
+    },
+    {
+      "id": "CYC1-NEG-cross-domain-missing-facts",
+      "family": "concurrency",
+      "sourceRefs": [{ "path": "reference/last-light/shared_control_oracle.w", "symbol": "rehome" }],
+      "graph": { "domain": "crossDomain", "counterThreadSafe": false, "originsCrossDomain": true, "nodes": [{ "id": "owner" }], "roots": [{ "id": "owner-root", "node": "owner" }] },
+      "events": [],
+      "expect": { "status": "invalid", "code": "cross-domain-facts-missing" }
+    },
+    {
+      "id": "CYC1-POS-concurrent-unlink-under-lock",
+      "family": "concurrency",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "MenuObserverHub" }],
+      "graph": {
+        "concurrent": true,
+        "nodes": [{ "id": "hub" }, { "id": "callback" }],
+        "edges": [
+          { "id": "hub-callback", "from": "hub", "to": "callback", "mode": "strong", "release": "explicitClose", "owner": "hub" },
+          { "id": "callback-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinitOnly" }
+        ],
+        "roots": [{ "id": "hub-root", "node": "hub" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "lock", "owner": "hub" }, { "op": "closeAdmission" }, { "op": "unlink", "owner": "hub", "edges": ["hub-callback"] }, { "op": "unlock", "owner": "hub" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "breakable", "status": "clean", "code": "no-residual-strong-scc" }
+    },
+    {
+      "id": "CYC1-NEG-concurrent-unlink-without-lock",
+      "family": "concurrency",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "MenuObserverHub" }],
+      "graph": {
+        "concurrent": true,
+        "nodes": [{ "id": "hub" }, { "id": "callback" }],
+        "edges": [{ "id": "hub-callback", "from": "hub", "to": "callback", "mode": "strong", "release": "explicitClose", "owner": "hub" }, { "id": "callback-hub", "from": "callback", "to": "hub", "mode": "strong", "release": "deinitOnly" }],
+        "roots": [{ "id": "hub-root", "node": "hub" }]
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "unlink", "owner": "hub", "edges": ["hub-callback"] }],
+      "expect": { "compileDisposition": "breakable", "status": "invalid", "code": "mutation-without-lock" }
+    },
+    {
+      "id": "CYC1-NEG-address-reuse-before-weak-zero",
+      "family": "concurrency",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "weakAfterLastOwner" }],
+      "graph": { "nodes": [{ "id": "root" }], "roots": [{ "id": "root-owner", "node": "root" }], "weakHandles": [{ "id": "weak-root", "target": "root" }] },
+      "events": [{ "op": "admit" }, { "op": "rootDrop", "id": "root-owner" }, { "op": "typedDrop", "node": "root" }, { "op": "reuseAddress" }],
+      "expect": { "compileDisposition": "accepted", "status": "invalid", "code": "address-reuse-before-weak-zero" }
+    },
+    {
+      "id": "CYC1-POS-weak-read-linearization",
+      "family": "weak-lifecycle",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "weakUpgradeSuccess" }],
+      "graph": { "nodes": [{ "id": "root" }], "roots": [{ "id": "root-owner", "node": "root" }], "weakHandles": [{ "id": "weak-root", "target": "root" }] },
+      "events": [{ "op": "admit" }, { "op": "weakRead", "handle": "weak-root" }, { "op": "rootDrop", "id": "root-owner" }, { "op": "typedDrop", "node": "root" }, { "op": "weakRead", "handle": "weak-root" }, { "op": "weakDrop", "handle": "weak-root" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "accepted", "status": "clean", "code": "no-residual-strong-scc", "weakReads": [{ "handle": "weak-root", "value": "some" }, { "handle": "weak-root", "value": "none" }], "controlBlockFreed": true }
+    },
+    {
+      "id": "CYC1-POS-weak-blocks-per-target",
+      "family": "weak-lifecycle",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "weakUpgradeSuccess" }],
+      "graph": {
+        "nodes": [{ "id": "left" }, { "id": "right" }],
+        "roots": [{ "id": "left-root", "node": "left" }, { "id": "right-root", "node": "right" }],
+        "weakHandles": [{ "id": "weak-left", "target": "left" }, { "id": "weak-right", "target": "right" }]
+      },
+      "events": [
+        { "op": "admit" },
+        { "op": "rootDrop", "id": "left-root" },
+        { "op": "typedDrop", "node": "left" },
+        { "op": "weakDrop", "handle": "weak-left" },
+        { "op": "weakDrop", "handle": "weak-right" },
+        { "op": "rootDrop", "id": "right-root" },
+        { "op": "typedDrop", "node": "right" },
+        { "op": "closeAdmission" },
+        { "op": "drain", "target": "all" },
+        { "op": "quiesce" },
+        { "op": "census" }
+      ],
+      "expect": {
+        "compileDisposition": "accepted",
+        "status": "clean",
+        "code": "no-residual-strong-scc",
+        "controlBlockFreed": true,
+        "controlBlocksFreed": { "left": true, "right": true },
+        "controlBlockFreeCount": { "left": 1, "right": 1 },
+        "controlBlockTrace": [
+          { "handle": "weak-left", "target": "left", "freed": true },
+          { "handle": "weak-right", "target": "right", "freed": false }
+        ]
+      }
+    },
+    {
+      "id": "CYC1-NEG-resurrection",
+      "family": "weak-lifecycle",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "weakAfterLastOwner" }],
+      "graph": { "nodes": [{ "id": "root" }], "roots": [{ "id": "root-owner", "node": "root" }], "weakHandles": [{ "id": "weak-root", "target": "root" }] },
+      "events": [{ "op": "admit" }, { "op": "rootDrop", "id": "root-owner" }, { "op": "typedDrop", "node": "root" }, { "op": "weakRead", "handle": "weak-root", "resurrect": true }],
+      "expect": { "compileDisposition": "accepted", "status": "invalid", "code": "weak-resurrection-forbidden" }
+    },
+    {
+      "id": "CYC1-POS-self-weak-two-phase",
+      "family": "self-reference",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "weakAfterLastOwner" }],
+      "graph": { "nodes": [{ "id": "node" }], "roots": [{ "id": "node-root", "node": "node" }] },
+      "events": [{ "op": "admit" }, { "op": "publish", "node": "node" }, { "op": "selfWeakInit", "node": "node", "phase": "post-init" }, { "op": "addWeak", "edge": { "id": "self-weak", "from": "node", "to": "node" } }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "accepted", "status": "clean", "code": "no-residual-strong-scc" }
+    },
+    {
+      "id": "CYC1-RESEARCH-self-weak-constructor",
+      "family": "self-reference",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "watchNewClosingBell" }],
+      "graph": { "nodes": [{ "id": "node" }], "roots": [{ "id": "node-root", "node": "node" }] },
+      "events": [{ "op": "admit" }, { "op": "selfWeakInit", "node": "node", "phase": "constructor" }],
+      "expect": { "compileDisposition": "accepted", "status": "invalid", "code": "self-weak-before-publication" }
+    },
+    {
+      "id": "CYC1-POS-linked-list-weak-back-edge",
+      "family": "linked-structure",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "MenuSection" }],
+      "graph": { "nodes": [{ "id": "head" }, { "id": "tail" }], "edges": [{ "id": "next", "from": "head", "to": "tail", "mode": "strong" }, { "id": "prev", "from": "tail", "to": "head", "mode": "weak" }], "roots": [{ "id": "head-root", "node": "head" }] },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "accepted", "status": "clean", "code": "no-residual-strong-scc" }
+    },
+    {
+      "id": "CYC1-NEG-linked-list-strong-back-edge",
+      "family": "linked-structure",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "SharedEdgeRelease" }],
+      "graph": { "nodes": [{ "id": "head" }, { "id": "tail" }], "edges": [{ "id": "next", "from": "head", "to": "tail", "mode": "strong", "release": "deinitOnly" }, { "id": "prev", "from": "tail", "to": "head", "mode": "strong", "release": "deinitOnly" }], "roots": [{ "id": "head-root", "node": "head" }] },
+      "events": [],
+      "expect": { "compileDisposition": "rejected", "status": "compile-rejected", "code": "W-OWNERSHIP-0014" }
+    },
+    {
+      "id": "CYC1-POS-generation-id-cache",
+      "family": "conditional-liveness",
+      "sourceRefs": [{ "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/conditional-liveness.w", "symbol": "generationIdCacheWithInvalidation", "digest": "sha256:290e29f7b71a9993a6c706440d4145bfc2fc2f6f568a68945d7966f57df6c73c" }],
+      "composition": { "kind": "generation-id-cache", "idDetached": true, "explicitInvalidation": true, "valueToKeyStrong": false },
+      "expect": { "status": "composable-alternative", "code": "generation-id-detaches-key" }
+    },
+    {
+      "id": "CYC1-POS-owner-scoped-cache-lease",
+      "family": "conditional-liveness",
+      "sourceRefs": [{ "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/conditional-liveness.w", "symbol": "ownerScopedLeaseWithClose", "digest": "sha256:290e29f7b71a9993a6c706440d4145bfc2fc2f6f568a68945d7966f57df6c73c" }],
+      "composition": { "kind": "owner-scoped-cache", "ownerLease": true, "explicitClose": true, "valueToKeyStrong": false },
+      "expect": { "status": "composable-alternative", "code": "owner-lease-breaks-edge" }
+    },
+    {
+      "id": "CYC1-POS-detached-cache-value",
+      "family": "conditional-liveness",
+      "sourceRefs": [{ "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/conditional-liveness.w", "symbol": "detachedValueWithoutBackEdge", "digest": "sha256:290e29f7b71a9993a6c706440d4145bfc2fc2f6f568a68945d7966f57df6c73c" }],
+      "composition": { "kind": "detached-value", "detached": true, "keyIdentityRequired": false, "valueToKeyStrong": false },
+      "expect": { "status": "composable-alternative", "code": "detached-value-no-back-edge" }
+    },
+    {
+      "id": "CYC1-RESEARCH-naive-weak-key",
+      "family": "conditional-liveness",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "MenuSection" }],
+      "composition": { "kind": "naive-weak-key" },
+      "expect": { "status": "candidate-research", "code": "ordinary-weak-insufficient" }
+    },
+    {
+      "id": "CYC1-RESEARCH-ephemeron-value-key-cycle",
+      "family": "conditional-liveness",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "MenuSection" }],
+      "composition": { "kind": "ephemeron", "valueToKeyStrong": true },
+      "expect": { "status": "candidate-research", "code": "ephemeron-value-key-cycle" }
+    },
+    {
+      "id": "CYC1-REJECT-transparent-collector",
+      "family": "conditional-liveness",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "expectedSharedCycleDisposition" }],
+      "composition": { "kind": "transparent-collector" },
+      "expect": { "status": "intentionally-rejected", "code": "transparent-collector-rejected" }
+    },
+    {
+      "id": "CYC1-INFO-census-quota",
+      "family": "diagnostic",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "expectedSharedCycleDisposition" }],
+      "graph": { "censusBudget": 2, "nodes": [{ "id": "a" }, { "id": "b" }, { "id": "c" }], "roots": [{ "id": "a-root", "node": "a" }] },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "accepted", "status": "inconclusive", "code": "W-MEMORY-CENSUS-BOUNDED", "mutation": "none" }
+    },
+    {
+      "id": "CYC1-INFO-large-chain-lowering-required",
+      "family": "lowering",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "MenuSection" }],
+      "graph": { "dropDepth": 1024, "nodes": [{ "id": "n0" }, { "id": "n1" }, { "id": "n2" }], "edges": [{ "id": "n0-n1", "from": "n0", "to": "n1", "mode": "strong" }, { "id": "n1-n2", "from": "n1", "to": "n2", "mode": "strong" }], "roots": [{ "id": "chain-root", "node": "n0" }] },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "accepted", "status": "clean", "code": "no-residual-strong-scc", "loweringRequirement": "iterative-drop-implementation-required", "loweringStatus": "inconclusive-concern" }
+    },
+    {
+      "id": "CYC1-UNK-hidden-foreign-edge",
+      "family": "plugin-listener",
+      "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "MenuObserverHub" }],
+      "graph": {
+        "identitiesKnown": false,
+        "nodes": [{ "id": "plugin" }, { "id": "listener" }],
+        "edges": [{ "id": "hidden-listener", "from": "plugin", "to": "listener", "mode": "strong", "release": "deinitOnly", "authority": "foreign-hidden", "known": false }],
+        "roots": []
+      },
+      "events": [{ "op": "admit" }, { "op": "closeAdmission" }, { "op": "drain", "target": "all" }, { "op": "quiesce" }, { "op": "census" }],
+      "expect": { "compileDisposition": "dynamic-open", "status": "unknown", "code": "W-MEMORY-UNKNOWN-BOUNDARY" }
+    }
+  ]
+}

@@ -4450,13 +4450,85 @@ Book final, sem duplicar a autoridade normativa de `DESIGN.md`.
 
 O snapshot
 [`tooling/capability-matrix-results.snapshot.jsonl`](tooling/capability-matrix-results.snapshot.jsonl)
-é gerado pelo checker. A versão corrente registra oito eixos, 15
+é gerado pelo checker. A versão corrente registra oito eixos, 16
 subcapacidades, 149 refs e oito alvos de documentação enfileirados. Os testes host em
 [`tooling/capability-matrix-reference.test.mjs`](tooling/capability-matrix-reference.test.mjs)
 cobrem rota forjada, cobertura adulterada, maturidade, refs missing/stale/
 duplicadas, snippets missing/long/duplicated e W snippet indevido, além de
 documentação ausente. Nenhum desses artefatos afirma compiler, runtime ou
 provider pronto.
+
+### 1.29 CYC1 — ciclo explícito e liveness condicional
+
+O estudo CYC1 informa o gate CYC0-G1 sem alterar `DESIGN.md`. Ele começa pelo
+Restaurante: `MenuSection` mantém parent fraco e children shared; o hub de
+observers exige callback lease e drain; services, plugins, listeners, caches,
+listas duplamente ligadas, referências de actor, registrations estrangeiras e
+recursos (file/socket) têm fronteiras de owner ou de shutdown diferentes. O
+modelo [`cyc1-explicit-cycle-machine.mjs`](tooling/cyc1-explicit-cycle-machine.mjs)
+deriva eventos de admission, edges strong/weak, close/unlink, unregister,
+cancel, callback enter/exit, drain, quiesce, drop, destroy/unpin/reclaim e
+census. Tarjan, reachability, SCC, ordem de drop e boundary opaca são fatos da
+máquina; `expect` não escolhe o resultado.
+
+O corpus tem 41 casos. Três SCCs strong fechados derivam
+`W-OWNERSHIP-0014`; três ciclos residuais após admission close e drain derivam
+`W-MEMORY-0001`; duas fronteiras estrangeiras ocultas permanecem `unknown`.
+Weak parent/capture, explicit close, lifecycle drain, roots vivos,
+registrations FFI, deadlines de service call, cancel/panic, resource finish,
+cross-domain control blocks, lock/ABA, weak acquisition sem resurrection,
+self-weak em duas fases, linked lists e drop iterativo têm cases separados.
+O fixture de resource coloca `file` e seu owner em um SCC de duas edges
+`lifecycleDrain`; o drain remove as edges e `finish` assíncrono é pré-requisito
+para quiescence. O fixture de socket mantém panic/fault separado de reclaim.
+Census é somente diagnóstico bounded depois de admission close, todos os drains
+e quiescence; ele não libera nem coleta. Foreign hidden root/edge sem adapter é
+`unknown`, não uma prova silenciosa de leak ou reclaim.
+
+A rota CYC0 continua Componível: (A) weak edges; (B) owner, close, drain ou
+arena explícitos; (C) census opt-in para diagnóstico; (D) collector transparente
+ou finalizer oculto rejeitados. O ciclo forte criado em runtime não é uma falsa
+rejeição estática: ele precisa de close/drain e pode deixar residual explícito.
+Self-weak exige publicação pós-construção; constructor support que escape `self`
+durante partial init é witness rejeitado. A longa cadeia de drops requer suporte
+de lowering iterativo; o estudo marca isso como preocupação inconclusiva,
+não comportamento implementado nem collector.
+
+A lacuna semântica adicional isolada pelo estudo é a liveness condicional de
+weak-key/ephemeron, em que o value pode manter a key viva. Ordinary weak não
+resolve esse value→key edge. Visibilidade foreign, provider e liveness de
+fronteiras continuam gaps de evidência ou de adapter, não uma prova de que a
+linguagem deve coletar. O estudo testa três composições sem primitive nova:
+generation/ID cache com key detached, owner-scoped cache lease com
+invalidation/close explícito e detached
+value sem back edge strong. Os dois witnesses que ainda pedem pesquisa ficam na
+subcapability extension `CYC0-conditional-liveness`; eles não rebaixam a rota
+do problema nem autorizam API, syntax, compiler, runtime, provider ou collector.
+O fixture source-shaped usa os símbolos distintos
+`generationIdCacheWithInvalidation`, `ownerScopedLeaseWithClose` e
+`detachedValueWithoutBackEdge`; eles demonstram composição de biblioteca, não
+uma regra ephemeron. `service.callCycle` também é metadata limitada a
+`metadata` ou `external`, nunca uma escolha do caller.
+
+As fontes primárias [C23 N3096](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf),
+Rust ([`Rc`](https://doc.rust-lang.org/stable/std/rc/struct.Rc.html),
+[`Arc`](https://doc.rust-lang.org/std/sync/struct.Arc.html),
+[`Weak`](https://doc.rust-lang.org/std/rc/struct.Weak.html) e
+[`Drop`](https://doc.rust-lang.org/std/ops/trait.Drop.html)),
+Python ([`gc`](https://docs.python.org/3/library/gc.html),
+[`weakref`](https://docs.python.org/3/library/weakref.html) e
+[lifecycle](https://docs.python.org/3/c-api/typeobj.html)) e Swift
+[ARC](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting/)
+e [atomics](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0410-atomics.md)
+sustentam a matriz comparativa. Tree-sitter parse, refs com
+digest, oracle host, snapshot e testes de mutação são evidência corrente;
+compile, run, stress provider, provider e estudos humano/modelo continuam
+missing. Só considerar uma primitive conditional-liveness se um problema
+bounded exigir identidade ou semântica ephemeron observável e as composições de
+generation/ID, owner lease ou detached value mudarem esse requisito ou
+falharem, sob census pós-drain, cleanup determinístico e nenhuma fronteira
+estrangeira oculta. Até lá não há motivo para disfigurar a linguagem com um
+collector implícito.
 
 ## 2. Proveniência
 
@@ -5886,6 +5958,13 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1382 | relation authority and witness proof | requirement/interface owns a relation; provider, implementation e witness devem verificar slots, modes, digest, interface lock e provider expectation; caller/call-site nunca escolhe a relação; witness-specific divergence é rejected em generic/open dispatch | caller claim, witness-only mapping, stale/missing/duplicate/forged slot, mode ilegal, relation digest drift ou divergência de witnesses |
 | W-1383 | BRX2 host oracle and composition | máquina deriva status/route/relation/edges/OriginSet/SemanticInterfaceKey/runtime signature/WAbi de inputs estruturados; effective relation só entra quando é aplicável, relation rejeitada conserva baseline; cobre callable fresh loans, any-fn, múltiplos results, Stream, await, boundaries, substitution/variance e no-runtime-carrier; snapshot e mutation checker são host evidence | expected echo, booleans caller, runtime lifetime table, WAbi carrier ou tratar oracle/parser como compiler/provider |
 | W-1384 | BRX2 promotion gate and stop condition | promoção só após verifier HIR, separate compilation, provider/linker, diagnostics adversariais, invariance/substitution e duas derivações independentes confirmarem relação fechada sem syntax lifetime, metadata runtime ou WAbi drift; até lá route permanece Research | continuar quando relação exige caller ownership, hidden escape, runtime state, witness divergence, ABI mudança ou evidência faltante |
+| W-1385 | CYC1 Restaurante e fronteira do problema | ciclo explícito começa por `MenuSection` parent weak/children shared, observer hub, service/plugin/listener graph, caches, linked structures, actor refs, FFI registrations e recursos; CYC0 continua uma composição por owner, weak e close/drain | substituir o problema por uma primitive estrangeira, tratar callback/service edge como ownership implícito ou omitir file/socket shutdown |
+| W-1386 | CYC1 máquina event-derived | corpus e oracle derivam admission, strong/weak edge, close/unlink, unregister, cancel, callback enter/exit, drain, quiesce, drop, destroy/unpin/reclaim, SCC Tarjan, reachability, unknown boundary, drop order e census; expected não escolhe outcome | expected echo, caller outcome booleans/flags, SCC mutável durante census, census antes de drain/quiescence ou collector side effect |
+| W-1387 | CYC1 static/dynamic cycle boundary | SCC strong fechado e somente `deinitOnly` deriva `W-OWNERSHIP-0014`; SCC criado em runtime exige close/drain e residual pós-drain deriva `W-MEMORY-0001`; root vivo permanece live-root e root/edge foreign-hidden sem adapter permanece `unknown` | rejeitar todo grafo dinâmico no compile, esconder residual atrás de root não relacionado ou marcar foreign edge conhecido sem metadata |
+| W-1388 | CYC1 lifecycle, FFI e concorrência | explicitClose exige owner declarado e close/unlink com a mesma autoridade; lifecycleDrain associa owner a node/resource/registration ou registry fechado; unregister → callback drain → destroy → unpin → reclaim, resource finish antes de census, `service.callCycle` metadata limitado a call-cycle (`metadata`) ou deadline externo (`external`), panic/fault boundary, cross-domain counter/origin, lock para mutation, weak-zero e ABA/reuse são casos independentes | close sem autoridade, drain targeted que rompe outro owner, destroy fora de ordem, callback in-flight tratado como quiescent, deinit como deadline remoto, callCycle arbitrário, weak resurrection ou address reuse antes do último weak |
+| W-1389 | CYC1 self-reference e lowering | self-weak só depois de publish em método de owner; constructor witness que expõe `self` em partial init é rejeitado; long chain registra requisito de implementação de lowering iterativo como preocupação inconclusiva, sem claim de compiler/runtime | constructor self escape, resurrection, finalizer effect ordering, declarar lowering pronto ou usar collector para corrigir stack/recursion de drop |
+| W-1390 | CYC1 conditional-liveness Research | ordinary weak não resolve ephemeron value→key; generation/ID detached, owner-scoped lease com invalidation/close e detached value sem back edge são composições testadas; somente a subcapability extension `CYC0-conditional-liveness` fica Research, enquanto CYC0 permanece Componível | promover weak-key primitive, ephemeron API, transparent GC ou finalizer sem falha das três composições sob census pós-drain |
+| W-1391 | CYC1 evidence gate e stop condition | 41 cases, 3 static SCC rejections, 3 residual diagnostics, 2 unknown boundaries e 2 conditional-liveness Research cases são host evidence; Tree-sitter, source digests, refs oficiais e mutation checker são current; compile/run/provider/stress/human/model continuam missing | chamar oracle/snapshot de compiler ou runtime, declarar provider-ready, ocultar foreign root ou fechar gate por contagem de casos |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

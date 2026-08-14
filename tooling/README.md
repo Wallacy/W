@@ -30,6 +30,7 @@ linguagem.
 | `studies/atom1-atomic-extensibility/study.json` + `atom1-atomic-extensibility-cases.json` + máquina/checker/test + snapshot | ATOM1 separa atualização de record value-only (A), handle geracional/owner (B) e retirement/reclamation (C); 70 casos cobrem carrier canônico versus raw-layout, facts derivados de fields, zero-bit rejection, packing, SnapshotCell/domain, target native/lock-free/fallback, widths até 128 bits, proofs de pointer, eventos de reclamation, foreign boundaries, shutdown e drain FFI | oracle host de design; o carrier canônico e o adapter de reclamation permanecem Research; não implementa compiler, runtime, provider ou FFI |
 | `studies/ipc1-mapped-ipc/study.json` + `ipc1-mapped-ipc-cases.json` + reducers/checker/test + snapshot | IPC1 informa/estreita IPC0-R1 com 67 casos e 134 projeções POSIX/Windows para snapshots file-backed duráveis em generation objects, carriers shm/pagefile voláteis, schema/layout digests, selector publication/receipt ordenada, cap0/capN e bounds no segmento `slots`, commit/cancelamento, checksum/materialization, crash por actor e recovery ordering, atomics, lifecycle terminal, FFI, provider bindings e fallback explícito | oracle host de design; `ipc1-mapped-ipc-reference.test.mjs` e o study oracle são host evidence; candidatos mapped são Research e não implementam API, syntax, compiler, runtime ou provider |
 | `capability-matrix-cases.json` + máquina/checker/test + snapshot | CAP0 consolida oito eixos por problema comum, tenta composição W com Last Light, preserva invariantes e deriva rotas `current`/`composable`/`research` pelas subcapacidades do problema; 149 refs primárias ou source-backed e oito filas de documentação futura | fonte editorial de staging; não mede maturidade, não copia features e não implementa compiler, runtime ou provider |
+| `cyc1-explicit-cycle-cases.json` + máquina/manifest/checker/test + estudo/snapshot | CYC1 informa CYC0-G1 com 41 casos event-derived para weak edges, close/drain, SCC estática/dinâmica, FFI/service/resource lifecycle, concorrência, unknown foreign boundaries e três composições de conditional liveness; 3 rejections estáticas, 3 diagnostics residuais, 2 unknown boundaries e 2 cases Research | oracle host e Tree-sitter parse; census é somente diagnóstico pós-drain, sem collector/finalizer/API/syntax, e compile, run, provider, stress e estudos humano/modelo continuam missing |
 | `syn1-typed-generation-cases.json` + máquina/manifest/checker/test + snapshot | SYN1 estreita SYN0-R1 com 65 casos A/B/C/D: generated module sets de `.w` passam pelo Tree-sitter real e por source-shape bounded; action result e interface candidata são publicações separadas; receipts Research cobrem graph/dependencies, identities, maps byte-based, target registry e navigation | oracle host de design; `interfacePublished` é outcome do contrato candidato, não evidência de compiler; semantic frontend, ConstIR, compiler cache, runtime, provider e LSP permanecem ausentes |
 | `gen1-incremental-suspension-cases.json` + máquina/checker/test + snapshot | GEN1 informa/estreita GEN0-R1 com 23 traces de pull, travessia, diálogo, failure, delegação, view, backpressure, cancelamento, children e FFI; compara Stream/state/channels e dois witnesses reservados em duas máquinas independentes e deriva métricas estruturais de símbolos source únicos por slices do mesmo cenário | oracle host de design; não executa W, compiler, runtime, provider ou estudo humano/modelo; bloco Stream compiler-owned é Research e frame público é rejeitado |
 | `semantic-diagnostic-matrix-cases.json` + máquina/checker/test | SDM0 deriva SemanticResult, CheckerContext, loop fixed point, AST→HIR schema, D0 records, causality, ordering, limits, policy, lex/parse boundary e cobertura de meta contracts | oracle host independente; não implementa checker, compiler, formatter ou runtime |
@@ -45,7 +46,7 @@ linguagem.
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
 | `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 547/1354 decisões estão classificadas (170 source, 432 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 63 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 190 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 39 bundles R1, 103 variantes e 156 tarefas; 67/75 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
+| `studies/*/bundle.json` + checker | 41 bundles R1, 112 variantes e 164 tarefas; 67/75 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
 | `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
 | `tabular-adapter-cases.json` + máquina/checker/snapshot | TAB1 deriva source kind, u64 snapshot offsets/short reads, nominal schema identity, publication, CSV tokenizer/nulls, Parquet footer/page/mapping/key/commit, Arrow IPC dictionary/buffer, borrowed view, copy materialization, progress/cancel, provenance, C quota/trust/release; 86 casos e 193 operações (36 aceitos + 50 rejeitados) | oracle host independente; símbolos Last Light são cross-linked; não implementa reader CSV/Parquet/Arrow, compiler, runtime ou provider |
@@ -428,14 +429,21 @@ integrações de editor.
    mapping consistentes.
 16. Para validar CAP0 sem compiler ou runtime, execute
    `bun run check:capability-matrix` no root. O checker deriva oito rotas por
-   subcapacidade, valida 149 refs e 15 subcapabilities, e mantém a fila
+   subcapacidade, valida 149 refs e 16 subcapabilities, e mantém a fila
    editorial de oito docs.
-17. Para validar SYN1 sem compiler ou runtime, execute
+17. Para validar CYC1 sem compiler ou runtime, execute `bun run check:cyc1`.
+   O checker deriva o grafo event-derived, SCCs Tarjan, reachability,
+   breakability, ordem de drop, fronteiras foreign `unknown` e census bounded
+   somente depois de admission close, drain e quiescence. As alternativas de
+   generation/ID, owner-scoped lease e detached value ficam separadas da
+   Research extension `CYC0-conditional-liveness`; não há collector ou
+   finalizer implícito.
+18. Para validar SYN1 sem compiler ou runtime, execute
    `bun run check:syn1`. O checker valida a máquina, o estudo, os digests de
    Last Light, o parse Tree-sitter dos `.w` candidatos, os negativos de
    authority/phase/cache e as projeções de target; a introdução de módulo
    gerado continua Research.
-18. Para validar BRX2 sem compiler ou runtime, execute
+19. Para validar BRX2 sem compiler ou runtime, execute
    `bun run check:brx2`. O checker deriva relação, edges, OriginSet,
    SemanticInterfaceKey e digests de provider a partir de entradas estruturadas;
    deriva também runtime signature/WAbi e exige receipts de separate compilation;
@@ -488,6 +496,51 @@ bun tooling/check-capability-matrix.mjs --write
 
 O script `check:capability-matrix` do pacote Tree-sitter entra na cadeia
 `check:docs`; a execução ampla desse gate continua separada da validação local.
+
+### CYC1 — ciclo explícito e liveness condicional
+
+[`cyc1-explicit-cycle-cases.json`](cyc1-explicit-cycle-cases.json),
+[`cyc1-explicit-cycle-machine.mjs`](cyc1-explicit-cycle-machine.mjs), o
+manifest e o estudo em
+[`studies/cyc1-explicit-cycle-lifecycle`](studies/cyc1-explicit-cycle-lifecycle)
+formam a evidência host para CYC0-G1. O corpus deriva estado a partir de
+admission, edges strong/weak, close/unlink, unregister, cancel, callback
+enter/exit, drain, quiesce, typed drop, destroy/unpin/reclaim e census. O oracle
+calcula SCC, reachability, breakability, drop order e unknown boundary; nenhum
+campo `expected` ou outcome do caller escolhe status.
+`service.callCycle` é metadata de entrada limitada a `metadata` (call-cycle) ou
+`external` (deadline); não é uma escolha do caller nem um outcome forjado.
+Edges `explicitClose` têm owner declarado; `close`/`unlink` exigem essa mesma
+autoridade, enquanto `drain` remove somente edges `lifecycleDrain` do owner
+selecionado. Owner registry só vale quando está fechado.
+
+Os 41 casos separam SCC conhecida fechada (`W-OWNERSHIP-0014`), residual
+pós-drain (`W-MEMORY-0001`), root vivo, callback in-flight, FFI order,
+service call-cycle/deadline, resource finish, panic/cancel, cross-domain
+facts, lock/ABA, weak linearization/no resurrection, self-weak two-phase,
+linked list e long-chain que requerem suporte de lowering iterativo, ainda uma
+preocupação inconclusiva. Foreign hidden edge/root sem adapter é
+`unknown`. Census só roda depois de admission close, drains e quiescence, é
+bounded e não libera/coleta objetos.
+
+A rota principal continua Componível: weak edge, owner/arena e close/drain são
+composições explícitas; collector transparente e finalizer oculto são witness
+rejected. Conditional weak-key/ephemeron liveness fica em
+`CYC0-conditional-liveness` como Research extension. O estudo testa generation/
+ID cache com key detached, owner-scoped lease com invalidation/close e detached
+value sem back edge strong. Só considerar primitive se um problema bounded
+exigir identidade/semântica ephemeron observável e essas composições mudarem o
+requisito ou falharem sob census pós-drain. Use:
+
+```sh
+bun run check:cyc1
+bun tooling/check-cyc1-explicit-cycle.mjs --write
+bun run --cwd tooling/tree-sitter-w parse:cyc1
+```
+
+Os fixtures `.w` passam somente por Tree-sitter host. Compiler, runtime,
+provider, stress, execução W e estudos humano/modelo continuam missing; CYC1
+não promove API, syntax, collector ou finalizer.
 
 ### SYN1 — módulo gerado hermético
 
