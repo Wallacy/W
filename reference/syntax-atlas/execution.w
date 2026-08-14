@@ -1,0 +1,163 @@
+// atlas:begin script-and-execution-root
+script {
+  edition: "2026"
+}
+
+module atlas_execution
+import std.runtime.task
+import { Stream, Channel } from std.stream
+// atlas:end script-and-execution-root
+
+// atlas:begin allocator-and-bindings
+fn stage(allocator destination: ref Allocator, city: String): String {
+  return city
+}
+
+fn prepare(city: String): String {
+  var result = city
+  allocator scratch: .fixed<capacity: 256> {
+    let ref name = city
+    var copyOfName = city
+    let inout writableName = copyOfName
+    var atomic count: usize = 0
+    count += 1
+    let moved = take writableName
+    result = moved
+    let staged = stage(city)
+    staged
+  }
+  allocator .fixed<capacity: 128> {
+    result
+  }
+  allocator .root {
+    let rootName = result
+    rootName
+  }
+  try allocator .none {
+    result
+  }
+  return result
+}
+// atlas:end allocator-and-bindings
+
+// atlas:begin control-flow
+fn walk(values: Array<i32>): i32 throws String {
+  var total = 0
+  rows: for ref value in values {
+    if value < 0 {
+      continue rows
+    } else {
+      total += value
+    }
+  }
+  var index = 0
+  while index < 3 {
+    index += 1
+  }
+  repeat {
+    total += 1
+  } while total < 4
+  do {
+    if total > 8 { break }
+  } catch {
+    total = 0
+  }
+  guard total >= 0 else { throw "negative" }
+  defer { total += 1 }
+  return total
+}
+// atlas:end control-flow
+
+// atlas:begin execution-forms
+async fn fetch(city: String): String throws String {
+  return city
+}
+
+async fn runTasks(): String throws String {
+  async let direct = fetch("north")
+  spawn<.compute> let parallel = fetch("south")
+  let first = try await direct
+  let second = try await parallel
+  let optional = try? await fetch("west")
+  return first + second + optional?
+}
+
+fn inspect<T>(each values: T...): String {
+  return "inspected"
+}
+
+fn directCall(values: Array<String>): String {
+  let head = values[0]?.trim()?.value?
+  return inspect(each values)
+}
+
+fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared String): String {
+  let copyCapture = <[copy target]>() => target
+  let refCapture = <[ref borrowed]>() => borrowed
+  let takeCapture = <[take moved]>() => moved
+  let weakCapture = <[weak sharedValue]>() => sharedValue
+  copyCapture()
+  refCapture()
+  takeCapture()
+  weakCapture()
+  return target
+}
+// atlas:end execution-forms
+
+// atlas:begin restricted-expressions
+fn restricted(target: String): String {
+  let captured = <[copy target]>(name) => name
+  let value = if target == "north" { "day" } else { "night" }
+  let range = 1..<4
+  let answer = pipeline {
+    return value
+  }
+  let guarded = lock target as city {
+    city
+  }
+  let transactionValue = transaction<.serial> tx = target {
+    commit tx
+  }
+  let unsafeValue = unsafe {
+    target
+  }
+  let pinned = pin target
+  captured
+  range
+  answer
+  guarded
+  transactionValue
+  unsafeValue
+  pinned
+}
+
+fn panicExample(message: String): String {
+  panic(message: message)
+}
+// atlas:end restricted-expressions
+
+// atlas:begin stream-and-channel
+async fn consume(stream: Stream<view String, String>, channel: Channel<String><.receive>): String throws String {
+  var result = ""
+  for try await ref item in stream {
+    result = result + item
+  }
+  await channel.close()
+  return result
+}
+
+async fn send(channel: Channel<String><.send>, value: String): String throws String {
+  await channel.send(take value)
+  return "sent"
+}
+// atlas:end stream-and-channel
+
+fn print(value: String) {
+  value
+}
+
+// atlas:begin implicit-entry-body
+let city = "north"
+let greeting = prepare(city)
+print(greeting)
+// atlas:end implicit-entry-body

@@ -15,6 +15,7 @@
     "check:allocation": "bun test tooling/allocation-reference.test.mjs && bun tooling/check-allocation-cases.mjs",
     "check:allocator-scope": "bun test tooling/allocator-scope-reference.test.mjs && bun tooling/check-allocator-scope-cases.mjs",
     "check:boundary": "bun tooling/check-boundary-effect-cases.mjs",
+    "check:syntax-atlas": "bun test tooling/syntax-atlas.test.mjs && bun tooling/syntax-atlas.mjs --check",
     "check:service-recovery": "bun test tooling/service-recovery-reference.test.mjs && bun tooling/check-service-recovery-cases.mjs",
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
     "check:borrow-expressivity": "bun test tooling/borrow-expressivity-reference.test.mjs && bun tooling/check-borrow-expressivity-cases.mjs && bun test tooling/studies/r1-borrow-expressivity/oracle.test.mjs && bun run --cwd tooling/tree-sitter-w parse:borrow-expressivity",

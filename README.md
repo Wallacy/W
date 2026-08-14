@@ -32,12 +32,14 @@ Leia estes artefatos nesta ordem:
    proveniência; é complementar e não normativa;
 4. [Última Luz](reference/last-light/README.md) — produto de referência,
    oracles e fontes `.w`;
-5. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
+5. [Atlas sintático e cheatsheet](reference/syntax-atlas/README.md) — superfície
+   sintática vigente, exemplos Tree-sitter parse-only e leitura não normativa;
+6. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
    specs, toolchain plans, ABIs, artifacts e gates;
-6. [Deployments](reference/last-light/deployments/README.md) — planos local e
+7. [Deployments](reference/last-light/deployments/README.md) — planos local e
    distribuído;
-7. [Rascunho da std](std/README.md) — contratos da standard library em W;
-8. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
+8. [Rascunho da std](std/README.md) — contratos da standard library em W;
+9. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
 
 O [portal](portal/README.md) é um protótipo visual congelado. Ele não precisa
 acompanhar cada mudança antes do design freeze.
