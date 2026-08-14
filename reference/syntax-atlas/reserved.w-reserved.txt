@@ -1,0 +1,12 @@
+W syntax atlas — Research and reserved witnesses
+
+This file is not W source. The checker must not parse it.
+
+Research:
+- `.bounded` allocator plans remain a research candidate and are not accepted atlas syntax.
+- raw literals with multiple hashes need a scanner extension.
+
+Reserved:
+- capture(...) is replaced by the contextual <[...]> capture prefix.
+- named type arguments and binding modifiers are not grammar forms.
+- URL, stdin, shebang, and ambient package discovery are reserved.

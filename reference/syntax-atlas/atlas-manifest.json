@@ -1,0 +1,2664 @@
+{
+  "$schema": "w-syntax-atlas-1",
+  "purpose": "Human syntax atlas for the current W Tree-sitter surface.",
+  "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. CHEATSHEET.md is generated.",
+  "grammar": {
+    "path": "tooling/tree-sitter-w/grammar.js",
+    "digest": "sha256:ec3c24e46cac476c047a8ed597b0307d488c98a269ee8f3ec2efc5d5e0f527f6",
+    "publicRuleSetDigest": "sha256:828ea8c24376b2be53e42027359313fddb2648ff759877153a68ca608689af8e"
+  },
+  "sourceFiles": [
+    "deployments/local.w",
+    "execution.w",
+    "language.w",
+    "lock.w",
+    "package.w",
+    "workspace.w"
+  ],
+  "pedagogicalOrder": [
+    "script-and-execution-root",
+    "source-roots-imports",
+    "data-declarations",
+    "types-and-contracts",
+    "callables-and-foreign",
+    "literals-and-collections",
+    "patterns",
+    "allocator-and-bindings",
+    "control-flow",
+    "execution-forms",
+    "restricted-expressions",
+    "stream-and-channel",
+    "entry-declaration",
+    "implicit-entry-body",
+    "package-root",
+    "workspace-root",
+    "lock-root",
+    "deployment-root"
+  ],
+  "rootForms": [
+    {
+      "file": "language.w",
+      "root": "module",
+      "role": "main-reading-path"
+    },
+    {
+      "file": "execution.w",
+      "root": "script",
+      "role": "main-reading-path"
+    },
+    {
+      "file": "execution.w",
+      "root": "implicit-entry",
+      "role": "root-only-suffix"
+    },
+    {
+      "file": "package.w",
+      "root": "package",
+      "role": "exclusive-root"
+    },
+    {
+      "file": "workspace.w",
+      "root": "workspace",
+      "role": "exclusive-root"
+    },
+    {
+      "file": "lock.w",
+      "root": "lock",
+      "role": "exclusive-root"
+    },
+    {
+      "file": "deployments/local.w",
+      "root": "deployment",
+      "role": "exclusive-root"
+    }
+  ],
+  "grammarRules": [
+    {
+      "name": "abi_contract",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "accessor_implementation",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "alias_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "allocator_builtin_plan",
+      "surface": "composed",
+      "reason": "Composed by the allocator-and-bindings atlas block.",
+      "markers": [
+        "allocator-and-bindings"
+      ]
+    },
+    {
+      "name": "allocator_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the allocator-and-bindings atlas block.",
+      "markers": [
+        "allocator-and-bindings"
+      ]
+    },
+    {
+      "name": "argument",
+      "surface": "composed",
+      "reason": "Composed by the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "argument_expansion",
+      "surface": "composed",
+      "reason": "Composed by the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "argument_list",
+      "surface": "composed",
+      "reason": "Composed by the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "array_literal",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the literals-and-collections atlas block.",
+      "markers": [
+        "literals-and-collections"
+      ]
+    },
+    {
+      "name": "assignment_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "associated_const_requirement",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "associated_type_requirement",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_accessor",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_body",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_identifier",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "behavior_parameter",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_parameter_list",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_storage_declaration",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_value_declaration",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "binary_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "binding_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the allocator-and-bindings atlas block.",
+      "markers": [
+        "allocator-and-bindings"
+      ]
+    },
+    {
+      "name": "block",
+      "surface": "composed",
+      "reason": "Composed by the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "boolean_literal",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "bounded_range_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "break_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "byte_literal",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "call_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "capture_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "capture_item",
+      "surface": "composed",
+      "reason": "Composed by the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "catch_clause",
+      "surface": "composed",
+      "reason": "Composed by the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "closure_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "closure_parameter",
+      "surface": "composed",
+      "reason": "Composed by the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "closure_parameters",
+      "surface": "composed",
+      "reason": "Composed by the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "comment",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "commit_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "computed_property_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "conformance_clause",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "const_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "contextual_member_expression",
+      "surface": "composed",
+      "reason": "Composed by the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "continue_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "contract_expression_argument",
+      "surface": "composed",
+      "reason": "Composed by the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "declaration_prefix",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "defer_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "deinit_declaration",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "deployment_manifest",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "deployment-root"
+      ]
+    },
+    {
+      "name": "dimension_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "do_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "domain_import_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "entry_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the entry-declaration atlas block.",
+      "markers": [
+        "entry-declaration"
+      ]
+    },
+    {
+      "name": "enum_body",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "enum_case",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "enum_case_parameter",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "enum_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "enum_pattern",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "enum_payload_pattern",
+      "surface": "composed",
+      "reason": "Composed by the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "export_item",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "export_list_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "expression_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "extension_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "field_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "fixed_array_type",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "for_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "foreign_body",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "foreign_body_content",
+      "surface": "recovery",
+      "reason": "External scanner node for opaque foreign-body recovery. It is not a standalone W construct.",
+      "markers": []
+    },
+    {
+      "name": "foreign_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "foreign_field_declaration",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "foreign_struct_declaration",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "foreign_type_declaration",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "function_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "function_signature",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "function_type",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "function_type_parameter",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "generic_application_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "generic_call_arguments",
+      "surface": "composed",
+      "reason": "Composed by the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "generic_parameter",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "generic_parameters",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "get_accessor",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "guard_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "identifier",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "if_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "if_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "import_item",
+      "surface": "composed",
+      "reason": "Composed by the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "import_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "index_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "initializer_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "labeled_pattern_field",
+      "surface": "composed",
+      "reason": "Composed by the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "labeled_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "labeled_struct_pattern_field",
+      "surface": "composed",
+      "reason": "Composed by the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "labeled_tuple_element",
+      "surface": "composed",
+      "reason": "Composed by the literals-and-collections atlas block.",
+      "markers": [
+        "literals-and-collections"
+      ]
+    },
+    {
+      "name": "labeled_tuple_type_element",
+      "surface": "composed",
+      "reason": "Composed by the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "language_tag",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "lock_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "lock_manifest",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "lock-root"
+      ]
+    },
+    {
+      "name": "manifest_argument",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "package-root"
+      ]
+    },
+    {
+      "name": "manifest_constructor",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "package-root"
+      ]
+    },
+    {
+      "name": "manifest_field",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "package-root"
+      ]
+    },
+    {
+      "name": "manifest_list",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "package-root"
+      ]
+    },
+    {
+      "name": "manifest_record",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "package-root"
+      ]
+    },
+    {
+      "name": "manifest_value",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "package-root"
+      ]
+    },
+    {
+      "name": "map_entry",
+      "surface": "composed",
+      "reason": "Composed by the literals-and-collections atlas block.",
+      "markers": [
+        "literals-and-collections"
+      ]
+    },
+    {
+      "name": "map_literal",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the literals-and-collections atlas block.",
+      "markers": [
+        "literals-and-collections"
+      ]
+    },
+    {
+      "name": "member_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "modify_accessor",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "module_contract",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "module_header",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "module_path",
+      "surface": "composed",
+      "reason": "Composed by the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "multiline_string_literal",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "named_imports",
+      "surface": "composed",
+      "reason": "Composed by the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "named_service_imports",
+      "surface": "composed",
+      "reason": "Composed by the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "non_borrowed_type",
+      "surface": "composed",
+      "reason": "Composed by the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "number_literal",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "object_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "one_sided_range_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "optional_binding",
+      "surface": "composed",
+      "reason": "Composed by the allocator-and-bindings atlas block.",
+      "markers": [
+        "allocator-and-bindings"
+      ]
+    },
+    {
+      "name": "optional_member_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "optional_propagation_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "optional_try_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "package_manifest",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "package-root"
+      ]
+    },
+    {
+      "name": "panic_expression",
+      "surface": "composed",
+      "reason": "Composed by the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "parameter",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "parameter_list",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "parenthesized_expression",
+      "surface": "composed",
+      "reason": "Composed by the literals-and-collections atlas block.",
+      "markers": [
+        "literals-and-collections"
+      ]
+    },
+    {
+      "name": "pattern",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "pattern_bound",
+      "surface": "composed",
+      "reason": "Composed by the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "pipeline_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "primary_associated_types",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "property_accessor_body",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "property_requirement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "protocol_body",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "protocol_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "quantity_literal",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "range_pattern",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "raw_string_literal",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "repeat_array_literal",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the literals-and-collections atlas block.",
+      "markers": [
+        "literals-and-collections"
+      ]
+    },
+    {
+      "name": "repeat_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "rest_marker",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "rest_pattern",
+      "surface": "composed",
+      "reason": "Composed by the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "return_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "scalar_literal",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "script_header",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "script-and-execution-root"
+      ]
+    },
+    {
+      "name": "service_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "service_import_item",
+      "surface": "composed",
+      "reason": "Composed by the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "service_import_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "service_key_contract",
+      "surface": "composed",
+      "reason": "Composed by the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "set_accessor",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "shorthand_struct_pattern_field",
+      "surface": "composed",
+      "reason": "Composed by the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "size_literal",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "source_file",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "static_argument_value",
+      "surface": "composed",
+      "reason": "Composed by the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "static_array_literal",
+      "surface": "composed",
+      "reason": "Composed by the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "static_record_literal",
+      "surface": "composed",
+      "reason": "Composed by the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "string_literal",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "struct_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "struct_pattern",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "struct_pattern_field",
+      "surface": "composed",
+      "reason": "Composed by the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "switch_case",
+      "surface": "composed",
+      "reason": "Composed by the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "switch_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "task_contract",
+      "surface": "composed",
+      "reason": "Composed by the allocator-and-bindings atlas block.",
+      "markers": [
+        "allocator-and-bindings"
+      ]
+    },
+    {
+      "name": "test_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "throw_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "transaction_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "tuple_element",
+      "surface": "composed",
+      "reason": "Composed by the literals-and-collections atlas block.",
+      "markers": [
+        "literals-and-collections"
+      ]
+    },
+    {
+      "name": "tuple_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the literals-and-collections atlas block.",
+      "markers": [
+        "literals-and-collections"
+      ]
+    },
+    {
+      "name": "tuple_index",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "tuple_pattern",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the patterns atlas block.",
+      "markers": [
+        "patterns"
+      ]
+    },
+    {
+      "name": "tuple_type",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "type",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "type_argument",
+      "surface": "composed",
+      "reason": "Composed by the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "type_arguments",
+      "surface": "composed",
+      "reason": "Composed by the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "type_body",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "type_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "type_name",
+      "surface": "composed",
+      "reason": "Composed by the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "unary_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "unit_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "unit_literal",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "name": "unit_suffix_literal",
+      "surface": "lexical",
+      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
+      "markers": []
+    },
+    {
+      "name": "unsafe_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "while_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the control-flow atlas block.",
+      "markers": [
+        "control-flow"
+      ]
+    },
+    {
+      "name": "wildcard_import",
+      "surface": "composed",
+      "reason": "Composed by the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "workspace_manifest",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "workspace-root"
+      ]
+    }
+  ],
+  "families": [
+    {
+      "family": "roots",
+      "blocks": [
+        "script-and-execution-root",
+        "source-roots-imports"
+      ]
+    },
+    {
+      "family": "declarations",
+      "blocks": [
+        "data-declarations"
+      ]
+    },
+    {
+      "family": "types",
+      "blocks": [
+        "types-and-contracts"
+      ]
+    },
+    {
+      "family": "callables",
+      "blocks": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "family": "values",
+      "blocks": [
+        "literals-and-collections"
+      ]
+    },
+    {
+      "family": "patterns",
+      "blocks": [
+        "patterns"
+      ]
+    },
+    {
+      "family": "ownership",
+      "blocks": [
+        "allocator-and-bindings"
+      ]
+    },
+    {
+      "family": "control",
+      "blocks": [
+        "control-flow"
+      ]
+    },
+    {
+      "family": "execution",
+      "blocks": [
+        "execution-forms"
+      ]
+    },
+    {
+      "family": "effects",
+      "blocks": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "family": "streams",
+      "blocks": [
+        "stream-and-channel"
+      ]
+    },
+    {
+      "family": "entry",
+      "blocks": [
+        "entry-declaration",
+        "implicit-entry-body"
+      ]
+    },
+    {
+      "family": "manifest",
+      "blocks": [
+        "package-root",
+        "workspace-root",
+        "lock-root",
+        "deployment-root"
+      ]
+    }
+  ],
+  "variants": [
+    {
+      "id": "root-module",
+      "block": "source-roots-imports",
+      "construction": "module root",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "module atlas_language"
+    },
+    {
+      "id": "root-script",
+      "block": "script-and-execution-root",
+      "construction": "script root",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "script {"
+    },
+    {
+      "id": "root-implicit-entry",
+      "block": "implicit-entry-body",
+      "construction": "implicit final entry body",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "let city ="
+    },
+    {
+      "id": "root-package",
+      "block": "package-root",
+      "construction": "package manifest root",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "package {"
+    },
+    {
+      "id": "root-workspace",
+      "block": "workspace-root",
+      "construction": "workspace manifest root",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "workspace {"
+    },
+    {
+      "id": "root-lock",
+      "block": "lock-root",
+      "construction": "lock manifest root",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "lock {"
+    },
+    {
+      "id": "root-deployment",
+      "block": "deployment-root",
+      "construction": "deployment manifest root",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "deployment {"
+    },
+    {
+      "id": "import-ordinary",
+      "block": "source-roots-imports",
+      "construction": "ordinary import",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "import std.text"
+    },
+    {
+      "id": "import-domain",
+      "block": "source-roots-imports",
+      "construction": "domain import",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "import domain"
+    },
+    {
+      "id": "import-service",
+      "block": "source-roots-imports",
+      "construction": "service import",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "import service"
+    },
+    {
+      "id": "import-wildcard",
+      "block": "source-roots-imports",
+      "construction": "wildcard re-export",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "export import *"
+    },
+    {
+      "id": "entry-explicit",
+      "block": "entry-declaration",
+      "construction": "named entry declaration",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "entry Atlas"
+    },
+    {
+      "id": "allocator-named",
+      "block": "allocator-and-bindings",
+      "construction": "named allocator scope",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "allocator scratch"
+    },
+    {
+      "id": "allocator-anonymous",
+      "block": "allocator-and-bindings",
+      "construction": "anonymous allocator scope",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "allocator .fixed<capacity: 128>"
+    },
+    {
+      "id": "allocator-root-plan",
+      "block": "allocator-and-bindings",
+      "construction": "root allocator plan",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "allocator .root"
+    },
+    {
+      "id": "allocator-none",
+      "block": "allocator-and-bindings",
+      "construction": "explicit no-allocator plan",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "allocator .none"
+    },
+    {
+      "id": "allocator-contextual-parameter",
+      "block": "allocator-and-bindings",
+      "construction": "contextual allocator parameter",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "allocator destination: ref Allocator"
+    },
+    {
+      "id": "allocator-contextual-call",
+      "block": "allocator-and-bindings",
+      "construction": "contextual allocator call omission",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "stage(city)"
+    },
+    {
+      "id": "ownership-ref",
+      "block": "allocator-and-bindings",
+      "construction": "ref ownership",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "let ref name"
+    },
+    {
+      "id": "ownership-inout",
+      "block": "allocator-and-bindings",
+      "construction": "inout ownership",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "let inout writableName"
+    },
+    {
+      "id": "ownership-take",
+      "block": "allocator-and-bindings",
+      "construction": "take ownership",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "take writableName"
+    },
+    {
+      "id": "ownership-shared",
+      "block": "types-and-contracts",
+      "construction": "shared type qualifier",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "shared Place"
+    },
+    {
+      "id": "ownership-weak",
+      "block": "types-and-contracts",
+      "construction": "weak type qualifier",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "weak Place"
+    },
+    {
+      "id": "ownership-view",
+      "block": "types-and-contracts",
+      "construction": "view type qualifier",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "view Place"
+    },
+    {
+      "id": "ownership-pin",
+      "block": "restricted-expressions",
+      "construction": "pin unary ownership operation",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "pin target"
+    },
+    {
+      "id": "ownership-atomic",
+      "block": "allocator-and-bindings",
+      "construction": "atomic storage modifier",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "var atomic count"
+    },
+    {
+      "id": "execution-direct",
+      "block": "execution-forms",
+      "construction": "direct call",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "fn directCall"
+    },
+    {
+      "id": "execution-await",
+      "block": "execution-forms",
+      "construction": "await call",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "try await direct"
+    },
+    {
+      "id": "execution-async-let",
+      "block": "execution-forms",
+      "construction": "async let binding",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "async let direct"
+    },
+    {
+      "id": "execution-spawn",
+      "block": "execution-forms",
+      "construction": "spawn binding",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "spawn<.compute>"
+    },
+    {
+      "id": "callable-positional",
+      "block": "callables-and-foreign",
+      "construction": "positional callable parameter",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "order: String"
+    },
+    {
+      "id": "callable-required-homonym",
+      "block": "callables-and-foreign",
+      "construction": "required homonym label",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "named audit: String"
+    },
+    {
+      "id": "callable-optional-label",
+      "block": "callables-and-foreign",
+      "construction": "optional external label",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "_ note: String"
+    },
+    {
+      "id": "callable-required-external",
+      "block": "callables-and-foreign",
+      "construction": "required distinct external label",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "to destination: String"
+    },
+    {
+      "id": "callable-default",
+      "block": "callables-and-foreign",
+      "construction": "default parameter value",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "title: String ="
+    },
+    {
+      "id": "callable-rest",
+      "block": "callables-and-foreign",
+      "construction": "rest callable parameter",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "each tags: String..."
+    },
+    {
+      "id": "callable-some-fn",
+      "block": "types-and-contracts",
+      "construction": "some function type",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "some fn(String)"
+    },
+    {
+      "id": "callable-any-fn",
+      "block": "callables-and-foreign",
+      "construction": "any function type",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "any mut async fn"
+    },
+    {
+      "id": "callable-static",
+      "block": "callables-and-foreign",
+      "construction": "static const function",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "export static const fn"
+    },
+    {
+      "id": "callable-generic",
+      "block": "callables-and-foreign",
+      "construction": "generic function",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "export fn describe<ID"
+    },
+    {
+      "id": "closure-copy",
+      "block": "execution-forms",
+      "construction": "copy closure capture",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "<[copy target]>"
+    },
+    {
+      "id": "closure-ref",
+      "block": "execution-forms",
+      "construction": "ref closure capture",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "<[ref borrowed]>"
+    },
+    {
+      "id": "closure-take",
+      "block": "execution-forms",
+      "construction": "take closure capture",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "<[take moved]>"
+    },
+    {
+      "id": "closure-weak",
+      "block": "execution-forms",
+      "construction": "weak closure capture",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "<[weak sharedValue]>"
+    },
+    {
+      "id": "property-get",
+      "block": "data-declarations",
+      "construction": "property get accessor",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "get => label"
+    },
+    {
+      "id": "property-set",
+      "block": "data-declarations",
+      "construction": "property set accessor",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "set(value)"
+    },
+    {
+      "id": "property-modify",
+      "block": "data-declarations",
+      "construction": "property modify accessor",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "modify { label }"
+    },
+    {
+      "id": "pattern-enum",
+      "block": "patterns",
+      "construction": "enum pattern",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "Signal.alert(level: let level)"
+    },
+    {
+      "id": "pattern-struct",
+      "block": "patterns",
+      "construction": "struct pattern",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "Place(id, ...)"
+    },
+    {
+      "id": "pattern-tuple",
+      "block": "patterns",
+      "construction": "tuple pattern",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "let (id, label)"
+    },
+    {
+      "id": "pattern-range",
+      "block": "patterns",
+      "construction": "range pattern",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "case 0...3"
+    },
+    {
+      "id": "pattern-wildcard",
+      "block": "patterns",
+      "construction": "wildcard pattern",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "case _:"
+    },
+    {
+      "id": "static-record",
+      "block": "types-and-contracts",
+      "construction": "static record contract",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "Config<{mode"
+    },
+    {
+      "id": "static-list",
+      "block": "types-and-contracts",
+      "construction": "static list contract",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "Signal<[.quiet"
+    },
+    {
+      "id": "channel-send",
+      "block": "stream-and-channel",
+      "construction": "send channel direction",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "Channel<String><.send>"
+    },
+    {
+      "id": "channel-receive",
+      "block": "stream-and-channel",
+      "construction": "receive channel direction",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "Channel<String><.receive>"
+    }
+  ],
+  "blocks": [
+    {
+      "id": "script-and-execution-root",
+      "file": "execution.w",
+      "order": 0,
+      "line": 1,
+      "title": "Standalone script header and module",
+      "family": "roots",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "root": "script",
+      "grammarRefs": [
+        "script_header"
+      ],
+      "designRefs": [
+        "3.5.3"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/horizon_script.w",
+          "symbol": "script {",
+          "digest": "sha256:2bf5fe7bf3fecdf8b22ce3c3412b74fb9c34460d97a5060d5474b783dda82403"
+        }
+      ],
+      "snippetDigest": "sha256:10f5869c81e07fce0901442a2403d40517ed84237b85d064633d1ce89322edbb",
+      "snippetBytes": 120
+    },
+    {
+      "id": "source-roots-imports",
+      "file": "language.w",
+      "order": 1,
+      "line": 1,
+      "title": "Source roots and imports",
+      "family": "roots",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "root": "module",
+      "grammarRefs": [
+        "domain_import_statement",
+        "import_item",
+        "import_statement",
+        "module_contract",
+        "module_header",
+        "module_path",
+        "named_imports",
+        "named_service_imports",
+        "service_import_item",
+        "service_import_statement",
+        "service_key_contract",
+        "source_file",
+        "wildcard_import"
+      ],
+      "designRefs": [
+        "3.5.3"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/app.w",
+          "symbol": "async fn runNative(",
+          "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29"
+        }
+      ],
+      "snippetDigest": "sha256:90af7a9d8bb76ce1fbe0c104ce9e54fc8ddd8ffe9349a0ea9bc47914c2971639",
+      "snippetBytes": 286
+    },
+    {
+      "id": "data-declarations",
+      "file": "language.w",
+      "order": 2,
+      "line": 14,
+      "title": "Data declarations, properties, and behaviors",
+      "family": "declarations",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "root": "module",
+      "grammarRefs": [
+        "accessor_implementation",
+        "alias_declaration",
+        "associated_const_requirement",
+        "associated_type_requirement",
+        "behavior_accessor",
+        "behavior_body",
+        "behavior_declaration",
+        "behavior_parameter",
+        "behavior_parameter_list",
+        "behavior_storage_declaration",
+        "behavior_value_declaration",
+        "computed_property_declaration",
+        "conformance_clause",
+        "const_declaration",
+        "declaration_prefix",
+        "deinit_declaration",
+        "dimension_declaration",
+        "enum_body",
+        "enum_case",
+        "enum_case_parameter",
+        "enum_declaration",
+        "export_item",
+        "export_list_declaration",
+        "extension_declaration",
+        "field_declaration",
+        "get_accessor",
+        "initializer_declaration",
+        "modify_accessor",
+        "object_declaration",
+        "primary_associated_types",
+        "property_accessor_body",
+        "property_requirement",
+        "protocol_body",
+        "protocol_declaration",
+        "service_declaration",
+        "set_accessor",
+        "struct_declaration",
+        "test_declaration",
+        "type_body",
+        "type_declaration",
+        "unit_declaration"
+      ],
+      "designRefs": [
+        "3.5.3"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/domain.w",
+          "symbol": "export enum Course",
+          "digest": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553"
+        }
+      ],
+      "snippetDigest": "sha256:0c4fa15b0f38db5df39b16d1cc6528de576a8047e3135ad1677a01c0fa8fd2c3",
+      "snippetBytes": 1255
+    },
+    {
+      "id": "types-and-contracts",
+      "file": "language.w",
+      "order": 3,
+      "line": 128,
+      "title": "Type contracts, static values, and function types",
+      "family": "types",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "root": "module",
+      "grammarRefs": [
+        "contextual_member_expression",
+        "contract_expression_argument",
+        "fixed_array_type",
+        "labeled_tuple_type_element",
+        "non_borrowed_type",
+        "static_argument_value",
+        "static_array_literal",
+        "static_record_literal",
+        "tuple_type",
+        "type",
+        "type_argument",
+        "type_arguments",
+        "type_name",
+        "unit_literal"
+      ],
+      "designRefs": [
+        "3.5.4"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/generics.w",
+          "symbol": "export struct Matrix",
+          "digest": "sha256:76cccac6b23c47cb1b1e0c6f72f2bf4ed94d57069e06a3e54e093114e94b899b"
+        }
+      ],
+      "snippetDigest": "sha256:f584bf29c517ed997e4281cf6546a88c663e5889d69ad85ffe4867c0ac25eeb5",
+      "snippetBytes": 678
+    },
+    {
+      "id": "callables-and-foreign",
+      "file": "language.w",
+      "order": 4,
+      "line": 97,
+      "title": "Callable modes, generics, and foreign bodies",
+      "family": "callables",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "root": "module",
+      "grammarRefs": [
+        "abi_contract",
+        "foreign_body",
+        "foreign_declaration",
+        "foreign_field_declaration",
+        "foreign_struct_declaration",
+        "foreign_type_declaration",
+        "function_declaration",
+        "function_signature",
+        "function_type",
+        "function_type_parameter",
+        "generic_parameter",
+        "generic_parameters",
+        "language_tag",
+        "parameter",
+        "parameter_list",
+        "rest_marker"
+      ],
+      "designRefs": [
+        "3.5.3",
+        "3.5.4"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/generics.w",
+          "symbol": "export protocol Source<Item>",
+          "digest": "sha256:76cccac6b23c47cb1b1e0c6f72f2bf4ed94d57069e06a3e54e093114e94b899b"
+        }
+      ],
+      "snippetDigest": "sha256:3eae8820e575e4bd093a234837354689faebd86247a168bf32ee9c17d781782f",
+      "snippetBytes": 710
+    },
+    {
+      "id": "literals-and-collections",
+      "file": "language.w",
+      "order": 5,
+      "line": 177,
+      "title": "Literals, tuples, and collections",
+      "family": "values",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "root": "module",
+      "grammarRefs": [
+        "array_literal",
+        "labeled_tuple_element",
+        "map_entry",
+        "map_literal",
+        "parenthesized_expression",
+        "repeat_array_literal",
+        "tuple_element",
+        "tuple_expression"
+      ],
+      "designRefs": [
+        "3.5.6"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/numerics.w",
+          "symbol": "SeatNumber",
+          "digest": "sha256:bf3a727ddcba3a265d107c975916772286498b2e8462fe405d8c5f92257d5479"
+        }
+      ],
+      "snippetDigest": "sha256:09e0ebf38d4ae5b9c4cedeea811584ccc47bcfc313df3615992c1e802c5d1659",
+      "snippetBytes": 536
+    },
+    {
+      "id": "patterns",
+      "file": "language.w",
+      "order": 6,
+      "line": 152,
+      "title": "Patterns, ranges, and matches",
+      "family": "patterns",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "root": "module",
+      "grammarRefs": [
+        "enum_pattern",
+        "enum_payload_pattern",
+        "labeled_pattern_field",
+        "labeled_struct_pattern_field",
+        "pattern",
+        "pattern_bound",
+        "range_pattern",
+        "rest_pattern",
+        "shorthand_struct_pattern_field",
+        "struct_pattern",
+        "struct_pattern_field",
+        "switch_case",
+        "switch_expression",
+        "tuple_pattern"
+      ],
+      "designRefs": [
+        "3.5.5"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/enum_contracts.w",
+          "symbol": "export enum KitchenOutcome<T>",
+          "digest": "sha256:e536e463809b69db9761747bc6773096a5d03fe4faa26379c85a40c7c8707ad8"
+        }
+      ],
+      "snippetDigest": "sha256:fa6e3485ce0fbd1cc877aa540bc3aaeb3ccfea33092111d1f6bdb877d23ff1fa",
+      "snippetBytes": 487
+    },
+    {
+      "id": "allocator-and-bindings",
+      "file": "execution.w",
+      "order": 7,
+      "line": 11,
+      "title": "Allocator scopes and bindings",
+      "family": "ownership",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "root": "script",
+      "grammarRefs": [
+        "allocator_builtin_plan",
+        "allocator_statement",
+        "binding_declaration",
+        "optional_binding",
+        "task_contract"
+      ],
+      "designRefs": [
+        "3.5.2"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/memory.w",
+          "symbol": "export fn makeMenuRoot",
+          "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b"
+        }
+      ],
+      "snippetDigest": "sha256:7bea872d1d31977c94081191058175f2c4b0cc1a053a735cbe07ccb631afdffa",
+      "snippetBytes": 593
+    },
+    {
+      "id": "control-flow",
+      "file": "execution.w",
+      "order": 8,
+      "line": 43,
+      "title": "Control flow and cleanup",
+      "family": "control",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "root": "script",
+      "grammarRefs": [
+        "block",
+        "break_statement",
+        "catch_clause",
+        "commit_statement",
+        "continue_statement",
+        "defer_statement",
+        "do_statement",
+        "expression_statement",
+        "for_statement",
+        "guard_statement",
+        "if_statement",
+        "labeled_statement",
+        "repeat_statement",
+        "return_statement",
+        "throw_statement",
+        "while_statement"
+      ],
+      "designRefs": [
+        "3.5.2"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/execution.w",
+          "symbol": "executionForms",
+          "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed"
+        }
+      ],
+      "snippetDigest": "sha256:8dd7c47e8a616778873137dd7bb6bb6fcdd16f9dacd3e86246cd06e33f04c418",
+      "snippetBytes": 432
+    },
+    {
+      "id": "execution-forms",
+      "file": "execution.w",
+      "order": 9,
+      "line": 71,
+      "title": "Direct, await, async let, spawn, and calls",
+      "family": "execution",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "root": "script",
+      "grammarRefs": [
+        "argument",
+        "argument_expansion",
+        "argument_list",
+        "call_expression",
+        "generic_application_expression",
+        "generic_call_arguments",
+        "index_expression",
+        "member_expression",
+        "optional_member_expression",
+        "optional_propagation_expression",
+        "optional_try_expression",
+        "unary_expression"
+      ],
+      "designRefs": [
+        "3.5.2",
+        "3.5.6"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/execution.w",
+          "symbol": "async fn mixCooperatively(",
+          "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed"
+        }
+      ],
+      "snippetDigest": "sha256:9e0ea1d80510531d41bedf01e50175843624f24b14de35e627ce14a1717ec34a",
+      "snippetBytes": 925
+    },
+    {
+      "id": "restricted-expressions",
+      "file": "execution.w",
+      "order": 10,
+      "line": 107,
+      "title": "Pipelines, locks, transactions, unsafe, and closures",
+      "family": "effects",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "root": "script",
+      "grammarRefs": [
+        "assignment_expression",
+        "binary_expression",
+        "bounded_range_expression",
+        "capture_expression",
+        "capture_item",
+        "closure_expression",
+        "closure_parameter",
+        "closure_parameters",
+        "if_expression",
+        "lock_expression",
+        "one_sided_range_expression",
+        "panic_expression",
+        "pipeline_expression",
+        "transaction_expression",
+        "unsafe_expression"
+      ],
+      "designRefs": [
+        "3.5.6"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/transaction_oracle.w",
+          "symbol": "reserveTableAtomically",
+          "digest": "sha256:826f5e1d09e74678401fa6502d0f5da167fc00cd0802041f4367f246837af663"
+        }
+      ],
+      "snippetDigest": "sha256:6792daa333c59eb36cbe95bace782258fe7a948db73163fd936d7bdfc8a2a6a3",
+      "snippetBytes": 569
+    },
+    {
+      "id": "stream-and-channel",
+      "file": "execution.w",
+      "order": 11,
+      "line": 139,
+      "title": "Streams, channels, and directional contracts",
+      "family": "streams",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "root": "script",
+      "grammarRefs": [],
+      "designRefs": [
+        "3.5.6"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/streams.w",
+          "symbol": "export async fn serveOneByOne",
+          "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
+        }
+      ],
+      "snippetDigest": "sha256:e9284e2b06da414a8ba2a8d508f34c010c595354aec65f9e641773211ba90dc7",
+      "snippetBytes": 380
+    },
+    {
+      "id": "entry-declaration",
+      "file": "language.w",
+      "order": 12,
+      "line": 214,
+      "title": "Explicit entry descriptor",
+      "family": "entry",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "root": "module",
+      "grammarRefs": [
+        "entry_declaration"
+      ],
+      "designRefs": [
+        "3.5.3"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/app.w",
+          "symbol": "entry(runNative)",
+          "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29"
+        }
+      ],
+      "snippetDigest": "sha256:942c5c36a57b4600e1dbbc3727284f6b358b81090dce7d37861da948e4f59caa",
+      "snippetBytes": 52
+    },
+    {
+      "id": "implicit-entry-body",
+      "file": "execution.w",
+      "order": 13,
+      "line": 159,
+      "title": "Implicit final entry body",
+      "family": "entry",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "root": "implicit-entry",
+      "grammarRefs": [],
+      "designRefs": [
+        "3.5.3"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/horizon_script.w",
+          "symbol": "fn horizonScore(",
+          "digest": "sha256:2bf5fe7bf3fecdf8b22ce3c3412b74fb9c34460d97a5060d5474b783dda82403"
+        }
+      ],
+      "snippetDigest": "sha256:28ebbad7ec3f4de3c5e359fc7f6aa08f8ae6b235e48fc88a41b4b3ec10167b29",
+      "snippetBytes": 64
+    },
+    {
+      "id": "package-root",
+      "file": "package.w",
+      "order": 14,
+      "line": 1,
+      "title": "Package manifest root",
+      "family": "manifest",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "root": "package",
+      "grammarRefs": [
+        "manifest_argument",
+        "manifest_constructor",
+        "manifest_field",
+        "manifest_list",
+        "manifest_record",
+        "manifest_value",
+        "package_manifest"
+      ],
+      "designRefs": [
+        "3.5.3"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/package.w",
+          "symbol": "package {",
+          "digest": "sha256:b948a12612d0e656cbc4fba5809ef18c6ab4af8f085e55377f049ad55c469796"
+        }
+      ],
+      "snippetDigest": "sha256:7e60ad5b7b3094ffc5b3bb8dc105bf5bce7301d41758ecf14585ba27696005ce",
+      "snippetBytes": 190
+    },
+    {
+      "id": "workspace-root",
+      "file": "workspace.w",
+      "order": 15,
+      "line": 1,
+      "title": "Workspace manifest root",
+      "family": "manifest",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "root": "workspace",
+      "grammarRefs": [
+        "workspace_manifest"
+      ],
+      "designRefs": [
+        "3.5.3"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/workspace.w",
+          "symbol": "workspace {",
+          "digest": "sha256:90732e5f63f55a3902a25a9316d4abdeabfdddfa790e290cf8681fe52b432e8c"
+        }
+      ],
+      "snippetDigest": "sha256:896dbff79a048d2a6b1ca44adeafb651da03f856b68152cab1c4b0eea0f053cf",
+      "snippetBytes": 95
+    },
+    {
+      "id": "lock-root",
+      "file": "lock.w",
+      "order": 16,
+      "line": 1,
+      "title": "Lock manifest root",
+      "family": "manifest",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "root": "lock",
+      "grammarRefs": [
+        "lock_manifest"
+      ],
+      "designRefs": [
+        "3.5.3"
+      ],
+      "sourceRefs": [],
+      "snippetDigest": "sha256:a7570a4f6177cccbd5d4df7933dfc162ca2a865f9ee0048e5797d09bf0d23138",
+      "snippetBytes": 177
+    },
+    {
+      "id": "deployment-root",
+      "file": "deployments/local.w",
+      "order": 17,
+      "line": 1,
+      "title": "Deployment manifest root",
+      "family": "manifest",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "root": "deployment",
+      "grammarRefs": [
+        "deployment_manifest"
+      ],
+      "designRefs": [
+        "3.5.3"
+      ],
+      "sourceRefs": [
+        {
+          "path": "reference/last-light/deployments/local.w",
+          "symbol": "deployment {",
+          "digest": "sha256:f149dff9705faf2866dfd2156c19f7dbe60cf6cc3e41f841ad2536523b1532ed"
+        }
+      ],
+      "snippetDigest": "sha256:4d555a028431f04560338aa5d42138707c15a01cd49828789d3fdaf6dd5d302d",
+      "snippetBytes": 146
+    }
+  ],
+  "companionFiles": [
+    "reserved.w-reserved.txt",
+    "rejected.w-rejected.txt"
+  ],
+  "companions": [
+    {
+      "file": "reserved.w-reserved.txt",
+      "designStatus": "research",
+      "evidenceStatus": "not-parseable",
+      "purpose": "Reserved or research spellings. Never parse as accepted atlas syntax."
+    },
+    {
+      "file": "rejected.w-rejected.txt",
+      "designStatus": "rejected",
+      "evidenceStatus": "not-parseable",
+      "purpose": "Rejected spellings. Never parse as accepted atlas syntax."
+    }
+  ],
+  "generated": {
+    "cheatsheet": "CHEATSHEET.md",
+    "cheatsheetDigest": "sha256:d26ace026a9138af20b708ca464c574b75c666c2ade50da24ba526dd12704920"
+  }
+}
