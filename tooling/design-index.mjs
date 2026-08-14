@@ -366,6 +366,16 @@ const studyVariants = studyBundles.reduce(
 );
 const studyTasks = studyBundles.reduce((count, bundle) => count + bundle.tasks.length, 0);
 const studiedR0CaseIds = new Set(studyBundles.flatMap((bundle) => bundle.r0Cases));
+const hum0Protocol = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "hum0-human-review-protocol.json"), "utf8"),
+);
+const hum0Slices = Array.isArray(hum0Protocol.slices) ? hum0Protocol.slices.length : 0;
+const hum0Tasks = hum0Protocol.slices?.reduce(
+  (total, slice) => total + (Array.isArray(slice.tasks) ? slice.tasks.length : 0),
+  0,
+) ?? 0;
+const hum0HumanRecords = hum0Protocol.records?.human?.length ?? 0;
+const hum0ModelRecords = hum0Protocol.records?.model?.length ?? 0;
 
 const referenceDirectory = path.join(wDirectory, "reference", "last-light");
 const rootReferenceSources = fs
@@ -1003,6 +1013,9 @@ output.push(`| bundles executáveis R1 | ${studyBundles.length} |`);
 output.push(`| variantes/tarefas R1 | ${studyVariants}/${studyTasks} |`);
 output.push(
   `| casos R0 promovidos a R1 | ${studiedR0CaseIds.size}/${structuredSubstitutionCases} |`,
+);
+output.push(
+  `| protocolo HUM0 | ${hum0Slices} slices/${hum0Tasks} tasks; ${hum0HumanRecords} human records/${hum0ModelRecords} model records; structure-only |`,
 );
 output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| pares canônicos do formatter F0 | ${formatterCases} |`);

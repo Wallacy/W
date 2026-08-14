@@ -47,7 +47,7 @@ linguagem.
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
 | `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 547/1354 decisões estão classificadas (170 source, 432 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 63 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 190 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 41 bundles R1, 112 variantes e 164 tarefas; 67/75 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
+| `studies/*/bundle.json` + checker | 42 bundles R1, 117 variantes e 168 tarefas; 69/75 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
 | `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
 | `tabular-adapter-cases.json` + máquina/checker/snapshot | TAB1 deriva source kind, u64 snapshot offsets/short reads, nominal schema identity, publication, CSV tokenizer/nulls, Parquet footer/page/mapping/key/commit, Arrow IPC dictionary/buffer, borrowed view, copy materialization, progress/cancel, provenance, C quota/trust/release; 86 casos e 193 operações (36 aceitos + 50 rejeitados) | oracle host independente; símbolos Last Light são cross-linked; não implementa reader CSV/Parquet/Arrow, compiler, runtime ou provider |
@@ -121,6 +121,58 @@ havia 73 variantes totais, 72 variantes `.w` parseadas pelo Tree-sitter e uma
 proposta textual `.txt` `reserved-not-parsed`; o witness region não fazia parte
 do parse 72/72. Parse Tree-sitter das variantes `.w` e host oracle são evidência
 corrente. `w-compile`, `w-run`, `human-study` e `model-study` permanecem missing.
+
+### HUM0 — protocolo cross-cutting de revisão humana e de modelos
+
+[`hum0-human-review-protocol.json`](hum0-human-review-protocol.json) define
+exatamente oito slices problem-first ancorados em symbols reais do Restaurante:
+D0/`w explain`; ownership/borrow/shared/weak; allocator contextual; execution
+forms; tasks/channels/backpressure; services/generations; package/build/REPL; e
+FFI callback lease. Cada slice fixa input primary e adversarial com o mesmo
+problema/outcome e exatamente quatro tasks (`explain`, `recall`, `repair`,
+`change`), em ordens contrabalançadas e com blinding.
+
+O `stimulus` de cada input é uma janela bounded derivada de bytes UTF-8 reais por
+`sourceRefId`, símbolo único, `beforeLines`, `afterLines`, `maxBytes` e
+`derivedStimulusDigest`. A janela começa e termina em limites de linha. O
+adversarial reaplica uma única mutation find/replace na mesma janela; mutation e
+`expectedRepair` são observer-only. O checker gera os bytes do stimulus e
+rejeita digest stale, find ausente/duplicado, janela divergente ou leakage para
+o participante.
+
+O protocolo, [`machine`](hum0-human-review-machine.mjs), checker, snapshot e
+[`study`](studies/hum0-human-review) são uma camada de revisão, não um bundle R1.
+O snapshot deriva somente prontidão estrutural: oito slices, 32 tasks e zero
+registros humanos/modelos. Não há score, preferência, ergonomic win ou promoção
+automática. Fatos internos (IDs de place/loan/origin, geração real, worker,
+thread, endereço, PID, segredo, ponteiro e payload) ficam ocultos; fatos
+determinísticos de ownership, diagnostics, allocator, lifecycle, receipts e
+estimates podem aparecer somente em `w explain`; drain externo de callback é
+uma obrigação do oracle, não uma garantia inventada pelo source de `BellLease`.
+
+O renderer participant-only devolve somente `scenario`, `task`, `instruction`,
+`source` e `blindedLabel`. Ele não entrega IDs, paths, digests, mutations,
+expected, oracle ou outras rotas internas.
+
+Os contratos futuros separam registro humano (`participantIdHash` sha256,
+background não-vazio C/Rust/Python/W, tempo e queries não negativos, confiança
+obrigatória 1–5, outcomes exatos semantic/repair/change e
+`observerReceiptDigest`) de registro de modelo (provider, model, version,
+tokenizer, params JSON fechado, input/observer digests sha256, tokens com soma e
+os mesmos outcomes). Nenhum registro existe nesta rodada. A coleta para no
+primeiro expected echo, outcome forjado, referência stale/missing, vazamento de
+identidade, divergência de problema/outcome, duplicata ou desacordo do oracle;
+o caso permanece Research e exige caso independente.
+
+O gate scoped é:
+
+```sh
+bun test tooling/hum0-human-review-reference.test.mjs tooling/studies/hum0-human-review/oracle.test.mjs
+bun tooling/check-hum0-human-review.mjs
+```
+
+`w-compile`, `w-run`, estudos humanos/modelos, providers e qualquer claim de
+ergonomia continuam missing.
 
 ### R1S1 — estrutura de source e formatter
 

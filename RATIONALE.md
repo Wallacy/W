@@ -1399,10 +1399,9 @@ O oracle não compila nem executa W.
 
 Todos os bundles permanecem `design-oracle-input`. Tree-sitter parse e host
 oracle são evidência corrente. `w-compile`, `w-run`, `human-study` e
-`model-study` permanecem missing. A contagem é derivada pelos scripts. Ela
-fecha em 37 bundles, 95 variantes, 148 tasks e 66/74 casos R0 promovidos.
-O conjunto contém 85 variantes `.w` parseadas e dez witnesses reservados fora
-do parse.
+`model-study` permanecem missing. A contagem atual é derivada pelos scripts:
+42 bundles, 117 variantes, 168 tasks e 69/75 casos R0 promovidos. O conjunto
+contém 99 variantes `.w` parseadas e 18 witnesses reservados fora do parse.
 
 ### 1.4 Concorrência, paralelismo e execução
 
@@ -4622,6 +4621,83 @@ manifesto são pseudocódigo original bounded, não citações longas nem evidê
 W. O estudo host, snapshot, source refs e mutation checker são evidence; não são
 compiler, runtime, provider, sandbox ou implementação.
 
+### 1.31 HUM0 — programa de evidência humana e de modelos
+
+HUM0 materializa um protocolo cross-cutting para ergonomia humana e de modelos
+sem reabrir a semântica de W. O produto continua o Restaurante no Fim do
+Universo, mas o protocolo trabalha por problema, não por snippet ou preferência
+de sintaxe. Os oito slices são:
+
+1. diagnostics e `w explain` em turnos de pedido;
+2. ownership, borrow, `shared` e `weak` na raiz de menu e seleção;
+3. allocator contextual e rehome de menu staged;
+4. execution forms, labels, suspension e placement;
+5. tasks, channels bounded e backpressure;
+6. services, turnos fechados e generations;
+7. package/build hermético e REPL transacional;
+8. FFI callback lease, registration optional e unsubscribe guardado; o drain
+   externo é uma obrigação do oracle antes de destroy → unpin → reclaim.
+
+Cada slice referencia um ou mais symbols reais de `reference/last-light` com
+digest verificado e pelo menos dois oracles host independentes com digests. O
+input primary e o adversarial mantêm o mesmo `problemKey` e `outcomeKey`; a
+variação só exercita a fronteira do problema. Cada slice tem exatamente as
+tasks `explain`, `recall`, `repair` e `change`, duas ordens counterbalanced,
+blinding e listas separadas de `hiddenInternalFacts` e `explainableFacts`.
+
+O `stimulus` é uma janela bounded de bytes UTF-8 reais, derivada por
+`sourceRefId`, símbolo único, `beforeLines`, `afterLines`, `maxBytes` e digest.
+Ela começa e termina em limites de linha. O adversarial aplica uma única
+mutation find/replace na mesma janela; `mutation` e `expectedRepair` ficam em
+`observerOnly` e nunca entram no input visível. O machine extrai os bytes,
+confirma bounds, UTF-8, unicidade, digest e a relação primary/adversarial, e os
+tasks `repair`/`change` apontam somente para o stimulus adversarial.
+
+IDs de instância D0, PlaceId, LoanId, OriginSet, control block, GenerationId
+real, worker/thread/queue físico, endereço, PID, clock, locale, segredo,
+payload, ponteiro e implementação de host não aparecem no input participante.
+`w explain` pode mostrar somente facts determinísticos de owner/move/borrow/drop,
+effects, allocator origin/mobility, logical trace/receipts, dependency e
+invalidation, distinguindo fact, estimate, measurement e unknown. No FFI, o
+source prova registration optional e unsubscribe guardado; a prova de drain de
+callbacks em voo permanece externa e deve vir do oracle/explain. O protocolo
+proíbe `expected`, `status`, `route`, `role`, `path`, `digest` e `oracle` no
+input visível; esses campos são somente metadata de validação ou provenance de
+um registro futuro. O renderer participant-only entrega apenas cenário, tarefa,
+instrução, source e label blinded.
+
+O snapshot HUM0 deriva apenas prontidão estrutural atual: oito slices, 32 tasks,
+zero registros humanos e zero registros de modelos. Não calcula score,
+preferência, ergonomic win, compreensão ou promoção. `human-study`,
+`model-study`, `w-compile`, `w-run` e providers permanecem missing. O contrato
+humano futuro exige `participantIdHash` sha256, background não-vazio em
+C/Rust/Python/W, tempo e queries não negativos, confiança obrigatória 1–5,
+outcomes exatos `semantic`/`repair`/`change` em `pass|fail|inconclusive` e
+`observerReceiptDigest` sha256, sem PII. O contrato de modelo exige provider,
+model, version e tokenizer não vazios, params JSON fechado, input/observer
+digests sha256, tokens `input`/`output`/`total` com soma e os mesmos outcomes,
+sem resultado caller-owned.
+
+O stop condition é o primeiro expected echo, outcome forjado, source/oracle
+stale ou ausente, símbolo não encontrado, vazamento de identidade interna,
+problema/outcome divergente, duplicata, métrica manual ou desacordo do oracle.
+Nesse caso a coleta para, o slice continua Research e um caso independente é
+obrigatório antes de qualquer revisão normativa. Mesmo com records futuros,
+preference só pode ser coletada depois das tasks objetivas e nunca promove uma
+forma automaticamente. HUM0 não altera `DESIGN.md`, grammar, generated source,
+Last Light, compiler, runtime, provider ou portal.
+
+O estado corrente de evidência permanece explícito: source refs, oracles host,
+counterbalance, blinding, checker e snapshot são `design-oracle-input`; não são
+participantes, modelos, compiler ou runtime. Na cobertura atual, execution
+ergonomics é 80 casos (32 positivos, 46 negativos, duas informações) e 26
+testes host; a tabela datada de 11 de agosto abaixo preserva a contagem
+histórica e não é sobrescrita por HUM0.
+
+O ledger W-1400–W-1411 registra o protocolo, os contratos de resultado, a
+fidelidade das mutações, o renderer fechado e o stop condition sem escolher uma
+forma normativa.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
@@ -6065,6 +6141,18 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1397 | capability, effects, FFI e segurança | grants são subset attenuation dos declared e vinculam interface/generation/artifact; effects exigem right, declared effect, generation ativa e provider outcome whitelist; process/Wasm/component drenam antes de unload, native exact-WAbi mantém mapping no runtime island, callback tardio é rejeitado e nome/string não concede authority | capability oculta, ambient lookup, in-process-native-as-sandbox, dlclose callback vivo, retry de effect sem receipt ou revocation booleana |
 | W-1398 | rotas A/B/C/D e lacuna estreita | A inspector de snapshot e REPL export é composição; B service/plugin generation é composição; C contém somente `DYN0-persistent-generation-reference` read-only/migration Research; D mantém eval/exec, frame/debugger mutation e outros mecanismos rejeitados | criar reflection write, PersistentRef que carrega heap/task/loan, promover C por vaga ergonomia ou rebaixar DYN0 por provider gap |
 | W-1399 | evidence e stop condition DYN1 | 70 cases, métricas derivadas, 3 pares local/split com target A/B, mutation divergence, seleção concorrente com winner receipt, 11 mecanismos D rejeitados e um forged invalid, 2 Research cases, source digests por família, refs oficiais C/POSIX/Rust/Python, checker e snapshot são host design-oracle evidence; compiler/runtime/provider/std-provider, isolamento real, stress e estudos humano/modelo continuam missing; promoção exige fault oracles e receipts independentes sem leak/stale publish/unbounded resource | chamar Tree-sitter/oracle de compiler/runtime, declarar std/provider ready, encerrar por contagem de casos ou omitir queue de documentação |
+| W-1400 | problema-first HUM0 | oito slices do Restaurante cobrem diagnostics/`w explain`, ownership/borrow/shared/weak, allocator, execution, tasks/channels, services/generations, package/build/REPL e FFI callback lease; cada slice preserva source refs e problema/outcome comuns | estudar snippet isolado, trocar o problema por feature estrangeira ou inferir ergonomia de preferência |
+| W-1401 | stimulus source-derived | cada input extrai uma janela bounded de source UTF-8 real por `sourceRefId`, símbolo único, `beforeLines`/`afterLines`/`maxBytes` e digest derivado; a janela começa e termina em limites de linha, e o adversarial aplica uma mutation find/replace única na mesma janela, mantendo mutation/repair observer-only | input textual inventado, digest manual, find ambíguo, janela divergente, limite mid-codepoint ou mostrar mutation/expected ao participante |
+| W-1402 | tasks e contrabalanceamento HUM0 | cada slice fixa exatamente `explain`, `recall`, `repair` e `change`; primary alimenta explain/recall, adversarial alimenta repair/change, e duas ordens counterbalanced e blinding escondem identidade de source/variant | tarefa sem recall, outcome diferente por variante, ordem fixa, role/path/digest/oracle visível |
+| W-1403 | fatos ocultos e `w explain` | IDs D0/Place/Loan/OriginSet, GenerationId real, worker/thread/queue, endereço/PID/clock/locale, segredo/payload/ponteiro e implementação host ficam ocultos; facts determinísticos de owner/borrow/drop, effects, allocator, trace/receipts e fact-estimate-measurement-unknown são explainable | expor identidade física, confundir estimate com fact, usar host metadata como resposta ou vazar oracle |
+| W-1404 | contrato humano HUM0 | registro futuro exige `participantIdHash` sha256, background não-vazio em C/Rust/Python/W, tempo e queries não negativos, confiança obrigatória 1..5, outcomes exatos semantic/repair/change e `observerReceiptDigest`; PII não entra | participant ID livre/email, background implícito, confidence opcional, outcome manual ou record com PII |
+| W-1405 | contrato de modelo HUM0 | registro futuro exige provider/model/version/tokenizer não vazios, params JSON fechado, input/observer digests sha256, tokens input/output/total com soma e os mesmos outcomes verificados | tokenizer/modelo ausente, params aberto, token total inconsistente, digest inventado ou provider sem provenance |
+| W-1406 | guards anti-echo e anti-leak | schema fechado rejeita unknown/result-like fields; participant input não aceita expected/status/route/role/path/digest/oracle; checker rejeita stale/missing/duplicate refs, forged outcomes, divergência de problema/outcome e mutation leakage | caller-owned result, status/route/expected echo, metadata escondido no prompt ou source/oracle stale |
+| W-1407 | métricas sem resultados fictícios | prontidão deriva somente oito slices, 32 tasks e zero records; métricas futuras usam semântica, reparo, mudança, tempo, queries, confiança e provenance de modelo; score/preference/ergonomic win e LOC não escolhem design | inventar participantes/modelos, calcular score antes de records, usar preferência como evidência ou declarar snapshot implementação |
+| W-1408 | stop condition e promoção | primeiro protocolo violation ou oracle disagreement para coleta, mantém slice em Research e exige caso independente; preference só depois das tasks objetivas e não há promoção automática | continuar com digest stale, identity leak, outcome divergente, duplicata, métrica manual ou promover forma por contagem |
+| W-1409 | fidelidade mutation ↔ prompt | cada adversarial descreve a falha exercitada pela mutation real: endpoint ownership no channel, ordem state/event no service, autoridade de package, optional registration/guarded unsubscribe no FFI e consuming ownership nos slices de owner/execution; `capacity: 1` → `capacity: 0` não é usado como bug | prompt de generation para mutation sem generation, cap de buffer tratado como falha sem oracle, repair que não restaura o texto mutado ou BellLease apresentado como prova de drain completo |
+| W-1410 | fronteira FFI e drain externo | `BellLease` prova registration optional e unsubscribe guardado; callback in-flight drain, destroy, unpin e reclaim permanecem obrigação externa do oracle/`w explain`, com receipt independente | inferir drain completo de um `deinit`, publicar endereço/thread/payload, destruir antes de drain ou aceitar callback após reclaim |
+| W-1411 | renderer participant-only | renderer fechado entrega somente `scenario`, `task`, `instruction`, `source` e `blindedLabel`; source é o stimulus derivado, e forbidden fields/words são rejeitados antes da entrega | incluir id/path/digest/mutation/expected/oracle/role/status/route, retornar objeto aberto ou esconder metadata no label |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
