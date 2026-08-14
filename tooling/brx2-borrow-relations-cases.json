@@ -1,0 +1,3450 @@
+{
+  "$schema": "w-brx2-borrow-relations-cases-1",
+  "status": "design-oracle-input-brx2",
+  "id": "BRX2-relation-owned-borrow",
+  "machine": "brx2-borrow-relations-machine",
+  "sourceBase": {
+    "path": "../reference/last-light/borrow_expressivity.w",
+    "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709",
+    "symbols": [
+      "MenuCursor",
+      "MenuSelection",
+      "selectPrimary",
+      "nextMappedLine",
+      "callableBorrow"
+    ]
+  },
+  "coverage": [
+    "receiver",
+    "member",
+    "body-derived",
+    "bodyless-conservative",
+    "requirement-owned",
+    "interface-owned",
+    "multiple-results",
+    "branch-union",
+    "transitive",
+    "static",
+    "immortal",
+    "independent",
+    "generic-invariance",
+    "generic-variance",
+    "relation-digest",
+    "interface-key",
+    "interface-lock",
+    "witness-divergence",
+    "open-dispatch",
+    "caller-claim",
+    "witness-only",
+    "missing",
+    "stale",
+    "duplicate",
+    "forged",
+    "empty",
+    "mode",
+    "cycle",
+    "body-conflict",
+    "wabi-runtime",
+    "callable",
+    "erasure",
+    "await",
+    "stream",
+    "boundary",
+    "foreign",
+    "erased-witness",
+    "foreign-witness",
+    "closure-escape",
+    "relation-omitted",
+    "edge-occurrences",
+    "separate-compilation",
+    "provider-receipt",
+    "missing-proof",
+    "stale-provider",
+    "stale-consumer",
+    "stale-interface-lock",
+    "relation-callable",
+    "relation-any-fn",
+    "relation-await",
+    "relation-stream",
+    "relation-boundary",
+    "static-boundary",
+    "immortal-boundary",
+    "kind-unsupported"
+  ],
+  "cases": [
+    {
+      "id": "BRX2-current-instance-receiver",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "nextMappedLine"
+      },
+      "decisionIds": [
+        "W-457",
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "receiver"
+      ],
+      "declaration": {
+        "kind": "instance",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "receiver",
+            "mode": "inout"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current"
+      }
+    },
+    {
+      "id": "BRX2-current-member-receiver",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "MenuCursor"
+      },
+      "decisionIds": [
+        "W-914"
+      ],
+      "coverage": [
+        "member"
+      ],
+      "declaration": {
+        "kind": "member",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "receiver",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current"
+      }
+    },
+    {
+      "id": "BRX2-current-body-derived-free",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-227",
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "body-derived"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current"
+      }
+    },
+    {
+      "id": "BRX2-bodyless-all-compatible",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "bodyless-conservative"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research"
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-requirement-owned-relation",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "MenuSelection"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "requirement-owned"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research",
+        "relationExact": true
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-interface-owned-relation",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "MenuSelection"
+      },
+      "decisionIds": [
+        "W-608",
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "interface-owned"
+      ],
+      "declaration": {
+        "kind": "protocol",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "interface",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research",
+        "relationExact": true
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-multiple-result-slots",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "multiple-results"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "first",
+            "mode": "view"
+          },
+          {
+            "slot": "second",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "first",
+              "sources": [
+                "primary"
+              ]
+            },
+            {
+              "result": "second",
+              "sources": [
+                "fallback"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research",
+        "relationExact": true
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "first",
+            "source": "primary"
+          },
+          {
+            "operation": "return",
+            "result": "second",
+            "source": "fallback"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-body-branch-union",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "branch-union"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "union",
+            "inputs": [
+              "primary",
+              "fallback"
+            ],
+            "output": "selected"
+          },
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "selected"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current"
+      }
+    },
+    {
+      "id": "BRX2-body-transitive-adapter",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "mapBorrowedLines"
+      },
+      "decisionIds": [
+        "W-457",
+        "W-914"
+      ],
+      "coverage": [
+        "transitive"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "source",
+            "mode": "view",
+            "origin": "cursor.storage"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "adapter",
+            "input": "source",
+            "output": "mapped"
+          },
+          {
+            "operation": "adapter",
+            "input": "mapped",
+            "output": "filtered"
+          },
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "filtered"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current"
+      }
+    },
+    {
+      "id": "BRX2-static-source",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "static"
+      ],
+      "declaration": {
+        "kind": "static",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref",
+            "static": true
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research",
+        "relationExact": true
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-immortal-source",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-912",
+        "W-914"
+      ],
+      "coverage": [
+        "immortal"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref",
+            "immortal": true
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "interface",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research",
+        "relationExact": true
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-independent-result",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "freshGreeting"
+      },
+      "decisionIds": [
+        "W-914"
+      ],
+      "coverage": [
+        "independent"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "value",
+            "mode": "value"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "value"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current"
+      }
+    },
+    {
+      "id": "BRX2-generic-invariant",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-209",
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "generic-invariance"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        },
+        "genericSubstitutions": [
+          {
+            "id": "same-slots",
+            "pairs": [
+              {
+                "result": "result",
+                "sources": [
+                  "primary"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research"
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-generic-variance-rejected",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-209",
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "generic-variance"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        },
+        "genericSubstitutions": [
+          {
+            "id": "variance",
+            "pairs": [
+              {
+                "result": "result",
+                "sources": [
+                  "fallback"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "genericRelationVariance"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-digest-stale",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "relation-digest",
+        "stale"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "relationDigestStale"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-interface-key-stale",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-608",
+        "W-914"
+      ],
+      "coverage": [
+        "interface-key"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "interface",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "interface": {
+        "semanticInterfaceKey": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "semanticInterfaceKeyMismatch"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-interface-lock-stale",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-608",
+        "W-914"
+      ],
+      "coverage": [
+        "interface-lock"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "interfaceLockRelationDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "interfaceLockMismatch"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-witness-divergence",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "witness-divergence"
+      ],
+      "declaration": {
+        "kind": "protocol",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "interface",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "witnessMapping": {
+          "result": [
+            "fallback"
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "interfaceWitnessMismatch"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-open-dispatch-unsealed",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "MenuSelection"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "open-dispatch"
+      ],
+      "declaration": {
+        "kind": "protocol",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "interface",
+          "sealed": false,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "relationNotSealed"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-caller-claim-rejected",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "caller-claim"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ]
+      },
+      "artifacts": {
+        "callerClaim": {
+          "result": [
+            "primary"
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "callerRelationClaimRejected"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-witness-only-rejected",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "witness-only"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "witness",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "relationWitnessOnly"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-missing",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "missing"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": []
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "relationResultSlotMissing"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-duplicate",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914"
+      ],
+      "coverage": [
+        "duplicate"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary",
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "relationSourceDuplicate"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-forged-slot",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914"
+      ],
+      "coverage": [
+        "forged"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "ghost"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "relationInputSlotUnknown"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-empty",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914"
+      ],
+      "coverage": [
+        "empty"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": []
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "relationEmptyDependent"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-mode-invalid",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914"
+      ],
+      "coverage": [
+        "mode"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "value"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "interfaceOriginMismatch",
+          "interfaceOriginUnknown",
+          "relationSourceModeInvalid"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-cycle",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914"
+      ],
+      "coverage": [
+        "cycle"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "adapter",
+            "input": "loop",
+            "output": "loop"
+          },
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "loop"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "interfaceOriginCycle",
+          "relationOmitted"
+        ]
+      }
+    },
+    {
+      "id": "BRX2-body-relation-conflict",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "body-conflict"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "fallback"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "implementationRelationConflict"
+        ]
+      }
+    },
+    {
+      "id": "BRX2-wabi-runtime-rejected",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-608",
+        "W-914"
+      ],
+      "coverage": [
+        "wabi-runtime"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "interface": {
+        "runtimeFields": [
+          "lifetime"
+        ],
+        "wAbiKeyDelta": "borrow-relation-carrier"
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "wAbiRuntimeFieldRejected"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-callable-multiple-results",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "callableBorrow"
+      },
+      "decisionIds": [
+        "W-194",
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "callable"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "line",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "first",
+            "mode": "view"
+          },
+          {
+            "slot": "second",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "return",
+            "result": "first",
+            "source": "line"
+          },
+          {
+            "operation": "return",
+            "result": "second",
+            "source": "line"
+          }
+        ]
+      },
+      "invocation": {
+        "kind": "callable",
+        "parameter": "line",
+        "calls": 2
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current",
+        "invocation": {
+          "status": "accepted",
+          "freshLoanCount": 2,
+          "invocationEdgeCount": 4
+        }
+      }
+    },
+    {
+      "id": "BRX2-any-fn-erasure",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "callableBorrow"
+      },
+      "decisionIds": [
+        "W-194",
+        "W-914"
+      ],
+      "coverage": [
+        "erasure"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "line",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "line"
+          }
+        ]
+      },
+      "invocation": {
+        "erasure": "any-fn",
+        "closureStorage": {
+          "storage": "inline",
+          "escape": false
+        }
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current",
+        "invocation": {
+          "status": "accepted",
+          "erasure": "preserves-mapping"
+        }
+      }
+    },
+    {
+      "id": "BRX2-await-stable",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "nextMappedLine"
+      },
+      "decisionIds": [
+        "W-104",
+        "W-422",
+        "W-914"
+      ],
+      "coverage": [
+        "await"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "line",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "line"
+          }
+        ]
+      },
+      "invocation": {
+        "await": true,
+        "ownerStable": true,
+        "storageStable": true,
+        "noConflict": true,
+        "cleanupComplete": true,
+        "cancelDrainComplete": true
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current",
+        "invocation": {
+          "status": "accepted",
+          "suspension": "accepted"
+        }
+      }
+    },
+    {
+      "id": "BRX2-stream-live-view",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "nextMappedLine"
+      },
+      "decisionIds": [
+        "W-457",
+        "W-914"
+      ],
+      "coverage": [
+        "stream"
+      ],
+      "declaration": {
+        "kind": "instance",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "receiver",
+            "mode": "inout"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "receiver"
+          }
+        ]
+      },
+      "invocation": {
+        "kind": "stream-next",
+        "viewLive": true,
+        "reusesStorage": true
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current",
+        "invocation": {
+          "status": "rejected",
+          "code": "W-BORROW-0006"
+        }
+      }
+    },
+    {
+      "id": "BRX2-channel-boundary",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-912",
+        "W-914"
+      ],
+      "coverage": [
+        "boundary"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "line",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "line"
+          }
+        ]
+      },
+      "invocation": {
+        "boundary": "channel"
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current",
+        "invocation": {
+          "status": "rejected",
+          "code": "W-BORROW-0003"
+        }
+      }
+    },
+    {
+      "id": "BRX2-provider-consumer-relation-digest",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-608",
+        "W-914",
+        "W-941"
+      ],
+      "coverage": [
+        "interface-key"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "relationDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "consumerExpectedProviderKey": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "relationDigestMismatch",
+          "consumerProviderExpectationMismatch"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-result-recursion",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914"
+      ],
+      "coverage": [
+        "forged"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "result"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "relationResultRecursion"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-edge-mode-invalid",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914"
+      ],
+      "coverage": [
+        "mode"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "inout"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "mode": "shared",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "relationEdgeModeInvalid"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-init-relation",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "MenuCursor"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "interface-owned",
+        "multiple-results"
+      ],
+      "declaration": {
+        "kind": "init",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "source",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "interface",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "source"
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "initBorrowResultUnsupported"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-await-incomplete",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "nextMappedLine"
+      },
+      "decisionIds": [
+        "W-104",
+        "W-422",
+        "W-914"
+      ],
+      "coverage": [
+        "await"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "line",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "line"
+          }
+        ]
+      },
+      "invocation": {
+        "await": true,
+        "ownerStable": true,
+        "storageStable": true,
+        "noConflict": false,
+        "cleanupComplete": true,
+        "cancelDrainComplete": true
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current",
+        "invocation": {
+          "status": "rejected",
+          "code": "W-BORROW-0007"
+        }
+      }
+    },
+    {
+      "id": "BRX2-persistence-boundary",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-912",
+        "W-914"
+      ],
+      "coverage": [
+        "boundary"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "line",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "line"
+          }
+        ]
+      },
+      "invocation": {
+        "boundary": "persistence"
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current",
+        "invocation": {
+          "status": "rejected",
+          "code": "W-BORROW-0003"
+        }
+      }
+    },
+    {
+      "id": "BRX2-foreign-boundary",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-915",
+        "W-914"
+      ],
+      "coverage": [
+        "foreign"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "line",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "line"
+          }
+        ]
+      },
+      "invocation": {
+        "boundary": "foreignRetention"
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current",
+        "invocation": {
+          "status": "rejected",
+          "code": "W-BORROW-0003"
+        }
+      }
+    },
+    {
+      "id": "BRX2-erased-witness-unverified",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "erased-witness"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "erasedWitness": true
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "unverifiedWitnessRejected"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-foreign-witness-unverified",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-915"
+      ],
+      "coverage": [
+        "foreign-witness"
+      ],
+      "declaration": {
+        "kind": "protocol",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "interface",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "foreignWitness": true
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "unverifiedWitnessRejected"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-closure-view-escape",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "callableBorrow"
+      },
+      "decisionIds": [
+        "W-194",
+        "W-914"
+      ],
+      "coverage": [
+        "closure-escape"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "line",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "line"
+          }
+        ]
+      },
+      "invocation": {
+        "closureStorage": {
+          "storage": "heap",
+          "escape": true,
+          "returnedView": true
+        }
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current",
+        "invocation": {
+          "status": "rejected",
+          "code": "W-BORROW-0003"
+        }
+      }
+    },
+    {
+      "id": "BRX2-required-relation-omitted",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "relation-omitted"
+      ],
+      "declaration": {
+        "kind": "protocol",
+        "body": false,
+        "requireRelation": true,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "relationOmitted"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-overlap-edge-occurrences",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914"
+      ],
+      "coverage": [
+        "edge-occurrences"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": true,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "bodyTrace": [
+          {
+            "operation": "union",
+            "output": "selected",
+            "inputs": [
+              "primary",
+              "primary"
+            ]
+          },
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "selected"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "accepted",
+        "route": "current"
+      }
+    },
+    {
+      "id": "BRX2-separate-compilation-provider-import",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-608",
+        "W-914",
+        "W-941"
+      ],
+      "coverage": [
+        "separate-compilation",
+        "provider-receipt"
+      ],
+      "declaration": {
+        "kind": "protocol",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "interface",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "verificationScope": "separate-compilation",
+        "verificationStage": "verified",
+        "implementationReceipt": {
+          "relationDigest": "sha256:98af3ac4f2464aad5fa3f36deaa92627faa97723f7f96e64faddb1fa75b5ea8d",
+          "mapping": {
+            "result": [
+              "primary"
+            ]
+          }
+        },
+        "witnessReceipt": {
+          "relationDigest": "sha256:98af3ac4f2464aad5fa3f36deaa92627faa97723f7f96e64faddb1fa75b5ea8d",
+          "mapping": {
+            "result": [
+              "primary"
+            ]
+          }
+        },
+        "providerInterfaceKey": "sha256:31ec37801671132faed6283cc41877c418889d5b448db9b04d31ae9b645efd5b",
+        "consumerExpectedProviderKey": "sha256:31ec37801671132faed6283cc41877c418889d5b448db9b04d31ae9b645efd5b",
+        "interfaceLockRelationDigest": "sha256:98af3ac4f2464aad5fa3f36deaa92627faa97723f7f96e64faddb1fa75b5ea8d"
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research",
+        "relationExact": true
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-separate-compilation-missing-proofs",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-608",
+        "W-914"
+      ],
+      "coverage": [
+        "missing-proof"
+      ],
+      "declaration": {
+        "kind": "protocol",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "interface",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "verificationScope": "open-dispatch",
+        "verificationStage": "verified"
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "implementationReceiptMissing",
+          "witnessReceiptMissing",
+          "providerInterfaceKeyMissing",
+          "consumerProviderExpectationMissing"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-separate-compilation-stale-receipts",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-608",
+        "W-914",
+        "W-941"
+      ],
+      "coverage": [
+        "stale-provider",
+        "stale-consumer",
+        "stale-interface-lock"
+      ],
+      "declaration": {
+        "kind": "protocol",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "interface",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "verificationScope": "separate-compilation",
+        "verificationStage": "verified",
+        "implementationReceipt": {
+          "relationDigest": "sha256:98af3ac4f2464aad5fa3f36deaa92627faa97723f7f96e64faddb1fa75b5ea8d",
+          "mapping": {
+            "result": [
+              "primary"
+            ]
+          }
+        },
+        "witnessReceipt": {
+          "relationDigest": "sha256:98af3ac4f2464aad5fa3f36deaa92627faa97723f7f96e64faddb1fa75b5ea8d",
+          "mapping": {
+            "result": [
+              "primary"
+            ]
+          }
+        },
+        "providerInterfaceKey": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "consumerExpectedProviderKey": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "interfaceLockRelationDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "providerInterfaceKeyMismatch",
+          "consumerProviderExpectationMismatch",
+          "interfaceLockMismatch"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-callable-any-fn",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "callableBorrow"
+      },
+      "decisionIds": [
+        "W-194",
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "relation-callable",
+        "relation-any-fn"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "invocation": {
+        "kind": "callable",
+        "parameter": "primary",
+        "calls": 2,
+        "erasure": "any-fn"
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research",
+        "relationExact": true,
+        "invocation": {
+          "status": "accepted",
+          "freshLoanCount": 2,
+          "invocationEdgeCount": 2,
+          "erasure": "preserves-mapping"
+        }
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-await-stable",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "nextMappedLine"
+      },
+      "decisionIds": [
+        "W-104",
+        "W-422",
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "relation-await"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "invocation": {
+        "await": true,
+        "ownerStable": true,
+        "storageStable": true,
+        "noConflict": true,
+        "cleanupComplete": true,
+        "cancelDrainComplete": true
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research",
+        "relationExact": true,
+        "invocation": {
+          "status": "accepted",
+          "suspension": "accepted"
+        }
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-stream-conflict",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "nextMappedLine"
+      },
+      "decisionIds": [
+        "W-457",
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "relation-stream"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "interface",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "invocation": {
+        "kind": "stream-next",
+        "viewLive": true,
+        "reusesStorage": true
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research",
+        "relationExact": true,
+        "invocation": {
+          "status": "rejected",
+          "code": "W-BORROW-0006"
+        }
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-relation-boundary-channel",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-912",
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "relation-boundary"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "invocation": {
+        "boundary": "channel"
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research",
+        "relationExact": true,
+        "invocation": {
+          "status": "rejected",
+          "code": "W-BORROW-0003"
+        }
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-static-boundary-positive",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-912",
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "static-boundary"
+      ],
+      "declaration": {
+        "kind": "static",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref",
+            "static": true
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "requirement",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "invocation": {
+        "boundary": "channel"
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research",
+        "relationExact": true,
+        "invocation": {
+          "status": "accepted"
+        }
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-immortal-boundary-positive",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-912",
+        "W-914",
+        "W-1351"
+      ],
+      "coverage": [
+        "immortal-boundary"
+      ],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref",
+            "immortal": true
+          },
+          {
+            "slot": "fallback",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ],
+        "relationContract": {
+          "owner": "interface",
+          "sealed": true,
+          "pairs": [
+            {
+              "result": "result",
+              "sources": [
+                "primary"
+              ]
+            }
+          ]
+        }
+      },
+      "invocation": {
+        "boundary": "foreignRetention"
+      },
+      "expected": {
+        "decision": "research-blocker",
+        "route": "research",
+        "relationExact": true,
+        "invocation": {
+          "status": "accepted"
+        }
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "BRX2-kind-unsupported",
+      "source": {
+        "path": "../reference/last-light/borrow_expressivity.w",
+        "symbol": "selectPrimary"
+      },
+      "decisionIds": [
+        "W-914"
+      ],
+      "coverage": [
+        "kind-unsupported"
+      ],
+      "declaration": {
+        "kind": "lambda",
+        "body": false,
+        "inputs": [
+          {
+            "slot": "primary",
+            "mode": "ref"
+          }
+        ],
+        "results": [
+          {
+            "slot": "result",
+            "mode": "view"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": [
+          "declarationKindUnsupported"
+        ]
+      },
+      "assay": {
+        "kind": "independent-assay",
+        "problemTrace": [
+          {
+            "operation": "return",
+            "result": "result",
+            "source": "primary"
+          }
+        ]
+      }
+    }
+  ]
+}

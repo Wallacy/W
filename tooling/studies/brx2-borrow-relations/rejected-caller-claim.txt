@@ -1,0 +1,3 @@
+BRX2 rejected witness: a call site cannot select
+observeBorrowRelation(result -> primary). The caller has no authority over the
+provider relation and cannot repair a missing interface contract.

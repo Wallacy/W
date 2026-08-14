@@ -1,0 +1,4 @@
+BRX2 alternative witness: `observeBorrowRelation` returns an owned
+`SelectedLine` sum. The caller receives the selected value, not a direct view.
+This is a safe API change and does not define a relation for the borrowed
+result. It remains a study witness, not a promoted W contract.

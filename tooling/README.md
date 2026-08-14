@@ -26,6 +26,7 @@ linguagem.
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
 | `frontend-freeze-cases.json` + `check-frontend-freeze.mjs` + guards/test + snapshot | FZ0 ratifica as seis famílias normalizadas G0–G5 com source Last Light real (digest/symbol), parse sem recovery, pares F0 CST-equivalentes com alvo byte canônico, inversão S0 ou waiver PYN1 e D0 exato; 21 decisões são cobertas sem duplicatas ou expected echo | oracle de design; F0 não prova idempotência nem implementa formatter, e o checker não implementa parser, compiler, runtime ou provider |
 | `borrow-expressivity-cases.json` + máquina/checker/test + snapshot | BRX0 deriva 22 casos (15 mappings aceitos, sete blockers Research e quatro negativos de invocation) para receiver/body mapping, callable loans, lending cursor, adapter OriginSet, await, escapes, `any fn`, boundaries e drift/mutations de interface | oracle host de design; free/protocol bodyless com dois inputs permanece Research; não implementa compiler, runtime, provider nem metadata de lifetime |
+| `brx2-borrow-relations-cases.json` + estudo/máquina/checker/test + snapshot | BRX2 informa BRX0-R2 com 56 casos sobre relação requirement/interface-owned, slots de resultado, modos/edges, OriginSet, SemanticInterfaceKey, WAbi proof, lock/provider receipts, callable/Stream/await/boundary e aggregate nominal | Research data-only; W-914 permanece vigente, source spelling fica reserved/not-parsed, declaration/invocation status são separados e não há lifetime syntax, runtime metadata, compiler, runtime ou provider |
 | `studies/atom1-atomic-extensibility/study.json` + `atom1-atomic-extensibility-cases.json` + máquina/checker/test + snapshot | ATOM1 separa atualização de record value-only (A), handle geracional/owner (B) e retirement/reclamation (C); 70 casos cobrem carrier canônico versus raw-layout, facts derivados de fields, zero-bit rejection, packing, SnapshotCell/domain, target native/lock-free/fallback, widths até 128 bits, proofs de pointer, eventos de reclamation, foreign boundaries, shutdown e drain FFI | oracle host de design; o carrier canônico e o adapter de reclamation permanecem Research; não implementa compiler, runtime, provider ou FFI |
 | `studies/ipc1-mapped-ipc/study.json` + `ipc1-mapped-ipc-cases.json` + reducers/checker/test + snapshot | IPC1 informa/estreita IPC0-R1 com 67 casos e 134 projeções POSIX/Windows para snapshots file-backed duráveis em generation objects, carriers shm/pagefile voláteis, schema/layout digests, selector publication/receipt ordenada, cap0/capN e bounds no segmento `slots`, commit/cancelamento, checksum/materialization, crash por actor e recovery ordering, atomics, lifecycle terminal, FFI, provider bindings e fallback explícito | oracle host de design; `ipc1-mapped-ipc-reference.test.mjs` e o study oracle são host evidence; candidatos mapped são Research e não implementam API, syntax, compiler, runtime ou provider |
 | `capability-matrix-cases.json` + máquina/checker/test + snapshot | CAP0 consolida oito eixos por problema comum, tenta composição W com Last Light, preserva invariantes e deriva rotas `current`/`composable`/`research` pelas subcapacidades do problema; 149 refs primárias ou source-backed e oito filas de documentação futura | fonte editorial de staging; não mede maturidade, não copia features e não implementa compiler, runtime ou provider |
@@ -434,6 +435,33 @@ integrações de editor.
    Last Light, o parse Tree-sitter dos `.w` candidatos, os negativos de
    authority/phase/cache e as projeções de target; a introdução de módulo
    gerado continua Research.
+18. Para validar BRX2 sem compiler ou runtime, execute
+   `bun run check:brx2`. O checker deriva relação, edges, OriginSet,
+   SemanticInterfaceKey e digests de provider a partir de entradas estruturadas;
+   deriva também runtime signature/WAbi e exige receipts de separate compilation;
+   a relação candidata continua Research e W-914 não muda.
+   O mesmo checker é `check:brx2` no pacote Tree-sitter e entra em `check:docs`
+   e no aggregate `check` desse pacote.
+
+### BRX2 — relações de borrow por contrato
+
+[`brx2-borrow-relations-cases.json`](brx2-borrow-relations-cases.json),
+[`brx2-borrow-relations-machine.mjs`](brx2-borrow-relations-machine.mjs) e o
+estudo em [`studies/brx2-borrow-relations`](studies/brx2-borrow-relations)
+formam um oracle Research para BRX0-R2. A máquina separa a relação atual de
+receiver/body-derived da relação candidata owned pelo requirement/interface.
+Ela exige slots e modos canônicos, witnesses exatos, `SemanticInterfaceKey`,
+lock e provider digest estáveis, e rejeita caller claims, witness-only,
+metadata de runtime e derivações Rust-like. O source spelling do candidato fica
+reserved/not-parsed até decisão humana; `W-914` e o ABI corrente continuam sem
+mudança. O aggregate nominal é uma alternativa de API, não uma regra nova.
+O host assay de caso `assay.kind: independent-assay` não é evidência de
+compiler; não existe `problemTrace` dentro de uma declaration current sem body.
+Invocation status fica separado de declaration decision. A máquina deriva
+runtime signature/WAbi e exige receipts explícitos para separate compilation;
+relação rejeitada nunca reduz o conservative baseline. Resultados independentes
+derivam dos slots não-dependent; flags legadas de result/`verified` são
+rejeitadas.
 
 ### CAP0 — matriz de capacidades por problema
 
