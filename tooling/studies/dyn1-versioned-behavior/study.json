@@ -1,0 +1,81 @@
+{
+  "$schema": "w-dyn1-versioned-behavior-study-1",
+  "status": "design-oracle-input",
+  "id": "DYN1",
+  "gate": "DYN0-G1",
+  "title": "Versioned dynamic behavior, generation switching, and bounded export",
+  "question": "Can W cover controlled REPL and typed service/plugin hot change with immutable snapshots, generation-safe switch and export without arbitrary evaluation or live-frame mutation?",
+  "languageDesign": "partial",
+  "stdEvidence": "partial",
+  "providerEvidence": "missing",
+  "exactGap": { "id": "DYN0-persistent-generation-reference", "route": "research", "scope": "read-only reference and migration across restart/deploy", "languageSurface": "unresolved", "providerGap": true, "gate": "research-evidence-only" },
+  "composition": {
+    "capabilityMatrix": { "id": "CAP0", "subcapability": "DYN0-versioned-change", "classification": "composable", "casesPath": "../../capability-matrix-cases.json", "casesDigest": "sha256:96ee865611292be38a49a8dc8ada41034ef299e2c1ddc5b4a3e64f8a7c3c97be", "snapshotPath": "../../capability-matrix-results.snapshot.jsonl", "snapshotDigest": "sha256:92f162287ec8cd088772db6080cea0762b2f8ef0b92f0f17782bde1de2f076e9", "gate": "CAP0" },
+    "dyn0": { "id": "DYN0", "subcapability": "DYN0-versioned-change", "classification": "composable", "evidence": "partial", "gate": "DYN0-G1" }
+  },
+  "routeMatrix": [
+    { "axis": "A", "problem": "REPL committed snapshots, invalidation, and canonical export/import", "disposition": "composable" },
+    { "axis": "B", "problem": "typed service/plugin generations and local/split projections", "disposition": "composable" },
+    { "axis": "C", "problem": "persistent generation reference and migration receipt", "disposition": "narrow-research-subcapability" },
+    { "axis": "D", "problem": "arbitrary evaluation, frame mutation, ambient authority, unsafe unload", "disposition": "intentionally-rejected" }
+  ],
+  "variants": [
+    { "id": "repl-snapshot", "role": "current", "language": "w", "path": "repl-snapshot.w", "digest": "sha256:6647f6dfcc3d599c35b5978dd9d225aec04f535849984b0566495add94dd74db" },
+    { "id": "typed-service-plugin", "role": "current", "language": "w", "path": "typed-service-plugin.w", "digest": "sha256:7e597b8519de6d16d37202cdec6acd873e0b8f764e1878c0178f40b72ff7fdba" },
+    { "id": "split-service-plugin", "role": "current", "language": "w", "path": "split-service-plugin.w", "digest": "sha256:337ab562a99515db1d1d018ccc6e592b64b03890d728afd39370680f0ac0de6b" },
+    { "id": "persistent-generation-reference", "role": "research-candidate", "language": "w-reserved", "path": "persistent-generation-reference.txt", "digest": "sha256:39bd2712603ebb46d7c62e84dfeb044ef997a87cfacd060f25999dd4838f3e54" },
+    { "id": "rejected-dynamic-mutation", "role": "rejected-witness", "language": "w-reserved", "path": "rejected-dynamic-mutation.txt", "digest": "sha256:7f14cc0c1ad60b9865870edfe0ad15e7d5401179bb0a6dbdae4a0a3512aa47c0" }
+  ],
+  "artifactRefs": [
+    { "id": "repl-snapshot", "role": "current", "language": "w", "path": "repl-snapshot.w", "digest": "sha256:6647f6dfcc3d599c35b5978dd9d225aec04f535849984b0566495add94dd74db" },
+    { "id": "typed-service-plugin", "role": "current", "language": "w", "path": "typed-service-plugin.w", "digest": "sha256:7e597b8519de6d16d37202cdec6acd873e0b8f764e1878c0178f40b72ff7fdba" },
+    { "id": "split-service-plugin", "role": "current", "language": "w", "path": "split-service-plugin.w", "digest": "sha256:337ab562a99515db1d1d018ccc6e592b64b03890d728afd39370680f0ac0de6b" },
+    { "id": "persistent-generation-reference", "role": "research-candidate", "language": "w-reserved", "path": "persistent-generation-reference.txt", "digest": "sha256:39bd2712603ebb46d7c62e84dfeb044ef997a87cfacd060f25999dd4838f3e54" },
+    { "id": "rejected-dynamic-mutation", "role": "rejected-witness", "language": "w-reserved", "path": "rejected-dynamic-mutation.txt", "digest": "sha256:7f14cc0c1ad60b9865870edfe0ad15e7d5401179bb0a6dbdae4a0a3512aa47c0" }
+  ],
+  "sourceRefs": [
+    { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "claim": "committed REPL snapshot and generation display" },
+    { "path": "reference/last-light/repl_session_oracle.w", "symbol": "GenerationReceipt", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "claim": "generation publication and reset receipt" },
+    { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "claim": "effect and submission receipt facts" },
+    { "path": "reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de", "claim": "service generation and drain state" },
+    { "path": "reference/last-light/liveness_oracle.w", "symbol": "CommitGate", "digest": "sha256:447a3fc9252312c7403450a861a75324bb34e1a91df9a7a7981d0bc0b38b4119", "claim": "runtime closure and cleanup gate" },
+    { "path": "reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:b948a12612d0e656cbc4fba5809ef18c6ab4af8f085e55377f049ad55c469796", "claim": "package recipe and lock identity" },
+    { "path": "reference/last-light/release_oracle.w", "symbol": "mirror", "digest": "sha256:fc7ac740c97011d7f6e88ba839b46da83d6617b505305c4e3e7f866ba092f08b", "claim": "artifact and receipt provenance" },
+    { "path": "reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40", "claim": "WAbi and foreign callback boundary" },
+    { "path": "reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "callback lease and unregister drain" }
+  ],
+  "familySourceRefs": {
+    "A": [ { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "claim": "REPL committed snapshot and invalidation facts" } ],
+    "B": [ { "path": "reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de", "claim": "typed service generation and drain facts" } ],
+    "C": [ { "path": "reference/last-light/release_oracle.w", "symbol": "mirror", "digest": "sha256:fc7ac740c97011d7f6e88ba839b46da83d6617b505305c4e3e7f866ba092f08b", "claim": "persistent artifact and provenance receipt facts" } ],
+    "D": [ { "path": "reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40", "claim": "FFI callback boundary and rejected unsafe unload" } ]
+  },
+  "officialRefs": [
+    { "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf", "claim": "C object lifetime and translation baseline" },
+    { "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/dlopen.html", "claim": "POSIX dynamic load handle boundary" },
+    { "url": "https://pubs.opengroup.org/onlinepubs/9699919799.orig/functions/dlclose.html", "claim": "POSIX unload reference-count boundary" },
+    { "url": "https://doc.rust-lang.org/reference/types/trait-object.html", "claim": "Rust typed trait-object interface and vtable identity" },
+    { "url": "https://doc.rust-lang.org/std/any/struct.TypeId.html", "claim": "Rust TypeId locality and non-portable identity" },
+    { "url": "https://doc.rust-lang.org/stable/cargo/reference/build-scripts.html", "claim": "Rust build recipe and artifact side effects" },
+    { "url": "https://docs.python.org/3/library/importlib.html", "claim": "Python import and module reload boundaries" },
+    { "url": "https://docs.python.org/3/library/inspect.html", "claim": "Python read-only inspection surface" },
+    { "url": "https://docs.python.org/3/library/functions.html#eval", "claim": "Python eval as an intentionally unsafe comparison" }
+  ],
+  "docsQueue": [
+    { "language": "C/POSIX", "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/dlopen.html", "pseudocode": "load receipt -> validate ABI digest -> admit callback -> close admission -> drain callbacks -> release handle" },
+    { "language": "Rust", "url": "https://doc.rust-lang.org/stable/cargo/reference/build-scripts.html", "pseudocode": "recipe digest + lock digest -> run bounded tool -> hash artifact -> reopen source -> recheck interface" },
+    { "language": "Python", "url": "https://docs.python.org/3/library/importlib.html", "pseudocode": "export source and lock receipts -> reparse -> recheck -> create new module generation; never restore live frame" },
+    { "language": "Python", "url": "https://docs.python.org/3/library/inspect.html", "pseudocode": "inspect committed metadata -> return bounded facts -> deny write or ambient lookup" }
+  ],
+  "forbiddenMechanisms": ["eval", "exec", "monkeyPatch", "activeFrameWrite", "debuggerWrite", "ambientLookup", "nativeInProcessSandbox", "dlcloseLiveCallback", "arbitraryRuntimeEval", "stringAuthority", "currentModuleInjection"],
+  "corpus": { "path": "../../dyn1-versioned-behavior-cases.json", "digest": "sha256:0f8203d2f28e539420a278aadeabff29e2121e1a09f920ef9c17dd1a5413f7f0" },
+  "machine": { "path": "../../dyn1-versioned-behavior-machine.mjs", "digest": "sha256:4c2b918e89e5f87f61e43aa3ccf638f5b0b83d56152b2ed64d0bb6229dfd5fd4" },
+  "referenceTest": { "path": "../../dyn1-versioned-behavior-reference.test.mjs", "digest": "sha256:871aa1c4ef4a5bd6dd2c60e89380b6d718998dca9e58b0a16e8b7a3bf96386d6" },
+  "checker": { "path": "../../check-dyn1-versioned-behavior.mjs", "digest": "sha256:2ab6b2a80376482260be663c7247f17e62d8ecce80bcbda59c7a9de8bb994cb1" },
+  "snapshot": { "path": "../../dyn1-versioned-behavior-results.snapshot.jsonl", "digest": "sha256:62ab8c4f8c0b0970fb794c4e5900b09eff3a1f4fe92cdc111e99f77ccbe30bd7" },
+  "studyOracle": { "path": "oracle.test.mjs", "digest": "sha256:1f1a1e278b73158314a08394de148402f4d291c7e300713142623630b7b08e7a" },
+  "metrics": { "caseCount": 70, "routeCounts": { "composable": 56, "research": 2, "invalid-assay": 1, "intentionally-rejected": 11 }, "statusCounts": { "committed": 28, "rejected": 23, "degraded": 2, "fault-boundary": 1, "rolled-back": 2, "research": 1, "unknown-effect": 1, "invalid-assay": 1, "intentionally-rejected": 11 }, "pairedProjections": 3, "rejectedMechanisms": 11, "researchGapCases": 2, "degradedAfterSwitch": 2, "unknownCrashOutcomes": 1, "nativeMappingRetained": 1, "isolatedFullUnload": 1 },
+  "evidence": { "current": ["source-ref", "official-primary", "host-oracle", "event-reducer", "mutation-checker", "snapshot", "dyn1-design-oracle"], "missing": ["w-compile", "w-run", "provider", "std-provider", "human-study", "model-study", "stress-provider"] },
+  "recommendation": "Keep DYN0 composable. Use REPL committed snapshots and typed service/plugin generations with explicit admission close, drain, generation identities, capability/effect receipts, and canonical export/import. Keep the persistent generation reference as a separate Research subcapability.",
+  "stopCondition": "Do not promote dynamic behavior to implementation until independent local/split reducers, crash/cancel/fault traces, capability audits, export/import rechecks, FFI unload ordering, quota bounds, and provider/compiler evidence close every contract. A post-switch drain failure remains degraded; only a provider receipt before publication may roll back; unknown crash outcome remains explicit."
+}

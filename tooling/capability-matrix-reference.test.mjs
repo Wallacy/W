@@ -177,5 +177,8 @@ describe("CAP0 capability matrix host oracle", () => {
     expect(dynamic.route.classification).toBe("composable");
     expect(dynamic.foreignMechanismDisposition.classification).toBe("intentionally-rejected");
     expect(dynamic.exactGap.kind).toBe("none");
+    expect(dynamic.evidence.current).toContain("dyn1-design-oracle");
+    expect(dynamic.nextStudyGate.studyRefs).toHaveLength(7);
+    expect(dynamic.nextStudyGate.studyRefs.every((ref) => ref.path && ref.digest && ref.claim)).toBe(true);
   });
 });

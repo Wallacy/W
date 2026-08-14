@@ -32,6 +32,7 @@ linguagem.
 | `capability-matrix-cases.json` + máquina/checker/test + snapshot | CAP0 consolida oito eixos por problema comum, tenta composição W com Last Light, preserva invariantes e deriva rotas `current`/`composable`/`research` pelas subcapacidades do problema; 149 refs primárias ou source-backed e oito filas de documentação futura | fonte editorial de staging; não mede maturidade, não copia features e não implementa compiler, runtime ou provider |
 | `cyc1-explicit-cycle-cases.json` + máquina/manifest/checker/test + estudo/snapshot | CYC1 informa CYC0-G1 com 41 casos event-derived para weak edges, close/drain, SCC estática/dinâmica, FFI/service/resource lifecycle, concorrência, unknown foreign boundaries e três composições de conditional liveness; 3 rejections estáticas, 3 diagnostics residuais, 2 unknown boundaries e 2 cases Research | oracle host e Tree-sitter parse; census é somente diagnóstico pós-drain, sem collector/finalizer/API/syntax, e compile, run, provider, stress e estudos humano/modelo continuam missing |
 | `syn1-typed-generation-cases.json` + máquina/manifest/checker/test + snapshot | SYN1 estreita SYN0-R1 com 65 casos A/B/C/D: generated module sets de `.w` passam pelo Tree-sitter real e por source-shape bounded; action result e interface candidata são publicações separadas; receipts Research cobrem graph/dependencies, identities, maps byte-based, target registry e navigation | oracle host de design; `interfacePublished` é outcome do contrato candidato, não evidência de compiler; semantic frontend, ConstIR, compiler cache, runtime, provider e LSP permanecem ausentes |
+| `dyn1-versioned-behavior-cases.json` + máquina/manifest/checker/test + snapshot | DYN1 informa DYN0-G1 com 70 casos A/B/C/D e métricas derivadas para REPL snapshots, generations de service/plugin, identities SemanticInterface/WAbi/runtime-closure, switch/drain, capabilities/effects, export/import, target local/split, FFI unload, crash/cancel e quotas; C é somente a subcapability `DYN0-persistent-generation-reference` | host design-oracle event-derived; reducers local/split são independentes, `expect` não escolhe status, WAbi target-specific e compatible exige novas SemanticInterfaceKey/ServiceIRKey com receipt; native retém mapping e process/Wasm/component usam full unmap; compiler/runtime/provider/isolamento real/std permanecem missing; eval/exec/frame mutation/ambient lookup/native sandbox/live dlclose são rejeitados |
 | `gen1-incremental-suspension-cases.json` + máquina/checker/test + snapshot | GEN1 informa/estreita GEN0-R1 com 23 traces de pull, travessia, diálogo, failure, delegação, view, backpressure, cancelamento, children e FFI; compara Stream/state/channels e dois witnesses reservados em duas máquinas independentes e deriva métricas estruturais de símbolos source únicos por slices do mesmo cenário | oracle host de design; não executa W, compiler, runtime, provider ou estudo humano/modelo; bloco Stream compiler-owned é Research e frame público é rejeitado |
 | `semantic-diagnostic-matrix-cases.json` + máquina/checker/test | SDM0 deriva SemanticResult, CheckerContext, loop fixed point, AST→HIR schema, D0 records, causality, ordering, limits, policy, lex/parse boundary e cobertura de meta contracts | oracle host independente; não implementa checker, compiler, formatter ou runtime |
 | `execution-ergonomics-cases.json` + máquina/checker/snapshot | 80 casos (32 positivos, 46 negativos e duas informações) derivam labels, parâmetros, slots allocator contextuais/ordinários e collision, operações explícitas de ownership, suspension, placement, barriers, process projections, doctests, std e lanes seriais dinâmicas; 26 testes host usam entradas independentes | oracle host de design; não executa W nem implementa S0, scheduler, pool ou provider |
@@ -575,6 +576,55 @@ identities; checkout paths ficam somente na authority/provenance adapter.
 Source maps permitem many-generated-to-one-source, mas exigem cobertura gerada
 única e endpoints UTF-8 válidos. O explain record mantém generated sources
 read-only inspecionáveis e navigation como requisito Research, sem alegar LSP.
+
+### DYN1 — comportamento dinâmico versionado
+
+[`dyn1-versioned-behavior-cases.json`](dyn1-versioned-behavior-cases.json),
+[`dyn1-versioned-behavior-machine.mjs`](dyn1-versioned-behavior-machine.mjs), o
+manifest e o estudo em
+[`studies/dyn1-versioned-behavior`](studies/dyn1-versioned-behavior) formam a
+evidência host design-oracle para `DYN0-G1`. O corpus tem 70 casos derivados de
+eventos; o snapshot deriva métricas de route/status, projections e cleanup para
+REPL snapshots e invalidation, typed service/plugin generations, identities
+`SemanticInterfaceKey`/`WAbiKey`/`RuntimeClosureKey`, schema exact/compatible,
+admission close, cancel/drain/unregister/in-flight/destroy/unpin/release/unmap,
+stale completions/messages/capabilities, effect/capability audit, export/import
+redacted, source maps/digests, target local/split, callback/FFI unload,
+crash/cancel e quotas. O Restaurante testa cada fault entre preparação,
+publicação e limpeza; falha pós-switch deriva `degraded`, rollback só deriva de
+provider receipt estruturado antes da publicação, crash pré-publicação preserva o
+antigo ou deriva `unknown-effect`, e crash pós-publicação mantém o novo committed.
+
+Reducers local e split têm loops independentes. A comparação exige o mesmo owner
+graph, generation, interface result, effect outcome, cleanup order, capability
+state, stale events, selection, crash/degraded, export/import e export digest,
+mas aceita trace físico diferente. O caso C é somente a
+lacuna `DYN0-persistent-generation-reference`, para facts read-only de uma
+generation entre restart/deploy; inspector comum de snapshot continua na rota A.
+Seleção concorrente aceita vários candidates ready somente com um winner receipt
+atômico. Empate, duplicate, ausência de receipt ou handle stale é rejeitado.
+Arbitrary eval/exec, monkey patch, active-frame/debugger write, ambient lookup,
+native dynamic library como sandbox e `dlclose` com callback vivo ficam na rota D
+intencionalmente rejeitada. `expect` é guard de mutation e nunca escolhe o
+resultado.
+
+Schema `compatible` prova uma nova `SemanticInterfaceKey` e `ServiceIRKey` por
+receipt old/candidate, compatibility-map digest derivado e decisão explícita; Target A/B altera `WAbiKey` e artifact
+físico sem alterar o resultado lógico. Native exact-WAbi retém o mapping até o
+fim da runtime island; process, Wasm e component só fazem full unmap após drain.
+
+Evidence atual: source refs/digests Last Light, refs oficiais C/POSIX/Rust/Python,
+oracle host event-derived, mutation tests e snapshot. Compiler, runtime,
+provider, std provider, isolamento real, stress e estudos humano/modelo ficam
+missing. Use:
+
+```sh
+bun run check:dyn1
+bun tooling/check-dyn1-versioned-behavior.mjs --write
+```
+
+O gate não altera `DESIGN.md`, não cria syntax/diagnostic e não lê fontes
+geradas em `tooling/tree-sitter-w/src/`.
 
 ### GEN1 — suspensão incremental
 

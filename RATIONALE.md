@@ -4530,6 +4530,98 @@ falharem, sob census pós-drain, cleanup determinístico e nenhuma fronteira
 estrangeira oculta. Até lá não há motivo para disfigurar a linguagem com um
 collector implícito.
 
+### 1.30 DYN1 — comportamento dinâmico versionado
+
+O estudo DYN1 informa DYN0-G1 sem alterar `DESIGN.md`; seus artefatos são host
+design-oracle evidence, não comportamento de compiler/runtime/provider. Ele começa por um
+problema controlado no Restaurante no fim do Universo: a cozinha troca uma
+generation de plugin durante o serviço, a sala mantém snapshots da receita, o
+observatório recebe completions atrasadas e a conta pode atravessar restart ou
+deploy. A máquina em
+[`tooling/dyn1-versioned-behavior-machine.mjs`](tooling/dyn1-versioned-behavior-machine.mjs)
+deriva fatos somente de recipe, artifact/index/lock, interface, WAbi, runtime
+closure, source-map/documentation, schema, target, capability/effect, isolation,
+quota e receipts. Caller não fornece `status`, `route`, compatibilidade,
+publicação, drain, rollback ou autoridade como booleans; `expect` é somente uma
+guarda de mutation.
+
+O corpus [`dyn1-versioned-behavior-cases.json`](tooling/dyn1-versioned-behavior-cases.json)
+tem 70 casos A/B/C/D; o snapshot deriva route/status, três projections e as
+contagens de cleanup. A cobre REPL committed snapshots, invalidation de
+compiled hard dependencies, inspector read-only e export/import canônico. B
+cobre generations de service/plugin tipado, schema exact/compatible,
+`SemanticInterfaceKey`, `WAbiKey`, `RuntimeClosureKey`, target A/B e reducers
+local/split independentes. Em schema `compatible`, candidate
+`SemanticInterfaceKey`/`ServiceIRKey` novos são ligados por receipt old/candidate
+com decisão explícita. C fica isolada em
+`DYN0-persistent-generation-reference`: uma referência bounded e read-only que
+liga facts de generation entre restart/deploy. Inspector de snapshot committed
+já é composição de A; C não é uma nova forma de reflection e não rebaixa DYN0.
+Uma seleção concorrente aceita candidates ready somente com um winner receipt
+atômico; empate, duplicate, ausência de receipt ou candidato stale falha com fato explícito.
+D rejeita eval/exec, monkey patch, active-frame/debugger write, ambient lookup,
+native dynamic library como sandbox, autoridade por nome e `dlclose` com callback
+vivo.
+
+Cada troca segue `prepare → validate → preflight → ready → switch` com publicação
+atômica. Depois do switch a admissão antiga fecha; children, waits, loans,
+streams, callbacks e resources cancelam/drain; a ordem segue
+`unregister → inFlight drain → destroy → unpin → release`; process/Wasm/component
+acrescentam `unmap`, enquanto native exact-WAbi retém mapping até o fim da runtime
+island. Completion,
+message e capability da generation antiga são stale e rejeitados. Falha antes da
+publicação preserva a antiga. Falha de drain depois da publicação deriva
+`degraded`, nunca rollback. Rollback só deriva de provider receipt antes da
+publicação. Crash pré-publicação preserva a antiga como fault-boundary ou
+unknown-effect quando o provider outcome foi perdido. Crash pós-publicação
+mantém a nova committed, com degraded somente se o drain falhar.
+
+Identidades de semantic interface, ABI, runtime closure, recipe, artifact,
+source-map e documentation não são uma hash única. Schema exact rejeita drift;
+schema compatible aceita apenas mudanças fechadas. Target A/B usa facts distintos
+de registry, WAbi e artifact físico. Local exige WAbi exato. Split exige
+ServiceIR/schema e pode usar WAbi target-specific. Ambos devem ter owner graph,
+generation/publication, interface result, effect outcome, cleanup/drain,
+capability state, stale events, selection, crash/degraded e export/import
+lógicos iguais; physical trace pode divergir.
+Artifact/index/digest/lock bastam para identidade; PATH, name, mtime, ambiente e
+registry implícito não são lookup authority.
+
+Export reúne source/package lock, recipe/artifact/interface/source-map, receipts,
+provenance, redactions e bound. Import executa `reopen → parse → check →
+resolveReceipts`, depois reparseia e revalida. Não restaura heap, task, loan, capability, `ServiceRef` ou
+provider handle. Cases adversariais cobrem receipts stale/missing/duplicate/
+forged, source-map stale, digests, quotas, callback unload, FFI, stale generation,
+cancel, crash e isolamento process/Wasm/component. Native dynamic library nunca
+é sandbox. Os reducers separados forçam `projection-divergence` sob mutation,
+em vez de ecoar a mesma decisão.
+
+Assim, DYN0 continua Componível para A/B e o arbitrary eval fica rejeitado sem
+criar feature de linguagem. `languageDesign` permanece partial: compiler,
+runtime, provider, std provider, isolamento real, stress e estudos humano/modelo
+continuam missing. A recomendação é fechar primeiro receipts, source maps,
+capability/effect audit, FFI drain, quotas e fault oracles; não promover o
+Research C sem prova independente de migration provider. O stop condition é uma
+derivação local/split consistente para todos os casos, sem stale publish, leak,
+unbounded resource ou autoridade oculta, além de evidência real de compiler e
+provider. O manifesto liga explicitamente CAP0 (`DYN0-versioned-change`,
+classificação Componível, cases e snapshot com digest) e DYN0-G1; os dois casos C
+ficam sob o gate separado de `DYN0-persistent-generation-reference` e não contam
+como fechamento de language design ou de provider.
+
+As comparações usam fontes primárias oficiais: [C23 N3096](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf),
+[POSIX `dlopen`](https://pubs.opengroup.org/onlinepubs/9699919799/functions/dlopen.html),
+[POSIX `dlclose`](https://pubs.opengroup.org/onlinepubs/9699919799.orig/functions/dlclose.html),
+Rust ([trait objects](https://doc.rust-lang.org/reference/types/trait-object.html),
+[`TypeId`](https://doc.rust-lang.org/std/any/struct.TypeId.html) e
+[Cargo build scripts](https://doc.rust-lang.org/stable/cargo/reference/build-scripts.html))
+e Python ([importlib](https://docs.python.org/3/library/importlib.html),
+[inspect](https://docs.python.org/3/library/inspect.html) e
+[`eval`](https://docs.python.org/3/library/functions.html#eval)). Os snippets do
+manifesto são pseudocódigo original bounded, não citações longas nem evidência de
+W. O estudo host, snapshot, source refs e mutation checker são evidence; não são
+compiler, runtime, provider, sandbox ou implementação.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
@@ -5965,6 +6057,14 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1389 | CYC1 self-reference e lowering | self-weak só depois de publish em método de owner; constructor witness que expõe `self` em partial init é rejeitado; long chain registra requisito de implementação de lowering iterativo como preocupação inconclusiva, sem claim de compiler/runtime | constructor self escape, resurrection, finalizer effect ordering, declarar lowering pronto ou usar collector para corrigir stack/recursion de drop |
 | W-1390 | CYC1 conditional-liveness Research | ordinary weak não resolve ephemeron value→key; generation/ID detached, owner-scoped lease com invalidation/close e detached value sem back edge são composições testadas; somente a subcapability extension `CYC0-conditional-liveness` fica Research, enquanto CYC0 permanece Componível | promover weak-key primitive, ephemeron API, transparent GC ou finalizer sem falha das três composições sob census pós-drain |
 | W-1391 | CYC1 evidence gate e stop condition | 41 cases, 3 static SCC rejections, 3 residual diagnostics, 2 unknown boundaries e 2 conditional-liveness Research cases são host evidence; Tree-sitter, source digests, refs oficiais e mutation checker são current; compile/run/provider/stress/human/model continuam missing | chamar oracle/snapshot de compiler ou runtime, declarar provider-ready, ocultar foreign root ou fechar gate por contagem de casos |
+| W-1392 | problema-first DYN1 | DYN1 modela hot change no Restaurante: REPL snapshot, typed service/plugin generation, split/local projection, export/import, callback/FFI e fault boundary; DYN0 permanece Componível e o problema inteiro não é trocado por eval; o resultado é host design-oracle | promover feature estrangeira por ergonomia, chamar comportamento host de implementação ou classificar todo dynamic behavior como rejected |
+| W-1393 | fatos e eventos DYN1 | recipe, artifact/index/lock, source, interface/WAbi/runtime closure, schema, target, capability/effect, isolation, quotas e receipts são facts estruturados; prepare/validate/preflight/ready/switch/close/drain/publication e stale events derivam o resultado; caller não escolhe status/route/compatible/published/drained/rollback/authority | booleans de outcome, expected echo, route caller-owned, registry/name/PATH lookup ou status copiado do evento |
+| W-1394 | switch, drain e recuperação | switch atômico publica nova generation; admission antiga fecha; cancel/drain cobre children, waits, loans, streams, callbacks/resources e ordena unregister → inFlight drain → destroy → unpin → release; process/Wasm/component acrescentam unmap, native exact-WAbi retém mapping; pre-switch failure preserva old, post-switch drain failure é degraded, rollback só provider receipt pré-publicação, crash pré-publicação é fault-boundary ou unknown-effect e crash pós-publicação mantém new committed | rollback depois de publish, completion antiga aceita, cleanup fora de ordem, cancel igual rollback, crash escondido ou drain sem quota |
+| W-1395 | identities, schema e targets | `SemanticInterfaceKey`, `ServiceIRKey`, `WAbiKey`, `RuntimeClosureKey`, artifact/recipe/source-map/documentation ficam separados; old/candidate schema e interface receipts derivam exact/compatible, e compatible exige novas SemanticInterfaceKey/ServiceIRKey com compatibility-map digest derivado e decisão receipt; reducers local/split exigem equivalência lógica ampla e permitem trace físico distinto; target A/B tem registry/WAbi/artifact facts distintos | uma hash mista, ABI por nome/arquivo, target implícito, base singular para target-specific ou um handler compartilhado que ecoa state |
+| W-1396 | export/import bounded | export deriva o receipt set validado da publicação e inclui source/package lock/recipe/artifact/interface/map, provenance, redactions e bound; import executa reopen → parse → check → resolveReceipts e nunca restaura heap/task/loan/capability/ServiceRef/provider handle; stale, missing, duplicate, forged receipt e nested digest são adversariais | snapshot de heap, live handle persistente, redaction parcial, receipt sem digest ou import que restaura runtime closure |
+| W-1397 | capability, effects, FFI e segurança | grants são subset attenuation dos declared e vinculam interface/generation/artifact; effects exigem right, declared effect, generation ativa e provider outcome whitelist; process/Wasm/component drenam antes de unload, native exact-WAbi mantém mapping no runtime island, callback tardio é rejeitado e nome/string não concede authority | capability oculta, ambient lookup, in-process-native-as-sandbox, dlclose callback vivo, retry de effect sem receipt ou revocation booleana |
+| W-1398 | rotas A/B/C/D e lacuna estreita | A inspector de snapshot e REPL export é composição; B service/plugin generation é composição; C contém somente `DYN0-persistent-generation-reference` read-only/migration Research; D mantém eval/exec, frame/debugger mutation e outros mecanismos rejeitados | criar reflection write, PersistentRef que carrega heap/task/loan, promover C por vaga ergonomia ou rebaixar DYN0 por provider gap |
+| W-1399 | evidence e stop condition DYN1 | 70 cases, métricas derivadas, 3 pares local/split com target A/B, mutation divergence, seleção concorrente com winner receipt, 11 mecanismos D rejeitados e um forged invalid, 2 Research cases, source digests por família, refs oficiais C/POSIX/Rust/Python, checker e snapshot são host design-oracle evidence; compiler/runtime/provider/std-provider, isolamento real, stress e estudos humano/modelo continuam missing; promoção exige fault oracles e receipts independentes sem leak/stale publish/unbounded resource | chamar Tree-sitter/oracle de compiler/runtime, declarar std/provider ready, encerrar por contagem de casos ou omitir queue de documentação |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

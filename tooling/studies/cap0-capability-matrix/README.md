@@ -29,11 +29,14 @@ Research subcapabilities carry the exact `nextStudyGate` id. Design gates are
 used for unresolved language/design questions; evidence gates record provider
 or execution evidence and are not promoted to language gaps.
 
-Current evidence is source-backed and host-derived. W compiler, runtime,
+Current evidence is source-backed and host-derived. DYN0 keeps its composable
+route and records the DYN1 host design-oracle in durable `nextStudyGate.studyRefs`;
+W compiler, runtime,
 provider, human-study, and model-study evidence remain missing unless a later
 gate closes them.
 
 Run `bun tooling/check-capability-matrix.mjs --write` from the repository root.
 Run `bun test tooling/capability-matrix-reference.test.mjs` for host mutations.
 The current snapshot records 8 axes, 15 subcapabilities, 149 source refs, and
-8 queued documentation targets.
+8 queued documentation targets. DYN1 remains partial evidence: its provider,
+security, compiler, runtime, and standard-library gates stay open.
