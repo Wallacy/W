@@ -1110,7 +1110,7 @@
         }
       },
       "sameProblem": "Derive repetitive declarations or artifacts from typed inputs while preserving interface identity, diagnostics, and reproducible builds.",
-      "globalSimplification": "Use one typed source-to-artifact path with compiler-owned synthesis and hermetic transforms before adding a user phase.",
+      "globalSimplification": "Use one typed source-to-artifact path with compiler-owned synthesis and hermetic transforms without adding an in-process user phase.",
       "foreignMechanisms": {
         "c": [
           {
@@ -1215,7 +1215,7 @@
       },
       "route": {
         "classification": "composable",
-        "rationale": "Compiler-owned synthesis and hermetic transforms solve typed artifact derivation; in-process declaration introduction remains a research subcapability."
+        "rationale": "Compiler-owned synthesis and hermetic transforms solve typed artifact derivation; a separate generated-module declaration artifact remains a research subcapability."
       },
       "intentionalTradeoff": {
         "choice": "Prefer typed records and compiler-owned synthesis over a universal macro language.",
@@ -1284,21 +1284,30 @@
         },
         "userDefinableInDesign": {
           "status": "yes",
-          "rationale": "A package author can define a hermetic typed transform within this same-problem route; in-process declaration introduction is outside it."
+          "rationale": "A package author can define a hermetic typed transform within this same-problem route; separate generated-module declarations remain a bounded Research extension."
         }
       },
       "capabilityLevelsBasis": "sameProblem",
       "evidence": {
         "current": [
-          "source-w",
+          "source-fixtures",
           "host-oracle",
-          "design-ledger"
+          "design-ledger",
+          "syn1-study",
+          "syn1-tree-sitter-generated-w-parse",
+          "syn1-target-projections",
+          "syn1-official-primary-refs",
+          "syn1-target-registry-host"
         ],
         "missing": [
           "w-compile",
+          "w-name-type-ownership-effect",
+          "w-constir",
           "w-run",
-          "phase-provenance-study",
-          "provider"
+          "provider",
+          "target-compiler-provider",
+          "human-study",
+          "model-study"
         ],
         "sourceRefs": [
           {
@@ -1311,15 +1320,34 @@
       "nextStudyGate": {
         "gateId": "SYN0-R1",
         "kind": "design",
-        "forSubcapability": "SYN0-in-process-declaration",
-        "question": "Can a restricted user synthesis phase preserve source maps, interface digests, effects, and deterministic artifacts?",
+        "forSubcapability": "SYN0-generated-module-declaration",
+        "question": "Can a W0 build transform publish a separate generated module source unit that preserves provenance, interface digests, effects, and deterministic artifacts before interface freeze?",
         "requiredEvidence": [
           "phase ordering",
           "generated interface diff",
           "failure and cancellation behavior",
-          "two target artifact comparison"
+          "two target artifact comparison",
+          "editable source-map provenance",
+          "action/result identity separation"
         ],
-        "stopCondition": "Keep closed synthesis if a user phase needs ambient authority or unstable generated identity."
+        "stopCondition": "Keep closed synthesis and the typed data-artifact transform if a candidate needs in-process injection, ambient authority, or unstable generated identity.",
+        "studyRefs": [
+          {
+            "path": "tooling/studies/syn1-typed-generation/README.md",
+            "digest": "sha256:b184da7768b718d96bb6a6b648393356308dd31a41b9ffd40a2d7387148f8a38",
+            "claim": "SYN1 problem-first scope, two publication boundaries, real Tree-sitter/source-shape evidence, target registry fixture, navigation requirement, C2 comparison, and D rejection."
+          },
+          {
+            "path": "tooling/syn1-typed-generation-cases.json",
+            "digest": "sha256:53b7e12d95aa4c64a6c2cc350fddb74cb41ca811a3993b3103bc3c2367dd6104",
+            "claim": "SYN1 schema-3 65-case A/B/C/D corpus with module sets, strict events, action graphs, exact dependencies, maps, baseline refs, and target variants."
+          },
+          {
+            "path": "tooling/syn1-typed-generation-machine.mjs",
+            "digest": "sha256:28e1dacdd443659863267e2e2cb79dd281712d314bc54b687ef9a3e660e1cf8c",
+            "claim": "SYN1 host machine for W parsing and bounded source shape; semantic phase trace, interface publication, compiler cache, and provider remain candidate or missing evidence."
+          }
+        ]
       },
       "documentation": {
         "question": "How does W derive typed artifacts without ambient source rewriting?",
@@ -1406,13 +1434,13 @@
             ]
           },
           {
-            "id": "SYN0-in-process-declaration",
+            "id": "SYN0-generated-module-declaration",
             "scope": "extension",
             "role": "extension",
             "classification": "research",
             "gateId": "SYN0-R1",
-            "problem": "package author introduces typed declarations in-process with diagnostics and interface identity",
-            "description": "In-process declaration introduction needs a separate phase and identity study."
+            "problem": "package author introduces typed declarations through a separate generated module with diagnostics and interface identity",
+            "description": "A generated module source unit needs separate action-result/interface publication, bounded source profile, provenance/navigation, graph/target receipts, and semantic compiler evidence before interface freeze."
           }
         ]
       }

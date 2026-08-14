@@ -1,0 +1,6 @@
+// This generated-source envelope fixture intentionally exceeds one hundred and twenty bytes to prove the bounded line-length rejection.
+import * from std
+
+export struct DishId {
+  raw: u32
+}

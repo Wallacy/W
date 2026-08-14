@@ -29,6 +29,7 @@ linguagem.
 | `studies/atom1-atomic-extensibility/study.json` + `atom1-atomic-extensibility-cases.json` + máquina/checker/test + snapshot | ATOM1 separa atualização de record value-only (A), handle geracional/owner (B) e retirement/reclamation (C); 70 casos cobrem carrier canônico versus raw-layout, facts derivados de fields, zero-bit rejection, packing, SnapshotCell/domain, target native/lock-free/fallback, widths até 128 bits, proofs de pointer, eventos de reclamation, foreign boundaries, shutdown e drain FFI | oracle host de design; o carrier canônico e o adapter de reclamation permanecem Research; não implementa compiler, runtime, provider ou FFI |
 | `studies/ipc1-mapped-ipc/study.json` + `ipc1-mapped-ipc-cases.json` + reducers/checker/test + snapshot | IPC1 informa/estreita IPC0-R1 com 67 casos e 134 projeções POSIX/Windows para snapshots file-backed duráveis em generation objects, carriers shm/pagefile voláteis, schema/layout digests, selector publication/receipt ordenada, cap0/capN e bounds no segmento `slots`, commit/cancelamento, checksum/materialization, crash por actor e recovery ordering, atomics, lifecycle terminal, FFI, provider bindings e fallback explícito | oracle host de design; `ipc1-mapped-ipc-reference.test.mjs` e o study oracle são host evidence; candidatos mapped são Research e não implementam API, syntax, compiler, runtime ou provider |
 | `capability-matrix-cases.json` + máquina/checker/test + snapshot | CAP0 consolida oito eixos por problema comum, tenta composição W com Last Light, preserva invariantes e deriva rotas `current`/`composable`/`research` pelas subcapacidades do problema; 149 refs primárias ou source-backed e oito filas de documentação futura | fonte editorial de staging; não mede maturidade, não copia features e não implementa compiler, runtime ou provider |
+| `syn1-typed-generation-cases.json` + máquina/manifest/checker/test + snapshot | SYN1 estreita SYN0-R1 com 65 casos A/B/C/D: generated module sets de `.w` passam pelo Tree-sitter real e por source-shape bounded; action result e interface candidata são publicações separadas; receipts Research cobrem graph/dependencies, identities, maps byte-based, target registry e navigation | oracle host de design; `interfacePublished` é outcome do contrato candidato, não evidência de compiler; semantic frontend, ConstIR, compiler cache, runtime, provider e LSP permanecem ausentes |
 | `gen1-incremental-suspension-cases.json` + máquina/checker/test + snapshot | GEN1 informa/estreita GEN0-R1 com 23 traces de pull, travessia, diálogo, failure, delegação, view, backpressure, cancelamento, children e FFI; compara Stream/state/channels e dois witnesses reservados em duas máquinas independentes e deriva métricas estruturais de símbolos source únicos por slices do mesmo cenário | oracle host de design; não executa W, compiler, runtime, provider ou estudo humano/modelo; bloco Stream compiler-owned é Research e frame público é rejeitado |
 | `semantic-diagnostic-matrix-cases.json` + máquina/checker/test | SDM0 deriva SemanticResult, CheckerContext, loop fixed point, AST→HIR schema, D0 records, causality, ordering, limits, policy, lex/parse boundary e cobertura de meta contracts | oracle host independente; não implementa checker, compiler, formatter ou runtime |
 | `execution-ergonomics-cases.json` + máquina/checker/snapshot | 80 casos (32 positivos, 46 negativos e duas informações) derivam labels, parâmetros, slots allocator contextuais/ordinários e collision, operações explícitas de ownership, suspension, placement, barriers, process projections, doctests, std e lanes seriais dinâmicas; 26 testes host usam entradas independentes | oracle host de design; não executa W nem implementa S0, scheduler, pool ou provider |
@@ -428,6 +429,11 @@ integrações de editor.
    `bun run check:capability-matrix` no root. O checker deriva oito rotas por
    subcapacidade, valida 149 refs e 15 subcapabilities, e mantém a fila
    editorial de oito docs.
+17. Para validar SYN1 sem compiler ou runtime, execute
+   `bun run check:syn1`. O checker valida a máquina, o estudo, os digests de
+   Last Light, o parse Tree-sitter dos `.w` candidatos, os negativos de
+   authority/phase/cache e as projeções de target; a introdução de módulo
+   gerado continua Research.
 
 ### CAP0 — matriz de capacidades por problema
 
@@ -454,6 +460,40 @@ bun tooling/check-capability-matrix.mjs --write
 
 O script `check:capability-matrix` do pacote Tree-sitter entra na cadeia
 `check:docs`; a execução ampla desse gate continua separada da validação local.
+
+### SYN1 — módulo gerado hermético
+
+[`syn1-typed-generation-cases.json`](syn1-typed-generation-cases.json) e
+[`syn1-typed-generation-machine.mjs`](syn1-typed-generation-machine.mjs) formam
+um oracle host para o gate `SYN0-R1`. A máquina separa composição atual,
+artifact de dados, o candidato Research de module set `.w`, C2 rejeitada e os
+mecanismos D rejeitados. A matriz cobre 65 casos. A action key inclui o output
+descriptor fechado, o graph receipt, inputs/dependencies e target receipt
+declarado, mas não output bytes nem paths físicos. Action-result/CAS e
+interface candidata são publicações separadas. `observedTrace` termina no
+parse/source-shape host; `requiredPhaseTrace` mantém os semantic gates antes de
+freeze sem alegar que o compiler os executou.
+
+O estudo em
+[`studies/syn1-typed-generation`](studies/syn1-typed-generation) usa quatro
+fixtures atuais `.w`, quatorze artifacts candidatos `.w` parseados pelo Tree-sitter
+real e três witnesses reservados `.txt`. O
+[`study.json`](studies/syn1-typed-generation/study.json) mantém separadas a
+evidência de parse/source shape e a evidência missing de compiler, name/type/
+ownership/effect, ConstIR, run, target compiler/provider e estudos humano/modelo.
+O target registry é apenas fixture host durável. Use:
+
+```sh
+bun run check:syn1
+bun tooling/check-syn1-typed-generation.mjs --write
+```
+
+O output candidato é um module set de source units separadas; nenhuma etapa
+injeta AST/HIR na unidade em execução. Logical paths e SourceIds entram nas
+identities; checkout paths ficam somente na authority/provenance adapter.
+Source maps permitem many-generated-to-one-source, mas exigem cobertura gerada
+única e endpoints UTF-8 válidos. O explain record mantém generated sources
+read-only inspecionáveis e navigation como requisito Research, sem alegar LSP.
 
 ### GEN1 — suspensão incremental
 

@@ -7222,6 +7222,11 @@ e usa stored instance fields em declaration order. O carrier, schema identity e 
 estão fechados em [14.4.1](#1441-carrier-tabular). Ela não amplia synthesis
 genérica nem cria codecs ou schemas de boundary.
 
+Introdução de declarations por um transform permanece **Research**. O estudo
+problem-first [`SYN1`](tooling/studies/syn1-typed-generation/README.md) compara
+o artifact de dados atual com um generated module separado, C2 recipe/IR e
+mutation dinâmica; ele não altera este contrato.
+
 #### 8.9.5 Parâmetros rest homogêneos
 
 `T...` declara zero ou mais argumentos do mesmo tipo:

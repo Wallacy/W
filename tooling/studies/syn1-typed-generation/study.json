@@ -1,0 +1,301 @@
+{
+  "$schema": "w-syn1-typed-generation-study-3",
+  "status": "design-oracle-input-syn1",
+  "id": "SYN1",
+  "gate": "SYN0-R1",
+  "title": "Generated module artifacts and hermetic typed generation",
+  "preferredCandidate": "generated-module-artifact",
+  "currentRoute": "composable",
+  "variants": [
+    {
+      "id": "current-closed-synthesis",
+      "language": "w-fixture",
+      "path": "current-closed-synthesis.w",
+      "role": "fixture-current",
+      "disposition": "fixture",
+      "fixture": true,
+      "digest": "sha256:815c471b804911c12ded047554f0e78a1c1d1bcdcaa549cb9cc781e3cbc3934a"
+    },
+    {
+      "id": "current-row-synthesis",
+      "language": "w-fixture",
+      "path": "current-row-synthesis.w",
+      "role": "fixture-current",
+      "disposition": "fixture",
+      "fixture": true,
+      "digest": "sha256:68f4789552009adae69f592460d04c26128ad1d2421dee726a32054269fdfdb8"
+    },
+    {
+      "id": "current-menu-transform",
+      "language": "w-fixture",
+      "path": "current-menu-transform.w",
+      "role": "fixture-current",
+      "disposition": "fixture",
+      "fixture": true,
+      "digest": "sha256:6490402a500fcfd069f54bc2949238717c60d0e9d6c57aecd2bd043055fcc4a8"
+    },
+    {
+      "id": "current-kernel-module",
+      "language": "w-fixture",
+      "path": "current-kernel-module.w",
+      "role": "fixture-current",
+      "disposition": "fixture",
+      "fixture": true,
+      "digest": "sha256:ce17f54d10400e65f6f5b98a764d530402e67e49bedf93e18e8318641a00c0a3"
+    },
+    {
+      "id": "candidate-generated-module",
+      "language": "w-reserved",
+      "path": "candidate-generated-module.txt",
+      "role": "research-candidate",
+      "disposition": "research-candidate",
+      "fixture": false,
+      "digest": "sha256:d3475250610982e0f6b37eebf35ba902f15e5ae1e2a0fd8f27f425e5f70ff5b3"
+    },
+    {
+      "id": "rejected-declaration-recipe",
+      "language": "w-reserved",
+      "path": "candidate-declaration-recipe.txt",
+      "role": "rejected-witness",
+      "disposition": "intentionally-rejected",
+      "fixture": false,
+      "digest": "sha256:c8a53ddacfb0467b5b597c8dcad1832e773ed7e27c28888efcb54397a252ff0f"
+    },
+    {
+      "id": "rejected-dynamic-mutation",
+      "language": "w-reserved",
+      "path": "rejected-dynamic-mutation.txt",
+      "role": "rejected-witness",
+      "disposition": "intentionally-rejected",
+      "fixture": false,
+      "digest": "sha256:e93fcbf9db377d9e8456c258ab084813513b81bcf0e4569f6e29fe5ffcb67f64"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "id": "last-light-reflection",
+      "path": "reference/last-light/reflection.w",
+      "symbol": "export struct ReservationKey:",
+      "claim": "closed Hashable and Reflectable synthesis",
+      "digest": "sha256:fbb891f6d6a94a6508e37ba63b0e674edb51de1af3b0c86a2da8d1bc844cf8f1"
+    },
+    {
+      "id": "last-light-data",
+      "path": "reference/last-light/data_formats.w",
+      "symbol": "export struct TabularTelemetryRow:",
+      "claim": "closed data.Row schema synthesis",
+      "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab"
+    },
+    {
+      "id": "last-light-kernels",
+      "path": "reference/last-light/ai_harness.w",
+      "symbol": "export const lastLightKernels",
+      "claim": "finite compiler-owned kernel synthesis",
+      "digest": "sha256:5a30e65a8175dbe6434cdfdbcac4c0cc2dbd9c33cf4349676c9be87c77add338"
+    },
+    {
+      "id": "last-light-menu-transform",
+      "path": "reference/last-light/packages/menu-compiler/transform.w",
+      "symbol": "async fn transform(ctx: build.Context)",
+      "claim": "hermetic typed transform",
+      "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744"
+    },
+    {
+      "id": "last-light-menu-compiler",
+      "path": "reference/last-light/packages/menu-compiler/compiler.w",
+      "symbol": "export fn compileMenu(source: ref String)",
+      "claim": "menu parser/compiler source",
+      "digest": "sha256:7d1ddf74f17a526f1dda4f0f97414ff817bec353e6d19b9b22d91980fc670f50"
+    },
+    {
+      "id": "last-light-package",
+      "path": "reference/last-light/package.w",
+      "symbol": "name: \"compile-final-menu\"",
+      "claim": "build action and target separation",
+      "digest": "sha256:b948a12612d0e656cbc4fba5809ef18c6ab4af8f085e55377f049ad55c469796"
+    },
+    {
+      "id": "last-light-final-menu",
+      "path": "reference/last-light/menus/final.menu",
+      "symbol": "ingredient horizon-fruit",
+      "claim": "editable final.menu source and provenance root",
+      "digest": "sha256:19c240d029c50ceae0cb270f6ac5f0d25c4a0a00e04b7d8d16fa3b2ee7aacc94"
+    }
+  ],
+  "officialRefs": [
+    {
+      "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+      "claim": "C23 translation phases and preprocessing"
+    },
+    {
+      "url": "https://doc.rust-lang.org/reference/macros.html",
+      "claim": "Rust macro forms"
+    },
+    {
+      "url": "https://doc.rust-lang.org/reference/procedural-macros.html",
+      "claim": "Rust procedural macro token transforms"
+    },
+    {
+      "url": "https://doc.rust-lang.org/cargo/reference/build-scripts.html",
+      "claim": "Cargo build scripts"
+    },
+    {
+      "url": "https://doc.rust-lang.org/reference/conditional-compilation.html",
+      "claim": "Rust cfg inputs"
+    },
+    {
+      "url": "https://docs.python.org/3/reference/datamodel.html#customizing-class-creation",
+      "claim": "Python metaclasses"
+    },
+    {
+      "url": "https://docs.python.org/3/reference/compound_stmts.html#function-definitions",
+      "claim": "Python decorators"
+    },
+    {
+      "url": "https://docs.python.org/3/reference/import.html",
+      "claim": "Python imports"
+    },
+    {
+      "url": "https://docs.python.org/3/library/functions.html#eval",
+      "claim": "Python eval"
+    }
+  ],
+  "oracle": {
+    "path": "../../syn1-typed-generation-reference.test.mjs",
+    "digest": "sha256:b4e28690ec3e240b0b98b6e01ccdad39a34c7c1b8588bda674fb9330cabbd852"
+  },
+  "evidence": {
+    "current": [
+      "source-fixtures",
+      "host-oracle",
+      "official-primary-refs",
+      "tree-sitter-generated-w-parse",
+      "two-target-projections",
+      "target-registry-host"
+    ],
+    "missing": [
+      "w-compile",
+      "w-name-type-ownership-effect",
+      "w-constir",
+      "w-run",
+      "provider",
+      "target-compiler-provider",
+      "human-study",
+      "model-study"
+    ]
+  },
+  "notes": {
+    "route": "SYN0 remains composable; generated-module introduction is a Research subcapability.",
+    "fixture": "The .w witnesses are source-backed fixtures. The row witness is synthesis-shaped; it is not an emitted artifact.",
+    "c2": "Typed declaration recipe is rejected when it duplicates the frontend; no separate checker is proposed.",
+    "d": "Macro/eval/AST mutation/current-module injection are intentionally rejected.",
+    "generatedArtifacts": "The .w files are bounded candidate source-shape artifacts parsed by Tree-sitter. Their structured frontend receipts remain Research and do not prove W name/type/ownership/effect/ConstIR checks."
+  },
+  "generatedArtifacts": [
+    {
+      "path": "generated-menu-conformance.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:fd5d937ef6f31d7063c1ba1a5eaf938d7554ee8e2d14de861884efdbeabd1b53"
+    },
+    {
+      "path": "generated-menu-const.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:9fb601de8c4990684c6ba38189b3c235ec8dff69e549054ba68541f049ba8edd"
+    },
+    {
+      "path": "generated-menu-dishid-relocated.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8"
+    },
+    {
+      "path": "generated-menu-dishid.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8"
+    },
+    {
+      "path": "generated-menu-duplicate.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:1c9ebd79cbdf22d03586951f198bdc2c936b62803e6d04c5a460839ecab5c003"
+    },
+    {
+      "path": "generated-menu-enum.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:d8b04633298544ee07ff42287474572ca6b8707e9bdbe3ab24bdb6e0aaa9ee19"
+    },
+    {
+      "path": "generated-menu-field-secondary.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:0d9d65303cced8c7ac3904e62340593bb5b74530a7cf524d318f20b94e0c8fc3"
+    },
+    {
+      "path": "generated-menu-field.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:93abc2e9efbd7f1f570cc6446c1e8e6430ea9d923871712e0d2b918f128abfb0"
+    },
+    {
+      "path": "generated-menu-import.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:2e9a94926b7621cd3f553158d03f0b78a41164a6b6eb5042a931a578642e7f7d"
+    },
+    {
+      "path": "generated-menu-multiline.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:1548f8f0109adc19f82862d4466e0439ad4a626dd18cde23dd539567330bb795"
+    },
+    {
+      "path": "generated-menu-order.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:586576921c09856384bfb7c989dc082594c2a2cd78361dac9bdb9f6f28b6a55b"
+    },
+    {
+      "path": "generated-menu-private.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:afffb31099ed054926981422a2a4b5f461678b55a3d33163a1e948126de68b98"
+    },
+    {
+      "path": "generated-menu-routing.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:0b0b6410f182309c9e4c7efd479bb58f00c148dcc50a2770bfa06eb6123732a7"
+    },
+    {
+      "path": "generated-menu-unicode.w",
+      "disposition": "research-candidate",
+      "frontendReceipt": "Research",
+      "compilerEvidence": "missing",
+      "digest": "sha256:9c923bfe7a602dc9711c75a55403c6dfa8e892030ff4298fa55e94c526d7fe60"
+    }
+  ],
+  "targetRegistry": {
+    "path": "target-registry.json",
+    "schema": "w-syn1-target-registry-1",
+    "revision": "syn1-target-registry-2026-08-13",
+    "digest": "sha256:f95f509511b71323e13910f8735a16f137804dd8569ada00ef07b468c735b322",
+    "claim": "durable host target registry fixture; compiler/provider target evidence missing"
+  }
+}

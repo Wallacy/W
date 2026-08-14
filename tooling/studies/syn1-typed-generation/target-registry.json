@@ -1,0 +1,31 @@
+{
+  "$schema": "w-syn1-target-registry-1",
+  "revision": "syn1-target-registry-2026-08-13",
+  "status": "host-fixture-compiler-provider-missing",
+  "targets": [
+    {
+      "id": "aarch64-macos",
+      "targetIdentity": "aarch64-apple-macos",
+      "semanticFacts": {
+        "pointerWidth": 64
+      },
+      "abiFacts": {
+        "dataLayout": "e-m:o-i64:64-i128:128-n32:64-S128",
+        "callConvention": "aapcs64",
+        "representation": "aarch64"
+      }
+    },
+    {
+      "id": "x86_64-linux",
+      "targetIdentity": "x86_64-unknown-linux-gnu",
+      "semanticFacts": {
+        "pointerWidth": 64
+      },
+      "abiFacts": {
+        "dataLayout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+        "callConvention": "sysv64",
+        "representation": "x86_64"
+      }
+    }
+  ]
+}

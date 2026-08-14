@@ -1,0 +1,6 @@
+RESERVED REJECTED WITNESS — not W grammar and not parser evidence.
+
+Proc macros, annotations, decorators, metaclasses, eval/exec, textual AST
+mutation, and current-module injection are rejected. They introduce an
+unbounded phase or ambient authority and do not preserve the closed W phase
+and interface identity contract.
