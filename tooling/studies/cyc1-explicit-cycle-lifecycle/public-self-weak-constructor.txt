@@ -1,0 +1,3 @@
+CYC1 reserved witness: CycleFixture.newCyclic(weakSelf: ...)
+This candidate is compared with the current two-phase post-init owner method.
+It is not W syntax and cannot permit a partially initialized self to escape.

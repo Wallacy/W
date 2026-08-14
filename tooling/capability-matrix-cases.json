@@ -1688,13 +1688,18 @@
         "current": [
           "source-w",
           "host-oracle",
+          "host-oracle-cyc1",
+          "cyc1-study",
+          "official-primary",
           "design-ledger"
         ],
         "missing": [
           "w-compile",
           "w-run",
           "cycle-stress-provider",
-          "provider"
+          "provider",
+          "human-study",
+          "model-study"
         ],
         "sourceRefs": [
           {
@@ -1706,15 +1711,60 @@
       },
       "nextStudyGate": {
         "gateId": "CYC0-G1",
-        "kind": "evidence",
-        "question": "Can owner and weak-edge facts classify all Last Light graph shutdowns without a collector?",
+        "kind": "design",
+        "forSubcapability": "CYC0-conditional-liveness",
+        "question": "Can explicit owner, weak-edge, close, and drain facts classify graph shutdowns while conditional weak-key liveness remains a separate Research extension?",
         "requiredEvidence": [
           "cycle admission matrix",
           "foreign callback drain",
           "service boundary crash trace",
-          "leak diagnostics"
+          "leak diagnostics",
+          "post-drain conditional-liveness compositions",
+          "opaque-boundary unknown classification"
         ],
-        "stopCondition": "Research a new reclamation mechanism only when explicit weak and close composition cannot preserve cleanup."
+        "studyRefs": [
+          {
+            "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/study.json",
+            "digest": "sha256:0cfd27e29c7f718f1bc35d183ce81da13170706a8b64254a88c93ae337049498",
+            "claim": "CYC1 gate manifest, roles, evidence, and stop condition"
+          },
+          {
+            "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/bundle.json",
+            "digest": "sha256:dfe29c912770993e1c822c00f1c3e0d58e8787cc64b9b95d5b65bb4ab31fccf3",
+            "claim": "CYC1 explicit-cycle study bundle and reserved witnesses"
+          },
+          {
+            "path": "tooling/cyc1-explicit-cycle-cases.json",
+            "digest": "sha256:5fc31315a6415b5a50cffb20c8fa18907b9fdc46c7adbafb40c992401a62fb8c",
+            "claim": "event-derived graph lifecycle case corpus"
+          },
+          {
+            "path": "tooling/cyc1-explicit-cycle-machine.mjs",
+            "digest": "sha256:d795c6b5615142aaeb1ca35b2dc9facbb3a68c3ff070eca96b5512d31416ef72",
+            "claim": "independent Tarjan and lifecycle oracle"
+          },
+          {
+            "path": "tooling/cyc1-explicit-cycle-manifest.mjs",
+            "digest": "sha256:4c04c5d1c3de47fb240e7ba1d2a9cc845cfbc32fba9408ca31ec850157486127",
+            "claim": "study manifest and source-reference validator"
+          },
+          {
+            "path": "tooling/check-cyc1-explicit-cycle.mjs",
+            "digest": "sha256:0c9ce302a2ac6f5fe0450a4e99873a945480987681f809fdc7ed217159a4594b",
+            "claim": "deterministic CYC1 snapshot checker"
+          },
+          {
+            "path": "tooling/cyc1-explicit-cycle-reference.test.mjs",
+            "digest": "sha256:492e4162e0f3523e894c85c437c2ffe1b9e5c0dcbd7d39c5299c9985ca96aea9",
+            "claim": "mutation-resistant host reference tests"
+          },
+          {
+            "path": "tooling/cyc1-explicit-cycle-results.snapshot.jsonl",
+            "digest": "sha256:449c40b13eb15c322fd7aa1245be0dcb1fafecd27e74b7e1559fce1c4529253a",
+            "claim": "derived CYC1 metrics and classifications"
+          }
+        ],
+        "stopCondition": "Keep CYC0 composable. Consider a conditional-liveness primitive only if a bounded problem requires observable key identity or ephemeron semantics and the generation/ID, owner-scoped lease, or detached-value compositions change that requirement or fail under a post-drain census, deterministic cleanup, and no hidden foreign boundary; until then keep the Research extension separate and do not add a collector, finalizer, self-weak constructor, or syntax."
       },
       "documentation": {
         "question": "How does W close a graph with back edges without a transparent collector?",
@@ -1803,6 +1853,15 @@
             "classification": "intentionally-rejected",
             "problem": "transparent collection of unreachable cyclic objects",
             "description": "A transparent collector would hide cleanup and finalization policy."
+          },
+          {
+            "id": "CYC0-conditional-liveness",
+            "scope": "extension",
+            "role": "extension",
+            "classification": "research",
+            "gateId": "CYC0-G1",
+            "problem": "conditional weak-key or ephemeron liveness where a value can retain its key",
+            "description": "Ordinary weak edges do not provide ephemeron value-to-key semantics. Test generation or ID caches, owner-scoped cache leases with explicit invalidation, and detached values before considering any new primitive."
           }
         ]
       }

@@ -1,0 +1,4 @@
+CYC1 rejected witness: CycleFixture -> callback -> CycleFixture
+transparent collector, implicit finalizer, hidden resurrection, and public
+collector syntax remain reserved text. The evidence gate must not parse or
+promote this mechanism.
