@@ -1,0 +1,3 @@
+Rejected security witness. A runtime flag must not load a module, grant a capability,
+change an effect row, disable a product security minimum, or turn a string into
+authority. A deployment profile cannot weaken the product minimum.

@@ -1,0 +1,74 @@
+{
+  "$schema": "w-sec0-security-model-study-1",
+  "status": "design-oracle-input",
+  "id": "SEC0",
+  "gate": "SEC0-R1",
+  "title": "Broad security model for safe W across physical targets",
+  "question": "Can W keep safe semantics and authority boundaries while runtime defenses vary across CPU, Wasm, isolates, freestanding systems, and FPGA or ASIC targets?",
+  "languageDesign": "partial",
+  "stdEvidence": "partial",
+  "providerEvidence": "missing",
+  "exactGap": {
+    "id": "SEC0-profile-receipts",
+    "route": "research",
+    "scope": "compiler, provider, hardware, and deployment receipts for profile-specific protection substitution",
+    "languageSurface": "unresolved",
+    "providerGap": true,
+    "gate": "SEC0-R1"
+  },
+  "profiles": [
+    "trusted-native-cpu",
+    "sandboxed-native-process",
+    "wasm-component",
+    "multi-tenant-isolate",
+    "embedded-freestanding",
+    "fpga-asic-hardware"
+  ],
+  "routeMatrix": [
+    {"axis": "safe", "problem": "memory, type, effect, capability, input, and resource invariants", "disposition": "current"},
+    {"axis": "profiles", "problem": "replace or omit runtime protections with explicit evidence", "disposition": "research"},
+    {"axis": "deployment", "problem": "supply chain, patch, attestation, secrets, and hardening receipts", "disposition": "research"},
+    {"axis": "composition", "problem": "feature flags and availability cannot alter security authority", "disposition": "composable"}
+  ],
+  "variants": [
+    {"id": "security-profile", "role": "current", "language": "w", "path": "security-profile.w", "digest": "sha256:3bf7caef5309bfdbe49752360caba90f296450062370a7a943a7ef8bc712afd5"},
+    {"id": "security-boundary", "role": "composable", "language": "w", "path": "security-boundary.w", "digest": "sha256:05935c8470fea47330e1a84732152ab9ed47afb401ef44b77add2e1187f87eca"},
+    {"id": "security-feature", "role": "composable", "language": "w", "path": "security-feature.w", "digest": "sha256:aed6494f31b9461d672c918b9112bd53c28fc8dd159cf2b3320255a93ee72051"},
+    {"id": "rejected-ambient-security", "role": "rejected-witness", "language": "w-reserved", "path": "rejected-ambient-security.txt", "digest": "sha256:f31604babc0d55f7c430107569356d1671ab7a3129f4f0cb3e51c3b176b11e08"},
+    {"id": "security-patch", "role": "research-candidate", "language": "w-reserved", "path": "security-patch.txt", "digest": "sha256:f71ab546de17f1a7831933afa7df392955754b7918dd06c6159c7eaf5801a21b"}
+  ],
+  "artifactRefs": [
+    {"id": "readme", "role": "research-note", "path": "tooling/studies/sec0-security-model/README.md", "digest": "sha256:78342985005d1df05a2229b840cd51df08e353741117eadb6cf05e566aed8349"},
+    {"id": "corpus", "role": "design-input", "path": "tooling/sec0-security-model-cases.json", "digest": "sha256:4603181e890ee03a725f66a5eb4ca2a34300ef5fc6a207771ef78ff704aa663e"},
+    {"id": "machine", "role": "host-oracle", "path": "tooling/sec0-security-model-machine.mjs", "digest": "sha256:6abf39d2aaafb09586a4364d7459f9d246dca35bbc022b94f7b448f51b9a0b0b"},
+    {"id": "manifest", "role": "manifest-validator", "path": "tooling/sec0-security-model-manifest.mjs", "digest": "sha256:0c64381622ee3ee684d0ff45637b8456cf0eea0dea25d23b7a36181cd1dda9eb"},
+    {"id": "checker", "role": "snapshot-checker", "path": "tooling/check-sec0-security-model.mjs", "digest": "sha256:080b9d6baa4ce29394d7d20cfa0c9144ca9146f1c04d302da4590fa244a7080e"},
+    {"id": "reference-test", "role": "mutation-test", "path": "tooling/sec0-security-model-reference.test.mjs", "digest": "sha256:b836a28fdcdbb3dbe9cc2262070cdd8ecfb5b2c174799d7954026f598c0b7f7e"},
+    {"id": "snapshot", "role": "derived-output", "path": "tooling/sec0-security-model-results.snapshot.jsonl", "digest": "sha256:f659a01e82571b28fa4c1ea1889672d7abd2dab0f0e4014b8d90829e9d9d7ce7"},
+    {"id": "bundle", "role": "study-bundle", "path": "tooling/studies/sec0-security-model/bundle.json", "digest": "sha256:4e133b6fcdad37c51cc72af54bf8e1a7ce579c6815f51de2636dfe8a74b17f0f"},
+    {"id": "oracle", "role": "study-test", "path": "tooling/studies/sec0-security-model/oracle.test.mjs", "digest": "sha256:501d19acbac29bf003aeccec859c085b975e2226bd0bc3fb6bd5a35432d8440d"}
+  ],
+  "sourceRefs": [
+    {"path": "reference/last-light/capability_security_oracle.w", "symbol": "enum CapabilityOrigin", "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b", "claim": "explicit capability roots and attenuation"},
+    {"path": "reference/last-light/session_security_oracle.w", "symbol": "enum OracleChannelProfile", "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992", "claim": "channel identity and freshness gates"},
+    {"path": "reference/last-light/fs_oracle.w", "symbol": "recipeArchiveRoot", "digest": "sha256:11fed22d22c0af56297676c5a8e63c789012676945afc8c192509bd8d99c8393", "claim": "filesystem capability scope and bounds"},
+    {"path": "reference/last-light/app.w", "symbol": "const nativeServerLimits = http.ServerLimits(", "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29", "claim": "explicit HTTP and process resource limits"},
+    {"path": "reference/last-light/domain_oracle.w", "symbol": "deployment can reduce but cannot increase profile capacity", "digest": "sha256:6f26c28d5cf2ff2249406660c4250c0577a1770a16924cb52d9cec445409ad51", "claim": "deployment cannot increase product capacity"},
+    {"path": "reference/last-light/hir_memory_oracle.w", "symbol": "struct HirAbiKey", "digest": "sha256:ca20857e3d3f7b9d68f4eade1b2db9893305bec901bf656ddebe3408afb98c4e", "claim": "physical ABI identity is separate from semantic facts"}
+  ],
+  "officialRefs": [
+    {"url": "https://developers.cloudflare.com/workers/reference/security-model/", "claim": "defense in depth across isolate, process, syscall, proxy, and API layers"},
+    {"url": "https://www.kernel.org/doc/html/latest/userspace-api/seccomp_filter.html", "claim": "seccomp restricts syscalls and does not replace policy"},
+    {"url": "https://webassembly.github.io/spec/core/intro/introduction.html", "claim": "validated WebAssembly abstract machine"},
+    {"url": "https://wasi.dev/", "claim": "explicit host capability interfaces for WebAssembly"},
+    {"url": "https://www.rfc-editor.org/rfc/rfc9334", "claim": "attestation roles and evidence flow"},
+    {"url": "https://www.sigstore.dev/how-it-works", "claim": "artifact provenance and transparency evidence"}
+  ],
+  "metrics": {"caseCount": 101, "accepted": 24, "rejected": 77, "currentAccepted": 11, "researchAccepted": 13, "profileCount": 6, "authorityRejections": 16, "callerEchoRejections": 4},
+  "evidence": {
+    "current": ["source-ref", "official-primary", "tree-sitter-parse", "host-oracle", "mutation-checker", "snapshot"],
+    "missing": ["w-compile", "w-run", "provider", "attestation", "hardware", "fault-stress", "local-split", "human-study", "model-study"]
+  },
+  "recommendation": "Keep safe W invariants irreducible. Vary runtime hardening only through static proof, hardware enforcement, external mediation, or an explicit threat-model exception. Keep profile receipts and deployment floors outside runtime flags.",
+  "stopCondition": "Do not promote SEC0 until six profiles have compiler facts, provider and hardening receipts, supply-chain and patch attestation, secret lifecycle, side-channel residual risk, FFI fault tests, and local/split evidence without semantic authority amplification."
+}

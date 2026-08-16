@@ -1,0 +1,66 @@
+{
+  "$schema": "w-avf0-availability-feature-study-1",
+  "status": "design-oracle-input",
+  "id": "AVF0",
+  "gate": "AVF0-R1",
+  "title": "Static package features, availability evidence, and typed runtime configuration",
+  "question": "Can W support gradual rollout and target/provider availability without mixing build graph, authority, interface identity, and mutable runtime policy?",
+  "languageDesign": "partial",
+  "stdEvidence": "partial",
+  "providerEvidence": "missing",
+  "exactGap": {
+    "id": "AVF0-availability-binding",
+    "route": "research",
+    "scope": "compiler-checked binding of a declaration proven available by target or provider evidence",
+    "languageSurface": "unresolved",
+    "providerGap": true,
+    "gate": "AVF0-R1"
+  },
+  "routeMatrix": [
+    { "axis": "package", "problem": "additive static package graph selection", "disposition": "current" },
+    { "axis": "availability", "problem": "target/provider lifecycle proof and branch narrowing", "disposition": "research" },
+    { "axis": "runtime", "problem": "typed local policy evaluation from an immutable snapshot", "disposition": "composable" },
+    { "axis": "composition", "problem": "availability before runtime policy without authority amplification", "disposition": "composable" }
+  ],
+  "variants": [
+    { "id": "current-package-feature", "role": "current", "language": "w", "path": "current-package-feature.w", "digest": "sha256:52fd3285282b9c0e0fa06fe240df08578332da84fc6755aaae1fb34c84649a26" },
+    { "id": "typed-runtime-feature", "role": "composable", "language": "w", "path": "typed-runtime-feature.w", "digest": "sha256:6973049f864a12fd4ff836fcccd9148fbabe0ef322c80be70005786e6cb5973e" },
+    { "id": "availability-binding", "role": "research-candidate", "language": "w-reserved", "path": "availability-binding.txt", "digest": "sha256:da10718732416dbc4c1606d000353fa933cb0017f1fb06f994e91f2943dd3615" },
+    { "id": "rejected-runtime-authority", "role": "rejected-witness", "language": "w-reserved", "path": "rejected-runtime-authority.txt", "digest": "sha256:8bcbac9f62638de7f921ad46bd5b6c4cfbb40edc8885797b3261eebf25ec43b3" }
+  ],
+  "artifactRefs": [
+    { "id": "readme", "role": "research-note", "path": "tooling/studies/avf0-availability-feature/README.md", "digest": "sha256:33f2d58aac1cfb215d9f24c27b487400b0953a17c80822300dc17e25285bb6d1" },
+    { "id": "corpus", "role": "design-input", "path": "tooling/avf0-availability-feature-cases.json", "digest": "sha256:d7a659fc4cb1e6644443d81d52261a51ae9d65a946c5d6d60fabfcac22cab318" },
+    { "id": "machine", "role": "host-oracle", "path": "tooling/avf0-availability-feature-machine.mjs", "digest": "sha256:037906cc6c19a01d3b4b5a4421d60a80c26afc4c4da7c910b631410b4f1ef49e" },
+    { "id": "manifest", "role": "manifest-validator", "path": "tooling/avf0-availability-feature-manifest.mjs", "digest": "sha256:35141e65667ff9cc32340d8271acf42f5f22613ad1f826f8c1695f7a8adb46dd" },
+    { "id": "checker", "role": "snapshot-checker", "path": "tooling/check-avf0-availability-feature.mjs", "digest": "sha256:3c9012de2383762f3d8bec8128cc19385eada2d9e23cfbcd4d5cda965a41f8f2" },
+    { "id": "reference-test", "role": "mutation-test", "path": "tooling/avf0-availability-feature-reference.test.mjs", "digest": "sha256:6068652c76452143275631d93fee1ecfc8ff74734dba977b1841f912cd18519e" },
+    { "id": "snapshot", "role": "derived-output", "path": "tooling/avf0-availability-feature-results.snapshot.jsonl", "digest": "sha256:594aa262845124362dacd8e741afb6efd460706e33f3b8150a89c6398e29864f" }
+  ],
+  "sourceRefs": [
+    { "path": "reference/last-light/workspace.w", "symbol": "targetVariants: [\"native-terminal::posix\"]", "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd", "claim": "package resolution keeps static feature selection outside runtime policy" },
+    { "path": "reference/last-light/billing.w", "symbol": "gatewayUnavailable", "digest": "sha256:0e8390f3abf494acd581898734d0bf8fcf00190973423143194d390dcd4e41e7", "claim": "provider-backed operation already has an explicit unavailable outcome" },
+    { "path": "reference/last-light/synchronization.w", "symbol": "SnapshotCell<PublishedMenu>", "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6", "claim": "immutable atomic publication composes with runtime configuration" },
+    { "path": "reference/last-light/billing.w", "symbol": "export service billing: BillingApi {", "digest": "sha256:0e8390f3abf494acd581898734d0bf8fcf00190973423143194d390dcd4e41e7", "claim": "billing composes provider availability, effects, generation, and fallback" }
+  ],
+  "officialRefs": [
+    { "url": "https://blog.cloudflare.com/flagship/", "claim": "local evaluation, targeting, deterministic percentage rollout, and audit history" },
+    { "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/statements/#Availability-Condition", "claim": "availability guard informs compiler checking in the guarded branch" },
+    { "url": "https://docs.swift.org/swift-book/ReferenceManual/Attributes.html#available", "claim": "declaration lifecycle metadata" },
+    { "url": "https://openfeature.dev/specification/sections/flag-evaluation/", "claim": "typed evaluation and fallback" },
+    { "url": "https://openfeature.dev/specification/sections/evaluation-context/", "claim": "closed targeting context and fractional evaluation" }
+  ],
+  "metrics": {
+    "caseCount": 38,
+    "axisCounts": { "availability": 12, "composition": 4, "package": 8, "runtime": 14 },
+    "routeCounts": { "composable": 5, "current": 5, "rejected": 24, "research": 4 },
+    "statusCounts": { "accepted": 14, "rejected": 24 },
+    "authorityRejections": 7
+  },
+  "evidence": {
+    "current": ["source-ref", "official-primary", "tree-sitter-parse", "host-oracle", "mutation-checker", "snapshot"],
+    "missing": ["w-compile", "w-run", "provider", "std-provider", "local-split", "fault-stress", "human-study", "model-study"]
+  },
+  "recommendation": "Keep package features static and additive; model runtime flags as a typed std/provider composition; keep compiler-narrowed availability binding Research.",
+  "stopCondition": "Do not promote availability or a standard flag API until compiler/provider evidence proves lifecycle, authority, typed fallback, schema/config identity, deterministic rollout, atomic publication, exposure audit, and equivalent local/split behavior."
+}

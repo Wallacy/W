@@ -1,0 +1,201 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-avf0-availability-feature",
+  "title": "Availability and gradual delivery at the Last Light restaurant",
+  "r0Cases": [
+    "R0-manifest-record"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/billing.w",
+    "symbol": "gatewayUnavailable",
+    "digest": "sha256:0e8390f3abf494acd581898734d0bf8fcf00190973423143194d390dcd4e41e7"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/workspace.w",
+      "symbol": "targetVariants: [\"native-terminal::posix\"]",
+      "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd"
+    },
+    {
+      "path": "../../../reference/last-light/synchronization.w",
+      "symbol": "SnapshotCell<PublishedMenu>",
+      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6"
+    }
+  ],
+  "variants": [
+    {
+      "id": "current-package-feature",
+      "role": "selected",
+      "disposition": "current-composable",
+      "language": "w",
+      "path": "current-package-feature.w",
+      "digest": "sha256:52fd3285282b9c0e0fa06fe240df08578332da84fc6755aaae1fb34c84649a26",
+      "changedConstructs": [
+        "additive package feature",
+        "explicit product activation",
+        "static graph"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Source-shaped manifest; parser evidence only."
+      }
+    },
+    {
+      "id": "typed-runtime-feature",
+      "role": "alternative",
+      "disposition": "current-composable",
+      "language": "w",
+      "path": "typed-runtime-feature.w",
+      "digest": "sha256:6973049f864a12fd4ff836fcccd9148fbabe0ef322c80be70005786e6cb5973e",
+      "changedConstructs": [
+        "typed value",
+        "generation and config digest",
+        "explicit fallback carrier"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Source-shaped std composition; no provider implementation."
+      }
+    },
+    {
+      "id": "availability-binding",
+      "role": "research-candidate",
+      "disposition": "research-candidate",
+      "language": "w-reserved",
+      "path": "availability-binding.txt",
+      "digest": "sha256:da10718732416dbc4c1606d000353fa933cb0017f1fb06f994e91f2943dd3615",
+      "changedConstructs": [
+        "availability evidence",
+        "branch narrowing",
+        "bound declaration"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Research text; no accepted W syntax."
+      }
+    },
+    {
+      "id": "rejected-runtime-authority",
+      "role": "rejected-witness",
+      "disposition": "intentionally-rejected",
+      "language": "w-reserved",
+      "path": "rejected-runtime-authority.txt",
+      "digest": "sha256:8bcbac9f62638de7f921ad46bd5b6c4cfbb40edc8885797b3261eebf25ec43b3",
+      "changedConstructs": [
+        "runtime authority amplification",
+        "dynamic module loading",
+        "interface mutation"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Rejected mechanisms only."
+      }
+    }
+  ],
+  "entry": "feature",
+  "inputs": [
+    {
+      "id": "package",
+      "scenario": "static-additive-feature",
+      "expected": {
+        "axis": "package"
+      }
+    },
+    {
+      "id": "availability",
+      "scenario": "provider-backed-declaration",
+      "expected": {
+        "axis": "availability"
+      }
+    },
+    {
+      "id": "runtime",
+      "scenario": "typed-local-rollout",
+      "expected": {
+        "axis": "runtime"
+      }
+    },
+    {
+      "id": "composition",
+      "scenario": "availability-before-policy",
+      "expected": {
+        "axis": "composition"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Separate static package selection, target/provider availability, and typed runtime policy."
+    },
+    {
+      "kind": "recall",
+      "instruction": "Reconstruct authority checks, immutable snapshot, deterministic evaluation, fallback, and exposure order.",
+      "minimumDelaySeconds": 1
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair stale configuration, ambiguous priorities, missing availability evidence, and authority amplification.",
+      "mutations": {
+        "current-package-feature": "Keep graph changes additive and declared.",
+        "typed-runtime-feature": "Keep schema and configuration identities separate.",
+        "availability-binding": "Require authenticated target/provider evidence.",
+        "rejected-runtime-authority": "Keep capability/effect/module/interface amplification rejected."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a provider domain or target without changing authority, type, fallback, schema identity, or evaluation determinism."
+    }
+  ],
+  "presentationOrders": [
+    [
+      "current-package-feature",
+      "typed-runtime-feature",
+      "availability-binding",
+      "rejected-runtime-authority"
+    ],
+    [
+      "rejected-runtime-authority",
+      "availability-binding",
+      "typed-runtime-feature",
+      "current-package-feature"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "current-package-feature": "A",
+      "typed-runtime-feature": "B",
+      "availability-binding": "C",
+      "rejected-runtime-authority": "D"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:fd089330b4dc14bd7f04046f3d4f2953ea4e0cd6d965c694afbfd7f8a2365d7c"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle",
+      "mutation-checker",
+      "source-ref",
+      "official-primary"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "provider",
+      "runtime",
+      "human-study",
+      "model-study"
+    ]
+  }
+}
