@@ -1,0 +1,9 @@
+Rejected mechanisms:
+
+- runtime flag loads a module or dependency;
+- runtime flag grants a capability or effect;
+- flag value changes WAbiKey or SemanticInterfaceKey;
+- flag value makes an unavailable symbol legal;
+- source `#if feature`, annotation, macro, eval, or string lookup;
+- implicit exposure logging inside a supposedly pure evaluation;
+- raw OS version string treated as proof that a foreign symbol exists.

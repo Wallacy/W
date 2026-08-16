@@ -1,0 +1,3 @@
+Reserved security host receipt witness:
+source-digest -> lock-digest -> build-recipe -> artifact-digest -> signature
+-> attestation -> deployment-admit

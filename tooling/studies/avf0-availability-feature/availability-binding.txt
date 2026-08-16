@@ -1,0 +1,12 @@
+Research candidate, not accepted W syntax:
+
+if let acquire = available(CameraFrame.acquire) {
+  let frame = acquire()
+  process(take frame)
+} else {
+  useFallbackCamera()
+}
+
+The binding must preserve the symbol's callable type, ownership, effects, and
+capability requirements. Only compiler/provider evidence may create it. A
+Boolean, OS version string, feature flag, or deployment field is not authority.

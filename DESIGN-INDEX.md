@@ -18,23 +18,23 @@
 |---|---:|
 | linhas de `DESIGN.md` | 29753 |
 | tokens aproximados de `DESIGN.md` | 314500 |
-| linhas de `RATIONALE.md` | 6244 |
-| tokens aproximados de `RATIONALE.md` | 160300 |
+| linhas de `RATIONALE.md` | 6364 |
+| tokens aproximados de `RATIONALE.md` | 163300 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 339/339 |
-| decisões | 1418 (W-001–W-1418) |
+| decisões | 1435 (W-001–W-1435) |
 | famílias de viabilidade | 182 |
 | slices normativos de grammar | 6 |
 | requisitos de ratificação comparativa | 75 |
 | casos de substituição estruturados | 75/75 |
-| decisões referenciadas por casos R0 | 170/1418 |
-| decisões classificadas para design freeze | 548/1418 (170 source + 433 oracle + 8 explícitas; 63 overlaps) |
-| decisões ainda sem classe de freeze | 870 |
+| decisões referenciadas por casos R0 | 170/1435 |
+| decisões classificadas para design freeze | 548/1435 (170 source + 433 oracle + 8 explícitas; 63 overlaps) |
+| decisões ainda sem classe de freeze | 887 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 190 |
 | surface lexemes das formas vigentes R0 | 1646 total; mediana 18; máximo 58 |
-| bundles executáveis R1 | 43 |
-| variantes/tarefas R1 | 119/172 |
+| bundles executáveis R1 | 45 |
+| variantes/tarefas R1 | 128/180 |
 | casos R0 promovidos a R1 | 69/75 |
 | protocolo HUM0 | 8 slices/32 tasks; 0 human records/0 model records; structure-only |
 | casos do corpus Tree-sitter | 119 |
@@ -167,9 +167,9 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 14–4771 | 73300 | Evidência comparativa |
-| 2 | 4772–4802 | 500 | Proveniência |
-| 3 | 4803–6244 | 86400 | Ledger |
+| 1 | 14–4874 | 74900 | Evidência comparativa |
+| 2 | 4875–4905 | 500 | Proveniência |
+| 3 | 4906–6364 | 87800 | Ledger |
 
 ## Bundles de leitura
 

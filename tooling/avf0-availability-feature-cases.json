@@ -1,0 +1,870 @@
+{
+  "$schema": "w-avf0-availability-feature-cases-1",
+  "status": "design-oracle-input",
+  "sources": {
+    "package": {
+      "path": "../reference/last-light/workspace.w",
+      "symbol": "targetVariants: [\"native-terminal::posix\"]",
+      "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd",
+      "claim": "Resolution records package feature selection independently from runtime policy."
+    },
+    "availability": {
+      "path": "../reference/last-light/billing.w",
+      "symbol": "gatewayUnavailable",
+      "digest": "sha256:0e8390f3abf494acd581898734d0bf8fcf00190973423143194d390dcd4e41e7",
+      "claim": "The restaurant already needs an explicit unavailable path for a provider-backed operation."
+    },
+    "runtime": {
+      "path": "../reference/last-light/synchronization.w",
+      "symbol": "SnapshotCell<PublishedMenu>",
+      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+      "claim": "SnapshotCell is the current composition for atomic immutable configuration publication."
+    },
+    "composition": {
+      "path": "../reference/last-light/billing.w",
+      "symbol": "export service billing: BillingApi {",
+      "digest": "sha256:0e8390f3abf494acd581898734d0bf8fcf00190973423143194d390dcd4e41e7",
+      "claim": "The billing boundary composes provider availability, generation, effects, and fallback behavior."
+    }
+  },
+  "officialSources": [
+    {
+      "id": "cloudflare-flagship",
+      "url": "https://blog.cloudflare.com/flagship/",
+      "claim": "Flagship evaluates replicated configuration locally and supports targeting, consistent percentage rollout, and audit history."
+    },
+    {
+      "id": "swift-availability-condition",
+      "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/statements/#Availability-Condition",
+      "claim": "Swift runtime availability conditions inform compiler checking inside the guarded branch."
+    },
+    {
+      "id": "swift-available-attribute",
+      "url": "https://docs.swift.org/swift-book/ReferenceManual/Attributes.html#available",
+      "claim": "Swift declaration metadata separates introduced, deprecated, obsoleted, unavailable, and renamed milestones."
+    },
+    {
+      "id": "openfeature-evaluation",
+      "url": "https://openfeature.dev/specification/sections/flag-evaluation/",
+      "claim": "OpenFeature defines typed detailed evaluation and fallback on abnormal provider execution."
+    },
+    {
+      "id": "openfeature-context",
+      "url": "https://openfeature.dev/specification/sections/evaluation-context/",
+      "claim": "OpenFeature defines targeting context and fractional evaluation inputs."
+    }
+  ],
+  "fixtures": {
+    "package": {
+      "declarations": [
+        {
+          "name": "candidate-checkout",
+          "enables": [
+            {
+              "kind": "moduleSet",
+              "id": "checkout-candidate",
+              "operation": "add"
+            }
+          ]
+        }
+      ],
+      "requests": [
+        {
+          "feature": "candidate-checkout",
+          "origin": "product"
+        }
+      ],
+      "sourceForms": []
+    },
+    "availability": {
+      "declaration": {
+        "symbol": "CameraFrame.acquire",
+        "domain": "android",
+        "introduced": "28.0",
+        "requirements": {
+          "capabilities": [
+            "camera"
+          ],
+          "effects": [
+            "device"
+          ]
+        }
+      },
+      "target": {
+        "domain": "android",
+        "minimum": "28.0"
+      },
+      "use": {
+        "mode": "direct"
+      },
+      "authority": {
+        "capabilities": [
+          "camera"
+        ],
+        "effects": [
+          "device"
+        ]
+      }
+    },
+    "runtime": {
+      "key": {
+        "name": "checkout-path",
+        "semanticType": "CheckoutPath",
+        "values": [
+          "control",
+          "candidate"
+        ],
+        "fallback": "control",
+        "contextFields": [
+          "tenant",
+          "userId"
+        ],
+        "owner": "billing",
+        "expires": "2027-06-30"
+      },
+      "snapshot": {
+        "state": "fresh",
+        "generation": "flags-g1",
+        "configurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "value": "control",
+        "rules": []
+      },
+      "evaluation": {
+        "context": {
+          "tenant": "earth",
+          "userId": "arthur"
+        }
+      },
+      "operations": [
+        "evaluate"
+      ],
+      "attempts": []
+    },
+    "composition": {
+      "order": "availability-then-feature",
+      "availability": {
+        "declaration": {
+          "symbol": "PaymentGateway.capture",
+          "domain": "gateway",
+          "introduced": "2.0",
+          "requirements": {
+            "capabilities": [
+              "payment"
+            ],
+            "effects": [
+              "network"
+            ]
+          }
+        },
+        "target": {
+          "domain": "gateway",
+          "minimum": "1.0"
+        },
+        "use": {
+          "mode": "bind",
+          "evidence": {
+            "source": "provider",
+            "domain": "gateway",
+            "version": "2.1",
+            "generation": "gateway-g7",
+            "providerDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          }
+        },
+        "authority": {
+          "capabilities": [
+            "payment"
+          ],
+          "effects": [
+            "network"
+          ]
+        }
+      },
+      "feature": {
+        "key": {
+          "name": "gateway-route",
+          "semanticType": "GatewayRoute",
+          "values": [
+            "stable",
+            "candidate"
+          ],
+          "fallback": "stable",
+          "contextFields": [
+            "tenant",
+            "paymentId"
+          ],
+          "owner": "billing",
+          "expires": "2027-06-30"
+        },
+        "snapshot": {
+          "state": "fresh",
+          "generation": "flags-g4",
+          "configurationDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+          "value": "stable",
+          "rules": []
+        },
+        "evaluation": {
+          "context": {
+            "tenant": "earth",
+            "paymentId": "payment-42"
+          }
+        },
+        "operations": [
+          "evaluate"
+        ],
+        "attempts": []
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "AVF0-package-additive",
+      "axis": "package",
+      "fixture": "package",
+      "patch": {},
+      "source": "package",
+      "expected": {
+        "status": "accepted",
+        "code": "packageFeatureSelected"
+      }
+    },
+    {
+      "id": "AVF0-package-dependency-edge",
+      "axis": "package",
+      "fixture": "package",
+      "patch": {
+        "requests": [
+          {
+            "feature": "candidate-checkout",
+            "origin": "dependency-edge"
+          }
+        ]
+      },
+      "source": "package",
+      "expected": {
+        "status": "accepted",
+        "code": "packageFeatureSelected"
+      }
+    },
+    {
+      "id": "AVF0-package-union-idempotent",
+      "axis": "package",
+      "fixture": "package",
+      "patch": {
+        "requests": [
+          {
+            "feature": "candidate-checkout",
+            "origin": "product"
+          },
+          {
+            "feature": "candidate-checkout",
+            "origin": "dependency-edge"
+          }
+        ]
+      },
+      "source": "package",
+      "expected": {
+        "status": "accepted",
+        "code": "packageFeatureSelected"
+      }
+    },
+    {
+      "id": "AVF0-package-hidden-default",
+      "axis": "package",
+      "fixture": "package",
+      "patch": {
+        "requests": [
+          {
+            "feature": "candidate-checkout",
+            "origin": "default"
+          }
+        ]
+      },
+      "source": "package",
+      "expected": {
+        "status": "rejected",
+        "code": "hiddenFeatureDefaultRejected"
+      }
+    },
+    {
+      "id": "AVF0-package-source-conditional",
+      "axis": "package",
+      "fixture": "package",
+      "patch": {
+        "sourceForms": [
+          "if-feature"
+        ]
+      },
+      "source": "package",
+      "expected": {
+        "status": "rejected",
+        "code": "sourceFeatureConditionalRejected"
+      }
+    },
+    {
+      "id": "AVF0-package-removal",
+      "axis": "package",
+      "fixture": "package",
+      "patch": {
+        "declarations": [
+          {
+            "name": "candidate-checkout",
+            "enables": [
+              {
+                "kind": "moduleSet",
+                "id": "stable-checkout",
+                "operation": "remove"
+              }
+            ]
+          }
+        ]
+      },
+      "source": "package",
+      "expected": {
+        "status": "rejected",
+        "code": "featureMustBeAdditive"
+      }
+    },
+    {
+      "id": "AVF0-package-enables-feature",
+      "axis": "package",
+      "fixture": "package",
+      "patch": {
+        "declarations": [
+          {
+            "name": "candidate-checkout",
+            "enables": [
+              {
+                "kind": "feature",
+                "id": "recursive",
+                "operation": "add"
+              }
+            ]
+          }
+        ]
+      },
+      "source": "package",
+      "expected": {
+        "status": "rejected",
+        "code": "featureEnableKindRejected"
+      }
+    },
+    {
+      "id": "AVF0-package-runtime-toggle",
+      "axis": "package",
+      "fixture": "package",
+      "patch": {
+        "sourceForms": [
+          "runtime-package-feature"
+        ]
+      },
+      "source": "package",
+      "expected": {
+        "status": "rejected",
+        "code": "sourceFeatureConditionalRejected"
+      }
+    },
+    {
+      "id": "AVF0-availability-direct",
+      "axis": "availability",
+      "fixture": "availability",
+      "patch": {},
+      "source": "availability",
+      "expected": {
+        "status": "accepted",
+        "code": "directAvailabilityProved"
+      }
+    },
+    {
+      "id": "AVF0-availability-binding-required",
+      "axis": "availability",
+      "fixture": "availability",
+      "patch": {
+        "target": {
+          "minimum": "26.0"
+        }
+      },
+      "source": "availability",
+      "expected": {
+        "status": "rejected",
+        "code": "availabilityBindingRequired"
+      }
+    },
+    {
+      "id": "AVF0-availability-provider-bind",
+      "axis": "availability",
+      "fixture": "availability",
+      "patch": {
+        "target": {
+          "minimum": "26.0"
+        },
+        "use": {
+          "mode": "bind",
+          "evidence": {
+            "source": "provider",
+            "domain": "android",
+            "version": "29.0",
+            "generation": "android-g9",
+            "providerDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+          }
+        }
+      },
+      "source": "availability",
+      "expected": {
+        "status": "accepted",
+        "code": "availabilityBound"
+      }
+    },
+    {
+      "id": "AVF0-availability-provider-fallback",
+      "axis": "availability",
+      "fixture": "availability",
+      "patch": {
+        "target": {
+          "minimum": "26.0"
+        },
+        "use": {
+          "mode": "bind",
+          "evidence": {
+            "source": "provider",
+            "domain": "android",
+            "version": "27.0",
+            "generation": "android-g8",
+            "providerDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+          }
+        }
+      },
+      "source": "availability",
+      "expected": {
+        "status": "accepted",
+        "code": "availabilityFallback"
+      }
+    },
+    {
+      "id": "AVF0-availability-raw-version",
+      "axis": "availability",
+      "fixture": "availability",
+      "patch": {
+        "target": {
+          "minimum": "26.0"
+        },
+        "use": {
+          "mode": "bind",
+          "evidence": {
+            "source": "caller",
+            "domain": "android",
+            "version": "29.0",
+            "generation": "raw",
+            "providerDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+          }
+        }
+      },
+      "source": "availability",
+      "expected": {
+        "status": "rejected",
+        "code": "availabilityEvidenceNotAuthoritative"
+      }
+    },
+    {
+      "id": "AVF0-availability-domain-mismatch",
+      "axis": "availability",
+      "fixture": "availability",
+      "patch": {
+        "target": {
+          "domain": "ios"
+        }
+      },
+      "source": "availability",
+      "expected": {
+        "status": "rejected",
+        "code": "availabilityDomainMismatch"
+      }
+    },
+    {
+      "id": "AVF0-availability-capability-missing",
+      "axis": "availability",
+      "fixture": "availability",
+      "patch": {
+        "authority": {
+          "capabilities": []
+        }
+      },
+      "source": "availability",
+      "expected": {
+        "status": "rejected",
+        "code": "availabilityCannotGrantCapability"
+      }
+    },
+    {
+      "id": "AVF0-availability-effect-missing",
+      "axis": "availability",
+      "fixture": "availability",
+      "patch": {
+        "authority": {
+          "effects": []
+        }
+      },
+      "source": "availability",
+      "expected": {
+        "status": "rejected",
+        "code": "availabilityCannotGrantEffect"
+      }
+    },
+    {
+      "id": "AVF0-availability-deprecated",
+      "axis": "availability",
+      "fixture": "availability",
+      "patch": {
+        "declaration": {
+          "deprecated": "28.0"
+        }
+      },
+      "source": "availability",
+      "expected": {
+        "status": "accepted",
+        "code": "directAvailabilityProved"
+      }
+    },
+    {
+      "id": "AVF0-availability-obsoleted",
+      "axis": "availability",
+      "fixture": "availability",
+      "patch": {
+        "declaration": {
+          "obsoleted": "28.0"
+        }
+      },
+      "source": "availability",
+      "expected": {
+        "status": "rejected",
+        "code": "symbolObsoleted"
+      }
+    },
+    {
+      "id": "AVF0-availability-unavailable",
+      "axis": "availability",
+      "fixture": "availability",
+      "patch": {
+        "declaration": {
+          "unavailable": true
+        }
+      },
+      "source": "availability",
+      "expected": {
+        "status": "rejected",
+        "code": "symbolUnavailable"
+      }
+    },
+    {
+      "id": "AVF0-availability-renamed",
+      "axis": "availability",
+      "fixture": "availability",
+      "patch": {
+        "declaration": {
+          "renamed": "CameraFrame.capture"
+        }
+      },
+      "source": "availability",
+      "expected": {
+        "status": "rejected",
+        "code": "symbolRenamed"
+      }
+    },
+    {
+      "id": "AVF0-runtime-typed",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {},
+      "source": "runtime",
+      "expected": {
+        "status": "accepted",
+        "code": "featureEvaluated"
+      }
+    },
+    {
+      "id": "AVF0-runtime-rollout",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "snapshot": {
+          "rules": [
+            {
+              "priority": 10,
+              "conditions": [
+                {
+                  "field": "tenant",
+                  "equals": "earth"
+                }
+              ],
+              "value": "candidate",
+              "rollout": {
+                "field": "userId",
+                "basisPoints": 5000
+              }
+            }
+          ]
+        }
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "accepted",
+        "code": "featureEvaluated"
+      }
+    },
+    {
+      "id": "AVF0-runtime-stale-fallback",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "snapshot": {
+          "state": "stale"
+        }
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "accepted",
+        "code": "featureStaleFallback"
+      }
+    },
+    {
+      "id": "AVF0-runtime-missing-fallback",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "snapshot": {
+          "state": "missing"
+        }
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "accepted",
+        "code": "featureMissingFallback"
+      }
+    },
+    {
+      "id": "AVF0-runtime-owner-missing",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "key": {
+          "owner": ""
+        }
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "rejected",
+        "code": "runtimeFeatureLifecycleInvalid"
+      }
+    },
+    {
+      "id": "AVF0-runtime-fallback-invalid",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "key": {
+          "fallback": "unknown"
+        }
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "rejected",
+        "code": "runtimeFeatureFallbackInvalid"
+      }
+    },
+    {
+      "id": "AVF0-runtime-value-mismatch",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "snapshot": {
+          "value": "unknown"
+        }
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "rejected",
+        "code": "featureValueTypeMismatch"
+      }
+    },
+    {
+      "id": "AVF0-runtime-context-undeclared",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "evaluation": {
+          "context": {
+            "tenant": "earth",
+            "userId": "arthur",
+            "email": "hidden@example.test"
+          }
+        }
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "rejected",
+        "code": "featureContextFieldUndeclared"
+      }
+    },
+    {
+      "id": "AVF0-runtime-priority-collision",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "snapshot": {
+          "rules": [
+            {
+              "priority": 1,
+              "conditions": [],
+              "value": "control"
+            },
+            {
+              "priority": 1,
+              "conditions": [],
+              "value": "candidate"
+            }
+          ]
+        }
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "rejected",
+        "code": "featureRulePriorityCollision"
+      }
+    },
+    {
+      "id": "AVF0-runtime-implicit-exposure",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "operations": [
+          "evaluate-and-log"
+        ]
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "rejected",
+        "code": "implicitExposureEffectRejected"
+      }
+    },
+    {
+      "id": "AVF0-runtime-explicit-exposure",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "operations": [
+          "evaluate",
+          "record-exposure"
+        ]
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "accepted",
+        "code": "featureEvaluated"
+      }
+    },
+    {
+      "id": "AVF0-runtime-grant-capability",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "attempts": [
+          "grant-capability"
+        ]
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "rejected",
+        "code": "runtimeFeatureAuthorityRejected"
+      }
+    },
+    {
+      "id": "AVF0-runtime-load-module",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "attempts": [
+          "load-module"
+        ]
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "rejected",
+        "code": "runtimeFeatureAuthorityRejected"
+      }
+    },
+    {
+      "id": "AVF0-runtime-change-abi",
+      "axis": "runtime",
+      "fixture": "runtime",
+      "patch": {
+        "attempts": [
+          "change-abi"
+        ]
+      },
+      "source": "runtime",
+      "expected": {
+        "status": "rejected",
+        "code": "runtimeFeatureAuthorityRejected"
+      }
+    },
+    {
+      "id": "AVF0-composition-availability-first",
+      "axis": "composition",
+      "fixture": "composition",
+      "patch": {},
+      "source": "composition",
+      "expected": {
+        "status": "accepted",
+        "code": "availabilityAndFeatureComposed"
+      }
+    },
+    {
+      "id": "AVF0-composition-feature-first",
+      "axis": "composition",
+      "fixture": "composition",
+      "patch": {
+        "order": "feature-then-availability"
+      },
+      "source": "composition",
+      "expected": {
+        "status": "rejected",
+        "code": "featureCannotNarrowAvailability"
+      }
+    },
+    {
+      "id": "AVF0-composition-provider-fallback",
+      "axis": "composition",
+      "fixture": "composition",
+      "patch": {
+        "availability": {
+          "use": {
+            "evidence": {
+              "version": "1.5"
+            }
+          }
+        }
+      },
+      "source": "composition",
+      "expected": {
+        "status": "accepted",
+        "code": "availabilityFallbackBeforeFeature"
+      }
+    },
+    {
+      "id": "AVF0-composition-flag-narrows",
+      "axis": "composition",
+      "fixture": "composition",
+      "patch": {
+        "feature": {
+          "attempts": [
+            "narrow-availability"
+          ]
+        }
+      },
+      "source": "composition",
+      "expected": {
+        "status": "rejected",
+        "code": "runtimeFeatureAuthorityRejected"
+      }
+    }
+  ]
+}

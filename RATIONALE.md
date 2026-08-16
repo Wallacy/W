@@ -4769,6 +4769,109 @@ Delegação automática não entra nesta decisão. Se forwarding explícito se t
 ruído recorrente, uma forma futura deverá baixar para members HIR observáveis,
 sem lookup dinâmico, linearização, `super` ou estado herdado.
 
+### 1.34 AVF0 — availability e configuração gradual tipada
+
+AVF0 separa três problemas que outras plataformas costumam agrupar como
+feature flag. Uma feature de package seleciona aditivamente um grafo estático
+antes da compilação. Availability decide se uma declaração já compilável pode
+ser usada no target e provider selecionados. Uma feature de runtime escolhe um
+valor tipado dentro do programa já autorizado.
+
+A separação impede que configuração dinâmica vire authority. Uma flag não
+carrega módulo, habilita dependency, concede capability ou effect, altera
+`SemanticInterfaceKey`/`WAbiKey` nem torna legal uma declaração indisponível.
+Todos os ramos alcançáveis permanecem no graph, nos effects, na runtime closure
+e no audit. Availability é resolvida antes da política de runtime.
+
+Package features permanecem current e aditivas. A forma de runtime é uma
+composição de std/provider: chave nominal tipada, fallback do mesmo tipo,
+contexto com fields declarados, owner/expiry, snapshot imutável, schema identity
+separada da configuration generation/digest, rollout determinístico e exposure
+explícita. Config stale ou ausente retorna fallback sem ampliar authority.
+
+O binding que permitiria ao compiler estreitar uma declaração após evidence de
+availability permanece Research. O witness textual usa `available(...)` apenas
+para estudar tipo, ownership, effects, fallback e diagnostics; ele não é syntax
+W aceita. Boolean, versão textual do OS, deployment field ou runtime flag não é
+evidence de provider.
+
+O corpus AVF0 tem 38 casos em package, availability, runtime e composição: 14
+aceitos, 24 rejeitados e sete rejeições explícitas de authority amplification.
+Cloudflare Flagship, Swift availability e OpenFeature são fontes primárias de
+comparação. O oracle Bun, Tree-sitter, snapshot e source refs não provam
+compiler, runtime ou provider.
+
+O stop condition exige dois domínios reais, compiler/type/effect/ownership,
+provider receipts, snapshots atômicos, rollout estável, exposição auditável,
+expiry/owner e projeções local/split. Até lá, runtime flags continuam library
+composition e availability binding continua Research.
+
+### 1.35 SEC0 — modelo de segurança amplo por perfil físico
+
+SEC0 amplia o estudo de segurança para além de memória e paralelismo. O ponto
+de partida é o que W já consegue compor: ownership e borrow, type/effect checks,
+capability roots, domains, services, channels, filesystem scopes, resource
+limits, `WAbiKey`, `SemanticInterfaceKey`, foreign boundaries e receipts de
+packages. O estudo não transforma esses contratos em uma promessa de sandbox.
+
+Safe W mantém invariantes irredutíveis de memory, type, effect, capability,
+input e resource. API access exige capability explícita, effect declarado,
+mediation e attenuation. Lookup ambiental, authority por string, capability
+amplification, arbitrary evaluation e current-frame mutation são rejeitados.
+Secret values usam lease e não entram em serialização ou audit log. Input
+traversal, allocation, concurrency e network têm budgets explícitos.
+
+Um check provado pode ser elidido. Um check não provado permanece, rejeita o
+build ou entra em um `unsafe` explícito com ABI, provenance, bounds, cleanup,
+allocator, effect e review facts. `unsafe` não cria unchecked UB seguro. FFI
+raw pointers, debugger access, dynamic loading e callback retention permanecem
+boundaries explícitas.
+
+SEC0 modela seis perfis: trusted native CPU, sandboxed native process,
+WebAssembly component, multi-tenant isolate, embedded freestanding e
+FPGA/ASIC hardware-partitioned. Cada perfil declara threat model, residual
+risk, product minimum e deployment controls. Todos mantêm os mínimos comuns
+`memory-safety`, `effect-capability-checks`, `input-bounds` e `supply-chain`,
+além dos controles físicos próprios. Runtime protection pode ser substituída
+ou omitida somente por static proof, hardware enforcement ou external
+mediation. A exceção `threat-model-not-applicable` é separada em
+`threatExclusions`, limitada a isolation/tenant/side-channel e exige receipt de
+`policy-review`. Toda proteção exige receipt fechado com issuer/stage
+compatíveis, escopo de profile/target e digests SHA-256.
+`runtimeEnforcement: present` somente admite basis `runtime-enforcement`,
+issuer `runtime-provider` e
+stage `runtime`; `omitted` proíbe essa basis e exige static proof, hardware,
+mediação externa ou a exceção revisada. O profile fixa um target do registry e
+um artifact digest; cada receipt deve coincidir exatamente com esses valores.
+Boolean, feature flag, ambient configuration ou performance switch nunca
+satisfaz essa substituição.
+
+Deployment pode reduzir budget ou escolher um hardening profile. Ele não pode
+enfraquecer o product minimum. Physical target changes podem alterar `WAbiKey`,
+runtime closure e hardening receipts. Eles preservam `SemanticInterfaceKey`
+quando o contrato público não muda. Mudança pública altera a key semântica.
+
+Side channels exigem threat model e residual risk. Timers, cache, scheduler,
+memory layout, concurrency e resource use não têm uma solução universal. O
+profile deve registrar clock policy, scheduler policy, concurrency policy e
+mitigations. A ausência de residual risk é uma falha do modelo.
+
+Patch e supply chain ligam source digest, lock digest, recipe, artifact,
+signature, attestation e deployment admission em ordem. Um patch incompleto ou
+um receipt caller-owned não publica. O estudo separa isolation, input/resource,
+secrets, audit, capability/API mediation, FFI, tenant boundary e attestation.
+Cloudflare Workers, Linux seccomp, WebAssembly, WASI, RATS e Sigstore são
+fontes primárias de comparação. Nenhuma fonte externa é autoridade sobre W.
+
+O corpus SEC0 possui 101 casos, 24 aceitos, 77 rejeitados, 11 outcomes current e
+13 outcomes Research, seis profiles, 16 authority rejections e quatro caller-echo
+rejections. O oracle Bun, os fixtures
+Tree-sitter, o snapshot e os source refs são design evidence. Eles não provam
+compiler, runtime, provider, sandbox, hardware, attestation verifier ou
+deployment control plane. O stop condition exige facts de compiler, provider e
+hardware, receipts de artifact/hardening, fault injection, secret lifecycle,
+side-channel residuals, FFI tests e evidência local/split para os seis perfis.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
@@ -6231,6 +6334,23 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1416 | pipeline e labels observáveis | pipeline de atlas usa duas calls dependentes e labels demonstram `continue` para loop externo, preservando DAG/driver/cleanup vigentes | pipeline com somente return local, continue que reinicia token do label, goto, label em statement arbitrário ou salto não lexical |
 | W-1417 | identidade split e transação do root | owner basis exclui `resolution`/`deployments` e deriva `ownerDigest`; resolution e deployments têm digests próprios; `w resolve` altera somente resolution; add/remove/update fazem compare-and-replace com validation, temp sibling, cleanup e reducers POSIX/Windows independentes; `atomicVisible` e `crashDurable` são outcomes separados e durability exige provider receipt | `workspaceDigest` misturado com resolution, sidecar obrigatório, merge automático, last-write-wins, patch in-place, temp path exposto, receipt caller-owned, durability inferida de flag, resolver/fetch oculto ou alegação de compiler/runtime/provider |
 | W-1418 | default de protocol sem herança | protocol contém somente requirements; o módulo do protocol publica defaults em `extension Protocol`; conformance registra default ou witness próprio; implementação nominal vence; overlap e ambiguidade exigem member explícito; defaults não têm storage nem ampliam ownership/effects; body fica fora do SemanticInterfaceKey | body inline no protocol, herança de fields/initializer/deinit, `super`, protected, linearização, prioridade por import, extension externa trocando witness ou dispatch runtime oculto |
+| W-1419 | três camadas de feature | package feature é graph estático aditivo; availability é proof de target/provider; runtime feature é policy tipada dentro do programa já autorizado | uma única flag que seleciona dependency, prova API e muda comportamento runtime |
+| W-1420 | availability não cria authority | target/provider evidence autenticada pode permitir direct use ou binding Research; capability/effect checks ocorrem antes e continuam obrigatórios | Boolean, OS version string, deployment field ou runtime flag tornando símbolo legal |
+| W-1421 | runtime feature tipada | chave nominal fixa type/values/fallback/context fields/owner/expiry; schema identity é separada da config generation/digest | string key global, valor Any, fallback ausente, context aberto ou config digest tratado como interface |
+| W-1422 | rollout e exposure | snapshot imutável, prioridade sem empate, bucket determinístico e exposição explícita posterior à decisão | RNG/process hash, prioridade ambígua, evaluate-and-log oculto ou side effect em avaliação pura |
+| W-1423 | stale/missing e composição | config stale/missing usa fallback; availability precede runtime policy; todos os branches seguem no graph/effects/runtime closure | stale fail-open, flag estreitando availability, branch não compilado ou policy carregando código |
+| W-1424 | authority amplification rejeitada | flag não habilita dependency/módulo, capability/effect, ABI/interface ou foreign symbol; attempts são diagnostics | remote config como command/eval, source `#if`, macro/annotation ambiental ou provider como root authority |
+| W-1425 | gate AVF0 | 38 casos, 14 aceitos, 24 rejeitados, sete authority rejections; binding continua Research e API runtime é composição | promover por precedência externa, chamar oracle host de compiler/provider ou introduzir keyword antes de evidência |
+| W-1426 | problema-first SEC0 | segurança inclui invariantes safe, capability/effect/API mediation, input/resource, secrets, audit, supply chain, isolation, deployment, FFI, tenants e patch attestation | reduzir segurança a memory/paralelismo ou importar uma sandbox externa como contrato W |
+| W-1427 | safe W e substituição de checks | memory/type/effect/capability/input/resource proofs são irredutíveis; check provado pode ser elidido; check não provado permanece, falha o build ou atravessa `unsafe` explícito completo | unchecked UB por optimização, booleano de segurança, `unsafe` implícito ou proof caller-owned |
+| W-1428 | capability e API mediation | API exige capability explícita, effect declarado, provider mediation e attenuation não-ampliadora; ambient lookup, string authority e unknown API falham | lookup ambiental, peer autenticado como root, capability wider ou effect oculto |
+| W-1429 | input, resource, secret e supply-chain | traversal/input/resource budgets, secret lease sem serialization/logging, audit trail, source/lock/artifact digests, signer, reproducibility e attestation compõem a admissão | limite ausente, secret em wire/log, provenance inventada, build não reproduzível ou signer implícito |
+| W-1430 | perfis físicos e defense-in-depth | trusted CPU, native process, Wasm component, isolate, freestanding e FPGA/ASIC declaram threat model, residual risk, product minimum e deployment controls | perfil único, isolamento universal, deployment que aumenta capacidade ou runtime flag que troca profile |
+| W-1431 | substituição de runtime protection | todos os perfis mantêm `memory-safety`, `effect-capability-checks`, `input-bounds` e `supply-chain`; `runtimeEnforcement: present` exige basis `runtime-enforcement`/issuer `runtime-provider`/stage `runtime`; `omitted` exige static proof, hardware enforcement, external mediation ou exceção revisada, com receipt fechado e profile/target/artifactDigest/proofDigest compatíveis; `threat-model-not-applicable` fica em `threatExclusions`, somente para isolation/tenant/side-channel e exige policy-review receipt | `disableChecks`, feature flag, ambient config, “high performance”, exceção para memory/input/supply-chain, target/artifact não vinculados ou omission sem receipt |
+| W-1432 | identity física e interface | target físico pode mudar `WAbiKey`, runtime closure e hardening receipt; mudança privada preserva `SemanticInterfaceKey`; mudança pública exige nova key | misturar ABI com semantic key, target triple como authority, mudar contrato sem interface digest ou esconder receipt |
+| W-1433 | side-channel e residual risk | timing, cache, scheduler, concurrency e resource use exigem threat model, clock/scheduler/concurrency policy, mitigation e residual risk; não há solução universal | claim universal, residual vazio, clock implícito ou tratar isolation como eliminação de side channel |
+| W-1434 | FFI, unsafe, multi-tenant e patch | FFI explicita ABI/provenance/bounds/cleanup/effect/allocator; tenant capability é bound e mediada; patch receipt ordena source→lock→recipe→artifact→signature→attestation→admission com digests SHA-256, signer e rollback policy fechados | UB, raw pointer safe sem boundary, cross-tenant capability, debugger bypass, patch reorder, signer/policy arbitrários ou receipt caller-owned |
+| W-1435 | gate SEC0 | 101 casos, 24 aceitos, 77 rejeitados, 11 outcomes current e 13 Research, seis perfis, 16 authority rejections e quatro caller-echo rejections; profile, side-channel, patch e deployment receipts permanecem Research | chamar oracle/snapshot de compiler/runtime/provider/hardware, promover por Cloudflare, ou omitir fault/stress/local-split evidence |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,

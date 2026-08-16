@@ -1,0 +1,2332 @@
+{
+  "$schema": "w-sec0-security-model-cases-1",
+  "status": "design-oracle-input",
+  "sources": {
+    "capability": {
+      "path": "reference/last-light/capability_security_oracle.w",
+      "symbol": "enum CapabilityOrigin",
+      "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b",
+      "claim": "capability roots, attenuation, revocation, and bounded tables are explicit"
+    },
+    "session": {
+      "path": "reference/last-light/session_security_oracle.w",
+      "symbol": "enum OracleChannelProfile",
+      "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992",
+      "claim": "channels, freshness, transcript, sequencing, and lifecycle are separate security gates"
+    },
+    "filesystem": {
+      "path": "reference/last-light/fs_oracle.w",
+      "symbol": "recipeArchiveRoot",
+      "digest": "sha256:11fed22d22c0af56297676c5a8e63c789012676945afc8c192509bd8d99c8393",
+      "claim": "filesystem access is capability-scoped and bounded"
+    },
+    "application": {
+      "path": "reference/last-light/app.w",
+      "symbol": "const nativeServerLimits = http.ServerLimits(",
+      "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29",
+      "claim": "network and process entries publish explicit resource limits"
+    },
+    "domain": {
+      "path": "reference/last-light/domain_oracle.w",
+      "symbol": "deployment can reduce but cannot increase profile capacity",
+      "digest": "sha256:6f26c28d5cf2ff2249406660c4250c0577a1770a16924cb52d9cec445409ad51",
+      "claim": "deployment can reduce a profile budget but cannot increase its product minimum"
+    },
+    "abi": {
+      "path": "reference/last-light/hir_memory_oracle.w",
+      "symbol": "struct HirAbiKey",
+      "digest": "sha256:ca20857e3d3f7b9d68f4eade1b2db9893305bec901bf656ddebe3408afb98c4e",
+      "claim": "target ABI and physical representation remain distinct from semantic memory facts"
+    }
+  },
+  "officialSources": [
+    {
+      "url": "https://developers.cloudflare.com/workers/reference/security-model/",
+      "claim": "isolate, process, syscall, proxy, and API layers form defense in depth"
+    },
+    {
+      "url": "https://www.kernel.org/doc/html/latest/userspace-api/seccomp_filter.html",
+      "claim": "seccomp filters restrict syscall surface and do not replace complete policy"
+    },
+    {
+      "url": "https://webassembly.github.io/spec/core/intro/introduction.html",
+      "claim": "WebAssembly validates modules and executes within a defined abstract machine"
+    },
+    {
+      "url": "https://wasi.dev/",
+      "claim": "WASI composes WebAssembly with explicit host capability interfaces"
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc9334",
+      "claim": "remote attestation evidence has an appraiser, verifier, and relying party"
+    },
+    {
+      "url": "https://www.sigstore.dev/how-it-works",
+      "claim": "software signing and transparency evidence bind artifacts to provenance"
+    }
+  ],
+  "fixtures": {
+    "safe": {
+      "kind": "safeInvariants",
+      "memoryProof": true,
+      "typeProof": true,
+      "effectProof": true,
+      "capabilityProof": true,
+      "resourceProof": true,
+      "checkRequired": true,
+      "checkProven": true,
+      "checkElided": false,
+      "ambientAuthority": false,
+      "dynamicEvaluation": false,
+      "uncheckedOperation": false,
+      "unsafeExplicit": false,
+      "unsafeContractComplete": false,
+      "arbitraryCode": false,
+      "inputBounded": true
+    },
+    "api": {
+      "kind": "apiMediation",
+      "api": "fs.open",
+      "capabilityOrigin": "deployment-binding",
+      "explicitCapability": true,
+      "effectDeclared": true,
+      "apiMediated": true,
+      "attenuation": "narrower",
+      "ambientLookup": false,
+      "stringLookup": false,
+      "unknownApi": false
+    },
+    "input": {
+      "kind": "inputResource",
+      "inputBounded": true,
+      "traversalBudget": true,
+      "resourceQuota": true,
+      "secretLease": true,
+      "secretNotSerialized": true,
+      "secretNotLogged": true,
+      "auditTrail": true,
+      "sourceLock": true,
+      "sourceProvenance": true,
+      "artifactAttestation": true,
+      "reproducibleBuild": true
+    },
+    "profile": {
+      "kind": "profileIsolation",
+      "profile": "trusted-native-cpu",
+      "productMinimum": [
+        "memory-safety",
+        "effect-capability-checks",
+        "input-bounds",
+        "freestanding-budgets",
+        "supply-chain",
+        "process-boundary",
+        "mediated-io",
+        "component-boundary",
+        "tenant-boundary",
+        "resource-quota",
+        "hardware-boundary",
+        "information-flow"
+      ],
+      "deploymentControls": [
+        "memory-safety",
+        "effect-capability-checks",
+        "input-bounds",
+        "freestanding-budgets",
+        "supply-chain",
+        "process-boundary",
+        "mediated-io",
+        "component-boundary",
+        "tenant-boundary",
+        "resource-quota",
+        "hardware-boundary",
+        "information-flow"
+      ],
+      "protections": [
+        {
+          "name": "memory",
+          "class": "memory",
+          "basis": "runtime-enforcement",
+          "receipt": {
+            "schema": "w.security-proof/1",
+            "issuer": "runtime-provider",
+            "stage": "runtime",
+            "profile": "trusted-native-cpu",
+            "target": "native-cpu",
+            "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "runtimeEnforcement": "present"
+        },
+        {
+          "name": "api-boundary",
+          "class": "boundary",
+          "basis": "runtime-enforcement",
+          "receipt": {
+            "schema": "w.security-proof/1",
+            "issuer": "runtime-provider",
+            "stage": "runtime",
+            "profile": "trusted-native-cpu",
+            "target": "native-cpu",
+            "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "proofDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "runtimeEnforcement": "present"
+        },
+        {
+          "name": "resource-quota",
+          "class": "resource",
+          "basis": "runtime-enforcement",
+          "receipt": {
+            "schema": "w.security-proof/1",
+            "issuer": "runtime-provider",
+            "stage": "runtime",
+            "profile": "trusted-native-cpu",
+            "target": "native-cpu",
+            "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "proofDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+          },
+          "runtimeEnforcement": "present"
+        }
+      ],
+      "threatModel": [
+        "untrusted-input",
+        "faulty-dependency",
+        "tenant-confusion",
+        "timing"
+      ],
+      "threatExclusions": [],
+      "residualRisk": [
+        "microarchitectural-timing"
+      ],
+      "physicalChange": false,
+      "externalMediation": false,
+      "hardwareEnforcement": false,
+      "target": "native-cpu",
+      "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "side": {
+      "kind": "sideChannel",
+      "threats": [
+        "timing",
+        "cache",
+        "scheduler",
+        "resource-use"
+      ],
+      "clockPolicy": "monotonic-coarse",
+      "schedulerPolicy": "bounded-fair",
+      "concurrencyPolicy": "structured-bounded",
+      "mitigations": [
+        "constant-work-secret-path",
+        "quota",
+        "isolation"
+      ],
+      "residualRisk": [
+        "hardware-cache-observation"
+      ],
+      "universalClaim": false,
+      "timerSource": "mediated-clock"
+    },
+    "ffi": {
+      "kind": "ffiUnsafe",
+      "unsafeExplicit": false,
+      "abiContract": true,
+      "provenance": true,
+      "cleanup": true,
+      "bounds": true,
+      "foreignInputBounded": true,
+      "effectDeclared": true,
+      "reviewedBoundary": true,
+      "undefinedBehavior": false,
+      "rawPointer": false,
+      "noescape": true,
+      "allocatorContract": true
+    },
+    "tenant": {
+      "kind": "multiTenant",
+      "tenantBinding": true,
+      "isolationBoundary": true,
+      "resourceMediation": true,
+      "networkMediation": true,
+      "secretPartition": true,
+      "auditTrail": true,
+      "crossTenantCapability": false,
+      "debuggerBypass": false,
+      "tenantCountBounded": true
+    },
+    "supply": {
+      "kind": "supplyChain",
+      "sourceDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "lockDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "artifactDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "signer": "sigstore:builder@example.invalid",
+      "attestation": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "reproducible": true,
+      "patchBase": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "patchDelta": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "rollbackPolicy": "retain-last-known-good"
+    },
+    "patch": {
+      "kind": "patchAttestation",
+      "target": "restaurant.production",
+      "profile": "sandboxed-native-process",
+      "events": [
+        {
+          "kind": "source-digest",
+          "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "kind": "lock-digest",
+          "value": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        {
+          "kind": "build-recipe",
+          "value": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        {
+          "kind": "artifact-digest",
+          "value": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        {
+          "kind": "signature",
+          "value": "sigstore:builder@example.invalid"
+        },
+        {
+          "kind": "attestation",
+          "value": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        },
+        {
+          "kind": "deployment-admit",
+          "value": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      ]
+    },
+    "identity": {
+      "kind": "identity",
+      "publicContractChanged": false,
+      "semanticInterfaceKey": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "previousSemanticInterfaceKey": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "physicalChange": true,
+      "wAbiKey": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "runtimeClosureKey": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "hardeningReceipt": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    "feature": {
+      "kind": "featureComposition",
+      "runtimeFeature": true,
+      "availability": true,
+      "packageFeature": true,
+      "securityProfile": false,
+      "capabilityGrant": false,
+      "effectGrant": false,
+      "dependencyLoad": false,
+      "moduleLoad": false,
+      "abiChange": false,
+      "interfaceChange": false,
+      "unsafeEnable": false,
+      "protectionDisable": false
+    }
+  },
+  "cases": [
+    {
+      "id": "SEC0-safe-baseline",
+      "source": "capability",
+      "fixture": "safe",
+      "expected": {
+        "status": "accepted",
+        "code": "safeProofsPreserved"
+      }
+    },
+    {
+      "id": "SEC0-safe-explicit-unsafe",
+      "source": "abi",
+      "fixture": "safe",
+      "patch": {
+        "uncheckedOperation": true,
+        "unsafeExplicit": true,
+        "unsafeContractComplete": true,
+        "checkElided": true
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "explicitUnsafeIsland"
+      }
+    },
+    {
+      "id": "SEC0-safe-ambient",
+      "source": "capability",
+      "fixture": "safe",
+      "patch": {
+        "ambientAuthority": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "safeAuthorityRejected"
+      }
+    },
+    {
+      "id": "SEC0-safe-eval",
+      "source": "capability",
+      "fixture": "safe",
+      "patch": {
+        "dynamicEvaluation": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "safeAuthorityRejected"
+      }
+    },
+    {
+      "id": "SEC0-safe-unproven-elision",
+      "source": "abi",
+      "fixture": "safe",
+      "patch": {
+        "checkElided": true,
+        "checkProven": false
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "checkElisionUnproven"
+      }
+    },
+    {
+      "id": "SEC0-safe-unchecked",
+      "source": "abi",
+      "fixture": "safe",
+      "patch": {
+        "uncheckedOperation": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "uncheckedOperationRejected"
+      }
+    },
+    {
+      "id": "SEC0-safe-unsafe-incomplete",
+      "source": "abi",
+      "fixture": "safe",
+      "patch": {
+        "unsafeExplicit": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "unsafeContractIncomplete"
+      }
+    },
+    {
+      "id": "SEC0-safe-arbitrary-code",
+      "source": "capability",
+      "fixture": "safe",
+      "patch": {
+        "arbitraryCode": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "safeAuthorityRejected"
+      }
+    },
+    {
+      "id": "SEC0-api-baseline",
+      "source": "capability",
+      "fixture": "api",
+      "expected": {
+        "status": "accepted",
+        "code": "apiMediated"
+      }
+    },
+    {
+      "id": "SEC0-api-ambient",
+      "source": "capability",
+      "fixture": "api",
+      "patch": {
+        "ambientLookup": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "ambientAuthorityRejected"
+      }
+    },
+    {
+      "id": "SEC0-api-string",
+      "source": "capability",
+      "fixture": "api",
+      "patch": {
+        "stringLookup": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "ambientAuthorityRejected"
+      }
+    },
+    {
+      "id": "SEC0-api-no-capability",
+      "source": "capability",
+      "fixture": "api",
+      "patch": {
+        "explicitCapability": false
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "apiMediationMissing"
+      }
+    },
+    {
+      "id": "SEC0-api-no-effect",
+      "source": "capability",
+      "fixture": "api",
+      "patch": {
+        "effectDeclared": false
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "apiMediationMissing"
+      }
+    },
+    {
+      "id": "SEC0-api-wider",
+      "source": "capability",
+      "fixture": "api",
+      "patch": {
+        "attenuation": "wider"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "capabilityAmplificationRejected"
+      }
+    },
+    {
+      "id": "SEC0-api-unknown",
+      "source": "capability",
+      "fixture": "api",
+      "patch": {
+        "unknownApi": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "ambientAuthorityRejected"
+      }
+    },
+    {
+      "id": "SEC0-api-forged-origin",
+      "source": "capability",
+      "fixture": "api",
+      "patch": {
+        "capabilityOrigin": "authenticated-peer"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "capabilityOriginRejected"
+      }
+    },
+    {
+      "id": "SEC0-input-baseline",
+      "source": "filesystem",
+      "fixture": "input",
+      "expected": {
+        "status": "accepted",
+        "code": "boundedInputResourceAndSupplyChain"
+      }
+    },
+    {
+      "id": "SEC0-input-unbounded",
+      "source": "filesystem",
+      "fixture": "input",
+      "patch": {
+        "inputBounded": false
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "securityEvidenceMissing"
+      }
+    },
+    {
+      "id": "SEC0-input-secret-log",
+      "source": "filesystem",
+      "fixture": "input",
+      "patch": {
+        "secretNotLogged": false
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "securityEvidenceMissing"
+      }
+    },
+    {
+      "id": "SEC0-input-no-attestation",
+      "source": "application",
+      "fixture": "input",
+      "patch": {
+        "artifactAttestation": false
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "securityEvidenceMissing"
+      }
+    },
+    {
+      "id": "SEC0-input-no-audit",
+      "source": "application",
+      "fixture": "input",
+      "patch": {
+        "auditTrail": false
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "securityEvidenceMissing"
+      }
+    },
+    {
+      "id": "SEC0-profile-native",
+      "source": "application",
+      "fixture": "profile",
+      "expected": {
+        "status": "accepted",
+        "code": "profileAdmitted"
+      },
+      "patch": {
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "id": "SEC0-profile-process",
+      "source": "application",
+      "fixture": "profile",
+      "patch": {
+        "profile": "sandboxed-native-process",
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "sandboxed-native-process",
+              "target": "sandboxed-native-process",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "runtimeEnforcement": "present"
+          },
+          {
+            "name": "api-boundary",
+            "class": "boundary",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "sandboxed-native-process",
+              "target": "sandboxed-native-process",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            "runtimeEnforcement": "present"
+          },
+          {
+            "name": "resource-quota",
+            "class": "resource",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "sandboxed-native-process",
+              "target": "sandboxed-native-process",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+            },
+            "runtimeEnforcement": "present"
+          }
+        ],
+        "target": "sandboxed-native-process",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "profileAdmitted"
+      }
+    },
+    {
+      "id": "SEC0-profile-wasm",
+      "source": "session",
+      "fixture": "profile",
+      "patch": {
+        "profile": "wasm-component",
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "wasm-component",
+              "target": "wasm-component",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "runtimeEnforcement": "present"
+          },
+          {
+            "name": "api-boundary",
+            "class": "boundary",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "wasm-component",
+              "target": "wasm-component",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            "runtimeEnforcement": "present"
+          },
+          {
+            "name": "resource-quota",
+            "class": "resource",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "wasm-component",
+              "target": "wasm-component",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+            },
+            "runtimeEnforcement": "present"
+          }
+        ],
+        "target": "wasm-component",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "profileAdmitted"
+      }
+    },
+    {
+      "id": "SEC0-profile-isolate",
+      "source": "session",
+      "fixture": "profile",
+      "patch": {
+        "profile": "multi-tenant-isolate",
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "multi-tenant-isolate",
+              "target": "multi-tenant-isolate",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "runtimeEnforcement": "present"
+          },
+          {
+            "name": "api-boundary",
+            "class": "boundary",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "multi-tenant-isolate",
+              "target": "multi-tenant-isolate",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            "runtimeEnforcement": "present"
+          },
+          {
+            "name": "resource-quota",
+            "class": "resource",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "multi-tenant-isolate",
+              "target": "multi-tenant-isolate",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+            },
+            "runtimeEnforcement": "present"
+          }
+        ],
+        "target": "multi-tenant-isolate",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "profileAdmitted"
+      }
+    },
+    {
+      "id": "SEC0-profile-embedded",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "profile": "embedded-freestanding",
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "embedded-freestanding",
+              "target": "embedded-freestanding",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "runtimeEnforcement": "present"
+          },
+          {
+            "name": "api-boundary",
+            "class": "boundary",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "embedded-freestanding",
+              "target": "embedded-freestanding",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            "runtimeEnforcement": "present"
+          },
+          {
+            "name": "resource-quota",
+            "class": "resource",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "embedded-freestanding",
+              "target": "embedded-freestanding",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+            },
+            "runtimeEnforcement": "present"
+          }
+        ],
+        "target": "embedded-freestanding",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "profileAdmitted"
+      }
+    },
+    {
+      "id": "SEC0-profile-hardware",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "profile": "fpga-asic-hardware",
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "fpga-asic-hardware",
+              "target": "fpga-asic-hardware",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "runtimeEnforcement": "present"
+          },
+          {
+            "name": "api-boundary",
+            "class": "boundary",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "fpga-asic-hardware",
+              "target": "fpga-asic-hardware",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            "runtimeEnforcement": "present"
+          },
+          {
+            "name": "resource-quota",
+            "class": "resource",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "fpga-asic-hardware",
+              "target": "fpga-asic-hardware",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+            },
+            "runtimeEnforcement": "present"
+          }
+        ],
+        "target": "fpga-asic-hardware",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "profileAdmitted"
+      }
+    },
+    {
+      "id": "SEC0-profile-omission",
+      "source": "application",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "static-proof",
+            "receipt": null,
+            "runtimeEnforcement": "omitted"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "protectionReceiptMissing"
+      }
+    },
+    {
+      "id": "SEC0-profile-static-proof",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "static-proof",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "compiler",
+              "stage": "compile",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "runtimeEnforcement": "omitted"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "profileAdmitted"
+      }
+    },
+    {
+      "id": "SEC0-profile-hardware-proof",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "hardware-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "target-provider",
+              "stage": "target",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "runtimeEnforcement": "omitted"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "profileAdmitted"
+      }
+    },
+    {
+      "id": "SEC0-profile-external-boundary",
+      "source": "session",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "api-boundary",
+            "class": "boundary",
+            "basis": "external-mediation",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "deployment-provider",
+              "stage": "deployment",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            "runtimeEnforcement": "omitted"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "profileAdmitted"
+      }
+    },
+    {
+      "id": "SEC0-profile-external-resource",
+      "source": "session",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "resource-quota",
+            "class": "resource",
+            "basis": "external-mediation",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "deployment-provider",
+              "stage": "deployment",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            "runtimeEnforcement": "omitted"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "profileAdmitted"
+      }
+    },
+    {
+      "id": "SEC0-profile-threat-na",
+      "source": "session",
+      "fixture": "profile",
+      "patch": {
+        "threatExclusions": [
+          "side-channel"
+        ],
+        "protections": [
+          {
+            "name": "side-channel",
+            "class": "side-channel",
+            "basis": "threat-model-not-applicable",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "policy-review",
+              "stage": "policy",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+            },
+            "runtimeEnforcement": "omitted"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "profileAdmitted"
+      }
+    },
+    {
+      "id": "SEC0-profile-na-memory",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "threat-model-not-applicable",
+            "receipt": null,
+            "runtimeEnforcement": "omitted"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "runtimeProtectionBasisInvalid"
+      }
+    },
+    {
+      "id": "SEC0-profile-na-without-marker",
+      "source": "session",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "tenant",
+            "class": "tenant",
+            "basis": "threat-model-not-applicable",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "policy-review",
+              "stage": "policy",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+            },
+            "runtimeEnforcement": "omitted"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "threatModelExceptionInvalid"
+      }
+    },
+    {
+      "id": "SEC0-profile-threat-pollution",
+      "source": "session",
+      "fixture": "profile",
+      "patch": {
+        "threatModel": [
+          "untrusted-input",
+          "not-applicable:side-channel"
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "profileThreatUnknown"
+      }
+    },
+    {
+      "id": "SEC0-profile-external-memory",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "external-mediation",
+            "receipt": null,
+            "runtimeEnforcement": "omitted"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "runtimeProtectionBasisInvalid"
+      }
+    },
+    {
+      "id": "SEC0-profile-receipt-issuer",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "deployment-provider",
+              "stage": "runtime",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "runtimeEnforcement": "present"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "protectionReceiptInvalid"
+      }
+    },
+    {
+      "id": "SEC0-profile-receipt-stage",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "target",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "runtimeEnforcement": "present"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "protectionReceiptInvalid"
+      }
+    },
+    {
+      "id": "SEC0-profile-receipt-digest",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "not-a-digest"
+            },
+            "runtimeEnforcement": "present"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "protectionReceiptInvalid"
+      }
+    },
+    {
+      "id": "SEC0-profile-receipt-scope",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "wasm-component",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "runtimeEnforcement": "present"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "protectionReceiptScopeInvalid"
+      }
+    },
+    {
+      "id": "SEC0-profile-receipt-verified",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "verified": true
+            },
+            "runtimeEnforcement": "present"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "callerEchoRejected"
+      }
+    },
+    {
+      "id": "SEC0-profile-runtime-present-static",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "runtimeEnforcement": "present",
+            "basis": "static-proof",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "compiler",
+              "stage": "compile",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "runtimeProtectionBasisInvalid"
+      }
+    },
+    {
+      "id": "SEC0-profile-runtime-omitted-runtime",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "runtimeEnforcement": "omitted",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "runtimeProtectionBasisInvalid"
+      }
+    },
+    {
+      "id": "SEC0-profile-receipt-target",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "runtimeEnforcement": "present",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "trusted-native-cpu",
+              "target": "wasm-component",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "protectionReceiptScopeInvalid"
+      }
+    },
+    {
+      "id": "SEC0-profile-receipt-artifact",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "runtimeEnforcement": "present",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "protectionReceiptScopeInvalid"
+      }
+    },
+    {
+      "id": "SEC0-profile-target-unknown",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "target": "custom-target",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "profileTargetUnknown"
+      }
+    },
+    {
+      "id": "SEC0-profile-available-echo",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "available": true,
+            "runtimeEnforcement": "present",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "callerEchoRejected"
+      }
+    },
+    {
+      "id": "SEC0-profile-wasm-common-memory",
+      "source": "session",
+      "fixture": "profile",
+      "patch": {
+        "profile": "wasm-component",
+        "deploymentControls": [
+          "effect-capability-checks",
+          "input-bounds",
+          "supply-chain",
+          "component-boundary",
+          "mediated-io"
+        ],
+        "target": "wasm-component",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "profileMinimumMissing"
+      }
+    },
+    {
+      "id": "SEC0-profile-hardware-common-supply",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "profile": "fpga-asic-hardware",
+        "deploymentControls": [
+          "memory-safety",
+          "effect-capability-checks",
+          "input-bounds",
+          "hardware-boundary",
+          "information-flow"
+        ],
+        "target": "fpga-asic-hardware",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "profileMinimumMissing"
+      }
+    },
+    {
+      "id": "SEC0-profile-process-minimum",
+      "source": "application",
+      "fixture": "profile",
+      "patch": {
+        "profile": "sandboxed-native-process",
+        "deploymentControls": [
+          "memory-safety",
+          "effect-capability-checks",
+          "mediated-io",
+          "component-boundary",
+          "tenant-boundary",
+          "resource-quota",
+          "hardware-boundary",
+          "information-flow",
+          "input-bounds",
+          "freestanding-budgets",
+          "supply-chain"
+        ],
+        "target": "sandboxed-native-process",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "profileMinimumMissing"
+      }
+    },
+    {
+      "id": "SEC0-profile-wasm-minimum",
+      "source": "session",
+      "fixture": "profile",
+      "patch": {
+        "profile": "wasm-component",
+        "deploymentControls": [
+          "memory-safety",
+          "effect-capability-checks",
+          "process-boundary",
+          "tenant-boundary",
+          "resource-quota",
+          "hardware-boundary",
+          "information-flow",
+          "input-bounds",
+          "freestanding-budgets",
+          "supply-chain"
+        ],
+        "target": "wasm-component",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "profileMinimumMissing"
+      }
+    },
+    {
+      "id": "SEC0-profile-isolate-minimum",
+      "source": "session",
+      "fixture": "profile",
+      "patch": {
+        "profile": "multi-tenant-isolate",
+        "deploymentControls": [
+          "memory-safety",
+          "effect-capability-checks",
+          "process-boundary",
+          "mediated-io",
+          "component-boundary",
+          "resource-quota",
+          "hardware-boundary",
+          "information-flow",
+          "input-bounds",
+          "freestanding-budgets",
+          "supply-chain"
+        ],
+        "target": "multi-tenant-isolate",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "profileMinimumMissing"
+      }
+    },
+    {
+      "id": "SEC0-profile-freestanding-minimum",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "profile": "embedded-freestanding",
+        "deploymentControls": [
+          "memory-safety",
+          "effect-capability-checks",
+          "process-boundary",
+          "mediated-io",
+          "component-boundary",
+          "tenant-boundary",
+          "resource-quota",
+          "hardware-boundary",
+          "information-flow",
+          "input-bounds",
+          "supply-chain"
+        ],
+        "target": "embedded-freestanding",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "profileMinimumMissing"
+      }
+    },
+    {
+      "id": "SEC0-profile-hardware-minimum",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "profile": "fpga-asic-hardware",
+        "deploymentControls": [
+          "memory-safety",
+          "effect-capability-checks",
+          "process-boundary",
+          "mediated-io",
+          "component-boundary",
+          "tenant-boundary",
+          "resource-quota",
+          "input-bounds",
+          "freestanding-budgets",
+          "supply-chain"
+        ],
+        "target": "fpga-asic-hardware",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "profileMinimumMissing"
+      }
+    },
+    {
+      "id": "SEC0-profile-deployment-floor",
+      "source": "domain",
+      "fixture": "profile",
+      "patch": {
+        "deploymentControls": [
+          "memory-safety",
+          "effect-capability-checks",
+          "input-bounds",
+          "supply-chain"
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "deploymentWeakensProductMinimum"
+      }
+    },
+    {
+      "id": "SEC0-profile-semantic-drift",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "physicalChange": true,
+        "semanticInterfaceKey": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "previousSemanticInterfaceKey": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "wAbiKey": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "runtimeClosureKey": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "hardeningReceipt": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "physicalChangeMutatesSemanticInterface"
+      }
+    },
+    {
+      "id": "SEC0-profile-missing-receipt",
+      "source": "abi",
+      "fixture": "profile",
+      "patch": {
+        "physicalChange": true,
+        "semanticInterfaceKey": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "previousSemanticInterfaceKey": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "profileIdentityInvalid"
+      }
+    },
+    {
+      "id": "SEC0-profile-unknown",
+      "source": "application",
+      "fixture": "profile",
+      "patch": {
+        "profile": "browser-tab"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "profileUnknown"
+      }
+    },
+    {
+      "id": "SEC0-profile-duplicate",
+      "source": "application",
+      "fixture": "profile",
+      "patch": {
+        "protections": [
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "runtimeEnforcement": "present"
+          },
+          {
+            "name": "memory",
+            "class": "memory",
+            "basis": "runtime-enforcement",
+            "receipt": {
+              "schema": "w.security-proof/1",
+              "issuer": "runtime-provider",
+              "stage": "runtime",
+              "profile": "trusted-native-cpu",
+              "target": "native-cpu",
+              "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "proofDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "runtimeEnforcement": "present"
+          }
+        ],
+        "target": "native-cpu",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "protectionDuplicate"
+      }
+    },
+    {
+      "id": "SEC0-side-baseline",
+      "source": "session",
+      "fixture": "side",
+      "expected": {
+        "status": "accepted",
+        "code": "sideChannelBudgeted"
+      }
+    },
+    {
+      "id": "SEC0-side-universal",
+      "source": "session",
+      "fixture": "side",
+      "patch": {
+        "universalClaim": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "universalSideChannelClaimRejected"
+      }
+    },
+    {
+      "id": "SEC0-side-no-residual",
+      "source": "session",
+      "fixture": "side",
+      "patch": {
+        "residualRisk": []
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "sideChannelFactInvalid"
+      }
+    },
+    {
+      "id": "SEC0-side-no-threat",
+      "source": "session",
+      "fixture": "side",
+      "patch": {
+        "threats": []
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "sideChannelFactInvalid"
+      }
+    },
+    {
+      "id": "SEC0-side-clock-missing",
+      "source": "session",
+      "fixture": "side",
+      "patch": {
+        "clockPolicy": null
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "sideChannelFactInvalid"
+      }
+    },
+    {
+      "id": "SEC0-ffi-baseline",
+      "source": "abi",
+      "fixture": "ffi",
+      "expected": {
+        "status": "accepted",
+        "code": "mediatedFfi"
+      }
+    },
+    {
+      "id": "SEC0-ffi-explicit-unsafe",
+      "source": "abi",
+      "fixture": "ffi",
+      "patch": {
+        "unsafeExplicit": true,
+        "rawPointer": true,
+        "noescape": false
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "explicitUnsafeFfi"
+      }
+    },
+    {
+      "id": "SEC0-ffi-ub",
+      "source": "abi",
+      "fixture": "ffi",
+      "patch": {
+        "undefinedBehavior": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "undefinedBehaviorRejected"
+      }
+    },
+    {
+      "id": "SEC0-ffi-raw-safe",
+      "source": "abi",
+      "fixture": "ffi",
+      "patch": {
+        "rawPointer": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "unsafeBoundaryRequired"
+      }
+    },
+    {
+      "id": "SEC0-ffi-retention",
+      "source": "abi",
+      "fixture": "ffi",
+      "patch": {
+        "noescape": false
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "foreignRetentionRequiresUnsafe"
+      }
+    },
+    {
+      "id": "SEC0-ffi-no-cleanup",
+      "source": "abi",
+      "fixture": "ffi",
+      "patch": {
+        "cleanup": false
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "ffiEvidenceMissing"
+      }
+    },
+    {
+      "id": "SEC0-tenant-baseline",
+      "source": "session",
+      "fixture": "tenant",
+      "expected": {
+        "status": "accepted",
+        "code": "tenantIsolated"
+      }
+    },
+    {
+      "id": "SEC0-tenant-cross-capability",
+      "source": "capability",
+      "fixture": "tenant",
+      "patch": {
+        "crossTenantCapability": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "tenantBoundaryRejected"
+      }
+    },
+    {
+      "id": "SEC0-tenant-debugger",
+      "source": "session",
+      "fixture": "tenant",
+      "patch": {
+        "debuggerBypass": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "tenantBoundaryRejected"
+      }
+    },
+    {
+      "id": "SEC0-tenant-unbounded",
+      "source": "session",
+      "fixture": "tenant",
+      "patch": {
+        "tenantCountBounded": false
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "tenantEvidenceMissing"
+      }
+    },
+    {
+      "id": "SEC0-tenant-no-network",
+      "source": "session",
+      "fixture": "tenant",
+      "patch": {
+        "networkMediation": false
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "tenantEvidenceMissing"
+      }
+    },
+    {
+      "id": "SEC0-supply-baseline",
+      "source": "domain",
+      "fixture": "supply",
+      "expected": {
+        "status": "accepted",
+        "code": "supplyChainAdmitted"
+      }
+    },
+    {
+      "id": "SEC0-supply-no-repro",
+      "source": "domain",
+      "fixture": "supply",
+      "patch": {
+        "reproducible": false
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "supplyChainEvidenceMissing"
+      }
+    },
+    {
+      "id": "SEC0-supply-bad-digest",
+      "source": "domain",
+      "fixture": "supply",
+      "patch": {
+        "sourceDigest": "not-a-digest"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "supplyChainFactInvalid"
+      }
+    },
+    {
+      "id": "SEC0-supply-no-signer",
+      "source": "domain",
+      "fixture": "supply",
+      "patch": {
+        "signer": ""
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "supplyChainFactInvalid"
+      }
+    },
+    {
+      "id": "SEC0-supply-bad-policy",
+      "source": "domain",
+      "fixture": "supply",
+      "patch": {
+        "rollbackPolicy": "best-effort"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "supplyChainFactInvalid"
+      }
+    },
+    {
+      "id": "SEC0-supply-open-delta",
+      "source": "domain",
+      "fixture": "supply",
+      "patch": {
+        "patchDelta": ""
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "supplyChainFactInvalid"
+      }
+    },
+    {
+      "id": "SEC0-patch-baseline",
+      "source": "domain",
+      "fixture": "patch",
+      "expected": {
+        "status": "accepted",
+        "code": "patchAttested"
+      }
+    },
+    {
+      "id": "SEC0-patch-reordered",
+      "source": "domain",
+      "fixture": "patch",
+      "patch": {
+        "events": [
+          {
+            "kind": "source-digest",
+            "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "lock-digest",
+            "value": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "kind": "artifact-digest",
+            "value": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "kind": "build-recipe",
+            "value": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "kind": "signature",
+            "value": "sigstore:builder@example.invalid"
+          },
+          {
+            "kind": "attestation",
+            "value": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "kind": "deployment-admit",
+            "value": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ]
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "patchAttestationOrderInvalid"
+      }
+    },
+    {
+      "id": "SEC0-patch-bad-digest",
+      "source": "domain",
+      "fixture": "patch",
+      "patch": {
+        "events": [
+          {
+            "kind": "source-digest",
+            "value": "not-a-digest"
+          },
+          {
+            "kind": "lock-digest",
+            "value": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "kind": "build-recipe",
+            "value": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "kind": "artifact-digest",
+            "value": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "kind": "signature",
+            "value": "sigstore:builder@example.invalid"
+          },
+          {
+            "kind": "attestation",
+            "value": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "kind": "deployment-admit",
+            "value": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ]
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "patchEventFactInvalid"
+      }
+    },
+    {
+      "id": "SEC0-patch-bad-signer",
+      "source": "domain",
+      "fixture": "patch",
+      "patch": {
+        "events": [
+          {
+            "kind": "source-digest",
+            "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "lock-digest",
+            "value": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "kind": "build-recipe",
+            "value": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "kind": "artifact-digest",
+            "value": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "kind": "signature",
+            "value": "unsigned"
+          },
+          {
+            "kind": "attestation",
+            "value": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "kind": "deployment-admit",
+            "value": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ]
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "patchEventFactInvalid"
+      }
+    },
+    {
+      "id": "SEC0-patch-short",
+      "source": "domain",
+      "fixture": "patch",
+      "patch": {
+        "events": []
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "patchEventsInvalid"
+      }
+    },
+    {
+      "id": "SEC0-patch-event-echo",
+      "source": "domain",
+      "fixture": "patch",
+      "patch": {
+        "events": [
+          {
+            "kind": "source-digest",
+            "value": "x",
+            "status": "accepted"
+          }
+        ]
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "callerEchoRejected"
+      }
+    },
+    {
+      "id": "SEC0-patch-profile",
+      "source": "domain",
+      "fixture": "patch",
+      "patch": {
+        "profile": "browser"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "profileUnknown"
+      }
+    },
+    {
+      "id": "SEC0-identity-baseline",
+      "source": "abi",
+      "fixture": "identity",
+      "expected": {
+        "status": "accepted",
+        "code": "identityConsistent"
+      }
+    },
+    {
+      "id": "SEC0-identity-public",
+      "source": "abi",
+      "fixture": "identity",
+      "patch": {
+        "publicContractChanged": true,
+        "semanticInterfaceKey": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "identityConsistent"
+      }
+    },
+    {
+      "id": "SEC0-identity-public-same",
+      "source": "abi",
+      "fixture": "identity",
+      "patch": {
+        "publicContractChanged": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "publicChangeKeepsSemanticInterface"
+      }
+    },
+    {
+      "id": "SEC0-identity-private-drift",
+      "source": "abi",
+      "fixture": "identity",
+      "patch": {
+        "publicContractChanged": false,
+        "semanticInterfaceKey": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "privateChangeMutatesSemanticInterface"
+      }
+    },
+    {
+      "id": "SEC0-identity-physical-no-receipt",
+      "source": "abi",
+      "fixture": "identity",
+      "patch": {
+        "physicalChange": true,
+        "wAbiKey": null
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "identityFactInvalid"
+      }
+    },
+    {
+      "id": "SEC0-feature-baseline",
+      "source": "capability",
+      "fixture": "feature",
+      "expected": {
+        "status": "accepted",
+        "code": "featureSecurityNeutral"
+      }
+    },
+    {
+      "id": "SEC0-feature-capability",
+      "source": "capability",
+      "fixture": "feature",
+      "patch": {
+        "capabilityGrant": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "featureSecurityAuthorityRejected"
+      }
+    },
+    {
+      "id": "SEC0-feature-dependency",
+      "source": "capability",
+      "fixture": "feature",
+      "patch": {
+        "dependencyLoad": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "featureSecurityAuthorityRejected"
+      }
+    },
+    {
+      "id": "SEC0-feature-abi",
+      "source": "abi",
+      "fixture": "feature",
+      "patch": {
+        "abiChange": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "featureSecurityAuthorityRejected"
+      }
+    },
+    {
+      "id": "SEC0-feature-profile",
+      "source": "abi",
+      "fixture": "feature",
+      "patch": {
+        "securityProfile": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "featureSecurityAuthorityRejected"
+      }
+    },
+    {
+      "id": "SEC0-feature-protection",
+      "source": "abi",
+      "fixture": "feature",
+      "patch": {
+        "protectionDisable": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "featureSecurityAuthorityRejected"
+      }
+    },
+    {
+      "id": "SEC0-feature-echo",
+      "source": "abi",
+      "fixture": "feature",
+      "patch": {
+        "secure": true
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "callerEchoRejected"
+      }
+    }
+  ]
+}
