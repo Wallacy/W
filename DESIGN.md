@@ -23127,15 +23127,20 @@ consumer codegen                      depende da recipe e do body alcançável
 - entry descriptors, service requirements e availability;
 - digests separados de documentation, source map e chunks adicionais.
 
-Com body, cada result dependency slot recebe sua própria entrada de mapping para
-receiver, parâmetros ou static roots. Sem body, member instance usa somente
-receiver compatível. Initializers, static requirements e free requirements usam
-todos os inputs borrowed ou dependent compatíveis em cada result slot. Zero
-source inputs só aceita result independent ou static. O oracle deriva o default
-de `kind`, `inputSlots` e `resultSlots` e ignora `inferredMapping` bodyless. Um
-witness não pode publicar mapping diferente do body. O mapping não possui
-lifetime variable no source. Ele entra em `SemanticInterfaceKey` e em
-`interface.lock`.
+Com body, cada result dependency slot recebe exatamente o mapping derivado do
+body para receiver, parâmetros ou static roots. Um slot dependent sem origem
+exata falha. Sem body, `instance` e `member` usam somente um receiver
+compatível. `static`, `free` e `protocol` usam exatamente um input borrowed ou
+dependent compatível por result slot. Duas ou mais entradas compatíveis rejeitam
+com `W-BORROW-0011`. `init` com resultado borrowed ou view é rejeitado. Zero
+source inputs só aceita resultado `independent` ou `static`. O oracle deriva o
+default de `kind`, `inputSlots` e `resultSlots` e ignora `inferredMapping`
+bodyless. Um witness não pode publicar mapping diferente do body. O mapping não
+possui lifetime variable no source. Ele entra em `WInterface`,
+`SemanticInterfaceKey` e `interface.lock`.
+
+BRX2 continua **Pesquisa**. Relação owned por requirement ou interface não entra
+no baseline e não adiciona syntax, metadata de runtime ou campo em `WAbi`.
 
 O record não contém:
 
@@ -26434,7 +26439,8 @@ generational pode salvar source canônico, resetar e explicar invalidation e
 cost. Jupyter/session é uma direção de tooling, não uma nova forma de source.
 O kernel deve implementar o protocol Jupyter e exportar `.w` ou package antes
 de release. O contrato completo está em [workflows Python](#2411-workflows-python-e-científicos)
-e no estudo PYN1 para a proveniência histórica do fluxo standalone.
+e o estudo PYN1 superseded preserva somente a proveniência histórica do fluxo
+standalone.
 
 #### 21.6.2 Publicação e reprodução
 
@@ -28499,8 +28505,8 @@ source, resolution, artifacts e outputs consumidos; path físico serve discovery
 diagnóstico e provenance, nunca identity. Run temporário ou falho não deixa
 estado oculto.
 
-O estudo PYN1 em [`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1)
-preserva a proveniência do antigo fluxo standalone. A forma promovida é este
+O estudo PYN1 superseded em [`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1-superseded)
+preserva a proveniência do antigo fluxo standalone. A forma vigente é este
 module-run uniforme; operações de dependency são `w add`, `w remove`,
 `w resolve` e `w update` no contexto package/workspace.
 
@@ -29152,7 +29158,7 @@ pares F0 input/output cujo CST nomeado é igual e cuja saída alvo satisfaz a fo
 canônica, e a uma evidência adversarial. A evidência adversarial é uma mutação
 syntax-invalid com D0 `source.parse`, uma inversão semântica S0 com positivo,
 negativo, `failureField`, `requiredFacts` do catálogo e D0 exatos, ou um waiver
-de source com razão e casos PYN1 rejeitados. O checker rejeita refs ausentes,
+de source com razão e casos RU0 rejeitados. O checker rejeita refs ausentes,
 stale ou duplicadas, expected
 echo e decisões não exercitadas pelo vínculo F0/S0. F0 prova somente o oracle
 byte/CST e a forma alvo; não prova idempotência de uma implementação de

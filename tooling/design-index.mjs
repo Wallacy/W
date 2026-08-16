@@ -283,7 +283,7 @@ const oracleCorpusFiles = [
   "boundary-effect-cases.json",
   "service-recovery-cases.json",
   "package-release-cases.json",
-  "script-workflow-cases.json",
+  "module-run-cases.json",
   "repl-session-cases.json",
   "presentation-cases.json",
   "jupyter-cases.json",
@@ -309,7 +309,7 @@ const oracleFreezeDecisionIds = new Set(
     const decisions = corpus.cases.flatMap(
       (testCase) =>
         testCase.decisions ??
-        (["script-workflow-cases.json", "repl-session-cases.json"].includes(file) ? corpus.decisions ?? [] : []),
+        (["module-run-cases.json", "repl-session-cases.json"].includes(file) ? corpus.decisions ?? [] : []),
     );
     const ruleCases = corpus.cases.filter((testCase) => testCase.rule !== undefined);
     const semanticPairDecisions = ruleCases.length > 0
@@ -676,35 +676,35 @@ const packageReleaseOperations = packageReleaseCorpus.cases.reduce(
 const acceptedPackageReleaseCases = packageReleaseCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
-const scriptWorkflowCorpus = JSON.parse(
-  fs.readFileSync(path.join(wDirectory, "tooling", "script-workflow-cases.json"), "utf8"),
+const moduleRunCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "module-run-cases.json"), "utf8"),
 );
-function scriptWorkflowFixtureOperations(name, stack = []) {
-  if (stack.includes(name)) throw new Error(`Script-workflow fixture cycle at ${name}.`);
-  const fixture = scriptWorkflowCorpus.fixtures[name];
-  if (!fixture) throw new Error(`Unknown script-workflow fixture ${name}.`);
+function moduleRunFixtureOperations(name, stack = []) {
+  if (stack.includes(name)) throw new Error(`Module-run fixture cycle at ${name}.`);
+  const fixture = moduleRunCorpus.fixtures[name];
+  if (!fixture) throw new Error(`Unknown module-run fixture ${name}.`);
   return (
     (fixture.operations ?? []).length +
     (fixture.includes ?? []).reduce(
       (count, included) =>
-        count + scriptWorkflowFixtureOperations(included, [...stack, name]),
+        count + moduleRunFixtureOperations(included, [...stack, name]),
       0,
     )
   );
 }
-const scriptWorkflowCases = scriptWorkflowCorpus.cases.length;
-const scriptWorkflowOperations = scriptWorkflowCorpus.cases.reduce(
+const moduleRunCases = moduleRunCorpus.cases.length;
+const moduleRunOperations = moduleRunCorpus.cases.reduce(
   (count, testCase) =>
     count +
     (testCase.operations ?? []).length +
     (testCase.fixtures ?? []).reduce(
       (fixtureCount, fixture) =>
-        fixtureCount + scriptWorkflowFixtureOperations(fixture),
+        fixtureCount + moduleRunFixtureOperations(fixture),
       0,
     ),
   0,
 );
-const acceptedScriptWorkflowCases = scriptWorkflowCorpus.cases.filter(
+const acceptedModuleRunCases = moduleRunCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
 const replSessionCorpus = JSON.parse(
@@ -1112,10 +1112,10 @@ output.push(
     `${packageReleaseCases - acceptedPackageReleaseCases} rejeitados) |`,
 );
 output.push(
-  `| casos/operações do workflow single-file PYN1 | ` +
-    `${scriptWorkflowCases}/${scriptWorkflowOperations} ` +
-    `(${acceptedScriptWorkflowCases} aceitos + ` +
-    `${scriptWorkflowCases - acceptedScriptWorkflowCases} rejeitados) |`,
+  `| casos/operações do workflow module-run RU0 | ` +
+    `${moduleRunCases}/${moduleRunOperations} ` +
+    `(${acceptedModuleRunCases} aceitos + ` +
+    `${moduleRunCases - acceptedModuleRunCases} rejeitados) |`,
 );
 output.push(
   `| casos/operações da sessão transacional PYN2 | ` +

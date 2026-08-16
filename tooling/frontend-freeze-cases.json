@@ -51,7 +51,7 @@
       },
       "positive": {
         "formatterCase": "F0-module-run-entry",
-        "workflowCase": "PYN1-no-header-std-hello",
+        "workflowCase": "RU0-module-default",
         "workflowExpected": { "status": "accepted" },
         "markers": ["module horizon_tool", "entry(runHorizon)", "print(result)"]
       },
@@ -59,7 +59,7 @@
         "kind": "source-waiver",
         "reason": "The module-run contract requires an explicit default descriptor or a named --entry selection.",
         "workflowOutcomes": [
-          { "id": "PYN1-entry-missing", "code": "defaultEntryMissing", "at": "last", "reason": "explicit-entry-required" }
+          { "id": "RU0-entry-missing", "code": "defaultEntryMissing", "at": "last", "reason": "explicit-entry-required" }
         ],
         "failureField": "entry",
         "diagnostic": {
@@ -73,7 +73,7 @@
             "reason": "explicit-entry-required",
             "waiver": true,
             "workflowOutcomes": [
-              { "id": "PYN1-entry-missing", "code": "defaultEntryMissing", "at": "last", "reason": "explicit-entry-required" }
+              { "id": "RU0-entry-missing", "code": "defaultEntryMissing", "at": "last", "reason": "explicit-entry-required" }
             ]
           }
         }

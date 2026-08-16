@@ -364,7 +364,7 @@ fn later() {}
     (block)))
 
 ==================
-Standalone lock root is rejected
+Lock root is rejected
 ==================
 
 lock {
@@ -387,7 +387,7 @@ lock {
     (identifier)))
 
 ==================
-Standalone deployment root is rejected
+Deployment root is rejected
 ==================
 
 deployment {
