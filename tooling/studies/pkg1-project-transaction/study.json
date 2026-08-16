@@ -1,0 +1,130 @@
+{
+  "$schema": "w-pkg1-project-transaction-study-1",
+  "status": "design-oracle-input",
+  "id": "PKG1",
+  "title": "Project identity split and atomic root transactions",
+  "routes": {
+    "identitySplit": "current",
+    "atomicTransaction": "current",
+    "durableProviderReceipts": "research"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/workspace.w",
+      "symbol": "workspace {",
+      "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd",
+      "claim": "Unified physical workspace root with nested resolution and deployments."
+    },
+    {
+      "path": "../../../reference/last-light/package.w",
+      "symbol": "package {",
+      "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc",
+      "claim": "Isolated package root remains a data-only manifest."
+    },
+    {
+      "path": "../../../reference/last-light/BUILD.md",
+      "symbol": "deployment",
+      "digest": "sha256:81008441c547802d16e925b3fd5ae319ddbcdbdb20fbd507ed3b64295945f88e",
+      "claim": "Reference build documents named deployment records."
+    },
+    {
+      "path": "../../../reference/last-light/workspace.w",
+      "symbol": "resolution: {",
+      "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd",
+      "claim": "Resolution is a nested logical record."
+    }
+  ],
+  "officialRefs": [
+    {
+      "id": "posix-rename",
+      "url": "https://pubs.opengroup.org/onlinepubs/9799919799/functions/rename.html",
+      "claim": "Same-directory rename provides the POSIX replacement boundary."
+    },
+    {
+      "id": "windows-replacefile",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilea",
+      "claim": "ReplaceFile provides the Windows sibling replacement boundary."
+    },
+    {
+      "id": "cargo-workspaces",
+      "url": "https://doc.rust-lang.org/cargo/reference/workspaces.html",
+      "claim": "Cargo separates workspace membership from lock metadata."
+    },
+    {
+      "id": "cargo-lock",
+      "url": "https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html",
+      "claim": "Cargo distinguishes manifest intent from resolved lock facts."
+    },
+    {
+      "id": "python-pylock",
+      "url": "https://packaging.python.org/en/latest/specifications/pylock-toml/",
+      "claim": "Python records a portable lock record for resolved dependencies."
+    }
+  ],
+  "corpus": {
+    "path": "../../pkg1-project-transaction-cases.json",
+    "digest": "sha256:77fe34202bad2667289e2c5a9f3a7e94c1790f6c2b12cb966ee47a8cd6ce9b29"
+  },
+  "oracle": {
+    "path": "../../pkg1-project-transaction-machine.mjs",
+    "digest": "sha256:1e414e61d38ccc5eb7b3d995fbdbbbadb4041c336475e1f0663d984b50f02707"
+  },
+  "evidence": {
+    "current": [
+      "host-oracle",
+      "source-ref",
+      "official-primary-refs",
+      "snapshot"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "provider",
+      "real-filesystem-fault-probe",
+      "human-study",
+      "model-study"
+    ]
+  },
+  "artifactRefs": [
+    {
+      "path": "../../pkg1-project-transaction-cases.json",
+      "digest": "sha256:77fe34202bad2667289e2c5a9f3a7e94c1790f6c2b12cb966ee47a8cd6ce9b29",
+      "role": "corpus"
+    },
+    {
+      "path": "../../pkg1-project-transaction-machine.mjs",
+      "digest": "sha256:1e414e61d38ccc5eb7b3d995fbdbbbadb4041c336475e1f0663d984b50f02707",
+      "role": "oracle"
+    },
+    {
+      "path": "../../pkg1-project-transaction-manifest.mjs",
+      "digest": "sha256:292003f0fba2c4bb6851cff2d70d34e0381a3fdd6153996b5a449dd131736ef9",
+      "role": "manifest-validator"
+    },
+    {
+      "path": "../../check-pkg1-project-transaction.mjs",
+      "digest": "sha256:d80a2ea91a7554092639ab5eaee5f39c9cc57a4d3c8fed520c88cbcb4c9670b6",
+      "role": "checker"
+    },
+    {
+      "path": "../../pkg1-project-transaction-reference.test.mjs",
+      "digest": "sha256:741db2c34abfced8ebcbcdb76392b3f8a11206f042e3b55eff002145aa62ca49",
+      "role": "host-test"
+    },
+    {
+      "path": "../../pkg1-project-transaction-results.snapshot.jsonl",
+      "digest": "sha256:a369a41df4ee7a5d12121fa6e91b1494cc4497223f29b25877fdd7fa8a7c82cc",
+      "role": "snapshot"
+    },
+    {
+      "path": "bundle.json",
+      "digest": "sha256:03244863b3d3e303e596e4593cd60d182c4139caf1cd41f0bd5f19637b7d3db6",
+      "role": "study-bundle"
+    },
+    {
+      "path": "oracle.test.mjs",
+      "digest": "sha256:1ae2fe2745ba3bf63cd33cecf9a64adc8dbd7d8142e25a8b03eff58a8a86b5c4",
+      "role": "study-test"
+    }
+  ]
+}

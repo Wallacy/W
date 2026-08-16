@@ -377,16 +377,16 @@ function applyOperation(state, operation) {
         throw new PackageReleaseError("duplicateLockContext");
       }
       const record = canonical({
-        schema: "w.package-lock/1",
+        schema: "w.resolution/1",
         resolver: operation.resolver,
-        workspaceDigest: operation.workspaceDigest,
+        ownerDigest: operation.ownerDigest,
         manifestDigests: operation.manifestDigests,
         sourceInventories: normalizeInventoryMap(operation.sourceInventories),
         contexts,
       });
       state.locks[operation.lock] = {
         record,
-        digest: digest("w-package-lock-v1", record),
+        digest: digest("w-resolution-v1", record),
         validated: false,
       };
       return;
@@ -394,8 +394,8 @@ function applyOperation(state, operation) {
     case "validateLocked": {
       const lock = requireLock(state, operation.lock);
       const record = lock.record;
-      if (record.workspaceDigest !== operation.workspaceDigest) {
-        throw new PackageReleaseError("lockedWorkspaceMismatch");
+      if (record.ownerDigest !== operation.ownerDigest) {
+        throw new PackageReleaseError("lockedOwnerMismatch");
       }
       if (JSON.stringify(record.manifestDigests) !== JSON.stringify(canonical(operation.manifestDigests))) {
         throw new PackageReleaseError("lockedManifestMismatch");
@@ -774,7 +774,7 @@ export function validatePackageReleaseOperation(operation) {
       return (
         string("lock") &&
         string("resolver") &&
-        string("workspaceDigest") &&
+        string("ownerDigest") &&
         operation.manifestDigests &&
         typeof operation.manifestDigests === "object" &&
         operation.sourceInventories &&

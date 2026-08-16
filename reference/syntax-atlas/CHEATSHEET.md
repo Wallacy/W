@@ -64,6 +64,7 @@
 | `closure-take` | `<[take moved]>` | `execution-forms` |
 | `closure-weak` | `<[weak sharedValue]>` | `execution-forms` |
 | `property-get` | `get => label` | `data-declarations` |
+| `protocol-default-extension` | `extension Directory` | `data-declarations` |
 | `property-set` | `set(value)` | `data-declarations` |
 | `property-modify` | `modify { label }` | `data-declarations` |
 | `pattern-enum` | `Signal.alert(level: let level)` | `patterns` |
@@ -154,7 +155,14 @@ protocol Directory<Key> {
   type Value: Hashable
   const empty: Bool
   fn lookup(key: Key): Value;
+  fn isEmpty(): Bool
   var count: usize { get set }
+}
+
+extension Directory {
+  fn isEmpty(): Bool {
+    return count == 0
+  }
 }
 
 service Catalog<key: String>: Directory {

@@ -48,7 +48,14 @@ protocol Directory<Key> {
   type Value: Hashable
   const empty: Bool
   fn lookup(key: Key): Value;
+  fn isEmpty(): Bool
   var count: usize { get set }
+}
+
+extension Directory {
+  fn isEmpty(): Bool {
+    return count == 0
+  }
 }
 
 service Catalog<key: String>: Directory {

@@ -1,12 +1,14 @@
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  deriveOwnerDigest,
+  parseManifestDocument,
+} from "./w-manifest-data.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const LAST_LIGHT = path.join(ROOT, "reference", "last-light");
 const PACKAGE = path.join(LAST_LIGHT, "package.w");
 const WORKSPACE = path.join(LAST_LIGHT, "workspace.w");
-const ZERO = "sha256:" + "0".repeat(64);
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 
 function fail(message) {
@@ -20,13 +22,13 @@ function text(file) {
   return value;
 }
 
-function digest(value) {
-  return `sha256:${crypto.createHash("sha256").update(value, "utf8").digest("hex")}`;
-}
-
 const packageText = text(PACKAGE);
 const workspaceText = text(WORKSPACE);
 const horizon = text(path.join(LAST_LIGHT, "horizon_tool.w"));
+const packageDocument = parseManifestDocument(packageText);
+const workspaceDocument = parseManifestDocument(workspaceText);
+
+if (packageDocument.kind !== "package" || workspaceDocument.kind !== "workspace") fail("manifest parser returned the wrong root kind");
 
 if (fs.existsSync(path.join(LAST_LIGHT, "package.lock"))) fail("obsolete package.lock remains");
 if (fs.existsSync(path.join(LAST_LIGHT, "deployments"))) fail("obsolete deployments directory remains");
@@ -52,21 +54,23 @@ for (const id of Object.values(nodeIds)) if (!workspaceText.includes(`id: "${id}
 for (const digestValue of workspaceText.match(/sha256:[0-9a-f]{64}/gu) ?? []) if (!DIGEST.test(digestValue)) fail(`malformed digest ${digestValue}`);
 for (const name of ["last-light/restaurant", "fiction/chart", "last-light/menu-compiler"]) if (!workspaceText.includes(`name: "${name}"`)) fail(`missing resolution package ${name}`);
 
-const match = /^\s+workspaceDigest: "(sha256:[0-9a-f]{64})"$/mu.exec(workspaceText);
-if (!match || !DIGEST.test(match[1])) fail("workspaceDigest is missing or malformed");
-function resolutionBasis(value) {
-  const start = value.indexOf("  resolution: {");
-  const end = value.indexOf("  deployments: [", start);
-  if (start < 0 || end < 0) fail("resolution/deployments boundary is missing");
-  const resolution = value.slice(start, end).replace(/workspaceDigest: "sha256:[0-9a-f]{64}"/u, `workspaceDigest: "${ZERO}"`);
-  return value.slice(0, start) + resolution;
-}
-const canonical = resolutionBasis(workspaceText);
-const expected = digest(canonical);
-if (match[1] !== expected) fail(`workspaceDigest is stale: expected ${expected}, found ${match[1]}`);
+const declaredOwnerDigest = workspaceDocument.resolution?.ownerDigest;
+if (!DIGEST.test(declaredOwnerDigest ?? "")) fail("ownerDigest is missing or malformed");
+const expected = deriveOwnerDigest(workspaceDocument);
+if (declaredOwnerDigest !== expected) fail(`ownerDigest is stale: expected ${expected}, found ${declaredOwnerDigest}`);
+const resolutionMutation = workspaceText.replace('resolver: "w.resolver/1"', 'resolver: "w.resolver/2"');
+if (deriveOwnerDigest(parseManifestDocument(resolutionMutation)) !== expected) fail("resolution-only edits changed owner identity");
 const deploymentMutation = workspaceText.replace('name: "local"', 'name: "local-mutated"');
-if (resolutionBasis(deploymentMutation) !== canonical) fail("deployment-only edits changed resolution identity");
-const dependencyMutation = workspaceText.replace('alias: "chart"', 'alias: "chart-mutated"');
-if (resolutionBasis(dependencyMutation) === canonical) fail("member/dependency edits did not change resolution identity");
+if (deriveOwnerDigest(parseManifestDocument(deploymentMutation)) !== expected) fail("deployment-only edits changed owner identity");
+const dependencyMutation = workspaceText.replace('"packages/menu-compiler"', '"packages/menu-compiler-mutated"');
+if (deriveOwnerDigest(parseManifestDocument(dependencyMutation)) === expected) fail("member/dependency edits did not change owner identity");
+const commentMutation = workspaceText.replace("// Data-only workspace for the Last Light reference product.\n", "// moved comment\n\n");
+if (deriveOwnerDigest(parseManifestDocument(commentMutation)) !== expected) fail("comments changed owner identity");
+const nestedOrderMutation = workspaceText.replace(
+  'name: "linux-x64"\n        target: "x86_64-unknown-linux-gnu"\n        sandbox: "w.build-sandbox/1"',
+  'sandbox: "w.build-sandbox/1"\n        name: "linux-x64"\n        target: "x86_64-unknown-linux-gnu"',
+);
+if (nestedOrderMutation === workspaceText) fail("nested order mutation did not apply");
+if (deriveOwnerDigest(parseManifestDocument(nestedOrderMutation)) !== expected) fail("nested field order changed owner identity");
 
 console.log(`root-unification: ok (${expected})`);

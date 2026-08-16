@@ -1878,6 +1878,14 @@
       "witness": "get => label"
     },
     {
+      "id": "protocol-default-extension",
+      "block": "data-declarations",
+      "construction": "protocol default implementation in its declaring module extension",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-compiler-runtime-missing",
+      "witness": "extension Directory"
+    },
+    {
       "id": "property-set",
       "block": "data-declarations",
       "construction": "property set accessor",
@@ -2096,14 +2104,14 @@
           "digest": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553"
         }
       ],
-      "snippetDigest": "sha256:7a45efcf2353616d823c63bd790a1a30f7df32adcc30310af1dd1ef8492adb11",
-      "snippetBytes": 1313
+      "snippetDigest": "sha256:d4f18a8732192feb777225bd64769034aab2b4074f7b6aa6c7a81fd222b705be",
+      "snippetBytes": 1408
     },
     {
       "id": "types-and-contracts",
       "file": "language.w",
       "order": 3,
-      "line": 132,
+      "line": 139,
       "title": "Type contracts, static values, and function types",
       "family": "types",
       "designStatus": "current",
@@ -2142,7 +2150,7 @@
       "id": "callables-and-foreign",
       "file": "language.w",
       "order": 4,
-      "line": 101,
+      "line": 108,
       "title": "Callable modes, generics, and foreign bodies",
       "family": "callables",
       "designStatus": "current",
@@ -2184,7 +2192,7 @@
       "id": "literals-and-collections",
       "file": "language.w",
       "order": 5,
-      "line": 181,
+      "line": 188,
       "title": "Literals, tuples, and collections",
       "family": "values",
       "designStatus": "current",
@@ -2217,7 +2225,7 @@
       "id": "patterns",
       "file": "language.w",
       "order": 6,
-      "line": 156,
+      "line": 163,
       "title": "Patterns, ranges, and matches",
       "family": "patterns",
       "designStatus": "current",
@@ -2429,7 +2437,7 @@
       "id": "entry-declaration",
       "file": "language.w",
       "order": 12,
-      "line": 218,
+      "line": 225,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -2521,7 +2529,7 @@
         {
           "path": "reference/last-light/workspace.w",
           "symbol": "workspace {",
-          "digest": "sha256:a2e8f4e49e465845d59ceba04e33d6dee24643588702ffd8bbf1fd8936bd8d7c"
+          "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd"
         }
       ],
       "snippetDigest": "sha256:538bc3384f73031187fc9f9ad2caec358951f8e584c075e9cf212ac0075db345",
@@ -2548,6 +2556,6 @@
   ],
   "generated": {
     "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:b9c75e42b0d2f426a6cb33b5ad50662d609d2c908fa9ec76a71e7b2613b0d57f"
+    "cheatsheetDigest": "sha256:0544b0d03b11de2023ff383610296b2f184fd6008be526a29a0ecf1a881fd458"
   }
 }
