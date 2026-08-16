@@ -88,6 +88,82 @@ describe("BRX0 borrow expressivity host oracle", () => {
     expect(result.mapping.baselineError).toBeNull();
   });
 
+  test("every bodyless static, free, and protocol result rejects two compatible inputs", () => {
+    for (const kind of ["static", "free", "protocol"]) {
+      const result = evaluateBorrowCase({
+        id: `ambiguous-${kind}`,
+        declaration: {
+          kind,
+          body: false,
+          inputs: [{ slot: "left", mode: "ref" }, { slot: "right", mode: "view" }],
+          results: [{ slot: "result", mode: "view" }],
+        },
+      });
+      expect(result.decision).toBe("rejected");
+      expect(result.mapping.baselineError.code).toBe("W-BORROW-0011");
+      expect(result.mapping.baselineError.facts.compatibleInputs).toEqual(["left", "right"]);
+    }
+  });
+
+  test("bodyless receiver, init, and independent/static result rules stay explicit", () => {
+    for (const kind of ["instance", "member"]) {
+      const result = evaluateBorrowCase({
+        id: `receiver-${kind}`,
+        declaration: {
+          kind,
+          body: false,
+          inputs: [
+            { slot: "receiver", mode: "inout" },
+            { slot: "other", mode: "ref" },
+          ],
+          results: [{ slot: "result", mode: "view" }],
+        },
+      });
+      expect(result.decision).toBe("accepted");
+      expect(result.mapping.baseline).toEqual({ result: ["receiver"] });
+      expect(result.mapping.baselineError).toBeNull();
+    }
+
+    const init = evaluateBorrowCase({
+      id: "init-borrowed-result",
+      declaration: {
+        kind: "init",
+        body: false,
+        inputs: [{ slot: "source", mode: "ref" }],
+        results: [{ slot: "result", mode: "view" }],
+      },
+    });
+    expect(init.decision).toBe("rejected");
+    expect(init.mapping.baselineError.code).toBe("initBorrowResultUnsupported");
+
+    for (const resultMode of ["value", "static"]) {
+      const result = evaluateBorrowCase({
+        id: `zero-${resultMode}`,
+        declaration: {
+          kind: "free",
+          body: false,
+          inputs: [],
+          results: [{ slot: "result", mode: resultMode }],
+        },
+      });
+      expect(result.decision).toBe("accepted");
+      expect(result.mapping.baseline).toEqual({});
+      expect(result.mapping.baselineError).toBeNull();
+    }
+
+    const zeroBorrowed = evaluateBorrowCase({
+      id: "zero-borrowed-result",
+      declaration: {
+        kind: "free",
+        body: false,
+        inputs: [],
+        results: [{ slot: "result", mode: "view" }],
+      },
+    });
+    expect(zeroBorrowed.decision).toBe("rejected");
+    expect(zeroBorrowed.mapping.baselineError.code).toBe("interfaceOriginUnknown");
+  });
+
   test("an owned nominal result remains an explicit API alternative", () => {
     const result = evaluateBorrowCase({
       id: "owned",

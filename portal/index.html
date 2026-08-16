@@ -809,14 +809,14 @@ let total = legacyTotal(items.raw, items.count)</code></pre>
               <div>
                 <p class="section-kicker">Reproduzir, verificar, reconhecer</p>
                 <h2>Pacotes &amp; cadeia de suprimentos</h2>
-                <p>Manifesto humano, resolução travada e artefatos identificados pelo conteúdo.</p>
+                <p>Manifesto humano, resolução aninhada e artefatos identificados pelo conteúdo.</p>
               </div>
             </div>
 
             <div class="package-flow" aria-label="Fluxo de resolução de pacotes">
               <div><span>1</span><b>package.w</b><small>intenção</small></div>
               <i aria-hidden="true">→</i>
-              <div><span>2</span><b>package.lock</b><small>resolução exata</small></div>
+              <div><span>2</span><b>resolution</b><small>resolução aninhada</small></div>
               <i aria-hidden="true">→</i>
               <div><span>3</span><b>digest</b><small>algoritmo registrado</small></div>
               <i aria-hidden="true">→</i>
@@ -824,15 +824,15 @@ let total = legacyTotal(items.raw, items.count)</code></pre>
             </div>
 
             <div class="card-grid">
-              <article class="cheat-card featured" data-topics="tooling package manager manifesto package.w lock hash sha segurança dependências">
+              <article class="cheat-card featured" data-topics="tooling package manager manifesto package.w resolution hash sha segurança dependências">
                 <div class="card-topline">
                   <div>
                     <span class="badge proposal">Candidato</span>
-                    <h3>Manifesto pequeno; lock completo</h3>
+                    <h3>Manifesto pequeno; resolução aninhada</h3>
                   </div>
-                  <span class="card-token">package.w · package.lock</span>
+                  <span class="card-token">package.w · resolution</span>
                 </div>
-                <p class="card-summary">A versão expressa intenção; o lock registra fonte, conteúdo e resultado exatos.</p>
+                <p class="card-summary">A versão expressa intenção; a resolution aninhada registra fonte, conteúdo e resultado exatos.</p>
                 <div class="split-code">
                   <div>
                     <p class="code-label">package.w</p>
@@ -859,10 +859,10 @@ let total = legacyTotal(items.raw, items.count)</code></pre>
                     </div>
                   </div>
                   <div>
-                    <p class="code-label">package.lock · visão resumida</p>
+                    <p class="code-label">resolution · visão resumida</p>
                     <div class="code-shell">
                       <pre><code>{
-  schema: "&lt;lock-schema-version&gt;"
+  schema: "w.resolution/1"
   packages: [{
     alias: "http"
     package: "w/http"
@@ -874,7 +874,7 @@ let total = legacyTotal(items.raw, items.count)</code></pre>
                     </div>
                   </div>
                 </div>
-                <p class="card-caveat"><b>Em aberto:</b> formato final de lock/attestations, algoritmo e migração de digest, identidade/namespaces e regras exatas de revogação/offline. Mirrors não confiáveis, provenance e publicação híbrida de source/artefatos já são a direção.</p>
+                <p class="card-caveat"><b>Em aberto:</b> formato final de resolution/attestations, algoritmo e migração de digest, identidade/namespaces e regras exatas de revogação/offline. Mirrors não confiáveis, provenance e publicação híbrida de source/artefatos já são a direção.</p>
               </article>
 
               <article class="cheat-card" data-topics="tooling package segurança static library dynamic biblioteca sbom assinatura hash">

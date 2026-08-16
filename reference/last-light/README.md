@@ -385,11 +385,10 @@ Adversariais:
 - falha de authority, signature, CAS, artifact, action output ou capability antes
   do entry.
 
-O host oracle [`tooling/script-workflow-machine.mjs`](../../tooling/script-workflow-machine.mjs)
-preserva a proveniência rejeitada do estudo PYN1. Ele não define nem projeta o
-contrato module-run RU0 e não executa W nem fornece compiler, runtime, resolver,
-provider ou CLI. O contrato corrente é exercitado pelo checker RU0 e pelos
-fixtures de módulo, package e workspace.
+O host oracle [`tooling/module-run-machine.mjs`](../../tooling/module-run-machine.mjs)
+exercita o contrato module-run RU0. Ele não executa W nem fornece compiler,
+runtime, resolver, provider ou CLI. A proveniência PYN1 superseded fica somente
+em [`history/archive/pyn1-workflow`](../../history/archive/pyn1-workflow).
 
 
 ### 3.1.2 Sessão/REPL transacional PYN2
@@ -505,7 +504,7 @@ Aceite:
 - markdown só entra como companion explícito, raw segue policy, e o plan
   content-addressed deriva single-file/package sem `modules` ou `entries` da
   operação;
-- export produz single-file PYN1, package ou audit manifest sem executar.
+- export produz módulo normal, package ou audit manifest sem executar.
 - `w notebook check`, `w notebook export` e `:receipts` recebem paths
   explícitos. Check/export não executam cells nem descobrem sessões ambientais.
 
@@ -3087,7 +3086,7 @@ A integração avança em sete gates cumulativos:
    `AppResponse`;
 3. **Turno do Horizonte Violeta:** o grafo real de services, FFI, compensação e
    observabilidade passa fault injection;
-4. **Products:** package lock, toolchain plan e build geram artifacts
+4. **Products:** package/workspace resolution, toolchain plan e build geram artifacts
    reproduzíveis por target;
 5. **ABI:** `WInterface`, `WAbiKey`, symbols, header C e runtime requirements
    passam o laboratório do horizonte;

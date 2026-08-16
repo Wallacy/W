@@ -28,7 +28,7 @@ const corpusPath = corpusOption >= 0
 const corpus = await Bun.file(corpusPath).json()
 const formatter = await Bun.file(resolve(tooling, "formatter-cases.json")).json()
 const semantic = await Bun.file(resolve(tooling, "semantic-cases.json")).json()
-const workflow = await Bun.file(resolve(tooling, "script-workflow-cases.json")).json()
+const workflow = await Bun.file(resolve(tooling, "module-run-cases.json")).json()
 const catalog = await Bun.file(resolve(tooling, "diagnostic-catalog.json")).json()
 const snapshotPath = resolve(tooling, "frontend-freeze.snapshot.jsonl")
 const writeSnapshot = cliArgs.includes("--write") && !preflightOnly
@@ -297,7 +297,7 @@ function validateWorkflowCases(outcomes, owner, seenWorkflowRefs) {
     seenWorkflowRefs.add(id)
     if (!item.expected || item.expected.status !== "rejected") fail(owner + "." + id + " must be a rejected adversarial case")
     if (typeof outcome.reason !== "string" || outcome.reason.trim() === "") fail(owner + "." + id + " has no waiver reason")
-    if (outcome.code !== item.expected.code || outcome.at !== item.expected.at) fail(owner + "." + id + " waiver outcome does not match PYN1")
+    if (outcome.code !== item.expected.code || outcome.at !== item.expected.at) fail(owner + "." + id + " waiver outcome does not match RU0 module-run")
   }
   return outcomes
 }
@@ -446,7 +446,7 @@ for (const [index, entry] of (corpus.families || []).entries()) {
     const workflowOutcomes = validateWorkflowCases(adversarial.workflowOutcomes, owner + ".adversarial", seenWorkflowRefs)
     const d0 = validateD0(adversarial.diagnostic, owner + ".adversarial")
     if (d0 && (!d0.facts.waiver || canonical(d0.facts.workflowOutcomes) !== canonical(workflowOutcomes))) {
-      fail(owner + " waiver D0 must carry the exact linked PYN1 outcomes and waiver flag")
+      fail(owner + " waiver D0 must carry the exact linked RU0 module-run outcomes and waiver flag")
     }
     adversarialRecord = { kind: adversarial.kind, workflowOutcomes, reason: adversarial.reason, failureField: adversarial.failureField, diagnostic: d0 }
   } else {

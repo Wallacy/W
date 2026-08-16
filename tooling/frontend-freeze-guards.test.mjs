@@ -106,5 +106,5 @@ test("real FZ0 preflight rejects stale semantic evidence and workflow outcomes",
   }, "adversarial failureEvidence is stale")
   expectPreflightFailure((mutated) => {
     mutated.families[1].adversarial.workflowOutcomes[0].code = "staleWorkflowCode"
-  }, "waiver outcome does not match PYN1")
+  }, "waiver outcome does not match RU0 module-run")
 })

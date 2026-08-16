@@ -232,7 +232,6 @@ export function deriveBaselineMapping(declaration) {
   }
 
   if (sources.length === 0) {
-    if (declaration.resultIndependent === true || declaration.resultStatic === true) return {};
     throw new BorrowExpressivityError("interfaceOriginUnknown", { reason: "noCompatibleInput" });
   }
   if (kind !== "instance" && kind !== "member" && sources.length > 1) {

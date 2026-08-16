@@ -24,12 +24,12 @@ linguagem.
 | `design-slice.mjs` | recorta seção/heading de DESIGN ou heading/ledger de RATIONALE com contexto | leitura somente; não cria autoridade paralela |
 | `formatter-cases.json` + checker | 27 pares input/output CST-equivalentes e snapshots de `w fmt --check`; os pares allocator cobrem bloco anônimo, call contextual e override nomeado; o par foreign formata a assinatura e preserva cada byte do body opaco | oracle de design; formatter ainda não existe |
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
-| `frontend-freeze-cases.json` + `check-frontend-freeze.mjs` + guards/test + snapshot | FZ0 ratifica as seis famílias normalizadas G0–G5 com source Last Light real (digest/symbol), parse sem recovery, pares F0 CST-equivalentes com alvo byte canônico, inversão S0 ou waiver PYN1 e D0 exato; 21 decisões são cobertas sem duplicatas ou expected echo | oracle de design; F0 não prova idempotência nem implementa formatter, e o checker não implementa parser, compiler, runtime ou provider |
+| `frontend-freeze-cases.json` + `check-frontend-freeze.mjs` + guards/test + snapshot | FZ0 ratifica as seis famílias normalizadas G0–G5 com source Last Light real (digest/symbol), parse sem recovery, pares F0 CST-equivalentes com alvo byte canônico, inversão S0 ou waiver RU0 e D0 exato; 19 decisões são cobertas sem duplicatas ou expected echo | oracle de design; F0 não prova idempotência nem implementa formatter, e o checker não implementa parser, compiler, runtime ou provider |
 | `borrow-expressivity-cases.json` + máquina/checker/test + snapshot | BRX0 deriva 24 casos (17 mappings aceitos, cinco candidatos Research e quatro negativos de invocation) para receiver/body mapping, origem bodyless única, callable loans, lending cursor, adapter OriginSet, await, escapes, `any fn`, boundaries, alternativa nominal owned e drift/mutations de interface | oracle host de design; bodyless com duas ou mais entradas compatíveis rejeita com `W-BORROW-0011`; não implementa compiler, runtime, provider nem metadata de lifetime |
 | `brx2-borrow-relations-cases.json` + estudo/máquina/checker/test + snapshot | BRX2 informa BRX2-R1 com 56 casos sobre relação requirement/interface-owned após a rejeição baseline de ambiguidade, slots de resultado, modos/edges, OriginSet, SemanticInterfaceKey, WAbi proof, lock/provider receipts, callable/Stream/await/boundary e aggregate nominal | Research data-only; W-914 e a origem única permanecem vigentes, source spelling fica reserved/not-parsed, declaration/invocation status são separados e não há lifetime syntax, runtime metadata, compiler, runtime ou provider |
 | `studies/atom1-atomic-extensibility/study.json` + `atom1-atomic-extensibility-cases.json` + máquina/checker/test + snapshot | ATOM1 separa atualização de record value-only (A), handle geracional/owner (B) e retirement/reclamation (C); 70 casos cobrem carrier canônico versus raw-layout, facts derivados de fields, zero-bit rejection, packing, SnapshotCell/domain, target native/lock-free/fallback, widths até 128 bits, proofs de pointer, eventos de reclamation, foreign boundaries, shutdown e drain FFI | oracle host de design; o carrier canônico e o adapter de reclamation permanecem Research; não implementa compiler, runtime, provider ou FFI |
 | `studies/ipc1-mapped-ipc/study.json` + `ipc1-mapped-ipc-cases.json` + reducers/checker/test + snapshot | IPC1 informa/estreita IPC0-R1 com 67 casos e 134 projeções POSIX/Windows para snapshots file-backed duráveis em generation objects, carriers shm/pagefile voláteis, schema/layout digests, selector publication/receipt ordenada, cap0/capN e bounds no segmento `slots`, commit/cancelamento, checksum/materialization, crash por actor e recovery ordering, atomics, lifecycle terminal, FFI, provider bindings e fallback explícito | oracle host de design; `ipc1-mapped-ipc-reference.test.mjs` e o study oracle são host evidence; candidatos mapped são Research e não implementam API, syntax, compiler, runtime ou provider |
-| `capability-matrix-cases.json` + máquina/checker/test + snapshot | CAP0 consolida oito eixos por problema comum, tenta composição W com Last Light, preserva invariantes e deriva rotas `current`/`composable`/`research` pelas subcapacidades do problema; 149 refs primárias ou source-backed e oito filas de documentação futura | fonte editorial de staging; não mede maturidade, não copia features e não implementa compiler, runtime ou provider |
+| `capability-matrix-cases.json` + máquina/checker/test + snapshot | CAP0 consolida oito eixos e 17 subcapacidades por problema comum, tenta composição W com Last Light, preserva invariantes e deriva rotas `current`/`composable`/`research`; 149 refs primárias ou source-backed e oito filas de documentação futura | fonte editorial de staging; não mede maturidade, não copia features e não implementa compiler, runtime ou provider |
 | `cyc1-explicit-cycle-cases.json` + máquina/manifest/checker/test + estudo/snapshot | CYC1 informa CYC0-G1 com 41 casos event-derived para weak edges, close/drain, SCC estática/dinâmica, FFI/service/resource lifecycle, concorrência, unknown foreign boundaries e três composições de conditional liveness; 3 rejections estáticas, 3 diagnostics residuais, 2 unknown boundaries e 2 cases Research | oracle host e Tree-sitter parse; census é somente diagnóstico pós-drain, sem collector/finalizer/API/syntax, e compile, run, provider, stress e estudos humano/modelo continuam missing |
 | `syn1-typed-generation-cases.json` + máquina/manifest/checker/test + snapshot | SYN1 estreita SYN0-R1 com 65 casos A/B/C/D: generated module sets de `.w` passam pelo Tree-sitter real e por source-shape bounded; action result e interface candidata são publicações separadas; receipts Research cobrem graph/dependencies, identities, maps byte-based, target registry e navigation | oracle host de design; `interfacePublished` é outcome do contrato candidato, não evidência de compiler; semantic frontend, ConstIR, compiler cache, runtime, provider e LSP permanecem ausentes |
 | `dyn1-versioned-behavior-cases.json` + máquina/manifest/checker/test + snapshot | DYN1 informa DYN0-G1 com 70 casos A/B/C/D e métricas derivadas para REPL snapshots, generations de service/plugin, identities SemanticInterface/WAbi/runtime-closure, switch/drain, capabilities/effects, export/import, target local/split, FFI unload, crash/cancel e quotas; C é somente a subcapability `DYN0-persistent-generation-reference` | host design-oracle event-derived; reducers local/split são independentes, `expect` não escolhe status, WAbi target-specific e compatible exige novas SemanticInterfaceKey/ServiceIRKey com receipt; native retém mapping e process/Wasm/component usam full unmap; compiler/runtime/provider/isolamento real/std permanecem missing; eval/exec/frame mutation/ambient lookup/native sandbox/live dlclose são rejeitados |
@@ -45,9 +45,9 @@ linguagem.
 | `operational-time-cases.json` + máquina/checker/snapshot | TIME0 cobre 52 casos/277 operações (27 aceitos + 25 rejeitados) para Duration exata, Clock root-scoped, origin, default/active HostSuspendPolicy, profile monotônico, deadlines, boundaries e clock virtual; oito testes host usam entradas independentes | oracle host de design; não executa W, clock, timer, scheduler, OS ou provider `std.time@1` |
 | `kernel-module-cases.json` + máquina/checker/snapshot | KM0 cobre 32 casos/218 operações (6 aceitos + 26 rejeitados) para head de síntese, identities, call graph, famílias genéricas, artifacts source-backed/closed e ausência de JIT; nove testes host usam inputs independentes | oracle host de design; não executa W, compiler, kernel, linker, driver ou provider |
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 547/1354 decisões estão classificadas (170 source, 432 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 63 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 531/1436 decisões estão classificadas (170 source, 404 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 51 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 190 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 42 bundles R1, 117 variantes e 168 tarefas; 69/75 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
+| `studies/*/bundle.json` + checker | 45 bundles R1, 128 variantes e 180 tarefas; 69/75 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
 | `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
 | `tabular-adapter-cases.json` + máquina/checker/snapshot | TAB1 deriva source kind, u64 snapshot offsets/short reads, nominal schema identity, publication, CSV tokenizer/nulls, Parquet footer/page/mapping/key/commit, Arrow IPC dictionary/buffer, borrowed view, copy materialization, progress/cancel, provenance, C quota/trust/release; 86 casos e 193 operações (36 aceitos + 50 rejeitados) | oracle host independente; símbolos Last Light são cross-linked; não implementa reader CSV/Parquet/Arrow, compiler, runtime ou provider |
@@ -75,7 +75,7 @@ linguagem.
 | `pkg1-project-transaction-cases.json` + máquina/checker/test + estudo/snapshot | PKG1 separa ownerDigest, resolutionDigest e deploymentDigest em um único root físico; 25 casos cobrem refresh, add/remove/update, solve failure, dry-run, stale writer, POSIX/Windows replacement, cleanup, aliases, closure, forged facts, reducer divergence e receipts | oracle host de design; identity split e atomic replace são rotas atuais, durable provider receipts permanecem Research; não implementa compiler, runtime, package manager, provider ou filesystem fault probe |
 | `avf0-availability-feature-cases.json` + máquina/manifest/checker/test + estudo/snapshot | AVF0 separa feature de package estática, availability de target/provider e policy runtime tipada; 38 casos, 14 aceitos, 24 rejeitados e sete rejeições de authority amplification | oracle host de design; package feature é current, runtime flag é composição e availability binding continua Research; não implementa compiler, runtime, provider ou control plane |
 | `sec0-security-model-cases.json` + máquina/manifest/checker/test + estudo/snapshot | SEC0 amplia segurança para invariantes safe, capability/effect/API mediation, input/resource/secrets/audit, supply chain, profiles, isolation, side channels, FFI, multi-tenant e patch attestation; 101 casos, 24 aceitos, 77 rejeitados, 11 current, 13 Research, seis perfis, 16 rejeições de authority e 4 rejeições de caller echo; receipts fechados, mínimos comuns, target/artifact binding e separação de threat exclusions são adversarialmente testados | oracle host de design; runtime protection só pode ser substituída por prova estática, hardware, mediação externa ou exceção de threat model restrita e revisada; não implementa compiler, runtime, sandbox, hardware, provider ou attestation verifier |
-| `script-workflow-cases.json` + máquina PYN1 (histórico) | 91 casos/533 operações preservados como estudo histórico; a forma promovida é o workflow module-run RU0 com roots package/workspace e `resolution` aninhada | oracle histórico; não é CLI, compiler, resolver, provider, runtime ou execução W |
+| `module-run-cases.json` + máquina RU0 | 12 casos/58 operações (3 aceitos + 9 rejeitados) cobrem module-run, entry, roots, resolution, imports, identity e cleanup | oracle corrente; não é CLI, compiler, resolver, provider, runtime ou execução W |
 | `std-api-contracts.json` + checker de std | perfis cobrem 377 APIs em 29 módulos, 92 superfícies qualificadas, 31/31 requisitos contratados e 0/8 carriers missing | catálogo e snapshot são projeções; módulos catalogados são drafts e seus 23/23 providers intrinsics continuam missing; Blob é composição W sem provider próprio; bounds determinísticos entram na recipe key |
 | `dlpack-cases.json` + máquina/checker/snapshot | PYN4 fecha DLPack 1.3 versioned e modela o fast path C Exchange N0 scoped; cobre Device/Queue, zero-copy, materialização, capsule, Python lease, drain/release, dtype/layout, provenance e hidden copy; 75 casos/326 operações (26 aceitos + 49 rejeitados) | oracle host independente; não compila ou executa W, Python, CUDA, ROCm, provider ou runtime |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
@@ -206,37 +206,35 @@ somente do registro R0. Witnesses textuais usam caminho não-`.w` e
 parseiam sem recovery. Cada bundle fixa primary, adversarial, quatro tasks,
 ordens contrabalançadas, blinding, digests e host oracle independente.
 
-O checker deriva 37 bundles, 95 variantes, 148 tasks e 66/74 casos R0
-promovidos. O conjunto contém 85 variantes `.w` parseadas e dez witnesses
+O checker deriva 45 bundles, 128 variantes, 180 tasks e 69/75 casos R0
+promovidos. O conjunto contém 99 variantes `.w` parseadas e 29 witnesses
 reservados fora do parse. `sourceRefs` sustentam constructs adicionais de fontes
 reais sem criar uma segunda autoridade. Cada oracle compara todos os inputs com
 `expected` após derivação independente. Parse Tree-sitter e host oracle são
 evidência corrente. `w-compile`, `w-run`, `human-study` e `model-study`
 permanecem missing.
 
-### Workflow single-file PYN1 (histórico)
+### Workflow module-run RU0
 
-[`script-workflow-machine.mjs`](script-workflow-machine.mjs) é uma máquina host
-histórica para a direção PYN1 rejeitada. Ela preserva context, roots, imports,
-lock, CAS, requirements, identity, entry, cleanup e promotion como evidência de
-proveniência. Ela não define o contrato module-run RU0, não compila, não consulta
-um registry, não executa W e não fornece CLI. Casos que precisam dos bytes antigos
-referenciam somente o companion não parseável em `history/archive`.
+[`module-run-machine.mjs`](module-run-machine.mjs) é uma máquina host do
+contrato corrente. Ela preserva context, roots package/workspace, imports,
+resolution aninhada, identity, entry e cleanup. Ela não compila, não consulta
+um registry, não executa W e não fornece CLI. A evidência PYN1 superseded fica
+em [`history/archive/pyn1-workflow`](../history/archive/pyn1-workflow).
 
 O corpus e o snapshot ficam em
-[`script-workflow-cases.json`](script-workflow-cases.json) e
-[`script-workflow-results.snapshot.jsonl`](script-workflow-results.snapshot.jsonl).
+[`module-run-cases.json`](module-run-cases.json) e
+[`module-run-results.snapshot.jsonl`](module-run-results.snapshot.jsonl).
 O checker exige casos positivos e negativos e liga cada caso ao produto Última
 Luz:
 
 ```sh
-bun test tooling/script-workflow-reference.test.mjs
-bun tooling/check-script-workflow-cases.mjs
+bun test tooling/module-run-reference.test.mjs
+bun tooling/check-module-run-cases.mjs
 ```
 
-Os comandos históricos `w script ...` não fazem parte da superfície corrente.
-Use operações de package/workspace e o workflow module-run RU0; este tooling
-histórico não implementa CLI.
+Use operações de package/workspace e o workflow module-run RU0. Este tooling não
+implementa CLI.
 
 ### Sessão/REPL transacional PYN2
 
@@ -298,7 +296,7 @@ teste host ficam em [`jupyter-cases.json`](jupyter-cases.json),
 [`notebook-export-machine.mjs`](notebook-export-machine.mjs) valida nbformat
 cell IDs, source String/Array, bounds, receipt manifest estruturado,
 source/generation/binding/lock/effect proof, invalidation e redefinition
-blockers, ordem determinística e resultados single-file PYN1, package e audit.
+blockers, ordem determinística e resultados module-run, package e audit.
 Markdown é companion; raw segue policy. Export não executa cell nem faz hidden
 replay. O corpus, checker, snapshot e teste host ficam em
 [`notebook-export-cases.json`](notebook-export-cases.json),

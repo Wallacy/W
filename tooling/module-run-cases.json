@@ -1,0 +1,175 @@
+{
+  "$schema": "w-module-run-cases-1",
+  "status": "design-oracle-input",
+  "machine": "module-run-machine-ru0",
+  "decisions": ["W-973", "W-1050", "W-1412", "W-1415"],
+  "fixtures": {
+    "package-ready": {
+      "operations": [
+        {
+          "op": "parseModule",
+          "path": "reference/last-light/horizon_tool.w",
+          "sourceText": "module horizon_tool\nimport chart.science\nentry(runHorizon)\nprint(result)\n",
+          "entry": "default",
+          "imports": [{"path": "chart.science", "external": true}]
+        },
+        {"op": "selectContext", "mode": "package", "rootKind": "package", "owner": "package"},
+        {"op": "resolveRoots", "rootKind": "package", "localRoot": "package"},
+        {"op": "validateImports", "imports": [{"path": "chart.science", "external": true}]},
+        {
+          "op": "validateResolution",
+          "resolution": {
+            "schema": "w.resolution/1",
+            "resolver": "w.resolver/1",
+            "contexts": [{"kind": "package", "root": "package", "target": "x86_64-unknown-linux-gnu", "nodes": [], "edges": []}],
+            "packages": []
+          }
+        }
+      ]
+    },
+    "ephemeral-ready": {
+      "operations": [
+        {
+          "op": "parseModule",
+          "path": "examples/hello.w",
+          "sourceText": "module hello\nentry(default)\nprint(result)\n",
+          "entry": "default",
+          "imports": []
+        },
+        {"op": "selectContext", "mode": "ephemeral"},
+        {"op": "resolveRoots", "localRoot": "examples"},
+        {"op": "validateImports", "imports": []},
+        {"op": "validateResolution"}
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": "RU0-module-default",
+      "decisions": ["W-973", "W-1412"],
+      "references": [{"path": "../reference/last-light/horizon_tool.w", "symbol": "entry(runHorizon)"}],
+      "fixtures": ["package-ready"],
+      "operations": [{"op": "buildModule", "target": "x86_64-unknown-linux-gnu", "hostProfile": "native-process@1", "toolchainDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"}, {"op": "runEntry", "entry": "default"}, {"op": "cleanup"}],
+      "expected": {"status": "accepted"}
+    },
+    {
+      "id": "RU0-module-named-entry",
+      "decisions": ["W-1412"],
+      "references": [{"path": "../reference/last-light/horizon_tool.w", "symbol": "entry(runHorizon)"}],
+      "operations": [
+        {"op": "parseModule", "path": "reference/last-light/horizon_tool.w", "sourceText": "module horizon_tool\nentry(Diagnostics)\nprint(result)\n", "entry": "Diagnostics", "imports": []},
+        {"op": "selectContext", "mode": "ephemeral"},
+        {"op": "resolveRoots", "localRoot": "reference/last-light"},
+        {"op": "validateImports", "imports": []},
+        {"op": "validateResolution"},
+        {"op": "buildModule"},
+        {"op": "runEntry", "entry": "Diagnostics"}
+      ],
+      "expected": {"status": "accepted"}
+    },
+    {
+      "id": "RU0-entry-missing",
+      "decisions": ["W-1412"],
+      "references": [{"path": "../reference/last-light/horizon_tool.w", "symbol": "entry(runHorizon)"}],
+      "operations": [
+        {"op": "parseModule", "path": "examples/no_entry.w", "sourceText": "module no_entry\nprint(result)\n", "imports": []},
+        {"op": "selectContext", "mode": "ephemeral"},
+        {"op": "resolveRoots", "localRoot": "examples"},
+        {"op": "validateImports", "imports": []},
+        {"op": "validateResolution"},
+        {"op": "buildModule"},
+        {"op": "runEntry", "entry": "default"}
+      ],
+      "expected": {"status": "rejected", "code": "defaultEntryMissing", "at": "last"}
+    },
+    {
+      "id": "RU0-implicit-body-rejected",
+      "decisions": ["W-1412"],
+      "references": [{"path": "../reference/last-light/horizon_tool.w", "symbol": "entry(runHorizon)"}],
+      "operations": [{"op": "parseModule", "path": "examples/legacy.w", "sourceText": "print(result)\n", "implicitEntryBody": true, "imports": []}],
+      "expected": {"status": "rejected", "code": "implicitEntryBodyRejected", "at": "last"}
+    },
+    {
+      "id": "RU0-script-header-rejected",
+      "decisions": ["W-1412"],
+      "references": [{"path": "../reference/last-light/horizon_tool.w", "symbol": "entry(runHorizon)"}],
+      "operations": [{"op": "parseModule", "path": "examples/legacy.w", "sourceText": "script { edition: 2026 }\n", "legacyHeaderKind": "script", "imports": []}],
+      "expected": {"status": "rejected", "code": "scriptHeaderRejected", "at": "last"}
+    },
+    {
+      "id": "RU0-lock-root-rejected",
+      "decisions": ["W-1415"],
+      "references": [{"path": "../reference/last-light/workspace.w", "symbol": "workspace"}],
+      "operations": [
+        {"op": "parseModule", "path": "reference/last-light/horizon_tool.w", "sourceText": "module horizon_tool\nentry(default)\n", "entry": "default", "imports": []},
+        {"op": "selectContext", "mode": "package", "rootKind": "package"},
+        {"op": "resolveRoots", "rootKind": "lock", "rootName": "package.lock"}
+      ],
+      "expected": {"status": "rejected", "code": "moduleRootRejected", "at": "last"}
+    },
+    {
+      "id": "RU0-deployment-root-rejected",
+      "decisions": ["W-1415"],
+      "references": [{"path": "../reference/last-light/workspace.w", "symbol": "deployment"}],
+      "operations": [
+        {"op": "parseModule", "path": "reference/last-light/horizon_tool.w", "sourceText": "module horizon_tool\nentry(default)\n", "entry": "default", "imports": []},
+        {"op": "selectContext", "mode": "workspace", "rootKind": "workspace"},
+        {"op": "resolveRoots", "rootKind": "deployment", "rootName": "deployment"}
+      ],
+      "expected": {"status": "rejected", "code": "moduleRootRejected", "at": "last"}
+    },
+    {
+      "id": "RU0-resolution-legacy-root-rejected",
+      "decisions": ["W-1415"],
+      "references": [{"path": "../reference/last-light/workspace.w", "symbol": "resolution:"}],
+      "operations": [
+        {"op": "parseModule", "path": "examples/horizon.w", "sourceText": "module horizon\nentry(default)\n", "entry": "default", "imports": []},
+        {"op": "selectContext", "mode": "package", "rootKind": "package"},
+        {"op": "resolveRoots", "rootKind": "package"},
+        {"op": "validateImports", "imports": []},
+        {"op": "validateResolution", "resolution": {"schema": "w.resolution/1", "resolver": "w.resolver/1", "contexts": [{"kind": "package", "root": ".product(\"script\")"}], "packages": []}}
+      ],
+      "expected": {"status": "rejected", "code": "legacyRootFieldRejected", "at": "last"}
+    },
+    {
+      "id": "RU0-ephemeral-external-rejected",
+      "decisions": ["W-973", "W-1050"],
+      "references": [{"path": "../reference/last-light/horizon_tool.w", "symbol": "import chart.science"}],
+      "operations": [
+        {"op": "parseModule", "path": "examples/external.w", "sourceText": "module external\nimport chart.science\nentry(default)\n", "entry": "default", "imports": [{"path": "chart.science", "external": true}]},
+        {"op": "selectContext", "mode": "ephemeral"},
+        {"op": "resolveRoots", "localRoot": "examples"},
+        {"op": "validateImports", "imports": [{"path": "chart.science", "external": true}]}
+      ],
+      "expected": {"status": "rejected", "code": "externalDependencyInEphemeral", "at": "last"}
+    },
+    {
+      "id": "RU0-ambient-scan-rejected",
+      "decisions": ["W-1050"],
+      "references": [{"path": "../reference/last-light/horizon_tool.w", "symbol": "import chart.science"}],
+      "operations": [
+        {"op": "parseModule", "path": "examples/hello.w", "sourceText": "module hello\nentry(default)\n", "entry": "default", "imports": []},
+        {"op": "selectContext", "mode": "ephemeral"},
+        {"op": "resolveRoots", "localRoot": "examples"},
+        {"op": "validateImports", "imports": [], "recursiveScan": true}
+      ],
+      "expected": {"status": "rejected", "code": "ambientImportRejected", "at": "last"}
+    },
+    {
+      "id": "RU0-context-explanation",
+      "decisions": ["W-973"],
+      "references": [{"path": "../reference/last-light/horizon_tool.w", "symbol": "module horizon_tool"}],
+      "fixtures": ["ephemeral-ready"],
+      "operations": [{"op": "buildModule"}, {"op": "contextExplanation"}],
+      "expected": {"status": "accepted"}
+    },
+    {
+      "id": "RU0-hidden-state-rejected",
+      "decisions": ["W-973"],
+      "references": [{"path": "../reference/last-light/horizon_tool.w", "symbol": "entry(runHorizon)"}],
+      "fixtures": ["ephemeral-ready"],
+      "operations": [{"op": "buildModule"}, {"op": "runEntry", "entry": "default"}, {"op": "cleanup", "hiddenState": true}],
+      "expected": {"status": "rejected", "code": "cleanupIncomplete", "at": "last"}
+    }
+  ]
+}
