@@ -838,7 +838,7 @@ diagnostics, formatter preview e edição incremental.
 
 #### 3.5.3 Grammar normativa G1: declarations e raízes de source
 
-**Exemplo:** um arquivo contém source de módulo, um script root ou um manifest.
+**Exemplo:** um arquivo contém source de módulo ou um manifest.
 Ele não contém um manifest junto de source:
 
 ```w
@@ -858,10 +858,6 @@ package {
 }
 ```
 
-Um header `script` é um item contextual opcional. Ele só pode aparecer como o
-primeiro item de `module_source`. Ele contém dados do script. Ele não é uma
-declaration top-level, annotation, comment ou código executável.
-
 O schema v0 do header de módulo publica somente o slot nomeado `domains`. Ele
 declara requirements estáticos. Pools, capacity, queues e fallbacks pertencem
 ao execution profile do package e não são slots de módulo. W não possui
@@ -874,15 +870,13 @@ Ela usa `type`, `expression`, `pattern`, `static_argument`, `parameter_list` e
 ```ebnf
 document = module_source | manifest_document ;
 
-module_source = script_header? module_header? import_declaration*
-                top_level_declaration* implicit_entry_body? EOF ;
-implicit_entry_body = statement+ ;
-script_header = "script" manifest_record ;
+module_source = module_header? import_declaration*
+                top_level_declaration* EOF ;
 module_header = "module" identifier contract_arguments? ";"? ;
 contract_arguments = "<" static_argument ("," static_argument)* ","? ">" ;
 
 manifest_document = manifest_kind manifest_record EOF ;
-manifest_kind = "package" | "workspace" | "deployment" | "lock" ;
+manifest_kind = "package" | "workspace" ;
 manifest_record = "{" manifest_field* "}" ;
 manifest_field = identifier ":" manifest_value ","? ;
 manifest_value = manifest_record
@@ -905,134 +899,102 @@ expressions. `package Name<...>`, `package<...>` e `package` junto de `module`
 são erros. Braces representam o record completo. Angle brackets modificam um
 contrato local já nomeado.
 
-Um source root pode terminar com uma sequência não vazia de statements fora de
-braces. Essa sequência é `implicit_entry_body` e baixa para um descriptor
-`.default` privado. Imports, module header e declarations precedem o primeiro
-statement. O checker identifica o primeiro statement, forma esse suffix e
-rejeita qualquer declaration posterior. A projeção Tree-sitter usa um repeat de
-top-level items para compartilhar o LR core e preservar recovery; ela não
-adiciona essa forma à linguagem nem substitui a verificação de ordem semântica.
+Todo source executável é um módulo normal. Ele não possui header contextual de
+execução nem body implícito. `entry` é sempre uma declaration explícita. O
+descriptor sem nome liga `.default`; `w run path/file.w` seleciona esse
+descriptor. `w run path/file.w --entry Name` seleciona o descriptor nomeado
+`Name`. O host profile `native-process` declara os adapters e as signatures CLI
+compatíveis. A baseline inclui os adapters para `fn(): ()` e para handlers com
+`std.process` `Arguments`, `Context` e `ExitCode`. Um descriptor incompatível
+não entra no conjunto publicado. Um nome solicitado que não existe ou não é
+compatível falha em `source.entry`.
 
-O source com `implicit_entry_body` é root-only e não pode ser importado. Ele não
-pode conter `entry` explícito. Mistura de formas é erro semântico. O body baixa
-para um wrapper privado que retorna `()` e não cria `args` ou `ctx` ocultos.
-Use uma função explícita mais `entry(fnName)` quando precisar de arguments,
-`Context`, return customizado ou typed errors que escapem.
+Um source dentro de package usa o package ou workspace context selecionado. Fora
+de projeto, `w run` cria um contexto efêmero hermético com `std` e imports locais
+explícitos. Um import externo nesse contexto falha e pede um package ou
+workspace. O resolver não executa solve, update, install ou fetch oculto.
+`w context` explica a seleção sem alterar nenhum root.
 
-O header `script` reutiliza somente a forma data-only de `manifest_record`. A
-baseline exige `edition`. Os únicos fields são `edition`, `dependencies`,
-`lock` e `requires`; `schema` é redundante porque `script` mais a edition já
-tipam a superfície. Unknown e duplicate fields são erros. Dependencies não
-vazias exigem `lock`; sem dependency, `lock` deve estar ausente. `requires`
-usa a lista de enum values contextual, por exemplo `requires: [.clock]`. Ela
-declara requirements, nunca grants, secrets ou `process.args`.
-`script` continua um identifier quando não ocupa essa posição contextual.
+O source graph contém somente imports explícitos. A seleção física usa a
+membership do package ou workspace owner, não uma busca pelo ancestor mais
+próximo. Um source fora de projeto usa seu diretório somente como root local
+para imports explícitos. O host/provider aplica canonical containment, inclusive
+symlink, e rejeita traversal, escape, owner duplicado e boundary inválida. Não
+há scan recursivo, scan de cwd, scan de `PATH` ou scan de environment. URL,
+stdin e shebang permanecem rejeitados na baseline.
 
-Um source com header é root executável standalone. Ele pode conter `module`,
-imports, declarations e um unnamed/default `entry`. Ele não pode ser importado
-como módulo. `w run file.w` mantém esse contexto standalone mesmo quando o
-arquivo está dentro de workspace. Sem header, um arquivo dentro de package usa
-o package context e seu lock. Fora de package, ele usa um contexto efêmero com
-std e módulos locais explícitos. `w context file.w` explica a seleção. A
-ferramenta não faz merge silencioso de contexts.
+Cada dependency pertence ao `package` ou ao `workspace` owner e usa o record
+normal com `alias`, package identity, version constraint, `use` e source
+authority. Aliases são únicos. `.path`, branch ou ref mutable e registry
+ambiental continuam rejeitados. A `resolution` aninhada usa o payload
+content-addressed `w.resolution/1` com `schema`, `resolver`, `contexts[]` e
+`packages[]`. Cada context fecha root, target/use, active source set, selected
+nodes e edges. O host recompõe o digest canônico. Closure, dangling,
+unreachable, missing node, cycle e alias collision são verificações obrigatórias.
+Artifacts e action outputs são sidecars pós-resolution. O CAS é uma lista
+ambiental de objetos content-addressed. O digest sozinho não concede authority.
 
-O source graph contém somente imports explícitos. A root local é o diretório
-físico canônico do script para discovery e diagnóstico. O host/provider aplica
-sua regra de canonical containment, inclusive symlink, e rejeita traversal e
-escape. Não há scan recursivo, scan de cwd, scan de `PATH` ou scan de
-environment. URL, stdin e shebang permanecem rejeitados na baseline.
+`w run` compila o source normal, mas não resolve constraint, atualiza
+`resolution`, instala package ou executa install/build action oculto. A
+resolution fixa o package source/content graph. Artifact records, recipes e
+action outputs são evidências de provider ligadas por digests de record. A
+operação pode buscar essas evidências conforme network policy explícita. Se um
+objeto exigido não está no CAS ou policy, a operação falha e pede uma ação
+explícita. `--offline` exige resolution e digests de metadata, content,
+artifacts e action outputs completos no CAS. Mismatch de digest, signature ou
+authority falha antes da publicação, build ou entry.
 
-Cada dependency do header usa o record normal de package com `alias`, package
-identity, version constraint, `use` e source authority. Aliases são únicos.
-`.path`, branch ou ref mutable, registry ambiental e local override são
-rejeitados para script shareable. Registry immutable e `.git(url, revision:)`
-com commit completo usam a authority e o lock P0; nenhuma ref mutável participa.
-A resolução deriva um virtual-script selection/manifest digest de edition e
-dependencies normalizadas. O `lock` aponta para o payload P0 content-addressed
-`w.package-lock/1`: `schema`, `resolver`, `workspaceDigest`,
-`manifestDigests["virtual-script"]`, `contexts[]` e `packages[]`. O contexto
-virtual fecha root `.product("script")`, target/use, `activeSourceSet`,
-`resolutionDigest`, selected node IDs e root edges; packages possuem IDs
-content-derived e dependency edges locais `{alias,id}`. O host recompõe o root
-digest canônico e `lock.digest` declarado não é autoridade. Closure, dangling,
-unreachable, missing node, cycle e alias collision são verificações obrigatórias;
-artifacts e action outputs são sidecars pós-lock. O CAS é uma lista ambiental de
-objetos content-addressed (root do lock, metadata/content, artifacts e outputs),
-não parte do payload do lock. O digest sozinho não concede authority.
+Um módulo não concede grant ou secret. Process arguments, stdio, filesystem,
+network, clock, random e storage entram por products, host profiles e named
+deployments tipados. O deployment selecionado satisfaz requirements quando seu
+envelope confere. Grants extras não são propagados. Dependency transitiva não
+herda authority do owner: effects exigem handles ou bindings explícitos e seu
+próprio contrato. O source nunca amplia authority.
 
-`w run` pode compilar o source normal, mas não resolve constraint, atualiza lock,
-instala package ou executa install/build action oculto. O lock fixa o package
-source/content graph; artifact records, recipes e action outputs são evidências
-de provider selecionadas depois do lock e ligadas por digests de record. A
-operação pode buscar essas evidências conforme network policy explícita; se o
-objeto não está no CAS, um candidate real é obrigatório. Action output exigido
-que não esteja no lock/CAS/policy falha e pede operação explícita. `--offline`
-exige root do lock e digests de metadata, content, artifacts e action outputs
-completos no CAS. Cache CAS é explícito. Mismatch de digest, signature ou
-authority falha antes da publicação no CAS, build e entry; bytes divergentes
-são retired.
+A identity do product efêmero deriva dos bytes do source, do ordered logical
+local-module graph (`{path, digest}`), do contexto selecionado, dos content
+digests alcançáveis, dos artifacts/handles e action-output records consumidos,
+edition, target, host profile, resolution digest, requirements, deployment
+digest quando selecionado, recipe owner e toolchain digest. O caminho físico
+serve somente discovery, diagnóstico e provenance. Ele não entra na recipe key
+ou identity. Imports locais exigem digest associado ao path lógico. Trace e
+`w context` mostram roots, resolution, deployments, fetches, authorities,
+capabilities e recipe. Contexto efêmero ou failed run não deixa manifest ou
+estado oculto.
 
-O header declara capability requirements. Ele não concede grants ou secrets.
-O default ephemeral native-script oferece o channel de process arguments e a
-authority `.stdio` em contratos separados; arguments não é capability. Filesystem, network, clock,
-random e storage usam values `.filesystem`, `.network`, `.clock`, `.random` e
-`.storage`, e exigem grant explícito de deployment. `w run file.w
---deployment <plan> -- <args>` satisfaz requirements quando o plan confere.
-Grants extras do deployment não são propagados ao script. Mismatch falha antes
-do build e entry. Dependency transitiva não herda authority do root: effects
-exigem handles/bindings explícitos e seu próprio contrato. O source nunca
-amplia authority.
-
-A identity do product efêmero deriva do digest dos bytes do root source,
-ordered logical local-module graph (`{path, digest}`), selected context,
-reachable package content digests, selected artifact/handle and consumed
-action-output record digests, edition, target, host profile, lock digest, full
-requirement set, recipe owner e toolchain digest. O caminho físico
-canônico serve somente discovery, diagnóstico e provenance; não entra na
-recipe key ou identity. Imports locais exigem digest associado ao path lógico.
-Baseline channels/authority são inputs separados; host profile cobre a
-baseline na identity e `requires` inclui somente requirements explícitos.
-Canonical containment é target/provider-specific; a máquina não alega resolver
-symlink, drive, UNC, case ou Unicode por substituição textual. Trace e `w
-context` mostram roots, lock digest, fetches, authorities, capabilities e
-recipe. Product temporário ou failed run não deixa manifest ou lock oculto.
-
-Os commands fechados são:
+As operações de dependency usam somente package ou workspace roots:
 
 ```text
-w script add <file.w> <package>@<constraint> --as <alias>
-w script remove <file.w> <alias>
-w script resolve <file.w>
-w script promote <file.w> --output <dir>
+w add <package>@<constraint> --as <alias>
+w remove <alias>
+w resolve
+w update <package>
 ```
 
-Add, remove e resolve validam uma nova virtual selection e um lock completo
-antes da substituição atômica. Remove do último dependency remove `lock`; resolve
-preserva edition e dependencies e troca somente `lock`. Failure não altera os
-bytes do source. Promote recebe ou deriva manifest e lock candidates, compara
-nodes/edges de dependency, local graph, entry, requirements e provenance sem
-re-resolver, e cria `package.w`/`package.lock` equivalentes. `--with` não é a
-forma final.
+Um contexto efêmero não possui dependency externa. Add, remove, resolve e
+update trocam o record `resolution` somente depois de validar a nova seleção.
+Failure não altera source, package metadata ou deployment. `--with`, comment
+metadata e dependency inference não fazem parte da forma vigente.
 
-Dependency de script usa somente o record P0 explícito. Comment metadata,
-dependency inference, tool table aberto, sibling manifest e CLI `--with` não
-fazem parte da forma vigente. A evidência do
-[PEP 723](https://peps.python.org/pep-0723/) fica em
-[`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1).
-
-Imports devem aparecer após o header e antes da primeira declaration comum.
-Essa ordem deixa o grafo de nomes visível sem executar o parser de bodies:
+Imports devem aparecer após o module header opcional e antes da primeira
+declaration comum. Essa ordem deixa o grafo de nomes visível sem executar o
+parser de bodies:
 
 ```ebnf
 import_declaration = ordinary_import
+                   | reexport_declaration
                    | service_import
                    | domain_import ;
 
-ordinary_import = "export"? "import" ordinary_import_clause ";"? ;
+ordinary_import = "import" ordinary_import_clause ";"? ;
 ordinary_import_clause = module_path
                        | "*" "from" module_path
                        | named_imports "from" module_path
                        | identifier "from" module_path ;
+
+reexport_declaration = "export" ("*" "from" module_path
+                       | "{" reexport_item ("," reexport_item)* ","? "}" "from" module_path) ";"? ;
+reexport_item = identifier ("as" identifier)? ;
 
 named_imports = "{" import_item ("," import_item)* ","? "}" ;
 import_item = identifier ("as" identifier)? ;
@@ -1051,10 +1013,13 @@ service_key_contract = "<" "key" ":" type ","? ">" ;
 module_path = identifier ("." identifier)* ;
 ```
 
-`export import` cria uma facade de import comum. `export service import` e
-`export domain import` não existem. `as` aparece dentro de braces no import
-comum. A projeção inteira de um módulo com `import service` mantém sua forma
-especial `import service module as binding`.
+`export * from path` e `export { A, B as C } from path` criam reexports. Eles
+resolvem o módulo de origem antes de publicar a interface e não criam binding
+local. `export { A }` continua o export coletivo de declarations locais.
+`export import` é rejeitado. `export service import` e `export domain import`
+também não existem. `as` aparece em imports comuns e em reexports nomeados.
+A projeção inteira de um módulo com `import service` mantém sua forma especial
+`import service module as binding`.
 
 O top-level aceita somente estas declarations:
 
@@ -1125,6 +1090,7 @@ extension_declaration = "extension" generic_parameters? type
                         conformance_clause? type_body ;
 behavior_declaration = "export"? "behavior" identifier generic_parameters?
                        "for" type behavior_body ;
+behavior_input_declaration = "input" identifier ":" type ";"? ;
 
 entry_declaration = "entry" (entry_body | entry_handler
                     | identifier (entry_body | entry_handler)) ;
@@ -1163,7 +1129,8 @@ O parser resolve estas sequências sem type information:
 | `import { fetch } from std.http` | seleção do symbol `fetch` |
 | `import service legacy as planner` | projeção service do módulo |
 | `export { A, run }` | export coletivo |
-| `export import { A } from api` | facade de import comum |
+| `export { A } from api` | reexport nomeado |
+| `export * from api` | reexport wildcard |
 | `export service kitchen: P {}` | service declaration exportada |
 | `entry(run)` | descriptor default com handler |
 | `entry Diagnostics {}` | descriptor nomeado com body |
@@ -1194,34 +1161,34 @@ O parser usa estes diagnostics adicionais:
 | `W-PARSE-0010` | import está incompleto ou não possui `from` exigido |
 | `W-PARSE-0011` | segundo header `module` no mesmo documento |
 | `W-PARSE-0012` | manifest contém token executável ou outra declaration |
-| `W-PARSE-0031` | header `script` não é o primeiro item do source |
-| `W-PARSE-0032` | source contém mais de um header `script` |
+| `W-PARSE-0031` | reexport não possui `from`, origem ou item válido |
+| `W-PARSE-0032` | `export import` ou reexport usa uma forma inválida |
 
 Recovery pode sincronizar no próximo import ou declaration starter. Ele não
 move um import, não cria um export e não transforma um manifest em source. Um
 build rejeita todos os nodes recuperados, conforme G0.
 
-Validações semânticas do workflow usam a família `W-SCRIPT`, não diagnostics
+Validações semânticas do workflow usam a família `W-RUN`, não diagnostics
 de parse:
 
 | Code | Fase e condição |
 |---|---|
-| `W-SCRIPT-0001` | `source.validate`: edition ausente ou inválida |
-| `W-SCRIPT-0002` | `source.validate`: field desconhecido ou duplicado |
-| `W-SCRIPT-0003` | `source.validate`: dependency alias duplicado ou record de dependency inválido |
-| `W-SCRIPT-0004` | `source.context`: root script usado como import ou context merge ambíguo |
-| `W-SCRIPT-0005` | `source.entry`: `entryForm` missing, explicit+implicit, declaration-after-statement ou implicit body com error escapante |
-| `W-SCRIPT-0006` | `source.resolution`: lock ausente, digest inválido ou root não recompõe |
-| `W-SCRIPT-0007` | `source.resolution`: selection, target, edition, nodes, edges ou aliases divergem |
-| `W-SCRIPT-0008` | `source.roots`: canonical containment, traversal, symlink ou path boundary falha |
-| `W-SCRIPT-0009` | `source.capability`: requirement desconhecido, grant/secret no source ou deployment mismatch |
-| `W-SCRIPT-0010` | `source.fetch`: policy, CAS closure, digest, authority, signature ou action output falha |
-| `W-SCRIPT-0011` | `source.provenance`: identity/recipe input ou promotion equivalence diverge |
-| `W-SCRIPT-0012` | `source.graph`: dangling, unreachable, missing closure, cycle ou alias edge local diverge |
-| `W-SCRIPT-0013` | `source.roots`: canonical root provider token não contém o candidate físico |
-| `W-SCRIPT-0014` | `source.validate`: parser evidence não corresponde aos bytes ou facts normalizados do header |
-| `W-SCRIPT-0015` | `source.resolution`: target pedido possui zero ou múltiplos contexts selecionáveis |
-| `W-SCRIPT-0016` | `source.provenance`: artifact, handle ou action-output record não está ligado ao lock e recipe |
+| `W-RUN-0001` | `source.validate`: edition ausente ou inválida |
+| `W-RUN-0002` | `source.validate`: field desconhecido ou duplicado |
+| `W-RUN-0003` | `source.validate`: dependency alias duplicado ou record de dependency inválido |
+| `W-RUN-0004` | `source.context`: owner de package/workspace ausente, duplicado ou ambíguo |
+| `W-RUN-0005` | `source.entry`: descriptor ausente, duplicado, incompatível ou seleção nomeada inválida |
+| `W-RUN-0006` | `source.resolution`: resolution ausente, digest inválido ou root não recompõe |
+| `W-RUN-0007` | `source.resolution`: selection, target, edition, nodes, edges ou aliases divergem |
+| `W-RUN-0008` | `source.roots`: canonical containment, traversal, symlink ou path boundary falha |
+| `W-RUN-0009` | `source.capability`: requirement desconhecido, grant/secret no source ou deployment mismatch |
+| `W-RUN-0010` | `source.fetch`: policy, CAS closure, digest, authority, signature ou action output falha |
+| `W-RUN-0011` | `source.provenance`: identity/recipe input ou publication equivalence diverge |
+| `W-RUN-0012` | `source.graph`: dangling, unreachable, missing closure, cycle ou alias edge local diverge |
+| `W-RUN-0013` | `source.roots`: canonical root provider token não contém o candidate físico |
+| `W-RUN-0014` | `source.validate`: parser evidence não corresponde aos bytes ou facts normalizados do módulo |
+| `W-RUN-0015` | `source.resolution`: target pedido possui zero ou múltiplos contexts selecionáveis |
+| `W-RUN-0016` | `source.provenance`: artifact, handle ou action-output record não está ligado à resolution e recipe |
 
 PYN2 usa uma família separada para fatos de sessão. O diagnóstico mantém a fase
 real e não transforma uma falha de drain em parse error:
@@ -3868,7 +3835,9 @@ Esta tabela resume a precedência:
 `import fetch from std.http` cria um binding de módulo chamado `fetch`. Ele não
 seleciona a função `fetch`. Use braces para importar essa função.
 
-`export import` cria uma facade. URL, versão e digest nunca aparecem no source.
+`export * from path` e `export { Name as Alias } from path` criam reexports
+explícitos. `export import` é rejeitado; URL, versão e digest nunca aparecem no
+source.
 Módulos formam um grafo acíclico. Um ciclo interno deve formar um único módulo.
 
 ### 6.2 Visibilidade
@@ -9325,6 +9294,20 @@ Um behavior transforma um binding ou field em uma propriedade lógica. Ele
 possui backing storage, accessors e obrigações de drop. Reflection mostra a
 propriedade lógica e não expõe o backing storage.
 
+**W-1414 — initializer slot explícito de behavior:** a gramática aceita a forma
+`input name: Type`, mas a baseline v0 fecha no máximo um slot canônico:
+`input initialValue: fn(): Value`. O slot é resolvido na aplicação do behavior
+e entra na interface normalizada. Ele não é backing storage, não recebe valor
+implícito e não captura o scope do caller.
+
+Quando o behavior exige `initialValue`, a declaração de aplicação
+`var Behavior field = expression` fornece um thunk sem argumentos para esse
+slot. O initializer do behavior chama o slot conforme as restrições de effects
+vigentes. Ausência do initializer produz `W-BEHAVIOR-0001`. Nome, aridade, type,
+`throws`, `await` ou effects incompatíveis também produzem esse diagnostic.
+Slots adicionais ou nomes alternativos exigem syntax de binding na aplicação e
+ficam **Pesquisa**. Um identifier solto sem `input` e `type` é rejeitado.
+
 O uso de inicialização tardia continua simples:
 
 ```w
@@ -12913,21 +12896,13 @@ entry {
 O body contém código W normal. Ele não é uma tabela de bindings. Essa forma cria
 o descriptor anônimo `.default`.
 
-Um source root também pode terminar com statements fora de braces:
-
-```w
-let greeting = "Hello"
-print(greeting)
-```
-
-Essa sequência é um `implicit_entry_body`. O compiler cria um descriptor
-`.default` privado e preserva cada statement no source map original. O wrapper
-retorna `()` e não cria argumentos ou variáveis ocultas. Um `await` visível torna
-somente esse wrapper `async`. Typed errors não escapam implicitamente. O body
-deve tratá-los no próprio source.
+Statements soltos não são um entry implícito. Um source sem descriptor de entry
+é um módulo importável, e `w run` falha com `source.entry` até que o programa
+declare `entry { ... }` ou `entry(functionName)`. Assim, importar o source nunca
+executa código de módulo.
 
 Num profile `native-process`, as projections podem ser usadas explicitamente no
-próprio body:
+próprio body de um entry ou função:
 
 ```w
 let arguments = process.args
@@ -12942,11 +12917,11 @@ profile-gated e aparece no audit; `process.context` é a spelling canônica e
 `process.ctx` não é alias intrínseco. `ctx` permanece um nome local válido para
 um parâmetro explícito.
 
-`w explain product` mostra o wrapper, `entry kind: implicit`, sync/async,
-requirements e o digest do body. Importar esse source nunca executa o body.
-Um `entry` explícito no mesmo root é erro, assim como uma declaration depois do
-primeiro statement. Use `fn` mais `entry(fnName)` para arguments, `Context`,
-return customizado ou typed errors públicos.
+`w explain product` mostra o descriptor explícito, sync/async, requirements e o
+digest do body. O descriptor `.default` só pode aparecer uma vez; entries
+nomeados distintos são permitidos e `--entry Name` seleciona um deles. Use `fn`
+mais `entry(fnName)` para arguments, `Context`, return customizado ou typed
+errors públicos.
 
 O profile precisa declarar um adapter de body simples. `native-process@1`
 adapta `fn(): ()` para seu main portátil. O host mantém os owners canônicos de
@@ -14548,8 +14523,9 @@ Um foreign link usa `.adapter(digest)`. O adapter declara quais partes de
 `ServiceIR` preserva. Uma edge com capabilities, pipeline ou errors que o
 adapter não representa falha durante resolution.
 
-O deployment plan pode restringir a escolha. `deployment.lock` grava link,
-adapter, codec, transport, peer e interface digests por edge. Startup não troca
+O deployment record pode restringir a escolha. O record nomeado em
+`workspace.w` grava link, adapter, codec, transport, peer e interface digests por
+edge. Startup não troca
 o link por uma alternativa ambiental.
 
 **Forma vigente**. A v0 não possui live rebinding. O resolver fixa cada provider
@@ -14695,13 +14671,12 @@ Uma binding `.fixed` permite devirtualização quando o compiler preserva a
 service semantics. Ela não transforma a call em call normal. Para obter inlining
 sem boundary, o programador usa import comum.
 
-#### 13.8.4 Manifest e lock de deployment
+#### 13.8.4 Manifest e deployment nomeado
 
-**Exemplo:** o plano
-[`local.w`](reference/last-light/deployments/local.w) seleciona recipe, packing,
-bindings e limites. O plano
-[`distributed.w`](reference/last-light/deployments/distributed.w) também fixa
-placement e session wRPC. O lock grava as escolhas por digest.
+**Exemplo:** o deployment nomeado `local` em
+[`workspace.w`](reference/last-light/workspace.w) seleciona recipe, packing,
+bindings e limites. O deployment `distributed` também fixa placement e session
+wRPC. O record grava as escolhas por digest.
 
 | Campo | Contrato |
 |---|---|
@@ -14711,9 +14686,10 @@ placement e session wRPC. O lock grava as escolhas por digest.
 | `limits` | reduções por unit, supervisor e service edge |
 | `security.wrpc` | channels, peer identity, credentials, trust, handshake e lifecycle |
 
-`deployment.w` é um plano data-only. `.product(...)` referencia uma recipe
-reproduzível. `w deploy resolve` grava cada artifact e unit por digest em
-`deployment.lock`.
+O record `w.deployment/1` é data-only e fica aninhado em `workspace.w` (ou em
+`package.w` quando o package é isolado). `.product(...)` referencia uma recipe
+reproduzível. `w deploy resolve --deployment <name>` grava cada artifact e unit
+por digest no record nomeado.
 
 `limits.execution` identifica uma unit. Ele pode reduzir task, frame, timer,
 ready e pool capacity do profile gravado nessa unit. O resolver rejeita um
@@ -22224,11 +22200,11 @@ validação do workload da medição:
 
 ```text
 w benchmark validate last-light-benchmark \
-  --deployment deployments/benchmark.w \
+  --deployment benchmark \
   --harness github:TechEmpower/FrameworkBenchmarks@57d92fbec6f8fd7431bc77326dd0484e60c96e20
 
 w benchmark run last-light-benchmark \
-  --deployment deployments/benchmark.w \
+  --deployment benchmark \
   --harness github:TechEmpower/FrameworkBenchmarks@57d92fbec6f8fd7431bc77326dd0484e60c96e20 \
   --evidence results/last-light.wbench
 ```
@@ -23144,7 +23120,7 @@ incremental. JSON serve somente para inspection. A especificação está fechada
 Nenhum compiler ou linker de produção está implementado por essa decisão.
 
 **Separação de domínios.** A v0 usa CBOR determinístico para records data-only de
-`package.w`, `package.lock`, workspace, recipe, toolchain plan e release
+`package.w`, a `resolution` aninhada, `workspace.w`, recipe, toolchain plan e release
 metadata. `WMeta1` contém chunks publicáveis de `WInterface` e ABI. Ele não
 serializa AST, HIR ou outro cache interno do compiler. Ele também não é o codec
 desses records e não é um payload de runtime. O payload de service continua
@@ -24522,7 +24498,8 @@ otimizada descrita na seção 9. A ausência desses fields é erro; a distribui�
 não consulta environment nem instala um allocator implícito.
 
 - `package.w` é um formato data-only;
-- `package.lock` é obrigatório para build reprodutível;
+- `resolution` aninhada no owner package/workspace é obrigatória para build
+  reprodutível;
 - o resolver é determinístico e registra sua versão;
 - o design vigente usa uma versão por package identity em cada resolution
   realm;
@@ -24531,6 +24508,50 @@ não consulta environment nem instala um allocator implícito.
 - aliases são locais e não mudam identity;
 - múltiplas versões ficam fora da v0;
 - features são aditivas, explícitas e entram na chave do artefato.
+
+**W-1415 — roots físicos unificados:** somente `package.w` e `workspace.w`
+são roots físicos aceitos. `lock` e `deployment` não são manifest kinds nem
+arquivos root independentes. Um root pode conter os fields data-only
+`resolution` e `deployments`:
+
+```w
+package {
+  schema: "w.package/1"
+  name: "last-light/example"
+  resolution: {
+    schema: "w.resolution/1"
+    resolver: "w.resolver/1"
+    contexts: []
+    packages: []
+  }
+  deployments: [
+    {
+      schema: "w.deployment/1"
+      name: "local"
+      artifacts: []
+    },
+  ]
+}
+```
+
+`package` isolado é o owner de sua `resolution` e de seus deployments. Se um
+package pertence a um `workspace`, o workspace é o owner único desses fields.
+Um member não pode duplicar `resolution` ou `deployments`. O workspace mantém
+contexts para todos os members, usages e targets e pode nomear deployments que
+selecionam products de qualquer member.
+
+As três identidades permanecem separadas. Package identity usa metadata e
+source publicável. Resolution identity usa o payload normalizado de
+`w.resolution/1`. Deployment identity usa nome, bindings, placement, limits e
+artifacts do deployment. O digest de deployment não entra na
+`SemanticInterfaceKey`. `w resolve` e `w update` reescrevem somente
+`resolution`. Uma edição de deployment não re-resolve packages nem altera
+source, artifact bytes ou interface semântica.
+
+Publication serializa package metadata, source modules e release evidence. Ela
+exclui `resolution` e `deployments` locais. Um deployment é selecionado por
+nome, por exemplo `w run product --deployment local`, nunca por path físico.
+Deployments locais não concedem authority ao package publicado.
 
 #### 21.1.1 Workspace
 
@@ -24581,21 +24602,22 @@ absoluto, `..` ou symlink que saia da raiz. Cada path precisa conter um
 `package.w`, e duas entries não podem resolver para a mesma árvore ou identity.
 Um workspace com um único member continua válido.
 
-Todos os members compartilham um `package.lock` na raiz e o mesmo CAS. O lock
-mantém contexts separados por product, target e usage de dependência. Outputs
-continuam imutáveis; packages não escrevem no diretório de outro member.
+Todos os members compartilham a `resolution` aninhada em `workspace.w` e o mesmo
+CAS. A resolution mantém contexts separados por product, target e usage de
+dependência. Outputs continuam imutáveis; packages não escrevem no diretório de
+outro member.
 
 Uma dependência usa automaticamente um member quando package identity e version
 constraint conferem. O field `authority` do member participa dessa prova.
 Version incompatível produz error. O resolver não usa uma release do registry
-no lugar do member local sem informar o usuário. O lock grava o manifest digest,
-o source-inventory digest e a razão da seleção. Cada context grava seu active
-source-set digest. A recipe grava o content tree digest.
+no lugar do member local sem informar o usuário. A resolution grava o manifest
+digest, o source-inventory digest e a razão da seleção. Cada context grava seu
+active source-set digest. A recipe grava o content tree digest.
 
-O discovery local procura o `workspace.w` ancestral mais próximo que liste o
-package atual. `w context` mostra manifest, workspace, lock e roots antes de
-qualquer mutation. CI e release usam `--workspace <path>` ou `--standalone`;
-eles não dependem de discovery ambiental.
+O owner local é selecionado pela membership declarada em `workspace.w`, não por
+uma simples busca de ancestor. `w context` mostra manifest, workspace,
+resolution e roots antes de qualquer mutation. CI e release usam
+`--workspace <path>` ou `--standalone`; eles não dependem de discovery ambiental.
 
 `defaultMembers` afeta somente comandos sem seleção, como `w check --workspace`.
 Ele não muda dependências ou artifacts. `w publish check` resolve cada member
@@ -25008,12 +25030,13 @@ de um resolution realm. Um conflito de constraints falha com paths mínimos do
 grafo. Realms diferentes podem escolher versões ou features diferentes e
 produzem artifact keys diferentes.
 
-`package.lock` reutiliza o codec data-only e possui top-level `lock`. O resolver
-gera o arquivo em UTF-8, LF e ordem canônica:
+`resolution` reutiliza o codec data-only e possui o schema
+`w.resolution/1`. O resolver grava esse record dentro do owner físico em UTF-8,
+LF e ordem canônica:
 
 ```w
-lock {
-  schema: "w.package-lock/1"
+resolution {
+  schema: "w.resolution/1"
   resolver: "w.resolver/1"
   workspace: "sha256:..."
   contexts: [
@@ -25075,12 +25098,12 @@ O lock de workspace registra:
 - build-tool packages e metadata snapshots;
 - razão de cada seleção e exceção de policy.
 
-Um virtual script não possui um `package.w` root para codificar seus aliases
-diretos. Por isso, a projection mínima P0 para o root
-`.product("script")` acrescenta `rootEdges: [{alias, id}]` dentro do seu
-contexto virtual. Esse campo fecha somente a seleção desse root e entra no
-digest canônico; contexts de package normais continuam usando a forma de
-21.1.6 e não recebem esse campo por default.
+Um módulo executado fora de package ou workspace usa um contexto efêmero. Ele
+aceita apenas std e imports locais explícitos. Não há root virtual, aliases de
+dependency, lock separado ou `rootEdges` implícitos; uma dependency externa
+falha e pede um package/workspace. Dentro de workspace, membership e owner único
+determinam a resolution. Duplicate owners ou resolução divergente produzem
+diagnostic antes do build.
 
 O source-inventory digest cobre todas as declarations de source, inclusive
 activation owner e cases inativos. O active source-set digest cobre a lista
@@ -25119,8 +25142,6 @@ publish: {
   source: .required
   files: [
     .modules,
-    .path("deployments/local.w"),
-    .path("deployments/distributed.w"),
     .path("menus/final.menu"),
     .path("README.md"),
     .path("BUILD.md"),
@@ -25130,7 +25151,8 @@ publish: {
 ```
 
 `publish.files` é uma allowlist obrigatória. A serialização canônica do
-`package.w` atual é metadata obrigatória e participa do snapshot digest.
+`package.w` atual é metadata obrigatória e participa do snapshot digest. Nested
+`resolution` e `deployments` locais são excluídos da publicação.
 `.modules` inclui os arquivos de todos os `modules` e `moduleSets`, inclusive
 cases inativos. Isso permite reconstruir toda a matriz publicável. Ele não
 inclui `package.w`, `workspace.w` ou manifest de subpackage. `.path` usa
@@ -25263,9 +25285,9 @@ registra os outputs dessa recipe. Os quatro schemas não se fundem:
 
 | Record | Inputs principais | Não contém |
 |---|---|---|
-| `package.lock` | versões, sources, features, contexts e metadata | payloads e resultados de actions |
+| `resolution` em package/workspace | versões, sources, features, contexts e metadata | payloads e resultados de actions |
 | toolchain plan | product, target spec, profile, execution platforms, catalogs e inventories | package graph e outputs |
-| recipe | source trees, lock digest, product, target spec, profile e toolchain-plan row | payload digest autorreferente |
+| recipe | source trees, resolution digest, product, target spec, profile e toolchain-plan row | payload digest autorreferente |
 | artifact record | recipe digest, payloads, resources e sidecars | inputs ambientais não declarados |
 
 ### 21.2 Build
@@ -25715,8 +25737,8 @@ Um executável nativo pode oferecer `--cli`, `--tui` e `--serve`. Seu único
 `process.main` escolhe o modo e mantém um só descriptor:
 
 ```text
-w run last-light-native --deployment deployments/local.w -- --tui
-w run last-light-native --deployment deployments/local.w \
+w run last-light-native --deployment local -- --tui
+w run last-light-native --deployment local \
   -- --serve 127.0.0.1:8080
 ```
 
@@ -26213,12 +26235,8 @@ w toolchain resolve --product <product> (--target <target> | --matrix <set>) [--
 w toolchain explain <product> --target <target> [--execution-platform <platform>]
 w build <product> --target <target> [--packing <packing>] [--toolchains <plan>] [--output-index <path>] --locked
 w build --matrix <set> --product <product> [--toolchains <plan>] [--output-index <path>] --locked
-w run <product> [--deployment <plan>] -- <arguments>
-w run <path/file.w> [--offline] [--deployment <plan>] -- <arguments>
-w script add <file.w> <package>@<constraint> --as <alias>
-w script remove <file.w> <alias>
-w script resolve <file.w>
-w script promote <file.w> --output <dir>
+w run <product> [--deployment <name>] -- <arguments>
+w run <path/file.w> [--offline] [--entry <name>] [--deployment <name>] -- <arguments>
 w repl
 w test [product] --locked
 w explain dependency <package>
@@ -26256,10 +26274,11 @@ w publish <package> --artifacts <index> --locked
 Saída humana é curta. `--json` fornece o grafo, diagnostics e evidências
 completos.
 
-`w add` e `w remove` alteram o `package.w` e resolvem o lock em uma única
-transação. Falha de resolução não deixa um dos arquivos atualizado. `--dry-run`
-mostra o diff de manifest, lock, authorities, versions, features e target
-variants. O comando não executa build tool ou install script.
+`w add` e `w remove` alteram o owner package/workspace e atualizam somente a
+resolution em uma única transação. Falha de resolução não deixa o manifest
+parcialmente atualizado. `--dry-run` mostra o diff de manifest, resolution,
+authorities, versions, features e target variants. O comando não executa build
+tool ou install script.
 
 `w tree` mostra o realm e a razão de cada edge. O default não mistura product,
 build, test e benchmark. `--all-realms` mostra as quatro visões.
@@ -26273,39 +26292,41 @@ publica metadata somente depois de validar o conjunto.
 
 ```text
 $ w resolve
-resolved 14 packages; wrote package.lock
+resolved 14 packages; updated workspace.w resolution
 
 $ w build last-light-native --target x86_64-unknown-linux-gnu --locked
 built last-light-native
 payload sha256:7e...
 recipe  sha256:21...
 
-$ w run last-light-native --deployment deployments/local.w -- --cli
+$ w run last-light-native --deployment local -- --cli
 ```
 
 O CLI não imprime download, compile unit ou cache hit por default. `--verbose`
 mostra fases. `--json` emite eventos estáveis.
 
-Arquivo único usa a forma PYN1:
+Arquivo único usa o mesmo módulo normal do package:
 
 ```text
 $ w run path/file.w -- input.csv --limit 10
-ran path/file.w in ephemeral hermetic product
+ran path/file.w in ephemeral module-run context
 ```
 
-Com header `script`, `w run path/file.w` força o contexto standalone e usa
-lock fixado. Sem header, dentro de package usa o entry default explícito ou
-implícito, o contexto e o lock do package. Fora de package usa std e módulos locais no
-product efêmero. Dependencies externas sem header são rejeitadas. `--with`
-não é forma final. O contrato está na
-[scripts single-file](#2412-scripts-single-file).
+`w run path/file.w` compila o módulo com parser, checker e HIR normais. Sem
+`--entry`, ele seleciona somente o descriptor explícito `.default`; com
+`--entry Name`, seleciona o descriptor nomeado. Dentro de um package, o
+package ou workspace owner fornece a resolution vigente. Fora de projeto, o
+contexto efêmero aceita apenas std e imports locais explícitos; dependency
+externa falha com instrução para criar ou adotar um package/workspace. Nenhum
+run resolve, atualiza, instala ou busca dependency de forma oculta. O contrato
+está em [module run / arquivo único](#2412-module-run-arquivo-único).
 
 `w repl` usa parser, checker e HIR normais. A session transacional e
 generational pode salvar source canônico, resetar e explicar invalidation e
 cost. Jupyter/session é uma direção de tooling, não uma nova forma de source.
 O kernel deve implementar o protocol Jupyter e exportar `.w` ou package antes
 de release. O contrato completo está em [workflows Python](#2411-workflows-python-e-científicos)
-e no workflow PYN1 para roots standalone.
+e no estudo PYN1 para a proveniência histórica do fluxo standalone.
 
 #### 21.6.2 Publicação e reprodução
 
@@ -26358,9 +26379,10 @@ do lançamento público. Slogans não são promessa técnica.
 - `w test` reúne unit, doc, compile-fail, property e fuzz;
 - `w explain` mostra resolução, tipos, moves, layout, effects e custos;
 - `w build --locked` usa somente o grafo fixado;
-- `w run <path/file.w>` aplica PYN1: header, context, lock por digest e entry
-  explícito ou implícito;
-- `w script add/remove/resolve/promote` usa mutation atomicamente verificável;
+- `w run <path/file.w>` usa contexto package/workspace/efêmero, seleciona entry
+  explícito e compila pelo pipeline normal;
+- `w add/remove/resolve/update` atualiza somente a resolution com mutation
+  atomicamente verificável;
 - `w repl` abre uma session transacional com generations e HIR normal;
 - `w audit` verifica policy, advisories, provenance e reprodução.
 
@@ -26387,8 +26409,8 @@ Formatter:
 - `w fmt` idempotente.
 
 A semântica completa da forma canônica está em [3.5.1](#351-forma-canônica-do-formatter).
-Header `script` possui pair CST-equivalent e idempotence em F0. O formatter
-preserva o header como primeiro item e não o interpreta como comentário.
+Módulo com entry explícito possui pair CST-equivalent e idempotence em F0. O
+formatter preserva o descriptor e não o interpreta como comentário.
 O frontend e o LSP compartilham a mesma CST lossless. O LSP pode formatar um
 trecho recuperável para preview, mas `w fmt` não grava source com error fatal.
 
@@ -28304,7 +28326,7 @@ Pessoas que usam Python fazem parte do público inicial sem adicionar um core
 dinâmico. Duck typing, monkey patching, imports ambientais, GIL e reflection
 unchecked permanecem fora. O workflow combina:
 
-- [single-file](#2412-scripts-single-file), [REPL](#2413-sessão-e-repl-transacionais)
+- [module run](#2412-module-run-arquivo-único), [REPL](#2413-sessão-e-repl-transacionais)
   e [Jupyter/export](#2414-apresentação-jupyter-e-export-de-notebooks);
 - [dados colunares](#1441-carrier-tabular),
   [formatos](#1442-adapters-tabulares) e
@@ -28321,108 +28343,58 @@ ficam em
 [`RATIONALE.md` §1.10](RATIONALE.md#110-evidência-pythonw-pyn0).
 
 
-#### 24.1.2 Scripts single-file
+#### 24.1.2 Module run / arquivo único
 
-**Exemplo:** `horizon_script.w` fixa a dependency `chart`, calcula um score do
-horizonte e escolhe um menu no implicit default. O source continua um oracle de
-design. Ele não afirma execução W.
+**Exemplo:** `horizon_tool.w` é um módulo normal. Ele declara imports explícitos,
+funções e `entry(runHorizon)`. O source continua um oracle de design; a forma
+do módulo não depende de um header de execução ou de statements soltos.
 
-O workflow single-file usa o header contextual `script { ... }` como primeiro
-item opcional da raiz `module_source`. Ele reutiliza o subset
-`manifest_record` data-only. Ele exige `edition`; `dependencies`, `lock` e
-`requires` são os únicos fields adicionais. `schema` é redundante. Dependencies
-não vazias exigem `lock`, e sem dependencies `lock` é proibido. `requires` usa
-values contextuais como `[.clock]`, nunca strings, records, grants ou secrets;
-process arguments são baseline channel, não capability. Unknown e duplicate
-fields são errors. `script` permanece um identifier quando não existe essa
-posição contextual. Comment metadata, inferência por import e tool table aberto
-não são formas W.
+O workflow module-run usa um módulo normal. O source pode declarar
+`module_header`, imports, declarations e descriptors de entry, mas nunca usa
+header de script ou statements top-level como execução implícita.
 
-Um source com header é root standalone executável. Ele pode ter module header,
-imports, declarations, entry explícito ou `implicit_entry_body` final. Imports,
-module header e declarations precedem o primeiro statement. O source não possui
-execução arbitrária de módulo; somente o `implicit_entry_body` final é baixado.
-Um source com header não é importável como módulo. `w run` mantém standalone
-mesmo dentro de workspace. Sem header, o arquivo usa package context e lock
-dentro de package. Fora de package, o arquivo
-usa contexto efêmero com std e módulos locais explícitos. `w context` mostra a
-seleção. A ferramenta não faz merge silencioso entre contexts.
+`w run <path/file.w>` compila com parser, checker e HIR normais. Sem `--entry`,
+seleciona o descriptor explícito `.default`; `--entry Name` seleciona o
+descriptor nomeado. Um módulo sem entry continua importável, mas não é um alvo
+executável. O host profile declara adapters e assinaturas exatas; o profile
+`native-process` inclui os adapters vigentes para `fn(): ()` e para handlers
+que declaram `std.process` `Arguments`, `Context` e `ExitCode`, com os
+effects e return types do profile. Descriptor incompatível não entra no conjunto
+CLI e seleção nomeada incompatível falha com `source.entry`.
 
-O parser grava `entryForm: explicit | implicit | missing`. Para `implicit`, a
-evidence grava o digest do body e facts de effects. O host aceita implicit
-somente no root executável e rejeita import, declaration-after-statement,
-explicit+implicit, entry missing e typed error sem tratamento. Isso não modela
-arbitrary module top-level execution.
+A root física é `package.w` ou `workspace.w`. Package isolado é o owner de
+sua resolution; quando há workspace, membership e owner único selecionam o
+workspace, e owners duplicados falham. Ancestor scan sozinho não seleciona um
+workspace. Fora de projeto, o contexto efêmero aceita somente std e imports
+locais explícitos. Dependency externa não resolvida falha e orienta criar ou
+adotar um package/workspace. `w run` não faz solve, update, install ou fetch
+oculto.
 
-O grafo de imports contém somente edges explícitos. A root local física serve
-discovery e diagnóstico; canonical containment é regra do target/provider, com
-symlink, traversal e escape avaliados nessa boundary. Recursive scan, cwd scan,
-`PATH` scan e environment scan não existem. URL, stdin e shebang permanecem
-rejeitados por causa de path, environment e portability.
+O grafo de imports contém somente edges explícitos. Canonical containment,
+symlink, traversal e escape são avaliados na boundary do target/provider.
+Recursive scan, cwd scan, `PATH` scan, environment scan, URL, stdin e shebang
+não são formas de source.
 
-Uma dependency externa usa o record e o lock canônicos de
-[§21.1.6](#2116-contexts-de-resolução-e-lock). O header acrescenta somente o
-root virtual `.product("script")`, suas `rootEdges` explícitas e a seleção por
-use, target role e target. Alias, package identity, constraint e source
-authority permanecem explícitos. Mutable source, registry ambiental e override
-local são rejeitados para script compartilhável. O lock cobre todos os
-contexts, mas build e run usam apenas a closure alcançável do context
-selecionado. Digest não concede authority.
+Package e workspace podem carregar `resolution: { schema: "w.resolution/1", ... }`
+e uma lista `deployments` de records `w.deployment/1` nomeados. Em workspace,
+esses fields pertencem ao workspace e não são duplicados nos members. `w
+resolve` e `w update` reescrevem somente `resolution`; o deployment é
+selecionado por nome. Publication exclui resolution e deployments locais.
+Package, resolution e deployment mantêm identities e digests lógicos separados;
+deployment digest não altera `SemanticInterfaceKey`.
 
-`w run <path/file.w>` seleciona package, standalone ou contexto efêmero pelas
-regras acima e então faz compile/run normal. Ele nunca resolve constraint,
-altera lock, instala package ou executa action oculto. Fetch, CAS, artifact,
-signature, authority e offline seguem [§21.1.6](#2116-contexts-de-resolução-e-lock).
-Mismatch falha antes de build e entry;
-bytes divergentes são retired. Records de artifact, handle transitivo e output
-consumido entram na recipe e na product identity por digest, nunca pela lista
-ambiental do CAS.
+Requirements de capability continuam explícitos no package/workspace/deployment;
+não concedem grants ou secrets. Process arguments são channel baseline, não
+capability. Fetch, CAS, artifact, signature, authority e offline seguem
+[§21.1.6](#2116-contexts-de-resolução-e-lock). A recipe registra digests de
+source, resolution, artifacts e outputs consumidos; path físico serve discovery,
+diagnóstico e provenance, nunca identity. Run temporário ou falho não deixa
+estado oculto.
 
-O header declara requirements de capability. Ele não concede grants ou secrets.
-O ephemeral native-script default recebe o channel de process args e a
-authority `.stdio` em contratos separados; args não é capability. Requirements usam `.filesystem`, `.network`,
-`.clock`, `.random` e `.storage`. Deployment satisfaz somente requirements
-declarados; grants extras não são propagados. Unknown requirement, source grant,
-secret ou missing deployment grant falha antes do build/entry. Dependency
-transitiva exige handles/bindings explícitos e seu próprio contrato; não herda
-authority do root.
-
-A product identity efêmera acrescenta ao contrato de build estes campos
-normalizados:
-
-- root source bytes digest e ordered local graph `{path, digest}`;
-- selected context e reachable package content digests;
-- selected artifact record digests, handle record digests e action-output
-  record digests consumidos;
-- edition, target e host profile;
-- lock digest;
-- conjunto completo de requirements;
-- toolchain digest e recipe owner.
-
-Path físico serve discovery, diagnóstico e provenance, não identity ou recipe.
-Baseline channels e authorities são inputs separados. `w context` explica root,
-lock, fetch, authority, capability e recipe. Run temporário ou falho não deixa
-estado oculto. Promotion valida o candidate `package.lock` sem re-resolver, preserva graph,
-entry e requirements e emite provenance que liga script, locks e manifest.
-
-Os quatro commands fechados para o header — `w script add`, `remove`, `resolve`
-e `promote` — são definidos em
-[§3.5.3](#353-grammar-normativa-g1-declarations-e-raízes-de-source).
-
-Add, remove e resolve validam virtual selection e lock antes de substituir
-source atomicamente. Remove do último dependency remove `lock`; resolve preserva
-edition/dependencies e troca somente `lock`. CAS pode receber o objeto antes,
-mas failure não altera os bytes do source. `--with` permanece rejeitado como
-forma final.
-
-**W-1245 — dependency explícita:** `script.dependencies` aceita somente o record
-P0 canônico. `w script add`, `remove` e `resolve` editam esse record e o lock
-atomicamente. Compact constructor, sibling manifest, comment metadata e
-`--with` ficam rejeitados antes do W 1.0.
-
-**Estado:** design/oracle. Evidência e limites ficam no
-[`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1); CLI,
-resolver, compiler, runtime e providers continuam ausentes.
+O estudo PYN1 em [`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1)
+preserva a proveniência do antigo fluxo standalone. A forma promovida é este
+module-run uniforme; operações de dependency são `w add`, `w remove`,
+`w resolve` e `w update` no contexto package/workspace.
 
 #### 24.1.3 Sessão e REPL transacionais
 
@@ -28482,8 +28454,8 @@ facts do checker normal para separar diagnóstico de parse e diagnóstico
 semântico. O wrapper aceita expression, declaration, statement, loop, call,
 tail expression, `;`/discard, `await` com owner async/structured sintético,
 `spawn` local que settle e `defer` no settle. Isso não torna essas formas em
-execução arbitrária de módulo importável em um arquivo `.w`: somente o
-`implicit_entry_body` final de um root cria entry. Append, complete e
+execução arbitrária de módulo importável em um arquivo `.w`: um módulo só é
+executável quando declara um descriptor `entry` explícito. Append, complete e
 clear alteram o buffer real; buffer incompleto não guarda ordinal nem history.
 
 ##### Fases e efeitos
@@ -28906,9 +28878,9 @@ uma linearização única e lossless para source W, o export falha.
 
 Quando a estrutura é representável, o export produz um destes resultados:
 
-- single-file com header e default entry;
+- módulo único com entry explícito `.default`;
 - package W quando mais de um módulo ou entry é necessário;
-- audit manifest com source digests, ordered receipts, lock root, toolchain,
+- audit manifest com source digests, ordered receipts, resolution owner, toolchain,
   target, effects e motivos de exclusão.
 
 Markdown pode virar um companion document explícito. Ele não vira comentário
@@ -29042,7 +29014,7 @@ evidência de design:
 | grammar e formatter | G0–G5, CST lossless, recovery, F0 CST-equivalente com alvo canônico e FB0 para body estrangeiro opaco | cobrir cada construção normalizada, provar idempotência real do formatter e fuzzar edits, recovery e limits do external scanner; scanners de adapters além de C são providers, não novas regras W |
 | checker e diagnostics | S0 integra type, effects, ownership, flow e evaluation; D0 fixa record e causalidade | ligar cada regra a success, inversão e campo de falha exato |
 | std | módulos possuem declarations e profiles; os oito carriers Web possuem interface; providers executáveis continuam missing | validar adapters byte-exact, limits e cada superfície restante com outro consumer |
-| workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, dependency lock, sessão, notebook, apresentação, dados e tensor interop | fechar providers executáveis, bridge Python/DLPack real e latency gates |
+| workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham module-run, resolution, sessão, notebook, apresentação, dados e tensor interop | fechar providers executáveis, bridge Python/DLPack real e latency gates |
 | targets e host profiles | target facts e availability não mudam a semântica comum; escapes de sistema têm authority única | fixar manifests e conformance de MMIO, interrupt, TLS, placement e assembly por target prometido |
 | ABI e metadata | L0 e WMeta fixam layout, container e readers de evidence | ligar wrappers ELF, Mach-O, COFF e Wasm ao container comum |
 | services, wire e recovery | B0 e SR0 fecham turn, gates, queue bounded, deduplication, recovery e faults; wWire tem baseline | fechar wire byte-exact, flow control e adapters reais com fault injection |
@@ -29352,8 +29324,8 @@ type-check, lowering ou comportamento runtime.
 
 O produto detalhado está em
 [Restaurante Última Luz](reference/last-light/README.md). Products, targets e
-comandos estão em [BUILD.md](reference/last-light/BUILD.md). Os planos ficam em
-[deployments/](reference/last-light/deployments/).
+comandos estão em [BUILD.md](reference/last-light/BUILD.md). Os deployments
+nomeados ficam em [workspace.w](reference/last-light/workspace.w).
 
 ## 26. Plano de implementação
 

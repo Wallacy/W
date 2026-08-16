@@ -189,7 +189,7 @@
       "operations": [
         {
           "op": "parseHeader",
-          "path": "examples/horizon_script.w",
+          "path": "examples/horizon_tool.w",
           "sourceText": "script horizon menu",
           "entry": "default",
           "imports": [
@@ -335,7 +335,7 @@
       "operations": [
         {
           "op": "parseHeader",
-          "path": "examples/horizon_script.w",
+          "path": "examples/horizon_tool.w",
           "sourceText": "script horizon menu",
           "entry": "default",
           "imports": [
@@ -622,7 +622,7 @@
       "operations": [
         {
           "op": "parseHeader",
-          "path": "examples/horizon_script.w",
+          "path": "examples/horizon_tool.w",
           "sourceText": "script horizon menu",
           "entry": "default",
           "imports": [
@@ -804,7 +804,7 @@
       "operations": [
         {
           "op": "parseHeader",
-          "path": "examples/horizon_script.w",
+          "path": "examples/horizon_tool.w",
           "sourceText": "script horizon menu",
           "entry": "default",
           "imports": [
@@ -1004,7 +1004,7 @@
       "operations": [
         {
           "op": "parseHeader",
-          "path": "examples/horizon_script.w",
+          "path": "examples/horizon_tool.w",
           "sourceText": "script horizon menu",
           "entry": "default",
           "imports": [
@@ -1188,7 +1188,7 @@
       "operations": [
         {
           "op": "parseHeader",
-          "path": "examples/horizon_script.w",
+          "path": "examples/horizon_tool.w",
           "sourceText": "script horizon menu",
           "entry": "default",
           "imports": [
@@ -1375,7 +1375,7 @@
       "operations": [
         {
           "op": "parseHeader",
-          "path": "examples/horizon_script.w",
+          "path": "examples/horizon_tool.w",
           "sourceText": "script horizon menu",
           "entry": "default",
           "imports": [
@@ -1598,7 +1598,7 @@
       "operations": [
         {
           "op": "parseHeader",
-          "path": "examples/horizon_script.w",
+          "path": "examples/horizon_tool.w",
           "sourceText": "script horizon menu",
           "entry": "default",
           "imports": [
@@ -1768,7 +1768,7 @@
       "operations": [
         {
           "op": "parseHeader",
-          "path": "examples/horizon_script.w",
+          "path": "examples/horizon_tool.w",
           "sourceText": "script horizon menu",
           "entry": "default",
           "imports": [
@@ -1959,7 +1959,7 @@
       "id": "PYN1-no-header-std-hello",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "menuFor"
         }
       ],
@@ -1986,7 +1986,7 @@
       "id": "PYN1-header-locked-dependency",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "lock"
         }
       ],
@@ -2013,7 +2013,7 @@
       "id": "PYN1-header-standalone-in-workspace",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "entry"
         }
       ],
@@ -2055,7 +2055,7 @@
       "id": "PYN1-missing-lock",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "lock"
         }
       ],
@@ -2091,7 +2091,7 @@
       "id": "PYN1-lock-without-dependencies",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "lock"
         }
       ],
@@ -2116,7 +2116,7 @@
       "id": "PYN1-lock-root-mismatch",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "lock"
         }
       ],
@@ -2166,7 +2166,7 @@
       "id": "PYN1-lock-declared-digest-ignored",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "lock"
         }
       ],
@@ -2249,7 +2249,7 @@
       "id": "PYN1-duplicate-alias",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "dependencies"
         }
       ],
@@ -2295,7 +2295,7 @@
       "id": "PYN1-duplicate-field",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "edition"
         }
       ],
@@ -2327,7 +2327,7 @@
       "id": "PYN1-duplicate-header",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "script"
         }
       ],
@@ -2351,7 +2351,7 @@
       "id": "PYN1-unknown-schema-field",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "script"
         }
       ],
@@ -2375,7 +2375,7 @@
       "id": "PYN1-unknown-field",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "requires"
         }
       ],
@@ -2399,7 +2399,7 @@
       "id": "PYN1-header-not-first",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "script"
         }
       ],
@@ -2423,7 +2423,7 @@
       "id": "PYN1-imported-script",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "entry"
         }
       ],
@@ -2435,7 +2435,7 @@
           "op": "validateImports",
           "imports": [
             {
-              "path": "examples/horizon_script.w",
+              "path": "examples/horizon_tool.w",
               "kind": "script"
             }
           ]
@@ -2451,7 +2451,7 @@
       "id": "PYN1-external-import-not-locked",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "lock"
         }
       ],
@@ -2501,7 +2501,7 @@
       "id": "PYN1-import-digest-required",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "imports"
         }
       ],
@@ -2528,7 +2528,7 @@
       "id": "PYN1-root-source-digest-required",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "roots"
         }
       ],
@@ -2583,7 +2583,7 @@
       "id": "PYN1-path-dependency-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": ".path"
         }
       ],
@@ -2619,7 +2619,7 @@
       "id": "PYN1-mutable-dependency-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "branch"
         }
       ],
@@ -2655,7 +2655,7 @@
       "id": "PYN1-local-override-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "override"
         }
       ],
@@ -2691,7 +2691,7 @@
       "id": "PYN1-ambient-dependency-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "ambient"
         }
       ],
@@ -2725,7 +2725,7 @@
       "id": "PYN1-root-traversal",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "traversal"
         }
       ],
@@ -2753,7 +2753,7 @@
       "id": "PYN1-symlink-escape",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "symlink"
         }
       ],
@@ -2782,7 +2782,7 @@
       "id": "PYN1-windows-case-boundary",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "case"
         }
       ],
@@ -2810,7 +2810,7 @@
       "id": "PYN1-windows-drive-boundary",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "drive"
         }
       ],
@@ -2838,7 +2838,7 @@
       "id": "PYN1-windows-unc-boundary",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "UNC"
         }
       ],
@@ -2866,7 +2866,7 @@
       "id": "PYN1-recursive-scan-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "recursive"
         }
       ],
@@ -2889,7 +2889,7 @@
       "id": "PYN1-cwd-path-env-scan-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "PATH"
         }
       ],
@@ -2913,7 +2913,7 @@
       "id": "PYN1-path-scan-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "imports"
         }
       ],
@@ -2937,7 +2937,7 @@
       "id": "PYN1-environment-scan-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "environment"
         }
       ],
@@ -2961,7 +2961,7 @@
       "id": "PYN1-fetch-before-resolution",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "lock"
         }
       ],
@@ -3013,7 +3013,7 @@
       "id": "PYN1-offline-cache-hit",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "CAS"
         }
       ],
@@ -3059,7 +3059,7 @@
       "id": "PYN1-offline-closure-cache-miss",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "closure"
         }
       ],
@@ -3086,7 +3086,7 @@
       "id": "PYN1-offline-cache-miss",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "offline"
         }
       ],
@@ -3112,7 +3112,7 @@
       "id": "PYN1-fetch-digest-mismatch",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "digest"
         }
       ],
@@ -3146,7 +3146,7 @@
       "id": "PYN1-artifact-authority-mismatch",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "authority"
         }
       ],
@@ -3184,7 +3184,7 @@
       "id": "PYN1-artifact-signature-mismatch",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "signature"
         }
       ],
@@ -3218,7 +3218,7 @@
       "id": "PYN1-action-output-missing",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "action output"
         }
       ],
@@ -3242,7 +3242,7 @@
       "id": "PYN1-action-output-policy-admitted",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "action output"
         }
       ],
@@ -3281,7 +3281,7 @@
       "id": "PYN1-capability-requirement-missing",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "requires"
         }
       ],
@@ -3316,7 +3316,7 @@
       "id": "PYN1-source-capability-grant-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "requires"
         }
       ],
@@ -3347,7 +3347,7 @@
       "id": "PYN1-source-capability-secret-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "secrets"
         }
       ],
@@ -3377,7 +3377,7 @@
       "id": "PYN1-process-args-is-baseline",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "process args"
         }
       ],
@@ -3404,7 +3404,7 @@
       "id": "PYN1-duplicate-requirement",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "requires"
         }
       ],
@@ -3432,7 +3432,7 @@
       "id": "PYN1-transitive-handle-missing",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "handles"
         }
       ],
@@ -3475,7 +3475,7 @@
       "id": "PYN1-default-entry-required",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "entry"
         }
       ],
@@ -3498,7 +3498,7 @@
       "id": "PYN1-entry-missing",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "entry"
         }
       ],
@@ -3563,7 +3563,7 @@
       "id": "PYN1-implicit-entry-runs-default",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "print(result)"
         }
       ],
@@ -3584,7 +3584,7 @@
       "id": "PYN1-implicit-declaration-after-statement",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "print(result)"
         }
       ],
@@ -3605,7 +3605,7 @@
       "id": "PYN1-explicit-and-implicit-entry",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "print(result)"
         }
       ],
@@ -3626,7 +3626,7 @@
       "id": "PYN1-implicit-root-import-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "print(result)"
         }
       ],
@@ -3647,7 +3647,7 @@
       "id": "PYN1-implicit-escaping-error-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "print(result)"
         }
       ],
@@ -3671,7 +3671,7 @@
       "id": "PYN1-failure-cleanup",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "cleanup"
         }
       ],
@@ -3697,7 +3697,7 @@
       "id": "PYN1-context-explanation",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "w context"
         }
       ],
@@ -3718,7 +3718,7 @@
       "id": "PYN1-context-explanation-mismatch",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "standalone"
         }
       ],
@@ -3741,7 +3741,7 @@
       "id": "PYN1-atomic-add",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "w script add"
         }
       ],
@@ -3860,7 +3860,7 @@
       "id": "PYN1-atomic-remove",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "w script remove"
         }
       ],
@@ -3895,7 +3895,7 @@
       "id": "PYN1-atomic-resolve",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "w script resolve"
         }
       ],
@@ -4005,7 +4005,7 @@
       "id": "PYN1-atomic-add-failure-preserves-source",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "atomic"
         }
       ],
@@ -4102,7 +4102,7 @@
       "id": "PYN1-atomic-remove-missing-alias",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "dependencies"
         }
       ],
@@ -4126,7 +4126,7 @@
       "id": "PYN1-promotion-equivalence",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "provenance"
         }
       ],
@@ -4232,7 +4232,7 @@
       "id": "PYN1-promotion-lock-graph-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "nodes/edges"
         }
       ],
@@ -4304,7 +4304,7 @@
       "id": "PYN1-promotion-dependency-graph-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "graph"
         }
       ],
@@ -4354,7 +4354,7 @@
       "id": "PYN1-promotion-local-graph-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "local graph"
         }
       ],
@@ -4409,7 +4409,7 @@
       "id": "PYN1-promotion-entry-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "entry"
         }
       ],
@@ -4459,7 +4459,7 @@
       "id": "PYN1-promotion-requirements-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "requirements"
         }
       ],
@@ -4507,7 +4507,7 @@
       "id": "PYN1-promotion-provenance-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "provenance"
         }
       ],
@@ -4615,7 +4615,7 @@
       "id": "PYN1-edition-mismatch",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "edition"
         }
       ],
@@ -4644,7 +4644,7 @@
       "id": "PYN1-target-mismatch",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "target"
         }
       ],
@@ -4729,7 +4729,7 @@
       "id": "PYN1-url-source-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "URL"
         }
       ],
@@ -4753,7 +4753,7 @@
       "id": "PYN1-stdin-source-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "stdin"
         }
       ],
@@ -4777,7 +4777,7 @@
       "id": "PYN1-shebang-source-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "shebang"
         }
       ],
@@ -4801,7 +4801,7 @@
       "id": "PYN1-script-identifier-without-header",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "script"
         }
       ],
@@ -4829,7 +4829,7 @@
       "id": "PYN1-hidden-state-rejected",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "hidden"
         }
       ],
@@ -4857,7 +4857,7 @@
       "id": "PYN1-network-policy-denied",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "network"
         }
       ],
@@ -4880,7 +4880,7 @@
       "id": "PYN1-graph-transitive-positive",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "menuFor"
         }
       ],
@@ -4896,7 +4896,7 @@
       "id": "PYN1-graph-dangling-edge",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "menuFor"
         }
       ],
@@ -4914,7 +4914,7 @@
       "id": "PYN1-graph-unreachable-package",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "menuFor"
         }
       ],
@@ -4932,7 +4932,7 @@
       "id": "PYN1-graph-missing-closure",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "menuFor"
         }
       ],
@@ -4950,7 +4950,7 @@
       "id": "PYN1-graph-alias-collision-local",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "menuFor"
         }
       ],
@@ -4968,7 +4968,7 @@
       "id": "PYN1-absolute-physical-input",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "menuFor"
         }
       ],
@@ -5040,7 +5040,7 @@
       "id": "PYN1-same-drive-case-boundary-accepted",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "menuFor"
         }
       ],
@@ -5067,7 +5067,7 @@
       "id": "PYN1-same-unc-share-boundary-accepted",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "menuFor"
         }
       ],
@@ -5094,7 +5094,7 @@
       "id": "PYN1-unicode-canonical-boundary-accepted",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "menuFor"
         }
       ],
@@ -5121,7 +5121,7 @@
       "id": "PYN1-online-lock-candidate-required",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "lock"
         }
       ],
@@ -5137,7 +5137,7 @@
       "id": "PYN1-multi-target-selects-context",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "target"
         }
       ],
@@ -5153,7 +5153,7 @@
       "id": "PYN1-multi-target-duplicate-context",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "target"
         }
       ],
@@ -5171,7 +5171,7 @@
       "id": "PYN1-multi-target-missing-context",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "target"
         }
       ],
@@ -5285,7 +5285,7 @@
       "id": "PYN1-sidecar-artifact-record-bound",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "artifact evidence"
         }
       ],
@@ -5408,7 +5408,7 @@
       "id": "PYN1-sidecar-signature-policy-bound",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "signature"
         }
       ],
@@ -5530,7 +5530,7 @@
       "id": "PYN1-sidecar-action-output-bound",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "action output"
         }
       ],
@@ -5627,7 +5627,7 @@
       "id": "PYN1-sidecar-handle-removal-rekeys-recipe",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "handles"
         }
       ],
@@ -5787,7 +5787,7 @@
       "id": "PYN1-parse-evidence-source-mismatch",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "parseEvidence"
         }
       ],
@@ -5849,7 +5849,7 @@
       "id": "PYN1-result-parse-evidence-mismatch",
       "references": [
         {
-          "path": "../reference/last-light/horizon_script.w",
+          "path": "../history/archive/pyn1-horizon-rejected.w-rejected.txt",
           "symbol": "resultParseEvidence"
         }
       ],

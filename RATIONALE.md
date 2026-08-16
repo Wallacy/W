@@ -130,11 +130,11 @@ O corpus compara, no mínimo:
 - newline como whitespace contra automatic semicolon insertion;
 - semicolon raro de desambiguação contra remoção que altera a CST.
 - manifest exclusivo com `{...}` contra `package<...>` inline no source;
-- header `script` data-only contextual contra comment metadata PEP 723 e dependency inference;
-- root standalone com lock por digest contra package context, ambient registry e `--with`;
+- module-run source contra package/workspace dependency metadata e dependency inference;
+- module-run context contra package/workspace resolution e ambient registry;
 - imports explícitos e root canônica contra scan recursivo, cwd, `PATH`, environment e symlink escape;
-- capability requirements com deployment grant contra source grants e escalation transitiva;
-- entry explícito ou body implícito final, com cleanup explícito, contra execução arbitrária de módulo e estado oculto;
+- service requirements com deployment binding contra source grants e escalation transitiva;
+- entry explícito com cleanup explícito contra execução arbitrária de módulo e estado oculto;
 - imports antes das declarations contra imports intercalados;
 - body obrigatório em função comum contra prototype solto no top-level;
 - `<...>` como contrato local nomeado contra uso como record completo de build.
@@ -788,7 +788,8 @@ Polars são evidência ergonômica, não autoridade semântica.
 
 #### 1.3.16 Workflow single-file PYN1
 
-**Exemplo:** `horizon_script.w` usa header standalone e depois de promotion;
+**Exemplo histórico:** o companion rejeitado `pyn1-horizon-rejected.w-rejected.txt`
+usa header standalone e depois de promotion;
 um source sem dependency externa pode usar package context sem header. A
 resolução e o entry permanecem explícitos ou implícitos conforme o source.
 
@@ -797,7 +798,7 @@ contém casos positivos e negativos para o header, root, context, imports,
 virtual selection, lock root, fetch, requirements, identity, entry, cleanup,
 mutation e promotion. São 95 casos e 546 operações (23 aceitos e 72
 rejeitados). O corpus declara símbolos de
-[`horizon_script.w`](reference/last-light/horizon_script.w) e os IDs PYN1 do
+[`pyn1-horizon-rejected.w-rejected.txt`](history/archive/pyn1-horizon-rejected.w-rejected.txt) e os IDs PYN1 do
 ledger como decisões que os casos exercitam. Os casos cobrem:
 
 - no-header std hello, header locked e header standalone em workspace;
@@ -4116,9 +4117,8 @@ exatos. A inversão syntax-valid usa um par S0 positivo/negativo com a mesma
 regra, baseline, `failureField`, digest do valor de baseline e um único D0
 catalogado com os `requiredFacts` do catálogo; ela cobre parâmetros de valor
 genéricos, captures `<[...]>`, quatro formas de execução e o slot contextual de
-allocator. O waiver de source só
-aparece para a entrada implícita de script: PYN1 fornece as rejeições de ordem,
-mistura explícita/implícita e import de raiz, com motivo registrado porque não
+allocator. O waiver de source só aparece para a seleção de entry de módulo:
+PYN1 fornece a rejeição de descriptor ausente, com motivo registrado porque não
 há uma inversão S0 genuína para esse contrato de workflow. Labels opcionais e
 as formas named/anonymous do allocator ficam nos pares F0, e os markers exigem
 que a mesma construção apareça na fonte Última Luz e na evidência positiva.
@@ -4127,7 +4127,7 @@ lista de outcomes ligam cada rejeição PYN1 ao código e à razão corresponden
 ele não é output de um compiler nem substitui um par S0.
 
 O Restaurante no Fim do Universo fornece os seis witnesses reais (`semantic_matrix.w`,
-`horizon_script.w`, `generics.w`, `command.w`, `execution.w` e `allocation.w`).
+`horizon_tool.w`, `generics.w`, `command.w`, `execution.w` e `allocation.w`).
 O checker rejeita refs missing, stale ou duplicadas, pares expected-echo e
 decisões que não sejam exercitadas pelo F0/S0 ligado; o snapshot atual registra
 21 decisões, uma mutação syntax-invalid, quatro inversões S0 e um waiver. A
@@ -6153,6 +6153,18 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1409 | fidelidade mutation ↔ prompt | cada adversarial descreve a falha exercitada pela mutation real: endpoint ownership no channel, ordem state/event no service, autoridade de package, optional registration/guarded unsubscribe no FFI e consuming ownership nos slices de owner/execution; `capacity: 1` → `capacity: 0` não é usado como bug | prompt de generation para mutation sem generation, cap de buffer tratado como falha sem oracle, repair que não restaura o texto mutado ou BellLease apresentado como prova de drain completo |
 | W-1410 | fronteira FFI e drain externo | `BellLease` prova registration optional e unsubscribe guardado; callback in-flight drain, destroy, unpin e reclaim permanecem obrigação externa do oracle/`w explain`, com receipt independente | inferir drain completo de um `deinit`, publicar endereço/thread/payload, destruir antes de drain ou aceitar callback após reclaim |
 | W-1411 | renderer participant-only | renderer fechado entrega somente `scenario`, `task`, `instruction`, `source` e `blindedLabel`; source é o stimulus derivado, e forbidden fields/words são rejeitados antes da entrega | incluir id/path/digest/mutation/expected/oracle/role/status/route, retornar objeto aberto ou esconder metadata no label |
+| W-1412 | root executável uniforme | source executável é módulo normal com `entry` explícito; `.default` é o descriptor sem nome, `--entry` seleciona named e contexto efêmero aceita somente std/imports locais | header `script`, body implícito, execução arbitrária de módulo, solve/update/fetch oculto ou dependency externa em contexto efêmero |
+| W-1413 | reexport explícito | `export * from path` e `export { A, B as C } from path`; `export { A }` permanece export coletivo local | `export import`, facade com keyword import ou alias implícito fora de braces |
+| W-1414 | input tipado de behavior | behavior declara `input name: Type`; callable `input initialValue: fn(): Value` é slot explícito, sem hidden capture/inference, com type/effect checks normais | identifier solto como input, storage que substitui slot, captura ambiental ou callable sem type |
+| W-1415 | roots físicos unificados | somente package/workspace são roots; `resolution` e `deployments` são fields aninhados, owner único é package isolado ou workspace, identities/digests permanecem separados e publication exclui esses fields | `lock`/`deployment` root independente, package member com resolution duplicada, deployment dentro de SemanticInterfaceKey ou resolver que reescreve metadata |
+| W-1416 | pipeline e labels observáveis | pipeline de atlas usa duas calls dependentes e labels demonstram `continue` para loop externo, preservando DAG/driver/cleanup vigentes | pipeline com somente return local, continue que reinicia token do label, goto, label em statement arbitrário ou salto não lexical |
+
+W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
+W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
+W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
+classificação de módulo e root. Os IDs permanecem no ledger como proveniência.
+A regra corrente não preserva header, body implícito, lock/deployment root ou
+`export import` por compatibilidade pré-1.0.
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

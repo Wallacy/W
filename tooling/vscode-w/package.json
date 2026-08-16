@@ -32,7 +32,6 @@
         "id": "w",
         "aliases": ["W", "w"],
         "extensions": [".w"],
-        "firstLine": "^\\s*lock\\s*\\{",
         "configuration": "./language-configuration.json",
         "icon": {
           "light": "./icons/w.png",

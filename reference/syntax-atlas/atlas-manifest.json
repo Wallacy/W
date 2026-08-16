@@ -4,19 +4,17 @@
   "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. CHEATSHEET.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:ec3c24e46cac476c047a8ed597b0307d488c98a269ee8f3ec2efc5d5e0f527f6",
-    "publicRuleSetDigest": "sha256:828ea8c24376b2be53e42027359313fddb2648ff759877153a68ca608689af8e"
+    "digest": "sha256:1ad82503d18c8e698874c4a8919a727d3d0925481d8b83b1d8246b702bd9be7c",
+    "publicRuleSetDigest": "sha256:b7a1b3b9f60d06a1f0706f77ab393dc1c611c214adbc756765cf1e94790e0ca1"
   },
   "sourceFiles": [
-    "deployments/local.w",
     "execution.w",
     "language.w",
-    "lock.w",
     "package.w",
     "workspace.w"
   ],
   "pedagogicalOrder": [
-    "script-and-execution-root",
+    "module-run-root",
     "source-roots-imports",
     "data-declarations",
     "types-and-contracts",
@@ -29,11 +27,9 @@
     "restricted-expressions",
     "stream-and-channel",
     "entry-declaration",
-    "implicit-entry-body",
+    "module-run-entry",
     "package-root",
-    "workspace-root",
-    "lock-root",
-    "deployment-root"
+    "workspace-root"
   ],
   "rootForms": [
     {
@@ -43,13 +39,8 @@
     },
     {
       "file": "execution.w",
-      "root": "script",
+      "root": "module",
       "role": "main-reading-path"
-    },
-    {
-      "file": "execution.w",
-      "root": "implicit-entry",
-      "role": "root-only-suffix"
     },
     {
       "file": "package.w",
@@ -59,16 +50,6 @@
     {
       "file": "workspace.w",
       "root": "workspace",
-      "role": "exclusive-root"
-    },
-    {
-      "file": "lock.w",
-      "root": "lock",
-      "role": "exclusive-root"
-    },
-    {
-      "file": "deployments/local.w",
-      "root": "deployment",
       "role": "exclusive-root"
     }
   ],
@@ -200,6 +181,14 @@
       "markers": []
     },
     {
+      "name": "behavior_input_declaration",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
       "name": "behavior_parameter",
       "surface": "composed",
       "reason": "Composed by the data-declarations atlas block.",
@@ -217,14 +206,6 @@
     },
     {
       "name": "behavior_storage_declaration",
-      "surface": "composed",
-      "reason": "Composed by the data-declarations atlas block.",
-      "markers": [
-        "data-declarations"
-      ]
-    },
-    {
-      "name": "behavior_value_declaration",
       "surface": "composed",
       "reason": "Composed by the data-declarations atlas block.",
       "markers": [
@@ -423,14 +404,6 @@
       "reason": "Composed by the data-declarations atlas block.",
       "markers": [
         "data-declarations"
-      ]
-    },
-    {
-      "name": "deployment_manifest",
-      "surface": "root",
-      "reason": "Document root or root-owned data grammar.",
-      "markers": [
-        "deployment-root"
       ]
     },
     {
@@ -806,14 +779,6 @@
       ]
     },
     {
-      "name": "lock_manifest",
-      "surface": "root",
-      "reason": "Document root or root-owned data grammar.",
-      "markers": [
-        "lock-root"
-      ]
-    },
-    {
       "name": "manifest_argument",
       "surface": "root",
       "reason": "Document root or root-owned data grammar.",
@@ -1126,6 +1091,22 @@
       "markers": []
     },
     {
+      "name": "reexport_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "reexport_item",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
       "name": "repeat_array_literal",
       "surface": "direct",
       "reason": "Direct source construction shown in the literals-and-collections atlas block.",
@@ -1170,14 +1151,6 @@
       "surface": "lexical",
       "reason": "Lexical token or trivia. The atlas covers it in the values block.",
       "markers": []
-    },
-    {
-      "name": "script_header",
-      "surface": "root",
-      "reason": "Document root or root-owned data grammar.",
-      "markers": [
-        "script-and-execution-root"
-      ]
     },
     {
       "name": "service_declaration",
@@ -1496,7 +1469,7 @@
     {
       "family": "roots",
       "blocks": [
-        "script-and-execution-root",
+        "module-run-root",
         "source-roots-imports"
       ]
     },
@@ -1564,16 +1537,14 @@
       "family": "entry",
       "blocks": [
         "entry-declaration",
-        "implicit-entry-body"
+        "module-run-entry"
       ]
     },
     {
       "family": "manifest",
       "blocks": [
         "package-root",
-        "workspace-root",
-        "lock-root",
-        "deployment-root"
+        "workspace-root"
       ]
     }
   ],
@@ -1585,22 +1556,6 @@
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
       "witness": "module atlas_language"
-    },
-    {
-      "id": "root-script",
-      "block": "script-and-execution-root",
-      "construction": "script root",
-      "designStatus": "current",
-      "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "script {"
-    },
-    {
-      "id": "root-implicit-entry",
-      "block": "implicit-entry-body",
-      "construction": "implicit final entry body",
-      "designStatus": "current",
-      "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "let city ="
     },
     {
       "id": "root-package",
@@ -1617,22 +1572,6 @@
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
       "witness": "workspace {"
-    },
-    {
-      "id": "root-lock",
-      "block": "lock-root",
-      "construction": "lock manifest root",
-      "designStatus": "current",
-      "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "lock {"
-    },
-    {
-      "id": "root-deployment",
-      "block": "deployment-root",
-      "construction": "deployment manifest root",
-      "designStatus": "current",
-      "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "deployment {"
     },
     {
       "id": "import-ordinary",
@@ -1664,7 +1603,7 @@
       "construction": "wildcard re-export",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "export import *"
+      "witness": "export * from atlas.foundation"
     },
     {
       "id": "entry-explicit",
@@ -2025,34 +1964,34 @@
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
       "witness": "Channel<String><.receive>"
+    },
+    {
+      "id": "root-module-run",
+      "block": "module-run-root",
+      "construction": "module root for w run",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "module atlas_execution"
     }
   ],
   "blocks": [
     {
-      "id": "script-and-execution-root",
+      "id": "module-run-root",
       "file": "execution.w",
       "order": 0,
       "line": 1,
-      "title": "Standalone script header and module",
+      "title": "Module-run root",
       "family": "roots",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only-provider-missing",
-      "root": "script",
-      "grammarRefs": [
-        "script_header"
-      ],
+      "root": "module",
+      "grammarRefs": [],
       "designRefs": [
         "3.5.3"
       ],
-      "sourceRefs": [
-        {
-          "path": "reference/last-light/horizon_script.w",
-          "symbol": "script {",
-          "digest": "sha256:2bf5fe7bf3fecdf8b22ce3c3412b74fb9c34460d97a5060d5474b783dda82403"
-        }
-      ],
-      "snippetDigest": "sha256:10f5869c81e07fce0901442a2403d40517ed84237b85d064633d1ce89322edbb",
-      "snippetBytes": 120
+      "sourceRefs": [],
+      "snippetDigest": "sha256:d6b3681913cf265ea1fd949f733315ab9b8e0c28778f44cc5c1d4eedb35ceec3",
+      "snippetBytes": 90
     },
     {
       "id": "source-roots-imports",
@@ -2073,6 +2012,8 @@
         "module_path",
         "named_imports",
         "named_service_imports",
+        "reexport_declaration",
+        "reexport_item",
         "service_import_item",
         "service_import_statement",
         "service_key_contract",
@@ -2089,14 +2030,14 @@
           "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29"
         }
       ],
-      "snippetDigest": "sha256:90af7a9d8bb76ce1fbe0c104ce9e54fc8ddd8ffe9349a0ea9bc47914c2971639",
-      "snippetBytes": 286
+      "snippetDigest": "sha256:dd82ab13d8392f9cfcf2c1360c9f2494779cdee8478f7b4a02ff6f00cce14f54",
+      "snippetBytes": 347
     },
     {
       "id": "data-declarations",
       "file": "language.w",
       "order": 2,
-      "line": 14,
+      "line": 15,
       "title": "Data declarations, properties, and behaviors",
       "family": "declarations",
       "designStatus": "current",
@@ -2110,10 +2051,10 @@
         "behavior_accessor",
         "behavior_body",
         "behavior_declaration",
+        "behavior_input_declaration",
         "behavior_parameter",
         "behavior_parameter_list",
         "behavior_storage_declaration",
-        "behavior_value_declaration",
         "computed_property_declaration",
         "conformance_clause",
         "const_declaration",
@@ -2155,14 +2096,14 @@
           "digest": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553"
         }
       ],
-      "snippetDigest": "sha256:0c4fa15b0f38db5df39b16d1cc6528de576a8047e3135ad1677a01c0fa8fd2c3",
-      "snippetBytes": 1255
+      "snippetDigest": "sha256:7a45efcf2353616d823c63bd790a1a30f7df32adcc30310af1dd1ef8492adb11",
+      "snippetBytes": 1313
     },
     {
       "id": "types-and-contracts",
       "file": "language.w",
       "order": 3,
-      "line": 128,
+      "line": 132,
       "title": "Type contracts, static values, and function types",
       "family": "types",
       "designStatus": "current",
@@ -2201,7 +2142,7 @@
       "id": "callables-and-foreign",
       "file": "language.w",
       "order": 4,
-      "line": 97,
+      "line": 101,
       "title": "Callable modes, generics, and foreign bodies",
       "family": "callables",
       "designStatus": "current",
@@ -2243,7 +2184,7 @@
       "id": "literals-and-collections",
       "file": "language.w",
       "order": 5,
-      "line": 177,
+      "line": 181,
       "title": "Literals, tuples, and collections",
       "family": "values",
       "designStatus": "current",
@@ -2276,7 +2217,7 @@
       "id": "patterns",
       "file": "language.w",
       "order": 6,
-      "line": 152,
+      "line": 156,
       "title": "Patterns, ranges, and matches",
       "family": "patterns",
       "designStatus": "current",
@@ -2315,12 +2256,12 @@
       "id": "allocator-and-bindings",
       "file": "execution.w",
       "order": 7,
-      "line": 11,
+      "line": 7,
       "title": "Allocator scopes and bindings",
       "family": "ownership",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only-provider-missing",
-      "root": "script",
+      "root": "module",
       "grammarRefs": [
         "allocator_builtin_plan",
         "allocator_statement",
@@ -2345,12 +2286,12 @@
       "id": "control-flow",
       "file": "execution.w",
       "order": 8,
-      "line": 43,
+      "line": 39,
       "title": "Control flow and cleanup",
       "family": "control",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "root": "script",
+      "root": "module",
       "grammarRefs": [
         "block",
         "break_statement",
@@ -2379,19 +2320,19 @@
           "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed"
         }
       ],
-      "snippetDigest": "sha256:8dd7c47e8a616778873137dd7bb6bb6fcdd16f9dacd3e86246cd06e33f04c418",
-      "snippetBytes": 432
+      "snippetDigest": "sha256:30d0e60ebfb7fcf756948c087e8fb6bcd49f002cb8d057b0187f8887bc464f02",
+      "snippetBytes": 478
     },
     {
       "id": "execution-forms",
       "file": "execution.w",
       "order": 9,
-      "line": 71,
+      "line": 69,
       "title": "Direct, await, async let, spawn, and calls",
       "family": "execution",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only-provider-missing",
-      "root": "script",
+      "root": "module",
       "grammarRefs": [
         "argument",
         "argument_expansion",
@@ -2424,12 +2365,12 @@
       "id": "restricted-expressions",
       "file": "execution.w",
       "order": 10,
-      "line": 107,
+      "line": 105,
       "title": "Pipelines, locks, transactions, unsafe, and closures",
       "family": "effects",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only-provider-missing",
-      "root": "script",
+      "root": "module",
       "grammarRefs": [
         "assignment_expression",
         "binary_expression",
@@ -2457,19 +2398,19 @@
           "digest": "sha256:826f5e1d09e74678401fa6502d0f5da167fc00cd0802041f4367f246837af663"
         }
       ],
-      "snippetDigest": "sha256:6792daa333c59eb36cbe95bace782258fe7a948db73163fd936d7bdfc8a2a6a3",
-      "snippetBytes": 569
+      "snippetDigest": "sha256:0dacdf11e0adae52f09e0bb850d57dcb90fe7dec2790e51b7c8b836808ff37b1",
+      "snippetBytes": 891
     },
     {
       "id": "stream-and-channel",
       "file": "execution.w",
       "order": 11,
-      "line": 139,
+      "line": 152,
       "title": "Streams, channels, and directional contracts",
       "family": "streams",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only-provider-missing",
-      "root": "script",
+      "root": "module",
       "grammarRefs": [],
       "designRefs": [
         "3.5.6"
@@ -2488,7 +2429,7 @@
       "id": "entry-declaration",
       "file": "language.w",
       "order": 12,
-      "line": 214,
+      "line": 218,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -2511,28 +2452,22 @@
       "snippetBytes": 52
     },
     {
-      "id": "implicit-entry-body",
+      "id": "module-run-entry",
       "file": "execution.w",
       "order": 13,
-      "line": 159,
-      "title": "Implicit final entry body",
+      "line": 172,
+      "title": "Explicit module-run entry",
       "family": "entry",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only-provider-missing",
-      "root": "implicit-entry",
+      "root": "module",
       "grammarRefs": [],
       "designRefs": [
         "3.5.3"
       ],
-      "sourceRefs": [
-        {
-          "path": "reference/last-light/horizon_script.w",
-          "symbol": "fn horizonScore(",
-          "digest": "sha256:2bf5fe7bf3fecdf8b22ce3c3412b74fb9c34460d97a5060d5474b783dda82403"
-        }
-      ],
-      "snippetDigest": "sha256:28ebbad7ec3f4de3c5e359fc7f6aa08f8ae6b235e48fc88a41b4b3ec10167b29",
-      "snippetBytes": 64
+      "sourceRefs": [],
+      "snippetDigest": "sha256:bd14f13101132ef3334ddde7a791b878f07a2875b6a5a708db0d8ffd71d63d32",
+      "snippetBytes": 113
     },
     {
       "id": "package-root",
@@ -2560,11 +2495,11 @@
         {
           "path": "reference/last-light/package.w",
           "symbol": "package {",
-          "digest": "sha256:b948a12612d0e656cbc4fba5809ef18c6ab4af8f085e55377f049ad55c469796"
+          "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc"
         }
       ],
-      "snippetDigest": "sha256:7e60ad5b7b3094ffc5b3bb8dc105bf5bce7301d41758ecf14585ba27696005ce",
-      "snippetBytes": 190
+      "snippetDigest": "sha256:2841ad104096a0b8c7e20639b4ddbc0eb29122588ec6865ab29d14b3c1cfe8ce",
+      "snippetBytes": 465
     },
     {
       "id": "workspace-root",
@@ -2586,57 +2521,11 @@
         {
           "path": "reference/last-light/workspace.w",
           "symbol": "workspace {",
-          "digest": "sha256:90732e5f63f55a3902a25a9316d4abdeabfdddfa790e290cf8681fe52b432e8c"
+          "digest": "sha256:a2e8f4e49e465845d59ceba04e33d6dee24643588702ffd8bbf1fd8936bd8d7c"
         }
       ],
-      "snippetDigest": "sha256:896dbff79a048d2a6b1ca44adeafb651da03f856b68152cab1c4b0eea0f053cf",
-      "snippetBytes": 95
-    },
-    {
-      "id": "lock-root",
-      "file": "lock.w",
-      "order": 16,
-      "line": 1,
-      "title": "Lock manifest root",
-      "family": "manifest",
-      "designStatus": "current",
-      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
-      "root": "lock",
-      "grammarRefs": [
-        "lock_manifest"
-      ],
-      "designRefs": [
-        "3.5.3"
-      ],
-      "sourceRefs": [],
-      "snippetDigest": "sha256:a7570a4f6177cccbd5d4df7933dfc162ca2a865f9ee0048e5797d09bf0d23138",
-      "snippetBytes": 177
-    },
-    {
-      "id": "deployment-root",
-      "file": "deployments/local.w",
-      "order": 17,
-      "line": 1,
-      "title": "Deployment manifest root",
-      "family": "manifest",
-      "designStatus": "current",
-      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
-      "root": "deployment",
-      "grammarRefs": [
-        "deployment_manifest"
-      ],
-      "designRefs": [
-        "3.5.3"
-      ],
-      "sourceRefs": [
-        {
-          "path": "reference/last-light/deployments/local.w",
-          "symbol": "deployment {",
-          "digest": "sha256:f149dff9705faf2866dfd2156c19f7dbe60cf6cc3e41f841ad2536523b1532ed"
-        }
-      ],
-      "snippetDigest": "sha256:4d555a028431f04560338aa5d42138707c15a01cd49828789d3fdaf6dd5d302d",
-      "snippetBytes": 146
+      "snippetDigest": "sha256:538bc3384f73031187fc9f9ad2caec358951f8e584c075e9cf212ac0075db345",
+      "snippetBytes": 370
     }
   ],
   "companionFiles": [
@@ -2659,6 +2548,6 @@
   ],
   "generated": {
     "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:d26ace026a9138af20b708ca464c574b75c666c2ade50da24ba526dd12704920"
+    "cheatsheetDigest": "sha256:b9c75e42b0d2f426a6cb33b5ad50662d609d2c908fa9ec76a71e7b2613b0d57f"
   }
 }

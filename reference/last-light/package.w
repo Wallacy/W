@@ -15,9 +15,6 @@ package {
     source: .required
     files: [
       .modules,
-      .path("deployments/local.w"),
-      .path("deployments/distributed.w"),
-      .path("deployments/benchmark.w"),
       .path("menus/final.menu"),
       .path("README.md"),
       .path("BUILD.md"),
@@ -925,6 +922,13 @@ package {
       package: "last-light/menu-compiler"
       version: "^0.1.0"
       use: .build
+      source: .registry("w")
+    },
+    {
+      alias: "chart"
+      package: "fiction/chart"
+      version: "^1.2.0"
+      use: .product
       source: .registry("w")
     },
   ]

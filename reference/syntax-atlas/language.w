@@ -5,7 +5,8 @@ module atlas_language<
 
 import std.text
 import { String as Text } from std.text
-export import * from atlas.base
+export * from atlas.foundation
+export { FoundationPlace as BasePlace } from atlas.foundation
 import domain { District } from atlas.domain
 import service { RemoteCatalog<key: String> } from atlas.catalog
 import service atlas.catalog as catalog
@@ -79,11 +80,14 @@ extension Place {
   }
 }
 
-behavior Trackable for Place {
-  storage var trace: String = ""
-  lastSeen
-  get(value: Place) {
-    value
+behavior Initialized for Place {
+  storage var current: Place
+  input initialValue: fn(): Place
+  init {
+    current = initialValue()
+  }
+  get {
+    return current
   }
 }
 

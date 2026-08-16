@@ -1400,17 +1400,16 @@
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     },
     {
-      "id": "R0-pyn1-script-header",
-      "reviewItem": "header `script` data-only contextual contra comment metadata PEP 723 e dependency inference",
+      "id": "R0-module-run-dependency",
+      "reviewItem": "module-run source contra package/workspace dependency metadata e dependency inference",
       "decisions": ["W-1046", "W-1047", "W-1064"],
-      "task": "Declare one locked dependency in a first-item script header without executing metadata.",
+      "task": "Declare one dependency in package metadata without executing module code.",
       "selected": {
         "language": "w",
         "source": [
-          "script {",
-          "  edition: \"2026\"",
+          "package {",
           "  dependencies: [{ alias: \"chart\", package: \"fiction/chart\", version: \"^1.2.0\", use: .product, source: .registry(\"w\") }]",
-          "  lock: \"sha256:...\"",
+          "  resolution: { schema: \"w.resolution/1\", resolver: \"w.resolver/1\", contexts: [], packages: [] }",
           "}"
         ]
       },
@@ -1431,15 +1430,16 @@
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     },
     {
-      "id": "R0-pyn1-standalone-lock",
-      "reviewItem": "root standalone com lock por digest contra package context, ambient registry e `--with`",
+      "id": "R0-module-run-context",
+      "reviewItem": "module-run context contra package/workspace resolution e ambient registry",
       "decisions": ["W-1048", "W-1052", "W-1053", "W-1062"],
-      "task": "Run a script as a standalone root with the exact lock selected by its header.",
+      "task": "Run a module with an explicit entry in the selected package/workspace context.",
       "selected": {
         "language": "w",
         "source": [
-          "script { edition: \"2026\" lock: \"sha256:...\" }",
-          "entry { print(\"ready\") }"
+          "module horizon_tool",
+          "fn run(): () { print(\"ready\") }",
+          "entry(run)"
         ]
       },
       "alternatives": [
@@ -1447,19 +1447,19 @@
           "name": "ambient-package-context",
           "language": "w-rejected",
           "source": ["w run file.w", "// use the workspace lock and registry"],
-          "expectedDifference": "A script header selects standalone context. It does not merge package or ambient registry state."
+          "expectedDifference": "Module execution selects package or workspace context from explicit metadata. It does not merge ambient registry state."
         },
         {
           "name": "cli-with-dependency",
           "language": "shell",
           "source": ["w run file.w --with fiction/chart@^1.2.0"],
-          "expectedDifference": "The final workflow stores dependency selection in the header and lock, not in an ad hoc CLI flag."
+          "expectedDifference": "The final workflow stores dependency selection in package/workspace resolution, not in an ad hoc CLI flag."
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     },
     {
-      "id": "R0-pyn1-explicit-roots",
+      "id": "R0-module-run-explicit-roots",
       "reviewItem": "imports explícitos e root canônica contra scan recursivo, cwd, `PATH`, environment e symlink escape",
       "decisions": ["W-1050"],
       "task": "Use only explicit logical imports below a provider-confirmed canonical root.",
@@ -1487,23 +1487,24 @@
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     },
     {
-      "id": "R0-pyn1-capability-admission",
-      "reviewItem": "capability requirements com deployment grant contra source grants e escalation transitiva",
+      "id": "R0-module-run-capability-admission",
+      "reviewItem": "service requirements com deployment binding contra source grants e escalation transitiva",
       "decisions": ["W-1057", "W-1058", "W-1059"],
-      "task": "Declare a clock requirement and receive a matching deployment grant and explicit handle.",
+      "task": "Declare a service requirement and receive a matching deployment binding and explicit handle.",
       "selected": {
         "language": "w",
         "source": [
-          "script { edition: \"2026\" requires: [.clock] }",
-          "entry { print(\"ready\") }"
+          "requirements: [{ service: \"restaurant::pantry\", default: .import(\"pantry\") }]",
+          "imports: [{ binding: \"pantry\", protocol: \"kitchen::PantryApi\", source: .deployment }]",
+          "bindings: [{ import: \"restaurant/pantry\", provider: .adapter(\"last-light.dev/pantry@1\") }]"
         ]
       },
       "alternatives": [
         {
           "name": "source-grant",
           "language": "w-rejected",
-          "source": ["script { edition: \"2026\" grants: [.clock] }"],
-          "expectedDifference": "A source declares requirements. It does not grant authority or carry secrets."
+          "source": ["module horizon_tool", "// source grants are rejected"],
+          "expectedDifference": "A module does not grant authority or carry secrets; package products declare requirements and deployments bind providers."
         },
         {
           "name": "ambient-transitive-authority",
@@ -1515,8 +1516,8 @@
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     },
     {
-      "id": "R0-pyn1-entry-cleanup",
-      "reviewItem": "entry explícito ou body implícito final, com cleanup explícito, contra execução arbitrária de módulo e estado oculto",
+      "id": "R0-module-run-entry-cleanup",
+      "reviewItem": "entry explícito com cleanup explícito contra execução arbitrária de módulo e estado oculto",
       "decisions": ["W-1049", "W-1061"],
       "task": "Run the unnamed entry and remove transient state after the result.",
       "selected": {
@@ -1535,10 +1536,10 @@
           "expectedDifference": "Top-level execution removes the explicit entry gate and is rejected."
         },
         {
-          "name": "hidden-lock-cache",
+          "name": "hidden-resolution-cache",
           "language": "w-rejected",
-          "source": ["w run file.w", "// leave a lock in the temporary cwd"],
-          "expectedDifference": "Cleanup must remove transient state and leave observable provenance, not a hidden manifest or lock."
+          "source": ["w run file.w", "// leave a hidden resolution in the temporary cwd"],
+          "expectedDifference": "Cleanup must remove transient state and leave observable provenance, not hidden package or resolution state."
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]

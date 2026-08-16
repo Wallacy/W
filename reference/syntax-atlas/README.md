@@ -9,13 +9,15 @@ território somente para tornar a leitura local.
 Comece por [`language.w`](language.w). Ele reúne roots de módulo, imports,
 declarations, tipos, contratos, patterns, literals e entry explícito.
 
-Depois leia [`execution.w`](execution.w). Ele reúne script header, bindings,
-allocator scopes, controle, execução, effects, streams, channels e implicit
-entry.
+Depois leia [`execution.w`](execution.w). Ele reúne o módulo de execução com
+entry explícito, bindings, allocator scopes, controle, execução, effects,
+streams e channels.
 
-Os arquivos [`package.w`](package.w), [`workspace.w`](workspace.w),
-[`lock.w`](lock.w) e [`deployments/local.w`](deployments/local.w) existem porque
-cada manifest ocupa um root exclusivo. Eles são pequenos por design.
+Os arquivos [`package.w`](package.w) e [`workspace.w`](workspace.w) são
+documentos independentes. O primeiro demonstra um package isolado que é owner
+de sua resolution e deployment nomeado; o segundo demonstra um workspace que é
+owner desses fields para seus members. Eles não formam um único projeto e não
+duplicam ownership. Os dois roots são pequenos por design.
 
 [`atlas-manifest.json`](atlas-manifest.json) inventaria cada bloco marcado,
 cada família e cada regra pública nomeada da grammar. Ele registra design status,

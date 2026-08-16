@@ -73,7 +73,7 @@
       "problemKey": "staged-menu-storage",
       "outcomeKey": "preserve-bounded-storage-and-drop-before-reclaim",
       "sourceRefs": [
-        { "id": "stage-menu", "path": "reference/last-light/allocation.w", "symbol": "export fn stageMenu", "digest": "sha256:eb65b28572bd3faa31de1e2b2b8de0101ae0a5cf4cf8ee8eee69a61bdfce2da7", "claim": "Lexical and contextual staging allocator" }
+        { "id": "stage-menu", "path": "reference/last-light/allocation.w", "symbol": "export fn stageMenu", "digest": "sha256:38abe8d35bd194aac2baf5c9a9c941e3b54777265dc348de9afad2462105698e", "claim": "Lexical and contextual staging allocator" }
       ],
       "oracleRefs": [
         { "id": "allocator-scope-cases", "path": "tooling/allocator-scope-cases.json", "digest": "sha256:0c078915acc3c9e074ff617ce2a9daf6d1c0d645c7f576496a1bda1b5bb98367", "claim": "Allocator scope, stack, rehome, and fixed admission cases" },
@@ -182,12 +182,12 @@
       "problemKey": "hermetic-menu-build-session",
       "outcomeKey": "preserve-lock-closure-and-generation-invalidation",
       "sourceRefs": [
-        { "id": "package-manifest", "path": "reference/last-light/package.w", "symbol": "package {", "digest": "sha256:b948a12612d0e656cbc4fba5809ef18c6ab4af8f085e55377f049ad55c469796", "claim": "Typed package manifest, roots, and locked actions" },
-        { "id": "package-action", "path": "reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:b948a12612d0e656cbc4fba5809ef18c6ab4af8f085e55377f049ad55c469796", "claim": "Menu build action and artifact closure" },
+        { "id": "package-manifest", "path": "reference/last-light/package.w", "symbol": "package {", "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc", "claim": "Typed package manifest, roots, and locked actions" },
+        { "id": "package-action", "path": "reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc", "claim": "Menu build action and artifact closure" },
         { "id": "session-snapshot", "path": "reference/last-light/repl_session_oracle.w", "symbol": "export struct SessionSnapshot", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "claim": "Committed REPL snapshot and bounded receipts" }
       ],
       "oracleRefs": [
-        { "id": "script-workflow-cases", "path": "tooling/script-workflow-cases.json", "digest": "sha256:ea42176d5587ec6ce412f31717583e892279da812d9085359091ffe1c685ecc9", "claim": "Hermetic script context, lock, CAS, and promotion cases" },
+        { "id": "script-workflow-cases", "path": "tooling/script-workflow-cases.json", "digest": "sha256:bf89f00761d11678990bd1ff42286da5243ca5fa440e7ed571845b94f6eb90ea", "claim": "Historical PYN1 context, lock, CAS, and promotion cases" },
         { "id": "repl-session-cases", "path": "tooling/repl-session-cases.json", "digest": "sha256:4139afaef0812307eb4301107d7beb4f0926f1d563b3d05cdfa9a024956882cf", "claim": "Transactional REPL generation and invalidation cases" }
       ],
       "inputs": [

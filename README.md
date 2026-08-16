@@ -36,10 +36,8 @@ Leia estes artefatos nesta ordem:
    sintática vigente, exemplos Tree-sitter parse-only e leitura não normativa;
 6. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
    specs, toolchain plans, ABIs, artifacts e gates;
-7. [Deployments](reference/last-light/deployments/README.md) — planos local e
-   distribuído;
-8. [Rascunho da std](std/README.md) — contratos da standard library em W;
-9. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
+7. [Rascunho da std](std/README.md) — contratos da standard library em W;
+8. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
 
 O [portal](portal/README.md) é um protótipo visual congelado. Ele não precisa
 acompanhar cada mudança antes do design freeze.

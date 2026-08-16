@@ -159,63 +159,6 @@ entry Diagnostics {
               (string_literal))))))))
 
 ==================
-Implicit script entry body
-==================
-
-script {
-  edition: "2026"
-}
-
-fn greet() {
-  print("Hello, W")
-}
-
-greet()
-
----
-
-(source_file
-  (script_header
-    (manifest_record
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (string_literal)))))
-  (function_declaration
-    (identifier)
-    (parameter_list)
-    (block
-      (expression_statement
-        (call_expression
-          (identifier)
-          (argument_list
-            (argument
-              (string_literal)))))))
-  (expression_statement
-    (call_expression
-      (identifier)
-      (argument_list))))
-
-==================
-Declaration cannot follow an implicit entry statement
-==================
-
-let first = 1
-fn later() {}
-
----
-
-(source_file
-  (binding_declaration
-    (pattern
-      (identifier))
-    (number_literal))
-  (function_declaration
-    (identifier)
-    (parameter_list)
-    (block)))
-
-==================
 Data-only package manifest
 ==================
 
@@ -367,9 +310,61 @@ workspace {
         (identifier)
         (manifest_value
           (manifest_list))))))
+==================
+Script header and implicit entry body are rejected
+==================
+
+script {
+  edition: "2026"
+}
+
+fn greet() {
+  print("Hello, W")
+}
+
+greet()
+
+---
+
+(source_file
+  (ERROR
+    (identifier)
+    (identifier)
+    (string_literal))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (string_literal)))))))
+  (ERROR
+    (identifier)))
 
 ==================
-Data-only package lock
+Top-level statements are rejected before declarations
+==================
+
+let first = 1
+fn later() {}
+
+---
+
+(source_file
+  (ERROR
+    (identifier)
+    (identifier)
+    (number_literal))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block)))
+
+==================
+Standalone lock root is rejected
 ==================
 
 lock {
@@ -382,27 +377,17 @@ lock {
 ---
 
 (source_file
-  (lock_manifest
-    (manifest_record
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (string_literal)))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (string_literal)))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (manifest_list)))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (manifest_list))))))
+  (ERROR
+    (identifier)
+    (identifier)
+    (string_literal)
+    (identifier)
+    (string_literal)
+    (identifier)
+    (identifier)))
 
 ==================
-Data-only deployment plan
+Standalone deployment root is rejected
 ==================
 
 deployment {
@@ -429,55 +414,29 @@ deployment {
 ---
 
 (source_file
-  (deployment_manifest
-    (manifest_record
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (string_literal)))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (string_literal)))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (manifest_list
-            (manifest_value
-              (manifest_record
-                (manifest_field
-                  (identifier)
-                  (manifest_value
-                    (string_literal)))
-                (manifest_field
-                  (identifier)
-                  (manifest_value
-                    (manifest_constructor
-                      (contextual_member_expression
-                        (identifier))
-                      (manifest_argument
-                        (manifest_value
-                          (string_literal)))
-                      (manifest_argument
-                        (identifier)
-                        (manifest_value
-                          (string_literal)))
-                      (manifest_argument
-                        (identifier)
-                        (manifest_value
-                          (string_literal)))))))))))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (manifest_list
-            (manifest_value
-              (manifest_record
-                (manifest_field
-                  (identifier)
-                  (manifest_value
-                    (string_literal)))
-                (manifest_field
-                  (identifier)
-                  (manifest_value
-                    (contextual_member_expression
-                      (identifier))))))))))))
+  (ERROR
+    (identifier)
+    (identifier)
+    (string_literal)
+    (identifier)
+    (string_literal)
+    (identifier)
+    (identifier)
+    (string_literal)
+    (identifier)
+    (identifier)
+    (string_literal)
+    (identifier)
+    (string_literal)
+    (identifier)
+    (string_literal)
+    (identifier))
+  (unit_declaration
+    (ERROR
+      (string_literal))
+    (identifier)
+    (ERROR)
+    (type
+      (type_name
+        (type_identifier))))
+  (ERROR))

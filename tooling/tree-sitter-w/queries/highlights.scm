@@ -38,8 +38,6 @@
   "unit"
 ] @keyword.type
 
-(script_header "script" @keyword.type)
-
 [
   "break"
   "case"
@@ -70,7 +68,6 @@
   "await"
   "const"
   "copy"
-  "deployment"
   "export"
   "inout"
   "let"
@@ -103,6 +100,7 @@
   "from"
   "get"
   "import"
+  "input"
   "module"
   "domain"
   "package"

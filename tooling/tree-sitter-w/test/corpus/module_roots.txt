@@ -88,90 +88,6 @@ entry Diagnostics(inspect)
     (identifier)))
 
 ==================
-Manifest cannot share a document with module source
-==================
-
-package {
-  schema: "w.package/1"
-  name: "last-light/invalid"
-}
-
-module invalid
-fn run() {}
-
----
-
-(source_file
-  (ERROR
-    (manifest_record
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (string_literal)))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (string_literal)))))
-  (module_header
-    (identifier))
-  (function_declaration
-    (identifier)
-    (parameter_list)
-    (block)))
-
-==================
-Import after declaration recovers at the next declaration
-==================
-
-fn beforeImport() {}
-import { Request } from std.http
-fn afterImport() {}
-
----
-
-(source_file
-  (function_declaration
-    (identifier)
-    (parameter_list)
-    (block))
-  (expression_statement
-    (identifier))
-  (ERROR)
-  (expression_statement
-    (identifier))
-  (ERROR)
-  (expression_statement
-    (member_expression
-      (identifier)
-      (identifier)))
-  (function_declaration
-    (identifier)
-    (parameter_list)
-    (block)))
-
-==================
-Second module header recovers at the following declaration
-==================
-
-module first
-module second
-fn afterHeader() {}
-
----
-
-(source_file
-  (module_header
-    (identifier))
-  (expression_statement
-    (identifier))
-  (expression_statement
-    (identifier))
-  (function_declaration
-    (identifier)
-    (parameter_list)
-    (block)))
-
-==================
 Incomplete named import keeps the following declaration
 ==================
 
@@ -221,3 +137,80 @@ fn afterIncomplete(): Bool {
     (block
       (return_statement
         (boolean_literal)))))
+==================
+Manifest cannot share a document with module source
+==================
+
+package {
+  schema: "w.package/1"
+  name: "last-light/invalid"
+}
+
+module invalid
+fn run() {}
+
+---
+
+(source_file
+  (ERROR
+    (manifest_record
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal))))
+    (identifier)
+    (identifier))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block)))
+
+==================
+Import after declaration recovers at the next declaration
+==================
+
+fn beforeImport() {}
+import { Request } from std.http
+fn afterImport() {}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block))
+  (ERROR
+    (identifier)
+    (identifier)
+    (identifier)
+    (identifier))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block)))
+
+==================
+Second module header recovers at the following declaration
+==================
+
+module first
+module second
+fn afterHeader() {}
+
+---
+
+(source_file
+  (module_header
+    (identifier))
+  (ERROR
+    (identifier)
+    (identifier))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block)))

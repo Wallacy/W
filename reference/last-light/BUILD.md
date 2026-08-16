@@ -223,7 +223,7 @@ Build profile e execution profile respondem a perguntas diferentes:
 
 Cada unit criada pelo packing recebe seu próprio envelope. O packing
 `single-process` cria um runtime compartilhado. O packing `split-services`
-produz um runtime por unit. `deployments/distributed.w` reduz cada unit
+produz um runtime por unit. `workspace.w (deployment "distributed")` reduz cada unit
 separadamente.
 
 O deployment não cria domain nem muda fallback. Ele reduz somente números
@@ -232,7 +232,7 @@ Portanto, dois nomes lógicos não duplicam workers.
 
 ```text
 w explain execution last-light-native \
-  --deployment deployments/local.w
+  --deployment local
 ```
 
 O relatório deve mostrar requirements alcançáveis, pool compartilhado, budgets
@@ -554,9 +554,9 @@ records estão disponíveis nos pools. A plan grava somente as escolhas.
 ### 5.4 Execução
 
 ```text
-w run last-light-native --deployment deployments/local.w -- --cli
-w run last-light-native --deployment deployments/local.w -- --tui
-w run last-light-native --deployment deployments/local.w -- --serve
+w run last-light-native --deployment local -- --cli
+w run last-light-native --deployment local -- --tui
+w run last-light-native --deployment local -- --serve
 ```
 
 ### 5.5 Explicação
@@ -569,7 +569,7 @@ w explain target-variant last-light/restaurant::native-terminal \
 w explain artifact sha256:...
 w explain runtime restaurant-core
 w explain execution last-light-native \
-  --deployment deployments/local.w
+  --deployment local
 w explain workflow fulfillment --key order:42
 w explain performance restaurant.horizon::forecast
 w explain memory restaurant.allocation::countStagedMenuInParallel
@@ -590,11 +590,11 @@ w build last-light-benchmark \
   --locked
 
 w benchmark validate last-light-benchmark \
-  --deployment deployments/benchmark.w \
+  --deployment benchmark \
   --harness github:TechEmpower/FrameworkBenchmarks@57d92fbec6f8fd7431bc77326dd0484e60c96e20
 
 w benchmark run last-light-benchmark \
-  --deployment deployments/benchmark.w \
+  --deployment benchmark \
   --harness github:TechEmpower/FrameworkBenchmarks@57d92fbec6f8fd7431bc77326dd0484e60c96e20 \
   --evidence results/last-light.wbench
 ```
@@ -717,7 +717,7 @@ mostra a authority, o alias, o usage, as versions candidatas e os novos edges.
 Ele não executa o package. `w remove` aplica a mesma regra e falha quando um
 product, feature, action ou target variant ainda referencia o alias.
 
-`package.lock` fixa:
+`workspace.w resolution` fixa:
 
 - digest do workspace manifest e dos package manifests;
 - roots e dependency usages;
@@ -1087,22 +1087,22 @@ deployment não pode substituir os providers.
 
 ### 7.3 Deployment
 
-Os planos estão em [`deployments/`](deployments/):
+Os planos são records nomeados em [`workspace.w`](workspace.w):
 
-- `local.w` usa `single-process` e adapters locais;
-- `distributed.w` usa `split-services`, WASI 0.3, swarm e sensores externos;
-- `benchmark.w` fixa PostgreSQL, cache local, admission e logs em disco
+- `local` usa `single-process` e adapters locais;
+- `distributed` usa `split-services`, WASI 0.3, swarm e sensores externos;
+- `benchmark` fixa PostgreSQL, cache local, admission e logs em disco
   desativados.
 
 O deployment muda placement. Ele não reagrupa providers, não religa edges
-privadas e não remove `await`. O futuro `deployment.lock` grava artifacts,
-units, link kind, protocol, wire schema, codec profile, transport, peers e
-adapters por digest.
+privadas e não remove `await`. O record nomeado em `workspace.w` grava
+artifacts, units, link kind, protocol, wire schema, codec profile, transport,
+peers e adapters por digest.
 
 ```text
-w deploy resolve deployments/local.w
-w deploy check deployments/local.w --locked
-w deploy apply deployments/local.w --locked
+w deploy resolve --deployment local
+w deploy check --deployment local --locked
+w deploy apply --deployment local --locked
 ```
 
 ### 7.4 Distribuição fina

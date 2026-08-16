@@ -3,25 +3,21 @@
   "status": "design-oracle-input",
   "cases": [
     {
-      "id": "F0-script-header",
-      "decisions": ["W-1046", "W-1047", "W-1056"],
+      "id": "F0-module-run-entry",
+      "decisions": ["W-1412"],
       "input": {
         "lines": [
-          "script{edition:\"2026\" lock:\"sha256:f59a22a26aa53fc0d1555350c177b8013d2f1534861872ff87f94ab0e8cf2\" requires:[.clock]}",
-          "module horizon",
-          "entry{print(\"ready\")}"
+          "module horizon_tool",
+          "fn runHorizon():(){print(result)}",
+          "entry(runHorizon)"
         ]
       },
       "output": [
-        "script {",
-        "  edition: \"2026\"",
-        "  lock: \"sha256:f59a22a26aa53fc0d1555350c177b8013d2f1534861872ff87f94ab0e8cf2\"",
-        "  requires: [.clock]",
-        "}",
+        "module horizon_tool",
         "",
-        "module horizon",
+        "fn runHorizon(): () { print(result) }",
         "",
-        "entry { print(\"ready\") }"
+        "entry(runHorizon)"
       ],
       "requiredSemicolons": []
     },
@@ -233,24 +229,21 @@
       "input": {
         "lines": [
           "struct OvenSession<_ state:OvenSessionState>{}",
-          "let positional=OvenSession<.ready>.state",
-          "let named=OvenSession<state:.ready>.state",
           "fn open(_ name:String){}",
-          "open(\"oven\")",
-          "open(name:\"oven\")"
+          "fn demo(){let positional=OvenSession<.ready>.state;let named=OvenSession<state:.ready>.state;open(\"oven\");open(name:\"oven\")}"
         ]
       },
       "output": [
         "struct OvenSession<_ state: OvenSessionState> {}",
         "",
-        "let positional = OvenSession<.ready>.state",
-        "",
-        "let named = OvenSession<state: .ready>.state",
-        "",
         "fn open(_ name: String) {}",
         "",
-        "open(\"oven\")",
-        "open(name: \"oven\")"
+        "fn demo() {",
+        "  let positional = OvenSession<.ready>.state",
+        "  let named = OvenSession<state: .ready>.state",
+        "  open(\"oven\")",
+        "  open(name: \"oven\")",
+        "}"
       ],
       "requiredSemicolons": []
     },
@@ -260,19 +253,19 @@
       "input": {
         "lines": [
           "fn query(count:usize,named context:Context){}",
-          "query(20,context:ctx)",
           "fn inspect(named:Bool){}",
-          "inspect(flag)"
+          "fn demo(){query(20,context:ctx);inspect(flag)}"
         ]
       },
       "output": [
         "fn query(count: usize, named context: Context) {}",
         "",
-        "query(20, context: ctx)",
-        "",
         "fn inspect(named: Bool) {}",
         "",
-        "inspect(flag)"
+        "fn demo() {",
+        "  query(20, context: ctx)",
+        "  inspect(flag)",
+        "}"
       ],
       "requiredSemicolons": []
     },

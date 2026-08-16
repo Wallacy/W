@@ -365,59 +365,6 @@ fn useContracts(bytes: view Bytes, edit: inout view Bytes) {
           (argument_list))))))
 
 ==================
-Whitespace cannot detach a type contract from its head
-==================
-
-type Spaced = Array <u8>
-type AfterSpaced = u8
-
----
-
-(source_file
-  (type_declaration
-    (type_identifier)
-  (type
-    (type_name
-      (type_identifier))))
-  (ERROR)
-  (expression_statement
-    (binary_expression
-      (identifier)
-      (identifier)))
-  (expression_statement
-    (assignment_expression
-      (identifier)
-      (identifier))))
-
-==================
-Computed static argument requires parentheses
-==================
-
-type RawExpression = Matrix<rows * columns>
-type AfterExpression = u8
-
----
-
-(source_file
-  (type_declaration
-    (type_identifier)
-    (type
-      (type_name
-        (type_identifier))
-      (type_arguments
-        (type_argument
-          (type
-            (type_name
-              (type_identifier))))
-        (ERROR
-          (identifier)))))
-  (type_declaration
-    (type_identifier)
-    (type
-      (type_name
-        (type_identifier)))))
-
-==================
 Parentheses without comma do not group a type
 ==================
 
@@ -469,6 +416,56 @@ type AfterIncomplete = u8
                   (type_name
                     (type_identifier)))))))
         (MISSING ">"))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))))
+==================
+Whitespace cannot detach a type contract from its head
+==================
+
+type Spaced = Array <u8>
+type AfterSpaced = u8
+
+---
+
+(source_file
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))))
+  (ERROR
+    (identifier))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))))
+
+==================
+Computed static argument requires parentheses
+==================
+
+type RawExpression = Matrix<rows * columns>
+type AfterExpression = u8
+
+---
+
+(source_file
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (ERROR
+          (identifier))
+        (type_argument
+          (type
+            (type_name
+              (type_identifier)))))))
   (type_declaration
     (type_identifier)
     (type

@@ -42,42 +42,38 @@
     {
       "id": "FZ0-G1-declarations-and-roots",
       "family": "G1",
-      "construction": "script header and implicit script entry",
-      "decisions": ["W-1046", "W-1047", "W-1056"],
+      "construction": "module declarations and explicit run entry",
+      "decisions": ["W-1412"],
       "sourceRef": {
-        "path": "reference/last-light/horizon_script.w",
+        "path": "reference/last-light/horizon_tool.w",
         "symbol": "print(result)",
-        "digest": "sha256:2bf5fe7bf3fecdf8b22ce3c3412b74fb9c34460d97a5060d5474b783dda82403"
+        "digest": "sha256:1b14a158204e203b9e7d202ad7a19800f5c663f90dae5819f185f4d869e4fd3f"
       },
       "positive": {
-        "formatterCase": "F0-script-header",
-        "workflowCase": "PYN1-implicit-entry-runs-default",
+        "formatterCase": "F0-module-run-entry",
+        "workflowCase": "PYN1-no-header-std-hello",
         "workflowExpected": { "status": "accepted" },
-        "markers": ["script", "entry", "print(result)"]
+        "markers": ["module horizon_tool", "entry(runHorizon)", "print(result)"]
       },
       "adversarial": {
         "kind": "source-waiver",
-        "reason": "PYN1 rejects entry-order and explicit/implicit mixing, but no S0 SemanticResult pair exists for the root-only workflow contract.",
+        "reason": "The module-run contract requires an explicit default descriptor or a named --entry selection.",
         "workflowOutcomes": [
-          { "id": "PYN1-implicit-declaration-after-statement", "code": "declarationAfterStatement", "at": "last", "reason": "declaration-order" },
-          { "id": "PYN1-explicit-and-implicit-entry", "code": "explicitImplicitEntry", "at": "last", "reason": "entry-form-mixing" },
-          { "id": "PYN1-implicit-root-import-rejected", "code": "scriptImportForbidden", "at": "last", "reason": "root-import-boundary" }
+          { "id": "PYN1-entry-missing", "code": "defaultEntryMissing", "at": "last", "reason": "explicit-entry-required" }
         ],
-        "failureField": "entryForm",
+        "failureField": "entry",
         "diagnostic": {
-          "code": "W-SCRIPT-0005",
+          "code": "W-RUN-0005",
           "phase": "source.entry",
           "facts": {
-            "actual": "implicit script entry conflicts with root declaration order",
-            "construct": "script entry",
-            "expected": ["implicit root-only entry"],
-            "entryForm": "implicit",
-            "reason": "root-only-entry-contract",
+            "actual": "no explicit entry descriptor was selected",
+            "construct": "module entry",
+            "expected": ["entry(default)", "--entry Name"],
+            "entry": null,
+            "reason": "explicit-entry-required",
             "waiver": true,
             "workflowOutcomes": [
-              { "id": "PYN1-implicit-declaration-after-statement", "code": "declarationAfterStatement", "at": "last", "reason": "declaration-order" },
-              { "id": "PYN1-explicit-and-implicit-entry", "code": "explicitImplicitEntry", "at": "last", "reason": "entry-form-mixing" },
-              { "id": "PYN1-implicit-root-import-rejected", "code": "scriptImportForbidden", "at": "last", "reason": "root-import-boundary" }
+              { "id": "PYN1-entry-missing", "code": "defaultEntryMissing", "at": "last", "reason": "explicit-entry-required" }
             ]
           }
         }
@@ -160,7 +156,7 @@
       "sourceRef": {
         "path": "reference/last-light/allocation.w",
         "symbol": "allocator .fixed<capacity: 2<iec.MiB>>",
-        "digest": "sha256:eb65b28572bd3faa31de1e2b2b8de0101ae0a5cf4cf8ee8eee69a61bdfce2da7"
+        "digest": "sha256:38abe8d35bd194aac2baf5c9a9c941e3b54777265dc348de9afad2462105698e"
       },
       "positive": {
         "formatterCases": ["F0-allocator-anonymous-contextual-call", "F0-allocator-named-override"],

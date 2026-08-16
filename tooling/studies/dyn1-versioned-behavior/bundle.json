@@ -3,13 +3,13 @@
   "status": "design-oracle-input",
   "id": "R1-dyn1-versioned-behavior",
   "title": "Versioned dynamic behavior at the Last Light restaurant",
-  "r0Cases": ["R0-pyn1-standalone-lock", "R0-pyn1-capability-admission", "R0-python-transform"],
+  "r0Cases": ["R0-module-run-context", "R0-module-run-capability-admission", "R0-python-transform"],
   "sourceBase": { "path": "../../../reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461" },
   "sourceRefs": [
     { "path": "../../../reference/last-light/repl_session_oracle.w", "symbol": "GenerationReceipt", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461" },
     { "path": "../../../reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de" },
     { "path": "../../../reference/last-light/liveness_oracle.w", "symbol": "CommitGate", "digest": "sha256:447a3fc9252312c7403450a861a75324bb34e1a91df9a7a7981d0bc0b38b4119" },
-    { "path": "../../../reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:b948a12612d0e656cbc4fba5809ef18c6ab4af8f085e55377f049ad55c469796" },
+    { "path": "../../../reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc" },
     { "path": "../../../reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40" }
   ],
   "variants": [

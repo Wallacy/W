@@ -72,7 +72,7 @@ linguagem.
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
 | `service-recovery-cases.json` + máquina SR0 | 48 casos e 392 operações (18 aceitos + 30 rejeitados), 17 testes host; mailbox, dedup, journal, process/network faults, generations, compaction, restart e shutdown | oracle host que compõe B0/E1; não executa W, wWire, database, filesystem, network, runtime ou provider |
 | `package-release-cases.json` + máquina P0 | 44 sequências e 379 operações cobrem resolver, lock, CAS, recipe, mirror, rebuild e release | oracle host de supply chain; não é resolver, registry, CAS ou signer real |
-| `script-workflow-cases.json` + máquina PYN1 | 91 casos/533 operações (22 aceitos + 69 rejeitados, incluindo multi-target, parse evidence e sidecar records) para header, context, roots físicos opacos, imports, virtual selection, lock P0 (`contexts`/`packages`), grafo transitivo, fetch/CAS por digest, requirement admission, identity, entry, cleanup e promotion | oracle host de design; não é CLI, compiler, resolver, provider, runtime ou execução W |
+| `script-workflow-cases.json` + máquina PYN1 (histórico) | 91 casos/533 operações preservados como estudo histórico; a forma promovida é o workflow module-run RU0 com roots package/workspace e `resolution` aninhada | oracle histórico; não é CLI, compiler, resolver, provider, runtime ou execução W |
 | `std-api-contracts.json` + checker de std | perfis cobrem 377 APIs em 29 módulos, 92 superfícies qualificadas, 31/31 requisitos contratados e 0/8 carriers missing | catálogo e snapshot são projeções; módulos catalogados são drafts e seus 23/23 providers intrinsics continuam missing; Blob é composição W sem provider próprio; bounds determinísticos entram na recipe key |
 | `dlpack-cases.json` + máquina/checker/snapshot | PYN4 fecha DLPack 1.3 versioned e modela o fast path C Exchange N0 scoped; cobre Device/Queue, zero-copy, materialização, capsule, Python lease, drain/release, dtype/layout, provenance e hidden copy; 75 casos/326 operações (26 aceitos + 49 rejeitados) | oracle host independente; não compila ou executa W, Python, CUDA, ROCm, provider ou runtime |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
@@ -211,17 +211,14 @@ reais sem criar uma segunda autoridade. Cada oracle compara todos os inputs com
 evidência corrente. `w-compile`, `w-run`, `human-study` e `model-study`
 permanecem missing.
 
-### Workflow single-file PYN1
+### Workflow single-file PYN1 (histórico)
 
 [`script-workflow-machine.mjs`](script-workflow-machine.mjs) é uma máquina host
-determinística para a direção PYN1. Ela deriva context, roots, imports,
-virtual selection, payload P0 `package.lock` (`contexts`/`packages`), closure
-transitiva, selected target context, fetch pinned com candidate real, cache CAS
-offline por content digest, parser evidence ligada a bytes, artifact/handle/
-action-output records ligados ao lock e recipe (somente outputs consumidos entram
-na recipe), offered/matched/effective
-requirements, identity efêmera sem path físico, entry, cleanup e promotion. Ela
-não compila, consulta um registry, executa W ou fornece um CLI.
+histórica para a direção PYN1 rejeitada. Ela preserva context, roots, imports,
+lock, CAS, requirements, identity, entry, cleanup e promotion como evidência de
+proveniência. Ela não define o contrato module-run RU0, não compila, não consulta
+um registry, não executa W e não fornece CLI. Casos que precisam dos bytes antigos
+referenciam somente o companion não parseável em `history/archive`.
 
 O corpus e o snapshot ficam em
 [`script-workflow-cases.json`](script-workflow-cases.json) e
@@ -234,9 +231,9 @@ bun test tooling/script-workflow-reference.test.mjs
 bun tooling/check-script-workflow-cases.mjs
 ```
 
-Os nomes `w script add`, `w script remove`, `w script resolve` e
-`w script promote` são contratos de design. Este tooling não implementa esses
-comandos.
+Os comandos históricos `w script ...` não fazem parte da superfície corrente.
+Use operações de package/workspace e o workflow module-run RU0; este tooling
+histórico não implementa CLI.
 
 ### Sessão/REPL transacional PYN2
 

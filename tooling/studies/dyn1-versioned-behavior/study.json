@@ -10,7 +10,7 @@
   "providerEvidence": "missing",
   "exactGap": { "id": "DYN0-persistent-generation-reference", "route": "research", "scope": "read-only reference and migration across restart/deploy", "languageSurface": "unresolved", "providerGap": true, "gate": "research-evidence-only" },
   "composition": {
-    "capabilityMatrix": { "id": "CAP0", "subcapability": "DYN0-versioned-change", "classification": "composable", "casesPath": "../../capability-matrix-cases.json", "casesDigest": "sha256:96ee865611292be38a49a8dc8ada41034ef299e2c1ddc5b4a3e64f8a7c3c97be", "snapshotPath": "../../capability-matrix-results.snapshot.jsonl", "snapshotDigest": "sha256:92f162287ec8cd088772db6080cea0762b2f8ef0b92f0f17782bde1de2f076e9", "gate": "CAP0" },
+    "capabilityMatrix": { "id": "CAP0", "subcapability": "DYN0-versioned-change", "classification": "composable", "casesPath": "../../capability-matrix-cases.json", "casesDigest": "sha256:4dc7f8f2623e5ac793edf73ad8448b8d946e44149d9254ab1c85a7be1e522fb4", "snapshotPath": "../../capability-matrix-results.snapshot.jsonl", "snapshotDigest": "sha256:7a440181f2d7630067867b427ab2b36155c25d8d4364a5d3d390afbe252795c9", "gate": "CAP0" },
     "dyn0": { "id": "DYN0", "subcapability": "DYN0-versioned-change", "classification": "composable", "evidence": "partial", "gate": "DYN0-G1" }
   },
   "routeMatrix": [
@@ -39,7 +39,7 @@
     { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "claim": "effect and submission receipt facts" },
     { "path": "reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de", "claim": "service generation and drain state" },
     { "path": "reference/last-light/liveness_oracle.w", "symbol": "CommitGate", "digest": "sha256:447a3fc9252312c7403450a861a75324bb34e1a91df9a7a7981d0bc0b38b4119", "claim": "runtime closure and cleanup gate" },
-    { "path": "reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:b948a12612d0e656cbc4fba5809ef18c6ab4af8f085e55377f049ad55c469796", "claim": "package recipe and lock identity" },
+    { "path": "reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc", "claim": "package recipe and resolution identity" },
     { "path": "reference/last-light/release_oracle.w", "symbol": "mirror", "digest": "sha256:fc7ac740c97011d7f6e88ba839b46da83d6617b505305c4e3e7f866ba092f08b", "claim": "artifact and receipt provenance" },
     { "path": "reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40", "claim": "WAbi and foreign callback boundary" },
     { "path": "reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "callback lease and unregister drain" }

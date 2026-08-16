@@ -1,0 +1,10 @@
+Historical PYN1 companion only. This file is not a current W source.
+It records rejected legacy workflow symbols so the host oracle keeps
+provenance without presenting a script header or implicit entry as syntax.
+menuFor lock entry dependencies edition script requires imports roots .path
+branch override ambient traversal symlink case drive UNC recursive PATH
+environment CAS closure offline digest authority signature action output
+secrets process args handles print(result) cleanup w context standalone
+w script add w script remove w script resolve atomic provenance nodes/edges
+graph local graph requirements target URL stdin shebang hidden network
+artifact evidence parseEvidence resultParseEvidence
