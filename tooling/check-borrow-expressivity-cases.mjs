@@ -103,6 +103,9 @@ function checkExpected(testCase, result, location) {
   const expected = testCase.expected ?? {};
   rejectExpectedMappingEcho(expected, `${location}.expected`);
   compare(result.decision, expected.decision, `${location}.expected.decision`);
+  if (expected.baselineError !== undefined) {
+    compare(result.mapping.baselineError?.code, expected.baselineError, `${location}.expected.baselineError`);
+  }
   if (expected.relationalExact !== undefined) {
     compare(result.mapping.relationalExact, expected.relationalExact, `${location}.expected.relationalExact`);
   }

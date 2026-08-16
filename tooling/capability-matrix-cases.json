@@ -29,12 +29,12 @@
       "title": "Borrowed higher-order results",
       "lastLight": {
         "scenario": "The Last Light menu cursor maps and filters borrowed lines while a caller keeps the source owner live.",
-        "expectedUse": "A receiver or body-derived source closes the result relation. A bodyless primary/fallback requirement stays conservative.",
+        "expectedUse": "A receiver, body-derived source, or one compatible bodyless input closes the result relation. Ambiguous primary/fallback declarations are rejected.",
         "sourceRefs": [
           {
             "path": "reference/last-light/borrow_expressivity.w",
             "symbol": "MenuCursor",
-            "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709",
+            "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
             "claim": "cursor protocol"
           },
           {
@@ -51,7 +51,7 @@
         "canonicalSource": {
           "path": "reference/last-light/borrow_expressivity.w",
           "symbol": "MenuCursor",
-          "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709",
+          "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
           "claim": "cursor protocol"
         }
       },
@@ -155,25 +155,25 @@
         ]
       },
       "exactGap": {
-        "kind": "research",
-        "description": "A bodyless free or protocol requirement with independent primary and fallback inputs needs a precise result-to-input relation.",
-        "boundary": "Do not add lifetime names, GAT syntax, or runtime lifetime metadata while the relation remains unproven.",
-        "notProposed": "A nominal aggregate changes the borrowed result API and does not close the direct relation."
+        "kind": "none",
+        "description": "Receiver, body-derived, and uniquely derivable bodyless borrowed results close the baseline. Independent bodyless inputs are rejected when no source is authoritative.",
+        "boundary": "Keep the result source unique. Do not add lifetime names, GAT syntax, or runtime lifetime metadata.",
+        "notProposed": "A nominal aggregate remains an explicit owned API alternative."
       },
       "route": {
-        "classification": "research",
-        "rationale": "Current composition closes receiver and body-derived cases. The independent-input relation needs a bounded study."
+        "classification": "composable",
+        "rationale": "Receiver, body-derived, and unique-input results compose. Ambiguous bodyless declarations reject with a stable diagnostic. BRX2 relation data remains a Research subcapability."
       },
       "intentionalTradeoff": {
-        "choice": "Keep the all-inputs default for bodyless requirements.",
-        "reason": "Conservative provenance avoids a false proof when the declaration does not identify the source.",
+        "choice": "Require one uniquely derivable source for each bodyless borrowed result.",
+        "reason": "A declaration with multiple independent inputs cannot publish one provenance without an authoritative receiver or body.",
         "preserved": [
           "borrow safety",
           "call-site clarity",
           "no runtime lifetime state"
         ],
         "rejected": [
-          "implicit relation inference from a problem trace",
+          "all-inputs provenance for an ambiguous result",
           "source lifetime labels"
         ]
       },
@@ -188,7 +188,7 @@
         },
         "interfaces": {
           "risk": "A protocol hides the source relation.",
-          "mitigation": "Keep bodyless requirements conservative and record the relation as research."
+          "mitigation": "Reject ambiguous bodyless requirements with W-BORROW-0011 and keep BRX2 relation data in Research."
         },
         "concurrency": {
           "risk": "Concurrent next calls can reuse storage.",
@@ -221,15 +221,15 @@
       "capabilityLevels": {
         "languageDesign": {
           "status": "partial",
-          "rationale": "Receiver/body-derived views compose, but independent bodyless inputs remain conservative."
+          "rationale": "Receiver, body-derived, and unique-input views compose. Ambiguous bodyless inputs reject with a stable diagnostic."
         },
         "stdDesign": {
           "status": "partial",
-          "rationale": "Stream and adapter surfaces cover common views, not the independent relation."
+          "rationale": "Stream, adapter, and explicit owned nominal surfaces cover common view and fallback alternatives."
         },
         "userDefinableInDesign": {
           "status": "partial",
-          "rationale": "A user adapter can identify an owner, but cannot define an unproven relation for a bodyless requirement."
+          "rationale": "A user adapter can identify one owner or choose an owned nominal result. Requirement-owned relation data remains Research."
         }
       },
       "capabilityLevelsBasis": "sameProblem",
@@ -259,10 +259,10 @@
         ]
       },
       "nextStudyGate": {
-        "gateId": "BRX0-R2",
+        "gateId": "BRX2-R1",
         "kind": "design",
-        "forSubcapability": "BRX0-independent-input",
-        "question": "Can a minimal relation record close independent inputs without lifetime syntax or aggregate API changes?",
+        "forSubcapability": "BRX2-relation-schema",
+        "question": "Can a requirement/interface-owned relation record satisfy separate compilation and substitution without changing the baseline?",
         "requiredEvidence": [
           "two independent relation derivations",
           "missing and forged mapping rejection",
@@ -270,16 +270,16 @@
           "requirement/interface ownership and exact slot modes",
           "provider and interface lock digest agreement"
         ],
-        "stopCondition": "Reject the route if relation facts require runtime lifetime metadata or caller-provided ownership claims.",
+        "stopCondition": "Keep BRX2 Research if relation facts require runtime lifetime metadata, caller-provided ownership claims, or a WAbi carrier.",
         "studyRefs": [
           {
             "path": "tooling/studies/brx2-borrow-relations/bundle.json",
-            "digest": "sha256:912bffb1b5983c47a393bd301226255ae65d2b14edae3668beabe44cd41b9c6f",
+            "digest": "sha256:67f3758124fce9df4efb245b3959ece61b08df74a7ecfc4d6703baed844c6be4",
             "claim": "BRX2 keeps requirement/interface-owned relation candidates in Research and preserves W-914."
           },
           {
             "path": "tooling/brx2-borrow-relations-machine.mjs",
-            "digest": "sha256:783691e2c11325b4f13c4d2a7f3ca739d30862b3a94b0f8b4df6f081d675a08e",
+            "digest": "sha256:288ff3c30ede40e0d2768771057784bf7c24f3525182e9eaa90cfc54356c34df",
             "claim": "The host oracle derives relations, edges, OriginSet, interface keys, and digest drift from structured inputs."
           }
         ],
@@ -299,7 +299,7 @@
             {
               "path": "reference/last-light/borrow_expressivity.w",
               "symbol": "MenuCursor",
-              "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709",
+              "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
               "claim": "The menu cursor and body trace derive the source relation without source lifetime names."
             }
           ]
@@ -352,20 +352,19 @@
       "coverage": {
         "currentContract": {
           "status": "partial",
-          "description": "Receiver and body-derived borrowed results compose; independent bodyless inputs remain conservative."
+          "description": "Receiver, body-derived, and unique-input borrowed results compose. Ambiguous bodyless inputs reject, while nominal owned results remain explicit alternatives."
         },
         "subcapabilities": [
           {
-            "id": "BRX0-independent-input",
+            "id": "BRX0-unique-input",
             "scope": "problem",
             "role": "problem",
-            "classification": "research",
-            "gateId": "BRX0-R2",
-            "problem": "bodyless borrowed result with independent primary and fallback inputs",
-            "description": "A precise result-to-input relation is still a research gap.",
-            "evidenceRefs": [
-              "selectPrimary",
-              "nextMappedLine"
+            "classification": "composable",
+            "problem": "bodyless borrowed result with one compatible input",
+            "description": "The baseline derives the sole compatible input without lifetime syntax or runtime metadata.",
+            "componentRefs": [
+              "receiver-dependency",
+              "body-derived"
             ]
           },
           {
@@ -379,6 +378,15 @@
               "receiver-dependency",
               "body-derived"
             ]
+          },
+          {
+            "id": "BRX2-relation-schema",
+            "scope": "extension",
+            "role": "extension",
+            "classification": "research",
+            "gateId": "BRX2-R1",
+            "problem": "requirement/interface-owned relation for multiple independent bodyless inputs",
+            "description": "A data-only relation schema remains a Research candidate after the baseline rejects ambiguous declarations."
           }
         ]
       }

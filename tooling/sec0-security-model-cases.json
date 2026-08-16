@@ -35,7 +35,7 @@
     "abi": {
       "path": "reference/last-light/hir_memory_oracle.w",
       "symbol": "struct HirAbiKey",
-      "digest": "sha256:ca20857e3d3f7b9d68f4eade1b2db9893305bec901bf656ddebe3408afb98c4e",
+      "digest": "sha256:8837f23890bc651e3b7d5f0115457e2f35a2de6c3aeddef80bda37b2a84b3261",
       "claim": "target ABI and physical representation remain distinct from semantic memory facts"
     }
   },

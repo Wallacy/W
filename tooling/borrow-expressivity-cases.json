@@ -5,7 +5,7 @@
   "machine": "borrow-expressivity-machine-brx0",
   "sourceBase": {
     "path": "../reference/last-light/borrow_expressivity.w",
-    "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709",
+    "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
     "symbols": [
       "freshGreeting",
       "selectPrimary",
@@ -29,6 +29,8 @@
     "lending-cursor",
     "storage-reuse",
     "two-independent-inputs",
+    "unique-bodyless-input",
+    "owned-nominal-alternative",
     "protocol-requirement",
     "map",
     "filter",
@@ -122,9 +124,10 @@
         "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
       },
       "expected": {
-        "decision": "research-blocker",
+        "decision": "rejected",
+        "baselineError": "W-BORROW-0011",
         "forms": {
-          "A2_freeAllInputs": "conservative-all-inputs",
+          "A2_freeAllInputs": "rejects-ambiguous-inputs",
           "B1_relationalSchema": "candidate-missing",
           "B2_returnAggregate": "does-not-preserve-direct-result"
         },
@@ -153,7 +156,7 @@
         "decision": "research-blocker",
         "relationalExact": true,
         "forms": {
-          "A2_freeAllInputs": "conservative-all-inputs",
+          "A2_freeAllInputs": "rejects-ambiguous-inputs",
           "B1_relationalSchema": "candidate-closes"
         },
         "artifacts": { "status": "not-requested" }
@@ -176,8 +179,48 @@
         "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
       },
       "expected": {
-        "decision": "research-blocker",
-        "forms": { "A2_freeAllInputs": "conservative-all-inputs" },
+        "decision": "rejected",
+        "baselineError": "W-BORROW-0011",
+        "forms": { "A2_freeAllInputs": "rejects-ambiguous-inputs" },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-bodyless-single-compatible",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "MenuSelection" },
+      "decisionIds": ["W-914", "W-1351"],
+      "coverage": ["unique-bodyless-input"],
+      "declaration": {
+        "kind": "protocol",
+        "protocolRequirement": true,
+        "body": false,
+        "inputs": [{ "slot": "primary", "mode": "ref" }],
+        "results": [{ "slot": "result", "mode": "view" }]
+      },
+      "expected": {
+        "decision": "accepted",
+        "forms": { "A2_freeAllInputs": "closes" },
+        "artifacts": { "status": "not-requested" }
+      }
+    },
+    {
+      "id": "BRX0-owned-nominal-alternative",
+      "source": { "path": "../reference/last-light/borrow_expressivity.w", "symbol": "selectPrimary" },
+      "decisionIds": ["W-1351"],
+      "coverage": ["owned-nominal-alternative"],
+      "declaration": {
+        "kind": "free",
+        "body": false,
+        "inputs": [
+          { "slot": "primary", "mode": "ref" },
+          { "slot": "fallback", "mode": "ref" }
+        ],
+        "results": [{ "slot": "result", "mode": "value" }],
+        "behavior": { "returnShape": "nominal-owned" }
+      },
+      "expected": {
+        "decision": "accepted",
+        "forms": { "B2_returnAggregate": "owned-nominal-alternative" },
         "artifacts": { "status": "not-requested" }
       }
     },
@@ -429,7 +472,8 @@
           { "slot": "fallback", "mode": "ref" }
         ],
         "results": [{ "slot": "result", "mode": "view" }],
-        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }],
+        "relationSchema": { "pairs": [{ "result": "result", "sources": ["primary"] }] }
       },
       "artifacts": {
         "implementationMapping": { "result": ["primary"] },
@@ -453,7 +497,8 @@
           { "slot": "fallback", "mode": "ref" }
         ],
         "results": [{ "slot": "result", "mode": "view" }],
-        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }],
+        "relationSchema": { "pairs": [{ "result": "result", "sources": ["primary"] }] }
       },
       "artifacts": {
         "implementationMapping": { "result": ["primary"] },
@@ -480,7 +525,8 @@
           { "slot": "fallback", "mode": "ref" }
         ],
         "results": [{ "slot": "result", "mode": "view" }],
-        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }],
+        "relationSchema": { "pairs": [{ "result": "result", "sources": ["primary"] }] }
       },
       "artifacts": {
         "implementationMapping": { "result": ["primary"] },
@@ -504,7 +550,8 @@
           { "slot": "fallback", "mode": "ref" }
         ],
         "results": [{ "slot": "result", "mode": "view" }],
-        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }]
+        "problemTrace": [{ "operation": "return", "result": "result", "source": "primary" }],
+        "relationSchema": { "pairs": [{ "result": "result", "sources": ["primary"] }] }
       },
       "artifacts": {
         "implementationMapping": { "result": ["primary"] },

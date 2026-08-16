@@ -46,10 +46,10 @@
       "outcomeKey": "preserve-owner-graph-and-observation-lifecycle",
       "sourceRefs": [
         { "id": "menu-root", "path": "reference/last-light/memory.w", "symbol": "export fn makeMenuRoot", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "Shared menu root construction" },
-        { "id": "borrow-primary", "path": "reference/last-light/borrow_expressivity.w", "symbol": "export fn selectPrimary", "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709", "claim": "Receiver and body-derived borrow relation" }
+        { "id": "borrow-primary", "path": "reference/last-light/borrow_expressivity.w", "symbol": "export fn selectPrimary", "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e", "claim": "Receiver and body-derived borrow relation" }
       ],
       "oracleRefs": [
-        { "id": "memory-cases", "path": "tooling/memory-transition-cases.json", "digest": "sha256:242eade0eb2bfff69c7cfcd87b0386b62b6a50dcfc40d08cf926e608bb39dbfc", "claim": "Owner, borrow, shared, weak, and cleanup transitions" },
+        { "id": "memory-cases", "path": "tooling/memory-transition-cases.json", "digest": "sha256:bb318c31b7bdbb87fb63583e7624a53b880de32a9eb465044be173739fb9a466", "claim": "Owner, borrow, shared, weak, and cleanup transitions" },
         { "id": "hir-memory-reference", "path": "tooling/hir-memory-reference.test.mjs", "digest": "sha256:bd59a934a81e3aab5b69edc7b06274d69a1ad1f139079efd328b201b91b37072", "claim": "Independent memory relation assertions" }
       ],
       "inputs": [

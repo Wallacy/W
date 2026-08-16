@@ -28,12 +28,13 @@ describe("R1 BRX0 higher-order borrow expressivity", () => {
     expect(result.forms.A1_memberReceiver).toBe("closes");
   });
 
-  test("the free requirement remains a Research blocker under current all-inputs default", () => {
+  test("the free requirement rejects ambiguous bodyless origins", () => {
     const result = evaluateBorrowCase({ id: "free", declaration: selectDeclaration() });
-    expect(result.decision).toBe("research-blocker");
-    expect(result.mapping.baseline.result).toEqual(["fallback", "primary"]);
+    expect(result.decision).toBe("rejected");
+    expect(result.mapping.baseline).toEqual({});
+    expect(result.mapping.baselineError.code).toBe("W-BORROW-0011");
     expect(result.mapping.required.result).toEqual(["primary"]);
-    expect(result.forms.A2_freeAllInputs).toBe("conservative-all-inputs");
+    expect(result.forms.A2_freeAllInputs).toBe("rejects-ambiguous-inputs");
   });
 
   test("the relation candidate closes the problem without changing the selected source form", () => {

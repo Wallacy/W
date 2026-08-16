@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 const BORROW_MODES = new Set(["ref", "view", "inout"]);
 const DEPENDENT_MODES = new Set(["ref", "view", "inout"]);
 const RELATION_OWNERS = new Set(["requirement", "interface"]);
+const AMBIGUOUS_BODYLESS_RESULT = "W-BORROW-0011";
 const DECLARATION_KINDS = new Set(["free", "static", "protocol", "instance", "member", "init"]);
 const VERIFICATION_SCOPES = new Set(["separate-compilation", "open-dispatch", "generic-dispatch"]);
 const DYNAMIC_BOUNDARIES = new Set([
@@ -191,6 +192,15 @@ export function deriveBaselineMapping(declaration) {
     : inputs.filter(isCompatibleInput).map((slot) => slot.slot);
   if (sources.length === 0) {
     fail("interfaceOriginUnknown", { reason: "noCompatibleInput" });
+  }
+  if (kind !== "instance" && kind !== "member" && sources.length > 1) {
+    fail(AMBIGUOUS_BODYLESS_RESULT, {
+      authority: "none",
+      compatibleInputs: [...sources].sort(),
+      declarationKind: kind,
+      result: dependent,
+      reason: "ambiguousBodylessResultOrigin",
+    });
   }
   return Object.fromEntries(dependent.map((result) => [result, [...sources].sort()]));
 }
@@ -612,9 +622,12 @@ export function evaluateBorrowRelationCase(rawInput) {
     ...(relationError ? [{ code: relationError.code, facts: relationError.facts }] : []),
     ...artifacts.diagnostics, ...generic.diagnostics, ...interfaces.diagnostics,
   ];
+  const suppressAmbiguousBaseline = baselineError?.code === AMBIGUOUS_BODYLESS_RESULT &&
+    (declaration.relationContract !== undefined || declaration.requireRelation === true ||
+      input.artifacts?.callerClaim !== undefined || input.artifacts?.callSiteRelation !== undefined);
   const structuralErrors = [
     assayError,
-    baselineError,
+    suppressAmbiguousBaseline ? null : baselineError,
     (assayTrace !== null || assayError) ? requiredError : null,
   ].filter(Boolean);
   for (const structuralError of structuralErrors.reverse()) {
@@ -632,8 +645,9 @@ export function evaluateBorrowRelationCase(rawInput) {
   }
   diagnostics.splice(0, diagnostics.length, ...uniqueDiagnostics);
   const relationDiagnostic = diagnostics.some((item) => REJECTING_DIAGNOSTICS.has(item.code));
+  const ambiguousBaseline = baselineError?.code === AMBIGUOUS_BODYLESS_RESULT;
   const relationApplicable = !!relation && relationExact && !relationDiagnostic &&
-    !baselineError && !requiredError;
+    !requiredError && (!baselineError || ambiguousBaseline);
   const effectiveMapping = relationApplicable ? relation.payload.mapping : baseline;
   const effectiveEdges = relationApplicable ? relationEdges : baselineEdges;
   const invocation = invocationFacts(
@@ -643,7 +657,7 @@ export function evaluateBorrowRelationCase(rawInput) {
   const missingRequiredRelation = declaration.requireRelation === true &&
     relationError?.code === "relationOmitted";
   const invalidAssay = !!assayError;
-  const rejected = baselineError || invalidAssay || missingRequiredRelation ||
+  const rejected = (baselineError && !relationApplicable) || invalidAssay || missingRequiredRelation ||
     abi.wAbiChanged || diagnostics.some((item) => REJECTING_DIAGNOSTICS.has(item.code));
   const route = rejected ? "rejected" : baselineExact ? "current" : "research";
   const declarationDecision = rejected ? "rejected" : baselineExact ? "accepted" : "research-blocker";

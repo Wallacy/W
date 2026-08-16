@@ -203,7 +203,8 @@ describe("BRX2 host reference", () => {
         problemTrace: [{ operation: "return", result: "result", source: "primary" }],
       },
     });
-    expect(result.route).toBe("research");
-    expect(result.decision).toBe("research-blocker");
+    expect(result.route).toBe("rejected");
+    expect(result.decision).toBe("rejected");
+    expect(result.diagnostics.map((item) => item.code)).toContain("W-BORROW-0011");
   });
 });

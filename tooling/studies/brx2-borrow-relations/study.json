@@ -2,12 +2,12 @@
   "$schema": "w-brx2-borrow-relations-study-1",
   "status": "design-oracle-input",
   "id": "BRX2",
-  "gate": "BRX0-R2",
+  "gate": "BRX2-R1",
   "title": "Requirement-owned relations for borrowed higher-order results",
   "sourceBase": {
     "path": "../../../reference/last-light/borrow_expressivity.w",
     "symbol": "selectPrimary",
-    "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709"
+    "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e"
   },
   "bundle": "bundle.json",
   "corpus": "../../brx2-borrow-relations-cases.json",
@@ -20,20 +20,20 @@
       "id": "sourceBase",
       "path": "../../../reference/last-light/borrow_expressivity.w",
       "symbol": "selectPrimary",
-      "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709",
+      "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
       "identity": "selectPrimary"
     },
     {
       "id": "corpus",
       "path": "../../brx2-borrow-relations-cases.json",
-      "digest": "sha256:489af6b96574cb32575f85d7d630d0d7b23973d6b519a4dce2df1b0559374595",
+      "digest": "sha256:67ad23ebeebb7cce88869c3b7f16b9716d1323d73adef68c5736c21bc8597e22",
       "schema": "w-brx2-borrow-relations-cases-1",
       "identity": "BRX2-relation-owned-borrow"
     },
     {
       "id": "machine",
       "path": "../../brx2-borrow-relations-machine.mjs",
-      "digest": "sha256:783691e2c11325b4f13c4d2a7f3ca739d30862b3a94b0f8b4df6f081d675a08e",
+      "digest": "sha256:288ff3c30ede40e0d2768771057784bf7c24f3525182e9eaa90cfc54356c34df",
       "identity": "evaluateBorrowRelationCase"
     },
     {
@@ -45,14 +45,14 @@
     {
       "id": "snapshot",
       "path": "../../brx2-borrow-relations-results.snapshot.jsonl",
-      "digest": "sha256:907076496847f07cb63dc61018960cfd0246b0b97d57bf650605a6cd8dc646ad",
+      "digest": "sha256:b16aa41cc4373c520d0748fae89bfa7f1fc266b8bdd2b47f4f6ab2b0c1bd64cb",
       "schema": "w-brx2-borrow-relations-results-1",
       "identity": "w-brx2-borrow-relations-results-1"
     },
     {
       "id": "bundle",
       "path": "bundle.json",
-      "digest": "sha256:912bffb1b5983c47a393bd301226255ae65d2b14edae3668beabe44cd41b9c6f",
+      "digest": "sha256:67f3758124fce9df4efb245b3959ece61b08df74a7ecfc4d6703baed844c6be4",
       "schema": "w-substitution-study-bundle-1",
       "identity": "R1-brx2-borrow-relations"
     }

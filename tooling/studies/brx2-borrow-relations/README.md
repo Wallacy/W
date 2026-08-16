@@ -9,9 +9,9 @@ provider, ABI, or foreign-function evidence.
 The Last Light restaurant has a menu selector with two borrowed inputs:
 selectPrimary(primary, fallback) returns the primary line. A body can prove
 that source. A member can use its receiver as the only source. A bodyless
-free, static, or protocol requirement cannot inspect the implementation body,
-so W-914 currently publishes every compatible input. That rule is safe, but it
-does not express the direct result relation.
+free, static, or protocol requirement cannot inspect the implementation body:
+one compatible input is therefore sufficient, but two independent compatible
+inputs are rejected with W-BORROW-0011 because no source is authoritative.
 
 BRX2 asks whether a relation record owned by the requirement and its published
 interface can close this case. The caller does not choose the relation. Each
@@ -26,7 +26,8 @@ syntax:
 | Form | Meaning | Route |
 |---|---|---|
 | current receiver/body | The receiver or body derives exact input slots. | current |
-| conservative bodyless | All compatible inputs remain in the OriginSet. | Research blocker |
+| unique bodyless | Exactly one compatible input supplies the result origin. | current |
+| ambiguous bodyless | Two or more independent inputs have no authoritative origin. | W-BORROW-0011 rejection |
 | requirement/interface relation | A sealed data-only relation maps each result slot to input slots. | Research candidate |
 | nominal aggregate | An owned sum carries the choice. | Safe API alternative |
 
@@ -66,7 +67,8 @@ cancel drain. Dynamic boundaries reject dynamic borrow edges.
 
 Callable, any-fn, await, Stream, and boundary cases use the relation mapping
 only when that candidate is applicable. A rejected relation keeps the
-conservative baseline mapping and edges. Static and immortal edges are
+baseline rejection and diagnostics; a valid relation candidate remains
+Research after the BRX0 baseline close. Static and immortal edges are
 non-dynamic and can cross the bounded boundary case.
 
 Independent results derive from non-dependent result slots. Static and
@@ -106,7 +108,9 @@ provider/linker validation, foreign execution, human study, and model study.
 Promotion requires an authoritative relation schema for open requirements,
 separate-compilation import/provider witnesses, generic substitution checks,
 real HIR and interface verification, and the existing W-914/OriginSet/ABI
-invariants with no runtime lifetime metadata. Stop and keep BRX2 Research if
+invariants with no runtime lifetime metadata. The BRX0 baseline now closes
+unique bodyless provenance and rejects ambiguous bodyless declarations with
+W-BORROW-0011. Stop and keep BRX2 Research if
 the relation needs a caller claim, hidden escape, runtime field, new lifetime
 syntax, or an unverified witness. The host oracle closes the relation for
 structured inputs, but no closed W mechanism is proven across all these

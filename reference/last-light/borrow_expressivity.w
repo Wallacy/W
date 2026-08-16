@@ -24,8 +24,9 @@ export protocol MenuCursor<Item, Failure: Error> {
   mut async fn next(): view Item? throws Failure
 }
 
-// Bodyless protocol requirement used by BRX0. The current interface rule
-// publishes both compatible inputs for this result.
+// Bodyless protocol requirement used by BRX0. One compatible input is the
+// unique source; two independent compatible inputs reject with
+// W-BORROW-0011 when no receiver or body is authoritative.
 export protocol MenuSelection {
   static fn select(primary: ref String, fallback: ref String): view String
 }

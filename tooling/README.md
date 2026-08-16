@@ -25,8 +25,8 @@ linguagem.
 | `formatter-cases.json` + checker | 27 pares input/output CST-equivalentes e snapshots de `w fmt --check`; os pares allocator cobrem bloco anônimo, call contextual e override nomeado; o par foreign formata a assinatura e preserva cada byte do body opaco | oracle de design; formatter ainda não existe |
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
 | `frontend-freeze-cases.json` + `check-frontend-freeze.mjs` + guards/test + snapshot | FZ0 ratifica as seis famílias normalizadas G0–G5 com source Last Light real (digest/symbol), parse sem recovery, pares F0 CST-equivalentes com alvo byte canônico, inversão S0 ou waiver PYN1 e D0 exato; 21 decisões são cobertas sem duplicatas ou expected echo | oracle de design; F0 não prova idempotência nem implementa formatter, e o checker não implementa parser, compiler, runtime ou provider |
-| `borrow-expressivity-cases.json` + máquina/checker/test + snapshot | BRX0 deriva 22 casos (15 mappings aceitos, sete blockers Research e quatro negativos de invocation) para receiver/body mapping, callable loans, lending cursor, adapter OriginSet, await, escapes, `any fn`, boundaries e drift/mutations de interface | oracle host de design; free/protocol bodyless com dois inputs permanece Research; não implementa compiler, runtime, provider nem metadata de lifetime |
-| `brx2-borrow-relations-cases.json` + estudo/máquina/checker/test + snapshot | BRX2 informa BRX0-R2 com 56 casos sobre relação requirement/interface-owned, slots de resultado, modos/edges, OriginSet, SemanticInterfaceKey, WAbi proof, lock/provider receipts, callable/Stream/await/boundary e aggregate nominal | Research data-only; W-914 permanece vigente, source spelling fica reserved/not-parsed, declaration/invocation status são separados e não há lifetime syntax, runtime metadata, compiler, runtime ou provider |
+| `borrow-expressivity-cases.json` + máquina/checker/test + snapshot | BRX0 deriva 24 casos (17 mappings aceitos, cinco candidatos Research e quatro negativos de invocation) para receiver/body mapping, origem bodyless única, callable loans, lending cursor, adapter OriginSet, await, escapes, `any fn`, boundaries, alternativa nominal owned e drift/mutations de interface | oracle host de design; bodyless com duas ou mais entradas compatíveis rejeita com `W-BORROW-0011`; não implementa compiler, runtime, provider nem metadata de lifetime |
+| `brx2-borrow-relations-cases.json` + estudo/máquina/checker/test + snapshot | BRX2 informa BRX2-R1 com 56 casos sobre relação requirement/interface-owned após a rejeição baseline de ambiguidade, slots de resultado, modos/edges, OriginSet, SemanticInterfaceKey, WAbi proof, lock/provider receipts, callable/Stream/await/boundary e aggregate nominal | Research data-only; W-914 e a origem única permanecem vigentes, source spelling fica reserved/not-parsed, declaration/invocation status são separados e não há lifetime syntax, runtime metadata, compiler, runtime ou provider |
 | `studies/atom1-atomic-extensibility/study.json` + `atom1-atomic-extensibility-cases.json` + máquina/checker/test + snapshot | ATOM1 separa atualização de record value-only (A), handle geracional/owner (B) e retirement/reclamation (C); 70 casos cobrem carrier canônico versus raw-layout, facts derivados de fields, zero-bit rejection, packing, SnapshotCell/domain, target native/lock-free/fallback, widths até 128 bits, proofs de pointer, eventos de reclamation, foreign boundaries, shutdown e drain FFI | oracle host de design; o carrier canônico e o adapter de reclamation permanecem Research; não implementa compiler, runtime, provider ou FFI |
 | `studies/ipc1-mapped-ipc/study.json` + `ipc1-mapped-ipc-cases.json` + reducers/checker/test + snapshot | IPC1 informa/estreita IPC0-R1 com 67 casos e 134 projeções POSIX/Windows para snapshots file-backed duráveis em generation objects, carriers shm/pagefile voláteis, schema/layout digests, selector publication/receipt ordenada, cap0/capN e bounds no segmento `slots`, commit/cancelamento, checksum/materialization, crash por actor e recovery ordering, atomics, lifecycle terminal, FFI, provider bindings e fallback explícito | oracle host de design; `ipc1-mapped-ipc-reference.test.mjs` e o study oracle são host evidence; candidatos mapped são Research e não implementam API, syntax, compiler, runtime ou provider |
 | `capability-matrix-cases.json` + máquina/checker/test + snapshot | CAP0 consolida oito eixos por problema comum, tenta composição W com Last Light, preserva invariantes e deriva rotas `current`/`composable`/`research` pelas subcapacidades do problema; 149 refs primárias ou source-backed e oito filas de documentação futura | fonte editorial de staging; não mede maturidade, não copia features e não implementa compiler, runtime ou provider |
@@ -56,7 +56,7 @@ linguagem.
 | `wire-diagnostic-cases.json` | par portátil/local para `W-WIRE-0001`, com facts e spans esperados | oracle de design; não é output do checker de interface |
 | `wire-reference.c` + `wire-reference-c.test.mjs` | segunda implementação independente dos vetores e erros básicos | gate opcional; exige um GCC compatível |
 | `hir-memory-reference.test.mjs` | modelo executável de owner, borrow, suspensão, boundary e ABI | oracle de SH3/SH4; não é o verifier do compiler |
-| `memory-transition-cases.json` + máquina M1 | 185 sequências do Última Luz com 606 operações (82 aceitas + 103 rejeitadas), estados e traces byte-exact | oracle host tabelado de PlaceId, dependency/allocation origins, allocator-scope/rehome, erasure, shared/weak/ciclos, pinning, construção direta, FFI e ABI; não é HIR emitida pelo frontend nem allocator/runtime real |
+| `memory-transition-cases.json` + máquina M1 | 185 sequências do Última Luz com 606 operações (79 aceitas + 106 rejeitadas), estados e traces byte-exact | oracle host tabelado de PlaceId, dependency/allocation origins, allocator-scope/rehome, erasure, shared/weak/ciclos, pinning, construção direta, FFI e ABI; não é HIR emitida pelo frontend nem allocator/runtime real |
 | `allocation-cases.json` + máquina A0 | 48 sequências com 123 operações (15 aceitas + 33 rejeitadas) e 13 testes independentes | oracle host de layout, receipt, resize, provider, progress, domain e reclamation; não é allocator, verifier nem runtime W |
 | `allocator-scope-cases.json` + máquina/checker/snapshot | ASC0 cobre 62 casos (26 positivos + 36 negativos) para named/anonymous owner, current allocator stack, contextual chain/root fallback, explicit override, root default/`.none`, requirement compatibility, first/unique slots, nested push/pop, overload collision, initializer rejection, callable preservation, closure capture, stable await, local spawn rejection, rehome-before-boundary, fixed admission, `.bounded` Research rejection, concrete custom `AllocatorPlan` descriptor validation, open/lease transitions, exactly-once deinit e close order | oracle host de design; não executa compiler, runtime, lowering físico ou provider W |
 | `shared-control-cases.json` + máquina/checker/snapshot | SHC0 cobre 45 casos e 84 operações (16 accepted + 6 error + 3 fault + 20 rejected) para default/custom/lexical `shared T`, admission/open separado, eixos `initializerThrows`/site `failure`, error set explícito e exato com collapse de tipos iguais, `try` fora do tipo, reserve/init failure, consuming cleanup, strong/weak lifecycle e acquisition, hidden `$controlBlock` e reachable origins, derived mobility, nested origins, FFI canônico em `memory.w` com unregister/drain/destroy order, cycles e co-allocation sem promessa | oracle host independente; facts de tipo/HIR e lowering ficam em sidecars, o close/drain da lease externa pertence ao ASC0, operações internas M1 não são syntax W e o modelo não executa compiler, runtime, allocator ou provider |
@@ -477,12 +477,12 @@ integrações de editor.
    `bun tooling/check-tabular-adapter-cases.mjs --write` e
    `bun test tooling/tabular-adapter-reference.test.mjs`.
 15. Para validar BRX0 sem compiler ou runtime, execute
-   `bun run check:borrow-expressivity` no root. O checker mantém o blocker
-   bodyless multi-input como Research e exige parse, oracle host e artefatos de
+`bun run check:borrow-expressivity` no root. O checker mantém a rejeição
+   estável de bodyless multi-input e exige parse, oracle host e artefatos de
    mapping consistentes.
 16. Para validar CAP0 sem compiler ou runtime, execute
    `bun run check:capability-matrix` no root. O checker deriva oito rotas por
-   subcapacidade, valida 149 refs e 16 subcapabilities, e mantém a fila
+   subcapacidade, valida 149 refs e 17 subcapabilities, e mantém a fila
    editorial de oito docs.
 17. Para validar CYC1 sem compiler ou runtime, execute `bun run check:cyc1`.
    O checker deriva o grafo event-derived, SCCs Tarjan, reachability,
@@ -500,7 +500,8 @@ integrações de editor.
    `bun run check:brx2`. O checker deriva relação, edges, OriginSet,
    SemanticInterfaceKey e digests de provider a partir de entradas estruturadas;
    deriva também runtime signature/WAbi e exige receipts de separate compilation;
-   a relação candidata continua Research e W-914 não muda.
+   a relação candidata continua Research e W-914 permanece a autoridade da
+   regra de origem única.
    O mesmo checker é `check:brx2` no pacote Tree-sitter e entra em `check:docs`
    e no aggregate `check` desse pacote.
 
@@ -509,7 +510,7 @@ integrações de editor.
 [`brx2-borrow-relations-cases.json`](brx2-borrow-relations-cases.json),
 [`brx2-borrow-relations-machine.mjs`](brx2-borrow-relations-machine.mjs) e o
 estudo em [`studies/brx2-borrow-relations`](studies/brx2-borrow-relations)
-formam um oracle Research para BRX0-R2. A máquina separa a relação atual de
+formam um oracle Research para BRX2-R1. A máquina separa a relação atual de
 receiver/body-derived da relação candidata owned pelo requirement/interface.
 Ela exige slots e modos canônicos, witnesses exatos, `SemanticInterfaceKey`,
 lock e provider digest estáveis, e rejeita caller claims, witness-only,
@@ -520,7 +521,7 @@ O host assay de caso `assay.kind: independent-assay` não é evidência de
 compiler; não existe `problemTrace` dentro de uma declaration current sem body.
 Invocation status fica separado de declaration decision. A máquina deriva
 runtime signature/WAbi e exige receipts explícitos para separate compilation;
-relação rejeitada nunca reduz o conservative baseline. Resultados independentes
+relação rejeitada nunca substitui o baseline vigente. Resultados independentes
 derivam dos slots não-dependent; flags legadas de result/`verified` são
 rejeitadas.
 
