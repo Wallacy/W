@@ -192,30 +192,6 @@ execute um check verde novamente sem uma entrada relacionada alterada.
 Não crie arquivo de status por padrão. Um arquivo temporário é permitido quando
 uma ferramenta longa não produz eventos. Luna remove o arquivo antes do commit.
 
-## Runtime do Codex
-
-O QCC comprovou o fluxo desejado em 6 de agosto de 2026. Uma tarefa V1 antiga
-com Sol High criou um worker Luna Max. O spawn usou `agent_type: "worker"`,
-`model: "gpt-5.6-luna"`, `reasoning_effort: "max"` e contexto novo.
-
-Uma tarefa Sol nova usa Multi-Agent V2. O catálogo de 6 de agosto marca Luna
-como V1. Por isso, V2 rejeita Luna mesmo quando o modelo principal consegue
-selecioná-lo. O bloco `features.multi_agent_v2` mantém os campos de roteamento
-visíveis, mas não altera essa classificação do catálogo.
-
-Um probe com um catálogo temporário que classificou Luna como V2 criou o filho
-Luna Max corretamente. Não mantenha uma cópia estática do catálogo no
-repositório. Ela inclui metadados do runtime, fica obsoleta e afeta seleção de
-modelo além do W.
-
-Depois de alterar `.codex/config.toml`, `.codex/agents/` ou o catálogo ativo,
-inicie uma tarefa nova. Uma tarefa existente mantém o schema anterior. A
-primeira tarefa nova executa um probe curto e confirma Luna Max nos metadados do
-filho antes de delegar um bundle real.
-
-Remova qualquer contorno de catálogo quando o runtime classificar Luna para V2
-por padrão. Valide uma tarefa nova antes da remoção.
-
 ## Fontes
 
 - [OpenAI — instruções com AGENTS.md](https://developers.openai.com/codex/concepts/customization#agents-guidance)
