@@ -11,7 +11,7 @@
   "routeClasses": ["current", "composable", "research", "intentionally-rejected"],
   "metrics": {
     "axisCount": 8,
-    "subcapabilityCount": 15,
+    "subcapabilityCount": 17,
     "sourceRefCount": 149,
     "documentationQueuedCount": 8
   },

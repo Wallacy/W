@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/borrow_expressivity.w",
     "symbol": "selectPrimary",
-    "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709"
+    "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e"
   },
   "variants": [
     {
@@ -17,11 +17,11 @@
       "role": "selected",
       "language": "w",
       "path": "baseline.w",
-      "digest": "sha256:1d36eda292f69ef9d3665e335a5e818b0280f645d9fd708172bd6f5ce6f52cae",
+      "digest": "sha256:151f91a491eb1b5658434f841b8d9b8bd8cdd8e4eac14c51c051d90e05bab928",
       "changedConstructs": [
         "member receiver uses the current dependency-slot rule",
         "body-derived free mapping remains exact",
-        "bodyless free requirements retain the all-inputs default",
+        "bodyless free, static, and protocol requirements accept one compatible input and reject ambiguity",
         "no source lifetime names or runtime metadata"
       ],
       "parseEvidence": {
@@ -50,7 +50,7 @@
       "role": "alternative",
       "language": "w-reserved",
       "path": "relation-schema.txt",
-      "digest": "sha256:e62aca3c2838dba92684f442e7749f7526803d900700c300c483f5dc3781b7d6",
+      "digest": "sha256:ca998366f061c3375e731866029837414937225f7872f9cdbafb91b8ff2769ec",
       "changedConstructs": [
         "research-only result-to-input relation pair",
         "missing, stale, duplicate, and forged mappings are rejected",
@@ -76,8 +76,8 @@
       "id": "primary-and-fallback-bodyless",
       "gate": "A2/B1",
       "expected": {
-        "decision": "research-blocker",
-        "mapping": "all-inputs-default",
+        "decision": "rejected",
+        "diagnostic": "W-BORROW-0011",
         "relation": "candidate-only"
       }
     }
@@ -85,11 +85,11 @@
   "tasks": [
     {
       "kind": "explain",
-      "instruction": "Explain which cases close with a receiver or body-derived dependency slot, why bodyless primary/fallback stays conservative, and why the aggregate is an API change."
+      "instruction": "Explain which cases close with a receiver, one bodyless input, or a body-derived dependency slot, why ambiguous primary/fallback is rejected, and why the aggregate is an API change."
     },
     {
       "kind": "recall",
-      "instruction": "After the controlled delay, reconstruct A1, A2, B1, and B2 and name the evidence that is still missing.",
+      "instruction": "After the controlled delay, reconstruct unique-source closure, ambiguous rejection, relation Research, and the nominal alternative, then name missing evidence.",
       "minimumDelaySeconds": 60
     },
     {
@@ -124,7 +124,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:55fa4f14137ca80f92fd3ebc67a7e2bf26691233da39deec7c363adcdae429c7"
+    "digest": "sha256:ef17f72a886faa940bf2459d236f01230c4f5105dc1d206695f2453b73b7312a"
   },
   "evidence": {
     "current": ["tree-sitter-parse", "host-oracle"],

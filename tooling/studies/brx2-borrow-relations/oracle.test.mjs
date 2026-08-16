@@ -149,7 +149,7 @@ describe("BRX2 borrow-relation study oracle", () => {
     expect(stream.invocation.code).toBe("W-BORROW-0006");
   });
 
-  test("uses an applicable relation for invocation and keeps conservative fallback on rejection", () => {
+  test("uses an applicable relation for invocation and keeps baseline rejection on relation failure", () => {
     const declaration = bodyless({
       relationContract: {
         owner: "requirement",
@@ -168,7 +168,7 @@ describe("BRX2 borrow-relation study oracle", () => {
     expect(applicable.invocation.effectiveMapping).toEqual({ result: ["primary"] });
     expect(applicable.invocation.erasure.mapping).toEqual({ result: ["primary"] });
     const rejected = evaluateBorrowRelationCase({
-      id: "oracle-relation-rejected-conservative",
+      id: "oracle-relation-rejected-baseline",
       declaration,
       assay: primaryAssay,
       artifacts: { relationDigest: "sha256:" + "0".repeat(64) },
@@ -176,7 +176,8 @@ describe("BRX2 borrow-relation study oracle", () => {
     });
     expect(rejected.mapping.relationApplicable).toBe(false);
     expect(rejected.invocation.mappingSource).toBe("baseline");
-    expect(rejected.invocation.effectiveMapping).toEqual({ result: ["fallback", "primary"] });
+    expect(rejected.mapping.baselineError.code).toBe("W-BORROW-0011");
+    expect(rejected.invocation.effectiveMapping).toEqual({});
   });
 
   test("treats problemTrace as an independent host assay, not compiler evidence", () => {

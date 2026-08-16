@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:1f488c439c441101c93a76fd99200e5be41ec2583126b207709287a007ec660a",
+  "corpusDigest": "sha256:eaff7ae87b532b055813a7db666d6dc7ba283aea36872387d06f35456dde4fec",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3127,11 +3127,11 @@
     {
       "id": "R0-borrow-bodyless-relation",
       "task": {
-        "utf8Bytes": 160,
-        "codePoints": 160,
-        "nonWhitespaceCodePoints": 139,
+        "utf8Bytes": 172,
+        "codePoints": 172,
+        "nonWhitespaceCodePoints": 150,
         "lines": 1,
-        "surfaceLexemes": 29
+        "surfaceLexemes": 28
       },
       "selected": {
         "name": "selected",

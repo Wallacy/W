@@ -55,7 +55,7 @@ describe("BRX0 borrow expressivity host oracle", () => {
     }}).invocation.status).toBe("accepted");
   });
 
-  test("bodyless free requirements expose the all-inputs blocker and a research relation candidate", () => {
+  test("bodyless free requirements reject ambiguous origins and retain relation research", () => {
     const declaration = {
       kind: "free",
       body: false,
@@ -66,10 +66,41 @@ describe("BRX0 borrow expressivity host oracle", () => {
     };
     const result = evaluateBorrowCase({ id: "select", declaration });
     expect(result.decision).toBe("research-blocker");
-    expect(result.mapping.baseline.result).toEqual(["fallback", "primary"]);
+    expect(result.mapping.baseline).toEqual({});
+    expect(result.mapping.baselineError.code).toBe("W-BORROW-0011");
     expect(result.mapping.relational.result).toEqual(["primary"]);
-    expect(result.forms.A2_freeAllInputs).toBe("conservative-all-inputs");
+    expect(result.forms.A2_freeAllInputs).toBe("rejects-ambiguous-inputs");
     expect(result.forms.B1_relationalSchema).toBe("candidate-closes");
+  });
+
+  test("a bodyless declaration with one compatible input derives that origin", () => {
+    const result = evaluateBorrowCase({
+      id: "unique",
+      declaration: {
+        kind: "protocol",
+        body: false,
+        inputs: [{ slot: "primary", mode: "ref" }],
+        results: [{ slot: "result", mode: "view" }],
+      },
+    });
+    expect(result.decision).toBe("accepted");
+    expect(result.mapping.baseline).toEqual({ result: ["primary"] });
+    expect(result.mapping.baselineError).toBeNull();
+  });
+
+  test("an owned nominal result remains an explicit API alternative", () => {
+    const result = evaluateBorrowCase({
+      id: "owned",
+      declaration: {
+        kind: "free",
+        body: false,
+        inputs: [{ slot: "primary", mode: "ref" }, { slot: "fallback", mode: "ref" }],
+        results: [{ slot: "result", mode: "value" }],
+        behavior: { returnShape: "nominal-owned" },
+      },
+    });
+    expect(result.decision).toBe("accepted");
+    expect(result.forms.B2_returnAggregate).toBe("owned-nominal-alternative");
   });
 
   test("map, filter, and chain compose OriginSet transitively", () => {

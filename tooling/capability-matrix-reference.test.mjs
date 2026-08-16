@@ -21,7 +21,7 @@ describe("CAP0 capability matrix host oracle", () => {
     const result = validateCapabilityMatrix(readCorpus(), { root: repositoryDirectory, checkSources: true });
     expect(result.errors).toEqual([]);
     expect(result.results.map((axis) => axis.derivedRoute)).toEqual([
-      "research", "composable", "composable", "composable", "composable", "research", "current", "composable",
+      "composable", "composable", "composable", "composable", "composable", "research", "current", "composable",
     ]);
   });
 
@@ -98,9 +98,10 @@ describe("CAP0 capability matrix host oracle", () => {
     const corpus = readCorpus();
     const atom = corpus.axes.find((axis) => axis.id === "ATOM0");
     atom.coverage.subcapabilities[0].componentRefs[0] = "forged-component";
-    const borrowed = corpus.axes.find((axis) => axis.id === "BRX0");
-    borrowed.coverage.subcapabilities[0].gateId = "forged-gate";
-    borrowed.coverage.subcapabilities[0].evidenceRefs = ["forged-symbol"];
+    const mapped = corpus.axes.find((axis) => axis.id === "IPC0");
+    const research = mapped.coverage.subcapabilities.find((subcapability) => subcapability.id === "IPC0-mapped-bytes");
+    research.gateId = "forged-gate";
+    research.evidenceRefs = ["forged-symbol"];
     const errors = check(corpus);
     expect(errors.some((error) => error.includes("componentRefs must reference real"))).toBe(true);
     expect(errors.some((error) => error.includes("gateId must equal nextStudyGate.gateId"))).toBe(true);

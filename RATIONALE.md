@@ -163,7 +163,7 @@ O corpus compara, no mínimo:
 - aquisição contextual de owner a partir de `weak T?` contra property `strong` e method `strong()`;
 - escopo `Arena.fixed` contra região lexical reservada e scope por closure;
 - slot runtime de allocator em `Array<String>(allocator: memory)` contra envelope genérico;
-- relação bodyless de borrow entre dois inputs independentes contra mapping implícito sem prova, comparando receiver preciso, relation-schema Research e carrier nominal.
+- relação bodyless de borrow entre dois inputs independentes contra mapping implícito sem origem única, comparando receiver preciso, input único, relation-schema Research e carrier nominal.
 
 ### 1.1 Cobertura de substituições
 
@@ -205,7 +205,7 @@ alternativa. Estudos humanos e de modelos usam o mesmo `task` e o mesmo input;
 eles registram resultados, mas não mudam a decisão sem nova entrada no ledger.
 
 O kernel executável de memória usa a baseline M1. O corpus possui 185 casos e
-606 operações, com 82 outcomes aceitos e 103 rejeitados. Cada caso liga
+606 operações, com 79 outcomes aceitos e 106 rejeitados. Cada caso liga
 PlaceId, LoanId, dependency edge, OriginSet, escape ou boundary a um symbol real
 do Última Luz.
 O snapshot declara schema M1. Ele não é uma implementação do compiler ou do
@@ -3394,6 +3394,11 @@ Estas eram as contagens em 11 de agosto de 2026:
 | LM1 language lock | métricas derivadas pelo checker | sync/await/try e alternativas | testes host | não implementa runtime/provider |
 | SP0 snapshot cell | 27 casos, 82 operações | 14 aceitos, 12 rejeitados, 1 fault | 7 testes | não implementa reclamation físico |
 
+Esta tabela é um registro histórico de 11 de agosto de 2026. A linha M1 foi
+supersedida pela projeção corrente de 16 de agosto de 2026: 79 aceitos e 106
+rejeitados após a regra de origem única; não use a contagem histórica como
+status atual.
+
 E0 cobre lifecycle, cancellation, fail-fast, as dez origens de happens-before,
 races, modification order, fences, RMW, extents e tickets de barreira. Ele não
 prova liveness, fairness, preemption, oversubscription, task-frame allocation,
@@ -4151,7 +4156,7 @@ pares estruturados; ela não lê um mapping esperado para decidir o resultado.
 
 O corpus
 [`tooling/borrow-expressivity-cases.json`](tooling/borrow-expressivity-cases.json)
-tem 22 casos: 15 mappings aceitos, sete blockers Research e quatro negativos
+tem 24 casos: 17 mappings aceitos, cinco rotas Research e quatro negativos
 de invocation. O snapshot
 [`tooling/borrow-expressivity-results.snapshot.jsonl`](tooling/borrow-expressivity-results.snapshot.jsonl)
 é escrito pelo checker
@@ -4172,14 +4177,19 @@ reutilizado e permite o próximo item depois do fim da view. Factory de
 operação receiver-shaped, e o trace host deriva união/transitividade de
 OriginSet para o item.
 
-A2 permanece deliberadamente conservador: free ou protocol requirement
-bodyless com `primary` e `fallback` publica ambos os inputs compatíveis, mesmo
-quando o problem trace exige somente `primary`. O fallback pode morrer, mas o
-default vigente não pode provar isso. B1 (pares relacionais no schema) fecha
-esse exemplo no oracle de Research; B2 (sum/aggregate nominal) é uma mudança
-de API e não preserva o resultado borrowed direto. O corpus injeta mapping
-missing, stale, duplicate (result e source) e forged, além de witness,
-implementation, `interface.lock` e mapping-component digest divergentes.
+A2 fecha sem nova syntax quando a origem é única: receiver compatível para
+instance/member, exatamente uma entrada compatível para free/static/protocol
+bodyless, ou uma origem exata fornecida pelo body. Duas ou mais entradas
+independentes sem receiver ou corpo autoritativo são rejeitadas com
+`W-BORROW-0011`; o diagnóstico informa a declaração, o resultado e o conjunto
+de origens compatíveis, sem manter um fallback morto por default all-inputs. B1
+(pares relacionais no schema) continua candidato BRX2 Research para contratos
+owned por requirement/interface; B2 (sum/aggregate nominal) é a alternativa
+explícita de API e não preserva o resultado borrowed direto. O corpus agora
+mostra um positivo bodyless de origem única, um negativo ambíguo e a alternativa
+nominal owned, além de injetar mapping missing, stale, duplicate (result e
+source) e forged, witness, implementation, `interface.lock` e mapping-component
+digest divergentes.
 
 Os precedentes externos servem somente como limite comparativo. O
 [Rust Reference, associated items](https://doc.rust-lang.org/stable/reference/items/associated-items.html)
@@ -4196,13 +4206,13 @@ O estudo R1 em
 separa baseline, aggregate e witness de relation schema. A evidência atual é
 parse Tree-sitter e oracle host; compile, run, estudo humano e estudo de modelo
 continuam missing. BRX0 não implementa compiler, runtime ou provider e não
-publica lifetime metadata em runtime. A decisão fica Research até Sol autorizar
-um mecanismo relacional mínimo ou uma composição nominal que preserve o
-contrato, sem promover syntax normativa.
+publica lifetime metadata em runtime. O blocker W-1351 fecha no baseline por
+origem única e rejeição ambígua; somente a relação owned BRX2 permanece Research,
+sem promover syntax normativa.
 
 ### 1.27 BRX2 — relações de borrow por contrato
 
-BRX2 informa BRX0-R2 sem alterar a regra vigente. A máquina e o corpus em
+BRX2 informa a extensão Research pós-baseline sem reabrir BRX0. A máquina e o corpus em
 [`tooling/brx2-borrow-relations-machine.mjs`](tooling/brx2-borrow-relations-machine.mjs)
 e [`tooling/brx2-borrow-relations-cases.json`](tooling/brx2-borrow-relations-cases.json)
 derivam status, route, relation, edges, `OriginSet`, `SemanticInterfaceKey` e
@@ -4212,9 +4222,10 @@ com `selectPrimary` e symbols reais; o estudo em
 [`tooling/studies/brx2-borrow-relations`](tooling/studies/brx2-borrow-relations)
 mantém baseline, aggregate nominal e witness reservado separados.
 
-A é a composição atual: receiver/member e body-derived exact fecham a origem;
-free, static, init e protocol bodyless continuam conservative quando não há
-prova fechada. B é um candidato data-only de schema HIR/WInterface, sem nova
+A é a composição atual: receiver/member, body-derived exact e bodyless com uma
+única entrada compatível fecham a origem; bodyless com múltiplas entradas
+independentes rejeita `W-BORROW-0011`, e `init` com resultado borrowed/view
+continua rejeitado. B é um candidato data-only de schema HIR/WInterface, sem nova
 syntax de lifetime e sem metadata runtime. A relação é owned pelo requirement
 ou pela interface; provider, implementation e cada witness devem prová-la e
 usar slots/modes canônicos, não o caller. Witness específico divergente fica
@@ -4338,7 +4349,7 @@ Os resultados atuais são estes:
 
 | Eixo | Rota do problema | Limite deliberado |
 |---|---|---|
-| BRX0 | Pesquisa | Relação bodyless entre inputs independentes continua sem lifetime syntax. |
+| BRX0 | Componível | Origem única em receiver/body/entrada bodyless fecha o baseline; ambiguidade rejeita `W-BORROW-0011`; relação owned BRX2 permanece Research. |
 | ATOM0 | Componível | Wrapper sobre atomics existentes compõe. Autor de nova primitive atomic ou reclamation exige subestudo de target e lowering confiável. |
 | GEN0 | Componível | Stream, canais e tasks cobrem produção. Frame bidirecional customizado, scheduler ou poll exige subestudo próprio. |
 | SYN0 | Componível | Synthesis compiler-owned e transform hermético cobrem artefatos. Introdução de declarations por um generated module separado exige subestudo de provenance, diagnostics e interface; phase in-process permanece rejeitada. |
@@ -5829,7 +5840,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-911 | containers de refs | Array<ref T> possui owner de descriptor/storage e edges para cada referent; insert/join adiciona edges; join lê source distinto e self-join exige snapshot; remove só reduz quando nenhuma duplicata resta; clear libera edges; o grafo simbólico não limita quantidade por proof budget | join sob loan exclusive, self-join implícito, contador fixo de origins, invalidar por budget, tratar descriptor como único owner |
 | W-912 | escapes e await | `.lifetimeIndependent` é ausência de origin dinâmica; static/immortal passam somente esse gate; external escape rejeita edge dinâmica; channel/task exigem transferability, service exige WireValue + transferability mesmo local, persistence exige schema e foreign retention exige FFI; await resolve cada referent vivo e estável, com no-conflict e cleanup/cancel drain | origin immortal como authority de boundary, cópia implícita para escapar, task detached com borrow, usar estabilidade do aggregate para referent, annotation de lifetime como correção |
 | W-913 | pin e self-reference | pin exige zero LoanId e zero dependency edge dirigida ao payload; payload pinned tem root estável distinto do handle; mover handle é permitido com obrigação ativa, drop de handle/payload falha, mover payload não; initializer self-referential safe é rejeitado | self-reference por initializer comum, unpin implícito, pin que apenas marca pointer |
-| W-914 | provenance de interface | body infere mapping exato e separado para cada result dependency slot e slot ausente falha; sem body instance usa receiver compatível e init/static/free usam todos inputs compatíveis por slot; zero input só aceita result independent/static; import expectation e SemanticInterfaceKey do provider coincidem; oracle ignora inferredMapping bodyless; witness e lock detectam mudança | key opcional unilateral, igualar interfaces próprias de módulos distintos, `ref<sources: ...>` no source, colapsar result slots, mapping conservador apagado, witness divergente, docs no semantic key |
+| W-914 | provenance de interface | body infere mapping exato e separado para cada result dependency slot e slot ausente falha; sem body instance/member usa receiver compatível como origem autoritativa; static/free/protocol bodyless exigem exatamente uma entrada compatível e rejeitam duas ou mais com `W-BORROW-0011`; `init` com resultado borrowed/view é rejeitado; zero input só aceita result independent/static; import expectation e SemanticInterfaceKey do provider coincidem; oracle ignora inferredMapping bodyless; witness e lock detectam mudança | key opcional unilateral, igualar interfaces próprias de módulos distintos, `ref<sources: ...>` no source, colapsar result slots, mapping all-inputs, fallback implícito, witness divergente, docs no semantic key |
 | W-915 | FFI de refs | safe ref/inout para C é call-scoped/noescape; retenção exige owner/lease pinned, destroy e unregister; opaque C return, packed, unaligned, union e opaque permanecem conservadores; fn<Language> passa lifetime somente com adapter W confiável | pointer persistente sem lease, free por caller, inferir lifetime de header ou body opaco |
 | W-916 | cleanup e diagnostics M1 | deinit/cleanup preserva edges usadas pelos fields; NLL termina no último uso sem deinit observável; diagnostics distinguem overlap, dependency conflict, dependent escape, unstable referent, unstable suspension e frozen parent e sugerem materialize/copy/take, split/clear, reorder ou pin | hidden runtime lifetime, uma mensagem genérica, fix-it que inventa annotation |
 | W-917 | endurecimento executável M1 | schema M1 fixa 185 casos e 606 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, Arena budget/close (formerly region), rehome, shared/weak lifecycle e ciclos, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, construção pinned, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
@@ -6266,7 +6277,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1348 | formas e stack corrente ASC0 | named/anonymous cria owner, lease e scope; root, parâmetro e lexical formam stack com prioridade explícita; open failure não publica contexto/binding | binding sintético, ambient lookup, fallback de acquisition ou herança lexical entre funções |
 | W-1349 | conclusão contextual de call | slot standard primeiro recebe `ref currentAllocator`; cadeia entra no callee e sem slot reinicia no root; W-ALLOCATOR-0010 cobre somente slot contextual sem current | inferência por nome/tipo, parâmetro comum ou propagação sem slot |
 | W-1350 | interface, callable, lifecycle e evidência | signature/HIR/ABI preservam slot; overload usa W-LABEL-0004, initializer usa W-ALLOCATOR-0011; callable/capture/lifecycle/explainability e status permanecem explícitos | default parameter, ABI oculto, capture ou rehome implícito, claims de implementação |
-| W-1351 | expressividade de borrow de ordem superior | BRX0 fecha receiver e body-derived mapping; callable cria loan por invocation, stream item fica preso ao receiver/storage e adapters preservam OriginSet; free/protocol bodyless com dois inputs permanece Research por causa do default all-inputs; relation schema e carrier nominal são candidatos, sem syntax de lifetime, GAT ou metadata runtime | copiar lifetime names de Rust, promover relation syntax, tratar aggregate como mesmo resultado, esconder mapping em `any fn`, ou alegar compiler/runtime/provider |
+| W-1351 | expressividade de borrow de ordem superior | BRX0 fecha receiver, body-derived mapping e bodyless com origem única (uma entrada compatível para free/static/protocol); duas ou mais entradas independentes sem autoridade rejeitam `W-BORROW-0011`; callable cria loan por invocation, stream item fica preso ao receiver/storage e adapters preservam OriginSet; relation owned BRX2 e carrier nominal ficam separados, sem syntax de lifetime, GAT ou metadata runtime | copiar lifetime names de Rust, promover relation syntax, tratar aggregate como mesmo resultado, esconder mapping em `any fn`, ou alegar compiler/runtime/provider |
 | W-1352 | estudo ATOM1 de extensibilidade atômica | um oracle adversarial separa record value-only (A), handle geracional com owner table (B) e retirement/reclamation (C); packing, SnapshotCell, domain e lock continuam atuais; carrier canônico sintetizado é o candidato Research preferido, raw-layout é rejeitado, e adapter de reclamation permanece Research, com target progress, interface identity e foreign boundary explícitos | pointer/owner safe por atomicidade, acoplar padding/layout de T ao carrier, protocol user-defined para qualquer record, generation sem owner table, RCU universal safe, reclamation sem quiescence/drop, ou claims de compiler/runtime/provider |
 | W-1353 | método e invariantes de GEN1 | o oracle compara as mesmas traces em duas máquinas independentes (`switched-resume-frame` com slots/PC e `returned-continuation-state-loop` com estado/token); owner graph, commit/HB, resultado, cancelamento e cleanup/drop/drain são invariantes. A/B/C permanecem composáveis no escopo observado. Ver W-454–469, W-1161/W-1163, W-1185/W-1186 e W-1240 para contratos existentes. | frame de usuário como ABI, lowering que altera ownership, metadata de runtime, caller echo ou tratar trace físico como semântica |
 | W-1354 | dispositions de evidência e ergonomia de GEN1 | métricas estruturais de símbolos source e slices do mesmo cenário deixam a pergunta ergonômica aberta (`observedStructuralDifference` + `humanDecisionPending`); o builder bounded é current-candidate somente para diálogo; frame/resume público é intencionalmente rejeitado; bloco Stream compiler-owned é Research-candidate sob captures, capacity/prefetch, `Result` item, cancelamento, cleanup, effects e ausência de identidade/ABI pública. O oracle informa/estreita `GEN0-R1`; compile, run, provider e estudos humano/modelo continuam ausentes. | `yield` ambiental com frame público, lifetime/effect/ABI ocultos, LOC como decisão, promover bloco compiler-owned sem prova, promover D por obrigação ou declarar fechamento por oracle |
@@ -6351,6 +6362,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1433 | side-channel e residual risk | timing, cache, scheduler, concurrency e resource use exigem threat model, clock/scheduler/concurrency policy, mitigation e residual risk; não há solução universal | claim universal, residual vazio, clock implícito ou tratar isolation como eliminação de side channel |
 | W-1434 | FFI, unsafe, multi-tenant e patch | FFI explicita ABI/provenance/bounds/cleanup/effect/allocator; tenant capability é bound e mediada; patch receipt ordena source→lock→recipe→artifact→signature→attestation→admission com digests SHA-256, signer e rollback policy fechados | UB, raw pointer safe sem boundary, cross-tenant capability, debugger bypass, patch reorder, signer/policy arbitrários ou receipt caller-owned |
 | W-1435 | gate SEC0 | 101 casos, 24 aceitos, 77 rejeitados, 11 outcomes current e 13 Research, seis perfis, 16 authority rejections e quatro caller-echo rejections; profile, side-channel, patch e deployment receipts permanecem Research | chamar oracle/snapshot de compiler/runtime/provider/hardware, promover por Cloudflare, ou omitir fault/stress/local-split evidence |
+| W-1436 | fechamento BRX0/W-1351 | corpus BRX0 de 24 casos registra positivo bodyless com origem única, negativo ambíguo com `W-BORROW-0011` e alternativa nominal owned; baseline fecha sem nova syntax, enquanto relação owned por requirement/interface segue subcap Research BRX2 e não altera grammar, runtime, provider ou WAbi | promover BRX2 por causa do baseline, inventar receiver/body ausente, manter fallback morto por all-inputs, ou chamar parse/oracle/snapshot de compiler/runtime/provider |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,

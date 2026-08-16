@@ -1134,10 +1134,10 @@
       "expected": { "status": "accepted" }
     },
     {
-      "id": "M1-bodyless-free-all-inputs",
+      "id": "M1-bodyless-free-ambiguous-reject",
       "references": [{ "path": "../reference/last-light/hir_memory_oracle.w", "symbol": "deriveBodylessMapping" }],
-      "operations": [{ "op": "verifyInterface", "body": false, "kind": "free", "inputSlots": [{ "slot": "parameter:0", "borrowed": true }, { "slot": "parameter:1", "dependent": true }], "resultDependent": true, "expectedMapping": { "result": ["parameter:0", "parameter:1"] } }],
-      "expected": { "status": "accepted" }
+      "operations": [{ "op": "verifyInterface", "body": false, "kind": "free", "inputSlots": [{ "slot": "parameter:0", "borrowed": true }, { "slot": "parameter:1", "dependent": true }], "resultDependent": true }],
+      "expected": { "status": "rejected", "code": "W-BORROW-0011", "operation": 0, "facts": { "authority": "none", "compatibleInputs": ["parameter:0", "parameter:1"], "declarationKind": "free", "result": ["result"], "reason": "ambiguousBodylessResultOrigin" } }
     },
     {
       "id": "M1-bodyless-instance-receiver",
@@ -1146,10 +1146,10 @@
       "expected": { "status": "accepted" }
     },
     {
-      "id": "M1-bodyless-init-all-inputs",
+      "id": "M1-bodyless-init-borrow-reject",
       "references": [{ "path": "../reference/last-light/hir_memory_oracle.w", "symbol": "deriveBodylessMapping" }],
-      "operations": [{ "op": "verifyInterface", "body": false, "kind": "init", "inputSlots": [{ "slot": "parameter:0", "dependent": true }, { "slot": "parameter:1", "mode": "view" }], "resultDependent": true, "expectedMapping": { "result": ["parameter:0", "parameter:1"] } }],
-      "expected": { "status": "accepted" }
+      "operations": [{ "op": "verifyInterface", "body": false, "kind": "init", "inputSlots": [{ "slot": "parameter:0", "dependent": true }, { "slot": "parameter:1", "mode": "view" }], "resultDependent": true }],
+      "expected": { "status": "rejected", "code": "initBorrowResultUnsupported", "operation": 0 }
     },
     {
       "id": "M1-bodyless-zero-source-independent",
@@ -1374,8 +1374,8 @@
     {
       "id": "M1-bodyless-result-slots-remain-distinct",
       "references": [{ "path": "../reference/last-light/hir_memory_oracle.w", "symbol": "deriveBodylessMapping" }],
-      "operations": [{ "op": "verifyInterface", "body": false, "kind": "free", "inputSlots": [{ "slot": "menu", "borrowed": true }, { "slot": "oven", "dependent": true }], "resultSlots": [{ "slot": "result.title", "borrowed": true }, { "slot": "result.body", "dependent": true }, { "slot": "result.count" }], "expectedMapping": { "result.title": ["menu", "oven"], "result.body": ["menu", "oven"] } }],
-      "expected": { "status": "accepted" }
+      "operations": [{ "op": "verifyInterface", "body": false, "kind": "free", "inputSlots": [{ "slot": "menu", "borrowed": true }, { "slot": "oven", "dependent": true }], "resultSlots": [{ "slot": "result.title", "borrowed": true }, { "slot": "result.body", "dependent": true }, { "slot": "result.count" }] }],
+      "expected": { "status": "rejected", "code": "W-BORROW-0011", "operation": 0, "facts": { "authority": "none", "compatibleInputs": ["menu", "oven"], "declarationKind": "free", "result": ["result.title", "result.body"], "reason": "ambiguousBodylessResultOrigin" } }
     },
     {
       "id": "M1-await-rejects-unstable-live-loan",

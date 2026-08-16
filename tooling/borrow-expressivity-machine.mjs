@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 const BORROW_MODES = new Set(["ref", "view", "inout"]);
 const DEPENDENT_MODES = new Set(["ref", "view", "inout"]);
+const AMBIGUOUS_BODYLESS_RESULT = "W-BORROW-0011";
 const DYNAMIC_BOUNDARIES = new Set([
   "channel",
   "service",
@@ -208,8 +209,9 @@ function deriveBodyMapping(declaration, trace = declaration.bodyTrace) {
 /**
  * Derive the current W-914 body/bodyless mapping.
  *
- * This function intentionally implements the current conservative rule. It
- * does not consume a caller supplied expected mapping.
+ * Bodyless results use one uniquely derivable origin. Ambiguous free,
+ * static, or protocol results reject with W-BORROW-0011. This function does
+ * not consume a caller supplied expected mapping.
  */
 export function deriveBaselineMapping(declaration) {
   const dependentResults = dependentSlotNames(declaration);
@@ -218,6 +220,9 @@ export function deriveBaselineMapping(declaration) {
 
   const inputs = inputSlots(declaration);
   const kind = text(declaration.kind) || "free";
+  if (kind === "init") {
+    throw new BorrowExpressivityError("initBorrowResultUnsupported", { kind });
+  }
   let sources;
   if (kind === "instance" || kind === "member") {
     const receiver = inputs.find((slot) => slot.slot === "receiver");
@@ -229,6 +234,15 @@ export function deriveBaselineMapping(declaration) {
   if (sources.length === 0) {
     if (declaration.resultIndependent === true || declaration.resultStatic === true) return {};
     throw new BorrowExpressivityError("interfaceOriginUnknown", { reason: "noCompatibleInput" });
+  }
+  if (kind !== "instance" && kind !== "member" && sources.length > 1) {
+    throw new BorrowExpressivityError(AMBIGUOUS_BODYLESS_RESULT, {
+      authority: "none",
+      compatibleInputs: [...sources].sort(),
+      declarationKind: kind,
+      result: dependentResults,
+      reason: "ambiguousBodylessResultOrigin",
+    });
   }
   return Object.fromEntries(dependentResults.map((result) => [result, [...sources].sort()]));
 }
@@ -434,20 +448,24 @@ function compareArtifacts(input, mapping) {
   };
 }
 
-function compareForms(declaration, baseline, required, relational) {
+function compareForms(declaration, baseline, required, relational, baselineError) {
   const kind = text(declaration.kind) || "free";
   const baselineExact = mappingsEqual(baseline, required);
   const relationalExact = mappingsEqual(relational, required);
   const aggregate = declaration.behavior?.returnShape === "sum";
+  const nominalOwned = declaration.behavior?.returnShape === "nominal-owned";
 
   return {
     A1_memberReceiver: kind === "instance" && baselineExact ? "closes" : "not-general",
     A1_bodyDerivedFree: declaration.body === true && baselineExact ? "closes" : "not-general",
-    A2_freeAllInputs: kind !== "instance" && !baselineExact ? "conservative-all-inputs" : "closes",
+    A2_freeAllInputs: baselineError?.code === AMBIGUOUS_BODYLESS_RESULT
+      ? "rejects-ambiguous-inputs"
+      : kind !== "instance" && !baselineExact ? "not-general" : "closes",
     B1_relationalSchema: dependentSlotNames(declaration).length === 0
       ? "not-applicable"
       : relationalExact ? "candidate-closes" : "candidate-missing",
-    B2_returnAggregate: aggregate ? "api-change" : "does-not-preserve-direct-result",
+    B2_returnAggregate: nominalOwned ? "owned-nominal-alternative"
+      : aggregate ? "api-change" : "does-not-preserve-direct-result",
   };
 }
 
@@ -468,6 +486,9 @@ export function evaluateBorrowCase(input) {
   } catch (error) {
     required = {};
   }
+  if (!declaration.body && !Array.isArray(declaration.problemTrace) && !baselineError) {
+    required = baseline;
+  }
 
   let relational;
   let relationalError = null;
@@ -486,7 +507,7 @@ export function evaluateBorrowCase(input) {
   const artifacts = compareArtifacts(input, baseline);
   const baselineExact = !baselineError && mappingsEqual(baseline, required);
   const relationalExact = !relationalError && mappingsEqual(relational, required);
-  const mappingDecision = baselineError
+  const mappingDecision = baselineError && !(baselineError.code === AMBIGUOUS_BODYLESS_RESULT && relationalExact)
     ? "rejected"
     : baselineExact
       ? "accepted"
@@ -510,7 +531,7 @@ export function evaluateBorrowCase(input) {
     },
     invocation,
     artifacts,
-    forms: compareForms(declaration, baseline, required, relational),
+    forms: compareForms(declaration, baseline, required, relational, baselineError),
     decision: mappingDecision,
     runtimeLifetimeMetadata,
     digest: digest({ baseline, relational, baselineEdges, relationalEdges, runtimeLifetimeMetadata }),

@@ -1,4 +1,5 @@
-BRX0 research-only witness: observeBorrowExpressivity(primary, fallback)
-publishes a result-to-primary relation pair. This is a schema candidate, not
-W source syntax. It must not introduce a lifetime variable, GAT, or runtime
-lifetime field. Missing, stale, duplicate, and forged pairs remain rejected.
+BRX2 research-only witness: observeBorrowExpressivity(primary, fallback)
+publishes a result-to-primary relation pair after the baseline rejects the
+ambiguous bodyless declaration. This is a schema candidate, not W source
+syntax. It must not introduce a lifetime variable, GAT, or runtime lifetime
+field. Missing, stale, duplicate, and forged pairs remain rejected.

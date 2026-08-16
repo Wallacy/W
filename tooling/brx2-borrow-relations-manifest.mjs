@@ -53,7 +53,7 @@ export function validateBRX2StudyManifest(manifest, options = {}) {
   if (!manifest || typeof manifest !== "object") return ["BRX2 study manifest must be an object."];
   if (manifest.$schema !== "w-brx2-borrow-relations-study-1") errors.push("BRX2 study schema is invalid.");
   if (manifest.status !== "design-oracle-input") errors.push("BRX2 study status is invalid.");
-  if (manifest.id !== "BRX2" || manifest.gate !== "BRX0-R2") errors.push("BRX2 study identity or gate is invalid.");
+  if (manifest.id !== "BRX2" || manifest.gate !== "BRX2-R1") errors.push("BRX2 study identity or gate is invalid.");
   if (manifest.bundle !== "bundle.json") errors.push("BRX2 study bundle identity is invalid.");
 
   const refs = manifest.artifactRefs;

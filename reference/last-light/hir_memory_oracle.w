@@ -257,11 +257,13 @@ fn deriveBodylessMapping(
 ): Array<HirResultMapping>? {
   if resultSlots.count == 0 { return [] }
   var sources: Array<String>
-  if kind == .instance {
+  if kind == .initializer {
+    return .none
+  } else if kind == .instance {
     if !receiverCompatible { return .none }
     sources = ["receiver"]
   } else {
-    if inputSlots.count == 0 { return .none }
+    if inputSlots.count != 1 { return .none }
     sources = inputSlots
   }
   var mappings: Array<HirResultMapping> = []
@@ -486,16 +488,32 @@ test "M1 pinned handle moves while payload root stays stable" {
   expect loanCanSuspend(loan, true)
 }
 
-test "M1 bodyless interface mapping uses all compatible inputs" {
+test "M1 bodyless interface mapping requires one unique source" {
   let mapping = deriveBodylessMapping(
     .free,
     false,
-    ["parameter:0", "parameter:1"],
+    ["parameter:0"],
     ["result.title", "result.body"],
   )
   guard let mapping = mapping else { panic("mapping was rejected") }
   expect mapping.count == 2
-  expect mapping[0].sources.count == 2
+  expect mapping[0].sources == ["parameter:0"]
+
+  let ambiguous = deriveBodylessMapping(
+    .free,
+    false,
+    ["parameter:0", "parameter:1"],
+    ["result"],
+  )
+  expect ambiguous == .none
+
+  let initializer = deriveBodylessMapping(
+    .initializer,
+    false,
+    ["parameter:0"],
+    ["result"],
+  )
+  expect initializer == .none
 
   let receiver = deriveBodylessMapping(.instance, true, ["parameter:0"], ["result"])
   guard let receiver = receiver else { panic("receiver mapping was rejected") }

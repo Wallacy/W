@@ -5,7 +5,7 @@
   "machine": "brx2-borrow-relations-machine",
   "sourceBase": {
     "path": "../reference/last-light/borrow_expressivity.w",
-    "digest": "sha256:4a2f0b8e7445fcc1b95252b9beec58604f6485f5ad1ec7bca584d9e0c6664709",
+    "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
     "symbols": [
       "MenuCursor",
       "MenuSelection",
@@ -18,7 +18,7 @@
     "receiver",
     "member",
     "body-derived",
-    "bodyless-conservative",
+    "bodyless-ambiguous-rejected",
     "requirement-owned",
     "interface-owned",
     "multiple-results",
@@ -201,7 +201,7 @@
         "W-1351"
       ],
       "coverage": [
-        "bodyless-conservative"
+        "bodyless-ambiguous-rejected"
       ],
       "declaration": {
         "kind": "free",
@@ -224,8 +224,9 @@
         ]
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research"
+        "decision": "rejected",
+        "route": "rejected",
+        "diagnostics": ["W-BORROW-0011"]
       },
       "assay": {
         "kind": "independent-assay",

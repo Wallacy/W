@@ -4,6 +4,8 @@ export protocol MenuSelection {
     primary: ref String,
     fallback: ref String,
   ): view String
+
+  static fn observeUniqueBorrow(primary: ref String): view String
 }
 
 export fn observeCursor(cursor: ref String): view String {

@@ -22,6 +22,7 @@ const FFI_FORMS = new Set(["ref", "inout", "languageFn"]);
 const FFI_RETENTIONS = new Set(["none", "call", "persistent"]);
 const ALLOCATOR_LIFETIMES = new Set(["static", "product", "parameter", "scoped"]);
 const ALLOCATOR_MOBILITIES = new Set(["local", "crossDomain"]);
+const AMBIGUOUS_BODYLESS_RESULT = "W-BORROW-0011";
 const ALLOCATION_OUTCOMES = new Set(["success", "allocationError"]);
 const PIN_CONSTRUCT_OUTCOMES = new Set([
   "success",
@@ -748,7 +749,7 @@ function deriveInterfaceMapping(operation) {
   const inputSlots = Array.isArray(operation.inputSlots) ? operation.inputSlots : [];
   const kind = operation.kind ?? (operation.receiverOnly ? "instance" : "free");
   let sources = [];
-  if (kind === "instance" || operation.receiverOnly === true) {
+  if (kind === "instance" || kind === "member" || operation.receiverOnly === true) {
     const receiver = inputSlots.find((slot, index) => slotKey(slot, index) === "receiver");
     if (
       (receiver && compatibleInput(receiver)) ||
@@ -757,7 +758,7 @@ function deriveInterfaceMapping(operation) {
     ) {
       sources = ["receiver"];
     }
-  } else if (["init", "initializer", "static", "free"].includes(kind)) {
+  } else if (["init", "initializer", "static", "free", "protocol"].includes(kind)) {
     sources = inputSlots
       .map((slot, index) => ({ slot, index }))
       .filter(({ slot }) => compatibleInput(slot))
@@ -767,6 +768,18 @@ function deriveInterfaceMapping(operation) {
       .map((slot, index) => ({ slot, index }))
       .filter(({ slot }) => compatibleInput(slot))
       .map(({ slot, index }) => slotKey(slot, index));
+  }
+  if (dependentResults.length > 0 && ["init", "initializer"].includes(kind)) {
+    throw new HirMemoryError("initBorrowResultUnsupported");
+  }
+  if (dependentResults.length > 0 && !["instance", "member"].includes(kind) && sources.length > 1) {
+    throw new HirMemoryError(AMBIGUOUS_BODYLESS_RESULT, {
+      authority: "none",
+      compatibleInputs: [...sources].sort(),
+      declarationKind: kind,
+      result: dependentResults,
+      reason: "ambiguousBodylessResultOrigin",
+    });
   }
   if (dependentResults.length > 0 && sources.length === 0) {
     if (operation.resultStatic === true || operation.resultIndependent === true) return {};

@@ -37,6 +37,6 @@ gate closes them.
 
 Run `bun tooling/check-capability-matrix.mjs --write` from the repository root.
 Run `bun test tooling/capability-matrix-reference.test.mjs` for host mutations.
-The current snapshot records 8 axes, 15 subcapabilities, 149 source refs, and
+The current snapshot records 8 axes, 17 subcapabilities, 149 source refs, and
 8 queued documentation targets. DYN1 remains partial evidence: its provider,
 security, compiler, runtime, and standard-library gates stay open.

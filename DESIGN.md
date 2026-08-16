@@ -2184,6 +2184,7 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 | `W-EFFECT-0010` | `try`, `await` ou `?` está ausente, redundante ou fora da ordem canônica |
 | `W-OWNERSHIP-0010` | prefix exige place, owner, borrow ou mobilidade incompatível |
 | `W-BORROW-0010` | criação `shared` recebe payload com origin de borrow dinâmica |
+| `W-BORROW-0011` | resultado borrowed ou view bodyless possui múltiplas origens compatíveis sem receiver ou corpo autoritativo |
 | `W-OWNERSHIP-0011` | place owned e movível chama member `take fn` sem `(take receiver)` |
 | `W-OWNERSHIP-0013` | argumento, return ou inferência tenta criar `shared` sem binding escrito e movimento explícito |
 | `W-OWNERSHIP-0014` | grafo fechado contém ciclo forte que só poderia terminar pelo próprio `deinit` |
@@ -2728,6 +2729,7 @@ As famílias específicas usam estes códigos:
 | `W-EFFECT-0010` | prefix de effect falta, sobra ou viola a ordem canônica |
 | `W-OWNERSHIP-0010` | prefix de ownership recebe place, owner, borrow ou mobility incompatível |
 | `W-BORROW-0010` | criação `shared` recebe payload dependente do lifetime |
+| `W-BORROW-0011` | resultado borrowed ou view bodyless possui múltiplas origens compatíveis sem receiver ou corpo autoritativo |
 | `W-OWNERSHIP-0011` | consuming receiver não foi transferido |
 | `W-OWNERSHIP-0013` | shared ownership seria criado implicitamente |
 | `W-OWNERSHIP-0014` | componente forte fechado depende do próprio `deinit` para romper o ciclo |
@@ -7651,12 +7653,15 @@ concluídos. Suspension por `LoanId` verifica o referent do loan.
 
 `OriginSet` também aparece na assinatura semântica. Com body, o compiler infere
 mapping exato para cada result dependency slot. Cada slot mantém uma entrada
-própria. Um slot dependent sem entrada é rejeitado. Sem body, instance usa
-receiver compatível. Init, static e free
-requirement usam todos os inputs borrowed ou dependent compatíveis. Zero source
-só permite result independent ou static. Caso contrário a declaração é
-rejeitada. O compiler deriva esse default de `kind`, `inputSlots` e `resultSlots`.
-Ele ignora `inferredMapping` bodyless. Witness e lock rejeitam divergência.
+própria. Um slot dependent sem entrada é rejeitado. Init continua rejeitado
+quando declara resultado borrowed ou view. Para uma declaração bodyless de
+`static`, `free` ou `protocol`, cada resultado borrowed ou view exige exatamente
+um input compatível. Um único input permite a derivação direta. Dois ou mais
+inputs independentes não definem uma origem única e rejeitam a declaração com
+`W-BORROW-0011`. `instance` e `member` exigem um receiver compatível como a
+origem autoritativa. Zero source só permite result independent ou static. O
+compiler deriva essa regra de `kind`, `inputSlots` e `resultSlots`. Ele ignora
+`inferredMapping` bodyless. Witness e lock rejeitam divergência.
 
 A interface serializa esse mapping em `WInterface` e
 `SemanticInterfaceKey`. A expectativa gravada no import precisa coincidir com a
@@ -7665,11 +7670,14 @@ não são comparadas entre si. Mudar o mapping é mudança relevante de API e
 source-compatibility. `interface.lock` detecta a mudança. W não aceita lifetime
 annotation no source.
 
-BRX0 (W-1351) mantém essa fronteira: receiver-only member requirements e
-body-derived free mappings são expressivos; um free/protocol requirement
-bodyless com dois inputs continua Research porque o default corrente publica
-todos os inputs compatíveis. O estudo compara um schema relacional e um carrier
-nominal sem promover nova syntax, GAT ou metadata de lifetime em runtime.
+BRX0 (W-1351) fecha a regra de origem única sem nova syntax: receiver-only
+member requirements, body-derived mappings e bodyless declarations com um único
+input compatível são expressivos. Um free, static ou protocol requirement
+bodyless com duas ou mais entradas compatíveis é rejeitado com
+`W-BORROW-0011`. O carrier nominal owned continua uma alternativa explícita.
+O schema de relação owned por requirement ou interface permanece Research em
+BRX2. Nenhum caminho promove lifetime syntax, GAT ou metadata de lifetime em
+runtime.
 
 ##### 9.2.1.1 Escapes, destruction e diagnostics
 
@@ -7691,6 +7699,8 @@ Diagnostics distinguem pelo menos:
 - `W-BORROW-0008` para move, drop ou pin bloqueado por edge dinâmica;
 - `W-BORROW-0009` para write solicitado por uma dependency edge shared.
 - `W-BORROW-0010` para criação `shared` com payload de origin de borrow dinâmica.
+- `W-BORROW-0011` para resultado borrowed ou view bodyless com múltiplas origens
+  compatíveis e sem receiver ou corpo autoritativo.
 
 Cada diagnostic sugere reordenar, encerrar scope, materializar, copiar, fazer
 `take` antes do borrow, separar ou limpar um container, ou usar pin quando o
@@ -29151,17 +29161,22 @@ runtime ou provider.
 O método e os 21 vínculos atuais ficam em
 [`RATIONALE.md` §1.25](RATIONALE.md#125-evidência-fz0-de-frontend).
 
-BRX0 mantém aberto somente o blocker de expressividade bodyless multi-input:
+BRX0 não é mais blocker do freeze. A regra vigente aceita apenas uma origem
+bodyless unicamente derivável, rejeita a ambiguidade com `W-BORROW-0011` e
+mantém o carrier nominal owned como alternativa explícita. O corpus e o
+snapshot host em
 [`tooling/borrow-expressivity-cases.json`](tooling/borrow-expressivity-cases.json)
-e seu snapshot host devem permanecer verdes enquanto Sol não ratificar uma
-composição relacional ou nominal. A contagem e a decisão são projeções em
-[`RATIONALE.md` §1.26](RATIONALE.md#126-evidência-brx0-de-expressividade-de-borrow-de-ordem-superior);
-isso não é implementação de compiler, runtime ou provider.
+devem permanecer verdes com testemunhos positivo, negativo e nominal. A
+contagem e a decisão são projeções em [`RATIONALE.md` §1.26](RATIONALE.md#126-evidência-brx0-de-expressividade-de-borrow-de-ordem-superior).
+BRX2 preserva o schema de relação owned por requirement ou interface como
+subcapability Research pós-baseline. Esses oracles não são implementação de
+compiler, runtime ou provider.
 
-Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
-compiler ou runtime. Provas sobre componentes reais continuam nos gates da
-seção 26. Um contrato pode fechar antes de existir backend, mas não pode declarar
-comportamento que seus modelos ou oracles contradizem.
+Os itens Research restantes mantêm seus gates próprios e não reabrem o
+baseline BRX0. Eles não autorizam produção do compiler ou runtime. Provas sobre
+componentes reais continuam nos gates da seção 26. Um contrato pode fechar
+antes de existir backend, mas não pode declarar comportamento que seus modelos
+ou oracles contradizem.
 
 TAB0 fecha o carrier lógico em [14.4.1](#1441-carrier-tabular). TAB1 fecha
 declarations, profiles, errors, limits, workflows e o corpus adversarial em
@@ -29444,6 +29459,10 @@ alternativa preservada.
   mínimo de memória até existir HIR e checker reais;
 - adicionar source positivo de values borrowed, collections de refs, reborrow e
   await stable;
+- fixar resultados borrowed bodyless por origem única, o diagnóstico
+  `W-BORROW-0011` para ambiguidade e a alternativa nominal owned;
+- manter BRX2 como estudo Research de relação owned por requirement/interface,
+  sem lifetime syntax, GAT, metadata de runtime ou carrier WAbi;
 - fixar diagnostic IDs e formatter examples.
 
 Saída: toda forma implementada possui contrato, alternativa e teste.

@@ -1744,9 +1744,9 @@
     },
     {
       "id": "R0-borrow-bodyless-relation",
-      "reviewItem": "relação bodyless de borrow entre dois inputs independentes contra mapping implícito sem prova, comparando receiver preciso, relation-schema Research e carrier nominal",
+      "reviewItem": "relação bodyless de borrow entre dois inputs independentes contra mapping implícito sem origem única, comparando receiver preciso, input único, relation-schema Research e carrier nominal",
       "decisions": ["W-457", "W-914", "W-1351"],
-      "task": "Select primary or fallback without keeping a dead input alive through an all-inputs default, and compare the receiver, relation-schema and nominal alternatives.",
+      "task": "Select primary or fallback only when the source is uniquely derivable; reject ambiguous bodyless origins and compare the receiver, relation-schema and nominal alternatives.",
       "selected": {
         "language": "w",
         "source": ["export protocol MenuSelection {", "  static fn select(primary: ref String, fallback: ref String): view String", "}"]
@@ -1762,7 +1762,7 @@
           "name": "relation-schema-candidate",
           "language": "w-reserved",
           "source": ["relation result <- primary", "input fallback remains independent"],
-          "expectedDifference": "A relation pair could publish primary-only provenance, but it remains a Research witness without promoted W syntax."
+          "expectedDifference": "A relation pair could publish primary-only provenance for the ambiguous requirement, but it remains a Research witness without promoted W syntax."
         },
         {
           "name": "nominal-aggregate-api",
