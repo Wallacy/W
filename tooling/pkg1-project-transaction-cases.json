@@ -1,0 +1,1391 @@
+{
+  "$schema": "w-pkg1-project-transaction-cases-1",
+  "status": "design-oracle-input",
+  "title": "PKG1 project identity split and atomic root transaction",
+  "officialSources": [
+    {
+      "id": "posix-rename",
+      "url": "https://pubs.opengroup.org/onlinepubs/9799919799/functions/rename.html",
+      "claim": "Same-directory rename provides the POSIX replacement boundary."
+    },
+    {
+      "id": "windows-replacefile",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilea",
+      "claim": "ReplaceFile provides the Windows sibling replacement boundary."
+    },
+    {
+      "id": "cargo-workspaces",
+      "url": "https://doc.rust-lang.org/cargo/reference/workspaces.html",
+      "claim": "Cargo separates workspace membership from lock metadata."
+    },
+    {
+      "id": "cargo-lock",
+      "url": "https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html",
+      "claim": "Cargo distinguishes manifest intent from resolved lock facts."
+    },
+    {
+      "id": "python-pylock",
+      "url": "https://packaging.python.org/en/latest/specifications/pylock-toml/",
+      "claim": "Python records a portable lock record for resolved dependencies."
+    }
+  ],
+  "fixtures": {
+    "workspace": {
+      "operations": [
+        {
+          "op": "initialize",
+          "document": {
+            "kind": "workspace",
+            "schema": "w.workspace/1",
+            "name": "last-light",
+            "members": [
+              ".",
+              "packages/menu-compiler"
+            ],
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "use": "product"
+              }
+            ],
+            "policy": {
+              "source": "public",
+              "network": "explicit"
+            },
+            "resolution": {
+              "schema": "w.resolution/1",
+              "resolver": "w.resolver/1",
+              "contexts": [
+                {
+                  "name": "product",
+                  "root": "last-light-native",
+                  "use": "product",
+                  "target": "x86_64-unknown-linux-gnu",
+                  "nodes": [
+                    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                  ],
+                  "rootEdges": [
+                    {
+                      "alias": "chart",
+                      "id": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                    }
+                  ]
+                }
+              ],
+              "packages": [
+                {
+                  "id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                  "name": "fiction/chart",
+                  "version": "1.2.0",
+                  "dependencies": []
+                }
+              ]
+            },
+            "deployments": [
+              {
+                "name": "local",
+                "artifacts": [
+                  {
+                    "name": "restaurant",
+                    "source": {
+                      "product": "last-light-native"
+                    }
+                  }
+                ],
+                "plans": [],
+                "receipts": []
+              },
+              {
+                "name": "benchmark",
+                "artifacts": [
+                  {
+                    "name": "benchmark",
+                    "source": {
+                      "product": "last-light-benchmark"
+                    }
+                  }
+                ],
+                "plans": [],
+                "receipts": []
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": "PKG1-deployment-only",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "workspace {"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "deployment",
+          "deployment": {
+            "name": "local",
+            "plans": [
+              {
+                "id": "plan-local-v2",
+                "artifact": "restaurant"
+              }
+            ]
+          },
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "posix",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "rename-committed"
+            },
+            {
+              "kind": "target-reopened"
+            },
+            {
+              "kind": "content-verified"
+            },
+            {
+              "kind": "parent-directory-flushed"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "code": "programComplete"
+      }
+    },
+    {
+      "id": "PKG1-resolution-only-refresh",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "resolution: {"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {
+            "contexts": [
+              {
+                "name": "product",
+                "root": "last-light-native",
+                "use": "product",
+                "target": "x86_64-unknown-linux-gnu",
+                "targetVariants": [
+                  "native-v2"
+                ],
+                "nodes": [
+                  "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                  }
+                ]
+              }
+            ]
+          },
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "posix",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "rename-committed"
+            },
+            {
+              "kind": "target-reopened"
+            },
+            {
+              "kind": "content-verified"
+            },
+            {
+              "kind": "parent-directory-flushed"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "code": "programComplete"
+      }
+    },
+    {
+      "id": "PKG1-dependency-member-edit",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "members:"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "add",
+          "ownerPatch": {
+            "members": [
+              ".",
+              "packages/menu-compiler",
+              "packages/observatory"
+            ]
+          },
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "posix",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "rename-committed"
+            },
+            {
+              "kind": "target-reopened"
+            },
+            {
+              "kind": "content-verified"
+            },
+            {
+              "kind": "parent-directory-flushed"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "code": "programComplete"
+      }
+    },
+    {
+      "id": "PKG1-add-success",
+      "references": [
+        {
+          "path": "../reference/last-light/package.w",
+          "symbol": "dependencies"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "add",
+          "ownerPatch": {
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "use": "product"
+              },
+              {
+                "alias": "menu",
+                "package": "last-light/menu-compiler",
+                "use": "build"
+              }
+            ]
+          },
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "posix",
+          "idempotencyKey": "add-menu",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "rename-committed"
+            },
+            {
+              "kind": "target-reopened"
+            },
+            {
+              "kind": "content-verified"
+            },
+            {
+              "kind": "parent-directory-flushed"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "code": "programComplete"
+      }
+    },
+    {
+      "id": "PKG1-remove-success",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "members: ["
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "remove",
+          "ownerPatch": {
+            "dependencies": []
+          },
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "posix",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "rename-committed"
+            },
+            {
+              "kind": "target-reopened"
+            },
+            {
+              "kind": "content-verified"
+            },
+            {
+              "kind": "parent-directory-flushed"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "code": "programComplete"
+      }
+    },
+    {
+      "id": "PKG1-solve-failure",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "resolver: \"w.resolver/1\""
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "update",
+          "ownerPatch": {
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "constraint": "^9.0.0"
+              }
+            ]
+          },
+          "solve": "fail",
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "resolutionFailed"
+      }
+    },
+    {
+      "id": "PKG1-dry-run",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "defaultMembers:"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {
+            "contexts": [
+              {
+                "name": "product",
+                "root": "last-light-native",
+                "use": "product",
+                "target": "x86_64-unknown-linux-gnu",
+                "targetVariants": [
+                  "dry-run"
+                ],
+                "nodes": [
+                  "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                  }
+                ]
+              }
+            ]
+          },
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "dryRun": true
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "code": "programComplete"
+      }
+    },
+    {
+      "id": "PKG1-stale-concurrent-writer",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "patches:"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "platform": "posix",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "rename-committed"
+            },
+            {
+              "kind": "target-reopened"
+            },
+            {
+              "kind": "content-verified"
+            },
+            {
+              "kind": "parent-directory-flushed"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "staleWrite"
+      }
+    },
+    {
+      "id": "PKG1-crash-before-replace",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "toolchainPolicy:"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "posix",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "process-crash"
+            },
+            {
+              "kind": "recovery-open"
+            },
+            {
+              "kind": "orphan-temp-removed"
+            },
+            {
+              "kind": "old-content-verified"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "crashBeforeReplace"
+      }
+    },
+    {
+      "id": "PKG1-crash-after-replace",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "deployments: ["
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "posix",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "rename-committed"
+            },
+            {
+              "kind": "process-crash"
+            },
+            {
+              "kind": "recovery-open"
+            },
+            {
+              "kind": "new-content-verified"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "faulted",
+        "code": "crashAfterReplace"
+      }
+    },
+    {
+      "id": "PKG1-temp-cleanup",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "schema: \"w.workspace/1\""
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "posix",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "process-crash"
+            },
+            {
+              "kind": "recovery-open"
+            },
+            {
+              "kind": "orphan-temp-removed"
+            },
+            {
+              "kind": "old-content-verified"
+            }
+          ]
+        },
+        {
+          "op": "assert",
+          "facts": {
+            "temporary": 0
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "crashBeforeReplace"
+      }
+    },
+    {
+      "id": "PKG1-cross-volume-reject",
+      "references": [
+        {
+          "path": "../reference/last-light/BUILD.md",
+          "symbol": "atomic"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "posix",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "cross-volume-detected"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "crossVolumeRenameRejected"
+      }
+    },
+    {
+      "id": "PKG1-windows-replacefile-partial",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "name: \"local\""
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "deployment",
+          "deployment": {
+            "name": "local",
+            "plans": [
+              {
+                "id": "partial"
+              }
+            ]
+          },
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "windows",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "replace-file-partial"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "replacePartialFailure"
+      }
+    },
+    {
+      "id": "PKG1-missing-flush-receipt",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "name: \"benchmark\""
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "deployment",
+          "deployment": {
+            "name": "benchmark",
+            "plans": [
+              {
+                "id": "no-flush"
+              }
+            ]
+          },
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "posix",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "rename-committed"
+            },
+            {
+              "kind": "target-reopened"
+            },
+            {
+              "kind": "content-verified"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "missingParentDirectoryReceipt"
+      }
+    },
+    {
+      "id": "PKG1-owner-ambiguity",
+      "references": [
+        {
+          "path": "../reference/last-light/package.w",
+          "symbol": "package {"
+        }
+      ],
+      "operations": [
+        {
+          "op": "initialize",
+          "ownerAmbiguous": true,
+          "document": {
+            "kind": "workspace",
+            "schema": "w.workspace/1"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "ownerAmbiguous"
+      }
+    },
+    {
+      "id": "PKG1-isolated-package-owner",
+      "references": [
+        {
+          "path": "../reference/last-light/package.w",
+          "symbol": "schema: \"w.package/1\""
+        }
+      ],
+      "operations": [
+        {
+          "op": "initialize",
+          "document": {
+            "kind": "package",
+            "schema": "w.package/1",
+            "name": "fiction/chart",
+            "version": "1.2.0",
+            "members": [],
+            "dependencies": [],
+            "policy": {
+              "source": "public"
+            },
+            "resolution": {
+              "schema": "w.resolution/1",
+              "resolver": "w.resolver/1",
+              "contexts": [
+                {
+                  "name": "product",
+                  "root": "chart",
+                  "use": "product",
+                  "target": "x86_64-unknown-linux-gnu",
+                  "nodes": [
+                    "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                  ]
+                }
+              ],
+              "packages": [
+                {
+                  "id": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                  "name": "fiction/chart",
+                  "version": "1.2.0",
+                  "dependencies": []
+                }
+              ]
+            },
+            "deployments": [
+              {
+                "name": "local",
+                "artifacts": [
+                  {
+                    "name": "chart",
+                    "source": {
+                      "product": "chart"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "code": "programComplete"
+      }
+    },
+    {
+      "id": "PKG1-external-fetch-missing",
+      "references": [
+        {
+          "path": "../reference/last-light/package.w",
+          "symbol": "authority: .registry(\"w\")"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "fetch": "missing"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "externalFetchMissing"
+      }
+    },
+    {
+      "id": "PKG1-alias-collision",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "rootEdges:"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {
+            "contexts": [
+              {
+                "name": "product",
+                "root": "last-light-native",
+                "use": "product",
+                "target": "x86_64-unknown-linux-gnu",
+                "nodes": [
+                  "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                  },
+                  {
+                    "alias": "chart",
+                    "id": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                  }
+                ]
+              }
+            ]
+          },
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "aliasCollision"
+      }
+    },
+    {
+      "id": "PKG1-invalid-context-closure",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "contexts:"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {
+            "contexts": [
+              {
+                "name": "product",
+                "root": "last-light-native",
+                "use": "product",
+                "target": "x86_64-unknown-linux-gnu",
+                "nodes": [
+                  "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+                ]
+              }
+            ]
+          },
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "resolutionDanglingNode"
+      }
+    },
+    {
+      "id": "PKG1-caller-echo-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/workspace.w",
+          "symbol": "packages:"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "status": "accepted"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "callerEchoRejected"
+      }
+    },
+    {
+      "id": "PKG1-forged-digest-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/package.w",
+          "symbol": "version: \"0.1.0\""
+        }
+      ],
+      "operations": [
+        {
+          "op": "initialize",
+          "document": {
+            "kind": "package",
+            "schema": "w.package/1",
+            "name": "forged",
+            "ownerDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "resolution": {},
+            "deployments": []
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "forgedDigestOrReceipt"
+      }
+    },
+    {
+      "id": "PKG1-formatting-identity-stable",
+      "references": [
+        {
+          "path": "../reference/last-light/package.w",
+          "symbol": "license:"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "dryRun": true
+        },
+        {
+          "op": "assert",
+          "facts": {
+            "temporary": 0
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "code": "programComplete"
+      }
+    },
+    {
+      "id": "PKG1-replay-idempotent",
+      "references": [
+        {
+          "path": "../reference/last-light/package.w",
+          "symbol": "runtimeGraphs:"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "deployment",
+          "deployment": {
+            "name": "local",
+            "plans": [
+              {
+                "id": "replayed"
+              }
+            ]
+          },
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "posix",
+          "idempotencyKey": "replay",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "rename-committed"
+            },
+            {
+              "kind": "target-reopened"
+            },
+            {
+              "kind": "content-verified"
+            },
+            {
+              "kind": "parent-directory-flushed"
+            }
+          ]
+        },
+        {
+          "op": "transaction",
+          "command": "deployment",
+          "deployment": {
+            "name": "local",
+            "plans": [
+              {
+                "id": "replayed"
+              }
+            ]
+          },
+        "expectedDocumentDigest": "sha256:6ac7fd6695bdf758a7ab6570f553f09a47fec4e92ac168bb5c8b26fe92795b67",
+          "platform": "posix",
+          "idempotencyKey": "replay",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "rename-committed"
+            },
+            {
+              "kind": "target-reopened"
+            },
+            {
+              "kind": "content-verified"
+            },
+            {
+              "kind": "parent-directory-flushed"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "code": "programComplete"
+      }
+    },
+    {
+      "id": "PKG1-reducer-divergence",
+      "references": [
+        {
+          "path": "../reference/last-light/package.w",
+          "symbol": "targetVariants:"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "windows",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "replace-file-committed"
+            },
+            {
+              "kind": "target-reopened"
+            },
+            {
+              "kind": "content-verified"
+            }
+          ],
+          "providerComparison": {
+            "posix": [
+              {
+                "kind": "temp-created"
+              },
+              {
+                "kind": "temp-written"
+              },
+              {
+                "kind": "temp-data-flushed"
+              },
+              {
+                "kind": "compare-verified"
+              },
+              {
+                "kind": "rename-committed"
+              },
+              {
+                "kind": "target-reopened"
+              },
+              {
+                "kind": "content-verified"
+              },
+              {
+                "kind": "parent-directory-flushed"
+              }
+            ],
+            "windows": [
+              {
+                "kind": "temp-created"
+              },
+              {
+                "kind": "temp-written"
+              },
+              {
+                "kind": "temp-data-flushed"
+              },
+              {
+                "kind": "compare-verified"
+              },
+              {
+                "kind": "process-crash"
+              },
+              {
+                "kind": "recovery-open"
+              },
+              {
+                "kind": "orphan-temp-removed"
+              },
+              {
+                "kind": "old-content-verified"
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "reducerDivergence"
+      }
+    },
+    {
+      "id": "PKG1-publication-receipt-mismatch",
+      "references": [
+        {
+          "path": "../reference/last-light/package.w",
+          "symbol": "publish:"
+        }
+      ],
+      "fixtures": [
+        "workspace"
+      ],
+      "operations": [
+        {
+          "op": "transaction",
+          "command": "resolve",
+          "resolution": {},
+          "expectedDocumentDigest": "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022",
+          "platform": "posix",
+          "providerEvents": [
+            {
+              "kind": "temp-created"
+            },
+            {
+              "kind": "temp-written"
+            },
+            {
+              "kind": "temp-data-flushed"
+            },
+            {
+              "kind": "compare-verified"
+            },
+            {
+              "kind": "rename-committed"
+            },
+            {
+              "kind": "target-reopened"
+            },
+            {
+              "kind": "publication-receipt-mismatch"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "publicationReceiptMismatch"
+      }
+    }
+  ]
+}

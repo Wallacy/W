@@ -1,0 +1,149 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-pkg1-project-transaction",
+  "title": "Project identity split and atomic replacement",
+  "r0Cases": [
+    "R0-manifest-record"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/workspace.w",
+    "symbol": "workspace {",
+    "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/package.w",
+      "symbol": "package {",
+      "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc",
+      "claim": "Isolated package root witness."
+    },
+    {
+      "path": "../../../reference/last-light/BUILD.md",
+      "symbol": "deployment",
+      "digest": "sha256:81008441c547802d16e925b3fd5ae319ddbcdbdb20fbd507ed3b64295945f88e",
+      "claim": "Named deployment witness."
+    }
+  ],
+  "variants": [
+    {
+      "id": "identity-split",
+      "role": "selected",
+      "language": "w-manifest",
+      "path": "identity-split.w",
+      "digest": "sha256:68e466f17c914fe0f7c034c9a59528d451d5b0e09fe54716d11da18932f443ca",
+      "changedConstructs": [
+        "owner basis",
+        "nested resolution record",
+        "separate identity digest"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Manifest fixture uses the current data-only root form."
+      }
+    },
+    {
+      "id": "atomic-replace",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "atomic-replace.txt",
+      "digest": "sha256:925fab7462e176c94be157e5b7cf3176eb52b6cd48c64d08ac9d7eb8df068228",
+      "changedConstructs": [
+        "textual transaction witness",
+        "reserved replacement record"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Reserved text records the host transaction route."
+      }
+    }
+  ],
+  "entry": "resolution",
+  "inputs": [
+    {
+      "id": "owner-refresh",
+      "operation": "resolution-only",
+      "expected": {
+        "ownerDigestStable": true,
+        "resolutionDigestChanged": true
+      }
+    },
+    {
+      "id": "owner-edit",
+      "operation": "dependency-edit",
+      "expected": {
+        "ownerDigestChanged": true,
+        "atomicReplacement": true
+      }
+    },
+    {
+      "id": "stale-writer",
+      "operation": "stale-concurrent-writer",
+      "expected": {
+        "accepted": false,
+        "cause": "staleWrite"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain why owner and resolution identities use separate records."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, recall the replacement and durability boundaries.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a stale transaction without merging concurrent bytes.",
+      "mutations": {
+        "identity-split": "Restore the owner basis and nested resolution fields.",
+        "atomic-replace": "Keep the replacement route as a host-only witness."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Change one deployment plan without changing owner or resolution digests."
+    }
+  ],
+  "presentationOrders": [
+    [
+      "identity-split",
+      "atomic-replace"
+    ],
+    [
+      "atomic-replace",
+      "identity-split"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "identity-split": "A",
+      "atomic-replace": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:1ae2fe2745ba3bf63cd33cecf9a64adc8dbd7d8142e25a8b03eff58a8a86b5c4"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
+  }
+}

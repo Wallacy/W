@@ -4698,6 +4698,77 @@ O ledger W-1400–W-1411 registra o protocolo, os contratos de resultado, a
 fidelidade das mutações, o renderer fechado e o stop condition sem escolher uma
 forma normativa.
 
+### 1.32 PKG1 — identidade do owner e transação do root físico
+
+PKG1 fecha a inconsistência em que `workspaceDigest` incluía bytes de
+`resolution`. A forma corrente usa somente `package.w` ou `workspace.w` como
+documento físico. `resolution` e `deployments` permanecem records aninhados.
+
+O host deriva três identidades independentes:
+
+- `ownerDigest` usa o owner basis sem `resolution` e `deployments`;
+- `resolutionDigest` usa o record lógico completo e referencia `ownerDigest`;
+- `deploymentDigest` usa cada deployment nomeado e liga artifacts, plans e
+  receipts explicitamente.
+
+O caminho físico, comments e formatação não entram no owner basis. Alteração de
+dependency, member ou policy muda o owner. Refresh de resolution preserva o
+owner. Alteração de deployment preserva owner e resolution.
+
+`w resolve` grava somente a resolution. `w add`, `w remove` e `w update`
+preparam owner e resolution juntos. O host valida a closure, aliases, contexts
+e policy antes de formatar um replacement completo. `--dry-run` não escreve.
+Uma falha deixa os bytes anteriores.
+
+O compare-and-replace usa o digest exato que o host leu. Um writer concorrente
+produz stale-write. O host não faz merge e não usa last-write-wins. O temp
+reside no mesmo directory e recebe cleanup após toda saída.
+
+POSIX e Windows usam reducers independentes. POSIX usa `rename`, flush do file
+e receipt de sync do parent directory. Windows usa `ReplaceFile`, flush e
+reopen/verify. `atomicVisible` não prova `crashDurable`. Durability é true
+somente com receipt explícito do provider. A ausência permanece
+`evidence-missing`.
+
+O oracle [`pkg1-project-transaction-machine.mjs`](tooling/pkg1-project-transaction-machine.mjs)
+deriva outcomes dos events e records. O corpus cobre stale/missing/duplicate
+references, caller echo, forged digests/receipts, reducer divergence, alias
+collision, context closure, solve failure, crash boundaries e cleanup. O estudo
+[`PKG1`](tooling/studies/pkg1-project-transaction) registra identity split e
+atomic replacement como current. Durable provider receipts ficam Research.
+
+As fontes primárias são POSIX
+[`rename`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/rename.html),
+Windows [`ReplaceFile`](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilea),
+Cargo [workspaces](https://doc.rust-lang.org/cargo/reference/workspaces.html),
+Cargo [manifest versus lock](https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html)
+e Python [`pylock.toml`](https://packaging.python.org/en/latest/specifications/pylock-toml/).
+Essas fontes orientam o oracle. Elas não provam compiler, runtime, package
+manager, provider ou fault probe real.
+
+### 1.33 Defaults de protocol sem herança
+
+W não usa herança de implementação ou storage. Protocols fornecem substituição
+nominal e podem refinar outros protocols, mas refinement agrega somente
+requirements. Reuso stateful continua em composição nominal.
+
+Um protocol declara requirements sem body. O módulo que declara o protocol pode
+publicar uma implementação default em `extension Protocol`. A forma separada
+mantém o contrato visível, permite constraints no head da extension e evita que
+o protocol se comporte como uma classe-base. A conformance grava a escolha do
+witness; uma implementação própria vence o default e imports posteriores não
+mudam a seleção.
+
+Defaults não adicionam storage, não ampliam effects ou ownership e não usam
+prioridade, specificity ou ordem de import. Overlap é erro. Extensions de outros
+módulos podem oferecer helpers para lookup estático, mas não publicar ou trocar
+o witness default. A assinatura e disponibilidade do default entram na
+interface; o body continua artifact de implementação separado.
+
+Delegação automática não entra nesta decisão. Se forwarding explícito se tornar
+ruído recorrente, uma forma futura deverá baixar para members HIR observáveis,
+sem lookup dinâmico, linearização, `super` ou estado herdado.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
@@ -4904,7 +4975,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-160 | struct transparente | sem `init`: stored fields herdam visibilidade do tipo | `export` por field; todos os members herdam |
 | W-161 | struct encapsulado | `init` explícito restaura default de módulo nos fields | keyword `opaque`; field sempre público |
 | W-162 | object | storage e initializer sintetizado ficam no módulo | herdar visibilidade do object; constructor público |
-| W-163 | enum e protocol | cases e requirements herdam; witness não repete modifier | `export` repetido; todos os members públicos |
+| W-163 | enum e protocol | cases são membros do enum; protocol refinement agrega requirements; witness não repete modifier | `export` repetido; todos os members públicos; herança de implementação ou storage |
 | W-164 | service | storage nunca cruza módulo; API usa protocol async | field público; computed property remota |
 | W-165 | interface exportada | signature não expõe tipo menos visível; HIR normaliza | lint apenas; defaults preservados na HIR |
 | W-166 | pattern de struct | `Type(field, field: pattern, ...)`; nominal e ordenado | `{field}`; tuple posicional |
@@ -5032,7 +5103,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-288 | associated witness | `alias` explícito; sem inference/default/GAT no design vigente | inferir por method; associated type default |
 | W-289 | coherence | conformance no módulo do type ou protocol; escolha única por par | orphan livre; seleção por import |
 | W-290 | conditional conformance | `extension<T: P> Nominal<T>: Q`; sem overlap ou specialization | blanket conformance; prioridade |
-| W-291 | default witness | somente o módulo do protocol publica; seleção gravada na conformance | extension importada muda witness |
+| W-291 | default witness | somente o módulo do protocol publica em `extension Protocol`; seleção gravada na conformance | body inline no protocol; extension importada muda witness |
 | W-292 | existential compatibility | sem generic method, Self externo ou associated type não ligado | aceitar tudo com traps; banir existential |
 | W-293 | existential opening | `any P` não conforma a P e não abre implicitamente | self-conformance; implicit opening |
 | W-294 | opaque identity | `some P` preserva um tipo por instantiation; occurrence de parâmetro é independente | existential; união de returns |
@@ -6158,6 +6229,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1414 | input tipado de behavior | behavior declara `input name: Type`; callable `input initialValue: fn(): Value` é slot explícito, sem hidden capture/inference, com type/effect checks normais | identifier solto como input, storage que substitui slot, captura ambiental ou callable sem type |
 | W-1415 | roots físicos unificados | somente package/workspace são roots; `resolution` e `deployments` são fields aninhados, owner único é package isolado ou workspace, identities/digests permanecem separados e publication exclui esses fields | `lock`/`deployment` root independente, package member com resolution duplicada, deployment dentro de SemanticInterfaceKey ou resolver que reescreve metadata |
 | W-1416 | pipeline e labels observáveis | pipeline de atlas usa duas calls dependentes e labels demonstram `continue` para loop externo, preservando DAG/driver/cleanup vigentes | pipeline com somente return local, continue que reinicia token do label, goto, label em statement arbitrário ou salto não lexical |
+| W-1417 | identidade split e transação do root | owner basis exclui `resolution`/`deployments` e deriva `ownerDigest`; resolution e deployments têm digests próprios; `w resolve` altera somente resolution; add/remove/update fazem compare-and-replace com validation, temp sibling, cleanup e reducers POSIX/Windows independentes; `atomicVisible` e `crashDurable` são outcomes separados e durability exige provider receipt | `workspaceDigest` misturado com resolution, sidecar obrigatório, merge automático, last-write-wins, patch in-place, temp path exposto, receipt caller-owned, durability inferida de flag, resolver/fetch oculto ou alegação de compiler/runtime/provider |
+| W-1418 | default de protocol sem herança | protocol contém somente requirements; o módulo do protocol publica defaults em `extension Protocol`; conformance registra default ou witness próprio; implementação nominal vence; overlap e ambiguidade exigem member explícito; defaults não têm storage nem ampliam ownership/effects; body fica fora do SemanticInterfaceKey | body inline no protocol, herança de fields/initializer/deinit, `super`, protected, linearização, prioridade por import, extension externa trocando witness ou dispatch runtime oculto |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,

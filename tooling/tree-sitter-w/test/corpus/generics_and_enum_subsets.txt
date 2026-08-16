@@ -8,6 +8,13 @@ protocol Source<Item> {
 
 protocol Counted {
   fn count(): usize
+  fn isEmpty(): Bool
+}
+
+extension Counted {
+  fn isEmpty(): Bool {
+    return count() == 0
+  }
 }
 
 protocol Catalog<Item>: Source<Item> & Counted {}
@@ -92,7 +99,31 @@ fn reserve(): WorkStage throws RecoverableFault {
         (parameter_list)
         (type
           (type_name
+            (type_identifier))))
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
             (type_identifier))))))
+  (extension_declaration
+    (type
+      (type_name
+        (type_identifier)))
+    (type_body
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier)))
+        (block
+          (return_statement
+            (binary_expression
+              (call_expression
+                (identifier)
+                (argument_list))
+              (number_literal)))))))
   (protocol_declaration
     (type_identifier)
     (primary_associated_types

@@ -22,7 +22,7 @@
           "op": "writeLock",
           "lock": "release-lock",
           "resolver": "w-resolver/1",
-          "workspaceDigest": "sha256:workspace",
+          "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827",
           "manifestDigests": { "last.light": "sha256:manifest" },
           "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] },
           "contexts": [
@@ -32,7 +32,7 @@
         {
           "op": "validateLocked",
           "lock": "release-lock",
-          "workspaceDigest": "sha256:workspace",
+          "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827",
           "manifestDigests": { "last.light": "sha256:manifest" },
           "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] },
           "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" }
@@ -227,28 +227,28 @@
       "id": "P0-lock-rejects-workspace-change",
       "fixtures": ["resolved-lock"],
       "references": [{ "path": "../reference/last-light/workspace.w", "symbol": "workspace" }],
-      "operations": [{ "op": "validateLocked", "lock": "release-lock", "workspaceDigest": "sha256:changed", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
-      "expected": { "status": "rejected", "code": "lockedWorkspaceMismatch", "at": "last" }
+      "operations": [{ "op": "validateLocked", "lock": "release-lock", "ownerDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
+      "expected": { "status": "rejected", "code": "lockedOwnerMismatch", "at": "last" }
     },
     {
       "id": "P0-lock-rejects-manifest-change",
       "fixtures": ["resolved-lock"],
       "references": [{ "path": "../reference/last-light/package.w", "symbol": "schema: \"w.package/1\"" }],
-      "operations": [{ "op": "validateLocked", "lock": "release-lock", "workspaceDigest": "sha256:workspace", "manifestDigests": { "last.light": "sha256:changed" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
+      "operations": [{ "op": "validateLocked", "lock": "release-lock", "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827", "manifestDigests": { "last.light": "sha256:changed" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
       "expected": { "status": "rejected", "code": "lockedManifestMismatch", "at": "last" }
     },
     {
       "id": "P0-lock-rejects-source-inventory-change",
       "fixtures": ["resolved-lock"],
       "references": [{ "path": "../reference/last-light/BUILD.md", "symbol": "source" }],
-      "operations": [{ "op": "validateLocked", "lock": "release-lock", "workspaceDigest": "sha256:workspace", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w", "hidden.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
+      "operations": [{ "op": "validateLocked", "lock": "release-lock", "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w", "hidden.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
       "expected": { "status": "rejected", "code": "lockedSourceInventoryMismatch", "at": "last" }
     },
     {
       "id": "P0-lock-rejects-active-source-set-change",
       "fixtures": ["resolved-lock"],
       "references": [{ "path": "../reference/last-light/package.w", "symbol": "target" }],
-      "operations": [{ "op": "validateLocked", "lock": "release-lock", "workspaceDigest": "sha256:workspace", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:changed" } }],
+      "operations": [{ "op": "validateLocked", "lock": "release-lock", "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:changed" } }],
       "expected": { "status": "rejected", "code": "lockedActiveSourceSetMismatch", "at": "last" }
     },
     {

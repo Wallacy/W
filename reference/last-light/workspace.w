@@ -11,7 +11,7 @@ workspace {
   resolution: {
     schema: "w.resolution/1"
     resolver: "w.resolver/1"
-    workspaceDigest: "sha256:a94ca5dee307bfdcec6bcc89a9443762c954968d87bc5dc3f68a5a9c1547530b"
+    ownerDigest: "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827"
     contexts: [
       {
         name: "last-light-native"

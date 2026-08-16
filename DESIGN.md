@@ -894,6 +894,25 @@ manifest_constructor = contextual_member
 manifest_argument = (identifier ":")? manifest_value ;
 ```
 
+O documento físico é um `package` ou um `workspace`. Ele não possui um root
+`lock` ou `deployment` separado. O owner basis é o record canônico do owner
+sem os fields aninhados `resolution` e `deployments`. O owner basis usa ordem
+canônica de fields, valores normalizados e não inclui path físico, comments ou
+formatação. O `ownerDigest` é o SHA-256 tagged `w.owner/1` desse record.
+
+`resolution` é um record lógico separado. Ele contém `ownerDigest`, schema,
+resolver, contexts, packages e facts de closure. O `resolutionDigest` é o
+SHA-256 tagged `w.resolution/1` do record completo. O record não contém seu
+próprio digest. Cada deployment nomeado possui um `deploymentDigest` próprio.
+O deployment liga artifacts, plans e receipts por referências explícitas. Ele
+não herda resolution por proximidade.
+
+Uma alteração de dependency, member ou policy muda `ownerDigest` e invalida a
+resolution antiga. Uma atualização somente de `resolution` preserva
+`ownerDigest`. Uma alteração somente de deployment preserva os dois digests do
+owner e da resolution. Identity isolated-package e workspace usam a mesma
+regra, com owner único e sem ambiguidade.
+
 Um manifest ocupa o documento inteiro. Ele não usa a grammar geral de
 expressions. `package Name<...>`, `package<...>` e `package` junto de `module`
 são erros. Braces representam o record completo. Angle brackets modificam um
@@ -1110,10 +1129,10 @@ protocol_body = "{" protocol_member_declaration* "}" ;
 ```
 
 Um body de função é obrigatório no top-level, em `struct`, `object`, `service`,
-`enum`, `extension` e `behavior`. Somente um protocol requirement W pode omitir
-o body. Uma ilha `fn<Language>` sempre contém body; um símbolo externo usa a
-declaração `foreign`. Um semicolon pode tornar a boundary de requirement
-explícita, mas o formatter o remove quando o parse não muda.
+`enum`, `extension` e `behavior`. Um function member de `protocol` é sempre um
+requirement e deve omitir o body. Uma ilha `fn<Language>` sempre contém body; um
+símbolo externo usa a declaração `foreign`. Um semicolon pode tornar a boundary
+de requirement explícita, mas o formatter o remove quando o parse não muda.
 
 `static` e o receiver modifier exigem contexto de member. `entry` e `test` não
 aceitam `export`. Uma extension publica membros e conformances conforme suas
@@ -6399,7 +6418,7 @@ fn label<T: Display & Equatable>(value: ref T): String {
 O type checker normaliza `Display & Equatable` por identidade de protocol.
 Duplicatas são removidas. `&` em type position não executa bitwise AND.
 
-Protocol inheritance usa a mesma composição:
+Protocol refinement usa a mesma composição:
 
 ```w
 protocol StableKey: Hashable & Display {
@@ -6408,7 +6427,9 @@ protocol StableKey: Hashable & Display {
 ```
 
 Uma declaração pode usar um protocol composto nomeado quando a combinação tem
-significado de domínio.
+significado de domínio. Refinement herda requirements, não storage,
+initializers, deinitializers ou implementação. W não possui class inheritance,
+`super`, protected members, virtual destructors ou linearização de bases.
 
 Same-type relationships usam um parâmetro comum:
 
@@ -6638,19 +6659,47 @@ struct MenuStore: Store {
 }
 ```
 
-Protocol methods podem ter implementação default. Somente o módulo do protocol
-pode publicar um default witness:
+O body de um protocol contém somente requirements. Implementação default é
+publicada por uma extension separada do próprio protocol, no módulo que declara
+o protocol:
 
 ```w
 protocol Counted {
   fn count(): usize
-  fn isEmpty(): Bool { return self.count() == 0 }
+  fn isEmpty(): Bool
+}
+
+extension Counted {
+  fn isEmpty(): Bool {
+    return self.count() == 0
+  }
 }
 ```
 
+A extension default não adiciona storage e seu receiver conhece somente os
+requirements e associated members do protocol. O member repete exatamente a
+forma de call, receiver, ownership, effects, result e generic signature do
+requirement. Um body inline no protocol é erro.
+
+O módulo do protocol pode publicar defaults condicionais quando os constraints
+são expressos no head da extension. Defaults aplicáveis não podem se sobrepor;
+W não usa specificity, ordem textual ou ordem de import para desempatar. Uma
+implementação declarada pela conformance vence o default. Se duas superfícies
+de protocol oferecem members homônimos igualmente aplicáveis a uma call direta,
+o conformer deve publicar um member explícito; dispatch por cada protocol
+continua usando seu witness próprio.
+
 A conformance registra se usa o default ou um witness próprio. Imports
 posteriores não mudam essa seleção. Uma extension externa pode adicionar methods
-comuns, mas não pode criar um default witness oculto.
+comuns para lookup estático, mas não pode criar ou substituir um default witness.
+A presença e a assinatura do default pertencem à interface do protocol. O body
+permanece um implementation chunk separado; mudar apenas esse body não altera o
+`SemanticInterfaceKey`, mas invalida o artifact que fornece o witness.
+
+Reuso com estado usa composição nominal. W não herda fields, initializers,
+deinitializers ou conformances de um tipo-base. Forwarding permanece explícito;
+uma futura forma de delegação só pode ser açúcar HIR-visível, com conflitos e
+ownership resolvidos estaticamente.
 
 #### 8.7.6 `some`, `any` e composição
 
@@ -25038,7 +25087,7 @@ LF e ordem canônica:
 resolution {
   schema: "w.resolution/1"
   resolver: "w.resolver/1"
-  workspace: "sha256:..."
+  ownerDigest: "sha256:..."
   contexts: [
     {
       root: .product("last-light-native")
@@ -25079,6 +25128,45 @@ resolution {
   ]
 }
 ```
+
+O field `ownerDigest` da resolution prova o owner físico. O owner basis exclui
+`resolution` e `deployments`, portanto não existe ciclo de digest. O resolver
+deriva `resolutionDigest` do record completo depois de validar owner, contexts,
+packages, aliases e closure. Cada deployment deriva seu `deploymentDigest` do
+record completo e declara os artifacts, plans e receipts que consome.
+
+`w resolve` altera somente `resolution`. `w add`, `w remove` e `w update`
+preparam a alteração declarativa e a nova resolution na mesma transação. O
+host valida a closure antes de formatar o replacement completo. `--dry-run`
+mostra os digests e o diff lógico sem escrever bytes. Falha de solve, fetch,
+policy, alias ou context deixa os bytes antigos.
+
+O protocolo de transação é determinístico:
+
+1. ler bytes e digest exatos;
+2. parsear e normalizar o owner;
+3. derivar owner basis e `ownerDigest`;
+4. preparar mutation e solve;
+5. derivar resolution e deployments;
+6. validar closure, aliases e contexts;
+7. formatar replacement completo;
+8. escrever temp sibling e fazer flush dos dados;
+9. verificar novamente o digest antigo;
+10. substituir atomicamente;
+11. reabrir e verificar bytes e digests;
+12. publicar receipt derivado dos eventos.
+
+O digest antigo é um compare-and-replace. Mudança concorrente produz stale-write.
+O host não faz merge automático nem last-write-wins. O cleanup remove o temp uma
+vez, inclusive após falha.
+
+POSIX usa temp no mesmo directory, `rename`, sync do file e sync do parent
+directory. Consulte [`rename`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/rename.html).
+Windows usa sibling replacement, flush, `ReplaceFile` e reopen/verify.
+Consulte [`ReplaceFile`](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilea).
+`REPLACEFILE_WRITE_THROUGH` não prova crash durability. `atomicVisible` e
+`crashDurable` são outcomes separados. Durability é true somente com receipt
+explícito do provider. Sem receipt, o outcome é `evidence-missing`.
 
 `id` é uma referência interna ao lock. Ele é o digest do package identity,
 version, source descriptor e dependency edges normalizados. Um member usa
@@ -26279,6 +26367,16 @@ resolution em uma única transação. Falha de resolução não deixa o manifest
 parcialmente atualizado. `--dry-run` mostra o diff de manifest, resolution,
 authorities, versions, features e target variants. O comando não executa build
 tool ou install script.
+
+O output humano separa owner, resolution e deployments. O output `--json` é
+canônico, bounded e derivado de records e eventos. Ele não expõe temp paths,
+handles, ACL data, secrets ou environment. Caller-provided `status`, `route`,
+`result`, booleans, digests ou receipts não escolhem outcome. O host rejeita
+esses fields e deriva o resultado da transação observada.
+
+O route vigente para identity split e atomic replacement é current. Receipts
+duráveis fornecidos por um provider continuam Research até existir evidência
+de provider, filesystem fault probes e reopen verification em POSIX e Windows.
 
 `w tree` mostra o realm e a razão de cada edge. O default não mistura product,
 build, test e benchmark. `--all-realms` mostra as quatro visões.
