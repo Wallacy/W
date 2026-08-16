@@ -1,0 +1,116 @@
+==================
+Normal module run uses an explicit descriptor
+==================
+
+module horizon
+import chart.science
+import { Batch } from std.data
+
+fn run(batch: Batch<HorizonReading>): String { return "horizon" }
+entry(run)
+
+---
+
+(source_file
+  (module_header
+    (identifier))
+  (import_statement
+    (module_path
+      (identifier)
+      (identifier)))
+  (import_statement
+    (named_imports
+      (import_item
+        (identifier)))
+    (module_path
+      (identifier)
+      (identifier)))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (string_literal))))
+  (entry_declaration
+    (identifier)))
+
+==================
+Reexports use export forms
+==================
+
+export * from atlas.base
+export { A, B as C } from atlas.more
+export { Local }
+
+---
+
+(source_file
+  (reexport_declaration
+    (module_path
+      (identifier)
+      (identifier)))
+  (reexport_declaration
+    (reexport_item
+      (identifier))
+    (reexport_item
+      (identifier)
+      (identifier))
+    (module_path
+      (identifier)
+      (identifier)))
+  (export_list_declaration
+    (export_item
+      (identifier))))
+
+==================
+Behavior initializer input is typed
+==================
+
+behavior Trackable for Place {
+  storage var current: Place
+  input initialValue: fn(): Place
+  init { current = initialValue() }
+}
+
+---
+
+(source_file
+  (behavior_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))
+    (behavior_body
+      (behavior_storage_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (behavior_input_declaration
+        (identifier)
+        (type
+          (function_type
+            (type
+              (type_name
+                (type_identifier))))))
+      (behavior_accessor
+        (block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (call_expression
+                (identifier)
+                (argument_list)))))))))

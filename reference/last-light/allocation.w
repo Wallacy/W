@@ -113,7 +113,7 @@ type ContextualDecoder = fn(
   ref String,
   ref Array<String>,
 ): MenuSnapshot throws AllocationError
-let contextualDecoder: ContextualDecoder = stageMenu
+const contextualDecoder: ContextualDecoder = stageMenu
 
 test "a staged menu leaves its temporary allocator scope" for stageMenu {
   let title = "Menu at the Observable Edge"

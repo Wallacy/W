@@ -1,12 +1,8 @@
-// atlas:begin script-and-execution-root
-script {
-  edition: "2026"
-}
-
+// atlas:begin module-run-root
 module atlas_execution
 import std.runtime.task
 import { Stream, Channel } from std.stream
-// atlas:end script-and-execution-root
+// atlas:end module-run-root
 
 // atlas:begin allocator-and-bindings
 fn stage(allocator destination: ref Allocator, city: String): String {
@@ -44,10 +40,12 @@ fn prepare(city: String): String {
 fn walk(values: Array<i32>): i32 throws String {
   var total = 0
   rows: for ref value in values {
-    if value < 0 {
-      continue rows
-    } else {
-      total += value
+    for column in [value] {
+      if column < 0 {
+        continue rows
+      } else {
+        total += column
+      }
     }
   }
   var index = 0
@@ -105,12 +103,26 @@ fn captureModes(target: String, borrowed: ref String, moved: take String, shared
 // atlas:end execution-forms
 
 // atlas:begin restricted-expressions
-fn restricted(target: String): String {
+struct AtlasLease {
+  target: String
+}
+
+fn acquireLease(target: String): AtlasLease {
+  return AtlasLease(target: target)
+}
+
+fn prepareLease(lease: AtlasLease): String {
+  return lease.target
+}
+
+async fn restricted(target: String): String throws String {
   let captured = <[copy target]>(name) => name
   let value = if target == "north" { "day" } else { "night" }
   let range = 1..<4
-  let answer = pipeline {
-    return value
+  let (lease, ready) = try await pipeline {
+    let lease = acquireLease(target)
+    let ready = prepareLease(lease)
+    return (lease, ready)
   }
   let guarded = lock target as city {
     city
@@ -124,7 +136,8 @@ fn restricted(target: String): String {
   let pinned = pin target
   captured
   range
-  answer
+  lease
+  ready
   guarded
   transactionValue
   unsafeValue
@@ -156,8 +169,12 @@ fn print(value: String) {
   value
 }
 
-// atlas:begin implicit-entry-body
-let city = "north"
-let greeting = prepare(city)
-print(greeting)
-// atlas:end implicit-entry-body
+// atlas:begin module-run-entry
+fn runModuleRun() {
+  let city = "north"
+  let greeting = prepare(city)
+  print(greeting)
+}
+
+entry(runModuleRun)
+// atlas:end module-run-entry

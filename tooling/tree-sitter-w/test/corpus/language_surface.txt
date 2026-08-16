@@ -521,7 +521,7 @@ W property behavior accessors
 behavior Versioned<Value> for Value {
   storage var current: Value
   storage var revision: u64 = 0
-  initialValue
+  input initialValue: fn(): Value
 
   init {
     current = initialValue()
@@ -560,8 +560,13 @@ behavior Versioned<Value> for Value {
           (type_name
             (type_identifier)))
         (number_literal))
-      (behavior_value_declaration
-        (identifier))
+      (behavior_input_declaration
+        (identifier)
+        (type
+          (function_type
+            (type
+              (type_name
+                (type_identifier))))))
       (behavior_accessor
         (block
           (expression_statement

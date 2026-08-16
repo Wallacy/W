@@ -157,6 +157,7 @@ module.exports = grammar({
     [$._type_identifier, $.enum_pattern],
     [$.type_name, $.enum_pattern],
     [$.if_statement, $.if_expression],
+    [$.reexport_item, $.export_item],
     [$.labeled_tuple_type_element, $.closure_parameter],
     [$.tuple_type, $.unit_literal],
   ],
@@ -165,27 +166,19 @@ module.exports = grammar({
     source_file: ($) =>
       choice(
         seq(
-          optional($.script_header),
           optional($.module_header),
           repeat(
             choice(
               $.service_import_statement,
               $.domain_import_statement,
               $.import_statement,
+              $.reexport_declaration,
             ),
           ),
-          repeat(choice($._declaration, $._statement)),
+          repeat($._declaration),
         ),
         $.package_manifest,
-        $.deployment_manifest,
         $.workspace_manifest,
-        $.lock_manifest,
-      ),
-
-    script_header: ($) =>
-      seq(
-        "script",
-        field("body", $.manifest_record),
       ),
 
     module_header: ($) =>
@@ -249,7 +242,6 @@ module.exports = grammar({
 
     import_statement: ($) =>
       seq(
-        optional("export"),
         "import",
         choice(
           seq(
@@ -271,6 +263,25 @@ module.exports = grammar({
         ),
         optional(";"),
       ),
+
+    reexport_declaration: ($) =>
+      seq(
+        "export",
+        choice(
+          seq("*", "from", field("module", $.module_path)),
+          seq(
+            "{",
+            commaSep1($.reexport_item),
+            optional(","),
+            "}",
+            "from",
+            field("module", $.module_path),
+          ),
+        ),
+        optional(";"),
+      ),
+    reexport_item: ($) =>
+      seq(field("name", $.identifier), optional(seq("as", field("alias", $.identifier)))),
 
     wildcard_import: (_) => "*",
     named_imports: ($) => seq("{", commaSep1($.import_item), optional(","), "}"),
@@ -698,7 +709,7 @@ module.exports = grammar({
         repeat(
           choice(
             $.behavior_storage_declaration,
-            $.behavior_value_declaration,
+            $.behavior_input_declaration,
             $.behavior_accessor,
             $.function_declaration,
           ),
@@ -715,8 +726,14 @@ module.exports = grammar({
         optional(seq("=", field("value", $._expression))),
         optional(";"),
       ),
-    behavior_value_declaration: ($) =>
-      seq(field("name", $.identifier), optional(";")),
+    behavior_input_declaration: ($) =>
+      seq(
+        "input",
+        field("name", $.identifier),
+        ":",
+        field("type", $.type),
+        optional(";"),
+      ),
     behavior_accessor: ($) =>
       seq(
         optional("mut"),
@@ -755,27 +772,11 @@ module.exports = grammar({
         field("body", $.manifest_record),
         ),
       ),
-    deployment_manifest: ($) =>
-      prec(
-        1,
-        seq(
-        "deployment",
-        field("body", $.manifest_record),
-        ),
-      ),
     workspace_manifest: ($) =>
       prec(
         1,
         seq(
         "workspace",
-        field("body", $.manifest_record),
-        ),
-      ),
-    lock_manifest: ($) =>
-      prec(
-        1,
-        seq(
-        "lock",
         field("body", $.manifest_record),
         ),
       ),

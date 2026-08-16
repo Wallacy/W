@@ -28,20 +28,20 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - `try`/`await`, `for try await`, `async let`, `spawn<domain> let` e `Task.cancel()`;
 - `Stream<view T, E>` e contracts direcionais `Channel<T><.send/.receive>`;
 - units/sufixos candidatos, raw hash-delimited e testes co-localizados;
-- `entry { ... }`, implicit entry bodies finais, descriptors nomeados, service declarations e `import service`;
-- header contextual `script { ... }` como root standalone antes de module/imports;
+- `entry { ... }`, descriptors nomeados, service declarations e `import service`;
+- módulo normal com entry explícito e imports antes das declarations;
 - `hostBindings` data-only nos manifests, sem assignments de slots no source;
-- manifests `package`, `workspace`, `lock` e `deployment` com values data-only;
+- manifests `package` e `workspace`, com `resolution` e deployments nomeados
+  como records data-only aninhados;
 - `if`, `guard`, loops, `switch`, `do`/`catch`, `defer` e retornos;
 - calls, members, tuples, coleções, literais e precedência candidata;
 - queries de highlights, locals e folds;
 - declaração `allocator` nomeada ou anônima, plans built-in e custom;
 - casos estruturais internos, incluindo a superfície integrada vigente.
 
-Na raiz de módulo, a projeção Tree-sitter mantém declarations e statements em
-um repeat de top-level items para compartilhar estados e recovery. O checker
-localiza o primeiro statement, forma o suffix `implicit_entry_body` e rejeita
-declarations posteriores; essa fatoração não amplia a sintaxe normativa.
+Na raiz de módulo, a projeção Tree-sitter mantém declarations em ordem normal e
+rejeita statements top-level fora de um descriptor `entry`. A execução sempre
+seleciona um entry explícito; essa fatoração não amplia a sintaxe normativa.
 
 O corpus usa snippets autocontidos para que compiler, formatter, portal e
 extensão possam futuramente reutilizar os mesmos fixtures. Os arquivos do
@@ -60,7 +60,7 @@ bun run test
 bun run parse:reference
 bun run parse:platforms
 bun run parse:packages
-bun run parse:deployments
+bun run parse:roots
 bun run parse:std
 bun run parse:fixture
 bun run check:injections
@@ -76,7 +76,8 @@ Ou execute todos os checks:
 bun run check
 ```
 
-`bun run check` executa corpus, produto, variantes de plataforma, deployments,
+`bun run check` executa corpus, produto, variantes de plataforma, package e
+workspace roots,
 std, fixture do VS Code, oracles de wire e HIR e cobertura de exemplos. O CLI
 está fixado em
 `tree-sitter-cli` 0.26.11.

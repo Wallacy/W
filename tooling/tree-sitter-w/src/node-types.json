@@ -1298,11 +1298,11 @@
           "named": true
         },
         {
-          "type": "behavior_storage_declaration",
+          "type": "behavior_input_declaration",
           "named": true
         },
         {
-          "type": "behavior_value_declaration",
+          "type": "behavior_storage_declaration",
           "named": true
         },
         {
@@ -1354,6 +1354,32 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "behavior_input_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -1575,22 +1601,6 @@
           },
           {
             "type": "unsafe_expression",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "behavior_value_declaration",
-    "named": true,
-    "fields": {
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
             "named": true
           }
         ]
@@ -3982,22 +3992,6 @@
         "types": [
           {
             "type": "block",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "deployment_manifest",
-    "named": true,
-    "fields": {
-      "body": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "manifest_record",
             "named": true
           }
         ]
@@ -7140,22 +7134,6 @@
     }
   },
   {
-    "type": "lock_manifest",
-    "named": true,
-    "fields": {
-      "body": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "manifest_record",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
     "type": "manifest_argument",
     "named": true,
     "fields": {
@@ -9754,6 +9732,58 @@
     }
   },
   {
+    "type": "reexport_declaration",
+    "named": true,
+    "fields": {
+      "module": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "module_path",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "reexport_item",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "reexport_item",
+    "named": true,
+    "fields": {
+      "alias": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "repeat_array_literal",
     "named": true,
     "fields": {
@@ -10423,22 +10453,6 @@
     }
   },
   {
-    "type": "script_header",
-    "named": true,
-    "fields": {
-      "body": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "manifest_record",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
     "type": "service_declaration",
     "named": true,
     "fields": {
@@ -10626,23 +10640,7 @@
           "named": true
         },
         {
-          "type": "allocator_statement",
-          "named": true
-        },
-        {
           "type": "behavior_declaration",
-          "named": true
-        },
-        {
-          "type": "binding_declaration",
-          "named": true
-        },
-        {
-          "type": "break_statement",
-          "named": true
-        },
-        {
-          "type": "commit_statement",
           "named": true
         },
         {
@@ -10650,23 +10648,7 @@
           "named": true
         },
         {
-          "type": "continue_statement",
-          "named": true
-        },
-        {
-          "type": "defer_statement",
-          "named": true
-        },
-        {
-          "type": "deployment_manifest",
-          "named": true
-        },
-        {
           "type": "dimension_declaration",
-          "named": true
-        },
-        {
-          "type": "do_statement",
           "named": true
         },
         {
@@ -10686,15 +10668,7 @@
           "named": true
         },
         {
-          "type": "expression_statement",
-          "named": true
-        },
-        {
           "type": "extension_declaration",
-          "named": true
-        },
-        {
-          "type": "for_statement",
           "named": true
         },
         {
@@ -10706,23 +10680,7 @@
           "named": true
         },
         {
-          "type": "guard_statement",
-          "named": true
-        },
-        {
-          "type": "if_statement",
-          "named": true
-        },
-        {
           "type": "import_statement",
-          "named": true
-        },
-        {
-          "type": "labeled_statement",
-          "named": true
-        },
-        {
-          "type": "lock_manifest",
           "named": true
         },
         {
@@ -10742,15 +10700,7 @@
           "named": true
         },
         {
-          "type": "repeat_statement",
-          "named": true
-        },
-        {
-          "type": "return_statement",
-          "named": true
-        },
-        {
-          "type": "script_header",
+          "type": "reexport_declaration",
           "named": true
         },
         {
@@ -10770,19 +10720,11 @@
           "named": true
         },
         {
-          "type": "throw_statement",
-          "named": true
-        },
-        {
           "type": "type_declaration",
           "named": true
         },
         {
           "type": "unit_declaration",
-          "named": true
-        },
-        {
-          "type": "while_statement",
           "named": true
         },
         {
@@ -13227,10 +13169,6 @@
     "named": false
   },
   {
-    "type": "deployment",
-    "named": false
-  },
-  {
     "type": "dimension",
     "named": false
   },
@@ -13316,6 +13254,10 @@
   },
   {
     "type": "inout",
+    "named": false
+  },
+  {
+    "type": "input",
     "named": false
   },
   {
@@ -13405,10 +13347,6 @@
   {
     "type": "scalar_literal",
     "named": true
-  },
-  {
-    "type": "script",
-    "named": false
   },
   {
     "type": "service",

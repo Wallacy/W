@@ -7,7 +7,7 @@
 
 | Family | Blocks |
 | --- | --- |
-| roots | `script-and-execution-root`, `source-roots-imports` |
+| roots | `module-run-root`, `source-roots-imports` |
 | declarations | `data-declarations` |
 | types | `types-and-contracts` |
 | callables | `callables-and-foreign` |
@@ -18,22 +18,18 @@
 | execution | `execution-forms` |
 | effects | `restricted-expressions` |
 | streams | `stream-and-channel` |
-| entry | `entry-declaration`, `implicit-entry-body` |
-| manifest | `package-root`, `workspace-root`, `lock-root`, `deployment-root` |
+| entry | `entry-declaration`, `module-run-entry` |
+| manifest | `package-root`, `workspace-root` |
 
 | Variant | Syntax | Atlas block |
 | --- | --- | --- |
 | `root-module` | `module atlas_language` | `source-roots-imports` |
-| `root-script` | `script {` | `script-and-execution-root` |
-| `root-implicit-entry` | `let city =` | `implicit-entry-body` |
 | `root-package` | `package {` | `package-root` |
 | `root-workspace` | `workspace {` | `workspace-root` |
-| `root-lock` | `lock {` | `lock-root` |
-| `root-deployment` | `deployment {` | `deployment-root` |
 | `import-ordinary` | `import std.text` | `source-roots-imports` |
 | `import-domain` | `import domain` | `source-roots-imports` |
 | `import-service` | `import service` | `source-roots-imports` |
-| `import-wildcard` | `export import *` | `source-roots-imports` |
+| `import-wildcard` | `export * from atlas.foundation` | `source-roots-imports` |
 | `entry-explicit` | `entry Atlas` | `entry-declaration` |
 | `allocator-named` | `allocator scratch` | `allocator-and-bindings` |
 | `allocator-anonymous` | `allocator .fixed<capacity: 128>` | `allocator-and-bindings` |
@@ -79,19 +75,16 @@
 | `static-list` | `Signal<[.quiet` | `types-and-contracts` |
 | `channel-send` | `Channel<String><.send>` | `stream-and-channel` |
 | `channel-receive` | `Channel<String><.receive>` | `stream-and-channel` |
+| `root-module-run` | `module atlas_execution` | `module-run-root` |
 
 ## Full snippets
 
 <details>
-<summary>Standalone script header and module · roots · script-and-execution-root</summary>
+<summary>Module-run root · roots · module-run-root</summary>
 
 **current** · **tree-sitter-parse-only-provider-missing**
 
 ```w
-script {
-  edition: "2026"
-}
-
 module atlas_execution
 import std.runtime.task
 import { Stream, Channel } from std.stream
@@ -111,7 +104,8 @@ module atlas_language<
 
 import std.text
 import { String as Text } from std.text
-export import * from atlas.base
+export * from atlas.foundation
+export { FoundationPlace as BasePlace } from atlas.foundation
 import domain { District } from atlas.domain
 import service { RemoteCatalog<key: String> } from atlas.catalog
 import service atlas.catalog as catalog
@@ -192,11 +186,14 @@ extension Place {
   }
 }
 
-behavior Trackable for Place {
-  storage var trace: String = ""
-  lastSeen
-  get(value: Place) {
-    value
+behavior Initialized for Place {
+  storage var current: Place
+  input initialValue: fn(): Place
+  init {
+    current = initialValue()
+  }
+  get {
+    return current
   }
 }
 
@@ -402,10 +399,12 @@ fn prepare(city: String): String {
 fn walk(values: Array<i32>): i32 throws String {
   var total = 0
   rows: for ref value in values {
-    if value < 0 {
-      continue rows
-    } else {
-      total += value
+    for column in [value] {
+      if column < 0 {
+        continue rows
+      } else {
+        total += column
+      }
     }
   }
   var index = 0
@@ -477,12 +476,26 @@ fn captureModes(target: String, borrowed: ref String, moved: take String, shared
 **current** · **tree-sitter-parse-only-provider-missing**
 
 ```w
-fn restricted(target: String): String {
+struct AtlasLease {
+  target: String
+}
+
+fn acquireLease(target: String): AtlasLease {
+  return AtlasLease(target: target)
+}
+
+fn prepareLease(lease: AtlasLease): String {
+  return lease.target
+}
+
+async fn restricted(target: String): String throws String {
   let captured = <[copy target]>(name) => name
   let value = if target == "north" { "day" } else { "night" }
   let range = 1..<4
-  let answer = pipeline {
-    return value
+  let (lease, ready) = try await pipeline {
+    let lease = acquireLease(target)
+    let ready = prepareLease(lease)
+    return (lease, ready)
   }
   let guarded = lock target as city {
     city
@@ -496,7 +509,8 @@ fn restricted(target: String): String {
   let pinned = pin target
   captured
   range
-  answer
+  lease
+  ready
   guarded
   transactionValue
   unsafeValue
@@ -549,14 +563,18 @@ entry Atlas(runAtlas)
 </details>
 
 <details>
-<summary>Implicit final entry body · entry · implicit-entry-body</summary>
+<summary>Explicit module-run entry · entry · module-run-entry</summary>
 
 **current** · **tree-sitter-parse-only-provider-missing**
 
 ```w
-let city = "north"
-let greeting = prepare(city)
-print(greeting)
+fn runModuleRun() {
+  let city = "north"
+  let greeting = prepare(city)
+  print(greeting)
+}
+
+entry(runModuleRun)
 ```
 
 </details>
@@ -578,6 +596,19 @@ package {
       source: .registry("w")
     }
   ]
+  resolution: {
+    schema: "w.resolution/1"
+    resolver: "w.resolver/1"
+    contexts: []
+    packages: []
+  }
+  deployments: [
+    {
+      schema: "w.deployment/1"
+      name: "local"
+      artifacts: [.product("atlas-syntax", target: "host", profile: "parse")]
+    },
+  ]
 }
 ```
 
@@ -594,39 +625,18 @@ workspace {
   members: ["."]
   defaultMembers: ["."]
   patches: []
-}
-```
-
-</details>
-
-<details>
-<summary>Lock manifest root · manifest · lock-root</summary>
-
-**current** · **tree-sitter-parse-only-provider-missing**
-
-```w
-lock {
-  schema: "w.package-lock/1"
-  resolver: "w"
-  workspaceDigest: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-  contexts: []
-  packages: []
-}
-```
-
-</details>
-
-<details>
-<summary>Deployment manifest root · manifest · deployment-root</summary>
-
-**current** · **tree-sitter-parse-only-provider-missing**
-
-```w
-deployment {
-  schema: "w.deployment/1"
-  name: "atlas/local"
-  artifacts: [
-    .product("atlas-syntax", target: "host", profile: "parse")
+  resolution: {
+    schema: "w.resolution/1"
+    resolver: "w.resolver/1"
+    contexts: []
+    packages: []
+  }
+  deployments: [
+    {
+      schema: "w.deployment/1"
+      name: "local"
+      artifacts: [.product("atlas-syntax", target: "host", profile: "parse")]
+    },
   ]
 }
 ```

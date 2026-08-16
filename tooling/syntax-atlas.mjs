@@ -9,10 +9,10 @@ const GRAMMAR = path.join(ROOT, "tooling", "tree-sitter-w", "grammar.js");
 const MANIFEST = path.join(ATLAS, "atlas-manifest.json");
 const CHEATSHEET = path.join(ATLAS, "CHEATSHEET.md");
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
-const RULE_SET_DIGEST = "sha256:828ea8c24376b2be53e42027359313fddb2648ff759877153a68ca608689af8e";
+const RULE_SET_DIGEST = "sha256:b7a1b3b9f60d06a1f0706f77ab393dc1c611c214adbc756765cf1e94790e0ca1";
 const SCHEMA = "w-syntax-atlas-1";
 
-const ROOT_KINDS = new Set(["module", "script", "implicit-entry", "package", "workspace", "lock", "deployment"]);
+const ROOT_KINDS = new Set(["module", "package", "workspace"]);
 const STATUSES = new Set(["current", "research", "rejected"]);
 const EVIDENCE = new Set(["tree-sitter-parse-only", "tree-sitter-parse-only-provider-missing", "tree-sitter-parse-only-compiler-runtime-missing"]);
 
@@ -20,7 +20,7 @@ const EVIDENCE = new Set(["tree-sitter-parse-only", "tree-sitter-parse-only-prov
 // construction text, witness, status, and evidence remain data in the
 // manifest; this list only prevents an accidental omission.
 const REQUIRED_VARIANT_IDS = [
-  "root-module", "root-script", "root-implicit-entry", "root-package", "root-workspace", "root-lock", "root-deployment",
+  "root-module", "root-package", "root-workspace",
   "import-ordinary", "import-domain", "import-service", "import-wildcard",
   "entry-explicit", "allocator-named", "allocator-anonymous", "allocator-root-plan", "allocator-none", "allocator-contextual-parameter", "allocator-contextual-call",
   "ownership-ref", "ownership-inout", "ownership-take", "ownership-shared", "ownership-weak", "ownership-view", "ownership-pin", "ownership-atomic",
@@ -56,14 +56,14 @@ const INTERNAL_RULES = new Set();
 const RECOVERY_RULES = new Set(["foreign_body_content"]);
 
 const MANIFEST_RULES = new Set([
-  "package_manifest", "deployment_manifest", "workspace_manifest", "lock_manifest", "manifest_record",
+  "package_manifest", "workspace_manifest", "manifest_record",
   "manifest_field", "manifest_value", "manifest_list", "manifest_constructor", "manifest_argument",
 ]);
 
-const ROOT_RULES = new Set(["source_file", "script_header", "module_header", "module_contract"]);
+const ROOT_RULES = new Set(["source_file", "module_header", "module_contract"]);
 
 const DIRECT_RULES = new Set([
-  "module_header", "domain_import_statement", "service_import_statement", "import_statement", "export_list_declaration",
+  "module_header", "domain_import_statement", "service_import_statement", "import_statement", "reexport_declaration", "reexport_item", "export_list_declaration",
   "function_declaration", "struct_declaration", "object_declaration", "service_declaration", "protocol_declaration",
   "enum_declaration", "initializer_declaration", "field_declaration", "computed_property_declaration", "property_requirement",
   "enum_case", "type_declaration", "alias_declaration", "dimension_declaration", "unit_declaration", "extension_declaration",
@@ -76,11 +76,10 @@ const DIRECT_RULES = new Set([
   "optional_propagation_expression", "call_expression", "generic_application_expression", "member_expression", "optional_member_expression",
   "index_expression", "closure_expression", "capture_expression", "pipeline_expression", "lock_expression", "transaction_expression",
   "unsafe_expression", "if_expression", "array_literal", "map_literal", "repeat_array_literal", "tuple_expression", "unit_literal",
-  "package_manifest", "deployment_manifest", "workspace_manifest", "lock_manifest",
+  "package_manifest", "workspace_manifest",
 ]);
 
 const MARKER_RULE_OVERRIDES = new Map([
-  ["script_header", "script-and-execution-root"],
   ["entry_declaration", "entry-declaration"],
   ["allocator_statement", "allocator-and-bindings"],
   ["allocator_builtin_plan", "allocator-and-bindings"],
@@ -117,15 +116,13 @@ function markerForRule(name) {
   if (MARKER_RULE_OVERRIDES.has(name)) return MARKER_RULE_OVERRIDES.get(name);
   if (name === "package_manifest") return "package-root";
   if (name === "workspace_manifest") return "workspace-root";
-  if (name === "lock_manifest") return "lock-root";
-  if (name === "deployment_manifest") return "deployment-root";
   if (["manifest_record", "manifest_field", "manifest_value", "manifest_list", "manifest_constructor", "manifest_argument"].includes(name)) return "package-root";
   if (ROOT_RULES.has(name)) return "source-roots-imports";
   if (LEXICAL_RULES.has(name)) return "literals-and-collections";
   if (name === "foreign_body" || name.startsWith("foreign_")) return "callables-and-foreign";
-  if (["domain_import_statement", "service_import_statement", "named_service_imports", "service_import_item", "service_key_contract", "import_statement", "wildcard_import", "named_imports", "import_item", "module_path"].includes(name)) return "source-roots-imports";
+  if (["domain_import_statement", "service_import_statement", "named_service_imports", "service_import_item", "service_key_contract", "import_statement", "reexport_declaration", "reexport_item", "wildcard_import", "named_imports", "import_item", "module_path"].includes(name)) return "source-roots-imports";
   if (["function_declaration", "function_signature", "language_tag", "abi_contract", "parameter_list", "generic_parameters", "generic_parameter", "function_type", "function_type_parameter", "rest_marker"].includes(name)) return "callables-and-foreign";
-  if (["struct_declaration", "object_declaration", "service_declaration", "protocol_declaration", "enum_declaration", "primary_associated_types", "conformance_clause", "associated_type_requirement", "associated_const_requirement", "initializer_declaration", "field_declaration", "computed_property_declaration", "property_requirement", "enum_case", "type_declaration", "alias_declaration", "dimension_declaration", "unit_declaration", "extension_declaration", "behavior_declaration", "behavior_storage_declaration", "behavior_value_declaration", "behavior_accessor", "deinit_declaration", "const_declaration", "test_declaration", "export_list_declaration", "export_item"].includes(name)) return "data-declarations";
+  if (["struct_declaration", "object_declaration", "service_declaration", "protocol_declaration", "enum_declaration", "primary_associated_types", "conformance_clause", "associated_type_requirement", "associated_const_requirement", "initializer_declaration", "field_declaration", "computed_property_declaration", "property_requirement", "enum_case", "type_declaration", "alias_declaration", "dimension_declaration", "unit_declaration", "extension_declaration", "behavior_declaration", "behavior_storage_declaration", "behavior_input_declaration", "behavior_accessor", "deinit_declaration", "const_declaration", "test_declaration", "export_list_declaration", "export_item"].includes(name)) return "data-declarations";
   if (["type", "type_name", "type_arguments", "type_argument", "static_argument_value", "contract_expression_argument", "static_record_literal", "static_array_literal", "fixed_array_type", "tuple_type", "labeled_tuple_type_element", "unit_literal"].includes(name)) return "types-and-contracts";
   if (["declaration_prefix", "type_body", "protocol_body", "enum_body", "behavior_body", "property_accessor_body", "get_accessor", "set_accessor", "modify_accessor", "accessor_implementation", "behavior_parameter_list", "behavior_parameter", "enum_case_parameter"].includes(name)) return "data-declarations";
   if (["non_borrowed_type"].includes(name)) return "types-and-contracts";
@@ -250,26 +247,17 @@ function rootDisposition(files, blocks) {
   const byFile = new Map(files.map((file) => [path.relative(ATLAS, file.file).split(path.sep).join("/"), file]));
   const required = new Map([
     ["language.w", "module"],
-    ["execution.w", "script"],
+    ["execution.w", "module"],
     ["package.w", "package"],
     ["workspace.w", "workspace"],
-    ["lock.w", "lock"],
-    ["deployments/local.w", "deployment"],
   ]);
   for (const [file, expected] of required) {
     const entry = byFile.get(file);
     if (!entry) throw new Error(`root atlas file ${file} is missing.`);
     if (!entry.blocks.some((block) => block.root === expected)) throw new Error(`${file} must contain root=${expected}.`);
-    const allowed = file === "execution.w" ? new Set(["script", "implicit-entry"]) : new Set([expected]);
+    const allowed = new Set([expected]);
     for (const block of entry.blocks) if (!allowed.has(block.root)) throw new Error(`${file} has incompatible root=${block.root} on ${block.id}.`);
   }
-  const implicit = blocks.filter((block) => block.root === "implicit-entry");
-  if (implicit.length !== 1) throw new Error("atlas must contain exactly one implicit-entry block.");
-  const implicitFile = byFile.get(implicit[0].file);
-  const last = implicitFile.blocks.at(-1);
-  if (last?.id !== implicit[0].id) throw new Error("implicit-entry must be the final block in its source file.");
-  const linesAfter = implicitFile.text.split("\n").slice(implicitFile.text.split("\n").findIndex((line, index) => index > 0 && line === `// atlas:end ${implicit[0].id}`) + 1).filter((line) => line.trim());
-  if (linesAfter.length) throw new Error("implicit-entry must be the final non-trivia source suffix.");
 }
 
 function deriveSnapshot(manifestInput) {
@@ -415,12 +403,9 @@ function buildManifest(snapshot, cheatsheet) {
     pedagogicalOrder: snapshot.pedagogicalOrder,
     rootForms: [
       { file: "language.w", root: "module", role: "main-reading-path" },
-      { file: "execution.w", root: "script", role: "main-reading-path" },
-      { file: "execution.w", root: "implicit-entry", role: "root-only-suffix" },
+      { file: "execution.w", root: "module", role: "main-reading-path" },
       { file: "package.w", root: "package", role: "exclusive-root" },
       { file: "workspace.w", root: "workspace", role: "exclusive-root" },
-      { file: "lock.w", root: "lock", role: "exclusive-root" },
-      { file: "deployments/local.w", root: "deployment", role: "exclusive-root" },
     ],
     grammarRules: snapshot.ruleEntries,
     families: snapshot.families,

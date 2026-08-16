@@ -253,12 +253,12 @@ alvo de execução independente.
 | `package.w` | products, host bindings, service bindings, runtime graphs, targets e profiles |
 | `workspace.w` | members, defaults, patches e toolchain policy locais |
 | `BUILD.md` | matriz de toolchains, artifacts, comandos e gates |
-| `deployments/local.w` | plano local com uma unit e adapters de desenvolvimento |
-| `deployments/distributed.w` | plano heterogêneo com services, devices e WASI |
-| `deployments/benchmark.w` | PostgreSQL, cache local, admission e limites do benchmark |
+| `workspace.w (deployment "local")` | plano local com uma unit e adapters de desenvolvimento |
+| `workspace.w (deployment "distributed")` | plano heterogêneo com services, devices e WASI |
+| `workspace.w (deployment "benchmark")` | PostgreSQL, cache local, admission e limites do benchmark |
 | `orbit.w` | swarm de satélites, telemetria e propagação tipada |
 | `horizon.w` | sensores do buraco negro, event time e tensor fusion |
-| `horizon_script.w` | oracle PYN1 de header script, dependency locked, requirement admission, menu do horizonte e implicit entry default |
+| `horizon_tool.w` | oracle RU0 de módulo normal, dependency chart, entry explícito, requirement admission e menu do horizonte |
 | `tensor_interop.w` | fixture PYN4 de carrier tensorial DLPack 1.3, device/queue, zero-copy, callback scoped, materialização e export consuming |
 | `device_execution_oracle.w` | fixture DEV0 de descriptor, launch scope, queue receipt, cancel drain e equivalência CPU/device |
 | `observatory_app.w` | processo nativo do swarm e da telemetria |
@@ -301,16 +301,16 @@ persistente usam carriers explícitos.
 | texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
-| service links e evolução | `service_oracle.w`, `session_security_oracle.w`, `capability_security_oracle.w`, `remote_stream_oracle.w`, `transaction_oracle.w`, `package.w`, `deployments/` | placement, authority, streams, transaction e compatibility mantêm o mesmo contrato |
+| service links e evolução | `service_oracle.w`, `session_security_oracle.w`, `capability_security_oracle.w`, `remote_stream_oracle.w`, `transaction_oracle.w`, `package.w`, `workspace.w` | placement, authority, streams, transaction e compatibility mantêm o mesmo contrato |
 | wire portátil | `wire_oracle.w`, `orbit.w`, `kitchen.w` | codec rejeita tempo local, borrows e representações alternativas |
-| supervisão e workflow | `supervision.w`, `workflow.w`, `deployments/` | trabalho longo, recovery e placement mantêm owners explícitos |
+| supervisão e workflow | `supervision.w`, `workflow.w`, `workspace.w` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
 | C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
 | escapes de sistema | `system_escapes.w`, `controller_app.w`, `package.w` | MMIO, interrupt, TLS, placement e assembly mantêm authority explícita |
 | ABI W e façade C | `horizon.w`, `abi.w`, `package.w` | interface, key, symbol e carrier ficam separados |
 | self-host e build reproduzível | `packages/menu-compiler/` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
 | operação integrada | `simulation.w`, `gateway.w`, `app.w`, `restpc_oracle.w` | um dispatch tipado atende CLI, TUI e HTTP |
-| products e targets | `package.w`, `BUILD.md`, `deployments/` | grafo, variante, execution envelope, target e placement ficam separados |
+| products e targets | `package.w`, `BUILD.md`, `workspace.w` | grafo, variante, execution envelope, target e placement ficam separados |
 | toolchains e SDKs | `workspace.w`, `BUILD.md` | requirements, providers e execution platforms ficam separados |
 | satélites e horizonte | `orbit.w`, `horizon.w` | units, event time, services e tensors compõem |
 | device e tempo real | `controller_app.w`, `audio.w` | interrupts, fixed buffers e deadlines ficam visíveis |
@@ -332,73 +332,65 @@ Aceite:
 - `entry { ... }` cria um handler curto para um default slot único;
 - `entry(runNative)` cria o descriptor anônimo `.default`;
 - `entry LastLightTui(runTuiEntry)` cria um descriptor independente;
-- statements finais de um source root formam um implicit entry `.default` privado;
-- o wrapper implícito não cria `args` ou `ctx` e pode ser sync ou async conforme `await` visível;
+- o descriptor explícito não cria `args` ou `ctx`; adapters do host profile
+  declaram qualquer binding de process e seus effects;
 - o product escolhe um descriptor e declara callbacks ABI adicionais quando necessários;
 - process signals usam registration runtime e lifetime explícito;
 - callbacks ABI estáticos, como `device.tick`, usam `hostBindings`;
 - importar `app` não executa um handler;
 - Context não concede filesystem ou network ausentes.
 
-### 3.1.1 Horizonte de Script PYN1
+### 3.1.1 Module run RU0
 
-Famílias: workflow single-file, header contextual, roots, imports, virtual
-selection, package-lock root, CAS, requirements, provenance e promotion.
+Famílias: módulo executável, entry explícito, imports, package/workspace,
+resolution e deployments nomeados.
 
 Aceite:
 
-- `horizon_script.w` começa com `script { edition, dependencies, lock }`.
-- Dependency usa somente o record P0 explícito; não existe compact constructor,
-  comment metadata, sibling manifest ou `--with` na v0.
-- A dependency `chart` usa o record P0 e o lock root canônico `w.package-lock/1`; o
-  digest real é `sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2`,
-  recomputado pelo fixture `header-ready` em `tooling/script-workflow-cases.json`;
-  artifact evidence, CAS e action outputs são sidecars separados do payload do
-  lock.
-- O fixture fecha `contexts`/`packages`, IDs content-derived, root edge `chart`,
-  closure e metadata/content/artifact CAS digests; `transitive-ready` prova a
-  edge local `chart -> science`, `multi-target-ready` prova a seleção de um
-  context e os cases `PYN1-sidecar-*` cobrem evidence separada do lock.
-- O source usa `std.data.Batch<HorizonReading>` e statements finais como implicit
-  entry `.default`.
-- `w explain product` mostra `entryForm: implicit`, o digest do body, facts de
-  effect e o source map dos statements.
-- O menu deriva `steady`, `warning` ou `evacuation` do score do horizonte.
-- Header transforma o source em root standalone, mesmo dentro de workspace.
-- `w context` mostra root diagnóstico, lock digest, fetches, authorities,
-  selected context, source/content digests, selected artifact/record/recipe
-  digests and consumed action-output records,
-  offered/matched/effective requirements e recipe.
-- Falha, offline miss, mismatch, action output ausente e requirement denial
-  ocorrem antes do entry. `print` usa o `.stdio` baseline; não há requirement
-  de clock no source.
-- Promotion preserva graph e entry, escreve package equivalentes e emite provenance.
-- `parseEvidence`/`resultParseEvidence` ligam a projection parser aos bytes
-  normalizados; Tree-sitter prova a projection e o host apenas valida a evidence.
-- importar o source root é rejeitado, e um `entry` explícito misturado com os
-  statements finais é erro.
+- `horizon_tool.w` é módulo normal, importa `chart.science` e declara
+  `entry(runHorizon)`;
+- `w run path/file.w` usa parser, checker e HIR normais; sem `--entry`,
+  seleciona o descriptor explícito `.default`, e com `--entry Name`, o
+  descriptor nomeado;
+- o host profile declara adapters e assinaturas exatas. O baseline
+  `native-process` inclui as duas formas vigentes: `fn(): ()` e handlers que
+  declaram `std.process` `Arguments`, `Context` e `ExitCode` com os effects
+  e return types do profile;
+- package isolado é owner de sua resolution; com workspace, membership e owner
+  único selecionam `workspace.w`. Ancestor scan sozinho e duplicate owner
+  falham;
+- fora de projeto, somente std e imports locais explícitos são aceitos.
+  Dependency externa não resolvida orienta criar ou adotar package/workspace;
+- `w add/remove/resolve/update` operam no package/workspace. `w run` não faz
+  solve, update, install ou fetch oculto;
+- `resolution` usa schema `w.resolution/1`, deployments usam records
+  `w.deployment/1` nomeados e `--deployment local` seleciona por nome;
+- package publication exclui resolution/deployments locais. Package, resolution
+  e deployment preservam identities e digests lógicos separados; deployment
+  digest não altera `SemanticInterfaceKey`;
+- o menu deriva `steady`, `warning` ou `evacuation` do score do horizonte;
+- importar um source não executa seu entry, e módulo sem descriptor é importável
+  mas não é alvo executável.
 
 Adversariais:
 
-- header ausente, duplicado, desconhecido ou fora da primeira posição;
-- schema redundante, edition inválida e lock ausente, divergente ou não assinado;
-- alias duplicado, dependency `.path`, branch, ref, registry ambiental ou traversal;
-- import de outro script, scan recursivo, cwd, `PATH` ou environment;
-- fetch fora de lock, CAS offline (root, metadata, content, artifacts e action
-  outputs) ausente,
-  digest, authority, signature ou artifact-record mismatch;
-- lock com múltiplos targets seleciona somente o context pedido; target ausente
-  ou duplicado falha;
-- requirement desconhecido, source grant/secret, deployment grant ausente,
-  handle transitivo sem metadata/record ou action output sem provenance;
-- entry ausente, declaration-after-statement, import de root implícito,
-  explicit+implicit, error escapante, execução arbitrária de módulo, estado
-  oculto e promotion com graph alterado;
-- URL, stdin e shebang, que permanecem rejeitados na baseline.
+- entry ausente, duplicado, incompatível ou seleção nomeada desconhecida;
+- dependency externa em contexto efêmero, owner workspace duplicado, membership
+  divergente ou resolution ausente/stale;
+- import implícito, scan recursivo/cwd/`PATH`/environment, URL, stdin ou
+  shebang;
+- solve/update/fetch oculto, deployment selecionado por path, resolution ou
+  deployment digest misturado na interface semântica;
+- `export import`, reexport sem origem/item, ou bare behavior initializer;
+- falha de authority, signature, CAS, artifact, action output ou capability antes
+  do entry.
 
 O host oracle [`tooling/script-workflow-machine.mjs`](../../tooling/script-workflow-machine.mjs)
-deriva esses estados. Ele não executa W nem fornece compiler, runtime, resolver,
-provider ou CLI.
+preserva a proveniência rejeitada do estudo PYN1. Ele não define nem projeta o
+contrato module-run RU0 e não executa W nem fornece compiler, runtime, resolver,
+provider ou CLI. O contrato corrente é exercitado pelo checker RU0 e pelos
+fixtures de módulo, package e workspace.
+
 
 ### 3.1.2 Sessão/REPL transacional PYN2
 
@@ -2520,7 +2512,7 @@ Aceite:
 - uma call normal ou borrow não cruza uma unit;
 - cada packing possui recipe, index e digests próprios;
 - deployment não reagrupa providers;
-- `deployment.lock` fixa products, releases, units e adapters;
+- o registro nomeado `deployments` em `workspace.w` fixa products, releases, units e adapters;
 - `w deploy apply --locked` não executa build;
 - secrets permanecem handles de host;
 - cada target possui recipe e digest próprios;
@@ -2551,7 +2543,7 @@ Aceite:
 - importar um entry module não executa ou registra handlers.
 
 O oracle gera products e packings de [`package.w`](package.w). Depois ele resolve
-os dois planos em [`deployments/`](deployments/). Ele rejeita graph aberto,
+os dois planos nos records nomeados de [`workspace.w`](workspace.w). Ele rejeita graph aberto,
 binding incompatível, quota maior, unit ausente, digest mutável, provider
 ambíguo e target sem SDK.
 
@@ -2653,7 +2645,7 @@ Aceite:
 Famílias: HTTP, JSON, database, allocation, admission e performance evidence.
 
 `benchmark_app.w` contém um oracle de source para as sete famílias do
-TechEmpower. `package.w` fecha o runtime graph. `deployments/benchmark.w`
+TechEmpower. `package.w` fecha o runtime graph. `workspace.w (deployment "benchmark")`
 seleciona PostgreSQL, cache local e limites menores que o envelope do product.
 Isso ainda não é um resultado de benchmark. Não existem runtime, adapters,
 harness executável ou medição.
