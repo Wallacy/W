@@ -604,6 +604,7 @@ A forma canônica segue estas regras:
 | indentação | dois espaços; tabs não aparecem na saída |
 | ordem | source order é preservada; imports, exports, cases e fields não são ordenados |
 | listas | uma linha quando a construção cabe; caso contrário, um item por linha e trailing comma |
+| `borrows` clause | source order, pair order, comments e spans são preservados; a HIR ordena somente ordinals resolvidos |
 | blocos | uma declaração por linha; body curto permanece em uma linha quando cabe e não possui comment |
 | comments | comments e doc comments permanecem ligados ao mesmo token ou declaration |
 | semicolon | o formatter remove `;` quando a statement partition não muda; caso raro de desambiguação permanece |
@@ -1068,7 +1069,7 @@ function_declaration = function_prefix "fn"
                        (language_contract function_tail block
                        | abi_contract? function_tail block? ";"?) ;
 function_tail = identifier generic_parameters? parameter_list
-                return_clause? throws_clause? ;
+                return_clause? throws_clause? borrow_clause? ;
 parameter_list = "(" parameter ("," parameter)* ","? ")" ;
 parameter = allocator_parameter | callable_parameter ;
 allocator_parameter = "allocator" identifier ":" parameter_requirement? type ;
@@ -1084,6 +1085,9 @@ language_contract = "<" (identifier | "lang" ":" contextual_member)
 abi_contract = "<" "abi" ":" contextual_member ","? ">" ;
 return_clause = ":" type ;
 throws_clause = "throws" type ;
+borrow_clause = "borrows" "(" borrow_pair ("," borrow_pair)* ","? ")" ;
+borrow_pair = slot_ref ":" "[" slot_ref ("," slot_ref)* ","? "]" ;
+slot_ref = identifier | number_literal ;
 
 struct_declaration = "export"? "struct" identifier generic_parameters?
                      conformance_clause? type_body ;
@@ -1487,7 +1491,7 @@ contagem de bytes quando o element type é `u8`.
 ```ebnf
 function_type = "unsafe"? callable_mode? "async"? "fn"
                 function_contract? "(" function_type_parameters? ")"
-                return_clause? throws_clause? ;
+                return_clause? throws_clause? borrow_clause? ;
 
 callable_mode = "mut" | "take" ;
 function_contract = contract_envelope ;
@@ -2185,6 +2189,7 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 | `W-OWNERSHIP-0010` | prefix exige place, owner, borrow ou mobilidade incompatível |
 | `W-BORROW-0010` | criação `shared` recebe payload com origin de borrow dinâmica |
 | `W-BORROW-0011` | resultado borrowed ou view bodyless possui múltiplas origens compatíveis sem receiver ou corpo autoritativo |
+| `W-BORROW-0012` | cláusula `borrows(...)` possui slot, mode ou prova divergente |
 | `W-OWNERSHIP-0011` | place owned e movível chama member `take fn` sem `(take receiver)` |
 | `W-OWNERSHIP-0013` | argumento, return ou inferência tenta criar `shared` sem binding escrito e movimento explícito |
 | `W-OWNERSHIP-0014` | grafo fechado contém ciclo forte que só poderia terminar pelo próprio `deinit` |
@@ -2730,6 +2735,7 @@ As famílias específicas usam estes códigos:
 | `W-OWNERSHIP-0010` | prefix de ownership recebe place, owner, borrow ou mobility incompatível |
 | `W-BORROW-0010` | criação `shared` recebe payload dependente do lifetime |
 | `W-BORROW-0011` | resultado borrowed ou view bodyless possui múltiplas origens compatíveis sem receiver ou corpo autoritativo |
+| `W-BORROW-0012` | cláusula `borrows(...)` possui slot, mode ou prova divergente |
 | `W-OWNERSHIP-0011` | consuming receiver não foi transferido |
 | `W-OWNERSHIP-0013` | shared ownership seria criado implicitamente |
 | `W-OWNERSHIP-0014` | componente forte fechado depende do próprio `deinit` para romper o ciclo |
@@ -4175,6 +4181,62 @@ A ordem canônica é:
 Esse unit type possui um único valor, também escrito `()`. `Never` identifica
 uma função ou expressão que não retorna ao caller.
 
+#### 7.2.1 Relação source de resultados borrowed
+
+**Forma vigente:** uma declaration `requirement` ou `interface` pode publicar
+uma cláusula contextual `borrows(...)` depois de `throws`. A cláusula também
+pode aparecer num function type bodyless ou open. Ela não é permitida no
+call-site.
+
+```w
+static fn select(
+  primary: ref String,
+  fallback: ref String,
+): view String borrows(0: [primary, fallback])
+
+fn selectPrimary(
+  primary: ref String,
+  fallback: ref String,
+): view String borrows(0: [primary]) { return primary }
+
+type Selector = fn(ref String, ref String): view String borrows(0: [0])
+```
+
+O lado esquerdo de cada par é um ordinal de resultado não negativo. O lado
+direito aceita o nome de um parâmetro declarado ou um ordinal não negativo. Um
+nome resolve somente para um parameter slot da mesma declaration. Um function
+type não possui nomes de parâmetros, por isso usa ordinais. A lista vazia,
+índice negativo, número não inteiro, índice fora do limite, nome ausente,
+duplicata ou modo incompatível produz diagnostic sem criar uma relação parcial.
+
+Cada resultado dependent deve aparecer exatamente uma vez. Uma lista com dois
+sources descreve uma união de origins para aquele resultado. Múltiplos pares
+descrevem resultados distintos:
+
+```w
+fn selectPair(
+  primary: ref String,
+  fallback: ref String,
+): (view String, view String)
+  borrows(0: [primary], 1: [fallback]) { return (primary, fallback) }
+```
+
+O frontend preserva a ordem escrita no CST. A HIR resolve os names para slots e
+baixa `BorrowRelation/1` com result ordinals, source ordinals, modes e source
+sets ordenados. A ordem source não altera o digest depois da resolução.
+
+Um body ou default extension deriva o mapping e prova a cláusula. Um witness ou
+provider também prova o mapping exato, mas não possui autoridade para escolher
+outro mapping. A relação pertence ao requirement ou à interface publicada.
+`any P`, `some P`, generic substitution e open conformance carregam a mesma
+relação invariável. Um caller não pode fornecer `borrows` ou uma relation claim.
+
+`borrows` é contextual e só é reconhecido depois de uma function tail. O parser
+cria `borrow_clause`, `borrow_pair` e `slot_ref` no CST lossless. O formatter
+preserva a ordem dos pares, source order, comments e spans. A normalização
+semântica ordena somente o payload HIR resolvido. A cláusula não cria lifetime
+names, GAT, campo WAbi ou metadata de lifetime no runtime.
+
 **W-1290 — policy uniforme de labels callable:** um parâmetro callable
 `name: T` é `positionalOnly` em qualquer posição. A policy não muda porque um
 parâmetro vem primeiro ou depois de outro. O modifier contextual
@@ -4339,7 +4401,7 @@ Omitir o return type não retorna `self`. O retorno implícito faria uma funçã
 efeito parecer uma transformação. Ele também ocultaria borrow, copy ou move em
 um receiver com owner único.
 
-#### 7.2.1 Overloads por forma de call
+#### 7.2.2 Overloads por forma de call
 
 W permite overloads quando a sintaxe do call site seleciona uma declaração sem
 consultar tipos:
@@ -4715,8 +4777,10 @@ um existential parcial. Uma API de retry usa um outcome que devolve o source;
 ela não restaura o binding implicitamente.
 
 Function types não possuem labels, defaults ou nomes de parâmetros. Esses itens
-pertencem à declaração. Uma call direta usa a forma declarada. Uma call por valor
-usa todos os argumentos em ordem:
+pertencem à declaração. Uma cláusula `borrows(...)` em function type usa somente
+ordinais para os sources. O ordinal do resultado também é não negativo e
+semântico. Uma call direta usa a forma declarada. Uma call por valor usa todos
+os argumentos em ordem:
 
 ```w
 fn energy(power: Power, during duration: PhysicalDuration): Energy { ... }
@@ -7656,12 +7720,18 @@ mapping exato para cada result dependency slot. Cada slot mantém uma entrada
 própria. Um slot dependent sem entrada é rejeitado. Init continua rejeitado
 quando declara resultado borrowed ou view. Para uma declaração bodyless de
 `static`, `free` ou `protocol`, cada resultado borrowed ou view exige exatamente
-um input compatível. Um único input permite a derivação direta. Dois ou mais
-inputs independentes não definem uma origem única e rejeitam a declaração com
+um input compatível quando a declaration não possui `borrows(...)`. Um único
+input permite a derivação direta. Dois ou mais inputs independentes sem
+receiver, corpo ou cláusula explícita rejeitam a declaração com
 `W-BORROW-0011`. `instance` e `member` exigem um receiver compatível como a
-origem autoritativa. Zero source só permite result independent ou static. O
-compiler deriva essa regra de `kind`, `inputSlots` e `resultSlots`. Ele ignora
-`inferredMapping` bodyless. Witness e lock rejeitam divergência.
+origem autoritativa. Zero source só permite result independent ou static.
+Quando existe `borrows(...)`, o owner deve ser `requirement` ou `interface`.
+Cada result slot dependent aparece uma vez, e cada source resolve para um
+parameter slot borrowed ou dependent. Body/default, implementation e witness
+devem provar o mapping exato. O caller não pode fornecer uma relation claim.
+O compiler deriva a regra de `kind`, `inputSlots` e `resultSlots`. A HIR
+normaliza nomes para ordinals, modes e source sets ordenados. Ela não cria
+mapping parcial para uma cláusula inválida.
 
 A interface serializa esse mapping em `WInterface` e
 `SemanticInterfaceKey`. A expectativa gravada no import precisa coincidir com a
@@ -7670,14 +7740,18 @@ não são comparadas entre si. Mudar o mapping é mudança relevante de API e
 source-compatibility. `interface.lock` detecta a mudança. W não aceita lifetime
 annotation no source.
 
-BRX0 (W-1351) fecha a regra de origem única sem nova syntax: receiver-only
-member requirements, body-derived mappings e bodyless declarations com um único
-input compatível são expressivos. Um free, static ou protocol requirement
-bodyless com duas ou mais entradas compatíveis é rejeitado com
-`W-BORROW-0011`. O carrier nominal owned continua uma alternativa explícita.
-O schema de relação owned por requirement ou interface permanece Research em
-BRX2. Nenhum caminho promove lifetime syntax, GAT ou metadata de lifetime em
-runtime.
+BRX0 (W-1351) continua expressivo para receiver-only requirements, body-derived
+mappings e bodyless declarations com uma entrada compatível. BRX3 fecha o caso
+aberto de múltiplas entradas com a cláusula source `borrows(...)` em
+requirement/interface e function type. A forma é pré-1.0 e não preserva uma
+superfície anterior por inércia. O carrier nominal owned continua uma
+alternativa explícita quando a API prefere materialização.
+
+BRX2 permanece a proveniência histórica do schema relation. BRX3 promove a
+forma source e o contrato data-only. HIR, compiler, separate compilation,
+provider/linker, FFI e runtime são evidência de implementação. A promoção não
+declara esses componentes implementados. Nenhum caminho promove lifetime names,
+GAT ou metadata de lifetime em runtime.
 
 ##### 9.2.1.1 Escapes, destruction e diagnostics
 
@@ -7700,11 +7774,16 @@ Diagnostics distinguem pelo menos:
 - `W-BORROW-0009` para write solicitado por uma dependency edge shared.
 - `W-BORROW-0010` para criação `shared` com payload de origin de borrow dinâmica.
 - `W-BORROW-0011` para resultado borrowed ou view bodyless com múltiplas origens
-  compatíveis e sem receiver ou corpo autoritativo.
+  compatíveis sem receiver, corpo ou cláusula `borrows(...)` autoritativa.
+- `W-BORROW-0012` para cláusula `borrows(...)` inválida ou prova divergente, com
+  result/source ordinals, modes e expected/actual relation.
 
-Cada diagnostic sugere reordenar, encerrar scope, materializar, copiar, fazer
-`take` antes do borrow, separar ou limpar um container, ou usar pin quando o
-endereço for realmente necessário. O diagnostic não inventa annotation.
+`W-BORROW-0011` sugere adicionar `borrows(...)` na declaration/interface,
+fornecer body/default autoritativo ou materializar um carrier owned. `W-BORROW-0012`
+indica a cláusula, pair, ordinal/name e mapping esperado. Cada diagnostic pode
+sugerir reordenar, encerrar scope, materializar, copiar, fazer `take` antes do
+borrow, separar ou limpar um container, ou usar pin quando o endereço for
+realmente necessário. O diagnostic não inventa lifetime annotation.
 
 `shareable` não repara uma origin de borrow. A falha usa `W-BORROW-0010` antes
 de alocar o control block.
@@ -8079,6 +8158,40 @@ não o coleta, não executa `deinit` e não muda release.
 W não possui cycle collector por default. Um ciclo forte usa uma destas
 soluções: edge `weak`, remoção explícita, scope que possui o grafo ou lifecycle
 owner que drena e rompe suas edges.
+
+#### 9.4.1.1 CYC2 — fechamento de liveness condicional
+
+**Forma vigente:** Last Light fecha o problema de cache com composição
+explícita, sem nova syntax, API ou collector.
+
+```w
+export fn generationIdCacheWithInvalidation() {}
+export fn ownerScopedLeaseWithClose() {}
+export fn detachedValueWithoutBackEdge() {}
+```
+
+1. Um cache por generation/ID desanexa a key e invalida o entry explicitamente.
+2. Um cache scoped usa owner lease e `close` antes do drain.
+3. Um valor detached não mantém uma edge strong de value para key.
+
+As três composições fecham admission, drenam tasks, callbacks e resources,
+aguardam quiescence e executam census bounded. `weak-key` comum e ephemeron
+value→key são **Rejeitado por enquanto** na baseline. Collector transparente,
+finalizer oculto e reanimation são **Rejeitado**. Nenhuma dessas formas altera
+drop, cancel, fault, OOM ou FFI cleanup.
+
+Runtime, provider, stress, OOM e FFI execution são implementation evidence gaps.
+Eles não mantêm uma Research subcapability ativa. O oracle CYC1 permanece QA
+histórico e current para os fatos de strong/weak edge, SCC, drain, residual e
+unknown foreign boundary.
+
+Uma revisão futura somente pode reabrir a subcapability quando um caso bounded
+exigir identidade observável da key e reachability ephemeron, as três
+composições falharem após close/drain/quiescence e census, cleanup for
+determinístico, orçamento de recurso e OOM forem finitos, não houver foreign
+hidden edge e compiler/runtime/provider independentes confirmarem a necessidade.
+Essa revisão deve propor uma capability separada. Ela não reabre o baseline por
+contagem de casos ou por uma implementação de collector.
 
 Aliases no mesmo isolation domain não exigem `T.shareable`. Cruzar `spawn`,
 channel, service ou callback concorrente exige, em conjunto:
@@ -11827,6 +11940,23 @@ O contrato da primeira forma é fechado:
 - lowering, frame físico, layout, ABI, reflection e identidade de debug são
   privados. A forma não publica uma API de continuação nem muda o owner graph,
   happens-before, resultado, cancelamento ou cleanup.
+
+O diagnóstico usa esta tabela fechada; cada código aponta para o comportamento
+normativo correspondente:
+
+| Código | Regra que falha |
+|---|---|
+| `W-YIELD-0001` | `yield` fora de uma expressão `stream` compiler-owned |
+| `W-YIELD-0002` | emissão sem `take` ou `copy` explícito |
+| `W-YIELD-0003` | `view`, `borrow` ou `inout` atravessa o limite de suspensão |
+| `W-YIELD-0004` | buffer, prefetch ou capacidade escondida na expressão |
+| `W-YIELD-0005` | frame, resume token ou scheduler é exposto |
+| `W-YIELD-0006` | failure ou retorno terminal não segue o tipo declarado |
+| `W-YIELD-0007` | `yield` aparece em `defer` ou cleanup |
+| `W-YIELD-0008` | `next` perde exclusividade ou permite concorrência/reentrada |
+| `W-YIELD-0009` | resume tenta atravessar uma fronteira FFI |
+| `W-YIELD-0010` | body acessa binding que não está na capture list explícita |
+| `W-YIELD-0011` | `yield copy` usa item que não implementa `Duplicable` |
 
 `stream` deixa de ser um binding identifier; o migrador deve escolher `source`
 ou `cursor` e pode emitir `W-STREAM-0001`. O tipo nominal `Stream` não muda.
@@ -23271,16 +23401,25 @@ Com body, cada result dependency slot recebe exatamente o mapping derivado do
 body para receiver, parâmetros ou static roots. Um slot dependent sem origem
 exata falha. Sem body, `instance` e `member` usam somente um receiver
 compatível. `static`, `free` e `protocol` usam exatamente um input borrowed ou
-dependent compatível por result slot. Duas ou mais entradas compatíveis rejeitam
-com `W-BORROW-0011`. `init` com resultado borrowed ou view é rejeitado. Zero
-source inputs só aceita resultado `independent` ou `static`. O oracle deriva o
-default de `kind`, `inputSlots` e `resultSlots` e ignora `inferredMapping`
-bodyless. Um witness não pode publicar mapping diferente do body. O mapping não
-possui lifetime variable no source. Ele entra em `WInterface`,
-`SemanticInterfaceKey` e `interface.lock`.
+dependent compatível por result slot quando não existe `borrows(...)`. Duas ou
+mais entradas compatíveis rejeitam com `W-BORROW-0011`. Uma cláusula
+`borrows(resultOrdinal: [sourceNameOrOrdinal, ...])` é a autoridade source para
+uma requirement/interface aberta. O verifier exige um par por result slot,
+resolve names para ordinals, valida modes e compara body/default/witness/provider
+por igualdade exata. A cláusula não é aceita no call-site.
 
-BRX2 continua **Pesquisa**. Relação owned por requirement ou interface não entra
-no baseline e não adiciona syntax, metadata de runtime ou campo em `WAbi`.
+O mapping canonical entra em `WInterface`, `SemanticInterfaceKey` e
+`interface.lock`. O digest usa ordinals, modes e source sets ordenados. A ordem
+source escrita e os labels não alteram o digest depois da resolução. A relação
+não adiciona campo a `WAbi`, calling convention, carrier runtime ou tabela de
+lifetime. `any fn` conserva a identidade semântica durante erasure. Foreign
+retention continua exigindo owner/pin e drain pela regra FFI.
+
+BRX3 (W-1381–W-1384, W-1436) promove essa forma source antes de W 1.0. O
+corpus host e o parser são evidência de design. HIR, compiler, separate
+compilation, provider/linker, FFI execution e runtime permanecem
+`implementation-evidence-gap`. O contrato não declara esses componentes
+implementados. BRX2 fica como proveniência histórica do schema.
 
 O record não contém:
 
@@ -29356,16 +29495,25 @@ runtime ou provider.
 O método e os 21 vínculos atuais ficam em
 [`RATIONALE.md` §1.25](RATIONALE.md#125-evidência-fz0-de-frontend).
 
-BRX0 não é mais blocker do freeze. A regra vigente aceita apenas uma origem
-bodyless unicamente derivável, rejeita a ambiguidade com `W-BORROW-0011` e
-mantém o carrier nominal owned como alternativa explícita. O corpus e o
+BRX0 não é mais blocker do freeze. A regra vigente aceita uma origem bodyless
+unicamente derivável, rejeita a ambiguidade sem autoridade com `W-BORROW-0011`
+e mantém o carrier nominal owned como alternativa explícita. BRX3 fecha o caso
+aberto com `borrows(...)` em requirement/interface e function type. O corpus e o
 snapshot host em
 [`tooling/borrow-expressivity-cases.json`](tooling/borrow-expressivity-cases.json)
-devem permanecer verdes com testemunhos positivo, negativo e nominal. A
-contagem e a decisão são projeções em [`RATIONALE.md` §1.26](RATIONALE.md#126-evidência-brx0-de-expressividade-de-borrow-de-ordem-superior).
-BRX2 preserva o schema de relação owned por requirement ou interface como
-subcapability Research pós-baseline. Esses oracles não são implementação de
-compiler, runtime ou provider.
+e em [`tooling/brx3-borrow-relations-cases.json`](tooling/brx3-borrow-relations-cases.json)
+devem permanecer verdes com testemunhos source, body/default, witness,
+substitution e boundary. A contagem e a decisão são projeções em
+[`RATIONALE.md` §1.26](RATIONALE.md#126-evidência-brx0-de-expressividade-de-borrow-de-ordem-superior)
+e na seção BRX3. O host oracle não é implementação de compiler, runtime ou
+provider. Esses componentes permanecem implementation evidence gaps.
+
+CYC1 não é uma Research gate de semântica. CYC2 fecha liveness condicional por
+generation/ID, owner lease e detached value. Weak-key, ephemeron, collector,
+finalizer e reanimation permanecem rejeitados ou future-reopen candidates pelos
+critérios de [§9.4.1.1](#9411-cyc2-fechamento-de-liveness-condicional).
+Runtime/provider/stress/OOM/FFI evidence fica em implementação. Os oracles não
+alegam execução desses componentes.
 
 Os itens Research restantes mantêm seus gates próprios e não reabrem o
 baseline BRX0. Eles não autorizam produção do compiler ou runtime. Provas sobre
@@ -29656,8 +29804,14 @@ alternativa preservada.
   await stable;
 - fixar resultados borrowed bodyless por origem única, o diagnóstico
   `W-BORROW-0011` para ambiguidade e a alternativa nominal owned;
-- manter BRX2 como estudo Research de relação owned por requirement/interface,
-  sem lifetime syntax, GAT, metadata de runtime ou carrier WAbi;
+- fixar BRX3 com a cláusula contextual `borrows(...)` em requirement/interface e
+  function type, relation canonical por ordinals/modes/source sets, e o
+  diagnóstico `W-BORROW-0012` para cláusula ou prova divergente;
+- manter compile, HIR, separate compilation, provider/linker, FFI e runtime de
+  BRX3 como implementation evidence gaps, sem lifetime syntax, GAT, metadata de
+  runtime ou carrier WAbi;
+- manter CYC2 como fechamento por generation/ID, owner lease e detached value;
+  weak-key, ephemeron, collector e finalizer não entram no baseline;
 - fixar diagnostic IDs e formatter examples.
 
 Saída: toda forma implementada possui contrato, alternativa e teste.
@@ -29675,6 +29829,8 @@ equivalentes e nenhum error node.
 - modifiers `const fn` e `const init`;
 - parâmetros de chamada `name: const T` em declarations e function types;
 - contratos estáticos com expression, record e list payloads;
+- cláusula contextual `borrows(...)` após return/throws em declarations e
+  function types, com CST lossless e parse de names/ordinals;
 - referência `.member` contextual sem perda no CST;
 - patterns nominais de struct e marker `...`;
 - loops e blocks rotulados, `break`/`continue` rotulados e precedência fixa;
@@ -29709,7 +29865,8 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - verificação de parâmetros de chamada `const` no call site;
 - `ProofFacts` para intervalos, case-sets, comprimentos, shapes e flow;
 - `PlaceId`, `LoanId`, overlap, reborrow parent e `OriginSet` lifetime-dependent;
-- mapping de dependency slots em `WInterface` e `SemanticInterfaceKey`;
+- mapping de dependency slots e `BorrowRelation/1` em `WInterface`,
+  `SemanticInterfaceKey` e `interface.lock`;
 - type test com `is`, identidade nominal com `isSameInstance` e assertions;
 - `WInterface` canônica e cache interno separado;
 - `w interface show` e diff source inicial.

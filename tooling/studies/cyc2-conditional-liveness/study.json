@@ -1,0 +1,15 @@
+{
+  "$schema":"w-cyc2-conditional-liveness-study-1",
+  "status":"design-oracle-input",
+  "id":"CYC2",
+  "gate":"CYC2-R1",
+  "title":"Close conditional liveness by composition",
+  "corpus":"../../cyc2-conditional-liveness-cases.json",
+  "machine":"../../cyc2-conditional-liveness-machine.mjs",
+  "checker":"../../check-cyc2-conditional-liveness.mjs",
+  "snapshot":"../../cyc2-conditional-liveness-results.snapshot.jsonl",
+  "oracle":"oracle.test.mjs",
+  "decision":{"status":"close-baseline","weakKey":"intentionally-rejected","ephemeron":"intentionally-rejected","collector":"rejected","finalizer":"rejected"},
+  "reopenCriteria":["observable key identity","all three compositions fail","post-drain census","deterministic cleanup","bounded resource/OOM","no hidden foreign boundary","independent compiler/runtime/provider evidence"],
+  "evidence":{"current":["source-w","host-oracle","CYC1-compositions"],"missing":["w-compile","w-run","provider","runtime-stress","oom","ffi-execution","human-study","model-study"],"classification":"implementation-evidence-gap"}
+}

@@ -162,7 +162,7 @@
       },
       "route": {
         "classification": "composable",
-        "rationale": "Receiver, body-derived, and unique-input results compose. Ambiguous bodyless declarations reject with a stable diagnostic. BRX2 relation data remains a Research subcapability."
+        "rationale": "Receiver, body-derived, and unique-input results compose. BRX3 now gives a requirement/interface an explicit source relation for the open multiple-input case; compiler, HIR, provider, and separate-compilation receipts remain implementation evidence gaps."
       },
       "intentionalTradeoff": {
         "choice": "Require one uniquely derivable source for each bodyless borrowed result.",
@@ -188,7 +188,7 @@
         },
         "interfaces": {
           "risk": "A protocol hides the source relation.",
-          "mitigation": "Reject ambiguous bodyless requirements with W-BORROW-0011 and keep BRX2 relation data in Research."
+          "mitigation": "Require the contextual borrows clause on the requirement/interface and validate the body or witness against its canonical ordinal relation."
         },
         "concurrency": {
           "risk": "Concurrent next calls can reuse storage.",
@@ -229,7 +229,7 @@
         },
         "userDefinableInDesign": {
           "status": "partial",
-          "rationale": "A user adapter can identify one owner or choose an owned nominal result. Requirement-owned relation data remains Research."
+          "rationale": "A user adapter can identify one owner, write the borrows clause for a requirement/interface, or choose an owned nominal result."
         }
       },
       "capabilityLevelsBasis": "sameProblem",
@@ -240,7 +240,9 @@
           "design-ledger",
           "atom1-design-oracle",
           "brx2-study",
-          "brx2-host-oracle"
+          "brx2-host-oracle",
+          "brx3-study",
+          "brx3-host-oracle"
         ],
         "missing": [
           "w-compile",
@@ -248,7 +250,9 @@
           "compiler-relation-check",
           "provider",
           "hir-verifier",
-          "separate-compilation"
+          "separate-compilation",
+          "interface-lock-receipt",
+          "foreign-boundary-execution"
         ],
         "sourceRefs": [
           {
@@ -259,33 +263,32 @@
         ]
       },
       "nextStudyGate": {
-        "gateId": "BRX2-R1",
-        "kind": "design",
-        "forSubcapability": "BRX2-relation-schema",
-        "question": "Can a requirement/interface-owned relation record satisfy separate compilation and substitution without changing the baseline?",
+        "gateId": "BRX3-G1",
+        "kind": "evidence",
+        "question": "Do the compiler, HIR, provider, interface-lock, and foreign-boundary receipts implement the normative borrows source clause without adding lifetime names, GATs, runtime metadata, or a WAbi carrier?",
         "requiredEvidence": [
-          "two independent relation derivations",
-          "missing and forged mapping rejection",
-          "Last Light adapter witness",
-          "requirement/interface ownership and exact slot modes",
-          "provider and interface lock digest agreement"
+          "grammar and CST parse of contextual borrows clauses",
+          "body/default validation against canonical ordinal relation",
+          "generic, existential, invariant, and substitution checks",
+          "provider and interface-lock digest agreement",
+          "foreign boundary and WAbi negative checks"
         ],
-        "stopCondition": "Keep BRX2 Research if relation facts require runtime lifetime metadata, caller-provided ownership claims, or a WAbi carrier.",
+        "stopCondition": "Keep BRX3 as a source/design contract and classify missing compiler, HIR, provider, separate-compilation, linker, and FFI execution as implementation-evidence-gap; reopen semantic Research only if the source clause cannot preserve the stated no-lifetime/no-runtime/no-WAbi invariants.",
         "studyRefs": [
           {
-            "path": "tooling/studies/brx2-borrow-relations/bundle.json",
-            "digest": "sha256:67f3758124fce9df4efb245b3959ece61b08df74a7ecfc4d6703baed844c6be4",
-            "claim": "BRX2 keeps requirement/interface-owned relation candidates in Research and preserves W-914."
+            "path": "tooling/studies/brx3-borrow-relations/bundle.json",
+            "digest": "sha256:830c2434e0c0fe6ba8a477f09574e364f7850bae4467dddd579381a7a579ca67",
+            "claim": "BRX3 promotes the requirement/interface-owned source clause while preserving implementation evidence gaps."
           },
           {
-            "path": "tooling/brx2-borrow-relations-machine.mjs",
-            "digest": "sha256:288ff3c30ede40e0d2768771057784bf7c24f3525182e9eaa90cfc54356c34df",
-            "claim": "The host oracle derives relations, edges, OriginSet, interface keys, and digest drift from structured inputs."
+            "path": "tooling/brx3-borrow-relations-machine.mjs",
+            "digest": "sha256:282cce4b00587ce6683656a9ee0d418b9697221fb8c47a49952167fec15de2d4",
+            "claim": "The BRX3 host oracle resolves source names and ordinals, validates proofs, and canonicalizes BorrowRelation/1."
           }
         ],
         "evidenceRefs": [
-          "brx2-study",
-          "brx2-host-oracle",
+          "brx3-study",
+          "brx3-host-oracle",
           "official-primary-refs"
         ]
       },
@@ -380,13 +383,12 @@
             ]
           },
           {
-            "id": "BRX2-relation-schema",
+            "id": "BRX3-source-clause",
             "scope": "extension",
             "role": "extension",
-            "classification": "research",
-            "gateId": "BRX2-R1",
+            "classification": "composable",
             "problem": "requirement/interface-owned relation for multiple independent bodyless inputs",
-            "description": "A data-only relation schema remains a Research candidate after the baseline rejects ambiguous declarations."
+            "description": "The contextual borrows clause publishes a data-only source relation in the requirement/interface contract. Missing compiler, HIR, provider, separate-compilation, and FFI execution receipts remain implementation evidence gaps."
           }
         ]
       }
@@ -1711,6 +1713,8 @@
           "host-oracle",
           "host-oracle-cyc1",
           "cyc1-study",
+          "cyc2-study",
+          "cyc2-host-oracle",
           "official-primary",
           "design-ledger"
         ],
@@ -1719,8 +1723,8 @@
           "w-run",
           "cycle-stress-provider",
           "provider",
-          "human-study",
-          "model-study"
+          "runtime-stress",
+          "oom-and-ffi-evidence"
         ],
         "sourceRefs": [
           {
@@ -1731,19 +1735,27 @@
         ]
       },
       "nextStudyGate": {
-        "gateId": "CYC0-G1",
-        "kind": "design",
-        "forSubcapability": "CYC0-conditional-liveness",
-        "question": "Can explicit owner, weak-edge, close, and drain facts classify graph shutdowns while conditional weak-key liveness remains a separate Research extension?",
+        "gateId": "CYC2-G1",
+        "kind": "evidence",
+        "question": "Do generation/ID invalidation, owner-lease close, and detached-value no-back-edge compositions close the current conditional-liveness problem without a weak-key, ephemeron, transparent collector, or finalizer primitive?",
         "requiredEvidence": [
-          "cycle admission matrix",
-          "foreign callback drain",
-          "service boundary crash trace",
-          "leak diagnostics",
-          "post-drain conditional-liveness compositions",
-          "opaque-boundary unknown classification"
+          "generation/ID invalidation composition",
+          "owner-lease close composition",
+          "detached-value no-back-edge composition",
+          "intentional rejection of weak-key, ephemeron, collector, and finalizer mechanisms",
+          "post-drain census and deterministic cleanup sequence"
         ],
         "studyRefs": [
+          {
+            "path": "tooling/studies/cyc2-conditional-liveness/study.json",
+            "digest": "sha256:acec81a8866740b97db43f29fd6a7cb6b3cbabf9a8355aea5ea059b1848672dc",
+            "claim": "CYC2 closes the baseline with three compositions and records future reopen criteria."
+          },
+          {
+            "path": "tooling/cyc2-conditional-liveness-machine.mjs",
+            "digest": "sha256:9f014bf416c8850e085f3e34253fbf519407ad5fa28bf6217046335cdca2adf3",
+            "claim": "The CYC2 host oracle checks closure sequence, rejected mechanisms, and reopen criteria."
+          },
           {
             "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/study.json",
             "digest": "sha256:0cfd27e29c7f718f1bc35d183ce81da13170706a8b64254a88c93ae337049498",
@@ -1785,7 +1797,7 @@
             "claim": "derived CYC1 metrics and classifications"
           }
         ],
-        "stopCondition": "Keep CYC0 composable. Consider a conditional-liveness primitive only if a bounded problem requires observable key identity or ephemeron semantics and the generation/ID, owner-scoped lease, or detached-value compositions change that requirement or fail under a post-drain census, deterministic cleanup, and no hidden foreign boundary; until then keep the Research extension separate and do not add a collector, finalizer, self-weak constructor, or syntax."
+        "stopCondition": "Keep CYC0 composable and CYC2 intentionally rejected for the current baseline. Reopen only when a bounded production case has observable key identity or ephemeron semantics, fails all three compositions after post-drain census and deterministic cleanup, and supplies a no-transparent-collector/no-hidden-finalizer contract with provider, stress, OOM, and FFI evidence."
       },
       "documentation": {
         "question": "How does W close a graph with back edges without a transparent collector?",
@@ -1876,13 +1888,12 @@
             "description": "A transparent collector would hide cleanup and finalization policy."
           },
           {
-            "id": "CYC0-conditional-liveness",
+            "id": "CYC2-conditional-liveness",
             "scope": "extension",
             "role": "extension",
-            "classification": "research",
-            "gateId": "CYC0-G1",
+            "classification": "intentionally-rejected",
             "problem": "conditional weak-key or ephemeron liveness where a value can retain its key",
-            "description": "Ordinary weak edges do not provide ephemeron value-to-key semantics. Test generation or ID caches, owner-scoped cache leases with explicit invalidation, and detached values before considering any new primitive."
+            "description": "The current baseline closes with generation/ID invalidation, owner-scoped lease plus close, and detached values without a back edge. Ordinary weak keys, ephemerons, transparent collectors, and finalizers are intentionally rejected; future reopen criteria are recorded in CYC2."
           }
         ]
       }

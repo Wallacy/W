@@ -181,7 +181,7 @@ test("rejects a missing research gate", () => {
   expect(result.stderr.toString()).toContain("researchGate must name the concrete research gate");
 });
 
-test("rejects BRX2 being relabeled as an implementation gap", () => {
+test("rejects BRX3 current oracle being relabeled as an implementation gap", () => {
   const result = runMutation((value) => {
     const entry = value.entries.find((candidate) => candidate.decisionId === "W-1381");
     entry.category = "implementation-evidence-gap";
@@ -190,10 +190,14 @@ test("rejects BRX2 being relabeled as an implementation gap", () => {
   expect(result.stderr.toString()).toContain("fixed category assertion W-1381");
 });
 
-test("rejects a baseline without its explicit Research extension", () => {
+test("rejects a baseline with an active Research extension", () => {
   const result = runMutation((value) => {
     const entry = value.entries.find((candidate) => candidate.decisionId === "W-1436");
-    delete entry.researchExtension;
+    entry.researchExtension = {
+      id: "BRX2-relation",
+      evidenceState: "design-oracle-input",
+      stopCondition: "Keep BRX2-relation for W-1436 until an independent case, fresh digest, and reviewed promotion decision."
+    };
   });
   expect(result.exitCode).not.toBe(0);
   expect(result.stderr.toString()).toContain("fixed baseline assertion W-1436");

@@ -4,8 +4,8 @@
   "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. CHEATSHEET.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:28798abde7d13711f9ae15d5888a9809bb98a0cdd5c8aa5e1f70575af18b83c5",
-    "publicRuleSetDigest": "sha256:134dd18b15705c2761b7a02c6fff01f959a1f575069caac0a929e5fe45035eaa"
+    "digest": "sha256:68f8653afc4e5ec1d3164365f464df1fba9986d732061c262c9bdbb1e081cf75",
+    "publicRuleSetDigest": "sha256:488b4ea2148178f13e1ee2f40b78eb80bec63d5be53fbb2c71b850469d02eaf7"
   },
   "sourceFiles": [
     "execution.w",
@@ -241,6 +241,22 @@
       "surface": "lexical",
       "reason": "Lexical token or trivia. The atlas covers it in the values block.",
       "markers": []
+    },
+    {
+      "name": "borrow_clause",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "borrow_pair",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
     },
     {
       "name": "bounded_range_expression",
@@ -1205,6 +1221,14 @@
       "surface": "lexical",
       "reason": "Lexical token or trivia. The atlas covers it in the values block.",
       "markers": []
+    },
+    {
+      "name": "slot_ref",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
     },
     {
       "name": "source_file",
@@ -2182,6 +2206,8 @@
       "root": "module",
       "grammarRefs": [
         "abi_contract",
+        "borrow_clause",
+        "borrow_pair",
         "foreign_body",
         "foreign_declaration",
         "foreign_field_declaration",
@@ -2196,7 +2222,8 @@
         "language_tag",
         "parameter",
         "parameter_list",
-        "rest_marker"
+        "rest_marker",
+        "slot_ref"
       ],
       "designRefs": [
         "3.5.3",

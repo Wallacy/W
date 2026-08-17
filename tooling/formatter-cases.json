@@ -535,6 +535,19 @@
         "}"
       ],
       "requiredSemicolons": []
+    },
+    {
+      "id": "F0-borrows-clause-source-order",
+      "decisions": ["W-1381", "W-1382", "W-1436"],
+      "input": {
+        "lines": [
+          "fn pick(primary:ref S,fallback:ref S):view S throws E borrows(0:[fallback,primary]){return primary}"
+        ]
+      },
+      "output": [
+        "fn pick(primary: ref S, fallback: ref S): view S throws E borrows(0: [fallback, primary]) { return primary }"
+      ],
+      "requiredSemicolons": []
     }
   ]
 }

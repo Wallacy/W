@@ -585,6 +585,7 @@ const fixedGapContracts = new Map([
   ["W-659", ["implementation-plan", "26"]],
   ["W-918", ["memory-and-ownership", "9.4"]],
   ["W-1418", ["types-and-protocols", "8.2"]],
+  ["W-1384", ["borrow-relations-implementation", "9.2"]],
 ]);
 for (const [decisionId, [component, section]] of fixedGapContracts) {
   const entry = entriesById.get(decisionId);
@@ -598,11 +599,10 @@ for (const [decisionId, [component, section]] of fixedGapContracts) {
   }
 }
 const fixedCategoryAssertions = [
-  ["W-1381", "research-gated", "BRX2-problem-first"],
-  ["W-1382", "research-gated", "BRX2-witness"],
-  ["W-1383", "research-gated", "BRX2-host-oracle"],
-  ["W-1384", "research-gated", "BRX2-promotion"],
-  ["W-1436", "oracle-backed-current", "BRX0-bodyless-single-compatible"],
+  ["W-1381", "oracle-backed-current", "BRX3-protocol-union"],
+  ["W-1382", "oracle-backed-current", "BRX3-witness-divergence"],
+  ["W-1383", "oracle-backed-current", "BRX3-source-order-canonical"],
+  ["W-1436", "oracle-backed-current", "BRX3-body-primary"],
 ];
 for (const [decisionId, category, authorityId] of fixedCategoryAssertions) {
   const entry = entriesById.get(decisionId);
@@ -614,9 +614,9 @@ for (const [decisionId, category, authorityId] of fixedCategoryAssertions) {
   if (actualId !== authorityId) fail(`fixed category assertion ${decisionId} must use ${authorityId}.`);
 }
 const baselineExtension = entriesById.get("W-1436");
-if (baselineExtension && (baselineExtension.researchExtension?.id !== "BRX2-relation" ||
+if (baselineExtension && (baselineExtension.researchExtension !== undefined ||
     baselineExtension.authorityRef?.decisionBridge?.decisionId !== "W-1351")) {
-  fail("fixed baseline assertion W-1436 must retain BRX2-relation Research extension and W-1351 bridge.");
+  fail("fixed baseline assertion W-1436 must keep BRX3 current and the W-1351 bridge without an active Research extension.");
 }
 const fixedSupersession = entriesById.get("W-281");
 if (!fixedSupersession || fixedSupersession.category !== "superseded" ||

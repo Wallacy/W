@@ -1,0 +1,113 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-cyc2-conditional-liveness",
+  "title": "Close conditional liveness by composition",
+  "r0Cases": ["R0-weak-owner-acquisition"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/cyc2_liveness.w",
+    "symbol": "generationIdCacheWithInvalidation",
+    "digest": "sha256:edf6f45ce091407da716f9d0e7cfb883db914fc37fc8748988aa73b70b1d6431"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/cyc2_liveness.w",
+      "symbol": "ownerScopedLeaseWithClose",
+      "digest": "sha256:edf6f45ce091407da716f9d0e7cfb883db914fc37fc8748988aa73b70b1d6431"
+    },
+    {
+      "path": "../../../reference/last-light/cyc2_liveness.w",
+      "symbol": "detachedValueWithoutBackEdge",
+      "digest": "sha256:edf6f45ce091407da716f9d0e7cfb883db914fc37fc8748988aa73b70b1d6431"
+    }
+  ],
+  "entry": "cache",
+  "variants": [
+    {
+      "id": "three-compositions",
+      "language": "w",
+      "path": "closure.w",
+      "role": "selected",
+      "digest": "sha256:edf6f45ce091407da716f9d0e7cfb883db914fc37fc8748988aa73b70b1d6431",
+      "changedConstructs": [
+        "generation/ID invalidation",
+        "owner lease and close",
+        "detached value without back edge"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Three current composition witnesses."
+      }
+    },
+    {
+      "id": "rejected-mechanisms",
+      "language": "w-reserved",
+      "path": "rejected.txt",
+      "role": "rejected-witness",
+      "digest": "sha256:96595275fbb09e74b8be836f0c621838a453983c18677ea2a5ec04e792b6e663",
+      "changedConstructs": [
+        "weak-key",
+        "ephemeron",
+        "transparent collector",
+        "finalizer",
+        "reanimation"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Intentionally rejected collector mechanisms."
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "baseline-compositions",
+      "expected": "generation/ID, owner lease/close, and detached value close baseline liveness"
+    },
+    {
+      "id": "rejected-primitives",
+      "expected": "weak-key, ephemeron, collector, finalizer, and reanimation remain outside baseline"
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain how the three current compositions close liveness without a weak-key or collector primitive."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct generation invalidation, owner lease close, detached value, and missing runtime evidence.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a stale generation, lease, detached edge, or rejected collector witness without introducing a hidden finalizer.",
+      "mutations": {
+        "three-compositions": "Keep generation/ID invalidation, owner lease plus close, and detached value without a back-edge.",
+        "rejected-mechanisms": "Keep weak-key, ephemeron, transparent collector, finalizer, and reanimation rejected."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Specify every bounded criterion that would be required before a separate future liveness capability could reopen."
+    }
+  ],
+  "presentationOrders": [
+    ["three-compositions", "rejected-mechanisms"],
+    ["rejected-mechanisms", "three-compositions"]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "three-compositions": "A",
+      "rejected-mechanisms": "B"
+    },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:2c6f5b376008aa114090ffedd8c8d006b9d8cdae1705251a64c1c3d814de7829"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle", "source-ref"],
+    "missing": ["w-compile", "w-run", "provider", "runtime-stress", "oom", "ffi-execution", "human-study", "model-study"]
+  }
+}

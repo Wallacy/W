@@ -342,6 +342,7 @@ module.exports = grammar({
         field("parameters", $.parameter_list),
         optional(seq(":", field("return_type", $.type))),
         optional(seq("throws", field("error_type", $.type))),
+        optional($.borrow_clause),
       ),
     _function_header: ($) =>
       seq($._function_prefix, optional($.abi_contract), $._function_tail),
@@ -381,6 +382,24 @@ module.exports = grammar({
       ),
 
     parameter_list: ($) => seq("(", commaSep($.parameter), optional(","), ")"),
+    borrow_clause: ($) =>
+      seq(
+        "borrows",
+        "(",
+        commaSep1($.borrow_pair),
+        optional(","),
+        ")",
+      ),
+    borrow_pair: ($) =>
+      seq(
+        field("result", $.slot_ref),
+        ":",
+        "[",
+        commaSep1(field("source", $.slot_ref)),
+        optional(","),
+        "]",
+      ),
+    slot_ref: ($) => choice($.identifier, $.number_literal),
     parameter: ($) =>
       choice(
         seq(
@@ -1050,6 +1069,7 @@ module.exports = grammar({
           ")",
           optional(seq(":", field("return_type", $.type))),
           optional(seq("throws", field("error_type", $.type))),
+          optional($.borrow_clause),
         ),
       ),
     function_type_parameter: ($) =>

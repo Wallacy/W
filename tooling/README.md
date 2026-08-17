@@ -45,9 +45,10 @@ Refs de fonte/oráculo exigem `caseId`, path e digest; quando o caso é
 file-backed, também exigem símbolo. O baseline BRX0 pode usar `decisionBridge`
 para ligar seu fechamento ao ID que o caso realmente cita.
 
-O checker mantém sentinelas fixas para W-1381–W-1384 (BRX2 Research), W-1418
-(protocolo em §8.2), W-1436 (BRX0 current + extensão BRX2), W-281 (sucessor
-W-1290) e uma amostra de cada família componente/seção.
+O checker mantém sentinelas fixas para W-1381–W-1383 (BRX3 oracle current),
+W-1384 (BRX3 implementation-evidence-gap), W-1418 (protocolo em §8.2),
+W-1436 (BRX0 current + ponte BRX3), W-281 (sucessor W-1290) e uma amostra de
+cada família componente/seção.
 
 Casos host e snapshots descrevem design-oracle evidence. Eles não afirmam
 compiler, runtime, provider ou execução W.
@@ -71,7 +72,7 @@ compiler, runtime, provider ou execução W.
 | `brx2-borrow-relations-cases.json` + estudo/máquina/checker/test + snapshot | BRX2 informa BRX2-R1 com 56 casos sobre relação requirement/interface-owned após a rejeição baseline de ambiguidade, slots de resultado, modos/edges, OriginSet, SemanticInterfaceKey, WAbi proof, lock/provider receipts, callable/Stream/await/boundary e aggregate nominal | Research data-only; W-914 e a origem única permanecem vigentes, source spelling fica reserved/not-parsed, declaration/invocation status são separados e não há lifetime syntax, runtime metadata, compiler, runtime ou provider |
 | `studies/atom2-atomic-contract/study.json` + `atom2-atomic-contract-cases.json` + máquina/checker/test + snapshot | ATOM2 fecha ATOM0-G1 com 47 casos e dois reducers: promove carrier canônico compiler-synthesized para records fechados value-only (Bool 0/1, signed two's complement, unsigned width exato, enum ordinal, declaration order LSB-first, high bits zero, 1–128 bits), mantém handle `{slot,generation}` com owner table e geração checked sem wrap, exige fallback allocation-free com `blocksThread` separado de `parking` (`parking:true` exige `blocksThread:true`), matriz exata de failure orders e operações neverSuspend/non-cancellation, permite apenas adapter `unsafe` de reclamation com lifecycle/FFI drain explícito e rejeita raw/tagged pointer e RCU universal | oracle host de design; compiler/runtime/provider, target probes, fallback realization, FFI drain execution e estudos humano/modelo continuam implementation-evidence gaps; ATOM1 fica histórico |
 | `studies/ipc1-mapped-ipc/study.json` + `ipc1-mapped-ipc-cases.json` + reducers/checker/test + snapshot | IPC1 informa/estreita IPC0-R1 com 69 casos e 138 projeções POSIX/Windows para snapshots file-backed duráveis em generation objects, carriers shm/pagefile voláteis, schema/layout digests, selector publication/receipt ordenada, cap0/capN e bounds no segmento `slots`, commit/cancelamento, checksum/materialization/OOM, crash por actor e recovery ordering, atomics, lifecycle terminal, FFI, provider bindings e fallback explícito; o probe POSIX observado é digest-backed por source/transcript, enquanto Windows, W compile/run, provider, crash/durability e estudos humano/modelo continuam missing | oracle host de design; `ipc1-mapped-ipc-reference.test.mjs` e o study oracle são host evidence; wake provider é explícito, `WaitOnAddress` é same-process, ATOM2 não implica address-free/process-shared; candidatos A/B mapped são Research e C universal é rejeitado, sem API, syntax, compiler, runtime ou provider |
-| `capability-matrix-cases.json` + máquina/checker/test + snapshot | CAP0 consolida oito eixos e 17 subcapacidades por problema comum, tenta composição W com Last Light, preserva invariantes e deriva rotas `current`/`composable`/`research`; 149 refs primárias ou source-backed e oito filas de documentação futura | fonte editorial de staging; não mede maturidade, não copia features e não implementa compiler, runtime ou provider |
+| `capability-matrix-cases.json` + máquina/checker/test + snapshot | CAP0 consolida oito eixos e 16 subcapacidades por problema comum, tenta composição W com Last Light, preserva invariantes e deriva rotas `current`/`composable`/`research`; 149 refs primárias ou source-backed e oito filas de documentação futura | fonte editorial de staging; não mede maturidade, não copia features e não implementa compiler, runtime ou provider |
 | `cyc1-explicit-cycle-cases.json` + máquina/manifest/checker/test + estudo/snapshot | CYC1 informa CYC0-G1 com 41 casos event-derived para weak edges, close/drain, SCC estática/dinâmica, FFI/service/resource lifecycle, concorrência, unknown foreign boundaries e três composições de conditional liveness; 3 rejections estáticas, 3 diagnostics residuais, 2 unknown boundaries e 2 cases Research | oracle host e Tree-sitter parse; census é somente diagnóstico pós-drain, sem collector/finalizer/API/syntax, e compile, run, provider, stress e estudos humano/modelo continuam missing |
 | `syn1-typed-generation-cases.json` + máquina/manifest/checker/test + snapshot | SYN1 estreita SYN0-R1 com 65 casos A/B/C/D: generated module sets de `.w` passam pelo Tree-sitter real e por source-shape bounded; action result e interface candidata são publicações separadas; receipts Research cobrem graph/dependencies, identities, maps byte-based, target registry e navigation | oracle host de design; `interfacePublished` é outcome do contrato candidato, não evidência de compiler; semantic frontend, ConstIR, compiler cache, runtime, provider e LSP permanecem ausentes |
 | `dyn1-versioned-behavior-cases.json` + máquina/manifest/checker/test + snapshot | DYN1 informa DYN0-G1 com 70 casos A/B/C/D e métricas derivadas para REPL snapshots, generations de service/plugin, identities SemanticInterface/WAbi/runtime-closure, switch/drain, capabilities/effects, export/import, target local/split, FFI unload, crash/cancel e quotas; C é somente a subcapability `DYN0-persistent-generation-reference` | host design-oracle event-derived; reducers local/split são independentes, `expect` não escolhe status, WAbi target-specific e compatible exige novas SemanticInterfaceKey/ServiceIRKey com receipt; native retém mapping e process/Wasm/component usam full unmap; compiler/runtime/provider/isolamento real/std permanecem missing; eval/exec/frame mutation/ambient lookup/native sandbox/live dlclose são rejeitados |
@@ -524,46 +525,53 @@ integrações de editor.
    mapping consistentes.
 16. Para validar CAP0 sem compiler ou runtime, execute
    `bun run check:capability-matrix` no root. O checker deriva oito rotas por
-   subcapacidade, valida 149 refs e 17 subcapabilities, e mantém a fila
+   subcapacidade, valida 149 refs e 16 subcapabilities, e mantém a fila
    editorial de oito docs.
 17. Para validar CYC1 sem compiler ou runtime, execute `bun run check:cyc1`.
    O checker deriva o grafo event-derived, SCCs Tarjan, reachability,
    breakability, ordem de drop, fronteiras foreign `unknown` e census bounded
    somente depois de admission close, drain e quiescence. As alternativas de
-   generation/ID, owner-scoped lease e detached value ficam separadas da
-   Research extension `CYC0-conditional-liveness`; não há collector ou
-   finalizer implícito.
+   generation/ID, owner-scoped lease e detached value são as composições que
+   CYC2 registra; weak-key, ephemeron, collector e
+   finalizer permanecem rejeitados e não há collector ou finalizer implícito.
 18. Para validar SYN1 sem compiler ou runtime, execute
    `bun run check:syn1`. O checker valida a máquina, o estudo, os digests de
    Last Light, o parse Tree-sitter dos `.w` candidatos, os negativos de
    authority/phase/cache e as projeções de target; a introdução de módulo
    gerado continua Research.
-19. Para validar BRX2 sem compiler ou runtime, execute
-   `bun run check:brx2`. O checker deriva relação, edges, OriginSet,
+19. Para validar BRX2 histórico sem compiler ou runtime, execute
+   `bun run check:brx2`. Para validar a cláusula vigente BRX3, execute
+   `bun run check:brx3`. O checker deriva relação, edges, OriginSet,
    SemanticInterfaceKey e digests de provider a partir de entradas estruturadas;
    deriva também runtime signature/WAbi e exige receipts de separate compilation;
-   a relação candidata continua Research e W-914 permanece a autoridade da
-   regra de origem única.
+   BRX2 preserva proveniência histórica; BRX3 publica `borrows(...)` no
+   requirement/interface e function type, com gaps de implementação separados.
    O mesmo checker é `check:brx2` no pacote Tree-sitter e entra em `check:docs`
    e no aggregate `check` desse pacote.
 
-### BRX2 — relações de borrow por contrato
+### BRX2/BRX3 — relações de borrow por contrato
 
 [`brx2-borrow-relations-cases.json`](brx2-borrow-relations-cases.json),
 [`brx2-borrow-relations-machine.mjs`](brx2-borrow-relations-machine.mjs) e o
 estudo em [`studies/brx2-borrow-relations`](studies/brx2-borrow-relations)
-formam um oracle Research para BRX2-R1. A máquina separa a relação atual de
+formam o oracle histórico BRX2. A máquina BRX3 em
+[`brx3-borrow-relations-cases.json`](brx3-borrow-relations-cases.json),
+[`brx3-borrow-relations-machine.mjs`](brx3-borrow-relations-machine.mjs) e
+[`studies/brx3-borrow-relations`](studies/brx3-borrow-relations) publica a
+cláusula source contextual vigente. A máquina separa a relação atual de
 receiver/body-derived da relação candidata owned pelo requirement/interface.
 Ela exige slots e modos canônicos, witnesses exatos, `SemanticInterfaceKey`,
 lock e provider digest estáveis, e rejeita caller claims, witness-only,
 metadata de runtime e derivações Rust-like. O source spelling do candidato fica
-reserved/not-parsed até decisão humana; `W-914` e o ABI corrente continuam sem
+reserved/not-parsed no BRX2 histórico; `W-914`, WAbi e runtime continuam sem
 mudança. O aggregate nominal é uma alternativa de API, não uma regra nova.
 O host assay de caso `assay.kind: independent-assay` não é evidência de
 compiler; não existe `problemTrace` dentro de uma declaration current sem body.
 Invocation status fica separado de declaration decision. A máquina deriva
 runtime signature/WAbi e exige receipts explícitos para separate compilation;
-relação rejeitada nunca substitui o baseline vigente. Resultados independentes
+relação rejeitada nunca substitui o baseline vigente. Em BRX3, `borrows(result:
+[source, ...])` é autoridade do requirement/interface; body/default e witness
+somente provam a relação, e caller/call-site não podem declará-la. Resultados independentes
 derivam dos slots não-dependent; flags legadas de result/`verified` são
 rejeitadas.
 
@@ -580,7 +588,7 @@ exemplo W é somente um `source-ref` para Last Light. `renderHint: paired`
 preserva o formato lado a lado para os guias futuros, sem publicar o Book agora.
 Research subcapabilities apontam para gates `kind: design`; gates `kind: evidence`
 guardam apenas provider/execution evidence.
-O snapshot registra `routeCounts` (5 composable, 1 current, 2 research),
+O snapshot registra `routeCounts` (6 composable, 1 current, 1 research),
 `canonicalSourceCount` (8) e `documentationQueuedCount` (8).
 
 Use os gates locais:
@@ -593,13 +601,16 @@ bun tooling/check-capability-matrix.mjs --write
 O script `check:capability-matrix` do pacote Tree-sitter entra na cadeia
 `check:docs`; a execução ampla desse gate continua separada da validação local.
 
-### CYC1 — ciclo explícito e liveness condicional
+### CYC1/CYC2 — ciclo explícito e liveness condicional
 
 [`cyc1-explicit-cycle-cases.json`](cyc1-explicit-cycle-cases.json),
 [`cyc1-explicit-cycle-machine.mjs`](cyc1-explicit-cycle-machine.mjs), o
 manifest e o estudo em
 [`studies/cyc1-explicit-cycle-lifecycle`](studies/cyc1-explicit-cycle-lifecycle)
-formam a evidência host para CYC0-G1. O corpus deriva estado a partir de
+formam a evidência host histórica de CYC1. CYC2 em
+[`cyc2-conditional-liveness-cases.json`](cyc2-conditional-liveness-cases.json),
+[`cyc2-conditional-liveness-machine.mjs`](cyc2-conditional-liveness-machine.mjs)
+fecha o recorte por composição. O corpus deriva estado a partir de
 admission, edges strong/weak, close/unlink, unregister, cancel, callback
 enter/exit, drain, quiesce, typed drop, destroy/unpin/reclaim e census. O oracle
 calcula SCC, reachability, breakability, drop order e unknown boundary; nenhum
@@ -620,13 +631,13 @@ preocupação inconclusiva. Foreign hidden edge/root sem adapter é
 bounded e não libera/coleta objetos.
 
 A rota principal continua Componível: weak edge, owner/arena e close/drain são
-composições explícitas; collector transparente e finalizer oculto são witness
-rejected. Conditional weak-key/ephemeron liveness fica em
-`CYC0-conditional-liveness` como Research extension. O estudo testa generation/
-ID cache com key detached, owner-scoped lease com invalidation/close e detached
-value sem back edge strong. Só considerar primitive se um problema bounded
-exigir identidade/semântica ephemeron observável e essas composições mudarem o
-requisito ou falharem sob census pós-drain. Use:
+composições explícitas; collector transparente, finalizer oculto, weak-key e
+ephemeron são rejeitados no baseline. CYC2 testa generation/ID cache com key
+detached, owner-scoped lease com invalidation/close e detached value sem back
+edge strong. Só reabrir primitive se um problema bounded exigir
+identidade/semântica ephemeron observável, todas as três composições falharem
+sob census pós-drain e houver evidência independente de compiler/runtime/provider.
+Use:
 
 ```sh
 bun run check:cyc1

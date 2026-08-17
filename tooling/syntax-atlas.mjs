@@ -9,7 +9,7 @@ const GRAMMAR = path.join(ROOT, "tooling", "tree-sitter-w", "grammar.js");
 const MANIFEST = path.join(ATLAS, "atlas-manifest.json");
 const CHEATSHEET = path.join(ATLAS, "CHEATSHEET.md");
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
-const RULE_SET_DIGEST = "sha256:134dd18b15705c2761b7a02c6fff01f959a1f575069caac0a929e5fe45035eaa";
+const RULE_SET_DIGEST = "sha256:488b4ea2148178f13e1ee2f40b78eb80bec63d5be53fbb2c71b850469d02eaf7";
 const SCHEMA = "w-syntax-atlas-1";
 
 const ROOT_KINDS = new Set(["module", "package", "workspace"]);
@@ -76,7 +76,7 @@ const DIRECT_RULES = new Set([
   "optional_propagation_expression", "call_expression", "generic_application_expression", "member_expression", "optional_member_expression",
   "index_expression", "closure_expression", "capture_expression", "pipeline_expression", "lock_expression", "transaction_expression",
   "unsafe_expression", "if_expression", "array_literal", "map_literal", "repeat_array_literal", "tuple_expression", "unit_literal",
-  "stream_expression", "yield_statement",
+  "stream_expression", "yield_statement", "borrow_clause",
   "package_manifest", "workspace_manifest",
 ]);
 
@@ -125,7 +125,7 @@ function markerForRule(name) {
   if (LEXICAL_RULES.has(name)) return "literals-and-collections";
   if (name === "foreign_body" || name.startsWith("foreign_")) return "callables-and-foreign";
   if (["domain_import_statement", "service_import_statement", "named_service_imports", "service_import_item", "service_key_contract", "import_statement", "reexport_declaration", "reexport_item", "wildcard_import", "named_imports", "import_item", "module_path"].includes(name)) return "source-roots-imports";
-  if (["function_declaration", "function_signature", "language_tag", "abi_contract", "parameter_list", "generic_parameters", "generic_parameter", "function_type", "function_type_parameter", "rest_marker"].includes(name)) return "callables-and-foreign";
+  if (["function_declaration", "function_signature", "language_tag", "abi_contract", "parameter_list", "generic_parameters", "generic_parameter", "function_type", "function_type_parameter", "rest_marker", "borrow_clause", "borrow_pair", "slot_ref"].includes(name)) return "callables-and-foreign";
   if (["struct_declaration", "object_declaration", "service_declaration", "protocol_declaration", "enum_declaration", "primary_associated_types", "conformance_clause", "associated_type_requirement", "associated_const_requirement", "initializer_declaration", "field_declaration", "computed_property_declaration", "property_requirement", "enum_case", "type_declaration", "alias_declaration", "dimension_declaration", "unit_declaration", "extension_declaration", "behavior_declaration", "behavior_storage_declaration", "behavior_input_declaration", "behavior_accessor", "deinit_declaration", "const_declaration", "test_declaration", "export_list_declaration", "export_item"].includes(name)) return "data-declarations";
   if (["type", "type_name", "type_arguments", "type_argument", "static_argument_value", "contract_expression_argument", "static_record_literal", "static_array_literal", "fixed_array_type", "tuple_type", "labeled_tuple_type_element", "unit_literal"].includes(name)) return "types-and-contracts";
   if (["declaration_prefix", "type_body", "protocol_body", "enum_body", "behavior_body", "property_accessor_body", "get_accessor", "set_accessor", "modify_accessor", "accessor_implementation", "behavior_parameter_list", "behavior_parameter", "enum_case_parameter"].includes(name)) return "data-declarations";

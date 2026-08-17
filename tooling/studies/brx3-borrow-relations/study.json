@@ -1,0 +1,27 @@
+{
+  "$schema":"w-brx3-borrow-relations-study-1",
+  "status":"design-oracle-input",
+  "id":"BRX3",
+  "gate":"BRX3-R1",
+  "title":"Explicit source clauses for open borrowed-result relations",
+  "corpus":"../../brx3-borrow-relations-cases.json",
+  "machine":"../../brx3-borrow-relations-machine.mjs",
+  "checker":"../../check-brx3-borrow-relations.mjs",
+  "snapshot":"../../brx3-borrow-relations-results.snapshot.jsonl",
+  "oracle":"oracle.test.mjs",
+  "decision":{
+    "status":"promote-source-clause",
+    "clause":"borrows(resultOrdinal: [sourceNameOrOrdinal, ...])",
+    "owner":["requirement","interface"],
+    "witness":"proof-only",
+    "caller":"forbidden",
+    "wabi":"unchanged",
+    "runtime":"no-lifetime-metadata"
+  },
+  "evidence":{
+    "current":["source-w","tree-sitter-parse","host-oracle","BRX2-composition"],
+    "missing":["w-compile","w-run","hir-verifier","separate-compilation","provider-linker","foreign-execution","human-study","model-study"],
+    "classification":"implementation-evidence-gap"
+  },
+  "reopen":"Reject promotion if authority moves to caller/witness, relation changes WAbi, or runtime lifetime state is required."
+}

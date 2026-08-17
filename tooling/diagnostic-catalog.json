@@ -2350,6 +2350,28 @@
       }
     },
     {
+      "code": "W-BORROW-0012",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a borrows source clause has an invalid slot, edge mode, duplicate mapping, or proof divergence",
+      "requiredFacts": {
+        "declarationKind": "string",
+        "writtenResult": "string",
+        "writtenSources": "string[]",
+        "issue": "string",
+        "authority": "string"
+      },
+      "labelRoles": {
+        "borrow-clause": { "minimum": 1, "maximum": 1 },
+        "borrow-proof": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {
+        "repair-borrows-clause": "review",
+        "align-body-or-witness": "review"
+      }
+    },
+    {
       "code": "W-EFFECT-0011",
       "state": "active",
       "phase": "semantic.effect",

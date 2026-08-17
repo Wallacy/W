@@ -1,0 +1,111 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-brx3-borrow-relations",
+  "title": "Explicit source clauses for borrowed-result relations",
+  "r0Cases": ["R0-borrow-bodyless-relation"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/borrow_relations_brx3.w",
+    "symbol": "selectPrimaryRelation",
+    "digest": "sha256:d81cd2f4e251f6a4a397c9332311ab8ff3d82afacc0597d72f8de82d8deb3dfb"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/borrow_relations_brx3.w",
+      "symbol": "MenuSelectionRelation",
+      "digest": "sha256:d81cd2f4e251f6a4a397c9332311ab8ff3d82afacc0597d72f8de82d8deb3dfb"
+    },
+    {
+      "path": "../../../reference/last-light/borrow_relations_brx3.w",
+      "symbol": "selectPairRelation",
+      "digest": "sha256:d81cd2f4e251f6a4a397c9332311ab8ff3d82afacc0597d72f8de82d8deb3dfb"
+    }
+  ],
+  "entry": "borrows",
+  "variants": [
+    {
+      "id": "selected-clause",
+      "language": "w",
+      "path": "clause.w",
+      "role": "selected",
+      "digest": "sha256:411adc35d5b6eb8bc15bee910020a84cec4bec6a59c37f6b3be866a69e5efad2",
+      "changedConstructs": [
+        "contextual borrows clause",
+        "ordinal function-type references",
+        "canonical relation lowering"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Selected source-clause witness."
+      }
+    },
+    {
+      "id": "rejected-syntax",
+      "language": "w-reserved",
+      "path": "rejected.txt",
+      "role": "rejected-witness",
+      "digest": "sha256:415667d180753a8f13b5919213020e19c37224e7d3ef31c1ed483594f5cf7a81",
+      "changedConstructs": [
+        "empty/duplicate/out-of-range clauses",
+        "call-site claim",
+        "lifetime/GAT/runtime forms"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Intentionally rejected source shapes."
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "selected-clause",
+      "expected": "requirement/interface-owned source clause is explicit and canonicalized"
+    },
+    {
+      "id": "rejected-authority",
+      "expected": "caller, witness, lifetime, and runtime metadata forms remain rejected"
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain why the requirement or interface owns the source clause and why callers and witnesses cannot choose it."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct result ordinals, source sets, proof authority, and missing implementation evidence.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a missing, duplicate, out-of-range, divergent, caller-owned, or runtime relation without adding lifetime syntax.",
+      "mutations": {
+        "selected-clause": "Keep borrows contextual, declaration-owned, and sorted only after ordinal resolution.",
+        "rejected-syntax": "Keep caller claims, lifetime names, GAT, and runtime fields rejected."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Choose whether a future relation extension preserves the same source authority, WAbi, and runtime boundary."
+    }
+  ],
+  "presentationOrders": [
+    ["selected-clause", "rejected-syntax"],
+    ["rejected-syntax", "selected-clause"]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "selected-clause": "A",
+      "rejected-syntax": "B"
+    },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:8c7115f1d07cf40716716112db0644c0226cbef87a4b76d13114408bf3cb2f6e"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle", "source-ref", "official-primary-refs"],
+    "missing": ["w-compile", "w-run", "hir-verifier", "separate-compilation", "provider-linker", "foreign-execution", "human-study", "model-study"]
+  }
+}
