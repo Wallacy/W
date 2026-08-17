@@ -932,23 +932,23 @@
         "object CommandStream {",
         "  take fn finish(): usize { return 0 }",
         "}",
-        "fn finishStream(stream: take CommandStream): usize {",
-        "  return (take stream).finish()",
+        "fn finishStream(cursor: take CommandStream): usize {",
+        "  return (take cursor).finish()",
         "}"
       ],
       "expect": {
-        "focus": { "text": "(take stream).finish()" },
+        "focus": { "text": "(take cursor).finish()" },
         "semanticResult": {
           "resultType": "usize",
           "category": "value",
           "flow": { "kind": "next" },
-          "ownerDelta": [{ "operation": "move", "place": "stream", "type": "CommandStream" }],
+          "ownerDelta": [{ "operation": "move", "place": "cursor", "type": "CommandStream" }],
           "effectSummary": { "signature": [], "control": [], "operational": [] },
           "proofFacts": [{ "kind": "receiver-mode", "subject": "finish", "value": "take" }],
           "evaluationGraph": {
             "nodes": [
-              { "id": "receiver", "operation": "resolve-place", "subject": "stream" },
-              { "id": "take", "operation": "move", "subject": "stream" },
+              { "id": "receiver", "operation": "resolve-place", "subject": "cursor" },
+              { "id": "take", "operation": "move", "subject": "cursor" },
               { "id": "member", "operation": "resolve-member", "subject": "CommandStream.finish" },
               { "id": "call", "operation": "call", "subject": "finish" }
             ],
@@ -2253,13 +2253,13 @@
       "rule": "W-174",
       "baseline": "S0-POS-consuming-receiver-explicit",
       "failureField": "ownerDelta",
-      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:058efb57009b8da013431f2476af5e0f8f4a5fcf96dd2ea2d8628e010eb130ca" },
+      "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:58e1e5a1a195b501c23dd8d754c8f31c5525252552ee23fab319956d5590f595" },
       "source": [
         "object CommandStream {",
         "  take fn finish(): usize { return 0 }",
         "}",
-        "fn finishStream(stream: take CommandStream): usize {",
-        "  return stream.finish()",
+        "fn finishStream(cursor: take CommandStream): usize {",
+        "  return cursor.finish()",
         "}"
       ],
       "expect": {
@@ -2268,7 +2268,7 @@
             "code": "W-OWNERSHIP-0011",
             "phase": "semantic.ownership",
             "severity": "error",
-            "primary": { "text": "stream.finish()" },
+            "primary": { "text": "cursor.finish()" },
             "labels": [
               { "role": "receiver-declaration", "selector": { "text": "take fn finish" } }
             ],
@@ -2276,9 +2276,9 @@
               "member": "finish",
               "receiverCategory": "owned-movable-place",
               "receiverMode": "take",
-              "receiverPlace": "stream",
+              "receiverPlace": "cursor",
               "receiverType": "CommandStream",
-              "requiredForm": "(take stream).finish()"
+              "requiredForm": "(take cursor).finish()"
             },
             "notes": [],
             "fixes": []
@@ -4838,6 +4838,155 @@
         "}"
       ],
       "expect": {"diagnostics": [{"code": "W-ALLOCATOR-0011", "phase": "semantic.capability", "severity": "error", "primary": {"text": "init(allocator memory: ref Allocator, title: String)"}, "labels": [], "facts": {"declaration": "init", "kind": "initializer", "reason": "contextualAllocatorInInitializer"}, "notes": [], "fixes": []}]}
+    },
+    {
+      "id": "S0-POS-bodyless-single-borrow-origin",
+      "kind": "positive",
+      "rule": "W-914",
+      "source": [
+        "protocol MenuSelection {",
+        "  static fn select(primary: ref String): view String",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "static fn select(primary: ref String): view String" },
+        "semanticResult": {
+          "resultType": null,
+          "category": "declaration",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "declaration", "operation": "declare", "subject": "select" },
+              { "id": "origin", "operation": "resolve-origin", "subject": "primary" },
+              { "id": "result", "operation": "resolve-result", "subject": "view String" }
+            ],
+            "edges": [
+              { "from": "declaration", "to": "origin", "kind": "next" },
+              { "from": "origin", "to": "result", "kind": "origin" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-bodyless-multiple-borrow-origins",
+      "kind": "negative",
+      "rule": "W-914",
+      "baseline": "S0-POS-bodyless-single-borrow-origin",
+      "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945" },
+      "source": [
+        "protocol MenuSelection {",
+        "  static fn select(primary: ref String, fallback: ref String): view String",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-BORROW-0011",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "view String" },
+            "labels": [
+              { "role": "borrow-result", "selector": { "text": "view String" } },
+              { "role": "compatible-origin", "selector": { "text": "primary: ref String" } },
+              { "role": "compatible-origin", "selector": { "text": "fallback: ref String" } }
+            ],
+            "facts": {
+              "authority": "none",
+              "compatibleInputs": ["fallback", "primary"],
+              "declarationKind": "protocol",
+              "result": ["result"],
+              "reason": "ambiguousBodylessResultOrigin"
+            },
+            "notes": [],
+            "fixes": [
+              {
+                "id": "select-unique-origin",
+                "titleKey": "fix.borrow.select-origin",
+                "applicability": "review",
+                "at": { "text": "view String", "edge": "end" },
+                "text": "\n    borrows(0: [primary])"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-POS-explicit-borrow-clause",
+      "kind": "positive",
+      "rule": "W-1381",
+      "source": [
+        "protocol MenuSelection {",
+        "  static fn select(primary: ref String, fallback: ref String): view String",
+        "    borrows(0: [primary, fallback])",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "borrows(0: [primary, fallback])" },
+        "semanticResult": {
+          "resultType": null,
+          "category": "declaration",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "declaration", "operation": "declare", "subject": "select" },
+              { "id": "clause", "operation": "resolve-borrow-clause", "subject": "0" },
+              { "id": "relation", "operation": "lower-borrow-relation", "subject": "result" }
+            ],
+            "edges": [
+              { "from": "declaration", "to": "clause", "kind": "next" },
+              { "from": "clause", "to": "relation", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-divergent-borrow-clause",
+      "kind": "negative",
+      "rule": "W-1381",
+      "baseline": "S0-POS-explicit-borrow-clause",
+      "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945" },
+      "source": [
+        "protocol MenuSelection {",
+        "  static fn select(primary: ref String, fallback: ref String): view String",
+        "    borrows(0: [primary, primary])",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-BORROW-0012",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "borrows(0: [primary, primary])" },
+            "labels": [
+              { "role": "borrow-clause", "selector": { "text": "borrows(0: [primary, primary])" } },
+              { "role": "borrow-proof", "selector": { "text": "primary, primary" } }
+            ],
+            "facts": {
+              "authority": "requirement",
+              "declarationKind": "protocol",
+              "issue": "duplicate-source",
+              "writtenResult": "0",
+              "writtenSources": ["primary", "primary"]
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
     }
   ]
 }
