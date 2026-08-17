@@ -274,6 +274,62 @@
         "foreign-body": { "minimum": 0, "maximum": 1 }
       },
       "fixes": {}
+    },
+    "atomic-type": {
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "atomic-record": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "atomic-effect": {
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "operation": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "atomic-operation": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "atomic-ownership": {
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "handle": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "atomic-owner": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "atomic-interface": {
+      "phase": "interface",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "interface": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "atomic-interface": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
     }
   },
   "codes": [
@@ -2518,6 +2574,22 @@
     { "code": "W-YIELD-0008", "state": "active", "profile": "run-validation", "meaning": "next is exclusive; concurrent or reentrant stream pulls are rejected" },
     { "code": "W-YIELD-0009", "state": "active", "profile": "run-validation", "meaning": "stream resume is not an FFI boundary" },
     { "code": "W-YIELD-0010", "state": "active", "profile": "run-validation", "meaning": "stream captures must be explicit and are evaluated before the Stream is returned" },
-    { "code": "W-YIELD-0011", "state": "active", "profile": "run-validation", "meaning": "yield copy requires a Duplicable item and preserves the original binding" }
+    { "code": "W-YIELD-0011", "state": "active", "profile": "run-validation", "meaning": "yield copy requires a Duplicable item and preserves the original binding" },
+    { "code": "W-ATOMIC-0001", "state": "active", "profile": "atomic-type", "meaning": "an Atomic value record is not a closed canonical value-only record" },
+    { "code": "W-ATOMIC-0002", "state": "active", "profile": "atomic-type", "meaning": "an Atomic value record uses an unsupported field, width, or encoding" },
+    { "code": "W-ATOMIC-0003", "state": "active", "profile": "atomic-interface", "meaning": "the target does not provide the requested atomic carrier width or progress fact" },
+    { "code": "W-ATOMIC-0004", "state": "active", "profile": "atomic-effect", "meaning": "the declared atomic fallback is not compatible with the surrounding context" },
+    { "code": "W-ATOMIC-0005", "state": "active", "profile": "atomic-effect", "meaning": "an atomic compare-exchange operation or memory-order pair is invalid" },
+    { "code": "W-ATOMIC-0006", "state": "active", "profile": "atomic-interface", "meaning": "SemanticInterfaceKey, WAbiKey, representation mapping, or provider identity drifts" },
+    { "code": "W-ATOMIC-0007", "state": "active", "profile": "atomic-ownership", "meaning": "a generation handle would wrap or its exhausted slot was not retired" },
+    { "code": "W-ATOMIC-0008", "state": "active", "profile": "atomic-ownership", "meaning": "a stale handle or owner-table lookup was not checked before dereference" },
+    { "code": "W-ATOMIC-0009", "state": "active", "profile": "atomic-ownership", "meaning": "a reclamation adapter omits registration, access, unlink, quiescence, or exact drop" },
+    { "code": "W-ATOMIC-0010", "state": "active", "profile": "atomic-ownership", "meaning": "a universal raw-pointer, tagged-pointer, or RCU reclamation path is rejected" },
+    { "code": "W-ATOMIC-0011", "state": "active", "profile": "atomic-ownership", "meaning": "an FFI callback drain, unregister, shutdown, or in-flight receipt is incomplete" },
+    { "code": "W-ATOMIC-0012", "state": "active", "profile": "atomic-effect", "meaning": "an atomic fallback requests hidden allocation; the current contract is allocation-free per instance and operation" },
+    { "code": "W-ATOMIC-0013", "state": "active", "profile": "atomic-type", "meaning": "a canonical atomic bit encoding has invalid direction, order, signed code, enum code, or nonzero high bits" },
+    { "code": "W-ATOMIC-0014", "state": "active", "profile": "atomic-effect", "meaning": "an atomic load, store, exchange, or compare-exchange is a suspension or cancellation point" },
+    { "code": "W-ATOMIC-0015", "state": "active", "profile": "atomic-effect", "meaning": "a fallback that blocks a thread is used in signal, freestanding, cooperative, or nonblocking context" },
+    { "code": "W-ATOMIC-0016", "state": "active", "profile": "atomic-effect", "meaning": "parking and thread-blocking facts are conflated or the separate Atomic.wait maySuspend API is hidden" }
   ]
 }

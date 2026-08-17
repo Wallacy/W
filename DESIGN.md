@@ -9207,6 +9207,12 @@ Um pointer atômico não protege o payload apontado. Compare-exchange também n�
 concede reclamation. Um algoritmo lock-free precisa nomear um reclamation
 domain, registration, retire operation, quiescence e shutdown barrier.
 
+Um handle `{slot: u32, generation: u32}` pode ser um carrier value-only. A
+owner table valida a generation antes de acessar o payload e devolve `None` para
+um handle stale. O incremento é checked. Quando a generation chega a
+`0xffffffff`, o slot entra em retirement e uma nova alocação falha. W não aceita
+generation wrap como uma forma de evitar ABA.
+
 Hazard pointers, epoch-based reclamation e RCU são estratégias de runtime ou de
 adapter `unsafe`. Eles não formam uma API safe geral. Um adapter especializado
 declara domain, participants, retired bounds, deleter context, shutdown,
@@ -9215,7 +9221,12 @@ memory orders e progress por target.
 Safe W usa owner único, `shared`, scopes, services, channels, locks ou
 [`SnapshotCell`](#12108-snapshotcell). `Atomic<shared T>` continua rejeitado.
 Uma collection concorrente pode usar reclamation interna `unsafe`, mas publica
-bounds, progress, cleanup e fault behavior.
+bounds, progress, cleanup, fault behavior e os receipts de callback. Hazard
+pointer, epoch e RCU universal não são APIs safe. Um adapter especializado pode
+ser usado somente depois de registrar access/exit, unlink/retire,
+quiescence/drop/reclaim, participant drain, shutdown e, para callback
+persistent, unregister/in-flight drain/destroy/unpin. A presença da forma não
+afirma uma implementação de provider.
 
 O censo de ciclos da [seção 9.4.1](#941-captures-e-ciclos-fortes) observa
 control blocks depois do drain. Ele não altera retirement, reclamation ou drop.
@@ -11982,24 +11993,70 @@ Mover ou destruir o wrapper exige a mesma exclusividade. Um edge de
 happens-before não mantém o wrapper nem outro payload vivo.
 
 O compiler possui um fato intrínseco `atomicValue`. Ele não é um protocol que
-user code pode implementar. A baseline aceita:
+user code pode implementar. Além dos scalars vigentes, a Forma aceita um record
+fechado quando o record satisfaz a regra canônica de carrier:
 
-- `Bool`;
-- integers com largura fixa;
-- `usize` e `isize`;
-- enums sem payload com representação canônica suportada.
+- os fields são `Bool`, fixed-width integers ou enums sem payload;
+- `Bool` codifica somente `0` ou `1`;
+- unsigned integers usam a largura exata; signed integers usam two's complement
+  na largura exata;
+- enum sem payload usa o ordinal da declaração e no mínimo
+  `ceil(log2(caseCount))` bits;
+- os fields seguem declaration order, com o primeiro field nos bits menos
+  significativos; a direção e os offsets são facts canônicos explícitos;
+- high bits não usados do menor carrier são `0`; endian físico pertence ao
+  provider/ABI e não à identidade lógica;
+- W safe só constrói padrões representáveis canônicos;
+- os fatos derivados são `Copy`, lifetime-independent e drop-free;
+- a largura canônica total está entre 1 e 128 bits;
+- o carrier menor suportado pelo target possui um único extent;
+- somente load, store, exchange e compare-exchange são derivados.
 
-Float, struct com padding, owner e pointer não entram na baseline.
-`AtomicAddress`, palavra dupla e atomic de `shared T` também ficam fora da safe
-std. Atomicidade de bits não prova provenance, lifetime ou reclamation. Código
-comum usa integer handle, lock, domain barrier ou `SnapshotCell`. Um provider
-trusted pode usar uma operação raw target-specific atrás de uma interface
-`unsafe`; ela não amplia o conjunto de `Atomic<T>`.
+O carrier é uma representação opaca sintetizada pelo compiler. A igualdade de
+compare-exchange é igualdade da representação canônica; expected e desired são
+codificados pelo mesmo encoder antes da comparação. Padding, alignment, extent,
+inicialização e layout raw do record não escolhem o carrier. Eles podem aparecer
+em um receipt de ABI, mas não são facts fornecidos pelo caller.
 
-O estudo **Pesquisa** [`ATOM1`](tooling/studies/atom1-atomic-extensibility/README.md)
-examina a derivação fechada de um record value-only e separa owner/lifetime de
-retirement/reclamation. Ele não altera a Forma vigente nem promove `Atomic<T>`
-para pointer, owner, palavra dupla ou RCU universal.
+Nested records, encoding custom ou non-injective, floats, `usize`, `isize`,
+pointer, owner, borrow, view, allocator origin e drop fields são rejeitados.
+`AtomicAddress`, palavra dupla, `Atomic<shared T>` e raw pointer continuam fora
+da safe std. Atomicidade de bits não prova provenance, lifetime ou reclamation.
+Código comum usa integer handle, lock, domain barrier ou `SnapshotCell`.
+
+`var atomic record: T` e `Atomic<T>` recebem a mesma síntese. A extensão não
+cria syntax, protocol ou annotation. Load, store, exchange e compare-exchange
+são `neverSuspend` e não são cancellation points. `Atomic.wait` é uma API
+separada `maySuspend`; nenhuma operação de valor a esconde. `lockFree: true`
+exige o fact exato do target e não aceita fallback. Sem esse pedido, um carrier
+nativo não lock-free ou ausente pode usar somente um fallback declarado,
+allocation-free por instância e operação. Tabela global ou pré-reservada exige
+receipt/profile explícito; `allocation: true` é rejeitado neste contrato. Não há
+API `try Atomic` neste recorte. Lock-free não é wait-free e não altera a
+atomicidade ou o lifetime.
+
+O profile separa `blocksThread` de qualquer detalhe interno de `parking`. Um
+`parking: true` exige `blocksThread: true`; um fallback que estaciona ou bloqueia
+thread só entra em contexto que permite blocking; ele é rejeitado em
+signal/interrupt, freestanding e cooperative worker. `blocksThread` não
+significa task suspension, e `taskSafe` não transforma parking em operação
+nonblocking.
+
+Um provider trusted pode usar uma operação raw target-specific atrás de uma
+interface `unsafe`; ela não amplia o conjunto de `Atomic<T>` nem declara uma
+implementação de runtime. Uma mudança de provider só altera recipe, RuntimeClosure
+ou artifact evidence. `SemanticInterfaceKey` muda para uma mudança pública de
+declaração ou requirement. `WAbiKey` e `RepresentationMap` incluem o carrier
+somente quando uma declaração `Atomic<T>` cruza a ABI W exata. O carrier nunca
+cruza a C ABI diretamente.
+
+O estudo fechado [`ATOM2`](tooling/studies/atom2-atomic-contract/README.md)
+promove esse carrier estreito dentro do contrato existente. Ele mantém
+`SnapshotCell`, domains e locks como composição atual, aceita handle geracional
+com owner table e checked generation exhaustion, permite adapter especializado
+`unsafe` somente como implementation-evidence gap, e rejeita pointer, tagged
+pointer e RCU universal. [`ATOM1`](tooling/studies/atom1-atomic-extensibility/README.md)
+é evidência histórica superseded por ATOM2.
 
 ```w
 enum SignState {
@@ -12188,9 +12245,15 @@ Bitwise integers também oferecem `and`, `or` e `xor`. W não oferece uma closur
 
 #### 12.10.5 Lock-free, layout e ABI
 
-**W-1166 — contrato atômico:** `Atomic<T>` garante atomicidade, order e extent. Ele não representa interrupt e
-não é uma operação de bloqueio. O target baixa diretamente para primitives
-atômicas LLVM quando width, order, alignment e scope são legais.
+**W-1166 — contrato atômico:** `Atomic<T>` garante atomicidade, order e extent.
+Load, store, exchange e compare-exchange são operações `neverSuspend` e não são
+cancellation points. O lowering lock-free baixa diretamente para primitives
+atômicas LLVM quando width, order, alignment e scope são legais e não bloqueia a
+thread do OS. Um fallback declarado pode bloquear a thread do OS somente quando
+o profile declara `blocksThread` (e, se `parking: true`, também declara esse
+fact) e o contexto permite blocking. Esse fallback nunca entra em signal/
+interrupt, freestanding ou cooperative worker. `Atomic.wait` continua a API
+separada `maySuspend`; não há espera de task escondida nas value operations.
 
 ```w
 let native: Bool = Atomic<u64>.isLockFree
@@ -12202,8 +12265,10 @@ rejeita o build quando a garantia não existe. Signal handlers e outros contexts
 que não podem bloquear exigem esse contrato.
 
 Se o target não suporta width, order ou scope, o profile pode usar um runtime ou
-lock fallback declarado. O fallback precisa preservar a mesma modification order
-e os mesmos edges. `lockFree: true` rejeita o target em vez de usar fallback.
+lock fallback declarado e allocation-free por instância/operação. O fallback
+precisa preservar a mesma modification order e os mesmos edges. `lockFree: true`
+rejeita o target em vez de usar fallback. Um fallback que bloqueia não torna a
+value operation uma suspensão ou cancellation point de task.
 Operações `.sequential` nativas e em fallback participam da mesma ordem total.
 Um conjunto de locks independentes não satisfaz esse contrato sozinho.
 
@@ -28491,6 +28556,55 @@ run, provider, runtime stress, debug/ABI/reflection e estudos humano/modelo
 continuam gaps explícitos em W-1438/W-1440.
 
 **Fonte de exemplo:** `reference/last-light/streams.w::serveOneByOne`.
+
+### 23.9 ATOM0-G1 — contrato atômico fechado
+
+**Exemplo:** `SignEpochWord` publica `SignState` e `generation` como uma
+localização atômica sem expor o layout físico do record.
+
+O bundle [`ATOM2`](tooling/studies/atom2-atomic-contract) fecha o desenho de
+ATOM0-G1 e supersede o estudo ATOM1. A Forma vigente mantém `var atomic` e
+`Atomic<T>` como a única superfície. O compiler sintetiza o carrier somente
+para records fechados com fields value-only permitidos, codificação canônica
+bit a bit: `Bool` é `0/1`, unsigned usa width exato, signed usa two's
+complement no width exato, enum sem payload usa ordinal de declaração e
+`ceil(log2(caseCount))` mínimo; o primeiro field ocupa os bits menos
+significativos em declaration order, high bits não usados são `0`, e endian
+físico é fact de provider/ABI. Somente padrões representáveis são construídos;
+expected e desired do CAS passam pelo encoder canônico. O carrier tem 1–128
+bits e operações de valor vigentes.
+`lockFree: true` usa somente um fact exato do target. Um fallback declarado pode
+ser usado quando o contexto permite o comportamento do provider, desde que seja
+allocation-free por instância/operação. `allocation: true` é rejeitado; tabela
+global/pré-reservada exige receipt/profile explícito.
+
+Load, store, exchange e compare-exchange são `neverSuspend` e não são
+cancellation points. `Atomic.wait` continua uma API separada `maySuspend`.
+`blocksThread` é separado de `parking`; fallback que bloqueia thread só é
+permitido em contexto com blocking e nunca em signal/interrupt, freestanding ou
+cooperative worker. Lock-free não é wait-free.
+
+O resultado lógico não inclui progress físico, padding ou cache layout. Uma
+mudança pública altera `SemanticInterfaceKey`. Uma mudança de carrier que cruza
+ABI W altera `WAbiKey` e a `RepresentationMap`. Uma mudança somente do provider
+fica em recipe, RuntimeClosure e artifact evidence. C ABI continua usando
+carriers C explícitos e não recebe `Atomic<T>` diretamente.
+
+O handle de dois `u32` permanece composição de library com owner table.
+Generation stale retorna `None` sem dereference. Generation exhaustion aposenta
+o slot e falha a alocação. Pointer, tagged pointer e RCU universal safe são
+rejeitados. SnapshotCell e domain barriers continuam as rotas comuns. Adapter
+especializado de hazard, epoch ou RCU é permitido apenas em `unsafe`, com
+registration, access/exit, unlink/retire, quiescence/drop/reclaim, bounds,
+shutdown e callback drain explícitos. A forma permitida ainda exige evidência de
+compiler, runtime, provider, target, debug e FFI.
+
+O oracle ATOM2 compara dois reducers host e cobre codificação Bool/unsigned/
+signed/enum bit a bit, direção e ordem de fields, high bits, endian físico,
+target width, fallback allocation-free, `blocksThread`/`parking`/context,
+neverSuspend e non-cancellation, order, ABA, generation exhaustion, drop exactly
+once, panic, OOM, cancellation, shutdown, FFI drain e identity ABI. Ele registra
+design evidence. Não declara runtime ou provider implementado.
 
 ## 24. Design freeze e pendências
 

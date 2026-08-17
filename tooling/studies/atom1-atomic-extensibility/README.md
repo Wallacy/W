@@ -1,6 +1,7 @@
-# ATOM1 — atomic extensibility study
+# ATOM1 — atomic extensibility study (historical)
 
-Status: design-only Research. This study does not define a W contract. It does
+Status: superseded historical Research. ATOM2 is the current ATOM0-G1 design
+oracle and contract decision. This study does not define a W contract and does
 not claim compiler, runtime, provider, or FFI implementation.
 
 ATOM1 answers the ATOM0-G1 question with one adversarial host oracle. It keeps
@@ -107,10 +108,11 @@ are in `tooling/atom1-atomic-extensibility-cases.json`, and its deterministic
 projection is `tooling/atom1-atomic-extensibility-results.snapshot.jsonl`.
 The tests assert invariants and mutations. They do not execute W.
 
-Canonical-carrier derivation and fallback are Research candidates. They are not
-current `Atomic<T>` behavior. The carrier never crosses the C ABI directly;
-only an exact W ABI representation map could expose it. Evidence remains
-incomplete for W compilation, W execution, target probes,
-provider behavior, FFI drain, and human or model studies. The ATOM0 route stays
-composable for wrappers. The new record and reclamation extensions remain
-Research.
+This artifact is retained for provenance only. ATOM2 supersedes its open
+questions: the closed value-only canonical carrier is now a contract within
+the existing `Atomic<T>`/`var atomic` surface; generation handles remain
+library composition; and universal reclamation remains rejected. The carrier
+never crosses the C ABI directly. Evidence remains incomplete for W
+compilation, W execution, target probes, provider behavior, FFI drain, and
+human or model studies; those are implementation-evidence gaps, not an active
+ATOM1 design gate.

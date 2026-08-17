@@ -1,0 +1,160 @@
+{
+  "$schema": "w-atom2-atomic-contract-study-1",
+  "status": "design-oracle-input",
+  "id": "ATOM2",
+  "supersedes": "ATOM1",
+  "gate": "ATOM0-G1",
+  "title": "Canonical atomic value carriers, checked handles, and reclamation boundaries",
+  "entry": "SignEpochWord",
+  "variants": [
+    {
+      "id": "current-composition",
+      "language": "w",
+      "path": "current-composition.w",
+      "role": "current"
+    },
+    {
+      "id": "canonical-carrier",
+      "language": "w",
+      "path": "canonical-carrier.w",
+      "role": "selected"
+    },
+    {
+      "id": "generational-handle",
+      "language": "w",
+      "path": "generational-handle.w",
+      "role": "current"
+    },
+    {
+      "id": "snapshot-cell",
+      "language": "w",
+      "path": "snapshot-cell.w",
+      "role": "current"
+    },
+    {
+      "id": "unsafe-adapter",
+      "language": "w",
+      "path": "unsafe-adapter.w",
+      "role": "permitted-unsafe"
+    },
+    {
+      "id": "rejected-universal",
+      "language": "w-reserved",
+      "path": "rejected-universal.txt",
+      "role": "rejected"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/synchronization.w",
+      "symbol": "export object HorizonTelemetryEpoch",
+      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+      "claim": "current atomic order and extent witness"
+    },
+    {
+      "path": "../../../reference/last-light/synchronization.w",
+      "symbol": "export object HorizonMenuPublication",
+      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+      "claim": "snapshot publication witness"
+    },
+    {
+      "path": "../../../reference/last-light/memory.w",
+      "symbol": "export object BellLease",
+      "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+      "claim": "pinned foreign lease witness"
+    },
+    {
+      "path": "../../../reference/last-light/memory.w",
+      "symbol": "export fn watchClosingBell",
+      "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+      "claim": "callback registration witness"
+    },
+    {
+      "path": "../../../reference/last-light/abi.w",
+      "symbol": "export foreign c",
+      "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40",
+      "claim": "foreign ABI boundary witness"
+    }
+  ],
+  "officialPrimaryRefs": [
+    {
+      "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3220.pdf",
+      "claim": "C23 atomic orders and lock-free macros"
+    },
+    {
+      "url": "https://doc.rust-lang.org/stable/core/sync/atomic/index.html",
+      "claim": "Rust target atomic widths and lock-free distinction"
+    },
+    {
+      "url": "https://doc.rust-lang.org/std/sync/struct.Arc.html",
+      "claim": "Rust shared ownership"
+    },
+    {
+      "url": "https://github.com/apple/swift-evolution/blob/main/proposals/0410-atomics.md",
+      "claim": "Swift atomic representation and ordering"
+    },
+    {
+      "url": "https://docs.python.org/3/library/multiprocessing/shared_memory.html",
+      "claim": "Python shared memory lifecycle"
+    },
+    {
+      "url": "https://docs.kernel.org/RCU/whatisRCU.html",
+      "claim": "RCU removal and reclamation split"
+    }
+  ],
+  "corpus": {
+    "path": "../../atom2-atomic-contract-cases.json",
+    "status": "host-derived",
+    "caseCount": 47,
+    "digest": "sha256:8e2295938bbb5af596870bc90179d94f6134f7fa58ca2b56a35ae1daa2b64bfb"
+  },
+  "oracle": {
+    "path": "../../atom2-atomic-contract-machine.mjs",
+    "status": "independent-host-oracle",
+    "digest": "sha256:977697cb9e0797bc41e3e1a551952b21f93d3094de63a1feb1a1b9dfae538f53"
+  },
+  "checker": {
+    "path": "../../check-atom2-atomic-contract.mjs",
+    "digest": "sha256:016c06654d28bdd17445c43e30581cf330956f4bacc35d04a984554cee48814e"
+  },
+  "snapshot": {
+    "path": "../../atom2-atomic-contract-results.snapshot.jsonl",
+    "digest": "sha256:4ba91f06881ca912b16ce72c6a7f159050a83e19dcad4500a7723b629a46bba3"
+  },
+  "bundle": {
+    "path": "bundle.json",
+    "digest": "sha256:cc88342d4b8d1b40ae958c38410a8011bf5e891e014dd3b65cca94fde0198837"
+  },
+  "studyOracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:164e6acc89a721a78803e38fbc346ecb12aae3c84b6d0c6c92a297783eb7036b"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle",
+      "source-ref",
+      "official-primary"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "target-probe",
+      "provider",
+      "fallback-allocation-free-profile",
+      "never-suspend-cancellation-receipt",
+      "stress",
+      "debug-receipt",
+      "human-study",
+      "model-study"
+    ]
+  },
+  "decision": {
+    "status": "close-design-gate",
+    "a": "promote-canonical-value-record",
+    "b": "checked-generation-owner-table",
+    "c": "unsafe-adapter-permitted-implementation-gap",
+    "d": "reject-universal-pointer-and-rcu"
+  },
+  "stopCondition": "Do not claim compiler, runtime, provider, FFI drain, or target implementation. Reopen the design only if a concrete implementation evidence contradicts an invariant."
+}

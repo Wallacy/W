@@ -234,21 +234,21 @@
       },
       "capabilityLevelsBasis": "sameProblem",
       "evidence": {
-          "current": [
-            "source-w",
-            "host-oracle",
-            "design-ledger",
-            "atom1-design-oracle",
-            "brx2-study",
-            "brx2-host-oracle"
+        "current": [
+          "source-w",
+          "host-oracle",
+          "design-ledger",
+          "atom1-design-oracle",
+          "brx2-study",
+          "brx2-host-oracle"
         ],
-          "missing": [
-            "w-compile",
-            "w-run",
-            "compiler-relation-check",
-            "provider",
-            "hir-verifier",
-            "separate-compilation"
+        "missing": [
+          "w-compile",
+          "w-run",
+          "compiler-relation-check",
+          "provider",
+          "hir-verifier",
+          "separate-compilation"
         ],
         "sourceRefs": [
           {
@@ -314,33 +314,33 @@
           "Python"
         ],
         "foreignExamples": {
-        "c": {
-          "exampleKind": "pseudocode",
-          "text": "C passes a view pointer and callback convention; the caller must preserve the source place.",
-          "snippet": "View pick(View primary, View fallback) {\n    return primary; /* caller keeps primary storage alive */\n}",
-          "sourceRefs": [
+          "c": {
+            "exampleKind": "pseudocode",
+            "text": "C passes a view pointer and callback convention; the caller must preserve the source place.",
+            "snippet": "View pick(View primary, View fallback) {\n    return primary; /* caller keeps primary storage alive */\n}",
+            "sourceRefs": [
               {
                 "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
                 "claim": "C23 pointer and function type baseline"
               }
             ]
           },
-        "rust": {
-          "exampleKind": "pseudocode",
-          "text": "Rust names a LendingIterator item relation tied to the borrow of self.",
-          "snippet": "trait Pick {\n    type View<'a> where Self: 'a;\n    fn pick<'a>(&'a self, fallback: &'a [u8]) -> Self::View<'a>;\n}",
-          "sourceRefs": [
+          "rust": {
+            "exampleKind": "pseudocode",
+            "text": "Rust names a LendingIterator item relation tied to the borrow of self.",
+            "snippet": "trait Pick {\n    type View<'a> where Self: 'a;\n    fn pick<'a>(&'a self, fallback: &'a [u8]) -> Self::View<'a>;\n}",
+            "sourceRefs": [
               {
                 "url": "https://doc.rust-lang.org/stable/reference/items/associated-items.html#generic-associated-types",
                 "claim": "GAT and LendingIterator example"
               }
             ]
           },
-        "python": {
-          "exampleKind": "pseudocode",
-          "text": "Python yields retained iterator values without a static borrowed-view relation.",
-          "snippet": "def pick(primary, fallback):\n    source = primary if primary else fallback\n    yield from source",
-          "sourceRefs": [
+          "python": {
+            "exampleKind": "pseudocode",
+            "text": "Python yields retained iterator values without a static borrowed-view relation.",
+            "snippet": "def pick(primary, fallback):\n    source = primary if primary else fallback\n    yield from source",
+            "sourceRefs": [
               {
                 "url": "https://docs.python.org/3/reference/expressions.html#yield-expressions",
                 "claim": "yield suspension and retained state"
@@ -532,7 +532,7 @@
       },
       "route": {
         "classification": "composable",
-        "rationale": "The wrapper problem composes with existing synchronization contracts; new atomic representation and reclamation remain a research subcapability."
+        "rationale": "The wrapper problem and the closed value-only carrier compose with existing synchronization contracts; canonical bit encoding, allocation-free fallback, neverSuspend operations, and unsafe reclamation remain explicit evidence boundaries."
       },
       "intentionalTradeoff": {
         "choice": "Keep atomic representation and physical progress outside user type identity.",
@@ -555,15 +555,15 @@
         },
         "effects": {
           "risk": "A custom operation can hide blocking or failure.",
-          "mitigation": "Keep suspension and failure in the function contract."
+          "mitigation": "Keep neverSuspend atomic value operations separate from Atomic.wait maySuspend and record failure in the function contract."
         },
         "interfaces": {
           "risk": "A safe wrapper can drift from its foreign carrier.",
           "mitigation": "Pin ABI facts and provider digest at the boundary."
         },
         "concurrency": {
-          "risk": "A user algorithm can assume stronger progress than the target provides.",
-          "mitigation": "Record progress as a target fact and retain a lock/domain fallback."
+          "risk": "A user algorithm can assume stronger progress or hide thread blocking in a parking fallback.",
+          "mitigation": "Record lock-free facts separately from blocksThread/parking, and retain a context-compatible allocation-free lock/domain fallback."
         },
         "ffi": {
           "risk": "Callback state can move or unregister too early.",
@@ -610,13 +610,21 @@
           "source-w",
           "host-oracle",
           "design-ledger",
-          "atom1-design-oracle"
+          "atom2-design-oracle",
+          "atom2-canonical-bit-and-progress-oracle"
         ],
         "missing": [
           "w-compile",
           "w-run",
           "target-lock-free-probe",
-          "provider"
+          "fallback-allocation-free-profile",
+          "never-suspend-cancellation-probe",
+          "provider",
+          "w-compile",
+          "w-run",
+          "stress",
+          "debug-receipt",
+          "ffi-drain-execution"
         ],
         "sourceRefs": [
           {
@@ -627,35 +635,43 @@
         ]
       },
       "nextStudyGate": {
-        "gateId": "ATOM0-G1",
-        "kind": "design",
-        "forSubcapability": "ATOM0-new-primitive",
-        "question": "Can a package author define a new atomic representation or reclamation primitive while preserving ordering, target progress, and FFI cleanup facts?",
+        "gateId": "ATOM0-implementation-evidence",
+        "kind": "evidence",
+        "question": "Can compiler, runtime, provider, and FFI implementations realize the closed atomic contract without changing its invariants?",
         "requiredEvidence": [
           "two target profiles for the new primitive",
-          "pointer-width and word-pair representation proof",
-          "reclamation and foreign callback drain",
+          "compiler and runtime lowering for canonical carriers",
+          "bit-exact Bool, integer, signed, enum, field-order, and high-bit receipts",
+          "allocation-free fallback and explicit blocksThread/parking profile",
+          "neverSuspend and non-cancellation operation receipts",
+          "target width and fallback probes",
+          "reclamation and foreign callback drain receipts",
           "diagnostic and interface mutation set",
-          "ATOM1 adversarial A/B/C study artifacts"
+          "ATOM2 adversarial A/B/C/D study artifacts"
         ],
         "studyRefs": [
           {
-            "path": "tooling/studies/atom1-atomic-extensibility/README.md",
-            "digest": "sha256:852b8ec5921098349c5ed0cca66d02c1e466145f9726633ff10b2cb5c060499e",
-            "claim": "ATOM1 study scope and nonnormative evidence"
+            "path": "tooling/studies/atom2-atomic-contract/README.md",
+            "digest": "sha256:e2a01178c74c11876ea5fb33cd767a4da52f5d75a5b15baa22f028bbf1c8e20e",
+            "claim": "ATOM2 closed contract and evidence boundary"
           },
           {
-            "path": "tooling/atom1-atomic-extensibility-cases.json",
-            "digest": "sha256:2527e660a83b832d045412fa5ac948195812edea5f559285ec82f3d2d44f9f6e",
-            "claim": "ATOM1 adversarial A/B/C oracle corpus"
+            "path": "tooling/atom2-atomic-contract-cases.json",
+            "digest": "sha256:8e2295938bbb5af596870bc90179d94f6134f7fa58ca2b56a35ae1daa2b64bfb",
+            "claim": "ATOM2 adversarial A/B/C/D oracle corpus"
           },
           {
-            "path": "tooling/atom1-atomic-extensibility-machine.mjs",
-            "digest": "sha256:6de57a612ea226e92d3023846017e9ab6156c6473b02eac475de07f9bb91e839",
-            "claim": "ATOM1 independent host derivation machine"
+            "path": "tooling/atom2-atomic-contract-machine.mjs",
+            "digest": "sha256:977697cb9e0797bc41e3e1a551952b21f93d3094de63a1feb1a1b9dfae538f53",
+            "claim": "ATOM2 two-reducer host derivation machine"
+          },
+          {
+            "path": "tooling/studies/atom2-atomic-contract/bundle.json",
+            "digest": "sha256:cc88342d4b8d1b40ae958c38410a8011bf5e891e014dd3b65cca94fde0198837",
+            "claim": "ATOM2 study bundle and implementation gap receipt"
           }
         ],
-        "stopCondition": "Keep the wrapper route and reject the new primitive if representation, reclamation, or interface identity needs ambient authority."
+        "stopCondition": "Keep the closed design. Reopen only if compiler, runtime, provider, target, FFI, or debug evidence contradicts a recorded invariant."
       },
       "documentation": {
         "question": "How can a safe W library wrap low-level atomic and foreign state?",
@@ -682,22 +698,22 @@
           "Python"
         ],
         "foreignExamples": {
-        "c": {
-          "exampleKind": "pseudocode",
-          "text": "C23 _Atomic and generic atomic functions expose operations while representation and lifetime policy stay at the boundary.",
-          "snippet": "_Atomic unsigned epoch = 0;\natomic_store_explicit(&epoch, next, memory_order_release);",
-          "sourceRefs": [
+          "c": {
+            "exampleKind": "pseudocode",
+            "text": "C23 _Atomic and generic atomic functions expose operations while representation and lifetime policy stay at the boundary.",
+            "snippet": "_Atomic unsigned epoch = 0;\natomic_store_explicit(&epoch, next, memory_order_release);",
+            "sourceRefs": [
               {
                 "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
                 "claim": "C23 atomics and generic functions"
               }
             ]
           },
-        "rust": {
-          "exampleKind": "pseudocode",
-          "text": "Rust atomic types and ordering APIs constrain operations, while custom reclamation remains a library contract.",
-          "snippet": "let epoch = AtomicU64::new(0);\nepoch.store(next, Ordering::Release);",
-          "sourceRefs": [
+          "rust": {
+            "exampleKind": "pseudocode",
+            "text": "Rust atomic types and ordering APIs constrain operations, while custom reclamation remains a library contract.",
+            "snippet": "let epoch = AtomicU64::new(0);\nepoch.store(next, Ordering::Release);",
+            "sourceRefs": [
               {
                 "url": "https://doc.rust-lang.org/std/sync/atomic/",
                 "claim": "typed atomic operations"
@@ -708,11 +724,11 @@
               }
             ]
           },
-        "python": {
-          "exampleKind": "pseudocode",
-          "text": "Python multiprocessing and shared-memory objects provide process coordination through runtime-managed handles.",
-          "snippet": "with lock:\n    shared.value = next_epoch",
-          "sourceRefs": [
+          "python": {
+            "exampleKind": "pseudocode",
+            "text": "Python multiprocessing and shared-memory objects provide process coordination through runtime-managed handles.",
+            "snippet": "with lock:\n    shared.value = next_epoch",
+            "sourceRefs": [
               {
                 "url": "https://docs.python.org/3/library/multiprocessing.html#sharing-state-between-processes",
                 "claim": "shared ctypes and synchronization"
@@ -740,15 +756,6 @@
               "pinned-ffi-lease",
               "interface-abi"
             ]
-          },
-          {
-            "id": "ATOM0-new-primitive",
-            "scope": "extension",
-            "role": "extension",
-            "classification": "research",
-            "gateId": "ATOM0-G1",
-            "problem": "library author defines a compiler-recognized atomic pointer, word-pair, or reclamation primitive",
-            "description": "New representation and reclamation need a bounded trusted-lowering study."
           }
         ]
       }
@@ -1049,33 +1056,33 @@
           "Python"
         ],
         "foreignExamples": {
-        "c": {
-          "exampleKind": "pseudocode",
-          "text": "C writes an explicit state machine and callback or poll protocol for incremental production.",
-          "snippet": "if (state == READY) {\n    state = WAITING;\n    return item;\n}",
-          "sourceRefs": [
+          "c": {
+            "exampleKind": "pseudocode",
+            "text": "C writes an explicit state machine and callback or poll protocol for incremental production.",
+            "snippet": "if (state == READY) {\n    state = WAITING;\n    return item;\n}",
+            "sourceRefs": [
               {
                 "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
                 "claim": "C23 function and object model baseline"
               }
             ]
           },
-        "rust": {
-          "exampleKind": "pseudocode",
-          "text": "Rust async functions and await expressions retain suspended state through a typed Future protocol boundary.",
-          "snippet": "async fn next() -> Option<Item> {\n    await_ready().await;\n    pull().await\n}",
-          "sourceRefs": [
+          "rust": {
+            "exampleKind": "pseudocode",
+            "text": "Rust async functions and await expressions retain suspended state through a typed Future protocol boundary.",
+            "snippet": "async fn next() -> Option<Item> {\n    await_ready().await;\n    pull().await\n}",
+            "sourceRefs": [
               {
                 "url": "https://doc.rust-lang.org/reference/expressions/await-expr.html",
                 "claim": "await suspension"
               }
             ]
           },
-        "python": {
-          "exampleKind": "pseudocode",
-          "text": "Python generators retain locals and resume at yield, including send and throw delegation.",
-          "snippet": "def next_item():\n    value = read()\n    yield value",
-          "sourceRefs": [
+          "python": {
+            "exampleKind": "pseudocode",
+            "text": "Python generators retain locals and resume at yield, including send and throw delegation.",
+            "snippet": "def next_item():\n    value = read()\n    yield value",
+            "sourceRefs": [
               {
                 "url": "https://docs.python.org/3/reference/expressions.html#yield-expressions",
                 "claim": "generator frame retention and send/throw"
@@ -1411,33 +1418,33 @@
           "Python"
         ],
         "foreignExamples": {
-        "c": {
-          "exampleKind": "pseudocode",
-          "text": "C preprocessing replaces token sequences and _Generic selects expressions before ordinary type checking; a separate build generator is outside the language.",
-          "snippet": "#define FIELD(T, x) T x\n#define PICK(x) _Generic((x), int: (x))",
-          "sourceRefs": [
+          "c": {
+            "exampleKind": "pseudocode",
+            "text": "C preprocessing replaces token sequences and _Generic selects expressions before ordinary type checking; a separate build generator is outside the language.",
+            "snippet": "#define FIELD(T, x) T x\n#define PICK(x) _Generic((x), int: (x))",
+            "sourceRefs": [
               {
                 "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
                 "claim": "C23 preprocessing and _Generic baseline"
               }
             ]
           },
-        "rust": {
-          "exampleKind": "pseudocode",
-          "text": "Rust macros expand tokens in a compiler phase with a source and diagnostic boundary.",
-          "snippet": "macro_rules! field {\n    ($name:ident : $ty:ty) => { struct Row { $name: $ty } };\n}",
-          "sourceRefs": [
+          "rust": {
+            "exampleKind": "pseudocode",
+            "text": "Rust macros expand tokens in a compiler phase with a source and diagnostic boundary.",
+            "snippet": "macro_rules! field {\n    ($name:ident : $ty:ty) => { struct Row { $name: $ty } };\n}",
+            "sourceRefs": [
               {
                 "url": "https://doc.rust-lang.org/reference/macros.html",
                 "claim": "macro invocation and expansion model"
               }
             ]
           },
-        "python": {
-          "exampleKind": "pseudocode",
-          "text": "Python class construction hooks can derive declarations at runtime, while eval can execute source dynamically; identity and authority need an explicit boundary.",
-          "snippet": "class Row(metaclass=Builder):\n    total: int",
-          "sourceRefs": [
+          "python": {
+            "exampleKind": "pseudocode",
+            "text": "Python class construction hooks can derive declarations at runtime, while eval can execute source dynamically; identity and authority need an explicit boundary.",
+            "snippet": "class Row(metaclass=Builder):\n    total: int",
+            "sourceRefs": [
               {
                 "url": "https://docs.python.org/3/reference/datamodel.html#customizing-class-creation",
                 "claim": "class creation hooks"
@@ -1805,33 +1812,33 @@
           "Python"
         ],
         "foreignExamples": {
-        "c": {
-          "exampleKind": "pseudocode",
-          "text": "C libraries pair raw pointers with explicit destroy or reference-count conventions for back edges.",
-          "snippet": "Node *parent = child->parent;\nchild->parent = NULL;\nfree(child);",
-          "sourceRefs": [
+          "c": {
+            "exampleKind": "pseudocode",
+            "text": "C libraries pair raw pointers with explicit destroy or reference-count conventions for back edges.",
+            "snippet": "Node *parent = child->parent;\nchild->parent = NULL;\nfree(child);",
+            "sourceRefs": [
               {
                 "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
                 "claim": "C23 pointer and storage baseline"
               }
             ]
           },
-        "rust": {
-          "exampleKind": "pseudocode",
-          "text": "Rust uses Rc or Arc with Weak edges to make a cycle break explicit.",
-          "snippet": "let child = Rc::new(Node::new());\nlet parent = Rc::downgrade(&child);",
-          "sourceRefs": [
+          "rust": {
+            "exampleKind": "pseudocode",
+            "text": "Rust uses Rc or Arc with Weak edges to make a cycle break explicit.",
+            "snippet": "let child = Rc::new(Node::new());\nlet parent = Rc::downgrade(&child);",
+            "sourceRefs": [
               {
                 "url": "https://doc.rust-lang.org/std/rc/struct.Weak.html",
                 "claim": "weak reference cycle breaking"
               }
             ]
           },
-        "python": {
-          "exampleKind": "pseudocode",
-          "text": "Python's cyclic collector finds unreachable objects while finalization remains runtime policy.",
-          "snippet": "a.peer = b\nb.peer = a\ngc.collect()",
-          "sourceRefs": [
+          "python": {
+            "exampleKind": "pseudocode",
+            "text": "Python's cyclic collector finds unreachable objects while finalization remains runtime policy.",
+            "snippet": "a.peer = b\nb.peer = a\ngc.collect()",
+            "sourceRefs": [
               {
                 "url": "https://docs.python.org/3/library/gc.html",
                 "claim": "cyclic garbage collector interface"
@@ -2185,11 +2192,11 @@
           "Python"
         ],
         "foreignExamples": {
-        "c": {
-          "exampleKind": "pseudocode",
-          "text": "C/POSIX shm_open and mmap map bytes into process address spaces; layout, atomics, and crash policy remain platform contracts.",
-          "snippet": "int fd = shm_open(name, O_RDWR, 0600);\nvoid *p = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);",
-          "sourceRefs": [
+          "c": {
+            "exampleKind": "pseudocode",
+            "text": "C/POSIX shm_open and mmap map bytes into process address spaces; layout, atomics, and crash policy remain platform contracts.",
+            "snippet": "int fd = shm_open(name, O_RDWR, 0600);\nvoid *p = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);",
+            "sourceRefs": [
               {
                 "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/shm_open.html",
                 "claim": "POSIX shared memory object"
@@ -2200,11 +2207,11 @@
               }
             ]
           },
-        "rust": {
-          "exampleKind": "pseudocode",
-          "text": "Rust Arc provides process-local shared ownership; mapped bytes and process-shared layout require an OS or FFI contract.",
-          "snippet": "let bytes = unsafe { map_region(fd, len)? };\nlet local = Arc::new(bytes);",
-          "sourceRefs": [
+          "rust": {
+            "exampleKind": "pseudocode",
+            "text": "Rust Arc provides process-local shared ownership; mapped bytes and process-shared layout require an OS or FFI contract.",
+            "snippet": "let bytes = unsafe { map_region(fd, len)? };\nlet local = Arc::new(bytes);",
+            "sourceRefs": [
               {
                 "url": "https://doc.rust-lang.org/std/sync/struct.Arc.html",
                 "claim": "Arc is process-local shared ownership"
@@ -2215,11 +2222,11 @@
               }
             ]
           },
-        "python": {
-          "exampleKind": "pseudocode",
-          "text": "Python multiprocessing.shared_memory names a byte block; typed validation and process recovery are application contracts.",
-          "snippet": "from multiprocessing import shared_memory\nblock = shared_memory.SharedMemory(name=name)",
-          "sourceRefs": [
+          "python": {
+            "exampleKind": "pseudocode",
+            "text": "Python multiprocessing.shared_memory names a byte block; typed validation and process recovery are application contracts.",
+            "snippet": "from multiprocessing import shared_memory\nblock = shared_memory.SharedMemory(name=name)",
+            "sourceRefs": [
               {
                 "url": "https://docs.python.org/3/library/multiprocessing.shared_memory.html",
                 "claim": "named shared memory lifecycle"
@@ -2543,11 +2550,11 @@
           "Python"
         ],
         "foreignExamples": {
-        "c": {
-          "exampleKind": "pseudocode",
-          "text": "C reports signals and wait status, so a supervisor must define cleanup, retry, and idempotency around effects.",
-          "snippet": "pid_t pid = waitpid(child, &status, 0);\nif (failed(status)) retry_or_compensate();",
-          "sourceRefs": [
+          "c": {
+            "exampleKind": "pseudocode",
+            "text": "C reports signals and wait status, so a supervisor must define cleanup, retry, and idempotency around effects.",
+            "snippet": "pid_t pid = waitpid(child, &status, 0);\nif (failed(status)) retry_or_compensate();",
+            "sourceRefs": [
               {
                 "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
                 "claim": "C23 language baseline"
@@ -2562,11 +2569,11 @@
               }
             ]
           },
-        "rust": {
-          "exampleKind": "pseudocode",
-          "text": "Rust Result and panic boundaries report local outcomes; durable recovery and duplicate-effect policy remain external.",
-          "snippet": "match worker() {\n    Ok(value) => record(value),\n    Err(error) => recover(error),\n}",
-          "sourceRefs": [
+          "rust": {
+            "exampleKind": "pseudocode",
+            "text": "Rust Result and panic boundaries report local outcomes; durable recovery and duplicate-effect policy remain external.",
+            "snippet": "match worker() {\n    Ok(value) => record(value),\n    Err(error) => recover(error),\n}",
+            "sourceRefs": [
               {
                 "url": "https://doc.rust-lang.org/std/panic/fn.catch_unwind.html",
                 "claim": "panic boundary"
@@ -2577,11 +2584,11 @@
               }
             ]
           },
-        "python": {
-          "exampleKind": "pseudocode",
-          "text": "Python multiprocessing and exception handling report worker failure; a service must own restart and recovery policy.",
-          "snippet": "p = Process(target=worker)\np.start(); p.join()\nif p.exitcode != 0: restart()",
-          "sourceRefs": [
+          "python": {
+            "exampleKind": "pseudocode",
+            "text": "Python multiprocessing and exception handling report worker failure; a service must own restart and recovery policy.",
+            "snippet": "p = Process(target=worker)\np.start(); p.join()\nif p.exitcode != 0: restart()",
+            "sourceRefs": [
               {
                 "url": "https://docs.python.org/3/library/multiprocessing.html",
                 "claim": "process and pool supervision building blocks"
@@ -2877,13 +2884,41 @@
         ],
         "stopCondition": "Do not reopen eval if a typed generation route meets the operational requirement.",
         "studyRefs": [
-          { "path": "tooling/studies/dyn1-versioned-behavior/README.md", "digest": "sha256:15645762fc99ca1584800dfb0cf62d16cf3553fce5a745966373e1ee5a71c67a", "claim": "DYN1 host design-oracle scope and four route dispositions" },
-          { "path": "tooling/dyn1-versioned-behavior-cases.json", "digest": "sha256:0f8203d2f28e539420a278aadeabff29e2121e1a09f920ef9c17dd1a5413f7f0", "claim": "DYN1 event-derived corpus for REPL, generations, export, faults, and rejected mechanisms" },
-          { "path": "tooling/dyn1-versioned-behavior-machine.mjs", "digest": "sha256:4c2b918e89e5f87f61e43aa3ccf638f5b0b83d56152b2ed64d0bb6229dfd5fd4", "claim": "DYN1 independent local/split reducers and receipt validators" },
-          { "path": "tooling/dyn1-versioned-behavior-manifest.mjs", "digest": "sha256:dfa0d6125cf008bdeb16af4f2bc7c729d96523e0fbfe0d2d8b7f29e44b627351", "claim": "DYN1 manifest boundary for source, role, and evidence claims" },
-          { "path": "tooling/check-dyn1-versioned-behavior.mjs", "digest": "sha256:2ab6b2a80376482260be663c7247f17e62d8ecce80bcbda59c7a9de8bb994cb1", "claim": "DYN1 derived metrics and snapshot checker" },
-          { "path": "tooling/dyn1-versioned-behavior-reference.test.mjs", "digest": "sha256:871aa1c4ef4a5bd6dd2c60e89380b6d718998dca9e58b0a16e8b7a3bf96386d6", "claim": "DYN1 host mutation and boundary reference tests" },
-          { "path": "tooling/dyn1-versioned-behavior-results.snapshot.jsonl", "digest": "sha256:62ab8c4f8c0b0970fb794c4e5900b09eff3a1f4fe92cdc111e99f77ccbe30bd7", "claim": "DYN1 derived design-oracle result snapshot" }
+          {
+            "path": "tooling/studies/dyn1-versioned-behavior/README.md",
+            "digest": "sha256:15645762fc99ca1584800dfb0cf62d16cf3553fce5a745966373e1ee5a71c67a",
+            "claim": "DYN1 host design-oracle scope and four route dispositions"
+          },
+          {
+            "path": "tooling/dyn1-versioned-behavior-cases.json",
+            "digest": "sha256:0f8203d2f28e539420a278aadeabff29e2121e1a09f920ef9c17dd1a5413f7f0",
+            "claim": "DYN1 event-derived corpus for REPL, generations, export, faults, and rejected mechanisms"
+          },
+          {
+            "path": "tooling/dyn1-versioned-behavior-machine.mjs",
+            "digest": "sha256:4c2b918e89e5f87f61e43aa3ccf638f5b0b83d56152b2ed64d0bb6229dfd5fd4",
+            "claim": "DYN1 independent local/split reducers and receipt validators"
+          },
+          {
+            "path": "tooling/dyn1-versioned-behavior-manifest.mjs",
+            "digest": "sha256:dfa0d6125cf008bdeb16af4f2bc7c729d96523e0fbfe0d2d8b7f29e44b627351",
+            "claim": "DYN1 manifest boundary for source, role, and evidence claims"
+          },
+          {
+            "path": "tooling/check-dyn1-versioned-behavior.mjs",
+            "digest": "sha256:2ab6b2a80376482260be663c7247f17e62d8ecce80bcbda59c7a9de8bb994cb1",
+            "claim": "DYN1 derived metrics and snapshot checker"
+          },
+          {
+            "path": "tooling/dyn1-versioned-behavior-reference.test.mjs",
+            "digest": "sha256:871aa1c4ef4a5bd6dd2c60e89380b6d718998dca9e58b0a16e8b7a3bf96386d6",
+            "claim": "DYN1 host mutation and boundary reference tests"
+          },
+          {
+            "path": "tooling/dyn1-versioned-behavior-results.snapshot.jsonl",
+            "digest": "sha256:62ab8c4f8c0b0970fb794c4e5900b09eff3a1f4fe92cdc111e99f77ccbe30bd7",
+            "claim": "DYN1 derived design-oracle result snapshot"
+          }
         ]
       },
       "documentation": {
@@ -2911,22 +2946,22 @@
           "Python"
         ],
         "foreignExamples": {
-        "c": {
-          "exampleKind": "pseudocode",
-          "text": "C function pointers dispatch through an explicit ABI; generations and ABI identity need a boundary.",
-          "snippet": "int (*policy)(Order) = current_policy;\nresult = policy(order);",
-          "sourceRefs": [
+          "c": {
+            "exampleKind": "pseudocode",
+            "text": "C function pointers dispatch through an explicit ABI; generations and ABI identity need a boundary.",
+            "snippet": "int (*policy)(Order) = current_policy;\nresult = policy(order);",
+            "sourceRefs": [
               {
                 "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
                 "claim": "C23 function pointer baseline"
               }
             ]
           },
-        "rust": {
-          "exampleKind": "pseudocode",
-          "text": "Rust macros generate source at compile time, and trait objects provide typed dynamic dispatch; neither mutates active frames.",
-          "snippet": "let policy: Box<dyn Policy> = next_policy();\nlet result = policy.run(order);",
-          "sourceRefs": [
+          "rust": {
+            "exampleKind": "pseudocode",
+            "text": "Rust macros generate source at compile time, and trait objects provide typed dynamic dispatch; neither mutates active frames.",
+            "snippet": "let policy: Box<dyn Policy> = next_policy();\nlet result = policy.run(order);",
+            "sourceRefs": [
               {
                 "url": "https://doc.rust-lang.org/reference/macros.html",
                 "claim": "compile-time macro expansion"
@@ -2937,11 +2972,11 @@
               }
             ]
           },
-        "python": {
-          "exampleKind": "pseudocode",
-          "text": "Python eval and exec run source with ambient globals and locals, including arbitrary-input risk.",
-          "snippet": "code = compile(source, \"<repl>\", \"exec\")\nexec(code, globals, locals)",
-          "sourceRefs": [
+          "python": {
+            "exampleKind": "pseudocode",
+            "text": "Python eval and exec run source with ambient globals and locals, including arbitrary-input risk.",
+            "snippet": "code = compile(source, \"<repl>\", \"exec\")\nexec(code, globals, locals)",
+            "sourceRefs": [
               {
                 "url": "https://docs.python.org/3/library/functions.html#eval",
                 "claim": "eval arbitrary expression warning"

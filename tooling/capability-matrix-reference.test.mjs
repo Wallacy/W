@@ -83,11 +83,11 @@ describe("CAP0 capability matrix host oracle", () => {
     expect(errors.some((error) => error.includes("duplicates source reference"))).toBe(true);
   });
 
-  test("ATOM1 study refs require durable paths, digests, claims, and no duplicates", () => {
+  test("ATOM2 study refs require durable paths, digests, claims, and no duplicates", () => {
     const corpus = readCorpus();
     const studyRefs = corpus.axes.find((axis) => axis.id === "ATOM0").nextStudyGate.studyRefs;
     studyRefs[0].digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000";
-    studyRefs[1].path = "tooling/studies/atom1-atomic-extensibility/missing.md";
+    studyRefs[1].path = "tooling/studies/atom2-atomic-contract/missing.md";
     studyRefs.push({ ...studyRefs[2] });
     const errors = check(corpus);
     expect(errors.some((error) => error.includes("nextStudyGate.studyRefs[0].digest is stale"))).toBe(true);
@@ -134,8 +134,8 @@ describe("CAP0 capability matrix host oracle", () => {
 
   test("Research subcapabilities require an exact design gate", () => {
     const corpus = readCorpus();
-    const atom = corpus.axes.find((axis) => axis.id === "ATOM0");
-    delete atom.coverage.subcapabilities.find((subcapability) => subcapability.id === "ATOM0-new-primitive").gateId;
+    const ipc = corpus.axes.find((axis) => axis.id === "IPC0");
+    delete ipc.coverage.subcapabilities.find((subcapability) => subcapability.id === "IPC0-mapped-bytes").gateId;
     const gen = corpus.axes.find((axis) => axis.id === "GEN0");
     gen.nextStudyGate.forSubcapability = "GEN0-incremental-production";
     const errors = check(corpus);
