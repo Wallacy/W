@@ -29,7 +29,7 @@
     { "id": "rejected-runtime-authority", "role": "rejected-witness", "language": "w-reserved", "path": "rejected-runtime-authority.txt", "digest": "sha256:8bcbac9f62638de7f921ad46bd5b6c4cfbb40edc8885797b3261eebf25ec43b3" }
   ],
   "artifactRefs": [
-    { "id": "readme", "role": "research-note", "path": "tooling/studies/avf0-availability-feature/README.md", "digest": "sha256:33f2d58aac1cfb215d9f24c27b487400b0953a17c80822300dc17e25285bb6d1" },
+    { "id": "readme", "role": "historical-research-note", "path": "tooling/studies/avf0-availability-feature/README.md", "digest": "sha256:341446880d486368095521d75cc911c624cbb4aef16b651dbb16cfcd943676ec" },
     { "id": "corpus", "role": "design-input", "path": "tooling/avf0-availability-feature-cases.json", "digest": "sha256:d7a659fc4cb1e6644443d81d52261a51ae9d65a946c5d6d60fabfcac22cab318" },
     { "id": "machine", "role": "host-oracle", "path": "tooling/avf0-availability-feature-machine.mjs", "digest": "sha256:037906cc6c19a01d3b4b5a4421d60a80c26afc4c4da7c910b631410b4f1ef49e" },
     { "id": "manifest", "role": "manifest-validator", "path": "tooling/avf0-availability-feature-manifest.mjs", "digest": "sha256:35141e65667ff9cc32340d8271acf42f5f22613ad1f826f8c1695f7a8adb46dd" },

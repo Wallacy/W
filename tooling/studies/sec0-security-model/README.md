@@ -5,6 +5,12 @@ segurança como composição de provas no compiler, capability/effect mediation,
 limites de entrada e recursos, supply chain, secrets, auditoria, isolamento,
 deployment, FFI e risco residual.
 
+O corpus source preserva 13 outcomes Research como labels pré-ASIC0. ASIC0
+fecha como design current os contratos de evidence/admission para os seis
+profiles, residual de side-channel, patch attestation e deployment/hardening;
+W-1450 mantém a evidência de implementação. O bundle não afirma security
+conformance.
+
 O princípio central é uma regra de substituição. W pode omitir uma proteção de
 runtime somente quando uma prova estática, enforcement de hardware ou mediação
 externa cobre o mesmo invariante. Uma exceção de threat model é restrita a
@@ -51,7 +57,8 @@ enfraquece o product minimum.
 ## Evidência e limites
 
 O corpus possui 101 casos. O oracle host deriva 24 aceitos e 77 rejeitados. Ele
-produz 11 accepted current e 13 accepted Research. O corpus cobre seis perfis,
+produz 11 accepted current e 13 accepted Research como labels históricos
+pré-ASIC0. O corpus cobre seis perfis,
 16 rejeições de authority e quatro rejeições de caller echo.
 As fontes Last Light são witnesses de capability, channels, filesystem, limits,
 deployment capacity e ABI. Cloudflare Workers, Linux seccomp, WebAssembly,

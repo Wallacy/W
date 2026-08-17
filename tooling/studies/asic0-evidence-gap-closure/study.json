@@ -1,0 +1,28 @@
+{
+  "$schema": "w-asic0-evidence-gap-closure-study-1",
+  "status": "design-oracle-input",
+  "id": "ASIC0",
+  "gate": "W-1355/W-1359/W-1420/W-1425/W-1435",
+  "title": "Reuse-only implementation evidence gap closure",
+  "question": "Can current adapter, toolchain, and evidence contracts reuse the IPC1, AVF0, and SEC0 host boundaries without claiming implementation?",
+  "manifest": { "path": "manifest.json" },
+  "corpus": { "path": "../../asic0-evidence-gap-closure-cases.json" },
+  "artifacts": {
+    "bundle": { "path": "bundle.json" },
+    "machine": { "path": "../../asic0-evidence-gap-closure-machine.mjs" },
+    "checker": { "path": "../../check-asic0-evidence-gap-closure.mjs" },
+    "snapshot": { "path": "../../asic0-evidence-gap-closure-results.snapshot.jsonl" },
+    "oracle": { "path": "oracle.test.mjs" },
+    "nestedChecker": { "path": "../../tree-sitter-w/check-asic0.mjs" }
+  },
+  "decisions": ["W-1355", "W-1359", "W-1420", "W-1425", "W-1435"],
+  "implementationGaps": ["W-1448", "W-1449", "W-1450"],
+  "reuseOnly": true,
+  "reusedStudies": ["IPC1", "AVF0", "SEC0"],
+  "evidence": {
+    "current": ["source-ref", "reused-corpus", "reused-machine", "host-oracle", "mutation-checks", "snapshot", "thin-parse"],
+    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "hardware", "sandbox", "attestation-verifier", "ffi", "fault-stress", "local-split", "human-study", "model-study"],
+    "hostOnly": true
+  },
+  "stopCondition": "Stop on stale source, route, digest, expected assertion, gap category, decision link, bundle role, schema, provider claim, or evidence boundary. Wait for Sol review before canonical recascade."
+}

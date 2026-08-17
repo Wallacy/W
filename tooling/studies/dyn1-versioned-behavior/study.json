@@ -10,7 +10,7 @@
   "providerEvidence": "missing",
   "exactGap": { "id": "DYN0-persistent-generation-reference", "route": "research", "scope": "read-only reference and migration across restart/deploy", "languageSurface": "unresolved", "providerGap": true, "gate": "research-evidence-only" },
   "composition": {
-    "capabilityMatrix": { "id": "CAP0", "subcapability": "DYN0-versioned-change", "classification": "composable", "casesPath": "../../capability-matrix-cases.json", "casesDigest": "sha256:c049fdf75237e51c53d676b4c6665e756448d62b8b7b9ef3a260ce86ce3b892f", "snapshotPath": "../../capability-matrix-results.snapshot.jsonl", "snapshotDigest": "sha256:4a222d8f52ccd5d86c6c650b7ab10f76eedfbeef5062994baade107ea70c31ab", "gate": "CAP0" },
+    "capabilityMatrix": { "id": "CAP0", "subcapability": "DYN0-versioned-change", "classification": "composable", "casesPath": "../../capability-matrix-cases.json", "casesDigest": "sha256:327ae169e22342bdd03e039805c6d5175e179637edbc175b3ecc72a7c7f3dc9f", "snapshotPath": "../../capability-matrix-results.snapshot.jsonl", "snapshotDigest": "sha256:b002eb7675c7eb08049ad5602a795bc39152ac73c41a2b3f5b7aa18751fed31d", "gate": "CAP0" },
     "dyn0": { "id": "DYN0", "subcapability": "DYN0-versioned-change", "classification": "composable", "evidence": "partial", "gate": "DYN0-G1" }
   },
   "routeMatrix": [

@@ -23,6 +23,9 @@
     { "path": "../../../reference/last-light/synchronization.w", "symbol": "export unsafe fn releaseTelemetryFence", "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6", "claim": "Last Light explicit release fence source." },
     { "path": "../../../reference/last-light/memory.w", "symbol": "export fn installMenuObserver", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "Last Light explicit callback lease source." }
   ],
+  "artifactRefs": [
+    { "id": "readme", "role": "historical-research-note", "path": "tooling/studies/ipc1-mapped-ipc/README.md", "digest": "sha256:ec326dd8534ef99f72a710659f22de19584e338f7d907c8b52eea13000c48b0c" }
+  ],
   "providerRefs": [
     { "binding": "posix-file-durable", "targetKind": "posix", "objectIdentity": "posix-file:restaurant-menu", "digest": "sha256:6a9f0c380d057dc48cea19bb2cfb3949eea104ddd0a6a436117d5dff0ab3746b", "claim": "Design fixture (not a provider receipt): POSIX file-backed durable snapshot profile." },
     { "binding": "windows-file-durable", "targetKind": "windows", "objectIdentity": "windows-file:restaurant-menu", "digest": "sha256:623d0404fddb22a713518841e27582ba1edaa41a2287539f2488de8d9ff38e8e", "claim": "Design fixture (not a provider receipt): Windows file-backed durable snapshot profile." },

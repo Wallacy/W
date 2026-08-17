@@ -15,6 +15,12 @@ carregar módulo, habilitar dependência, conceder capability ou effect, alterar
 interface/ABI nem tornar disponível uma declaração que o compiler rejeitou.
 Todos os ramos alcançáveis permanecem compilados e auditados.
 
+O corpus source marca o binding de availability como Research na proveniência
+pré-ASIC0. ASIC0 fecha como design current o contrato de facts autenticados e
+binding typed fail-closed, sem keyword ou nova runtime authority; W-1449 mantém
+as lacunas de compiler, diagnostics e provider. Esta nota não afirma
+implementação.
+
 ## Formas estudadas
 
 - `current-package-feature.w` usa a feature aditiva já prevista pelo manifest.
@@ -25,9 +31,10 @@ Todos os ramos alcançáveis permanecem compilados e auditados.
 - `rejected-runtime-authority.txt` registra mecanismos que permanecem
   rejeitados.
 
-O binding de availability é **Research**. A forma final, a integração com
-diagnósticos, o receipt do provider e as regras por domínio ainda não foram
-validados por um compiler W. A flag dinâmica é **componível** com tipos,
+O binding de availability é current como contrato de design condicionado a
+evidence e receipts; a integração com diagnósticos, o receipt do provider e as
+regras por domínio ainda não foram validados por um compiler W e permanecem em
+W-1449. A flag dinâmica é **componível** com tipos,
 `SnapshotCell`, configuração versionada, hash determinístico e auditoria de
 exposição; ela não requer sintaxe nova nesta rodada.
 
@@ -56,9 +63,9 @@ implementação de runtime.
 
 ## Stop condition
 
-Não promover o binding de availability enquanto dois domínios reais não
-provarem lifecycle, target facts, capability/effect checks, receipts e
-diagnósticos. Não promover uma API de flags enquanto type/fallback, schema e
-config identities, rollout determinístico, snapshot atômico, exposição,
-expiry/owner e ausência de authority amplification não forem verificados em
-compiler/provider e em duas projeções de target.
+Não chamar o binding de availability de implementação pronta enquanto dois
+domínios reais não provarem lifecycle, target facts, capability/effect checks,
+receipts e diagnósticos. Não promover uma API de flags enquanto type/fallback,
+schema e config identities, rollout determinístico, snapshot atômico,
+exposição, expiry/owner e ausência de authority amplification não forem
+verificados em compiler/provider e em duas projeções de target.

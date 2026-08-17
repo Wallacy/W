@@ -1,0 +1,154 @@
+{
+  "$schema": "w-asic0-evidence-gap-closure-cases-1",
+  "status": "design-oracle-input",
+  "id": "ASIC0",
+  "reuseOnly": true,
+  "decisions": ["W-1355", "W-1359", "W-1420", "W-1425", "W-1435"],
+  "implementationGapMap": {
+    "W-1355": "W-1448",
+    "W-1359": "W-1448",
+    "W-1420": "W-1449",
+    "W-1425": "W-1449",
+    "W-1435": "W-1450"
+  },
+  "plannedImplementationGaps": {
+    "W-1448": { "category": "implementation-evidence-gap", "missing": ["windows-two-process", "provider-receipts", "crash-recovery", "durability", "w-compile", "w-run", "ffi", "stress"] },
+    "W-1449": { "category": "implementation-evidence-gap", "missing": ["compiler", "diagnostics", "provider-publication", "local-split", "fault-stress"] },
+    "W-1450": { "category": "implementation-evidence-gap", "missing": ["compiler", "runtime", "provider", "hardware", "sandbox", "attestation-verifier", "secret-lifecycle", "ffi", "fault-stress", "local-split"] }
+  },
+  "decisionMap": {
+    "W-1355": {
+      "gate": "IPC1-R1",
+      "implementationGapId": "W-1448",
+      "route": "bounded mapped byte channel adapter/provider; no new W syntax or API",
+      "fallback": "SnapshotByteSource/wire/Arrow/service when receipt or profile is absent",
+      "preserve": ["immutable mapped snapshot remains an adapter/provider contract", "address-free process atomics+wake and lifecycle/security receipts are required", "C universal Mapped<T>/shared/raw remains rejected"]
+    },
+    "W-1359": {
+      "gate": "IPC1-R1",
+      "implementationGapId": "W-1448",
+      "route": "provider-authoritative mapped publication and durability selector receipt; no new W syntax or API",
+      "fallback": "SnapshotByteSource/wire/Arrow/service; B is volatile and durable journal uses A/service",
+      "preserve": ["unknownDurability remains an explicit outcome", "POSIX probe is partial host evidence, not a provider", "Windows two-process, crash/recovery, and durability evidence remain missing"]
+    },
+    "W-1420": {
+      "gate": "AVF0-R1",
+      "implementationGapId": "W-1449",
+      "route": "direct authenticated availability facts and typed provider binding; no keyword or runtime authority",
+      "fallback": "fail-closed binding with target/domain/generation/providerDigest",
+      "preserve": ["capability/effect/ABI/interface do not change by flag", "raw OS, deployment, boolean, and ambient authority remain rejected"]
+    },
+    "W-1425": {
+      "gate": "AVF0-R1",
+      "implementationGapId": "W-1449",
+      "route": "typed runtime composition remains package/runtime composition; no new runtime API",
+      "fallback": "existing package/runtime composition with fail-closed provider binding",
+      "preserve": ["runtime feature cannot grant capability, effect, ABI, or interface", "raw flag and ambient authority remain rejected"]
+    },
+    "W-1435": {
+      "gate": "SEC0-R1",
+      "implementationGapId": "W-1450",
+      "route": "profile, side-channel, patch, and deployment receipts are evidence/admission contracts, not security conformance",
+      "fallback": "profile/target/recipe receipts and existing safe composition",
+      "preserve": ["profile selection is not a runtime feature", "product minimum is monotonic", "ambient and caller-echo routes remain rejected"]
+    }
+  },
+  "evidence": {
+    "current": ["source-ref", "reused-corpus", "reused-machine", "host-oracle", "mutation-checks", "snapshot", "thin-parse"],
+    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "hardware", "sandbox", "attestation-verifier", "ffi", "fault-stress", "local-split", "human-study", "model-study"],
+    "hostOnly": true
+  },
+  "reusedStudies": ["IPC1", "AVF0", "SEC0"],
+  "cases": [
+    {
+      "id": "ASIC0-W-1355-current",
+      "kind": "current-contract",
+      "decisions": ["W-1355"],
+      "source": { "study": "tooling/studies/ipc1-mapped-ipc/study.json", "corpus": "tooling/ipc1-mapped-ipc-cases.json", "machine": "tooling/ipc1-mapped-ipc-machine.mjs", "caseId": "IPC1-channel-capn-bounded" },
+      "evidenceCaseIds": ["IPC1-menu-immutable-publish", "IPC1-channel-capn-bounded"],
+      "evidenceRefs": { "probeRefIds": [], "sourceRefIds": [] },
+      "expect": { "status": "accepted", "code": "bounded-mapped-channel", "route": null, "contractRoute": "current", "implementationGapId": "W-1448", "gapCategory": "implementation-evidence-gap" }
+    },
+    {
+      "id": "ASIC0-W-1355-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-1355"],
+      "source": { "study": "tooling/studies/ipc1-mapped-ipc/study.json", "corpus": "tooling/ipc1-mapped-ipc-cases.json", "machine": "tooling/ipc1-mapped-ipc-machine.mjs", "caseId": "IPC1-atomic-width-unsupported" },
+      "evidenceCaseIds": ["IPC1-atomic-width-unsupported", "IPC1-hidden-lock-reject"],
+      "evidenceRefs": { "probeRefIds": [], "sourceRefIds": [] },
+      "expect": { "status": "rejected", "code": "atomic-width-unsupported", "route": null, "contractRoute": "rejected", "implementationGapId": "W-1448", "gapCategory": "implementation-evidence-gap" }
+    },
+    {
+      "id": "ASIC0-W-1359-current",
+      "kind": "current-contract",
+      "decisions": ["W-1359"],
+      "source": { "study": "tooling/studies/ipc1-mapped-ipc/study.json", "corpus": "tooling/ipc1-mapped-ipc-cases.json", "machine": "tooling/ipc1-mapped-ipc-machine.mjs", "caseId": "IPC1-provider-authoritative" },
+      "evidenceCaseIds": ["IPC1-provider-authoritative", "IPC1-publish-after-durability-receipt", "IPC1-fallback-to-snapshot", "IPC1-publish-before-durability-unknown"],
+      "evidenceRefs": { "probeRefIds": ["IPC2-POSIX-two-process-map"], "sourceRefIds": ["publish-staged-recipe", "release-fence"] },
+      "expect": { "status": "accepted", "code": "provider-authoritative", "route": null, "contractRoute": "current", "implementationGapId": "W-1448", "gapCategory": "implementation-evidence-gap" }
+    },
+    {
+      "id": "ASIC0-W-1359-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-1359"],
+      "source": { "study": "tooling/studies/ipc1-mapped-ipc/study.json", "corpus": "tooling/ipc1-mapped-ipc-cases.json", "machine": "tooling/ipc1-mapped-ipc-machine.mjs", "caseId": "IPC1-provider-durable-requirement-reject" },
+      "evidenceCaseIds": ["IPC1-provider-durable-requirement-reject"],
+      "evidenceRefs": { "probeRefIds": [], "sourceRefIds": [] },
+      "expect": { "status": "rejected", "code": "durability-unavailable", "route": null, "contractRoute": "rejected", "implementationGapId": "W-1448", "gapCategory": "implementation-evidence-gap" }
+    },
+    {
+      "id": "ASIC0-W-1420-current",
+      "kind": "current-contract",
+      "decisions": ["W-1420"],
+      "source": { "study": "tooling/studies/avf0-availability-feature/study.json", "corpus": "tooling/avf0-availability-feature-cases.json", "machine": "tooling/avf0-availability-feature-machine.mjs", "caseId": "AVF0-availability-provider-bind" },
+      "evidenceCaseIds": ["AVF0-availability-provider-bind"],
+      "evidenceRefs": { "probeRefIds": [], "sourceRefIds": [] },
+      "expect": { "status": "accepted", "code": "availabilityBound", "route": "research", "contractRoute": "current", "implementationGapId": "W-1449", "gapCategory": "implementation-evidence-gap" }
+    },
+    {
+      "id": "ASIC0-W-1420-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-1420"],
+      "source": { "study": "tooling/studies/avf0-availability-feature/study.json", "corpus": "tooling/avf0-availability-feature-cases.json", "machine": "tooling/avf0-availability-feature-machine.mjs", "caseId": "AVF0-availability-raw-version" },
+      "evidenceCaseIds": ["AVF0-availability-raw-version"],
+      "evidenceRefs": { "probeRefIds": [], "sourceRefIds": [] },
+      "expect": { "status": "rejected", "code": "availabilityEvidenceNotAuthoritative", "route": "rejected", "contractRoute": "rejected", "implementationGapId": "W-1449", "gapCategory": "implementation-evidence-gap" }
+    },
+    {
+      "id": "ASIC0-W-1425-current",
+      "kind": "current-contract",
+      "decisions": ["W-1425"],
+      "source": { "study": "tooling/studies/avf0-availability-feature/study.json", "corpus": "tooling/avf0-availability-feature-cases.json", "machine": "tooling/avf0-availability-feature-machine.mjs", "caseId": "AVF0-runtime-typed" },
+      "evidenceCaseIds": ["AVF0-runtime-typed"],
+      "evidenceRefs": { "probeRefIds": [], "sourceRefIds": [] },
+      "expect": { "status": "accepted", "code": "featureEvaluated", "route": "composable", "contractRoute": "current", "implementationGapId": "W-1449", "gapCategory": "implementation-evidence-gap" }
+    },
+    {
+      "id": "ASIC0-W-1425-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-1425"],
+      "source": { "study": "tooling/studies/avf0-availability-feature/study.json", "corpus": "tooling/avf0-availability-feature-cases.json", "machine": "tooling/avf0-availability-feature-machine.mjs", "caseId": "AVF0-runtime-grant-capability" },
+      "evidenceCaseIds": ["AVF0-runtime-grant-capability"],
+      "evidenceRefs": { "probeRefIds": [], "sourceRefIds": [] },
+      "expect": { "status": "rejected", "code": "runtimeFeatureAuthorityRejected", "route": "rejected", "contractRoute": "rejected", "implementationGapId": "W-1449", "gapCategory": "implementation-evidence-gap" }
+    },
+    {
+      "id": "ASIC0-W-1435-current",
+      "kind": "current-contract",
+      "decisions": ["W-1435"],
+      "source": { "study": "tooling/studies/sec0-security-model/study.json", "corpus": "tooling/sec0-security-model-cases.json", "machine": "tooling/sec0-security-model-machine.mjs", "caseId": "SEC0-profile-native" },
+      "evidenceCaseIds": ["SEC0-profile-native", "SEC0-side-baseline", "SEC0-patch-baseline", "SEC0-supply-baseline"],
+      "evidenceRefs": { "probeRefIds": [], "sourceRefIds": [] },
+      "expect": { "status": "accepted", "code": "profileAdmitted", "route": "research", "contractRoute": "current", "implementationGapId": "W-1450", "gapCategory": "implementation-evidence-gap" }
+    },
+    {
+      "id": "ASIC0-W-1435-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-1435"],
+      "source": { "study": "tooling/studies/sec0-security-model/study.json", "corpus": "tooling/sec0-security-model-cases.json", "machine": "tooling/sec0-security-model-machine.mjs", "caseId": "SEC0-profile-receipt-issuer" },
+      "evidenceCaseIds": ["SEC0-profile-receipt-issuer", "SEC0-feature-echo"],
+      "evidenceRefs": { "probeRefIds": [], "sourceRefIds": [] },
+      "expect": { "status": "rejected", "code": "protectionReceiptInvalid", "route": "rejected", "contractRoute": "rejected", "implementationGapId": "W-1450", "gapCategory": "implementation-evidence-gap" }
+    }
+  ]
+}
