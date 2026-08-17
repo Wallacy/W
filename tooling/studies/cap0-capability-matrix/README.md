@@ -27,11 +27,16 @@ Each axis records:
 
 Research subcapabilities carry the exact `nextStudyGate` id. Design gates are
 used for unresolved language/design questions; evidence gates record provider
-or execution evidence and are not promoted to language gaps.
+or execution evidence and are not promoted to language gaps. The SYN2/DYN2
+closure removes the former SYN0 generated-module Research subcapability: the
+bounded module-set and read-only generation-identity contracts are current
+design records, while compiler, runtime, provider, target, isolation, stress,
+OOM/FFI, and implementation receipts remain evidence gaps.
 
-Current evidence is source-backed and host-derived. DYN0 keeps its composable
-route and records the DYN1 host design-oracle in durable `nextStudyGate.studyRefs`;
-W compiler, runtime,
+Current evidence is source-backed and host-derived. SYN0 and DYN0 keep their
+composable routes and record the digest-pinned SYN2/DYN2 closure alongside the
+SYN1/DYN1 host design-oracles in durable `nextStudyGate.studyRefs`; W compiler,
+runtime,
 provider, human-study, and model-study evidence remain missing unless a later
 gate closes them.
 

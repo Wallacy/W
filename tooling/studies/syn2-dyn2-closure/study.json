@@ -1,0 +1,71 @@
+{
+  "$schema": "w-syn2-dyn2-closure-study-1",
+  "status": "design-oracle-input",
+  "id": "SYN2-DYN2",
+  "gates": ["SYN0-R1", "DYN0-G1"],
+  "title": "Typed generated module sets and bounded versioned behavior closure",
+  "question": "Which generated-module and versioned-behavior boundaries can be current design contracts without syntax, live-state migration, or production dynamic mode?",
+  "languageSurface": "none",
+  "profileSurface": "absent",
+  "productionDynamicMode": "rejected",
+  "buildsOn": [
+    {"id": "SYN1", "role": "evidence-input", "path": "../syn1-typed-generation/study.json", "digest": "sha256:3a73812025eed42a65d5eb7b9819c0c17e2972e520724791767b043b7cc59cce", "claim": "typed generation, content-addressed module sets, normal-unit reopen, target/source-map evidence"},
+    {"id": "DYN1", "role": "evidence-input", "path": "../dyn1-versioned-behavior/study.json", "digest": "sha256:831673655968ca41a2e5d4ff12416a89011bb7928a8a5a504cd4a62cf696e539", "claim": "versioned behavior, receipts, cleanup, and rejected dynamic mechanisms"},
+    {"id": "HRD0", "role": "evidence-input", "path": "../hrd0-hot-reload-dev/study.json", "digest": "sha256:43ffc748850fb89c418341847ecc9862fac5c9afb881342fb5160557374bad86", "claim": "development-only runner, local/split cleanup, and mutation boundary"}
+  ],
+  "artifacts": {
+    "corpus": {"path": "../../syn2-dyn2-closure-cases.json", "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84"},
+    "machine": {"path": "../../syn2-dyn2-closure-machine.mjs", "digest": "sha256:d0af8a4a7dcc3a391c772cde48352b00fa9281c49a83838404a621a5c46f2c9e"},
+    "checker": {"path": "../../check-syn2-dyn2-closure.mjs", "digest": "sha256:e89b2388ce78add60ea04f153655c3084664469fc4a0625fec7e6d0053981850"},
+    "nestedChecker": {"path": "check.mjs", "digest": "sha256:9b6ef3f6967a7ed72fd104784b4aeff80d7be15dc9482e51768c3d1bed7a4687"},
+    "snapshot": {"path": "../../syn2-dyn2-closure-results.snapshot.jsonl", "digest": "sha256:a26f68f018316c7bc497736de21a959872c88e622c9d5529c8ac58b6920e0acc"},
+    "studyOracle": {"path": "oracle.test.mjs", "digest": "sha256:2f66c1c2c6891c4c4209e127358c0b00d5aed82d5156ab4ab4db84021169a611"},
+    "bundle": {"path": "bundle.json", "digest": "sha256:9aab6723114e7d621e1ba406e0885b0f85901b5615e8bd92296679110022078d"}
+  },
+  "sourceRefs": [
+    {"path": "reference/last-light/packages/menu-compiler/transform.w", "symbol": "maximumBytes", "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744", "role": "bounded-transform"},
+    {"path": "reference/last-light/repl_session_oracle.w", "symbol": "GenerationReceipt", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "role": "generation-identity"},
+    {"path": "reference/last-light/hot_reload_dev_contract.w", "symbol": "ReloadResult", "digest": "sha256:df68bb6bc675cae9e7a541cdbb17bc8ef84ddabdcc228c87c2f50eeb2bf7127e", "role": "event-outcome-contract"},
+    {"path": "reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40", "role": "WAbi-callback-boundary"},
+    {"path": "reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "role": "cleanup-drain"},
+    {"path": "reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc", "role": "package-identity"}
+  ],
+  "officialRefs": [
+    {"url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf", "role": "C-lifetime-translation"},
+    {"url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/dlopen.html", "role": "POSIX-load"},
+    {"url": "https://pubs.opengroup.org/onlinepubs/9699919799.orig/functions/dlclose.html", "role": "POSIX-close"},
+    {"url": "https://doc.rust-lang.org/reference/types/trait-object.html", "role": "Rust-interface"},
+    {"url": "https://doc.rust-lang.org/std/any/struct.TypeId.html", "role": "Rust-identity"},
+    {"url": "https://doc.rust-lang.org/stable/cargo/reference/build-scripts.html", "role": "Rust-build"},
+    {"url": "https://docs.python.org/3/library/importlib.html", "role": "Python-import"},
+    {"url": "https://docs.python.org/3/library/inspect.html", "role": "Python-inspection"},
+    {"url": "https://docs.python.org/3/library/functions.html#eval", "role": "Python-eval-reject"}
+  ],
+  "independentReducers": [
+    {"id": "DYN1", "role": "validated-independent-reducer", "machine": {"path": "../../dyn1-versioned-behavior-machine.mjs", "digest": "sha256:4c2b918e89e5f87f61e43aa3ccf638f5b0b83d56152b2ed64d0bb6229dfd5fd4"}, "snapshot": {"path": "../../dyn1-versioned-behavior-results.snapshot.jsonl", "digest": "sha256:62ab8c4f8c0b0970fb794c4e5900b09eff3a1f4fe92cdc111e99f77ccbe30bd7"}, "checker": {"path": "../../check-dyn1-versioned-behavior.mjs", "digest": "sha256:2ab6b2a80376482260be663c7247f17e62d8ecce80bcbda59c7a9de8bb994cb1"}},
+    {"id": "HRD0", "role": "validated-independent-reducer", "machine": {"path": "../../hot-reload-dev-machine.mjs", "digest": "sha256:4e4ec9b8932bec90a0cbe67a2cccf51bdc7aedacffdc9e21e19adb00bb1bc841"}, "snapshot": {"path": "../../hot-reload-dev-results.snapshot.jsonl", "digest": "sha256:a433ba7517c34f3385ad18970faa96070db5dd33428fa4ec221f8f9304fed6f6"}, "checker": {"path": "../../check-hot-reload-dev.mjs", "digest": "sha256:ad9b6736e719bb64b37f12cf5689e1093abaed522bb1a4e86bc54d122c1d8cfe"}}
+  ],
+  "implementationGapMap": {
+    "SYN2": ["W-1362", "W-1366", "W-1367", "W-1368", "W-1369", "W-1371", "W-1372", "W-1374", "W-1376", "W-1377", "W-1378", "W-1379"],
+    "DYN2": ["W-1358", "W-1392", "W-1393", "W-1394", "W-1395", "W-1396", "W-1397"]
+  },
+  "route": {
+    "syn2": {"a": "current-composable", "b": "current-composable", "c": "promoted-design-contract", "c2": "intentionally-rejected", "d": "intentionally-rejected"},
+    "dyn2": {"a": "current-composable", "b": "current-composable", "c": "promoted-bounded-read-only-contract", "d": "intentionally-rejected"}
+  },
+  "generationReference": {
+    "fields": ["generationId", "artifactDigest", "recipeDigest", "semanticInterfaceKey", "schemaDigest", "targetReceipt", "resolveReceipt", "migrationReceipt"],
+    "targetReceipt": "exact-target-WAbi-runtime-closure",
+    "migration": "resolve-rebind-identity-schema-only",
+    "authority": "none",
+    "convertToServiceRef": false,
+    "forbidden": ["heap", "task", "loan", "frame", "capability", "ServiceRef", "callback", "providerHandle"]
+  },
+  "metrics": {"caseCount": 17, "currentContractCount": 12, "rejectedCount": 5, "implementationBoundaryCount": 1, "mutationCount": 5, "integrityMutationCount": 10, "axes": {"SYN2": 10, "DYN2": 7}},
+  "evidence": {
+    "current": ["source-ref", "official-primary", "host-oracle", "independent-reducer-reuse", "manifest-digest-chain", "mutation-checker", "snapshot", "tree-sitter-parse"],
+    "missing": ["w-compile", "w-run", "compiler-semantic-phases", "target-compiler-provider", "runtime", "provider", "oom-fault-receipts", "ffi-execution", "isolation", "stress", "human-study", "model-study"]
+  },
+  "recommendation": "Promote the narrow SYN2 C generated-module-set and DYN2 A/B/dev-only typed route as current design/tooling contracts. Promote GenerationReference only as bounded read-only identity plus resolve/migration receipt; it carries no authority and does not convert to PersistentRef<P> or ServiceRef. Reject C2, D, live-state migration, eval/exec, frame mutation, ambient lookup, native sandbox, live dlclose callback, and production arbitrary hot reload. Do not claim implementation.",
+  "stopCondition": "Stop on identity, authority, caller-echo, manifest, source-map, ABI, package, quota, cancellation, cleanup, OOM, fault, stale-generation, live-state, provider-ready, digest-chain, or reducer-divergence mutation. Reopen only with a bounded case, exact source and reused-study digests, independent evidence, and reviewed decision."
+}

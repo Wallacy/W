@@ -7306,10 +7306,14 @@ e usa stored instance fields em declaration order. O carrier, schema identity e 
 estão fechados em [14.4.1](#1441-carrier-tabular). Ela não amplia synthesis
 genérica nem cria codecs ou schemas de boundary.
 
-Introdução de declarations por um transform permanece **Research**. O estudo
-problem-first [`SYN1`](tooling/studies/syn1-typed-generation/README.md) compara
-o artifact de dados atual com um generated module separado, C2 recipe/IR e
-mutation dinâmica; ele não altera este contrato.
+Introdução de declarations por um transform usa somente o contrato estreito de
+module set separado fechado por [`SYN2/DYN2`](tooling/studies/syn2-dyn2-closure/README.md).
+O transform pode publicar source units `.w` content-addressed, com provenance e
+source map, desde que cada unit seja reaberta pelo frontend normal antes de
+freeze. C2 recipe/IR, injection no módulo corrente e mutation dinâmica não são
+formas alternativas deste contrato; permanecem rejeitados. A ausência de
+compiler, runtime ou provider não reabre a decisão semântica: ela é uma lacuna
+de evidência de implementação registrada em [§24.4.1](#2441-syn2dyn2-fechamento-e-fronteira-de-implementação).
 
 #### 8.9.5 Parâmetros rest homogêneos
 
@@ -26378,6 +26382,43 @@ provenance de input e output.
 budgets, capabilities, cache key e consumers. `w run tool` não concede mais
 authority que a action.
 
+##### 21.2.4.1 Output `generated-module-set`
+
+Um transform W0 pode selecionar o output fechado `generated-module-set`. Esse
+output contém um DAG de source units `.w` content-addressed, provenance,
+source-map com spans de bytes em source UTF-8 e um descriptor de consumer. A
+action recipe key inclui
+tool, profile, platform, typed inputs, dependency receipts, output descriptor,
+graph, target/ABI receipts, capabilities, quotas e version; ela não inclui o
+digest do resultado. A action-result/CAS publication é distinta da publicação
+da interface candidata e de qualquer compiler cache.
+
+O host reabre cada source unit como uma unidade normal. Antes de publicar uma
+interface, a unidade passa parse, name, type, ownership, effect e `ConstIR`,
+seguida de interface diff, freeze e consumer resolution. Uma projection
+target-neutral compartilha `SemanticInterfaceKey`, diagnostics e action
+identity; uma projection target-specific acrescenta registry digest, revision
+e `WAbiKey` próprios. Artifact, recipe, source map, documentation, package e
+runtime closure não são misturados na mesma identidade.
+
+O profile é hermético e bounded: inputs são read-only, network/clock/random/
+environment e authority ambient são negados, e limites de bytes, graph,
+receipts, maps, diagnostics e output entram no preflight. Parse, receipt ou
+map failure depois do action result preserva esse result, mas não publica
+interface ou compiler cache. Error, cancellation, quota ou OOM antes do result
+descarta staging com a bookkeeping sequence do host cleanup → drain → discard
+exatamente uma vez. Panic cruza a fault boundary: não garante `defer`, `deinit`
+ou outro código de usuário; o host libera somente os recursos registrados nessa
+boundary, conforme [§11.6](#116-cleanup). Isso não promete cleanup de usuário
+nem rollback de efeitos externos. Success não cria cleanup artificial. Um
+source-map só produz fix com SourceId, digest, span de bytes editável em source
+UTF-8 e uma mapping única que cobre o generated span.
+
+Nenhum output deste tipo injeta declarations no módulo corrente, splices HIR,
+introduz imports ocultos ou usa recipe/IR para duplicar o frontend. O contrato
+é de design; compiler, target compiler/provider, runtime e build provider são
+gates de implementação.
+
 Esse contrato segue o princípio de hermeticidade do
 [Bazel](https://bazel.build/concepts/hermeticity): toolchains e inputs fazem
 parte do grafo, e influência externa precisa ser eliminada ou declarada. W usa
@@ -29044,6 +29085,45 @@ ambiental ou persistência implícita.
 tasks, loans, handles ou capabilities. `:receipts <path>` exporta somente
 source/digests/receipts/provenance bounded e redacted para audit ou notebook.
 
+##### 24.1.3.1 Runner versionado de desenvolvimento
+
+Um runner de desenvolvimento pode preparar uma nova generation a partir de
+units W normais. Ele usa `prepare → validate → preflight → ready → switch` e
+não cria syntax, profile de source/package ou modo dinâmico de release. A e B
+são as rotas correntes: snapshot de REPL e service/plugin tipado atravessam
+interfaces, schema, `WAbiKey`, runtime closure, capabilities, effects,
+artifact, package e source map explícitos. A projection local e a split devem
+ter o mesmo resultado lógico; o trace físico pode divergir.
+
+O runner usa o schema de tooling/artifact chamado `GenerationReference`: um
+record bounded, read-only, com exatamente estes oito fields:
+`generationId`, `artifactDigest`, `recipeDigest`,
+`semanticInterfaceKey`, `schemaDigest`, `targetReceipt`, `resolveReceipt` e
+`migrationReceipt`. `targetReceipt` pode conter facts de WAbi e runtime closure
+quando a route exige target exact; não há fields opcionais fora desse schema.
+Resolve e migration receipts somente re-resolvem ou rebindam identity/schema;
+eles nunca migram live state. Field extra, ausente, duplicado ou repetido
+rejeita. O record não contém heap, task, loan, frame, capability, `ServiceRef`,
+callback ou provider handle; não carrega authority e não converte para
+`ServiceRef`. Export/import reabre, parseia, checa e resolve receipts; não
+restaura live state. Este schema é somente de tooling/artifact: não cria
+spelling de source nem API nominal de W. Isto não é o futuro `PersistentRef<P>`
+de §23.1.6, que
+continua sendo uma capability durable resolvida pelo provider.
+
+Antes de `switch`, falha preserva a generation antiga. Rollback exige receipt
+de provider pré-publicação. Depois de `switch`, a admissão antiga fecha. O
+cleanup lógico segue cancel, drain, unregister, in-flight drain, destroy e
+release. `unpin` entra somente quando facts declaram pin/FFI. `unmap` entra
+somente para mapping de process/Wasm/component depois de views e callbacks
+serem drenados; native exact-WAbi retém mapping até fechar a runtime island.
+Falha de drain pós-switch é `degraded`, nunca rollback. Completion ou
+capability stale é rejeitada.
+
+Eval/exec, monkey patch, write em active frame/debugger, lookup ambient,
+native dynamic library como sandbox, `dlclose` com callback vivo e hot reload
+arbitrário em produção são rejeitados. A invocação CLI permanece tooling-owned.
+
 A reservation do receipt ocorre antes de effects. Output reserva budget e
 registra `deliveredBytes`, `truncated` ou `dropped`; falha nunca é mascarada
 como rollback.
@@ -29485,6 +29565,37 @@ evidência de design:
 | packages e releases | P0 fecha resolver, lock, CAS, recipe, mirror e rebuild | fechar prerelease, trust, archive safety e rebuild independente |
 | bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
 | ergonomia comparativa | R0/R0S/R1 guardam substituições e variantes observáveis | ratificar formas que ainda mudam source ou registrar waiver motivado |
+
+#### 24.4.1 SYN2/DYN2 fechamento e fronteira de implementação
+
+SYN2/DYN2 fecha a pergunta semântica dos oito gates W-1360, W-1363, W-1370,
+W-1373, W-1375, W-1380, W-1398 e W-1399. A decisão current é um contrato de
+design/oracle, não uma alegação de implementação:
+
+| Família | Contrato corrente | Rejeitado | Lacuna de implementação |
+|---|---|---|---|
+| SYN2 A/B | composição atual e transform typed hermético bounded | authority ambient | compiler/type/runtime/provider real |
+| SYN2 C | module set `.w` content-addressed, reopen normal, semantic phases, identities e receipts separados | C2 recipe/IR, HIR splice e current-module injection | CAS/build, compiler frontend, target compiler/provider, run, OOM/fault receipts |
+| SYN2 events/manifest | route, status, events, refs, roles, target registry e allowlists derivados | expected echo, forged provider-ready, refs/roles duplicados | checker/compiler/provider integration |
+| DYN2 A/B | REPL snapshot, typed service/plugin, local/split logical equivalence e runner dev-only | production dynamic mode | compiler/runtime/std-provider, isolation, stress, FFI receipts |
+| DYN2 C | `GenerationReference` read-only, bounded e resolvível por receipt; sem authority e sem conversão para `ServiceRef` | heap/task/loan/frame/capability/`ServiceRef`/provider handle migration | migration/resolve provider e restart/deploy evidence |
+| DYN2 D | nenhuma forma de eval/exec ou live mutation | eval/exec, monkey patch, active-frame write, ambient lookup, native sandbox, live `dlclose` | não é uma lacuna para reabrir a linguagem |
+
+O corpus [`SYN2-DYN2`](tooling/studies/syn2-dyn2-closure) reutiliza os oracles
+SYN1, DYN1 e HRD0 e prova somente fronteiras de classificação, identidade,
+authority, ownership, effects, cancellation, cleanup, quota/OOM, fault,
+source-map, ABI, package, capability, stale generation e persistent-reference
+fields. O resultado deve ser derivado de facts e eventos; caller não fornece
+`route`, `status`, `expected`, `published`, `drained` ou selector de failure.
+A máquina SYN2/DYN2 reutiliza reducers locais/split independentes já validados e
+digest-pinned de DYN1/HRD0; ela não alega possuir dois reducers próprios. Os
+reducers reutilizados devem concordar no resultado lógico.
+
+Os gaps de compiler, runtime, provider, target, OOM/fault, FFI, isolamento,
+stress e estudos humano/modelo permanecem explícitos como implementation-
+evidence gaps. Nenhum host parser, registry fixture, snapshot, manifest ou
+receipt de design é execução W. O design só reabre depois de um caso Last Light
+bounded independente, digest novo, oracle fault-aware e revisão Sol.
 
 M1/A0/E0/E1/LM1/SP0/LZ0/CTX0/KM0/DEV0 fecham ownership, allocation, closure,
 synchronization, reclamation e device synthesis/launch no nível de design.

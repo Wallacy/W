@@ -1261,7 +1261,7 @@
       },
       "route": {
         "classification": "composable",
-        "rationale": "Compiler-owned synthesis and hermetic transforms solve typed artifact derivation; a separate generated-module declaration artifact remains a research subcapability."
+        "rationale": "Compiler-owned synthesis, hermetic transforms, and the bounded SYN2 content-addressed generated module-set solve the typed artifact derivation design problem; compiler, runtime, provider, target, and separate-compilation receipts remain implementation evidence gaps."
       },
       "intentionalTradeoff": {
         "choice": "Prefer typed records and compiler-owned synthesis over a universal macro language.",
@@ -1330,7 +1330,7 @@
         },
         "userDefinableInDesign": {
           "status": "yes",
-          "rationale": "A package author can define a hermetic typed transform within this same-problem route; separate generated-module declarations remain a bounded Research extension."
+          "rationale": "A package author can define a hermetic typed transform or request a bounded content-addressed generated module-set within this same-problem route; no source spelling or in-process module injection is added."
         }
       },
       "capabilityLevelsBasis": "sameProblem",
@@ -1343,7 +1343,9 @@
           "syn1-tree-sitter-generated-w-parse",
           "syn1-target-projections",
           "syn1-official-primary-refs",
-          "syn1-target-registry-host"
+          "syn1-target-registry-host",
+          "syn2-dyn2-closure",
+          "syn2-dyn2-host-oracle"
         ],
         "missing": [
           "w-compile",
@@ -1365,9 +1367,8 @@
       },
       "nextStudyGate": {
         "gateId": "SYN0-R1",
-        "kind": "design",
-        "forSubcapability": "SYN0-generated-module-declaration",
-        "question": "Can a W0 build transform publish a separate generated module source unit that preserves provenance, interface digests, effects, and deterministic artifacts before interface freeze?",
+        "kind": "evidence",
+        "question": "What compiler, runtime, provider, target, and separate-compilation receipts are still required for the bounded SYN2 generated module-set contract?",
         "requiredEvidence": [
           "phase ordering",
           "generated interface diff",
@@ -1376,7 +1377,7 @@
           "editable source-map provenance",
           "action/result identity separation"
         ],
-        "stopCondition": "Keep closed synthesis and the typed data-artifact transform if a candidate needs in-process injection, ambient authority, or unstable generated identity.",
+        "stopCondition": "Keep the bounded SYN2 generated module-set design and record compiler, runtime, provider, target, separate-compilation, OOM, and fault receipts as implementation-evidence gaps; reopen design only if the contract needs syntax, HIR splice, current-module injection, ambient authority, or unstable identity.",
         "studyRefs": [
           {
             "path": "tooling/studies/syn1-typed-generation/README.md",
@@ -1392,6 +1393,16 @@
             "path": "tooling/syn1-typed-generation-machine.mjs",
             "digest": "sha256:28e1dacdd443659863267e2e2cb79dd281712d314bc54b687ef9a3e660e1cf8c",
             "claim": "SYN1 host machine for W parsing and bounded source shape; semantic phase trace, interface publication, compiler cache, and provider remain candidate or missing evidence."
+          },
+          {
+            "path": "tooling/studies/syn2-dyn2-closure/README.md",
+            "digest": "sha256:32f3fda30a499f01262d7517337ef4c77ad8ccf3fe465cc0706b6678f485e137",
+            "claim": "SYN2/DYN2 closure promotes the bounded generated module-set design and records implementation-evidence gaps."
+          },
+          {
+            "path": "tooling/syn2-dyn2-closure-cases.json",
+            "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84",
+            "claim": "SYN2/DYN2 exact 17-case corpus binds current, rejected, and implementation-boundary decisions."
           }
         ]
       },
@@ -1483,10 +1494,9 @@
             "id": "SYN0-generated-module-declaration",
             "scope": "extension",
             "role": "extension",
-            "classification": "research",
-            "gateId": "SYN0-R1",
+            "classification": "current",
             "problem": "package author introduces typed declarations through a separate generated module with diagnostics and interface identity",
-            "description": "A generated module source unit needs separate action-result/interface publication, bounded source profile, provenance/navigation, graph/target receipts, and semantic compiler evidence before interface freeze."
+            "description": "SYN2 fixes the current design contract for a bounded content-addressed generated module-set source artifact with separate action-result/interface publication, provenance/source-map, graph/target receipts, and semantic phases before interface freeze; compiler/runtime/provider evidence remains an implementation gap."
           }
         ]
       }
@@ -2789,7 +2799,7 @@
       },
       "route": {
         "classification": "composable",
-        "rationale": "The common problem has typed generation routes. The rejected eval mechanism is recorded separately."
+        "rationale": "The common problem has typed generation routes, and DYN2 closes the bounded read-only generation identity record without a new source API. The rejected eval mechanism is recorded separately; provider, runtime, isolation, stress, OOM/FFI, and implementation receipts remain gaps."
       },
       "intentionalTradeoff": {
         "choice": "Reject arbitrary eval and monkey patching in the language core.",
@@ -2867,7 +2877,10 @@
           "source-w",
           "host-oracle",
           "design-ledger",
-          "dyn1-design-oracle"
+          "dyn1-design-oracle",
+          "dyn2-closure",
+          "dyn2-host-oracle",
+          "hrd0-design-oracle"
         ],
         "missing": [
           "w-compile",
@@ -2886,14 +2899,14 @@
       "nextStudyGate": {
         "gateId": "DYN0-G1",
         "kind": "evidence",
-        "question": "Can typed plugin, service generation, and REPL export cover hot-update use cases without active-code mutation?",
+        "question": "What compiler, runtime, provider, isolation, stress, OOM/FFI, and implementation receipts remain after the DYN2 typed-generation and read-only identity closure?",
         "requiredEvidence": [
           "generation compatibility matrix",
           "drain and rollback trace",
           "capability audit",
           "artifact export test"
         ],
-        "stopCondition": "Do not reopen eval if a typed generation route meets the operational requirement.",
+        "stopCondition": "Keep A/B and the bounded read-only GenerationReference design, and do not reopen eval or active-frame mutation; record missing compiler, runtime, provider, isolation, stress, OOM/FFI, and implementation receipts as evidence gaps.",
         "studyRefs": [
           {
             "path": "tooling/studies/dyn1-versioned-behavior/README.md",
@@ -2929,6 +2942,16 @@
             "path": "tooling/dyn1-versioned-behavior-results.snapshot.jsonl",
             "digest": "sha256:62ab8c4f8c0b0970fb794c4e5900b09eff3a1f4fe92cdc111e99f77ccbe30bd7",
             "claim": "DYN1 derived design-oracle result snapshot"
+          },
+          {
+            "path": "tooling/studies/syn2-dyn2-closure/README.md",
+            "digest": "sha256:32f3fda30a499f01262d7517337ef4c77ad8ccf3fe465cc0706b6678f485e137",
+            "claim": "DYN2 closes typed A/B routes and the bounded read-only GenerationReference design while preserving implementation gaps."
+          },
+          {
+            "path": "tooling/syn2-dyn2-closure-cases.json",
+            "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84",
+            "claim": "DYN2 exact cases bind generation identity, cleanup/fault, and rejected dynamic boundaries."
           }
         ]
       },

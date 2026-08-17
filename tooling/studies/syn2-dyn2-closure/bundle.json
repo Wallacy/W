@@ -1,0 +1,42 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-syn2-dyn2-closure",
+  "title": "Typed generated module sets and bounded versioned behavior closure",
+  "entry": "SYN2-DYN2",
+  "r0Cases": ["R0-module-run-context", "R0-module-run-capability-admission", "R0-python-transform"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/packages/menu-compiler/transform.w",
+    "symbol": "maximumBytes",
+    "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744"
+  },
+  "sourceRefs": [
+    {"path": "../../../reference/last-light/packages/menu-compiler/transform.w", "symbol": "transform", "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744"},
+    {"path": "../../../reference/last-light/repl_session_oracle.w", "symbol": "GenerationReceipt", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461"},
+    {"path": "../../../reference/last-light/hot_reload_dev_contract.w", "symbol": "ReloadResult", "digest": "sha256:df68bb6bc675cae9e7a541cdbb17bc8ef84ddabdcc228c87c2f50eeb2bf7127e"},
+    {"path": "../../../reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40"},
+    {"path": "../../../reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b"},
+    {"path": "../../../reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc"}
+  ],
+  "variants": [
+    {"id": "syn2-module-set", "role": "selected", "disposition": "promoted-design-contract", "language": "w", "path": "syn2-module-set.w", "digest": "sha256:157860ade08eddc5e0ba9a5422b1f09fbbd545108b353376f04703c3dcbeccc6", "changedConstructs": ["content-addressed module set", "normal-unit reopen", "semantic phase order", "separate interface/result identities"], "parseEvidence": {"status": "tree-sitter-parse", "note": "Source-shaped design fixture; parser evidence is host-only."}},
+    {"id": "dyn2-local", "role": "alternative", "disposition": "current-composable", "language": "w", "path": "dyn2-local.w", "digest": "sha256:a27188674ed50b731beaf1e636d7c7145101e00a2755c0cad45c4f4e7db2584d", "changedConstructs": ["typed service generation", "local projection", "logical outcome identity"], "parseEvidence": {"status": "tree-sitter-parse", "note": "Local projection fixture; no runtime claim."}},
+    {"id": "dyn2-split", "role": "alternative", "disposition": "current-composable", "language": "w", "path": "dyn2-split.w", "digest": "sha256:80e97a88bfaadd682df7140b39c8f9a863756ec616164ad085e926cd6102ab79", "changedConstructs": ["typed service generation", "split projection", "physical trace may differ"], "parseEvidence": {"status": "tree-sitter-parse", "note": "Split projection fixture; no runtime claim."}},
+    {"id": "generation-reference", "role": "alternative", "disposition": "promoted-bounded-read-only-contract", "language": "w", "path": "generation-reference.w", "digest": "sha256:f36cf70a35d98829f97431afe5fe036a6345385c13ef7a9e0db4db61aa6adcbe", "changedConstructs": ["exact identity field set", "read-only resolve receipt", "no authority", "no live state"], "parseEvidence": {"status": "tree-sitter-parse", "note": "Generation identity fixture; provider migration is not implemented."}},
+    {"id": "rejected-dynamic", "role": "rejected-witness", "disposition": "intentionally-rejected", "language": "w-reserved", "path": "rejected-dynamic.txt", "digest": "sha256:e59ae6e456a494c2c20a58604a41f7022a63aba6a533be25faa689017432da50", "changedConstructs": ["eval/exec", "active-frame write", "live-state migration", "live callback unload"], "parseEvidence": {"status": "reserved-not-parsed", "note": "Reserved rejected mechanisms."}}
+  ],
+  "inputs": [
+    {"id": "typed-module-set", "scenario": "bounded-transform-reopen-interface-freeze", "expected": {"axis": "SYN2", "route": "current-composition"}},
+    {"id": "versioned-behavior", "scenario": "dev-only-switch-read-only-reference-and-reject-D", "expected": {"axis": "DYN2", "route": "current-composition"}}
+  ],
+  "tasks": [
+    {"kind": "explain", "instruction": "Explain the separate action-result, CAS, interface, recipe, source-map, ABI, package, and runtime-closure identities."},
+    {"kind": "recall", "instruction": "After a bounded delay, reconstruct reopen, semantic phases, target receipts, switch, resource-derived cleanup, and the exact GenerationReference fields.", "minimumDelaySeconds": 1},
+    {"kind": "repair", "instruction": "Repair a caller-echo, stale digest, identity collapse, unneeded physical cleanup step, or live-state migration without changing the problem route.", "mutations": {"syn2-module-set": "Keep W0 bounds, normal-unit reopen, semantic phase order, and separate publication identities.", "dyn2-local": "Keep logical result identity and resource-derived cleanup.", "dyn2-split": "Keep local/split logical equivalence while allowing physical trace differences.", "generation-reference": "Keep exactly eight data-only fields, no authority, and receipt-only migration/resolve.", "rejected-dynamic": "Keep eval/exec, frame mutation, live migration, and live callback unload rejected."}},
+    {"kind": "change", "instruction": "Add one target receipt or provider fault while preserving authority, identity, quota, source-map, ABI, package, cancellation, and fault-boundary invariants."}
+  ],
+  "presentationOrders": [["syn2-module-set", "dyn2-local", "dyn2-split", "generation-reference", "rejected-dynamic"], ["rejected-dynamic", "generation-reference", "dyn2-split", "dyn2-local", "syn2-module-set"]],
+  "blinding": {"participantLabels": {"syn2-module-set": "A", "dyn2-local": "B", "dyn2-split": "C", "generation-reference": "D", "rejected-dynamic": "E"}, "hide": ["id", "role", "path", "changedConstructs"]},
+  "oracle": {"path": "oracle.test.mjs", "digest": "sha256:2f66c1c2c6891c4c4209e127358c0b00d5aed82d5156ab4ab4db84021169a611"},
+  "evidence": {"current": ["tree-sitter-parse", "host-oracle", "source-ref", "official-primary", "event-reducer", "mutation-checker", "snapshot", "reused-independent-reducers"], "missing": ["w-compile", "w-run", "compiler-semantic-phases", "target-compiler-provider", "runtime", "provider", "oom-fault-receipts", "ffi-execution", "isolation", "stress", "human-study", "model-study"]}
+}
