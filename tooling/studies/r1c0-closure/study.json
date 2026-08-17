@@ -1,0 +1,25 @@
+{
+  "$schema": "w-r1c0-closure-study-1",
+  "status": "design-oracle-input",
+  "id": "R1C0",
+  "title": "Comparative ergonomics closure with bounded WLO1 fallback",
+  "question": "Which R1 ergonomics gates can close as current/rejected without inventing human, model, compiler, runtime, or provider results?",
+  "manifest": {"path": "manifest.json"},
+  "corpus": {"path": "../../r1c0-closure-cases.json", "digest": "sha256:3c8ee47ee226e29f2fbc1e4dfe157998577dde42927626029381f3e0ba71f5e4"},
+  "wlo1": {"path": "wlo1-manifest.json", "digest": "sha256:55ef0d6df77a587ac193debaf4c4183b24b68082f2b0230070c6b3b5c0cdced5"},
+  "artifacts": {
+    "bundle": {"path": "bundle.json", "digest": "sha256:5bf7dabc80cb95285e837145be7c196db35ba232520673c17ab468be15790b5b"},
+    "oracle": {"path": "oracle.test.mjs", "digest": "sha256:ec9e830a4720c198ec9ab7d8e717007b574c47d2f678ab5f07046201758bc383"},
+    "checker": {"path": "../../check-r1c0-closure.mjs", "digest": "sha256:f86d02ec543edac376ddcfcc70b0bb3ea89adba9c0e367330e625eea9853c29a"},
+    "snapshot": {"path": "../../r1c0-closure-results.snapshot.jsonl", "digest": "sha256:bdf57114c646fdb9e4e3ebf28c39c900b047cbb1faca0e6a952396aea9da06ee"},
+    "wloChecker": {"path": "../../check-wlo1-closure.mjs", "digest": "sha256:560b56402dd043d2463065911a667fa4412bcd6645ee3c40b8287085dad2ff60"},
+    "wloSnapshot": {"path": "../../wlo1-closure-results.snapshot.jsonl", "digest": "sha256:034231169c580ad973437683ad278a4f57826fdf6615960e277a92511c2354a7"}
+  },
+  "scopes": ["R1-broad", "R1E0", "R1H0", "R1S1"],
+  "evidence": {
+    "current": ["source-ref", "bundle-digests", "host-oracle", "scope-derived-metrics", "target-receipts", "negative-mutations"],
+    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
+    "claims": "Host design-oracle closure only; no implementation or preference result."
+  },
+  "stopCondition": "Stop at any stale input, digest, scope, case, error, gap, authority, target, or evidence-boundary mutation; wait for Sol review before canonical recascade."
+}

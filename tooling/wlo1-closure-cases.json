@@ -1,0 +1,145 @@
+{
+  "$schema": "w-wlo1-closure-case-corpus-1",
+  "status": "design-oracle-input",
+  "id": "WLO1",
+  "question": "Can one explicitly profiled bounded data-only WLO value round-trip without making String or an editor tree a representation authority?",
+  "source": {
+    "path": "reference/last-light/formatting.w",
+    "symbol": "oneLine",
+    "inputUtf8": "Last Light",
+    "resultUtf8": "Last Light"
+  },
+  "codec": {
+    "profileFamily": "schema-profiled-data-codec",
+    "encoding": "deterministic-cbor",
+    "rfc": "8949",
+    "majorType": 3,
+    "canonicalBytes": "6a4c617374204c69676874",
+    "schemaId": "wlo.string.v1",
+    "version": 1,
+    "automaticUniversalEncoding": false,
+    "wAbiImpact": "none",
+    "targetWAbiIndependent": true
+  },
+  "limits": {
+    "maxEncodedBytes": 64,
+    "maxStringBytes": 64,
+    "maxDepth": 1,
+    "maxFields": 0
+  },
+  "targets": [
+    {
+      "id": "portable",
+      "targetId": "wlo-portable",
+      "layoutReceipt": "logical-bytes-only",
+      "interopSchemaReceipt": "WLO-String-v1-data-only",
+      "wAbiImpact": "none",
+      "targetWAbiIndependent": true,
+      "packageReceipt": "wlo-tooling@1"
+    },
+    {
+      "id": "native",
+      "targetId": "wlo-native",
+      "layoutReceipt": "contiguous-host-storage-is-not-authority",
+      "interopSchemaReceipt": "WLO-String-v1-data-only",
+      "wAbiImpact": "none",
+      "targetWAbiIndependent": true,
+      "packageReceipt": "wlo-tooling@1"
+    }
+  ],
+  "cases": [
+    {
+      "id": "WLO1-POS-canonical-string",
+      "kind": "roundtrip",
+      "decisions": ["W-092"],
+      "inputUtf8": "Last Light",
+      "targets": ["portable", "native"]
+    },
+    {
+      "id": "WLO1-POS-target-parity",
+      "kind": "target-parity",
+      "inputUtf8": "Last Light",
+      "targets": ["portable", "native"]
+    },
+    {
+      "id": "WLO1-POS-empty-bounded",
+      "kind": "roundtrip",
+      "inputUtf8": "",
+      "targets": ["portable", "native"]
+    },
+    {
+      "id": "WLO1-NEG-invalid-major-type",
+      "kind": "decode",
+      "bytesHex": "00",
+      "expectedError": "invalidMajorType"
+    },
+    {
+      "id": "WLO1-NEG-version-mismatch",
+      "kind": "profile-receipt",
+      "version": 2,
+      "schemaId": "wlo.string.v1",
+      "expectedError": "versionMismatch"
+    },
+    {
+      "id": "WLO1-NEG-schema-mismatch",
+      "kind": "profile-receipt",
+      "version": 1,
+      "schemaId": "wlo.tree.v1",
+      "expectedError": "schemaMismatch"
+    },
+    {
+      "id": "WLO1-NEG-field-order-duplicate",
+      "kind": "profile-receipt-fields",
+      "fields": ["schemaId", "version", "schemaId"],
+      "expectedError": "duplicateField"
+    },
+    {
+      "id": "WLO1-NEG-profile-unknown-field",
+      "kind": "profile-receipt-fields",
+      "fields": ["schemaId", "version", "unknown"],
+      "expectedError": "unknownField"
+    },
+    {
+      "id": "WLO1-NEG-invalid-utf8",
+      "kind": "decode",
+      "bytesHex": "63c32800",
+      "expectedError": "invalidUtf8"
+    },
+    {
+      "id": "WLO1-NEG-noncanonical-length",
+      "kind": "decode",
+      "bytesHex": "780a4c617374204c69676874",
+      "expectedError": "nonCanonicalLength"
+    },
+    {
+      "id": "WLO1-NEG-trailing-bytes",
+      "kind": "decode",
+      "bytesHex": "6a4c617374204c6967687400",
+      "expectedError": "trailingBytes"
+    },
+    {
+      "id": "WLO1-NEG-limit-oom-preflight",
+      "kind": "decode",
+      "bytesHex": "7affffffff",
+      "expectedError": "payloadLimit"
+    },
+    {
+      "id": "WLO1-NEG-pointer-owner-capability-drop",
+      "kind": "representation",
+      "representation": ["pointer", "owner", "capability", "drop"],
+      "expectedError": "forbiddenRepresentation"
+    },
+    {
+      "id": "WLO1-NEG-editor-tree-authority",
+      "kind": "representation",
+      "representation": ["editorTree"],
+      "expectedError": "editorTreeNotAuthority"
+    }
+  ],
+  "stopConditions": [
+    "Stop before payload allocation when encoded length, string length, depth, or field count exceeds the applicable bound.",
+    "Stop on any byte mutation that changes canonical value, strict UTF-8, schema/version, field order, or trailing-byte rule.",
+    "Stop if a target projection, package, ABI, editor tree, pointer, owner, capability, or drop fact becomes payload authority.",
+    "Reopen only with an independent codec/reducer, fresh source and case digests, and reviewed promotion decision."
+  ]
+}

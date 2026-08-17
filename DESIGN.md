@@ -28616,7 +28616,10 @@ de decode em schema order.
 wWire sem mudar `RestaurantApi`.
 
 - JSON é o primeiro oracle de interoperabilidade, debug e test vectors.
-- WLO/WLON pesquisa um formato data-only canônico para valores W.
+- WLO é uma família de codecs data-only perfilados. WLO1 fecha somente
+  `wlo.string.v1` em CBOR determinístico conforme RFC 8949; o profile receipt
+  fixa schema, version, field-set e limits fora do payload. Cada novo profile
+  exige seu próprio schema e evidência.
 - wStruct pesquisa IPC sob target, ABI, runtime closure e layout idênticos.
 - Cap'n Proto, Protobuf e FlatBuffers entram por adapters gerados de `ServiceIR`.
 
@@ -28628,8 +28631,13 @@ Um generator de adapter informa perda de semântica. Por exemplo, ele não apaga
 unit, refinement, ownership ou enum subset sem gerar validation e metadata. Uma
 bridge impossível falha no build e lista o primeiro contrato não representável.
 
-WLO precisa de grammar menor que W, canonical bytes, limits e fuzzing. Ele não
-compartilha grammar com source W. JSON e WLO não reservam keywords.
+WLO usa grammar menor que W, bytes canônicos, preflight de limits e fuzzing.
+Os bytes são codec de interoperabilidade, não W ABI: `wAbiImpact` é `none` e
+o target WAbi permanece independente no receipt externo. WLO não serializa
+pointers, owners, capabilities ou drop e não dá autoridade à árvore do editor.
+Ele não compartilha grammar com source W. JSON e WLO não reservam keywords.
+O provider/codec de produção e os receipts de compile, run, interop, limits,
+OOM, fuzz, target e package continuam a lacuna W-1441.
 
 ### 23.3 wQL e RestPC
 
@@ -28689,8 +28697,9 @@ W, mas não definem a linguagem, wRPC ou o package manager.
 lookup, edição e interoperabilidade.
 
 Tree strings continuam uma estrutura especializada para interning, índices ou
-edição. `String` público permanece UTF-8 contíguo. Codec e ABI observam o valor
-lógico, não a representação experimental.
+edição, nunca a representação default ou uma authority automática. `String`
+público permanece UTF-8 contíguo. Codec e ABI observam o valor lógico, não a
+representação experimental.
 
 ### 23.6 GPU, HDL, PGO e geração assistida
 
@@ -28717,6 +28726,13 @@ Uma pesquisa só avança quando possui:
 4. erro, cancelamento, FFI e dois targets;
 5. impacto em parser, formatter, metadata e packages;
 6. decisão registrada por diff e teste.
+
+R1C0 fecha a comparação de ergonomia somente como design-oracle host. Os
+bundles preservam source, input, resultado, digest e limites; as métricas são
+derivadas por escopo. Isso não afirma compilação, execução, provider, OOM,
+target, package ou preferência humana/modelo. A forma corrente pode ser
+reaberta apenas por contradição semântica independente ou por evidência real
+que satisfaça o gate.
 
 ### 23.8 GEN0-R1 — suspensão incremental
 
