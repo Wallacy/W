@@ -1,0 +1,114 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-gen2-stream-yield",
+  "title": "Compiler-owned pull producer ergonomics at the Last Light restaurant",
+  "r0Cases": ["R0-consuming-call", "R0-fail-fast-arbitration", "R0-cancellation-control-effect"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/streams.w",
+    "symbol": "serveOneByOne",
+    "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/streams.w",
+      "symbol": "inspectMenuLines",
+      "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
+    },
+    {
+      "path": "../../../reference/last-light/streams.w",
+      "symbol": "mixOrderStream",
+      "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
+    },
+    {
+      "path": "../../../reference/last-light/streams.w",
+      "symbol": "runBoundedOrderWindow",
+      "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
+    },
+    {
+      "path": "../../../reference/last-light/command.w",
+      "symbol": "object CommandStream",
+      "digest": "sha256:cf1615b9fc46a6e4b47f6eaec0bb70ff337de8cce534370df9733e6c4f4befea"
+    },
+    {
+      "path": "../../../reference/last-light/data_formats.w",
+      "symbol": "uploadCsv",
+      "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab"
+    },
+    {
+      "path": "../../../reference/last-light/remote_stream_oracle.w",
+      "symbol": "export const fn advanceStream",
+      "digest": "sha256:08fdfc9c61abc41bb4cd1a02b4765c8755feffe881953f36a9be554ce977568b"
+    }
+  ],
+  "fixtures": [
+    {"path": "current.w", "role": "current-composition"},
+    {"path": "yield.w", "role": "promoted-narrow-form"},
+    {"path": "rejected.txt", "role": "negative-contract-witness"}
+  ],
+  "variants": [
+    {
+      "id": "current-stream-composition",
+      "role": "alternative",
+      "disposition": "current-composable",
+      "language": "w",
+      "path": "current.w",
+      "digest": "sha256:4b820a842631fbaf63d1e789700186c312ab3ed422ca7d3c535809688de77e8e",
+      "changedConstructs": ["Stream pull adapter", "for try await", "explicit cancellation", "bounded Channel dialogue"],
+      "parseEvidence": {"status": "tree-sitter-parse", "note": "Parseable current composition witness."}
+    },
+    {
+      "id": "narrow-stream-yield",
+      "role": "selected",
+      "disposition": "current-candidate",
+      "language": "w",
+      "path": "yield.w",
+      "digest": "sha256:8002e634ac49131328704a91c0be05f13d89c6f128c3cf287af2d4a0279ad1d9",
+      "hiddenStatePolicy": "compiler-owned",
+      "changedConstructs": ["stream expression", "explicit capture list", "owned yield", "pull capacity zero", "typed failure"],
+      "parseEvidence": {"status": "tree-sitter-parse", "note": "Parseable narrow form witness; semantic compiler evidence remains missing."}
+    },
+    {
+      "id": "general-generator",
+      "role": "rejected-witness",
+      "disposition": "intentionally-rejected",
+      "language": "w-reserved",
+      "path": "rejected.txt",
+      "digest": "sha256:9ab16b39df41f120eabe55390ad0e0a27c8fb9ca6b1fd4367d1d21b771c891dc",
+      "hiddenStatePolicy": "not-public",
+      "changedConstructs": ["public frame", "send/throw/close", "yield-from", "borrowed view", "implicit buffer"],
+      "parseEvidence": {"status": "reserved-not-parsed", "note": "Textual rejection witness; no public frame or resume ABI."}
+    }
+  ],
+  "entry": "gen2Fixture",
+  "inputs": [
+    {"id": "last-light-pull", "scenario": "pull-owned-orders", "expected": {"status": "accepted", "result": "stream-none"}},
+    {"id": "last-light-adversarial-frame", "scenario": "public-resume-frame", "expected": {"status": "rejected", "reason": "yield-public-frame"}}
+  ],
+  "tasks": [
+    {"kind": "explain", "instruction": "Explain why the explicit stream capture expression reduces producer ceremony while preserving Stream pull and Channel dialogue boundaries."},
+    {"kind": "recall", "instruction": "After the controlled delay, reconstruct capture staging, owner handoffs, terminal events, cancellation, and cleanup order.", "minimumDelaySeconds": 1},
+    {"kind": "repair", "instruction": "Repair the narrow stream witness without adding hidden capacity or a public resume token.", "mutations": {"current-stream-composition": "Keep Stream pull and bounded dialogue explicit.", "narrow-stream-yield": "Keep captures explicit and construction-time; keep yield owned and typed.", "general-generator": "Keep public frame, send, throw, close, and yield-from witnesses rejected."}},
+    {"kind": "change", "instruction": "Add a finite or cancelable pull producer while keeping failure, cancellation, cleanup, ownership, and ABI identity explicit."}
+  ],
+  "presentationOrders": [
+    ["current-stream-composition", "narrow-stream-yield", "general-generator"],
+    ["general-generator", "narrow-stream-yield", "current-stream-composition"],
+    ["narrow-stream-yield", "current-stream-composition", "general-generator"]
+  ],
+  "blinding": {
+    "participantLabels": {"current-stream-composition": "A", "narrow-stream-yield": "B", "general-generator": "C"},
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {"path": "oracle.test.mjs", "digest": "sha256:6743dc74b1ee287e2ca6a0b44d899dadda8aa607d3c5d9e71732bb6b6b552c97"},
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle", "official-primary-refs", "two-independent-reducers"],
+    "missing": ["w-compile", "w-run", "runtime-stress", "provider", "human-study", "model-study", "debug-abi-reflection"]
+  },
+  "decision": {
+    "status": "promote-narrow-form",
+    "contract": "fn ...: some Stream<Item, Failure> { return stream <[captures]> { ... yield (take|copy) value } } with explicit construction-time captures, mandatory owned yield, copy requiring Duplicable, and pull capacity zero",
+    "generalGenerator": "intentionally-rejected",
+    "implementationEvidence": "missing"
+  }
+}

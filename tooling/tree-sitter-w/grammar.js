@@ -41,6 +41,7 @@ const CONTROL_KEYWORDS = [
   "throw",
   "transaction",
   "while",
+  "yield",
 ];
 
 const MODIFIER_KEYWORDS = [
@@ -86,6 +87,7 @@ const OTHER_KEYWORDS = [
   "set",
   "some",
   "storage",
+  "stream",
   "true",
 ];
 
@@ -1095,6 +1097,15 @@ module.exports = grammar({
         $.break_statement,
         $.continue_statement,
         $.expression_statement,
+        $.yield_statement,
+      ),
+
+    yield_statement: ($) =>
+      seq(
+        "yield",
+        field("ownership", choice("take", "copy")),
+        field("value", $._expression),
+        optional(";"),
       ),
 
     allocator_statement: ($) =>
@@ -1339,6 +1350,7 @@ module.exports = grammar({
         $.closure_expression,
         $.capture_expression,
         $.pipeline_expression,
+        $.stream_expression,
         $.lock_expression,
         $.transaction_expression,
         $.unsafe_expression,
@@ -1503,7 +1515,7 @@ module.exports = grammar({
 
     closure_expression: ($) =>
       prec.right(seq($.closure_parameters, "=>", choice($._expression, $.block))),
-    // `<[...]>` is a contextual closure-capture contract. It is not a
+    // `<[...]>` is a contextual closure/stream-capture contract. It is not a
     // StaticList runtime value or a generic argument.
     capture_expression: ($) =>
       prec.right(
@@ -1517,12 +1529,30 @@ module.exports = grammar({
           $.closure_expression,
         ),
       ),
+    stream_capture_list: ($) =>
+      seq(
+        "<",
+        "[",
+        commaSep($.capture_item),
+        optional(","),
+        "]",
+        ">",
+      ),
     capture_item: ($) =>
       seq(
         field("mode", choice("copy", "ref", "take", "weak")),
         field("name", $.identifier),
       ),
     pipeline_expression: ($) => prec.right(seq("pipeline", $.block)),
+    stream_expression: ($) =>
+      prec.right(
+        -1,
+        seq(
+          field("keyword", "stream"),
+          field("captures", $.stream_capture_list),
+          field("body", $.block),
+        ),
+      ),
     lock_expression: ($) =>
       prec.right(
         seq(

@@ -1738,8 +1738,10 @@ composable para wrappers. O record derivado e a reclamation adapter continuam
 
 #### 1.4.8 GEN1 — suspensão incremental e ergonomia
 
-GEN1 informa e estreita o gate de design `GEN0-R1` sem promover uma primitive de frame. O
-estudo durável está em
+GEN1 foi o estudo histórico que informou e estreitou o gate de design
+`GEN0-R1` sem promover uma primitive de frame. O gate agora está fechado pela
+forma estreita de GEN2; métricas e witnesses GEN1 permanecem evidência de
+proveniência, não uma decisão corrente. O estudo durável está em
 [`tooling/studies/gen1-incremental-suspension`](tooling/studies/gen1-incremental-suspension),
 com corpus, máquina, snapshot e teste host em
 [`tooling/gen1-incremental-suspension-cases.json`](tooling/gen1-incremental-suspension-cases.json),
@@ -1771,14 +1773,19 @@ cenário. LOC é somente contexto. A composição A (`Stream`/adapters/tasks), a
 e os canais bounded C cobrem os traces do oracle. As slices de ergonomia
 comparam somente o mesmo cenário. O helper constrói dois pares de `Channel`
 bounded e devolve endpoints owned; ele resolve somente diálogo. O frame/resume
-público é intencionalmente rejeitado. Um bloco Stream compiler-owned permanece
-Research-candidate se mantiver `some Stream<Item,Failure>`, captures explícitos,
-capacity/prefetch, emissão de item `Result`, cancelamento, cleanup, effects e
-view bounded sem identidade/ABI pública. GEN0 continua `composable` para o
-problema comum e `GEN0-custom-frame` continua Research. A pergunta ergonômica
-fica aberta: diferenças estruturais são observações, não prova humana; falta
-evidência humana/modelo. Compile, run e provider também permanecem missing. Não
-há fechamento de gate.
+público é intencionalmente rejeitado. O bloco compiler-owned que GEN1 mantinha
+como Research-candidate foi estreitado e promovido por GEN2 para
+`stream <[capture_item, ...]> { ... yield (take|copy) value }`; frame público,
+`send`/`throw`/`close`, `yield-from`, scheduler yield e FFI resume continuam
+rejeitados. GEN0 continua `composable` para o problema comum, com diálogo em
+`Channel`; `GEN0-custom-frame` não é uma subcapability corrente. A pergunta de
+ergonomia de GEN1 (`humanDecisionPending`) é histórica: GEN2 fornece o contrato
+e o corpus de design, enquanto compile, run, provider, runtime stress e estudos
+humano/modelo permanecem gaps de implementação/evidência em W-1438/W-1440.
+
+W-1354 é explicitamente superseded por W-1437. A disposição Research e a
+pergunta aberta de GEN1 ficam preservadas como proveniência, mas não podem
+reabrir `GEN0-R1` nem contradizer a forma estreita corrente.
 
 Antes dos witnesses reservados, o fixture parseável `builder-helper.w` mede um
 helper de biblioteca que cria e devolve dois pares de endpoints com `capacity`
@@ -1789,6 +1796,73 @@ As comparações registradas no estudo usam somente fontes primárias: o draft C
 N3096, POSIX cancellation e message queues, LLVM Coroutines, Rust Reference e
 std `Future`/MPSC/scoped threads, e Python Language Reference, PEP 342/380 e
 asyncio TaskGroup/Queue. Elas são limites comparativos, não contratos herdados.
+
+#### 1.4.8a GEN2 — expressão `stream` e emissão owned estreita
+
+GEN2 fecha a decisão de design por contrato e corpus, mas separa essa decisão da
+lacuna de implementação. O estudo durável está em
+[`tooling/studies/gen2-stream-yield`](tooling/studies/gen2-stream-yield), com
+casos, máquina, snapshot e teste host em
+[`tooling/gen2-stream-yield-cases.json`](tooling/gen2-stream-yield-cases.json),
+[`tooling/gen2-stream-yield-machine.mjs`](tooling/gen2-stream-yield-machine.mjs),
+[`tooling/gen2-stream-yield-results.snapshot.jsonl`](tooling/gen2-stream-yield-results.snapshot.jsonl)
+e [`tooling/gen2-stream-yield-reference.test.mjs`](tooling/gen2-stream-yield-reference.test.mjs).
+São 20 casos (7 positivos e 13 negativos), com cinco ganhos ergonômicos e duas
+perdas de cerimônia explícita de capture nos cenários de cancelamento aberto.
+Dois reducers independentes (`switched-frame` e
+`returned-state`) derivam o mesmo owner graph, happens-before, resultado,
+cancelamento e cleanup; packing, PC e token não são parte do resultado.
+
+A forma promovida é uma expressão compiler-owned, escrita
+`stream <[take source, copy config, ref stable]> { ... }`, que retorna
+`some Stream<Item, Failure>` quando aparece no corpo de uma função. A capture
+list pode ser vazia (`stream <[]>`), mas nunca é implícita: cada item é
+avaliado, preparado e movido/copied/referenced na construção, antes de o
+`Stream` ser retornado. O binding `take` do parent fica indisponível após a
+construção; `next` não pode escolher uma capture ambiental. O bloco usa somente
+`yield take value` ou `yield copy value` entrega `Item` owned: `take` move e
+invalida o binding, `copy` exige `Duplicable` e preserva o original. Bare
+`yield value` produz `W-YIELD-0002`; copy de item não `Duplicable` produz
+`W-YIELD-0011`. `await` e `try` permanecem explícitos, `return` sem valor é
+terminal e `defer` faz cleanup. O
+pull tem cursor exclusivo e capacidade zero; não há prefetch, buffer ou
+scheduler implícito. Cancelamento e drop seguem o protocolo de `Stream`.
+Captures usam as regras existentes de `copy`, `take`, `ref` e `weak`; `inout` não
+é capture mode e causa diagnóstico.
+Falha é o `Failure` declarado. Yield de view/borrow/inout, `yield` em `defer`,
+`yield-from`, `send`/`throw`/`close`, retorno de valor, falha sem tipo,
+concurrent/reentrant `next`, frame/resume público e resume por FFI são rejeitados.
+O lowering físico é privado e não publica frame, token, scheduler, layout ABI,
+reflection ou identidade de debug.
+
+`stream` e `yield` agora são keywords reservadas reais. O corpus e as fixtures
+que usavam `stream` como binding foram migrados somente para `source` ou
+`cursor`; o identificador público `Stream` (tipo) permanece. Um uso antigo de
+`stream` como nome produz `W-STREAM-0001`, para tornar a migração explícita em
+vez de alterar silenciosamente o CST de `lock state { ... }`. O parser conserva
+esse negativo de lock e a nova expressão aparece apenas com o token literal
+`stream`, capture list e bloco. `W-YIELD-0010` torna a ausência de capture
+explícita e impede que uma função escapante resolva `source` somente no primeiro
+`next`.
+
+Esta promoção é uma conclusão de design, não uma afirmação de implementação.
+Continuam faltando `w-compile`, `w-run`, runtime stress, provider, estudo humano
+e estudo de modelo, além de debug/ABI/reflection e hot-reload/FFI end-to-end.
+Esses gaps bloqueiam a promoção de qualquer frame ou generator geral. As
+comparações oficiais usadas como limites são [Python generators](https://docs.python.org/3/reference/expressions.html#yield-expressions),
+[PEP 342](https://peps.python.org/pep-0342/), [PEP 380](https://peps.python.org/pep-0380/),
+[PEP 525](https://peps.python.org/pep-0525/), [Swift AsyncSequence](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0298-asyncsequence.md),
+[Swift AsyncStream](https://developer.apple.com/documentation/swift/asyncstream),
+[Rust Iterator](https://doc.rust-lang.org/std/iter/trait.Iterator.html),
+[Rust Future](https://doc.rust-lang.org/std/future/trait.Future.html),
+[Rust coroutines](https://doc.rust-lang.org/beta/unstable-book/language-features/coroutines.html)
+e [C23 N3096](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf).
+
+W-1439 e W-1440 permanecem `implementation-evidence-gap`: o parser, o corpus
+e o catálogo de diagnósticos registram a superfície e a intenção, mas não
+provam semantic checker/compiler nem a captura construction-time em runtime.
+W-1437 é a decisão de design corrente; não transforme parser green ou oracle
+host em claim de execução.
 
 #### 1.4.9 IPC1 — memória mapeada e IPC process-shared
 
@@ -4302,7 +4376,7 @@ Os resultados atuais são estes:
 |---|---|---|
 | BRX0 | Componível | Origem única em receiver/body/entrada bodyless fecha o baseline; ambiguidade rejeita `W-BORROW-0011`; relação owned BRX2 permanece Research. |
 | ATOM0 | Componível | Wrapper sobre atomics existentes compõe. Autor de nova primitive atomic ou reclamation exige subestudo de target e lowering confiável. |
-| GEN0 | Componível | Stream, canais e tasks cobrem produção. Frame bidirecional customizado, scheduler ou poll exige subestudo próprio. |
+| GEN0 | Componível | Stream e tasks cobrem produção; a expressão estreita GEN2 reduz a cerimônia com captures explícitas e `yield take`/`yield copy` (copy exige `Duplicable`). Diálogo usa Channel bounded; frame/send/throw/resume público é rejeitado e compile/runtime/provider permanecem gates de evidência. |
 | SYN0 | Componível | Synthesis compiler-owned e transform hermético cobrem artefatos. Introdução de declarations por um generated module separado exige subestudo de provenance, diagnostics e interface; phase in-process permanece rejeitada. |
 | CYC0 | Componível | Weak edge, owner e drain fecham o grafo. Collector transparente não entra no core. |
 | IPC0 | Pesquisa | Snapshot e IPC tipado compõem. Mapped bytes exigem layout, atomics, crash e capability contract. |
@@ -4317,16 +4391,15 @@ e owner table, e C testa composition com `SnapshotCell` ou adapter `unsafe`
 bounded. A rota do problema permanece Componível. Os requisitos de target,
 reclamation, interface mutation e FFI drain continuam gates **Pesquisa**.
 
-GEN0-R1 agora possui o bundle durável
-[`GEN1`](tooling/studies/gen1-incremental-suspension) com path, digest e claim
-em `nextStudyGate.studyRefs` do CAP0. O bundle compara a composição atual A
-(`Stream`/adapters/tasks), a máquina nominal B, os canais bounded C, um witness
-Research de bloco Stream compiler-owned e um witness E de frame público
-rejeitado. Ele cobre pull, travessia, diálogo, failure, delegação, view,
-backpressure, cancelamento, children e FFI lease nas duas lowerings do gate.
-As métricas de ergonomia vêm de símbolos source únicos nas slices do mesmo
-cenário; a fila de documentação continua `queued`. O estudo informa e estreita
-o gate, mas não é implementação, compilação, execução ou estudo humano/modelo.
+GEN0-R1 agora possui o bundle durável [`GEN2`](tooling/studies/gen2-stream-yield)
+com path, digest e claim em `nextStudyGate.studyRefs` do CAP0. O GEN1 anterior
+permanece evidência histórica: compara Stream/adapters/tasks, máquina nominal,
+canais bounded e witnesses reservados, mas não reabre um gate Research. GEN2
+fecha a decisão de design para a expressão `stream <[capture_item, ...]>` com
+`yield take`/`yield copy`, cursor exclusivo e capacity zero; frame/send/throw/resume público
+continua rejeitado e diálogo permanece Channel bounded. Bundle, oracle e parser
+integram o estudo ao aggregate; compile, run, provider, stress e estudos
+humano/modelo ainda são gaps de implementação/evidência.
 
 SYN0-R1 agora possui o estudo durável
 [`SYN1`](tooling/studies/syn1-typed-generation) e o oracle
@@ -6314,6 +6387,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1434 | FFI, unsafe, multi-tenant e patch | FFI explicita ABI/provenance/bounds/cleanup/effect/allocator; tenant capability é bound e mediada; patch receipt ordena source→lock→recipe→artifact→signature→attestation→admission com digests SHA-256, signer e rollback policy fechados | UB, raw pointer safe sem boundary, cross-tenant capability, debugger bypass, patch reorder, signer/policy arbitrários ou receipt caller-owned |
 | W-1435 | gate SEC0 | 101 casos, 24 aceitos, 77 rejeitados, 11 outcomes current e 13 Research, seis perfis, 16 authority rejections e quatro caller-echo rejections; profile, side-channel, patch e deployment receipts permanecem Research | chamar oracle/snapshot de compiler/runtime/provider/hardware, promover por Cloudflare, ou omitir fault/stress/local-split evidence |
 | W-1436 | fechamento BRX0/W-1351 | corpus BRX0 de 24 casos registra positivo bodyless com origem única, negativo ambíguo com `W-BORROW-0011` e alternativa nominal owned; baseline fecha sem nova syntax, enquanto relação owned por requirement/interface segue subcap Research BRX2 e não altera grammar, runtime, provider ou WAbi | promover BRX2 por causa do baseline, inventar receiver/body ausente, manter fallback morto por all-inputs, ou chamar parse/oracle/snapshot de compiler/runtime/provider |
+| W-1437 | forma estreita GEN2 | `stream <[capture_item, ...]> { ... }` é expressão compiler-owned que retorna `some Stream<Item, Failure>`; capture list explícita com `copy`/`take`/`ref`/`weak` é avaliada na construção; cada emissão exige `yield take value` ou `yield copy value`; `take` move/invalida, `copy` exige `Duplicable` e preserva o original; pull capacity zero, cursor exclusivo, await/try explícitos, terminal bare return, defer cleanup e cancel/drop seguem `Stream`; frame, token, scheduler, push, buffer oculto, yield-from, view/borrow/inout, send/throw/close, retorno de valor, falha sem tipo, reentrada e FFI resume não entram | generator geral, `stream fn`, bare `yield value`, `yield copy` de não-`Duplicable`, frame/resume público, scheduler yield, prefetch ambiental, item borrowed, protocolo bidirecional ou lowering que muda owner graph/HB/result/cancel/cleanup |
+| W-1438 | evidência e lacuna GEN2 | GEN2 contém 20 casos, dois reducers independentes e snapshot determinístico; cinco ganhos ergonômicos e duas perdas de cerimônia de capture fecham a decisão de design, com `yield take`/`yield copy` (copy exige `Duplicable`), mas compile/run/runtime/provider, stress, estudos humano/modelo e debug/ABI/reflection continuam faltando | chamar machine/parser/snapshot de compiler/runtime/provider, escolher por LOC, declarar implementação pronta ou promover metadata/frame por conveniência |
+| W-1439 | migração de keywords GEN2 | `stream` e `yield` são keywords literais/reservadas; bindings antigos migram para `source`/`cursor`, `Stream` nominal permanece, e o negativo `lock state { state }` conserva o CST anterior; `W-STREAM-0001` torna a quebra pré-1.0 explícita | identifier wildcard contextual, alterar silenciosamente CST/diagnóstico não relacionado, `stream fn`, keyword apenas em highlights ou compatibilidade implícita |
+| W-1440 | capture explícita GEN2 | `stream <[capture_item, ...]> { ... }` exige lista explícita (inclusive `stream <[]>`); `copy`/`take`/`ref`/`weak` são avaliados da esquerda para a direita na construção, antes do retorno de `Stream`; `take` indisponibiliza o binding do parent, `inout` não é mode e `next` não decide capture | capture ambiental implícita, mover `source` somente no primeiro `next`, lista tratada como valor runtime, `inout`/borrow escapante ou `ref`/`weak` sem prova de estabilidade/liveness |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,

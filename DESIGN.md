@@ -11747,6 +11747,81 @@ atomics. `lockFree` não faz parte da promessa. O profile mede throughput,
 latency, contention e allocation antes de selecionar uma implementação por
 target.
 
+#### 12.9.12 Bloco compiler-owned de `Stream`
+
+GEN2 promove uma única forma estreita para reduzir a cerimônia de um producer
+pull sem publicar uma máquina de suspensão:
+
+```w
+export fn yieldOrders(source: take some Stream<Order, OrderFailure>): some Stream<Order, OrderFailure> {
+  return stream <[take source]> {
+    var cursor = take source
+    while let order = try await cursor.next() {
+      yield take order
+    }
+  }
+}
+```
+
+`stream <[...]> { ... }` é uma expressão compiler-owned. Ela só aparece com o
+token literal reservado `stream`, uma capture list explícita e um bloco; retorna
+`some Stream<Item, Failure>`. Não existe a forma `stream fn` nem capture
+ambiental implícita. `yield` é um statement reservado e só é válido dentro
+dessa expressão. O front end pode usar um diagnóstico semântico quando o
+statement aparece fora desse contexto.
+
+A capture list usa os `capture_item` de 7.5:
+
+```ebnf
+stream_expression = "stream" stream_capture_list block ;
+stream_capture_list = "<[" (capture_item ("," capture_item)* ","?)? "]>" ;
+yield_statement = "yield" ("take" | "copy") expression ;
+```
+
+`stream <[]>` é obrigatório quando o body não captura um binding. O compiler
+avalia os captures da esquerda para a direita, prepara o staging e conclui
+`copy`, `take`, `ref` ou `weak` na construção da expressão, antes de retornar
+o `Stream`. Depois de uma construção bem-sucedida, um capture `take` torna o
+binding do parent indisponível imediatamente; um `copy` preserva o owner do
+parent; `ref` e `weak` obedecem às provas de estabilidade, liveness e escape de
+12.7. `inout` não é capture mode e é rejeitado. O body recebe somente os nomes
+declarados na lista; um acesso não listado produz `W-YIELD-0010`. Um `var
+cursor = take source` no body pode mover o owner já capturado quando o primeiro
+`next` executar, mas esse movimento não escolhe nem posterga a capture: a
+transferência do parent ocorreu na construção e falha de capture não retorna
+um `Stream`.
+
+O contrato da primeira forma é fechado:
+
+- cada emissão exige `yield take value` ou `yield copy value`; ambos entregam
+  `Item` owned. `take` move o valor e invalida o binding; `copy` exige
+  `Duplicable` e preserva o original. `yield value` sem ownership produz
+  `W-YIELD-0002`, e `yield copy` de valor não `Duplicable` produz
+  `W-YIELD-0011`;
+- `await` e `try` não são inferidos; `return` sem valor é o único retorno
+  terminal e retorno com valor é erro;
+- o cursor é exclusivo, pull e capacity zero. Não há prefetch, buffer,
+  scheduler, push ou capacidade escondida; `buffer(capacity:)` continua o
+  adapter explícito de 12.9.10;
+- `.none` e o primeiro `Failure` são terminais. `Failure` vem do tipo declarado;
+  um producer que precisa continuar em erro emite `Result<Item, Failure>` como
+  item, sem criar um segundo canal de erro;
+- cancellation e drop seguem o protocolo de `Stream`; `defer` executa cleanup,
+  mas `yield` dentro de `defer` é rejeitado;
+- captures seguem as regras de 12.7 e precisam estar na lista explícita.
+  `yield` de `view`, `borrow` ou `inout` é rejeitado, e nenhum valor atravessa a
+  suspensão sem owner comprovado;
+- `send`, `throw`, `close`, `yield-from`, concorrência ou reentrada de `next`,
+  frame/resume token público, scheduler yield e resume por FFI são rejeitados;
+- lowering, frame físico, layout, ABI, reflection e identidade de debug são
+  privados. A forma não publica uma API de continuação nem muda o owner graph,
+  happens-before, resultado, cancelamento ou cleanup.
+
+`stream` deixa de ser um binding identifier; o migrador deve escolher `source`
+ou `cursor` e pode emitir `W-STREAM-0001`. O tipo nominal `Stream` não muda.
+Qualquer generalização para `yield from`, views borrowed, retorno de valor,
+buffer implícito ou generator público exige novo corpus e novo ID de decisão.
+
 ### 12.10 Memory model, atomics e locks
 
 **Forma vigente:** safe W não permite data races. `atomic`, isolation e locks
@@ -28400,21 +28475,21 @@ Uma pesquisa só avança quando possui:
 
 ### 23.8 GEN0-R1 — suspensão incremental
 
-O frame bidirecional customizado continua **Pesquisa**. O estudo durável
-[`GEN1`](tooling/studies/gen1-incremental-suspension) compara `Stream`, máquina
-de estados nominal e canais bounded em duas lowerings, sem adicionar `yield`,
-frame, lifetime ou ABI implícitos ao core. A composição vigente e os gates de
-ownership, cancellation, cleanup e FFI continuam nos contratos das seções 9,
-11 e 12; esta referência apenas aponta a evidência do gate.
-O estudo informa e estreita esta pesquisa; não fecha um gate de design por
-oracle host. A promoção continua dependente de compile, run, provider e
-evidência humana/modelo. As métricas de ergonomia usam somente símbolos
-source únicos e digests das slices aplicáveis ao mesmo cenário.
-O próximo passo de pesquisa, depois de std helper/adapters, é no máximo um
-bloco Stream compiler-owned com contrato `some Stream<Item,Failure>` e
-captures/capacity/prefetch/cancelamento/cleanup explícitos. Ele não publica
-frame, resume token, scheduler, lifetime, runtime metadata ou ABI; o witness
-continua Research e não é nova syntax vigente.
+GEN0-R1 está fechado para a forma estreita de produção pull. O estudo
+[`GEN2`](tooling/studies/gen2-stream-yield) promove a expressão
+`stream <[capture_item, ...]> { ... yield (take|copy) value }`, com `Stream` nominal,
+cursor exclusivo, capacity zero, captures avaliadas na construção, cleanup e
+cancelamento explícitos. A forma reduz a cerimônia de producers lineares sem
+publicar frame, resume token, scheduler, lifetime, runtime metadata ou ABI.
+
+Diálogo bidirecional continua sendo `Channel` bounded. Frame público,
+`send`/`throw`/`close` de generator, `yield-from`, scheduler yield e FFI resume
+são rejeitados; eles não são uma nova subcapability Research deste gate. GEN1
+permanece evidência histórica do problema e das alternativas, e W-1354 foi
+substituído por W-1437. A decisão de design não afirma implementação: compile,
+run, provider, runtime stress, debug/ABI/reflection e estudos humano/modelo
+continuam gaps explícitos em W-1438/W-1440.
+
 **Fonte de exemplo:** `reference/last-light/streams.w::serveOneByOne`.
 
 ## 24. Design freeze e pendências

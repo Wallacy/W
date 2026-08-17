@@ -1,0 +1,173 @@
+==================
+stream expression owns an item-only pull producer
+==================
+fn orderFeed(source: take some Stream<Order, Never>): some Stream<Order, Never> {
+  return stream <[take source]> {
+    var input = take source
+    while let order = await input.next() {
+      yield take order
+    }
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type
+          base: (type_name
+            name: (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                base: (type_name
+                  name: (type_identifier))))
+            (type_argument
+              (type
+                base: (type_name
+                  name: (type_identifier))))))))
+    return_type: (type
+      base: (type_name
+        name: (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            base: (type_name
+              name: (type_identifier))))
+        (type_argument
+          (type
+            base: (type_name
+              name: (type_identifier))))))
+    body: (block
+      (return_statement
+        (stream_expression
+          captures: (stream_capture_list
+            (capture_item
+              name: (identifier)))
+          body: (block
+            (binding_declaration
+              pattern: (pattern
+                (identifier))
+              value: (unary_expression
+                operand: (identifier)))
+            (while_statement
+              (optional_binding
+                pattern: (pattern
+                  (identifier))
+                value: (unary_expression
+                  operand: (call_expression
+                    function: (member_expression
+                      object: (identifier)
+                      property: (identifier))
+                    arguments: (argument_list))))
+              (block
+                (yield_statement
+                  value: (identifier))))))))))
+
+==================
+stream expression requires an explicit empty capture list
+==================
+fn emptyFeed(): some Stream<Order, Never> {
+  return stream <[]> {
+    return
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type
+      base: (type_name
+        name: (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            base: (type_name
+              name: (type_identifier))))
+        (type_argument
+          (type
+            base: (type_name
+              name: (type_identifier))))))
+    body: (block
+      (return_statement
+        (stream_expression
+          captures: (stream_capture_list)
+          body: (block
+            (return_statement)))))))
+
+==================
+stream expression requires explicit copy for a preserved Duplicable item
+==================
+fn copyFeed(source: take some Stream<String, Never>): some Stream<String, Never> {
+  return stream <[take source]> {
+    var input = take source
+    while let line = await input.next() {
+      yield copy line
+    }
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type
+          base: (type_name
+            name: (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                base: (type_name
+                  name: (type_identifier))))
+            (type_argument
+              (type
+                base: (type_name
+                  name: (type_identifier))))))))
+    return_type: (type
+      base: (type_name
+        name: (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            base: (type_name
+              name: (type_identifier))))
+        (type_argument
+          (type
+            base: (type_name
+              name: (type_identifier))))))
+    body: (block
+      (return_statement
+        (stream_expression
+          captures: (stream_capture_list
+            (capture_item
+              name: (identifier)))
+          body: (block
+            (binding_declaration
+              pattern: (pattern
+                (identifier))
+              value: (unary_expression
+                operand: (identifier)))
+            (while_statement
+              (optional_binding
+                pattern: (pattern
+                  (identifier))
+                value: (unary_expression
+                  operand: (call_expression
+                    function: (member_expression
+                      object: (identifier)
+                      property: (identifier))
+                    arguments: (argument_list))))
+              (block
+                (yield_statement
+                  value: (identifier))))))))))

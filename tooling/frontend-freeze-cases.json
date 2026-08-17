@@ -110,7 +110,7 @@
       "sourceRef": {
         "path": "reference/last-light/command.w",
         "symbol": "case \"place\": .place",
-        "digest": "sha256:9806fe85cb91023b2da49dd16e47b86f4e6e174f7004fdedbca075ef43df4755"
+        "digest": "sha256:cf1615b9fc46a6e4b47f6eaec0bb70ff337de8cce534370df9733e6c4f4befea"
       },
       "positive": {
         "formatterCase": "F0-enum-subset-switch",

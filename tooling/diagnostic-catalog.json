@@ -2506,6 +2506,18 @@
     { "code": "W-EXPORT-0004", "state": "active", "profile": "notebook-export", "meaning": "invalidation or redefinition prevents a lossless export" },
     { "code": "W-EXPORT-0005", "state": "active", "profile": "notebook-export", "meaning": "an export contains unknown effects, unresolved input, secret, degraded owner, or live resource" },
     { "code": "W-EXPORT-0006", "state": "active", "profile": "notebook-export", "meaning": "dependencies and effects have no deterministic lossless order" },
-    { "code": "W-EXPORT-0007", "state": "active", "profile": "notebook-export", "meaning": "notebook export attempted execution or hidden replay" }
+    { "code": "W-EXPORT-0007", "state": "active", "profile": "notebook-export", "meaning": "notebook export attempted execution or hidden replay" },
+    { "code": "W-STREAM-0001", "state": "active", "profile": "parse-syntax", "meaning": "stream is a reserved keyword; rename an identifier to source or cursor" },
+    { "code": "W-YIELD-0001", "state": "active", "profile": "run-validation", "meaning": "yield is allowed only inside a compiler-owned stream expression" },
+    { "code": "W-YIELD-0002", "state": "active", "profile": "run-validation", "meaning": "yield requires explicit take or copy ownership; bare yield value has no ownership operation" },
+    { "code": "W-YIELD-0003", "state": "active", "profile": "run-validation", "meaning": "a view, borrow, or inout value cannot cross a yield boundary" },
+    { "code": "W-YIELD-0004", "state": "active", "profile": "run-validation", "meaning": "a stream expression cannot add hidden capacity or prefetch" },
+    { "code": "W-YIELD-0005", "state": "active", "profile": "run-validation", "meaning": "a stream expression cannot expose a frame, resume token, or scheduler" },
+    { "code": "W-YIELD-0006", "state": "active", "profile": "run-validation", "meaning": "stream failure and terminal return must use the declared typed contract" },
+    { "code": "W-YIELD-0007", "state": "active", "profile": "run-validation", "meaning": "yield cannot run from defer or cleanup code" },
+    { "code": "W-YIELD-0008", "state": "active", "profile": "run-validation", "meaning": "next is exclusive; concurrent or reentrant stream pulls are rejected" },
+    { "code": "W-YIELD-0009", "state": "active", "profile": "run-validation", "meaning": "stream resume is not an FFI boundary" },
+    { "code": "W-YIELD-0010", "state": "active", "profile": "run-validation", "meaning": "stream captures must be explicit and are evaluated before the Stream is returned" },
+    { "code": "W-YIELD-0011", "state": "active", "profile": "run-validation", "meaning": "yield copy requires a Duplicable item and preserves the original binding" }
   ]
 }

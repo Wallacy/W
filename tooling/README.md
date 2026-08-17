@@ -27,10 +27,10 @@ As categorias têm estados diferentes:
 - `superseded` aponta para a decisão corrente que substitui a proveniência.
 - `rejected` aponta para a ausência corrente sem promover a forma recusada.
 
-O estado atual é `91 source-backed-current`, `433 oracle-backed-current`, `52
-research-gated`, `798 implementation-evidence-gap`, `56 superseded` e `6
-rejected` (1436/1436). A lacuna histórica de 905 fica distribuída em 30
-oracle, 44 Research, 791 gaps de implementação, 34 superseded e 6 rejected;
+O estado atual é `91 source-backed-current`, `434 oracle-backed-current`, `51
+research-gated`, `801 implementation-evidence-gap`, `57 superseded` e `6
+rejected` (1440/1440). A lacuna histórica de 909 fica distribuída em 31
+oracle, 43 Research, 794 gaps de implementação, 35 superseded e 6 rejected;
 nenhuma decisão é selecionada por faixa, época, regex ou default em massa.
 
 Gaps de implementação usam `authorityRef.kind: design-contract` com a seção e
@@ -75,7 +75,8 @@ compiler, runtime, provider ou execução W.
 | `cyc1-explicit-cycle-cases.json` + máquina/manifest/checker/test + estudo/snapshot | CYC1 informa CYC0-G1 com 41 casos event-derived para weak edges, close/drain, SCC estática/dinâmica, FFI/service/resource lifecycle, concorrência, unknown foreign boundaries e três composições de conditional liveness; 3 rejections estáticas, 3 diagnostics residuais, 2 unknown boundaries e 2 cases Research | oracle host e Tree-sitter parse; census é somente diagnóstico pós-drain, sem collector/finalizer/API/syntax, e compile, run, provider, stress e estudos humano/modelo continuam missing |
 | `syn1-typed-generation-cases.json` + máquina/manifest/checker/test + snapshot | SYN1 estreita SYN0-R1 com 65 casos A/B/C/D: generated module sets de `.w` passam pelo Tree-sitter real e por source-shape bounded; action result e interface candidata são publicações separadas; receipts Research cobrem graph/dependencies, identities, maps byte-based, target registry e navigation | oracle host de design; `interfacePublished` é outcome do contrato candidato, não evidência de compiler; semantic frontend, ConstIR, compiler cache, runtime, provider e LSP permanecem ausentes |
 | `dyn1-versioned-behavior-cases.json` + máquina/manifest/checker/test + snapshot | DYN1 informa DYN0-G1 com 70 casos A/B/C/D e métricas derivadas para REPL snapshots, generations de service/plugin, identities SemanticInterface/WAbi/runtime-closure, switch/drain, capabilities/effects, export/import, target local/split, FFI unload, crash/cancel e quotas; C é somente a subcapability `DYN0-persistent-generation-reference` | host design-oracle event-derived; reducers local/split são independentes, `expect` não escolhe status, WAbi target-specific e compatible exige novas SemanticInterfaceKey/ServiceIRKey com receipt; native retém mapping e process/Wasm/component usam full unmap; compiler/runtime/provider/isolamento real/std permanecem missing; eval/exec/frame mutation/ambient lookup/native sandbox/live dlclose são rejeitados |
-| `gen1-incremental-suspension-cases.json` + máquina/checker/test + snapshot | GEN1 informa/estreita GEN0-R1 com 23 traces de pull, travessia, diálogo, failure, delegação, view, backpressure, cancelamento, children e FFI; compara Stream/state/channels e dois witnesses reservados em duas máquinas independentes e deriva métricas estruturais de símbolos source únicos por slices do mesmo cenário | oracle host de design; não executa W, compiler, runtime, provider ou estudo humano/modelo; bloco Stream compiler-owned é Research e frame público é rejeitado |
+| `gen1-incremental-suspension-cases.json` + máquina/checker/test + snapshot | GEN1 é evidência histórica de GEN0-R1 com 23 traces de pull, travessia, diálogo, failure, delegação, view, backpressure, cancelamento, children e FFI; compara Stream/state/channels e dois witnesses reservados em duas máquinas independentes e deriva métricas estruturais de símbolos source únicos por slices do mesmo cenário | oracle host de design histórico; não executa W, compiler, runtime, provider ou estudo humano/modelo; não mantém gate Research corrente |
+| `gen2-stream-yield-cases.json` + `studies/gen2-stream-yield/{bundle.json,oracle.test.mjs}` + máquina/checker/test + snapshot | GEN2 fecha o design estreito de `stream <[capture_item, ...]> { ... yield (take|copy) value }` com 20 casos, 5 ganhos ergonômicos, 13 gates contratuais, dois reducers, captures construction-time, pull capacity zero, Channel para diálogo e rejeição de frame/send/throw/resume público; `copy` exige `Duplicable` | oracle host, parser e bundle são evidência de design; semantic compiler, W runtime, provider, stress, debug/ABI e estudos humano/modelo continuam missing; W-1439/W-1440 são implementation-evidence-gap |
 | `semantic-diagnostic-matrix-cases.json` + máquina/checker/test | SDM0 deriva SemanticResult, CheckerContext, loop fixed point, AST→HIR schema, D0 records, causality, ordering, limits, policy, lex/parse boundary e cobertura de meta contracts | oracle host independente; não implementa checker, compiler, formatter ou runtime |
 | `execution-ergonomics-cases.json` + máquina/checker/snapshot | 80 casos (32 positivos, 46 negativos e duas informações) derivam labels, parâmetros, slots allocator contextuais/ordinários e collision, operações explícitas de ownership, suspension, placement, barriers, process projections, doctests, std e lanes seriais dinâmicas; 26 testes host usam entradas independentes | oracle host de design; não executa W nem implementa S0, scheduler, pool ou provider |
 | `check-source-call-shapes.mjs` | aplica labels, posição do contrato e operações explicitamente incompatíveis aos sources do Última Luz e da std | auditoria source; owner place sem marker exige type/value category em S0; member/import é conservador e não executa W |
@@ -87,9 +88,9 @@ compiler, runtime, provider ou execução W.
 | `operational-time-cases.json` + máquina/checker/snapshot | TIME0 cobre 52 casos/277 operações (27 aceitos + 25 rejeitados) para Duration exata, Clock root-scoped, origin, default/active HostSuspendPolicy, profile monotônico, deadlines, boundaries e clock virtual; oito testes host usam entradas independentes | oracle host de design; não executa W, clock, timer, scheduler, OS ou provider `std.time@1` |
 | `kernel-module-cases.json` + máquina/checker/snapshot | KM0 cobre 32 casos/218 operações (6 aceitos + 26 rejeitados) para head de síntese, identities, call graph, famílias genéricas, artifacts source-backed/closed e ausência de JIT; nove testes host usam inputs independentes | oracle host de design; não executa W, compiler, kernel, linker, driver ou provider |
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-classification.json` + `check-design-freeze-audit.mjs` | registro versionado e explícito dos 1436 IDs, com uma categoria fechada, claim do ledger, authority ref, digests, casos de fonte/oráculo e stop condition; preserva a cobertura legada 170 source, 404 oracle, 8 explícitas e 51 overlaps | auditoria de design; fonte/oráculo host não são compiler, runtime ou provider |
+| `design-freeze-classification.json` + `check-design-freeze-audit.mjs` | registro versionado e explícito dos 1440 IDs, com uma categoria fechada, claim do ledger, authority ref, digests, casos de fonte/oráculo e stop condition; preserva a cobertura legada 170 source, 404 oracle, 8 explícitas e 51 overlaps; W-1354 é superseded por W-1437 | auditoria de design; fonte/oráculo host não são compiler, runtime ou provider |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 190 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 45 bundles R1, 128 variantes e 180 tarefas; 69/75 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
+| `studies/*/bundle.json` + checker | 46 bundles R1, 131 variantes e 184 tarefas; 69/75 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
 | `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
 | `tabular-adapter-cases.json` + máquina/checker/snapshot | TAB1 deriva source kind, u64 snapshot offsets/short reads, nominal schema identity, publication, CSV tokenizer/nulls, Parquet footer/page/mapping/key/commit, Arrow IPC dictionary/buffer, borrowed view, copy materialization, progress/cancel, provenance, C quota/trust/release; 86 casos e 193 operações (36 aceitos + 50 rejeitados) | oracle host independente; símbolos Last Light são cross-linked; não implementa reader CSV/Parquet/Arrow, compiler, runtime ou provider |
@@ -248,8 +249,8 @@ somente do registro R0. Witnesses textuais usam caminho não-`.w` e
 parseiam sem recovery. Cada bundle fixa primary, adversarial, quatro tasks,
 ordens contrabalançadas, blinding, digests e host oracle independente.
 
-O checker deriva 45 bundles, 128 variantes, 180 tasks e 69/75 casos R0
-promovidos. O conjunto contém 99 variantes `.w` parseadas e 29 witnesses
+O checker deriva 46 bundles, 131 variantes, 184 tasks e 69/75 casos R0
+promovidos. O conjunto contém 101 variantes `.w` parseadas e 30 witnesses
 reservados fora do parse. `sourceRefs` sustentam constructs adicionais de fontes
 reais sem criar uma segunda autoridade. Cada oracle compara todos os inputs com
 `expected` após derivação independente. Parse Tree-sitter e host oracle são
@@ -719,10 +720,10 @@ bun tooling/check-dyn1-versioned-behavior.mjs --write
 O gate não altera `DESIGN.md`, não cria syntax/diagnostic e não lê fontes
 geradas em `tooling/tree-sitter-w/src/`.
 
-### GEN1 — suspensão incremental
+### GEN1 — suspensão incremental (histórico)
 
 [`gen1-incremental-suspension-machine.mjs`](gen1-incremental-suspension-machine.mjs)
-é um oracle host que informa/estreita o gate `GEN0-R1`. Ele executa os mesmos traces nas
+é um oracle host histórico que informou/estreitou o gate `GEN0-R1`. Ele executa os mesmos traces nas
 lowerings `switched-resume-frame` e
 `returned-continuation-state-loop`, comparando owner graph, commit/HB, resultado
 typed, cancelamento e cleanup/drop/drain. O trace físico e o packing podem
@@ -733,8 +734,9 @@ e o snapshot é
 O estudo mantém as variantes em
 [`studies/gen1-incremental-suspension`](studies/gen1-incremental-suspension):
 Stream/adapters/tasks, máquina nominal, dois canais bounded, um witness textual
-Research de bloco Stream compiler-owned e um witness textual rejeitado de frame
-público.
+evidence de bloco Stream compiler-owned e um witness textual rejeitado de frame
+público. GEN1 não mantém um gate Research corrente: GEN2 fecha a forma estreita
+de pull e o frame público continua rejeitado.
 
 As métricas são derivadas de declarações source reais e únicas nas slices do
 mesmo cenário: conceitos públicos, handoffs de ownership, effects/cancel/
@@ -751,6 +753,35 @@ O bundle registra fontes primárias C/POSIX/LLVM/Rust/Python e permanece
 continuam missing. A integração com `check:docs` ocorre pelo `check:studies`
 root, pelo parse de studies e por `check:links`; a documentação do CAP0 mantém
 `docsStatus: queued`.
+
+### GEN2 — expressão `stream` com `yield` owned
+
+[`gen2-stream-yield-machine.mjs`](gen2-stream-yield-machine.mjs) fecha o contrato
+de design para producers lineares pull. A forma corrente é a expressão
+`stream <[capture_item, ...]> { ... yield (take|copy) value }`: a lista é explícita,
+avaliada e movida/copiada/referenciada na construção, o cursor é exclusivo e a
+capacity é zero. `await`/`try`, `return` terminal, `defer`, cancelamento e drop
+seguem `Stream`; diálogo bidirecional usa `Channel` bounded. Frame público,
+`send`/`throw`/`close`, `yield-from`, buffer oculto, view/borrow/inout, reentrada
+e FFI resume são witnesses rejeitados.
+
+O bundle [`studies/gen2-stream-yield`](studies/gen2-stream-yield) liga três
+variantes (composição atual, forma estreita selecionada e witness rejeitado),
+`bundle.json`, oracle, fontes Last Light e apresentação counterbalanced. O
+corpus tem 20 casos, dois reducers independentes e snapshot determinístico; a
+decisão mede símbolos e invariantes, não LOC. `take` move o item e `copy` exige
+`Duplicable` e preserva o binding; bare `yield value` é `W-YIELD-0002`. Use:
+
+```sh
+bun run check:gen2
+bun run --cwd tooling/tree-sitter-w parse:gen2
+```
+
+O bundle é integrado em `check:studies`, `check:docs` e no aggregate Tree-sitter.
+Parser e host oracle não provam semantic checker/compiler, runtime, provider,
+stress, debug/ABI/reflection ou estudos humano/modelo; esses permanecem a
+implementation-evidence-gap de W-1438/W-1440. A fila de documentação do CAP0
+continua `docsStatus: queued`.
 
 ## Caminho até o browser
 

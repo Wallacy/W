@@ -1,0 +1,44 @@
+// Reserved negative witnesses. None is a grammar commitment. gen2Fixture is
+// the bundle entry marker for this rejected source witness.
+fn badView(source: take some Stream<view String, E>): some Stream<view String, E> {
+  return stream <[take source]> {
+    for try await line in source { yield view line }
+  }
+}
+
+fn badDialogue(source: take Channel<Order><.receive>): some Stream<Order, Never> {
+  return stream <[take source]> {
+    yield from source
+  }
+}
+
+fn badReturn(source: take some Stream<Order, Never>): some Stream<Order, Never> {
+  return stream <[take source]> {
+    yield take source.next()
+    return source
+  }
+}
+
+fn badInout(source: inout Array<Order>): some Stream<Order, Never> {
+  return stream <[inout source]> {
+    yield inout source[0]
+  }
+}
+
+// The parser can retain a structural yield node for one diagnostic pass, but
+// W-YIELD-0001 rejects a yield outside a compiler-owned stream expression.
+fn badOutside(): Unit {
+  yield take order
+}
+
+// These protocol spellings are explicit rejection witnesses. They do not
+// become a second producer protocol or a public frame ABI.
+fn badProtocols(source: take Stream<Order, Never>): some Stream<Order, Never> {
+  return stream fn <[take source]> {
+    yield send source
+    yield throw source
+    yield close source
+    yield from source
+    public frame resumeToken
+  }
+}

@@ -476,12 +476,12 @@ object Stream {
   }
 }
 
-fn drain(stream: take Stream): String {
-  return (take stream).finish()
+fn drain(source: take Stream): String {
+  return (take source).finish()
 }
 
-async fn closeStream(stream: take Stream) throws CloseError {
-  try await (take stream).release()
+async fn closeStream(cursor: take Stream) throws CloseError {
+  try await (take cursor).release()
 }
 
 ---
