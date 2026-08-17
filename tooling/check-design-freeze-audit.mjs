@@ -688,17 +688,36 @@ function validateAuditSamples() {
       fail(`classification.auditSamples.${label} must be an object.`);
       return;
     }
+    const populationByKey = new Map(expected.map((key) => [key, []]));
+    for (const entry of entriesById.values()) {
+      const key = property === "category" ? entry.category : epochById.get(entry.decisionId);
+      if (populationByKey.has(key)) populationByKey.get(key).push(entry.decisionId);
+    }
     for (const key of expected) {
       const ids = samples[key];
-      if (!Array.isArray(ids) || ids.length < 5) {
-        fail(`classification.auditSamples.${label}.${key} must contain at least five IDs.`);
+      const population = populationByKey.get(key) ?? [];
+      const requiredMinimum = Math.min(10, population.length);
+      if (!Array.isArray(ids) || ids.length < requiredMinimum) {
+        fail(`classification.auditSamples.${label}.${key} must contain at least ${requiredMinimum} IDs (population ${population.length}).`);
         continue;
       }
+      const seen = new Set();
+      const observedDiversity = new Set();
       for (const [index, decisionId] of ids.entries()) {
+        if (seen.has(decisionId)) {
+          fail(`classification.auditSamples.${label}.${key} contains duplicate decision ID ${decisionId}.`);
+        }
+        seen.add(decisionId);
         const entry = entriesById.get(decisionId);
         if (!entry) {
           fail(`classification.auditSamples.${label}.${key}[${index}] is not a classified ledger ID.`);
           continue;
+        }
+        if (property === "category") {
+          const epoch = epochById.get(decisionId);
+          if (epoch) observedDiversity.add(epoch);
+        } else if (categories.has(entry.category)) {
+          observedDiversity.add(entry.category);
         }
         if (property === "category" && entry.category !== key) {
           fail(`classification.auditSamples.${label}.${key}[${index}] has category ${entry.category}.`);
@@ -706,6 +725,16 @@ function validateAuditSamples() {
         if (property === "epoch" && epochById.get(decisionId) !== key) {
           fail(`classification.auditSamples.${label}.${key}[${index}] is outside epoch ${key}.`);
         }
+      }
+      const availableDiversity = new Set(
+        population.map((decisionId) => property === "category"
+          ? epochById.get(decisionId)
+          : entriesById.get(decisionId)?.category).filter(Boolean),
+      );
+      const requiredDiversity = Math.min(3, availableDiversity.size);
+      if (observedDiversity.size < requiredDiversity) {
+        const dimension = property === "category" ? "epochs" : "categories";
+        fail(`classification.auditSamples.${label}.${key} must cover at least ${requiredDiversity} ${dimension} (available ${availableDiversity.size}).`);
       }
     }
   };
