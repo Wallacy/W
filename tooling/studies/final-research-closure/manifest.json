@@ -25,7 +25,7 @@
       "id": "FRC0-root-checker",
       "role": "root-checker",
       "path": "tooling/check-final-research-closure.mjs",
-      "digest": "sha256:eaf6bd6afde5b1812616c59fee8cddf4a67c01cc43a6b8be560eb4993d8d5d06"
+      "digest": "sha256:231a96a7e7d990d556eddb494de1b251449d33d70db5def48e1367d40f06a36a"
     },
     {
       "id": "FRC0-nested-checker",
