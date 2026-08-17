@@ -10,6 +10,48 @@ semântica. A autoridade normativa continua em [DESIGN.md](../DESIGN.md).
 comportamento; nenhum highlighter aceita ou rejeita um programa em nome da
 linguagem.
 
+## Registro do design freeze
+
+[`design-freeze-classification.json`](design-freeze-classification.json) possui
+uma entrada explícita para cada ID do ledger. O checker exige a união exata do
+ledger e rejeita IDs ausentes, novos, duplicados ou com digest stale. Cada
+registro carrega `selection: explicit-ledger-id`, `basisRef` para a linha do
+ledger e digest atual; o `archiveGapDistribution` registra por que os 905 IDs
+que faltavam no gate anterior não foram classificados por range ou default.
+
+As categorias têm estados diferentes:
+
+- `source-backed-current` e `oracle-backed-current` ligam evidência verificável.
+- `research-gated` exige uma condição de parada para pesquisa aberta.
+- `implementation-evidence-gap` exige uma condição de parada para evidência ausente.
+- `superseded` aponta para a decisão corrente que substitui a proveniência.
+- `rejected` aponta para a ausência corrente sem promover a forma recusada.
+
+O estado atual é `91 source-backed-current`, `433 oracle-backed-current`, `52
+research-gated`, `798 implementation-evidence-gap`, `56 superseded` e `6
+rejected` (1436/1436). A lacuna histórica de 905 fica distribuída em 30
+oracle, 44 Research, 791 gaps de implementação, 34 superseded e 6 rejected;
+nenhuma decisão é selecionada por faixa, época, regex ou default em massa.
+
+Gaps de implementação usam `authorityRef.kind: design-contract` com a seção e
+heading exatos de `DESIGN.md`, digest do arquivo e digest do slice. O `gap.gate`
+deve ser igual a essa autoridade; §24.4 só é aceito para um gap real do gate de
+freeze. Cada gap nomeia componente e testemunho ausente sem fallback por ID.
+Entradas de pesquisa nomeiam gate, caso independente, digest novo e decisão de
+promoção. Quando uma decisão corrente mantém uma extensão Research, ela usa
+`researchExtension` sem rebaixar o baseline. `superseded` carrega
+`supersessionClaim` com claim/digest do sucessor e relação semântica explícita.
+Refs de fonte/oráculo exigem `caseId`, path e digest; quando o caso é
+file-backed, também exigem símbolo. O baseline BRX0 pode usar `decisionBridge`
+para ligar seu fechamento ao ID que o caso realmente cita.
+
+O checker mantém sentinelas fixas para W-1381–W-1384 (BRX2 Research), W-1418
+(protocolo em §8.2), W-1436 (BRX0 current + extensão BRX2), W-281 (sucessor
+W-1290) e uma amostra de cada família componente/seção.
+
+Casos host e snapshots descrevem design-oracle evidence. Eles não afirmam
+compiler, runtime, provider ou execução W.
+
 ## Duas camadas, uma só gramática sintática
 
 | Camada | Papel imediato | Limite |
@@ -45,7 +87,7 @@ linguagem.
 | `operational-time-cases.json` + máquina/checker/snapshot | TIME0 cobre 52 casos/277 operações (27 aceitos + 25 rejeitados) para Duration exata, Clock root-scoped, origin, default/active HostSuspendPolicy, profile monotônico, deadlines, boundaries e clock virtual; oito testes host usam entradas independentes | oracle host de design; não executa W, clock, timer, scheduler, OS ou provider `std.time@1` |
 | `kernel-module-cases.json` + máquina/checker/snapshot | KM0 cobre 32 casos/218 operações (6 aceitos + 26 rejeitados) para head de síntese, identities, call graph, famílias genéricas, artifacts source-backed/closed e ausência de JIT; nove testes host usam inputs independentes | oracle host de design; não executa W, compiler, kernel, linker, driver ou provider |
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 531/1436 decisões estão classificadas (170 source, 404 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 51 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `design-freeze-classification.json` + `check-design-freeze-audit.mjs` | registro versionado e explícito dos 1436 IDs, com uma categoria fechada, claim do ledger, authority ref, digests, casos de fonte/oráculo e stop condition; preserva a cobertura legada 170 source, 404 oracle, 8 explícitas e 51 overlaps | auditoria de design; fonte/oráculo host não são compiler, runtime ou provider |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 190 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
 | `studies/*/bundle.json` + checker | 45 bundles R1, 128 variantes e 180 tarefas; 69/75 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
