@@ -1,0 +1,1035 @@
+# Cheatsheet W
+
+> **Rascunho de design · agosto de 2026**
+>
+> W ainda não tem compiler, runtime, SDK, package manager ou providers de
+> standard library. Este arquivo é um mapa de leitura para a superfície
+> proposta. Ele não promete que um snippet execute.
+
+Este cheatsheet usa a forma integrada de DESIGN.md e os casos do produto de
+referência [Última Luz](reference/last-light/README.md). A edição segue a
+inspiração editorial do [QuickRef de Rust](https://quickref.me/rust), mas a
+autoridade continua sendo DESIGN.md. A fonte .w, os oracles e o atlas são
+evidência de design ou de parsing, não uma implementação.
+
+## Índice
+
+- [Como ler este arquivo](#como-ler-este-arquivo)
+- [Primeira rota](#primeira-rota)
+- [Source, léxico e formatter](#source-léxico-e-formatter)
+- [Módulos, imports e visibilidade](#módulos-imports-e-visibilidade)
+- [Declarações, tipos e contratos](#declarações-tipos-e-contratos)
+- [Bindings, callables e ownership](#bindings-callables-e-ownership)
+- [Controle, patterns, generics e reflexão](#controle-patterns-generics-e-reflexão)
+- [Errors, effects e cleanup](#errors-effects-e-cleanup)
+- [Async, tasks, channels, streams e yield](#async-tasks-channels-streams-e-yield)
+- [Shared, weak, lazy, atomic, locks e SnapshotCell](#shared-weak-lazy-atomic-locks-e-snapshotcell)
+- [Services, recovery e capabilities](#services-recovery-e-capabilities)
+- [I/O, texto, bytes e collections](#io-texto-bytes-e-collections)
+- [Números, units, Quantity, dados e serialização](#números-units-quantity-dados-e-serialização)
+- [Tensors, devices e custo](#tensors-devices-e-custo)
+- [FFI, foreign bodies e segurança](#ffi-foreign-bodies-e-segurança)
+- [Package, build, CLI, REPL e Jupyter](#package-build-cli-repl-e-jupyter)
+- [Mesmo objetivo, várias formas](#mesmo-objetivo-várias-formas)
+- [Índices rápidos](#índices-rápidos)
+- [Evidência, limites e validação](#evidência-limites-e-validação)
+
+## Como ler este arquivo
+
+### Maturidade
+
+W está em fase de projeto. Os estados normativos de §0 são separados dos
+qualificadores de evidência. **Forma vigente** significa que a forma está
+integrada ao design e ao produto de referência. **Direção** é um princípio
+estável que limita futuras soluções. **Pesquisa** é uma hipótese ou baseline.
+**Rejeitado por enquanto** e **Rejeitado** não são formas atuais.
+
+#### Estados normativos de §0
+
+| Estado | Leitura segura |
+| --- | --- |
+| Forma vigente / current | Forma corrente de source ou contrato. Verifique a âncora de DESIGN.md. |
+| Direção / direction | Princípio ou decisão de produto que limita soluções futuras. |
+| Pesquisa / research | Hipótese ou baseline com escopo declarado; não copie como regra. |
+| Rejeitado por enquanto | Alternativa não adotada sem evidência nova. |
+| Rejeitado / rejected | Alternativa fora do W atual. Reabrir exige necessidade e evidência novas. |
+
+A classificação ativa do design freeze tem zero entradas research-gated. Uma
+nota normativa ou uma subcapacidade ainda pode citar Pesquisa com escopo
+fechado. Isso não abre um estado global novo. Pesquisa histórica encerrada é
+um qualificador de proveniência em history, não um estado de §0.
+
+#### Qualificadores de evidência, não estados
+
+| Qualificador | Leitura segura |
+| --- | --- |
+| implementation-gap | O contrato pode estar vigente, mas compiler, runtime, CLI, std ou provider ainda faltam. |
+| tree-sitter-parse-only | O snippet passou pelo parser de referência. Não houve type-check, lowering ou execução. |
+| oracle-backed-current | Um oracle host registra uma decisão de design. Oracle não é runtime. |
+| source-backed | O texto vem de um arquivo .w de Última Luz ou do atlas. |
+
+Quando uma linha mostra uma alternativa, ela fica em célula própria e recebe
+Não use ou Rejeitado. Um bloco com esse rótulo nunca é apresentado como W
+válido.
+
+### Rota de leitura
+
+1. Leia [DESIGN.md §0](DESIGN.md#0-como-ler-este-documento) para a autoridade e os estados.
+2. Use o [índice gerado](DESIGN-INDEX.md) para localizar uma decisão.
+3. Compare o contrato com os [oracles e fontes da Última Luz](reference/last-light/README.md).
+4. Trate o [atlas sintático](reference/syntax-atlas/CHEATSHEET.md) como uma
+   projeção parse-only. Ele é gerado e não deve ser editado.
+
+## Primeira rota
+
+### Um arquivo de source
+
+Esta é uma amostra curta do atlas. Ela é current / Forma vigente,
+tree-sitter-parse-only, implementation-gap.
+
+```w
+module hello
+
+import std.text
+
+fn runHello() {
+  let greeting = "hello"
+}
+
+entry Hello(runHello)
+```
+
+O nome do módulo e os imports pertencem ao source. Um package e um workspace
+são raízes de manifesto, não módulos W comuns. Veja os exemplos de dados em
+[package.w](reference/last-light/package.w) e
+[workspace.w](reference/last-light/workspace.w).
+
+### Comandos planejados
+
+Os nomes abaixo são uma interface prevista, não uma CLI disponível:
+
+| Objetivo | Forma prevista | Estado |
+| --- | --- | --- |
+| Rodar arquivo único | `w run path/file.w` | Direção + implementation-gap |
+| Construir package | `w build` | Direção + provider missing |
+| Abrir sessão | `w repl` | Direção + implementation-gap |
+| Verificar source | `w check` | Direção + frontend missing |
+| Exportar notebook | `w notebook export` | Direção + provider/implementation-gap |
+
+O [gate da Última Luz](reference/last-light/BUILD.md) separa parser,
+checker, HIR, lowering, runtime, toolchain e provider. Não use um comando
+planejado como evidência de que uma camada existe.
+
+### Checklist de primeira leitura
+
+- Comece com um `module` explícito. Use `entry Name(fn)` para um product
+  nomeado. A forma de arquivo único com statements finais é uma direção de
+  module run, não um segundo grammar.
+- Prefira imports explícitos e nomes qualificados. A resolução de package,
+  target e provider depende de manifestos e de um contexto de resolução.
+- Faça ownership e effects visíveis no call site. take, ref, inout, await,
+  spawn e unsafe não são decoração.
+- Para qualquer snippet, confira a etiqueta de evidência e o arquivo Last
+  Light ligado na mesma seção.
+
+## Source, léxico e formatter
+
+Contrato: [DESIGN.md §5](DESIGN.md#5-source-nomes-e-edição) e
+[DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos).
+
+### Regras de source
+
+| Item | Forma corrente |
+| --- | --- |
+| Codificação | UTF-8 com normalização NFC; identificadores e texto preservam Unicode. |
+| Keywords | ASCII minúsculo. |
+| Comentário de linha | // comentário |
+| Comentário de bloco | /* comentário */ |
+| Documentação | /// e /** ... */, ligada ao item seguinte. |
+| Statements | ; é aceito na migração, mas o formatter escolhe a forma canônica. |
+| Names | O nome exportado e o caminho de import são parte da interface. |
+| Formatter | Deve preservar parse e significado; divergências são um gate de design. |
+
+### Literais e collections
+
+Este trecho é current / tree-sitter-parse-only / source-backed, reduzido de
+[reference/syntax-atlas/CHEATSHEET.md](reference/syntax-atlas/CHEATSHEET.md).
+
+```w
+fn values(): () {
+  let count = 1_000
+  let ratio = 0.5e2
+  let distance = 9.81<m/s^2>
+  let speed = 12km
+  let bytes = 64KiB
+  let text = "city"
+  let raw = #"raw city"#
+  let multiline = """north
+south"""
+  let scalar = 'N'
+  let byte = b'\x4e'
+  let enabled = true
+  let point = (north: 1, east: 2)
+  let list = [1, 2, 3]
+  let map = ["north": 1]
+  let repeated = [0; 4]
+  let selected = (point).north
+}
+```
+
+Literal 12km, 64KiB e 9.81<m/s^2> exigem resolução de units e não provam um
+provider numérico. A semântica de Quantity está em
+[DESIGN.md §15](DESIGN.md#15-números-ranges-e-unidades) e no oracle
+[quantity_oracle.w](reference/last-light/quantity_oracle.w).
+
+### Operadores de consulta rápida
+
+| Família | Formas correntes | Observação |
+| --- | --- | --- |
+| Aritmética | +, -, *, /, % | O tipo e o overflow continuam parte do contrato numérico. |
+| Comparação | ==, !=, <, <=, >, >= | Protocolos e refinements podem restringir o domínio. |
+| Lógicos | &&, ||, ! | Short-circuit é uma ordem de avaliação do design. |
+| Intervalo | a..<b, a...b | O primeiro exclui o limite final; o segundo inclui os limites segundo o tipo. |
+| Coalescência | value?, left ?? fallback | A leitura de Option não é conversão silenciosa. |
+| Acesso | .member, value[index] | Ownership do projection depende do contexto. |
+| Tipo/case | is | Testa tipo ou case conforme o contrato esperado. |
+| Assignment | =, +=, -=, *=, /= | Assignment não é uma expressão genérica em qualquer contexto. |
+
+Consulte a hierarquia normativa em
+[DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos) antes
+de inferir precedência de uma forma nova.
+
+## Módulos, imports e visibilidade
+
+Contrato: [DESIGN.md §6](DESIGN.md#6-módulos-imports-e-visibilidade). O atlas
+marca estas formas como current / tree-sitter-parse-only.
+
+```w
+module atlas_language<
+  domains: [.serial],
+>
+
+import std.text
+import { String as Text } from std.text
+export * from atlas.foundation
+export { FoundationPlace as BasePlace } from atlas.foundation
+import domain { District } from atlas.domain
+import service { RemoteCatalog<key: String> } from atlas.catalog
+import service atlas.catalog as catalog
+```
+
+| Forma | Uso | Limite de evidência |
+| --- | --- | --- |
+| import std.text | Import ordinário de módulo | Parser e contrato; std ainda é rascunho. |
+| import { Name as Alias } from path | Seleção e renomeação | A resolução depende do package context. |
+| import domain { ... } | Carrega a interface de um domain | domain não implica process isolation disponível. |
+| import service { ... } | Referência a service | Services são direção e têm provider gap. |
+| export * from path | Reexportação explícita | Não transforma a unidade em um barrel sem contrato. |
+| module name<domains: [...]> | Declara capabilities/domains do módulo | O domínio precisa ser compatível com o target. |
+
+Visibilidade (private, internal, public/export) acompanha a interface do módulo.
+Não use o [portal](portal/README.md) como fonte de regras de import: é um
+protótipo congelado.
+
+## Declarações, tipos e contratos
+
+Contrato: [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões),
+[DESIGN.md §7](DESIGN.md#7-bindings-funções-e-closures) e
+[DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos).
+
+### Formas de declaração
+
+```w
+export struct Place<ID> : Hashable {
+  id: ID
+  var label: String = "square"
+
+  init(id: ID, label: String) {
+    self.id = id
+    self.label = label
+  }
+
+  fn describe(): String {
+    return label
+  }
+}
+
+object Ward {
+  var name: String
+}
+
+protocol Directory<Key> {
+  type Value: Hashable
+  fn lookup(key: Key): Value
+}
+
+enum Signal: Error {
+  quiet
+  alert(level: u8)
+}
+```
+
+O bloco é uma amostra current / tree-sitter-parse-only. struct descreve valor
+com layout; object descreve identidade/estado; protocol descreve contrato; enum
+fecha cases. service, behavior, extension, type, alias, dimension e unit
+aparecem em fontes Last Light e têm regras próprias. Não suponha que object
+seja automaticamente shared.
+
+### Tipos compostos e estáticos
+
+```w
+type PlaceId = String
+alias MaybePlace = Place<String>?
+type Location = (district: String, number: u16)
+type Digest = [u8; 32]
+type Callback = some fn(String): String
+type SmallText = Array<u8><(.count <= 64)>
+type Allowed = Signal<[.quiet, .alert]>
+```
+
+| Construção | Intenção |
+| --- | --- |
+| type Name = T | Nome de um tipo fechado ou de um refinement. |
+| alias Name = T | Alias de leitura; não cria identidade nova. |
+| T<(predicate)> | Refinement verificado no contrato estático. |
+| Enum<[cases]> | Subconjunto estático de cases. |
+| (label: T, ...) | Tuple nomeada. |
+| [T; N] | Array de tamanho estático. |
+| some fn(...) | Callable opaco com uma implementação concreta por valor. |
+| any fn(...) | Existential callable com custo e mobilidade explícitos. |
+
+Generics usam parâmetros de tipo, valor e associados. Heads como T: P & Q,
+conformances condicionais e some/any não são equivalentes a um where textual.
+A fonte [generics.w](reference/last-light/generics.w) concentra casos de
+contrato.
+
+### Inicialização e propriedades
+
+Use Type(field: value) e init(...) com labels. Propriedades podem ter get,
+set e modify, mas o acesso ainda obedece ownership. Um deinit não substitui
+defer nem uma política de cleanup de async.
+
+## Bindings, callables e ownership
+
+Contrato: [DESIGN.md §7](DESIGN.md#7-bindings-funções-e-closures) e
+[DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação).
+
+### Bindings
+
+| Forma | Significado de alto nível |
+| --- | --- |
+| let x = value | Binding imutável depois da inicialização. |
+| var x = value | Binding reatribuível. Mutação ainda pode exigir exclusividade. |
+| let ref x | Borrow de leitura com escopo controlado. |
+| let inout x | Borrow mutável exclusivo durante a operação. |
+| take x | Move explícito do valor. |
+| copy x | Cópia explícita quando o tipo e o orçamento permitem. |
+| pin x | Fixa uma relação de endereço/ownership no contexto restrito. |
+| shared T, weak T, view T | Capacidades de acesso diferentes; não são sinônimos de ponteiros C. |
+| var atomic x | Estado atômico com ordem de memória indicada na operação. |
+
+```w
+fn stage(allocator destination: ref Allocator, city: String): String {
+  return city
+}
+
+fn moveCity(city: take String): String {
+  return city
+}
+```
+
+O primeiro snippet é current / tree-sitter-parse-only do atlas. O segundo
+combina uma forma de parâmetro já usada em Last Light. Use
+[memory.w](reference/last-light/memory.w),
+[borrowed_values.w](reference/last-light/borrowed_values.w) e
+[borrow_expressivity.w](reference/last-light/borrow_expressivity.w) para
+distinguir borrow, move, copy, pin e allocation.
+### Funções, labels e closures
+
+O declaration de função abaixo é um excerpt parse-only. As duas closures
+seguintes são shape/excerpt para mostrar capture; não formam um source unit
+completo neste bloco.
+
+```w
+export fn describe<ID, _ limit: usize>(
+  value: ID,
+  each labels: String...,
+): String throws Signal {
+  return labels[0]
+}
+
+let byCopy = <[copy target]>(value: String): String { return value }
+let byRef = <[ref borrowed]>(value: String): String { return value }
+```
+
+Labels externos, labels obrigatórios, defaults, rest (each), static, const,
+mut, async, throws, some fn e any fn compõem o callable type. Closure capture
+é parte do contrato: copy, ref, take e weak dizem como a closure retém o valor.
+O [oracle de callables](reference/last-light/callables.w) e o
+[oracle de mobilidade](reference/last-light/mobility.w) são evidência, não uma
+biblioteca executável.
+
+### Allocators e orçamento
+
+O bloco seguinte é shape/excerpt com três scopes. Cada forma individual é
+current; o agrupamento não é um source unit completo.
+
+```w
+allocator scratch: .fixed<capacity: 128> {
+  let value = "temporary"
+}
+
+allocator .root {
+  let longLived = "owned by root"
+}
+
+allocator .none {
+  // operações que não podem alocar neste escopo
+}
+```
+
+As formas .fixed, .root e .none são current. .bounded é uma
+Pesquisa descrita, não um plano ativo em ASC0; não o trate como API corrente.
+A política de propagação contextual está em
+[DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação).
+
+## Controle, patterns, generics e reflexão
+
+### Controle de fluxo
+
+if pode ser statement ou value block. guard encerra o caminho atual. switch
+deve respeitar exhaustividade para enums e patterns fechados. for, while,
+repeat, break, continue e return seguem os efeitos e ownership do corpo.
+
+O trecho seguinte é shape/excerpt: guard exige um body enclosing.
+
+```w
+let label = if target == "north" { "day" } else { "night" }
+
+guard source.count > 0 else {
+  throw .corruptRecord(0)
+}
+```
+
+### Patterns
+
+```w
+fn classify(signal: Signal): String {
+  return switch signal {
+    case .quiet: "quiet"
+    case .alert(let level) if level > 0: "alert"
+    case .alert(let level): "alert"
+  }
+}
+```
+
+Patterns de enum, struct, tuple, range, wildcard e binding devem deixar claro
+qual valor foi movido, emprestado ou copiado. A gramática e as regras de
+exhaustividade estão em
+[DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos).
+
+### Contracts, generics e reflection
+
+| Recurso | Forma de consulta | Evidência |
+| --- | --- | --- |
+| Constraint | T: P & Q | DESIGN.md §8.7; [generics.w](reference/last-light/generics.w) |
+| Associated type | protocol P { type Item: Hashable } | [enum_contracts.w](reference/last-light/enum_contracts.w) |
+| Refinement | GuestCount = u16<(1...4096)> | [domain.w](reference/last-light/domain.w) |
+| Static list/record | Signal<[.quiet, .alert]>, Config<{mode: .strict}> | [reflection.w](reference/last-light/reflection.w) |
+| Reflection | reflect.Reflectable, TypeId.of<T>() | [reflection.w](reference/last-light/reflection.w) |
+| Rest | T... e each values | [rest_arguments.w](reference/last-light/rest_arguments.w) |
+
+Reflection e synthesis são contratos fechados. Não os trate como macros
+universais, derive automático ou metadata de runtime.
+
+## Errors, effects e cleanup
+
+Contrato: [DESIGN.md §11](DESIGN.md#11-erros-panic-oom-e-cleanup) e
+[DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos).
+
+### Ausência, erro e falha fatal
+
+| Caso | Forma corrente | Não confundir com |
+| --- | --- | --- |
+| Ausência esperada | T?, .some, .none, try? | null universal ou exceção implícita |
+| Erro recuperável | throws E, throw, try | panic ou retorno Any |
+| Falha de programa | panic(...) | Erro de domínio que o caller deve tratar |
+| Falta de memória | OutOfMemory/carrier definido pelo contrato | panic genérico |
+| Invariante | guard ... else throw ou precondition do contrato | Conversão silenciosa |
+
+```w
+export fn optionalGuestName(input: ref String): GuestName? {
+  return try? GuestName(input)
+}
+
+export fn requireGuest(
+  guests: ref Map<GuestId, Guest>,
+  id guestId: GuestId,
+): ref Guest throws ServiceLookupError {
+  return try guests[guestId].orThrow(.missingGuest(guestId))
+}
+```
+
+Esses trechos vêm de [failure.w](reference/last-light/failure.w) e são
+source-backed / oracle-backed-current. A implementação de Result, carriers e
+diagnósticos ainda é um gap do frontend/runtime.
+
+### Effects e expressões restritas
+
+O trecho seguinte é shape/excerpt de expressions restritas, não um source unit
+completo.
+
+```w
+let first = try await direct
+let optional = try? await fetch("west")
+let guarded = lock target as city { city }
+let transactionValue = transaction<.serial> tx = target { commit tx }
+let unsafeValue = unsafe { target }
+let pinned = pin target
+```
+
+await, throws, unsafe, lock, transaction, pin e defer async formam efeitos
+verificáveis. try!, conversão automática de cancelamento em erro ou errdefer
+não são atalhos correntes sem uma decisão explícita.
+
+### Cleanup
+
+```w
+export fn decodeWithCleanup(
+  source: ref Bytes,
+  trace cleanupTrace: inout Array<CleanupStep>,
+): Course throws ServiceLookupError {
+  cleanupTrace.append(.opened)
+  defer { cleanupTrace.append(.closed) }
+
+  guard source.count > 0 else throw .corruptRecord(0)
+  cleanupTrace.append(.decoded)
+  return .horizonCake
+}
+```
+
+Use defer para cleanup lexical e defer async quando o close pode suspender. O
+[oracle de failure](reference/last-light/failure.w) e
+[DESIGN.md §11](DESIGN.md#11-erros-panic-oom-e-cleanup) definem a ordem.
+Destrutor detached e errdefer ficam fora da forma corrente.
+
+## Async, tasks, channels, streams e yield
+
+Contrato: [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução).
+Consulte [execution.w](reference/last-light/execution.w),
+[streams.w](reference/last-light/streams.w) e
+[synchronization.w](reference/last-light/synchronization.w).
+
+### Call sites de execução
+
+```w
+export async fn mixPair(
+  left: take MixingJob,
+  right: take MixingJob,
+): (MixingResult, MixingResult) throws BrigadeError {
+  spawn<.compute> let leftResult = mixJob(take left)
+  spawn<.compute> let rightResult = mixJob(take right)
+  return try await (leftResult, rightResult)
+}
+```
+
+async let cria uma child task lexical. spawn<.compute> e
+spawn<domain: .compute> são duas formas correntes do mesmo slot de placement;
+ambas continuam exigindo join. await é um ponto de suspensão; o corpo de uma
+função pode inferir maySuspend quando a operação chamada o exige. Não há
+promessa de scheduler ou runtime disponível.
+
+### TaskGroup, cancellation e TaskLocal
+
+Last Light usa TaskGroup.parallelMap, TaskGroup.parallelCollect,
+Task.checkCancellation(), Task.yield() e TaskLocal. Essas formas são
+oracle-backed-current / provider missing; veja
+[execution.w](reference/last-light/execution.w). A regra é estrutural:
+children pertencem ao parent, joins são observáveis e cancellation atravessa os
+pontos definidos pelo contrato.
+
+### Channels e streams
+
+```w
+export async fn inspectMenuLines<E: Error>(
+  source: take some Stream<view String, E>,
+): usize throws E {
+  var lines = take source
+  var nonempty = 0_usize
+
+  for try await line in lines {
+    if !line.isEmpty { nonempty += 1 }
+  }
+
+  return nonempty
+}
+```
+
+Stream<view Element, Failure> é pull-oriented. Channel<T><.send> e
+Channel<T><.receive> tornam a autoridade direcional explícita.
+
+O bloco compiler-owned de GEN2 é a forma vigente para um producer pull curto:
+
+```w
+export fn yieldOrders(source: take some Stream<Order, OrderFailure>): some Stream<Order, OrderFailure> {
+  return stream <[take source]> {
+    var cursor = take source
+    while let order = try await cursor.next() {
+      yield take order
+    }
+  }
+}
+```
+
+stream <[...]> { yield take/copy ... } é uma forma vigente e estreita. Generic
+generator, yield from, buffer oculto, channel bidirecional implícito, MPMC sem
+domínio e buffer infinito estão fora da forma vigente.
+
+## Shared, weak, lazy, atomic, locks e SnapshotCell
+
+Contrato: [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação),
+[DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) e
+[DESIGN.md §12.10.8](DESIGN.md#12108-snapshotcell).
+
+### Capacidades de referência
+
+| Forma | Capacidade | Custo e limite |
+| --- | --- | --- |
+| shared T | Compartilhamento explícito com política de liveness | Não é Arc<T> automático; domínio e mutação importam. |
+| weak T | Observação que não mantém o owner vivo | Upgrade e ausência precisam de tratamento. |
+| view T | Projeção de leitura/borrow | Não cria uma cópia nem uma lifetime annotation pública. |
+| lazy T | Materialização sob demanda com política definida | O oracle de lazy ainda é provider gap. |
+| var atomic x | Operações atômicas em estado permitido | Ordem (relaxed, acquire, release) deve ser indicada. |
+
+### Atomic e locks
+
+O trecho seguinte é shape/excerpt: a declaração object e a expressão lock
+costumam viver em scopes distintos.
+
+```w
+object BrigadeMetrics {
+  var atomic completed: u64 = 0
+
+  fn recordCompletion() {
+    completed.saturatingAdd<.relaxed>(1)
+  }
+}
+
+let guarded = lock target as city { city }
+```
+
+O [oracle de sincronização](reference/last-light/synchronization.w) também
+mostra CAS, Atomic.wait/notify, try lock, domain .serial e SnapshotCell. Lock
+é último recurso para estado compartilhado. Não use um mutex global,
+Atomic<shared T> ou RCU implícito como se fossem formas correntes.
+
+### SnapshotCell
+
+SnapshotCell<T> separa leitura de snapshot e publicação de uma nova versão.
+Ele não é um universal mutable cell nem substitui ownership. A política de
+atomicidade, liveness e descarte está em
+[DESIGN.md §12.10.8](DESIGN.md#12108-snapshotcell) e no oracle de sincronização.
+O provider ainda é missing.
+
+## Services, recovery e capabilities
+
+Contrato: [DESIGN.md §13](DESIGN.md#13-módulos-de-execução-services-e-entries) e
+[DESIGN.md §13.9.3](DESIGN.md#1393-recovery-de-service-e-deduplicação).
+
+### Service e entry
+
+Um service é uma fronteira de execução com interface e estado controlados. Um
+entry escolhe o root do product. domain expressa placement e budget.
+SupervisorRef, WorkKeyRef, WorkSnapshot, ServiceFailure, effectId e
+deduplication pertencem ao contrato de recovery. Eles não significam que um
+process supervisor ou rede esteja funcionando neste checkout.
+
+Fontes de leitura: [service_oracle.w](reference/last-light/service_oracle.w),
+[service_recovery_oracle.w](reference/last-light/service_recovery_oracle.w),
+[supervision.w](reference/last-light/supervision.w) e
+[workflow.w](reference/last-light/workflow.w).
+
+### Recovery seguro
+
+| Peça | Papel |
+| --- | --- |
+| Closed turn | Um turno tem entradas, efeitos, outputs e budget observáveis. |
+| WorkKeyRef | Chave limitada para deduplicar ou retomar trabalho. |
+| WorkSnapshot | Snapshot versionado para recovery, não ponteiro mutável. |
+| ServiceFailure | Falha tipada com causa e policy de retry explícitas. |
+| effectId | Identidade para deduplicação; não autoriza repetir efeitos arbitrários. |
+| Supervisor | Policy declarativa de restart, backoff e limite. |
+
+Reentrada livre, retry implícito, detached Promise e transação distribuída
+genérica estão fora da forma vigente nesta baseline. Veja as trocas e a
+evidência da decisão na tabela de comparações abaixo.
+
+### Capabilities e security
+
+Capability, target, sandbox e host lifecycle devem ser declarados. O código não
+recebe acesso a filesystem, rede, device ou process apenas por importar um
+nome. Veja [capability_security_oracle.w](reference/last-light/capability_security_oracle.w),
+[session_security_oracle.w](reference/last-light/session_security_oracle.w) e
+[DESIGN.md §19](DESIGN.md#19-ffi-unsafe-e-ilhas-de-linguagem).
+
+## I/O, texto, bytes e collections
+
+Contrato: [DESIGN.md §16](DESIGN.md#16-texto-bytes-e-collections) e
+[DESIGN.md §14](DESIGN.md#14-prelude-e-standard-library).
+
+### Texto e bytes
+
+String opera sobre texto válido. Bytes opera sobre dados opacos. Conversão
+entre ambos precisa de encoding e erro visíveis. view String, slices e
+projections preservam ownership do storage. Consulte [text.w](reference/last-light/text.w),
+[string_storage.w](reference/last-light/string_storage.w) e
+[collections.w](reference/last-light/collections.w).
+
+### I/O async-first
+
+Os carriers correntes são ByteSource e ByteSink. Uma leitura pode retornar
+ReadStep.data(bytes) ou ReadStep.end; EOF não é um byte mágico. Escrita usa
+append de Bytes; leitura posicional recebe offset e tamanho. Os oracles
+[io.w](reference/last-light/io.w), [fs_oracle.w](reference/last-light/fs_oracle.w),
+[net_oracle.w](reference/last-light/net_oracle.w) e
+[http_documents.w](reference/last-light/http_documents.w) registram o contrato.
+Os providers std.fs, std.net e std.http ainda são gaps.
+
+### HTTP, web e processo
+
+HTTP, web bodies, process, time e filesystem aparecem como interfaces tipadas e
+capabilities. Um snippet de http.Request não prova servidor, socket, TLS,
+browser ou process launch. Veja [http_oracle.w](reference/last-light/http_oracle.w),
+[web_bodies.w](reference/last-light/web_bodies.w),
+[process_oracle.w](reference/last-light/process_oracle.w) e
+[time_oracle.w](reference/last-light/time_oracle.w).
+## Números, units, Quantity, dados e serialização
+
+### Números, ranges e units
+
+Contrato: [DESIGN.md §15](DESIGN.md#15-números-ranges-e-unidades).
+
+| Forma | Uso |
+| --- | --- |
+| u8, u16, u32, u64, usize | Inteiros sem sinal com largura explícita. |
+| i8, i16, i32, i64, isize | Inteiros com sinal. |
+| f32, f64 | Ponto flutuante explícito. |
+| T<(predicate)> | Limite/refinement, como u16<(0...10_000)>. |
+| checkedAdd, wrappingAdd, saturatingAdd, overflowingAdd | Política de overflow no call site. |
+| 9.81<m/s^2> | Literal com unidade resolvida no contexto. |
+| Quantity(value, unit: ...) | Carrier de magnitude e unidade. |
+
+O oracle [numerics.w](reference/last-light/numerics.w) cobre overflow e
+largura. [units.w](reference/last-light/units.w) e
+[quantity_oracle.w](reference/last-light/quantity_oracle.w) cobrem unidades e
+adapters. Narrowing implícito, fast int dependente da máquina e terceiro tipo
+numérico comum ficam fora da forma vigente.
+
+### Tabular e formatos
+
+data.Row, data.Batch<Row>, DynamicBatch, adapters tabulares e carriers de
+CSV/Parquet/Arrow mantêm schema e ownership explícitos. JSON exige uma
+conformance explícita. wWire é a Direção escolhida; profiles e contracts estão
+fechados, enquanto decoder, provider e custo continuam em implementation-gap.
+Fontes:
+[data_formats.w](reference/last-light/data_formats.w),
+[json.w](reference/last-light/json.w) e
+[wire_oracle.w](reference/last-light/wire_oracle.w).
+
+```w
+struct TabularTelemetryRow: data.Row {
+  sequence: u64
+  hawkingFlux: f64
+  warning: String?
+}
+```
+
+O snippet é uma forma de oracle de design. Não há codec ou provider tabular
+executável no repositório.
+
+### Quantities e serialization
+
+Não use Any ou duck typing para esconder unidade ou schema. Prefira carrier
+tipado, adapter explícito e budget de bytes. O formato de wire deve declarar
+versão, bounds, tags e erro de decode. Consulte
+[DESIGN.md §14.4.1](DESIGN.md#1441-carrier-tabular),
+[DESIGN.md §15.5.3](DESIGN.md#1553-wwire-para-quantity) e
+[DESIGN.md §15.5.4](DESIGN.md#1554-json-de-domínio-para-quantity).
+
+## Tensors, devices e custo
+
+Contrato: [DESIGN.md §17](DESIGN.md#17-matrizes-tensors-e-ml) e
+[DESIGN.md §18](DESIGN.md#18-performance-e-custo).
+
+### Matriz e tensor
+
+Arrays fixos e matrizes usam shape e element type visíveis. Tensor interop usa
+carriers explícitos, DLPack e cópia/borrow declarados. O oracle
+[tensor_interop.w](reference/last-light/tensor_interop.w) registra
+tensor.transfer, tensor.materialize e export. Não trate um tensor como
+Array<Any> nem infira device por uma operação.
+
+### Device e kernel
+
+```w
+export const lastLightKernels = accelerator.module<{
+  forecast: forecastKernel,
+  normalize: normalizeKernel,
+}>()
+```
+
+Este bloco é forma de design para um descriptor fechado. Launch, Queue, Device e kernel scope estão em
+[device_execution_oracle.w](reference/last-light/device_execution_oracle.w)
+e [DESIGN.md §12.7.2](DESIGN.md#1272-device-scopes-e-kernels). Provider de GPU,
+JIT e device runtime são gaps. Transferência implícita, raw stream e kernel sem
+target declarado são rejeitados.
+
+### Performance e custo
+
+Toda alternativa nesta página deve ser comparada por ownership, effects,
+authority, allocation, cópia, suspensão, largura de dados e budget. O
+[oracle de performance](reference/last-light/performance.w) mede contratos
+de design. Ele não é benchmark de um compiler existente.
+
+## FFI, foreign bodies e segurança
+
+Contrato: [DESIGN.md §19](DESIGN.md#19-ffi-unsafe-e-ilhas-de-linguagem).
+
+### Foreign e ABI
+
+```w
+export foreign c {
+  const LL_HORIZON_OK_V1: c.int = 0
+}
+
+export unsafe fn<abi: .c> ll_horizon_checksum_v1(
+  data: c.ptr<c.uchar>,
+  size: c.size,
+): c.uint {
+  var hash: c.uint = 2_166_136_261
+  var index: c.size = 0
+  while index < size {
+    hash = (hash ^ data[index]) * 16_777_619
+    index += 1
+  }
+  return hash
+}
+```
+
+Essas formas são current / parse-only / provider missing e devem permanecer
+em ilhas unsafe. ABI, carrier físico e ownership C precisam de uma prova de
+fronteira. Consulte [abi.w](reference/last-light/abi.w),
+[abi_oracle.w](reference/last-light/abi_oracle.w),
+[hardware.w](reference/last-light/hardware.w) e
+[system_escapes.w](reference/last-light/system_escapes.w).
+
+fn<C> é uma forma vigente de body inline C; ela não é um generic W. A forma
+unsafe fn<abi: .c> acima é uma exportação W com ABI C. Ficam fora da forma
+vigente: tratar fn<C> como generic/sandbox, passar objetos W ricos por C, usar
+dynamic library sem capability ou fazer um arquivo foreign comportar-se como
+módulo W normal. A especificação deve distinguir WInterface, ABI, runtime
+requirements e carriers.
+
+## Package, build, CLI, REPL e Jupyter
+
+Contrato: [DESIGN.md §21](DESIGN.md#21-packages-builds-e-releases),
+[DESIGN.md §22](DESIGN.md#22-tooling-e-interface-para-máquinas) e
+[DESIGN.md §23](DESIGN.md#23-protocolos-e-pesquisas-de-ecossistema).
+
+### Package e workspace
+
+Manifestos separam identidade, dependências, targets, capabilities, artifacts
+e resolução. Eles são data-only roots. Consulte
+[package.w](reference/last-light/package.w),
+[workspace.w](reference/last-light/workspace.w) e
+[BUILD.md](reference/last-light/BUILD.md).
+
+| Dado | Por que existe |
+| --- | --- |
+| Package name/version | Identidade e release. |
+| Module set | Conjunto de modules permitido no target. |
+| Dependency/source pin | Reprodutibilidade; não use PATH ambiente. |
+| Target spec | OS, ABI, capabilities e execution platform. |
+| Artifact digest | CAS/release e verificação do output. |
+| Toolchain provider | Provider por digest e contrato, não SDK invisível. |
+
+### CLI e tooling
+
+`w check`, `w build`, `w run`, `w repl`, `w test` e comandos de export são
+direções de interface. A implementação de CLI e package manager é um gap. O tooling
+existente neste checkout é Tree-sitter, atlas e checks de design, não o CLI W.
+
+### REPL, module run e Jupyter
+
+REPL e notebook devem usar o parser/checker/HIR normal, gerações transacionais e
+receipts tipados. [repl_session_oracle.w](reference/last-light/repl_session_oracle.w),
+[presentation.w](reference/last-light/presentation.w) e
+[pyn3_oracle.w](reference/last-light/pyn3_oracle.w) mostram a direção. Não use
+eval dinâmico, monkey patch, widget HTML oculto, replay sem receipt ou um
+segundo parser de notebook.
+
+As seções [DESIGN.md §24.1.2](DESIGN.md#2412-module-run-arquivo-único),
+[DESIGN.md §24.1.3](DESIGN.md#2413-sessão-e-repl-transacionais) e
+[DESIGN.md §24.1.4](DESIGN.md#2414-apresentação-jupyter-e-export-de-notebooks)
+fecham os limites conhecidos, mas não anunciam um produto disponível.
+
+## Mesmo objetivo, várias formas
+
+Esta é a matriz central para escolher uma forma. Cada linha tem pelo menos uma
+forma corrente, uma condição ou uma lacuna quando necessário, e uma alternativa
+rejeitada. As trocas devem ser avaliadas em cinco eixos: **ownership** (quem
+possui e pode mover), **effects** (suspensão, erro, unsafe), **authority** (qual
+domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
+
+| Objetivo | Forma vigente (current) | Outra forma/condição | Não use (rejected) | Troca principal | Design + Última Luz |
+| --- | --- | --- | --- | --- | --- |
+| Escolher root do product | entry Name(run) ou entry {} | Descriptor anônimo e module-run wrapper | entry(args, ctx) {} e process.main = run sem contrato | Ownership do root e lifecycle ficam explícitos; wrapper de arquivo único custa source-map | [DESIGN.md §13](DESIGN.md#13-módulos-de-execução-services-e-entries) · [app.w](reference/last-light/app.w) |
+| Importar HTTP/std | import http from std, import std.http ou import { Name } from path | Resolução de capability/provider pelo manifest | Export default implícito e as que esconde a origem | Resolver manifest e capability custa verbosidade, mas fixa authority | [DESIGN.md §6](DESIGN.md#6-módulos-imports-e-visibilidade) · [http_documents.w](reference/last-light/http_documents.w) |
+| Construir valor | Type(field: value) | Memberwise init fechado por type | new Type ou Type {} sem init | Labels tornam ownership e defaults auditáveis; synthesis exige schema | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [domain.w](reference/last-light/domain.w) |
+| Delegar initializer | self = Type(...) | Init helpers com contract head | self.init(...) como mutação escondida | Reassignment preserva estado observável e impede partial init implícito | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [state_transitions.w](reference/last-light/state_transitions.w) |
+| Resolver overload | Labels + arity + tipos | Constraint heads mais ricos | Ranking global por tipo e nomes únicos obrigatórios | Call site paga labels, mas evita escolha oculta e effect surpresa | [DESIGN.md §7](DESIGN.md#7-bindings-funções-e-closures) · [callables.w](reference/last-light/callables.w) |
+| Representar ausência | T?, .none, .some, try? | Option com refinements | null, sentinel ou try! como padrão | Option torna branch/ownership visíveis; chaining pode custar checks | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [failure.w](reference/last-light/failure.w) |
+| Propagar erro | throws E, throw, try | Carrier Result em adapters | Exceção implícita ou conversão cancelamento→erro | Effects aparecem no callable; carrier explícito custa tipos, mas permite recovery | [DESIGN.md §11](DESIGN.md#11-erros-panic-oom-e-cleanup) · [failure.w](reference/last-light/failure.w) |
+| Falhar invariantes | guard ... else throw ou panic explícito | Contract/refinement estático | debugAssert que some e validação silenciosa | Compile-time reduz custo de runtime; panic não é erro de domínio | [DESIGN.md §11](DESIGN.md#11-erros-panic-oom-e-cleanup) · [domain.w](reference/last-light/domain.w) |
+| Passar ownership | ref, inout, take, copy, pin | view e projection borrow | Lifetimes públicas, partial move implícito e copy automático | Call site mostra autoridade; anotação custa caracteres e evita retenção oculta | [DESIGN.md §7](DESIGN.md#7-bindings-funções-e-closures) · [borrow_expressivity.w](reference/last-light/borrow_expressivity.w) |
+| Capturar closure | <[copy x]>, <[ref x]>, <[take x]>, <[weak x]> | some fn/any fn conforme erase | Fn/FnMut/FnOnce ou capture inferido sem diagnóstico | Capture explícito reduz ciclos e custo de liveness; existential pode alocar | [DESIGN.md §9.4.1](DESIGN.md#941-captures-e-ciclos-fortes) · [callables.w](reference/last-light/callables.w) |
+| Declarar contrato estático | type, refinement, enum subset, T: P & Q | Associated types e conformances condicionais | where textual, protocol list aberta ou guard runtime para invariantes estáticas | Schema fecha HIR e ABI; composição exige mais símbolos | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [generics.w](reference/last-light/generics.w) |
+| Refletir/sintetizar | Reflectable, TypeId.of<T>(), conformance head | Metadata limitada e declarada | Type<T> universal, derive mágico, metadata livre | Reflection tipada preserva custo e authority; synthesis universal seria difícil de auditar | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [reflection.w](reference/last-light/reflection.w) |
+| Aceitar rest arguments | T... + each values | Rest homogêneo com bound explícito | Pack heterogêneo obrigatório ou Array<Any> | Pack homogêneo preserva schema e ownership; materialização só ocorre quando pedida | [DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos) · [rest_arguments.w](reference/last-light/rest_arguments.w) |
+| Escrever matriz | [[1, 2], [3, 4]] | Carrier shape-checked | [1 2; 3 4] como grammar separada | Array literal é familiar; shape estático exige type/contract | [DESIGN.md §17](DESIGN.md#17-matrizes-tensors-e-ml) · [numerics.w](reference/last-light/numerics.w) |
+| Controlar allocation | allocator scratch, .fixed, .root, .none | .bounded é Pesquisa descrita, não plano ASC0 | Arena API universal, propagação implícita ou using obrigatório | Budget explícito limita efeitos; annotations aumentam superfície | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [allocation.w](reference/last-light/allocation.w) |
+| Projetar borrow | ref T, view T, inout T | Projection física e borrow oracle | StringView/Slice públicos como segunda hierarquia | Menos tipos públicos, mas checker precisa acompanhar projection e liveness | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [views.w](reference/last-light/views.w) |
+| Executar async | direct call, await, async let, spawn<.compute>, spawn<domain: .compute>, TaskGroup.parallelMap/parallelCollect | limit e ordering declarados no group | Promise/Future, detached task e spawn sem domain | Structured join preserva ownership; domain explícito custa call-site | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [execution.w](reference/last-light/execution.w) |
+| Consumir stream | for try await ref item in source ou stream <[take source]> { yield take/copy ... } | Stream pull e capacity declarados | Generator genérico, yield from e buffer oculto | Pull mantém backpressure e borrow; collect aloca e perde incrementalidade | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
+| Enviar por channel | Channel<T><.send> / <.receive> (MPSC) | Capacity e close explícitos | Channel bidirecional implícito, MPMC infinito | Endpoints expressam authority; bounded buffer pode suspender | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
+| Compartilhar estado | owner por domain, shared, atomic, channel | SnapshotCell e adapters especializados | Atomic<shared T>, mutex global ou RCU implícito | Serialização e snapshot reduzem races; cópia/sync têm custo visível | [DESIGN.md §12.10.7](DESIGN.md#12107-exclusão-mútua-como-último-recurso) · [synchronization.w](reference/last-light/synchronization.w) |
+| Fazer I/O | ByteSource/ByteSink, ReadStep.data/end | Adapters async-first e leitura posicional conforme capability | Scatter read/file-to-sink/zero-copy fora da superfície vigente; Reader/Writer síncronos e EOF sentinel | Async-first preserva backpressure; carrier explícito aumenta ceremony | [DESIGN.md §14](DESIGN.md#14-prelude-e-standard-library) · [io.w](reference/last-light/io.w) |
+| Modelar service | closed turn + SupervisorRef + WorkKeyRef | Recovery com snapshot/dedup | Reentrant service, detached Promise e retry implícito | Effect identity permite replay seguro; metadata e storage têm custo | [DESIGN.md §13.9.3](DESIGN.md#1393-recovery-de-service-e-deduplicação) · [service_recovery_oracle.w](reference/last-light/service_recovery_oracle.w) |
+| Selecionar build | package/workspace + target spec + digest | Provider por capability e CAS | PATH/SDK ambiente, target string e config invisível | Reprodutibilidade exige manifest e receipts; setup fica mais explícito | [DESIGN.md §21](DESIGN.md#21-packages-builds-e-releases) · [package.w](reference/last-light/package.w) |
+| Cruzar FFI | foreign c, carrier typed, unsafe fn<abi: .c> com nome | ABI adapters gerados sob prova; fn<C> é body inline C vigente | Tratar fn<C> como generic/sandbox, W object por C, foreign module W ou lib dinâmica sem capability | Unsafe ilha limita blast radius; marshaling custa cópia/validations | [DESIGN.md §19](DESIGN.md#19-ffi-unsafe-e-ilhas-de-linguagem) · [abi.w](reference/last-light/abi.w) |
+| Representar unidade | 9.81<m/s^2>, Quantity(value, unit:) | wWire/JSON de Quantity como contrato de design, decoder/provider em gap | Bracket syntax, narrowing implícito e número fast | Units no tipo evitam erro dimensional; adapters custam schema | [DESIGN.md §15.5.3](DESIGN.md#1553-wwire-para-quantity) · [quantity_oracle.w](reference/last-light/quantity_oracle.w) |
+| Serializar tabela | data.Batch<Row>, adapters CSV/Parquet/Arrow | Carrier tabular v1 e wWire | DataFrame universal, duck typing e Any | Schema fechado permite bounds e zero-copy futuro; adapters são verbosos | [DESIGN.md §14.4.1](DESIGN.md#1441-carrier-tabular) · [data_formats.w](reference/last-light/data_formats.w) |
+| Mover tensor/device | tensor.transfer, Launch, Queue, Device | DLPack open/materialize/export | Runtime JIT mágico, raw stream, transfer implícito | Device é authority e custo explícitos; transfer pode copiar e suspender | [DESIGN.md §12.7.2](DESIGN.md#1272-device-scopes-e-kernels) · [tensor_interop.w](reference/last-light/tensor_interop.w) |
+| Limpar recurso | defer / defer async + close explícito | Capability de lifecycle | errdefer, destructor detached e finalizer global | Ordem lexical é auditável; close async publica effect | [DESIGN.md §11](DESIGN.md#11-erros-panic-oom-e-cleanup) · [abort.w](reference/last-light/abort.w) |
+| Abrir notebook | parser/checker/HIR normal + geração transacional | Presentable, Jupyter e export receipts | eval dinâmico, monkey patch e HTML oculto | Mesmo contrato reduz divergência; receipts e snapshots custam armazenamento | [DESIGN.md §24.1.4](DESIGN.md#2414-apresentação-jupyter-e-export-de-notebooks) · [pyn3_oracle.w](reference/last-light/pyn3_oracle.w) |
+| Transformar collection | Pipeline lazy sem side-effect: `tickets.lazy.filter(...).map(...).take(...).collect()` (Forma vigente) | Loop explícito com `for`, `append` e `break` (Forma vigente para controle e side-effect) | Comprehension (Rejeitado por enquanto) | Pipeline adia custo até `collect`; loop expõe controle, effects e ownership; ambos preservam ordem e limite | [DESIGN.md §16](DESIGN.md#16-texto-bytes-e-collections) · [collections.w](reference/last-light/collections.w) |
+| Acessar índice ou fim | `get(index)` e `.last`; `suffix` somente quando o carrier o publica (Forma vigente por carrier) | `count - 1` após guard (alternativa explícita) | `[-1]` ou syntax relativa especial (Rejeitado por enquanto) | APIs nominais deixam bounds e `Option` visíveis; arithmetic exige guard; suffix pode preservar view e borrow do carrier | [DESIGN.md §16.2](DESIGN.md#162-views-índices-e-slices) · [collections.w](reference/last-light/collections.w) · [billing.w](reference/last-light/billing.w) |
+| Ajustar shapes tensor | `means.broadcast(to: [samples, 6])` com shape checked (Forma vigente) | Scalar expansion conforme o contrato do carrier (Forma vigente, sem shape inferido) | Broadcast implícito entre shapes diferentes ou dotted broadcast (Rejeitado por enquanto) | Shape explícito compra diagnóstico e autoridade de device; a operação custa tokens, mas evita mismatch e eixos ocultos | [DESIGN.md §17](DESIGN.md#17-matrizes-tensors-e-ml) · [horizon.w](reference/last-light/horizon.w) · [ai_harness.w](reference/last-light/ai_harness.w) |
+| Preservar ordem de call labels | Ordem de declaration: `Money(majorUnits: 42, currency: .cr)` (Forma vigente) | Defaults e overloads criam sequências ordenadas distintas | Labels unordered ou reordered (Rejeitado por enquanto) | A ordem torna resolver e diagnostics determinísticos; labels custam source, mas evitam ranking e effects ocultos | [DESIGN.md §7.2.2](DESIGN.md#722-overloads-por-forma-de-call) · [billing.w](reference/last-light/billing.w) |
+| Escolher ownership de callable | `fn`, `some fn`, `any fn`, `mut fn` e `take fn` separados (Forma vigente) | Capture `<[copy ...]>`, `<[ref ...]>`, `<[take ...]>` ou `<[weak ...]>`; erase só quando pedido | `fn` unificado que apaga modo e custo (Rejeitado por enquanto) | Modos mantêm ownership, mutação, erasure e allocation observáveis; a separação aumenta a assinatura e reduz inferência oculta | [DESIGN.md §7.5](DESIGN.md#75-valores-callable-e-closures) · [callables.w](reference/last-light/callables.w) |
+| Esperar siblings com fail-fast | Tuple `try await (left, right)` em join lexical (Forma vigente) | `try await left` e depois `try await right` (Forma vigente, mas não equivalente) | Gather detached, fire-and-forget ou task sem owner (Rejeitado) | Tuple cancela siblings no primeiro erro settled e drena cleanup; awaits sequenciais mudam observação, timing e cancel; escolha altera effects e custo | [DESIGN.md §12.4](DESIGN.md#124-join-erro-e-outcome) · [execution.w](reference/last-light/execution.w) |
+| Encerrar receiver consuming | `(take cursor).finish()` explicita a transferência antes do lookup (Forma vigente) | `take fn finish()` declara o member consuming e torna o contrato visível | `cursor.finish()` com inferência de receiver (Rejeitado; `W-OWNERSHIP-0011`) | O prefixo preserva a fronteira de ownership e o erro de uso; inferência esconderia move, cleanup e indisponibilidade posterior | [DESIGN.md §7.3](DESIGN.md#73-parâmetros-e-ownership) · [command.w](reference/last-light/command.w) · [state_transitions.w](reference/last-light/state_transitions.w) |
+| Encadear envelopes de contrato | `StaticList<ServiceStage><(isValidStagePath(.member))>` sequencial (Forma vigente) | Typestate `StagePath` e transitions fechadas no mesmo domínio | `StaticList<[ServiceStage, (isValidStagePath(.member))]>` fused (`W-CONTRACT-0002`, Rejeitado) | Envelopes sequenciais preservam o kind de cada slot e a ordem de validação; fused economizaria tokens, mas perde schema e diagnóstico | [DESIGN.md §3.5.4](DESIGN.md#354-grammar-normativa-g2-tipos-e-contratos-angulares) · [domain.w](reference/last-light/domain.w) · [state_transitions.w](reference/last-light/state_transitions.w) |
+
+### Como escolher uma linha
+
+1. Comece pela forma current. Ela tem o menor risco de divergir do contrato.
+2. Use direction apenas quando o target ou o produto exigir a capability.
+3. Marque implementation-gap no issue ou no README do package; não esconda a
+   lacuna sob um snippet que parece executável.
+4. Se uma alternativa rejected parecer mais simples, escreva a necessidade e a
+   evidência que poderiam reabrir a decisão em vez de adotá-la em source.
+
+## Índices rápidos
+
+### Literais
+
+| Categoria | Exemplos |
+| --- | --- |
+| Inteiro | 0, 1_000, 0xff |
+| Float | 0.5, 0.5e2 |
+| Bool | true, false |
+| Char/byte | 'N', b'\x4e' |
+| String | "text", #"raw"#, """multi""" |
+| Unit | 12km, 64KiB, 9.81<m/s^2> |
+| Tuple | (north: 1, east: 2) |
+| Array/map | [1, 2], ["north": 1] |
+| Repeated | [0; 4] |
+
+### Ownership e callable modes
+
+| Mode | Pista de leitura |
+| --- | --- |
+| let / var | Mutabilidade do binding. |
+| ref / view | Borrow de leitura/projection. |
+| inout | Borrow mutável exclusivo. |
+| take / copy | Move ou cópia explícita. |
+| shared / weak | Liveness compartilhada ou não-owning. |
+| fn / mut fn | Callable síncrono, com mutação quando declarada. |
+| async fn | Callable que pode suspender. |
+| throws E | Callable que publica error effect. |
+| static / const | Avaliação e acesso sem estado de instance; confira o contrato. |
+| foreign / unsafe | Fronteira externa ou operação fora das garantias normais. |
+
+### Effects
+
+| Effect | Aparece como | Pergunta antes de usar |
+| --- | --- | --- |
+| Suspension | await, async, maySuspend | Quem faz join e como cancellation chega? |
+| Error | throws, throw, try | O caller trata o carrier ou propaga? |
+| Ownership | take, ref, inout, copy, pin | Quem pode mover, mutar ou manter vivo? |
+| Allocation | allocator, shared, carrier | Qual budget e qual allocator? |
+| Synchronization | atomic, lock, transaction | Qual domain e qual ordem de memória? |
+| Unsafe/FFI | unsafe, foreign | Qual prova de ABI, capability e layout? |
+| Cleanup | defer, defer async, close | A saída normal e a falha fecham o recurso? |
+
+### Status de implementação
+
+| Camada | Estado neste checkout |
+| --- | --- |
+| Design e forma de source | Forma vigente para avaliação, não release |
+| Atlas/Tree-sitter | Protótipo de parse e corpus; não checker/runtime |
+| Oracles host | Evidência lógica/física de design; não runtime |
+| Formatter/frontend/HIR/MLIR | Planejados; implementation gap |
+| Runtime/scheduler/allocator | Planejados; implementation gap |
+| std/providers | Contratos e oracles; provider missing |
+| CLI/package manager | Direção; implementation gap |
+| Portal | Protótipo visual congelado; não autoridade |
+
+## Evidência, limites e validação
+
+### Fontes
+
+- [DESIGN.md](DESIGN.md) é normativo. As âncoras desta página apontam para
+  contratos correntes, pendências e ordem de implementação.
+- [DESIGN-INDEX.md](DESIGN-INDEX.md) é uma projeção gerada para navegação.
+- [reference/last-light/README.md](reference/last-light/README.md) define os
+  oracles e os limites do produto de referência.
+- [reference/syntax-atlas/CHEATSHEET.md](reference/syntax-atlas/CHEATSHEET.md)
+  é gerado. Seus snippets são parse-only, salvo indicação contrária.
+- [std/README.md](std/README.md) descreve contratos de std. Não há std build ou
+  provider implícito neste documento.
+
+### O que um snippet prova
+
+Um snippet tree-sitter-parse-only prova apenas que a gramática do corpus o
+aceitou no momento da geração. Um snippet source-backed prova que a forma está
+escrita em um fixture ou oracle. Um link para um oracle host prova que há uma
+decisão ou teste de design. Nenhum desses rótulos prova compiler, type-checker,
+runtime, scheduler, ABI, CLI, codec, serviço ou provider pronto.
+
+### Checks recomendados
+
+Na raiz do repositório, depois de alterar esta página e o link do README:
+
+```text
+bun run check:links
+bun run --cwd tooling/tree-sitter-w check:syntax-atlas
+bun run --cwd tooling/tree-sitter-w parse:reference
+bun run --cwd tooling/tree-sitter-w parse:std
+bun run design:index:check
+git diff --check
+bun run --cwd tooling/tree-sitter-w check:docs
+```
+
+Os quatro primeiros checks mantêm links, atlas, corpus de referência, corpus de
+std e índice. check:docs é o gate integral e pode demorar mais. Antes de
+propor uma mudança, revise headings/anchors e procure claims proibidos:
+
+```text
+rg -n -i "implemented|compiler.*works|runtime.*works|provider.*available|CLI.*available|std.*available" CHEATSHEET.md
+```
+
+Se a busca encontrar uma frase afirmativa, reescreva-a como contrato, direção,
+evidência ou lacuna. Não faça stage ou commit de um atlas gerado para corrigir
+este arquivo.
