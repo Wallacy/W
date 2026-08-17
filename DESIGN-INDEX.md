@@ -18,8 +18,8 @@
 |---|---:|
 | linhas de `DESIGN.md` | 29967 |
 | tokens aproximados de `DESIGN.md` | 317800 |
-| linhas de `RATIONALE.md` | 6414 |
-| tokens aproximados de `RATIONALE.md` | 164500 |
+| linhas de `RATIONALE.md` | 6453 |
+| tokens aproximados de `RATIONALE.md` | 165200 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 341/341 |
 | decisões | 1440 (W-001–W-1440) |
@@ -33,8 +33,8 @@
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 190 |
 | surface lexemes das formas vigentes R0 | 1646 total; mediana 18; máximo 58 |
-| bundles executáveis R1 | 47 |
-| variantes/tarefas R1 | 137/188 |
+| bundles executáveis R1 | 48 |
+| variantes/tarefas R1 | 139/192 |
 | casos R0 promovidos a R1 | 69/75 |
 | protocolo HUM0 | 8 slices/32 tasks; 0 human records/0 model records; structure-only |
 | casos do corpus Tree-sitter | 122 |
@@ -78,8 +78,8 @@
 | snapshots de diagnostic D0 | 70 |
 | snapshots F0 no formato D0 | 27 |
 | codes D0 catalogados | 306/189 |
-| sources W no root do Última Luz | 100 |
-| sources W em todo o Última Luz | 105 |
+| sources W no root do Última Luz | 103 |
+| sources W em todo o Última Luz | 108 |
 | sources W no rascunho da std | 31 |
 | módulos/APIs catalogados da std | 31/422 |
 | superfícies qualificadas da std usadas pelo Última Luz | 92 |
@@ -169,9 +169,9 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 14–4919 | 75800 | Evidência comparativa |
-| 2 | 4920–4950 | 500 | Proveniência |
-| 3 | 4951–6414 | 88100 | Ledger |
+| 1 | 14–4958 | 76500 | Evidência comparativa |
+| 2 | 4959–4989 | 500 | Proveniência |
+| 3 | 4990–6453 | 88100 | Ledger |
 
 ## Bundles de leitura
 

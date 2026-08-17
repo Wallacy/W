@@ -81,3 +81,7 @@ bun tooling/check-dyn1-versioned-behavior.mjs --write
 O gate não compila ou executa W e não lê `tooling/tree-sitter-w/src/`. Compiler,
 runtime, provider, isolamento real, stress, ergonomia humana e estudos de modelo
 continuam missing.
+
+HRD0 consome esta evidência para a decisão de runner dev-only. Ele não muda as
+rotas DYN1, a lacuna Research de referência persistente ou os mecanismos de
+mutação dinâmica rejeitados.

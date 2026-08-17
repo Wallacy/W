@@ -75,6 +75,7 @@ compiler, runtime, provider ou execução W.
 | `cyc1-explicit-cycle-cases.json` + máquina/manifest/checker/test + estudo/snapshot | CYC1 informa CYC0-G1 com 41 casos event-derived para weak edges, close/drain, SCC estática/dinâmica, FFI/service/resource lifecycle, concorrência, unknown foreign boundaries e três composições de conditional liveness; 3 rejections estáticas, 3 diagnostics residuais, 2 unknown boundaries e 2 cases Research | oracle host e Tree-sitter parse; census é somente diagnóstico pós-drain, sem collector/finalizer/API/syntax, e compile, run, provider, stress e estudos humano/modelo continuam missing |
 | `syn1-typed-generation-cases.json` + máquina/manifest/checker/test + snapshot | SYN1 estreita SYN0-R1 com 65 casos A/B/C/D: generated module sets de `.w` passam pelo Tree-sitter real e por source-shape bounded; action result e interface candidata são publicações separadas; receipts Research cobrem graph/dependencies, identities, maps byte-based, target registry e navigation | oracle host de design; `interfacePublished` é outcome do contrato candidato, não evidência de compiler; semantic frontend, ConstIR, compiler cache, runtime, provider e LSP permanecem ausentes |
 | `dyn1-versioned-behavior-cases.json` + máquina/manifest/checker/test + snapshot | DYN1 informa DYN0-G1 com 70 casos A/B/C/D e métricas derivadas para REPL snapshots, generations de service/plugin, identities SemanticInterface/WAbi/runtime-closure, switch/drain, capabilities/effects, export/import, target local/split, FFI unload, crash/cancel e quotas; C é somente a subcapability `DYN0-persistent-generation-reference` | host design-oracle event-derived; reducers local/split são independentes, `expect` não escolhe status, WAbi target-specific e compatible exige novas SemanticInterfaceKey/ServiceIRKey com receipt; native retém mapping e process/Wasm/component usam full unmap; compiler/runtime/provider/isolamento real/std permanecem missing; eval/exec/frame mutation/ambient lookup/native sandbox/live dlclose são rejeitados |
+| `hot-reload-dev-cases.json` + `hot-reload-dev-machine.mjs` + `studies/hrd0-hot-reload-dev/{bundle.json,oracle.test.mjs}` + checker/test + snapshot | HRD0 fecha o problema de hot reload somente para desenvolvimento: runner tooling-owned recompila/reabre units normais, compõe REPL snapshots e typed generations, mantém old até drain, rejeita stale events/migração/produção e mantém generated module set e CLI spelling em Research | host design-oracle independente; 20 casos, 5 mutations adversariais (cleanup, nominal contract e interface digest), dois reducers local/split, 13 diagnostics e um contrato Last Light comum usado pelos dois witnesses; não cria syntax/profile, não alega compiler/runtime/provider/isolamento real e reutiliza DYN1/SYN1/CAP0 |
 | `gen1-incremental-suspension-cases.json` + máquina/checker/test + snapshot | GEN1 é evidência histórica de GEN0-R1 com 23 traces de pull, travessia, diálogo, failure, delegação, view, backpressure, cancelamento, children e FFI; compara Stream/state/channels e dois witnesses reservados em duas máquinas independentes e deriva métricas estruturais de símbolos source únicos por slices do mesmo cenário | oracle host de design histórico; não executa W, compiler, runtime, provider ou estudo humano/modelo; não mantém gate Research corrente |
 | `gen2-stream-yield-cases.json` + `studies/gen2-stream-yield/{bundle.json,oracle.test.mjs}` + máquina/checker/test + snapshot | GEN2 fecha o design estreito de `stream <[capture_item, ...]> { ... yield (take|copy) value }` com 20 casos, 5 ganhos ergonômicos, 13 gates contratuais, dois reducers, captures construction-time, pull capacity zero, Channel para diálogo e rejeição de frame/send/throw/resume público; `copy` exige `Duplicable` | oracle host, parser e bundle são evidência de design; semantic compiler, W runtime, provider, stress, debug/ABI e estudos humano/modelo continuam missing; W-1439/W-1440 são implementation-evidence-gap |
 | `semantic-diagnostic-matrix-cases.json` + máquina/checker/test | SDM0 deriva SemanticResult, CheckerContext, loop fixed point, AST→HIR schema, D0 records, causality, ordering, limits, policy, lex/parse boundary e cobertura de meta contracts | oracle host independente; não implementa checker, compiler, formatter ou runtime |
@@ -719,6 +720,49 @@ bun tooling/check-dyn1-versioned-behavior.mjs --write
 
 O gate não altera `DESIGN.md`, não cria syntax/diagnostic e não lê fontes
 geradas em `tooling/tree-sitter-w/src/`.
+
+### HRD0 — hot reload somente para desenvolvimento
+
+[`hot-reload-dev-cases.json`](hot-reload-dev-cases.json),
+[`hot-reload-dev-machine.mjs`](hot-reload-dev-machine.mjs), o checker e o
+estudo em [`studies/hrd0-hot-reload-dev`](studies/hrd0-hot-reload-dev) fecham
+um problema-first de runner, sem criar uma feature da linguagem. O runner é
+tooling-owned: recompila e reabre units W normais, então aplica
+`prepare → validate → preflight → ready → switch`; a generation antiga fecha
+admission e drena antes de ser liberada, e roots novos entram somente na nova.
+
+O corpus tem 20 casos, cinco mutations adversariais (cleanup extra físico,
+ausente lógico, ordem errada, nominal duplicado e interface digest drift), dois
+reducers independentes (local e split), 13 diagnostics e um contrato Last Light
+comum que os dois witnesses importam para records de input/result e funções de
+eventos. O cleanup lógico comum exige cancelamento, drains,
+unregister, in-flight drain, destroy e release; `unpin` só aparece com pin/FFI
+declarado e `unmap` só com mapping não nativo. Ele deriva stale completion,
+message e capability rejection; identities de package/recipe/artifact/source
+map/`SemanticInterfaceKey`/`ServiceIRKey`/`WAbiKey`/`RuntimeClosureKey`; schema,
+effects, capabilities, quotas, isolation, callback lifetime, OOM, crash,
+rollback e cleanup. Falha pré-publication preserva old; rollback exige receipt
+pré-publication; drain pós-publication deriva `degraded`; unknown provider effect
+fica explícito. A comparação local/split exige o mesmo resultado lógico, mas
+aceita trace físico diferente.
+
+Generated module sets continuam a Research de SYN1 e devem reabrir/checkar
+units novas; escolha de CLI (`w dev` ou `w run --watch`) fica tooling-owned e
+não selecionada. Production/release dynamic mode, eval/exec, monkey patch,
+active-frame/debugger write, ambient lookup, native dylib como sandbox e
+`dlclose` com callback vivo são rejeitados. HRD0 referencia DYN1, SYN1 e CAP0;
+não promove compiler, runtime, provider, isolamento real, stress ou estudos
+humano/modelo.
+
+Use:
+
+```sh
+bun run check:hrd0
+bun tooling/check-hot-reload-dev.mjs --write
+```
+
+O segundo comando atualiza somente o snapshot host-derived. Nenhum resultado
+do checker é comportamento implementado.
 
 ### GEN1 — suspensão incremental (histórico)
 

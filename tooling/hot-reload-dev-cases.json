@@ -1,0 +1,260 @@
+{
+  "$schema": "w-hrd0-hot-reload-dev-cases-1",
+  "status": "design-oracle-input",
+  "defaults": {
+    "runner": {
+      "mode": "development",
+      "profile": "existing",
+      "sourceKind": "normal-unit",
+      "invocation": "tooling-owned-unselected",
+      "releaseDynamicMode": false,
+      "languageSurface": "none",
+      "isolation": "process",
+      "untrusted": false
+    },
+    "generations": { "old": "g1", "next": "g2" },
+    "resources": [],
+    "contract": {
+      "schemaPolicy": "exact",
+      "effectMode": "declared",
+      "capabilityMode": "attenuated-generation-exact",
+      "sourceMapMode": "bounded-byte",
+      "identityMode": "digest-exact"
+    },
+    "identities": {
+      "packageIdentity": "sha256:1010101010101010101010101010101010101010101010101010101010101010",
+      "recipeKey": "sha256:2020202020202020202020202020202020202020202020202020202020202020",
+      "artifactKey": "sha256:3030303030303030303030303030303030303030303030303030303030303030",
+      "sourceMapKey": "sha256:4040404040404040404040404040404040404040404040404040404040404040",
+      "semanticInterfaceKey": "sha256:5050505050505050505050505050505050505050505050505050505050505050",
+      "serviceIRKey": "sha256:6060606060606060606060606060606060606060606060606060606060606060",
+      "wAbiKey": "sha256:7070707070707070707070707070707070707070707070707070707070707070",
+      "runtimeClosureKey": "sha256:8080808080808080808080808080808080808080808080808080808080808080",
+      "schemaDigest": "sha256:9090909090909090909090909090909090909090909090909090909090909090"
+    }
+  },
+  "cleanup": [
+    "cancelChildren",
+    "drainWaits",
+    "drainLoans",
+    "drainStreams",
+    "drainCallbacks",
+    "drainResources",
+    "unregister",
+    "inFlightDrain",
+    "destroy",
+    "release"
+  ],
+  "cases": [
+    {
+      "id": "HRD0-A-normal-unit-reopen",
+      "axis": "A",
+      "family": "normal-unit",
+      "problem": "A developer edits a normal W unit and the dev runner rebuilds and reopens it before switching.",
+      "events": ["prepare", "validate", "preflight", "ready", "switch", "closeAdmission", "drain", { "op": "cleanup", "steps": ["cancelChildren", "drainWaits", "drainLoans", "drainStreams", "drainCallbacks", "drainResources", "unregister", "inFlightDrain", "destroy", "release"] }],
+      "expect": { "status": "committed", "route": "current-composition", "generation": "g2", "languageSurface": "none" }
+    },
+    {
+      "id": "HRD0-A-invalid-unit-preserves-old",
+      "axis": "A",
+      "family": "normal-unit",
+      "problem": "A parse or type failure must not publish a candidate generation.",
+      "events": ["prepare", "validate", { "op": "parseFailure", "code": "W-PARSE-INVALID" }],
+      "expect": { "status": "rejected", "generation": "g1", "code": "prepublication-parseFailure" }
+    },
+    {
+      "id": "HRD0-A-prepublication-rollback",
+      "axis": "A",
+      "family": "fault-boundary",
+      "problem": "A provider may roll back only before publication with a valid receipt.",
+      "events": ["prepare", "validate", "preflight", { "op": "providerRollback", "receipt": "valid" }],
+      "expect": { "status": "rolled-back", "generation": "g1", "rollback": true }
+    },
+    {
+      "id": "HRD0-A-postpublication-drain-degraded",
+      "axis": "A",
+      "family": "fault-boundary",
+      "problem": "A drain failure after switch leaves the new generation active and degraded.",
+      "events": ["prepare", "validate", "preflight", "ready", "switch", "closeAdmission", { "op": "drainFailure", "reason": "deadline" }, { "op": "cleanup", "steps": ["cancelChildren", "drainWaits", "drainLoans", "drainStreams", "drainCallbacks", "drainResources", "unregister", "inFlightDrain", "destroy", "release"] }],
+      "expect": { "status": "degraded", "generation": "g2", "postSwitchDrainFailure": "deadline" }
+    },
+    {
+      "id": "HRD0-A-stale-completion-rejected",
+      "axis": "A",
+      "family": "generation",
+      "problem": "A completion produced by the old generation is rejected after the atomic switch.",
+      "events": ["prepare", "validate", "preflight", "ready", "switch", "closeAdmission", { "op": "staleCompletion", "generation": "g1" }, "drain", { "op": "cleanup", "steps": ["cancelChildren", "drainWaits", "drainLoans", "drainStreams", "drainCallbacks", "drainResources", "unregister", "inFlightDrain", "destroy", "release"] }],
+      "expect": { "status": "committed", "staleRejections": ["staleCompletion"] }
+    },
+    {
+      "id": "HRD0-A-oom-preflight-rejected",
+      "axis": "A",
+      "family": "quota",
+      "problem": "An OOM or quota failure during preflight cannot publish a new generation.",
+      "events": ["prepare", "validate", "preflight", { "op": "oom", "position": "pre-publication" }],
+      "expect": { "status": "rejected", "generation": "g1", "code": "prepublication-oom" }
+    },
+    {
+      "id": "HRD0-A-cancel-before-publication",
+      "axis": "A",
+      "family": "cancellation",
+      "problem": "Cancellation before publication discards the candidate and keeps the old generation.",
+      "events": ["prepare", "validate", "preflight", { "op": "cancel", "kind": "candidate" }],
+      "expect": { "status": "rejected", "generation": "g1", "code": "cancelled-before-publication" }
+    },
+    {
+      "id": "HRD0-B-typed-service-generation",
+      "axis": "B",
+      "family": "typed-service-plugin",
+      "problem": "A typed service/plugin generation changes without migrating live state or authority.",
+      "facts": { "runner": { "sourceKind": "typed-service-plugin", "isolation": "process" }, "resources": ["ffi", "pin", "mapping"], "contract": { "localNominal": "hot_reload_dev_contract::ReloadInput+ReloadResult", "splitNominal": "hot_reload_dev_contract::ReloadInput+ReloadResult", "localInterfaceDigest": "sha256:5050505050505050505050505050505050505050505050505050505050505050", "splitInterfaceDigest": "sha256:5050505050505050505050505050505050505050505050505050505050505050" } },
+      "events": ["prepare", "validate", "preflight", "ready", "switch", "closeAdmission", { "op": "staleMessage", "generation": "g1" }, { "op": "staleCapability", "generation": "g1" }, "drain", { "op": "cleanup", "steps": ["cancelChildren", "drainWaits", "drainLoans", "drainStreams", "drainCallbacks", "drainResources", "unregister", "inFlightDrain", "destroy", "unpin", "release", "unmap"] }],
+      "expect": { "status": "committed", "route": "current-composition", "staleRejections": ["staleMessage", "staleCapability"] }
+    },
+    {
+      "id": "HRD0-B-local-split-equivalence",
+      "axis": "B",
+      "family": "paired-projection",
+      "problem": "Local and split runners may differ physically but must derive one logical switch and cleanup result.",
+      "facts": { "runner": { "sourceKind": "typed-service-plugin", "isolation": "process" }, "resources": ["ffi", "pin", "mapping"], "contract": { "localNominal": "hot_reload_dev_contract::ReloadInput+ReloadResult", "splitNominal": "hot_reload_dev_contract::ReloadInput+ReloadResult", "localInterfaceDigest": "sha256:5050505050505050505050505050505050505050505050505050505050505050", "splitInterfaceDigest": "sha256:5050505050505050505050505050505050505050505050505050505050505050" } },
+      "projections": {
+        "local": ["prepare", "validate", "preflight", "ready", "switch", "closeAdmission", "drain", { "op": "cleanup", "steps": ["cancelChildren", "drainWaits", "drainLoans", "drainStreams", "drainCallbacks", "drainResources", "unregister", "inFlightDrain", "destroy", "unpin", "release", "unmap"] }],
+        "split": ["actionResult", "prepare", "validate", "preflight", "ready", "switch", "closeAdmission", "drain", { "op": "cleanup", "steps": ["cancelChildren", "drainWaits", "drainLoans", "drainStreams", "drainCallbacks", "drainResources", "unregister", "inFlightDrain", "destroy", "unpin", "release", "unmap"] }]
+      },
+      "expect": { "status": "committed", "mode": "paired", "generation": "g2" }
+    },
+    {
+      "id": "HRD0-B-schema-wabi-rejected",
+      "axis": "B",
+      "family": "identity",
+      "problem": "Schema, effect, capability, WAbi, runtime-closure, or package identity drift rejects before switch.",
+      "facts": { "runner": { "sourceKind": "typed-service-plugin" } },
+      "events": ["prepare", "validate", "preflight", { "op": "wabiMismatch", "code": "WABI-DRIFT" }],
+      "expect": { "status": "rejected", "generation": "g1", "code": "prepublication-wabiMismatch" }
+    },
+    {
+      "id": "HRD0-B-untrusted-native-rejected",
+      "axis": "B",
+      "family": "security",
+      "problem": "A native dynamic library is not a sandbox for untrusted code.",
+      "facts": { "runner": { "sourceKind": "typed-service-plugin", "isolation": "native", "untrusted": true } },
+      "events": ["prepare", "validate", "preflight"],
+      "expect": { "status": "intentionally-rejected", "code": "native-not-sandbox" }
+    },
+    {
+      "id": "HRD0-C-generated-module-reopen-research",
+      "axis": "C",
+      "family": "generated-module-set",
+      "problem": "A content-addressed generated module set must become new normal W units and reopen before freeze.",
+      "facts": { "runner": { "sourceKind": "generated-module-set" } },
+      "events": ["actionResult", "reopenUnit", "semanticCheck", "prepare", "validate", "preflight", "ready", "switch", "closeAdmission", "drain", { "op": "cleanup", "steps": ["cancelChildren", "drainWaits", "drainLoans", "drainStreams", "drainCallbacks", "drainResources", "unregister", "inFlightDrain", "destroy", "release"] }],
+      "expect": { "status": "research", "route": "research", "generation": "g2", "languageSurface": "none" }
+    },
+    {
+      "id": "HRD0-C-generated-module-injection-rejected",
+      "axis": "C",
+      "family": "module-injection",
+      "problem": "Current-module AST/HIR injection would bypass the normal frontend and is rejected.",
+      "facts": { "runner": { "sourceKind": "normal-unit", "mechanism": "currentModuleInjection" } },
+      "events": [{ "op": "rejectMechanism", "mechanism": "currentModuleInjection" }],
+      "expect": { "status": "intentionally-rejected", "code": "mechanism-rejected:currentModuleInjection" }
+    },
+    {
+      "id": "HRD0-C-invocation-spelling-unresolved",
+      "axis": "C",
+      "family": "tooling-invocation",
+      "problem": "The corpus does not justify selecting a CLI spelling such as w dev or w run --watch.",
+      "events": ["invocation"],
+      "expect": { "status": "research", "route": "research", "code": "invocation-not-selected" }
+    },
+    {
+      "id": "HRD0-D-production-reload-rejected",
+      "axis": "D",
+      "family": "production-boundary",
+      "problem": "Development reload must not become a release or production dynamic mode.",
+      "facts": { "runner": { "mode": "production" } },
+      "events": ["prepare", "validate", "preflight", "ready", "switch"],
+      "expect": { "status": "intentionally-rejected", "code": "production-dynamic-mode-forbidden" }
+    },
+    {
+      "id": "HRD0-D-active-frame-rejected",
+      "axis": "D",
+      "family": "active-frame",
+      "problem": "Changing an active frame or debugger binding violates ownership and generation boundaries.",
+      "facts": { "runner": { "mechanism": "activeFrameWrite" } },
+      "events": [{ "op": "rejectMechanism", "mechanism": "activeFrameWrite" }],
+      "expect": { "status": "intentionally-rejected", "code": "mechanism-rejected:activeFrameWrite" }
+    },
+    {
+      "id": "HRD0-D-eval-rejected",
+      "axis": "D",
+      "family": "arbitrary-evaluation",
+      "problem": "eval and exec would add ambient authority and arbitrary code execution.",
+      "facts": { "runner": { "mechanism": "eval" } },
+      "events": [{ "op": "rejectMechanism", "mechanism": "eval" }],
+      "expect": { "status": "intentionally-rejected", "code": "mechanism-rejected:eval" }
+    },
+    {
+      "id": "HRD0-D-dlclose-live-callback-rejected",
+      "axis": "D",
+      "family": "ffi-lifetime",
+      "problem": "A live foreign callback prevents safe native unload.",
+      "facts": { "runner": { "mechanism": "dlcloseLiveCallback" } },
+      "events": [{ "op": "rejectMechanism", "mechanism": "dlcloseLiveCallback" }],
+      "expect": { "status": "intentionally-rejected", "code": "mechanism-rejected:dlcloseLiveCallback" }
+    },
+    {
+      "id": "HRD0-D-live-state-migration-rejected",
+      "axis": "D",
+      "family": "ownership",
+      "problem": "Heap, task, loan, frame, capability, ServiceRef, and provider handles never migrate across generations.",
+      "events": ["prepare", "validate", "preflight", "ready", { "op": "migrate", "payload": ["heap", "tasks", "loans", "frames", "capabilities", "serviceRefs", "providerHandles"] }],
+      "expect": { "status": "intentionally-rejected", "code": "live-state-migration-forbidden", "generation": "g1" }
+    },
+    {
+      "id": "HRD0-D-crash-before-publication-unknown",
+      "axis": "D",
+      "family": "fault-boundary",
+      "problem": "A crash before publication with lost provider evidence is an explicit unknown effect, not a rollback claim.",
+      "events": ["prepare", "validate", "preflight", { "op": "crash", "position": "before-publication", "receipt": "unknown" }],
+      "expect": { "status": "unknown-effect", "code": "unknown-provider-effect", "generation": "g1" }
+    }
+  ],
+  "adversarialMutations": [
+    {
+      "id": "HRD0-M-cleanup-extra-physical",
+      "baseCase": "HRD0-A-normal-unit-reopen",
+      "target": "cleanup",
+      "steps": ["cancelChildren", "drainWaits", "drainLoans", "drainStreams", "drainCallbacks", "drainResources", "unregister", "inFlightDrain", "destroy", "release", "unpin"],
+      "expectedCode": "cleanup-unneeded-step"
+    },
+    {
+      "id": "HRD0-M-cleanup-missing-logical",
+      "baseCase": "HRD0-A-normal-unit-reopen",
+      "target": "cleanup",
+      "steps": ["cancelChildren", "drainWaits", "drainLoans", "drainStreams", "drainResources", "unregister", "inFlightDrain", "destroy", "release"],
+      "expectedCode": "cleanup-missing-step"
+    },
+    {
+      "id": "HRD0-M-cleanup-wrong-order-resource",
+      "baseCase": "HRD0-B-typed-service-generation",
+      "target": "cleanup",
+      "steps": ["cancelChildren", "drainWaits", "drainLoans", "drainStreams", "drainCallbacks", "drainResources", "unregister", "inFlightDrain", "destroy", "release", "unpin", "unmap"],
+      "expectedCode": "cleanup-order"
+    },
+    {
+      "id": "HRD0-M-nominal-contract-duplicate",
+      "baseCase": "HRD0-B-local-split-equivalence",
+      "target": "contract",
+      "override": { "contract": { "splitNominal": "hot_reload_dev_local::ReloadInput+ReloadResult" } },
+      "expectedCode": "nominal-contract-divergence"
+    },
+    {
+      "id": "HRD0-M-interface-digest-drift",
+      "baseCase": "HRD0-B-local-split-equivalence",
+      "target": "contract",
+      "override": { "contract": { "splitInterfaceDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+      "expectedCode": "interface-digest-divergence"
+    }
+  ]
+}
