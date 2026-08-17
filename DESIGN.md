@@ -19918,7 +19918,7 @@ binding ambient.
 
 ### 15.5 Quantity/SI: identidade e representação
 
-**Exemplo:** `30<s>` e `0.5<min>` representam a mesma duração canônica.
+**Exemplo:** `30<si.s>` e `0.5<si.min>` representam a mesma duração canônica.
 
 Uma `dimension` define um eixo semântico. Uma dimensão derivada normaliza para
 uma lista ordenada de IDs estáveis de dimensões-base e expoentes inteiros.
@@ -19926,8 +19926,8 @@ uma lista ordenada de IDs estáveis de dimensões-base e expoentes inteiros.
 colapsam somente porque uma análise SI tradicional as chama de dimensionless.
 
 ```w
-let fromSeconds: PhysicalDuration = 30<s>
-let fromMinutes: PhysicalDuration = 0.5<min>
+let fromSeconds: PhysicalDuration = 30<si.s>
+let fromMinutes: PhysicalDuration = 0.5<si.min>
 let sameBits = fromSeconds.canonicalValue.toBits() == fromMinutes.canonicalValue.toBits()
 ```
 
@@ -19935,7 +19935,8 @@ Cada dimensão-base declara exatamente uma reference unit. A reference de uma
 dimensão derivada é a unidade coerente formada pelas references das bases.
 `std.si` fixa `m`, `kg`, `s`, `A`, `K`, `mol` e `cd`. `si.Angle` usa `rad` como
 eixo semântico forte. Essa é uma escolha de W, não uma nova base SI oficial.
-Temperature point e delta usam `K`. `std.iec.Information` usa `bit` como
+Temperature point usa `K`; a dimensão distinta `TemperatureDelta` usa a
+reference `deltaK`. `std.iec.Information` usa `bit` como
 reference. A projection source `std/iec/contracts.w` materializa
 `Information`, `bit`, `byte`, `KiB`, `MiB` e `GiB`. O caller importa `iec` ou
 seleciona os symbols. O provider `std.iec@1` continua missing, portanto esta
@@ -19963,7 +19964,7 @@ representado por R. O value não guarda source unit, display unit, string ou
 runtime tag.
 
 ```w
-let duration: PhysicalDuration = 30<s>
+let duration: PhysicalDuration = 30<si.s>
 let magnitude: f64 = duration.canonicalValue
 ```
 
@@ -19993,7 +19994,7 @@ deve ser integral e caber em R. Um literal que falha é diagnostic.
 let invalid: Quantity<si.Duration, u64> = 0.5<si.s> // diagnostic: fractional
 let bytes: MemorySize = 64<iec.KiB>
 let referenceBits: u64 = bytes.canonicalValue
-let octets: u64 = try bytes.exactValue(in: B)
+let octets: u64 = try bytes.exactValue(in: iec.byte)
 ```
 
 Uma conversão runtime dependente do value usa constructor fallible. O
@@ -20002,8 +20003,8 @@ constructor normal existe somente para conversão total. A forma
 
 ```w
 let inputBytes: u64 = bytesFromDevice
-let measured: MemorySize = try Quantity(exactly: inputBytes, unit: B)
-let identity: MemorySize = Quantity(inputBits, unit: bit)
+let measured: MemorySize = try Quantity(exactly: inputBytes, unit: iec.byte)
+let identity: MemorySize = Quantity(inputBits, unit: iec.bit)
 ```
 
 Ao materializar f32 ou f64, cada coeficiente racional converte uma vez com
@@ -20019,9 +20020,9 @@ as regras numéricas.
 
 ```w
 let displayMinutes: f64 = fromSeconds.value(in: si.min)
-let exactBytes: u64 = try bytes.exactValue(in: B)
-let integralDuration: Quantity<si.Duration, u64> = 1<s>
-let roundedMinutes: u64 = try integralDuration.value(in: min, rounding: .towardZero)
+let exactBytes: u64 = try bytes.exactValue(in: iec.byte)
+let integralDuration: Quantity<si.Duration, u64> = 1<si.s>
+let roundedMinutes: u64 = try integralDuration.value(in: si.min, rounding: .towardZero)
 ```
 
 Conversão entre representations é explícita e segue as regras numéricas de
@@ -20052,7 +20053,7 @@ O wWire codifica somente os bytes portáveis de R já normalizado. Ele nunca
 codifica source unit ou display unit por value.
 
 ```w
-// `30<s>` e `0.5<min>` usam o mesmo R e os mesmos bytes wWire.
+// `30<si.s>` e `0.5<si.min>` usam o mesmo R e os mesmos bytes wWire.
 ```
 
 `WireSchemaDigest` de Quantity inclui a forma normal da dimensão, com stable IDs
@@ -29581,6 +29582,40 @@ evidência de design:
 | packages e releases | P0 fecha resolver, lock, CAS, recipe, mirror e rebuild | fechar prerelease, trust, archive safety e rebuild independente |
 | bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
 | ergonomia comparativa | R0/R0S/R1 guardam substituições e variantes observáveis | ratificar formas que ainda mudam source ou registrar waiver motivado |
+
+#### 24.4.0 Fechamento PRC0 de gates de pesquisa
+
+O bundle [`PRC0`](tooling/studies/prc0-provider-runtime-closure) fecha a decisão
+de design dos sete gates abaixo com um caso `current-contract` e um caso
+`rejected-route` por gate. A autoridade de cada decisão é o caso PRC0 indicado;
+os casos reutilizam SR0, RU0, PYN3, PYN4, LZ0, ASC0 e R1-units e derivam os
+facts nas máquinas existentes. Isso é evidência `design-oracle-input` e
+`oracle-backed-current`: não é execução W nem prova de compiler, runtime,
+provider, bridge ou estudo humano/modelo.
+
+| Gate | Rota corrente / rota rejeitada | Autoridade PRC0 | Lacuna de implementação separada |
+|---|---|---|---|
+| W-133 durable output | `PRC0-W-133-current` / `PRC0-W-133-adversarial` | journal input/outcome, runtime closure e turn delivery | W-1442 durable recovery provider |
+| W-903 Quantity provider | `PRC0-W-903-current` / `PRC0-W-903-adversarial` | canonical seconds, affine `TemperatureDelta`, IEC exact bytes e token JSON fixo | W-1443 Quantity compiler/std JSON+wWire provider |
+| W-1075 module-run | `PRC0-W-1075-current` / `PRC0-W-1075-adversarial` | explicit entry, package resolution e cleanup | W-1444 module-run CLI/resolver/runtime |
+| W-1124 PYN3 presentation | `PRC0-W-1124-current` / `PRC0-W-1124-adversarial` | bounded preview e compiler-summary fallback | W-1445 PYN3 kernel/presentation/export providers |
+| W-1147 PYN4 bridge | `PRC0-W-1147-current` / `PRC0-W-1147-adversarial` | DLPack release/deleter e view-escape rejection | W-1446 PYN4 DLPack/Python/device bridge |
+| W-1196 lazy behavior | `PRC0-W-1196-current` / `PRC0-W-1196-adversarial` | winner publication, waiter happens-before e reentry rejection | W-1447 lazy compiler/runtime/synchronization provider |
+| W-1328 allocator plan | `PRC0-W-1328-current` / `PRC0-W-1328-adversarial` | custom lease/drop ordering e fixed admission failure | W-1333 ASC0 implementation-evidence gap |
+
+O contrato W-903 usa imports explícitos (`si`, `iec` e `degC`): `si.s`,
+`si.min`, `iec.KiB`, `iec.byte` e `si.deltaK` não são bindings ambientais.
+`Temperature` (point) e `TemperatureDelta` (delta) são dimensões distintas,
+com references `K` e `deltaK`. A API W usa `iec.byte` para conversão exata;
+o schema JSON mantém `bit` como reference token e escreve `\"s\"`, `\"J\"` ou
+`\"bit\"` conforme o adapter fixo. O checker de fonte rejeita regressões para
+`<s>`, `<min>`, `<B>`, `<KiB>`, `<degC>` e alias ambient.
+
+O mapa de lacunas permanece explícito: W-1442–W-1447 são planned
+`implementation-evidence-gap` por componente; W-1333 é reutilizado para ASC0.
+Todos preservam `evidence.missing` de compile/run/compiler/runtime/provider e
+estudos humano/modelo. Uma futura classificação só pode promover o gate de
+design sem apagar essas lacunas.
 
 #### 24.4.1 SYN2/DYN2 fechamento e fronteira de implementação
 

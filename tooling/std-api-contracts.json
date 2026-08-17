@@ -1429,13 +1429,14 @@
       },
       "consumer": {
         "path": "std/si/contracts.w",
-        "symbols": ["m", "s", "ms"]
+        "symbols": ["m", "s", "ms", "TemperatureDelta", "deltaK"]
       },
       "apis": [
         { "symbol": "Length", "kind": "dimension", "profile": "value-contract" },
         { "symbol": "Mass", "kind": "dimension", "profile": "value-contract" },
         { "symbol": "Duration", "kind": "dimension", "profile": "value-contract" },
         { "symbol": "Temperature", "kind": "dimension", "profile": "value-contract" },
+        { "symbol": "TemperatureDelta", "kind": "dimension", "profile": "value-contract" },
         { "symbol": "ElectricCurrent", "kind": "dimension", "profile": "value-contract" },
         { "symbol": "Amount", "kind": "dimension", "profile": "value-contract" },
         { "symbol": "LuminousIntensity", "kind": "dimension", "profile": "value-contract" },
@@ -1450,6 +1451,7 @@
         { "symbol": "kg", "kind": "unit", "profile": "value-contract" },
         { "symbol": "s", "kind": "unit", "profile": "value-contract" },
         { "symbol": "K", "kind": "unit", "profile": "value-contract" },
+        { "symbol": "deltaK", "kind": "unit", "profile": "value-contract" },
         { "symbol": "A", "kind": "unit", "profile": "value-contract" },
         { "symbol": "mol", "kind": "unit", "profile": "value-contract" },
         { "symbol": "cd", "kind": "unit", "profile": "value-contract" },

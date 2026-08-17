@@ -1,0 +1,32 @@
+{
+  "$schema": "w-prc0-provider-runtime-closure-study-1",
+  "status": "design-oracle-input",
+  "id": "PRC0",
+  "title": "Provider/runtime closure routes for seven research gates",
+  "question": "Which current and rejected routes close W-133, W-903, W-1075, W-1124, W-1147, W-1196, and W-1328 as design-oracle decisions while preserving separate provider/runtime gaps?",
+  "manifest": { "path": "manifest.json" },
+  "corpus": { "path": "../../prc0-provider-runtime-closure-cases.json" },
+  "artifacts": {
+    "bundle": { "path": "bundle.json" },
+    "machine": { "path": "../../prc0-provider-runtime-closure-machine.mjs" },
+    "checker": { "path": "../../check-prc0-provider-runtime-closure.mjs" },
+    "snapshot": { "path": "../../prc0-provider-runtime-closure-results.snapshot.jsonl" },
+    "oracle": { "path": "oracle.test.mjs" }
+  },
+  "reusedUnits": ["SR0", "RU0", "PYN3", "PYN4", "LZ0", "ASC0", "R1-units"],
+  "implementationGapMap": {
+    "W-133": ["W-1442"],
+    "W-903": ["W-1443"],
+    "W-1075": ["W-1444"],
+    "W-1124": ["W-1445"],
+    "W-1147": ["W-1446"],
+    "W-1196": ["W-1447"],
+    "W-1328": ["W-1333"]
+  },
+  "evidence": {
+    "current": ["source-ref", "reused-corpus", "reused-machine", "host-oracle", "adversarial-route", "mutation-checks", "snapshot"],
+    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
+    "hostOnly": true
+  },
+  "stopCondition": "Stop on stale source, route, digest, expected field, implementation-gap role, authority, or evidence-boundary mutation; wait for Sol review before canonical recascade."
+}

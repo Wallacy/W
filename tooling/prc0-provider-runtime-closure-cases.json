@@ -1,0 +1,151 @@
+{
+  "$schema": "w-prc0-provider-runtime-closure-cases-1",
+  "status": "design-oracle-input",
+  "id": "PRC0",
+  "reuseOnly": true,
+  "decisions": ["W-133", "W-903", "W-1075", "W-1124", "W-1147", "W-1196", "W-1328"],
+  "cases": [
+    {
+      "id": "PRC0-W-133-current",
+      "kind": "current-contract",
+      "decisions": ["W-133"],
+      "source": { "kind": "service-recovery", "corpus": "tooling/service-recovery-cases.json", "caseId": "SR0-accepted-full-turn-lifecycle" },
+      "assert": { "status": "accepted", "callPhase": "delivered", "durableOutcome": "success", "journalRecords": ["1:input:effect-order-42", "2:outcome:effect-order-42"], "cleanupCount": 1 }
+    },
+    {
+      "id": "PRC0-W-133-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-133"],
+      "source": { "kind": "service-recovery", "corpus": "tooling/service-recovery-cases.json", "caseId": "SR0-rejected-outcome-before-runtime-closure" },
+      "assert": { "status": "rejected", "error": "serviceCallPhaseInvalid", "activeTurn": "call-order-1", "journalRecords": ["1:input:effect-order-42"] }
+    },
+    {
+      "id": "PRC0-W-903-current",
+      "kind": "current-contract",
+      "decisions": ["W-903"],
+      "source": {
+        "kind": "quantity",
+        "bundle": "tooling/studies/r1-units/bundle.json",
+        "variant": "angle",
+        "oracle": "tooling/studies/r1-units/oracle.test.mjs",
+        "fixture": "reference/last-light/quantity_oracle.w",
+        "symbol": "durationBitsAreCanonical"
+      },
+      "operations": [
+        { "op": "durationCanonical", "seconds": 30, "minutes": 0.5 },
+        { "op": "temperatureDelta", "openingC": 180, "closingC": 20 },
+        { "op": "memoryExactBytes", "quantity": 64, "unit": "iec.KiB" },
+        { "op": "jsonToken", "token": "s" }
+      ],
+      "assert": { "status": "accepted", "canonicalSeconds": 30, "deltaK": 160, "referenceBits": 524288, "exactBytes": 65536, "jsonToken": "s" }
+    },
+    {
+      "id": "PRC0-W-903-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-903"],
+      "source": {
+        "kind": "quantity",
+        "bundle": "tooling/studies/r1-units/bundle.json",
+        "variant": "square",
+        "oracle": "tooling/studies/r1-units/oracle.test.mjs",
+        "fixture": "reference/last-light/quantity_oracle.w",
+        "symbol": "expectedTickDurationTokenOutcome"
+      },
+      "operations": [{ "op": "jsonToken", "token": "ms" }],
+      "assert": { "status": "rejected", "error": "fixedUnitToken", "token": "ms" }
+    },
+    {
+      "id": "PRC0-W-1075-current",
+      "kind": "current-contract",
+      "decisions": ["W-1075"],
+      "source": { "kind": "module-run", "corpus": "tooling/module-run-cases.json", "caseId": "RU0-module-default" },
+      "assert": { "status": "accepted", "phase": "cleaned", "cleanupDone": true, "entry": "default" }
+    },
+    {
+      "id": "PRC0-W-1075-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-1075"],
+      "source": { "kind": "module-run", "corpus": "tooling/module-run-cases.json", "caseId": "RU0-hidden-state-rejected" },
+      "assert": { "status": "rejected", "error": "cleanupIncomplete", "cleanupDone": false }
+    },
+    {
+      "id": "PRC0-W-1124-current",
+      "kind": "current-contract",
+      "decisions": ["W-1124"],
+      "source": { "kind": "presentation", "corpus": "tooling/presentation-cases.json", "caseId": "PYN3-P-table-preview-bounded" },
+      "assert": { "status": "accepted", "phase": "finished", "previewCollected": false }
+    },
+    {
+      "id": "PRC0-W-1124-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-1124"],
+      "source": { "kind": "presentation", "corpus": "tooling/presentation-cases.json", "caseId": "PYN3-N-table-collect-plan" },
+      "assert": { "status": "rejected", "error": "W-PRESENTATION-0009", "fallback": "compilerSummary" }
+    },
+    {
+      "id": "PRC0-W-1147-current",
+      "kind": "current-contract",
+      "decisions": ["W-1147"],
+      "source": { "kind": "dlpack", "corpus": "tooling/dlpack-cases.json", "caseId": "PYN4-P-versioned-zero-copy" },
+      "assert": { "status": "accepted", "phase": "released", "releaseCalls": 1, "deleterCalls": 1 }
+    },
+    {
+      "id": "PRC0-W-1147-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-1147"],
+      "source": { "kind": "dlpack", "corpus": "tooling/dlpack-cases.json", "caseId": "PYN4-N-view-escape" },
+      "assert": { "status": "rejected", "error": "W-DLPACK-0025", "leases": 1, "releaseCalls": 0 }
+    },
+    {
+      "id": "PRC0-W-1196-current",
+      "kind": "current-contract",
+      "decisions": ["W-1196"],
+      "source": { "kind": "lazy", "corpus": "tooling/lazy-behavior-cases.json", "caseId": "LZ0-accepted-concurrent-winner-and-waiter" },
+      "assert": { "status": "accepted", "phase": "initialized", "publication": 1, "initializerRuns": 1, "waiterPhase": "resumed" }
+    },
+    {
+      "id": "PRC0-W-1196-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-1196"],
+      "source": { "kind": "lazy", "corpus": "tooling/lazy-behavior-cases.json", "caseId": "LZ0-rejected-known-reentry-cycle" },
+      "assert": { "status": "rejected", "error": "W-LAZY-0003", "initializerRuns": 0 }
+    },
+    {
+      "id": "PRC0-W-1328-current",
+      "kind": "current-contract",
+      "decisions": ["W-1328"],
+      "source": { "kind": "allocator", "corpus": "tooling/allocator-scope-cases.json", "caseId": "ASC0-POS-custom-provider-contract" },
+      "assert": { "accepted": true, "plan": "custom", "leaseClosed": true, "providerCloseCount": 1, "typedDropsBeforeReclaim": true }
+    },
+    {
+      "id": "PRC0-W-1328-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-1328"],
+      "source": { "kind": "allocator", "corpus": "tooling/allocator-scope-cases.json", "caseId": "ASC0-NEG-fixed-admission-requires-try" },
+      "assert": { "accepted": false, "reason": "fixedAdmissionRequiresTry", "bodyEntered": false, "bindingCreated": false }
+    }
+  ],
+  "evidence": {
+    "current": ["source-ref", "reused-corpus", "reused-machine", "host-oracle", "adversarial-route"],
+    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
+    "claims": "Host design-oracle reuse only; provider/runtime implementation remains a separate gap."
+  },
+  "implementationGapMap": {
+    "W-133": ["W-1442"],
+    "W-903": ["W-1443"],
+    "W-1075": ["W-1444"],
+    "W-1124": ["W-1445"],
+    "W-1147": ["W-1446"],
+    "W-1196": ["W-1447"],
+    "W-1328": ["W-1333"]
+  },
+  "plannedImplementationGaps": [
+    { "id": "W-1442", "component": "durable recovery provider", "category": "implementation-evidence-gap", "missing": ["compiler", "runtime", "provider"] },
+    { "id": "W-1443", "component": "Quantity compiler/std JSON+wWire provider", "category": "implementation-evidence-gap", "missing": ["compiler", "runtime", "provider"] },
+    { "id": "W-1444", "component": "module-run CLI/resolver/runtime", "category": "implementation-evidence-gap", "missing": ["compiler", "runtime", "provider"] },
+    { "id": "W-1445", "component": "PYN3 kernel/presentation/export providers", "category": "implementation-evidence-gap", "missing": ["compiler", "runtime", "provider"] },
+    { "id": "W-1446", "component": "PYN4 DLPack/Python/device bridge", "category": "implementation-evidence-gap", "missing": ["compiler", "runtime", "provider"] },
+    { "id": "W-1447", "component": "lazy compiler/runtime/synchronization provider", "category": "implementation-evidence-gap", "missing": ["compiler", "runtime", "provider"] }
+  ],
+  "stopCondition": "Stop at stale source, route, digest, expected field, implementation-gap role, or evidence-boundary mutation; wait for Sol review before canonical recascade."
+}

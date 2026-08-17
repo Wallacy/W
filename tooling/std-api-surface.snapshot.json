@@ -1,11 +1,11 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "521e10f3d4e72e45fbfbf6cf15f092e3f44f2317bfdb7c10de6fb7c7ca651dea",
+  "catalogDigest": "c83b2bc33cf9558f12965ef3afe24751b5b61e0ad069d511f1c3b72c0e3a2600",
   "summary": {
     "modules": 31,
-    "catalogedApis": 422,
-    "draftCatalogedApis": 422,
+    "catalogedApis": 424,
+    "draftCatalogedApis": 424,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 92,
     "referenceRequirements": 31,
@@ -7563,41 +7563,41 @@
           "unit-binding-resolution"
         ]
       },
-      "catalogedDeclarationsDigest": "0e71823b04aa2eb47eb9fce54638f8512a70289a485c2b62618c8fdefc0542df",
+      "catalogedDeclarationsDigest": "9167adcbbda065656cfc00517c1c0dc736c1de594bb952014eeedd4c22e9a5ce",
       "apis": [
         {
           "symbol": "A",
           "kind": "unit",
           "signature": "export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "f8941e5d788229cb04664254eb1af72939512555fc450d63d82373b34883a09d",
-          "line": 28,
+          "line": 30,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "Acceleration",
           "kind": "dimension",
-          "signature": "export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "70a5060c14873fa154d0b13658c210906d6da2fdb053e51ea07c3bdb6edcb116",
-          "line": 22,
+          "signature": "export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "5479a31e2563a185772762769f0dfa79974b581e1e1f0058ec76f8b254fae24f",
+          "line": 23,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "Amount",
           "kind": "dimension",
-          "signature": "export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "7e5efbae8d1dff84c1b994fc3314e3ad209816b72edfa5f9f8f47e9328cd8b2b",
-          "line": 15,
+          "signature": "export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "9dbd3bd9a4316f6153df684efb3a07c75e62d63bb3c01ae3c1dcc0479976a4c4",
+          "line": 16,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "Angle",
           "kind": "dimension",
-          "signature": "export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "8587db5f5eca32f965bc6c7aac441c159cf824156379b6f5bd822bedd4657b81",
-          "line": 17,
+          "signature": "export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "48b6365fdd5613f7ea83dfb3f46439baac960abe0c427f7ac50c9db8082b78bf",
+          "line": 18,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7606,15 +7606,24 @@
           "kind": "unit",
           "signature": "export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "139e186b7aecb5d3f857bb9338b457e356b73b21da047bc9dc2770833dd385e7",
-          "line": 30,
+          "line": 32,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "deltaK",
+          "kind": "unit",
+          "signature": "export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "6b0011d7774527284382f743929b18ba7a6cd4ab14483396b13756bed96ce216",
+          "line": 29,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "Duration",
           "kind": "dimension",
-          "signature": "export dimension Duration export dimension Temperature export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "c7c2c1b37bb334153f2a4dcd97a72b2a607855e5b6d5aad69b60f8a4aaae7ffb",
+          "signature": "export dimension Duration export dimension Temperature export dimension TemperatureDelta export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "236359304ed8ffefeaf65da03c2d5bf0118fc450b16be71f060c9ab7ff13df58",
           "line": 12,
           "profile": "value-contract",
           "status": "draft"
@@ -7622,27 +7631,27 @@
         {
           "symbol": "ElectricCurrent",
           "kind": "dimension",
-          "signature": "export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "fc481cfad9b6e12a906ae27ac702a04cb11e0d3889bd0d6b2a56dbe54f8578e1",
-          "line": 14,
+          "signature": "export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "233051d516d1da349fc945e77ac0f92161ea970904d4b097db8daf7434780d2a",
+          "line": 15,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "Energy",
           "kind": "dimension",
-          "signature": "export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "e10f034068b21ee683f1ad42d8071cb163ad94f47628125b1590de5b0f8944f9",
-          "line": 18,
+          "signature": "export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "25a6715f2cce0ff7effb1a2d3a9284452421f6249046eafe8bc83b192872f771",
+          "line": 19,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "Frequency",
           "kind": "dimension",
-          "signature": "export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "6fa5c9993d9c458640fb48df7490a3cd4b589092ead1c6b0d96b6348016d3cfe",
-          "line": 20,
+          "signature": "export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "4126162d256dbbc95be9a1a14d954e2360345348a32c47404c7f7d0d940064e5",
+          "line": 21,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7651,7 +7660,7 @@
           "kind": "unit",
           "signature": "export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "df49f485127271a35e790bc764704ab2005b60a4ef869aff0e0713cec487f1e9",
-          "line": 36,
+          "line": 38,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7660,7 +7669,7 @@
           "kind": "unit",
           "signature": "export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "82da6be82cf78942fb9abe2195f26b9b674b0c51f507a66d8afb1d4f70172aaa",
-          "line": 37,
+          "line": 39,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7669,33 +7678,33 @@
           "kind": "unit",
           "signature": "export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "fbaf23114997a5ac585ceebb4424e6374d49265d95270ac7c1741ffdb7cc01fa",
-          "line": 39,
+          "line": 41,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "K",
           "kind": "unit",
-          "signature": "export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "7a36cfa559d06f1e9cf531b4b8272b9efb40f88463f09052d779d4399b8b9289",
-          "line": 27,
+          "signature": "export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "e726de6d1738996e8a489e331a11eba1da1459b676e18bc365a5a3d6c5c72c3a",
+          "line": 28,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "kg",
           "kind": "unit",
-          "signature": "export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "38cb891e0be14dc710f434c139959989f2e45aedd95b80af1ffa5a4b50766a84",
-          "line": 25,
+          "signature": "export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "7099625b954f632be2586a99155b827b1ea62d5ba53fcaaef454223703aea030",
+          "line": 26,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "Length",
           "kind": "dimension",
-          "signature": "export dimension Length export dimension Mass export dimension Duration export dimension Temperature export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "5a7a3a210db47c5df18c045dc98aaf3b063072850db3347897fa5ffb9bb52307",
+          "signature": "export dimension Length export dimension Mass export dimension Duration export dimension Temperature export dimension TemperatureDelta export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "d63cfc08faa1dc02d669a7ba3b0e0b671da06d5ea9c0523a5e094166aaed4064",
           "line": 10,
           "profile": "value-contract",
           "status": "draft"
@@ -7703,26 +7712,26 @@
         {
           "symbol": "LuminousIntensity",
           "kind": "dimension",
-          "signature": "export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "daf353340c51e945b7ae0ec69b8c0468f6c267346169af74b6324e4f1fcc529d",
-          "line": 16,
+          "signature": "export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "4916ec4d4a002fc88b0243db3fb6169a54f0b1ff478c7c5cf49aaa5fafa4e522",
+          "line": 17,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "m",
           "kind": "unit",
-          "signature": "export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "7491d17a75d7a60743b8f24de51df08b375ee79b872cc1754d4fe00b969ec8d5",
-          "line": 24,
+          "signature": "export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "0abce932489a3e0c12a232a03ec6e946c1c934f0adc7e945ba349149cdf3db2b",
+          "line": 25,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "Mass",
           "kind": "dimension",
-          "signature": "export dimension Mass export dimension Duration export dimension Temperature export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "b1c2fb07a04d5750295f24c320e6f23534423b67086e52c62355a5f0c6033ce2",
+          "signature": "export dimension Mass export dimension Duration export dimension Temperature export dimension TemperatureDelta export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "bfde860ba2b75737a76ec8774ad1fcfaeb156c851a8103594f509dc763b6656f",
           "line": 11,
           "profile": "value-contract",
           "status": "draft"
@@ -7732,7 +7741,7 @@
           "kind": "unit",
           "signature": "export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "919b7d2c9ee0b9b3ee5808fd3bc08d068298567e80ae01c23e71ab8dd409ade7",
-          "line": 35,
+          "line": 37,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7741,7 +7750,7 @@
           "kind": "unit",
           "signature": "export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "3219b4e87788b260b6276c95544560a4ad67db8e02a3bd9f2be779637efc632e",
-          "line": 29,
+          "line": 31,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7750,7 +7759,7 @@
           "kind": "unit",
           "signature": "export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "80cf252805043b8a01caf85c76188ca283f86062f0c7f805ecfc4bc9f409d0d1",
-          "line": 32,
+          "line": 34,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7759,7 +7768,7 @@
           "kind": "unit",
           "signature": "export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "64294a4290ac07d0217774ba19d42dee4d4ab5541647ca5f6e3a883eeb082b5b",
-          "line": 38,
+          "line": 40,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7768,7 +7777,7 @@
           "kind": "unit",
           "signature": "export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "5d698766f8ba5833b14347fd5568c7ff273182b73858ed80b6022f70498f8f48",
-          "line": 34,
+          "line": 36,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7777,25 +7786,25 @@
           "kind": "unit",
           "signature": "export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "91e7d09a36984917a0ae60fcb589d06fb306a3af21dc658a2444d7b579e51d26",
-          "line": 41,
+          "line": 43,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "Power",
           "kind": "dimension",
-          "signature": "export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "a88b3a24e606176787a90c1e57ceb3bb4d578e8ce12b769a4356242d4ce3148f",
-          "line": 19,
+          "signature": "export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "0b5dc0b8e64dab72c766bb637204908e9dba5aeb662f1ac462aac721f44a0f9b",
+          "line": 20,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "Pressure",
           "kind": "dimension",
-          "signature": "export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "3146b26d11af0bd8d099b3fa0133051085f78132edcc7c2f6f43dacf5114e5c1",
-          "line": 23,
+          "signature": "export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "47ba9670f489715707e3cbf06a2521dd4e6f2cbddcbee23e610f74d994060272",
+          "line": 24,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7804,7 +7813,7 @@
           "kind": "unit",
           "signature": "export unit ps = 1/1_000<ns>",
           "declarationDigest": "b05518409fd539e574555427676048c3770bd52c55678dc0872fc07dc28f9a94",
-          "line": 42,
+          "line": 44,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7813,25 +7822,34 @@
           "kind": "unit",
           "signature": "export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "adc0b6e1909ea58ea42f56c618b8eec0622006ca333de75bdc7812f4b552125b",
-          "line": 31,
+          "line": 33,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "s",
           "kind": "unit",
-          "signature": "export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "bcaec8bcf313959f95cd3463ae4dc0cf38a084d78b50b06ab8524a546c0b44ef",
-          "line": 26,
+          "signature": "export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "5dd447dd4b971b9a1ec94f249073a565e2a936710b90eff8669fae9922ad66a4",
+          "line": 27,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "Temperature",
           "kind": "dimension",
-          "signature": "export dimension Temperature export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "856ebf28ae01cbb1964f5937b71fb4707a2ffd7421f479e394f9baa8f537702c",
+          "signature": "export dimension Temperature export dimension TemperatureDelta export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "44507b881fa3b67f682f77e58f1c38c2b1a2cad39198c80c0fe04005186b9e5b",
           "line": 13,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "TemperatureDelta",
+          "kind": "dimension",
+          "signature": "export dimension TemperatureDelta export dimension ElectricCurrent export dimension Amount export dimension LuminousIntensity export dimension Angle export dimension Energy export dimension Power export dimension Frequency export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "0cbc70b75a50a74a7a6675344c8e44f33eb1c9d9cab404fd8bca12df6fb6b194",
+          "line": 14,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7840,16 +7858,16 @@
           "kind": "unit",
           "signature": "export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "a13a38ae031910dc6318cc92c90de4c2447501df0d6f1b2e7b46f5235e1780a9",
-          "line": 33,
+          "line": 35,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "Velocity",
           "kind": "dimension",
-          "signature": "export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
-          "declarationDigest": "273d8b90ce60b594b05226e7feab1172f62d9f0137d4ee7142912dc69eca8ef5",
-          "line": 21,
+          "signature": "export dimension Velocity export dimension Acceleration export dimension Pressure export unit m: Length export unit kg: Mass export unit s: Duration export unit K: Temperature export unit deltaK: TemperatureDelta export unit A: ElectricCurrent export unit mol: Amount export unit cd: LuminousIntensity export unit rad: Angle export unit ms = 1/1_000<s> export unit us = 1/1_000<ms> export unit ns = 1/1_000<us> export unit min = 60<s> export unit h = 60<min> export unit Hz = 1/s export unit N = 1<kg*m/s^2> export unit J = 1<N*m> export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
+          "declarationDigest": "a6c7e3ac22f55e82b91d4216e89586132416f63aca2e1aa28551ff0db211d16c",
+          "line": 22,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7858,7 +7876,7 @@
           "kind": "unit",
           "signature": "export unit W = 1<J/s> export unit Pa = 1<N/m^2> export unit ps = 1/1_000<ns>",
           "declarationDigest": "00b23c87cc9695d4262a09a0f0890861967e5a0e1ff2df173b2cdf06faac1942",
-          "line": 40,
+          "line": 42,
           "profile": "value-contract",
           "status": "draft"
         }

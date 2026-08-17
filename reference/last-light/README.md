@@ -658,9 +658,9 @@ Aceite:
 - `m`, `smoot`, `K`, `degC` e `clap` resolvem pelo import;
 - `PhysicalDuration`, `Power` e `Energy` são aliases; a dimensão já fornece
   identidade;
-- `30<s>` e `0.5<min>` têm o mesmo canonical value e o mesmo bit pattern;
+- `30<si.s>` e `0.5<si.min>` têm o mesmo canonical value e o mesmo bit pattern;
 - `180<degC>` é affine point, e point menos point produz `TemperatureDelta`;
-- `64<iec.KiB>` guarda reference bits em `MemorySize`, e `exactValue(in: B)` produz
+- `64<iec.KiB>` guarda reference bits em `MemorySize`, e `exactValue(in: iec.byte)` produz
   bytes sem arredondamento;
 - `Power * PhysicalDuration` produz Energy;
 - `Duration` operacional não aceita conversão float implícita;
