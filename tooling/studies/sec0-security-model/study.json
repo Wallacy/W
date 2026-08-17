@@ -38,7 +38,7 @@
     {"id": "security-patch", "role": "research-candidate", "language": "w-reserved", "path": "security-patch.txt", "digest": "sha256:f71ab546de17f1a7831933afa7df392955754b7918dd06c6159c7eaf5801a21b"}
   ],
   "artifactRefs": [
-    {"id": "readme", "role": "research-note", "path": "tooling/studies/sec0-security-model/README.md", "digest": "sha256:78342985005d1df05a2229b840cd51df08e353741117eadb6cf05e566aed8349"},
+    {"id": "readme", "role": "historical-research-note", "path": "tooling/studies/sec0-security-model/README.md", "digest": "sha256:7fcfbe1b199cf68c38e016442a3cf0eb787934e028e258d8a9ff28abdafe0fc4"},
     {"id": "corpus", "role": "design-input", "path": "tooling/sec0-security-model-cases.json", "digest": "sha256:fce56a5927e41eabd299621ddd531548fbf4f9ae90ed4c38897976ab71f128ad"},
     {"id": "machine", "role": "host-oracle", "path": "tooling/sec0-security-model-machine.mjs", "digest": "sha256:6abf39d2aaafb09586a4364d7459f9d246dca35bbc022b94f7b448f51b9a0b0b"},
     {"id": "manifest", "role": "manifest-validator", "path": "tooling/sec0-security-model-manifest.mjs", "digest": "sha256:0c64381622ee3ee684d0ff45637b8456cf0eea0dea25d23b7a36181cd1dda9eb"},

@@ -1,10 +1,14 @@
 # IPC1 — mapped memory and process-shared IPC
 
-Status: design-only **Pesquisa**. IPC1 informs and narrows `IPC0-R1`. It does
-not define W syntax, an API, a compiler rule, a runtime, or a provider.
+Status: source-corpus design-only **Pesquisa** (pre-ASIC0). IPC1 informs and
+narrows `IPC0-R1`. ASIC0 closes the current conditional adapter/provider
+contracts for A and B and records W-1448 as the implementation-evidence gap.
+It does not define W syntax, an API, a compiler rule, a runtime, or a provider
+implementation.
 
-The current route remains a bounded snapshot, typed wire, or service channel.
-The study has two Research candidates:
+The fallback route remains a bounded snapshot, typed wire, or service channel.
+The source corpus has two pre-ASIC0 Research candidates; ASIC0 makes them
+current only as receipt-bound adapter/provider contracts:
 
 - an immutable mapped snapshot with pointer-free relative layout;
 - a bounded mapped channel or log with explicit slot ownership and commit.
@@ -108,7 +112,8 @@ in order. The receipt is digest-backed: it binds the C source and raw JSON
 transcript by SHA-256 and validates the observed facts. It is design evidence
 only; it is not W execution, provider readiness, crash recovery, or durability.
 
-Missing evidence keeps `IPC0-R1` open:
+Missing implementation evidence remains W-1448; it does not reopen the ASIC0
+design contract:
 
 - a Windows two-process probe (the current host has no Windows API toolchain);
 - `w-compile` and `w-run` evidence;

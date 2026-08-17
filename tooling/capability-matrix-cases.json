@@ -2173,12 +2173,12 @@
         "studyRefs": [
           {
             "path": "tooling/studies/ipc1-mapped-ipc/README.md",
-            "digest": "sha256:c6e9bd90d6425603db853ea3a841a1eb05f48f3a706c98fe03de2ce28a9935ce",
+            "digest": "sha256:ec326dd8534ef99f72a710659f22de19584e338f7d907c8b52eea13000c48b0c",
             "claim": "IPC1 mapped memory and process-shared IPC adversarial study."
           },
           {
             "path": "tooling/studies/ipc1-mapped-ipc/study.json",
-            "digest": "sha256:962c72657a1288cb3123dd71aae6d398bd02e8724a50ea948eb6103f53b0f24a",
+            "digest": "sha256:2bfa9efbc4789fdfe17d84f30a1e67f733825a178c2f6d3d7c9ea22082ce3626",
             "claim": "IPC1 study manifest binds current, Research, and rejected witnesses."
           },
           {

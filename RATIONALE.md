@@ -1858,13 +1858,16 @@ host em claim de execução.
 
 #### 1.4.9 IPC1 — memória mapeada e IPC process-shared
 
-IPC1 informa e estreita o gate de design `IPC0-R1`. O estudo não promove API,
-syntax, compiler, runtime ou provider. A rota do problema continua **Pesquisa**.
-O baseline recomendado permanece `SnapshotByteSource`, wire tipado, Arrow e
-service channel bounded. O estudo usa o Restaurante no Fim do Universo para
-comparar uma telemetria de horizonte e um snapshot de menu.
+IPC1 informa e estreita o gate de design `IPC0-R1`. A etiqueta **Pesquisa**
+abaixo é a proveniência do corpus antes de ASIC0. ASIC0 fecha como design
+current os contratos condicionais de adapter/provider para A e B, sempre com
+receipts explícitos, e registra W-1448 como implementation-evidence-gap. Isso
+não promove API, syntax, compiler, runtime ou provider implementation. O
+fallback vigente permanece `SnapshotByteSource`, wire tipado, Arrow e service
+channel bounded. O estudo usa o Restaurante no Fim do Universo para comparar
+uma telemetria de horizonte e um snapshot de menu.
 
-O candidato A é um snapshot mapeado imutável. Seu layout é relocatable e
+A é um snapshot mapeado imutável. Seu layout é relocatable e
 pointer-free. O payload usa offsets e índices relativos, nunca pointers,
 owners, borrows, capabilities ou values com drop. O header publica magic,
 version, schema identity, schema digest, layout digest, length, alignment,
@@ -1891,7 +1894,7 @@ handles e views têm lifetimes separados.
 Essas diferenças físicas retornam outcomes normalizados, não uma equivalência
 de nomes ou handles.
 
-O candidato B é um carrier de bytes/wire bounded em memória mapeada, não um
+B é um carrier de bytes/wire bounded em memória mapeada, não um
 `Channel<T>` genérico nem uma coleção de referências compartilhadas. Capacidade,
 slot count, slot size, schema, layout digest e generation vêm do header
 mapeado validado, nunca de `input.capacity`; `header.length` é igual ao extent
@@ -1961,9 +1964,10 @@ commit/cancelamento, checksum e slot header, crash por actor em cada estado,
 recovery ordering, unrelated-process no-fault continuation, terminal channel e
 lifecycle audits, atomic unsupported, provider binding/fact mutations, view
 escape, resize, FFI close ordering e fallback ao baseline.
-As variantes `.w` cobrem somente composições vigentes. Os candidatos mapped,
-pointer nativo e provider oculto permanecem textos `w-reserved` com estado
-Research ou rejeitado.
+As variantes `.w` cobrem somente composições vigentes. Os textos `w-reserved`
+preservam a proveniência pré-ASIC0: A/B são contratos current apenas na forma
+condicional de adapter/provider fechada por ASIC0, enquanto pointer nativo e
+provider oculto permanecem rejeitados.
 
 As fontes primárias são POSIX Issue 8 para
 [`mmap`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/mmap.html),
@@ -1991,8 +1995,8 @@ header/commit/read, stale-name rejection, remap generation 2 e cleanup; o
 receipt liga source e transcript por SHA-256. Esse fato não é execução W nem
 provider readiness. O probe Windows continua missing, assim como
 `w-compile`, `w-run`, provider, crash-recovery, durability, human-study e
-model-study. CAP0 preserva A/B como Research e rejeita C universal
-(`Mapped<T>`, `shared T` e raw pointer). A fila de documentação mantém
+model-study. ASIC0 fecha A/B como contratos condicionais e mantém C universal
+(`Mapped<T>`, `shared T` e raw pointer) rejeitado. A fila de documentação mantém
 exemplos pareados de C/POSIX, Rust e Python para o guia
 `guides/problems/process-shared-data`. LOC ou ergonomia estrutural não fecham
 essa fila.
@@ -4430,7 +4434,7 @@ Os resultados atuais são estes:
 | GEN0 | Componível | Stream e tasks cobrem produção; a expressão estreita GEN2 reduz a cerimônia com captures explícitas e `yield take`/`yield copy` (copy exige `Duplicable`). Diálogo usa Channel bounded; frame/send/throw/resume público é rejeitado e compile/runtime/provider permanecem gates de evidência. |
 | SYN0 | Componível | Synthesis compiler-owned, transform hermético e o module set `.w` separado de SYN2 cobrem artefatos. C2 recipe/IR, phase in-process e injection no módulo corrente permanecem rejeitados; compiler/provider/run são gaps de implementação. |
 | CYC0 | Componível | Weak edge, owner e drain fecham o grafo. Collector transparente não entra no core. |
-| IPC0 | Pesquisa | Snapshot e IPC tipado compõem. Mapped bytes exigem layout, atomics, crash e capability contract. |
+| IPC0 | Vigente | Snapshot e IPC tipado continuam fallback. ASIC0 fecha A/B mapped como contratos condicionais de adapter/provider com layout, atomics, crash, capability e receipts; C universal é rejeitado e W-1448 mantém a evidência de implementação. |
 | SRV0 | Vigente | Services, faults, generations e recovery actions formam o design. Journal e crash provider são gates de evidência. |
 | DYN0 | Componível | Dados, plugins tipados, generations, REPL e transforms atendem hot change. Eval e active-frame patching são rejeitados como mecanismos. |
 
@@ -4971,11 +4975,14 @@ contexto com fields declarados, owner/expiry, snapshot imutável, schema identit
 separada da configuration generation/digest, rollout determinístico e exposure
 explícita. Config stale ou ausente retorna fallback sem ampliar authority.
 
-O binding que permitiria ao compiler estreitar uma declaração após evidence de
-availability permanece Research. O witness textual usa `available(...)` apenas
-para estudar tipo, ownership, effects, fallback e diagnostics; ele não é syntax
-W aceita. Boolean, versão textual do OS, deployment field ou runtime flag não é
-evidence de provider.
+O corpus pré-ASIC0 registra como Research o binding que permitiria ao compiler
+estreitar uma declaração após evidence de availability. ASIC0 fecha como design
+current o contrato de facts autenticados e binding typed fail-closed, sem nova
+keyword ou runtime API; W-1449 mantém os gaps de compiler, diagnostics e
+provider. O witness textual usa `available(...)` apenas para estudar tipo,
+ownership, effects, fallback e diagnostics; ele não é syntax W aceita. Boolean,
+versão textual do OS, deployment field ou runtime flag não é evidence de
+provider.
 
 O corpus AVF0 tem 38 casos em package, availability, runtime e composição: 14
 aceitos, 24 rejeitados e sete rejeições explícitas de authority amplification.
@@ -4983,10 +4990,11 @@ Cloudflare Flagship, Swift availability e OpenFeature são fontes primárias de
 comparação. O oracle Bun, Tree-sitter, snapshot e source refs não provam
 compiler, runtime ou provider.
 
-O stop condition exige dois domínios reais, compiler/type/effect/ownership,
-provider receipts, snapshots atômicos, rollout estável, exposição auditável,
-expiry/owner e projeções local/split. Até lá, runtime flags continuam library
-composition e availability binding continua Research.
+O stop condition de implementação exige dois domínios reais,
+compiler/type/effect/ownership, provider receipts, snapshots atômicos, rollout
+estável, exposição auditável, expiry/owner e projeções local/split. Até essa
+evidence, runtime flags continuam library composition e o contrato current de
+availability binding não implica compiler ou provider pronto.
 
 ### 1.35 SEC0 — modelo de segurança amplo por perfil físico
 
@@ -5046,8 +5054,11 @@ Cloudflare Workers, Linux seccomp, WebAssembly, WASI, RATS e Sigstore são
 fontes primárias de comparação. Nenhuma fonte externa é autoridade sobre W.
 
 O corpus SEC0 possui 101 casos, 24 aceitos, 77 rejeitados, 11 outcomes current e
-13 outcomes Research, seis profiles, 16 authority rejections e quatro caller-echo
-rejections. O oracle Bun, os fixtures
+13 outcomes Research como labels históricos do source corpus pré-ASIC0, seis
+profiles, 16 authority rejections e quatro caller-echo rejections. ASIC0 fecha
+como design current os seis profile schemas, o residual budget de side-channel,
+patch attestation e ordered deployment/hardening receipts; W-1450 mantém a
+evidence de implementação. O oracle Bun, os fixtures
 Tree-sitter, o snapshot e os source refs são design evidence. Eles não provam
 compiler, runtime, provider, sandbox, hardware, attestation verifier ou
 deployment control plane. O stop condition exige facts de compiler, provider e
@@ -6452,11 +6463,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1352 | sucessor ATOM2 do gate ATOM0-G1 | ATOM2 supersede ATOM1: carrier canônico compiler-synthesized promove records fechados value-only de 1–128 bits dentro de `Atomic<T>`/`var atomic`; handle `{slot,generation}` usa owner table e checked exhaustion sem wrap; SnapshotCell/domain continuam safe; adapter de reclamation especializado é permitido somente `unsafe` como implementation-evidence gap; pointer/tagged pointer e RCU universal são rejeitados | pointer/owner safe por atomicidade, acoplar padding/layout raw de T ao carrier, protocol user-defined para qualquer record, generation wrap ou owner table ausente, RCU universal safe, reclamation sem quiescence/drop, ou claims de compiler/runtime/provider |
 | W-1353 | método e invariantes de GEN1 | o oracle compara as mesmas traces em duas máquinas independentes (`switched-resume-frame` com slots/PC e `returned-continuation-state-loop` com estado/token); owner graph, commit/HB, resultado, cancelamento e cleanup/drop/drain são invariantes. A/B/C permanecem composáveis no escopo observado. Ver W-454–469, W-1161/W-1163, W-1185/W-1186 e W-1240 para contratos existentes. | frame de usuário como ABI, lowering que altera ownership, metadata de runtime, caller echo ou tratar trace físico como semântica |
 | W-1354 | dispositions de evidência e ergonomia de GEN1 | métricas estruturais de símbolos source e slices do mesmo cenário deixam a pergunta ergonômica aberta (`observedStructuralDifference` + `humanDecisionPending`); o builder bounded é current-candidate somente para diálogo; frame/resume público é intencionalmente rejeitado; bloco Stream compiler-owned é Research-candidate sob captures, capacity/prefetch, `Result` item, cancelamento, cleanup, effects e ausência de identidade/ABI pública. O oracle informa/estreita `GEN0-R1`; compile, run, provider e estudos humano/modelo continuam ausentes. | `yield` ambiental com frame público, lifetime/effect/ABI ocultos, LOC como decisão, promover bloco compiler-owned sem prova, promover D por obrigação ou declarar fechamento por oracle |
-| W-1355 | baseline e candidatos IPC1 | IPC0 permanece Research; SnapshotByteSource, wire tipado, Arrow e service channel bounded são baseline; IPC1 materializa candidato de snapshot mapeado imutável e candidato de channel/log bounded sem promover API, syntax, compiler, runtime ou provider | `Mapped<T>` universal, `shared T` como IPC, mmap invisível, raw pointer ou tratar estudo como comportamento implementado |
+| W-1355 | contratos atuais de adapters IPC A/B | A immutable mapped snapshot e B bounded mapped byte channel/log tornam-se contratos atuais de adapter/provider somente com receipts explícitos de layout/schema/generation/lease, atomics+wake address-free e lifecycle/security; não adicionam syntax/API W; sem receipt/profile há fallback para SnapshotByteSource/wire/Arrow/service; B é volatile e C universal `Mapped<T>`/`shared`/raw pointer permanece rejeitado | `Mapped<T>` universal, `shared T` como IPC, mmap invisível, raw pointer, receipt ausente tratado como sucesso ou estudo host tratado como comportamento implementado |
 | W-1356 | snapshot mapped relocatable, generation objects e selector durability | cada generation é um objeto/extent imutável separado; leases ligam `objectIdentity+generation` e impedem reuso enquanto vivas; layout usa offsets/índices relativos e payload pointer-free; header valida magic/version/schema/schemaDigest/layoutDigest/length/alignment/endian/generation; durable request ordena stage/hash → request → flush data+metadata → release selector → flush selector/namespace → receipt; visibility-only não inventa receipt; crash antes selector preserva a generation anterior, crash pós-selector sem receipt deixa visibility viva mas recovered current desconhecida, e crash pós-receipt é sucesso; stale remap, resize e view escape são explícitos | address equality, cast de struct nativa, publish antes de validation/flush, inferir flush físico, reusar generation com lease, resize com view viva ou access pós-unmap |
 | W-1357 | channel mapped wire carrier, commit/materialization e crash | carrier bounded de bytes (não `Channel<T>` raw) exige cap0 sem slots com rendezvous pareado e capN com ocupação derivada do header validado; header.length iguala o extent e `slotCount*slotSize` cabe em `slots`; owner local retorna antes de commit, commit publica bytes wire canônicos e a generation recebe bytes depois; receiver valida length/schema/checksum e cria owner novo, provando no máximo um owner por slot (não exactly-once distribuído); cancelamento mantém regra existente; provider prova atomic width/order/alignment/lock-free progress/wait-wake; crash de writing faulta generation, full committed sobrevive ao producer e pode ser materializado pelo reader, reading faulta generation e supervisor ordena fault→stop-access→drain→drop-view→unmap→close→reopen sem repair oculto | capacity caller, ordinary atomic como prova process-shared, String/owner no mapping, lock/allocator/scheduler oculto, repair in-place ou worker cooperativo bloqueado invisivelmente |
 | W-1358 | providers POSIX/Windows, backing e reducers | cada case escolhe binding authority: POSIX/Windows file-backed para snapshot durável com data+metadata receipt, POSIX `shm_open`/Windows pagefile para channel volátil; apenas `allowedLayouts[]`/`allowedSchemas[]` e seus digests são autoridade; reducers independentes derivam eventos, lifecycle físico e compact outcome comum; divergência de reducer/provider, facts caller, FFI close fora de ordem e fallback unsupported são rejeitados ou explicitamente normalizados; Windows não finge `unlink` e immediate withdraw retorna unsupported | selecionar resultado pelo expected/flags, equivalência de nome/handle, callback após unmap, `FlushViewOfFile` como durability total ou provider fact inventado |
-| W-1359 | evidence IPC2, CAP0 e documentação | corpus state/event-derived (69 casos, 138 projeções), schema/layout/provider source digests, snapshot e estudo host são design-oracle evidence; o probe POSIX observado é digest-backed por source/transcript SHA-256, enquanto probe Windows, w-compile, w-run, provider, crash-recovery, durability, human-study e model-study permanecem missing; wake provider é explícito, `WaitOnAddress` same-process é rejeitado e ATOM2 não implica address-free/process-shared; A/B permanecem Research e C universal é rejeitado; C/POSIX, Rust e Python ficam na fila `guides/problems/process-shared-data`, com exemplos pareados e refs W | chamar probe/oracle host de execução W, fechar gate por LOC ou fixture, promover A/B Research ou C universal, alegar probe Windows sem evidência, ou omitir exemplos pareados |
+| W-1359 | evidence IPC2, CAP0 e documentação | provider-authoritative publication e durable selector receipt tornam-se contrato atual de adapter/provider condicionado a receipts; o corpus state/event-derived, POSIX probe digest-backed, fallback SnapshotByteSource/wire/Arrow/service e `unknownDurability` permanecem boundaries explícitas; B é volatile e journal durable usa A/service; probe Windows, provider, crash-recovery, durability, w-compile, w-run, FFI, stress e estudos humano/modelo permanecem missing; C universal continua rejeitado | chamar probe/oracle host de execução W, fechar gate por LOC ou fixture, alegar provider Windows/crash/durability sem evidência, tratar `unknownDurability` como sucesso, ou promover C universal |
 | W-1360 | problema-first SYN1/SYN2 | SYN1 separa A composition atual, B transform de dados, C generated module artifact, C2 recipe/IR e D mutation dinâmica; SYN2 fecha o C estreito como module set `.w` content-addressed, com C2 e D rejeitados. O host oracle não é implementação | classificar o problema inteiro como macro gap, medir maturidade ou promover o oracle a implementation |
 | W-1361 | A synthesis fechada | `Hashable`/`Reflectable`, generic/protocol composition, JSON, `data.Row`, kernel synthesis finita e declarations manuais preservam identity nominal e constraints fechadas; `Display`, codec genérico e synthesis universal continuam fora | annotation universal, protocol por nome, synthesis parcial ou reflection como trigger de declarations |
 | W-1362 | B artifact typed atual | `final.menu` continua no build transform W0 e publica bytes typed (`MenuBytecode`/resource); quando declarations não são necessárias, runtime lookup ou data artifact é suficiente | fazer o menu compiler emitir declarations ou chamar o output de módulo W sem frontend normal |
@@ -6517,12 +6528,12 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1417 | identidade split e transação do root | owner basis exclui `resolution`/`deployments` e deriva `ownerDigest`; resolution e deployments têm digests próprios; `w resolve` altera somente resolution; add/remove/update fazem compare-and-replace com validation, temp sibling, cleanup e reducers POSIX/Windows independentes; `atomicVisible` e `crashDurable` são outcomes separados e durability exige provider receipt | `workspaceDigest` misturado com resolution, sidecar obrigatório, merge automático, last-write-wins, patch in-place, temp path exposto, receipt caller-owned, durability inferida de flag, resolver/fetch oculto ou alegação de compiler/runtime/provider |
 | W-1418 | default de protocol sem herança | protocol contém somente requirements; o módulo do protocol publica defaults em `extension Protocol`; conformance registra default ou witness próprio; implementação nominal vence; overlap e ambiguidade exigem member explícito; defaults não têm storage nem ampliam ownership/effects; body fica fora do SemanticInterfaceKey | body inline no protocol, herança de fields/initializer/deinit, `super`, protected, linearização, prioridade por import, extension externa trocando witness ou dispatch runtime oculto |
 | W-1419 | três camadas de feature | package feature é graph estático aditivo; availability é proof de target/provider; runtime feature é policy tipada dentro do programa já autorizado | uma única flag que seleciona dependency, prova API e muda comportamento runtime |
-| W-1420 | availability não cria authority | target/provider evidence autenticada pode permitir direct use ou binding Research; capability/effect checks ocorrem antes e continuam obrigatórios | Boolean, OS version string, deployment field ou runtime flag tornando símbolo legal |
+| W-1420 | binding typed de availability | direct authenticated availability facts e typed provider binding tornam-se contrato atual de toolchain/provider sem keyword ou runtime API nova; binding é fail-closed e fixa target/domain/generation/providerDigest; capability/effect/ABI/interface checks continuam obrigatórios e não mudam por flag | Boolean, OS version string, deployment field, runtime flag, raw OS/deploy/ambient authority ou binding que altera capability/effect/ABI/interface |
 | W-1421 | runtime feature tipada | chave nominal fixa type/values/fallback/context fields/owner/expiry; schema identity é separada da config generation/digest | string key global, valor Any, fallback ausente, context aberto ou config digest tratado como interface |
 | W-1422 | rollout e exposure | snapshot imutável, prioridade sem empate, bucket determinístico e exposição explícita posterior à decisão | RNG/process hash, prioridade ambígua, evaluate-and-log oculto ou side effect em avaliação pura |
 | W-1423 | stale/missing e composição | config stale/missing usa fallback; availability precede runtime policy; todos os branches seguem no graph/effects/runtime closure | stale fail-open, flag estreitando availability, branch não compilado ou policy carregando código |
 | W-1424 | authority amplification rejeitada | flag não habilita dependency/módulo, capability/effect, ABI/interface ou foreign symbol; attempts são diagnostics | remote config como command/eval, source `#if`, macro/annotation ambiental ou provider como root authority |
-| W-1425 | gate AVF0 | 38 casos, 14 aceitos, 24 rejeitados, sete authority rejections; binding continua Research e API runtime é composição | promover por precedência externa, chamar oracle host de compiler/provider ou introduzir keyword antes de evidência |
+| W-1425 | composição runtime tipada de AVF0 | runtime feature tipada permanece composição package/runtime atual e não recebe keyword ou nova runtime authority; provider binding fail-closed usa target/domain/generation/providerDigest typed; capability/effect/ABI/interface não podem mudar por flag; raw OS/deployment/boolean/ambient routes continuam rejeitados | promover por precedência externa, chamar oracle host de compiler/provider, introduzir keyword/runtime API, ou permitir runtime feature conceder capability/effect/ABI/interface |
 | W-1426 | problema-first SEC0 | segurança inclui invariantes safe, capability/effect/API mediation, input/resource, secrets, audit, supply chain, isolation, deployment, FFI, tenants e patch attestation | reduzir segurança a memory/paralelismo ou importar uma sandbox externa como contrato W |
 | W-1427 | safe W e substituição de checks | memory/type/effect/capability/input/resource proofs são irredutíveis; check provado pode ser elidido; check não provado permanece, falha o build ou atravessa `unsafe` explícito completo | unchecked UB por optimização, booleano de segurança, `unsafe` implícito ou proof caller-owned |
 | W-1428 | capability e API mediation | API exige capability explícita, effect declarado, provider mediation e attenuation não-ampliadora; ambient lookup, string authority e unknown API falham | lookup ambiental, peer autenticado como root, capability wider ou effect oculto |
@@ -6532,7 +6543,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1432 | identity física e interface | target físico pode mudar `WAbiKey`, runtime closure e hardening receipt; mudança privada preserva `SemanticInterfaceKey`; mudança pública exige nova key | misturar ABI com semantic key, target triple como authority, mudar contrato sem interface digest ou esconder receipt |
 | W-1433 | side-channel e residual risk | timing, cache, scheduler, concurrency e resource use exigem threat model, clock/scheduler/concurrency policy, mitigation e residual risk; não há solução universal | claim universal, residual vazio, clock implícito ou tratar isolation como eliminação de side channel |
 | W-1434 | FFI, unsafe, multi-tenant e patch | FFI explicita ABI/provenance/bounds/cleanup/effect/allocator; tenant capability é bound e mediada; patch receipt ordena source→lock→recipe→artifact→signature→attestation→admission com digests SHA-256, signer e rollback policy fechados | UB, raw pointer safe sem boundary, cross-tenant capability, debugger bypass, patch reorder, signer/policy arbitrários ou receipt caller-owned |
-| W-1435 | gate SEC0 | 101 casos, 24 aceitos, 77 rejeitados, 11 outcomes current e 13 Research, seis perfis, 16 authority rejections e quatro caller-echo rejections; profile, side-channel, patch e deployment receipts permanecem Research | chamar oracle/snapshot de compiler/runtime/provider/hardware, promover por Cloudflare, ou omitir fault/stress/local-split evidence |
+| W-1435 | contratos de evidence/admission SEC0 | seis profile schemas, side-channel residual budget, patch attestation e ordered deployment/hardening receipts tornam-se contratos atuais de evidence/admission, não alegação de security conformance; profile selection usa package/target/recipe receipts e nunca runtime feature; accepted routes permanecem safe composition e rejected authority/caller-echo routes permanecem rejeitadas; compiler/runtime/provider/hardware/sandbox/attestation verifier/secret lifecycle/FFI/fault/stress/local-split continuam missing | chamar oracle/snapshot de security conformance ou compiler/runtime/provider/hardware, promover por Cloudflare, runtime feature selecionando profile, caller echo ou omitir receipts e evidence faltantes |
 | W-1436 | fechamento BRX0/W-1351 e ponte BRX3 | BRX0 mantém origem única e `W-BORROW-0011`; BRX3 promove `borrows(...)` requirement/interface/function type para relação aberta sem mudar WAbi/runtime; carrier nominal owned permanece alternativa | inventar receiver/body ausente, manter fallback morto por all-inputs, usar caller relation ou chamar parse/oracle/snapshot de compiler/runtime/provider |
 | W-1437 | forma estreita GEN2 | `stream <[capture_item, ...]> { ... }` é expressão compiler-owned que retorna `some Stream<Item, Failure>`; capture list explícita com `copy`/`take`/`ref`/`weak` é avaliada na construção; cada emissão exige `yield take value` ou `yield copy value`; `take` move/invalida, `copy` exige `Duplicable` e preserva o original; pull capacity zero, cursor exclusivo, await/try explícitos, terminal bare return, defer cleanup e cancel/drop seguem `Stream`; frame, token, scheduler, push, buffer oculto, yield-from, view/borrow/inout, send/throw/close, retorno de valor, falha sem tipo, reentrada e FFI resume não entram | generator geral, `stream fn`, bare `yield value`, `yield copy` de não-`Duplicable`, frame/resume público, scheduler yield, prefetch ambiental, item borrowed, protocolo bidirecional ou lowering que muda owner graph/HB/result/cancel/cleanup |
 | W-1438 | evidência e lacuna GEN2 | GEN2 contém 20 casos, dois reducers independentes e snapshot determinístico; cinco ganhos ergonômicos e duas perdas de cerimônia de capture fecham a decisão de design, com `yield take`/`yield copy` (copy exige `Duplicable`), mas compile/run/runtime/provider, stress, estudos humano/modelo e debug/ABI/reflection continuam faltando | chamar machine/parser/snapshot de compiler/runtime/provider, escolher por LOC, declarar implementação pronta ou promover metadata/frame por conveniência |
@@ -6545,6 +6556,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1445 | PYN3 kernel/presentation/export provider gap | PRC0 fecha preview bounded, typed presentation e compiler-summary fallback; produção ainda exige kernel process, ZeroMQ/session, frontend/export providers, compiler/runtime e sanitizer/fault receipts | **implementation-evidence-gap**; missing compiler, runtime, provider, w-compile, w-run, human-study e model-study |
 | W-1446 | PYN4 DLPack/Python/device bridge gap | PRC0 fecha DLPack versioned release/deleter, lease e view-escape rejection; produção ainda exige Python capsule/GIL bridge, device/queue providers, compiler/runtime e interop receipts | **implementation-evidence-gap**; missing compiler, runtime, provider, w-compile, w-run, human-study e model-study |
 | W-1447 | lazy compiler/runtime/synchronization provider gap | PRC0 fecha winner/waiter publication, happens-before e known reentry rejection; produção ainda exige lazy lowering, scheduler/runtime synchronization, parking provider e stress/fault receipts | **implementation-evidence-gap**; missing compiler, runtime, provider, w-compile, w-run, human-study e model-study |
+| W-1448 | IPC1 A/B implementation evidence gap | ASIC0 torna A immutable mapped snapshot e B bounded mapped byte channel/log contratos atuais de adapter/provider condicionados a receipts, mas produção ainda exige Windows two-process, provider receipts, crash/recovery, durability, w-compile, w-run, FFI e stress evidence; C universal permanece rejeitado e não há nova syntax/API W | **implementation-evidence-gap**; missing Windows two-process, provider receipts, crash-recovery, durability, w-compile, w-run, FFI e stress |
+| W-1449 | AVF0 typed binding implementation evidence gap | ASIC0 fecha direct availability facts, typed provider binding e runtime composition como design/oracle contract; produção ainda exige compiler/diagnostics, provider publication, local-split, fault e stress evidence sem alterar capability/effect/ABI/interface por flag | **implementation-evidence-gap**; missing compiler, diagnostics, provider publication, local-split e fault/stress |
+| W-1450 | SEC0 evidence/admission implementation evidence gap | ASIC0 fecha profile, side-channel, patch e ordered deployment/hardening receipts como evidence/admission contracts, não security conformance; produção ainda exige compiler/runtime/provider, hardware/sandbox, attestation verifier, secret lifecycle, FFI, fault, stress e local-split evidence | **implementation-evidence-gap**; missing compiler, runtime, provider, hardware, sandbox, attestation verifier, secret lifecycle, FFI, fault/stress e local-split |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,

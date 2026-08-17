@@ -10,15 +10,15 @@
   "productionDynamicMode": "rejected",
   "buildsOn": [
     {"id": "SYN1", "role": "evidence-input", "path": "../syn1-typed-generation/study.json", "digest": "sha256:3a73812025eed42a65d5eb7b9819c0c17e2972e520724791767b043b7cc59cce", "claim": "typed generation, content-addressed module sets, normal-unit reopen, target/source-map evidence"},
-    {"id": "DYN1", "role": "evidence-input", "path": "../dyn1-versioned-behavior/study.json", "digest": "sha256:831673655968ca41a2e5d4ff12416a89011bb7928a8a5a504cd4a62cf696e539", "claim": "versioned behavior, receipts, cleanup, and rejected dynamic mechanisms"},
-    {"id": "HRD0", "role": "evidence-input", "path": "../hrd0-hot-reload-dev/study.json", "digest": "sha256:43ffc748850fb89c418341847ecc9862fac5c9afb881342fb5160557374bad86", "claim": "development-only runner, local/split cleanup, and mutation boundary"}
+    {"id": "DYN1", "role": "evidence-input", "path": "../dyn1-versioned-behavior/study.json", "digest": "sha256:3dd5b0936c1565aa329fc80eddbed8ca7407feabb4417746fd0f5557acb5ddc0", "claim": "versioned behavior, receipts, cleanup, and rejected dynamic mechanisms"},
+    {"id": "HRD0", "role": "evidence-input", "path": "../hrd0-hot-reload-dev/study.json", "digest": "sha256:8cba4c6120fe4aca37ce261c9f49ac3ad261f2e4231a2ab0c2d1f5666f9b8ddb", "claim": "development-only runner, local/split cleanup, and mutation boundary"}
   ],
   "artifacts": {
     "corpus": {"path": "../../syn2-dyn2-closure-cases.json", "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84"},
     "machine": {"path": "../../syn2-dyn2-closure-machine.mjs", "digest": "sha256:d0af8a4a7dcc3a391c772cde48352b00fa9281c49a83838404a621a5c46f2c9e"},
     "checker": {"path": "../../check-syn2-dyn2-closure.mjs", "digest": "sha256:e89b2388ce78add60ea04f153655c3084664469fc4a0625fec7e6d0053981850"},
     "nestedChecker": {"path": "check.mjs", "digest": "sha256:9b6ef3f6967a7ed72fd104784b4aeff80d7be15dc9482e51768c3d1bed7a4687"},
-    "snapshot": {"path": "../../syn2-dyn2-closure-results.snapshot.jsonl", "digest": "sha256:a26f68f018316c7bc497736de21a959872c88e622c9d5529c8ac58b6920e0acc"},
+    "snapshot": {"path": "../../syn2-dyn2-closure-results.snapshot.jsonl", "digest": "sha256:4260a7b94cff3d9d3fd02ec2de92bc6ea3931a333d54c478218b6130ec4aff5d"},
     "studyOracle": {"path": "oracle.test.mjs", "digest": "sha256:2f66c1c2c6891c4c4209e127358c0b00d5aed82d5156ab4ab4db84021169a611"},
     "bundle": {"path": "bundle.json", "digest": "sha256:9aab6723114e7d621e1ba406e0885b0f85901b5615e8bd92296679110022078d"}
   },

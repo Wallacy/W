@@ -1,0 +1,69 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-asic0-evidence-gap-closure",
+  "title": "Reuse-only evidence closure for IPC1, AVF0, and SEC0",
+  "decisions": ["W-1355", "W-1359", "W-1420", "W-1425", "W-1435"],
+  "implementationGapMap": { "W-1355": "W-1448", "W-1359": "W-1448", "W-1420": "W-1449", "W-1425": "W-1449", "W-1435": "W-1450" },
+  "r0Cases": ["R0-manifest-record", "R0-spawn-domain"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/data_formats.w",
+    "symbol": "export async fn archiveParquet",
+    "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/synchronization.w",
+      "symbol": "SnapshotCell<PublishedMenu>",
+      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6"
+    },
+    {
+      "path": "../../../reference/last-light/workspace.w",
+      "symbol": "targetVariants: [\"native-terminal::posix\"]",
+      "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd"
+    },
+    {
+      "path": "../../../reference/last-light/capability_security_oracle.w",
+      "symbol": "enum CapabilityOrigin",
+      "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b"
+    }
+  ],
+  "variants": [
+    {
+      "id": "current",
+      "role": "selected",
+      "language": "w",
+      "path": "current.w",
+      "digest": "sha256:432945d19409832590021cc5e37d33a9c79f7aac1bb1d2023cd1e7228f909204",
+      "changedConstructs": ["current decision routes", "reuse-only source references"],
+      "parseEvidence": { "status": "tree-sitter-parse", "note": "Thin source-shaped witness; payload remains in reused corpora." }
+    },
+    {
+      "id": "adversarial",
+      "role": "rejected-witness",
+      "language": "w",
+      "path": "adversarial.w",
+      "digest": "sha256:bbebeb235204aa1ea5c97cd56f76de66378a51681a31675e67e65297f74cf195",
+      "changedConstructs": ["adversarial decision routes", "evidence-boundary mutations"],
+      "parseEvidence": { "status": "tree-sitter-parse", "note": "Thin source-shaped witness; rejected payload remains in reused corpora." }
+    }
+  ],
+  "entry": "asic0Closure",
+  "inputs": [
+    { "id": "current-routes", "expected": { "status": "accepted", "decisions": 5 } },
+    { "id": "adversarial-routes", "expected": { "status": "rejected", "decisions": 5 } }
+  ],
+  "tasks": [
+    { "kind": "explain", "instruction": "Explain how each current route reuses a source corpus and preserves its implementation evidence gap." },
+    { "kind": "recall", "instruction": "After a bounded delay, recall the five decisions, their current and adversarial routes, and their missing evidence.", "minimumDelaySeconds": 1 },
+    { "kind": "repair", "instruction": "Repair a stale digest, route, expected assertion, gap map, provider claim, duplicate link, or bundle role without copying a reused payload.", "mutations": { "current": "Keep current adapter, toolchain, and evidence routes linked to their source cases.", "adversarial": "Keep rejected authority and caller-echo routes rejected." } },
+    { "kind": "change", "instruction": "Add a decision-linked evidence route while preserving reuse-only status, strict digests, and missing claims." }
+  ],
+  "presentationOrders": [["current", "adversarial"], ["adversarial", "current"]],
+  "blinding": { "participantLabels": { "current": "A", "adversarial": "B" }, "hide": ["id", "role", "path", "changedConstructs"] },
+  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:427b4b5e2a5f2ba1cb5ff92925fc4a3c79fc27b56da73805824d19208057aae1" },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle", "source-ref", "reused-corpus", "reused-machine", "adversarial-route", "mutation-checks"],
+    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "hardware", "sandbox", "attestation-verifier", "human-study", "model-study"]
+  }
+}

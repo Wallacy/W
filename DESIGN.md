@@ -22504,8 +22504,9 @@ mudança de layout quando possui facts de acesso e evidence reproduzível.
 partition explícita, preservação de atomic global e boundaries físicas. Ele não
 executa W, não mede cache e não implementa compiler, allocator ou backend.
 
-O estudo **Pesquisa** [`IPC1`](tooling/studies/ipc1-mapped-ipc/README.md)
-examina snapshots file-backed duráveis em generation objects separados por
+O estudo [`IPC1`](tooling/studies/ipc1-mapped-ipc/README.md) preserva a
+proveniência **Pesquisa** do corpus anterior ao ASIC0 e examina snapshots
+file-backed duráveis em generation objects separados por
 selector, carriers shm/pagefile voláteis e IPC process-shared com reducers
 POSIX/Windows, schema/layout digests, layout/bounds, publication/receipt,
 channels bounded wire, materialization at-most-once por slot e crash/recovery
@@ -22513,8 +22514,10 @@ outcomes. O candidato durable exige request sem escopo caller e a receita
 completa de dados+metadata antes da publicação do selector. O candidato channel
 exige header.length igual ao extent, capacidade limitada pelo segmento `slots`,
 auditoria terminal map→validate→view→close e cleanup ordenado de recovery/FFI.
-Ele informa `IPC0-R1`, mas não promove syntax, API, compiler, runtime ou
-provider.
+Ele informa `IPC0-R1`; ASIC0 fecha como design current os contratos condicionais
+de adapter/provider para A/B, sem promover syntax, API, compiler, runtime ou
+provider implementation. W-1448 mantém a lacuna de implementação e o fallback
+SnapshotByteSource/wire/Arrow/service.
 
 Locks registram wait time, hold time, contention e owner causal no profile de
 observabilidade. O runtime não inclui endereço bruto ou thread ID no resultado
@@ -29616,6 +29619,44 @@ O mapa de lacunas permanece explícito: W-1442–W-1447 são planned
 Todos preservam `evidence.missing` de compile/run/compiler/runtime/provider e
 estudos humano/modelo. Uma futura classificação só pode promover o gate de
 design sem apagar essas lacunas.
+
+#### 24.4.0.1 Fechamento ASIC0 de IPC, AVF e SEC0
+
+ASIC0 fecha a decisão de design dos cinco gates W-1355, W-1359, W-1420,
+W-1425 e W-1435. O bundle [`ASIC0`](tooling/studies/asic0-evidence-gap-closure)
+é a autoridade de casos current/adversarial e reutiliza os corpora IPC1,
+AVF0 e SEC0 sem copiar payload. O resultado é `oracle-backed-current`: o
+oracle deriva rotas de contratos e rejeições, mas não é compiler, runtime,
+provider, hardware, sandbox, attestation verifier, FFI ou conformance.
+
+| Gate | Contrato corrente | Rota rejeitada | Gap de implementação |
+|---|---|---|---|
+| W-1355 | A immutable mapped snapshot e B bounded mapped byte channel/log são contratos de adapter/provider, sem syntax/API W, com layout/schema/generation/lease, atomics+wake address-free e lifecycle/security receipts | universal `Mapped<T>`, `shared`/raw pointer, provider state oculto ou receipt ausente | W-1448 |
+| W-1359 | provider-authoritative publication e durable selector receipt; sem receipt/profile há SnapshotByteSource/wire/Arrow/service, B é volatile e journal durable usa A/service; `unknownDurability` é outcome explícito | provider durável sem receipt, probe host tratado como provider ou C universal | W-1448 |
+| W-1420 | direct authenticated availability facts e typed provider binding fail-closed com target/domain/generation/providerDigest | raw OS/version/deployment/boolean/ambient authority | W-1449 |
+| W-1425 | runtime composition typed permanece package/runtime; binding não altera capability/effect/ABI/interface e não adiciona keyword/runtime API | runtime flag concedendo authority ou capability | W-1449 |
+| W-1435 | seis profile schemas, side-channel residual budget, patch attestation e ordered deployment/hardening receipts são contracts de evidence/admission, não security conformance | profile runtime, caller echo, receipt forged ou authority ambient | W-1450 |
+
+Todos os contratos acima falham closed quando target, domain, generation,
+providerDigest, receipt, profile ou evidence exigido está ausente. A/B de IPC
+continuam condicionais a receipts; o probe POSIX é somente host evidence e
+Windows two-process, crash/recovery e durability continuam sem prova. AVF
+separa availability facts/bindings de runtime composition. SEC separa
+profiles/side-channel/patch/deploy receipts de qualquer alegação de
+conformance security.
+
+Os gaps planejados são separados do contrato corrente:
+
+- **W-1448:** Windows two-process, provider receipts, crash-recovery,
+  durability, `w-compile`, `w-run`, FFI e stress;
+- **W-1449:** compiler, diagnostics, provider publication, local-split, fault e
+  stress;
+- **W-1450:** compiler, runtime, provider, hardware, sandbox, attestation
+  verifier, secret lifecycle, FFI, fault, stress e local-split.
+
+ASIC0 não adiciona keyword, runtime API ou universal mapped type. O fallback
+vigente e as rotas rejeitadas permanecem parte do contrato até que cada gap
+receba evidence independente, receipts verificáveis e revisão de promoção.
 
 #### 24.4.1 SYN2/DYN2 fechamento e fronteira de implementação
 
