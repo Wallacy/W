@@ -229,8 +229,63 @@ test("rejects the retired-label successor drift", () => {
 
 test("rejects a weak audit sample", () => {
   const result = runMutation((value) => {
-    value.auditSamples.byCategory["research-gated"] = ["W-001"];
+    value.auditSamples.byCategory["source-backed-current"] = value.auditSamples.byCategory["source-backed-current"].slice(0, 9);
   });
   expect(result.exitCode).not.toBe(0);
-  expect(result.stderr.toString()).toContain("must contain at least five IDs");
+  expect(result.stderr.toString()).toContain("must contain at least 10 IDs");
+});
+
+test("rejects a duplicate audit sample", () => {
+  const result = runMutation((value) => {
+    const samples = value.auditSamples.byCategory["source-backed-current"];
+    samples[9] = samples[0];
+  });
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("contains duplicate decision ID");
+});
+
+test("rejects an audit sample with a mismatched category", () => {
+  const result = runMutation((value) => {
+    value.auditSamples.byCategory["source-backed-current"][9] = "W-001";
+  });
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("has category implementation-evidence-gap");
+});
+
+test("rejects an audit sample with a mismatched epoch", () => {
+  const result = runMutation((value) => {
+    value.auditSamples.byEpoch.foundation[9] = "W-707";
+  });
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("is outside epoch foundation");
+});
+
+test("rejects an audit category sample without epoch diversity", () => {
+  const result = runMutation((value) => {
+    value.auditSamples.byCategory["source-backed-current"] = [
+      "W-005", "W-008", "W-009", "W-014", "W-025",
+      "W-027", "W-051", "W-072", "W-102", "W-114",
+    ];
+  });
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("must cover at least 3 epochs");
+});
+
+test("rejects an audit epoch sample without category diversity", () => {
+  const result = runMutation((value) => {
+    value.auditSamples.byEpoch.foundation = [
+      "W-001", "W-002", "W-003", "W-007", "W-010",
+      "W-011", "W-012", "W-013", "W-015", "W-016",
+    ];
+  });
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("must cover at least 3 categories");
+});
+
+test("requires the complete small rejected population", () => {
+  const result = runMutation((value) => {
+    value.auditSamples.byCategory.rejected = value.auditSamples.byCategory.rejected.slice(0, 5);
+  });
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("must contain at least 6 IDs");
 });
