@@ -1,0 +1,102 @@
+{
+  "$schema": "w-final-research-closure-cases-1",
+  "status": "design-oracle-input",
+  "id": "FRC0",
+  "reuseOnly": true,
+  "decisions": ["W-707", "W-731", "W-1408"],
+  "dispositions": {
+    "W-707": "oracle-backed-current",
+    "W-731": "oracle-backed-current",
+    "W-1408": "oracle-backed-current"
+  },
+  "evidence": {
+    "current": ["source-ref", "reused-corpus", "reused-machine", "host-oracle", "mutation-checks", "snapshot", "thin-parse"],
+    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
+    "hostOnly": true
+  },
+  "reuse": {
+    "W-707": [
+      "tooling/frontend-freeze-cases.json",
+      "tooling/check-frontend-freeze.mjs",
+      "tooling/frontend-freeze.snapshot.jsonl",
+      "tooling/formatter-cases.json",
+      "tooling/semantic-cases.json",
+      "tooling/module-run-cases.json",
+      "tooling/diagnostic-catalog.json"
+    ],
+    "W-731": [
+      "RATIONALE.md",
+      "DESIGN.md",
+      "tooling/design-freeze-classification.json",
+      "tooling/check-design-freeze-audit.mjs",
+      "DESIGN-INDEX.md",
+      "tooling/check-study-bundles.mjs"
+    ],
+    "W-1408": [
+      "tooling/hum0-human-review-protocol.json",
+      "tooling/hum0-human-review-machine.mjs",
+      "tooling/check-hum0-human-review.mjs",
+      "tooling/hum0-human-review-results.snapshot.jsonl",
+      "tooling/studies/hum0-human-review/study.json",
+      "tooling/studies/hum0-human-review/oracle.test.mjs"
+    ]
+  },
+  "cases": [
+    {
+      "id": "FRC0-W-707-current",
+      "kind": "current-contract",
+      "decisions": ["W-707"],
+      "gate": "FZ0-freeze-completeness",
+      "mutation": null
+    },
+    {
+      "id": "FRC0-W-707-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-707"],
+      "gate": "FZ0-freeze-completeness",
+      "mutation": {
+        "operations": [
+          { "kind": "remove-fz0-family", "value": "G5" }
+        ]
+      }
+    },
+    {
+      "id": "FRC0-W-731-current",
+      "kind": "current-contract",
+      "decisions": ["W-731"],
+      "gate": "freeze-research-close",
+      "mutation": null
+    },
+    {
+      "id": "FRC0-W-731-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-731"],
+      "gate": "freeze-research-close",
+      "mutation": {
+        "operations": [
+          { "kind": "remove-classification-decision", "value": "W-1408" }
+        ]
+      }
+    },
+    {
+      "id": "FRC0-W-1408-current",
+      "kind": "current-contract",
+      "decisions": ["W-1408"],
+      "gate": "HUM0-promotion",
+      "mutation": null
+    },
+    {
+      "id": "FRC0-W-1408-adversarial",
+      "kind": "rejected-route",
+      "decisions": ["W-1408"],
+      "gate": "HUM0-promotion",
+      "mutation": {
+        "operations": [
+          { "kind": "append-human-record" },
+          { "kind": "append-model-record" },
+          { "kind": "add-preference" }
+        ]
+      }
+    }
+  ]
+}

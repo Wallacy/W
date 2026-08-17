@@ -174,7 +174,8 @@ test("rejects a non-later superseding decision", () => {
 
 test("rejects a missing research gate", () => {
   const result = runMutation((value) => {
-    const entry = value.entries.find((candidate) => candidate.category === "research-gated");
+    const entry = value.entries.find((candidate) => candidate.decisionId === "W-707");
+    entry.category = "research-gated";
     delete entry.researchGate;
   });
   expect(result.exitCode).not.toBe(0);
@@ -291,5 +292,5 @@ test("requires the complete small rejected population", () => {
     value.auditSamples.byCategory.rejected = value.auditSamples.byCategory.rejected.slice(0, 5);
   });
   expect(result.exitCode).not.toBe(0);
-  expect(result.stderr.toString()).toContain("must contain at least 6 IDs");
+  expect(result.stderr.toString()).toContain("must contain at least 8 IDs");
 });

@@ -5065,6 +5065,35 @@ deployment control plane. O stop condition exige facts de compiler, provider e
 hardware, receipts de artifact/hardening, fault injection, secret lifecycle,
 side-channel residuals, FFI tests e evidência local/split para os seis perfis.
 
+### 1.36 FRC0 — fechamento final de pesquisa
+
+FRC0 fecha a dúvida de processo que restava em W-707, W-731 e W-1408. Ele
+reutiliza FZ0, a classificação do ledger e HUM0. Ele não copia payload e não
+produz compiler, runtime, provider, resultado humano ou resultado de modelo.
+
+| Decisão | Current | Adversarial | Fact derivado |
+|---|---|---|---|
+| W-707 | completude G0–G5, source refs e snapshot | família FZ0 ausente | `FZ0-freeze-completeness` falha closed |
+| W-731 | 1450 decisões, uma disposition por decisão e `Research=0` | decisão W-1408 removida | `freeze-research-close` falha closed |
+| W-1408 | HUM0 com 8 slices, 32 tasks, 0 human, 0 model e stop-on-first | registros human/model e preference/score forjados | `HUM0-promotion` falha closed |
+
+O corpus `tooling/final-research-closure-cases.json` contém exatamente uma
+rota current e uma adversarial por decisão. A máquina deriva o resultado dos
+facts de cada cópia. Ela ignora ID, `expected`, status, score, preference e
+qualquer métrica fornecida pelo caller. O resultado current é
+`oracle-backed-current`, com `evidence.current` limitado a source refs,
+corpora/máquinas reutilizados, host oracle, mutation checks, snapshot e parse
+thin. `w-compile`, `w-run`, compiler, runtime, provider, `human-study` e
+`model-study` permanecem `evidence.missing`.
+
+O manifest fixa a cadeia de artefatos, digests, containment e roles. O bundle
+R1 fixa duas variantes W finas e parseáveis, ordem de apresentação, blinding e
+oracle host. O stop condition cobre stale digest, caller echo, manual count,
+registro human/model, preference/score, decisão/caso ausente ou duplicado,
+source escape, categoria errada e `Research` residual. A classificação muda
+somente os três IDs para `oracle-backed-current`; isso fecha a gate de processo
+e não promove qualquer implementação.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não

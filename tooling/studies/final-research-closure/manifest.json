@@ -1,0 +1,221 @@
+{
+  "$schema": "w-final-research-closure-manifest-1",
+  "status": "design-oracle-input",
+  "id": "FRC0",
+  "reuseOnly": true,
+  "decisions": [
+    "W-707",
+    "W-731",
+    "W-1408"
+  ],
+  "artifacts": [
+    {
+      "id": "FRC0-corpus",
+      "role": "corpus",
+      "path": "tooling/final-research-closure-cases.json",
+      "digest": "sha256:17d56b03843001ca59fa177ebc414fd610019d75454f23460575b8634e80d315"
+    },
+    {
+      "id": "FRC0-machine",
+      "role": "machine",
+      "path": "tooling/final-research-closure-machine.mjs",
+      "digest": "sha256:28ceae1ca04193254a9c49e42d5b81750148c7518f00f0b07454e548f6037571"
+    },
+    {
+      "id": "FRC0-root-checker",
+      "role": "root-checker",
+      "path": "tooling/check-final-research-closure.mjs",
+      "digest": "sha256:eaf6bd6afde5b1812616c59fee8cddf4a67c01cc43a6b8be560eb4993d8d5d06"
+    },
+    {
+      "id": "FRC0-nested-checker",
+      "role": "nested-checker",
+      "path": "tooling/tree-sitter-w/check-frc0.mjs",
+      "digest": "sha256:2a23924e08dca99bd1324c795cadc43e6ae5de0efafe6c754a4e58cdc34e4c54"
+    },
+    {
+      "id": "FRC0-snapshot",
+      "role": "snapshot",
+      "path": "tooling/final-research-closure-results.snapshot.jsonl",
+      "digest": "sha256:478601980cdda907b640501fe44c8ae6cc998ebdec5920d02ea46bc477e2e23b"
+    },
+    {
+      "id": "FRC0-oracle",
+      "role": "oracle",
+      "path": "tooling/studies/final-research-closure/oracle.test.mjs",
+      "digest": "sha256:3e61818b3ace2d06647028ccfe2e3a9a8d78dc89f75d61995eaf5803c3b338d0"
+    },
+    {
+      "id": "FRC0-bundle",
+      "role": "bundle",
+      "path": "tooling/studies/final-research-closure/bundle.json",
+      "digest": "sha256:716cc13a694677310ace58c8ba743e43fef45b78145cf00449e18c435e8fdc9f"
+    },
+    {
+      "id": "FRC0-study",
+      "role": "study",
+      "path": "tooling/studies/final-research-closure/study.json",
+      "digest": "sha256:20be873db91f4ed0e7e85da298f3f2ff45ba3e8e98be9eeed57da960e72ff90f"
+    },
+    {
+      "id": "FRC0-readme",
+      "role": "readme",
+      "path": "tooling/studies/final-research-closure/README.md",
+      "digest": "sha256:8d69cbbd3a51bfa4e4795da87478f85d31d7b56ca60a99103c57b564def18a6e"
+    },
+    {
+      "id": "FRC0-study-index",
+      "role": "study-index",
+      "path": "tooling/studies/final-research-closure/INDEX.md",
+      "digest": "sha256:6f815f73d3781ce7bdea90727dab66b6b1a3afc6f03faf923baf57027c09b8a9"
+    },
+    {
+      "id": "FRC0-current",
+      "role": "current",
+      "path": "tooling/studies/final-research-closure/current.w",
+      "digest": "sha256:3581d6191bf207de78bda442a494a703422b8adccc1d86cc1e99a35f4bf28481"
+    },
+    {
+      "id": "FRC0-adversarial",
+      "role": "adversarial",
+      "path": "tooling/studies/final-research-closure/adversarial.w",
+      "digest": "sha256:bf5f4fbba0ebaaf53a2b5863d69ee2c2a042a22ea2331b064d8d845971c9824b"
+    },
+    {
+      "id": "FRC0-fz0-corpus",
+      "role": "fz0-corpus",
+      "path": "tooling/frontend-freeze-cases.json",
+      "digest": "sha256:80ffce3d4e87fd215cadf954ae1a8bda246ed880c08826aa892cdd7aee5db322"
+    },
+    {
+      "id": "FRC0-fz0-checker",
+      "role": "fz0-checker",
+      "path": "tooling/check-frontend-freeze.mjs",
+      "digest": "sha256:d8ed583342f8a0e068cdf64b0c0b6676a794bdd7cf9e44e72bd81e82933df923"
+    },
+    {
+      "id": "FRC0-fz0-snapshot",
+      "role": "fz0-snapshot",
+      "path": "tooling/frontend-freeze.snapshot.jsonl",
+      "digest": "sha256:44a68a70ed3e3913d198930625b020109e65dce86b7531d8496333404dc7b4e8"
+    },
+    {
+      "id": "FRC0-fz0-formatter",
+      "role": "fz0-formatter",
+      "path": "tooling/formatter-cases.json",
+      "digest": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779"
+    },
+    {
+      "id": "FRC0-fz0-semantic",
+      "role": "fz0-semantic",
+      "path": "tooling/semantic-cases.json",
+      "digest": "sha256:ec19f3fc290547f25da70ff3f7b3e977be1eee456d23a936bcb01473dd468a1b"
+    },
+    {
+      "id": "FRC0-fz0-module-run",
+      "role": "fz0-module-run",
+      "path": "tooling/module-run-cases.json",
+      "digest": "sha256:fdf4b9402526604c7b3b70ed9b9d567c27fd6dcc426f96b83ae1a32efb50e6fd"
+    },
+    {
+      "id": "FRC0-fz0-diagnostics",
+      "role": "fz0-diagnostics",
+      "path": "tooling/diagnostic-catalog.json",
+      "digest": "sha256:00cd010910556b11b49cf91b4341553cddf8229fa4004af98235250d9028ddb5"
+    },
+    {
+      "id": "FRC0-hum0-protocol",
+      "role": "hum0-protocol",
+      "path": "tooling/hum0-human-review-protocol.json",
+      "digest": "sha256:c8f1d8cdc603e384112536d74d46618af7194765b6a9e87ea1924aaff2fc3ca1"
+    },
+    {
+      "id": "FRC0-hum0-machine",
+      "role": "hum0-machine",
+      "path": "tooling/hum0-human-review-machine.mjs",
+      "digest": "sha256:a7726e27e9599a7d4e3a846b03f50c8780d7f0afbf63b2357924af3fd4c14c25"
+    },
+    {
+      "id": "FRC0-hum0-checker",
+      "role": "hum0-checker",
+      "path": "tooling/check-hum0-human-review.mjs",
+      "digest": "sha256:12b523247b2c280ec9f4def32b5625845b9413177b714fbb6e6062ed927ff9b3"
+    },
+    {
+      "id": "FRC0-hum0-snapshot",
+      "role": "hum0-snapshot",
+      "path": "tooling/hum0-human-review-results.snapshot.jsonl",
+      "digest": "sha256:ab919ff4a10d1f8521ec62ebff620f827434cf2543d3c26c74ab2ead76321a51"
+    },
+    {
+      "id": "FRC0-hum0-study",
+      "role": "hum0-study",
+      "path": "tooling/studies/hum0-human-review/study.json",
+      "digest": "sha256:3b6c39357cd217351bc5221cac3cfc6005ec25c467ca4c938fb7c1e8e8e049a4"
+    },
+    {
+      "id": "FRC0-hum0-oracle",
+      "role": "hum0-oracle",
+      "path": "tooling/studies/hum0-human-review/oracle.test.mjs",
+      "digest": "sha256:7a2f0e78da23acf4b7170ba423f70e3a7305181810c3551fc809cb4036e36089"
+    },
+    {
+      "id": "FRC0-freeze-checker",
+      "role": "freeze-checker",
+      "path": "tooling/check-design-freeze-audit.mjs",
+      "digest": "sha256:aaa585081038e3f97e2fd5d089932aa1b1c0d44fc5dde26c453881315349c928"
+    },
+    {
+      "id": "FRC0-study-checker",
+      "role": "study-checker",
+      "path": "tooling/check-study-bundles.mjs",
+      "digest": "sha256:632bd4a531e71f6ff72a630b86cf6df645b31b20a671b921d08a64d1252e3c3d"
+    },
+    {
+      "id": "FRC0-classification",
+      "role": "classification",
+      "path": "tooling/design-freeze-classification.json",
+      "digest": "sha256:d7a1f69dbc956c94673f5efdd482cfd9f0ae1332005781637ac139d5e9721aa0"
+    },
+    {
+      "id": "FRC0-ledger",
+      "role": "ledger",
+      "path": "RATIONALE.md",
+      "digest": "sha256:a13af74d985d81a0fecf34ebbb0f7c8c96f29538ba1f13e2c2cc7ab379a8571f"
+    },
+    {
+      "id": "FRC0-design",
+      "role": "design",
+      "path": "DESIGN.md",
+      "digest": "sha256:98acaf88ae07343ae8927f44d085f6e0e635a17b67a34e9a5d87877c810909c6"
+    },
+    {
+      "id": "FRC0-index",
+      "role": "index",
+      "path": "DESIGN-INDEX.md",
+      "digest": "sha256:cc998d8ec344ad95dd8f9e27f47477119a7c547da19ff156d371783480a25cbd"
+    }
+  ],
+  "evidence": {
+    "current": [
+      "source-ref",
+      "reused-corpus",
+      "reused-machine",
+      "host-oracle",
+      "mutation-checks",
+      "snapshot",
+      "thin-parse"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "compiler",
+      "runtime",
+      "provider",
+      "human-study",
+      "model-study"
+    ],
+    "hostOnly": true
+  },
+  "stopCondition": "Stop on stale digest, caller echo, manual metric, forged human/model record, preference or score, missing or duplicate decision/case, source escape, wrong category, or Research residual. Wait for Sol review before canonical recascade."
+}
