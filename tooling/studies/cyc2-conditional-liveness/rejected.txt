@@ -1,0 +1,5 @@
+naive weak-key cache
+ephemeron value-to-key retention
+transparent collector
+hidden finalizer
+reanimation

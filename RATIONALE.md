@@ -4314,6 +4314,48 @@ diagnósticos adversariais. Pare e mantenha Research se qualquer passo exigir
 caller claim, runtime lifetime state, divergência witness-specific ou mudança
 de WAbi/grammar.
 
+### 1.27.1 BRX3 — cláusula source para relação aberta
+
+BRX3 materializa a decisão pré-1.0 que BRX2 deixou em Research. O problema
+continua sendo `selectPrimary(primary: ref String, fallback: ref String): view
+String` em requirement/interface bodyless. A forma vigente é a cláusula
+contextual `borrows(...)`, após `return` e `throws`, em requirement/interface e
+function type:
+
+```w
+static fn select(primary: ref String, fallback: ref String): view String
+  borrows(0: [primary, fallback])
+type Selector = fn(ref String, ref String): view String borrows(0: [0])
+```
+
+Identifiers source resolvem para parameter slots. Function types usam ordinals
+porque não possuem names. O CST preserva pair/source order e comments. A HIR
+resolve names, valida índices não negativos e modes, e ordena somente o payload
+canonical `BorrowRelation/1`. Cada dependent result slot aparece uma vez.
+
+Requirement/interface possui a autoridade. Body/default, implementation,
+witness e provider verificam igualdade exata. Caller/call-site não publica
+relation. Existential, generic/open conformance e substitution usam a mesma
+relação invariável. O payload entra em `WInterface`, `SemanticInterfaceKey` e
+`interface.lock`. WAbi, ABI calling convention e runtime não ganham relation
+field ou lifetime table. FFI ainda exige owner/pin e drain conforme os contratos
+existentes.
+
+O corpus [`tooling/brx3-borrow-relations-cases.json`](tooling/brx3-borrow-relations-cases.json)
+possui 27 casos. A máquina [`tooling/brx3-borrow-relations-machine.mjs`](tooling/brx3-borrow-relations-machine.mjs)
+reutiliza o oracle de provenance BRX2 e acrescenta resolução source,
+canonicalização ordinal, diagnostics de clause, body conflict, witness/provider,
+generic variance, existential, await/stream/FFI e rejeição WAbi/runtime. O
+snapshot host tem 11 casos aceitos e 16 rejeitados. Isso prova o contrato de
+design, não compiler, HIR, separate compilation, provider, linker, FFI
+execution, runtime, stress ou estudo humano/modelo. Esses itens permanecem
+implementation-evidence-gap.
+
+W-1381–W-1384 e W-1436 registram a transição de BRX2 Research para BRX3 source
+vigente. W-BORROW-0011 permanece para bodyless sem autoridade. W-BORROW-0012 é
+o perfil bounded para slot, mode ou prova divergente. Antes de W 1.0 não há
+compatibilidade implícita para declarations sem a nova cláusula.
+
 ### 1.28 CAP0 — matriz de capacidades por problema
 
 CAP0 é uma fonte editorial de staging para guias futuros. Ele não é um
@@ -4573,6 +4615,31 @@ generation/ID, owner lease ou detached value mudarem esse requisito ou
 falharem, sob census pós-drain, cleanup determinístico e nenhuma fronteira
 estrangeira oculta. Até lá não há motivo para disfigurar a linguagem com um
 collector implícito.
+
+### 1.29.1 CYC2 — fechamento sem subcapability ativa
+
+CYC2 fecha o problema bounded de cache que CYC1 isolou. O corpus
+[`tooling/cyc2-conditional-liveness-cases.json`](tooling/cyc2-conditional-liveness-cases.json)
+registra três composições baseline: generation/ID com key detached e
+invalidation explícita, owner-scoped lease com `close`, e detached value sem
+back edge strong. Todas usam close admission, drain, quiescence e census.
+
+Weak-key comum e ephemeron value→key são **Rejeitado por enquanto** para a
+baseline. Transparent collector, finalizer oculto e reanimation são
+**Rejeitado**. O checker exige zero active Research e zero collector side
+effects. O oracle não coleta, executa `deinit` ou altera release.
+
+Runtime/provider/compiler/linker, FFI execution, stress e OOM são
+implementation-evidence-gap. O estudo não mantém uma Research subcapability
+para esses artefatos. CYC1 continua QA histórico/current para SCC, residual,
+unknown foreign boundary e ordem de cleanup.
+
+A reabertura futura exige um caso Last Light bounded que precise identidade
+observável da key e reachability ephemeron, falha das três composições após
+drain/census, cleanup determinístico, orçamento finito, nenhuma foreign hidden
+edge e evidência independente de compiler/runtime/provider. O caso qualificado
+abre somente uma revisão futura. Ele não adiciona syntax, API ou collector ao
+baseline.
 
 ### 1.30 DYN1 — comportamento dinâmico versionado
 
@@ -6380,17 +6447,17 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1378 | target projection SYN1 | target-neutral compartilha module/interface/diagnostic/action identities e deriva WAbi por registry-backed ABI facts; targetSpecific não possui base singular e inclui target identity, semantic+ABI facts e registry digest/revision em action/WAbi receipts por variant | physical artifact como ABI authority, ABI omitida da action key, targetEquivalent caller boolean, base singular ou host target implícito |
 | W-1379 | source-map diagnostics SYN1 | mapping verifica byte bounds/boundaries, logical SourceId/digest, duplicate e overlap no generated axis; source spans podem sobrepor; fix usa a única mapping que cobre o diagnostic, inclusive a segunda; generated-only não inventa fix | first mapping, rejeitar many-to-one source, stale/duplicate map, UTF-8 mid-sequence ou fake fix |
 | W-1380 | manifest evidence SYN1 | study manifest exige roles/language/dispositions/fixture exactos, quatorze artifacts `.w`, target-registry host separado, sourceRefs/officialRefs iguais ao corpus, HTTPS host allowlist, oracle exato e allowlists current/missing; C2/D permanecem rejected | provider-ready forged, registry host tratado como provider, extra/troca de ref, role Research para C2, source symbol repetido ou URL primária trocada |
-| W-1381 | BRX2 problem-first relation study | Last Light `selectPrimary` ancora A receiver/body-derived, B requirement/interface-owned data-only relation, C aggregate nominal e D rejeições; source spelling candidata continua reserved/not-parsed e W-914 não muda | apresentar schema candidato como regra normativa, trocar o problema por feature estrangeira ou usar source sem símbolo real |
-| W-1382 | relation authority and witness proof | requirement/interface owns a relation; provider, implementation e witness devem verificar slots, modes, digest, interface lock e provider expectation; caller/call-site nunca escolhe a relação; witness-specific divergence é rejected em generic/open dispatch | caller claim, witness-only mapping, stale/missing/duplicate/forged slot, mode ilegal, relation digest drift ou divergência de witnesses |
-| W-1383 | BRX2 host oracle and composition | máquina deriva status/route/relation/edges/OriginSet/SemanticInterfaceKey/runtime signature/WAbi de inputs estruturados; effective relation só entra quando é aplicável, relation rejeitada conserva baseline; cobre callable fresh loans, any-fn, múltiplos results, Stream, await, boundaries, substitution/variance e no-runtime-carrier; snapshot e mutation checker são host evidence | expected echo, booleans caller, runtime lifetime table, WAbi carrier ou tratar oracle/parser como compiler/provider |
-| W-1384 | BRX2 promotion gate and stop condition | promoção só após verifier HIR, separate compilation, provider/linker, diagnostics adversariais, invariance/substitution e duas derivações independentes confirmarem relação fechada sem syntax lifetime, metadata runtime ou WAbi drift; até lá route permanece Research | continuar quando relação exige caller ownership, hidden escape, runtime state, witness divergence, ABI mudança ou evidência faltante |
+| W-1381 | BRX3 problem-first source clause | Last Light `selectPrimary` fecha requirement/interface bodyless com `borrows(...)`; body/default continua prova; source spelling é contextual, sem lifetime names/GAT/runtime metadata | apresentar schema sem cláusula como comportamento implementado, trocar o problema por feature estrangeira ou usar source sem símbolo real |
+| W-1382 | relation authority and witness proof | requirement/interface possui a relação; provider, implementation e witness verificam slots, modes, digest, interface lock e provider expectation; caller/call-site nunca escolhe; generic/open divergence rejeita | caller claim, witness-only authority, stale/missing/duplicate/forged slot, mode ilegal, digest drift ou witness divergence |
+| W-1383 | BRX3 host oracle and composition | máquina deriva clause resolution, ordinals, relation/edges/OriginSet/SemanticInterfaceKey/WAbi invariants e invocation boundaries; snapshot é host design evidence e implementation gaps ficam explícitos | expected echo, booleans caller, runtime relation table, WAbi carrier ou tratar oracle/parser como compiler/provider |
+| W-1384 | BRX3 promotion gate and stop condition | a forma source é vigente antes de W 1.0; compiler/HIR/separate compilation/provider/linker/FFI/runtime permanecem implementation-evidence-gap e não mudam o contrato | continuar se relation exigir caller authority, hidden escape, runtime state, witness divergence ou WAbi change |
 | W-1385 | CYC1 Restaurante e fronteira do problema | ciclo explícito começa por `MenuSection` parent weak/children shared, observer hub, service/plugin/listener graph, caches, linked structures, actor refs, FFI registrations e recursos; CYC0 continua uma composição por owner, weak e close/drain | substituir o problema por uma primitive estrangeira, tratar callback/service edge como ownership implícito ou omitir file/socket shutdown |
 | W-1386 | CYC1 máquina event-derived | corpus e oracle derivam admission, strong/weak edge, close/unlink, unregister, cancel, callback enter/exit, drain, quiesce, drop, destroy/unpin/reclaim, SCC Tarjan, reachability, unknown boundary, drop order e census; expected não escolhe outcome | expected echo, caller outcome booleans/flags, SCC mutável durante census, census antes de drain/quiescence ou collector side effect |
 | W-1387 | CYC1 static/dynamic cycle boundary | SCC strong fechado e somente `deinitOnly` deriva `W-OWNERSHIP-0014`; SCC criado em runtime exige close/drain e residual pós-drain deriva `W-MEMORY-0001`; root vivo permanece live-root e root/edge foreign-hidden sem adapter permanece `unknown` | rejeitar todo grafo dinâmico no compile, esconder residual atrás de root não relacionado ou marcar foreign edge conhecido sem metadata |
 | W-1388 | CYC1 lifecycle, FFI e concorrência | explicitClose exige owner declarado e close/unlink com a mesma autoridade; lifecycleDrain associa owner a node/resource/registration ou registry fechado; unregister → callback drain → destroy → unpin → reclaim, resource finish antes de census, `service.callCycle` metadata limitado a call-cycle (`metadata`) ou deadline externo (`external`), panic/fault boundary, cross-domain counter/origin, lock para mutation, weak-zero e ABA/reuse são casos independentes | close sem autoridade, drain targeted que rompe outro owner, destroy fora de ordem, callback in-flight tratado como quiescent, deinit como deadline remoto, callCycle arbitrário, weak resurrection ou address reuse antes do último weak |
 | W-1389 | CYC1 self-reference e lowering | self-weak só depois de publish em método de owner; constructor witness que expõe `self` em partial init é rejeitado; long chain registra requisito de implementação de lowering iterativo como preocupação inconclusiva, sem claim de compiler/runtime | constructor self escape, resurrection, finalizer effect ordering, declarar lowering pronto ou usar collector para corrigir stack/recursion de drop |
-| W-1390 | CYC1 conditional-liveness Research | ordinary weak não resolve ephemeron value→key; generation/ID detached, owner-scoped lease com invalidation/close e detached value sem back edge são composições testadas; somente a subcapability extension `CYC0-conditional-liveness` fica Research, enquanto CYC0 permanece Componível | promover weak-key primitive, ephemeron API, transparent GC ou finalizer sem falha das três composições sob census pós-drain |
-| W-1391 | CYC1 evidence gate e stop condition | 41 cases, 3 static SCC rejections, 3 residual diagnostics, 2 unknown boundaries e 2 conditional-liveness Research cases são host evidence; Tree-sitter, source digests, refs oficiais e mutation checker são current; compile/run/provider/stress/human/model continuam missing | chamar oracle/snapshot de compiler ou runtime, declarar provider-ready, ocultar foreign root ou fechar gate por contagem de casos |
+| W-1390 | CYC2 conditional-liveness closure | generation/ID detached, owner-scoped lease com invalidation/close e detached value sem back edge fecham a baseline; weak-key e ephemeron são Rejeitado por enquanto; transparent collector/finalizer são Rejeitado | promover primitive weak-key/ephemeron, collector ou finalizer sem falha das três composições sob critérios bounded |
+| W-1391 | CYC2 evidence gap e stop condition | CYC1 permanece QA current; CYC2 registra 3 composições baseline, 4 rejeições, 1 implementation gap e dois estados de reopen; compile/run/provider/stress/OOM/FFI/human/model são implementation gaps | chamar oracle/snapshot de compiler/runtime/provider, ativar Research sem caso bounded ou reabrir por contagem de casos |
 | W-1392 | problema-first DYN1 | DYN1 modela hot change no Restaurante: REPL snapshot, typed service/plugin generation, split/local projection, export/import, callback/FFI e fault boundary; DYN0 permanece Componível e o problema inteiro não é trocado por eval; o resultado é host design-oracle | promover feature estrangeira por ergonomia, chamar comportamento host de implementação ou classificar todo dynamic behavior como rejected |
 | W-1393 | fatos e eventos DYN1 | recipe, artifact/index/lock, source, interface/WAbi/runtime closure, schema, target, capability/effect, isolation, quotas e receipts são facts estruturados; prepare/validate/preflight/ready/switch/close/drain/publication e stale events derivam o resultado; caller não escolhe status/route/compatible/published/drained/rollback/authority | booleans de outcome, expected echo, route caller-owned, registry/name/PATH lookup ou status copiado do evento |
 | W-1394 | switch, drain e recuperação | switch atômico publica nova generation; admission antiga fecha; cancel/drain cobre children, waits, loans, streams, callbacks/resources e ordena unregister → inFlight drain → destroy → unpin → release; process/Wasm/component acrescentam unmap, native exact-WAbi retém mapping; pre-switch failure preserva old, post-switch drain failure é degraded, rollback só provider receipt pré-publicação, crash pré-publicação é fault-boundary ou unknown-effect e crash pós-publicação mantém new committed | rollback depois de publish, completion antiga aceita, cleanup fora de ordem, cancel igual rollback, crash escondido ou drain sem quota |
@@ -6435,7 +6502,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1433 | side-channel e residual risk | timing, cache, scheduler, concurrency e resource use exigem threat model, clock/scheduler/concurrency policy, mitigation e residual risk; não há solução universal | claim universal, residual vazio, clock implícito ou tratar isolation como eliminação de side channel |
 | W-1434 | FFI, unsafe, multi-tenant e patch | FFI explicita ABI/provenance/bounds/cleanup/effect/allocator; tenant capability é bound e mediada; patch receipt ordena source→lock→recipe→artifact→signature→attestation→admission com digests SHA-256, signer e rollback policy fechados | UB, raw pointer safe sem boundary, cross-tenant capability, debugger bypass, patch reorder, signer/policy arbitrários ou receipt caller-owned |
 | W-1435 | gate SEC0 | 101 casos, 24 aceitos, 77 rejeitados, 11 outcomes current e 13 Research, seis perfis, 16 authority rejections e quatro caller-echo rejections; profile, side-channel, patch e deployment receipts permanecem Research | chamar oracle/snapshot de compiler/runtime/provider/hardware, promover por Cloudflare, ou omitir fault/stress/local-split evidence |
-| W-1436 | fechamento BRX0/W-1351 | corpus BRX0 de 24 casos registra positivo bodyless com origem única, negativo ambíguo com `W-BORROW-0011` e alternativa nominal owned; baseline fecha sem nova syntax, enquanto relação owned por requirement/interface segue subcap Research BRX2 e não altera grammar, runtime, provider ou WAbi | promover BRX2 por causa do baseline, inventar receiver/body ausente, manter fallback morto por all-inputs, ou chamar parse/oracle/snapshot de compiler/runtime/provider |
+| W-1436 | fechamento BRX0/W-1351 e ponte BRX3 | BRX0 mantém origem única e `W-BORROW-0011`; BRX3 promove `borrows(...)` requirement/interface/function type para relação aberta sem mudar WAbi/runtime; carrier nominal owned permanece alternativa | inventar receiver/body ausente, manter fallback morto por all-inputs, usar caller relation ou chamar parse/oracle/snapshot de compiler/runtime/provider |
 | W-1437 | forma estreita GEN2 | `stream <[capture_item, ...]> { ... }` é expressão compiler-owned que retorna `some Stream<Item, Failure>`; capture list explícita com `copy`/`take`/`ref`/`weak` é avaliada na construção; cada emissão exige `yield take value` ou `yield copy value`; `take` move/invalida, `copy` exige `Duplicable` e preserva o original; pull capacity zero, cursor exclusivo, await/try explícitos, terminal bare return, defer cleanup e cancel/drop seguem `Stream`; frame, token, scheduler, push, buffer oculto, yield-from, view/borrow/inout, send/throw/close, retorno de valor, falha sem tipo, reentrada e FFI resume não entram | generator geral, `stream fn`, bare `yield value`, `yield copy` de não-`Duplicable`, frame/resume público, scheduler yield, prefetch ambiental, item borrowed, protocolo bidirecional ou lowering que muda owner graph/HB/result/cancel/cleanup |
 | W-1438 | evidência e lacuna GEN2 | GEN2 contém 20 casos, dois reducers independentes e snapshot determinístico; cinco ganhos ergonômicos e duas perdas de cerimônia de capture fecham a decisão de design, com `yield take`/`yield copy` (copy exige `Duplicable`), mas compile/run/runtime/provider, stress, estudos humano/modelo e debug/ABI/reflection continuam faltando | chamar machine/parser/snapshot de compiler/runtime/provider, escolher por LOC, declarar implementação pronta ou promover metadata/frame por conveniência |
 | W-1439 | migração de keywords GEN2 | `stream` e `yield` são keywords literais/reservadas; bindings antigos migram para `source`/`cursor`, `Stream` nominal permanece, e o negativo `lock state { state }` conserva o CST anterior; `W-STREAM-0001` torna a quebra pré-1.0 explícita | identifier wildcard contextual, alterar silenciosamente CST/diagnóstico não relacionado, `stream fn`, keyword apenas em highlights ou compatibilidade implícita |

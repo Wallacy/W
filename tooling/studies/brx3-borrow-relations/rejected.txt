@@ -1,0 +1,9 @@
+borrows(0: [])
+borrows(1: [primary])
+borrows(0: [primary, primary])
+borrows(result: [primary])
+borrows(0: [3])
+callSite borrows(0: [primary])
+runtime relation table
+lifetime 'a
+GAT

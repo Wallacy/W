@@ -1,0 +1,131 @@
+==================
+BRX3 borrow clauses and contextual keyword
+==================
+export protocol MenuSelectionRelation {
+  static fn select(
+    primary: ref String,
+    fallback: ref String,
+  ): view String borrows(0: [primary, fallback],)
+}
+
+export fn selectPairRelation(
+  primary: ref String,
+  fallback: ref String,
+): (view String, view String) borrows(0: [primary], 1: [fallback],) {
+  return (primary, fallback)
+}
+
+export type SelectorRelation = fn(
+  ref String,
+  ref String,
+): (view String, view String) borrows(0: [0], 1: [1],)
+
+export fn borrowsIdentifierContext() {}
+---
+
+(source_file
+  (protocol_declaration
+    (declaration_prefix)
+    name: (type_identifier)
+    (protocol_body
+      (function_declaration
+        name: (identifier)
+        parameters: (parameter_list
+          (parameter
+            name: (identifier)
+            type: (type
+              base: (type_name
+                name: (type_identifier))))
+          (parameter
+            name: (identifier)
+            type: (type
+              base: (type_name
+                name: (type_identifier)))))
+        return_type: (type
+          base: (type_name
+            name: (type_identifier)))
+        (borrow_clause
+          (borrow_pair
+            result: (slot_ref
+              (number_literal))
+            source: (slot_ref
+              (identifier))
+            source: (slot_ref
+              (identifier)))))))
+  (function_declaration
+    (declaration_prefix)
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type
+          base: (type_name
+            name: (type_identifier))))
+      (parameter
+        name: (identifier)
+        type: (type
+          base: (type_name
+            name: (type_identifier)))))
+    return_type: (type
+      base: (tuple_type
+        (type
+          base: (type_name
+            name: (type_identifier)))
+        (type
+          base: (type_name
+            name: (type_identifier)))))
+    (borrow_clause
+      (borrow_pair
+        result: (slot_ref
+          (number_literal))
+        source: (slot_ref
+          (identifier)))
+      (borrow_pair
+        result: (slot_ref
+          (number_literal))
+        source: (slot_ref
+          (identifier))))
+    body: (block
+      (return_statement
+        (tuple_expression
+          (tuple_element
+            value: (identifier))
+          (tuple_element
+            value: (identifier))))))
+  (type_declaration
+    (declaration_prefix)
+    name: (type_identifier)
+    value: (type
+      base: (function_type
+        (function_type_parameter
+          type: (type
+            base: (type_name
+              name: (type_identifier))))
+        (function_type_parameter
+          type: (type
+            base: (type_name
+              name: (type_identifier))))
+        return_type: (type
+          base: (tuple_type
+            (type
+              base: (type_name
+                name: (type_identifier)))
+            (type
+              base: (type_name
+                name: (type_identifier)))))
+        (borrow_clause
+          (borrow_pair
+            result: (slot_ref
+              (number_literal))
+            source: (slot_ref
+              (number_literal)))
+          (borrow_pair
+            result: (slot_ref
+              (number_literal))
+            source: (slot_ref
+              (number_literal)))))))
+  (function_declaration
+    (declaration_prefix)
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block)))

@@ -2402,6 +2402,47 @@
     "fields": {}
   },
   {
+    "type": "borrow_clause",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "borrow_pair",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "borrow_pair",
+    "named": true,
+    "fields": {
+      "result": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "slot_ref",
+            "named": true
+          }
+        ]
+      },
+      "source": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "slot_ref",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "bounded_range_expression",
     "named": true,
     "fields": {
@@ -5422,6 +5463,10 @@
           "named": true
         },
         {
+          "type": "borrow_clause",
+          "named": true
+        },
+        {
           "type": "declaration_prefix",
           "named": true
         },
@@ -5489,6 +5534,10 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "borrow_clause",
+          "named": true
+        },
         {
           "type": "function_type_parameter",
           "named": true
@@ -10811,6 +10860,25 @@
     }
   },
   {
+    "type": "slot_ref",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "number_literal",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "source_file",
     "named": true,
     "root": true,
@@ -13575,6 +13643,10 @@
   {
     "type": "behavior_identifier",
     "named": true
+  },
+  {
+    "type": "borrows",
+    "named": false
   },
   {
     "type": "break",
