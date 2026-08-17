@@ -12,6 +12,16 @@
     ],
     "reducerRule": "Independent POSIX and Windows event reducers feed one compact logical contract. Expected fields never select an outcome."
   },
+  "probeRefs": [
+    {
+      "id": "IPC2-POSIX-two-process-map",
+      "target": "posix",
+      "path": "tooling/studies/ipc1-mapped-ipc/probes/posix-two-process.receipt.json",
+      "digest": "sha256:2fb1ae4affc538e152105eddc2001c4ba27fa4586b26c0e9379e1efb14463b18",
+      "status": "observed-design-evidence",
+      "claim": "Observed POSIX two-process mapping, commit/read, stale name rejection, remap, and cleanup."
+    }
+  ],
   "providers": {
     "posix-file-durable": {
       "targetKind": "posix",
@@ -34,6 +44,12 @@
       "addressIndependent": true,
       "atomic": {
         "processShared": true,
+        "scope": "process-shared",
+        "addressFree": true,
+        "carrier": "atom2-value-only",
+        "lockFree": true,
+        "lockFreeReceipt": "exact-target-fact",
+        "fallbackAllocation": "allocation-free-per-instance-operation",
         "widths": [
           4,
           8
@@ -52,6 +68,14 @@
           "lock-free"
         ],
         "waitWake": "polling"
+      },
+      "wakeProvider": {
+        "kind": "bounded-polling",
+        "scope": "cross-process",
+        "bounded": true,
+        "acl": "mapping-capability",
+        "namespace": "file-mapping",
+        "handleLifecycle": []
       },
       "backing": {
         "kind": "file",
@@ -118,6 +142,12 @@
       "addressIndependent": true,
       "atomic": {
         "processShared": true,
+        "scope": "process-shared",
+        "addressFree": true,
+        "carrier": "atom2-value-only",
+        "lockFree": true,
+        "lockFreeReceipt": "exact-target-fact",
+        "fallbackAllocation": "allocation-free-per-instance-operation",
         "widths": [
           4,
           8
@@ -136,6 +166,14 @@
           "lock-free"
         ],
         "waitWake": "polling"
+      },
+      "wakeProvider": {
+        "kind": "bounded-polling",
+        "scope": "cross-process",
+        "bounded": true,
+        "acl": "mapping-capability",
+        "namespace": "file-mapping",
+        "handleLifecycle": []
       },
       "backing": {
         "kind": "file",
@@ -200,6 +238,12 @@
       "addressIndependent": true,
       "atomic": {
         "processShared": true,
+        "scope": "process-shared",
+        "addressFree": true,
+        "carrier": "atom2-value-only",
+        "lockFree": true,
+        "lockFreeReceipt": "exact-target-fact",
+        "fallbackAllocation": "allocation-free-per-instance-operation",
         "widths": [
           4,
           8
@@ -218,6 +262,14 @@
           "lock-free"
         ],
         "waitWake": "polling"
+      },
+      "wakeProvider": {
+        "kind": "bounded-polling",
+        "scope": "cross-process",
+        "bounded": true,
+        "acl": "mapping-capability",
+        "namespace": "posix-shm",
+        "handleLifecycle": []
       },
       "backing": {
         "kind": "shm",
@@ -246,10 +298,6 @@
         {
           "layoutId": "channel-capN",
           "digest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e"
-        },
-        {
-          "layoutId": "channel-capN-tight",
-          "digest": "sha256:dd49ccc985420bf5be4e5ede549dde5f29f7521b41b411e50d448a93b8a58ff7"
         },
         {
           "layoutId": "channel-capN-tight",
@@ -298,6 +346,12 @@
       "addressIndependent": true,
       "atomic": {
         "processShared": true,
+        "scope": "process-shared",
+        "addressFree": true,
+        "carrier": "atom2-value-only",
+        "lockFree": true,
+        "lockFreeReceipt": "exact-target-fact",
+        "fallbackAllocation": "allocation-free-per-instance-operation",
         "widths": [
           4,
           8
@@ -316,6 +370,14 @@
           "lock-free"
         ],
         "waitWake": "polling"
+      },
+      "wakeProvider": {
+        "kind": "bounded-polling",
+        "scope": "cross-process",
+        "bounded": true,
+        "acl": "mapping-capability",
+        "namespace": "pagefile-mapping",
+        "handleLifecycle": []
       },
       "backing": {
         "kind": "pagefile",
@@ -389,6 +451,12 @@
       "addressIndependent": true,
       "atomic": {
         "processShared": true,
+        "scope": "process-shared",
+        "addressFree": true,
+        "carrier": "atom2-value-only",
+        "lockFree": false,
+        "lockFreeReceipt": "not-claimed",
+        "fallbackAllocation": "allocation-free-per-instance-operation",
         "widths": [
           4,
           8
@@ -406,6 +474,23 @@
           "blocking"
         ],
         "waitWake": "kernel"
+      },
+      "wakeProvider": {
+        "kind": "posix-robust-mutex",
+        "scope": "cross-process",
+        "bounded": false,
+        "acl": "shm-mode",
+        "namespace": "posix-shm",
+        "ownerDeath": "typed-fault",
+        "handleLifecycle": [
+          "pthread_mutexattr_setpshared",
+          "pthread_mutexattr_setrobust",
+          "pthread_mutex_init",
+          "pthread_mutex_lock",
+          "pthread_mutex_consistent",
+          "pthread_mutex_unlock",
+          "pthread_mutex_destroy"
+        ]
       },
       "backing": {
         "kind": "shm",
@@ -458,6 +543,12 @@
       "addressIndependent": true,
       "atomic": {
         "processShared": true,
+        "scope": "process-shared",
+        "addressFree": true,
+        "carrier": "atom2-value-only",
+        "lockFree": false,
+        "lockFreeReceipt": "not-claimed",
+        "fallbackAllocation": "allocation-free-per-instance-operation",
         "widths": [
           4,
           8
@@ -476,6 +567,21 @@
         ],
         "waitWake": "kernel"
       },
+      "wakeProvider": {
+      "kind": "named-event",
+      "scope": "cross-process",
+      "bounded": false,
+      "acl": "security-descriptor",
+      "namespace": "Local",
+      "failureOutcome": "typed-process-generation-fault-supervisor",
+      "handleLifecycle": [
+        "CreateEvent",
+        "OpenEvent",
+        "Wait",
+        "SetEvent",
+        "CloseHandle"
+      ]
+      },
       "backing": {
         "kind": "pagefile",
         "volatile": true,
@@ -492,7 +598,7 @@
         "portableImmediateWithdrawal": false
       },
       "crashOutcome": {
-        "inFlight": "owner death reports typed generation fault",
+        "inFlight": "process crash faults the generation; supervisor opens a higher generation",
         "published": "no hidden repair; supervisor opens a higher generation"
       },
       "allowedLayouts": [
@@ -1203,6 +1309,31 @@
       "id": "python-shared-memory",
       "url": "https://docs.python.org/3.14/library/multiprocessing.shared_memory.html",
       "claim": "Python SharedMemory exposes close and unlink lifecycle operations."
+    },
+    {
+      "id": "posix-process-shared-mutex",
+      "url": "https://pubs.opengroup.org/onlinepubs/009604499/functions/pthread_mutexattr_getpshared.html",
+      "claim": "POSIX process-shared mutexes may live in mappings visible to multiple processes."
+    },
+    {
+      "id": "posix-robust-owner-death",
+      "url": "https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_mutex_lock.html",
+      "claim": "POSIX robust lock acquisition reports owner death as EOWNERDEAD."
+    },
+    {
+      "id": "windows-wait-on-address",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitonaddress",
+      "claim": "Windows WaitOnAddress wakes threads in the same process and is not an IPC wake primitive."
+    },
+    {
+      "id": "windows-named-event",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createeventa",
+      "claim": "Windows named events share handles across processes with ACL and close lifecycle."
+    },
+    {
+      "id": "c-n3220-atomics",
+      "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3220.pdf",
+      "claim": "C lock-free address-free atomics are recommended practice, not a universal provider receipt."
     }
   ],
   "sourceRefs": [
@@ -1297,6 +1428,8 @@
     "IPC1-channel-committed-full-survives-producer-crash",
     "IPC1-channel-crash-reading-reopen",
     "IPC1-channel-double-materialize-reject",
+    "IPC1-channel-materialize-oom-preserves-slot",
+    "IPC1-channel-panic-fault-no-repair",
     "IPC1-atomic-width-unsupported",
     "IPC1-atomic-order-unsupported",
     "IPC1-atomic-alignment-unsupported",
@@ -3566,6 +3699,150 @@
       }
     },
     {
+      "id": "IPC1-channel-materialize-oom-preserves-slot",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s-oom",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s-oom",
+          "bytes": [
+            1,
+            2
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "commit",
+          "sendId": "s-oom",
+          "process": "writer"
+        },
+        {
+          "op": "receive",
+          "sendId": "s-oom",
+          "process": "reader"
+        },
+        {
+          "op": "materialize-oom",
+          "sendId": "s-oom",
+          "process": "reader"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 1,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "accepted",
+        "code": "materialization-oom"
+      }
+    },
+    {
+      "id": "IPC1-channel-panic-fault-no-repair",
+      "axis": "channel",
+      "targets": [
+        "posix",
+        "windows"
+      ],
+      "providerBindings": {
+        "posix": "posix-shm-volatile",
+        "windows": "windows-pagefile-volatile"
+      },
+      "sourceRefIds": [
+        "handoff-arrow"
+      ],
+      "operations": [
+        {
+          "op": "map"
+        },
+        {
+          "op": "validate"
+        },
+        {
+          "op": "view"
+        },
+        {
+          "op": "offer",
+          "sendId": "s-panic",
+          "process": "writer"
+        },
+        {
+          "op": "write",
+          "sendId": "s-panic",
+          "bytes": [
+            9
+          ],
+          "process": "writer"
+        },
+        {
+          "op": "panic",
+          "process": "writer"
+        }
+      ],
+      "input": {
+        "layoutId": "channel-capN",
+        "header": {
+          "magic": "WIPC1",
+          "version": 1,
+          "schema": "channel.v1",
+          "schemaId": "channel.v1",
+          "layoutId": "channel-capN",
+          "objectId": "channel-capN-g1",
+          "schemaDigest": "sha256:6cf8730c3d122c335e28be96e834d66251e32b1c17370cb8b6c64e77a8316282",
+          "layoutDigest": "sha256:6eb5407eb2d38c8fa422b12acb8cad383d182806380044443fcb3acf9e558f8e",
+          "length": 4096,
+          "alignment": 8,
+          "endian": "little",
+          "generation": 1,
+          "slotCount": 1,
+          "slotSize": 1000
+        }
+      },
+      "expected": {
+        "status": "faulted",
+        "code": "generation-fault"
+      }
+    },
+    {
       "id": "IPC1-atomic-width-unsupported",
       "axis": "channel",
       "targets": [
@@ -3921,7 +4198,7 @@
           "process": "writer"
         },
         {
-          "op": "owner-death",
+          "op": "fault",
           "process": "writer"
         }
       ],

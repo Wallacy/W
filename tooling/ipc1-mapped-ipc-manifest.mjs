@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { validateProbeEvidence } from "./ipc1-mapped-ipc-probe.mjs";
 
 export function digestFile(file) {
   return `sha256:${crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex")}`;
@@ -89,12 +90,35 @@ export function validateIpc1StudyManifest(manifest, { studyDirectory } = {}) {
     if (reference.targetKind !== profile.targetKind || reference.objectIdentity !== profile.objectIdentity) errors.push(`${location} target or object identity is stale.`);
     if (!validDigest(reference.digest) || digestValue(profile) !== reference.digest) errors.push(`${location}.digest is stale.`);
     if (!nonEmpty(reference?.claim)) errors.push(`${location}.claim is required.`);
+    else if (!/^Design fixture \(not a provider receipt\):/u.test(reference.claim)) errors.push(`${location}.claim must identify a design fixture, not a provider receipt.`);
   }
+  const probeIds = new Set();
+  const observedTargets = new Set();
+  for (const [index, probe] of (manifest?.probeRefs ?? []).entries()) {
+    const location = `IPC1 probeRefs[${index}]`;
+    if (!nonEmpty(probe?.id) || probeIds.has(probe.id)) errors.push(`${location}.id must be unique.`);
+    probeIds.add(probe?.id);
+    if (!new Set(["posix", "windows"]).has(probe?.target)) errors.push(`${location}.target is invalid.`);
+    if (probe?.status !== "observed-design-evidence") errors.push(`${location}.status must remain observed-design-evidence.`);
+    const file = fileAt(studyDirectory, probe?.path);
+    if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) { errors.push(`${location} is missing.`); continue; }
+    const digestMatches = typeof probe?.digest === "string" && digestFile(file) === probe.digest;
+    if (!digestMatches) errors.push(`${location}.digest is stale.`);
+    const probeErrors = validateProbeEvidence({ probe, receiptFile: file, boundaryRoot: path.resolve(studyDirectory, "../../.."), location }).errors;
+    errors.push(...probeErrors);
+    if (digestMatches && probeErrors.length === 0 && probe?.status === "observed-design-evidence" && new Set(["posix", "windows"]).has(probe?.target)) observedTargets.add(probe.target);
+  }
+  if (!observedTargets.has("posix")) errors.push("IPC1 probeRefs must include an observed POSIX probe.");
   if (!Array.isArray(manifest?.evidence?.current) || !Array.isArray(manifest?.evidence?.missing)) errors.push("IPC1 evidence must separate current and missing.");
-  for (const evidence of ["tree-sitter-parse", "host-oracle", "target-projections", "official-primary-refs"]) if (!manifest?.evidence?.current?.includes(evidence)) errors.push(`IPC1 evidence.current must include ${evidence}.`);
-  for (const evidence of ["w-compile", "w-run", "provider", "two-process-posix-probe", "two-process-windows-probe", "human-study", "model-study"]) if (!manifest?.evidence?.missing?.includes(evidence)) errors.push(`IPC1 evidence.missing must include ${evidence}.`);
-  if ((manifest?.evidence?.current ?? []).some((item) => /implemented|runtime-executed|provider-ready/iu.test(item))) errors.push("IPC1 evidence.current must not claim implementation or provider readiness.");
-  const overlap = (manifest?.evidence?.current ?? []).filter((item) => manifest.evidence.missing.includes(item));
+  const current = Array.isArray(manifest?.evidence?.current) ? manifest.evidence.current : [];
+  const missing = Array.isArray(manifest?.evidence?.missing) ? manifest.evidence.missing : [];
+  for (const evidence of ["tree-sitter-parse", "host-oracle", "target-projections", "official-primary-refs"]) if (!current.includes(evidence)) errors.push(`IPC1 evidence.current must include ${evidence}.`);
+  for (const evidence of ["w-compile", "w-run", "provider", "two-process-posix-probe", "two-process-windows-probe", "crash-recovery", "durability", "human-study", "model-study"]) if (!current.includes(evidence) && !missing.includes(evidence)) errors.push(`IPC1 evidence must classify ${evidence} as current or missing.`);
+  if (current.includes("two-process-posix-probe") !== observedTargets.has("posix")) errors.push("IPC1 evidence.current two-process-posix-probe must derive from an observed POSIX receipt.");
+  if (current.includes("two-process-windows-probe") !== observedTargets.has("windows")) errors.push("IPC1 evidence.current two-process-windows-probe must derive from an observed Windows receipt.");
+  if (current.some((item) => /implemented|runtime-executed|provider-ready/iu.test(item))) errors.push("IPC1 evidence.current must not claim implementation or provider readiness.");
+  if (missing.includes("provider") && (manifest?.providerRefs ?? []).some((reference) => /provider[- ]?ready|provider readiness|runtime[- ]?executed|authoritative.*receipt/iu.test(reference?.claim ?? ""))) errors.push("IPC1 providerRefs must not claim provider readiness while provider evidence is missing.");
+  const overlap = current.filter((item) => missing.includes(item));
   if (overlap.length > 0) errors.push(`IPC1 evidence overlaps: ${overlap.join(", ")}.`);
   return errors;
 }

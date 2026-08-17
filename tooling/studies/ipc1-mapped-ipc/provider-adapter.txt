@@ -1,6 +1,11 @@
 IPC1 Research witness: Ipc1MappedIpc unsafe provider adapter.
 
-The provider is authoritative for mapping, lease, layout, atomics, durability,
-delete, and crash facts. Close order is stop-access, drain, unmap, close-handle.
-No callback or access occurs after unmap. This witness is reserved text, not W
-syntax or an API.
+The provider is authoritative for mapping, lease, layout, atomics, address-free
+scope, durability, wake, delete, and crash facts. ATOM2 value-only carriers do
+not imply process-shared atomics; width, order, alignment, progress, and wake
+must be receipts. A Windows wake is a named Event, Semaphore, or Mutex with
+ACL, namespace, and handle lifecycle, or bounded polling. WaitOnAddress is
+same-process only. A POSIX robust process-shared mutex reports owner death as a
+typed fault and does not silently repair state. Close order is stop-access,
+drain, unmap, close-handle. No callback or access occurs after unmap. This
+witness is reserved text, not W syntax or an API.

@@ -3,7 +3,10 @@ IPC1 Research witness: Ipc1MappedIpc bounded mapped channel.
 Capacity is mandatory, including an explicit cap0 rendezvous. The carrier is
 wire/bytes, not generic Channel<T> storage. Slots use relative offsets and
 provider-proved process-shared atomic width, order, alignment, progress, and
-wait/wake. The sender owns local bytes before commit; the mapped generation
-owns bytes after commit and the receiver materializes a new W owner. A process
-crash faults the generation. This witness is reserved text, not W syntax or an
-API.
+explicit cross-process wake receipts. ATOM2 contributes only a value carrier;
+address-free process sharing and wake remain provider facts. The sender owns
+local bytes before commit; the mapped generation owns bytes after commit and
+the receiver materializes a new W owner. A materialization OOM leaves the
+committed slot full and makes no partial owner mutation. Panic or process
+crash faults the generation; cleanup remains close, unmap, and provider
+release. This witness is reserved text, not W syntax or an API.

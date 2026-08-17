@@ -18,8 +18,8 @@
 |---|---:|
 | linhas de `DESIGN.md` | 29967 |
 | tokens aproximados de `DESIGN.md` | 317800 |
-| linhas de `RATIONALE.md` | 6397 |
-| tokens aproximados de `RATIONALE.md` | 164100 |
+| linhas de `RATIONALE.md` | 6414 |
+| tokens aproximados de `RATIONALE.md` | 164500 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 341/341 |
 | decisões | 1440 (W-001–W-1440) |
@@ -169,9 +169,9 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 14–4902 | 75500 | Evidência comparativa |
-| 2 | 4903–4933 | 500 | Proveniência |
-| 3 | 4934–6397 | 88100 | Ledger |
+| 1 | 14–4919 | 75800 | Evidência comparativa |
+| 2 | 4920–4950 | 500 | Proveniência |
+| 3 | 4951–6414 | 88100 | Ledger |
 
 ## Bundles de leitura
 
