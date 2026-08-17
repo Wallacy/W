@@ -1,0 +1,304 @@
+{
+  "$schema": "w-syn2-dyn2-closure-cases-1",
+  "status": "host-derived-design-oracle",
+  "id": "SYN2-DYN2",
+  "method": "derive route and boundary outcomes from facts; never copy a caller status or expected result",
+  "reusedStudies": [
+    {
+      "id": "SYN1",
+      "path": "tooling/studies/syn1-typed-generation",
+      "claim": "65-case typed-generation boundary and target/source-map evidence"
+    },
+    {
+      "id": "DYN1",
+      "path": "tooling/studies/dyn1-versioned-behavior",
+      "claim": "70-case versioned behavior, receipts, cleanup, and rejected dynamic mechanisms"
+    },
+    {
+      "id": "HRD0",
+      "path": "tooling/studies/hrd0-hot-reload-dev",
+      "claim": "20-case dev-only runner and local/split mutation boundary"
+    }
+  ],
+  "implementationGapMap": {
+    "SYN2": ["W-1362", "W-1366", "W-1367", "W-1368", "W-1369", "W-1371", "W-1372", "W-1374", "W-1376", "W-1377", "W-1378", "W-1379"],
+    "DYN2": ["W-1358", "W-1392", "W-1393", "W-1394", "W-1395", "W-1396", "W-1397"]
+  },
+  "cases": [
+    {
+      "id": "SYN2-C-module-set",
+      "axis": "SYN2",
+      "decisionIds": ["W-1360", "W-1363"],
+      "facts": {
+        "artifact": "generated-module-set",
+        "sourceUnits": "content-addressed-w-files",
+        "reopen": true,
+        "semanticPhases": ["parse", "name", "type", "ownership", "effect", "ConstIR"],
+        "interfaceBeforeFreeze": true,
+        "ambientAuthority": false,
+        "identity": "target-neutral-semantic"
+      },
+      "mutation": null,
+      "gapRefs": ["W-1366", "W-1368", "W-1376", "W-1377", "W-1378"],
+      "reuse": ["SYN1/generated-module-artifacts", "SYN1/reopen-before-freeze"]
+    },
+    {
+      "id": "SYN2-C-action-result-interface",
+      "axis": "SYN2",
+      "decisionIds": ["W-1363", "W-1370"],
+      "facts": {
+        "actionResultPublished": true,
+        "casPublished": true,
+        "interfacePublished": true,
+        "compilerCachePublished": false,
+        "actionResultIdentity": "content-addressed-action-result",
+        "casIdentity": "content-addressed-cas",
+        "interfaceIdentity": "semantic-interface",
+        "recipeIdentity": "action-recipe"
+      },
+      "mutation": null,
+      "gapRefs": ["W-1367"],
+      "reuse": ["SYN1/action-result-cas", "SYN1/interface-publication"]
+    },
+    {
+      "id": "SYN2-C-result-preserved-on-parse-fault",
+      "axis": "SYN2",
+      "decisionIds": ["W-1370"],
+      "facts": {
+        "actionResultPublished": true,
+        "parseOrReceiptFailure": true,
+        "interfacePublished": false,
+        "compilerCachePublished": false,
+        "cleanupCount": 0,
+        "resultRetained": true
+      },
+      "mutation": null,
+      "gapRefs": ["W-1367", "W-1371"],
+      "reuse": ["SYN1/parse-receipt-failure"]
+    },
+    {
+      "id": "SYN2-C-pre-result-cancel",
+      "axis": "SYN2",
+      "decisionIds": ["W-1370"],
+      "facts": {
+        "actionResultPublished": false,
+        "preResultFailure": "cancel",
+        "staging": true,
+        "cleanupOrder": ["cleanup", "drain", "discard"],
+        "cleanupCount": 1,
+        "oomAdmissionReject": true,
+        "faultBoundary": "host-bookkeeping-only"
+      },
+      "mutation": null,
+      "gapRefs": ["W-1367", "W-1371"],
+      "reuse": ["SYN1/cancellation-discard"]
+    },
+    {
+      "id": "SYN2-C-target-receipts",
+      "axis": "SYN2",
+      "decisionIds": ["W-1363", "W-1373"],
+      "facts": {
+        "projections": 2,
+        "targetNeutralIdentity": true,
+        "targetWAbiReceipt": true,
+        "registryDigest": true,
+        "physicalArtifactMayDiffer": true,
+        "targetImplicit": false
+      },
+      "mutation": null,
+      "gapRefs": ["W-1369", "W-1378"],
+      "reuse": ["SYN1/two-target-projections", "SYN1/target-registry-host"]
+    },
+    {
+      "id": "SYN2-C-implementation-boundary",
+      "axis": "SYN2",
+      "decisionIds": ["W-1373"],
+      "facts": {
+        "hostOracle": true,
+        "compilerSemanticEvidence": false,
+        "targetCompilerProviderEvidence": false,
+        "runEvidence": false,
+        "humanModelEvidence": false,
+        "claim": "design-boundary-only"
+      },
+      "mutation": null,
+      "gapRefs": ["W-1362", "W-1366", "W-1374"],
+      "reuse": ["SYN1/missing-evidence-ledger", "HRD0/host-only-boundary"]
+    },
+    {
+      "id": "SYN2-events-derived",
+      "axis": "SYN2",
+      "decisionIds": ["W-1375"],
+      "facts": {
+        "eventTrace": ["tool-start", "tool-stage", "tool-write", "tool-finish"],
+        "statusDerived": true,
+        "routeDerived": true,
+        "expectedSelectsOutcome": false,
+        "callerFailureSelector": false
+      },
+      "mutation": null,
+      "gapRefs": ["W-1371"],
+      "reuse": ["SYN1/strict-action-events"]
+    },
+    {
+      "id": "SYN2-manifest-boundary",
+      "axis": "SYN2",
+      "decisionIds": ["W-1380"],
+      "facts": {
+        "exactRoles": true,
+        "exactArtifacts": true,
+        "sourceRefs": true,
+        "officialRefs": true,
+        "httpsAllowlist": true,
+        "targetRegistrySeparate": true,
+        "forgedProviderReady": false
+      },
+      "mutation": null,
+      "gapRefs": ["W-1372", "W-1374"],
+      "reuse": ["SYN1/manifest", "SYN1/target-registry-host"]
+    },
+    {
+      "id": "SYN2-reject-typed-recipe",
+      "axis": "SYN2",
+      "decisionIds": ["W-1360"],
+      "facts": {
+        "artifact": "typed-declaration-recipe",
+        "duplicatesFrontend": true,
+        "separateSourceUnit": false,
+        "ambientAuthority": false
+      },
+      "mutation": {"kind": "c2-duplicate-frontend"},
+      "reuse": ["SYN1/C2-rejected"]
+    },
+    {
+      "id": "SYN2-reject-current-module-injection",
+      "axis": "SYN2",
+      "decisionIds": ["W-1360", "W-1363"],
+      "facts": {
+        "artifact": "current-module-injection",
+        "separateSourceUnit": false,
+        "hirSplice": true,
+        "ambientAuthority": true
+      },
+      "mutation": {"kind": "current-module-injection"},
+      "reuse": ["SYN1/D-rejected", "HRD0/module-injection-rejected"]
+    },
+    {
+      "id": "DYN2-A-repl-snapshot",
+      "axis": "DYN2",
+      "decisionIds": ["W-1398", "W-1399"],
+      "facts": {
+        "scenario": "repl-snapshot",
+        "immutableSnapshot": true,
+        "exportBounded": true,
+        "liveStateWrite": false,
+        "generationIdentity": true
+      },
+      "mutation": null,
+      "gapRefs": ["W-1392", "W-1393", "W-1395"],
+      "reuse": ["DYN1/REPL-snapshot", "HRD0/A-local"]
+    },
+    {
+      "id": "DYN2-B-typed-service-local-split",
+      "axis": "DYN2",
+      "decisionIds": ["W-1398", "W-1399"],
+      "facts": {
+        "scenario": "typed-service-generation",
+        "localSplitPair": true,
+        "logicalOutcomeEqual": true,
+        "physicalTraceMayDiffer": true,
+        "capabilitiesExplicit": true,
+        "effectsReceipt": true,
+        "activeFrameMutation": false
+      },
+      "mutation": null,
+      "gapRefs": ["W-1358", "W-1393", "W-1394", "W-1397"],
+      "reuse": ["DYN1/local-split-pair", "HRD0/B-local-split"]
+    },
+    {
+      "id": "DYN2-C-generation-reference",
+      "axis": "DYN2",
+      "decisionIds": ["W-1398"],
+      "facts": {
+        "scenario": "generation-reference",
+        "readOnly": true,
+        "migrationReceipt": true,
+        "persistentFields": ["generationId", "artifactDigest", "recipeDigest", "semanticInterfaceKey", "schemaDigest", "targetReceipt", "resolveReceipt", "migrationReceipt"],
+        "targetMode": "exact",
+        "targetReceiptIncludesWAbi": true,
+        "targetReceiptIncludesRuntimeClosure": true,
+        "extraFields": [],
+        "duplicateFields": false,
+        "forbiddenFields": ["heap", "task", "loan", "frame", "capability", "ServiceRef", "callback", "providerHandle"],
+        "migrationLiveState": false
+      },
+      "mutation": null,
+      "gapRefs": ["W-1395", "W-1396"],
+      "reuse": ["DYN1/persistent-reference"]
+    },
+    {
+      "id": "DYN2-reject-live-state-migration",
+      "axis": "DYN2",
+      "decisionIds": ["W-1398", "W-1399"],
+      "facts": {
+        "scenario": "generation-reference",
+        "readOnly": false,
+        "liveState": true,
+        "heap": true,
+        "task": true,
+        "loan": true
+      },
+      "mutation": {"kind": "live-state-migration"},
+      "reuse": ["DYN1/live-state-import-rejected"]
+    },
+    {
+      "id": "DYN2-D-reject-eval-frame",
+      "axis": "DYN2",
+      "decisionIds": ["W-1398", "W-1399"],
+      "facts": {
+        "scenario": "dynamic-eval",
+        "evalExec": true,
+        "activeFrameMutation": true,
+        "ambientLookup": true,
+        "productionMode": true
+      },
+      "mutation": {"kind": "dynamic-eval"},
+      "reuse": ["DYN1/D-rejected", "HRD0/production-dynamic-rejected"]
+    },
+    {
+      "id": "DYN2-switch-cleanup-fault",
+      "axis": "DYN2",
+      "decisionIds": ["W-1399"],
+      "facts": {
+        "switchAtomic": true,
+        "postSwitchDrainFailure": true,
+        "derivedStatus": "degraded",
+        "rollback": false,
+        "cleanupOrder": ["cancel", "drain", "unregister", "inFlightDrain", "destroy", "release"],
+        "pinned": false,
+        "ffiCallback": false,
+        "mappedProcess": false,
+        "mappedWasmComponent": false,
+        "nativeExactWAbi": true,
+        "mappingRetained": true,
+        "staleCompletionRejected": true
+      },
+      "mutation": null,
+      "gapRefs": ["W-1394", "W-1397"],
+      "reuse": ["DYN1/post-switch-degraded", "HRD0/drain-fault"]
+    },
+    {
+      "id": "DYN2-reject-native-unload-callback",
+      "axis": "DYN2",
+      "decisionIds": ["W-1399"],
+      "facts": {
+        "scenario": "native-dynamic-library",
+        "callbackInFlight": true,
+        "unmap": true,
+        "mappingRetained": false
+      },
+      "mutation": {"kind": "live-dlclose"},
+      "reuse": ["DYN1/native-live-callback-rejected"]
+    }
+  ]
+}

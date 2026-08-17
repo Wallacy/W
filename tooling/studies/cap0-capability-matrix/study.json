@@ -16,7 +16,7 @@
     "documentationQueuedCount": 8
   },
   "evidence": {
-    "current": ["source-w", "host-oracle", "official-primary-refs", "dyn1-design-oracle"],
+    "current": ["source-w", "host-oracle", "official-primary-refs", "syn2-dyn2-closure", "dyn1-design-oracle"],
     "missing": ["w-compile", "w-run", "provider", "human-study", "model-study"]
   },
   "docsStatus": "queued"

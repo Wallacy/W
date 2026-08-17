@@ -1,0 +1,4 @@
+SYN2-DYN2
+
+Reserved rejected witness: eval, exec, active-frame write, ambient lookup,
+live-state migration, native sandbox, and live dlclose callback.
