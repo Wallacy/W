@@ -1,0 +1,28 @@
+{
+  "$schema": "w-final-research-closure-study-1",
+  "status": "design-oracle-input",
+  "id": "FRC0",
+  "gate": "FZ0-freeze-completeness/freeze-research-close/HUM0-promotion",
+  "title": "Reuse-only closure of the three remaining research gates",
+  "question": "Do the existing frontend, classification, and HUM0 contracts close the three process gates without implementation or human/model results?",
+  "manifest": { "path": "manifest.json" },
+  "corpus": { "path": "../../final-research-closure-cases.json" },
+  "artifacts": {
+    "bundle": { "path": "bundle.json" },
+    "machine": { "path": "../../final-research-closure-machine.mjs" },
+    "checker": { "path": "../../check-final-research-closure.mjs" },
+    "snapshot": { "path": "../../final-research-closure-results.snapshot.jsonl" },
+    "oracle": { "path": "oracle.test.mjs" },
+    "nestedChecker": { "path": "../../tree-sitter-w/check-frc0.mjs" }
+  },
+  "decisions": ["W-707", "W-731", "W-1408"],
+  "reuseOnly": true,
+  "reusedUnits": ["FZ0", "freeze-classification", "HUM0"],
+  "disposition": "oracle-backed-current",
+  "evidence": {
+    "current": ["source-ref", "reused-corpus", "reused-machine", "host-oracle", "mutation-checks", "snapshot", "thin-parse"],
+    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
+    "hostOnly": true
+  },
+  "stopCondition": "Stop on stale digest, caller echo, manual metric, forged human/model record, preference or score, missing or duplicate decision/case, source escape, wrong category, or Research residual. Wait for Sol review before canonical recascade."
+}

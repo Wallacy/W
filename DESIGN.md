@@ -29752,6 +29752,36 @@ declarations, profiles, errors, limits, workflows e o corpus adversarial em
 evidence de integração, sem alterar a schema identity ou as regras de
 ownership.
 
+#### 24.4.2 FRC0 — fechamento das três gates de pesquisa
+
+O bundle [`FRC0`](tooling/studies/final-research-closure) fecha somente as
+gates de processo W-707, W-731 e W-1408. Ele é `design-oracle-input` e
+`reuseOnly`. O corpus possui exatamente seis casos, uma rota `current` e uma
+rota `adversarial` para cada gate. A máquina deriva o outcome de facts em
+cópias do FZ0, da classificação do ledger e do protocolo HUM0. Ela não usa
+`expected`, ID, score, preference ou resultado fornecido pelo caller.
+
+| Gate | Current | Adversarial | Contrato fechado |
+|---|---|---|---|
+| W-707 / `FZ0-freeze-completeness` | `FRC0-W-707-current` | `FRC0-W-707-adversarial` | completude G0–G5, refs e snapshot coerentes; não é `count=implementation` |
+| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão tem disposition e `Research=0`; não significa implementação total |
+| W-1408 / `HUM0-promotion` | `FRC0-W-1408-current` | `FRC0-W-1408-adversarial` | stop-on-first-violation, no-automatic-promotion e 0 human/0 model preservados |
+
+O resultado de cada rota é `oracle-backed-current` para a classificação. A
+rota adversarial é rejeitada quando uma família, decisão, registro ou política
+é removida ou forjada. FRC0 não compila, executa ou promove W. Os gaps de
+`w-compile`, `w-run`, compiler, runtime, provider, `human-study` e
+`model-study` continuam `missing`. Nenhum registro humano ou de modelo,
+preferência, score ou métrica manual é criado.
+
+O stop condition é stale digest, caller echo, métrica manual, registro humano
+ou de modelo forjado, preference/score, decisão ou caso ausente/duplicado,
+source escape, categoria errada ou `Research` residual. A cadeia estrita é
+manifest → artefatos → bundle/study → fixtures thin parseáveis → oracle e
+snapshot. O checker root e o checker aninhado devem permanecer verdes antes
+de qualquer recascade adicional. FRC0 não reabre uma questão semântica e não
+autoriza alegação de implementação.
+
 ### 24.5 Blockers de allocator ASC0
 
 Os snippets desta subseção pressupõem `import iec from std` no header do

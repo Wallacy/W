@@ -1,0 +1,165 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-final-research-closure",
+  "title": "Final research closure for freeze, disposition, and HUM0 promotion gates",
+  "r0Cases": [
+    "R0-fixed-formatter"
+  ],
+  "sourceBase": {
+    "path": "current.w",
+    "symbol": "finalResearchClosure",
+    "digest": "sha256:3581d6191bf207de78bda442a494a703422b8adccc1d86cc1e99a35f4bf28481"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../tooling/final-research-closure-cases.json",
+      "symbol": "w-final-research-closure-cases-1",
+      "digest": "sha256:17d56b03843001ca59fa177ebc414fd610019d75454f23460575b8634e80d315"
+    },
+    {
+      "path": "../../../tooling/frontend-freeze-cases.json",
+      "symbol": "FZ0-G0-statements-control",
+      "digest": "sha256:80ffce3d4e87fd215cadf954ae1a8bda246ed880c08826aa892cdd7aee5db322"
+    },
+    {
+      "path": "../../../tooling/hum0-human-review-protocol.json",
+      "symbol": "w-hum0-human-review-protocol-1",
+      "digest": "sha256:c8f1d8cdc603e384112536d74d46618af7194765b6a9e87ea1924aaff2fc3ca1"
+    },
+    {
+      "path": "../../../tooling/design-freeze-classification.json",
+      "symbol": "w-design-freeze-classification-1",
+      "digest": "sha256:d7a1f69dbc956c94673f5efdd482cfd9f0ae1332005781637ac139d5e9721aa0"
+    },
+    {
+      "path": "../../../RATIONALE.md",
+      "symbol": "| W-707 | gate de design freeze",
+      "digest": "sha256:a13af74d985d81a0fecf34ebbb0f7c8c96f29538ba1f13e2c2cc7ab379a8571f"
+    },
+    {
+      "path": "../../../DESIGN.md",
+      "symbol": "#### 24.4.2 FRC0",
+      "digest": "sha256:98acaf88ae07343ae8927f44d085f6e0e635a17b67a34e9a5d87877c810909c6"
+    }
+  ],
+  "variants": [
+    {
+      "id": "current",
+      "role": "selected",
+      "language": "w",
+      "path": "current.w",
+      "digest": "sha256:3581d6191bf207de78bda442a494a703422b8adccc1d86cc1e99a35f4bf28481",
+      "changedConstructs": [
+        "current gate contract",
+        "reuse-only host evidence"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Thin source witness; all payload remains in reused corpora."
+      }
+    },
+    {
+      "id": "adversarial",
+      "role": "rejected-witness",
+      "language": "w",
+      "path": "adversarial.w",
+      "digest": "sha256:bf5f4fbba0ebaaf53a2b5863d69ee2c2a042a22ea2331b064d8d845971c9824b",
+      "changedConstructs": [
+        "missing family/disposition/record mutation",
+        "rejected gate route"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Thin source witness; mutation is derived on copied host state."
+      }
+    }
+  ],
+  "entry": "finalResearchClosure",
+  "inputs": [
+    {
+      "id": "current-route",
+      "expected": {
+        "status": "accepted",
+        "route": "design-oracle-only"
+      }
+    },
+    {
+      "id": "adversarial-route",
+      "expected": {
+        "status": "rejected",
+        "route": "integrity-failure"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain the three gate contracts and the evidence boundary without claiming implementation."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After a bounded delay, reconstruct the current routes, rejected mutations, and missing evidence.",
+      "minimumDelaySeconds": 1
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair one copied-state mutation without changing a reused source corpus.",
+      "mutations": {
+        "current": "Repair a fabricated gate claim.",
+        "adversarial": "Restore the missing family, disposition, or record guard."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add one independent host case while preserving Research=0 and all implementation gaps."
+    }
+  ],
+  "presentationOrders": [
+    [
+      "current",
+      "adversarial"
+    ],
+    [
+      "adversarial",
+      "current"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "current": "A",
+      "adversarial": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:3e61818b3ace2d06647028ccfe2e3a9a8d78dc89f75d61995eaf5803c3b338d0"
+  },
+  "evidence": {
+    "current": [
+      "source-ref",
+      "reused-corpus",
+      "reused-machine",
+      "host-oracle",
+      "mutation-checks",
+      "snapshot",
+      "thin-parse",
+      "tree-sitter-parse"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "compiler",
+      "runtime",
+      "provider",
+      "human-study",
+      "model-study"
+    ]
+  }
+}
