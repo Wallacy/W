@@ -28738,6 +28738,28 @@ registration, access/exit, unlink/retire, quiescence/drop/reclaim, bounds,
 shutdown e callback drain explícitos. A forma permitida ainda exige evidência de
 compiler, runtime, provider, target, debug e FFI.
 
+A superfície diagnóstica ATOM2 mantém um código para cada contrato abaixo. A
+tabela somente projeta as rejeições normativas das subseções citadas.
+
+| Classe | Code | Condição | Contrato |
+|---|---|---|---|
+| type | `W-ATOMIC-0001` | `Atomic<T>` não é um record fechado e value-only | §12.10.2; ATOM2 |
+| type | `W-ATOMIC-0002` | field, width ou encoding não é suportado pelo carrier | §12.10.2; ATOM2 |
+| type | `W-ATOMIC-0013` | bit encoding viola direção, ordem, signed/enum code ou high bits | §12.10.2; ATOM2 |
+| interface | `W-ATOMIC-0003` | target não prova width ou progress fact exigido | §12.10.5; ATOM2 |
+| interface | `W-ATOMIC-0006` | `SemanticInterfaceKey`, `WAbiKey`, `RepresentationMap` ou provider identity diverge | §12.10.5; §23.9 |
+| effect | `W-ATOMIC-0004` | fallback atômico não é compatível com o contexto declarado | §§12.10.5–12.10.6; ATOM2 |
+| effect | `W-ATOMIC-0005` | operação ou par de orders do compare-exchange é inválido | §§12.10.3–12.10.4; ATOM2 |
+| effect | `W-ATOMIC-0012` | fallback solicita allocation oculta | §12.10.5; ATOM2 |
+| effect | `W-ATOMIC-0014` | load, store, exchange ou compare-exchange suspende ou cancela | §§12.10.2–12.10.5; ATOM2 |
+| effect | `W-ATOMIC-0015` | fallback bloqueante entra em signal, freestanding, cooperative ou nonblocking context | §12.10.5; ATOM2 |
+| effect | `W-ATOMIC-0016` | `parking` e `blocksThread` são confundidos ou `Atomic.wait` fica oculto | §§12.10.5–12.10.6; ATOM2 |
+| ownership | `W-ATOMIC-0007` | generation wrap ou slot esgotado não entra em retirement | §9.11.1; §23.9 |
+| ownership | `W-ATOMIC-0008` | stale handle ou owner-table lookup não é validado antes do dereference | §9.11.1; §23.9 |
+| ownership | `W-ATOMIC-0009` | adapter omite registration, access, unlink, quiescence ou exact drop | §9.11.1; §23.9 |
+| ownership | `W-ATOMIC-0010` | path universal de raw pointer, tagged pointer ou RCU é rejeitado | §9.11.1; §23.9 |
+| ownership | `W-ATOMIC-0011` | callback FFI não conclui drain, unregister, shutdown ou in-flight receipt | §§9.11–9.11.1; §23.9 |
+
 O oracle ATOM2 compara dois reducers host e cobre codificação Bool/unsigned/
 signed/enum bit a bit, direção e ordem de fields, high bits, endian físico,
 target width, fallback allocation-free, `blocksThread`/`parking`/context,

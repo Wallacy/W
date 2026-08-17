@@ -16,8 +16,8 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 30124 |
-| tokens aproximados de `DESIGN.md` | 319900 |
+| linhas de `DESIGN.md` | 30146 |
+| tokens aproximados de `DESIGN.md` | 320500 |
 | linhas de `RATIONALE.md` | 6520 |
 | tokens aproximados de `RATIONALE.md` | 166000 |
 | seções numeradas | 27 |
@@ -28,7 +28,7 @@
 | requisitos de ratificação comparativa | 75 |
 | casos de substituição estruturados | 75/75 |
 | decisões referenciadas por casos R0 | 170/1440 |
-| decisões classificadas para design freeze | 534/1440 (170 source + 407 oracle + 8 explícitas; 51 overlaps) |
+| decisões classificadas para design freeze | 534/1440 (170 source + 408 oracle + 8 explícitas; 52 overlaps) |
 | decisões ainda sem classe de freeze | 906 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 190 |
@@ -72,12 +72,12 @@
 | casos/operações do filesystem FS0 | 99/665 (40 aceitos + 59 rejeitados; host oracle não executa syscalls/provider) |
 | casos/operações de erro portátil de I/O IOE0 | 44/219 (32 aceitos + 12 rejeitados; host oracle não executa W/provider) |
 | casos/operações de tempo operacional TIME0 | 52/277 (27 aceitos + 25 rejeitados; host oracle não executa clock/timer/provider) |
-| casos do corpus semântico S0 | 140 (70 positivos + 70 negativos) |
+| casos do corpus semântico S0 | 144 (72 positivos + 72 negativos) |
 | matriz host SDM0 | 30 (8 oracle aceitos + 22 oracle rejeitados; 3 outcomes aceitos + 5 rejeitados; 24 decisões) |
-| outcomes SemanticResult S0 | 140 |
-| snapshots de diagnostic D0 | 70 |
+| outcomes SemanticResult S0 | 144 |
+| snapshots de diagnostic D0 | 72 |
 | snapshots F0 no formato D0 | 28 |
-| codes D0 catalogados | 307/198 |
+| codes D0 catalogados | 307/214 |
 | sources W no root do Última Luz | 105 |
 | sources W em todo o Última Luz | 110 |
 | sources W no rascunho da std | 31 |
@@ -93,6 +93,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | Família | Catalogados | Referenciados |
 |---|---:|---:|
 | ALLOCATOR | 11 | 11 |
+| ATOMIC | 16 | 16 |
 | BEHAVIOR | 0 | 1 |
 | BORROW | 12 | 12 |
 | CAPABILITY | 1 | 1 |
@@ -160,10 +161,10 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 20 | 23132–24651 | 16400 | Compilador e bootstrap |
 | 21 | 24652–26763 | 20200 | Packages, builds e releases |
 | 22 | 26764–27275 | 4900 | Tooling e interface para máquinas |
-| 23 | 27276–28747 | 17600 | Protocolos e pesquisas de ecossistema |
-| 24 | 28748–29574 | 11500 | Design freeze e pendências |
-| 25 | 29575–29785 | 1900 | Produto de referência Última Luz |
-| 26 | 29786–30124 | 4300 | Plano de implementação |
+| 23 | 27276–28769 | 18100 | Protocolos e pesquisas de ecossistema |
+| 24 | 28770–29596 | 11500 | Design freeze e pendências |
+| 25 | 29597–29807 | 1900 | Produto de referência Última Luz |
+| 26 | 29808–30146 | 4300 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
@@ -182,8 +183,8 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 15–7459 | 69700 | promessa, símbolos, source, módulos, funções e tipos |
 | segurança e execução | 9, 10, 11, 12, 13 | 7460–15425 | 87500 | ownership, errors, tasks, domains, services e entries |
 | std e performance | 14, 15, 16, 17, 18, 19 | 15426–23131 | 87200 | módulos, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 23132–28747 | 59100 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 28748–30124 | 17700 | freeze, Última Luz, gates e roadmap |
+| compiler e distribuição | 20, 21, 22, 23 | 23132–28769 | 59600 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26 | 28770–30146 | 17700 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 
