@@ -1917,6 +1917,17 @@ maior. Não existe
 reparo in-place oculto. Um provider lock-free é preferido. Um fallback blocking
 robust é profile separado e não bloqueia worker cooperativo de modo invisível.
 
+IPC2 torna wake uma receipt explícita. Bounded polling é o fallback
+cross-process quando timeout e cancelamento são bounded. Windows
+`WaitOnAddress` é same-process e é rejeitado para IPC; um wake Windows
+cross-process exige Event, Semaphore ou Mutex nomeado, com ACL, namespace e
+handle lifecycle. POSIX robust process-shared mutex registra owner death como
+typed fault; o reducer não finge equivalência com Windows. ATOM2 fornece
+somente o carrier value-only, allocation-free e never-suspending. Scope
+process-shared, address-free, width, order, alignment, progress e wake
+continuam receipts do provider; `lockFree: true` exige exact target fact e não
+é inferido de `Atomic<T>`.
+
 O provider é a autoridade para target kind POSIX ou Windows, object identity,
 generation, access rights, lease/unmap, address independence, schema/layout
 digests, atomics process-shared, backing volatile/durable, flush receipt, delete
@@ -1974,9 +1985,15 @@ expõe close/unlink e tracker lifecycle sem definir o layout tipado de IPC1.
 O produto durável está em
 [`tooling/studies/ipc1-mapped-ipc`](tooling/studies/ipc1-mapped-ipc), com corpus,
 reducers, checker, teste host e snapshot em `tooling/ipc1-mapped-ipc-*`.
-O CAP0 registra esses refs em `IPC0-R1`, mas preserva `Research` e os probes
-POSIX/Windows, `w-compile`, `w-run` e provider como evidência missing. A fila de
-documentação mantém exemplos pareados de C/POSIX, Rust e Python para o guia
+O corpus IPC2 tem 69 casos e 138 projeções. O probe POSIX observado é
+digest-backed: WSL2/GCC executou dois processos, endereços distintos,
+header/commit/read, stale-name rejection, remap generation 2 e cleanup; o
+receipt liga source e transcript por SHA-256. Esse fato não é execução W nem
+provider readiness. O probe Windows continua missing, assim como
+`w-compile`, `w-run`, provider, crash-recovery, durability, human-study e
+model-study. CAP0 preserva A/B como Research e rejeita C universal
+(`Mapped<T>`, `shared T` e raw pointer). A fila de documentação mantém
+exemplos pareados de C/POSIX, Rust e Python para o guia
 `guides/problems/process-shared-data`. LOC ou ergonomia estrutural não fecham
 essa fila.
 
@@ -6302,7 +6319,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1356 | snapshot mapped relocatable, generation objects e selector durability | cada generation é um objeto/extent imutável separado; leases ligam `objectIdentity+generation` e impedem reuso enquanto vivas; layout usa offsets/índices relativos e payload pointer-free; header valida magic/version/schema/schemaDigest/layoutDigest/length/alignment/endian/generation; durable request ordena stage/hash → request → flush data+metadata → release selector → flush selector/namespace → receipt; visibility-only não inventa receipt; crash antes selector preserva a generation anterior, crash pós-selector sem receipt deixa visibility viva mas recovered current desconhecida, e crash pós-receipt é sucesso; stale remap, resize e view escape são explícitos | address equality, cast de struct nativa, publish antes de validation/flush, inferir flush físico, reusar generation com lease, resize com view viva ou access pós-unmap |
 | W-1357 | channel mapped wire carrier, commit/materialization e crash | carrier bounded de bytes (não `Channel<T>` raw) exige cap0 sem slots com rendezvous pareado e capN com ocupação derivada do header validado; header.length iguala o extent e `slotCount*slotSize` cabe em `slots`; owner local retorna antes de commit, commit publica bytes wire canônicos e a generation recebe bytes depois; receiver valida length/schema/checksum e cria owner novo, provando no máximo um owner por slot (não exactly-once distribuído); cancelamento mantém regra existente; provider prova atomic width/order/alignment/lock-free progress/wait-wake; crash de writing faulta generation, full committed sobrevive ao producer e pode ser materializado pelo reader, reading faulta generation e supervisor ordena fault→stop-access→drain→drop-view→unmap→close→reopen sem repair oculto | capacity caller, ordinary atomic como prova process-shared, String/owner no mapping, lock/allocator/scheduler oculto, repair in-place ou worker cooperativo bloqueado invisivelmente |
 | W-1358 | providers POSIX/Windows, backing e reducers | cada case escolhe binding authority: POSIX/Windows file-backed para snapshot durável com data+metadata receipt, POSIX `shm_open`/Windows pagefile para channel volátil; apenas `allowedLayouts[]`/`allowedSchemas[]` e seus digests são autoridade; reducers independentes derivam eventos, lifecycle físico e compact outcome comum; divergência de reducer/provider, facts caller, FFI close fora de ordem e fallback unsupported são rejeitados ou explicitamente normalizados; Windows não finge `unlink` e immediate withdraw retorna unsupported | selecionar resultado pelo expected/flags, equivalência de nome/handle, callback após unmap, `FlushViewOfFile` como durability total ou provider fact inventado |
-| W-1359 | evidence IPC1, CAP0 e documentação | corpus state/event-derived (67 casos, 134 projeções), schema/layout/provider source digests, snapshot e estudo host são design-oracle evidence; `IPC0-R1` recebe studyRefs e mantém probes POSIX/Windows, w-compile, w-run, provider e human/model missing; C/POSIX, Rust e Python ficam na fila `guides/problems/process-shared-data`, com exemplos pareados e refs W | chamar host oracle de execução W, fechar gate por LOC, promover Research a route/API ou omitir exemplos pareados |
+| W-1359 | evidence IPC2, CAP0 e documentação | corpus state/event-derived (69 casos, 138 projeções), schema/layout/provider source digests, snapshot e estudo host são design-oracle evidence; o probe POSIX observado é digest-backed por source/transcript SHA-256, enquanto probe Windows, w-compile, w-run, provider, crash-recovery, durability, human-study e model-study permanecem missing; wake provider é explícito, `WaitOnAddress` same-process é rejeitado e ATOM2 não implica address-free/process-shared; A/B permanecem Research e C universal é rejeitado; C/POSIX, Rust e Python ficam na fila `guides/problems/process-shared-data`, com exemplos pareados e refs W | chamar probe/oracle host de execução W, fechar gate por LOC ou fixture, promover A/B Research ou C universal, alegar probe Windows sem evidência, ou omitir exemplos pareados |
 | W-1360 | problema-first SYN1 | SYN1 separa A composition atual, B transform de dados, C generated module artifact, C2 recipe/IR e D mutation dinâmica em 65 casos A/B/C/D; 22 outcomes candidatos aceitos continuam Research e a rota SYN0 permanece Componível | classificar o problema inteiro como macro gap, medir maturidade ou promover o oracle a implementation |
 | W-1361 | A synthesis fechada | `Hashable`/`Reflectable`, generic/protocol composition, JSON, `data.Row`, kernel synthesis finita e declarations manuais preservam identity nominal e constraints fechadas; `Display`, codec genérico e synthesis universal continuam fora | annotation universal, protocol por nome, synthesis parcial ou reflection como trigger de declarations |
 | W-1362 | B artifact typed atual | `final.menu` continua no build transform W0 e publica bytes typed (`MenuBytecode`/resource); quando declarations não são necessárias, runtime lookup ou data artifact é suficiente | fazer o menu compiler emitir declarations ou chamar o output de módulo W sem frontend normal |

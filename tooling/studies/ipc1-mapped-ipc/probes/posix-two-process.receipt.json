@@ -1,0 +1,47 @@
+{
+  "schema": "w-ipc1-probe-receipt-1",
+  "id": "IPC2-POSIX-two-process-map",
+  "status": "observed-design-evidence",
+  "target": "posix",
+  "identity": {
+    "schema": "w-ipc1-probe-output-1",
+    "id": "IPC2-POSIX-two-process-map",
+    "status": "observed-design-evidence",
+    "target": "posix"
+  },
+  "host": {
+    "os": "WSL2 Ubuntu 24.04",
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
+    "compiler": "gcc 13.3.0-6ubuntu2~24.04",
+    "date": "2026-08-17"
+  },
+  "source": {
+    "path": "posix-two-process.c",
+    "digest": "sha256:1c9cbcf28f0f0eab770dffd5f7cc7ff08336f01cdb57d15f11553517adb80429"
+  },
+  "output": {
+    "path": "posix-two-process.output.json",
+    "digest": "sha256:0981d69e398d8158e651f3640170a010cdc63ffe41c5953344e5069f4a09403c"
+  },
+  "command": "gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -o ipc1-posix-two-process posix-two-process.c && ./ipc1-posix-two-process",
+  "observed": {
+    "twoProcess": true,
+    "addressesDistinct": true,
+    "headerValidated": true,
+    "committedRead": true,
+    "wake": "bounded-polling",
+    "staleNameRejected": true,
+    "remapGeneration": 2,
+    "cleanup": "unmap-close-unlink"
+  },
+  "providerReceipt": false,
+  "notProven": [
+    "w-compile",
+    "w-run",
+    "provider-receipt",
+    "crash-recovery",
+    "durability",
+    "windows-two-process"
+  ],
+  "claimBoundary": "Observed POSIX two-process mapping behavior only; this is not a W implementation or a provider readiness receipt."
+}

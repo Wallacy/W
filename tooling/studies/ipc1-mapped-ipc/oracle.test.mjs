@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "bun:test";
 import { evaluateIpc1Case, validateIpc1 } from "../../ipc1-mapped-ipc-machine.mjs";
@@ -12,6 +13,39 @@ const corpus = JSON.parse(fs.readFileSync(path.join(toolingDirectory, "ipc1-mapp
 const manifest = JSON.parse(fs.readFileSync(path.join(studyDirectory, "study.json"), "utf8"));
 const byId = new Map(corpus.cases.map((testCase) => [testCase.id, testCase]));
 const oracleOptions = { providers: corpus.providers, layouts: corpus.layouts, schemas: corpus.schemas };
+
+function fileDigest(file) {
+  return `sha256:${crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex")}`;
+}
+
+function probeFixture({ mutateReceipt, mutateOutput } = {}) {
+  const fixtureDirectory = fs.mkdtempSync(path.join(studyDirectory, "probe-fixture-"));
+  const probeDirectory = path.join(studyDirectory, "probes");
+  const sourceFile = path.join(fixtureDirectory, "posix-two-process.c");
+  const outputFile = path.join(fixtureDirectory, "posix-two-process.output.json");
+  const receiptFile = path.join(fixtureDirectory, "posix-two-process.receipt.json");
+  fs.copyFileSync(path.join(probeDirectory, "posix-two-process.c"), sourceFile);
+  fs.copyFileSync(path.join(probeDirectory, "posix-two-process.output.json"), outputFile);
+  const receipt = JSON.parse(fs.readFileSync(path.join(probeDirectory, "posix-two-process.receipt.json"), "utf8"));
+  const output = JSON.parse(fs.readFileSync(outputFile, "utf8"));
+  mutateOutput?.(output);
+  fs.writeFileSync(outputFile, `${JSON.stringify(output)}\n`);
+  receipt.source.digest = fileDigest(sourceFile);
+  receipt.output.digest = fileDigest(outputFile);
+  mutateReceipt?.(receipt);
+  fs.writeFileSync(receiptFile, `${JSON.stringify(receipt, null, 2)}\n`);
+  const probe = structuredClone(corpus.probeRefs[0]);
+  probe.path = path.relative(root, receiptFile).replaceAll(path.sep, "/");
+  probe.digest = fileDigest(receiptFile);
+  const manifestProbe = structuredClone(manifest.probeRefs[0]);
+  manifestProbe.path = path.relative(studyDirectory, receiptFile).replaceAll(path.sep, "/");
+  manifestProbe.digest = fileDigest(receiptFile);
+  return { fixtureDirectory, probe, manifestProbe };
+}
+
+function removeProbeFixture(fixtureDirectory) {
+  fs.rmSync(fixtureDirectory, { recursive: true, force: true });
+}
 
 describe("IPC1 mapped memory and IPC host oracle", () => {
   test("validates the corpus and keeps two target projections", () => {
@@ -37,6 +71,16 @@ describe("IPC1 mapped memory and IPC host oracle", () => {
     expect(evaluateIpc1Case(byId.get("IPC1-channel-cancel-before-commit"), oracleOptions).logical.transferred).toBe(false);
     expect(evaluateIpc1Case(byId.get("IPC1-channel-cancel-after-commit"), oracleOptions).logical.transferred).toBe(true);
     expect(evaluateIpc1Case(byId.get("IPC1-channel-double-materialize-reject"), oracleOptions).code).toBe("double-materialize");
+    const materializationOom = evaluateIpc1Case(byId.get("IPC1-channel-materialize-oom-preserves-slot"), oracleOptions);
+    expect(materializationOom.code).toBe("materialization-oom");
+    expect(materializationOom.logical.partialOwnerMutation).toBe(false);
+    expect(materializationOom.logical.slotState).toBe("full");
+    expect(materializationOom.logical.reservationState).toBe("reading");
+    expect(materializationOom.logical.retryable).toBe(true);
+    const panic = evaluateIpc1Case(byId.get("IPC1-channel-panic-fault-no-repair"), oracleOptions);
+    expect(panic.status).toBe("faulted");
+    expect(panic.code).toBe("generation-fault");
+    expect(panic.logical.hiddenRepair).toBe(false);
     for (const id of ["IPC1-channel-crash-writing-fault", "IPC1-channel-crash-reading-fault"]) {
       const outcome = evaluateIpc1Case(byId.get(id), oracleOptions);
       expect(outcome.status).toBe("faulted");
@@ -88,6 +132,47 @@ describe("IPC1 mapped memory and IPC host oracle", () => {
     const divergentProviders = structuredClone(corpus.providers);
     divergentProviders["windows-file-durable"].allowedSchemas[1].digest = "sha256:3333333333333333333333333333333333333333333333333333333333333333";
     expect(evaluateIpc1Case(byId.get("IPC1-live-horizon-address-independent"), { providers: divergentProviders, layouts: corpus.layouts, schemas: corpus.schemas }).code).toBe("target-divergence");
+    const duplicateProviderId = structuredClone(corpus);
+    duplicateProviderId.providers["windows-file-durable"].objectIdentity = duplicateProviderId.providers["posix-file-durable"].objectIdentity;
+    expect(validateIpc1(duplicateProviderId, { root }).errors.some((error) => error.includes("objectIdentity is duplicated"))).toBe(true);
+    const providerAlias = structuredClone(corpus);
+    providerAlias.providers["posix-file-durable"].providerId = "caller-alias";
+    expect(validateIpc1(providerAlias, { root }).errors.some((error) => error.includes("providerId is forbidden"))).toBe(true);
+    const duplicateLayoutId = structuredClone(corpus);
+    duplicateLayoutId.providers["posix-shm-volatile"].allowedLayouts.push(structuredClone(duplicateLayoutId.providers["posix-shm-volatile"].allowedLayouts[0]));
+    expect(validateIpc1(duplicateLayoutId, { root }).errors.some((error) => error.includes("allowedLayouts contains duplicate layout ID"))).toBe(true);
+    const duplicateSchemaId = structuredClone(corpus);
+    duplicateSchemaId.providers["posix-shm-volatile"].allowedSchemas.push(structuredClone(duplicateSchemaId.providers["posix-shm-volatile"].allowedSchemas[0]));
+    expect(validateIpc1(duplicateSchemaId, { root }).errors.some((error) => error.includes("allowedSchemas contains duplicate schema ID"))).toBe(true);
+    const sameProcessWake = structuredClone(corpus);
+    sameProcessWake.providers["windows-pagefile-volatile"].atomic.waitWake = "WaitOnAddress";
+    expect(validateIpc1(sameProcessWake, { root }).errors.some((error) => error.includes("same-process WaitOnAddress"))).toBe(true);
+    const invalidWakeProvider = structuredClone(corpus);
+    invalidWakeProvider.providers["windows-pagefile-volatile"].wakeProvider.kind = "same-process-address";
+    expect(validateIpc1(invalidWakeProvider, { root }).errors.some((error) => error.includes("wakeProvider.kind is invalid or same-process"))).toBe(true);
+    const swappedWakeKind = structuredClone(corpus);
+    swappedWakeKind.providers["windows-robust-blocking"].wakeProvider.kind = "named-semaphore";
+    expect(validateIpc1(swappedWakeKind, { root }).errors.some((error) => error.includes("named-semaphore lifecycle must exactly equal"))).toBe(true);
+    const extraNamedLifecycle = structuredClone(corpus);
+    extraNamedLifecycle.providers["windows-robust-blocking"].wakeProvider.handleLifecycle.push("ReleaseSemaphore");
+    expect(validateIpc1(extraNamedLifecycle, { root }).errors.some((error) => error.includes("named-event lifecycle must exactly equal"))).toBe(true);
+    const extraPosixLifecycle = structuredClone(corpus);
+    extraPosixLifecycle.providers["posix-robust-blocking"].wakeProvider.handleLifecycle.push("pthread_cond_wait");
+    expect(validateIpc1(extraPosixLifecycle, { root }).errors.some((error) => error.includes("posix robust mutex lifecycle must exactly equal"))).toBe(true);
+    const eventOwnerDeath = structuredClone(corpus);
+    eventOwnerDeath.providers["windows-robust-blocking"].wakeProvider.ownerDeath = "typed-fault";
+    expect(validateIpc1(eventOwnerDeath, { root }).errors.some((error) => error.includes("named kernel objects must not claim owner death"))).toBe(true);
+    const semaphoreOwnerDeath = structuredClone(corpus);
+    semaphoreOwnerDeath.providers["windows-robust-blocking"].wakeProvider.kind = "named-semaphore";
+    semaphoreOwnerDeath.providers["windows-robust-blocking"].wakeProvider.ownerDeath = "typed-fault";
+    semaphoreOwnerDeath.providers["windows-robust-blocking"].wakeProvider.handleLifecycle = ["CreateSemaphore", "OpenSemaphore", "Wait", "ReleaseSemaphore", "CloseHandle"];
+    expect(validateIpc1(semaphoreOwnerDeath, { root }).errors.some((error) => error.includes("named kernel objects must not claim owner death"))).toBe(true);
+    const atom2Receipt = structuredClone(corpus);
+    atom2Receipt.providers["posix-shm-volatile"].atomic.addressFree = false;
+    expect(validateIpc1(atom2Receipt, { root }).errors.some((error) => error.includes("addressFree must be a provider receipt"))).toBe(true);
+    const lockFreeReceipt = structuredClone(corpus);
+    lockFreeReceipt.providers["windows-pagefile-volatile"].atomic.lockFreeReceipt = "inferred-from-Atomic";
+    expect(validateIpc1(lockFreeReceipt, { root }).errors.some((error) => error.includes("exact target fact receipt"))).toBe(true);
   });
 
   test("layout/schema/provider digests and ordered recovery are authoritative", () => {
@@ -160,8 +245,98 @@ describe("IPC1 mapped memory and IPC host oracle", () => {
     const forgedFacts = structuredClone(manifest);
     forgedFacts.evidence.current.push("provider-ready");
     expect(validateIpc1StudyManifest(forgedFacts, { studyDirectory }).some((error) => error.includes("provider readiness"))).toBe(true);
+    const providerReadyClaim = structuredClone(manifest);
+    providerReadyClaim.providerRefs[0].claim = "Authoritative provider-ready receipt.";
+    expect(validateIpc1StudyManifest(providerReadyClaim, { studyDirectory }).some((error) => error.includes("design fixture, not a provider receipt"))).toBe(true);
+    const windowsWithoutReceipt = structuredClone(manifest);
+    windowsWithoutReceipt.evidence.current.push("two-process-windows-probe");
+    windowsWithoutReceipt.evidence.missing = windowsWithoutReceipt.evidence.missing.filter((item) => item !== "two-process-windows-probe");
+    expect(validateIpc1StudyManifest(windowsWithoutReceipt, { studyDirectory }).some((error) => error.includes("two-process-windows-probe must derive from an observed Windows receipt"))).toBe(true);
+    const posixNotCurrent = structuredClone(manifest);
+    posixNotCurrent.evidence.current = posixNotCurrent.evidence.current.filter((item) => item !== "two-process-posix-probe");
+    posixNotCurrent.evidence.missing.push("two-process-posix-probe");
+    expect(validateIpc1StudyManifest(posixNotCurrent, { studyDirectory }).some((error) => error.includes("two-process-posix-probe must derive from an observed POSIX receipt"))).toBe(true);
     const providerProfile = structuredClone(manifest);
     providerProfile.providerRefs[0].digest = "sha256:3333333333333333333333333333333333333333333333333333333333333333";
     expect(validateIpc1StudyManifest(providerProfile, { studyDirectory }).some((error) => error.includes("providerRefs[0].digest is stale"))).toBe(true);
+  });
+
+  test("probe receipts bind source/output bytes, identity, observed facts, and negative claims", () => {
+    const mutations = [
+      {
+        name: "stale source digest",
+        mutateReceipt: (receipt) => { receipt.source.digest = "sha256:3333333333333333333333333333333333333333333333333333333333333333"; },
+        expected: "source.digest is stale",
+      },
+      {
+        name: "forged observed",
+        mutateReceipt: (receipt) => { receipt.observed.twoProcess = false; },
+        mutateOutput: (output) => { output.observed.twoProcess = false; },
+        expected: "observed facts must equal the canonical observed result",
+      },
+      {
+        name: "transcript identity mismatch",
+        mutateOutput: (output) => { output.id = "IPC2-forged"; },
+        expected: "output transcript id does not match probe identity",
+      },
+      {
+        name: "provider receipt claim",
+        mutateReceipt: (receipt) => { receipt.providerReceipt = true; },
+        expected: "providerReceipt must be false",
+      },
+      {
+        name: "missing notProven",
+        mutateReceipt: (receipt) => { receipt.notProven = receipt.notProven.filter((entry) => entry !== "durability"); },
+        expected: "notProven must equal the canonical ordered set",
+      },
+      {
+        name: "extra notProven",
+        mutateReceipt: (receipt) => { receipt.notProven.push("unverified-extra"); },
+        expected: "notProven must equal the canonical ordered set",
+      },
+      {
+        name: "duplicate notProven",
+        mutateReceipt: (receipt) => { receipt.notProven.push("durability"); },
+        expected: "notProven must equal the canonical ordered set",
+      },
+      {
+        name: "top-level extra",
+        mutateReceipt: (receipt) => { receipt.unexpected = true; },
+        expected: "receipt top-level keys are invalid",
+      },
+      {
+        name: "host extra",
+        mutateReceipt: (receipt) => { receipt.host.unexpected = true; },
+        expected: "host keys are invalid",
+      },
+      {
+        name: "host empty",
+        mutateReceipt: (receipt) => { receipt.host.os = ""; },
+        expected: "host.os must be a non-empty string",
+      },
+      {
+        name: "readiness claim",
+        mutateReceipt: (receipt) => { receipt.claimBoundary = "provider readiness is complete"; },
+        expected: "claimBoundary must use the canonical negative boundary",
+      },
+      {
+        name: "out of tree source path",
+        mutateReceipt: (receipt) => { receipt.source.path = "../../../../outside.c"; },
+        expected: "source.path is missing or out-of-tree",
+      },
+    ];
+    for (const mutation of mutations) {
+      const fixture = probeFixture(mutation);
+      try {
+        const corpusMutation = structuredClone(corpus);
+        corpusMutation.probeRefs = [fixture.probe];
+        expect(validateIpc1(corpusMutation, { root }).errors.some((error) => error.includes(mutation.expected)), mutation.name).toBe(true);
+        const manifestMutation = structuredClone(manifest);
+        manifestMutation.probeRefs = [fixture.manifestProbe];
+        expect(validateIpc1StudyManifest(manifestMutation, { studyDirectory }).some((error) => error.includes(mutation.expected)), `${mutation.name} manifest`).toBe(true);
+      } finally {
+        removeProbeFixture(fixture.fixtureDirectory);
+      }
+    }
   });
 });

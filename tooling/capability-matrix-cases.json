@@ -2119,13 +2119,13 @@
           "design-ledger",
           "ipc1-study",
           "ipc1-target-projections",
-          "official-primary-refs"
+          "official-primary-refs",
+          "two-process-posix-probe"
         ],
         "missing": [
           "w-compile",
           "w-run",
           "two-process-map-probe",
-          "two-process-posix-probe",
           "two-process-windows-probe",
           "provider"
         ],
@@ -2152,17 +2152,17 @@
         "studyRefs": [
           {
             "path": "tooling/studies/ipc1-mapped-ipc/README.md",
-            "digest": "sha256:a98e8df6c8b97c3f7cebe3b8500ffa4a999dd99513e515f3a102732a4773df26",
+            "digest": "sha256:c6e9bd90d6425603db853ea3a841a1eb05f48f3a706c98fe03de2ce28a9935ce",
             "claim": "IPC1 mapped memory and process-shared IPC adversarial study."
           },
           {
             "path": "tooling/studies/ipc1-mapped-ipc/study.json",
-            "digest": "sha256:27b1c28a6b27f1c8ffde82852bb0a22e6b13c06e29447a0cae84ef99826b110b",
+            "digest": "sha256:962c72657a1288cb3123dd71aae6d398bd02e8724a50ea948eb6103f53b0f24a",
             "claim": "IPC1 study manifest binds current, Research, and rejected witnesses."
           },
           {
             "path": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl",
-            "digest": "sha256:e9de2979dcc1fd9feb254c5a79080a0133a40b86479330b22762a5f734b5df80",
+            "digest": "sha256:70046fa16c138a04909835109d7e13cf1bd2fb8026794a68a80f079b957be3c3",
             "claim": "IPC1 host oracle snapshot with POSIX and Windows projections."
           }
         ]

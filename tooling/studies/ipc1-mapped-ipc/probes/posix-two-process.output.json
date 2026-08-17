@@ -1,0 +1,1 @@
+{"schema":"w-ipc1-probe-output-1","id":"IPC2-POSIX-two-process-map","status":"observed-design-evidence","target":"posix","observed":{"twoProcess":true,"addressesDistinct":true,"headerValidated":true,"committedRead":true,"wake":"bounded-polling","staleNameRejected":true,"remapGeneration":2,"cleanup":"unmap-close-unlink"},"providerReceipt":false}

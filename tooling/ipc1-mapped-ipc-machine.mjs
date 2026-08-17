@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { validateProbeEvidence } from "./ipc1-mapped-ipc-probe.mjs";
 
 export const TARGETS = ["posix", "windows"];
 export const AXES = ["baseline", "immutable", "channel", "lifecycle", "provider"];
@@ -10,9 +11,11 @@ const OFFICIAL_HOSTS = new Set([
   "learn.microsoft.com",
   "doc.rust-lang.org",
   "docs.python.org",
+  "www.open-std.org",
 ]);
 const VALID_ORDERS = new Set(["relaxed", "acquire", "release", "acquireRelease", "sequential"]);
 const VALID_PROGRESS = new Set(["lock-free", "blocking", "polling"]);
+const VALID_WAKE_KINDS = new Set(["bounded-polling", "named-event", "named-semaphore", "named-mutex", "posix-robust-mutex"]);
 const VALID_FIELD_KINDS = new Set(["fixed-scalar", "bytes-extent", "relative-offset", "relative-index", "atomic-control"]);
 const FORBIDDEN_FIELD_KINDS = new Set(["nativePointer", "owner", "borrow", "view", "ref", "capability", "allocatorIdentity", "dropful", "usize", "isize", "target-native"]);
 const REQUIRED_HEADER = ["magic", "version", "schema", "schemaId", "layoutId", "objectId", "schemaDigest", "layoutDigest", "length", "alignment", "endian", "generation"];
@@ -25,7 +28,8 @@ const VALID_OPERATIONS = new Set([
   "stage", "validate", "hash", "publish-selector", "request-durability", "flush-data", "flush-metadata", "flush-selector", "receipt", "read", "observe-generation", "crash", "reopen",
   "snapshot", "wire", "service", "offer", "reserve", "write", "commit", "send", "receive", "release", "cancel",
   "fallback", "provider-open", "require", "compare", "stop-access", "register-callback", "unregister-callback", "drain",
-  "callback", "owner-death", "acquire-guard", "hold-guard", "atomic", "materialize", "broker-name", "loan", "return-loan",
+  "fault",
+  "callback", "owner-death", "acquire-guard", "hold-guard", "atomic", "materialize", "materialize-oom", "panic", "broker-name", "loan", "return-loan",
 ]);
 
 /* These names were used by an earlier oracle. They are intentionally schema
@@ -138,12 +142,41 @@ function validateOfficialSources(corpus, errors) {
   }
 }
 
+function validateProbeRefs(corpus, root, errors) {
+  const refs = corpus.probeRefs;
+  if (!Array.isArray(refs) || refs.length === 0) {
+    errors.push("IPC1 probeRefs must record executed design probes separately from provider readiness.");
+    return;
+  }
+  const ids = new Set();
+  const targets = new Set();
+  for (const [index, probe] of refs.entries()) {
+    const location = `probeRefs[${index}]`;
+    if (!nonEmpty(probe?.id) || ids.has(probe.id)) errors.push(`${location}.id must be unique.`);
+    ids.add(probe?.id);
+    if (!TARGETS.includes(probe?.target)) errors.push(`${location}.target must be posix or windows.`);
+    if (probe?.status !== "observed-design-evidence") errors.push(`${location}.status must remain observed-design-evidence.`);
+    if (TARGETS.includes(probe?.target)) targets.add(probe.target);
+    const file = contained(root, probe?.path);
+    if (!file) {
+      errors.push(`${location}.path references a missing or out-of-tree receipt.`);
+      continue;
+    }
+    if (!validDigest(probe?.digest) || digestFile(file) !== probe.digest) errors.push(`${location}.digest is stale.`);
+    errors.push(...validateProbeEvidence({ probe, receiptFile: file, boundaryRoot: root, location }).errors);
+  }
+  if (!targets.has("posix")) errors.push("IPC1 probeRefs must include an observed POSIX probe when toolchain evidence exists.");
+}
+
 function validateAtomicFacts(atomic, location, errors, { robust = false } = {}) {
   if (!atomic || typeof atomic !== "object") {
     errors.push(`${location} must be an object.`);
     return;
   }
   if (atomic.processShared !== true) errors.push(`${location}.processShared must be true.`);
+  if (atomic.scope !== "process-shared") errors.push(`${location}.scope must record process-shared scope explicitly.`);
+  if (atomic.addressFree !== true) errors.push(`${location}.addressFree must be a provider receipt; it is not derived from Atomic<T>.`);
+  if (atomic.carrier !== "atom2-value-only") errors.push(`${location}.carrier must identify the ATOM2 value-only carrier.`);
   for (const key of ["widths", "orders", "alignments", "progress"]) {
     if (!Array.isArray(atomic[key]) || atomic[key].length === 0) errors.push(`${location}.${key} must be non-empty.`);
   }
@@ -153,9 +186,47 @@ function validateAtomicFacts(atomic, location, errors, { robust = false } = {}) 
   if ((atomic.progress ?? []).some((value) => !VALID_PROGRESS.has(value))) errors.push(`${location}.progress contains an invalid progress fact.`);
   if ((atomic.progress ?? []).includes("wait-free")) errors.push(`${location}.progress wait-free requires a provider receipt and is not accepted by IPC1.`);
   if (!nonEmpty(atomic.waitWake) || !new Set(["polling", "kernel", "condition-variable"]).has(atomic.waitWake)) errors.push(`${location}.waitWake must name polling or an explicit wait/wake mechanism.`);
+  if (/waitonaddress/iu.test(atomic.waitWake ?? "") || /waitonaddress/iu.test(atomic.wakeProvider ?? "")) errors.push(`${location}.waitWake must not use same-process WaitOnAddress for IPC.`);
   if (new Set(atomic.widths ?? []).size !== (atomic.widths ?? []).length) errors.push(`${location}.widths must not contain duplicates.`);
   if (new Set(atomic.orders ?? []).size !== (atomic.orders ?? []).length) errors.push(`${location}.orders must not contain duplicates.`);
+  if (atomic.progress?.includes("lock-free") && (atomic.lockFree !== true || atomic.lockFreeReceipt !== "exact-target-fact")) errors.push(`${location}.lockFree:true requires an exact target fact receipt.`);
+  if (atomic.lockFree === true && !(atomic.progress ?? []).includes("lock-free")) errors.push(`${location}.lockFree:true requires lock-free progress.`);
+  if (atomic.fallbackAllocation !== "allocation-free-per-instance-operation") errors.push(`${location}.fallbackAllocation must be allocation-free per instance and operation.`);
   if (robust && !(atomic.progress ?? []).includes("blocking")) errors.push(`${location}.robust profile must publish blocking progress.`);
+}
+
+function validateWakeProvider(wakeProvider, profile, location, errors) {
+  if (!wakeProvider || typeof wakeProvider !== "object") {
+    errors.push(`${location}.wakeProvider must publish an explicit process-shared wake contract.`);
+    return;
+  }
+  if (!VALID_WAKE_KINDS.has(wakeProvider.kind)) errors.push(`${location}.wakeProvider.kind is invalid or same-process.`);
+  if (wakeProvider.scope !== "cross-process") errors.push(`${location}.wakeProvider.scope must be cross-process.`);
+  if (wakeProvider.kind === "bounded-polling") {
+    if (wakeProvider.bounded !== true) errors.push(`${location}.wakeProvider bounded polling must be explicit.`);
+    if (!Array.isArray(wakeProvider.handleLifecycle) || wakeProvider.handleLifecycle.length !== 0) errors.push(`${location}.wakeProvider bounded polling must not invent a kernel handle lifecycle.`);
+    if (wakeProvider.ownerDeath !== undefined || wakeProvider.failureOutcome !== undefined) errors.push(`${location}.wakeProvider bounded polling must not publish owner-death or kernel failure facts.`);
+  }
+  if (wakeProvider.kind === "named-event" || wakeProvider.kind === "named-semaphore" || wakeProvider.kind === "named-mutex") {
+    if (profile.targetKind !== "windows") errors.push(`${location}.wakeProvider named kernel objects are Windows-only in IPC1.`);
+    if (!nonEmpty(wakeProvider.acl) || !nonEmpty(wakeProvider.namespace)) errors.push(`${location}.wakeProvider named kernel objects require ACL and namespace.`);
+    if (wakeProvider.ownerDeath !== undefined) errors.push(`${location}.wakeProvider named kernel objects must not claim owner death.`);
+    if (wakeProvider.failureOutcome !== "typed-process-generation-fault-supervisor") errors.push(`${location}.wakeProvider named kernel objects require typed process/generation fault and supervisor failure.`);
+    const lifecycleByKind = {
+      "named-event": ["CreateEvent", "OpenEvent", "Wait", "SetEvent", "CloseHandle"],
+      "named-semaphore": ["CreateSemaphore", "OpenSemaphore", "Wait", "ReleaseSemaphore", "CloseHandle"],
+      "named-mutex": ["CreateMutex", "OpenMutex", "Wait", "ReleaseMutex", "CloseHandle"],
+    };
+    const expectedLifecycle = lifecycleByKind[wakeProvider.kind];
+    if (JSON.stringify(wakeProvider.handleLifecycle) !== JSON.stringify(expectedLifecycle)) errors.push(`${location}.wakeProvider ${wakeProvider.kind} lifecycle must exactly equal ${expectedLifecycle.join(",")} in order without extras or duplicates.`);
+  }
+  if (wakeProvider.kind === "posix-robust-mutex") {
+    if (profile.targetKind !== "posix") errors.push(`${location}.wakeProvider posix robust mutex is POSIX-only in IPC1.`);
+    if (profile.atomic?.processShared !== true) errors.push(`${location}.wakeProvider posix robust mutex requires process-shared atomics.`);
+    if (wakeProvider.ownerDeath !== "typed-fault") errors.push(`${location}.wakeProvider posix owner death must be a typed fault.`);
+    const expectedLifecycle = ["pthread_mutexattr_setpshared", "pthread_mutexattr_setrobust", "pthread_mutex_init", "pthread_mutex_lock", "pthread_mutex_consistent", "pthread_mutex_unlock", "pthread_mutex_destroy"];
+    if (JSON.stringify(wakeProvider.handleLifecycle) !== JSON.stringify(expectedLifecycle)) errors.push(`${location}.wakeProvider posix robust mutex lifecycle must exactly equal ${expectedLifecycle.join(",")} in order without extras or duplicates.`);
+  }
 }
 
 export function validateProviderProfile(profile, location = "provider") {
@@ -175,8 +246,19 @@ export function validateProviderProfile(profile, location = "provider") {
   if (profile.addressIndependent !== true) errors.push(`${location}.addressIndependent must be true.`);
   if (Object.prototype.hasOwnProperty.call(profile, "layoutDigest") || Object.prototype.hasOwnProperty.call(profile, "schemaDigest")) errors.push(`${location} must use allowedLayouts and allowedSchemas; singular provider digests are ambiguous.`);
   if (!Array.isArray(profile.allowedLayouts) || profile.allowedLayouts.length === 0 || profile.allowedLayouts.some((entry) => !nonEmpty(entry?.layoutId) || !validDigest(entry?.digest))) errors.push(`${location}.allowedLayouts must publish layout IDs and digests.`);
+  const layoutIds = new Set();
+  for (const entry of profile.allowedLayouts ?? []) {
+    if (layoutIds.has(entry?.layoutId)) errors.push(`${location}.allowedLayouts contains duplicate layout ID ${entry?.layoutId}.`);
+    layoutIds.add(entry?.layoutId);
+  }
   if (!Array.isArray(profile.allowedSchemas) || profile.allowedSchemas.length === 0 || profile.allowedSchemas.some((entry) => !nonEmpty(entry?.schemaId) || !validDigest(entry?.digest))) errors.push(`${location}.allowedSchemas must publish schema IDs and digests.`);
+  const schemaIds = new Set();
+  for (const entry of profile.allowedSchemas ?? []) {
+    if (schemaIds.has(entry?.schemaId)) errors.push(`${location}.allowedSchemas contains duplicate schema ID ${entry?.schemaId}.`);
+    schemaIds.add(entry?.schemaId);
+  }
   validateAtomicFacts(profile.atomic, `${location}.atomic`, errors, { robust: profile.profileKind === "robust-blocking" });
+  validateWakeProvider(profile.wakeProvider, profile, location, errors);
   if (!profile.backing || typeof profile.backing !== "object" || !new Set(["file", "shm", "pagefile"]).has(profile.backing.kind) || typeof profile.backing.volatile !== "boolean" || typeof profile.backing.durable !== "boolean") errors.push(`${location}.backing must record file, shm, or pagefile volatility and durability.`);
   if (profile.backing?.kind === "file" && (profile.backing.volatile !== false || profile.backing.durable !== true)) errors.push(`${location}.file backing must be durable and non-volatile.`);
   if (profile.backing?.kind !== "file" && (profile.backing.volatile !== true || profile.backing.durable !== false)) errors.push(`${location}.shared/pagefile backing must be volatile and non-durable.`);
@@ -626,12 +708,19 @@ function channelLogical(testCase, input, profile, layout, schemas) {
         send.readerProcess = operation.process ?? "reader";
         slots.get(sendId).state = "reading";
       }
-    } else if (op === "read" || op === "materialize") {
+    } else if (op === "read" || op === "materialize" || op === "materialize-oom") {
       const send = sends.get(sendId);
       if (!send || (!send.committed && !cap0) || (cap0 && !send.received)) return fail("read-before-receive");
       if (send.materialized) return fail("double-materialize");
       if (send.schemaId !== header.schemaId) return fail("slot-schema-mismatch");
       if (send.checksum !== digestText(JSON.stringify(send.bytes ?? []))) return fail("slot-checksum-invalid");
+      if (op === "materialize-oom") return accept(testCase, "materialization-oom", {
+        owner: "mapped-generation",
+        slotState: send.committed ? "full" : send.state,
+        reservationState: send.state,
+        partialOwnerMutation: false,
+        retryable: true,
+      });
       send.materialized = true;
       send.owner = "receiver-new-owner";
       materialized += 1;
@@ -667,6 +756,12 @@ function channelLogical(testCase, input, profile, layout, schemas) {
       } else if (candidate === undefined) {
         unrelatedProcessCrash = true;
       }
+    } else if (op === "panic") {
+      faulted = true;
+      faultState = "panic";
+      faultProcess = operation.process ?? "receiver";
+      faultGeneration = openedGeneration;
+      recoveryState = "fault";
     } else if (op === "stop-access") {
       if (!faulted) return fail("stop-access-without-fault");
       if (recoveryState !== "fault") return fail("duplicate-stop-access");
@@ -691,11 +786,12 @@ function channelLogical(testCase, input, profile, layout, schemas) {
     } else if (op === "hold-guard") {
       if (profile.profileKind !== "robust-blocking") return fail("robust-provider-required");
       guardHeld = true;
-    } else if (op === "owner-death") {
+    } else if (op === "owner-death" || op === "fault") {
       if (profile.profileKind !== "robust-blocking") return fail("owner-death-provider-required");
-      if (!guardHeld) return fail("owner-death-without-held-guard");
+      if (op === "owner-death" && (profile.targetKind !== "posix" || profile.wakeProvider?.kind !== "posix-robust-mutex")) return fail("owner-death-provider-required");
+      if (op === "owner-death" && !guardHeld) return fail("owner-death-without-held-guard");
       faulted = true;
-      faultState = "owner-death";
+      faultState = op === "owner-death" ? "owner-death" : profile.targetKind === "posix" ? "owner-death" : "process-crash";
       faultProcess = operation.process ?? "writer";
       faultGeneration = openedGeneration;
       recoveryState = "fault";
@@ -887,10 +983,12 @@ export function reducePosixCase(testCase, profile, { layouts, schemas } = {}) {
     else if (op === "publish-selector") events.push({ op: "release-selector-publish", generation: operation.generation ?? input.header?.generation ?? null });
     else if (op === "flush-selector") events.push({ op: "selector-sync" });
     else if (op === "crash") events.push({ op: "process-crash", process: operation.process ?? null });
+    else if (op === "panic") events.push({ op: "panic-boundary", process: operation.process ?? null });
     else if (op === "register-callback") events.push({ op: "register-callback" });
     else if (op === "stop-access") events.push({ op: "stop-access" });
     else if (op === "unregister-callback") events.push({ op: "unregister-callback" });
     else if (op === "drain") events.push({ op: "drain" });
+    else if (op === "owner-death" || op === "fault") events.push({ op: "pthread-owner-death", fault: "typed-generation-fault" });
     else if (op === "loan") events.push({ op: "loan" });
     else if (op === "return-loan") events.push({ op: "return-loan" });
     else if (op === "sync") events.push({ op: "process-shared-sync", mapped: views > 0 });
@@ -899,7 +997,7 @@ export function reducePosixCase(testCase, profile, { layouts, schemas } = {}) {
   return {
     target: "posix",
     provider: profile.objectIdentity,
-    physical: { events, named, views, objectAlive, descriptor, typedViewCreated, syncObjectAfterLastUnmap: views === 0 && operationsOf(testCase).some((operation) => operationName(operation) === "sync"), addressesIndependent: profile.addressIndependent },
+    physical: { events, named, views, objectAlive, descriptor, typedViewCreated, wakeProvider: profile.wakeProvider, syncObjectAfterLastUnmap: views === 0 && operationsOf(testCase).some((operation) => operationName(operation) === "sync"), addressesIndependent: profile.addressIndependent },
     logical,
   };
 }
@@ -934,10 +1032,12 @@ export function reduceWindowsCase(testCase, profile, { layouts, schemas } = {}) 
     else if (op === "publish-selector") events.push({ op: "release-selector-publish", generation: operation.generation ?? input.header?.generation ?? null });
     else if (op === "flush-selector") events.push({ op: "selector-sync" });
     else if (op === "crash") events.push({ op: "process-crash", process: operation.process ?? null });
+    else if (op === "panic") events.push({ op: "PanicBoundary", process: operation.process ?? null });
     else if (op === "register-callback") events.push({ op: "RegisterCallback" });
     else if (op === "stop-access") events.push({ op: "StopAccess" });
     else if (op === "unregister-callback") events.push({ op: "UnregisterCallback" });
     else if (op === "drain") events.push({ op: "Drain" });
+    else if (op === "fault") events.push({ op: "ProcessGenerationFault", failure: "typed-process-generation-fault", supervisor: "higher-generation" });
     else if (op === "loan") events.push({ op: "Loan" });
     else if (op === "return-loan") events.push({ op: "ReturnLoan" });
     else if (op === "atomic") events.push({ op: "Interlocked", width: layout?.control?.width ?? null, order: layout?.control?.order ?? null });
@@ -945,7 +1045,7 @@ export function reduceWindowsCase(testCase, profile, { layouts, schemas } = {}) 
   return {
     target: "windows",
     provider: profile.objectIdentity,
-    physical: { events, nameOpen, views, handles, objectAlive, typedViewCreated, addressesIndependent: profile.addressIndependent },
+    physical: { events, nameOpen, views, handles, objectAlive, typedViewCreated, wakeProvider: profile.wakeProvider, addressesIndependent: profile.addressIndependent },
     logical,
   };
 }
@@ -964,6 +1064,10 @@ function compactLogical(outcome) {
     hiddenRepair: outcome.hiddenRepair ?? null,
     fallbackExplicit: outcome.fallbackExplicit ?? null,
     committedFullSurvived: outcome.committedFullSurvived ?? null,
+    partialOwnerMutation: outcome.partialOwnerMutation ?? null,
+    slotState: outcome.slotState ?? null,
+    reservationState: outcome.reservationState ?? null,
+    retryable: outcome.retryable ?? null,
     unrelatedProcessCrash: outcome.unrelatedProcessCrash ?? null,
     owner: outcome.owner ?? null,
     carrierOutcome: outcome.carrierOutcome ?? null,
@@ -1019,14 +1123,18 @@ export function validateIpc1(corpus, { root = process.cwd() } = {}) {
   if (corpus?.status !== "design-oracle-input-ipc1") errors.push("IPC1 corpus status must be design-oracle-input-ipc1.");
   if (corpus?.id !== "IPC1" || corpus?.gate !== "IPC0-R1") errors.push("IPC1 corpus must identify CAP0 gate IPC0-R1.");
   validateOfficialSources(corpus, errors);
+  validateProbeRefs(corpus, root, errors);
   errors.push(...validateSchemaRegistry(corpus.schemas, "schemas"));
   const providerErrors = {};
-  const objectIdentities = new Set();
+  const providerIds = new Set();
   for (const [binding, profile] of Object.entries(corpus.providers ?? {})) {
     providerErrors[binding] = validateProviderProfile(profile, `providers.${binding}`);
     errors.push(...providerErrors[binding]);
-    if (objectIdentities.has(profile?.objectIdentity)) errors.push(`providers.${binding}.objectIdentity is duplicated.`);
-    objectIdentities.add(profile?.objectIdentity);
+    if (Object.prototype.hasOwnProperty.call(profile ?? {}, "providerId")) errors.push(`providers.${binding}.providerId is forbidden; objectIdentity is the canonical provider ID.`);
+    const providerId = profile?.objectIdentity;
+    if (!nonEmpty(providerId)) errors.push(`providers.${binding}.objectIdentity is required as the canonical provider ID.`);
+    if (nonEmpty(providerId) && providerIds.has(providerId)) errors.push(`providers.${binding}.objectIdentity is duplicated.`);
+    if (nonEmpty(providerId)) providerIds.add(providerId);
   }
   if (Object.keys(corpus.providers ?? {}).length < 6) errors.push("IPC1 providers must separate durable files, volatile mappings, and robust profiles.");
   for (const target of TARGETS) if (!Object.values(corpus.providers ?? {}).some((profile) => profile?.targetKind === target)) errors.push(`IPC1 providers must include ${target} profiles.`);
