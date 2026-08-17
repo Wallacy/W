@@ -25,6 +25,16 @@ describe("CAP0 capability matrix host oracle", () => {
     ]);
   });
 
+  test("GEN0-R1 is closed for narrow stream yield and remains open only for implementation evidence", () => {
+    const gen0 = readCorpus().axes.find((axis) => axis.id === "GEN0");
+    expect(gen0.route.classification).toBe("composable");
+    expect(gen0.coverage.subcapabilities.find((subcapability) => subcapability.id === "GEN0-custom-frame")).toMatchObject({ classification: "intentionally-rejected" });
+    expect(gen0.coverage.subcapabilities.some((subcapability) => subcapability.classification === "research")).toBe(false);
+    expect(gen0.nextStudyGate).toMatchObject({ gateId: "GEN0-implementation-evidence", kind: "evidence" });
+    expect(gen0.nextStudyGate).not.toHaveProperty("forSubcapability");
+    expect(gen0.nextStudyGate.studyRefs).toContainEqual(expect.objectContaining({ path: "tooling/studies/gen2-stream-yield/bundle.json" }));
+  });
+
   test("a forged route is rejected because route is derived from structured coverage", () => {
     const corpus = readCorpus();
     corpus.axes.find((axis) => axis.id === "SRV0").route.classification = "research";

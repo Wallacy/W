@@ -150,9 +150,9 @@ fn panicExample(message: String): String {
 // atlas:end restricted-expressions
 
 // atlas:begin stream-and-channel
-async fn consume(stream: Stream<view String, String>, channel: Channel<String><.receive>): String throws String {
+async fn consume(source: Stream<view String, String>, channel: Channel<String><.receive>): String throws String {
   var result = ""
-  for try await ref item in stream {
+  for try await ref item in source {
     result = result + item
   }
   await channel.close()
@@ -162,6 +162,15 @@ async fn consume(stream: Stream<view String, String>, channel: Channel<String><.
 async fn send(channel: Channel<String><.send>, value: String): String throws String {
   await channel.send(take value)
   return "sent"
+}
+
+fn project(source: take Stream<String, Never>): some Stream<String, Never> {
+  return stream <[take source]> {
+    var cursor = take source
+    while let item = await cursor.next() {
+      yield copy item
+    }
+  }
 }
 // atlas:end stream-and-channel
 

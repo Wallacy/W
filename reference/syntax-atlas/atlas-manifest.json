@@ -4,8 +4,8 @@
   "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. CHEATSHEET.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:1ad82503d18c8e698874c4a8919a727d3d0925481d8b83b1d8246b702bd9be7c",
-    "publicRuleSetDigest": "sha256:b7a1b3b9f60d06a1f0706f77ab393dc1c611c214adbc756765cf1e94790e0ca1"
+    "digest": "sha256:28798abde7d13711f9ae15d5888a9809bb98a0cdd5c8aa5e1f70575af18b83c5",
+    "publicRuleSetDigest": "sha256:134dd18b15705c2761b7a02c6fff01f959a1f575069caac0a929e5fe45035eaa"
   },
   "sourceFiles": [
     "execution.w",
@@ -1239,6 +1239,22 @@
       ]
     },
     {
+      "name": "stream_capture_list",
+      "surface": "composed",
+      "reason": "Composed by the stream-and-channel atlas block.",
+      "markers": [
+        "stream-and-channel"
+      ]
+    },
+    {
+      "name": "stream_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the stream-and-channel atlas block.",
+      "markers": [
+        "stream-and-channel"
+      ]
+    },
+    {
       "name": "string_literal",
       "surface": "lexical",
       "reason": "Lexical token or trivia. The atlas covers it in the values block.",
@@ -1462,6 +1478,14 @@
       "reason": "Document root or root-owned data grammar.",
       "markers": [
         "workspace-root"
+      ]
+    },
+    {
+      "name": "yield_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the stream-and-channel atlas block.",
+      "markers": [
+        "stream-and-channel"
       ]
     }
   ],
@@ -2419,7 +2443,11 @@
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only-provider-missing",
       "root": "module",
-      "grammarRefs": [],
+      "grammarRefs": [
+        "stream_capture_list",
+        "stream_expression",
+        "yield_statement"
+      ],
       "designRefs": [
         "3.5.6"
       ],
@@ -2430,8 +2458,8 @@
           "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
         }
       ],
-      "snippetDigest": "sha256:e9284e2b06da414a8ba2a8d508f34c010c595354aec65f9e641773211ba90dc7",
-      "snippetBytes": 380
+      "snippetDigest": "sha256:62c2c0992fd1b104a7765682023edd3dfb1cd6a3c3276ecc351ddadda8a8b64a",
+      "snippetBytes": 598
     },
     {
       "id": "entry-declaration",
@@ -2463,7 +2491,7 @@
       "id": "module-run-entry",
       "file": "execution.w",
       "order": 13,
-      "line": 172,
+      "line": 181,
       "title": "Explicit module-run entry",
       "family": "entry",
       "designStatus": "current",
@@ -2556,6 +2584,6 @@
   ],
   "generated": {
     "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:0544b0d03b11de2023ff383610296b2f184fd6008be526a29a0ecf1a881fd458"
+    "cheatsheetDigest": "sha256:7c454a5adc266689129bfafb9ca28d7bb9b32be6a5ed2d58b42decfb70efe605"
   }
 }

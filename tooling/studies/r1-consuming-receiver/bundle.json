@@ -6,8 +6,8 @@
   "r0Cases": ["R0-consuming-call", "R0-consuming-error"],
   "sourceBase": {
     "path": "../../../reference/last-light/command.w",
-    "symbol": "(take stream).finish()",
-    "digest": "sha256:9806fe85cb91023b2da49dd16e47b86f4e6e174f7004fdedbca075ef43df4755"
+    "symbol": "(take cursor).finish()",
+    "digest": "sha256:cf1615b9fc46a6e4b47f6eaec0bb70ff337de8cce534370df9733e6c4f4befea"
   },
   "variants": [
     {
@@ -15,7 +15,7 @@
       "role": "selected",
       "language": "w",
       "path": "explicit.w",
-      "digest": "sha256:00079ab6cf27524b12af5447821927c5ba3e4c2e5d03744785ab4e009ec2132d",
+      "digest": "sha256:7fee0d7dc87a24fa80ad228e5efb059e415c6df3fa289752b3dc99bffca6a26d",
       "changedConstructs": [
         "explicit ownership transfer before member lookup",
         "consuming receiver remains moved after an error"
@@ -26,7 +26,7 @@
       "role": "alternative",
       "language": "w-rejected",
       "path": "implicit.w",
-      "digest": "sha256:7fb841b092359e65a7f93954a2d09c641edc6d8f8fbc97baff614628c9f069b2",
+      "digest": "sha256:a56c4e289c3b2050c5267436404fb8bcab38717df871fef2195f0a3a8c661e54",
       "changedConstructs": [
         "receiver mode inferred from the selected member",
         "consumption is not marked at the call site"

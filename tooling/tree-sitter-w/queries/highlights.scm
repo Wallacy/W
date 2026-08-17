@@ -59,6 +59,7 @@
   "throw"
   "transaction"
   "while"
+  "yield"
 ] @keyword.control
 
 [
@@ -112,6 +113,9 @@
   "storage"
   "true"
 ] @keyword
+
+((stream_expression
+  keyword: "stream" @keyword))
 
 (function_declaration name: (identifier) @function)
 (entry_declaration default_handler: (identifier) @function)

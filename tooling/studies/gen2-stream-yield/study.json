@@ -1,0 +1,51 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-gen2-stream-yield",
+  "title": "Compiler-owned pull producer ergonomics at the Last Light restaurant",
+  "bundle": "bundle.json",
+  "oracle": "oracle.test.mjs",
+  "entry": "gen2Fixture",
+  "sourceBase": {
+    "path": "../../../reference/last-light/streams.w",
+    "symbol": "serveOneByOne",
+    "claim": "single-pass pull consumer is the problem anchor"
+  },
+  "sourceRefs": [
+    {"path":"../../../reference/last-light/streams.w","symbol":"serveOneByOne","claim":"pull cursor and terminal"},
+    {"path":"../../../reference/last-light/streams.w","symbol":"inspectMenuLines","claim":"borrowed view cannot cross next"},
+    {"path":"../../../reference/last-light/streams.w","symbol":"mixOrderStream","claim":"bounded adapter and ordering"},
+    {"path":"../../../reference/last-light/streams.w","symbol":"runBoundedOrderWindow","claim":"capacity and dialogue remain channels"},
+    {"path":"../../../reference/last-light/command.w","symbol":"object CommandStream","claim":"owned incremental parser"},
+    {"path":"../../../reference/last-light/data_formats.w","symbol":"uploadCsv","claim":"typed source failure"},
+    {"path":"../../../reference/last-light/remote_stream_oracle.w","symbol":"export const fn advanceStream","claim":"credits and terminal state"}
+  ],
+  "fixtures": [
+    {"path":"current.w","role":"current-composition"},
+    {"path":"yield.w","role":"promoted-narrow-form"},
+    {"path":"rejected.txt","role":"negative-contract-witness"}
+  ],
+  "variants": [
+    {"id":"current-stream-composition","role":"selected","disposition":"current-composable","path":"current.w"},
+    {"id":"narrow-stream-yield","role":"promoted","disposition":"current-candidate","path":"yield.w","hiddenStatePolicy":"compiler-owned"},
+    {"id":"general-generator","role":"rejected-witness","disposition":"intentionally-rejected","path":"rejected.txt"}
+  ],
+  "corpus": {
+    "path":"../../gen2-stream-yield-cases.json",
+    "machine":"../../gen2-stream-yield-machine.mjs",
+    "checker":"../../check-gen2-stream-yield.mjs",
+    "hostTests":"../../gen2-stream-yield-reference.test.mjs",
+    "snapshot":"../../gen2-stream-yield-results.snapshot.jsonl"
+  },
+  "lowerings":["switched-frame","returned-state"],
+  "decision": {
+    "status":"promote-narrow-form",
+    "contract":"fn ...: some Stream<Item, Failure> { return stream <[captures]> { ... yield (take|copy) value } } with explicit construction-time captures, mandatory owned yield, copy requiring Duplicable and pull capacity zero",
+    "generalGenerator":"intentionally-rejected",
+    "implementationEvidence":"missing"
+  },
+  "evidence": {
+    "current":["source-backed-symbols","host-oracle","official-primary-refs","two-independent-reducers"],
+    "missing":["w-compile","w-run","runtime-stress","provider","human-study","model-study","debug-abi-reflection"]
+  }
+}

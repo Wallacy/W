@@ -758,7 +758,7 @@
       "title": "Generators and custom suspension",
       "lastLight": {
         "scenario": "The Last Light kitchen streams bounded orders and parallel-maps work while preserving cancellation and cleanup.",
-        "expectedUse": "Streams, async functions, task domains, and bounded adapters cover production pull work. Bidirectional custom suspension remains a research question.",
+        "expectedUse": "Streams, async functions, task domains, and bounded adapters cover production pull work. GEN2 also provides a narrow compiler-owned stream expression for linear producers; bidirectional dialogue remains a bounded Channel contract.",
         "sourceRefs": [
           {
             "path": "reference/last-light/streams.w",
@@ -784,7 +784,7 @@
         }
       },
       "sameProblem": "Pause incremental computation and resume it later while retaining state, ownership, errors, and cancellation semantics.",
-      "globalSimplification": "Use one Stream and structured-task family for incremental work. Add a custom frame only when bounded channels and tasks fail a concrete case.",
+      "globalSimplification": "Use one Stream and structured-task family for incremental work. Use `stream <[capture_item, ...]> { ... yield take value | yield copy value }` for the narrow owned pull producer; `copy` requires Duplicable. Use bounded Channel for dialogue and reject public bidirectional frames.",
       "foreignMechanisms": {
         "c": [
           {
@@ -904,19 +904,21 @@
       },
       "route": {
         "classification": "composable",
-        "rationale": "Streams, channels, and structured tasks solve the Last Light production problem; only a custom frame or scheduler remains a research subcapability."
+        "rationale": "Streams, the narrow GEN2 stream expression, bounded Channels, and structured tasks solve the Last Light production problem; public frame/send/throw/resume remains intentionally rejected."
       },
       "intentionalTradeoff": {
-        "choice": "Prefer one-directional Stream and structured async suspension in the baseline.",
-        "reason": "These forms expose ownership, effects, cancellation, and cleanup at call boundaries.",
+        "choice": "Prefer one-directional Stream, the narrow explicit-capture stream expression, and structured async suspension in the baseline.",
+        "reason": "These forms expose ownership, effects, cancellation, and cleanup at call boundaries without publishing frame or resume metadata.",
         "preserved": [
           "bounded backpressure",
           "typed failure",
-          "structured cleanup"
+          "structured cleanup",
+          "compiler-owned suspension storage"
         ],
         "rejected": [
           "implicit coroutine frame ownership",
-          "unbounded generator send/throw protocol"
+          "unbounded generator send/throw protocol",
+          "public bidirectional frame and resume token"
         ]
       },
       "compositionRisks": {
@@ -981,13 +983,18 @@
           "source-w",
           "host-oracle",
           "design-ledger",
-          "gen1-design-oracle"
+          "gen1-design-oracle",
+          "gen2-design-oracle",
+          "gen2-tree-sitter-parse"
         ],
         "missing": [
           "w-compile",
           "w-run",
-          "custom-suspension-probe",
-          "provider"
+          "runtime-stress",
+          "provider",
+          "human-study",
+          "model-study",
+          "debug-abi-reflection"
         ],
         "sourceRefs": [
           {
@@ -998,22 +1005,22 @@
         ]
       },
       "nextStudyGate": {
-        "gateId": "GEN0-R1",
-        "kind": "design",
-        "forSubcapability": "GEN0-custom-frame",
-        "question": "Can a bounded bidirectional suspension protocol preserve ownership, effects, cancellation, and ABI identity?",
+        "gateId": "GEN0-implementation-evidence",
+        "kind": "evidence",
+        "question": "Can the promoted narrow stream expression pass compiler, semantic diagnostic, runtime, provider, and debug/ABI evidence without changing owner graph, happens-before, typed result, cancellation, or cleanup?",
         "requiredEvidence": [
-          "resume value and injected failure matrix",
-          "single-owner proof",
-          "two target lowerings",
-          "cleanup trace"
+          "w-compile parser and semantic diagnostic",
+          "w-run finite and cancelable pull traces",
+          "construction-time capture and first-next stress",
+          "provider and debug/ABI/reflection evidence",
+          "human/model ergonomics follow-up"
         ],
-        "stopCondition": "Keep Stream and async composition if custom suspension adds hidden frame or cleanup state.",
+        "stopCondition": "Keep the narrow stream expression as design-current but do not claim implementation until compiler, runtime, provider, debug/ABI, and human/model evidence preserve the stated invariants; keep Channel for dialogue and reject public frame/send/throw/resume.",
         "studyRefs": [
           {
-            "path": "tooling/studies/gen1-incremental-suspension/bundle.json",
-            "digest": "sha256:8381d44a4e9faf8e6c6a48502e85f98a46bfd1d323a6d6a783fa0b24016c9d97",
-            "claim": "GEN1 informs and narrows the GEN0-R1 Research question with independent lowerings, source-shaped A/B/C variants, a dialogue-only bounded helper, separate compiler-owned Stream Research and public-frame rejected witnesses, and structural same-scenario ergonomics; it does not close the gate."
+            "path": "tooling/studies/gen2-stream-yield/bundle.json",
+            "digest": "sha256:347530ce6e0e2d4c7a2c88182a3d6401d83d1e87a0482e801118a8956ed942fa",
+            "claim": "GEN2 closes GEN0-R1 for the narrow explicit-capture stream expression with mandatory `yield take value` or `yield copy value` (copy requires Duplicable), owned pull yield, capacity zero, two independent lowerings, and explicit rejection of public frame/send/throw/resume; compiler, runtime, provider, debug/ABI, and human/model evidence remain missing."
           }
         ]
       },
@@ -1102,10 +1109,9 @@
             "id": "GEN0-custom-frame",
             "scope": "extension",
             "role": "extension",
-            "classification": "research",
-            "gateId": "GEN0-R1",
+            "classification": "intentionally-rejected",
             "problem": "one custom bidirectional suspension frame with user scheduler or poll lowering",
-            "description": "This narrower frame protocol is a mechanism study, not a gap in ordinary production."
+            "description": "A public bidirectional frame, scheduler, send/throw/close, or resume token is rejected; bounded Channel remains the dialogue boundary."
           }
         ]
       }

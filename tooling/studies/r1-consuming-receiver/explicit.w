@@ -26,10 +26,10 @@ enum FinishObservation {
 }
 
 fn observeFinish(tail: take String): FinishObservation {
-  let stream = CommandStream(tail: take tail)
+  let cursor = CommandStream(tail: take tail)
 
   do {
-    let bytes = try (take stream).finish()
+    let bytes = try (take cursor).finish()
     return .completed(bytes: bytes, ownerAvailable: false)
   } catch .invalidTail {
     return .failed(error: .invalidTail, ownerAvailable: false)

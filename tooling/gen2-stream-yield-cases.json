@@ -1,0 +1,253 @@
+{
+  "$schema": "w-gen2-stream-yield-cases-1",
+  "status": "design-oracle-input",
+  "id": "GEN2-stream-yield",
+  "officialRefs": [
+    {"id":"python-reference","url":"https://docs.python.org/3/reference/expressions.html#yield-expressions","claim":"yield retains generator state and send resumes at yield"},
+    {"id":"python-pep342","url":"https://peps.python.org/pep-0342/","claim":"close and throw inject control at a suspended yield"},
+    {"id":"python-pep380","url":"https://peps.python.org/pep-0380/","claim":"yield from forwards send, throw, close, and return value"},
+    {"id":"python-pep525","url":"https://peps.python.org/pep-0525/","claim":"async generator finalization and async yield-from boundary"},
+    {"id":"swift-asyncsequence","url":"https://github.com/swiftlang/swift-evolution/blob/main/proposals/0298-asyncsequence.md","claim":"AsyncSequence is pull iteration"},
+    {"id":"swift-asyncstream","url":"https://developer.apple.com/documentation/swift/asyncstream","claim":"AsyncStream continuation is a push and buffering surface"},
+    {"id":"rust-iterator","url":"https://doc.rust-lang.org/std/iter/trait.Iterator.html","claim":"Iterator next is a pull operation"},
+    {"id":"rust-future","url":"https://doc.rust-lang.org/std/future/trait.Future.html","claim":"Future poll exposes pending and waker state"},
+    {"id":"rust-coroutines","url":"https://doc.rust-lang.org/beta/unstable-book/language-features/coroutines.html","claim":"coroutine resume and live variables are compiler state"},
+    {"id":"rust-gat","url":"https://doc.rust-lang.org/reference/items/associated-items.html","claim":"GAT can tie an associated item to a borrow lifetime"},
+    {"id":"c23","url":"https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf","claim":"C is a manual state-machine backend comparison"}
+  ],
+  "sourceRefs": [
+    {"path":"reference/last-light/streams.w","symbol":"serveOneByOne","claim":"pull cursor and terminal"},
+    {"path":"reference/last-light/streams.w","symbol":"inspectMenuLines","claim":"borrowed view cannot cross next"},
+    {"path":"reference/last-light/streams.w","symbol":"mixOrderStream","claim":"bounded adapter and ordering"},
+    {"path":"reference/last-light/streams.w","symbol":"runBoundedOrderWindow","claim":"capacity and dialogue remain channels"},
+    {"path":"reference/last-light/command.w","symbol":"object CommandStream","claim":"owned incremental parser"},
+    {"path":"reference/last-light/data_formats.w","symbol":"uploadCsv","claim":"typed source failure"},
+    {"path":"reference/last-light/remote_stream_oracle.w","symbol":"export const fn advanceStream","claim":"credits and terminal state"}
+  ],
+  "decisionIds": ["W-1437", "W-1438"],
+  "cases": [
+    {
+      "id":"GEN2-pull-owned-orders",
+      "decisions":["W-1437","W-1438"],
+      "scenario":"pull-owned-orders",
+      "class":"positive",
+      "source":{"path":"reference/last-light/streams.w","symbol":"serveOneByOne"},
+      "problem":"A linear producer repeats pull, terminal, and owned handoff ceremony.",
+      "operations":[{"op":"open"},{"op":"pull"},{"op":"yieldItem","ownership":"take","item":"order-1","owned":true},{"op":"pull"},{"op":"yieldItem","ownership":"take","item":"order-2","owned":true},{"op":"pull"},{"op":"none"},{"op":"beginClose"},{"op":"cleanup"},{"op":"drop"},{"op":"drain"},{"op":"commit"}],
+      "surfaces":{
+        "current":{"concepts":["signature","adapter","cursor","terminal","ownership","failure","cleanup","cancel"],"decisions":["choose adapter","move source","preserve terminal","audit owner"]},
+        "yield":{"concepts":["signature","yield","cursor","capture","terminal","ownership","failure","cleanup","cancel"],"decisions":["declare stream body","move source","audit owner"]}
+      },
+      "expected":{"status":"accepted","result":"stream-none","ergonomic":"yield-reduces-ceremony","loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-copy-owned-strings",
+      "decisions":["W-1437","W-1438"],
+      "scenario":"copy-owned-item",
+      "class":"positive",
+      "source":{"path":"reference/last-light/data_formats.w","symbol":"uploadCsv"},
+      "problem":"A Duplicable item can cross the yield boundary by copy while the producer keeps its original binding.",
+      "operations":[{"op":"open"},{"op":"pull"},{"op":"yieldItem","ownership":"copy","item":"row-copy","owned":true,"duplicable":true},{"op":"pull"},{"op":"none"},{"op":"beginClose"},{"op":"cleanup"},{"op":"drop"},{"op":"drain"},{"op":"commit"}],
+      "surfaces":{
+        "current":{"concepts":["signature","adapter","cursor","terminal","ownership","copy","typed-failure","cleanup","cancel"],"decisions":["declare copy adapter","prove Duplicable","preserve original","audit owner"]},
+        "yield":{"concepts":["signature","yield","cursor","capture","terminal","ownership","copy","typed-failure","cleanup","cancel"],"decisions":["declare stream body","copy item","preserve original"]}
+      },
+      "expected":{"status":"accepted","result":"stream-none","ergonomic":"yield-reduces-ceremony","loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-pull-typed-failure",
+      "scenario":"pull-typed-failure",
+      "class":"positive",
+      "source":{"path":"reference/last-light/data_formats.w","symbol":"uploadCsv"},
+      "problem":"A producer must keep a typed source error terminal and visible.",
+      "operations":[{"op":"open"},{"op":"pull"},{"op":"yieldItem","ownership":"take","item":"row-1","owned":true},{"op":"pull"},{"op":"failure","failure":"CsvDecodeError"},{"op":"pull"},{"op":"beginClose"},{"op":"cleanup"},{"op":"drop"},{"op":"drain"},{"op":"commit"}],
+      "surfaces":{
+        "current":{"concepts":["signature","adapter","cursor","terminal","ownership","typed-failure","cleanup","cancel"],"decisions":["declare error adapter","propagate source","preserve first failure","audit owner"]},
+        "yield":{"concepts":["signature","yield","cursor","capture","terminal","ownership","typed-failure","cleanup","cancel"],"decisions":["declare throws","propagate source","audit owner"]}
+      },
+      "expected":{"status":"accepted","result":"failure:CsvDecodeError","ergonomic":"yield-reduces-ceremony","loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-explicit-delegation",
+      "scenario":"delegation-equivalent",
+      "class":"positive",
+      "source":{"path":"reference/last-light/streams.w","symbol":"mixOrderStream"},
+      "problem":"A producer wants to relay a child stream without introducing a public delegation protocol.",
+      "operations":[{"op":"open"},{"op":"pull"},{"op":"yieldItem","ownership":"take","item":"mix-1","owned":true},{"op":"pull"},{"op":"yieldItem","ownership":"take","item":"mix-2","owned":true},{"op":"pull"},{"op":"none"},{"op":"beginClose"},{"op":"cleanup"},{"op":"drop"},{"op":"drain"},{"op":"commit"}],
+      "surfaces":{
+        "current":{"concepts":["signature","adapter","child","cursor","terminal","ownership","ordering","cleanup"],"decisions":["select adapter","preserve child order","join child","audit owner"]},
+        "yield":{"concepts":["signature","yield","child","cursor","capture","terminal","ownership","ordering","cleanup"],"decisions":["iterate child","preserve child order","audit owner"]}
+      },
+      "expected":{"status":"accepted","result":"stream-none","ergonomic":"yield-reduces-ceremony","loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-cancel-drop-cleanup",
+      "scenario":"cancel-drop-cleanup",
+      "class":"positive",
+      "source":{"path":"reference/last-light/streams.w","symbol":"serveOneByOne"},
+      "problem":"A consumer can break early and must request cancellation without hiding cleanup.",
+      "operations":[{"op":"open"},{"op":"pull"},{"op":"yieldItem","ownership":"take","item":"order-1","owned":true},{"op":"cancel"},{"op":"beginClose"},{"op":"cleanup"},{"op":"drop"},{"op":"drain"},{"op":"commit"}],
+      "surfaces":{
+        "current":{"concepts":["signature","adapter","cursor","ownership","cancel","cleanup","drop","drain"],"decisions":["name stream","request cancel","confirm drain","audit owner"]},
+        "yield":{"concepts":["signature","yield","cursor","capture","ownership","cancel","cleanup","drop","drain"],"decisions":["request cancel","confirm drain","audit owner"]}
+      },
+      "expected":{"status":"accepted","result":"canceled","ergonomic":"yield-reduces-ceremony","loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-infinite-cancel",
+      "scenario":"infinite-cancel",
+      "class":"positive",
+      "source":{"path":"reference/last-light/remote_stream_oracle.w","symbol":"advanceStream"},
+      "problem":"An unbounded producer is valid only when cancellation and cleanup remain explicit.",
+      "operations":[{"op":"open"},{"op":"pull"},{"op":"yieldItem","ownership":"take","item":"heartbeat","owned":true},{"op":"cancel"},{"op":"beginClose"},{"op":"cleanup"},{"op":"drop"},{"op":"drain"},{"op":"commit"}],
+      "surfaces":{
+        "current":{"concepts":["signature","adapter","cursor","ownership","cancel","cleanup","credits"],"decisions":["declare credit adapter","request cancel","audit remote lease"]},
+        "yield":{"concepts":["signature","yield","cursor","capture","ownership","cancel","cleanup","credits"],"decisions":["declare credit adapter","request cancel","audit remote lease"]}
+      },
+      "expected":{"status":"accepted","result":"canceled","ergonomic":"yield-adds-ceremony","loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-view-yield-rejected",
+      "scenario":"borrowed-view",
+      "class":"negative",
+      "source":{"path":"reference/last-light/streams.w","symbol":"inspectMenuLines"},
+      "problem":"Borrowed items are tied to stream storage and cannot become an owned yield contract.",
+      "operations":[{"op":"open"},{"op":"pull"},{"op":"yieldView","view":"line"}],
+      "surfaces":{"current":{"concepts":["signature","cursor","borrow","origin-set","next-conflict"],"decisions":["prove view origin","end view before next"]},"yield":{"concepts":["signature","yield","borrow","origin-set","next-conflict"],"decisions":["prove view origin","reject owned yield"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-view-borrow","operation":2,"loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-dialogue-channel-required",
+      "scenario":"dialogue-resume-value",
+      "class":"negative",
+      "source":{"path":"reference/last-light/streams.w","symbol":"runBoundedOrderWindow"},
+      "problem":"A bidirectional exchange needs two bounded ownership directions, not a pull yield.",
+      "operations":[{"op":"open"},{"op":"yieldFromChannel","channel":"orders"}],
+      "surfaces":{"current":{"concepts":["channel","capacity","send","receive","commit","cancel","cleanup"],"decisions":["choose capacity","join sends","recover owner"]},"yield":{"concepts":["yield","channel","capacity","send","receive","commit","cancel","cleanup"],"decisions":["reject hidden input","choose channel"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-dialogue","operation":1,"loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-hidden-capacity-rejected",
+      "scenario":"hidden-capacity",
+      "class":"negative",
+      "source":{"path":"reference/last-light/streams.w","symbol":"runBoundedOrderWindow"},
+      "problem":"A stream producer cannot introduce an implicit queue or prefetch policy.",
+      "operations":[{"op":"open"},{"op":"hiddenBuffer","capacity":8}],
+      "surfaces":{"current":{"concepts":["stream","buffer-adapter","capacity","prefetch","cleanup"],"decisions":["declare buffer","set capacity","audit scope"]},"yield":{"concepts":["stream","yield","capacity","prefetch","cleanup"],"decisions":["reject hidden buffer","use explicit adapter"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-hidden-capacity","operation":1,"loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-return-value-rejected",
+      "scenario":"return-value",
+      "class":"negative",
+      "source":{"path":"reference/last-light/streams.w","symbol":"serveOneByOne"},
+      "problem":"Stream terminal state has no generator return payload.",
+      "operations":[{"op":"open"},{"op":"returnValue","value":"summary"}],
+      "surfaces":{"current":{"concepts":["stream","terminal","result"],"decisions":["return summary separately"]},"yield":{"concepts":["stream","yield","terminal","result"],"decisions":["reject return value"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-return-value","operation":1,"loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-untyped-failure-rejected",
+      "scenario":"untyped-failure",
+      "class":"negative",
+      "source":{"path":"reference/last-light/data_formats.w","symbol":"uploadCsv"},
+      "problem":"A stream contract must name Failure; yield cannot create an untyped exception channel.",
+      "operations":[{"op":"open"},{"op":"untypedFailure","failure":"unknown"}],
+      "surfaces":{"current":{"concepts":["typed-failure","error-set","terminal"],"decisions":["declare failure"]},"yield":{"concepts":["yield","typed-failure","error-set","terminal"],"decisions":["reject untyped failure"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-untyped-failure","operation":1,"loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-reentrant-next-rejected",
+      "scenario":"reentrant-next",
+      "class":"negative",
+      "source":{"path":"reference/last-light/streams.w","symbol":"serveOneByOne"},
+      "problem":"The stream cursor is exclusive and cannot resume itself or run concurrent next calls.",
+      "operations":[{"op":"open"},{"op":"pull"},{"op":"nextConcurrent"}],
+      "surfaces":{"current":{"concepts":["cursor","exclusive","protocol-error"],"decisions":["serialize next"]},"yield":{"concepts":["yield","cursor","exclusive","protocol-error"],"decisions":["reject reentrancy"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-reentrant-next","operation":2,"loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-yield-in-defer-rejected",
+      "scenario":"yield-cleanup",
+      "class":"negative",
+      "source":{"path":"reference/last-light/streams.w","symbol":"serveOneByOne"},
+      "problem":"Cleanup is terminal and cannot publish a new item.",
+      "operations":[{"op":"open"},{"op":"yieldInDefer"}],
+      "surfaces":{"current":{"concepts":["defer","cleanup","terminal"],"decisions":["cleanup in LIFO order"]},"yield":{"concepts":["yield","defer","cleanup","terminal"],"decisions":["reject yield in defer"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-in-defer","operation":1,"loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-inout-capture-rejected",
+      "scenario":"inout-capture",
+      "class":"negative",
+      "source":{"path":"reference/last-light/command.w","symbol":"CommandStream"},
+      "problem":"A returned stream cannot retain an inout capture after the caller frame ends.",
+      "operations":[{"op":"open"},{"op":"captureInout"}],
+      "surfaces":{"current":{"concepts":["capture","inout","owner-lifetime"],"decisions":["materialize owner"]},"yield":{"concepts":["stream","yield","capture","inout","owner-lifetime"],"decisions":["reject escaping inout"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-inout-capture","operation":1,"loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-implicit-capture-rejected",
+      "decisions":["W-1440"],
+      "scenario":"implicit-capture",
+      "class":"negative",
+      "source":{"path":"reference/last-light/streams.w","symbol":"serveOneByOne"},
+      "problem":"A returned stream must move or copy its source at construction; first next cannot choose an ambient capture.",
+      "operations":[{"op":"open"},{"op":"implicitCapture"}],
+      "surfaces":{"current":{"concepts":["capture","owner-lifetime","construction"],"decisions":["infer capture at first next"]},"yield":{"concepts":["stream","yield","capture","owner-lifetime","construction"],"decisions":["require explicit capture list","move source before return"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-implicit-capture","operation":1,"loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-ffi-resume-rejected",
+      "scenario":"ffi-resume",
+      "class":"negative",
+      "source":{"path":"reference/last-light/remote_stream_oracle.w","symbol":"advanceStream"},
+      "problem":"Foreign callbacks need registration, unregister, drain, and a bounded adapter; they cannot resume a W frame.",
+      "operations":[{"op":"open"},{"op":"ffiResume"}],
+      "surfaces":{"current":{"concepts":["ffi","lease","unregister","drain","cleanup"],"decisions":["register lease","drain callbacks"]},"yield":{"concepts":["stream","yield","ffi","frame","resume-token"],"decisions":["reject foreign resume"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-ffi-resume","operation":1,"loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-public-frame-rejected",
+      "scenario":"public-frame",
+      "class":"negative",
+      "source":{"path":"reference/last-light/streams.w","symbol":"mixOrderStream"},
+      "problem":"The compiler may own a frame, but source cannot expose its identity or resume token.",
+      "operations":[{"op":"open"},{"op":"publicResumeToken"}],
+      "surfaces":{"current":{"concepts":["opaque-stream","abi","reflection"],"decisions":["keep frame private"]},"yield":{"concepts":["yield","frame","resume-token","scheduler","abi"],"decisions":["reject public frame"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-public-frame","operation":1,"loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-hot-reload-generation",
+      "scenario":"hot-reload-generation",
+      "class":"positive",
+      "source":{"path":"reference/last-light/remote_stream_oracle.w","symbol":"advanceStream"},
+      "problem":"An opaque stream keeps its generation until drain; reload cannot resume an old frame.",
+      "operations":[{"op":"open"},{"op":"pull"},{"op":"yieldItem","ownership":"take","item":"v1","owned":true},{"op":"reload"},{"op":"cancel"},{"op":"beginClose"},{"op":"cleanup"},{"op":"drop"},{"op":"drain"},{"op":"commit"}],
+      "surfaces":{"current":{"concepts":["stream","generation","cancel","cleanup","drain"],"decisions":["retain generation","reject late completion"]},"yield":{"concepts":["stream","yield","generation","capture","cancel","cleanup","drain"],"decisions":["retain generation","reject late completion"]}},
+      "expected":{"status":"accepted","result":"canceled","ergonomic":"yield-adds-ceremony","loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-bare-yield-rejected",
+      "decisions":["W-1437","W-1438"],
+      "scenario":"missing-yield-ownership",
+      "class":"negative",
+      "source":{"path":"reference/last-light/streams.w","symbol":"serveOneByOne"},
+      "problem":"A bare yield cannot infer whether the producer moves or copies an item.",
+      "operations":[{"op":"open"},{"op":"pull"},{"op":"yieldBare","item":"order"}],
+      "surfaces":{"current":{"concepts":["stream","cursor","ownership"],"decisions":["choose ownership operation"]},"yield":{"concepts":["stream","yield","cursor","ownership"],"decisions":["require take or copy"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-missing-ownership","operation":2,"loweringsEquivalent":true}
+    },
+    {
+      "id":"GEN2-copy-nonduplicable-rejected",
+      "decisions":["W-1437","W-1438"],
+      "scenario":"copy-nonduplicable",
+      "class":"negative",
+      "source":{"path":"reference/last-light/streams.w","symbol":"serveOneByOne"},
+      "problem":"Copy yield requires Duplicable; a move-only item cannot silently copy across the boundary.",
+      "operations":[{"op":"open"},{"op":"pull"},{"op":"yieldItem","ownership":"copy","item":"move-only","owned":true,"duplicable":false}],
+      "surfaces":{"current":{"concepts":["stream","cursor","ownership","copy","duplicable"],"decisions":["prove copy adapter","require Duplicable"]},"yield":{"concepts":["stream","yield","cursor","ownership","copy","duplicable"],"decisions":["reject non-Duplicable copy"]}},
+      "expected":{"status":"rejected","variant":"yield","reason":"yield-copy-nonduplicable","operation":2,"loweringsEquivalent":true}
+    }
+  ]
+}

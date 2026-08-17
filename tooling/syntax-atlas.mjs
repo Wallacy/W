@@ -9,7 +9,7 @@ const GRAMMAR = path.join(ROOT, "tooling", "tree-sitter-w", "grammar.js");
 const MANIFEST = path.join(ATLAS, "atlas-manifest.json");
 const CHEATSHEET = path.join(ATLAS, "CHEATSHEET.md");
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
-const RULE_SET_DIGEST = "sha256:b7a1b3b9f60d06a1f0706f77ab393dc1c611c214adbc756765cf1e94790e0ca1";
+const RULE_SET_DIGEST = "sha256:134dd18b15705c2761b7a02c6fff01f959a1f575069caac0a929e5fe45035eaa";
 const SCHEMA = "w-syntax-atlas-1";
 
 const ROOT_KINDS = new Set(["module", "package", "workspace"]);
@@ -76,6 +76,7 @@ const DIRECT_RULES = new Set([
   "optional_propagation_expression", "call_expression", "generic_application_expression", "member_expression", "optional_member_expression",
   "index_expression", "closure_expression", "capture_expression", "pipeline_expression", "lock_expression", "transaction_expression",
   "unsafe_expression", "if_expression", "array_literal", "map_literal", "repeat_array_literal", "tuple_expression", "unit_literal",
+  "stream_expression", "yield_statement",
   "package_manifest", "workspace_manifest",
 ]);
 
@@ -94,6 +95,9 @@ const MARKER_RULE_OVERRIDES = new Map([
   ["if_expression", "restricted-expressions"],
   ["closure_expression", "restricted-expressions"],
   ["capture_expression", "restricted-expressions"],
+  ["stream_capture_list", "stream-and-channel"],
+  ["stream_expression", "stream-and-channel"],
+  ["yield_statement", "stream-and-channel"],
   ["assignment_expression", "restricted-expressions"],
   ["bounded_range_expression", "restricted-expressions"],
   ["one_sided_range_expression", "restricted-expressions"],
