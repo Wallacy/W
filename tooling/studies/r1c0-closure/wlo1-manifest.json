@@ -1,0 +1,87 @@
+{
+  "$schema": "w-wlo1-closure-manifest-1",
+  "status": "design-oracle-input",
+  "id": "WLO1",
+  "codec": {
+    "profileFamily": "schema-profiled-data-codec",
+    "encoding": "deterministic-cbor",
+    "rfc": "8949",
+    "schemaId": "wlo.string.v1",
+    "version": 1,
+    "payloadAuthority": "logical-value-bytes-only",
+    "automaticUniversalEncoding": false,
+    "wAbiImpact": "none",
+    "targetWAbiIndependent": true,
+    "header": "none"
+  },
+  "source": {
+    "path": "reference/last-light/formatting.w",
+    "symbol": "oneLine",
+    "digest": "sha256:bd71e5e93863f389cfa5212549e081affe42934eebec2aeec9620297f6076f64"
+  },
+  "logicalValue": {
+    "type": "String",
+    "inputUtf8": "Last Light",
+    "resultUtf8": "Last Light",
+    "canonicalBytes": "6a4c617374204c69676874"
+  },
+  "limits": {
+    "maxEncodedBytes": 64,
+    "maxStringBytes": 64,
+    "maxDepth": 1,
+    "maxFields": 0,
+    "validationOrder": ["schema", "version", "encoded-length", "string-length", "depth", "field-count", "payload"]
+  },
+  "targetProjections": [
+    {
+      "id": "portable",
+      "targetId": "wlo-portable",
+      "bytes": "6a4c617374204c69676874",
+      "layoutReceipt": "logical-bytes-only",
+      "interopSchemaReceipt": "WLO-String-v1-data-only",
+      "wAbiImpact": "none",
+      "targetWAbiIndependent": true,
+      "packageReceipt": "wlo-tooling@1"
+    },
+    {
+      "id": "native",
+      "targetId": "wlo-native",
+      "bytes": "6a4c617374204c69676874",
+      "layoutReceipt": "contiguous-host-storage-is-not-authority",
+      "interopSchemaReceipt": "WLO-String-v1-data-only",
+      "wAbiImpact": "none",
+      "targetWAbiIndependent": true,
+      "packageReceipt": "wlo-tooling@1"
+    }
+  ],
+  "artifacts": {
+    "corpus": {
+      "path": "tooling/wlo1-closure-cases.json",
+      "digest": "sha256:aa95fb70e9b3ec1f23ee3c851ef8f6ab04351b0c4e31f8b166427cda581267ec"
+    },
+    "machine": {
+      "path": "tooling/wlo1-closure-machine.mjs",
+      "digest": "sha256:c9fd3794e589739f5ddfa1e473139f89fc2b63b3978b6db2ef0aae7811b9f8a2"
+    },
+    "checker": {
+      "path": "tooling/check-wlo1-closure.mjs",
+      "digest": "sha256:560b56402dd043d2463065911a667fa4412bcd6645ee3c40b8287085dad2ff60"
+    },
+    "snapshot": {
+      "path": "tooling/wlo1-closure-results.snapshot.jsonl",
+      "digest": "sha256:034231169c580ad973437683ad278a4f57826fdf6615960e277a92511c2354a7"
+    }
+  },
+  "officialRefs": [
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc8949",
+      "role": "deterministic-cbor"
+    }
+  ],
+  "forbidden": ["pointer", "owner", "capability", "drop", "editor-tree-authority"],
+  "evidence": {
+    "current": ["source-ref", "official-primary", "deterministic-cbor", "host-oracle", "negative-mutations", "snapshot", "target-receipts"],
+    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "oom-fault-receipt", "abi-execution", "package-execution", "human-study", "model-study"]
+  },
+  "stopCondition": "Stop on a byte, schema, limit, target-parity, authority, ABI, package, security, or typed-error divergence. Reopen only with an independent reducer and reviewed decision."
+}

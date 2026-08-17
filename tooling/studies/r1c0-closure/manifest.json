@@ -1,0 +1,202 @@
+{
+  "$schema": "w-r1c0-closure-manifest-1",
+  "status": "design-oracle-input",
+  "id": "R1C0",
+  "closureBundle": {
+    "path": "tooling/studies/r1c0-closure/bundle.json",
+    "digest": "sha256:5bf7dabc80cb95285e837145be7c196db35ba232520673c17ab468be15790b5b"
+  },
+  "corpus": {
+    "path": "tooling/r1c0-closure-cases.json",
+    "digest": "sha256:3c8ee47ee226e29f2fbc1e4dfe157998577dde42927626029381f3e0ba71f5e4"
+  },
+  "checker": {
+    "path": "tooling/check-r1c0-closure.mjs",
+    "digest": "sha256:f86d02ec543edac376ddcfcc70b0bb3ea89adba9c0e367330e625eea9853c29a"
+  },
+  "snapshot": {
+    "path": "tooling/r1c0-closure-results.snapshot.jsonl",
+    "digest": "sha256:bdf57114c646fdb9e4e3ebf28c39c900b047cbb1faca0e6a952396aea9da06ee"
+  },
+  "study": {
+    "path": "tooling/studies/r1c0-closure/study.json",
+    "digest": "sha256:1af37ff0020beb28f7b0471d85900d6b4f97a056d7dd6b765cc1816348135ca3"
+  },
+  "wlo1": {
+    "manifest": {
+      "path": "tooling/studies/r1c0-closure/wlo1-manifest.json",
+      "digest": "sha256:55ef0d6df77a587ac193debaf4c4183b24b68082f2b0230070c6b3b5c0cdced5"
+    },
+    "corpus": {
+      "path": "tooling/wlo1-closure-cases.json",
+      "digest": "sha256:aa95fb70e9b3ec1f23ee3c851ef8f6ab04351b0c4e31f8b166427cda581267ec"
+    },
+    "machine": {
+      "path": "tooling/wlo1-closure-machine.mjs",
+      "digest": "sha256:c9fd3794e589739f5ddfa1e473139f89fc2b63b3978b6db2ef0aae7811b9f8a2"
+    },
+    "checker": {
+      "path": "tooling/check-wlo1-closure.mjs",
+      "digest": "sha256:560b56402dd043d2463065911a667fa4412bcd6645ee3c40b8287085dad2ff60"
+    },
+    "snapshot": {
+      "path": "tooling/wlo1-closure-results.snapshot.jsonl",
+      "digest": "sha256:034231169c580ad973437683ad278a4f57826fdf6615960e277a92511c2354a7"
+    }
+  },
+  "scopes": {
+    "R1-broad": [
+      "R1-allocator-runtime-slot",
+      "R1-arena-scope",
+      "R1-assignment-unit",
+      "R1-associated-members",
+      "R1-atom2-atomic-contract",
+      "R1-avf0-availability-feature",
+      "R1-borrow-expressivity",
+      "R1-brx2-borrow-relations",
+      "R1-brx3-borrow-relations",
+      "R1-call-label-order",
+      "R1-callable-model-last-light",
+      "R1-callable-property-surface",
+      "R1-conditional-value-block",
+      "R1-consuming-receiver-last-light",
+      "R1-contract-envelopes-last-light",
+      "R1-control-flow-last-light",
+      "R1-cyc1-explicit-cycle-lifecycle",
+      "R1-cyc2-conditional-liveness",
+      "R1-data-declaration-surface",
+      "R1-delimited-value-surface",
+      "R1-dyn1-versioned-behavior",
+      "R1-end-relative-access",
+      "R1-fail-fast-last-light",
+      "R1-fluent-self",
+      "R1-gen1-incremental-suspension",
+      "R1-gen2-stream-yield",
+      "R1-hrd0-hot-reload-dev",
+      "R1-imports-last-light",
+      "R1-manifest-surface",
+      "R1-multiple-initializers",
+      "R1-pattern-surface",
+      "R1-pkg1-project-transaction",
+      "R1-post-test-loop",
+      "R1-power-precedence",
+      "R1-python-transform",
+      "R1-refinement-subject",
+      "R1-sec0-security-model",
+      "R1-shared-construction",
+      "R1-source-boundaries",
+      "R1-source-phase-surface",
+      "R1-spawn-domain-last-light",
+      "R1-static-contract-slots",
+      "R1-static-contract-syntax",
+      "R1-suspend-accounting-names",
+      "R1-syn2-dyn2-closure",
+      "R1-tabular-adapters",
+      "R1-tabular-carrier",
+      "R1-tensor-broadcast",
+      "R1-tuple-unpacking",
+      "R1-units-last-light",
+      "R1-weak-owner-acquisition"
+    ],
+    "R1E0": [
+      "R1-post-test-loop",
+      "R1-conditional-value-block",
+      "R1-assignment-unit",
+      "R1-power-precedence",
+      "R1-fluent-self"
+    ],
+    "R1H0": [
+      "R1-suspend-accounting-names",
+      "R1-weak-owner-acquisition",
+      "R1-arena-scope",
+      "R1-allocator-runtime-slot"
+    ],
+    "R1S1": [
+      "R1-source-boundaries",
+      "R1-static-contract-syntax",
+      "R1-data-declaration-surface",
+      "R1-manifest-surface",
+      "R1-pattern-surface",
+      "R1-callable-property-surface",
+      "R1-source-phase-surface",
+      "R1-delimited-value-surface"
+    ]
+  },
+  "bundles": [
+    {"id":"R1-allocator-runtime-slot","path":"tooling/studies/r1-allocator-runtime-slot/bundle.json","digest":"sha256:6adfaa82276ccf2e03cbe6738d118e8e6c17aa72a24d6fb5d706c3b036255aa2"},
+    {"id":"R1-arena-scope","path":"tooling/studies/r1-arena-scope/bundle.json","digest":"sha256:353f4c3927b371f8e982b2debcfd81d6a05b2c52c343e01843e519f514c415fc"},
+    {"id":"R1-assignment-unit","path":"tooling/studies/r1-assignment-unit/bundle.json","digest":"sha256:e0893157675579200118e5047f1cf80e88b11a70bd115b1e0bd5c57ba33a7943"},
+    {"id":"R1-associated-members","path":"tooling/studies/r1-associated-members/bundle.json","digest":"sha256:27e68f9bbb6e23f8e4bf5d2eae4d69ff7efc5a050bfa4abd4c66294e3032b230"},
+    {"id":"R1-atom2-atomic-contract","path":"tooling/studies/atom2-atomic-contract/bundle.json","digest":"sha256:cc88342d4b8d1b40ae958c38410a8011bf5e891e014dd3b65cca94fde0198837"},
+    {"id":"R1-avf0-availability-feature","path":"tooling/studies/avf0-availability-feature/bundle.json","digest":"sha256:aa972cee3c5e8d94436cb70223f7d4047f03bb788aec98906fedef1d42fb2b24"},
+    {"id":"R1-borrow-expressivity","path":"tooling/studies/r1-borrow-expressivity/bundle.json","digest":"sha256:cb9d267fd961a6acb0fd354db3e0a3d5f37e58e95ac338fffc2464880a96b2f1"},
+    {"id":"R1-brx2-borrow-relations","path":"tooling/studies/brx2-borrow-relations/bundle.json","digest":"sha256:67f3758124fce9df4efb245b3959ece61b08df74a7ecfc4d6703baed844c6be4"},
+    {"id":"R1-brx3-borrow-relations","path":"tooling/studies/brx3-borrow-relations/bundle.json","digest":"sha256:830c2434e0c0fe6ba8a477f09574e364f7850bae4467dddd579381a7a579ca67"},
+    {"id":"R1-call-label-order","path":"tooling/studies/r1-call-label-order/bundle.json","digest":"sha256:b7e39385fc3aea24831c59a59a32c3b93be939e06b5d57744e7f360f2607ed26"},
+    {"id":"R1-callable-model-last-light","path":"tooling/studies/r1-callable-model/bundle.json","digest":"sha256:b6763728727a3caf9a1d4f00dc94f46d1e1f95c46929ab9fbaf0a1dc58e6c687"},
+    {"id":"R1-callable-property-surface","path":"tooling/studies/r1-callable-property-surface/bundle.json","digest":"sha256:e2a349202abae6995ca39a227741196c3352fc36152820763c2b28c66ead7be5"},
+    {"id":"R1-conditional-value-block","path":"tooling/studies/r1-conditional-value-block/bundle.json","digest":"sha256:690537b0e2638bd103b6446aeb98136131de4d391a34b678355eeb2e46d32d5e"},
+    {"id":"R1-consuming-receiver-last-light","path":"tooling/studies/r1-consuming-receiver/bundle.json","digest":"sha256:1b28f889c28632729572ba61b1bf87b3a67e3aab8b24908e55992e31c8c4a885"},
+    {"id":"R1-contract-envelopes-last-light","path":"tooling/studies/r1-contract-envelopes/bundle.json","digest":"sha256:cb210447c6216806233633779ff9ac94c6323d3fd27c44cb02c956ea4da3f5fe"},
+    {"id":"R1-control-flow-last-light","path":"tooling/studies/r1-control-flow/bundle.json","digest":"sha256:b6cbbb4d39e872f0cb591b2fac7cfee4f0cf2d3e6a8f3fa71734bcffa538fa13"},
+    {"id":"R1-cyc1-explicit-cycle-lifecycle","path":"tooling/studies/cyc1-explicit-cycle-lifecycle/bundle.json","digest":"sha256:dfe29c912770993e1c822c00f1c3e0d58e8787cc64b9b95d5b65bb4ab31fccf3"},
+    {"id":"R1-cyc2-conditional-liveness","path":"tooling/studies/cyc2-conditional-liveness/bundle.json","digest":"sha256:d5aeb68e6bd285ca5729d66f08584c8882c11892d85e28c643dd91b58bfb95fc"},
+    {"id":"R1-data-declaration-surface","path":"tooling/studies/r1-data-declaration-surface/bundle.json","digest":"sha256:775e3cae4621f795bd99e9e8d47da95ffb878c7e11ed36ff889d6773d66fc406"},
+    {"id":"R1-delimited-value-surface","path":"tooling/studies/r1-delimited-value-surface/bundle.json","digest":"sha256:06abdd5a9a59f4adb09b173925dce7b2b27ac78c693cec44da9c74137d107206"},
+    {"id":"R1-dyn1-versioned-behavior","path":"tooling/studies/dyn1-versioned-behavior/bundle.json","digest":"sha256:f810043ab12dc53cd6a34b2cf50ec978ba55114fede02098f280d61df4640aaa"},
+    {"id":"R1-end-relative-access","path":"tooling/studies/r1-end-relative-access/bundle.json","digest":"sha256:a0231a85b8a2a3011467f96b166d1edc84e7b918edab3dceea8f7bb573b98537"},
+    {"id":"R1-fail-fast-last-light","path":"tooling/studies/r1-fail-fast/bundle.json","digest":"sha256:994141b042dc7810d3a311dcb9b4eb5e928353e6152b22da3af0c09fa83cdd05"},
+    {"id":"R1-fluent-self","path":"tooling/studies/r1-fluent-self/bundle.json","digest":"sha256:4f7d0efb7c1dfc4ef500be005691119ea6bad3e4756882a04f3188525cf0f6bd"},
+    {"id":"R1-gen1-incremental-suspension","path":"tooling/studies/gen1-incremental-suspension/bundle.json","digest":"sha256:8381d44a4e9faf8e6c6a48502e85f98a46bfd1d323a6d6a783fa0b24016c9d97"},
+    {"id":"R1-gen2-stream-yield","path":"tooling/studies/gen2-stream-yield/bundle.json","digest":"sha256:347530ce6e0e2d4c7a2c88182a3d6401d83d1e87a0482e801118a8956ed942fa"},
+    {"id":"R1-hrd0-hot-reload-dev","path":"tooling/studies/hrd0-hot-reload-dev/bundle.json","digest":"sha256:7c469a85d5406abe00096a1f92269ad03e32b6f8cdc650820776d19e02505f4f"},
+    {"id":"R1-imports-last-light","path":"tooling/studies/r1-imports/bundle.json","digest":"sha256:1738e6e851b44a8b1853881e43bb3ee8d71036159fc9c6d7a48d7248ec1c88aa"},
+    {"id":"R1-manifest-surface","path":"tooling/studies/r1-manifest-surface/bundle.json","digest":"sha256:5273d69b3e6c7ed67f88f2f6ecc5e0d143469573b58fcbcab36430dd52ed494d"},
+    {"id":"R1-multiple-initializers","path":"tooling/studies/r1-multiple-initializers/bundle.json","digest":"sha256:e82e8c3083692975e2ec8185314e7a609ffc985eeea6e20a7f5ea2f55beded1d"},
+    {"id":"R1-pattern-surface","path":"tooling/studies/r1-pattern-surface/bundle.json","digest":"sha256:24ca71bfc50d8a5461c2cbf53be2b2aaf97daf696805e62049f76cd3ba7f2d4f"},
+    {"id":"R1-pkg1-project-transaction","path":"tooling/studies/pkg1-project-transaction/bundle.json","digest":"sha256:03244863b3d3e303e596e4593cd60d182c4139caf1cd41f0bd5f19637b7d3db6"},
+    {"id":"R1-post-test-loop","path":"tooling/studies/r1-post-test-loop/bundle.json","digest":"sha256:fd8d1415e9282831801c1d6fcb453fe2414df483bda5938f05429ca4996bca74"},
+    {"id":"R1-power-precedence","path":"tooling/studies/r1-power-precedence/bundle.json","digest":"sha256:ad959da8ec34aa1d1088878b9ab874d9de4bbb7b0d70bc9a26d8829a83c93483"},
+    {"id":"R1-python-transform","path":"tooling/studies/r1-python-transform/bundle.json","digest":"sha256:cda5dd2df57d286ee2718b20dec42b3afb8a58a7a1133b09046aac49cab49576"},
+    {"id":"R1-refinement-subject","path":"tooling/studies/r1-refinement-subject/bundle.json","digest":"sha256:8b2ec5c08ebc36276a795cad24e5fb1c485999778728429f838e379637a88deb"},
+    {"id":"R1-sec0-security-model","path":"tooling/studies/sec0-security-model/bundle.json","digest":"sha256:8da44781be1736b51a74925f75b4f61a45d766dc46dd11c1a5720c9dd87f5afd"},
+    {"id":"R1-shared-construction","path":"tooling/studies/r1-shared-construction/bundle.json","digest":"sha256:8ea930d746955efc1c45e19be3cc9bf5e584882c33d1533279cad45a30835ae9"},
+    {"id":"R1-source-boundaries","path":"tooling/studies/r1-source-boundaries/bundle.json","digest":"sha256:37325f019b445897ca3bb63afa5a39425dff5ad413a6d7d0a2d03b4b08cc56f6"},
+    {"id":"R1-source-phase-surface","path":"tooling/studies/r1-source-phase-surface/bundle.json","digest":"sha256:28efd0d5c8a1d5a6296980a13c3e5314fb5a17aec25b76cf1b025bfb349ac641"},
+    {"id":"R1-spawn-domain-last-light","path":"tooling/studies/r1-spawn-domain/bundle.json","digest":"sha256:f1ae7a2c3f2c6849ec92758f8f8cbcd226eca8c6a333361e7a4c1e1bdb84092d"},
+    {"id":"R1-static-contract-slots","path":"tooling/studies/r1-static-contract-slots/bundle.json","digest":"sha256:42800038c17c0bc0363ffe3ba85036f847a00271fa465f8ef2227d394b166c01"},
+    {"id":"R1-static-contract-syntax","path":"tooling/studies/r1-static-contract-syntax/bundle.json","digest":"sha256:09159cb51b18e16bc6743d5ab36ca924250ee767bed37037549b3a41e0d0410e"},
+    {"id":"R1-suspend-accounting-names","path":"tooling/studies/r1-suspend-accounting-names/bundle.json","digest":"sha256:23c7762f2612239d2094458c0db16d8eeee6d770a49b3569ed036581c391a0f5"},
+    {"id":"R1-syn2-dyn2-closure","path":"tooling/studies/syn2-dyn2-closure/bundle.json","digest":"sha256:9aab6723114e7d621e1ba406e0885b0f85901b5615e8bd92296679110022078d"},
+    {"id":"R1-tabular-adapters","path":"tooling/studies/r1-tabular-adapters/bundle.json","digest":"sha256:0e6444804631e524c7c9925cba57c6f9bd607d81d0c5e1a5a5f28f1d17075831"},
+    {"id":"R1-tabular-carrier","path":"tooling/studies/r1-tabular-carrier/bundle.json","digest":"sha256:d57ae851209936c8c103ba2775cd5b752585dee1417d9eaa991215a60fe568e6"},
+    {"id":"R1-tensor-broadcast","path":"tooling/studies/r1-tensor-broadcast/bundle.json","digest":"sha256:44bf7771c354d81bea30efac8d7d2aec522e53483aae63c1f4f8aa3618a8fbcd"},
+    {"id":"R1-tuple-unpacking","path":"tooling/studies/r1-tuple-unpacking/bundle.json","digest":"sha256:3fdfbb907da64887e651cd1ba577e1f62bcebea105a9fe7ad1c2628e382cd6dc"},
+    {"id":"R1-units-last-light","path":"tooling/studies/r1-units/bundle.json","digest":"sha256:0f95c93cfa5567627945b0e9832b22b92b6e04cd8276ce4bed7c234eb93649cd"},
+    {"id":"R1-weak-owner-acquisition","path":"tooling/studies/r1-weak-owner-acquisition/bundle.json","digest":"sha256:647315dbd5a3fd80805e077519c775a6c5c0c1e38dec9cb3ee8df851318417c0"}
+  ],
+  "reusedArtifacts": [
+    {"id":"tabular-carrier","role":"TAB0","path":"tooling/tabular-carrier-cases.json","digest":"sha256:fbd3455d567585f04a6122a74592e38640ce4920ddef0169b8c926fd8be3d546"},
+    {"id":"tabular-carrier-machine","role":"TAB0","path":"tooling/tabular-carrier-machine.mjs","digest":"sha256:cc223561235412fbcadb541b0a42f84a3d254520498b4198df7049d268d5f944"},
+    {"id":"tabular-carrier-checker","role":"TAB0","path":"tooling/check-tabular-carrier-cases.mjs","digest":"sha256:a2f971021c0f6d146317bcb448a6610768e714106c5da0076570b7ddfba756a7"},
+    {"id":"tabular-carrier-snapshot","role":"TAB0","path":"tooling/tabular-carrier-results.snapshot.jsonl","digest":"sha256:e15fe9b3b39b8a603882c5a5bed87cb258612a43604d122df0276641808f0f48"},
+    {"id":"tabular-adapters","role":"TAB1","path":"tooling/tabular-adapter-cases.json","digest":"sha256:4c6ed29c97ec000dd5546ba15e9ef6649a46110e6b3854358fbd89db6b65de33"},
+    {"id":"tabular-adapters-machine","role":"TAB1","path":"tooling/tabular-adapter-machine.mjs","digest":"sha256:d16b2e26c2768bcf62492eeb44645591bd6880e982210b01ef0c515a059ec7b0"},
+    {"id":"tabular-adapters-checker","role":"TAB1","path":"tooling/check-tabular-adapter-cases.mjs","digest":"sha256:3498f3ba843068f471437ecd4d09707ad6d4bab47c30eb9ccd13dbcc935ee692"},
+    {"id":"tabular-adapters-snapshot","role":"TAB1","path":"tooling/tabular-adapter-results.snapshot.jsonl","digest":"sha256:36b5fd2fc506a4241a10c544fb958d352ad21d88bc10e945f8ec9c074d5d2cd7"},
+    {"id":"foreign-body","role":"FB0","path":"tooling/foreign-body-cases.json","digest":"sha256:0a165ee9e9b6ba20c41a64212c0b786f5c76ed5603edf5e8b3f60fe08efce87d"},
+    {"id":"foreign-body-machine","role":"FB0","path":"tooling/foreign-body-machine.mjs","digest":"sha256:cf928a6c0019572a5fb46f368e36d75e1c4c32621222186b68993af695bdf7a8"},
+    {"id":"foreign-body-checker","role":"FB0","path":"tooling/check-foreign-body-cases.mjs","digest":"sha256:96570f7e14c3c388096a9247fa4cdaac573fc3fc33a124c391494eb07f91ce25"},
+    {"id":"foreign-body-snapshot","role":"FB0","path":"tooling/foreign-body-results.snapshot.jsonl","digest":"sha256:d2193bdda616153b3246a13950190459410ccc0667e6595c6044bbf03a36fe9c"},
+    {"id":"execution-ergonomics","role":"execution","path":"tooling/execution-ergonomics-cases.json","digest":"sha256:68ccc55b5c260bd7f016e803ea467f626476fd407fc949ef95b71ff3350f17bc"},
+    {"id":"execution-ergonomics-machine","role":"execution","path":"tooling/execution-ergonomics-machine.mjs","digest":"sha256:f7595aa301d0dc0342294e859f6b81a65a742a1b74dd61bd79da03a97493b53e"},
+    {"id":"execution-ergonomics-checker","role":"execution","path":"tooling/check-execution-ergonomics-cases.mjs","digest":"sha256:5b7c7c3ec529cbaf7c051ae6ada38b60bc72868e6eae79d7ac2bd861165d4c41"},
+    {"id":"execution-ergonomics-snapshot","role":"execution","path":"tooling/execution-ergonomics-results.snapshot.jsonl","digest":"sha256:394d11e0d6a82273a846a20278f29034d51bb0f6dd2d55f5663b1aa68d6e167c"}
+  ],
+  "evidence": {
+    "current": ["source-ref", "bundle-digests", "scope-derived-counts", "host-oracle-reuse", "mutation-checkers", "snapshot"],
+    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
+    "hostOnly": true
+  },
+  "stopCondition": "Stop on stale digest, scope drift, duplicate local case, missing adversarial input/task, implementation-gap disappearance, or any compiler/runtime/provider/human/model claim."
+}
