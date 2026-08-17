@@ -14,10 +14,17 @@ const wDirectory = path.resolve(toolingDirectory, "..");
 const designPath = path.join(wDirectory, "DESIGN.md");
 const rationalePath = path.join(wDirectory, "RATIONALE.md");
 const indexPath = path.join(wDirectory, "DESIGN-INDEX.md");
+const classificationPath = path.join(wDirectory, "tooling", "design-freeze-classification.json");
 const designText = fs.readFileSync(designPath, "utf8");
 const lines = designText.split(/\r?\n/);
 const rationaleText = fs.readFileSync(rationalePath, "utf8");
 const rationaleLines = rationaleText.split(/\r?\n/);
+const designFreezeClassification = JSON.parse(fs.readFileSync(classificationPath, "utf8"));
+const designFreezeEntries = designFreezeClassification.entries ?? [];
+const designFreezeCategoryCounts = new Map();
+for (const entry of designFreezeEntries) {
+  designFreezeCategoryCounts.set(entry.category, (designFreezeCategoryCounts.get(entry.category) ?? 0) + 1);
+}
 
 function recursiveFiles(directory, predicate) {
   const result = [];
@@ -999,10 +1006,15 @@ output.push(
   `| decisões referenciadas por casos R0 | ${substitutionDecisionIds.size}/${decisions.length} |`,
 );
 output.push(
-  `| decisões classificadas para design freeze | ${classifiedFreezeDecisionIds.size}/${decisions.length} (${substitutionDecisionIds.size} source + ${oracleFreezeDecisionIds.size} oracle + ${explicitFreezeDecisionIds.size} explícitas; ${freezeEvidenceOverlaps} overlaps) |`,
+  `| decisões classificadas para design freeze | ${designFreezeEntries.length}/${decisions.length} (` +
+    [...designFreezeCategoryCounts.entries()].map(([category, count]) => `${count} ${category}`).join("; ") + ") |",
 );
 output.push(
-  `| decisões ainda sem classe de freeze | ${decisions.length - classifiedFreezeDecisionIds.size} |`,
+  `| decisões com evidência legada de fonte/oráculo | ${classifiedFreezeDecisionIds.size}/${decisions.length} ` +
+    `(${substitutionDecisionIds.size} source + ${oracleFreezeDecisionIds.size} oracle + ${explicitFreezeDecisionIds.size} explícitas; ${freezeEvidenceOverlaps} overlaps) |`,
+);
+output.push(
+  `| decisões ainda sem classe de freeze | ${decisions.length - designFreezeEntries.length} |`,
 );
 output.push(`| decisões com múltiplos eixos obrigatórios | ${multiAxisFreezeRequirements} |`);
 output.push(`| formas R0 com baseline estática | ${measuredSubstitutionForms} |`);

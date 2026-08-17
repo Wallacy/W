@@ -16,7 +16,7 @@ linguagem.
 uma entrada explícita para cada ID do ledger. O checker exige a união exata do
 ledger e rejeita IDs ausentes, novos, duplicados ou com digest stale. Cada
 registro carrega `selection: explicit-ledger-id`, `basisRef` para a linha do
-ledger e digest atual; o `archiveGapDistribution` registra por que os 907 IDs
+ledger e digest atual; o `archiveGapDistribution` registra por que os 913 IDs
 que faltavam no gate anterior não foram classificados por range ou default.
 
 As categorias têm estados diferentes:
@@ -27,10 +27,10 @@ As categorias têm estados diferentes:
 - `superseded` aponta para a decisão corrente que substitui a proveniência.
 - `rejected` aponta para a ausência corrente sem promover a forma recusada.
 
-O estado atual é `91 source-backed-current`, `466 oracle-backed-current`, `15
-research-gated`, `804 implementation-evidence-gap`, `57 superseded` e `8
-rejected` (1441/1441). A lacuna histórica de 907 fica distribuída em 57
-oracle, 11 Research, 797 gaps de implementação, 35 superseded e 7 rejected;
+O estado atual é `91 source-backed-current`, `473 oracle-backed-current`, `8
+research-gated`, `810 implementation-evidence-gap`, `57 superseded` e `8
+rejected` (1447/1447). A lacuna histórica de 913 fica distribuída em 60
+oracle, 8 Research, 803 gaps de implementação, 35 superseded e 7 rejected;
 nenhuma decisão é selecionada por faixa, época, regex ou default em massa.
 
 Gaps de implementação usam `authorityRef.kind: design-contract` com a seção e
@@ -90,11 +90,12 @@ compiler, runtime, provider ou execução W.
 | `operational-time-cases.json` + máquina/checker/snapshot | TIME0 cobre 52 casos/277 operações (27 aceitos + 25 rejeitados) para Duration exata, Clock root-scoped, origin, default/active HostSuspendPolicy, profile monotônico, deadlines, boundaries e clock virtual; oito testes host usam entradas independentes | oracle host de design; não executa W, clock, timer, scheduler, OS ou provider `std.time@1` |
 | `kernel-module-cases.json` + máquina/checker/snapshot | KM0 cobre 32 casos/218 operações (6 aceitos + 26 rejeitados) para head de síntese, identities, call graph, famílias genéricas, artifacts source-backed/closed e ausência de JIT; nove testes host usam inputs independentes | oracle host de design; não executa W, compiler, kernel, linker, driver ou provider |
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-classification.json` + `check-design-freeze-audit.mjs` | registro versionado e explícito dos 1441 IDs, com uma categoria fechada, claim do ledger, authority ref, digests, casos de fonte/oráculo e stop condition; preserva a cobertura legada 170 source, 466 oracle, 8 explícitas e 51 overlaps; W-1354 é superseded por W-1437 | auditoria de design; fonte/oráculo host não são compiler, runtime ou provider |
+| `design-freeze-classification.json` + `check-design-freeze-audit.mjs` | registro versionado e explícito dos 1447 IDs, com uma categoria fechada, claim do ledger, authority ref, digests, casos de fonte/oráculo e stop condition; preserva a cobertura legada 170 source, 408 oracle, 8 explícitas e 52 overlaps; PRC0 promove sete gates oracle-backed-current e W-1354 é superseded por W-1437 | auditoria de design; fonte/oráculo host não são compiler, runtime ou provider |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 190 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 52 bundles R1, 150 variantes e 208 tarefas; base R1 51/148/204/69/75 e agregado R1C0 52/150/208/69/75 | parse e oracle host não equivalem a compilar ou executar W |
+| `studies/*/bundle.json` + checker | 53 bundles R1, 152 variantes e 212 tarefas; base R1 51/148/204/69/75 e agregados R1C0 52/150/208/69/75 e PRC0 reuse-only 53/152/212 | parse e oracle host não equivalem a compilar ou executar W |
 | `wlo1-closure-cases.json` + `wlo1-closure-machine.mjs` + `check-wlo1-closure.mjs` + snapshot | WLO1 fecha o perfil `wlo.string.v1` com CBOR determinístico RFC 8949, 14 casos (3 accepted, 11 typed negatives) e uma paridade de target; receipts de schema/versão/limites ficam fora do payload | oracle host de codec; não é W ABI e não alega compiler, runtime, provider, OOM, target, package ou estudo humano/modelo |
 | `r1c0-closure-cases.json` + `check-r1c0-closure.mjs` + `studies/r1c0-closure` | R1C0 fecha 21 gates por metadados reuse-only, 52 bundles pinados, 150 variantes e 208 tarefas; W-092 usa WLO1, W-207 é rejected e W-1441 preserva o gap do provider | oracle host de design; não alega implementação, preferência humana ou resultado de modelo |
+| `prc0-provider-runtime-closure-cases.json` + máquina/checker/snapshot + `studies/prc0-provider-runtime-closure` | PRC0 fecha sete gates Research com 14 casos (sete current e sete adversarial), 53 bundles, 152 variantes e 212 tarefas; reusa SR0, RU0, PYN3, PYN4, LZ0, ASC0 e R1 units sem copiar payloads, mantém W-1442–W-1447 como implementation-evidence-gap e reutiliza W-1333 no ASC0 | oracle host design-only; não prova compiler, runtime, provider, bridge, W compile/run ou estudos humano/modelo |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
 | `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
 | `tabular-adapter-cases.json` + máquina/checker/snapshot | TAB1 deriva source kind, u64 snapshot offsets/short reads, nominal schema identity, publication, CSV tokenizer/nulls, Parquet footer/page/mapping/key/commit, Arrow IPC dictionary/buffer, borrowed view, copy materialization, progress/cancel, provenance, C quota/trust/release; 86 casos e 193 operações (36 aceitos + 50 rejeitados) | oracle host independente; símbolos Last Light são cross-linked; não implementa reader CSV/Parquet/Arrow, compiler, runtime ou provider |
@@ -253,7 +254,7 @@ somente do registro R0. Witnesses textuais usam caminho não-`.w` e
 parseiam sem recovery. Cada bundle fixa primary, adversarial, quatro tasks,
 ordens contrabalançadas, blinding, digests e host oracle independente.
 
-O checker deriva 52 bundles, 150 variantes, 208 tasks e 69/75 casos R0
+O checker deriva 53 bundles, 152 variantes, 212 tasks e 69/75 casos R0
 promovidos. O conjunto contém 101 variantes `.w` parseadas e 30 witnesses
 reservados fora do parse. `sourceRefs` sustentam constructs adicionais de fontes
 reais sem criar uma segunda autoridade. Cada oracle compara todos os inputs com
@@ -281,6 +282,28 @@ Use os gates encadeados:
 bun run check:wlo1
 bun run check:r1c0
 bun run --cwd tooling/tree-sitter-w parse:r1c0
+```
+
+### PRC0 — fechamento de provider e runtime
+
+PRC0 fecha os sete gates de pesquisa W-133, W-903, W-1075, W-1124, W-1147,
+W-1196 e W-1328 com 14 casos: um route `current` e um route `adversarial`
+para cada gate. O corpus deriva os dois routes a partir dos contratos atuais e
+reusa SR0, RU0, PYN3, PYN4, LZ0, ASC0 e R1 units por referência; ele não copia
+payloads. `current` é autoridade oracle-backed-current de design. Os gaps de
+implementação W-1442–W-1447 permanecem separados, com compiler, runtime,
+provider, `w-compile`, `w-run`, `human-study` e `model-study` missing; ASC0
+reusa W-1333 para o gap de implementação.
+
+W-903 fixa a projeção canônica: `TemperatureDelta`/`deltaK` é distinto do
+point `Temperature`/`degC`, `iec.byte` é a API W e `bit` permanece o token de
+referência JSON. O source checker rejeita aliases e spellings não qualificados.
+
+```sh
+bun test tooling/studies/prc0-provider-runtime-closure/oracle.test.mjs
+bun tooling/check-prc0-provider-runtime-closure.mjs
+bun tooling/check-quantity-source-contract.mjs
+bun run --cwd tooling/tree-sitter-w parse:prc0
 ```
 
 ### Workflow module-run RU0

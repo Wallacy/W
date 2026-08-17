@@ -4,6 +4,7 @@
 import si from std
 import iec from std
 import {
+  degC,
   Energy,
   MemorySize,
   PhysicalDuration,
@@ -25,8 +26,8 @@ const fn expectedTickDurationTokenOutcome(token: ref String): QuantityJsonTokenO
 }
 
 const fn durationBitsAreCanonical(): Bool {
-  let fromSeconds: PhysicalDuration = 30<s>
-  let fromMinutes: PhysicalDuration = 0.5<min>
+  let fromSeconds: PhysicalDuration = 30<si.s>
+  let fromMinutes: PhysicalDuration = 0.5<si.min>
   return fromSeconds.canonicalValue.toBits() == fromMinutes.canonicalValue.toBits()
 }
 
@@ -55,8 +56,8 @@ export fn energyDocumentValue(value: Energy): f64 {
 }
 
 test "equivalent duration units have one canonical quantity and bit pattern" {
-  let fromSeconds: PhysicalDuration = 30<s>
-  let fromMinutes: PhysicalDuration = 0.5<min>
+  let fromSeconds: PhysicalDuration = 30<si.s>
+  let fromMinutes: PhysicalDuration = 0.5<si.min>
 
   expect fromSeconds.canonicalValue == fromMinutes.canonicalValue
   expect durationBitsAreCanonical()
@@ -77,7 +78,7 @@ test "IEC information stores reference bits and converts exactly to bytes" {
 
   expect memoryBitsAreCanonical()
   expect memory.canonicalValue == 524_288
-  expect (try memory.exactValue(in: B)) == 65_536
+  expect (try memory.exactValue(in: iec.byte)) == 65_536
 }
 
 test "domain JSON fixes unit tokens and rejects an alternative token" {

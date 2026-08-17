@@ -11,6 +11,7 @@ export dimension Length
 export dimension Mass
 export dimension Duration
 export dimension Temperature
+export dimension TemperatureDelta
 export dimension ElectricCurrent
 export dimension Amount
 export dimension LuminousIntensity
@@ -25,6 +26,7 @@ export unit m: Length
 export unit kg: Mass
 export unit s: Duration
 export unit K: Temperature
+export unit deltaK: TemperatureDelta
 export unit A: ElectricCurrent
 export unit mol: Amount
 export unit cd: LuminousIntensity
