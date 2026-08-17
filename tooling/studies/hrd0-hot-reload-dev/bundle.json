@@ -1,0 +1,41 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-hrd0-hot-reload-dev",
+  "title": "Development-only hot reload around normal W units",
+  "r0Cases": ["R0-module-run-context", "R0-module-run-capability-admission", "R0-python-transform"],
+  "sourceBase": { "path": "../../../reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461" },
+  "sourceRefs": [
+    { "path": "../../../reference/last-light/hot_reload_dev_contract.w", "symbol": "ReloadResult", "digest": "sha256:df68bb6bc675cae9e7a541cdbb17bc8ef84ddabdcc228c87c2f50eeb2bf7127e" },
+    { "path": "../../../reference/last-light/hot_reload_dev_local.w", "symbol": "LocalGenerationWitness", "digest": "sha256:ff67008961b08664f251fc13d1f4e9945e526059f3a71cf85ff46e4350ff528a" },
+    { "path": "../../../reference/last-light/hot_reload_dev_split.w", "symbol": "SplitGenerationWitness", "digest": "sha256:51db64fbfcdecce9102745daf2c5c2fb33e9a9199e83decfef2071559c07c10a" },
+    { "path": "../../../reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de" },
+    { "path": "../../../reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40" },
+    { "path": "../../../reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc" },
+    { "path": "../../../reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b" }
+  ],
+  "variants": [
+    { "id": "local-runner", "role": "selected", "disposition": "current-composable", "language": "w", "path": "local-runner.w", "digest": "sha256:9118a40c3d496a28805bbbf14fa533d3407d7cea6a75e9491acf2291569be031", "changedConstructs": ["shared nominal input/result contract", "normal-unit reopen", "logical cleanup", "stale generation rejection"], "parseEvidence": { "status": "tree-sitter-parse", "note": "Source-shaped local projection imports the shared contract; parser evidence is host-only." } },
+    { "id": "split-runner", "role": "alternative", "disposition": "current-composable", "language": "w", "path": "split-runner.w", "digest": "sha256:51555903463a292928011b3ce3bf514125414b42aface34fcc273e909e3d3664", "changedConstructs": ["shared nominal input/result contract", "split process projection", "typed generation switch", "drain frontier"], "parseEvidence": { "status": "tree-sitter-parse", "note": "Source-shaped split projection imports the shared contract; physical trace is not required to match local." } }
+  ],
+  "entry": "HotReloadDevFixture",
+  "inputs": [
+    { "id": "normal-unit-switch", "scenario": "prepare-validate-preflight-ready-switch-drain", "expected": { "axis": "A", "route": "current-composition" } },
+    { "id": "typed-generation-stale", "scenario": "exact-interface-stale-message-capability-cleanup", "expected": { "axis": "B", "route": "current-composition" } },
+    { "id": "generated-set-gap", "scenario": "reopen-generated-set-before-freeze", "expected": { "axis": "C", "route": "research" } },
+    { "id": "production-mutation-rejection", "scenario": "production-eval-frame-dlclose-migration", "expected": { "axis": "D", "route": "intentionally-rejected" } }
+  ],
+  "tasks": [
+    { "kind": "explain", "instruction": "Explain why development hot reload is a tooling runner around normal units, not a language feature or production dynamic mode." },
+    { "kind": "recall", "instruction": "After a bounded delay, reconstruct prepare, validate, preflight, ready, switch, admission close, drain, stale rejection, and logical/resource cleanup.", "minimumDelaySeconds": 1 },
+    { "kind": "repair", "instruction": "Repair an adversarial cleanup trace or identity mismatch without migrating live state or adding source/package syntax.", "mutations": { "local-runner": "Keep normal-unit cleanup logical unless facts declare pin/FFI/mapping resources.", "split-runner": "Keep local/split logical results equivalent while allowing physical trace differences." } },
+    { "kind": "change", "instruction": "Add a bounded provider fault or target projection while preserving exact schema/effect/capability/WAbi/runtime/source-map/package identity invariants." }
+  ],
+  "presentationOrders": [
+    ["local-runner", "split-runner"],
+    ["split-runner", "local-runner"]
+  ],
+  "blinding": { "participantLabels": { "local-runner": "A", "split-runner": "B" }, "hide": ["id", "role", "path", "changedConstructs"] },
+  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:0c7a262c03c2413bd0cc7e99f5c24a78c09315fbf28990892b7f17c1705cb085" },
+  "evidence": { "current": ["tree-sitter-parse", "host-oracle", "event-reducer", "mutation-checker", "source-ref", "official-primary", "independent-local-reducer", "independent-split-reducer"], "missing": ["w-compile", "w-run", "provider", "runtime", "isolation", "stress", "human-study", "model-study"] }
+}

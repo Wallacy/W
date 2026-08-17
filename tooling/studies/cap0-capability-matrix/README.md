@@ -35,6 +35,11 @@ W compiler, runtime,
 provider, human-study, and model-study evidence remain missing unless a later
 gate closes them.
 
+HRD0 is a downstream problem-first study for the same DYN0 route. It treats
+hot reload as a development-only tooling runner, links DYN1/SYN1 evidence, and
+does not change CAP0's composable classification or add a language/profile
+surface.
+
 Run `bun tooling/check-capability-matrix.mjs --write` from the repository root.
 Run `bun test tooling/capability-matrix-reference.test.mjs` for host mutations.
 The current snapshot records 8 axes, 17 subcapabilities, 149 source refs, and

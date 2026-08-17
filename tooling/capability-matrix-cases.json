@@ -2886,7 +2886,7 @@
         "studyRefs": [
           {
             "path": "tooling/studies/dyn1-versioned-behavior/README.md",
-            "digest": "sha256:15645762fc99ca1584800dfb0cf62d16cf3553fce5a745966373e1ee5a71c67a",
+            "digest": "sha256:b953321a149301bcb10ce8e180921480ccb258d83b0b650acfa2f941b0f99487",
             "claim": "DYN1 host design-oracle scope and four route dispositions"
           },
           {

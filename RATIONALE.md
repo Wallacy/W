@@ -4666,6 +4666,45 @@ manifesto são pseudocódigo original bounded, não citações longas nem evidê
 W. O estudo host, snapshot, source refs e mutation checker são evidence; não são
 compiler, runtime, provider, sandbox ou implementação.
 
+#### HRD0 — proveniência da decisão hot reload dev-only
+
+HRD0 registra a comparação problem-first em
+[`tooling/studies/hrd0-hot-reload-dev`](tooling/studies/hrd0-hot-reload-dev), sem
+adicionar decisão normativa ou novo ID de linguagem. O corpus tem 20 casos e cinco
+mutations adversariais independentes para cleanup (step físico extra, step lógico
+ausente e ordem errada), contrato nominal duplicado e drift de interface. A decisão corrente é um runner de tooling somente para
+desenvolvimento: ele recompila/reabre units W normais pelo frontend existente e
+faz `prepare → validate → preflight → ready → switch`; não há syntax, profile de
+source/package ou modo dinâmico de release. A invocação (`w dev` ou
+`w run --watch`) permanece tooling-owned e não selecionada.
+
+A e B são composição corrente: snapshot REPL e generation de service/plugin
+tipado usam identidades exatas de schema, effects, capabilities, source map,
+package, `SemanticInterfaceKey`, `WAbiKey` e `RuntimeClosureKey`; a generation
+antiga fica retida até admission close e drain, roots novos entram somente na
+nova e nenhum heap/task/loan/frame/`ServiceRef`/callback/provider handle migra.
+O cleanup lógico comum contém cancelamento, drains, unregister, in-flight drain,
+destroy e release. `unpin` e `unmap` só entram no plano físico quando facts
+declaram pin/FFI ou mapping (mapping nativo fica retido); a equivalência local e
+split compara apenas o resultado lógico, pois o trace físico pode divergir.
+Rollback tem receipt somente antes de publication; falha de drain depois da
+publication é degraded/fault e nunca rollback. C conserva dois Research routes:
+generated module set content-addressed que precisa reabrir/checkar como units
+normais, e spelling de invocação não escolhido. D rejeita sete routes: production
+dynamic mode, native como sandbox, active-frame write, eval/exec, live-state
+migration, live `dlclose` callback e module injection.
+
+O witness comum [`hot_reload_dev_contract.w`](reference/last-light/hot_reload_dev_contract.w)
+declara nominalmente os events, outcomes, input/result e identity fields; os
+witnesses local/split importam exatamente esses tipos. Functions de event/outcome
+mostram a mesma fronteira local/split; todos continuam fixtures parseáveis e não
+alegam execução. O bundle, oracle host, reducers independentes,
+mutation checker, snapshots, Tree-sitter e referências oficiais são evidence
+corrente. Compiler/type/effect/ownership real, runtime/provider/std-provider,
+isolamento, stress e estudos humano/modelo permanecem gaps. W-1398/W-1399 e o
+Research de generated modules não fecham por contagem, digest ou snapshot; só
+independent case review e implementation evidence podem mover esses gates.
+
 ### 1.31 HUM0 — programa de evidência humana e de modelos
 
 HUM0 materializa um protocolo cross-cutting para ergonomia humana e de modelos
