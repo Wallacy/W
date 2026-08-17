@@ -1,0 +1,2606 @@
+{
+  "$schema": "w-atom2-atomic-contract-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "A-canonical-sign-epoch",
+      "decisions": [
+        "W-1352"
+      ],
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "state",
+            "generation"
+          ],
+          "fieldOffsets": {
+            "state": 0,
+            "generation": 2
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "state": 1,
+              "generation": 1
+            },
+            "encoded": "5"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "comparison": "canonical-representation",
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true
+      },
+      "lockFreeRequested": true,
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-fallback",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "state",
+            "generation"
+          ],
+          "fieldOffsets": {
+            "state": 0,
+            "generation": 2
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "state": 1,
+              "generation": 1
+            },
+            "encoded": "5"
+          }
+        }
+      },
+      "target": {
+        "id": "portable",
+        "nativeAtomicWidthsBytes": [],
+        "lockFreeWidthsBytes": [],
+        "lockFreeFact": false,
+        "fallbackCapability": {
+          "kind": "parking-table",
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false,
+          "blocksThread": true
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true
+      },
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-lockfree-missing",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "state",
+            "generation"
+          ],
+          "fieldOffsets": {
+            "state": 0,
+            "generation": 2
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "state": 1,
+              "generation": 1
+            },
+            "encoded": "5"
+          }
+        }
+      },
+      "target": {
+        "id": "no-lockfree",
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "lockFreeWidthsBytes": [],
+        "lockFreeFact": false,
+        "fallbackCapability": {
+          "kind": "striped-lock",
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false,
+          "blocksThread": true
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true
+      },
+      "lockFreeRequested": true,
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-provider-digest",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "state",
+            "generation"
+          ],
+          "fieldOffsets": {
+            "state": 0,
+            "generation": 2
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "state": 1,
+              "generation": 1
+            },
+            "encoded": "5"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "interface": {
+        "providerDigest": "provider-v2",
+        "candidateProviderDigest": "provider-v1"
+      },
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-pointer",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "address",
+            "kind": "pointer"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ]
+    },
+    {
+      "id": "A-canonical-nested",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "inner",
+            "kind": "nested"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ]
+    },
+    {
+      "id": "A-canonical-custom",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "custom",
+        "declarationOrderInjective": false,
+        "fields": [
+          {
+            "name": "value",
+            "kind": "u32"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "value"
+          ],
+          "fieldOffsets": {
+            "value": 0
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {},
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "value": 1
+            },
+            "encoded": "1"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          4
+        ],
+        "lockFreeWidthsBytes": [
+          4
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-enum-payload",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3,
+            "payload": true
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "state"
+          ],
+          "fieldOffsets": {
+            "state": 0
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "state": 1
+            },
+            "encoded": "1"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-uint-size",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "length",
+            "kind": "usize"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ]
+    },
+    {
+      "id": "A-canonical-float",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "ratio",
+            "kind": "float"
+          }
+        ]
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          4
+        ],
+        "lockFreeWidthsBytes": [
+          4
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ]
+    },
+    {
+      "id": "A-canonical-order",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "value",
+            "kind": "u64"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "value"
+          ],
+          "fieldOffsets": {
+            "value": 0
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {},
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "value": 1
+            },
+            "encoded": "1"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "release",
+        "failure": "acquireRelease"
+      },
+      "comparison": "canonical-representation",
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-panic",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "value",
+            "kind": "u64"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "value"
+          ],
+          "fieldOffsets": {
+            "value": 0
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {},
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "value": 1
+            },
+            "encoded": "1"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "lifecycle": {
+        "panic": "hidden"
+      },
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-oom",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "value",
+            "kind": "u64"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "value"
+          ],
+          "fieldOffsets": {
+            "value": 0
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {},
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "value": 1
+            },
+            "encoded": "1"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "blocksThread": false,
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "context": {
+        "blockingAllowed": false,
+        "taskSafe": true
+      },
+      "lifecycle": {
+        "oom": "unbounded"
+      },
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-cancel",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "value",
+            "kind": "u64"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "value"
+          ],
+          "fieldOffsets": {
+            "value": 0
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {},
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "value": 1
+            },
+            "encoded": "1"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": true,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-wabi",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "value",
+            "kind": "u64"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "value"
+          ],
+          "fieldOffsets": {
+            "value": 0
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {},
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "value": 1
+            },
+            "encoded": "1"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "interface": {
+        "crossesWAbi": true,
+        "wAbiKey": "abi-v1",
+        "candidateWAbiKey": "abi-v2"
+      },
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-ffi",
+      "axis": "A",
+      "restaurantSymbol": "export foreign c",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "value",
+            "kind": "u64"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "value"
+          ],
+          "fieldOffsets": {
+            "value": 0
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {},
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "value": 1
+            },
+            "encoded": "1"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "interface": {
+        "directFFI": true
+      },
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-scalar-current",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "scalar-packing",
+      "packing": {
+        "carrier": "u64",
+        "totalBits": 64,
+        "slotBits": 32,
+        "generationBits": 32,
+        "generationOverflow": "retire-slot",
+        "examples": [
+          {
+            "slot": 7,
+            "generation": 1,
+            "encoded": "4294967303"
+          }
+        ]
+      }
+    },
+    {
+      "id": "A-snapshot-current",
+      "axis": "A",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "snapshot-cell"
+    },
+    {
+      "id": "B-valid-handle",
+      "axis": "B",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "integer-handle",
+      "handle": {
+        "slotBits": 32,
+        "generationBits": 32,
+        "packedCarrier": "u64"
+      },
+      "ownerTable": {
+        "present": true,
+        "ownsPayload": true,
+        "generationCheck": true,
+        "dereferenceAfterCheck": true,
+        "returnsNone": true,
+        "dropExactlyOnce": true
+      },
+      "operations": [
+        {
+          "op": "install",
+          "slot": 3,
+          "generation": 1
+        },
+        {
+          "op": "resolve",
+          "slot": 3,
+          "generation": 1
+        }
+      ]
+    },
+    {
+      "id": "B-stale-handle",
+      "axis": "B",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "integer-handle",
+      "handle": {
+        "slotBits": 32,
+        "generationBits": 32,
+        "packedCarrier": "u64"
+      },
+      "ownerTable": {
+        "present": true,
+        "ownsPayload": true,
+        "generationCheck": true,
+        "dereferenceAfterCheck": true,
+        "returnsNone": true,
+        "dropExactlyOnce": true
+      },
+      "operations": [
+        {
+          "op": "install",
+          "slot": 3,
+          "generation": 2
+        },
+        {
+          "op": "resolve",
+          "slot": 3,
+          "generation": 1
+        }
+      ]
+    },
+    {
+      "id": "B-generation-exhaustion",
+      "axis": "B",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "integer-handle",
+      "handle": {
+        "slotBits": 32,
+        "generationBits": 32,
+        "packedCarrier": "u64"
+      },
+      "ownerTable": {
+        "present": true,
+        "ownsPayload": true,
+        "generationCheck": true,
+        "dereferenceAfterCheck": true,
+        "returnsNone": true,
+        "dropExactlyOnce": true
+      },
+      "operations": [
+        {
+          "op": "install",
+          "slot": 3,
+          "generation": 4294967295
+        },
+        {
+          "op": "retire",
+          "slot": 3,
+          "generation": 4294967295
+        },
+        {
+          "op": "reuse",
+          "slot": 3,
+          "previousGeneration": 4294967295,
+          "retireSlot": true,
+          "allocation": "failed"
+        }
+      ]
+    },
+    {
+      "id": "B-generation-wrap",
+      "axis": "B",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "integer-handle",
+      "handle": {
+        "slotBits": 32,
+        "generationBits": 32,
+        "packedCarrier": "u64"
+      },
+      "ownerTable": {
+        "present": true,
+        "ownsPayload": true,
+        "generationCheck": true,
+        "dereferenceAfterCheck": true,
+        "returnsNone": true,
+        "dropExactlyOnce": true
+      },
+      "operations": [
+        {
+          "op": "install",
+          "slot": 3,
+          "generation": 4294967295
+        },
+        {
+          "op": "retire",
+          "slot": 3,
+          "generation": 4294967295
+        },
+        {
+          "op": "reuse",
+          "slot": 3,
+          "previousGeneration": 4294967295,
+          "generation": 0,
+          "retireSlot": false,
+          "allocation": "succeeded"
+        }
+      ]
+    },
+    {
+      "id": "B-tagged-pointer",
+      "axis": "B",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "tagged-pointer",
+      "pointer": {
+        "cas": true,
+        "provenance": true,
+        "lifetime": true,
+        "abaProof": true
+      }
+    },
+    {
+      "id": "C-snapshot",
+      "axis": "C",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "snapshot-cell"
+    },
+    {
+      "id": "C-domain",
+      "axis": "C",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "domain-service"
+    },
+    {
+      "id": "C-adapter-complete",
+      "axis": "C",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu",
+        "participants": [
+          "reader"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 8,
+        "quiescence": "epoch",
+        "deleterContext": "menu",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "fault-boundary",
+        "ffiDrain": false,
+        "foreignBoundary": "none",
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader"
+          },
+          {
+            "op": "access",
+            "participant": "reader"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader"
+          },
+          {
+            "op": "shutdown"
+          }
+        ]
+      }
+    },
+    {
+      "id": "C-adapter-ffi",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "bell",
+        "participants": [
+          "reader"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 8,
+        "quiescence": "hazard",
+        "deleterContext": "bell",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "foreignBoundary": "persistent-callback",
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader"
+          },
+          {
+            "op": "access",
+            "participant": "reader"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader"
+          },
+          {
+            "op": "ffiUnregister"
+          },
+          {
+            "op": "inFlightDrain"
+          },
+          {
+            "op": "destroy"
+          },
+          {
+            "op": "unpin"
+          },
+          {
+            "op": "shutdown"
+          }
+        ]
+      }
+    },
+    {
+      "id": "C-adapter-missing-registration",
+      "axis": "C",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu",
+        "participants": [
+          "reader"
+        ],
+        "registration": false,
+        "retire": "after-unlink",
+        "retiredBound": 8,
+        "quiescence": "epoch",
+        "deleterContext": "menu",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "fault-boundary",
+        "ffiDrain": false,
+        "foreignBoundary": "none",
+        "events": [
+          {
+            "op": "shutdown"
+          }
+        ]
+      }
+    },
+    {
+      "id": "C-adapter-before-unlink",
+      "axis": "C",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu",
+        "participants": [
+          "reader"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 8,
+        "quiescence": "epoch",
+        "deleterContext": "menu",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "fault-boundary",
+        "ffiDrain": false,
+        "foreignBoundary": "none",
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader"
+          },
+          {
+            "op": "access",
+            "participant": "reader"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader"
+          },
+          {
+            "op": "retire"
+          }
+        ]
+      }
+    },
+    {
+      "id": "C-adapter-before-quiescence",
+      "axis": "C",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu",
+        "participants": [
+          "reader"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 8,
+        "quiescence": "epoch",
+        "deleterContext": "menu",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "fault-boundary",
+        "ffiDrain": false,
+        "foreignBoundary": "none",
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader"
+          },
+          {
+            "op": "access",
+            "participant": "reader"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "reclaim"
+          }
+        ]
+      }
+    },
+    {
+      "id": "C-adapter-drop-double",
+      "axis": "C",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu",
+        "participants": [
+          "reader"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 8,
+        "quiescence": "epoch",
+        "deleterContext": "menu",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "fault-boundary",
+        "ffiDrain": false,
+        "foreignBoundary": "none",
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader"
+          },
+          {
+            "op": "access",
+            "participant": "reader"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "drop"
+          }
+        ]
+      }
+    },
+    {
+      "id": "C-adapter-shutdown",
+      "axis": "C",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "menu",
+        "participants": [
+          "reader"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 8,
+        "quiescence": "epoch",
+        "deleterContext": "menu",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "fault-boundary",
+        "ffiDrain": false,
+        "foreignBoundary": "none",
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader"
+          },
+          {
+            "op": "shutdown"
+          }
+        ]
+      }
+    },
+    {
+      "id": "C-adapter-ffi-drain",
+      "axis": "C",
+      "restaurantSymbol": "watchClosingBell",
+      "route": "unsafe-adapter",
+      "reclamation": {
+        "domain": "bell",
+        "participants": [
+          "reader"
+        ],
+        "registration": true,
+        "retire": "after-unlink",
+        "retiredBound": 8,
+        "quiescence": "hazard",
+        "deleterContext": "bell",
+        "shutdown": "drain",
+        "memoryOrders": [
+          "acquire",
+          "release"
+        ],
+        "targetProgress": "profile-fact",
+        "faultBehavior": "typed-fault",
+        "ffiDrain": true,
+        "foreignBoundary": "persistent-callback",
+        "events": [
+          {
+            "op": "register",
+            "participant": "reader"
+          },
+          {
+            "op": "access",
+            "participant": "reader"
+          },
+          {
+            "op": "readerExit",
+            "participant": "reader"
+          },
+          {
+            "op": "unlink"
+          },
+          {
+            "op": "retire"
+          },
+          {
+            "op": "quiescence"
+          },
+          {
+            "op": "drop"
+          },
+          {
+            "op": "reclaim"
+          },
+          {
+            "op": "participantDrain",
+            "participant": "reader"
+          },
+          {
+            "op": "unregister",
+            "participant": "reader"
+          },
+          {
+            "op": "shutdown"
+          }
+        ]
+      }
+    },
+    {
+      "id": "C-universal-reclamation",
+      "axis": "C",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "universal-reclamation"
+    },
+    {
+      "id": "D-raw-pointer",
+      "axis": "D",
+      "restaurantSymbol": "export foreign c",
+      "route": "raw-pointer"
+    },
+    {
+      "id": "D-universal-rcu",
+      "axis": "D",
+      "restaurantSymbol": "HorizonMenuPublication",
+      "route": "universal-rcu"
+    },
+    {
+      "id": "A-canonical-mixed-bool-signed-enum",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "ready",
+            "kind": "bool"
+          },
+          {
+            "name": "delta",
+            "kind": "i8"
+          },
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "ready",
+            "delta",
+            "state"
+          ],
+          "fieldOffsets": {
+            "ready": 0,
+            "delta": 1,
+            "state": 9
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "ready": true,
+              "delta": -5,
+              "state": 2
+            },
+            "encoded": "1527"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64-mixed",
+        "nativeAtomicWidthsBytes": [
+          2
+        ],
+        "lockFreeWidthsBytes": [
+          2
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "blocksThread": false,
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "comparison": "canonical-representation",
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true
+      },
+      "lockFreeRequested": true,
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-field-direction",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "ready",
+            "kind": "bool"
+          },
+          {
+            "name": "delta",
+            "kind": "i8"
+          },
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "most-significant-first",
+          "fieldOrder": [
+            "ready",
+            "delta",
+            "state"
+          ],
+          "fieldOffsets": {
+            "ready": 0,
+            "delta": 1,
+            "state": 9
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "ready": true,
+              "delta": -5,
+              "state": 2
+            },
+            "encoded": "1527"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64-mixed",
+        "nativeAtomicWidthsBytes": [
+          2
+        ],
+        "lockFreeWidthsBytes": [
+          2
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "blocksThread": false,
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "comparison": "canonical-representation",
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true
+      },
+      "lockFreeRequested": true,
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-field-order",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "ready",
+            "kind": "bool"
+          },
+          {
+            "name": "delta",
+            "kind": "i8"
+          },
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "delta",
+            "ready",
+            "state"
+          ],
+          "fieldOffsets": {
+            "ready": 0,
+            "delta": 1,
+            "state": 9
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "ready": true,
+              "delta": -5,
+              "state": 2
+            },
+            "encoded": "1527"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64-mixed",
+        "nativeAtomicWidthsBytes": [
+          2
+        ],
+        "lockFreeWidthsBytes": [
+          2
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "blocksThread": false,
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "comparison": "canonical-representation",
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true
+      },
+      "lockFreeRequested": true,
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-high-bits",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "ready",
+            "kind": "bool"
+          },
+          {
+            "name": "delta",
+            "kind": "i8"
+          },
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "ready",
+            "delta",
+            "state"
+          ],
+          "fieldOffsets": {
+            "ready": 0,
+            "delta": 1,
+            "state": 9
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "ready": true,
+              "delta": -5,
+              "state": 2
+            },
+            "encoded": "67063"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64-mixed",
+        "nativeAtomicWidthsBytes": [
+          2
+        ],
+        "lockFreeWidthsBytes": [
+          2
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "blocksThread": false,
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "comparison": "canonical-representation",
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true
+      },
+      "lockFreeRequested": true,
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-enum-code-invalid",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "ready",
+            "kind": "bool"
+          },
+          {
+            "name": "delta",
+            "kind": "i8"
+          },
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "ready",
+            "delta",
+            "state"
+          ],
+          "fieldOffsets": {
+            "ready": 0,
+            "delta": 1,
+            "state": 9
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "ready": true,
+              "delta": -5,
+              "state": 3
+            },
+            "encoded": "2039"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64-mixed",
+        "nativeAtomicWidthsBytes": [
+          2
+        ],
+        "lockFreeWidthsBytes": [
+          2
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "blocksThread": false,
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "comparison": "canonical-representation",
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true
+      },
+      "lockFreeRequested": true,
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-fallback-allocating",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "ready",
+            "kind": "bool"
+          },
+          {
+            "name": "delta",
+            "kind": "i8"
+          },
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "ready",
+            "delta",
+            "state"
+          ],
+          "fieldOffsets": {
+            "ready": 0,
+            "delta": 1,
+            "state": 9
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "ready": true,
+              "delta": -5,
+              "state": 2
+            },
+            "encoded": "1527"
+          }
+        }
+      },
+      "target": {
+        "id": "allocating-portable",
+        "nativeAtomicWidthsBytes": [],
+        "lockFreeWidthsBytes": [],
+        "lockFreeFact": false,
+        "fallbackCapability": {
+          "kind": "allocator-lock",
+          "blocksThread": false,
+          "taskSafe": true,
+          "parking": false,
+          "allocation": true
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "orders": {
+        "success": "acquireRelease",
+        "failure": "acquire"
+      },
+      "comparison": "canonical-representation",
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true
+      },
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-fallback-cooperative",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "state",
+            "generation"
+          ],
+          "fieldOffsets": {
+            "state": 0,
+            "generation": 2
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "state": 1,
+              "generation": 1
+            },
+            "encoded": "5"
+          }
+        }
+      },
+      "target": {
+        "id": "portable",
+        "nativeAtomicWidthsBytes": [],
+        "lockFreeWidthsBytes": [],
+        "lockFreeFact": false,
+        "fallbackCapability": {
+          "kind": "parking-table",
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false,
+          "blocksThread": true
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "cooperativeWorker": true
+      },
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-fallback-signal",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "state",
+            "generation"
+          ],
+          "fieldOffsets": {
+            "state": 0,
+            "generation": 2
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "state": 1,
+              "generation": 1
+            },
+            "encoded": "5"
+          }
+        }
+      },
+      "target": {
+        "id": "portable",
+        "nativeAtomicWidthsBytes": [],
+        "lockFreeWidthsBytes": [],
+        "lockFreeFact": false,
+        "fallbackCapability": {
+          "kind": "parking-table",
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false,
+          "blocksThread": true
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "signalOrInterrupt": true
+      },
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-fallback-freestanding",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "state",
+            "generation"
+          ],
+          "fieldOffsets": {
+            "state": 0,
+            "generation": 2
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "state": 1,
+              "generation": 1
+            },
+            "encoded": "5"
+          }
+        }
+      },
+      "target": {
+        "id": "portable",
+        "nativeAtomicWidthsBytes": [],
+        "lockFreeWidthsBytes": [],
+        "lockFreeFact": false,
+        "fallbackCapability": {
+          "kind": "parking-table",
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false,
+          "blocksThread": true
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true,
+        "freestanding": true
+      },
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-order-release-acquire",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "state",
+            "generation"
+          ],
+          "fieldOffsets": {
+            "state": 0,
+            "generation": 2
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "state": 1,
+              "generation": 1
+            },
+            "encoded": "5"
+          }
+        }
+      },
+      "target": {
+        "id": "x86_64",
+        "nativeAtomicWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "lockFreeWidthsBytes": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "lockFreeFact": true,
+        "fallbackCapability": {
+          "kind": "none",
+          "taskSafe": true,
+          "parking": false,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store",
+        "exchange",
+        "compareExchange"
+      ],
+      "orders": {
+        "success": "release",
+        "failure": "acquire"
+      },
+      "comparison": "canonical-representation",
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true
+      },
+      "lockFreeRequested": false,
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    },
+    {
+      "id": "A-canonical-fallback-parking-ambiguous",
+      "axis": "A",
+      "restaurantSymbol": "HorizonTelemetryEpoch",
+      "route": "canonical-carrier",
+      "record": {
+        "encoding": "compiler-synthesized-canonical",
+        "declarationOrderInjective": true,
+        "fields": [
+          {
+            "name": "state",
+            "kind": "enum",
+            "caseCount": 3
+          },
+          {
+            "name": "generation",
+            "kind": "u32"
+          }
+        ],
+        "canonicalEncoding": {
+          "bitDirection": "least-significant-first",
+          "fieldOrder": [
+            "state",
+            "generation"
+          ],
+          "fieldOffsets": {
+            "state": 0,
+            "generation": 2
+          },
+          "highBitsZero": true,
+          "physicalEndian": "provider-abi",
+          "validPatterns": "canonical-only",
+          "enumOrdinals": {
+            "state": [
+              0,
+              1,
+              2
+            ]
+          },
+          "casValues": "canonical-expected-desired",
+          "sample": {
+            "values": {
+              "state": 1,
+              "generation": 1
+            },
+            "encoded": "5"
+          }
+        }
+      },
+      "target": {
+        "id": "portable",
+        "nativeAtomicWidthsBytes": [],
+        "lockFreeWidthsBytes": [],
+        "lockFreeFact": false,
+        "fallbackCapability": {
+          "kind": "parking-table",
+          "taskSafe": true,
+          "parking": true,
+          "allocation": false,
+          "blocksThread": false
+        }
+      },
+      "operations": [
+        "load",
+        "store"
+      ],
+      "context": {
+        "blockingAllowed": true,
+        "taskSafe": true
+      },
+      "operationContract": {
+        "neverSuspend": true,
+        "cancellationPoint": false,
+        "waitApi": "Atomic.wait-separate"
+      }
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+ATOM2 rejected witnesses. These are not W syntax or semantics.
+
+var atomic pointer: *Menu
+Atomic<Pair<u64, u64>, reclamation: .rcu>
+rcu domain menu using implicit gracePeriod and retire callback

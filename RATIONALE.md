@@ -1645,96 +1645,88 @@ O modelo LZ0 mede a semântica comum entre lowerings. Ele não escolhe a primiti
 do provider. Futex, parking lot, mutex interno ou uma forma target-specific são
 alternativas físicas, desde que preservem winner, edges, cancellation e drop.
 
-#### 1.4.7 ATOM1 — extensibilidade atômica e reclamation
+#### 1.4.7 ATOM2 — fechamento do contrato atômico
 
-ATOM1 é um estudo adversarial e não normativo para o gate ATOM0-G1. O estudo
-usa o restaurante Last Light e separa três problemas que não compartilham um
-contrato de lifetime:
+ATOM2 supersede o resultado Research de ATOM1 e fecha o gate de design ATOM0-G1.
+O estudo problem-first usa os mesmos witnesses do restaurante Last Light e
+compara quatro fronteiras:
 
-| Eixo | Caso | Resultado do estudo |
+| Eixo | Caso | Decisão corrente |
 |---|---|---|
-| A | `SignEpochWord { state: SignState, generation: u32 }` publica uma versão. | Packing inteiro, `SnapshotCell`, lock ou domain continuam atuais. O carrier canônico sintetizado é o candidato **Pesquisa** preferido; raw-layout é rejeitado. |
-| B | `MenuHandle { slot: u32, generation: u32 }` identifica um `Menu`. | O handle inteiro pode ser atômico. A owner table valida a generation antes do dereference. Tagged pointer permanece unsafe. |
-| C | Readers observam snapshots e nodes aposentados. | `SnapshotCell` é a composição atual. Reclamation universal exige adapter `unsafe` especializado. |
+| A | `SignEpochWord { state: SignState, generation: u32 }` publica uma versão. | Carrier canônico compiler-synthesized é promovido dentro de `Atomic<T>` e `var atomic`, sem syntax nova; encoding é bit a bit, LSB-first em declaration order, com high bits zero. |
+| B | `MenuHandle { slot: u32, generation: u32 }` identifica um `Menu`. | Handle value-only e owner table são composição de library. Generation exhaustion aposenta o slot e falha allocation. |
+| C | Readers observam snapshots e nodes aposentados. | `SnapshotCell`/domain são safe. Adapter especializado `unsafe` é permitido somente como implementation-evidence gap. |
+| D | Pointer, tagged pointer e RCU universal pretendem uma primitive geral. | Rejeitado. Atomicidade não prova provenance, lifetime, ABA ou reclamation. |
 
-O candidato A preferido é um carrier canônico sintetizado pelo compiler atrás
-da forma de estudo `var atomic word: SignEpochWord`. Ele não adiciona syntax,
-protocol ou annotation. A alternativa raw-layout é rejeitada por enquanto:
-ela acopla padding, alignment e ABI de `T` à primitive target. O oracle deriva
-uma codificação injetiva de `record.fields`; os três cases de `SignState` usam 2
-bits e `generation: u32` usa 32 bits, portanto o carrier opaco mínimo é 34 bits
-(por exemplo, `u64`). Inteiros fixos até `u128`/`i128` podem medir carriers de
-até 128 bits; `usize`/`isize` são rejeitados no estudo mínimo por dependerem do
-target. Layout raw de `T` pode ser validado como receipt de ABI, mas padding,
-alignment, inicialização e extent são ignorados na seleção do carrier opaco.
-Eles não são autoridade de elegibilidade nem podem ser forjados pelo caller.
-Uma codificação de largura zero, como um enum de um case, é rejeitada com
-diagnóstico próprio: não existe carrier ou atomic location para publicar.
+O carrier A aceita somente record fechado com `Bool`, fixed-width integers ou
+enum sem payload. A codificação canônica é bit a bit: `Bool` é `0/1`, unsigned
+usa o width exato, signed usa two's complement no width exato, e enum usa o
+ordinal de declaração com pelo menos `ceil(log2(caseCount))` bits. Fields seguem
+declaration order, o primeiro ocupa os bits menos significativos e os offsets
+fazem parte do encoding explícito. High bits não usados do menor carrier são
+zero. Endian físico é fact de provider/ABI, não valor lógico. W safe não constrói
+padrões inválidos. O compiler deriva `Copy`, lifetime-independent e drop-free,
+ignora caller facts e escolhe o menor carrier suportado entre 1 e 128 bits.
+Nested records, custom/non-injective encoding, float, `usize`, `isize`, pointer,
+owner, borrow, view, allocator origin e drop field são rejeitados. Load, store,
+exchange e compare-exchange usam os memory orders vigentes; expected e desired do
+CAS são codificados pelo mesmo encoder e comparados por representação canônica.
+Fetch arithmetic não é derivado.
 
-O oracle deriva `Copy`, `lifetimeIndependent` e `dropFree` de `record.fields`;
-facts fornecidos pelo caller são dados não confiáveis e não têm autoridade.
-Kinds desconhecidos, nested record sem medição, enum payload, field pointer,
-owner, borrow, view ou allocator origin, encoding custom ou non-injective e
-bits excessivos rejeitam a derivação. O candidato exige uma encoding canônica
-injectiva, igualdade da representação canônica para CAS e um carrier opaco em
-uma extensão atômica suportada. Fetch arithmetic genérico é rejeitado e a
-order success/failure continua estática. `Atomic<T>`/`var atomic` não cruza C
-ABI diretamente.
+Target profile separa native width, lock-free width e fallback capability.
+`lockFree: true` exige fact exato e nunca usa fallback. Sem o pedido, um carrier
+nativo ou ausente pode usar somente fallback declarado, allocation-free por
+instância/operação e compatível com o contexto. `allocation: true` é rejeitado;
+tabela global ou pré-reservada exige receipt/profile explícito. `blocksThread` é
+separado de `parking`, mas `parking: true` exige `blocksThread: true`; fallback
+que bloqueia thread só entra em contexto com blocking e é rejeitado em
+signal/interrupt, freestanding e cooperative worker.
+Lock-free não significa wait-free. Atomicidade e lifetime continuam contratos
+diferentes. SemanticInterfaceKey muda por mudança pública. WAbiKey e
+RepresentationMap só carregam o carrier quando há crossing W ABI exato. Provider
+digest-only muda recipe, RuntimeClosure e artifact evidence. C ABI não recebe
+`Atomic<T>` diretamente.
 
-O profile do target seleciona o carrier e separa `nativeAtomicWidthsBytes`,
-`lockFreeWidthsBytes` e `fallbackCapability`. Um extent sem primitive nativa só
-usa fallback quando o provider declarado é compatível com o contexto
-blocking/task-safe/freestanding/signal-or-interrupt/cooperative-worker.
-Carrier nativo sem lock-free exige fallback compatível; `lockFree: true` rejeita
-fallback, allocation e blocking. O resultado não altera a identidade lógica do
-tipo. `SemanticInterfaceKey` muda quando a declaração pública ou requirement
-muda. O carrier selecionado entra em `WAbiKey`/RepresentationMap somente quando
-`Atomic<T>` cruza o W ABI exato. Mudança apenas no provider digest muda
-recipe/RuntimeClosure/artifact evidence, não a `SemanticInterfaceKey`.
+Load, store, exchange e compare-exchange são `neverSuspend` e não são
+cancellation points. `Atomic.wait` permanece API separada `maySuspend`; não há
+suspensão de task escondida nos quatro operations. `parking: true` exige
+`blocksThread: true`; não se pode rotular parking como nonblocking apenas por
+`taskSafe`.
 
-O caso B aceita somente um value-only handle com packing/unpacking canônico dos
-dois `u32` em `u64` e uma owner table source-shaped que owns `Menu`, compara a
-generation antes de acessar e retorna `Optional`/`Bool`. Uma generation stale
-retorna rejeição sem dereference; o oracle registra um dereference para um handle
-válido, zero para stale e zero para wrap. Uma generation curta pode repetir um
-valor. O estudo marca esse wrap como **Pesquisa**. Um CAS de tagged pointer não
-prova provenance, lifetime, ABA ou reclamation. Mesmo com receipts completos,
-esses proofs só levam a adapter `unsafe` **Pesquisa**, com promoção de wrapper
-safe ainda não provada.
+O handle B valida a generation antes do dereference e retorna `None` para stale.
+Ao atingir `0xffffffff`, o slot é retired e a nova alocação falha. Wrap não é
+uma solução para ABA. Tagged pointer continua rejeitado mesmo com CAS ou tags.
 
-O caso C registra mutations adversariais: registration ausente, retire antes
-de unlink, reclaim antes de drop/quiescence, retired set sem bound, deleter em
-outro domain, shutdown com participants/readers/retired/callbacks vivos, orders,
-progress, fault e participant duplicados, além de reclaim/drop duplicado. Os
-eventos fechados exigem `register -> access`, `unlink -> retire`,
-`quiescence -> drop -> reclaim`, participant drain/unregister e, somente no
-`foreignBoundary: persistent-callback`, `unregister -> in-flight drain ->
-destroy -> unpin`; shutdown só ocorre com todos os contadores em zero. Cada
-mutation é rejeitada. Um adapter completo nomeia
-participants, bounds, registration, retire, quiescence, deleter context,
-shutdown, orders, progress, fault behavior e foreign boundary. Mesmo completo, ele
-permanece `unsafe` e **Pesquisa**.
+O adapter C exige domain, participants, registration, access/exit,
+unlink/retire, quiescence, typed drop, raw reclaim, bound, deleter context,
+orders, target progress, fault behavior e shutdown. Callback persistent exige
+unregister → in-flight drain → destroy → unpin. A forma permitida permanece
+`unsafe` e não declara provider ou runtime implementado. SnapshotCell e domain
+barrier são as rotas safe.
 
-O oracle host e as variantes estão em
-[`tooling/studies/atom1-atomic-extensibility`](tooling/studies/atom1-atomic-extensibility),
-com corpus, máquina e snapshot em `tooling/atom1-atomic-extensibility-*`.
-As variantes W são parseáveis. O witness universal fica em texto reservado.
-O estudo referencia `HorizonTelemetryEpoch`, `HorizonMenuPublication`,
-`BellLease`, `watchClosingBell` e `foreign c` sem alterar Last Light.
+O estudo durável está em
+[`tooling/studies/atom2-atomic-contract`](tooling/studies/atom2-atomic-contract),
+com corpus, dois reducers host, checker, bundle, snapshot e oracle em
+`tooling/atom2-atomic-contract-*`. São 47 casos em quatro eixos. As mutations
+cobrem bit direction/order, signed/enum code, high bits, target/fallback,
+release/acquire order, allocation, blocksThread/parking/context, ABA/generation exhaustion, drop,
+panic, OOM, cancellation, shutdown, FFI drain, SemanticInterfaceKey e WAbiKey. O resultado
+tem zero status Research ativo. ATOM1 permanece somente como proveniência
+histórica superseded.
 
-As fontes primárias sustentam limites diferentes. O
-[`cmpxchg` do LLVM LangRef](https://llvm.org/docs/LangRef.html#cmpxchg-instruction)
-exige valor integer ou pointer com width potência de dois, alignment válido e
-orders success/failure separadas. A documentação de
+As fontes primárias sustentam limites diferentes. O draft C23
+[`N3220`](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3220.pdf) separa
+atomicidade, memory order e macros de lock-free. A documentação de
 [`core::sync::atomic` do Rust](https://doc.rust-lang.org/stable/core/sync/atomic/index.html)
-trata as widths suportadas como facts do target. A documentação de
-[RCU do Linux](https://docs.kernel.org/RCU/whatisRCU.html) separa removal
-de reclamation e aguarda readers anteriores antes do reuse.
+expõe widths como facts do target e não promete wait-free. A proposta de
+[`Synchronization.Atomic` do Swift](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0410-atomics.md)
+exige operações explícitas e lock-free, não wait-free. Python usa objetos de
+shared memory e wrappers de lock. Linux RCU separa removal de reclamation e
+aguarda readers antes de reuse.
 
-ATOM1 não fecha o gate. `w-compile`, `w-run`, probes de target, provider, drain
-FFI e estudos humanos ou de modelo permanecem missing. A rota ATOM0 continua
-composable para wrappers. O record derivado e a reclamation adapter continuam
-**Pesquisa**.
+W compile/run, target probes, provider behavior, stress, debug receipts, FFI
+drain execution e estudos humano/modelo continuam implementation-evidence gaps.
+Eles podem reabrir o design somente se contradisserem uma invariável fechada.
 
 #### 1.4.8 GEN1 — suspensão incremental e ergonomia
 
@@ -4375,7 +4367,7 @@ Os resultados atuais são estes:
 | Eixo | Rota do problema | Limite deliberado |
 |---|---|---|
 | BRX0 | Componível | Origem única em receiver/body/entrada bodyless fecha o baseline; ambiguidade rejeita `W-BORROW-0011`; relação owned BRX2 permanece Research. |
-| ATOM0 | Componível | Wrapper sobre atomics existentes compõe. Autor de nova primitive atomic ou reclamation exige subestudo de target e lowering confiável. |
+| ATOM0 | Componível | Wrapper sobre atomics existentes e records value-only fechados compõem. Pointer, tagged pointer e RCU universal permanecem rejeitados. Adapter de reclamation especializado exige `unsafe` e evidência de implementação. |
 | GEN0 | Componível | Stream e tasks cobrem produção; a expressão estreita GEN2 reduz a cerimônia com captures explícitas e `yield take`/`yield copy` (copy exige `Duplicable`). Diálogo usa Channel bounded; frame/send/throw/resume público é rejeitado e compile/runtime/provider permanecem gates de evidência. |
 | SYN0 | Componível | Synthesis compiler-owned e transform hermético cobrem artefatos. Introdução de declarations por um generated module separado exige subestudo de provenance, diagnostics e interface; phase in-process permanece rejeitada. |
 | CYC0 | Componível | Weak edge, owner e drain fecham o grafo. Collector transparente não entra no core. |
@@ -4384,12 +4376,13 @@ Os resultados atuais são estes:
 | DYN0 | Componível | Dados, plugins tipados, generations, REPL e transforms atendem hot change. Eval e active-frame patching são rejeitados como mecanismos. |
 
 ATOM0-G1 agora possui o estudo durável
-[`ATOM1`](tooling/studies/atom1-atomic-extensibility/README.md). O corpus e o
-snapshot registram as três fronteiras sem promover a extensão: A testa a
-derivação do carrier canônico value-only (e rejeita raw-layout), B testa handle
-e owner table, e C testa composition com `SnapshotCell` ou adapter `unsafe`
-bounded. A rota do problema permanece Componível. Os requisitos de target,
-reclamation, interface mutation e FFI drain continuam gates **Pesquisa**.
+[`ATOM2`](tooling/studies/atom2-atomic-contract/README.md). O corpus e o
+snapshot registram quatro fronteiras e promovem somente o carrier canônico
+value-only fechado: A entra em `Atomic<T>`/`var atomic`, B usa handle e owner
+table com exhaustion checked, C mantém `SnapshotCell` e adapter `unsafe`
+especializado, e D rejeita pointer/tagged pointer/RCU universal. A rota do
+problema permanece Componível. Target, provider, stress, debug, FFI drain e
+compile/run são gaps de evidência, não um gate Research de design.
 
 GEN0-R1 agora possui o bundle durável [`GEN2`](tooling/studies/gen2-stream-yield)
 com path, digest e claim em `nextStudyGate.studyRefs` do CAP0. O GEN1 anterior
@@ -6302,7 +6295,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1349 | conclusão contextual de call | slot standard primeiro recebe `ref currentAllocator`; cadeia entra no callee e sem slot reinicia no root; W-ALLOCATOR-0010 cobre somente slot contextual sem current | inferência por nome/tipo, parâmetro comum ou propagação sem slot |
 | W-1350 | interface, callable, lifecycle e evidência | signature/HIR/ABI preservam slot; overload usa W-LABEL-0004, initializer usa W-ALLOCATOR-0011; callable/capture/lifecycle/explainability e status permanecem explícitos | default parameter, ABI oculto, capture ou rehome implícito, claims de implementação |
 | W-1351 | expressividade de borrow de ordem superior | BRX0 fecha receiver, body-derived mapping e bodyless com origem única (uma entrada compatível para free/static/protocol); duas ou mais entradas independentes sem autoridade rejeitam `W-BORROW-0011`; callable cria loan por invocation, stream item fica preso ao receiver/storage e adapters preservam OriginSet; relation owned BRX2 e carrier nominal ficam separados, sem syntax de lifetime, GAT ou metadata runtime | copiar lifetime names de Rust, promover relation syntax, tratar aggregate como mesmo resultado, esconder mapping em `any fn`, ou alegar compiler/runtime/provider |
-| W-1352 | estudo ATOM1 de extensibilidade atômica | um oracle adversarial separa record value-only (A), handle geracional com owner table (B) e retirement/reclamation (C); packing, SnapshotCell, domain e lock continuam atuais; carrier canônico sintetizado é o candidato Research preferido, raw-layout é rejeitado, e adapter de reclamation permanece Research, com target progress, interface identity e foreign boundary explícitos | pointer/owner safe por atomicidade, acoplar padding/layout de T ao carrier, protocol user-defined para qualquer record, generation sem owner table, RCU universal safe, reclamation sem quiescence/drop, ou claims de compiler/runtime/provider |
+| W-1352 | sucessor ATOM2 do gate ATOM0-G1 | ATOM2 supersede ATOM1: carrier canônico compiler-synthesized promove records fechados value-only de 1–128 bits dentro de `Atomic<T>`/`var atomic`; handle `{slot,generation}` usa owner table e checked exhaustion sem wrap; SnapshotCell/domain continuam safe; adapter de reclamation especializado é permitido somente `unsafe` como implementation-evidence gap; pointer/tagged pointer e RCU universal são rejeitados | pointer/owner safe por atomicidade, acoplar padding/layout raw de T ao carrier, protocol user-defined para qualquer record, generation wrap ou owner table ausente, RCU universal safe, reclamation sem quiescence/drop, ou claims de compiler/runtime/provider |
 | W-1353 | método e invariantes de GEN1 | o oracle compara as mesmas traces em duas máquinas independentes (`switched-resume-frame` com slots/PC e `returned-continuation-state-loop` com estado/token); owner graph, commit/HB, resultado, cancelamento e cleanup/drop/drain são invariantes. A/B/C permanecem composáveis no escopo observado. Ver W-454–469, W-1161/W-1163, W-1185/W-1186 e W-1240 para contratos existentes. | frame de usuário como ABI, lowering que altera ownership, metadata de runtime, caller echo ou tratar trace físico como semântica |
 | W-1354 | dispositions de evidência e ergonomia de GEN1 | métricas estruturais de símbolos source e slices do mesmo cenário deixam a pergunta ergonômica aberta (`observedStructuralDifference` + `humanDecisionPending`); o builder bounded é current-candidate somente para diálogo; frame/resume público é intencionalmente rejeitado; bloco Stream compiler-owned é Research-candidate sob captures, capacity/prefetch, `Result` item, cancelamento, cleanup, effects e ausência de identidade/ABI pública. O oracle informa/estreita `GEN0-R1`; compile, run, provider e estudos humano/modelo continuam ausentes. | `yield` ambiental com frame público, lifetime/effect/ABI ocultos, LOC como decisão, promover bloco compiler-owned sem prova, promover D por obrigação ou declarar fechamento por oracle |
 | W-1355 | baseline e candidatos IPC1 | IPC0 permanece Research; SnapshotByteSource, wire tipado, Arrow e service channel bounded são baseline; IPC1 materializa candidato de snapshot mapeado imutável e candidato de channel/log bounded sem promover API, syntax, compiler, runtime ou provider | `Mapped<T>` universal, `shared T` como IPC, mmap invisível, raw pointer ou tratar estudo como comportamento implementado |

@@ -1,0 +1,248 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-atom2-atomic-contract",
+  "title": "Atomic contract closure at the Last Light restaurant",
+  "r0Cases": [
+    "R0-structured-labels",
+    "R0-manifest-record"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/synchronization.w",
+    "symbol": "export object HorizonTelemetryEpoch",
+    "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6"
+  },
+  "sourceRefs": [
+    {
+      "path": "../../../reference/last-light/synchronization.w",
+      "symbol": "HorizonMenuPublication",
+      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6"
+    },
+    {
+      "path": "../../../reference/last-light/memory.w",
+      "symbol": "BellLease",
+      "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b"
+    },
+    {
+      "path": "../../../reference/last-light/abi.w",
+      "symbol": "export foreign c",
+      "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40"
+    }
+  ],
+  "variants": [
+    {
+      "id": "current-composition",
+      "role": "alternative",
+      "disposition": "current-composable",
+      "language": "w",
+      "path": "current-composition.w",
+      "digest": "sha256:12ee4053e59f5b76e84d1366b9ebf8706a08699a7ed183bb0cec8cc264e6f3a9",
+      "changedConstructs": [
+        "scalar atomic",
+        "SnapshotCell",
+        "existing orders",
+        "allocation-free fallback",
+        "blocksThread and parking profile"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Current composition witness."
+      }
+    },
+    {
+      "id": "canonical-carrier",
+      "role": "selected",
+      "disposition": "promoted-contract",
+      "language": "w",
+      "path": "canonical-carrier.w",
+      "digest": "sha256:94ff315059936e1dc38ccc53168d2621b3f4ad9ad1cee270fba9770f7cee755f",
+      "changedConstructs": [
+        "compiler-synthesized carrier",
+        "closed value-only record",
+        "canonical bit encoding",
+        "LSB-first field order",
+        "canonical compare-exchange",
+        "neverSuspend operations"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Selected narrow carrier witness."
+      }
+    },
+    {
+      "id": "generational-handle",
+      "role": "alternative",
+      "disposition": "current-composable",
+      "language": "w",
+      "path": "generational-handle.w",
+      "digest": "sha256:85b1b08387fc45543b59f72d492ca7be0bd62090b7bb57f50cf242424a99d800",
+      "changedConstructs": [
+        "slot and generation",
+        "owner table",
+        "checked exhaustion"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Checked handle composition witness."
+      }
+    },
+    {
+      "id": "snapshot-cell",
+      "role": "alternative",
+      "disposition": "current-composable",
+      "language": "w",
+      "path": "snapshot-cell.w",
+      "digest": "sha256:206006159a2edcff56ce4161930797a12904a8c991323aa3df7d3f6f3205e41f",
+      "changedConstructs": [
+        "SnapshotCell",
+        "scoped read",
+        "publish"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Current snapshot witness."
+      }
+    },
+    {
+      "id": "unsafe-adapter",
+      "role": "research-candidate",
+      "disposition": "implementation-evidence-gap",
+      "language": "w",
+      "path": "unsafe-adapter.w",
+      "digest": "sha256:a5628f6c3deb91fcf3719b5459fdcfb4985e00ab69d3639381c3ca17b8ad64ef",
+      "changedConstructs": [
+        "unsafe adapter",
+        "reclamation receipts",
+        "foreign drain"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Permitted shape without implementation claim."
+      }
+    },
+    {
+      "id": "rejected-universal",
+      "role": "rejected-witness",
+      "disposition": "intentionally-rejected",
+      "language": "w-reserved",
+      "path": "rejected-universal.txt",
+      "digest": "sha256:a337fbffc65640da7f84b4b842a01155b8fb57ab939530d43ff7891c68a45453",
+      "changedConstructs": [
+        "raw pointer",
+        "tagged carrier",
+        "universal RCU"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Reserved rejected mechanisms."
+      }
+    }
+  ],
+  "entry": "ATOM2",
+  "inputs": [
+    {
+      "id": "closed-record",
+      "scenario": "publish-sign-epoch",
+      "expected": {
+        "route": "promoted-value-record"
+      }
+    },
+    {
+      "id": "reclamation-boundary",
+      "scenario": "drain-menu-reader",
+      "expected": {
+        "route": "unsafe-adapter-permitted"
+      }
+    },
+    {
+      "id": "universal-pointer",
+      "scenario": "reject-raw-pointer",
+      "expected": {
+        "route": "rejected"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Compare bit-exact canonical value encoding, the exact compare-exchange failure-order matrix, allocation-free fallback with blocksThread/parking facts, owner-table handles, SnapshotCell, and unsafe reclamation receipts."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct target progress, generation exhaustion, drop, and callback drain.",
+      "minimumDelaySeconds": 1
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair invalid target fallback, generation wrap, reclaim order, and foreign callback drain.",
+      "mutations": {
+        "canonical-carrier": "Keep Bool/integer/enum bit codes, LSB-first declaration order, zero high bits, and static orders.",
+        "current-composition": "Keep existing atomic and snapshot routes with allocation-free fallback facts.",
+        "generational-handle": "Retire a slot when generation reaches its maximum.",
+        "snapshot-cell": "Keep reads scoped and publish consuming.",
+        "unsafe-adapter": "Drain readers and callbacks before drop, reclaim, destroy, or unpin.",
+        "rejected-universal": "Keep raw pointer and universal RCU rejected."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a target profile without changing logical value identity or hiding lifetime and cleanup facts."
+    }
+  ],
+  "presentationOrders": [
+    [
+      "current-composition",
+      "canonical-carrier",
+      "generational-handle",
+      "snapshot-cell",
+      "unsafe-adapter",
+      "rejected-universal"
+    ],
+    [
+      "rejected-universal",
+      "unsafe-adapter",
+      "snapshot-cell",
+      "generational-handle",
+      "canonical-carrier",
+      "current-composition"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "current-composition": "A",
+      "canonical-carrier": "B",
+      "generational-handle": "C",
+      "snapshot-cell": "D",
+      "unsafe-adapter": "E",
+      "rejected-universal": "F"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:164e6acc89a721a78803e38fbc346ecb12aae3c84b6d0c6c92a297783eb7036b"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle",
+      "source-ref",
+      "official-primary"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "target-probe",
+      "provider",
+      "stress",
+      "debug-receipt",
+      "human-study",
+      "model-study"
+    ]
+  }
+}
