@@ -5094,6 +5094,70 @@ source escape, categoria errada e `Research` residual. A classificação muda
 somente os três IDs para `oracle-backed-current`; isso fecha a gate de processo
 e não promove qualquer implementação.
 
+### 1.37 Gate SOTA de performance e matriz de responsabilidade
+
+Esta seção prepara a implementação de performance. Ela é evidência comparativa
+e não contrato normativo. A matriz não cria syntax, API ou W-ID. Ela também não
+reabre `Research=0`.
+
+O artigo de 2026 sobre o expoente de multiplicação ([arXiv:2608.16884](https://arxiv.org/abs/2608.16884))
+relata o limite teórico `omega < 2.371177`. Esse resultado pertence à
+complexidade algébrica. Ele não é um claim de GEMM prático. A aula de [MIT 6.172 sobre matrix
+multiplication](https://ocw.mit.edu/courses/6-172-performance-engineering-of-software-systems-fall-2018/d0c73dd51c79b95196a2e6faa824e1b4_MIT6_172F18_lec1.pdf)
+mostra efeitos de ordem de loops, flags, paralelismo, tiling,
+divide-and-conquer e vetorização. A palestra sustenta workloads e oracles
+medidos, não uma escolha de semântica.
+
+O [AlphaEvolve](https://arxiv.org/abs/2506.13131) mostra uma rota de busca que
+edita código e usa avaliadores. Ele não autoriza autotuning durante o build W.
+O uso permitido é pesquisa offline com digest, workload, oracle e stop
+condition registrados.
+
+Esta matriz é um seed mínimo extensível, não um catálogo exaustivo. Ao abrir um
+bundle para um hotspot, atualize as fontes primárias e as alternativas correntes.
+Registre target, CPU/device, toolchain, provider, dataset, data e os digests das
+fontes e entradas. Primeiro verifique correção diferencial; só depois faça
+timing. Registre warmup, repetições, distribuição e variância, além de memória,
+inicialização, packing e custo de compilação quando aplicável. Use pelo menos
+dois baselines independentes quando razoável ou registre por que um baseline é
+suficiente. Não generalize de um benchmark.
+
+Na divisão de responsabilidade, a linguagem define semântica, tipos,
+ownership, effects, shapes e numeric modes. O compiler escolhe provas,
+transformações, especialização e lowering. Runtime, provider e library escolhem
+packing, microkernels, dispatch, device e measurement. Trabalho pequeno e
+estático pode receber lowering para código inline quando fatos e modelo de
+custo fecham. Trabalho grande ou irregular fica no provider ou na library. Sparse e
+graph seguem uma rota separada de dense matrix. `.strict`, `.fast` e
+`.reproducible` continuam explícitos.
+
+Cada linha exige cinco campos. O problema delimita o workload. A fonte primária
+registra alternativas observáveis. O owner recebe a decisão operacional. O
+workload e o oracle fixam a medição. A stop condition encerra a busca sem
+promover um resultado local a claim geral. O seed pode crescer quando um novo
+hotspot exigir outra alternativa, mas não muda a semântica nem reabre
+`Research=0`.
+
+| Domínio | Problema, alternativas e fonte primária | Owner | Workload e oracle | Stop condition |
+|---|---|---|---|---|
+| dense matrix/tensor | GEMM, contractions, layouts e devices. Compare [BLIS](https://doi.org/10.1145/2764454), [MLIR Linalg](https://mlir.llvm.org/docs/Dialects/Linalg/), [MLIR Transform](https://mlir.llvm.org/docs/Dialects/Transform/), [cuBLAS](https://docs.nvidia.com/cuda/cublas/index.html), [oneDNN](https://uxlfoundation.github.io/oneDNN/), [ReproBLAS](https://www.netlib.org/utk/people/JackDongarra/WEB-PAGES/Batched-BLAS-2016/Day1/10_Demmel_ReproBLAS.pdf) e [IREE](https://iree.dev/reference/bindings/c-api/). | compiler para provas e lowering. Provider ou library para packing, microkernel e dispatch. | Shapes pequenas estáticas e grandes densas. Compare `@` nos modos `.strict`, `.fast` e `.reproducible` contra um oracle de valores e pelo menos um baseline BLAS; adicione um segundo baseline ou justifique sua ausência. | Pare quando a diferença semântica for zero, o fallback estiver coberto e a medição ficar dentro do ruído da matriz alvo. Não use `omega` como métrica de GEMM. |
+| sparse/graph | SpMV, traversal e semirings não têm o mesmo custo de dense GEMM. Use a [GraphBLAS C API specification](https://graphblas.org/docs/GraphBLAS_API_C_v2.1.0.pdf) e implementações de referência como alternativa. | provider ou library especializado. Compiler fornece shape, alias e effect facts. | Matrizes com graus uniformes e skewed, BFS, PageRank e semirings. Oracle compara semântica de ausência, ordem permitida e resultado por semiring. | Pare quando formatos sparse, locality e dispatch forem medidos no workload. Não insira fallback dense implícito. |
+| FFT/signal | Planejamento, radix, real/complex e reuse de plans. Use [FFTW3](https://fftw.org/fftw-paper-ieee.pdf) e bibliotecas de device como alternativas. | provider ou library. Compiler conserva shape, units e numeric mode. | Tamanhos smooth, prime e batched, sinais reais e complexos. Oracle verifica erro numérico, ordem strict e repetição de plan. | Pare quando plan creation, execution, memory e reproducibility tiverem budgets publicados. |
+| Unicode/JSON | Validação, transcoding, structural scan e number parse. Compare [simdutf](https://simdutf.github.io/simdutf/) e o [simdjson paper](https://arxiv.org/abs/1902.08318). | std/provider ou library. Compiler pode vetorizar somente com facts provados. | Corpus ASCII, Unicode misto, entradas inválidas, JSON pequeno e grande. Oracle valida bytes, scalars, errors e offsets. | Pare quando o fast path e o fallback produzem o mesmo contrato e a taxa medida tiver variância conhecida. |
+| collections/hash | Probes, rehash, locality e estabilidade de referência. Use as [Swiss Tables](https://abseil.io/about/design/swisstables) como alternativa de layout e probing. | std/library. Compiler escolhe especialização local. | Hit, miss, delete, rehash, chaves adversariais e iteração. Oracle verifica equality, hash, ownership e ordem declarada. | Pare quando memória, latência e invalidation atenderem o contrato. Não transforme ordem incidental em semântica. |
+| allocator | Free lists, locality, cross-thread free, security e contention. Compare o artigo do [mimalloc](https://www.microsoft.com/en-us/research/publication/mimalloc-free-list-sharding-in-action/) e o allocator do target. | runtime/provider. Language ownership, drop e budget continuam fixos. | Objetos curtos e long-lived, burst, threads, tamanhos e falhas de budget. Oracle verifica origin, cleanup, bytes cobrados e OOM. | Pare quando o lowering preservar owner graph e os ganhos superarem o custo em workload representativo. |
+| scheduler/tasks | Work stealing, queues, fairness, cancellation e placement. Use [Scheduling multithreaded computations by work stealing](https://doi.org/10.1145/324133.324234) como fonte primária. | runtime/provider. Compiler entrega o DAG estruturado e seus effects. | DAG fully strict, skewed tasks, join, cancel, deadlines e domains. Oracle verifica ordering, drain, budget e outcome. | Pare quando join e cleanup forem diferenciais e a medição reproduzir o perfil alvo. |
+| I/O | Batching, queue depth, buffers, completion e cancellation. Compare [io_uring(7)](https://man7.org/linux/man-pages/man7/io_uring.7.html) e [CreateIoRing](https://learn.microsoft.com/en-us/windows/win32/api/ioringapi/nf-ioringapi-createioring). | runtime/provider. Language effects, ownership e close permanecem explícitos. | Files e sockets, sync e async, queue depth, short progress e faults. Oracle verifica bytes, errors, close order e bounded queues. | Pare quando throughput não ocultar errors, cancellation ou cleanup e o provider declarar unsupported. |
+| regex | Matching seguro, compilation, memory budget e SIMD. Use o [RE2 source e contrato](https://github.com/google/re2) como alternativa não backtracking. | library/provider. Compiler só aplica transforms sem mudar o automaton. | Corpus normal e adversarial, Unicode, captures suportados e pattern limits. Oracle verifica resultado, tempo linear declarado e falha por budget. | Pare quando a policy de segurança e o subset de syntax forem claros. Não prometa features de backtracking sem prova. |
+| compression | Throughput, ratio, streaming e bounded memory. Use a [Zstandard format specification](https://www.rfc-editor.org/rfc/rfc8878.html) e a [reference implementation](https://github.com/facebook/zstd). | library/provider. Compiler não escolhe formato wire. | Corpus textual e binário, níveis, streams longos, checksum e erro truncado. Oracle verifica bytes decodificados, frame e error code. | Pare quando compatibilidade de formato ou limite de profile estiver declarado e a medição cobrir ratio e throughput. |
+| hashing | Throughput, tree parallelism, streaming e exact digest. Use a [BLAKE3 specification](https://github.com/BLAKE3-team/BLAKE3-specs) e a implementação oficial. | library/provider. Compiler pode vetorizar sem alterar a função. | Vetores vazios, chunks de 1 KiB, tamanhos grandes, keyed e derive-key. Oracle compara digests e streaming state byte a byte. | Pare quando todos os vectors forem exatos e a dispatch por target tiver recipe reproduzível. |
+| tabular/query | Batches, selection, compression, joins e operator fusion. Compare o [formato vetorizado do DuckDB](https://duckdb.org/docs/lts/internals/vector) e o [paper do DuckDB](https://duckdb.org/pdf/SIGMOD2019-demo-duckdb.pdf?file=SIGMOD2019-demo-duckdb.pdf). | compiler para facts e transforms. Runtime/provider/library para vectors, packing e dispatch. | Queries TPC-like, filtros seletivos, nulls, strings, joins e batches pequenos. Oracle verifica rows, order, null semantics e numeric modes. | Pare quando o batch size escolhido tiver evidence, o resultado diferencial for zero e o fallback escalar estiver coberto. |
+
+O resultado desta matriz entra na recipe somente após a stop condition. Um
+benchmark isolado pode orientar uma hipótese. Ele não muda a API, o W-ID, o
+numeric mode ou a alegação de implementação. A matriz deve ser revisada quando
+o target, o workload, o provider ou o oracle mudar.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
