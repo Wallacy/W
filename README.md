@@ -32,10 +32,10 @@ Leia estes artefatos nesta ordem:
    proveniência; é complementar e não normativa;
 4. [Última Luz](reference/last-light/README.md) — produto de referência,
    oracles e fontes `.w`;
-5. [Atlas sintático e cheatsheet](reference/syntax-atlas/README.md) — superfície
-   sintática vigente, exemplos Tree-sitter parse-only e leitura não normativa;
-6. [Cheatsheet W](CHEATSHEET.md) — quick reference navegável da forma vigente,
-   alternativas, trade-offs e limites de evidência;
+5. [Atlas sintático](reference/syntax-atlas/README.md) — projeção gerada dos
+   snippets marcados, com evidência Tree-sitter parse-only; não é um tutorial;
+6. [Cheatsheet W](CHEATSHEET.md) — guia editorial de uso, alternativas,
+   trade-offs e limites de evidência; ele não é gerado pelo atlas;
 7. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
    specs, toolchain plans, ABIs, artifacts e gates;
 8. [Rascunho da std](std/README.md) — contratos da standard library em W;
@@ -47,6 +47,11 @@ acompanhar cada mudança antes do design freeze.
 `DESIGN.md` é a autoridade normativa para o estado atual. `RATIONALE.md` explica
 por que o contrato existe, sem definir comportamento. O Book e o produto de
 referência mostram esse contrato, mas não criam regras próprias.
+
+O arquivo [`reference/syntax-atlas/CHEATSHEET.md`](reference/syntax-atlas/CHEATSHEET.md)
+é gerado por `bun tooling/syntax-atlas.mjs --write` e prova somente o parse dos
+snippets marcados. O [Cheatsheet W](CHEATSHEET.md) é mantido como texto
+editorial e explica quando usar cada forma. Não confunda os dois arquivos.
 
 Use `DESIGN-INDEX.md` para localizar uma seção sem carregar o documento
 integral. O check do tooling falha quando o índice fica desatualizado.

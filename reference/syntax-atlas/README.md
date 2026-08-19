@@ -30,7 +30,12 @@ Cada regra pública da grammar recebe uma classificação `direct`, `composed`,
 checker.
 
 [`CHEATSHEET.md`](CHEATSHEET.md) é gerado dos blocos reais dos arquivos `.w`.
-Não edite o cheatsheet. Use o gerador para manter os snippets idênticos.
+Ele é um atlas parse-only, não um guia editorial e não uma promessa de
+execução. Não edite o arquivo. Use o gerador para manter os snippets idênticos.
+
+O guia editorial fica na raiz em [`../../CHEATSHEET.md`](../../CHEATSHEET.md).
+Ele explica contexto, rotas de uso e trade-offs. O guia editorial não é uma
+projeção do atlas e não deve ser usado como fonte de sintaxe gerada.
 
 ## Estados e limites
 

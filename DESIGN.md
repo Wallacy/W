@@ -22562,6 +22562,52 @@ variante não remove validação nem retorna constants para melhorar o ranking.
 Workloads, topologias e fontes comparativas ficam em
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
+### 18.9 Gate pré-implementação de pesquisa SOTA
+
+Antes de implementar uma otimização nova, a equipe deve preencher a matriz de
+domínios em [`RATIONALE.md` §1.37](RATIONALE.md#137-gate-sota-de-performance-e-matriz-de-responsabilidade).
+O gate registra problema, alternativas, fonte primária, owner, workload,
+oracle e stop condition. Ele não cria sintaxe, API ou W-ID. Ele não reabre
+`Research=0`.
+
+A matriz é um seed mínimo extensível, não um catálogo exaustivo. Ao abrir um
+bundle para um hotspot, a equipe atualiza as fontes primárias e as alternativas
+vigentes. O registro fixa target, CPU/device, toolchain, provider, dataset,
+data e digests dessas fontes e entradas. Isso evita promover um resultado local
+a uma regra geral.
+
+**Exemplo:** uma GEMM pequena pode receber lowering para código inline pelo compiler. Uma GEMM grande
+usa packing e microkernel de provider. A mesma call mantém o modo numérico e o
+oracle de resultado.
+
+A linguagem define semântica, tipos, ownership, effects, shapes e numeric modes.
+Os modos `.strict`, `.fast` e `.reproducible` continuam explícitos e preservam
+as regras de §18.5. A linguagem não escolhe um microkernel, packing ou device.
+
+O compiler escolhe provas, transforms, specialization, fallback e lowering.
+Ele pode emitir lowering para código inline de trabalho pequeno e estático
+quando as provas e o cost model permitem. Ele não transforma uma hipótese de
+benchmark em contrato.
+
+Runtime, provider e library escolhem packing, tiling físico, microkernels,
+dispatch, threads, queues, device e measurement. Trabalho grande ou irregular
+segue para provider ou library. Kernels sparse e graph possuem rotas separadas
+de dense matrix e não recebem fallback implícito.
+
+O resultado da pesquisa precisa de correção diferencial antes de qualquer
+timing, recipe de target e medição reproduzível. O bundle registra warmup,
+repetições, distribuição e variância; registra também memória, inicialização,
+packing e custo de compilação quando aplicável. Usa ao menos dois baselines
+independentes quando razoável ou registra a justificativa para um só. A
+ausência de ganho encerra a alternativa. A ausência de uma prova mantém o
+lowering conservador. Nenhum resultado de SOTA prova que W possui compiler,
+runtime ou provider implementado.
+
+O limite teórico `omega < 2.371177` de multiplicação algébrica não é um claim de
+GEMM prático. A evidência de MIT 6.172 mostra que ordem de loops, flags,
+paralelismo, tiling, divide-and-conquer e vetorização mudam a medição. Essas
+fontes orientam workload e oracle. Elas não mudam a semântica de `@`.
+
 ## 19. FFI, unsafe e ilhas de linguagem
 
 `unsafe` fica somente no adapter ou provider interno que atravessa a fronteira
@@ -30358,6 +30404,7 @@ Saída: design W demonstrado de ponta a ponta e pronto para revisão pública.
 | ML | shape/operator reduzem erros sem esconder cost? | corpus CPU/SIMD/device |
 | device | scope, queue, owner e completion preservam o mesmo grafo? | DEV0, fault injection e providers CPU/device |
 | performance | facts aceleram sem mudar semântica ou layout público? | differential oracles, optimization records e benchmarks |
+| SOTA performance | cada domínio tem owner, workload, oracle e stop condition sem nova surface? | matriz de [`RATIONALE.md` §1.37](RATIONALE.md#137-gate-sota-de-performance-e-matriz-de-responsabilidade), fontes primárias e recipe reproduzível |
 | packages | resolver e evidence model são operáveis? | projeto real offline/reproduzido |
 | ABI | source, W exact, C e component ficam distintos? | mismatch, header, symbols, allocator e version-skew oracles |
 | self-host | SH0–SH7 fecham e convergem? | mini compiler, builds diversos e diff de outputs |

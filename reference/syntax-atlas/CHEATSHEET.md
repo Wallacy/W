@@ -380,17 +380,17 @@ fn prepare(city: String): String {
     let moved = take writableName
     result = moved
     let staged = stage(city)
-    staged
+    let _ = staged
   }
   allocator .fixed<capacity: 128> {
-    result
+    let _ = result.bytes.count
   }
   allocator .root {
-    let rootName = result
-    rootName
+    let rootName = result.bytes.count
+    let _ = rootName
   }
   try allocator .none {
-    result
+    let _ = result.bytes.count
   }
   return result
 }
@@ -468,10 +468,10 @@ fn captureModes(target: String, borrowed: ref String, moved: take String, shared
   let refCapture = <[ref borrowed]>() => borrowed
   let takeCapture = <[take moved]>() => moved
   let weakCapture = <[weak sharedValue]>() => sharedValue
-  copyCapture()
-  refCapture()
-  takeCapture()
-  weakCapture()
+  let _ = copyCapture()
+  let _ = refCapture()
+  let _ = takeCapture()
+  let _ = weakCapture()
   return target
 }
 ```
@@ -515,14 +515,15 @@ async fn restricted(target: String): String throws String {
     target
   }
   let pinned = pin target
-  captured
-  range
-  lease
-  ready
-  guarded
-  transactionValue
-  unsafeValue
-  pinned
+  let _ = captured
+  let _ = range
+  let _ = lease
+  let _ = ready
+  let _ = guarded
+  let _ = transactionValue
+  let _ = unsafeValue
+  let _ = pinned
+  return target
 }
 
 fn panicExample(message: String): String {

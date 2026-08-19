@@ -12,6 +12,12 @@ inspiração editorial do [QuickRef de Rust](https://quickref.me/rust), mas a
 autoridade continua sendo DESIGN.md. A fonte .w, os oracles e o atlas são
 evidência de design ou de parsing, não uma implementação.
 
+Este arquivo é o cheatsheet editorial. Ele explica rotas de uso, contexto e
+trocas. O arquivo [CHEATSHEET.md do atlas](reference/syntax-atlas/CHEATSHEET.md)
+é uma projeção gerada dos snippets marcados e registra somente evidência
+`tree-sitter-parse-only`. O atlas não substitui esta orientação e não deve ser
+editado manualmente.
+
 ## Índice
 
 - [Como ler este arquivo](#como-ler-este-arquivo)
@@ -30,6 +36,7 @@ evidência de design ou de parsing, não uma implementação.
 - [Tensors, devices e custo](#tensors-devices-e-custo)
 - [FFI, foreign bodies e segurança](#ffi-foreign-bodies-e-segurança)
 - [Package, build, CLI, REPL e Jupyter](#package-build-cli-repl-e-jupyter)
+- [Receitas de uso](#receitas-de-uso)
 - [Mesmo objetivo, várias formas](#mesmo-objetivo-várias-formas)
 - [Índices rápidos](#índices-rápidos)
 - [Evidência, limites e validação](#evidência-limites-e-validação)
@@ -548,6 +555,70 @@ oracle-backed-current / provider missing; veja
 children pertencem ao parent, joins são observáveis e cancellation atravessa os
 pontos definidos pelo contrato.
 
+### Pipeline de service e promise pipelining
+
+Uma call dependente usa `pipeline`. O caso `OvenLease` mostra a ordem concreta:
+`acquire` devolve uma capability, `preheat` usa essa capability, e `bake` e
+`close` continuam usando o lease. O bloco abaixo é um excerpt exato de
+`prepareDish` em [restaurant.w](reference/last-light/restaurant.w), incluindo
+o `spawn` da mistura, o pipeline, o cleanup e o `await` da mistura.
+
+```w
+  spawn<.compute> let mixture = mix(stock.ingredients, recipe: schedule.recipe)
+
+  let (lease, ready) = try await pipeline {
+    let lease = ovens.acquire(schedule.recipe.target, duration: schedule.duration)
+    let ready = lease.preheat()
+    return (lease, ready)
+  }
+
+  defer async {
+    do {
+      try await lease.close()
+    } catch error {
+      Trace.current.recordCleanupError(error)
+    }
+  }
+
+  let mixture = try await mixture
+  return try await lease.bake(take mixture, readiness: take ready)
+```
+
+O pipeline descreve um DAG estático de calls. Em uma rota remota, o caller
+pode enviar `preheat()` antes de receber a capability de `acquire()`. O
+resultado só fica observável depois do `await`. Error, cancelamento e
+`unknownOutcome` seguem o contrato de service/effect; o pipeline não presume
+rollback nem liberação automática de uma capability intermediária. O
+`defer async` de `close` só existe depois de o pipeline publicar o lease,
+como no excerpt acima.
+
+Contrafactual explicativa (não é excerpt source-backed): o mesmo trabalho com
+awaits sequenciais é mais simples, mas cria uma barreira entre cada call:
+
+```w
+let lease = try await ovens.acquire(recipe.target, duration: recipe.duration)
+let ready = try await lease.preheat()
+let dish = try await lease.bake(take mixture, readiness: take ready)
+try await lease.close()
+return dish
+```
+
+A forma sequencial mantém a semântica de ownership e errors, mas pode pagar
+round trips adicionais. Ela não faz promise pipelining.
+
+`async let` expressa children independentes que o parent deve aguardar. Ele não
+expressa a dependência `lease → preheat` sem primeiro aguardar o lease:
+
+```w
+async let leaseTask = ovens.acquire(recipe.target, duration: recipe.duration)
+let lease = try await leaseTask
+let ready = try await lease.preheat()
+```
+
+Use `async let` para siblings independentes. Use `pipeline` para dependências
+de service. Nenhuma forma implica runtime, rede ou provider disponível neste
+checkout.
+
 ### Channels e streams
 
 ```w
@@ -789,7 +860,16 @@ target declarado são rejeitados.
 Toda alternativa nesta página deve ser comparada por ownership, effects,
 authority, allocation, cópia, suspensão, largura de dados e budget. O
 [oracle de performance](reference/last-light/performance.w) mede contratos
-de design. Ele não é benchmark de um compiler existente.
+de design. Ele não é benchmark de um compiler existente. O gate pré-implementação
+fica em [DESIGN.md §18.9](DESIGN.md#189-gate-pré-implementação-de-pesquisa-sota)
+e a matriz seed extensível fica em
+[RATIONALE.md §1.37](RATIONALE.md#137-gate-sota-de-performance-e-matriz-de-responsabilidade).
+A linguagem define semântica, tipos, ownership, effects e numeric modes; o
+compiler prova, transforma e faz lowering; runtime, provider e library medem e
+escolhem packing, microkernels, dispatch e device. Trabalho pequeno e estático
+pode receber lowering para código inline; trabalho grande ou irregular vai para
+provider/library, e sparse/graph mantém rota separada. `.strict`, `.fast` e
+`.reproducible` ficam explícitos.
 
 ## FFI, foreign bodies e segurança
 
@@ -844,6 +924,27 @@ e resolução. Eles são data-only roots. Consulte
 [workspace.w](reference/last-light/workspace.w) e
 [BUILD.md](reference/last-light/BUILD.md).
 
+Package e workspace são unidades de manifesto diferentes do `module` W. Um
+package standalone não precisa de workspace: ele próprio é owner de `resolution`
+e `deployments`. Use um workspace opcional quando vários packages devem
+compartilhar members, resolução e operações de desenvolvimento; nesse caso, um
+package member conserva sua identity e products, e delega `resolution` e
+`deployments` de modo único ao workspace.
+Um workspace com um único member só faz sentido para policy, resolução ou
+coordenação de desenvolvimento. O workspace coordena packages. Ele não
+substitui o package nem vira um módulo importável.
+
+| Unidade | Use quando | Owner principal |
+| --- | --- | --- |
+| `module` | declarar source, imports e symbols de um módulo W | symbol graph do source |
+| `package` | standalone/member | owns resolution/deployments; member keeps identity/products |
+| `workspace` | coordenar packages quando necessário | members, `resolution` e `deployments` |
+
+Um workspace pode conter um package, mas os manifestos conservam as duas
+responsabilidades: o package member declara identity e products; o workspace é
+owner de `resolution` e `deployments` de forma única. Não copie campos de
+`package` para um `module`.
+
 | Dado | Por que existe |
 | --- | --- |
 | Package name/version | Identidade e release. |
@@ -872,6 +973,100 @@ As seções [DESIGN.md §24.1.2](DESIGN.md#2412-module-run-arquivo-único),
 [DESIGN.md §24.1.3](DESIGN.md#2413-sessão-e-repl-transacionais) e
 [DESIGN.md §24.1.4](DESIGN.md#2414-apresentação-jupyter-e-export-de-notebooks)
 fecham os limites conhecidos, mas não anunciam um produto disponível.
+
+## Receitas de uso
+
+Os blocos seguintes são excerpts de call sites da Última Luz. Eles mostram
+entrada, operação e resultado; não são source units novos e não prometem
+execução.
+
+### Ownership, erro e cleanup
+
+Excerpt de `recoverGuest`: `guests` e `guestId` entram na consulta e o
+resultado é um `ref Guest` ou `ServiceLookupError`.
+
+```w
+return try requireGuest(guests, id: guestId)
+```
+
+Excerpt de `decodeWithCleanup`: o scope registra o cleanup antes de operar e o
+fecha na saída normal ou de erro.
+
+```w
+defer { cleanupTrace.append(.closed) }
+```
+
+As duas linhas são de [failure.w](reference/last-light/failure.w), mas vêm de
+funções diferentes; elas não formam uma sequência executável nova.
+
+### Stream e channel
+
+```w
+// entrada: dois valores Order -> channel bounded
+let (output, input) = Channel<Order>.open(capacity: 1)
+async let firstSend = submitOrder(copy output, take first)
+async let secondSend = submitOrder(copy output, take second)
+let _ = take output
+
+// resultado: envios do channel -> Array<Order> aceito
+let accepted = await acceptOrders(take input)
+let _ = try await firstSend
+let _ = try await secondSend
+return accepted
+```
+
+Este excerpt de [streams.w](reference/last-light/streams.w) transforma dois
+`Order` em um `Array<Order>`. `async let` cria siblings; os `await` finais
+consomem os outcomes de envio e mantêm o erro de channel explícito.
+
+### Quantity e matriz
+
+```w
+// entrada: unidades de duração equivalentes
+let fromSeconds: PhysicalDuration = 30<si.s>
+let fromMinutes: PhysicalDuration = 0.5<si.min>
+
+// resultado: um valor canônico e um bit pattern
+expect fromSeconds.canonicalValue == fromMinutes.canonicalValue
+```
+
+Em [quantity_oracle.w](reference/last-light/quantity_oracle.w), duas unidades
+entram e produzem um valor canônico. Para uma matriz, o excerpt de
+[horizon.w](reference/last-light/horizon.w) mantém shape e modo numérico no
+call site:
+
+```w
+// entrada: features de window + matriz de calibration
+let calibrated = window.features @ calibration
+let means = calibrated.mean(axis: 0, mode: .reproducible)
+// resultado: matriz centrada com shape declarado
+let centered = calibrated - means.broadcast(to: [samples, 6])
+```
+
+Aqui a entrada é `window` mais `calibration`; o resultado é a matriz centrada.
+
+### Package, module e invocation
+
+```w
+module: "app"
+entry: "LastLightTui"
+```
+
+```w
+entry LastLightTui(runTuiEntry)
+```
+
+```text
+w run last-light-native --deployment local -- --tui
+```
+
+O primeiro excerpt vem do product em
+[package.w](reference/last-light/package.w); o segundo vem de
+[app.w](reference/last-light/app.w). O package resolve o product para o module
+e entry declarados; o module fornece o symbol callable.
+O comando é a forma planejada em [BUILD.md](reference/last-light/BUILD.md),
+mas a CLI e o package manager ainda não estão implementados neste checkout.
+O resultado é uma seleção de product, não uma invocação disponível.
 
 ## Mesmo objetivo, várias formas
 

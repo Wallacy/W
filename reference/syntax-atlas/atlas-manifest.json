@@ -2338,8 +2338,8 @@
           "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b"
         }
       ],
-      "snippetDigest": "sha256:7bea872d1d31977c94081191058175f2c4b0cc1a053a735cbe07ccb631afdffa",
-      "snippetBytes": 593
+      "snippetDigest": "sha256:c497cb570094b726aae9fc86949805b019bd59086a167d2caf6ff3af55cc5b5b",
+      "snippetBytes": 661
     },
     {
       "id": "control-flow",
@@ -2417,8 +2417,8 @@
           "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed"
         }
       ],
-      "snippetDigest": "sha256:9e0ea1d80510531d41bedf01e50175843624f24b14de35e627ce14a1717ec34a",
-      "snippetBytes": 925
+      "snippetDigest": "sha256:c220f9544725a1e20c2eed2b33791c334393cf1d9127a3a11b8f462f719157cc",
+      "snippetBytes": 957
     },
     {
       "id": "restricted-expressions",
@@ -2457,14 +2457,14 @@
           "digest": "sha256:826f5e1d09e74678401fa6502d0f5da167fc00cd0802041f4367f246837af663"
         }
       ],
-      "snippetDigest": "sha256:0dacdf11e0adae52f09e0bb850d57dcb90fe7dec2790e51b7c8b836808ff37b1",
-      "snippetBytes": 891
+      "snippetDigest": "sha256:225ad64d9ff213f982ae5a2eda628a0d3e74dc46cc6324b2d334716de06bd3a1",
+      "snippetBytes": 971
     },
     {
       "id": "stream-and-channel",
       "file": "execution.w",
       "order": 11,
-      "line": 152,
+      "line": 153,
       "title": "Streams, channels, and directional contracts",
       "family": "streams",
       "designStatus": "current",
@@ -2518,7 +2518,7 @@
       "id": "module-run-entry",
       "file": "execution.w",
       "order": 13,
-      "line": 181,
+      "line": 182,
       "title": "Explicit module-run entry",
       "family": "entry",
       "designStatus": "current",
@@ -2611,6 +2611,6 @@
   ],
   "generated": {
     "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:7c454a5adc266689129bfafb9ca28d7bb9b32be6a5ed2d58b42decfb70efe605"
+    "cheatsheetDigest": "sha256:1f7ad15304a81a8046ff7ab35d3996ca67d104e958d82abdc41ef48251bec078"
   }
 }
