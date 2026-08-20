@@ -70,6 +70,7 @@ typedef enum {
   W_SEED_CST_CONTRACT_ENVELOPE,
   W_SEED_CST_SWITCH_EXPRESSION,
   W_SEED_CST_SWITCH_ARM,
+  W_SEED_CST_ALLOCATOR_BLOCK,
 } w_seed_cst_kind;
 
 enum {

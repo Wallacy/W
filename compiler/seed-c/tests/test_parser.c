@@ -1473,6 +1473,237 @@ static bool check_complete_shape(const fixture *value) {
   return true;
 }
 
+static bool test_allocator_block_shapes(void) {
+  static const char anonymous_text[] =
+      "fn stage(allocator memory:ref Allocator,title:ref String,"
+      "dishes menuDishes:ref Array<String>):MenuSnapshot{"
+      "allocator .fixed<capacity:64<iec.KiB>>{"
+      "let snapshot=stage(ref title,dishes:ref dishes)}}\n";
+  fixture anonymous;
+  CHECK(fixture_init(&anonymous, anonymous_text,
+                     sizeof(anonymous.nodes) / sizeof(anonymous.nodes[0]),
+                     sizeof(anonymous.issues) / sizeof(anonymous.issues[0])));
+  CHECK(check_complete_shape(&anonymous));
+  CHECK(count_kind(&anonymous, W_SEED_CST_ALLOCATOR_BLOCK) == 1);
+  const w_seed_cst_index anonymous_allocator =
+      first_kind(&anonymous, W_SEED_CST_ALLOCATOR_BLOCK);
+  CHECK(anonymous_allocator != W_SEED_CST_NONE);
+  const w_seed_cst_index anonymous_keyword = direct_child_after(
+      &anonymous, anonymous_allocator, W_SEED_CST_WORD, 0);
+  const w_seed_cst_index anonymous_plan = direct_child_after(
+      &anonymous, anonymous_allocator, W_SEED_CST_EXPRESSION, 0);
+  const w_seed_cst_index anonymous_body = direct_child_after(
+      &anonymous, anonymous_allocator, W_SEED_CST_BLOCK, 0);
+  CHECK(anonymous_keyword != W_SEED_CST_NONE);
+  CHECK(anonymous_plan != W_SEED_CST_NONE);
+  CHECK(anonymous_body != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&anonymous, anonymous_allocator, W_SEED_CST_WORD) == 1);
+  CHECK(node_span_text(&anonymous, anonymous_keyword, "allocator"));
+  CHECK(node_span_text(&anonymous, anonymous_plan,
+                       ".fixed<capacity:64<iec.KiB>>"));
+  CHECK(anonymous.nodes[anonymous_allocator].raw_span.start_byte ==
+        anonymous.nodes[anonymous_keyword].raw_span.start_byte);
+  CHECK(anonymous.nodes[anonymous_allocator].raw_span.end_byte >=
+        anonymous.nodes[anonymous_body].raw_span.end_byte);
+  CHECK(count_direct_kind(&anonymous, anonymous_body,
+                          W_SEED_CST_LET_STATEMENT) == 1);
+
+  fixture anonymous_repeat;
+  CHECK(fixture_init(&anonymous_repeat, anonymous_text,
+                     sizeof(anonymous_repeat.nodes) /
+                         sizeof(anonymous_repeat.nodes[0]),
+                     sizeof(anonymous_repeat.issues) /
+                         sizeof(anonymous_repeat.issues[0])));
+  CHECK(same_parse(&anonymous, &anonymous_repeat));
+
+  static const char named_text[] =
+      "fn caller(allocator memory:ref Allocator,title:ref String){"
+      "allocator scratch:.fixed<capacity:64<iec.KiB>>{"
+      "let snapshot=stage(allocator:ref memory,ref title)}}\n";
+  fixture named;
+  CHECK(fixture_init(&named, named_text,
+                     sizeof(named.nodes) / sizeof(named.nodes[0]),
+                     sizeof(named.issues) / sizeof(named.issues[0])));
+  CHECK(check_complete_shape(&named));
+  const w_seed_cst_index named_allocator =
+      first_kind(&named, W_SEED_CST_ALLOCATOR_BLOCK);
+  CHECK(named_allocator != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&named, named_allocator, W_SEED_CST_WORD) == 2);
+  CHECK(has_direct_text(&named, named_allocator, W_SEED_CST_WORD, "allocator"));
+  CHECK(has_direct_text(&named, named_allocator, W_SEED_CST_WORD, "scratch"));
+  CHECK(has_direct_text(&named, named_allocator, W_SEED_CST_PUNCTUATION, ":"));
+  const w_seed_cst_index named_plan = direct_child_after(
+      &named, named_allocator, W_SEED_CST_EXPRESSION, 0);
+  const w_seed_cst_index named_body = direct_child_after(
+      &named, named_allocator, W_SEED_CST_BLOCK, 0);
+  CHECK(named_plan != W_SEED_CST_NONE);
+  CHECK(named_body != W_SEED_CST_NONE);
+  CHECK(node_span_text(&named, named_plan,
+                       ".fixed<capacity:64<iec.KiB>>"));
+  CHECK(count_direct_kind(&named, named_body, W_SEED_CST_LET_STATEMENT) == 1);
+  bool saw_allocator_argument = false;
+  bool saw_ref_argument = false;
+  for (size_t index = 0; index < named.result.node_count; index += 1) {
+    if (named.nodes[index].kind != W_SEED_CST_ARGUMENT) continue;
+    saw_allocator_argument |=
+        node_span_text(&named, (w_seed_cst_index)index, "allocator:ref memory");
+    saw_ref_argument |=
+        node_span_text(&named, (w_seed_cst_index)index, "ref title");
+  }
+  CHECK(saw_allocator_argument);
+  CHECK(saw_ref_argument);
+
+  static const char nested_text[] =
+      "fn nested(){allocator outer:.fixed<capacity:64<iec.KiB>>{"
+      "allocator inner:.fixed<capacity:64<iec.KiB>>{let local=Array<String>()}"
+      "let portable=Array<String>(allocator:outer)}}\n";
+  fixture nested;
+  CHECK(fixture_init(&nested, nested_text,
+                     sizeof(nested.nodes) / sizeof(nested.nodes[0]),
+                     sizeof(nested.issues) / sizeof(nested.issues[0])));
+  CHECK(check_complete_shape(&nested));
+  CHECK(count_kind(&nested, W_SEED_CST_ALLOCATOR_BLOCK) == 2);
+  const w_seed_cst_index outer =
+      first_kind(&nested, W_SEED_CST_ALLOCATOR_BLOCK);
+  CHECK(outer != W_SEED_CST_NONE);
+  const w_seed_cst_index outer_body =
+      direct_child_after(&nested, outer, W_SEED_CST_BLOCK, 0);
+  CHECK(outer_body != W_SEED_CST_NONE);
+  const w_seed_cst_index inner = direct_child_after(
+      &nested, outer_body, W_SEED_CST_ALLOCATOR_BLOCK, 0);
+  CHECK(inner != W_SEED_CST_NONE);
+  CHECK(nested.nodes[outer].raw_span.start_byte <
+        nested.nodes[inner].raw_span.start_byte);
+  CHECK(has_direct_text(&nested, outer, W_SEED_CST_WORD, "outer"));
+  CHECK(has_direct_text(&nested, inner, W_SEED_CST_WORD, "inner"));
+  bool saw_override = false;
+  for (size_t index = 0; index < nested.result.node_count; index += 1) {
+    if (nested.nodes[index].kind == W_SEED_CST_ARGUMENT &&
+        node_span_text(&nested, (w_seed_cst_index)index, "allocator:outer")) {
+      saw_override = true;
+    }
+  }
+  CHECK(saw_override);
+
+  static const struct {
+    const char *text;
+    w_seed_parse_issue_kind first_issue;
+    bool missing_plan;
+  } recovery_cases[] = {
+      {"fn f(){allocator {let value=1}}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, true},
+      {"fn f(){allocator .fixed<capacity:64<iec.KiB>> let value=1}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE, false},
+      {"fn f(){allocator .fixed<capacity:64<iec.KiB>>{let value=1}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE, false},
+      {"fn f(){allocator 0:.fixed<capacity:64<iec.KiB>>{let value=1}}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, false},
+      {"fn f(){allocator .fixed<capacity:64<iec.KiB>>:{let value=1}}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, false},
+      {"fn f(){allocator .fixed<capacity:64<iec.KiB>{let value=1}}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE, false},
+  };
+  for (size_t index = 0;
+       index < sizeof(recovery_cases) / sizeof(recovery_cases[0]); index += 1) {
+    fixture recovery;
+    CHECK(fixture_init(&recovery, recovery_cases[index].text,
+                       sizeof(recovery.nodes) / sizeof(recovery.nodes[0]),
+                       sizeof(recovery.issues) / sizeof(recovery.issues[0])));
+    CHECK(recovery.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(recovery.result.issue_count >= 1);
+    CHECK(recovery.issues[0].kind == recovery_cases[index].first_issue);
+    CHECK(count_kind(&recovery, W_SEED_CST_ALLOCATOR_BLOCK) == 1);
+    const w_seed_cst_index allocator =
+        first_kind(&recovery, W_SEED_CST_ALLOCATOR_BLOCK);
+    CHECK(allocator != W_SEED_CST_NONE);
+    CHECK(recovery.nodes[allocator].raw_span.start_byte <=
+          recovery.nodes[allocator].raw_span.end_byte);
+    if (recovery_cases[index].missing_plan) {
+      CHECK(count_direct_kind(&recovery, allocator, W_SEED_CST_EXPRESSION) == 0);
+      const w_seed_cst_index missing =
+          direct_child_after(&recovery, allocator, W_SEED_CST_MISSING, 0);
+      CHECK(missing != W_SEED_CST_NONE);
+      CHECK(recovery.nodes[missing].raw_span.start_byte ==
+            recovery.nodes[missing].raw_span.end_byte);
+      CHECK(recovery.nodes[missing].raw_span.start_byte >=
+            recovery.nodes[allocator].raw_span.start_byte);
+      CHECK(recovery.nodes[missing].raw_span.start_byte <=
+            recovery.nodes[allocator].raw_span.end_byte);
+    }
+    CHECK(check_leaf_partition(&recovery));
+    CHECK(check_tree_links(&recovery));
+  }
+
+  static const char semicolon_text[] =
+      "fn f(){allocator .fixed<capacity:64<iec.KiB>>{"
+      "let snapshot=stage(ref title)};let after=next()}\n";
+  fixture semicolon;
+  CHECK(fixture_init(&semicolon, semicolon_text,
+                     sizeof(semicolon.nodes) / sizeof(semicolon.nodes[0]),
+                     sizeof(semicolon.issues) / sizeof(semicolon.issues[0])));
+  CHECK(check_complete_shape(&semicolon));
+  const w_seed_cst_index semicolon_allocator =
+      first_kind(&semicolon, W_SEED_CST_ALLOCATOR_BLOCK);
+  CHECK(semicolon_allocator != W_SEED_CST_NONE);
+  const w_seed_cst_index semicolon_plan = direct_child_after(
+      &semicolon, semicolon_allocator, W_SEED_CST_EXPRESSION, 0);
+  const w_seed_cst_index semicolon_body = direct_child_after(
+      &semicolon, semicolon_allocator, W_SEED_CST_BLOCK, 0);
+  CHECK(semicolon_plan != W_SEED_CST_NONE);
+  CHECK(semicolon_body != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&semicolon, semicolon_allocator,
+                          W_SEED_CST_PUNCTUATION) >= 1);
+  CHECK(has_direct_text(&semicolon, semicolon_allocator,
+                        W_SEED_CST_PUNCTUATION, ";"));
+  CHECK(semicolon.nodes[semicolon_plan].raw_span.end_byte <=
+        semicolon.nodes[semicolon_body].raw_span.start_byte);
+  CHECK(semicolon.nodes[semicolon_body].raw_span.end_byte <=
+        semicolon.nodes[semicolon_allocator].raw_span.end_byte);
+  const w_seed_cst_index function_body = first_kind(&semicolon, W_SEED_CST_BLOCK);
+  CHECK(function_body != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&semicolon, function_body, W_SEED_CST_LET_STATEMENT) == 1);
+  const w_seed_cst_index after =
+      direct_child_after(&semicolon, function_body, W_SEED_CST_LET_STATEMENT, 0);
+  CHECK(after != W_SEED_CST_NONE);
+  CHECK(node_span_text(&semicolon, after, "let after=next()"));
+  fixture semicolon_repeat;
+  CHECK(fixture_init(&semicolon_repeat, semicolon_text,
+                     sizeof(semicolon_repeat.nodes) /
+                         sizeof(semicolon_repeat.nodes[0]),
+                     sizeof(semicolon_repeat.issues) /
+                         sizeof(semicolon_repeat.issues[0])));
+  CHECK(same_parse(&semicolon, &semicolon_repeat));
+
+  static const char *const fatal_texts[] = {
+      "fn f(){try allocator .fixed<capacity:64<iec.KiB>>{let value=1}}\n",
+      "fn f(){return try allocator .fixed<capacity:64<iec.KiB>>{}}\n",
+      "allocator .fixed<capacity:64<iec.KiB>>{}\n",
+      "fn f(){spawn<.compute> let value=work()}\n",
+  };
+  for (size_t index = 0;
+       index < sizeof(fatal_texts) / sizeof(fatal_texts[0]); index += 1) {
+    fixture fatal;
+    CHECK(fixture_init(&fatal, fatal_texts[index],
+                       sizeof(fatal.nodes) / sizeof(fatal.nodes[0]),
+                       sizeof(fatal.issues) / sizeof(fatal.issues[0])));
+    CHECK(fatal.result.status == W_SEED_PARSE_FATAL);
+    CHECK(fatal.result.issue_count == 1);
+    CHECK(fatal.issues[0].kind == W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    CHECK(check_leaf_partition(&fatal));
+    CHECK(check_tree_links(&fatal));
+  }
+  fixture foreign;
+  CHECK(fixture_init(&foreign, "fn f(){foreign c { host body }}\n",
+                     sizeof(foreign.nodes) / sizeof(foreign.nodes[0]),
+                     sizeof(foreign.issues) / sizeof(foreign.issues[0])));
+  CHECK(foreign.result.status == W_SEED_PARSE_FATAL);
+  CHECK(foreign.result.issue_count == 1);
+  CHECK(foreign.issues[0].kind == W_SEED_PARSE_ISSUE_FOREIGN_UNSUPPORTED);
+  CHECK(check_leaf_partition(&foreign));
+  CHECK(check_tree_links(&foreign));
+  return true;
+}
+
 static bool test_phase2_generic_contract_switch(void) {
   static const char generic_text[] =
       "struct Box<_ state:State>{value:state}\n"
@@ -2149,6 +2380,7 @@ int main(void) {
       test_phase2_fatal_boundaries() &&
       test_phase2_recovery_mutations() &&
       test_phase2_generic_contract_switch() &&
+      test_allocator_block_shapes() &&
       test_for_control_shapes() &&
       test_for_markers_and_iterables() &&
       test_for_control_recovery();

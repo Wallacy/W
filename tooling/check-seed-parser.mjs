@@ -30,6 +30,8 @@ const selectedIds = [
   "F0-optional-label-slots",
   "F0-contracts-and-source-order",
   "F0-enum-subset-switch",
+  "F0-allocator-anonymous-contextual-call",
+  "F0-allocator-named-override",
 ]
 
 const CST = Object.freeze({
@@ -42,6 +44,7 @@ const CST = Object.freeze({
   PARAMETER_LIST: 3,
   TRIVIA: 24,
   BLOCK: 7,
+  LET: 8,
   LABEL: 13,
   BREAK: 14,
   CONTINUE: 15,
@@ -73,6 +76,12 @@ const CST = Object.freeze({
   CONTRACT_ENVELOPE: 49,
   SWITCH_EXPRESSION: 50,
   SWITCH_ARM: 51,
+  ALLOCATOR_BLOCK: 52,
+})
+
+const ISSUE = Object.freeze({
+  UNEXPECTED_TOKEN: 1,
+  MISSING_OWNER_CLOSE: 2,
 })
 
 function fail(message) {
@@ -529,6 +538,109 @@ function assertPhase2Switch(parsed, bytes, label) {
   }
 }
 
+function assertAllocatorBlock(parsed, bytes, label, expectedBinding = null) {
+  assertClean(parsed, label)
+  const blocks = parsed.nodes.filter((node) => node.kind === CST.ALLOCATOR_BLOCK)
+  if (blocks.length !== 1) fail(`${label} does not contain one ALLOCATOR_BLOCK`)
+  const allocator = blocks[0]
+  const direct = childrenOf(parsed, allocator.index)
+  const words = direct.filter((node) => node.kind === CST.WORD)
+  const punctuation = direct.filter((node) => node.kind === CST.PUNCTUATION)
+  const plans = directKind(parsed, allocator.index, CST.EXPRESSION)
+  const bodies = directKind(parsed, allocator.index, CST.BLOCK)
+  if (words.length < 1 || plans.length !== 1 || bodies.length !== 1) {
+    fail(`${label} ALLOCATOR_BLOCK direct owners are incomplete`)
+  }
+  if (nodeText(parsed, bytes, words[0]) !== "allocator" ||
+      allocator.start !== words[0].start || allocator.end < bodies[0].end ||
+      plans[0].start <= words[0].end || plans[0].end > bodies[0].start) {
+    fail(`${label} ALLOCATOR_BLOCK source span/order is not preserved`)
+  }
+  if (expectedBinding === null) {
+    if (words.length !== 1) fail(`${label} anonymous allocator owns a binding WORD`)
+  } else {
+    if (words.length !== 2 || nodeText(parsed, bytes, words[1]) !== expectedBinding ||
+        !punctuation.some((node) => nodeText(parsed, bytes, node) === ":")) {
+      fail(`${label} named allocator binding/colon is not source-shaped`)
+    }
+  }
+  const normalizedPlan = nodeText(parsed, bytes, plans[0]).replace(/\s+/gu, "")
+  if (normalizedPlan !== ".fixed<capacity:64<iec.KiB>>") {
+    fail(`${label} allocator plan is not source-shaped`)
+  }
+  if (!directKind(parsed, bodies[0].index, CST.LET).some((node) =>
+      nodeText(parsed, bytes, node).includes("snapshot"))) {
+    fail(`${label} allocator body does not own the snapshot LET`)
+  }
+}
+
+function assertAllocatorWitness(parsed, bytes) {
+  assertClean(parsed, "allocation.w:nested-allocator")
+  const blocks = parsed.nodes.filter((node) => node.kind === CST.ALLOCATOR_BLOCK)
+  if (blocks.length !== 2) fail("allocation.w nested witness does not contain two ALLOCATOR_BLOCKs")
+  const named = blocks.filter((allocator) => directKind(parsed, allocator.index, CST.WORD)
+    .some((word) => nodeText(parsed, bytes, word) === "outer" ||
+      nodeText(parsed, bytes, word) === "inner"))
+  if (named.length !== 2) fail("allocation.w nested witness does not preserve named allocators")
+  const outer = blocks.find((allocator) => {
+    const body = directKind(parsed, allocator.index, CST.BLOCK)[0]
+    return body && descendants(parsed, body.index).some((node) => node.kind === CST.ALLOCATOR_BLOCK)
+  })
+  if (!outer) fail("allocation.w nested witness does not preserve nesting")
+  const body = directKind(parsed, outer.index, CST.BLOCK)[0]
+  if (!descendants(parsed, body.index).some((node) => node.kind === CST.ARGUMENT &&
+      nodeText(parsed, bytes, node).includes("allocator: outer"))) {
+    fail("allocation.w nested witness does not preserve explicit allocator override")
+  }
+}
+
+function assertAllocatorRecovery(parsed, bytes, label, expectedIssue,
+                                 missingPlan = false) {
+  if (parsed.result.status !== "recovered" || parsed.result.issueCount === 0) {
+    fail(`${label} is not recovered with an issue`)
+  }
+  if (parsed.issues[0]?.kind !== expectedIssue) {
+    fail(`${label} first issue ${parsed.issues[0]?.kind} != ${expectedIssue}`)
+  }
+  const blocks = parsed.nodes.filter((node) => node.kind === CST.ALLOCATOR_BLOCK)
+  if (blocks.length !== 1) fail(`${label} recovery lost ALLOCATOR_BLOCK owner`)
+  const allocator = blocks[0]
+  if (allocator.start > allocator.end) fail(`${label} allocator owner span is inverted`)
+  if (missingPlan) {
+    if (directKind(parsed, allocator.index, CST.EXPRESSION).length !== 0) {
+      fail(`${label} fabricated an EXPRESSION for a missing plan`)
+    }
+    const missing = directKind(parsed, allocator.index, CST.MISSING)
+    if (missing.length !== 1 || missing[0].start !== missing[0].end ||
+        missing[0].start < allocator.start || missing[0].start > allocator.end) {
+      fail(`${label} missing plan is not a zero-width owner child`)
+    }
+  }
+  // parseProbe already proves leaf partition and child containment/order.
+  if (bytes.length !== parsed.result.length) fail(`${label} recovery bytes drifted`)
+}
+
+function assertAllocatorBoundary(parsed, bytes) {
+  assertClean(parsed, "allocator-semicolon-boundary")
+  const allocator = parsed.nodes.find((node) => node.kind === CST.ALLOCATOR_BLOCK)
+  if (!allocator) fail("allocator-semicolon-boundary lost ALLOCATOR_BLOCK")
+  const plan = directKind(parsed, allocator.index, CST.EXPRESSION)[0]
+  const body = directKind(parsed, allocator.index, CST.BLOCK)[0]
+  const semicolons = childrenOf(parsed, allocator.index)
+    .filter((node) => node.kind === CST.PUNCTUATION && nodeText(parsed, bytes, node) === ";")
+  if (!plan || !body || semicolons.length !== 1 || plan.end > body.start ||
+      semicolons[0].start < body.end || semicolons[0].start < plan.end) {
+    fail("allocator-semicolon-boundary plan/body/semicolon ownership drifted")
+  }
+  const enclosing = parsed.nodes.find((node) => node.kind === CST.BLOCK &&
+    directKind(parsed, node.index, CST.ALLOCATOR_BLOCK).length === 1)
+  if (!enclosing || directKind(parsed, enclosing.index, CST.LET).length !== 1 ||
+      !nodeText(parsed, bytes, directKind(parsed, enclosing.index, CST.LET)[0])
+        .startsWith("let after=next()")) {
+    fail("allocator-semicolon-boundary did not continue with the following let")
+  }
+}
+
 function assertLabeledControl(parsed, bytes, label) {
   assertClean(parsed, label)
   const loops = parsed.nodes.filter((node) => node.kind === CST.FOR)
@@ -739,6 +851,14 @@ async function main() {
         assertPhase2Switch(inputParsed, input, `${id}:input`)
         assertPhase2Switch(outputParsed, output, `${id}:output`)
       }
+      if (id === "F0-allocator-anonymous-contextual-call") {
+        assertAllocatorBlock(inputParsed, input, `${id}:input`)
+        assertAllocatorBlock(outputParsed, output, `${id}:output`)
+      }
+      if (id === "F0-allocator-named-override") {
+        assertAllocatorBlock(inputParsed, input, `${id}:input`, "scratch")
+        assertAllocatorBlock(outputParsed, output, `${id}:output`, "scratch")
+      }
       if (inputParsed.signature !== second.signature) fail(`${id} CST signature is not deterministic`)
       if (inputParsed.nodes.length === 0 || outputParsed.nodes.length === 0) fail(`${id} has no CST nodes`)
     }
@@ -817,6 +937,23 @@ async function main() {
       fail("enum_contracts.w switch witness CST signature is not deterministic")
     }
 
+    const allocatorWitness = await sourceBackedFragment(
+      "reference/last-light/allocation.w",
+      "fn nestedAllocatorScopes()",
+      "fn rootDefaultConstruction(",
+      "allocation.w nested allocator witness",
+    )
+    const allocatorWitnessParsed = invoke(
+      probe, allocatorWitness, "allocation.w:nested-allocator", "complete",
+    )
+    assertAllocatorWitness(allocatorWitnessParsed, allocatorWitness)
+    const allocatorWitnessRepeat = invoke(
+      probe, allocatorWitness, "allocation.w:nested-allocator:repeat", "complete",
+    )
+    if (allocatorWitnessParsed.signature !== allocatorWitnessRepeat.signature) {
+      fail("allocation.w nested allocator witness CST signature is not deterministic")
+    }
+
     const handCases = [
       ["nested-generic-and-shift", Buffer.from("fn f(x:Array<Array<u8>>):Array<Array<u8>>{return flags >> 2}\n"), "complete"],
       ["generic-declarations", Buffer.from("struct Box<_ state:State>{value:state}\nfn id<T:Order>(value:T):T{return value}\ntype Alias<T:Order> = Array<T>\nalias Legacy<U> = Array<Array<u8>>\n"), "complete"],
@@ -867,6 +1004,19 @@ async function main() {
       ["transaction-missing-close", Buffer.from("fn f(){return transaction tx=provider{commit value\n"), "recovered", 2],
       ["transaction-malformed-commit", Buffer.from("fn f(){commit value else}\n"), "recovered", 3],
       ["transaction-contract-stop", Buffer.from("fn f(){return transaction<.serializable> tx=provider{commit value}}\n"), "fatal", 6],
+      ["allocator-anonymous-contextual-call", Buffer.from("fn stage(allocator memory:ref Allocator,title:ref String,dishes menuDishes:ref Array<String>):MenuSnapshot{allocator .fixed<capacity:64<iec.KiB>>{let snapshot=stage(ref title,dishes:ref dishes)}}\n"), "complete"],
+      ["allocator-named-override", Buffer.from("fn caller(allocator memory:ref Allocator,title:ref String){allocator scratch:.fixed<capacity:64<iec.KiB>>{let snapshot=stage(allocator:ref memory,ref title)}}\n"), "complete"],
+      ["allocator-nested", Buffer.from("fn nested(){allocator outer:.fixed<capacity:64<iec.KiB>>{allocator inner:.fixed<capacity:64<iec.KiB>>{let local=Array<String>()}let portable=Array<String>(allocator:outer)}}\n"), "complete"],
+      ["allocator-missing-plan", Buffer.from("fn f(){allocator {let value=1}}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["allocator-missing-open", Buffer.from("fn f(){allocator .fixed<capacity:64<iec.KiB>> let value=1}\n"), "recovered", ISSUE.MISSING_OWNER_CLOSE],
+      ["allocator-missing-close", Buffer.from("fn f(){allocator .fixed<capacity:64<iec.KiB>>{let value=1}\n"), "recovered", ISSUE.MISSING_OWNER_CLOSE],
+      ["allocator-nonword-binding", Buffer.from("fn f(){allocator 0:.fixed<capacity:64<iec.KiB>>{let value=1}}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["allocator-extra-colon", Buffer.from("fn f(){allocator .fixed<capacity:64<iec.KiB>>:{let value=1}}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["allocator-malformed-envelope", Buffer.from("fn f(){allocator .fixed<capacity:64<iec.KiB>{let value=1}}\n"), "recovered", ISSUE.MISSING_OWNER_CLOSE],
+      ["allocator-semicolon-boundary", Buffer.from("fn f(){allocator .fixed<capacity:64<iec.KiB>>{let snapshot=stage(ref title)};let after=next()}\n"), "complete"],
+      ["allocator-try-stop", Buffer.from("fn f(){try allocator .fixed<capacity:64<iec.KiB>>{let value=1}}\n"), "fatal", 6],
+      ["allocator-root-stop", Buffer.from("allocator .fixed<capacity:64<iec.KiB>>{}\n"), "fatal", 6],
+      ["spawn-stop-after-allocator", Buffer.from("fn f(){spawn<.compute> let value=work()}\n"), "fatal", 6],
       ["language-lock-plain", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as value{copy value}}\n"), "complete"],
       ["language-lock-await", Buffer.from("fn f(state:shared Ledger):Ledger{return await lock state as value{copy value}}\n"), "complete"],
       ["language-lock-try", Buffer.from("fn f(state:shared Ledger):Ledger{return try lock state as value{copy value}}\n"), "complete"],
@@ -943,10 +1093,26 @@ async function main() {
       const parsed = invoke(probe, bytes, label, status, issue)
       if ((label.startsWith("for-") || label.startsWith("async-") ||
            label.startsWith("borrow-") ||
-           label.startsWith("export-async-") || label === "while-labeled-stop") &&
+           label.startsWith("export-async-") || label.startsWith("allocator-") ||
+           label === "while-labeled-stop") &&
           issue !== undefined &&
           parsed.issues[0]?.kind !== issue) {
         fail(`${label} first issue ${parsed.issues[0]?.kind} != ${issue}`)
+      }
+      if (label === "allocator-missing-plan") {
+        assertAllocatorRecovery(parsed, bytes, label, issue, true)
+      }
+      if (label === "allocator-missing-open" || label === "allocator-missing-close" ||
+          label === "allocator-nonword-binding" || label === "allocator-extra-colon" ||
+          label === "allocator-malformed-envelope") {
+        assertAllocatorRecovery(parsed, bytes, label, issue)
+      }
+      if (label === "allocator-semicolon-boundary") {
+        assertAllocatorBoundary(parsed, bytes)
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} CST signature is not deterministic`)
+        }
       }
       if (label === "for-marker-vector") assertMarkerVector(parsed, bytes)
       if (label === "for-take-iterable") assertClean(parsed, label)
