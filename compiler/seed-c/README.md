@@ -58,7 +58,7 @@ itens, inclusive trailing comma, e o statement
 `spawn<.domain>` ou `spawn<domain: .domain> let name = expression`. O parser
 mantém `()` e `(expression)` como formas unitária e parenthesized. `(T)` e
 `(T,)` não são aceitos como tuple type, e `(expression,)` não é aceito como
-tuple expression. O parser Pratt é usado pelos vinte e seis casos F0
+tuple expression. O parser Pratt é usado pelos vinte e sete casos F0
 selecionados. A tabela de
 reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
 bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;
@@ -87,12 +87,29 @@ marcador de iteração; um rótulo aplicado a `while` permanece STOP. O prefixo
 preserva `try`/`await` como folhas raw, sem validar a ordem semântica dos
 efeitos.
 
+Esta fatia também reconhece a forma sintática de tipo callable necessária ao
+F0: qualificadores externos `some` e `any`, modo `mut` ou `take`, `fn(...)` e
+retorno opcional `: type`; `throws` e `borrows(...)` reutilizam os helpers
+existentes quando aparecem depois do tipo. O owner preserva
+`function_type` e `function_type_parameters` sem inferência ou validação de
+ABI, contratos, efeitos ou ownership.
+
+Closures explícitas com captura têm a forma `<[copy|ref|take|weak WORD, ...]>`
+seguida de parâmetros entre parênteses, `=>` e uma expressão ou bloco value.
+A lista de captura não pode ser vazia; parâmetros podem ter `: type` e trailing
+comma. O CST preserva `capture_expression`, `capture_item`,
+`closure_expression`, `closure_parameters` e `closure_parameter`. Duplicatas,
+nomes desconhecidos, escape, drop, inferência de captura e regras de borrow
+ficam fora do parser. Bare closures `(x) => value` e `(x) => { ... }` continuam
+STOP nesta fatia. `capture(...)` continua uma chamada ordinária em WORD; o
+parser não reserva esse identificador para uma forma antiga.
+
 O lexer continua emitindo `>>` como uma folha raw de dois bytes. Um owner de
 type cria duas `w_seed_parse_token_view` virtuais sem duplicar a folha; um owner
 de expression mantém `>>` como shift. Newline continua trivia. Recovery só cria
 `ERROR` com os bytes ignorados e `MISSING` zero-width. Os `w_seed_parse_issue`
 internos têm mapping futuro para D0, mas não são diagnósticos D0. `manifest`,
-declarations além de `fn`/`struct`/`type`/`alias`/`test`/`entry`, patterns,
+declarations além de `fn`/`struct`/`type`/`alias`/`test`/`entry`, patterns e bare
 closures, semântica de effects/async/lock, contratos de transaction,
 AST/HIR,
 name/type resolution, formatter e foreign scanner permanecem fora; `foreign`
@@ -118,7 +135,10 @@ Corpos foreign usam handshake dinâmico. O harness chama `require_opaque` no
 cursor atual, `claim_opaque` com um span pinado e então `next` emite um único
 FOREIGN_BODY. Um `next` sem claim é uma falha terminal OPAQUE_UNCLAIMED. O
 lexer não calcula profile ou digest do corpo; os digests dos spans pinados são
-evidence local do checker.
+evidence local do checker. Esse handshake não é um scanner hermético: o parser
+seed não escolhe adapter/profile, não valida limites, nesting, UTF-8/NUL ou
+digest, e ainda falha fechado antes de um corpo `foreign`. Nenhum AST, ABI,
+formatter ou fallback de foreign é afirmado por esta fatia.
 
 ## Build local
 
@@ -133,7 +153,7 @@ O corpus dirigido de lexer também pode ser executado com:
 
     bun tooling/check-seed-lexer.mjs
 
-O parser seed e os vinte e cinco IDs F0 completos (input e output) podem ser
+O parser seed e os vinte e sete IDs F0 completos (input e output) podem ser
 validados com:
 
     bun tooling/check-seed-parser.mjs

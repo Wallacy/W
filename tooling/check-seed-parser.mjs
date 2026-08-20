@@ -33,6 +33,7 @@ const selectedIds = [
   "F0-allocator-anonymous-contextual-call",
   "F0-allocator-named-override",
   "F0-spawn-domain-slots",
+  "F0-explicit-capture-closure",
 ]
 
 const CST = Object.freeze({
@@ -81,6 +82,13 @@ const CST = Object.freeze({
   TUPLE_TYPE: 53,
   TUPLE_EXPRESSION: 54,
   SPAWN_STATEMENT: 55,
+  FUNCTION_TYPE: 56,
+  FUNCTION_TYPE_PARAMETERS: 57,
+  CLOSURE_EXPRESSION: 58,
+  CLOSURE_PARAMETERS: 59,
+  CLOSURE_PARAMETER: 60,
+  CAPTURE_EXPRESSION: 61,
+  CAPTURE_ITEM: 62,
 })
 
 const ISSUE = Object.freeze({
@@ -264,6 +272,111 @@ function assertClean(parsed, label) {
   if (parsed.nodes.some((node) => node.kind === CST.ERROR || node.kind === CST.MISSING ||
       (node.flags & (1 << 2 | 1 << 3)) !== 0)) {
     fail(`${label} contains ERROR/MISSING CST nodes`)
+  }
+}
+
+function assertClosureCapture(parsed, bytes, label) {
+  assertClean(parsed, label)
+  const functions = parsed.nodes.filter((node) => node.kind === CST.FUNCTION)
+  if (functions.length !== 1) fail(`${label} does not contain one FUNCTION`)
+  const returnTypes = directKind(parsed, functions[0].index, CST.RETURN_TYPE)
+  if (returnTypes.length !== 1) fail(`${label} does not contain one RETURN_TYPE`)
+  const functionTypes = parsed.nodes.filter((node) => node.kind === CST.FUNCTION_TYPE)
+  if (functionTypes.length !== 1 ||
+      !/^\s*(some|any)\s+(mut|take)\s*fn\s*\(\)\s*:\s*usize\s*$/u
+        .test(nodeText(parsed, bytes, functionTypes[0]))) {
+    fail(`${label} callable return type shape drifted`)
+  }
+  if (directKind(parsed, functionTypes[0].index, CST.FUNCTION_TYPE_PARAMETERS).length !== 1) {
+    fail(`${label} callable type parameters owner is missing`)
+  }
+  const closures = parsed.nodes.filter((node) => node.kind === CST.CLOSURE_EXPRESSION)
+  const captures = parsed.nodes.filter((node) => node.kind === CST.CAPTURE_EXPRESSION)
+  const items = parsed.nodes.filter((node) => node.kind === CST.CAPTURE_ITEM)
+  if (closures.length !== 1 || captures.length !== 1 || items.length !== 1) {
+    fail(`${label} closure/capture owner counts are incomplete`)
+  }
+  if (nodeText(parsed, bytes, items[0]) !== "take next") {
+    fail(`${label} capture item is not source-shaped`)
+  }
+  if (directKind(parsed, captures[0].index, CST.CLOSURE_EXPRESSION).length !== 1) {
+    fail(`${label} CAPTURE_EXPRESSION does not own CLOSURE_EXPRESSION`)
+  }
+  const closure = closures[0]
+  if (directKind(parsed, closure.index, CST.CLOSURE_PARAMETERS).length !== 1 ||
+      directKind(parsed, closure.index, CST.BLOCK).length !== 1) {
+    fail(`${label} closure parameter/body owners are incomplete`)
+  }
+}
+
+function assertExplicitCapture(parsed, bytes, label, expectedItems, expectedParams) {
+  assertClean(parsed, label)
+  const captures = parsed.nodes.filter((node) => node.kind === CST.CAPTURE_EXPRESSION)
+  const closures = parsed.nodes.filter((node) => node.kind === CST.CLOSURE_EXPRESSION)
+  if (captures.length !== 1 || closures.length !== 1) {
+    fail(`${label} explicit capture/closure owners are incomplete`)
+  }
+  if (parsed.nodes.filter((node) => node.kind === CST.CAPTURE_ITEM).length !== expectedItems ||
+      parsed.nodes.filter((node) => node.kind === CST.CLOSURE_PARAMETER).length !== expectedParams) {
+    fail(`${label} capture/closure parameter counts drifted`)
+  }
+  if (directKind(parsed, captures[0].index, CST.CLOSURE_EXPRESSION).length !== 1 ||
+      directKind(parsed, closures[0].index, CST.CLOSURE_PARAMETERS).length !== 1) {
+    fail(`${label} explicit capture ownership is not source-shaped`)
+  }
+  if (!nodeText(parsed, bytes, captures[0]).startsWith("<[")) {
+    fail(`${label} capture owner does not preserve its opener`)
+  }
+}
+
+function assertExplicitCaptureRecovery(parsed, bytes, label, options) {
+  if (parsed.result.status !== "recovered" || parsed.result.issueCount === 0 ||
+      parsed.issues[0]?.kind !== options.issue) {
+    fail(`${label} recovery status/first issue drifted`)
+  }
+  const captures = parsed.nodes.filter((node) => node.kind === CST.CAPTURE_EXPRESSION)
+  if (captures.length !== 1) fail(`${label} lost CAPTURE_EXPRESSION owner`)
+  const missing = descendants(parsed, captures[0].index)
+    .filter((node) => node.kind === CST.MISSING)
+  if (Boolean(options.missing) !== (missing.length !== 0)) {
+    fail(`${label} CAPTURE_EXPRESSION MISSING shape drifted`)
+  }
+  if (options.following) {
+    const functions = parsed.nodes.filter((node) => node.kind === CST.FUNCTION)
+    const blocks = functions.length === 1 ? directKind(parsed, functions[0].index, CST.BLOCK) : []
+    const returns = blocks.length === 1 ? directKind(parsed, blocks[0].index, CST.RETURN) : []
+    if (!returns.some((node) => nodeText(parsed, bytes, node) === "return next")) {
+      fail(`${label} swallowed following return statement`)
+    }
+  }
+}
+
+function assertCallableType(parsed, bytes, label, options) {
+  assertClean(parsed, label)
+  const functionTypes = parsed.nodes.filter((node) => node.kind === CST.FUNCTION_TYPE)
+  if (functionTypes.length !== 1 ||
+      !options.pattern.test(nodeText(parsed, bytes, functionTypes[0]))) {
+    fail(`${label} callable type text/owner drifted`)
+  }
+  if (directKind(parsed, functionTypes[0].index, CST.FUNCTION_TYPE_PARAMETERS).length !== 1) {
+    fail(`${label} callable type parameter owner is missing`)
+  }
+  if (options.borrow && !descendants(parsed, functionTypes[0].index)
+      .some((node) => node.kind === CST.BORROW_CLAUSE)) {
+    fail(`${label} callable type BORROW_CLAUSE is missing`)
+  }
+}
+
+function assertCallableTypeRecovery(parsed, bytes, label) {
+  if (parsed.result.status !== "recovered" || parsed.result.issueCount === 0 ||
+      parsed.issues[0]?.kind !== ISSUE.UNEXPECTED_TOKEN) {
+    fail(`${label} callable type recovery status/first issue drifted`)
+  }
+  const functionTypes = parsed.nodes.filter((node) => node.kind === CST.FUNCTION_TYPE)
+  if (functionTypes.length !== 1 ||
+      !descendants(parsed, functionTypes[0].index)
+        .some((node) => node.kind === CST.MISSING)) {
+    fail(`${label} callable type recovery lost FUNCTION_TYPE/MISSING ownership`)
   }
 }
 
@@ -997,6 +1110,10 @@ async function main() {
         assertSpawnDomainSlots(inputParsed, input, `${id}:input`)
         assertSpawnDomainSlots(outputParsed, output, `${id}:output`)
       }
+      if (id === "F0-explicit-capture-closure") {
+        assertClosureCapture(inputParsed, input, `${id}:input`)
+        assertClosureCapture(outputParsed, output, `${id}:output`)
+      }
       if (inputParsed.signature !== second.signature) fail(`${id} CST signature is not deterministic`)
       if (inputParsed.nodes.length === 0 || outputParsed.nodes.length === 0) fail(`${id} has no CST nodes`)
     }
@@ -1114,6 +1231,24 @@ async function main() {
       fail("allocation.w nested allocator witness CST signature is not deterministic")
     }
 
+    const callablesWitness = await sourceBackedFragment(
+      "reference/last-light/callables.w",
+      "export fn ticketSequence(",
+      "export fn finalManifest(",
+      "callables.w ticketSequence witness",
+    )
+    const callablesParsed = invoke(
+      probe, callablesWitness, "callables.w:ticketSequence", "complete",
+    )
+    assertClosureCapture(callablesParsed, callablesWitness,
+      "callables.w:ticketSequence")
+    const callablesRepeat = invoke(
+      probe, callablesWitness, "callables.w:ticketSequence:repeat", "complete",
+    )
+    if (callablesParsed.signature !== callablesRepeat.signature) {
+      fail("callables.w ticketSequence witness CST signature is not deterministic")
+    }
+
     const handCases = [
       ["nested-generic-and-shift", Buffer.from("fn f(x:Array<Array<u8>>):Array<Array<u8>>{return flags >> 2}\n"), "complete"],
       ["generic-declarations", Buffer.from("struct Box<_ state:State>{value:state}\nfn id<T:Order>(value:T):T{return value}\ntype Alias<T:Order> = Array<T>\nalias Legacy<U> = Array<Array<u8>>\n"), "complete"],
@@ -1181,6 +1316,22 @@ async function main() {
       ["tuple-expression-three", Buffer.from("fn f(){return (a,b,c,)}\n"), "complete"],
       ["tuple-parentheses", Buffer.from("fn f(){return (value)}\n"), "complete"],
       ["unit-type", Buffer.from("fn f():(){}\n"), "complete"],
+      ["callable-type-bare", Buffer.from("fn f():fn(usize):usize{return 0}\n"), "complete"],
+      ["callable-type-any-take-effects", Buffer.from("fn f():any take fn(ref usize):usize throws Error borrows(0:[0]){return 0}\n"), "complete"],
+      ["callable-type-missing-close", Buffer.from("fn f():some mut fn(usize{return 0}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["capture-single-empty-params", Buffer.from("fn f(){return <[take next]>()=>next}\n"), "complete"],
+      ["capture-all-modes", Buffer.from("fn f(){return <[copy gate,ref data,weak token,take id,]>()=>value}\n"), "complete"],
+      ["capture-typed-params", Buffer.from("fn f(){return <[copy gate]>(x:usize,y:usize,)=>x+y}\n"), "complete"],
+      ["capture-empty", Buffer.from("fn f(){return <[]> () => value return next}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["capture-invalid-mode", Buffer.from("fn f(){return <[inout x]>()=>value return next}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["capture-missing-name", Buffer.from("fn f(){return <[take]>()=>value return next}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["capture-missing-comma", Buffer.from("fn f(){return <[take x ref y]>()=>value return next}\n"), "recovered", ISSUE.MISSING_OWNER_CLOSE],
+      ["capture-missing-close-square", Buffer.from("fn f(){return <[take x>()=>value return next}\n"), "recovered", ISSUE.MISSING_OWNER_CLOSE],
+      ["capture-missing-close-angle", Buffer.from("fn f(){return <[take x] () => value return next}\n"), "recovered", ISSUE.MISSING_OWNER_CLOSE],
+      ["capture-missing-close-paren", Buffer.from("fn f(){return <[take x]>(x=>x return next}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["capture-missing-arrow", Buffer.from("fn f(){return <[take x]>() value return next}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["capture-missing-body", Buffer.from("fn f(){return <[take x]>()=>} return next\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["capture-missing-block-close", Buffer.from("fn f(){return <[take x]>()=>{return value}\n"), "recovered", ISSUE.MISSING_OWNER_CLOSE],
       ["tuple-type-parenthesized", Buffer.from("fn f():(A){}\n"), "recovered", 1],
       ["tuple-type-singleton", Buffer.from("fn f():(A,){}\n"), "recovered", 1],
       ["tuple-expression-singleton", Buffer.from("fn f(){return (value,)}\n"), "recovered", 1],
@@ -1443,6 +1594,93 @@ async function main() {
         }
         const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
         if (parsed.signature !== repeated.signature) fail(`${label} CST signature is not deterministic`)
+      }
+      if (label === "capture-single-empty-params") {
+        assertExplicitCapture(parsed, bytes, label, 1, 0)
+      }
+      if (label === "callable-type-bare") {
+        assertCallableType(parsed, bytes, label, {
+          pattern: /^fn\s*\(\s*usize\s*\)\s*:\s*usize$/u,
+          borrow: false,
+        })
+      }
+      if (label === "callable-type-any-take-effects") {
+        assertCallableType(parsed, bytes, label, {
+          pattern: /^any\s+take\s+fn\s*\(\s*ref\s+usize\s*\)\s*:\s*usize\s+throws\s+Error\s+borrows\(0:\[0\]\)$/u,
+          borrow: true,
+        })
+      }
+      if (label === "callable-type-missing-close") {
+        assertCallableTypeRecovery(parsed, bytes, label)
+      }
+      if (label.startsWith("callable-type-")) {
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} CST signature is not deterministic`)
+        }
+      }
+      if (label === "capture-all-modes") {
+        assertExplicitCapture(parsed, bytes, label, 4, 0)
+      }
+      if (label === "capture-typed-params") {
+        assertExplicitCapture(parsed, bytes, label, 1, 2)
+      }
+      if (label.startsWith("capture-") && status === "complete") {
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} CST signature is not deterministic`)
+        }
+      }
+      if (label === "capture-empty" || label === "capture-invalid-mode") {
+        assertExplicitCaptureRecovery(parsed, bytes, label, {
+          issue: ISSUE.UNEXPECTED_TOKEN,
+          missing: false,
+        })
+      }
+      if (label === "capture-missing-name") {
+        assertExplicitCaptureRecovery(parsed, bytes, label, {
+          issue: ISSUE.UNEXPECTED_TOKEN,
+          missing: true,
+        })
+      }
+      if (label === "capture-missing-comma" ||
+          label === "capture-missing-close-square" ||
+          label === "capture-missing-close-angle") {
+        assertExplicitCaptureRecovery(parsed, bytes, label, {
+          issue: ISSUE.MISSING_OWNER_CLOSE,
+          missing: true,
+        })
+      }
+      if (label === "capture-missing-block-close") {
+        assertExplicitCaptureRecovery(parsed, bytes, label, {
+          issue: ISSUE.MISSING_OWNER_CLOSE,
+          missing: false,
+        })
+      }
+      if (label === "capture-missing-close-paren") {
+        assertExplicitCaptureRecovery(parsed, bytes, label, {
+          issue: ISSUE.UNEXPECTED_TOKEN,
+          missing: true,
+        })
+      }
+      if (label === "capture-missing-arrow") {
+        assertExplicitCaptureRecovery(parsed, bytes, label, {
+          issue: ISSUE.UNEXPECTED_TOKEN,
+          missing: true,
+          following: true,
+        })
+      }
+      if (label === "capture-missing-body") {
+        assertExplicitCaptureRecovery(parsed, bytes, label, {
+          issue: ISSUE.UNEXPECTED_TOKEN,
+          missing: false,
+        })
+      }
+      if (label.startsWith("capture-") && status === "recovered") {
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} recovery CST signature is not deterministic`)
+        }
       }
       if (label === "switch-three-arms") {
         assertClean(parsed, label)
