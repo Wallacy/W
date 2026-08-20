@@ -1,8 +1,8 @@
 # Tooling inicial de W
 
 > **Status:** Working Draft. Highlighting e o parser incremental experimental
-> são utilizáveis; o seed C possui somente um source reader interno. Parser do
-> compilador, formatter, LSP e compilador ainda não existem.
+> são utilizáveis; o seed C possui um source reader e um lexer lossless internos.
+> Parser do compilador, formatter, LSP e compilador ainda não existem.
 
 Este diretório antecipa a experiência de escrever W sem transformar cores em
 semântica. A autoridade normativa continua em [DESIGN.md](../DESIGN.md).
@@ -60,7 +60,7 @@ compiler, runtime, provider ou execução W.
 | [VS Code/TextMate](vscode-w/README.md) | highlighting lexical local, comentários, pares e indentação | regex tolerante; não produz CST nem diagnósticos |
 | [Tree-sitter](tree-sitter-w/README.md) | parser incremental e queries estruturais sobre o subset candidato | protótipo; o gate do parser normativo está em `DESIGN.md` |
 | Corpus Tree-sitter | positivos e snapshots de CST em `tree-sitter-w/test/corpus/` | execução W ainda não existe |
-| [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) + `check-seed-source-reader.mjs` | source reader C11 allocation-free, byte-first, UTF-8 estrito, spans e pontos | componente interno do seed; não é lexer, parser, formatter, compiler ou SH0 completo |
+| [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) + `check-seed-source-reader.mjs` + `check-seed-lexer.mjs` | source reader C11 allocation-free, byte-first, UTF-8 estrito, spans e pontos; lexer lossless com itens/trivia e handshake de foreign | componente interno do seed; `bun tooling/check-seed-lexer.mjs` valida o corpus pinado; Unicode completo, CR isolado, parser, formatter, compiler e scanner foreign continuam gaps |
 | `check-design-examples.mjs` | confirma exemplo local em cada seção normativa terminal | inspeção estrutural; não valida a semântica do exemplo |
 | `check-markdown-links.mjs` | valida targets e anchors locais fora do histórico | não consulta links externos |
 | `design-index.mjs` | gera intervalos e métricas separadas de `DESIGN.md` e `RATIONALE.md` | projeção navegável; não define decisões |
