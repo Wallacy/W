@@ -3,6 +3,12 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { resolve } from "node:path"
 import { ledgerIdSet } from "./design-ledger.mjs"
+import {
+  FormatterRangeEvidenceError,
+  hasRecovery,
+  splitTrees,
+  validateFormatterRangeEvidence,
+} from "./formatter-range-evidence.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const corpus = await Bun.file(resolve(import.meta.dir, "formatter-cases.json")).json()
@@ -50,15 +56,6 @@ function outputText(output, owner) {
   return `${output.join("\n")}\n`
 }
 
-function splitTrees(output) {
-  const text = output.replaceAll("\r\n", "\n").replace(/\u001b\[[0-9;]*m/g, "")
-  const starts = [...text.matchAll(/^\(source_file\b/gm)].map((match) => match.index)
-  return starts.map((start, index) => text.slice(start, starts[index + 1] ?? text.length).trim())
-}
-
-function hasRecovery(tree) {
-  return tree.includes("(ERROR") || tree.includes("(MISSING")
-}
 
 function firstDifferentByte(left, right) {
   const leftBytes = Buffer.from(left, "utf8")
@@ -239,6 +236,8 @@ for (const [index, testCase] of corpus.cases.entries()) {
     output,
     mutations,
     semicolonCount: testCase.requiredSemicolons.length,
+    opaqueForeignBodies,
+    bom: testCase.input.bom === true,
   })
 }
 
@@ -258,6 +257,13 @@ if (!(await Bun.file(treeSitter).exists())) {
 }
 
 const temporary = await mkdtemp(resolve(tmpdir(), "w-formatter-cases-"))
+let rangeEvidence = {
+  rangeValidCsts: 0,
+  bomPrefixesValidated: 0,
+  opaqueRangeExemptions: 0,
+  commentOccurrences: 0,
+  stableAttachmentPairs: 0,
+}
 try {
   const files = []
   const keys = []
@@ -293,6 +299,46 @@ try {
     }
   }
 
+  const cstParsed = Bun.spawnSync({
+    cmd: [treeSitter, "parse", "--grammar-path", grammar, "--cst", ...files],
+    cwd: grammar,
+    stdout: "pipe",
+    stderr: "pipe",
+  })
+  if (cstParsed.exitCode !== 0) {
+    fail(`range CST parsing failed\n${cstParsed.stderr.toString().trim()}`)
+  }
+  const rangeSources = prepared.flatMap((testCase) => [
+    {
+      id: `${testCase.id} input`,
+      text: testCase.input,
+      opaqueForeignBodies: testCase.opaqueForeignBodies,
+      expectedBom: testCase.bom,
+    },
+    {
+      id: `${testCase.id} output`,
+      text: testCase.output,
+      opaqueForeignBodies: testCase.opaqueForeignBodies,
+      expectedBom: false,
+    },
+  ])
+  const rangePairs = prepared.map((testCase, index) => ({
+    id: testCase.id,
+    inputIndex: index * 2,
+    outputIndex: index * 2 + 1,
+  }))
+  try {
+    rangeEvidence = validateFormatterRangeEvidence({
+      cstOutput: cstParsed.stdout.toString(),
+      sources: rangeSources,
+      pairs: rangePairs,
+      digest,
+    })
+  } catch (error) {
+    if (error instanceof FormatterRangeEvidenceError) fail(error.message)
+    throw error
+  }
+
   const mutationFiles = []
   const mutationOwners = []
   for (const testCase of prepared) {
@@ -326,6 +372,9 @@ try {
   await rm(temporary, { recursive: true, force: true })
 }
 
+const attachmentLabel = `${rangeEvidence.stableAttachmentPairs} stable input-output attachment pair${
+  rangeEvidence.stableAttachmentPairs === 1 ? "" : "s"
+}`
 console.log(
-  `Formatter cases: ${prepared.length} CST-preserving pairs, ${prepared.reduce((count, item) => count + item.semicolonCount, 0)} classified semicolons, ${prepared.reduce((count, item) => count + item.mutations.length, 0)} syntax mutations, ${diagnostics.length} D0 snapshots.`,
+  `Formatter cases: ${prepared.length} CST-preserving pairs, ${rangeEvidence.rangeValidCsts} range-valid CSTs (${rangeEvidence.bomPrefixesValidated} BOM prefixes validated, ${rangeEvidence.opaqueRangeExemptions} opaque range exemptions), ${rangeEvidence.commentOccurrences} comment occurrences / ${attachmentLabel}, ${prepared.reduce((count, item) => count + item.semicolonCount, 0)} classified semicolons, ${prepared.reduce((count, item) => count + item.mutations.length, 0)} syntax mutations, ${diagnostics.length} D0 snapshots.`,
 )
