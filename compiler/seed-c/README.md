@@ -39,9 +39,9 @@ com `expect`, blocos, `let`, `return`, `if`/`else`, `repeat`/`while`, arrays
 repetidos `[expression; expression]`, `for` com marcador opcional
 `ref`/`inout`/`copy`, um binder WORD, `in expression` e bloco, labels para
 `repeat`, `for` ou bloco, `break`/`continue`, argumentos posicionais ou
-`label: expression` e os prefixos sintáticos `copy`/`take`/`pin`/`inout`/`ref`.
-O parser Pratt
-delimitado é usado pelos dezesseis casos F0 selecionados. A tabela de
+`label: expression`, declarações `async fn` e `export async fn`, e os prefixos
+sintáticos `copy`/`take`/`pin`/`inout`/`ref`. O parser Pratt delimitado é usado
+pelos dezessete casos F0 selecionados. A tabela de
 reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
 bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;
 isso é reconhecimento sintático, não uma declaração de semântica, tipos ou
@@ -54,7 +54,10 @@ primeira chamada a `w_seed_parser_parse` consome o parser; uma segunda chamada
 retorna `false` sem alterar o resultado ou os buffers caller-owned.
 
 Esta fatia de `for` não inclui `async`, patterns de destructuring ou `take` como
-marcador de iteração; um rótulo aplicado a `while` permanece STOP.
+marcador de iteração; um rótulo aplicado a `while` permanece STOP. O prefixo
+`async` só é aceito no owner root de `async fn` ou `export async fn`; o parser
+preserva `try`/`await` como folhas raw, sem validar a ordem semântica dos
+efeitos.
 
 O lexer continua emitindo `>>` como uma folha raw de dois bytes. Um owner de
 type cria duas `w_seed_parse_token_view` virtuais sem duplicar a folha; um owner
@@ -62,11 +65,12 @@ de expression mantém `>>` como shift. Newline continua trivia. Recovery só cri
 `ERROR` com os bytes ignorados e `MISSING` zero-width. Os `w_seed_parse_issue`
 internos têm mapping futuro para D0, mas não são diagnósticos D0. `manifest`,
 declarations além de `fn`/`struct`/`test`/`entry`, contracts, patterns,
-closures, effects/async, allocator, transaction, AST/HIR, name/type
-resolution, formatter e foreign scanner permanecem fora; `foreign` falha
-fechado antes do body. Imports só aparecem antes de qualquer declaration;
-`export` aceita somente `fn` e `struct` nesta fatia. `expect` fora de `test`
-falha fechado.
+closures, semântica de effects/async, allocator, transaction, AST/HIR,
+name/type resolution, formatter e foreign scanner permanecem fora; `foreign`
+falha fechado antes do body. Imports só aparecem antes de qualquer
+declaration; `export` aceita `fn`, `async fn` e `struct` nesta fatia. Outros
+modificadores de função (`static`, `const`, `unsafe` e receiver modifiers)
+permanecem fora. `expect` fora de `test` falha fechado.
 
 Corpos foreign usam handshake dinâmico. O harness chama `require_opaque` no
 cursor atual, `claim_opaque` com um span pinado e então `next` emite um único
@@ -87,7 +91,7 @@ O corpus dirigido de lexer também pode ser executado com:
 
     bun tooling/check-seed-lexer.mjs
 
-O parser P0a e os dezesseis IDs F0 completos (input e output) podem ser
+O parser P0a e os dezessete IDs F0 completos (input e output) podem ser
 validados com:
 
     bun tooling/check-seed-parser.mjs
