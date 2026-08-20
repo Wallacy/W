@@ -126,6 +126,279 @@ static bool check_tree_links(const fixture *fixture_value) {
   return true;
 }
 
+static size_t count_direct_kind(const fixture *fixture_value,
+                                w_seed_cst_index parent_index,
+                                w_seed_cst_kind kind) {
+  size_t count = 0;
+  if (parent_index >= fixture_value->result.node_count) return 0;
+  w_seed_cst_index child = fixture_value->nodes[parent_index].first_child;
+  size_t guard = 0;
+  while (child != W_SEED_CST_NONE && guard <= fixture_value->result.node_count) {
+    if (fixture_value->nodes[child].kind == kind) count += 1;
+    child = fixture_value->nodes[child].next_sibling;
+    guard += 1;
+  }
+  return count;
+}
+
+static w_seed_cst_index first_kind(const fixture *fixture_value,
+                                   w_seed_cst_kind kind) {
+  for (size_t index = 0; index < fixture_value->result.node_count; index += 1) {
+    if (fixture_value->nodes[index].kind == kind) return (w_seed_cst_index)index;
+  }
+  return W_SEED_CST_NONE;
+}
+
+static bool contains_kind(const fixture *fixture_value,
+                          w_seed_cst_index parent_index,
+                          w_seed_cst_kind kind) {
+  if (parent_index >= fixture_value->result.node_count) return false;
+  w_seed_cst_index child = fixture_value->nodes[parent_index].first_child;
+  size_t guard = 0;
+  while (child != W_SEED_CST_NONE && guard <= fixture_value->result.node_count) {
+    if (fixture_value->nodes[child].kind == kind ||
+        contains_kind(fixture_value, child, kind)) {
+      return true;
+    }
+    child = fixture_value->nodes[child].next_sibling;
+    guard += 1;
+  }
+  return false;
+}
+
+static w_seed_cst_index direct_child_after(const fixture *fixture_value,
+                                           w_seed_cst_index parent_index,
+                                           w_seed_cst_kind kind,
+                                           size_t offset) {
+  if (parent_index >= fixture_value->result.node_count) return W_SEED_CST_NONE;
+  w_seed_cst_index child = fixture_value->nodes[parent_index].first_child;
+  size_t guard = 0;
+  size_t seen = 0;
+  while (child != W_SEED_CST_NONE && guard <= fixture_value->result.node_count) {
+    if (fixture_value->nodes[child].kind == kind) {
+      if (seen == offset) return child;
+      seen += 1;
+    }
+    child = fixture_value->nodes[child].next_sibling;
+    guard += 1;
+  }
+  return W_SEED_CST_NONE;
+}
+
+static bool node_span_text(const fixture *fixture_value, w_seed_cst_index index,
+                           const char *text) {
+  if (index >= fixture_value->result.node_count) return false;
+  const w_seed_span span = fixture_value->nodes[index].raw_span;
+  const size_t length = strlen(text);
+  if (span.end_byte < span.start_byte || span.end_byte - span.start_byte != length ||
+      span.end_byte > fixture_value->source.bytes.length) {
+    return false;
+  }
+  return length == 0 ||
+         memcmp(fixture_value->source.bytes.data + span.start_byte, text, length) ==
+             0;
+}
+
+static bool test_phase2_declaration_tree(void) {
+  static const char text[] =
+      "import {Command,Result} from command\n"
+      "export struct FormatCase {value:String expected:String}\n"
+      "export fn namedCall(command:Command,named audit:Audit):String throws KitchenError {"
+      "return command}\n"
+      "test \"fixture\" for namedCall {expect command == audit}\n";
+  fixture value;
+  CHECK(fixture_init(&value, text,
+                     sizeof(value.nodes) / sizeof(value.nodes[0]),
+                     sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value.result.issue_count == 0);
+  CHECK(check_leaf_partition(&value));
+  CHECK(check_tree_links(&value));
+
+  const w_seed_cst_index import = first_kind(&value, W_SEED_CST_IMPORT);
+  CHECK(import != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&value, import, W_SEED_CST_IMPORT_ITEM) == 2);
+  const w_seed_cst_index structure = first_kind(&value, W_SEED_CST_STRUCT);
+  CHECK(structure != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&value, structure, W_SEED_CST_FIELD) == 2);
+
+  const w_seed_cst_index function = first_kind(&value, W_SEED_CST_FUNCTION);
+  CHECK(function != W_SEED_CST_NONE);
+  const w_seed_cst_index block = direct_child_after(&value, function,
+                                                    W_SEED_CST_BLOCK, 0);
+  CHECK(block != W_SEED_CST_NONE);
+  const char *throws_text = strstr(text, "throws KitchenError");
+  CHECK(throws_text != NULL);
+  CHECK((size_t)(throws_text - text) < value.nodes[block].raw_span.start_byte);
+  CHECK(value.nodes[function].raw_span.end_byte ==
+        value.nodes[block].raw_span.end_byte);
+
+  const w_seed_cst_index test = first_kind(&value, W_SEED_CST_TEST);
+  CHECK(test != W_SEED_CST_NONE);
+  CHECK(contains_kind(&value, test, W_SEED_CST_EXPECT_STATEMENT));
+  const w_seed_cst_index expect = first_kind(&value, W_SEED_CST_EXPECT_STATEMENT);
+  CHECK(expect != W_SEED_CST_NONE);
+  const w_seed_cst_index expected_expression =
+      direct_child_after(&value, expect, W_SEED_CST_EXPRESSION, 0);
+  CHECK(expected_expression != W_SEED_CST_NONE);
+  const char *comparison = strstr(text, "command == audit");
+  CHECK(comparison != NULL);
+  CHECK(value.nodes[expected_expression].raw_span.start_byte ==
+        (size_t)(comparison - text));
+  CHECK(value.nodes[expected_expression].raw_span.end_byte ==
+        (size_t)(comparison - text) + strlen("command == audit"));
+  CHECK(value.nodes[expect].raw_span.start_byte ==
+        (size_t)(strstr(text, "expect") - text));
+  CHECK(value.nodes[expect].raw_span.end_byte ==
+        value.nodes[expected_expression].raw_span.end_byte);
+  CHECK(value.parser.in_test == false);
+  return true;
+}
+
+static bool test_phase2_parameter_and_argument_shapes(void) {
+  static const char text[] =
+      "fn inspect(named:T,named audit:Audit,external internal:T,_ internal:T):T {"
+      "return inspect(named:value,audit:value)}\n";
+  fixture value;
+  CHECK(fixture_init(&value, text,
+                     sizeof(value.nodes) / sizeof(value.nodes[0]),
+                     sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(check_leaf_partition(&value));
+  CHECK(check_tree_links(&value));
+  const w_seed_cst_index function = first_kind(&value, W_SEED_CST_FUNCTION);
+  CHECK(function != W_SEED_CST_NONE);
+  const w_seed_cst_index parameters =
+      direct_child_after(&value, function, W_SEED_CST_PARAMETER_LIST, 0);
+  CHECK(parameters != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&value, parameters, W_SEED_CST_PARAMETER) == 4);
+  const char *parameter_texts[] = {"named:T", "named audit:Audit",
+                                   "external internal:T", "_ internal:T"};
+  for (size_t index = 0; index < 4; index += 1) {
+    const w_seed_cst_index parameter =
+        direct_child_after(&value, parameters, W_SEED_CST_PARAMETER, index);
+    CHECK(parameter != W_SEED_CST_NONE);
+    CHECK(node_span_text(&value, parameter, parameter_texts[index]));
+  }
+  size_t argument_count = 0;
+  for (size_t index = 0; index < value.result.node_count; index += 1) {
+    if (value.nodes[index].kind != W_SEED_CST_ARGUMENT) continue;
+    CHECK(argument_count < 2);
+    const char *argument_text = argument_count == 0 ? "named:value" : "audit:value";
+    CHECK(node_span_text(&value, (w_seed_cst_index)index, argument_text));
+    argument_count += 1;
+  }
+  CHECK(argument_count == 2);
+  return true;
+}
+
+static bool test_phase2_parameter_requirements(void) {
+  static const char text[] =
+      "fn requirements(value:ref T,cursor:inout T,owner:take T,limit:const T):T {"
+      "return value}\n";
+  fixture value;
+  CHECK(fixture_init(&value, text,
+                     sizeof(value.nodes) / sizeof(value.nodes[0]),
+                     sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value.result.issue_count == 0);
+  CHECK(check_leaf_partition(&value));
+  CHECK(check_tree_links(&value));
+  const w_seed_cst_index function = first_kind(&value, W_SEED_CST_FUNCTION);
+  CHECK(function != W_SEED_CST_NONE);
+  const w_seed_cst_index parameters =
+      direct_child_after(&value, function, W_SEED_CST_PARAMETER_LIST, 0);
+  CHECK(parameters != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&value, parameters, W_SEED_CST_PARAMETER) == 4);
+  const char *requirements[] = {"value:ref T", "cursor:inout T", "owner:take T",
+                                "limit:const T"};
+  for (size_t index = 0; index < 4; index += 1) {
+    const w_seed_cst_index parameter =
+        direct_child_after(&value, parameters, W_SEED_CST_PARAMETER, index);
+    CHECK(parameter != W_SEED_CST_NONE);
+    CHECK(node_span_text(&value, parameter, requirements[index]));
+  }
+  return true;
+}
+
+static bool test_phase2_prefix_forms(void) {
+  static const char *const prefixes[] = {"copy", "take", "pin", "inout", "ref"};
+  for (size_t index = 0; index < sizeof(prefixes) / sizeof(prefixes[0]); index += 1) {
+    char text[96];
+    const int written = snprintf(text, sizeof(text), "fn f(){%s value}\n", prefixes[index]);
+    CHECK(written > 0);
+    CHECK((size_t)written < sizeof(text));
+    fixture value;
+    CHECK(fixture_init(&value, text,
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+  }
+  return true;
+}
+
+static bool test_phase2_fatal_boundaries(void) {
+  static const char *const texts[] = {
+      "fn f(){}\nimport {x} from module.path\n",
+      "export test \"unsupported\" for f {}\n",
+      "fn f(){expect value == other}\n",
+      "import {x} module.path\n",
+      "export struct Broken<T> {}\n",
+      "entry(f)\nstruct S {}\n",
+      "entry(f)\ntest \"late\" for f {}\n",
+      "entry(f)\nexport struct S {}\n",
+      "entry(f)\nimport {x} from module.path\n",
+      "const value:T\n",
+      "take value\n",
+  };
+  for (size_t index = 0; index < sizeof(texts) / sizeof(texts[0]); index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, texts[index],
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_FATAL);
+    CHECK(value.result.issue_count == 1);
+    CHECK(value.issues[0].kind == W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+    CHECK(value.parser.in_test == false);
+  }
+
+  fixture value;
+  CHECK(fixture_init(&value, "test \"bad\" for f {foreign c { body }}\n",
+                     sizeof(value.nodes) / sizeof(value.nodes[0]),
+                     sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(value.result.status == W_SEED_PARSE_FATAL);
+  CHECK(value.result.issue_count == 1);
+  CHECK(value.issues[0].kind == W_SEED_PARSE_ISSUE_FOREIGN_UNSUPPORTED);
+  CHECK(value.parser.in_test == false);
+  CHECK(check_leaf_partition(&value));
+  CHECK(check_tree_links(&value));
+  return true;
+}
+
+static bool test_phase2_recovery_mutations(void) {
+  static const char *const texts[] = {
+      "fn f(a T){}\n",
+      "fn f(a:T{}\n",
+      "fn f(){return 1\n",
+      "struct S {:T}\n",
+  };
+  for (size_t index = 0; index < sizeof(texts) / sizeof(texts[0]); index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, texts[index],
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(value.result.issue_count >= 1);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+  }
+  return true;
+}
+
 static bool has_issue(const fixture *fixture_value,
                       w_seed_parse_issue_kind kind) {
   for (size_t index = 0; index < fixture_value->result.issue_count; index += 1) {
@@ -396,6 +669,12 @@ int main(void) {
   CHECK(test_capacity());
   CHECK(test_init_validation());
   CHECK(test_parse_twice());
+  CHECK(test_phase2_declaration_tree());
+  CHECK(test_phase2_parameter_and_argument_shapes());
+  CHECK(test_phase2_parameter_requirements());
+  CHECK(test_phase2_prefix_forms());
+  CHECK(test_phase2_fatal_boundaries());
+  CHECK(test_phase2_recovery_mutations());
   (void)puts("Seed C parser: caller-owned CST, recovery and P0a hand cases passed");
   return 0;
 }

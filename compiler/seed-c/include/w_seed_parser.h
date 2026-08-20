@@ -48,6 +48,13 @@ typedef enum {
   W_SEED_CST_LITERAL_EVENT,
   W_SEED_CST_FOREIGN_BODY,
   W_SEED_CST_UNKNOWN,
+  W_SEED_CST_IMPORT,
+  W_SEED_CST_IMPORT_ITEM,
+  W_SEED_CST_STRUCT,
+  W_SEED_CST_FIELD,
+  W_SEED_CST_TEST,
+  W_SEED_CST_EXPECT_STATEMENT,
+  W_SEED_CST_ARGUMENT,
 } w_seed_cst_kind;
 
 enum {
@@ -158,6 +165,8 @@ typedef struct {
   bool virtual_close_active;
   size_t virtual_close_offset;
   w_seed_cst_index virtual_close_leaf;
+  bool imports_allowed;
+  bool in_test;
 } w_seed_parser;
 
 /* Initialize over a validated source span. All storage remains caller-owned. */
