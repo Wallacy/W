@@ -8,11 +8,11 @@
 
 W é uma proposta de linguagem nativa para aplicações, sistemas, concorrência,
 paralelismo e computação científica. O compiler e o runtime ainda não existem.
-O seed C possui source reader, lexer lossless, scanner C de validação de fonte e
-parser seed caller-owned e incremental, com suporte sintático coberto por 28 IDs
-F0. Esses componentes são internos para preparar o bootstrap; não são frontend
-normativo, compiler, formatter ou typechecker. A superfície atual é um design
-experimental para revisão.
+O seed C possui source reader, lexer lossless, scanner C de validação de fonte,
+parser seed caller-owned e incremental, formatter seed CST-driven e adapter D0
+caller-owned, com suporte sintático coberto por 28 IDs F0. Esses componentes são
+internos para preparar o bootstrap; não são frontend normativo, compiler ou
+typechecker. A superfície atual é um design experimental para revisão.
 
 Dois objetivos centrais orientam o design: gerência automática de memória sem
 anotações de lifetime no caminho comum e execução estruturada que mantém
@@ -90,8 +90,8 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C e parser](compiler/seed-c/README.md) | implementação interna caller-owned/incremental; Unicode 17 pinado, scanner C source-validation-only e 28 IDs F0; não é frontend normativo, compiler, formatter ou typechecker |
-| Formatter, frontend, HIR e MLIR | planejados, não implementados |
+| [Seed C: source reader, lexer, scanner C, parser, formatter e D0](compiler/seed-c/README.md) | implementação interna caller-owned/incremental; Unicode 17 pinado, scanner C source-validation-only, parser/formatter CST e adapter D0 limitado a `source.lex`, `source.parse` e `source.format`; 28 IDs F0; não é frontend normativo, compiler ou typechecker |
+| Formatter normativo, frontend, HIR e MLIR | planejados, não implementados; o formatter seed interno é uma fatia fechada de F0, não o formatter normativo |
 | Runtime, SDK e package manager | planejados, não implementados |
 | Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |
 | services, `ServiceLink`, `pipeline` e wRPC | **Direção**; implementação na fase 6 |

@@ -506,6 +506,113 @@ static bool test_phase2_declaration_tree(void) {
   return true;
 }
 
+static bool test_phase2_import_binding_test_forms(void) {
+  static const struct {
+    const char *text;
+    size_t import_items;
+  } valid_imports[] = {
+      {"import module.path\n", 1},
+      {"import std\n", 1},
+      {"import * from module.path\n", 1},
+      {"import {first,second} from module.path\n", 2},
+      {"import alias from module.path\n", 1},
+  };
+  for (size_t index = 0;
+       index < sizeof(valid_imports) / sizeof(valid_imports[0]); index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, valid_imports[index].text,
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+    CHECK(value.result.issue_count == 0);
+    const w_seed_cst_index import = first_kind(&value, W_SEED_CST_IMPORT);
+    CHECK(import != W_SEED_CST_NONE);
+    CHECK(count_direct_kind(&value, import, W_SEED_CST_IMPORT_ITEM) ==
+          valid_imports[index].import_items);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+  }
+
+  static const struct {
+    const char *text;
+    w_seed_parse_issue_kind issue;
+  } malformed_imports[] = {
+      {"import * module.path\n", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"import alias module.path\n", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"import alias from\n", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"import * from\n", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"import {x} from module.\n", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+  };
+  for (size_t index = 0;
+       index < sizeof(malformed_imports) / sizeof(malformed_imports[0]);
+       index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, malformed_imports[index].text,
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(value.result.issue_count >= 1);
+    CHECK(value.issues[0].kind == malformed_imports[index].issue);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+  }
+
+  static const char var_text[] = "fn f(){var value=1}\n";
+  fixture var_value;
+  CHECK(fixture_init(&var_value, var_text,
+                     sizeof(var_value.nodes) / sizeof(var_value.nodes[0]),
+                     sizeof(var_value.issues) / sizeof(var_value.issues[0])));
+  CHECK(var_value.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(var_value.result.issue_count == 0);
+  CHECK(count_kind(&var_value, W_SEED_CST_VAR_STATEMENT) == 1);
+  CHECK(check_leaf_partition(&var_value));
+  CHECK(check_tree_links(&var_value));
+
+  static const struct {
+    const char *text;
+  } malformed_vars[] = {
+      {"fn f(){var =1}\n"},
+      {"fn f(){var value 1}\n"},
+  };
+  for (size_t index = 0;
+       index < sizeof(malformed_vars) / sizeof(malformed_vars[0]); index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, malformed_vars[index].text,
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(value.result.issue_count >= 1);
+    CHECK(value.issues[0].kind == W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    CHECK(count_kind(&value, W_SEED_CST_VAR_STATEMENT) == 1);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+  }
+
+  static const char optional_test[] = "test \"fixture\" {}\n";
+  fixture test_value;
+  CHECK(fixture_init(&test_value, optional_test,
+                     sizeof(test_value.nodes) / sizeof(test_value.nodes[0]),
+                     sizeof(test_value.issues) / sizeof(test_value.issues[0])));
+  CHECK(test_value.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(test_value.result.issue_count == 0);
+  CHECK(first_kind(&test_value, W_SEED_CST_TEST) != W_SEED_CST_NONE);
+  CHECK(check_leaf_partition(&test_value));
+  CHECK(check_tree_links(&test_value));
+
+  fixture malformed_test;
+  CHECK(fixture_init(&malformed_test, "test \"fixture\" for {}\n",
+                     sizeof(malformed_test.nodes) /
+                         sizeof(malformed_test.nodes[0]),
+                     sizeof(malformed_test.issues) /
+                         sizeof(malformed_test.issues[0])));
+  CHECK(malformed_test.result.status == W_SEED_PARSE_RECOVERED);
+  CHECK(malformed_test.result.issue_count >= 1);
+  CHECK(malformed_test.issues[0].kind == W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+  CHECK(check_leaf_partition(&malformed_test));
+  CHECK(check_tree_links(&malformed_test));
+  return true;
+}
+
 static bool test_borrow_clause_shapes(void) {
   static const char text[] =
       "fn pick(primary:ref S,fallback:ref S):view S throws E "
@@ -2935,6 +3042,7 @@ int main(void) {
       test_init_validation() &&
       test_parse_twice() &&
       test_phase2_declaration_tree() &&
+      test_phase2_import_binding_test_forms() &&
       test_borrow_clause_shapes() &&
       test_async_function_shapes() &&
       test_transaction_shapes() &&

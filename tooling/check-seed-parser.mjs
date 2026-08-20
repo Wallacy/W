@@ -1259,6 +1259,21 @@ async function main() {
       fail("allocation.w nested allocator witness CST signature is not deterministic")
     }
 
+    const callablesPath = resolve(root, "reference", "last-light", "callables.w")
+    const callablesSource = await Bun.file(callablesPath).bytes()
+    const callablesDigest = createHash("sha256").update(callablesSource).digest("hex")
+    if (callablesDigest !== "9b8c63d17e3293322ac8e589fa87092c73cfb912b0985260275a733d28ee0368") {
+      fail(`callables.w source digest changed: ${callablesDigest}`)
+    }
+    const callablesFull = invoke(probe, callablesSource, "callables.w:full", "complete")
+    assertClean(callablesFull, "callables.w:full")
+    const callablesFullRepeat = invoke(
+      probe, callablesSource, "callables.w:full:repeat", "complete",
+    )
+    if (callablesFull.signature !== callablesFullRepeat.signature) {
+      fail("callables.w full source CST signature is not deterministic")
+    }
+
     const callablesWitness = await sourceBackedFragment(
       "reference/last-light/callables.w",
       "export fn ticketSequence(",
@@ -1297,7 +1312,18 @@ async function main() {
       ["switch-missing-arm", Buffer.from("fn f(x:X):String{return switch x{}}\n"), "recovered", 1],
       ["switch-missing-colon", Buffer.from("fn f(x:X):String{return switch x{case .a \"A\"}}\n"), "recovered", 1],
       ["switch-missing-close", Buffer.from("fn f(x:X):String{return switch x{case .a:\"A\"}\n"), "recovered", 2],
+      ["ordinary-import-module-path", Buffer.from("import module.path\n"), "complete"],
+      ["ordinary-import-single-segment", Buffer.from("import std\n"), "complete"],
+      ["ordinary-import-wildcard", Buffer.from("import * from module.path\n"), "complete"],
+      ["ordinary-import-named", Buffer.from("import {first,second} from module.path\n"), "complete"],
+      ["ordinary-import-alias", Buffer.from("import alias from module.path\n"), "complete"],
+      ["ordinary-import-missing-from", Buffer.from("import * module.path\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["ordinary-import-alias-missing-from", Buffer.from("import alias module.path\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["ordinary-import-missing-path", Buffer.from("import alias from\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["ordinary-import-wildcard-missing-path", Buffer.from("import * from\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["ordinary-import-trailing-path-dot", Buffer.from("import module.\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
       ["import-after-type", Buffer.from("type A=Array<u8>\nimport {x} from module.path\n"), "fatal", 6],
+      ["import-after-function", Buffer.from("fn f(){}\nimport {x} from module.path\n"), "fatal", 6],
       ["spaced-comparison", Buffer.from("fn f(left:Bool,right:Bool):Bool{return left < right}\n"), "complete"],
       ["try-question", Buffer.from("fn f(){return try? load()}\n"), "complete"],
       ["export-async-function", Buffer.from("export async fn load(kitchen:Kitchen):Menu throws KitchenError{return try await kitchen.loadMenu()}\n"), "complete"],
@@ -1424,6 +1450,11 @@ async function main() {
       ["expect-outside-test", Buffer.from("fn f(){expect value == other}\n"), "fatal", 6],
       ["root-const-fail-closed", Buffer.from("const value:T\n"), "fatal", 6],
       ["root-take-fail-closed", Buffer.from("take value\n"), "fatal", 6],
+      ["var-owner", Buffer.from("fn f(){var value=1}\n"), "complete"],
+      ["var-missing-name", Buffer.from("fn f(){var =1}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["var-missing-equals", Buffer.from("fn f(){var value 1}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["test-optional-target", Buffer.from("test \"fixture\" {}\n"), "complete"],
+      ["test-malformed-target", Buffer.from("test \"fixture\" for {}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
       ["for-marker-vector", Buffer.from("fn markers(rows:Rows){for ref row in rows{}for inout item in rows{}for copy value in rows{}}\n"), "complete"],
       ["for-in-operator-and-nested", Buffer.from("fn expr(rows:Rows,flags:Flags){for row in rows in flags{}for value in (rows[0]){}}\n"), "complete"],
       ["labeled-block-for-witness", Buffer.from("fn scan(rows:Rows){assembleWord:{scanRows:for ref row in rows{for value in row{if value==0{continue scanRows} if value>31{break assembleWord}}}}}\n"), "complete"],
