@@ -372,9 +372,18 @@ try {
   await rm(temporary, { recursive: true, force: true })
 }
 
+const bomLabel = `${rangeEvidence.bomPrefixesValidated} BOM prefix${
+  rangeEvidence.bomPrefixesValidated === 1 ? "" : "es"
+} validated`
+const opaqueLabel = `${rangeEvidence.opaqueRangeExemptions} opaque range exemption${
+  rangeEvidence.opaqueRangeExemptions === 1 ? "" : "s"
+}`
+const commentLabel = `${rangeEvidence.commentOccurrences} comment occurrence${
+  rangeEvidence.commentOccurrences === 1 ? "" : "s"
+}`
 const attachmentLabel = `${rangeEvidence.stableAttachmentPairs} stable input-output attachment pair${
   rangeEvidence.stableAttachmentPairs === 1 ? "" : "s"
 }`
 console.log(
-  `Formatter cases: ${prepared.length} CST-preserving pairs, ${rangeEvidence.rangeValidCsts} range-valid CSTs (${rangeEvidence.bomPrefixesValidated} BOM prefixes validated, ${rangeEvidence.opaqueRangeExemptions} opaque range exemptions), ${rangeEvidence.commentOccurrences} comment occurrences / ${attachmentLabel}, ${prepared.reduce((count, item) => count + item.semicolonCount, 0)} classified semicolons, ${prepared.reduce((count, item) => count + item.mutations.length, 0)} syntax mutations, ${diagnostics.length} D0 snapshots.`,
+  `Formatter cases: ${prepared.length} CST-preserving pairs, ${rangeEvidence.rangeValidCsts} range-valid CSTs (${bomLabel}, ${opaqueLabel}), ${commentLabel} / ${attachmentLabel}, ${prepared.reduce((count, item) => count + item.semicolonCount, 0)} classified semicolons, ${prepared.reduce((count, item) => count + item.mutations.length, 0)} syntax mutations, ${diagnostics.length} D0 snapshots.`,
 )
