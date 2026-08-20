@@ -1,7 +1,7 @@
-# Source reader e lexer do seed C
+# Source reader, lexer e parser do seed C
 
-**Status:** componente real e interno do w-seed-c. O parser P0a abaixo é uma
-fatia fechada de CST/recovery; ele não é um compiler frontend.
+**Status:** componente real e interno do w-seed-c. O parser seed abaixo é uma
+fatia incremental de CST/recovery; ele não é um compiler frontend.
 
 Este componente fornece uma view de bytes sem cópia. Ele valida UTF-8 estrito,
 detecta o BOM inicial, conta linhas por LF, valida spans half-open e converte
@@ -28,10 +28,10 @@ foreign não pertencem a esta fatia. CRLF é um único item
 NEWLINE; CR isolado é UNSUPPORTED_CONTROL interno. Erros internos não são
 diagnósticos D0.
 
-## Parser P0a interno
+## Parser seed interno (fatia incremental)
 
 `include/w_seed_parser.h` e `src/w_seed_parser.c` adicionam uma API C11 sem
-alocação para a primeira fatia fechada: header `module` opcional, imports
+alocação para uma fatia incremental: header `module` opcional, imports
 ordinários no topo, `fn` com parâmetros simples e requirements
 `ref`/`inout`/`take`/`const`, retorno opcional (incluindo `()`), `throws Type`,
 qualificadores de tipo `view` e `shared`, e cláusula contextual `borrows(...)`
@@ -53,7 +53,7 @@ repetidos `[expression; expression]`, `for` com marcador opcional
 sintáticos `copy`/`take`/`pin`/`inout`/`ref`, a expressão estruturada
 `transaction identifier = expression { ... }` e o statement `commit` com
 expression opcional. O parser Pratt
-delimitado é usado pelos vinte casos F0
+delimitado é usado pelos vinte e três casos F0
 selecionados. A tabela de
 reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
 bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;
@@ -66,6 +66,16 @@ capacity exhaustion é fatal determinístico. Cada instância é single-use: a
 primeira chamada a `w_seed_parser_parse` consome o parser; uma segunda chamada
 retorna `false` sem alterar o resultado ou os buffers caller-owned.
 
+A fatia incremental adiciona `generic_parameters` append-only em `struct`,
+`fn`, `type` e `alias`, declarações de `type`/`alias` com ordem de origem, e
+envelopes de contract sequenciais em tipos e em postfix de expressão. Os argumentos de
+contract aceitam somente formas sintáticas: tipo/path WORD, membro contextual
+`.id`, argumento nomeado `id: static_value`, predicado `(expression)`, lista
+`[static_value, ...]`, número, literal, bool ou quantity. `switch expression`
+aceita pelo menos um arm `case .id|literal: expression`. Listas vazias,
+duplicatas, nomes desconhecidos e exaustividade não são avaliados; não há
+inferência, resolução ou avaliação de constantes nesta fatia.
+
 Esta fatia de `for` não inclui `async`, patterns de destructuring ou `take` como
 marcador de iteração; um rótulo aplicado a `while` permanece STOP. O prefixo
 `async` só é aceito no owner root de `async fn` ou `export async fn`; o parser
@@ -77,12 +87,13 @@ type cria duas `w_seed_parse_token_view` virtuais sem duplicar a folha; um owner
 de expression mantém `>>` como shift. Newline continua trivia. Recovery só cria
 `ERROR` com os bytes ignorados e `MISSING` zero-width. Os `w_seed_parse_issue`
 internos têm mapping futuro para D0, mas não são diagnósticos D0. `manifest`,
-declarations além de `fn`/`struct`/`test`/`entry`, contracts, patterns,
+declarations além de `fn`/`struct`/`type`/`alias`/`test`/`entry`, patterns,
 closures, semântica de effects/async/lock, allocator, contratos de transaction,
 AST/HIR,
 name/type resolution, formatter e foreign scanner permanecem fora; `foreign`
 falha fechado antes do body. Imports só aparecem antes de qualquer
-declaration; `export` aceita `fn`, `async fn` e `struct` nesta fatia.
+declaration; `export` aceita `fn`, `async fn`, `struct`, `type` e `alias` nesta
+fatia.
 `transaction` não aceita argumentos de contract nesta fatia. Statements
 `commit` e transactions aninhadas são reconhecidos sintaticamente em qualquer
 block. O parser não valida owner, provider, nesting, commit, rollback, effects
@@ -109,7 +120,7 @@ O corpus dirigido de lexer também pode ser executado com:
 
     bun tooling/check-seed-lexer.mjs
 
-O parser P0a e os dezessete IDs F0 completos (input e output) podem ser
+O parser seed e os vinte e três IDs F0 completos (input e output) podem ser
 validados com:
 
     bun tooling/check-seed-parser.mjs
@@ -141,5 +152,9 @@ e não são output de um compiler. A proveniência é mantida em
 [frontend-freeze-cases.json (FZ0)](../../tooling/frontend-freeze-cases.json),
 [formatting.w](../../reference/last-light/formatting.w) e no
 [check-seed-source-reader.mjs](../../tooling/check-seed-source-reader.mjs); o
-checker lê essas fontes e não copia seus payloads. O parser P0a não promove
+checker lê essas fontes e não copia seus payloads. O checker do parser também
+extrai slices delimitados por marcadores de bytes atuais de
+`reference/last-light/generics.w` e `enum_contracts.w`; esses witnesses são
+somente entradas sintáticas do seed e não afirmam que o Last Light completo
+compila. O parser seed não promove
 nenhum comportamento de compiler, AST/HIR, checker semântico ou formatter.

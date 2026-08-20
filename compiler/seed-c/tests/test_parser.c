@@ -1403,7 +1403,6 @@ static bool test_phase2_fatal_boundaries(void) {
       "export test \"unsupported\" for f {}\n",
       "fn f(){expect value == other}\n",
       "import {x} module.path\n",
-      "export struct Broken<T> {}\n",
       "entry(f)\nstruct S {}\n",
       "entry(f)\ntest \"late\" for f {}\n",
       "entry(f)\nexport struct S {}\n",
@@ -1454,6 +1453,318 @@ static bool test_phase2_recovery_mutations(void) {
     CHECK(check_leaf_partition(&value));
     CHECK(check_tree_links(&value));
   }
+  return true;
+}
+
+static bool same_parse(const fixture *left, const fixture *right) {
+  CHECK(memcmp(&left->result, &right->result, sizeof(left->result)) == 0);
+  CHECK(memcmp(left->nodes, right->nodes,
+               left->result.node_count * sizeof(left->nodes[0])) == 0);
+  CHECK(memcmp(left->issues, right->issues,
+               left->result.issue_count * sizeof(left->issues[0])) == 0);
+  return true;
+}
+
+static bool check_complete_shape(const fixture *value) {
+  CHECK(value->result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value->result.issue_count == 0);
+  CHECK(check_leaf_partition(value));
+  CHECK(check_tree_links(value));
+  return true;
+}
+
+static bool test_phase2_generic_contract_switch(void) {
+  static const char generic_text[] =
+      "struct Box<_ state:State>{value:state}\n"
+      "fn identity<T:Order>(value:T):T{return value}\n"
+      "type Alias<T:Order> = Array<T>\n"
+      "alias Legacy<U> = Array<Array<u8>>\n";
+  fixture generic;
+  CHECK(fixture_init(&generic, generic_text,
+                     sizeof(generic.nodes) / sizeof(generic.nodes[0]),
+                     sizeof(generic.issues) / sizeof(generic.issues[0])));
+  CHECK(check_complete_shape(&generic));
+  CHECK(count_kind(&generic, W_SEED_CST_GENERIC_PARAMETERS) == 4);
+  CHECK(count_kind(&generic, W_SEED_CST_GENERIC_PARAMETER) == 4);
+  const w_seed_cst_index structure = first_kind(&generic, W_SEED_CST_STRUCT);
+  const w_seed_cst_index function = first_kind(&generic, W_SEED_CST_FUNCTION);
+  const w_seed_cst_index type_decl = first_kind(&generic,
+                                                W_SEED_CST_TYPE_DECLARATION);
+  const w_seed_cst_index alias_decl = first_kind(&generic,
+                                                 W_SEED_CST_ALIAS_DECLARATION);
+  CHECK(structure != W_SEED_CST_NONE);
+  CHECK(function != W_SEED_CST_NONE);
+  CHECK(type_decl != W_SEED_CST_NONE);
+  CHECK(alias_decl != W_SEED_CST_NONE);
+  const w_seed_cst_index structure_generics = direct_child_after(
+      &generic, structure, W_SEED_CST_GENERIC_PARAMETERS, 0);
+  const w_seed_cst_index function_generics = direct_child_after(
+      &generic, function, W_SEED_CST_GENERIC_PARAMETERS, 0);
+  const w_seed_cst_index type_generics = direct_child_after(
+      &generic, type_decl, W_SEED_CST_GENERIC_PARAMETERS, 0);
+  const w_seed_cst_index alias_generics = direct_child_after(
+      &generic, alias_decl, W_SEED_CST_GENERIC_PARAMETERS, 0);
+  CHECK(structure_generics != W_SEED_CST_NONE);
+  CHECK(function_generics != W_SEED_CST_NONE);
+  CHECK(type_generics != W_SEED_CST_NONE);
+  CHECK(alias_generics != W_SEED_CST_NONE);
+  const w_seed_cst_index structure_parameter = direct_child_after(
+      &generic, structure_generics, W_SEED_CST_GENERIC_PARAMETER, 0);
+  CHECK(structure_parameter != W_SEED_CST_NONE);
+  CHECK(has_direct_text(&generic, structure_parameter, W_SEED_CST_WORD, "_"));
+  CHECK(has_direct_text(&generic, structure_parameter, W_SEED_CST_WORD,
+                        "state"));
+  CHECK(has_direct_text(&generic, structure_parameter,
+                        W_SEED_CST_PUNCTUATION, ":"));
+  CHECK(direct_child_after(&generic, structure_parameter, W_SEED_CST_TYPE, 0) !=
+        W_SEED_CST_NONE);
+  CHECK(generic.nodes[structure_generics].raw_span.end_byte <=
+        generic.nodes[structure].raw_span.end_byte);
+  CHECK(generic.nodes[function_generics].raw_span.end_byte <=
+        generic.nodes[function].raw_span.end_byte);
+  const w_seed_cst_index type_value =
+      direct_child_after(&generic, type_decl, W_SEED_CST_TYPE, 0);
+  const w_seed_cst_index alias_value =
+      direct_child_after(&generic, alias_decl, W_SEED_CST_TYPE, 0);
+  CHECK(type_value != W_SEED_CST_NONE);
+  CHECK(alias_value != W_SEED_CST_NONE);
+  CHECK(generic.nodes[type_generics].raw_span.end_byte <=
+        generic.nodes[type_value].raw_span.start_byte);
+  CHECK(generic.nodes[alias_generics].raw_span.end_byte <=
+        generic.nodes[alias_value].raw_span.start_byte);
+  CHECK(count_direct_kind(&generic, alias_value, W_SEED_CST_CONTRACT_ENVELOPE) ==
+        1);
+  size_t raw_shift_count = 0;
+  for (size_t index = 0; index < generic.result.node_count; index += 1) {
+    if (generic.nodes[index].kind != W_SEED_CST_PUNCTUATION) continue;
+    if (node_span_text(&generic, (w_seed_cst_index)index, ">>")) {
+      raw_shift_count += 1;
+    }
+  }
+  CHECK(raw_shift_count == 1);
+  fixture generic_repeat;
+  CHECK(fixture_init(&generic_repeat, generic_text,
+                     sizeof(generic_repeat.nodes) /
+                         sizeof(generic_repeat.nodes[0]),
+                     sizeof(generic_repeat.issues) /
+                         sizeof(generic_repeat.issues[0])));
+  CHECK(same_parse(&generic, &generic_repeat));
+
+  static const char optional_text[] =
+      "struct OvenSession<_ state:OvenSessionState>{}\n"
+      "fn open(_ name:String){}\n"
+      "fn demo(){let positional=OvenSession<.ready>.state;"
+      "let named=OvenSession<state:.ready>.state;open(\"oven\");"
+      "open(name:\"oven\")}\n";
+  fixture optional;
+  CHECK(fixture_init(&optional, optional_text,
+                     sizeof(optional.nodes) / sizeof(optional.nodes[0]),
+                     sizeof(optional.issues) / sizeof(optional.issues[0])));
+  CHECK(check_complete_shape(&optional));
+  CHECK(count_kind(&optional, W_SEED_CST_GENERIC_PARAMETERS) == 1);
+  CHECK(count_kind(&optional, W_SEED_CST_GENERIC_PARAMETER) == 1);
+  CHECK(count_kind(&optional, W_SEED_CST_CONTRACT_ENVELOPE) == 2);
+  size_t positional_envelopes = 0;
+  size_t named_envelopes = 0;
+  for (size_t index = 0; index < optional.result.node_count; index += 1) {
+    if (optional.nodes[index].kind != W_SEED_CST_CONTRACT_ENVELOPE) continue;
+    const w_seed_cst_index envelope = (w_seed_cst_index)index;
+    CHECK(count_direct_kind(&optional, envelope, W_SEED_CST_PUNCTUATION) >= 2);
+    CHECK(has_direct_text(&optional, envelope, W_SEED_CST_WORD, "ready"));
+    if (has_direct_text(&optional, envelope, W_SEED_CST_WORD, "state")) {
+      named_envelopes += 1;
+      CHECK(has_direct_text(&optional, envelope, W_SEED_CST_PUNCTUATION, ":"));
+    } else {
+      positional_envelopes += 1;
+    }
+  }
+  CHECK(positional_envelopes == 1);
+  CHECK(named_envelopes == 1);
+  const w_seed_cst_index demo = first_kind(&optional, W_SEED_CST_FUNCTION);
+  CHECK(demo != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&optional, demo, W_SEED_CST_BLOCK) == 1);
+  fixture optional_repeat;
+  CHECK(fixture_init(&optional_repeat, optional_text,
+                     sizeof(optional_repeat.nodes) /
+                         sizeof(optional_repeat.nodes[0]),
+                     sizeof(optional_repeat.issues) /
+                         sizeof(optional_repeat.issues[0])));
+  CHECK(same_parse(&optional, &optional_repeat));
+
+  static const char contract_text[] =
+      "import {Course,Order} from domain;\n"
+      "type Active=Array<Order><(.count<=64)>;\n"
+      "type Later=Course<[.horizonCake,.nebulaBroth]>;\n";
+  fixture contracts;
+  CHECK(fixture_init(&contracts, contract_text,
+                     sizeof(contracts.nodes) / sizeof(contracts.nodes[0]),
+                     sizeof(contracts.issues) / sizeof(contracts.issues[0])));
+  CHECK(check_complete_shape(&contracts));
+  CHECK(count_kind(&contracts, W_SEED_CST_TYPE_DECLARATION) == 2);
+  CHECK(count_kind(&contracts, W_SEED_CST_CONTRACT_ENVELOPE) == 3);
+  const w_seed_cst_index active = first_kind(&contracts,
+                                             W_SEED_CST_TYPE_DECLARATION);
+  w_seed_cst_index later = W_SEED_CST_NONE;
+  for (size_t index = (size_t)active + 1; index < contracts.result.node_count;
+       index += 1) {
+    if (contracts.nodes[index].kind == W_SEED_CST_TYPE_DECLARATION) {
+      later = (w_seed_cst_index)index;
+      break;
+    }
+  }
+  CHECK(later != W_SEED_CST_NONE);
+  const w_seed_cst_index active_type =
+      direct_child_after(&contracts, active, W_SEED_CST_TYPE, 0);
+  const w_seed_cst_index later_type =
+      direct_child_after(&contracts, later, W_SEED_CST_TYPE, 0);
+  CHECK(active_type != W_SEED_CST_NONE);
+  CHECK(later_type != W_SEED_CST_NONE);
+  CHECK(node_span_text(&contracts, active_type,
+                       "Array<Order><(.count<=64)>"));
+  CHECK(node_span_text(&contracts, later_type,
+                       "Course<[.horizonCake,.nebulaBroth]>"));
+  CHECK(count_direct_kind(&contracts, active_type,
+                          W_SEED_CST_CONTRACT_ENVELOPE) == 2);
+  CHECK(count_direct_kind(&contracts, later_type,
+                          W_SEED_CST_CONTRACT_ENVELOPE) == 1);
+  const w_seed_cst_index predicate = direct_child_after(
+      &contracts, active_type, W_SEED_CST_CONTRACT_ENVELOPE, 1);
+  const w_seed_cst_index list = direct_child_after(
+      &contracts, later_type, W_SEED_CST_CONTRACT_ENVELOPE, 0);
+  CHECK(predicate != W_SEED_CST_NONE);
+  CHECK(list != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&contracts, predicate, W_SEED_CST_EXPRESSION) == 1);
+  CHECK(count_direct_kind(&contracts, list, W_SEED_CST_ARRAY) == 1);
+  fixture contracts_repeat;
+  CHECK(fixture_init(&contracts_repeat, contract_text,
+                     sizeof(contracts_repeat.nodes) /
+                         sizeof(contracts_repeat.nodes[0]),
+                     sizeof(contracts_repeat.issues) /
+                         sizeof(contracts_repeat.issues[0])));
+  CHECK(same_parse(&contracts, &contracts_repeat));
+
+  static const char enum_text[] =
+      "alias WorkStage=ServiceStage<[.reserving,.preparing,.serving]>;"
+      "fn instruction(stage:WorkStage):String{return switch stage{"
+      "case .reserving:\"Reserve\" case .preparing:\"Prepare\" "
+      "case .serving:\"Serve\"}}\n";
+  fixture enumeration;
+  CHECK(fixture_init(&enumeration, enum_text,
+                     sizeof(enumeration.nodes) / sizeof(enumeration.nodes[0]),
+                     sizeof(enumeration.issues) / sizeof(enumeration.issues[0])));
+  CHECK(check_complete_shape(&enumeration));
+  CHECK(count_kind(&enumeration, W_SEED_CST_ALIAS_DECLARATION) == 1);
+  CHECK(count_kind(&enumeration, W_SEED_CST_SWITCH_EXPRESSION) == 1);
+  CHECK(count_kind(&enumeration, W_SEED_CST_SWITCH_ARM) == 3);
+  CHECK(count_kind(&enumeration, W_SEED_CST_ARRAY) == 1);
+  const w_seed_cst_index switch_node =
+      first_kind(&enumeration, W_SEED_CST_SWITCH_EXPRESSION);
+  CHECK(switch_node != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&enumeration, switch_node, W_SEED_CST_SWITCH_ARM) ==
+        3);
+  const char *const arm_texts[] = {"case .reserving:\"Reserve\" ",
+                                   "case .preparing:\"Prepare\" ",
+                                   "case .serving:\"Serve\""};
+  for (size_t index = 0; index < 3; index += 1) {
+    const w_seed_cst_index arm = direct_child_after(
+        &enumeration, switch_node, W_SEED_CST_SWITCH_ARM, index);
+    CHECK(arm != W_SEED_CST_NONE);
+    CHECK(node_span_text(&enumeration, arm, arm_texts[index]));
+  }
+  fixture enum_repeat;
+  CHECK(fixture_init(&enum_repeat, enum_text,
+                     sizeof(enum_repeat.nodes) / sizeof(enum_repeat.nodes[0]),
+                     sizeof(enum_repeat.issues) / sizeof(enum_repeat.issues[0])));
+  CHECK(same_parse(&enumeration, &enum_repeat));
+
+  static const struct {
+    const char *text;
+    w_seed_parse_status status;
+    w_seed_parse_issue_kind issue;
+  } mutations[] = {
+      {"fn id <T>(value:T):T{return value}\n", W_SEED_PARSE_RECOVERED,
+       W_SEED_PARSE_ISSUE_SPACED_HEAD},
+      {"struct Box <T:Order>{}\n", W_SEED_PARSE_RECOVERED,
+       W_SEED_PARSE_ISSUE_SPACED_HEAD},
+      {"fn id<:T>(value:T):T{return value}\n", W_SEED_PARSE_RECOVERED,
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn id<T Order>(value:T):T{return value}\n", W_SEED_PARSE_RECOVERED,
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"fn id<T:>(value:T):T{return value}\n", W_SEED_PARSE_RECOVERED,
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn id<T(value:T):T{return value}\n", W_SEED_PARSE_RECOVERED,
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"type A=Course<[.ready,,.later]>\n", W_SEED_PARSE_RECOVERED,
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"type A=Course<(.count<=1;>\n", W_SEED_PARSE_RECOVERED,
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"type A=Course<state:>\n", W_SEED_PARSE_RECOVERED,
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(x:X):String{return switch x{}}\n", W_SEED_PARSE_RECOVERED,
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(x:X):String{return switch x{case .a \"A\"}}\n",
+       W_SEED_PARSE_RECOVERED, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(x:X):String{return switch x{case .a:\"A\"}\n",
+       W_SEED_PARSE_RECOVERED, W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+  };
+  for (size_t index = 0; index < sizeof(mutations) / sizeof(mutations[0]);
+       index += 1) {
+    fixture malformed;
+    CHECK(fixture_init(&malformed, mutations[index].text,
+                       sizeof(malformed.nodes) / sizeof(malformed.nodes[0]),
+                       sizeof(malformed.issues) / sizeof(malformed.issues[0])));
+    CHECK(malformed.result.status == mutations[index].status);
+    CHECK(malformed.result.issue_count >= 1);
+    CHECK(has_issue(&malformed, mutations[index].issue));
+    CHECK(check_leaf_partition(&malformed));
+    CHECK(check_tree_links(&malformed));
+  }
+  fixture comparison;
+  CHECK(fixture_init(&comparison,
+                     "fn f(left:Bool,right:Bool):Bool{return left < right}\n",
+                     sizeof(comparison.nodes) / sizeof(comparison.nodes[0]),
+                     sizeof(comparison.issues) / sizeof(comparison.issues[0])));
+  CHECK(check_complete_shape(&comparison));
+  CHECK(count_kind(&comparison, W_SEED_CST_CONTRACT_ENVELOPE) == 0);
+  fixture import_after;
+  CHECK(fixture_init(&import_after,
+                     "type A=Array<u8>\nimport {x} from module.path\n",
+                     sizeof(import_after.nodes) / sizeof(import_after.nodes[0]),
+                     sizeof(import_after.issues) / sizeof(import_after.issues[0])));
+  CHECK(import_after.result.status == W_SEED_PARSE_FATAL);
+  CHECK(import_after.result.issue_count == 1);
+  CHECK(import_after.issues[0].kind == W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+  CHECK(check_leaf_partition(&import_after));
+  CHECK(check_tree_links(&import_after));
+  fixture import_after_alias;
+  CHECK(fixture_init(&import_after_alias,
+                     "alias A=Array<u8>\nimport {x} from module.path\n",
+                     sizeof(import_after_alias.nodes) /
+                         sizeof(import_after_alias.nodes[0]),
+                     sizeof(import_after_alias.issues) /
+                         sizeof(import_after_alias.issues[0])));
+  CHECK(import_after_alias.result.status == W_SEED_PARSE_FATAL);
+  CHECK(import_after_alias.result.issue_count == 1);
+  CHECK(import_after_alias.issues[0].kind == W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+  CHECK(check_leaf_partition(&import_after_alias));
+  CHECK(check_tree_links(&import_after_alias));
+
+  static const char semicolon_text[] =
+      "type A=Array<u8>;alias B=Array<A>;fn f<T>(x:T):T{return x}\n";
+  fixture semicolon;
+  CHECK(fixture_init(&semicolon, semicolon_text,
+                     sizeof(semicolon.nodes) / sizeof(semicolon.nodes[0]),
+                     sizeof(semicolon.issues) / sizeof(semicolon.issues[0])));
+  CHECK(check_complete_shape(&semicolon));
+  static const char semicolonless_text[] =
+      "type A=Array<u8>\nalias B=Array<A>\nfn f<T>(x:T):T{return x}\n";
+  fixture semicolonless;
+  CHECK(fixture_init(&semicolonless, semicolonless_text,
+                     sizeof(semicolonless.nodes) /
+                         sizeof(semicolonless.nodes[0]),
+                     sizeof(semicolonless.issues) /
+                         sizeof(semicolonless.issues[0])));
+  CHECK(check_complete_shape(&semicolonless));
   return true;
 }
 
@@ -1837,10 +2148,11 @@ int main(void) {
       test_phase2_prefix_forms() &&
       test_phase2_fatal_boundaries() &&
       test_phase2_recovery_mutations() &&
+      test_phase2_generic_contract_switch() &&
       test_for_control_shapes() &&
       test_for_markers_and_iterables() &&
       test_for_control_recovery();
   if (!passed) return 1;
-  (void)puts("Seed C parser: caller-owned CST, recovery and P0a hand cases passed");
+  (void)puts("Seed C parser: caller-owned CST, recovery and incremental hand cases passed");
   return 0;
 }

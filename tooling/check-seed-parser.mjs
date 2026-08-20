@@ -27,6 +27,9 @@ const selectedIds = [
   "F0-structured-transaction",
   "F0-language-lock",
   "F0-borrows-clause-source-order",
+  "F0-optional-label-slots",
+  "F0-contracts-and-source-order",
+  "F0-enum-subset-switch",
 ]
 
 const CST = Object.freeze({
@@ -45,6 +48,7 @@ const CST = Object.freeze({
   EXPRESSION: 17,
   TYPE: 18,
   WORD: 25,
+  PUNCTUATION: 27,
   ARRAY: 20,
   ERROR: 21,
   MISSING: 22,
@@ -62,6 +66,13 @@ const CST = Object.freeze({
   BORROW_PAIR: 42,
   SLOT_REF: 43,
   LOCK: 44,
+  TYPE_DECLARATION: 45,
+  ALIAS_DECLARATION: 46,
+  GENERIC_PARAMETERS: 47,
+  GENERIC_PARAMETER: 48,
+  CONTRACT_ENVELOPE: 49,
+  SWITCH_EXPRESSION: 50,
+  SWITCH_ARM: 51,
 })
 
 function fail(message) {
@@ -434,6 +445,90 @@ function assertBorrowClause(parsed, bytes, label) {
   if (viewTypes.length < 1) fail(`${label} does not preserve view WORDs inside TYPE nodes`)
 }
 
+function assertPhase2OptionalLabels(parsed, bytes, label) {
+  assertClean(parsed, label)
+  if (parsed.nodes.filter((node) => node.kind === CST.GENERIC_PARAMETERS).length !== 1 ||
+      parsed.nodes.filter((node) => node.kind === CST.GENERIC_PARAMETER).length !== 1) {
+    fail(`${label} does not contain one generic parameter owner`)
+  }
+  const envelopes = parsed.nodes.filter((node) => node.kind === CST.CONTRACT_ENVELOPE)
+  if (envelopes.length !== 2) fail(`${label} does not contain two contract envelopes`)
+  envelopes.sort((left, right) => left.start - right.start)
+  const structure = parsed.nodes.find((node) => node.kind === CST.STRUCT)
+  if (!structure || directKind(parsed, structure.index, CST.GENERIC_PARAMETERS).length !== 1) {
+    fail(`${label} STRUCT does not directly own GENERIC_PARAMETERS`)
+  }
+  for (const [index, envelope] of envelopes.entries()) {
+    if (!directKind(parsed, envelope.index, CST.WORD)
+      .some((word) => nodeText(parsed, bytes, word) === "ready")) {
+      fail(`${label} contract envelope does not preserve contextual .ready`)
+    }
+    const hasLabel = directKind(parsed, envelope.index, CST.WORD)
+      .some((word) => nodeText(parsed, bytes, word) === "state")
+    if (index === 0 && hasLabel) fail(`${label} first envelope is not positional`)
+    if (index === 1 && (!hasLabel ||
+        !directKind(parsed, envelope.index, CST.PUNCTUATION)
+          .some((punctuation) => nodeText(parsed, bytes, punctuation) === ":"))) {
+      fail(`${label} second envelope does not preserve state: label`)
+    }
+  }
+  const expressions = parsed.nodes.filter((node) => node.kind === CST.EXPRESSION)
+  if (!expressions.some((expression) =>
+      directKind(parsed, expression.index, CST.CONTRACT_ENVELOPE).length === 1)) {
+    fail(`${label} expression postfix does not directly own a contract envelope`)
+  }
+}
+
+function assertPhase2Contracts(parsed, bytes, label) {
+  assertClean(parsed, label)
+  const declarations = parsed.nodes.filter((node) => node.kind === CST.TYPE_DECLARATION)
+    .sort((left, right) => left.start - right.start)
+  if (declarations.length !== 2) fail(`${label} does not contain two TYPE_DECLARATION owners`)
+  if (!(declarations[0].start < declarations[1].start)) {
+    fail(`${label} type declaration source order is not preserved`)
+  }
+  const activeType = directKind(parsed, declarations[0].index, CST.TYPE)[0]
+  const laterType = directKind(parsed, declarations[1].index, CST.TYPE)[0]
+  if (!activeType || !laterType) fail(`${label} type declaration TYPE owners are missing`)
+  if (directKind(parsed, activeType.index, CST.CONTRACT_ENVELOPE).length !== 2 ||
+      directKind(parsed, laterType.index, CST.CONTRACT_ENVELOPE).length !== 1) {
+    fail(`${label} sequential contract envelope ownership is not preserved`)
+  }
+  const predicate = directKind(parsed, activeType.index, CST.CONTRACT_ENVELOPE)[1]
+  const list = directKind(parsed, laterType.index, CST.CONTRACT_ENVELOPE)[0]
+  if (directKind(parsed, predicate.index, CST.EXPRESSION).length !== 1 ||
+      directKind(parsed, list.index, CST.ARRAY).length !== 1) {
+    fail(`${label} predicate/list static forms have wrong direct owners`)
+  }
+  if (!nodeText(parsed, bytes, activeType).includes("Array<Order>")) {
+    fail(`${label} active type is not source-shaped`)
+  }
+}
+
+function assertPhase2Switch(parsed, bytes, label) {
+  assertClean(parsed, label)
+  const aliases = parsed.nodes.filter((node) => node.kind === CST.ALIAS_DECLARATION)
+  const switches = parsed.nodes.filter((node) => node.kind === CST.SWITCH_EXPRESSION)
+  if (aliases.length !== 1 || switches.length !== 1) {
+    fail(`${label} does not contain one ALIAS_DECLARATION and SWITCH_EXPRESSION`)
+  }
+  const switchNode = switches[0]
+  const arms = directKind(parsed, switchNode.index, CST.SWITCH_ARM)
+  if (arms.length !== 3) fail(`${label} SWITCH_EXPRESSION does not directly own three arms`)
+  const expected = ["case .reserving", "case .preparing", "case .serving"]
+  for (const [index, arm] of arms.entries()) {
+    if (!nodeText(parsed, bytes, arm).trimStart().startsWith(expected[index])) {
+      fail(`${label} SWITCH_ARM source order is not preserved`)
+    }
+  }
+  const aliasType = directKind(parsed, aliases[0].index, CST.TYPE)[0]
+  if (!aliasType || directKind(parsed, aliasType.index, CST.CONTRACT_ENVELOPE).length !== 1 ||
+      directKind(parsed, directKind(parsed, aliasType.index, CST.CONTRACT_ENVELOPE)[0].index,
+        CST.ARRAY).length !== 1) {
+    fail(`${label} alias subset envelope/list ownership is incomplete`)
+  }
+}
+
 function assertLabeledControl(parsed, bytes, label) {
   assertClean(parsed, label)
   const loops = parsed.nodes.filter((node) => node.kind === CST.FOR)
@@ -545,6 +640,22 @@ async function formattingWitnessBytes() {
   return bytes
 }
 
+async function sourceBackedFragment(relativePath, startMarker, endMarker, label) {
+  const sourcePath = resolve(root, relativePath)
+  const bytes = Buffer.from(await Bun.file(sourcePath).arrayBuffer())
+  const startNeedle = Buffer.from(startMarker, "utf8")
+  const endNeedle = Buffer.from(endMarker, "utf8")
+  const start = bytes.indexOf(startNeedle)
+  const duplicateStart = start >= 0 ? bytes.indexOf(startNeedle, start + 1) : -1
+  const end = bytes.indexOf(endNeedle)
+  const duplicateEnd = end >= 0 ? bytes.indexOf(endNeedle, end + 1) : -1
+  if (start < 0 || duplicateStart >= 0 || end < 0 || duplicateEnd >= 0 ||
+      end <= start) {
+    fail(`${label} source markers are missing, duplicated, or out of order`)
+  }
+  return bytes.subarray(start, end)
+}
+
 function invoke(probe, bytes, label, expectedStatus, expectedIssue) {
   const execution = Bun.spawnSync({
     cmd: [probe],
@@ -616,6 +727,18 @@ async function main() {
         assertBorrowClause(inputParsed, input, `${id}:input`)
         assertBorrowClause(outputParsed, output, `${id}:output`)
       }
+      if (id === "F0-optional-label-slots") {
+        assertPhase2OptionalLabels(inputParsed, input, `${id}:input`)
+        assertPhase2OptionalLabels(outputParsed, output, `${id}:output`)
+      }
+      if (id === "F0-contracts-and-source-order") {
+        assertPhase2Contracts(inputParsed, input, `${id}:input`)
+        assertPhase2Contracts(outputParsed, output, `${id}:output`)
+      }
+      if (id === "F0-enum-subset-switch") {
+        assertPhase2Switch(inputParsed, input, `${id}:input`)
+        assertPhase2Switch(outputParsed, output, `${id}:output`)
+      }
       if (inputParsed.signature !== second.signature) fail(`${id} CST signature is not deterministic`)
       if (inputParsed.nodes.length === 0 || outputParsed.nodes.length === 0) fail(`${id} has no CST nodes`)
     }
@@ -628,9 +751,94 @@ async function main() {
       fail("formatting.w CST signature is not deterministic")
     }
 
+    const genericsWitness = await sourceBackedFragment(
+      "reference/last-light/generics.w",
+      "export alias EnabledFeature",
+      "extension<T: Display",
+      "generics.w static-alias witness",
+    )
+    const genericsParsed = invoke(
+      probe, genericsWitness, "generics.w:static-aliases", "complete",
+    )
+    assertClean(genericsParsed, "generics.w:static-aliases")
+    if (genericsParsed.nodes.filter((node) => node.kind === CST.ALIAS_DECLARATION).length !== 4 ||
+        genericsParsed.nodes.filter((node) => node.kind === CST.CONTRACT_ENVELOPE).length !== 4) {
+      fail("generics.w static-alias witness owner counts are incomplete")
+    }
+    const genericsRepeat = invoke(
+      probe, genericsWitness, "generics.w:static-aliases:repeat", "complete",
+    )
+    if (genericsParsed.signature !== genericsRepeat.signature) {
+      fail("generics.w static-alias witness CST signature is not deterministic")
+    }
+
+    const enumAliasWitness = await sourceBackedFragment(
+      "reference/last-light/enum_contracts.w",
+      "export alias WorkStage",
+      "export alias ActiveStage",
+      "enum_contracts.w alias witness",
+    )
+    const enumAliasParsed = invoke(
+      probe, enumAliasWitness, "enum_contracts.w:alias", "complete",
+    )
+    assertClean(enumAliasParsed, "enum_contracts.w:alias")
+    if (enumAliasParsed.nodes.filter((node) => node.kind === CST.ALIAS_DECLARATION).length !== 1 ||
+        enumAliasParsed.nodes.filter((node) => node.kind === CST.CONTRACT_ENVELOPE).length !== 1 ||
+        enumAliasParsed.nodes.filter((node) => node.kind === CST.ARRAY).length !== 1) {
+      fail("enum_contracts.w alias witness owner counts are incomplete")
+    }
+    const enumAliasRepeat = invoke(
+      probe, enumAliasWitness, "enum_contracts.w:alias:repeat", "complete",
+    )
+    if (enumAliasParsed.signature !== enumAliasRepeat.signature) {
+      fail("enum_contracts.w alias witness CST signature is not deterministic")
+    }
+
+    const switchWitness = await sourceBackedFragment(
+      "reference/last-light/enum_contracts.w",
+      "export fn nextWorkStage",
+      "export fn routeAcceptedOrder",
+      "enum_contracts.w switch witness",
+    )
+    const switchWitnessParsed = invoke(
+      probe, switchWitness, "enum_contracts.w:switch", "complete",
+    )
+    assertClean(switchWitnessParsed, "enum_contracts.w:switch")
+    const switchWitnessNode = switchWitnessParsed.nodes
+      .find((node) => node.kind === CST.SWITCH_EXPRESSION)
+    if (!switchWitnessNode ||
+        directKind(switchWitnessParsed, switchWitnessNode.index, CST.SWITCH_ARM).length !== 2) {
+      fail("enum_contracts.w switch witness does not preserve two direct arms")
+    }
+    const switchWitnessRepeat = invoke(
+      probe, switchWitness, "enum_contracts.w:switch:repeat", "complete",
+    )
+    if (switchWitnessParsed.signature !== switchWitnessRepeat.signature) {
+      fail("enum_contracts.w switch witness CST signature is not deterministic")
+    }
+
     const handCases = [
       ["nested-generic-and-shift", Buffer.from("fn f(x:Array<Array<u8>>):Array<Array<u8>>{return flags >> 2}\n"), "complete"],
+      ["generic-declarations", Buffer.from("struct Box<_ state:State>{value:state}\nfn id<T:Order>(value:T):T{return value}\ntype Alias<T:Order> = Array<T>\nalias Legacy<U> = Array<Array<u8>>\n"), "complete"],
+      ["contract-static-forms", Buffer.from("type A=Base<Widget><.ready><state:.ready><(count<=4)><[.a,.b]>\n"), "complete"],
+      ["switch-three-arms", Buffer.from("fn f(stage:Stage):String{return switch stage{case .a:\"A\" case .b:\"B\" case .c:\"C\"}}\n"), "complete"],
+      ["switch-semicolon-arms", Buffer.from("fn f(stage:Stage):String{return switch stage{case .a:\"A\";case .b:\"B\";case .c:\"C\";}}\n"), "complete"],
       ["spaced-head", Buffer.from("fn f(x:Array /* note */ <u8>){return x}\n"), "recovered", 7],
+      ["spaced-generic", Buffer.from("fn f <T>(x:T):T{return x}\n"), "recovered", 7],
+      ["missing-generic-name", Buffer.from("fn f<:T>(x:T):T{return x}\n"), "recovered", 1],
+      ["missing-generic-colon", Buffer.from("fn f<T Order>(x:T):T{return x}\n"), "recovered", 2],
+      ["missing-generic-type", Buffer.from("fn f<T:>(x:T):T{return x}\n"), "recovered", 1],
+      ["missing-generic-close", Buffer.from("fn f<T(x:T):T{return x}\n"), "recovered", 2],
+      ["static-list-empty", Buffer.from("type A=Base<[]>\n"), "complete"],
+      ["static-list-trailing-comma", Buffer.from("type A=Base<[.a,]>\n"), "complete"],
+      ["static-list-malformed", Buffer.from("type A=Base<[.a,,.b]>\n"), "recovered", 1],
+      ["static-predicate-malformed", Buffer.from("type A=Base<(.count<=1;>\n"), "recovered", 2],
+      ["static-named-missing-value", Buffer.from("type A=Base<state:>\n"), "recovered", 1],
+      ["switch-missing-arm", Buffer.from("fn f(x:X):String{return switch x{}}\n"), "recovered", 1],
+      ["switch-missing-colon", Buffer.from("fn f(x:X):String{return switch x{case .a \"A\"}}\n"), "recovered", 1],
+      ["switch-missing-close", Buffer.from("fn f(x:X):String{return switch x{case .a:\"A\"}\n"), "recovered", 2],
+      ["import-after-type", Buffer.from("type A=Array<u8>\nimport {x} from module.path\n"), "fatal", 6],
+      ["spaced-comparison", Buffer.from("fn f(left:Bool,right:Bool):Bool{return left < right}\n"), "complete"],
       ["try-question", Buffer.from("fn f(){return try? load()}\n"), "complete"],
       ["export-async-function", Buffer.from("export async fn load(kitchen:Kitchen):Menu throws KitchenError{return try await kitchen.loadMenu()}\n"), "complete"],
       ["export-async-trivia", Buffer.from("export /*a*/ async /*b*/ fn f(){}\n"), "complete"],
@@ -829,6 +1037,51 @@ async function main() {
         const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
         if (parsed.signature !== repeated.signature) {
           fail(`${label} CST signature is not deterministic`)
+        }
+      }
+      if (label === "generic-declarations") {
+        assertClean(parsed, label)
+        if (parsed.nodes.filter((node) => node.kind === CST.GENERIC_PARAMETERS).length !== 4 ||
+            parsed.nodes.filter((node) => node.kind === CST.GENERIC_PARAMETER).length !== 4) {
+          fail(`${label} generic declaration owners are incomplete`)
+        }
+        const structure = parsed.nodes.find((node) => node.kind === CST.STRUCT)
+        const generic = structure && directKind(parsed, structure.index, CST.GENERIC_PARAMETERS)[0]
+        const parameter = generic && directKind(parsed, generic.index, CST.GENERIC_PARAMETER)[0]
+        if (!parameter || !directKind(parsed, parameter.index, CST.WORD)
+          .some((word) => nodeText(parsed, bytes, word) === "_") ||
+            !directKind(parsed, parameter.index, CST.WORD)
+              .some((word) => nodeText(parsed, bytes, word) === "state") ||
+            !directKind(parsed, parameter.index, CST.PUNCTUATION)
+              .some((punctuation) => nodeText(parsed, bytes, punctuation) === ":") ||
+            directKind(parsed, parameter.index, CST.TYPE).length !== 1) {
+          fail(`${label} _ state:State parameter leaves/TYPE are not preserved`)
+        }
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) fail(`${label} CST signature is not deterministic`)
+      }
+      if (label === "contract-static-forms") {
+        assertClean(parsed, label)
+        if (parsed.nodes.filter((node) => node.kind === CST.CONTRACT_ENVELOPE).length !== 5 ||
+            parsed.nodes.filter((node) => node.kind === CST.ARRAY).length !== 1) {
+          fail(`${label} static contract forms are incomplete`)
+        }
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) fail(`${label} CST signature is not deterministic`)
+      }
+      if (label === "switch-three-arms") {
+        assertClean(parsed, label)
+        const switchNode = parsed.nodes.find((node) => node.kind === CST.SWITCH_EXPRESSION)
+        if (!switchNode || directKind(parsed, switchNode.index, CST.SWITCH_ARM).length !== 3) {
+          fail(`${label} does not preserve three direct SWITCH_ARM owners`)
+        }
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) fail(`${label} CST signature is not deterministic`)
+      }
+      if (label === "spaced-comparison") {
+        assertClean(parsed, label)
+        if (parsed.nodes.some((node) => node.kind === CST.CONTRACT_ENVELOPE)) {
+          fail(`${label} converted a spaced comparison into a contract envelope`)
         }
       }
       if (label === "borrow-view-two-pairs" || label === "borrow-view-param-return" ||
