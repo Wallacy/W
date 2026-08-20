@@ -158,7 +158,7 @@ async function runMutationChecks() {
   expectFailure("stale body digest", () => validatePinnedOpaque(pinnedPath, pinnedBytes))
 }
 
-function checkStop(probe, bytes, expectedKind, label) {
+function checkStop(probe, bytes, expectedKind, label, expectedCodePoint = null) {
   const execution = Bun.spawnSync({
     cmd: [probe],
     cwd: root,
@@ -166,9 +166,30 @@ function checkStop(probe, bytes, expectedKind, label) {
     stdout: "pipe",
     stderr: "pipe",
   })
-  if (execution.exitCode === 0 || !new RegExp("kind=" + expectedKind + "\\b", "u").test(execution.stderr.toString())) {
+  const stderr = execution.stderr.toString()
+  if (execution.exitCode === 0 || !new RegExp("kind=" + expectedKind + "\\b", "u").test(stderr)) {
     fail(label + " did not stop with internal error kind " + expectedKind)
   }
+  if (expectedCodePoint !== null) {
+    const codePoint = expectedCodePoint.toString(16).toUpperCase().padStart(4, "0")
+    if (!new RegExp("code_point=U\\+" + codePoint + "\\b", "u").test(stderr)) {
+      fail(label + " did not report code point U+" + codePoint)
+    }
+  }
+}
+
+function checkPass(probe, bytes, label) {
+  const execution = Bun.spawnSync({
+    cmd: [probe],
+    cwd: root,
+    stdin: bytes,
+    stdout: "pipe",
+    stderr: "pipe",
+  })
+  if (execution.exitCode !== 0) {
+    fail(label + " unexpectedly stopped: " + execution.stderr.toString().trim())
+  }
+  parseProbeOutput(execution.stdout.toString(), bytes, [])
 }
 
 async function main() {
@@ -203,7 +224,16 @@ async function main() {
       compareBunPartition(bytes, spans, claims)
       itemCount += spans.length
     }
-    checkStop(probe, Buffer.from("let café = 1", "utf8"), 5, "Unicode identifier")
+    checkPass(probe, Buffer.from("let café = 1", "utf8"), "Unicode identifier")
+    checkPass(probe, Buffer.from("cafe\u0301", "utf8"), "decomposed Unicode identifier")
+    checkPass(probe, Buffer.from("paypa\u043b", "utf8"), "mixed-script raw identifier")
+    checkStop(probe, Buffer.from("a\u200Cb", "utf8"), 5, "ZWNJ identifier", 0x200C)
+    checkStop(probe, Buffer.from("a\u200Db", "utf8"), 5, "ZWJ identifier", 0x200D)
+    checkStop(probe, Buffer.from("a\uFE0F", "utf8"), 5, "variation selector identifier", 0xFE0F)
+    checkStop(probe, Buffer.from("a\u202Eb", "utf8"), 5, "bidi control identifier", 0x202E)
+    checkStop(probe, Buffer.from("a\uFEFF", "utf8"), 5, "internal BOM identifier", 0xFEFF)
+    checkStop(probe, Buffer.from("\u0301", "utf8"), 5, "combining mark at identifier start", 0x0301)
+    checkStop(probe, Buffer.from("a\u{1F600}b", "utf8"), 5, "non-XID emoji identifier", 0x1F600)
     checkStop(probe, Buffer.from("x\ry", "utf8"), 6, "bare CR control")
     console.log("Seed C lexer: " + paths.length + " .w byte partitions, " + itemCount + " items, C11/Bun partition-integrity checks passed (pinned opaque C×5/Asm×1).")
   } finally {

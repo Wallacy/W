@@ -84,12 +84,13 @@ static bool read_stdin(uint8_t **data, size_t *length) {
 static int report_error(const w_seed_lex_error *error) {
   (void)fprintf(stderr,
                 "lexer error kind=%d primary=%llu:%llu opening=%llu:%llu "
-                "literal=%d eof=%d\n",
+                "literal=%d code_point=U+%04X eof=%d\n",
                 error->kind, (unsigned long long)error->primary.start_byte,
                 (unsigned long long)error->primary.end_byte,
                 (unsigned long long)error->opening.start_byte,
                 (unsigned long long)error->opening.end_byte,
-                error->literal, error->reached_eof ? 1 : 0);
+                error->literal, (unsigned int)error->code_point,
+                error->reached_eof ? 1 : 0);
   return EXIT_FAILURE;
 }
 

@@ -67,7 +67,7 @@ typedef enum {
   W_SEED_LEX_ERROR_BAD_SPAN,
   W_SEED_LEX_ERROR_UNTERMINATED_LITERAL,
   W_SEED_LEX_ERROR_UNTERMINATED_COMMENT,
-  W_SEED_LEX_ERROR_UNSUPPORTED_UNICODE_IDENTIFIER,
+  W_SEED_LEX_ERROR_DISALLOWED_IDENTIFIER_CODE_POINT,
   W_SEED_LEX_ERROR_UNSUPPORTED_CONTROL,
   W_SEED_LEX_ERROR_OPAQUE_RANGE,
   W_SEED_LEX_ERROR_OPAQUE_UNCLAIMED,
@@ -95,6 +95,7 @@ typedef struct {
   w_seed_span primary;
   w_seed_span opening;
   w_seed_literal_kind literal;
+  uint32_t code_point;
   bool reached_eof;
 } w_seed_lex_error;
 

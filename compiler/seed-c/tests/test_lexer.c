@@ -386,8 +386,17 @@ static bool test_stops_and_opaque(void) {
   CHECK(next_item(&fixture_value, &item));
   w_seed_lex_error error;
   CHECK(next_item(&fixture_value, &item));
-  CHECK(!w_seed_lexer_next(&fixture_value.lexer, &item, &error));
-  CHECK(error.kind == W_SEED_LEX_ERROR_UNSUPPORTED_UNICODE_IDENTIFIER);
+  CHECK(item.kind == W_SEED_LEX_ITEM_WORD);
+  CHECK(next_item(&fixture_value, &item));
+  CHECK(item.kind == W_SEED_LEX_ITEM_TRIVIA);
+  CHECK(next_item(&fixture_value, &item));
+  CHECK(item.kind == W_SEED_LEX_ITEM_PUNCTUATION);
+  CHECK(next_item(&fixture_value, &item));
+  CHECK(item.kind == W_SEED_LEX_ITEM_TRIVIA);
+  CHECK(next_item(&fixture_value, &item));
+  CHECK(item.kind == W_SEED_LEX_ITEM_NUMBER);
+  CHECK(next_item(&fixture_value, &item));
+  CHECK(item.kind == W_SEED_LEX_ITEM_EOF);
 
   CHECK(fixture_init(&fixture_value, "x\ry"));
   CHECK(next_item(&fixture_value, &item));

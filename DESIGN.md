@@ -3416,14 +3416,25 @@ produzem diagnostic antes do name lookup.
 
 - A forma canônica usa UTF-8 sem BOM e LF.
 - Keywords são ASCII, lowercase e case-sensitive.
-- Identificadores usam Unicode conforme UAX #31 e são normalizados para NFC.
-- O compilador rejeita dois nomes que normalizam para a mesma sequência.
-- Confusables, scripts mistos e caracteres invisíveis produzem erro em API
-  exportada. Código restrito ao módulo recebe erro ou warning conforme a edição.
-- O lockfile registra a edição e a versão do bundle Unicode.
+- O profile de identificador é `W-Identifier-17.0.0-XID-NO-DICP-UNDERSCORE`.
+  `Start` é `XID_Start` mais `U+005F LOW LINE`; `Continue` é
+  `XID_Continue`. `Default_Ignorable_Code_Point` fica rejeitado em
+  identificadores gerais.
+- O lexer somente classifica code points. Cada WORD preserva a grafia UTF-8
+  original e o span raw; ele não normaliza, copia ou resolve o nome.
+- O resolver normaliza a grafia completa para NFC antes do name lookup e
+  rejeita duas declarações que produzem a mesma chave NFC. A regra vale para
+  o namespace e para `PackagePath`, conforme o owner da resolução.
+- Confusables, scripts mistos e invisíveis são diagnostics do resolver ou da
+  fronteira de API exportada. Código restrito ao módulo recebe erro ou warning
+  conforme a edição; o lexer não afirma que resolveu spoofing.
+- O lockfile registra a edição, a versão, o profile e os digests do bundle
+  Unicode. O seed C atual fornece somente a classificação e o WORD raw desta
+  regra; NFC e collision continuam uma etapa posterior do resolver.
 
-O primeiro seed pode aceitar somente ASCII. Isso é uma limitação do seed, não a
-semântica final.
+O seed inicial pode entregar somente classificação e WORD raw. NFC, resolução,
+collision e diagnostics de segurança continuam etapas posteriores; nenhuma
+limitação ASCII anterior define a semântica final.
 
 ### 5.2 Comentários e documentação
 

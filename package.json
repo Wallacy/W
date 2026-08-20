@@ -27,6 +27,7 @@
     "check:frontend-freeze": "bun test tooling/frontend-freeze-guards.test.mjs && bun tooling/check-frontend-freeze.mjs",
     "check:seed-source-reader": "bun tooling/check-seed-source-reader.mjs",
     "check:seed-lexer": "bun tooling/check-seed-lexer.mjs",
+    "check:seed-unicode": "bun tooling/check-seed-unicode.mjs",
     "check:semantic-matrix": "bun tooling/check-semantic-diagnostic-matrix.mjs && bun test tooling/semantic-diagnostic-matrix-reference.test.mjs",
     "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",
     "check:execution-ergonomics": "bun test tooling/execution-ergonomics-reference.test.mjs && bun tooling/check-execution-ergonomics-cases.mjs",

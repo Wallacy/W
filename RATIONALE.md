@@ -5422,7 +5422,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-218 | raw/multiline | `#"..."#`, `${}`, multiline com dedent determinístico | hashes arbitrários; `r` prefix; três delimitadores equivalentes |
 | W-219 | byte string | `b"..."` produz Bytes ASCII/escapes, sem interpolation | Unicode direto; Array literal somente |
 | W-220 | igualdade Unicode | sequência exata; normalização e collation nomeadas | equivalência canônica em `==`; locale global |
-| W-221 | bundle Unicode | edição, tabelas e digests fixos para UAX #15/#29/#31 e UTS #39 | versão do host; ICU obrigatório |
+| W-221 | bundle Unicode | edição, profile, tabelas e digests fixos; o seed pinou Unicode 17.0.0 para `XID_Start`/`XID_Continue` sem `Default_Ignorable_Code_Point`, com `_` adicionado ao início | versão do host; ICU obrigatório |
 | W-222 | texto do host | `OsString`, `Path`, `Utf8Path` e `PackagePath` distintos; colisão NFC rejeitada | paths sempre String; bytes portáveis do OS |
 | W-223 | C strings | `CString`/view separados, NUL verificado e inbound bounded | String sempre NUL; scan C ilimitado |
 | W-224 | storage textual | refinement não fixa layout; reserva mínima é operação; W-1276 separa limite, resource gate e boundary | capacity pública; SSO observável |
