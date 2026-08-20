@@ -1678,7 +1678,6 @@ static bool test_allocator_block_shapes(void) {
       "fn f(){try allocator .fixed<capacity:64<iec.KiB>>{let value=1}}\n",
       "fn f(){return try allocator .fixed<capacity:64<iec.KiB>>{}}\n",
       "allocator .fixed<capacity:64<iec.KiB>>{}\n",
-      "fn f(){spawn<.compute> let value=work()}\n",
   };
   for (size_t index = 0;
        index < sizeof(fatal_texts) / sizeof(fatal_texts[0]); index += 1) {
@@ -1701,6 +1700,278 @@ static bool test_allocator_block_shapes(void) {
   CHECK(foreign.issues[0].kind == W_SEED_PARSE_ISSUE_FOREIGN_UNSUPPORTED);
   CHECK(check_leaf_partition(&foreign));
   CHECK(check_tree_links(&foreign));
+  return true;
+}
+
+static bool test_spawn_tuple_shapes(void) {
+  static const char f0_text[] =
+      "async fn plan(left:Int,right:Int):(Int,Int){"
+      "spawn<.compute> let port=mix(left)"
+      "spawn<domain:.compute> let starboard=mix(right)"
+      "return await(port,starboard)}\n";
+  fixture f0;
+  CHECK(fixture_init(&f0, f0_text,
+                     sizeof(f0.nodes) / sizeof(f0.nodes[0]),
+                     sizeof(f0.issues) / sizeof(f0.issues[0])));
+  CHECK(check_complete_shape(&f0));
+  CHECK(count_kind(&f0, W_SEED_CST_TUPLE_TYPE) == 1);
+  CHECK(count_kind(&f0, W_SEED_CST_TUPLE_EXPRESSION) == 1);
+  CHECK(count_kind(&f0, W_SEED_CST_SPAWN_STATEMENT) == 2);
+  const w_seed_cst_index tuple_type = first_kind(&f0, W_SEED_CST_TUPLE_TYPE);
+  CHECK(count_direct_kind(&f0, tuple_type, W_SEED_CST_TYPE) == 2);
+  CHECK(node_span_text(&f0, direct_child_after(&f0, tuple_type,
+                                               W_SEED_CST_TYPE, 0), "Int"));
+  CHECK(node_span_text(&f0, direct_child_after(&f0, tuple_type,
+                                               W_SEED_CST_TYPE, 1), "Int"));
+  const w_seed_cst_index tuple_expression =
+      first_kind(&f0, W_SEED_CST_TUPLE_EXPRESSION);
+  CHECK(count_direct_kind(&f0, tuple_expression, W_SEED_CST_EXPRESSION) == 2);
+  CHECK(node_span_text(&f0, direct_child_after(&f0, tuple_expression,
+                                               W_SEED_CST_EXPRESSION, 0),
+                       "port"));
+  CHECK(node_span_text(&f0, direct_child_after(&f0, tuple_expression,
+                                               W_SEED_CST_EXPRESSION, 1),
+                       "starboard"));
+  const w_seed_cst_index function = first_kind(&f0, W_SEED_CST_FUNCTION);
+  const w_seed_cst_index body =
+      direct_child_after(&f0, function, W_SEED_CST_BLOCK, 0);
+  CHECK(body != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&f0, body, W_SEED_CST_SPAWN_STATEMENT) == 2);
+  for (size_t index = 0; index < 2; index += 1) {
+    const w_seed_cst_index spawn = direct_child_after(
+        &f0, body, W_SEED_CST_SPAWN_STATEMENT, index);
+    CHECK(spawn != W_SEED_CST_NONE);
+    CHECK(count_direct_kind(&f0, spawn, W_SEED_CST_CONTRACT_ENVELOPE) == 1);
+    CHECK(count_direct_kind(&f0, spawn, W_SEED_CST_LET_STATEMENT) == 1);
+    CHECK(has_direct_text(&f0, spawn, W_SEED_CST_WORD, "spawn"));
+    CHECK(f0.nodes[spawn].raw_span.start_byte <=
+          f0.nodes[spawn].raw_span.end_byte);
+  }
+  const w_seed_cst_index first_spawn =
+      direct_child_after(&f0, body, W_SEED_CST_SPAWN_STATEMENT, 0);
+  const w_seed_cst_index second_spawn =
+      direct_child_after(&f0, body, W_SEED_CST_SPAWN_STATEMENT, 1);
+  const w_seed_cst_index first_contract = direct_child_after(
+      &f0, first_spawn, W_SEED_CST_CONTRACT_ENVELOPE, 0);
+  const w_seed_cst_index second_contract = direct_child_after(
+      &f0, second_spawn, W_SEED_CST_CONTRACT_ENVELOPE, 0);
+  CHECK(node_span_text(&f0, first_contract, "<.compute>"));
+  CHECK(node_span_text(&f0, second_contract, "<domain:.compute>"));
+
+  static const char tuple_three[] = "fn f():(A,B,C){return (a,b,c,)}\n";
+  fixture three;
+  CHECK(fixture_init(&three, tuple_three,
+                     sizeof(three.nodes) / sizeof(three.nodes[0]),
+                     sizeof(three.issues) / sizeof(three.issues[0])));
+  CHECK(check_complete_shape(&three));
+  CHECK(count_kind(&three, W_SEED_CST_TUPLE_TYPE) == 1);
+  CHECK(count_kind(&three, W_SEED_CST_TUPLE_EXPRESSION) == 1);
+  CHECK(count_direct_kind(&three, first_kind(&three, W_SEED_CST_TUPLE_TYPE),
+                          W_SEED_CST_TYPE) == 3);
+  CHECK(count_direct_kind(
+            &three, first_kind(&three, W_SEED_CST_TUPLE_EXPRESSION),
+            W_SEED_CST_EXPRESSION) == 3);
+
+  fixture qualified;
+  CHECK(fixture_init(&qualified, "fn f():view (A,B){}\n",
+                     sizeof(qualified.nodes) / sizeof(qualified.nodes[0]),
+                     sizeof(qualified.issues) /
+                         sizeof(qualified.issues[0])));
+  CHECK(check_complete_shape(&qualified));
+  const w_seed_cst_index qualified_type = first_kind(&qualified,
+                                                     W_SEED_CST_TYPE);
+  const w_seed_cst_index qualified_tuple = first_kind(
+      &qualified, W_SEED_CST_TUPLE_TYPE);
+  CHECK(qualified_type != W_SEED_CST_NONE);
+  CHECK(qualified_tuple != W_SEED_CST_NONE);
+  CHECK(qualified.nodes[qualified_type].raw_span.start_byte <
+        qualified.nodes[qualified_tuple].raw_span.start_byte);
+
+  fixture parenthesized;
+  CHECK(fixture_init(&parenthesized, "fn f(){return (value)}\n",
+                     sizeof(parenthesized.nodes) /
+                         sizeof(parenthesized.nodes[0]),
+                     sizeof(parenthesized.issues) /
+                         sizeof(parenthesized.issues[0])));
+  CHECK(check_complete_shape(&parenthesized));
+  CHECK(count_kind(&parenthesized, W_SEED_CST_PARENTHESES) == 1);
+  CHECK(count_kind(&parenthesized, W_SEED_CST_TUPLE_EXPRESSION) == 0);
+
+  fixture unit;
+  CHECK(fixture_init(&unit, "fn f():(){}\n",
+                     sizeof(unit.nodes) / sizeof(unit.nodes[0]),
+                     sizeof(unit.issues) / sizeof(unit.issues[0])));
+  CHECK(check_complete_shape(&unit));
+  CHECK(count_kind(&unit, W_SEED_CST_TUPLE_TYPE) == 0);
+  CHECK(count_kind(&unit, W_SEED_CST_PARENTHESES) == 0);
+
+  static const struct {
+    const char *text;
+    w_seed_parse_issue_kind issue;
+  } recovery_cases[] = {
+      {"fn f():(A){}\n", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f():(A,){}\n", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(){return (value,)}\n", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(){spawn<.compute> value=work()}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(){spawn<.compute let value=work()}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+  };
+  for (size_t index = 0;
+       index < sizeof(recovery_cases) / sizeof(recovery_cases[0]); index += 1) {
+    fixture recovery;
+    CHECK(fixture_init(&recovery, recovery_cases[index].text,
+                       sizeof(recovery.nodes) / sizeof(recovery.nodes[0]),
+                       sizeof(recovery.issues) /
+                           sizeof(recovery.issues[0])));
+    CHECK(recovery.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(recovery.result.issue_count >= 1);
+    CHECK(recovery.issues[0].kind == recovery_cases[index].issue);
+    CHECK(check_leaf_partition(&recovery));
+    CHECK(check_tree_links(&recovery));
+  }
+
+  static const struct {
+    const char *text;
+    w_seed_parse_issue_kind issue;
+    bool expect_let;
+    bool expect_let_missing;
+    bool expect_envelope_missing;
+  } spawn_recovery_cases[] = {
+      {"fn f(){spawn<.compute> value=work()}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, false, false, false},
+      {"fn f(){spawn<.compute> let =work()}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, true, true, false},
+      {"fn f(){spawn<.compute> let value work()}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, true, true, false},
+      {"fn f(){spawn<.compute let value=work()}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE, false, false, true},
+  };
+  for (size_t index = 0; index < sizeof(spawn_recovery_cases) /
+                                     sizeof(spawn_recovery_cases[0]);
+       index += 1) {
+    const size_t node_capacity = 512;
+    const size_t issue_capacity = 32;
+    fixture recovery;
+    CHECK(fixture_init(&recovery, spawn_recovery_cases[index].text,
+                       node_capacity, issue_capacity));
+    CHECK(recovery.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(recovery.result.issue_count >= 1);
+    CHECK(recovery.issues[0].kind == spawn_recovery_cases[index].issue);
+    CHECK(recovery.parser.frame_count == 0);
+    const w_seed_cst_index recovery_function = first_kind(
+        &recovery, W_SEED_CST_FUNCTION);
+    const w_seed_cst_index recovery_body =
+        direct_child_after(&recovery, recovery_function, W_SEED_CST_BLOCK, 0);
+    const w_seed_cst_index spawn = direct_child_after(
+        &recovery, recovery_body, W_SEED_CST_SPAWN_STATEMENT, 0);
+    CHECK(recovery_function != W_SEED_CST_NONE);
+    CHECK(recovery_body != W_SEED_CST_NONE);
+    CHECK(spawn != W_SEED_CST_NONE);
+    CHECK(count_direct_kind(&recovery, recovery_body,
+                            W_SEED_CST_SPAWN_STATEMENT) == 1);
+    CHECK(has_direct_text(&recovery, spawn, W_SEED_CST_WORD, "spawn"));
+    CHECK(recovery.nodes[spawn].raw_span.start_byte <
+          recovery.nodes[spawn].raw_span.end_byte);
+    CHECK(count_direct_kind(&recovery, spawn,
+                            W_SEED_CST_CONTRACT_ENVELOPE) == 1);
+    const w_seed_cst_index envelope = direct_child_after(
+        &recovery, spawn, W_SEED_CST_CONTRACT_ENVELOPE, 0);
+    CHECK(envelope != W_SEED_CST_NONE);
+    CHECK(recovery.nodes[envelope].raw_span.start_byte >=
+          recovery.nodes[spawn].raw_span.start_byte);
+    CHECK(recovery.nodes[envelope].raw_span.end_byte <=
+          recovery.nodes[spawn].raw_span.end_byte);
+    if (spawn_recovery_cases[index].expect_envelope_missing) {
+      CHECK(count_direct_kind(&recovery, envelope, W_SEED_CST_MISSING) == 1);
+    } else {
+      CHECK(count_direct_kind(&recovery, envelope, W_SEED_CST_MISSING) == 0);
+    }
+    if (spawn_recovery_cases[index].expect_let) {
+      CHECK(count_direct_kind(&recovery, spawn, W_SEED_CST_LET_STATEMENT) ==
+            1);
+      const w_seed_cst_index let = direct_child_after(
+          &recovery, spawn, W_SEED_CST_LET_STATEMENT, 0);
+      CHECK(let != W_SEED_CST_NONE);
+      CHECK(recovery.nodes[let].raw_span.end_byte <=
+            recovery.nodes[spawn].raw_span.end_byte);
+      if (spawn_recovery_cases[index].expect_let_missing) {
+        CHECK(count_direct_kind(&recovery, let, W_SEED_CST_MISSING) == 1);
+      } else {
+        CHECK(count_direct_kind(&recovery, let, W_SEED_CST_MISSING) == 0);
+      }
+    } else {
+      CHECK(count_direct_kind(&recovery, spawn, W_SEED_CST_LET_STATEMENT) ==
+            0);
+      CHECK(count_direct_kind(&recovery, spawn, W_SEED_CST_MISSING) ==
+            (spawn_recovery_cases[index].expect_envelope_missing ? 0 : 1));
+    }
+    CHECK(check_leaf_partition(&recovery));
+    CHECK(check_tree_links(&recovery));
+  }
+
+  static const char spawn_semicolon_text[] =
+      "fn f(){spawn<.compute> let value=work();let after=next()}\n";
+  fixture spawn_semicolon;
+  CHECK(fixture_init(&spawn_semicolon, spawn_semicolon_text,
+                     sizeof(spawn_semicolon.nodes) /
+                         sizeof(spawn_semicolon.nodes[0]),
+                     sizeof(spawn_semicolon.issues) /
+                         sizeof(spawn_semicolon.issues[0])));
+  CHECK(check_complete_shape(&spawn_semicolon));
+  const w_seed_cst_index spawn_function =
+      first_kind(&spawn_semicolon, W_SEED_CST_FUNCTION);
+  const w_seed_cst_index spawn_body = direct_child_after(
+      &spawn_semicolon, spawn_function, W_SEED_CST_BLOCK, 0);
+  const w_seed_cst_index semicolon_spawn = direct_child_after(
+      &spawn_semicolon, spawn_body, W_SEED_CST_SPAWN_STATEMENT, 0);
+  CHECK(spawn_function != W_SEED_CST_NONE);
+  CHECK(spawn_body != W_SEED_CST_NONE);
+  CHECK(semicolon_spawn != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&spawn_semicolon, spawn_body,
+                          W_SEED_CST_SPAWN_STATEMENT) == 1);
+  CHECK(count_direct_kind(&spawn_semicolon, semicolon_spawn,
+                          W_SEED_CST_LET_STATEMENT) == 1);
+  const w_seed_cst_index semicolon_let = direct_child_after(
+      &spawn_semicolon, semicolon_spawn, W_SEED_CST_LET_STATEMENT, 0);
+  CHECK(has_direct_text(&spawn_semicolon, semicolon_let,
+                        W_SEED_CST_PUNCTUATION, ";"));
+  CHECK(count_direct_kind(&spawn_semicolon, spawn_body,
+                          W_SEED_CST_LET_STATEMENT) == 1);
+  const w_seed_cst_index after = direct_child_after(
+      &spawn_semicolon, spawn_body, W_SEED_CST_LET_STATEMENT, 0);
+  CHECK(after != W_SEED_CST_NONE);
+  CHECK(node_span_text(&spawn_semicolon, after, "let after=next()"));
+  CHECK(spawn_semicolon.nodes[semicolon_spawn].raw_span.end_byte <=
+        spawn_semicolon.nodes[after].raw_span.start_byte);
+  fixture spawn_semicolon_repeat;
+  CHECK(fixture_init(&spawn_semicolon_repeat, spawn_semicolon_text,
+                     sizeof(spawn_semicolon_repeat.nodes) /
+                         sizeof(spawn_semicolon_repeat.nodes[0]),
+                     sizeof(spawn_semicolon_repeat.issues) /
+                         sizeof(spawn_semicolon_repeat.issues[0])));
+  CHECK(same_parse(&spawn_semicolon, &spawn_semicolon_repeat));
+
+  static const char *const stop_cases[] = {
+      "fn f(){spawn let value=work()}\n",
+      "spawn<.compute> let value=work()\n",
+  };
+  for (size_t index = 0; index < sizeof(stop_cases) / sizeof(stop_cases[0]);
+       index += 1) {
+    fixture stop;
+    CHECK(fixture_init(&stop, stop_cases[index],
+                       sizeof(stop.nodes) / sizeof(stop.nodes[0]),
+                       sizeof(stop.issues) / sizeof(stop.issues[0])));
+    CHECK(stop.result.status == W_SEED_PARSE_FATAL);
+    CHECK(stop.result.issue_count == 1);
+    CHECK(stop.issues[0].kind == W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    CHECK(stop.parser.frame_count == 0);
+    CHECK(stop.nodes[stop.result.root].raw_span.start_byte == 0);
+    CHECK(stop.nodes[stop.result.root].raw_span.end_byte ==
+          stop.source.bytes.length);
+    CHECK(check_leaf_partition(&stop));
+    CHECK(check_tree_links(&stop));
+  }
   return true;
 }
 
@@ -2381,6 +2652,7 @@ int main(void) {
       test_phase2_recovery_mutations() &&
       test_phase2_generic_contract_switch() &&
       test_allocator_block_shapes() &&
+      test_spawn_tuple_shapes() &&
       test_for_control_shapes() &&
       test_for_markers_and_iterables() &&
       test_for_control_recovery();

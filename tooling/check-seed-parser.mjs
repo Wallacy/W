@@ -32,6 +32,7 @@ const selectedIds = [
   "F0-enum-subset-switch",
   "F0-allocator-anonymous-contextual-call",
   "F0-allocator-named-override",
+  "F0-spawn-domain-slots",
 ]
 
 const CST = Object.freeze({
@@ -77,6 +78,9 @@ const CST = Object.freeze({
   SWITCH_EXPRESSION: 50,
   SWITCH_ARM: 51,
   ALLOCATOR_BLOCK: 52,
+  TUPLE_TYPE: 53,
+  TUPLE_EXPRESSION: 54,
+  SPAWN_STATEMENT: 55,
 })
 
 const ISSUE = Object.freeze({
@@ -274,6 +278,136 @@ function assertRepeatArray(parsed, bytes, label) {
   if (nodeText(parsed, bytes, expressions[0]) !== "0" ||
       nodeText(parsed, bytes, expressions[1]) !== "16") {
     fail(`${label} repeat ARRAY expression spans are not source-shaped`)
+  }
+}
+
+function assertSpawnDomainSlots(parsed, bytes, label, options = {}) {
+  assertClean(parsed, label)
+  const functions = parsed.nodes.filter((node) => node.kind === CST.FUNCTION)
+  if (functions.length !== 1) fail(`${label} does not contain one FUNCTION node`)
+  const functionNode = functions[0]
+  const returnTypes = directKind(parsed, functionNode.index, CST.RETURN_TYPE)
+  if (returnTypes.length !== 1) fail(`${label} does not contain one RETURN_TYPE`)
+  const tupleTypes = parsed.nodes.filter((node) => node.kind === CST.TUPLE_TYPE)
+  if (tupleTypes.length !== 1) fail(`${label} does not contain one TUPLE_TYPE`)
+  const tupleType = tupleTypes[0]
+  const typeItems = directKind(parsed, tupleType.index, CST.TYPE)
+  const expectedTypeItems = options.typeItems ?? ["Int", "Int"]
+  if (typeItems.length !== expectedTypeItems.length ||
+      typeItems.some((node, index) => nodeText(parsed, bytes, node) !== expectedTypeItems[index])) {
+    fail(`${label} TUPLE_TYPE item shape mismatch`)
+  }
+  if (tupleType.start < returnTypes[0].start || tupleType.end > returnTypes[0].end) {
+    fail(`${label} TUPLE_TYPE is outside RETURN_TYPE`)
+  }
+
+  const blocks = directKind(parsed, functionNode.index, CST.BLOCK)
+  if (blocks.length !== 1) fail(`${label} does not contain one function BLOCK`)
+  const spawns = directKind(parsed, blocks[0].index, CST.SPAWN_STATEMENT)
+    .sort((left, right) => left.start - right.start)
+  if (spawns.length !== 2) fail(`${label} does not contain two direct SPAWN_STATEMENT nodes`)
+  const envelopeTexts = []
+  for (const spawn of spawns) {
+    const words = directKind(parsed, spawn.index, CST.WORD)
+    if (!words.some((node) => nodeText(parsed, bytes, node) === "spawn")) {
+      fail(`${label} SPAWN_STATEMENT does not own spawn keyword`)
+    }
+    const envelopes = directKind(parsed, spawn.index, CST.CONTRACT_ENVELOPE)
+    const lets = directKind(parsed, spawn.index, CST.LET)
+    if (envelopes.length !== 1 || lets.length !== 1) {
+      fail(`${label} SPAWN_STATEMENT owners are not CONTRACT_ENVELOPE + LET`)
+    }
+    envelopeTexts.push(nodeText(parsed, bytes, envelopes[0]))
+    if (spawn.start !== words[0].start || spawn.end < lets[0].end) {
+      fail(`${label} SPAWN_STATEMENT span is not source-shaped`)
+    }
+  }
+  const expectedEnvelopes = options.envelopes ?? ["<.compute>", null]
+  const namedSecond = options.namedSecond !== false
+  if (envelopeTexts[0] !== expectedEnvelopes[0] ||
+      (namedSecond ? !/^<domain:\s*\.compute>$/u.test(envelopeTexts[1]) :
+       envelopeTexts[1] !== expectedEnvelopes[1])) {
+    fail(`${label} domain envelopes are not source-shaped`)
+  }
+
+  const tupleExpressions = parsed.nodes.filter((node) => node.kind === CST.TUPLE_EXPRESSION)
+  if (tupleExpressions.length !== 1) {
+    fail(`${label} does not contain one TUPLE_EXPRESSION`)
+  }
+  const expressionItems = directKind(parsed, tupleExpressions[0].index, CST.EXPRESSION)
+  const expectedExpressionItems = options.expressionItems ?? ["port", "starboard"]
+  if (expressionItems.length !== expectedExpressionItems.length ||
+      expressionItems.some((node, index) =>
+        nodeText(parsed, bytes, node) !== expectedExpressionItems[index])) {
+    fail(`${label} TUPLE_EXPRESSION item shape mismatch`)
+  }
+}
+
+function assertSpawnRecovery(parsed, bytes, label, options) {
+  if (parsed.result.status !== "recovered" || parsed.result.issueCount < 1) {
+    fail(`${label} is not recovered with an issue`)
+  }
+  if (parsed.issues[0]?.kind !== options.issue) {
+    fail(`${label} first issue ${parsed.issues[0]?.kind} != ${options.issue}`)
+  }
+  const functions = parsed.nodes.filter((node) => node.kind === CST.FUNCTION)
+  if (functions.length !== 1) fail(`${label} does not contain one FUNCTION node`)
+  const blocks = directKind(parsed, functions[0].index, CST.BLOCK)
+  if (blocks.length !== 1) fail(`${label} does not contain one function BLOCK`)
+  const spawns = directKind(parsed, blocks[0].index, CST.SPAWN_STATEMENT)
+  if (spawns.length !== 1) fail(`${label} does not preserve one direct SPAWN_STATEMENT`)
+  const spawn = spawns[0]
+  const words = directKind(parsed, spawn.index, CST.WORD)
+  if (!words.some((node) => nodeText(parsed, bytes, node) === "spawn")) {
+    fail(`${label} SPAWN_STATEMENT lost its spawn keyword`)
+  }
+  const envelopes = directKind(parsed, spawn.index, CST.CONTRACT_ENVELOPE)
+  if (envelopes.length !== 1 || envelopes[0].start < spawn.start ||
+      envelopes[0].end > spawn.end) {
+    fail(`${label} SPAWN_STATEMENT lost its CONTRACT_ENVELOPE owner`)
+  }
+  const envelopeMissing = directKind(parsed, envelopes[0].index, CST.MISSING)
+  if (Boolean(options.envelopeMissing) !== (envelopeMissing.length === 1)) {
+    fail(`${label} CONTRACT_ENVELOPE MISSING shape drifted`)
+  }
+  const lets = directKind(parsed, spawn.index, CST.LET)
+  if (Boolean(options.let) !== (lets.length === 1)) {
+    fail(`${label} SPAWN_STATEMENT LET ownership drifted`)
+  }
+  if (options.let) {
+    const missing = directKind(parsed, lets[0].index, CST.MISSING)
+    if (Boolean(options.letMissing) !== (missing.length === 1)) {
+      fail(`${label} LET MISSING shape drifted`)
+    }
+  } else {
+    const missing = directKind(parsed, spawn.index, CST.MISSING)
+    if (Boolean(options.spawnMissing) !== (missing.length === 1)) {
+      fail(`${label} SPAWN MISSING shape drifted`)
+    }
+  }
+}
+
+function assertSpawnSemicolonBoundary(parsed, bytes, label) {
+  assertClean(parsed, label)
+  const functions = parsed.nodes.filter((node) => node.kind === CST.FUNCTION)
+  if (functions.length !== 1) fail(`${label} does not contain one FUNCTION node`)
+  const blocks = directKind(parsed, functions[0].index, CST.BLOCK)
+  if (blocks.length !== 1) fail(`${label} does not contain one function BLOCK`)
+  const spawns = directKind(parsed, blocks[0].index, CST.SPAWN_STATEMENT)
+  if (spawns.length !== 1) fail(`${label} does not contain one direct SPAWN_STATEMENT`)
+  const spawn = spawns[0]
+  const lets = directKind(parsed, spawn.index, CST.LET)
+  if (lets.length !== 1) fail(`${label} SPAWN_STATEMENT does not own one LET`)
+  const semicolon = directKind(parsed, lets[0].index, CST.PUNCTUATION)
+    .find((node) => nodeText(parsed, bytes, node) === ";")
+  if (!semicolon) fail(`${label} SPAWN LET does not own its semicolon`)
+  const followingLets = directKind(parsed, blocks[0].index, CST.LET)
+  if (followingLets.length !== 1 ||
+      nodeText(parsed, bytes, followingLets[0]) !== "let after=next()") {
+    fail(`${label} did not continue with direct sibling let after`)
+  }
+  if (spawn.end > followingLets[0].start) {
+    fail(`${label} SPAWN/LET sibling spans overlap`)
   }
 }
 
@@ -859,6 +993,10 @@ async function main() {
         assertAllocatorBlock(inputParsed, input, `${id}:input`, "scratch")
         assertAllocatorBlock(outputParsed, output, `${id}:output`, "scratch")
       }
+      if (id === "F0-spawn-domain-slots") {
+        assertSpawnDomainSlots(inputParsed, input, `${id}:input`)
+        assertSpawnDomainSlots(outputParsed, output, `${id}:output`)
+      }
       if (inputParsed.signature !== second.signature) fail(`${id} CST signature is not deterministic`)
       if (inputParsed.nodes.length === 0 || outputParsed.nodes.length === 0) fail(`${id} has no CST nodes`)
     }
@@ -869,6 +1007,28 @@ async function main() {
     assertFormattingWitness(witnessParsed, witness)
     if (witnessParsed.signature !== witnessRepeat.signature) {
       fail("formatting.w CST signature is not deterministic")
+    }
+
+    const executionWitness = await sourceBackedFragment(
+      "reference/last-light/execution.w",
+      "export async fn mixPair(",
+      "export async fn mixOnThermalLane(",
+      "execution.w mixPair witness",
+    )
+    const executionParsed = invoke(
+      probe, executionWitness, "execution.w:mixPair", "complete",
+    )
+    assertSpawnDomainSlots(executionParsed, executionWitness, "execution.w:mixPair", {
+      typeItems: ["MixingResult", "MixingResult"],
+      expressionItems: ["leftResult", "rightResult"],
+      envelopes: ["<.compute>", "<.compute>"],
+      namedSecond: false,
+    })
+    const executionRepeat = invoke(
+      probe, executionWitness, "execution.w:mixPair:repeat", "complete",
+    )
+    if (executionParsed.signature !== executionRepeat.signature) {
+      fail("execution.w mixPair witness CST signature is not deterministic")
     }
 
     const genericsWitness = await sourceBackedFragment(
@@ -1016,7 +1176,24 @@ async function main() {
       ["allocator-semicolon-boundary", Buffer.from("fn f(){allocator .fixed<capacity:64<iec.KiB>>{let snapshot=stage(ref title)};let after=next()}\n"), "complete"],
       ["allocator-try-stop", Buffer.from("fn f(){try allocator .fixed<capacity:64<iec.KiB>>{let value=1}}\n"), "fatal", 6],
       ["allocator-root-stop", Buffer.from("allocator .fixed<capacity:64<iec.KiB>>{}\n"), "fatal", 6],
-      ["spawn-stop-after-allocator", Buffer.from("fn f(){spawn<.compute> let value=work()}\n"), "fatal", 6],
+      ["tuple-type-three", Buffer.from("fn f():(A,B,C){}\n"), "complete"],
+      ["tuple-type-trailing-comma", Buffer.from("fn f():(A,B,){}\n"), "complete"],
+      ["tuple-expression-three", Buffer.from("fn f(){return (a,b,c,)}\n"), "complete"],
+      ["tuple-parentheses", Buffer.from("fn f(){return (value)}\n"), "complete"],
+      ["unit-type", Buffer.from("fn f():(){}\n"), "complete"],
+      ["tuple-type-parenthesized", Buffer.from("fn f():(A){}\n"), "recovered", 1],
+      ["tuple-type-singleton", Buffer.from("fn f():(A,){}\n"), "recovered", 1],
+      ["tuple-expression-singleton", Buffer.from("fn f(){return (value,)}\n"), "recovered", 1],
+      ["spawn-positional", Buffer.from("fn f(){spawn<.compute> let value=work()}\n"), "complete"],
+      ["spawn-named", Buffer.from("fn f(){spawn<domain:.compute> let value=work()}\n"), "complete"],
+      ["spawn-consecutive", Buffer.from("fn f(){spawn<.compute> let left=work()spawn<domain:.compute> let right=work()}\n"), "complete"],
+      ["spawn-semicolon-boundary", Buffer.from("fn f(){spawn<.compute> let value=work();let after=next()}\n"), "complete"],
+      ["spawn-missing-let", Buffer.from("fn f(){spawn<.compute> value=work()}\n"), "recovered", 1],
+      ["spawn-missing-binder", Buffer.from("fn f(){spawn<.compute> let =work()}\n"), "recovered", 1],
+      ["spawn-missing-equals", Buffer.from("fn f(){spawn<.compute> let value work()}\n"), "recovered", 1],
+      ["spawn-missing-close", Buffer.from("fn f(){spawn<.compute let value=work()}\n"), "recovered", 2],
+      ["spawn-stop-after-allocator", Buffer.from("fn f(){spawn let value=work()}\n"), "fatal", 6],
+      ["spawn-root-stop", Buffer.from("spawn<.compute> let value=work()\n"), "fatal", 6],
       ["language-lock-plain", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as value{copy value}}\n"), "complete"],
       ["language-lock-await", Buffer.from("fn f(state:shared Ledger):Ledger{return await lock state as value{copy value}}\n"), "complete"],
       ["language-lock-try", Buffer.from("fn f(state:shared Ledger):Ledger{return try lock state as value{copy value}}\n"), "complete"],
@@ -1113,6 +1290,38 @@ async function main() {
         if (parsed.signature !== repeated.signature) {
           fail(`${label} CST signature is not deterministic`)
         }
+      }
+      if (label === "spawn-semicolon-boundary") {
+        assertSpawnSemicolonBoundary(parsed, bytes, label)
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        assertSpawnSemicolonBoundary(repeated, bytes, `${label}:repeat`)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} CST signature is not deterministic`)
+        }
+      }
+      if (label === "spawn-missing-let") {
+        assertSpawnRecovery(parsed, bytes, label, {
+          issue: ISSUE.UNEXPECTED_TOKEN,
+          envelopeMissing: false,
+          let: false,
+          spawnMissing: true,
+        })
+      }
+      if (label === "spawn-missing-binder" || label === "spawn-missing-equals") {
+        assertSpawnRecovery(parsed, bytes, label, {
+          issue: ISSUE.UNEXPECTED_TOKEN,
+          envelopeMissing: false,
+          let: true,
+          letMissing: true,
+        })
+      }
+      if (label === "spawn-missing-close") {
+        assertSpawnRecovery(parsed, bytes, label, {
+          issue: ISSUE.MISSING_OWNER_CLOSE,
+          envelopeMissing: true,
+          let: false,
+          spawnMissing: false,
+        })
       }
       if (label === "for-marker-vector") assertMarkerVector(parsed, bytes)
       if (label === "for-take-iterable") assertClean(parsed, label)
