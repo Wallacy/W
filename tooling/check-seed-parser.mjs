@@ -7,6 +7,7 @@ const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
 const corpus = await Bun.file(resolve(import.meta.dir, "formatter-cases.json")).json()
 const selectedIds = [
+  "F0-repeat-array-semicolon",
   "F0-module-run-entry",
   "F0-canonical-bytes",
   "F0-value-block-boundary",
@@ -30,6 +31,7 @@ const CST = Object.freeze({
   FUNCTION: 2,
   BLOCK: 7,
   EXPRESSION: 17,
+  ARRAY: 20,
   ERROR: 21,
   MISSING: 22,
   IMPORT: 31,
@@ -220,6 +222,20 @@ function assertClean(parsed, label) {
   }
 }
 
+function assertRepeatArray(parsed, bytes, label) {
+  assertClean(parsed, label)
+  const arrays = parsed.nodes.filter((node) => node.kind === CST.ARRAY)
+  if (arrays.length !== 1) fail(`${label} does not contain one ARRAY node`)
+  const expressions = directKind(parsed, arrays[0].index, CST.EXPRESSION)
+  if (expressions.length !== 2) {
+    fail(`${label} repeat ARRAY does not own two direct EXPRESSION children`)
+  }
+  if (nodeText(parsed, bytes, expressions[0]) !== "0" ||
+      nodeText(parsed, bytes, expressions[1]) !== "16") {
+    fail(`${label} repeat ARRAY expression spans are not source-shaped`)
+  }
+}
+
 function assertFormattingWitness(parsed, bytes) {
   assertClean(parsed, "formatting.w")
   const imports = parsed.nodes.filter((node) => node.kind === CST.IMPORT)
@@ -320,6 +336,10 @@ async function main() {
       assertClean(inputParsed, `${id}:input`)
       assertClean(outputParsed, `${id}:output`)
       assertClean(second, `${id}:repeat`)
+      if (id === "F0-repeat-array-semicolon") {
+        assertRepeatArray(inputParsed, input, `${id}:input`)
+        assertRepeatArray(outputParsed, output, `${id}:output`)
+      }
       if (inputParsed.signature !== second.signature) fail(`${id} CST signature is not deterministic`)
       if (inputParsed.nodes.length === 0 || outputParsed.nodes.length === 0) fail(`${id} has no CST nodes`)
     }

@@ -521,10 +521,15 @@ static bool parse_primary(w_seed_parser *parser, bool value_context) {
     }
     if (!current_is_text(parser, "]")) {
       if (!parse_expression(parser, 1, false)) return false;
-      while (current_is_text(parser, ",")) {
-        (void)consume_text(parser, ",", NULL);
-        if (current_is_text(parser, "]")) break;
+      if (current_is_text(parser, ";")) {
+        (void)consume_text(parser, ";", NULL);
         if (!parse_expression(parser, 1, false)) return false;
+      } else {
+        while (current_is_text(parser, ",")) {
+          (void)consume_text(parser, ",", NULL);
+          if (current_is_text(parser, "]")) break;
+          if (!parse_expression(parser, 1, false)) return false;
+        }
       }
     }
     if (!expect_text(parser, "]", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {

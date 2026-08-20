@@ -199,6 +199,23 @@ static bool node_span_text(const fixture *fixture_value, w_seed_cst_index index,
              0;
 }
 
+static bool has_direct_text(const fixture *fixture_value,
+                            w_seed_cst_index parent_index,
+                            w_seed_cst_kind kind, const char *text) {
+  if (parent_index >= fixture_value->result.node_count) return false;
+  w_seed_cst_index child = fixture_value->nodes[parent_index].first_child;
+  size_t guard = 0;
+  while (child != W_SEED_CST_NONE && guard <= fixture_value->result.node_count) {
+    if (fixture_value->nodes[child].kind == kind &&
+        node_span_text(fixture_value, child, text)) {
+      return true;
+    }
+    child = fixture_value->nodes[child].next_sibling;
+    guard += 1;
+  }
+  return false;
+}
+
 static bool test_phase2_declaration_tree(void) {
   static const char text[] =
       "import {Command,Result} from command\n"
@@ -405,6 +422,103 @@ static bool has_issue(const fixture *fixture_value,
     if (fixture_value->issues[index].kind == kind) return true;
   }
   return false;
+}
+
+static bool test_repeat_array_shape(void) {
+  static const char text[] =
+      "fn zeros():Array<Int>{return [0;16]}\n";
+  fixture value;
+  CHECK(fixture_init(&value, text,
+                     sizeof(value.nodes) / sizeof(value.nodes[0]),
+                     sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value.result.issue_count == 0);
+  CHECK(check_leaf_partition(&value));
+  CHECK(check_tree_links(&value));
+
+  const w_seed_cst_index array = first_kind(&value, W_SEED_CST_ARRAY);
+  CHECK(array != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&value, array, W_SEED_CST_EXPRESSION) == 2);
+  CHECK(node_span_text(&value,
+                       direct_child_after(&value, array, W_SEED_CST_EXPRESSION,
+                                          0),
+                       "0"));
+  CHECK(node_span_text(&value,
+                       direct_child_after(&value, array, W_SEED_CST_EXPRESSION,
+                                          1),
+                       "16"));
+  CHECK(has_direct_text(&value, array, W_SEED_CST_PUNCTUATION, ";"));
+
+  fixture repeat;
+  CHECK(fixture_init(&repeat, text,
+                     sizeof(repeat.nodes) / sizeof(repeat.nodes[0]),
+                     sizeof(repeat.issues) / sizeof(repeat.issues[0])));
+  CHECK(memcmp(&value.result, &repeat.result, sizeof(value.result)) == 0);
+  CHECK(memcmp(value.nodes, repeat.nodes,
+               value.result.node_count * sizeof(value.nodes[0])) == 0);
+  CHECK(memcmp(value.issues, repeat.issues,
+               value.result.issue_count * sizeof(value.issues[0])) == 0);
+
+  fixture nested;
+  CHECK(fixture_init(&nested,
+                     "fn nested():Array<Array<Int>>{return [[0;16];2]}\n",
+                     sizeof(nested.nodes) / sizeof(nested.nodes[0]),
+                     sizeof(nested.issues) / sizeof(nested.issues[0])));
+  CHECK(nested.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(check_leaf_partition(&nested));
+  CHECK(check_tree_links(&nested));
+  size_t repeat_arrays = 0;
+  for (size_t index = 0; index < nested.result.node_count; index += 1) {
+    if (nested.nodes[index].kind != W_SEED_CST_ARRAY) continue;
+    CHECK(count_direct_kind(&nested, (w_seed_cst_index)index,
+                            W_SEED_CST_EXPRESSION) == 2);
+    repeat_arrays += 1;
+  }
+  CHECK(repeat_arrays == 2);
+
+  fixture adjacent;
+  CHECK(fixture_init(&adjacent,
+                     "fn adjacent(){let values=[0;2];return values}\n",
+                     sizeof(adjacent.nodes) / sizeof(adjacent.nodes[0]),
+                     sizeof(adjacent.issues) / sizeof(adjacent.issues[0])));
+  CHECK(adjacent.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(check_leaf_partition(&adjacent));
+  CHECK(check_tree_links(&adjacent));
+  const w_seed_cst_index adjacent_array =
+      first_kind(&adjacent, W_SEED_CST_ARRAY);
+  const w_seed_cst_index let_statement =
+      first_kind(&adjacent, W_SEED_CST_LET_STATEMENT);
+  CHECK(has_direct_text(&adjacent, adjacent_array, W_SEED_CST_PUNCTUATION,
+                        ";"));
+  CHECK(has_direct_text(&adjacent, let_statement, W_SEED_CST_PUNCTUATION,
+                        ";"));
+  return true;
+}
+
+static bool test_repeat_array_recovery(void) {
+  static const struct {
+    const char *text;
+    w_seed_parse_issue_kind issue;
+  } mutations[] = {
+      {"fn zeros():Array<Int>{return [0 16]}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"fn zeros():Array<Int>{return [0;]}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn zeros():Array<Int>{return [0;16}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+  };
+  for (size_t index = 0; index < sizeof(mutations) / sizeof(mutations[0]);
+       index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, mutations[index].text,
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(has_issue(&value, mutations[index].issue));
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+  }
+  return true;
 }
 
 static bool has_direct_expression_span(const fixture *fixture_value,
@@ -662,6 +776,8 @@ int main(void) {
   CHECK(test_nested_close_and_shift());
   CHECK(test_pratt_nesting());
   CHECK(test_pratt_operator_table());
+  CHECK(test_repeat_array_shape());
+  CHECK(test_repeat_array_recovery());
   CHECK(test_subspan_bounds());
   CHECK(test_adjacency_and_boundaries());
   CHECK(test_recovery_codes());

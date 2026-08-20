@@ -35,10 +35,11 @@ alocação para a primeira fatia fechada: header `module` opcional, imports
 ordinários no topo, `fn` com parâmetros simples e requirements
 `ref`/`inout`/`take`/`const`, retorno opcional (incluindo `()`), `throws Type`,
 `entry(name)`, `struct` simples exportável com fields, `test "..." for name`
-com `expect`, blocos, `let`, `return`, `if`/`else`, `repeat`/`while`, labels,
+com `expect`, blocos, `let`, `return`, `if`/`else`, `repeat`/`while`, arrays
+repetidos `[expression; expression]`, labels,
 `break`/`continue`, argumentos posicionais ou `label: expression` e os
 prefixos sintáticos `copy`/`take`/`pin`/`inout`/`ref`. O parser Pratt
-delimitado é usado pelos quatorze casos F0 selecionados. A tabela de
+delimitado é usado pelos quinze casos F0 selecionados. A tabela de
 reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
 bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;
 isso é reconhecimento sintático, não uma declaração de semântica, tipos ou
@@ -81,7 +82,7 @@ O corpus dirigido de lexer também pode ser executado com:
 
     bun tooling/check-seed-lexer.mjs
 
-O parser P0a e os quatorze IDs F0 completos (input e output) podem ser
+O parser P0a e os quinze IDs F0 completos (input e output) podem ser
 validados com:
 
     bun tooling/check-seed-parser.mjs
