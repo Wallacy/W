@@ -26,6 +26,8 @@ typedef struct {
   w_seed_parse_result result;
 } fixture;
 
+static const w_seed_foreign_limits TEST_FOREIGN_LIMITS = {64u * 1024u, 256u};
+
 static bool fixture_init(fixture *fixture_value, const char *text,
                          size_t node_capacity, size_t issue_capacity) {
   const w_seed_byte_view bytes = {(const uint8_t *)text, strlen(text)};
@@ -34,7 +36,8 @@ static bool fixture_init(fixture *fixture_value, const char *text,
   w_seed_lex_error lex_error;
   const w_seed_span bounds = {0, bytes.length};
   CHECK(w_seed_parser_init(
-      &fixture_value->source, bounds, fixture_value->lexer_frames,
+      &fixture_value->source, bounds, TEST_FOREIGN_LIMITS,
+      fixture_value->lexer_frames,
       sizeof(fixture_value->lexer_frames) /
           sizeof(fixture_value->lexer_frames[0]),
       fixture_value->tokens, sizeof(fixture_value->tokens) /
@@ -54,7 +57,8 @@ static bool fixture_init_range(fixture *fixture_value, const char *text,
   CHECK(w_seed_source_init(bytes, &fixture_value->source, &source_error));
   w_seed_lex_error lex_error;
   CHECK(w_seed_parser_init(
-      &fixture_value->source, bounds, fixture_value->lexer_frames,
+      &fixture_value->source, bounds, TEST_FOREIGN_LIMITS,
+      fixture_value->lexer_frames,
       sizeof(fixture_value->lexer_frames) /
           sizeof(fixture_value->lexer_frames[0]),
       fixture_value->tokens, sizeof(fixture_value->tokens) /
@@ -2558,6 +2562,96 @@ static bool test_recovery_codes(void) {
   return true;
 }
 
+static bool test_foreign_islands(void) {
+  static const char source[] =
+      "unsafe fn<C> legacy(status:c.int):c.int{\n"
+      "  const char *closing = \"}\";\n"
+      "  /* braces in a C comment: { } */\n"
+      "  return status;\n"
+      "}\n"
+      "fn<lang:.c> empty(){}\n"
+      "export unsafe fn<abi: .c> abi():c.int{return 0}\n"
+      "fn after(){return 1}\n";
+  fixture value;
+  CHECK(fixture_init(&value, source,
+                     sizeof(value.nodes) / sizeof(value.nodes[0]),
+                     sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value.result.issue_count == 0);
+  CHECK(count_kind(&value, W_SEED_CST_FOREIGN_LANGUAGE_TAG) == 2);
+  CHECK(count_kind(&value, W_SEED_CST_FOREIGN_BODY_OWNER) == 2);
+  CHECK(count_kind(&value, W_SEED_CST_FOREIGN_BODY) == 2);
+  CHECK(count_kind(&value, W_SEED_CST_ERROR) == 0);
+  const w_seed_cst_index first_owner =
+      first_kind(&value, W_SEED_CST_FOREIGN_BODY_OWNER);
+  CHECK(first_owner != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&value, first_owner, W_SEED_CST_FOREIGN_BODY) == 1);
+  const w_seed_cst_index body =
+      first_kind(&value, W_SEED_CST_FOREIGN_BODY);
+  CHECK(body != W_SEED_CST_NONE);
+  CHECK(node_span_text(&value, body,
+                       "\n  const char *closing = \"}\";\n"
+                       "  /* braces in a C comment: { } */\n"
+                       "  return status;\n"));
+  CHECK(check_leaf_partition(&value));
+  CHECK(check_tree_links(&value));
+
+  fixture exported;
+  CHECK(fixture_init(&exported,
+                     "export unsafe fn<C> exported():c.int{return 0;}",
+                     sizeof(exported.nodes) / sizeof(exported.nodes[0]),
+                     sizeof(exported.issues) / sizeof(exported.issues[0])));
+  CHECK(exported.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(exported.result.issue_count == 0);
+  CHECK(count_kind(&exported, W_SEED_CST_FOREIGN_LANGUAGE_TAG) == 1);
+  CHECK(count_kind(&exported, W_SEED_CST_FOREIGN_BODY_OWNER) == 1);
+  CHECK(count_kind(&exported, W_SEED_CST_FOREIGN_BODY) == 1);
+  CHECK(check_leaf_partition(&exported));
+  CHECK(check_tree_links(&exported));
+
+  fixture empty;
+  CHECK(fixture_init(&empty, "fn<lang:.c> empty(){}\n",
+                     sizeof(empty.nodes) / sizeof(empty.nodes[0]),
+                     sizeof(empty.issues) / sizeof(empty.issues[0])));
+  CHECK(empty.result.status == W_SEED_PARSE_COMPLETE);
+  const w_seed_cst_index empty_body =
+      first_kind(&empty, W_SEED_CST_FOREIGN_BODY);
+  CHECK(empty_body != W_SEED_CST_NONE);
+  CHECK(empty.nodes[empty_body].raw_span.start_byte ==
+        empty.nodes[empty_body].raw_span.end_byte);
+  CHECK(check_leaf_partition(&empty));
+
+  fixture abi;
+  CHECK(fixture_init(&abi, "export unsafe fn<abi: .c> abi(){return 0}",
+                     sizeof(abi.nodes) / sizeof(abi.nodes[0]),
+                     sizeof(abi.issues) / sizeof(abi.issues[0])));
+  CHECK(abi.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(count_kind(&abi, W_SEED_CST_FOREIGN_BODY_OWNER) == 0);
+  CHECK(count_kind(&abi, W_SEED_CST_BLOCK) == 1);
+  CHECK(check_leaf_partition(&abi));
+
+  fixture unknown;
+  CHECK(fixture_init(&unknown, "fn<X> bad(){}",
+                     sizeof(unknown.nodes) / sizeof(unknown.nodes[0]),
+                     sizeof(unknown.issues) / sizeof(unknown.issues[0])));
+  CHECK(unknown.result.status == W_SEED_PARSE_FATAL);
+  CHECK(unknown.result.issue_count == 1);
+  CHECK(unknown.issues[0].kind == W_SEED_PARSE_ISSUE_FOREIGN_UNSUPPORTED);
+  CHECK(check_leaf_partition(&unknown));
+
+  fixture failed;
+  CHECK(fixture_init(&failed, "fn<C> bad(){\"unterminated}\n",
+                     sizeof(failed.nodes) / sizeof(failed.nodes[0]),
+                     sizeof(failed.issues) / sizeof(failed.issues[0])));
+  CHECK(failed.result.status == W_SEED_PARSE_FATAL);
+  CHECK(failed.result.issue_count == 1);
+  CHECK(failed.issues[0].kind == W_SEED_PARSE_ISSUE_FOREIGN_SCANNER);
+  CHECK(failed.issues[0].primary.start_byte < failed.issues[0].primary.end_byte);
+  CHECK(count_kind(&failed, W_SEED_CST_ERROR) == 1);
+  CHECK(check_leaf_partition(&failed));
+  return true;
+}
+
 static bool test_fail_closed(void) {
   fixture value;
   CHECK(fixture_init(&value, "module m\npackage {name: \"x\"}\n",
@@ -2601,7 +2695,7 @@ static bool test_init_validation(void) {
   fixture value;
   const w_seed_span bounds = {0, 0};
   w_seed_lex_error lex_error;
-  CHECK(!w_seed_parser_init(NULL, bounds, NULL, 0, NULL, 0, NULL, 0, NULL,
+  CHECK(!w_seed_parser_init(NULL, bounds, TEST_FOREIGN_LIMITS, NULL, 0, NULL, 0, NULL, 0, NULL,
                             0, NULL, 0, &value.parser, &lex_error));
   return true;
 }
@@ -2835,6 +2929,7 @@ int main(void) {
       test_subspan_bounds() &&
       test_adjacency_and_boundaries() &&
       test_recovery_codes() &&
+      test_foreign_islands() &&
       test_fail_closed() &&
       test_capacity() &&
       test_init_validation() &&

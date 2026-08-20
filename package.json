@@ -28,6 +28,7 @@
     "check:seed-source-reader": "bun tooling/check-seed-source-reader.mjs",
     "check:seed-lexer": "bun tooling/check-seed-lexer.mjs",
     "check:seed-parser": "bun tooling/check-seed-parser.mjs",
+    "check:seed-foreign": "bun tooling/check-seed-foreign.mjs",
     "check:seed-unicode": "bun tooling/check-seed-unicode.mjs",
     "check:semantic-matrix": "bun tooling/check-semantic-diagnostic-matrix.mjs && bun test tooling/semantic-diagnostic-matrix-reference.test.mjs",
     "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",
