@@ -53,7 +53,12 @@ repetidos `[expression; expression]`, `for` com marcador opcional
 sintáticos `copy`/`take`/`pin`/`inout`/`ref`, a expressão estruturada
 `transaction identifier = expression { ... }` e o statement `commit` com
 expression opcional. O parser Pratt
-delimitado é usado pelos vinte e cinco casos F0
+delimitado também reconhece tuple types e tuple expressions com dois ou mais
+itens, inclusive trailing comma, e o statement
+`spawn<.domain>` ou `spawn<domain: .domain> let name = expression`. O parser
+mantém `()` e `(expression)` como formas unitária e parenthesized. `(T)` e
+`(T,)` não são aceitos como tuple type, e `(expression,)` não é aceito como
+tuple expression. O parser Pratt é usado pelos vinte e seis casos F0
 selecionados. A tabela de
 reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
 bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;
