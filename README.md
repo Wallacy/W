@@ -8,6 +8,7 @@
 
 W é uma proposta de linguagem nativa para aplicações, sistemas, concorrência,
 paralelismo e computação científica. O compiler e o runtime ainda não existem.
+O seed C possui somente um source reader interno para preparar o bootstrap.
 A superfície atual é um design experimental para revisão.
 
 Dois objetivos centrais orientam o design: gerência automática de memória sem
@@ -86,6 +87,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
+| [Source reader do seed C](compiler/seed-c/README.md) | implementação interna limitada; não é lexer, parser, formatter ou compiler |
 | Formatter, frontend, HIR e MLIR | planejados, não implementados |
 | Runtime, SDK e package manager | planejados, não implementados |
 | Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |
