@@ -1,4 +1,5 @@
 import { mkdtemp, rm } from "node:fs/promises"
+import { createHash } from "node:crypto"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 
@@ -12,7 +13,33 @@ const selectedIds = [
   "F0-postfix-statement-boundaries",
   "F0-labeled-repeat-loop",
   "F0-binary-and-postfix-wrapping",
+  "F0-comment-attachment",
+  "F0-declaration-order",
+  "F0-compact-declarations",
+  "F0-multiline-signature-and-call",
+  "F0-parameter-contract-placement",
+  "F0-contextual-named-parameter",
+  "F0-consuming-receiver-grouping",
+  "F0-const-call-parameter",
 ]
+
+const CST = Object.freeze({
+  // These ordinals are append-only in include/w_seed_parser.h. The witness
+  // assertions below exercise every new kind and fail if the mapping drifts.
+  DOCUMENT: 0,
+  FUNCTION: 2,
+  BLOCK: 7,
+  EXPRESSION: 17,
+  ERROR: 21,
+  MISSING: 22,
+  IMPORT: 31,
+  IMPORT_ITEM: 32,
+  STRUCT: 33,
+  FIELD: 34,
+  TEST: 35,
+  EXPECT: 36,
+  ARGUMENT: 37,
+})
 
 function fail(message) {
   throw new Error(`seed parser: ${message}`)
@@ -149,6 +176,103 @@ function parseProbe(text, bytes, label) {
   return { result, nodes, issues, signature }
 }
 
+function childrenOf(parsed, parent) {
+  const children = []
+  let child = parsed.nodes[parent]?.first ?? 4294967295
+  let guard = 0
+  while (child !== 4294967295) {
+    if (child >= parsed.nodes.length) fail(`node ${parent} child is outside parsed CST`)
+    children.push(parsed.nodes[child])
+    child = parsed.nodes[child].next
+    guard += 1
+    if (guard > parsed.nodes.length) fail(`node ${parent} has a sibling cycle`)
+  }
+  return children
+}
+
+function descendants(parsed, parent) {
+  const result = []
+  const visit = (index) => {
+    for (const child of childrenOf(parsed, index)) {
+      result.push(child)
+      visit(child.index)
+    }
+  }
+  visit(parent)
+  return result
+}
+
+function nodeText(parsed, bytes, node) {
+  return bytes.subarray(node.start, node.end).toString("utf8")
+}
+
+function directKind(parsed, parent, kind) {
+  return childrenOf(parsed, parent).filter((child) => child.kind === kind)
+}
+
+function assertClean(parsed, label) {
+  if (parsed.result.status !== "complete" || parsed.result.issueCount !== 0) {
+    fail(`${label} is not clean complete (${parsed.result.status}, ${parsed.result.issueCount} issues)`)
+  }
+  if (parsed.nodes.some((node) => node.kind === CST.ERROR || node.kind === CST.MISSING ||
+      (node.flags & (1 << 2 | 1 << 3)) !== 0)) {
+    fail(`${label} contains ERROR/MISSING CST nodes`)
+  }
+}
+
+function assertFormattingWitness(parsed, bytes) {
+  assertClean(parsed, "formatting.w")
+  const imports = parsed.nodes.filter((node) => node.kind === CST.IMPORT)
+  if (imports.length !== 1 || directKind(parsed, imports[0].index, CST.IMPORT_ITEM).length !== 2) {
+    fail("formatting.w import/items CST shape is not closed")
+  }
+  const structs = parsed.nodes.filter((node) => node.kind === CST.STRUCT)
+  if (structs.length !== 1 || directKind(parsed, structs[0].index, CST.FIELD).length !== 2) {
+    fail("formatting.w struct/fields CST shape is not closed")
+  }
+  const tests = parsed.nodes.filter((node) => node.kind === CST.TEST)
+  const expects = parsed.nodes.filter((node) => node.kind === CST.EXPECT)
+  if (tests.length !== 1 || expects.length !== 1 ||
+      !descendants(parsed, tests[0].index).some((node) => node.index === expects[0].index)) {
+    fail("formatting.w TEST does not own EXPECT")
+  }
+  const expectExpression = directKind(parsed, expects[0].index, CST.EXPRESSION)[0]
+  const comparison = Buffer.from("value == \"Last Light\"")
+  const comparisonStart = bytes.indexOf(comparison)
+  const expressionText = expectExpression ? nodeText(parsed, bytes, expectExpression) : ""
+  if (!expectExpression || comparisonStart < 0 || expectExpression.start !== comparisonStart ||
+      !expressionText.startsWith(comparison.toString("utf8")) ||
+      expressionText.slice(comparison.length).trim() !== "" ||
+      expects[0].start !== bytes.indexOf(Buffer.from("expect value")) ||
+      expects[0].end !== expectExpression.end) {
+    fail("formatting.w EXPECT does not own the complete comparison expression")
+  }
+  const argumentsInOrder = parsed.nodes.filter((node) => node.kind === CST.ARGUMENT)
+    .sort((left, right) => left.start - right.start)
+  if (argumentsInOrder.length < 3) fail("formatting.w argument nodes are missing")
+  const labeledArgumentTexts = argumentsInOrder.map((node) => nodeText(parsed, bytes, node))
+  if (!labeledArgumentTexts.includes("value: value") ||
+      !labeledArgumentTexts.includes("expected: expected")) {
+    fail("formatting.w labeled arguments are not source-shaped")
+  }
+}
+
+async function formattingWitnessBytes() {
+  const bridgePath = resolve(root, "tooling", "studies", "r1-source-boundaries", "bundle.json")
+  const bridge = await Bun.file(bridgePath).json()
+  const sourceRef = bridge.sourceBase
+  if (!sourceRef || sourceRef.symbol !== "oneLine" ||
+      sourceRef.path !== "../../../reference/last-light/formatting.w" ||
+      !/^sha256:[0-9a-f]{64}$/u.test(sourceRef.digest ?? "")) {
+    fail("formatting.w sourceRef bridge is invalid")
+  }
+  const sourcePath = resolve(bridgePath, "..", sourceRef.path)
+  const bytes = Buffer.from(await Bun.file(sourcePath).arrayBuffer())
+  const digest = `sha256:${createHash("sha256").update(bytes).digest("hex")}`
+  if (digest !== sourceRef.digest) fail("formatting.w sourceRef digest is stale")
+  return bytes
+}
+
 function invoke(probe, bytes, label, expectedStatus, expectedIssue) {
   const execution = Bun.spawnSync({
     cmd: [probe],
@@ -193,8 +317,19 @@ async function main() {
       const inputParsed = invoke(probe, input, `${id}:input`, "complete")
       const outputParsed = invoke(probe, output, `${id}:output`, "complete")
       const second = invoke(probe, input, `${id}:repeat`, "complete")
+      assertClean(inputParsed, `${id}:input`)
+      assertClean(outputParsed, `${id}:output`)
+      assertClean(second, `${id}:repeat`)
       if (inputParsed.signature !== second.signature) fail(`${id} CST signature is not deterministic`)
       if (inputParsed.nodes.length === 0 || outputParsed.nodes.length === 0) fail(`${id} has no CST nodes`)
+    }
+
+    const witness = await formattingWitnessBytes()
+    const witnessParsed = invoke(probe, witness, "formatting.w", "complete")
+    const witnessRepeat = invoke(probe, witness, "formatting.w:repeat", "complete")
+    assertFormattingWitness(witnessParsed, witness)
+    if (witnessParsed.signature !== witnessRepeat.signature) {
+      fail("formatting.w CST signature is not deterministic")
     }
 
     const handCases = [
@@ -210,6 +345,18 @@ async function main() {
       ["unsupported-root", Buffer.from("package {name: \"x\"}\n"), "fatal", 5],
       ["value-if-missing-else", Buffer.from("fn f():Stage{return if ready{.ok}}\n"), "recovered", 8],
       ["foreign-fail-closed", Buffer.from("fn f(){foreign c { host body }}\n"), "fatal", 9],
+      ["missing-import-from", Buffer.from("import {x} module.path\n"), "fatal", 6],
+      ["empty-import-items", Buffer.from("import {} from module.path\n"), "fatal", 6],
+      ["trailing-import-dot", Buffer.from("import {x} from module.\n"), "recovered", 1],
+      ["import-after-declaration", Buffer.from("fn f(){}\nimport {x} from module.path\n"), "fatal", 6],
+      ["export-unsupported-target", Buffer.from("export test \"bad\" for f {}\n"), "fatal", 6],
+      ["expect-outside-test", Buffer.from("fn f(){expect value == other}\n"), "fatal", 6],
+      ["root-const-fail-closed", Buffer.from("const value:T\n"), "fatal", 6],
+      ["root-take-fail-closed", Buffer.from("take value\n"), "fatal", 6],
+      ["missing-parameter-colon", Buffer.from("fn f(a T){}\n"), "recovered", 1],
+      ["missing-parameter-close", Buffer.from("fn f(a:T{}\n"), "recovered", 2],
+      ["missing-import-close", Buffer.from("import {x from module.path\n"), "recovered", 2],
+      ["malformed-parameter-label", Buffer.from("fn f(named audit extra:Audit){}\n"), "recovered", 1],
     ]
     for (const [label, bytes, status, issue] of handCases) {
       const parsed = invoke(probe, bytes, label, status, issue)

@@ -31,10 +31,14 @@ diagnósticos D0.
 ## Parser P0a interno
 
 `include/w_seed_parser.h` e `src/w_seed_parser.c` adicionam uma API C11 sem
-alocação para a primeira fatia fechada: header `module` opcional, `fn` com
-parâmetros simples, retorno opcional (incluindo `()`), `entry(name)`, blocos,
-`let`, `return`, `if`/`else`, `repeat`/`while`, labels, `break`/`continue` e o
-parser Pratt delimitado usado pelos seis casos F0 selecionados. A tabela de
+alocação para a primeira fatia fechada: header `module` opcional, imports
+ordinários no topo, `fn` com parâmetros simples e requirements
+`ref`/`inout`/`take`/`const`, retorno opcional (incluindo `()`), `throws Type`,
+`entry(name)`, `struct` simples exportável com fields, `test "..." for name`
+com `expect`, blocos, `let`, `return`, `if`/`else`, `repeat`/`while`, labels,
+`break`/`continue`, argumentos posicionais ou `label: expression` e os
+prefixos sintáticos `copy`/`take`/`pin`/`inout`/`ref`. O parser Pratt
+delimitado é usado pelos quatorze casos F0 selecionados. A tabela de
 reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
 bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;
 isso é reconhecimento sintático, não uma declaração de semântica, tipos ou
@@ -51,10 +55,12 @@ type cria duas `w_seed_parse_token_view` virtuais sem duplicar a folha; um owner
 de expression mantém `>>` como shift. Newline continua trivia. Recovery só cria
 `ERROR` com os bytes ignorados e `MISSING` zero-width. Os `w_seed_parse_issue`
 internos têm mapping futuro para D0, mas não são diagnósticos D0. `manifest`,
-imports, declarations além de `fn`/`entry`, contracts, patterns, closures,
-effects/async, allocator, transaction, AST/HIR, name/type resolution,
-formatter e foreign scanner permanecem fora; `foreign` falha fechado antes do
-body.
+declarations além de `fn`/`struct`/`test`/`entry`, contracts, patterns,
+closures, effects/async, allocator, transaction, AST/HIR, name/type
+resolution, formatter e foreign scanner permanecem fora; `foreign` falha
+fechado antes do body. Imports só aparecem antes de qualquer declaration;
+`export` aceita somente `fn` e `struct` nesta fatia. `expect` fora de `test`
+falha fechado.
 
 Corpos foreign usam handshake dinâmico. O harness chama `require_opaque` no
 cursor atual, `claim_opaque` com um span pinado e então `next` emite um único
@@ -75,8 +81,8 @@ O corpus dirigido de lexer também pode ser executado com:
 
     bun tooling/check-seed-lexer.mjs
 
-O parser P0a e os seis IDs F0 completos (input e output) podem ser validados
-com:
+O parser P0a e os quatorze IDs F0 completos (input e output) podem ser
+validados com:
 
     bun tooling/check-seed-parser.mjs
 

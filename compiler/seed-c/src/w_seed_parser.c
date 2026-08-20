@@ -358,9 +358,9 @@ static bool expect_text(w_seed_parser *parser, const char *text,
 
 static bool is_unsupported_word(w_seed_parser *parser) {
   static const char *const words[] = {
-      "import",   "struct",    "object",    "service",  "enum",
+      "object",    "service",  "enum",
       "protocol", "type",      "alias",     "dimension", "unit",
-      "extension", "behavior", "const",     "test",     "export",
+      "extension", "behavior", "const",
       "static",   "unsafe",    "async",     "mut",      "take",
       "allocator", "spawn",    "switch",    "for",      "transaction",
       "foreign",  "borrows",   "captures",  "package",  "workspace",
@@ -542,17 +542,37 @@ static bool parse_primary(w_seed_parser *parser, bool value_context) {
   return false;
 }
 
+static bool parse_argument(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_ARGUMENT, start) == W_SEED_CST_NONE)
+    return false;
+  if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD) &&
+      next_is_text(parser, ":")) {
+    (void)consume_current(parser, NULL);
+    if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+      pop_node(parser, parser->last_token_end);
+      return false;
+    }
+  }
+  if (!parse_expression(parser, 1, false)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
 static bool parse_postfix(w_seed_parser *parser, bool value_context) {
   if (!parse_primary(parser, value_context)) return false;
   while (true) {
     if (current_is_text(parser, "(")) {
       (void)consume_text(parser, "(", NULL);
       if (!current_is_text(parser, ")")) {
-        if (!parse_expression(parser, 1, false)) return false;
+        if (!parse_argument(parser)) return false;
         while (current_is_text(parser, ",")) {
           (void)consume_text(parser, ",", NULL);
           if (current_is_text(parser, ")")) break;
-          if (!parse_expression(parser, 1, false)) return false;
+          if (!parse_argument(parser)) return false;
         }
       }
       if (!expect_text(parser, ")", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
@@ -604,7 +624,9 @@ static bool parse_postfix(w_seed_parser *parser, bool value_context) {
 static bool parse_prefix(w_seed_parser *parser, bool value_context) {
   if (!skip_trivia(parser) || current_is_eof(parser)) return false;
   if (current_is_text(parser, "!") || current_is_text(parser, "~") ||
-      current_is_text(parser, "-")) {
+      current_is_text(parser, "-") || current_is_text(parser, "copy") ||
+      current_is_text(parser, "take") || current_is_text(parser, "pin") ||
+      current_is_text(parser, "inout") || current_is_text(parser, "ref")) {
     (void)consume_current(parser, NULL);
     return parse_prefix(parser, value_context);
   }
@@ -856,6 +878,21 @@ static bool parse_expression_statement(w_seed_parser *parser) {
   return true;
 }
 
+static bool parse_expect_statement(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_EXPECT_STATEMENT, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "expect", NULL);
+  if (!parse_expression(parser, 1, true)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)statement_boundary(parser);
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
 static bool parse_statement(w_seed_parser *parser) {
   if (!skip_trivia(parser) || current_is_eof(parser)) return false;
   if (current_is_text(parser, "let")) return parse_let_statement(parser);
@@ -865,6 +902,13 @@ static bool parse_statement(w_seed_parser *parser) {
   if (current_is_text(parser, "break")) return parse_break_statement(parser, false);
   if (current_is_text(parser, "continue"))
     return parse_break_statement(parser, true);
+  if (current_is_text(parser, "expect")) {
+    if (!parser->in_test) {
+      stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+      return false;
+    }
+    return parse_expect_statement(parser);
+  }
   if (current_is_text(parser, "else") || current_is_text(parser, "catch") ||
       current_is_text(parser, "while")) {
     (void)record_issue(parser, W_SEED_PARSE_ISSUE_NO_CONTINUATION_OWNER,
@@ -872,6 +916,7 @@ static bool parse_statement(w_seed_parser *parser) {
     (void)consume_raw(parser, W_SEED_CST_FLAG_ERROR, W_SEED_CST_ERROR, NULL);
     return true;
   }
+  if (current_is_text(parser, "take")) return parse_expression_statement(parser);
   if (is_unsupported_word(parser)) {
     stop_with_remainder(parser,
                         current_is_text(parser, "foreign")
@@ -911,6 +956,188 @@ static bool parse_block(w_seed_parser *parser, bool value_context) {
   return true;
 }
 
+static bool parse_module_path(w_seed_parser *parser) {
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                       current_span(parser), W_SEED_PARSE_EXPECT_WORD);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  while (current_is_text(parser, ".")) {
+    (void)consume_text(parser, ".", NULL);
+    if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+      (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                         current_span(parser), W_SEED_PARSE_EXPECT_WORD);
+      return false;
+    }
+    (void)consume_current(parser, NULL);
+  }
+  return true;
+}
+
+static bool parse_import_declaration(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_IMPORT, start) == W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "import", NULL);
+  if (!current_is_text(parser, "{")) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    return false;
+  }
+  (void)consume_text(parser, "{", NULL);
+  if (current_is_text(parser, "}")) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    return false;
+  }
+  while (true) {
+    const size_t item_start = current_span(parser).start_byte;
+    if (push_node(parser, W_SEED_CST_IMPORT_ITEM, item_start) ==
+        W_SEED_CST_NONE)
+      return false;
+    if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+      append_missing(parser, current_span(parser).start_byte,
+                     W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+      pop_node(parser, parser->last_token_end);
+      return false;
+    }
+    (void)consume_current(parser, NULL);
+    pop_node(parser, parser->last_token_end);
+    if (!current_is_text(parser, ",")) break;
+    (void)consume_text(parser, ",", NULL);
+    if (current_is_text(parser, "}")) break;
+  }
+  if (!expect_text(parser, "}", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (!current_is_text(parser, "from")) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    return false;
+  }
+  (void)consume_text(parser, "from", NULL);
+  if (!parse_module_path(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (current_is_text(parser, ";")) (void)consume_text(parser, ";", NULL);
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
+static bool parse_field_declaration(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_FIELD, start) == W_SEED_CST_NONE)
+    return false;
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->last_token_end);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+      !parse_type(parser)) {
+    pop_node(parser, parser->last_token_end);
+    return false;
+  }
+  if (current_is_text(parser, ";")) (void)consume_text(parser, ";", NULL);
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_struct_declaration(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_STRUCT, start) == W_SEED_CST_NONE)
+    return false;
+  if (current_is_text(parser, "export")) (void)consume_text(parser, "export", NULL);
+  (void)consume_text(parser, "struct", NULL);
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->last_token_end);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  if (current_is_text(parser, "<") || current_is_text(parser, ":")) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    return false;
+  }
+  if (!current_is_text(parser, "{")) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE);
+    pop_node(parser, parser->last_token_end);
+    return false;
+  }
+  (void)consume_text(parser, "{", NULL);
+  while (!current_is_eof(parser) && !current_is_text(parser, "}")) {
+    const size_t before = current_span(parser).start_byte;
+    if (!parse_field_declaration(parser)) {
+      if (parser->status == W_SEED_PARSE_FATAL || current_is_eof(parser) ||
+          current_is_text(parser, "}"))
+        break;
+      if (current_span(parser).start_byte == before) {
+        (void)consume_raw(parser, W_SEED_CST_FLAG_ERROR, W_SEED_CST_ERROR, NULL);
+      }
+    }
+  }
+  if (!expect_text(parser, "}", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_literal_events(w_seed_parser *parser) {
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT)) {
+    (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                       current_span(parser), W_SEED_PARSE_EXPECT_EXPRESSION);
+    return false;
+  }
+  do {
+    (void)consume_current(parser, NULL);
+  } while (current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT));
+  return true;
+}
+
+static bool parse_test_declaration(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_TEST, start) == W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "test", NULL);
+  if (!parse_literal_events(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (!expect_text(parser, "for", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  if (!current_is_text(parser, "{")) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE);
+    pop_node(parser, parser->last_token_end);
+    return false;
+  }
+  const bool previous_in_test = parser->in_test;
+  parser->in_test = true;
+  const bool parsed = parse_block(parser, false);
+  parser->in_test = previous_in_test;
+  if (!parsed) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
 static bool parse_parameter_list(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
   if (push_node(parser, W_SEED_CST_PARAMETER_LIST, start) == W_SEED_CST_NONE)
@@ -928,9 +1155,32 @@ static bool parse_parameter_list(w_seed_parser *parser) {
         pop_node(parser, parser->last_token_end);
         return false;
       }
-      (void)consume_current(parser, NULL);
-      if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
-          !parse_type(parser)) {
+      w_seed_span first_label;
+      (void)consume_current(parser, &first_label);
+      const bool first_is_underscore = span_text(parser, first_label, "_");
+      if (!current_is_text(parser, ":")) {
+        if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+          append_missing(parser, current_span(parser).start_byte,
+                         W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+          pop_node(parser, parser->last_token_end);
+          return false;
+        }
+        (void)consume_current(parser, NULL);
+      } else if (first_is_underscore) {
+        (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                           first_label, W_SEED_PARSE_EXPECT_WORD);
+        pop_node(parser, parser->last_token_end);
+        return false;
+      }
+      if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+        pop_node(parser, parser->last_token_end);
+        return false;
+      }
+      if (current_is_text(parser, "ref") || current_is_text(parser, "inout") ||
+          current_is_text(parser, "take") || current_is_text(parser, "const")) {
+        (void)consume_current(parser, NULL);
+      }
+      if (!parse_type(parser)) {
         pop_node(parser, parser->last_token_end);
         return false;
       }
@@ -952,6 +1202,7 @@ static bool parse_function(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
   if (push_node(parser, W_SEED_CST_FUNCTION, start) == W_SEED_CST_NONE)
     return false;
+  if (current_is_text(parser, "export")) (void)consume_text(parser, "export", NULL);
   (void)consume_text(parser, "fn", NULL);
   if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
     append_missing(parser, current_span(parser).start_byte,
@@ -975,6 +1226,10 @@ static bool parse_function(w_seed_parser *parser) {
     (void)consume_text(parser, ":", NULL);
     if (!parse_type(parser)) return false;
     pop_node(parser, parser->last_token_end);
+  }
+  if (current_is_text(parser, "throws")) {
+    (void)consume_text(parser, "throws", NULL);
+    if (!parse_type(parser)) return false;
   }
   if (!parse_block(parser, false)) return false;
   pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
@@ -1055,8 +1310,9 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
                            parser->lexer.bounds.start_byte);
   if (parser->root == W_SEED_CST_NONE) return false;
   bool saw_module = false;
-  bool saw_function = false;
   bool saw_entry = false;
+  bool saw_declaration = false;
+  parser->imports_allowed = true;
   if (current_is_text(parser, "module")) {
     saw_module = true;
     const size_t start = current_span(parser).start_byte;
@@ -1075,12 +1331,39 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
     pop_node(parser, parser->last_token_end);
   }
   while (!current_is_eof(parser) && parser->status != W_SEED_PARSE_FATAL) {
+    if (current_is_text(parser, "import")) {
+      if (!parser->imports_allowed) {
+        stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+        break;
+      }
+      if (!parse_import_declaration(parser)) break;
+      continue;
+    }
+    if (current_is_text(parser, "export")) {
+      if (!next_is_text(parser, "fn") && !next_is_text(parser, "struct")) {
+        stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+        break;
+      }
+      if (saw_entry) {
+        stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+        break;
+      }
+      parser->imports_allowed = false;
+      saw_declaration = true;
+      if (next_is_text(parser, "fn")) {
+        if (!parse_function(parser)) break;
+      } else if (!parse_struct_declaration(parser)) {
+        break;
+      }
+      continue;
+    }
     if (current_is_text(parser, "fn")) {
       if (saw_entry) {
         stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
         break;
       }
-      saw_function = true;
+      parser->imports_allowed = false;
+      saw_declaration = true;
       if (!parse_function(parser)) break;
       continue;
     }
@@ -1089,12 +1372,38 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
         stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
         break;
       }
+      parser->imports_allowed = false;
+      saw_declaration = true;
       saw_entry = true;
       if (!parse_entry(parser)) break;
       continue;
     }
+    if (current_is_text(parser, "struct")) {
+      if (saw_entry) {
+        stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+        break;
+      }
+      parser->imports_allowed = false;
+      saw_declaration = true;
+      if (!parse_struct_declaration(parser)) break;
+      continue;
+    }
+    if (current_is_text(parser, "test")) {
+      if (saw_entry) {
+        stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+        break;
+      }
+      parser->imports_allowed = false;
+      saw_declaration = true;
+      if (!parse_test_declaration(parser)) break;
+      continue;
+    }
+    if (current_is_text(parser, "expect")) {
+      stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+      break;
+    }
     if (current_is_text(parser, "package") || current_is_text(parser, "workspace")) {
-      if (saw_module || saw_function || saw_entry) {
+      if (saw_module || saw_declaration) {
         stop_with_remainder(parser, W_SEED_PARSE_ISSUE_MIXED_ROOT);
       } else {
         stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_ROOT);
