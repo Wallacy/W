@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/billing.w",
     "symbol": "gatewayUnavailable",
-    "digest": "sha256:0e8390f3abf494acd581898734d0bf8fcf00190973423143194d390dcd4e41e7"
+    "digest": "sha256:cf2aebcffd957044296440e4acb41e7c7dcfe2a6b37a9d403b0be87aa077eb3e"
   },
   "sourceRefs": [
     {
