@@ -23,6 +23,7 @@ const selectedIds = [
   "F0-contextual-named-parameter",
   "F0-consuming-receiver-grouping",
   "F0-const-call-parameter",
+  "F0-effect-prefix-order",
 ]
 
 const CST = Object.freeze({
@@ -30,6 +31,10 @@ const CST = Object.freeze({
   // assertions below exercise every new kind and fail if the mapping drifts.
   DOCUMENT: 0,
   FUNCTION: 2,
+  RETURN: 9,
+  RETURN_TYPE: 5,
+  PARAMETER_LIST: 3,
+  TRIVIA: 24,
   BLOCK: 7,
   LABEL: 13,
   BREAK: 14,
@@ -242,6 +247,66 @@ function assertRepeatArray(parsed, bytes, label) {
   }
 }
 
+function assertAsyncFunction(parsed, bytes, label, exported = false) {
+  assertClean(parsed, label)
+  const functions = parsed.nodes.filter((node) => node.kind === CST.FUNCTION)
+  if (functions.length !== 1) fail(`${label} does not contain one FUNCTION node`)
+  const functionNode = functions[0]
+  const words = directKind(parsed, functionNode.index, CST.WORD)
+  const asyncWord = words.find((node) => nodeText(parsed, bytes, node) === "async")
+  if (!asyncWord || (asyncWord.flags & 1) === 0) {
+    fail(`${label} FUNCTION does not own raw async WORD directly`)
+  }
+  if (functionNode.start !== (exported ? bytes.indexOf(Buffer.from("export")) : bytes.indexOf(Buffer.from("async")))) {
+    fail(`${label} FUNCTION does not start at its declaration prefix`)
+  }
+  const exportWord = words.find((node) => nodeText(parsed, bytes, node) === "export")
+  if (exported !== Boolean(exportWord) || (exportWord && (exportWord.flags & 1) === 0)) {
+    fail(`${label} export prefix shape is incorrect`)
+  }
+  if (directKind(parsed, functionNode.index, CST.ARGUMENT).length !== 0) {
+    fail(`${label} FUNCTION has unexpected direct ARGUMENT node`)
+  }
+  if (directKind(parsed, functionNode.index, CST.PARAMETER_LIST).length !== 1 ||
+      directKind(parsed, functionNode.index, CST.RETURN_TYPE).length !== 1 ||
+      directKind(parsed, functionNode.index, CST.BLOCK).length !== 1) {
+    fail(`${label} FUNCTION parameter/return/block owners are incomplete`)
+  }
+  if (!words.some((node) => nodeText(parsed, bytes, node) === "throws")) {
+    fail(`${label} FUNCTION does not preserve raw throws WORD`)
+  }
+  const block = directKind(parsed, functionNode.index, CST.BLOCK)[0]
+  if (functionNode.end !== block.end) fail(`${label} FUNCTION span does not end at BLOCK`)
+  const returnNode = directKind(parsed, block.index, CST.RETURN)[0]
+  const expression = returnNode && directKind(parsed, returnNode.index, CST.EXPRESSION)[0]
+  if (!expression) fail(`${label} return statement does not own EXPRESSION`)
+  const effectWords = descendants(parsed, expression.index)
+    .filter((node) => node.kind === CST.WORD)
+    .map((node) => nodeText(parsed, bytes, node))
+  if (!effectWords.includes("try") || !effectWords.includes("await")) {
+    fail(`${label} return EXPRESSION does not preserve try/await leaves`)
+  }
+}
+
+function assertAsyncTrivia(parsed, bytes, label) {
+  assertClean(parsed, label)
+  const functions = parsed.nodes.filter((node) => node.kind === CST.FUNCTION)
+  if (functions.length !== 1) fail(`${label} does not contain one FUNCTION node`)
+  const functionNode = functions[0]
+  if (functionNode.start !== 0 ||
+      !directKind(parsed, functionNode.index, CST.WORD)
+        .some((node) => nodeText(parsed, bytes, node) === "export") ||
+      !directKind(parsed, functionNode.index, CST.WORD)
+        .some((node) => nodeText(parsed, bytes, node) === "async")) {
+    fail(`${label} declaration prefix is not directly owned by FUNCTION`)
+  }
+  const trivia = directKind(parsed, functionNode.index, CST.TRIVIA)
+  if (!trivia.some((node) => nodeText(parsed, bytes, node) === "/*a*/") ||
+      !trivia.some((node) => nodeText(parsed, bytes, node) === "/*b*/")) {
+    fail(`${label} comments/trivia are not directly owned by FUNCTION`)
+  }
+}
+
 function assertLabeledControl(parsed, bytes, label) {
   assertClean(parsed, label)
   const loops = parsed.nodes.filter((node) => node.kind === CST.FOR)
@@ -408,6 +473,10 @@ async function main() {
         assertLabeledControl(inputParsed, input, `${id}:input`)
         assertLabeledControl(outputParsed, output, `${id}:output`)
       }
+      if (id === "F0-effect-prefix-order") {
+        assertAsyncFunction(inputParsed, input, `${id}:input`)
+        assertAsyncFunction(outputParsed, output, `${id}:output`)
+      }
       if (inputParsed.signature !== second.signature) fail(`${id} CST signature is not deterministic`)
       if (inputParsed.nodes.length === 0 || outputParsed.nodes.length === 0) fail(`${id} has no CST nodes`)
     }
@@ -424,6 +493,22 @@ async function main() {
       ["nested-generic-and-shift", Buffer.from("fn f(x:Array<Array<u8>>):Array<Array<u8>>{return flags >> 2}\n"), "complete"],
       ["spaced-head", Buffer.from("fn f(x:Array /* note */ <u8>){return x}\n"), "recovered", 7],
       ["try-question", Buffer.from("fn f(){return try? load()}\n"), "complete"],
+      ["export-async-function", Buffer.from("export async fn load(kitchen:Kitchen):Menu throws KitchenError{return try await kitchen.loadMenu()}\n"), "complete"],
+      ["export-async-trivia", Buffer.from("export /*a*/ async /*b*/ fn f(){}\n"), "complete"],
+      ["async-await-try-order", Buffer.from("async fn f(){return await try value()}\n"), "complete"],
+      ["async-missing-name", Buffer.from("async fn\n"), "recovered", 1],
+      ["async-missing-parameter-close", Buffer.from("async fn f(a:T{}\n"), "recovered", 2],
+      ["async-missing-block-close", Buffer.from("async fn f(){return 1\n"), "recovered", 2],
+      ["async-lone-stop", Buffer.from("async\n"), "fatal", 6],
+      ["async-duplicate-stop", Buffer.from("async async fn f(){}\n"), "fatal", 6],
+      ["async-struct-stop", Buffer.from("async struct S {}\n"), "fatal", 6],
+      ["async-test-stop", Buffer.from("async test \"bad\" for f {}\n"), "fatal", 6],
+      ["async-entry-stop", Buffer.from("async entry(f)\n"), "fatal", 6],
+      ["export-async-struct-stop", Buffer.from("export async struct S {}\n"), "fatal", 6],
+      ["static-function-stop", Buffer.from("static fn f(){}\n"), "fatal", 6],
+      ["const-function-stop", Buffer.from("const fn f(){}\n"), "fatal", 6],
+      ["unsafe-function-stop", Buffer.from("unsafe fn f(){}\n"), "fatal", 6],
+      ["receiver-function-stop", Buffer.from("take fn f(){}\n"), "fatal", 6],
       ["postfix-question", Buffer.from("fn f(){value?.open?}\n"), "complete"],
       ["newline-continuation", Buffer.from("fn f(){let result = transform\n  (input)}\n"), "complete"],
       ["semicolon-boundary", Buffer.from("fn f(){a();(b)c();[d,e]}\n"), "complete"],
@@ -464,12 +549,35 @@ async function main() {
     ]
     for (const [label, bytes, status, issue] of handCases) {
       const parsed = invoke(probe, bytes, label, status, issue)
-      if ((label.startsWith("for-") || label === "while-labeled-stop") && issue !== undefined &&
+      if ((label.startsWith("for-") || label.startsWith("async-") ||
+           label.startsWith("export-async-") || label === "while-labeled-stop") &&
+          issue !== undefined &&
           parsed.issues[0]?.kind !== issue) {
         fail(`${label} first issue ${parsed.issues[0]?.kind} != ${issue}`)
       }
       if (label === "for-marker-vector") assertMarkerVector(parsed, bytes)
       if (label === "for-take-iterable") assertClean(parsed, label)
+      if (label === "export-async-function") {
+        assertAsyncFunction(parsed, bytes, label, true)
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} CST signature is not deterministic`)
+        }
+      }
+      if (label === "export-async-trivia") {
+        assertAsyncTrivia(parsed, bytes, label)
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} CST signature is not deterministic`)
+        }
+      }
+      if (label === "async-await-try-order") {
+        assertClean(parsed, label)
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} CST signature is not deterministic`)
+        }
+      }
       if (label === "labeled-block-for-witness") {
         assertLabeledBlockWitness(parsed, bytes)
         const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)

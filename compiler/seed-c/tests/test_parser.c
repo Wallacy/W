@@ -498,6 +498,167 @@ static bool test_phase2_declaration_tree(void) {
   return true;
 }
 
+static bool test_async_function_shapes(void) {
+  static const char async_text[] =
+      "async fn load(kitchen:Kitchen):Menu throws KitchenError{"
+      "return try await kitchen.loadMenu()}\n";
+  static const char export_async_text[] =
+      "export async fn load(kitchen:Kitchen):Menu throws KitchenError{"
+      "return try await kitchen.loadMenu()}\n";
+  const char *const clean_texts[] = {async_text, export_async_text};
+  for (size_t text_index = 0;
+       text_index < sizeof(clean_texts) / sizeof(clean_texts[0]);
+       text_index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, clean_texts[text_index],
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+    CHECK(value.result.issue_count == 0);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+    const w_seed_cst_index function = first_kind(&value, W_SEED_CST_FUNCTION);
+    CHECK(function != W_SEED_CST_NONE);
+    CHECK(value.nodes[function].raw_span.start_byte == 0);
+    bool async_raw = false;
+    w_seed_cst_index function_child = value.nodes[function].first_child;
+    while (function_child != W_SEED_CST_NONE) {
+      const w_seed_cst_node *child = &value.nodes[function_child];
+      if (child->kind == W_SEED_CST_WORD &&
+          node_span_text(&value, function_child, "async")) {
+        CHECK((child->flags & W_SEED_CST_FLAG_RAW_LEAF) != 0);
+        async_raw = true;
+      }
+      function_child = child->next_sibling;
+    }
+    CHECK(async_raw);
+    if (text_index == 1) {
+      CHECK(has_direct_text(&value, function, W_SEED_CST_WORD, "export"));
+    }
+    const w_seed_cst_index parameters =
+        direct_child_after(&value, function, W_SEED_CST_PARAMETER_LIST, 0);
+    const w_seed_cst_index return_type =
+        direct_child_after(&value, function, W_SEED_CST_RETURN_TYPE, 0);
+    const w_seed_cst_index block =
+        direct_child_after(&value, function, W_SEED_CST_BLOCK, 0);
+    CHECK(parameters != W_SEED_CST_NONE);
+    CHECK(return_type != W_SEED_CST_NONE);
+    CHECK(block != W_SEED_CST_NONE);
+    CHECK(value.nodes[function].raw_span.end_byte ==
+          value.nodes[block].raw_span.end_byte);
+    CHECK(has_direct_text(&value, function, W_SEED_CST_WORD, "throws"));
+    const w_seed_cst_index return_statement =
+        direct_child_after(&value, block, W_SEED_CST_RETURN_STATEMENT, 0);
+    const w_seed_cst_index expression =
+        direct_child_after(&value, return_statement, W_SEED_CST_EXPRESSION, 0);
+    CHECK(return_statement != W_SEED_CST_NONE);
+    CHECK(expression != W_SEED_CST_NONE);
+    bool saw_try = false;
+    bool saw_await = false;
+    for (size_t node_index = 0; node_index < value.result.node_count;
+         node_index += 1) {
+      const w_seed_cst_node *node = &value.nodes[node_index];
+      if (node->kind != W_SEED_CST_WORD ||
+          node->raw_span.start_byte <
+              value.nodes[expression].raw_span.start_byte ||
+          node->raw_span.end_byte > value.nodes[expression].raw_span.end_byte) {
+        continue;
+      }
+      if (node_span_text(&value, (w_seed_cst_index)node_index, "try")) {
+        saw_try = true;
+      }
+      if (node_span_text(&value, (w_seed_cst_index)node_index, "await")) {
+        saw_await = true;
+      }
+    }
+    CHECK(saw_try);
+    CHECK(saw_await);
+
+    fixture repeat;
+    CHECK(fixture_init(&repeat, clean_texts[text_index],
+                       sizeof(repeat.nodes) / sizeof(repeat.nodes[0]),
+                       sizeof(repeat.issues) / sizeof(repeat.issues[0])));
+    CHECK(repeat.result.status == W_SEED_PARSE_COMPLETE);
+    CHECK(repeat.result.node_count == value.result.node_count);
+    CHECK(repeat.result.leaf_count == value.result.leaf_count);
+    CHECK(memcmp(repeat.nodes, value.nodes,
+                 value.result.node_count * sizeof(value.nodes[0])) == 0);
+  }
+
+  static const char trivia_text[] =
+      "export /*a*/ async /*b*/ fn f(){}\n";
+  fixture trivia;
+  CHECK(fixture_init(&trivia, trivia_text,
+                     sizeof(trivia.nodes) / sizeof(trivia.nodes[0]),
+                     sizeof(trivia.issues) / sizeof(trivia.issues[0])));
+  CHECK(trivia.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(trivia.result.issue_count == 0);
+  CHECK(check_leaf_partition(&trivia));
+  CHECK(check_tree_links(&trivia));
+  const w_seed_cst_index trivia_function =
+      first_kind(&trivia, W_SEED_CST_FUNCTION);
+  CHECK(trivia_function != W_SEED_CST_NONE);
+  CHECK(trivia.nodes[trivia_function].raw_span.start_byte == 0);
+  CHECK(count_direct_kind(&trivia, trivia_function, W_SEED_CST_TRIVIA) >= 2);
+  CHECK(has_direct_text(&trivia, trivia_function, W_SEED_CST_TRIVIA, "/*a*/"));
+  CHECK(has_direct_text(&trivia, trivia_function, W_SEED_CST_TRIVIA, "/*b*/"));
+
+  static const struct {
+    const char *text;
+    w_seed_parse_issue_kind issue;
+  } recovered[] = {
+      {"async fn\n", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"async fn f(a:T{}\n", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"async fn f(){return 1\n", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+  };
+  for (size_t index = 0; index < sizeof(recovered) / sizeof(recovered[0]);
+       index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, recovered[index].text,
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(value.result.issue_count >= 1);
+    CHECK(value.issues[0].kind == recovered[index].issue);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+  }
+
+  static const char *const stops[] = {
+      "async\n",             "async async fn f(){}\n",
+      "async struct S {}\n", "async test \"bad\" for f {}\n",
+      "async entry(f)\n",    "export async struct S {}\n",
+      "static fn f(){}\n",   "const fn f(){}\n",
+      "unsafe fn f(){}\n",   "mut fn f(){}\n",
+      "take fn f(){}\n",
+  };
+  for (size_t index = 0; index < sizeof(stops) / sizeof(stops[0]);
+       index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, stops[index],
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_FATAL);
+    CHECK(value.result.issue_count == 1);
+    CHECK(value.issues[0].kind == W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+  }
+
+  fixture reversed_effects;
+  CHECK(fixture_init(&reversed_effects,
+                     "async fn f(){return await try value()}\n",
+                     sizeof(reversed_effects.nodes) /
+                         sizeof(reversed_effects.nodes[0]),
+                     sizeof(reversed_effects.issues) /
+                         sizeof(reversed_effects.issues[0])));
+  CHECK(reversed_effects.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(reversed_effects.result.issue_count == 0);
+  CHECK(check_leaf_partition(&reversed_effects));
+  CHECK(check_tree_links(&reversed_effects));
+  return true;
+}
+
 static bool test_phase2_parameter_and_argument_shapes(void) {
   static const char text[] =
       "fn inspect(named:T,named audit:Audit,external internal:T,_ internal:T):T {"
@@ -1012,6 +1173,7 @@ int main(void) {
   CHECK(test_init_validation());
   CHECK(test_parse_twice());
   CHECK(test_phase2_declaration_tree());
+  CHECK(test_async_function_shapes());
   CHECK(test_phase2_parameter_and_argument_shapes());
   CHECK(test_phase2_parameter_requirements());
   CHECK(test_phase2_prefix_forms());

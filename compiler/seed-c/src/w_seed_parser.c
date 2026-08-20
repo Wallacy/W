@@ -279,6 +279,28 @@ static bool next_is_text(w_seed_parser *parser, const char *text) {
   return span_text(parser, item.span, text);
 }
 
+static bool next_two_are_text(w_seed_parser *parser, const char *first,
+                              const char *second) {
+  size_t index = 1;
+  size_t significant = 0;
+  while (true) {
+    if (!fill_tokens(parser, index + 1)) return false;
+    const w_seed_lex_item *item = &parser->token_cache[index].item;
+    if (item->kind == W_SEED_LEX_ITEM_EOF) return false;
+    if (item_is_trivia(item)) {
+      index += 1;
+      continue;
+    }
+    if (significant == 0) {
+      if (!span_text(parser, item->span, first)) return false;
+    } else {
+      return span_text(parser, item->span, second);
+    }
+    significant += 1;
+    index += 1;
+  }
+}
+
 static bool consume_raw(w_seed_parser *parser, uint16_t flags,
                         w_seed_cst_kind override_kind, w_seed_span *span_out) {
   if (!skip_trivia(parser) || current_is_eof(parser)) return false;
@@ -1246,7 +1268,10 @@ static bool parse_function(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
   if (push_node(parser, W_SEED_CST_FUNCTION, start) == W_SEED_CST_NONE)
     return false;
-  if (current_is_text(parser, "export")) (void)consume_text(parser, "export", NULL);
+  if (current_is_text(parser, "export"))
+    (void)consume_text(parser, "export", NULL);
+  if (current_is_text(parser, "async"))
+    (void)consume_text(parser, "async", NULL);
   (void)consume_text(parser, "fn", NULL);
   if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
     append_missing(parser, current_span(parser).start_byte,
@@ -1384,7 +1409,9 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
       continue;
     }
     if (current_is_text(parser, "export")) {
-      if (!next_is_text(parser, "fn") && !next_is_text(parser, "struct")) {
+      if (!next_is_text(parser, "fn") &&
+          !next_two_are_text(parser, "async", "fn") &&
+          !next_is_text(parser, "struct")) {
         stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
         break;
       }
@@ -1394,11 +1421,26 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
       }
       parser->imports_allowed = false;
       saw_declaration = true;
-      if (next_is_text(parser, "fn")) {
+      if (next_is_text(parser, "fn") ||
+          next_two_are_text(parser, "async", "fn")) {
         if (!parse_function(parser)) break;
       } else if (!parse_struct_declaration(parser)) {
         break;
       }
+      continue;
+    }
+    if (current_is_text(parser, "async")) {
+      if (!next_is_text(parser, "fn")) {
+        stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+        break;
+      }
+      if (saw_entry) {
+        stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+        break;
+      }
+      parser->imports_allowed = false;
+      saw_declaration = true;
+      if (!parse_function(parser)) break;
       continue;
     }
     if (current_is_text(parser, "fn")) {
