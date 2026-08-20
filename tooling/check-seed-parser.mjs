@@ -25,6 +25,7 @@ const selectedIds = [
   "F0-const-call-parameter",
   "F0-effect-prefix-order",
   "F0-structured-transaction",
+  "F0-borrows-clause-source-order",
 ]
 
 const CST = Object.freeze({
@@ -41,6 +42,7 @@ const CST = Object.freeze({
   BREAK: 14,
   CONTINUE: 15,
   EXPRESSION: 17,
+  TYPE: 18,
   WORD: 25,
   ARRAY: 20,
   ERROR: 21,
@@ -55,6 +57,9 @@ const CST = Object.freeze({
   FOR: 38,
   TRANSACTION: 39,
   COMMIT: 40,
+  BORROW_CLAUSE: 41,
+  BORROW_PAIR: 42,
+  SLOT_REF: 43,
 })
 
 function fail(message) {
@@ -353,6 +358,42 @@ function assertStructuredTransaction(parsed, bytes, label) {
   }
 }
 
+function assertBorrowClause(parsed, bytes, label) {
+  assertClean(parsed, label)
+  const functions = parsed.nodes.filter((node) => node.kind === CST.FUNCTION)
+  if (functions.length !== 1) fail(`${label} does not contain one FUNCTION node`)
+  const functionNode = functions[0]
+  const direct = childrenOf(parsed, functionNode.index)
+  const positionOf = (kind) => direct.findIndex((node) => node.kind === kind)
+  const positions = [CST.PARAMETER_LIST, CST.RETURN_TYPE, CST.BORROW_CLAUSE, CST.BLOCK]
+    .map(positionOf)
+  if (positions.some((position) => position < 0) ||
+      !(positions[0] < positions[1] && positions[1] < positions[2] && positions[2] < positions[3])) {
+    fail(`${label} FUNCTION direct child order does not place BORROW_CLAUSE before BLOCK`)
+  }
+  const clauses = directKind(parsed, functionNode.index, CST.BORROW_CLAUSE)
+  if (clauses.length !== 1) fail(`${label} does not contain one direct BORROW_CLAUSE`)
+  const clause = clauses[0]
+  const pairs = directKind(parsed, clause.index, CST.BORROW_PAIR)
+  if (pairs.length === 0) fail(`${label} BORROW_CLAUSE has no BORROW_PAIR children`)
+  for (const pair of pairs) {
+    const slots = directKind(parsed, pair.index, CST.SLOT_REF)
+    if (slots.length < 2) fail(`${label} BORROW_PAIR does not own result and source SLOT_REFs`)
+  }
+  const firstPairSlots = directKind(parsed, pairs[0].index, CST.SLOT_REF)
+    .map((node) => nodeText(parsed, bytes, node))
+  if (firstPairSlots.join("|") !== "0|fallback|primary") {
+    fail(`${label} first BORROW_PAIR source order is not 0|fallback|primary`)
+  }
+  if (!nodeText(parsed, bytes, clause).startsWith("borrows(")) {
+    fail(`${label} BORROW_CLAUSE does not own its keyword`)
+  }
+  const viewTypes = parsed.nodes.filter((node) => node.kind === CST.TYPE)
+    .filter((node) => directKind(parsed, node.index, CST.WORD)
+      .some((word) => nodeText(parsed, bytes, word) === "view"))
+  if (viewTypes.length < 1) fail(`${label} does not preserve view WORDs inside TYPE nodes`)
+}
+
 function assertLabeledControl(parsed, bytes, label) {
   assertClean(parsed, label)
   const loops = parsed.nodes.filter((node) => node.kind === CST.FOR)
@@ -527,6 +568,10 @@ async function main() {
         assertStructuredTransaction(inputParsed, input, `${id}:input`)
         assertStructuredTransaction(outputParsed, output, `${id}:output`)
       }
+      if (id === "F0-borrows-clause-source-order") {
+        assertBorrowClause(inputParsed, input, `${id}:input`)
+        assertBorrowClause(outputParsed, output, `${id}:output`)
+      }
       if (inputParsed.signature !== second.signature) fail(`${id} CST signature is not deterministic`)
       if (inputParsed.nodes.length === 0 || outputParsed.nodes.length === 0) fail(`${id} has no CST nodes`)
     }
@@ -570,6 +615,24 @@ async function main() {
       ["transaction-missing-close", Buffer.from("fn f(){return transaction tx=provider{commit value\n"), "recovered", 2],
       ["transaction-malformed-commit", Buffer.from("fn f(){commit value else}\n"), "recovered", 3],
       ["transaction-contract-stop", Buffer.from("fn f(){return transaction<.serializable> tx=provider{commit value}}\n"), "fatal", 6],
+      ["borrow-view-two-pairs", Buffer.from("fn pick(primary: ref S, fallback: ref S): view S borrows(0: [fallback, primary], 1: [1,]) { return primary }\n"), "complete"],
+      ["borrow-view-param-return", Buffer.from("fn pick(primary: view S, fallback: ref S): view S borrows(0: [fallback, primary]) { return primary }\n"), "complete"],
+      ["borrow-slot-lexical", Buffer.from("fn pick(primary: ref S): view S borrows(1.5: [unknown], 99: [primary,]) { return primary }\n"), "complete"],
+      ["borrow-duplicate-result", Buffer.from("fn pick(primary: ref S): view S borrows(7: [primary], 7: [unknown]) { return primary }\n"), "complete"],
+      ["borrow-comments", Buffer.from("fn pick(primary: ref S): view S borrows(0: [/*x*/ primary, /*y*/ 1,], /*z*/ 1: [primary,]) { return primary }\n"), "complete"],
+      ["borrow-contextual-identifier", Buffer.from("fn id(): S { borrows }\n"), "complete"],
+      ["borrow-empty-clause", Buffer.from("fn f(a: ref S): view S borrows() { return a }\n"), "recovered", 1],
+      ["borrow-empty-sources", Buffer.from("fn f(a: ref S): view S borrows(0: []) { return a }\n"), "recovered", 1],
+      ["borrow-missing-result", Buffer.from("fn f(a: ref S): view S borrows(: [a]) { return a }\n"), "recovered", 1],
+      ["borrow-missing-colon", Buffer.from("fn f(a: ref S): view S borrows(0 [a]) { return a }\n"), "recovered", 1],
+      ["borrow-missing-open", Buffer.from("fn f(a: ref S): view S borrows(0: a) { return a }\n"), "recovered", 1],
+      ["borrow-missing-close-square", Buffer.from("fn f(a: ref S): view S borrows(0: [a) { return a }\n"), "recovered", 2],
+      ["borrow-missing-close-paren", Buffer.from("fn f(a: ref S): view S borrows(0: [a] { return a }\n"), "recovered", 2],
+      ["borrow-missing-comma", Buffer.from("fn f(a: ref S): view S borrows(0: [a 1]) { return a }\n"), "recovered", 2],
+      ["borrow-before-throws", Buffer.from("fn f(a: ref S): view S borrows(0: [a]) throws E { return a }\n"), "recovered", 2],
+      ["borrow-duplicate-clause", Buffer.from("fn f(a: ref S): view S borrows(0: [a]) borrows(0: [a]) { return a }\n"), "recovered", 2],
+      ["borrow-after-body", Buffer.from("fn f(a: ref S): view S { return a } borrows(0: [a])\n"), "recovered"],
+      ["borrow-missing-view-base", Buffer.from("fn f(a: ref S): view { return a }\n"), "recovered", 1],
       ["postfix-question", Buffer.from("fn f(){value?.open?}\n"), "complete"],
       ["newline-continuation", Buffer.from("fn f(){let result = transform\n  (input)}\n"), "complete"],
       ["semicolon-boundary", Buffer.from("fn f(){a();(b)c();[d,e]}\n"), "complete"],
@@ -611,6 +674,7 @@ async function main() {
     for (const [label, bytes, status, issue] of handCases) {
       const parsed = invoke(probe, bytes, label, status, issue)
       if ((label.startsWith("for-") || label.startsWith("async-") ||
+           label.startsWith("borrow-") ||
            label.startsWith("export-async-") || label === "while-labeled-stop") &&
           issue !== undefined &&
           parsed.issues[0]?.kind !== issue) {
@@ -664,6 +728,18 @@ async function main() {
       }
       if (label === "labeled-block-for-witness") {
         assertLabeledBlockWitness(parsed, bytes)
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} CST signature is not deterministic`)
+        }
+      }
+      if (label === "borrow-view-two-pairs" || label === "borrow-view-param-return" ||
+          label === "borrow-slot-lexical" || label === "borrow-duplicate-result" ||
+          label === "borrow-comments" || label === "borrow-contextual-identifier") {
+        assertClean(parsed, label)
+        if (label === "borrow-view-two-pairs" || label === "borrow-view-param-return") {
+          assertBorrowClause(parsed, bytes, label)
+        }
         const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
         if (parsed.signature !== repeated.signature) {
           fail(`${label} CST signature is not deterministic`)

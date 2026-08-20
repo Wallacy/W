@@ -385,7 +385,7 @@ static bool is_unsupported_word(w_seed_parser *parser) {
       "extension", "behavior", "const",
       "static",   "unsafe",    "async",     "mut",      "take",
       "allocator", "spawn",    "switch",    "for",      "transaction",
-      "foreign",  "borrows",   "captures",  "package",  "workspace",
+      "foreign",  "captures",  "package",  "workspace",
   };
   for (size_t index = 0; index < sizeof(words) / sizeof(words[0]); index += 1) {
     if (current_is_text(parser, words[index])) return true;
@@ -728,6 +728,7 @@ static bool parse_type(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
   const w_seed_cst_index node = push_node(parser, W_SEED_CST_TYPE, start);
   if (node == W_SEED_CST_NONE) return false;
+  if (current_is_text(parser, "view")) (void)consume_current(parser, NULL);
   if (current_is_text(parser, "(")) {
     (void)consume_text(parser, "(", NULL);
     if (!expect_text(parser, ")", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
@@ -788,6 +789,78 @@ static bool parse_type(w_seed_parser *parser) {
     }
   }
   pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
+static bool parse_slot_ref(w_seed_parser *parser) {
+  if (!skip_trivia(parser) || current_is_eof(parser)) return false;
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_SLOT_REF, start) == W_SEED_CST_NONE)
+    return false;
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD) &&
+      !current_is_kind(parser, W_SEED_LEX_ITEM_NUMBER)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_borrow_pair(w_seed_parser *parser) {
+  if (!skip_trivia(parser) || current_is_eof(parser)) return false;
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_BORROW_PAIR, start) == W_SEED_CST_NONE)
+    return false;
+  if (!parse_slot_ref(parser) ||
+      !expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+      !expect_text(parser, "[", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+      !parse_slot_ref(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  while (current_is_text(parser, ",")) {
+    (void)consume_text(parser, ",", NULL);
+    if (current_is_text(parser, "]")) break;
+    if (!parse_slot_ref(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  if (!expect_text(parser, "]", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_borrow_clause(w_seed_parser *parser) {
+  if (!skip_trivia(parser) || current_is_eof(parser)) return false;
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_BORROW_CLAUSE, start) == W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "borrows", NULL);
+  if (!expect_text(parser, "(", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+      !parse_borrow_pair(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  while (current_is_text(parser, ",")) {
+    (void)consume_text(parser, ",", NULL);
+    if (current_is_text(parser, ")")) break;
+    if (!parse_borrow_pair(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  if (!expect_text(parser, ")", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
   return true;
 }
 
@@ -1351,6 +1424,8 @@ static bool parse_function(w_seed_parser *parser) {
     (void)consume_text(parser, "throws", NULL);
     if (!parse_type(parser)) return false;
   }
+  if (current_is_text(parser, "borrows") && !parse_borrow_clause(parser))
+    return false;
   if (!parse_block(parser, false)) return false;
   pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
   return true;
