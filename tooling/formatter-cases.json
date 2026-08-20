@@ -358,11 +358,11 @@
       "decisions": ["W-174", "W-708", "W-774", "W-922"],
       "input": {
         "lines": [
-          "fn finish(stream:take CommandStream):usize{return (take stream).finish()}"
+          "fn finish(cursor:take CommandStream):usize{return (take cursor).finish()}"
         ]
       },
       "output": [
-        "fn finish(stream: take CommandStream): usize { return (take stream).finish() }"
+        "fn finish(cursor: take CommandStream): usize { return (take cursor).finish() }"
       ],
       "requiredSemicolons": []
     },

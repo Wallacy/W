@@ -315,7 +315,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-explicit-capture-closure"
       },
       "evidence": [
@@ -328,7 +328,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-explicit-capture-closure"
         }
       ],
@@ -1464,7 +1464,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-spawn-domain-slots"
         }
       ],
@@ -6082,7 +6082,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-consuming-receiver-grouping"
       },
       "evidence": [
@@ -6095,7 +6095,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-consuming-receiver-grouping"
         }
       ],
@@ -6873,14 +6873,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-explicit-capture-closure"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-explicit-capture-closure"
         }
       ],
@@ -10453,14 +10453,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-enum-subset-switch"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-enum-subset-switch"
         }
       ],
@@ -10485,14 +10485,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-enum-subset-switch"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-enum-subset-switch"
         }
       ],
@@ -12190,7 +12190,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-spawn-domain-slots"
         }
       ],
@@ -19118,14 +19118,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-const-call-parameter"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-const-call-parameter"
         }
       ],
@@ -23976,14 +23976,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-structured-transaction"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-structured-transaction"
         }
       ],
@@ -24568,14 +24568,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-structured-transaction"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-structured-transaction"
         }
       ],
@@ -24673,7 +24673,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-compact-declarations"
       },
       "evidence": [
@@ -24686,7 +24686,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-compact-declarations"
         }
       ],
@@ -25282,7 +25282,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-spawn-domain-slots"
         }
       ],
@@ -25526,7 +25526,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-labeled-repeat-loop"
       },
       "evidence": [
@@ -25539,7 +25539,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-labeled-repeat-loop"
         }
       ],
@@ -25998,7 +25998,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-labeled-control"
       },
       "evidence": [
@@ -26011,7 +26011,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-labeled-control"
         }
       ],
@@ -26036,7 +26036,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-labeled-control"
       },
       "evidence": [
@@ -26049,7 +26049,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-labeled-control"
         }
       ],
@@ -26144,7 +26144,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-compact-declarations"
       },
       "evidence": [
@@ -26157,7 +26157,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-compact-declarations"
         }
       ],
@@ -26412,7 +26412,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-contracts-and-source-order"
       },
       "evidence": [
@@ -26425,7 +26425,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-contracts-and-source-order"
         }
       ],
@@ -26450,7 +26450,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-contracts-and-source-order"
       },
       "evidence": [
@@ -26463,7 +26463,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-contracts-and-source-order"
         }
       ],
@@ -26753,14 +26753,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-repeat-array-semicolon"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-repeat-array-semicolon"
         }
       ],
@@ -26887,7 +26887,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-value-block-boundary"
       },
       "evidence": [
@@ -26900,7 +26900,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-value-block-boundary"
         }
       ],
@@ -26925,14 +26925,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-multiline-signature-and-call"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-multiline-signature-and-call"
         }
       ],
@@ -26957,7 +26957,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-effect-prefix-order"
       },
       "evidence": [
@@ -26970,7 +26970,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-effect-prefix-order"
         }
       ],
@@ -26995,14 +26995,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-structured-transaction"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-structured-transaction"
         }
       ],
@@ -27062,7 +27062,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-value-block-boundary"
       },
       "evidence": [
@@ -27075,7 +27075,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-value-block-boundary"
         }
       ],
@@ -27199,7 +27199,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-labeled-control"
       },
       "evidence": [
@@ -27212,7 +27212,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-labeled-control"
         }
       ],
@@ -27237,7 +27237,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-value-block-boundary"
       },
       "evidence": [
@@ -27250,7 +27250,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-value-block-boundary"
         }
       ],
@@ -29136,14 +29136,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-effect-prefix-order"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-effect-prefix-order"
         }
       ],
@@ -32036,14 +32036,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-consuming-receiver-grouping"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-consuming-receiver-grouping"
         }
       ],
@@ -32226,7 +32226,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-spawn-domain-slots"
         }
       ],
@@ -39960,7 +39960,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-spawn-domain-slots"
       },
       "evidence": [
@@ -39973,7 +39973,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-spawn-domain-slots"
         }
       ],
@@ -40033,7 +40033,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-spawn-domain-slots"
       },
       "evidence": [
@@ -40046,7 +40046,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-spawn-domain-slots"
         }
       ],
@@ -43502,14 +43502,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-language-lock"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-language-lock"
         }
       ],
@@ -43534,14 +43534,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-language-lock"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-language-lock"
         }
       ],
@@ -44726,7 +44726,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-multiline-signature-and-call"
       },
       "evidence": [
@@ -44739,7 +44739,7 @@
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-multiline-signature-and-call"
         }
       ],
@@ -44764,14 +44764,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-parameter-contract-placement"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-parameter-contract-placement"
         }
       ],
@@ -48948,14 +48948,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/formatter-cases.json",
-        "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+        "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
         "caseId": "F0-module-run-entry"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/formatter-cases.json",
-          "sha256": "sha256:5659594fd6f9a1032b9da204da0a07e4d80024bab949d74fca43f1b723fa4779",
+          "sha256": "sha256:f22284171e6983ec5aa5fd161ef6fa007493647dae5deeba31a3bc83cf108c39",
           "caseId": "F0-module-run-entry"
         }
       ],
