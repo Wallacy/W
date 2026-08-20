@@ -40,8 +40,10 @@ repetidos `[expression; expression]`, `for` com marcador opcional
 `ref`/`inout`/`copy`, um binder WORD, `in expression` e bloco, labels para
 `repeat`, `for` ou bloco, `break`/`continue`, argumentos posicionais ou
 `label: expression`, declarações `async fn` e `export async fn`, e os prefixos
-sintáticos `copy`/`take`/`pin`/`inout`/`ref`. O parser Pratt delimitado é usado
-pelos dezessete casos F0 selecionados. A tabela de
+sintáticos `copy`/`take`/`pin`/`inout`/`ref`, a expressão estruturada
+`transaction identifier = expression { ... }` e o statement `commit` com
+expression opcional. O parser Pratt delimitado é usado pelos dezoito casos F0
+selecionados. A tabela de
 reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
 bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;
 isso é reconhecimento sintático, não uma declaração de semântica, tipos ou
@@ -65,10 +67,15 @@ de expression mantém `>>` como shift. Newline continua trivia. Recovery só cri
 `ERROR` com os bytes ignorados e `MISSING` zero-width. Os `w_seed_parse_issue`
 internos têm mapping futuro para D0, mas não são diagnósticos D0. `manifest`,
 declarations além de `fn`/`struct`/`test`/`entry`, contracts, patterns,
-closures, semântica de effects/async, allocator, transaction, AST/HIR,
+closures, semântica de effects/async, allocator, contratos de transaction,
+AST/HIR,
 name/type resolution, formatter e foreign scanner permanecem fora; `foreign`
 falha fechado antes do body. Imports só aparecem antes de qualquer
-declaration; `export` aceita `fn`, `async fn` e `struct` nesta fatia. Outros
+declaration; `export` aceita `fn`, `async fn` e `struct` nesta fatia.
+`transaction` não aceita argumentos de contract nesta fatia. Statements
+`commit` e transactions aninhadas são reconhecidos sintaticamente em qualquer
+block. O parser não valida owner, provider, nesting, commit, rollback, effects
+ou atomicidade. Outros
 modificadores de função (`static`, `const`, `unsafe` e receiver modifiers)
 permanecem fora. `expect` fora de `test` falha fechado.
 

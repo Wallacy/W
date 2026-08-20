@@ -24,6 +24,7 @@ const selectedIds = [
   "F0-consuming-receiver-grouping",
   "F0-const-call-parameter",
   "F0-effect-prefix-order",
+  "F0-structured-transaction",
 ]
 
 const CST = Object.freeze({
@@ -52,6 +53,8 @@ const CST = Object.freeze({
   EXPECT: 36,
   ARGUMENT: 37,
   FOR: 38,
+  TRANSACTION: 39,
+  COMMIT: 40,
 })
 
 function fail(message) {
@@ -307,6 +310,49 @@ function assertAsyncTrivia(parsed, bytes, label) {
   }
 }
 
+function assertStructuredTransaction(parsed, bytes, label) {
+  assertClean(parsed, label)
+  const transactions = parsed.nodes.filter((node) => node.kind === CST.TRANSACTION)
+  const commits = parsed.nodes.filter((node) => node.kind === CST.COMMIT)
+  if (transactions.length !== 1 || commits.length !== 1) {
+    fail(`${label} does not contain one transaction and one commit`)
+  }
+  const transaction = transactions[0]
+  const transactionWords = directKind(parsed, transaction.index, CST.WORD)
+    .map((node) => nodeText(parsed, bytes, node))
+  if (!transactionWords.includes("transaction") || !transactionWords.includes("tx")) {
+    fail(`${label} transaction does not preserve keyword and binding leaves`)
+  }
+  const providerExpressions = directKind(parsed, transaction.index, CST.EXPRESSION)
+  if (providerExpressions.length !== 1 ||
+      nodeText(parsed, bytes, providerExpressions[0]).trim() !== "tableLedger") {
+    fail(`${label} transaction provider expression is not source-shaped`)
+  }
+  const transactionBlocks = directKind(parsed, transaction.index, CST.BLOCK)
+  if (transactionBlocks.length !== 1) {
+    fail(`${label} transaction does not own one BLOCK directly`)
+  }
+  const blockCommits = directKind(parsed, transactionBlocks[0].index, CST.COMMIT)
+  if (blockCommits.length !== 1 ||
+      nodeText(parsed, bytes, blockCommits[0]).trim() !== "commit receipt") {
+    fail(`${label} transaction block does not own source-shaped COMMIT`)
+  }
+  const commitExpressions = directKind(parsed, blockCommits[0].index, CST.EXPRESSION)
+  if (commitExpressions.length !== 1 ||
+      nodeText(parsed, bytes, commitExpressions[0]).trim() !== "receipt") {
+    fail(`${label} COMMIT does not own direct receipt EXPRESSION`)
+  }
+  const returnNode = parsed.nodes.find((node) => node.kind === CST.RETURN)
+  const returnExpression = returnNode && directKind(parsed, returnNode.index, CST.EXPRESSION)[0]
+  if (!returnExpression) fail(`${label} transaction return expression is missing`)
+  const effectWords = descendants(parsed, returnExpression.index)
+    .filter((node) => node.kind === CST.WORD)
+    .map((node) => nodeText(parsed, bytes, node))
+  if (!effectWords.includes("try") || !effectWords.includes("await")) {
+    fail(`${label} transaction return does not preserve try/await leaves`)
+  }
+}
+
 function assertLabeledControl(parsed, bytes, label) {
   assertClean(parsed, label)
   const loops = parsed.nodes.filter((node) => node.kind === CST.FOR)
@@ -477,6 +523,10 @@ async function main() {
         assertAsyncFunction(inputParsed, input, `${id}:input`)
         assertAsyncFunction(outputParsed, output, `${id}:output`)
       }
+      if (id === "F0-structured-transaction") {
+        assertStructuredTransaction(inputParsed, input, `${id}:input`)
+        assertStructuredTransaction(outputParsed, output, `${id}:output`)
+      }
       if (inputParsed.signature !== second.signature) fail(`${id} CST signature is not deterministic`)
       if (inputParsed.nodes.length === 0 || outputParsed.nodes.length === 0) fail(`${id} has no CST nodes`)
     }
@@ -509,6 +559,17 @@ async function main() {
       ["const-function-stop", Buffer.from("const fn f(){}\n"), "fatal", 6],
       ["unsafe-function-stop", Buffer.from("unsafe fn f(){}\n"), "fatal", 6],
       ["receiver-function-stop", Buffer.from("take fn f(){}\n"), "fatal", 6],
+      ["transaction-simple", Buffer.from("fn f(){return transaction tx=provider{commit value}}\n"), "complete"],
+      ["transaction-commit-outside", Buffer.from("fn f(){commit value}\n"), "complete"],
+      ["transaction-commit-empty", Buffer.from("fn f(){commit}\n"), "complete"],
+      ["transaction-nested", Buffer.from("fn f(){return transaction outer=provider{commit transaction inner=provider{commit value}}}\n"), "complete"],
+      ["transaction-missing-binding", Buffer.from("fn f(){return transaction = provider{commit value}}\n"), "recovered", 1],
+      ["transaction-missing-equals", Buffer.from("fn f(){return transaction tx provider{commit value}}\n"), "recovered", 1],
+      ["transaction-missing-provider", Buffer.from("fn f(){return transaction tx= {commit value}}\n"), "recovered", 1],
+      ["transaction-missing-block", Buffer.from("fn f(){return transaction tx=provider}\n"), "recovered", 2],
+      ["transaction-missing-close", Buffer.from("fn f(){return transaction tx=provider{commit value\n"), "recovered", 2],
+      ["transaction-malformed-commit", Buffer.from("fn f(){commit value else}\n"), "recovered", 3],
+      ["transaction-contract-stop", Buffer.from("fn f(){return transaction<.serializable> tx=provider{commit value}}\n"), "fatal", 6],
       ["postfix-question", Buffer.from("fn f(){value?.open?}\n"), "complete"],
       ["newline-continuation", Buffer.from("fn f(){let result = transform\n  (input)}\n"), "complete"],
       ["semicolon-boundary", Buffer.from("fn f(){a();(b)c();[d,e]}\n"), "complete"],
@@ -557,6 +618,29 @@ async function main() {
       }
       if (label === "for-marker-vector") assertMarkerVector(parsed, bytes)
       if (label === "for-take-iterable") assertClean(parsed, label)
+      if (label === "transaction-simple" || label === "transaction-commit-outside" ||
+          label === "transaction-commit-empty" || label === "transaction-nested") {
+        assertClean(parsed, label)
+        const transactions = parsed.nodes.filter((node) => node.kind === CST.TRANSACTION)
+        const commits = parsed.nodes.filter((node) => node.kind === CST.COMMIT)
+        const expectedCounts = {
+          "transaction-simple": [1, 1],
+          "transaction-commit-outside": [0, 1],
+          "transaction-commit-empty": [0, 1],
+          "transaction-nested": [2, 2],
+        }[label]
+        if (transactions.length !== expectedCounts[0] || commits.length !== expectedCounts[1]) {
+          fail(`${label} has ${transactions.length} TRANSACTION and ${commits.length} COMMIT nodes`)
+        }
+        if (label === "transaction-commit-empty" &&
+            directKind(parsed, commits[0].index, CST.EXPRESSION).length !== 0) {
+          fail(`${label} unexpectedly owns an EXPRESSION`)
+        }
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} CST signature is not deterministic`)
+        }
+      }
       if (label === "export-async-function") {
         assertAsyncFunction(parsed, bytes, label, true)
         const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)

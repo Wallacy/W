@@ -430,6 +430,33 @@ static bool parse_expression(w_seed_parser *parser, int minimum_precedence,
 static bool parse_type(w_seed_parser *parser);
 static bool parse_block(w_seed_parser *parser, bool value_context);
 
+static bool parse_transaction_expression(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_TRANSACTION_EXPRESSION, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "transaction", NULL);
+  if (current_is_text(parser, "<")) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    return false;
+  }
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->last_token_end);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  if (!expect_text(parser, "=", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+      !parse_expression(parser, 1, false) ||
+      !parse_block(parser, false)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
 static binary_info binary_operator(w_seed_parser *parser) {
   binary_info info = {false, -1};
   if (!skip_trivia(parser) || current_is_eof(parser)) return info;
@@ -491,6 +518,9 @@ static bool parse_primary(w_seed_parser *parser, bool value_context) {
     }
     pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
     return true;
+  }
+  if (current_is_text(parser, "transaction")) {
+    return parse_transaction_expression(parser);
   }
   if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD) ||
       current_is_kind(parser, W_SEED_LEX_ITEM_NUMBER) ||
@@ -819,6 +849,24 @@ static bool parse_return_statement(w_seed_parser *parser) {
   return true;
 }
 
+static bool parse_commit_statement(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_COMMIT_STATEMENT, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "commit", NULL);
+  if (!current_is_text(parser, ";") && !current_is_text(parser, "}") &&
+      !current_is_eof(parser)) {
+    if (!parse_expression(parser, 1, true)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  (void)statement_boundary(parser);
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
 static bool parse_if_statement(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
   if (push_node(parser, W_SEED_CST_IF_STATEMENT, start) == W_SEED_CST_NONE)
@@ -962,6 +1010,9 @@ static bool parse_statement(w_seed_parser *parser) {
   if (!skip_trivia(parser) || current_is_eof(parser)) return false;
   if (current_is_text(parser, "let")) return parse_let_statement(parser);
   if (current_is_text(parser, "return")) return parse_return_statement(parser);
+  if (current_is_text(parser, "commit")) return parse_commit_statement(parser);
+  if (current_is_text(parser, "transaction"))
+    return parse_expression_statement(parser);
   if (current_is_text(parser, "if")) return parse_if_statement(parser);
   if (current_is_text(parser, "repeat")) return parse_repeat_statement(parser);
   if (current_is_text(parser, "for")) return parse_for_statement(parser);
