@@ -437,6 +437,8 @@ static bool parse_contract_envelope(w_seed_parser *parser, size_t head_end,
 static bool parse_static_value(w_seed_parser *parser);
 static bool parse_static_list(w_seed_parser *parser);
 static bool parse_switch_expression(w_seed_parser *parser);
+static bool parse_allocator_block(w_seed_parser *parser);
+static bool statement_boundary(w_seed_parser *parser);
 
 static bool parse_transaction_expression(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
@@ -461,6 +463,49 @@ static bool parse_transaction_expression(w_seed_parser *parser) {
     pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
     return false;
   }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_allocator_block(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_ALLOCATOR_BLOCK, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "allocator", NULL);
+
+  if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD) &&
+      next_is_text(parser, ":")) {
+    (void)consume_current(parser, NULL);
+    if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  } else if (next_is_text(parser, ":")) {
+    (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                       current_span(parser), W_SEED_PARSE_EXPECT_WORD);
+    (void)consume_raw(parser, W_SEED_CST_FLAG_ERROR, W_SEED_CST_ERROR, NULL);
+    (void)consume_text(parser, ":", NULL);
+  }
+
+  if (current_is_text(parser, "{")) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+  } else if (!parse_expression(parser, 1, false)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+
+  if (current_is_text(parser, ":")) {
+    (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                       current_span(parser), W_SEED_PARSE_EXPECT_PUNCTUATION);
+    (void)consume_raw(parser, W_SEED_CST_FLAG_ERROR, W_SEED_CST_ERROR, NULL);
+  }
+  if (!parse_block(parser, false)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)statement_boundary(parser);
   pop_node(parser, parser->last_token_end);
   return true;
 }
@@ -812,6 +857,10 @@ static bool parse_postfix(w_seed_parser *parser, bool value_context) {
 
 static bool parse_prefix(w_seed_parser *parser, bool value_context) {
   if (!skip_trivia(parser) || current_is_eof(parser)) return false;
+  if (current_is_text(parser, "try") && next_is_text(parser, "allocator")) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    return false;
+  }
   if (current_is_text(parser, "!") || current_is_text(parser, "~") ||
       current_is_text(parser, "-") || current_is_text(parser, "copy") ||
       current_is_text(parser, "take") || current_is_text(parser, "pin") ||
@@ -1350,6 +1399,11 @@ static bool parse_statement(w_seed_parser *parser) {
     }
     return parse_expect_statement(parser);
   }
+  if (current_is_text(parser, "try") && next_is_text(parser, "allocator")) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    return false;
+  }
+  if (current_is_text(parser, "allocator")) return parse_allocator_block(parser);
   if (current_is_text(parser, "else") || current_is_text(parser, "catch") ||
       current_is_text(parser, "while")) {
     (void)record_issue(parser, W_SEED_PARSE_ISSUE_NO_CONTINUATION_OWNER,
@@ -2006,6 +2060,10 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
       continue;
     }
     if (current_is_text(parser, "expect")) {
+      stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+      break;
+    }
+    if (current_is_text(parser, "try") && next_is_text(parser, "allocator")) {
       stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
       break;
     }

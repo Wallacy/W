@@ -53,7 +53,7 @@ repetidos `[expression; expression]`, `for` com marcador opcional
 sintáticos `copy`/`take`/`pin`/`inout`/`ref`, a expressão estruturada
 `transaction identifier = expression { ... }` e o statement `commit` com
 expression opcional. O parser Pratt
-delimitado é usado pelos vinte e três casos F0
+delimitado é usado pelos vinte e cinco casos F0
 selecionados. A tabela de
 reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
 bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;
@@ -88,7 +88,7 @@ de expression mantém `>>` como shift. Newline continua trivia. Recovery só cri
 `ERROR` com os bytes ignorados e `MISSING` zero-width. Os `w_seed_parse_issue`
 internos têm mapping futuro para D0, mas não são diagnósticos D0. `manifest`,
 declarations além de `fn`/`struct`/`type`/`alias`/`test`/`entry`, patterns,
-closures, semântica de effects/async/lock, allocator, contratos de transaction,
+closures, semântica de effects/async/lock, contratos de transaction,
 AST/HIR,
 name/type resolution, formatter e foreign scanner permanecem fora; `foreign`
 falha fechado antes do body. Imports só aparecem antes de qualquer
@@ -100,6 +100,14 @@ block. O parser não valida owner, provider, nesting, commit, rollback, effects
 ou atomicidade. Outros
 modificadores de função (`static`, `const`, `unsafe` e receiver modifiers)
 permanecem fora. `expect` fora de `test` falha fechado.
+
+Statements `allocator [binding:] expression { ... }` são reconhecidos em
+qualquer block, inclusive de forma aninhada. O owner `allocator_block` preserva
+o keyword `allocator`, a binding WORD opcional e seu `:`, uma única expressão de
+plan e um único block na ordem dos bytes; o CST não adquire leases, valida
+capacidades ou resolve chamadas contextuais. `try allocator` e `allocator` na
+raiz continuam STOP, e o parser não afirma a semântica de providers, contexto
+ou recuperação de allocation.
 
 Corpos foreign usam handshake dinâmico. O harness chama `require_opaque` no
 cursor atual, `claim_opaque` com um span pinado e então `next` emite um único
@@ -120,7 +128,7 @@ O corpus dirigido de lexer também pode ser executado com:
 
     bun tooling/check-seed-lexer.mjs
 
-O parser seed e os vinte e três IDs F0 completos (input e output) podem ser
+O parser seed e os vinte e cinco IDs F0 completos (input e output) podem ser
 validados com:
 
     bun tooling/check-seed-parser.mjs
@@ -154,7 +162,8 @@ e não são output de um compiler. A proveniência é mantida em
 [check-seed-source-reader.mjs](../../tooling/check-seed-source-reader.mjs); o
 checker lê essas fontes e não copia seus payloads. O checker do parser também
 extrai slices delimitados por marcadores de bytes atuais de
-`reference/last-light/generics.w` e `enum_contracts.w`; esses witnesses são
+`reference/last-light/generics.w`, `enum_contracts.w` e `allocation.w`; esses
+witnesses são
 somente entradas sintáticas do seed e não afirmam que o Last Light completo
 compila. O parser seed não promove
 nenhum comportamento de compiler, AST/HIR, checker semântico ou formatter.
