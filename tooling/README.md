@@ -106,7 +106,7 @@ compiler, runtime, provider ou execução W.
 | `wire-diagnostic-cases.json` | par portátil/local para `W-WIRE-0001`, com facts e spans esperados | oracle de design; não é output do checker de interface |
 | `wire-reference.c` + `wire-reference-c.test.mjs` | segunda implementação independente dos vetores e erros básicos | gate opcional; exige um GCC compatível |
 | `hir-memory-reference.test.mjs` | modelo executável de owner, borrow, suspensão, boundary e ABI | oracle de SH3/SH4; não é o verifier do compiler |
-| `memory-transition-cases.json` + máquina M1 | 185 sequências do Última Luz com 606 operações (79 aceitas + 106 rejeitadas), estados e traces byte-exact | oracle host tabelado de PlaceId, dependency/allocation origins, allocator-scope/rehome, erasure, shared/weak/ciclos, pinning, construção direta, FFI e ABI; não é HIR emitida pelo frontend nem allocator/runtime real |
+| `memory-transition-cases.json` + máquina M1 | 185 sequências do Última Luz com 606 operações (79 aceitas + 106 rejeitadas), estados e traces de conteúdo exato | oracle host tabelado de PlaceId, dependency/allocation origins, allocator-scope/rehome, erasure, shared/weak/ciclos, pinning, construção direta, FFI e ABI; não é HIR emitida pelo frontend nem allocator/runtime real |
 | `allocation-cases.json` + máquina A0 | 48 sequências com 123 operações (15 aceitas + 33 rejeitadas) e 13 testes independentes | oracle host de layout, receipt, resize, provider, progress, domain e reclamation; não é allocator, verifier nem runtime W |
 | `allocator-scope-cases.json` + máquina/checker/snapshot | ASC0 cobre 62 casos (26 positivos + 36 negativos) para named/anonymous owner, current allocator stack, contextual chain/root fallback, explicit override, root default/`.none`, requirement compatibility, first/unique slots, nested push/pop, overload collision, initializer rejection, callable preservation, closure capture, stable await, local spawn rejection, rehome-before-boundary, fixed admission, `.bounded` Research rejection, concrete custom `AllocatorPlan` descriptor validation, open/lease transitions, exactly-once deinit e close order | oracle host de design; não executa compiler, runtime, lowering físico ou provider W |
 | `shared-control-cases.json` + máquina/checker/snapshot | SHC0 cobre 45 casos e 84 operações (16 accepted + 6 error + 3 fault + 20 rejected) para default/custom/lexical `shared T`, admission/open separado, eixos `initializerThrows`/site `failure`, error set explícito e exato com collapse de tipos iguais, `try` fora do tipo, reserve/init failure, consuming cleanup, strong/weak lifecycle e acquisition, hidden `$controlBlock` e reachable origins, derived mobility, nested origins, FFI canônico em `memory.w` com unregister/drain/destroy order, cycles e co-allocation sem promessa | oracle host independente; facts de tipo/HIR e lowering ficam em sidecars, o close/drain da lease externa pertence ao ASC0, operações internas M1 não são syntax W e o modelo não executa compiler, runtime, allocator ou provider |
@@ -574,6 +574,20 @@ diagnóstico, macros, parsing contextual, desempenho ou distribuição. Se isso
 acontecer, ambos rodam o mesmo corpus e testes diferenciais/fuzz impedem drift.
 Assim a escolha inicial continua reversível sem jogar fora grammar, queries ou
 integrações de editor.
+
+## Validação de snippets do cheatsheet
+
+`check:cheatsheet` extrai fences `w`, valida metadata de `w excerpt` e verifica
+conteúdo exato após normalização LF em excerpts source-backed. Ele envia todas as unidades
+`w` para uma única invocação do parser Tree-sitter, sem aceitar `ERROR` ou
+`MISSING`.
+
+Os testes usam uma seam de `realpath` para simular symlink escape. A criação de
+symlink no teste varia entre plataformas, em especial no Windows.
+
+Esse checker é editorial. Ele não faz type-check, compilação, lowering,
+execução, teste de runtime ou validação de provider. Um resultado verde prova
+somente a forma de source, o parse e a proveniência declarada.
 
 ## Começar agora
 

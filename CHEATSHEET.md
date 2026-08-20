@@ -353,20 +353,22 @@ combina uma forma de parâmetro já usada em Last Light. Use
 distinguir borrow, move, copy, pin e allocation.
 ### Funções, labels e closures
 
-O declaration de função abaixo é um excerpt parse-only. As duas closures
-seguintes são shape/excerpt para mostrar capture; não formam um source unit
-completo neste bloco.
+Esta unidade completa é source-backed de
+[execution.w](reference/syntax-atlas/execution.w). Ela mostra quatro modos de
+capture e as chamadas que os consomem.
 
 ```w
-export fn describe<ID, _ limit: usize>(
-  value: ID,
-  each labels: String...,
-): String throws Signal {
-  return labels[0]
+fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared String): String {
+  let copyCapture = <[copy target]>() => target
+  let refCapture = <[ref borrowed]>() => borrowed
+  let takeCapture = <[take moved]>() => moved
+  let weakCapture = <[weak sharedValue]>() => sharedValue
+  let _ = copyCapture()
+  let _ = refCapture()
+  let _ = takeCapture()
+  let _ = weakCapture()
+  return target
 }
-
-let byCopy = <[copy target]>(value: String): String { return value }
-let byRef = <[ref borrowed]>(value: String): String { return value }
 ```
 
 Labels externos, labels obrigatórios, defaults, rest (each), static, const,
@@ -378,20 +380,39 @@ biblioteca executável.
 
 ### Allocators e orçamento
 
-O bloco seguinte é shape/excerpt com três scopes. Cada forma individual é
-current; o agrupamento não é um source unit completo.
+Esta unidade completa é source-backed de
+[execution.w](reference/syntax-atlas/execution.w). Os três scopes vivem no
+corpo de `prepare`.
 
 ```w
-allocator scratch: .fixed<capacity: 128> {
-  let value = "temporary"
+fn stage(allocator destination: ref Allocator, city: String): String {
+  return city
 }
 
-allocator .root {
-  let longLived = "owned by root"
-}
-
-allocator .none {
-  // operações que não podem alocar neste escopo
+fn prepare(city: String): String {
+  var result = city
+  allocator scratch: .fixed<capacity: 256> {
+    let ref name = city
+    var copyOfName = city
+    let inout writableName = copyOfName
+    var atomic count: usize = 0
+    count += 1
+    let moved = take writableName
+    result = moved
+    let staged = stage(city)
+    let _ = staged
+  }
+  allocator .fixed<capacity: 128> {
+    let _ = result.bytes.count
+  }
+  allocator .root {
+    let rootName = result.bytes.count
+    let _ = rootName
+  }
+  try allocator .none {
+    let _ = result.bytes.count
+  }
+  return result
 }
 ```
 
@@ -408,13 +429,37 @@ if pode ser statement ou value block. guard encerra o caminho atual. switch
 deve respeitar exhaustividade para enums e patterns fechados. for, while,
 repeat, break, continue e return seguem os efeitos e ownership do corpo.
 
-O trecho seguinte é shape/excerpt: guard exige um body enclosing.
+Esta unidade completa é source-backed de
+[execution.w](reference/syntax-atlas/execution.w). O `guard` está dentro de
+um corpo enclosing.
 
 ```w
-let label = if target == "north" { "day" } else { "night" }
-
-guard source.count > 0 else {
-  throw .corruptRecord(0)
+fn walk(values: Array<i32>): i32 throws String {
+  var total = 0
+  rows: for ref value in values {
+    for column in [value] {
+      if column < 0 {
+        continue rows
+      } else {
+        total += column
+      }
+    }
+  }
+  var index = 0
+  while index < 3 {
+    index += 1
+  }
+  repeat {
+    total += 1
+  } while total < 4
+  do {
+    if total > 8 { break }
+  } catch {
+    total = 0
+  }
+  guard total >= 0 else { throw "negative" }
+  defer { total += 1 }
+  return total
 }
 ```
 
@@ -483,16 +528,52 @@ diagnósticos ainda é um gap do frontend/runtime.
 
 ### Effects e expressões restritas
 
-O trecho seguinte é shape/excerpt de expressions restritas, não um source unit
-completo.
+Esta unidade completa é source-backed de
+[execution.w](reference/syntax-atlas/execution.w). Ela fecha os helpers para
+que cada expressão restrita tenha contexto de parsing.
 
 ```w
-let first = try await direct
-let optional = try? await fetch("west")
-let guarded = lock target as city { city }
-let transactionValue = transaction<.serial> tx = target { commit tx }
-let unsafeValue = unsafe { target }
-let pinned = pin target
+struct AtlasLease {
+  target: String
+}
+
+fn acquireLease(target: String): AtlasLease {
+  return AtlasLease(target: target)
+}
+
+fn prepareLease(lease: AtlasLease): String {
+  return lease.target
+}
+
+async fn restricted(target: String): String throws String {
+  let captured = <[copy target]>(name) => name
+  let value = if target == "north" { "day" } else { "night" }
+  let range = 1..<4
+  let (lease, ready) = try await pipeline {
+    let lease = acquireLease(target)
+    let ready = prepareLease(lease)
+    return (lease, ready)
+  }
+  let guarded = lock target as city {
+    city
+  }
+  let transactionValue = transaction<.serial> tx = target {
+    commit tx
+  }
+  let unsafeValue = unsafe {
+    target
+  }
+  let pinned = pin target
+  let _ = captured
+  let _ = range
+  let _ = lease
+  let _ = ready
+  let _ = guarded
+  let _ = transactionValue
+  let _ = unsafeValue
+  let _ = pinned
+  return target
+}
 ```
 
 await, throws, unsafe, lock, transaction, pin e defer async formam efeitos
@@ -563,7 +644,8 @@ Uma call dependente usa `pipeline`. O caso `OvenLease` mostra a ordem concreta:
 `prepareDish` em [restaurant.w](reference/last-light/restaurant.w), incluindo
 o `spawn` da mistura, o pipeline, o cleanup e o `await` da mistura.
 
-```w
+```w excerpt
+// excerpt-source: reference/last-light/restaurant.w::prepareDish
   spawn<.compute> let mixture = mix(stock.ingredients, recipe: schedule.recipe)
 
   let (lease, ready) = try await pipeline {
@@ -595,7 +677,8 @@ como no excerpt acima.
 Contrafactual explicativa (não é excerpt source-backed): o mesmo trabalho com
 awaits sequenciais é mais simples, mas cria uma barreira entre cada call:
 
-```w
+```w excerpt
+// excerpt-kind: contrafactual
 let lease = try await ovens.acquire(recipe.target, duration: recipe.duration)
 let ready = try await lease.preheat()
 let dish = try await lease.bake(take mixture, readiness: take ready)
@@ -609,7 +692,8 @@ round trips adicionais. Ela não faz promise pipelining.
 `async let` expressa children independentes que o parent deve aguardar. Ele não
 expressa a dependência `lease → preheat` sem primeiro aguardar o lease:
 
-```w
+```w excerpt
+// excerpt-kind: composed
 async let leaseTask = ovens.acquire(recipe.target, duration: recipe.duration)
 let lease = try await leaseTask
 let ready = try await lease.preheat()
@@ -674,19 +758,39 @@ Contrato: [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação),
 
 ### Atomic e locks
 
-O trecho seguinte é shape/excerpt: a declaração object e a expressão lock
-costumam viver em scopes distintos.
+Esta unidade completa é source-backed de
+[synchronization.w](reference/last-light/synchronization.w). O objeto mantém
+estado compartilhado e publica snapshots por lock.
 
 ```w
-object BrigadeMetrics {
-  var atomic completed: u64 = 0
-
-  fn recordCompletion() {
-    completed.saturatingAdd<.relaxed>(1)
-  }
+export struct ApologyLedgerState: Duplicable {
+  revision: u64
+  messages: Array<String>
 }
 
-let guarded = lock target as city { city }
+export object ThreadApologyLedger {
+  state: shared ApologyLedgerState
+
+  export init() {
+    self.state = ApologyLedgerState(revision: 0, messages: [])
+  }
+
+  fn record(message: take String): u64 {
+    return lock state as ledger {
+      ledger.messages.append(take message)
+      ledger.revision += 1
+      ledger.revision
+    }
+  }
+
+  fn snapshot(): ApologyLedgerState {
+    return lock state as ledger { copy ledger }
+  }
+
+  fn trySnapshot(): LockAttempt<ApologyLedgerState> {
+    return try lock state as ledger { copy ledger }
+  }
+}
 ```
 
 O [oracle de sincronização](reference/last-light/synchronization.w) também
@@ -985,15 +1089,17 @@ execução.
 Excerpt de `recoverGuest`: `guests` e `guestId` entram na consulta e o
 resultado é um `ref Guest` ou `ServiceLookupError`.
 
-```w
-return try requireGuest(guests, id: guestId)
+```w excerpt
+// excerpt-source: reference/last-light/failure.w::recoverGuest
+    return try requireGuest(guests, id: guestId)
 ```
 
 Excerpt de `decodeWithCleanup`: o scope registra o cleanup antes de operar e o
 fecha na saída normal ou de erro.
 
-```w
-defer { cleanupTrace.append(.closed) }
+```w excerpt
+// excerpt-source: reference/last-light/failure.w::decodeWithCleanup
+  defer { cleanupTrace.append(.closed) }
 ```
 
 As duas linhas são de [failure.w](reference/last-light/failure.w), mas vêm de
@@ -1001,7 +1107,8 @@ funções diferentes; elas não formam uma sequência executável nova.
 
 ### Stream e channel
 
-```w
+```w excerpt
+// excerpt-kind: composed
 // entrada: dois valores Order -> channel bounded
 let (output, input) = Channel<Order>.open(capacity: 1)
 async let firstSend = submitOrder(copy output, take first)
@@ -1021,7 +1128,8 @@ consomem os outcomes de envio e mantêm o erro de channel explícito.
 
 ### Quantity e matriz
 
-```w
+```w excerpt
+// excerpt-kind: composed
 // entrada: unidades de duração equivalentes
 let fromSeconds: PhysicalDuration = 30<si.s>
 let fromMinutes: PhysicalDuration = 0.5<si.min>
@@ -1035,7 +1143,8 @@ entram e produzem um valor canônico. Para uma matriz, o excerpt de
 [horizon.w](reference/last-light/horizon.w) mantém shape e modo numérico no
 call site:
 
-```w
+```w excerpt
+// excerpt-kind: composed
 // entrada: features de window + matriz de calibration
 let calibrated = window.features @ calibration
 let means = calibrated.mean(axis: 0, mode: .reproducible)
@@ -1047,12 +1156,14 @@ Aqui a entrada é `window` mais `calibration`; o resultado é a matriz centrada.
 
 ### Package, module e invocation
 
-```w
+```w excerpt
+// excerpt-kind: manifest-fragment
 module: "app"
 entry: "LastLightTui"
 ```
 
-```w
+```w excerpt
+// excerpt-source: reference/last-light/app.w::entry LastLightTui
 entry LastLightTui(runTuiEntry)
 ```
 
