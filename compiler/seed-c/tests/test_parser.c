@@ -216,6 +216,232 @@ static bool has_direct_text(const fixture *fixture_value,
   return false;
 }
 
+static bool has_issue(const fixture *fixture_value,
+                      w_seed_parse_issue_kind kind);
+
+static size_t count_kind(const fixture *fixture_value, w_seed_cst_kind kind) {
+  size_t count = 0;
+  for (size_t index = 0; index < fixture_value->result.node_count; index += 1) {
+    if (fixture_value->nodes[index].kind == kind) count += 1;
+  }
+  return count;
+}
+
+static bool test_for_control_shapes(void) {
+  static const char f0_text[] =
+      "fn scan(rows:Rows){scanRows:for ref row in rows{for value in row{"
+      "if value==0{continue scanRows} if value>31{break scanRows}"
+      " consume(value)}}}\n";
+  fixture value;
+  CHECK(fixture_init(&value, f0_text,
+                     sizeof(value.nodes) / sizeof(value.nodes[0]),
+                     sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value.result.issue_count == 0);
+  CHECK(check_leaf_partition(&value));
+  CHECK(check_tree_links(&value));
+  CHECK(count_kind(&value, W_SEED_CST_FOR_STATEMENT) == 2);
+  CHECK(count_kind(&value, W_SEED_CST_LABEL) == 1);
+  const w_seed_cst_index label = first_kind(&value, W_SEED_CST_LABEL);
+  CHECK(label != W_SEED_CST_NONE);
+  const w_seed_cst_index outer_for =
+      direct_child_after(&value, label, W_SEED_CST_FOR_STATEMENT, 0);
+  CHECK(outer_for != W_SEED_CST_NONE);
+  CHECK(has_direct_text(&value, outer_for, W_SEED_CST_WORD, "ref"));
+  const w_seed_cst_index outer_block =
+      direct_child_after(&value, outer_for, W_SEED_CST_BLOCK, 0);
+  CHECK(outer_block != W_SEED_CST_NONE);
+  const w_seed_cst_index nested_for =
+      direct_child_after(&value, outer_block, W_SEED_CST_FOR_STATEMENT, 0);
+  CHECK(nested_for != W_SEED_CST_NONE);
+  const w_seed_cst_index continue_node =
+      first_kind(&value, W_SEED_CST_CONTINUE_STATEMENT);
+  const w_seed_cst_index break_node = first_kind(&value, W_SEED_CST_BREAK_STATEMENT);
+  CHECK(continue_node != W_SEED_CST_NONE);
+  CHECK(break_node != W_SEED_CST_NONE);
+  CHECK(node_span_text(&value, continue_node, "continue scanRows"));
+  CHECK(node_span_text(&value, break_node, "break scanRows"));
+
+  fixture repeated;
+  CHECK(fixture_init(&repeated, f0_text,
+                     sizeof(repeated.nodes) / sizeof(repeated.nodes[0]),
+                     sizeof(repeated.issues) / sizeof(repeated.issues[0])));
+  CHECK(memcmp(&value.result, &repeated.result, sizeof(value.result)) == 0);
+  CHECK(memcmp(value.nodes, repeated.nodes,
+               value.result.node_count * sizeof(value.nodes[0])) == 0);
+  CHECK(memcmp(value.issues, repeated.issues,
+               value.result.issue_count * sizeof(value.issues[0])) == 0);
+
+  static const char witness_text[] =
+      "fn scan(rows:Rows){assembleWord:{scanRows:for ref row in rows{"
+      "for value in row{if value==0{continue scanRows}"
+      " if value>31{break assembleWord}}}}}\n";
+  fixture witness;
+  CHECK(fixture_init(&witness, witness_text,
+                     sizeof(witness.nodes) / sizeof(witness.nodes[0]),
+                     sizeof(witness.issues) / sizeof(witness.issues[0])));
+  CHECK(witness.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(witness.result.issue_count == 0);
+  CHECK(check_leaf_partition(&witness));
+  CHECK(check_tree_links(&witness));
+  CHECK(count_kind(&witness, W_SEED_CST_LABEL) == 2);
+  CHECK(count_kind(&witness, W_SEED_CST_FOR_STATEMENT) == 2);
+  const w_seed_cst_index outer_label = first_kind(&witness, W_SEED_CST_LABEL);
+  CHECK(outer_label != W_SEED_CST_NONE);
+  const w_seed_cst_index labeled_block =
+      direct_child_after(&witness, outer_label, W_SEED_CST_BLOCK, 0);
+  CHECK(labeled_block != W_SEED_CST_NONE);
+  const w_seed_cst_index inner_label =
+      direct_child_after(&witness, labeled_block, W_SEED_CST_LABEL, 0);
+  CHECK(inner_label != W_SEED_CST_NONE);
+  CHECK(direct_child_after(&witness, inner_label, W_SEED_CST_FOR_STATEMENT, 0) !=
+        W_SEED_CST_NONE);
+  const w_seed_cst_index witness_break =
+      first_kind(&witness, W_SEED_CST_BREAK_STATEMENT);
+  CHECK(witness_break != W_SEED_CST_NONE);
+  CHECK(node_span_text(&witness, witness_break, "break assembleWord"));
+  return true;
+}
+
+static bool test_for_markers_and_iterables(void) {
+  static const char marker_text[] =
+      "fn markers(rows:Rows){for ref row in rows{}for inout item in rows{}"
+      "for copy value in rows{}}\n";
+  fixture markers;
+  CHECK(fixture_init(&markers, marker_text,
+                     sizeof(markers.nodes) / sizeof(markers.nodes[0]),
+                     sizeof(markers.issues) / sizeof(markers.issues[0])));
+  CHECK(markers.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(markers.result.issue_count == 0);
+  CHECK(count_kind(&markers, W_SEED_CST_FOR_STATEMENT) == 3);
+  CHECK(check_leaf_partition(&markers));
+  CHECK(check_tree_links(&markers));
+  const w_seed_cst_index marker_block = first_kind(&markers, W_SEED_CST_BLOCK);
+  CHECK(marker_block != W_SEED_CST_NONE);
+  const w_seed_cst_index ref_loop =
+      direct_child_after(&markers, marker_block, W_SEED_CST_FOR_STATEMENT, 0);
+  const w_seed_cst_index inout_loop =
+      direct_child_after(&markers, marker_block, W_SEED_CST_FOR_STATEMENT, 1);
+  const w_seed_cst_index copy_loop =
+      direct_child_after(&markers, marker_block, W_SEED_CST_FOR_STATEMENT, 2);
+  CHECK(ref_loop != W_SEED_CST_NONE);
+  CHECK(inout_loop != W_SEED_CST_NONE);
+  CHECK(copy_loop != W_SEED_CST_NONE);
+  CHECK(has_direct_text(&markers, ref_loop, W_SEED_CST_WORD, "ref"));
+  CHECK(has_direct_text(&markers, inout_loop, W_SEED_CST_WORD, "inout"));
+  CHECK(has_direct_text(&markers, copy_loop, W_SEED_CST_WORD, "copy"));
+
+  fixture expression;
+  CHECK(fixture_init(&expression,
+                     "fn expr(rows:Rows,flags:Flags){for row in rows in flags{}"
+                     "for value in (rows[0]){}}\n",
+                     sizeof(expression.nodes) / sizeof(expression.nodes[0]),
+                     sizeof(expression.issues) / sizeof(expression.issues[0])));
+  CHECK(expression.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(expression.result.issue_count == 0);
+  CHECK(count_kind(&expression, W_SEED_CST_FOR_STATEMENT) == 2);
+  CHECK(check_leaf_partition(&expression));
+  CHECK(check_tree_links(&expression));
+  return true;
+}
+
+static bool test_for_control_recovery(void) {
+  static const struct {
+    const char *text;
+    w_seed_parse_issue_kind issue;
+  } recovered[] = {
+      {"fn f(rows:Rows){for ref in rows{}}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(rows:Rows){for in rows{}}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(rows:Rows){for ref row rows{}}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(rows:Rows){for ref row in {}}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(rows:Rows){for ref row in rows}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"fn f(rows:Rows){for ref row in rows{}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+  };
+  for (size_t index = 0; index < sizeof(recovered) / sizeof(recovered[0]);
+       index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, recovered[index].text,
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(value.result.issue_count >= 1);
+    CHECK(value.issues[0].kind == recovered[index].issue);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+  }
+
+  fixture binder_recovery;
+  CHECK(fixture_init(&binder_recovery, "fn f(rows:Rows){for ref in rows{}}\n",
+                     sizeof(binder_recovery.nodes) /
+                         sizeof(binder_recovery.nodes[0]),
+                     sizeof(binder_recovery.issues) /
+                         sizeof(binder_recovery.issues[0])));
+  CHECK(binder_recovery.result.status == W_SEED_PARSE_RECOVERED);
+  const w_seed_cst_index recovered_for =
+      first_kind(&binder_recovery, W_SEED_CST_FOR_STATEMENT);
+  CHECK(recovered_for != W_SEED_CST_NONE);
+  CHECK(direct_child_after(&binder_recovery, recovered_for, W_SEED_CST_BLOCK, 0) !=
+        W_SEED_CST_NONE);
+  CHECK(check_leaf_partition(&binder_recovery));
+  CHECK(check_tree_links(&binder_recovery));
+
+  fixture unsupported;
+  CHECK(fixture_init(&unsupported, "fn f(rows:Rows){outer:while rows{}}\n",
+                     sizeof(unsupported.nodes) / sizeof(unsupported.nodes[0]),
+                     sizeof(unsupported.issues) / sizeof(unsupported.issues[0])));
+  CHECK(unsupported.result.status == W_SEED_PARSE_FATAL);
+  CHECK(unsupported.result.issue_count == 1);
+  CHECK(unsupported.issues[0].kind == W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+  CHECK(check_leaf_partition(&unsupported));
+  CHECK(check_tree_links(&unsupported));
+
+  fixture root;
+  CHECK(fixture_init(&root, "for row in rows{}\n",
+                     sizeof(root.nodes) / sizeof(root.nodes[0]),
+                     sizeof(root.issues) / sizeof(root.issues[0])));
+  CHECK(root.result.status == W_SEED_PARSE_FATAL);
+  CHECK(root.result.issue_count == 1);
+  CHECK(root.issues[0].kind == W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+  CHECK(check_leaf_partition(&root));
+  CHECK(check_tree_links(&root));
+  static const char *const unsupported_markers[] = {
+      "fn f(rows:Rows){for async value in rows{}}\n",
+      "fn f(rows:Rows){for await value in rows{}}\n",
+      "fn f(rows:Rows){for try await value in rows{}}\n",
+      "fn f(rows:Rows){for take value in rows{}}\n",
+  };
+  for (size_t index = 0;
+       index < sizeof(unsupported_markers) / sizeof(unsupported_markers[0]);
+       index += 1) {
+    fixture marker;
+    CHECK(fixture_init(&marker, unsupported_markers[index],
+                       sizeof(marker.nodes) / sizeof(marker.nodes[0]),
+                       sizeof(marker.issues) / sizeof(marker.issues[0])));
+    CHECK(marker.result.status == W_SEED_PARSE_FATAL);
+    CHECK(marker.result.issue_count == 1);
+    CHECK(marker.issues[0].kind == W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    CHECK(check_leaf_partition(&marker));
+    CHECK(check_tree_links(&marker));
+  }
+  fixture take_iterable;
+  CHECK(fixture_init(&take_iterable, "fn f(rows:Rows){for row in take rows{}}\n",
+                     sizeof(take_iterable.nodes) /
+                         sizeof(take_iterable.nodes[0]),
+                     sizeof(take_iterable.issues) /
+                         sizeof(take_iterable.issues[0])));
+  CHECK(take_iterable.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(take_iterable.result.issue_count == 0);
+  CHECK(check_leaf_partition(&take_iterable));
+  CHECK(check_tree_links(&take_iterable));
+  return true;
+}
+
 static bool test_phase2_declaration_tree(void) {
   static const char text[] =
       "import {Command,Result} from command\n"
@@ -791,6 +1017,9 @@ int main(void) {
   CHECK(test_phase2_prefix_forms());
   CHECK(test_phase2_fatal_boundaries());
   CHECK(test_phase2_recovery_mutations());
+  CHECK(test_for_control_shapes());
+  CHECK(test_for_markers_and_iterables());
+  CHECK(test_for_control_recovery());
   (void)puts("Seed C parser: caller-owned CST, recovery and P0a hand cases passed");
   return 0;
 }

@@ -55,6 +55,7 @@ typedef enum {
   W_SEED_CST_TEST,
   W_SEED_CST_EXPECT_STATEMENT,
   W_SEED_CST_ARGUMENT,
+  W_SEED_CST_FOR_STATEMENT,
 } w_seed_cst_kind;
 
 enum {

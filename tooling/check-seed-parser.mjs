@@ -19,6 +19,7 @@ const selectedIds = [
   "F0-compact-declarations",
   "F0-multiline-signature-and-call",
   "F0-parameter-contract-placement",
+  "F0-labeled-control",
   "F0-contextual-named-parameter",
   "F0-consuming-receiver-grouping",
   "F0-const-call-parameter",
@@ -30,7 +31,11 @@ const CST = Object.freeze({
   DOCUMENT: 0,
   FUNCTION: 2,
   BLOCK: 7,
+  LABEL: 13,
+  BREAK: 14,
+  CONTINUE: 15,
   EXPRESSION: 17,
+  WORD: 25,
   ARRAY: 20,
   ERROR: 21,
   MISSING: 22,
@@ -41,6 +46,7 @@ const CST = Object.freeze({
   TEST: 35,
   EXPECT: 36,
   ARGUMENT: 37,
+  FOR: 38,
 })
 
 function fail(message) {
@@ -236,6 +242,64 @@ function assertRepeatArray(parsed, bytes, label) {
   }
 }
 
+function assertLabeledControl(parsed, bytes, label) {
+  assertClean(parsed, label)
+  const loops = parsed.nodes.filter((node) => node.kind === CST.FOR)
+  const labels = parsed.nodes.filter((node) => node.kind === CST.LABEL)
+  if (loops.length !== 2 || labels.length !== 1) {
+    fail(`${label} does not contain one label and two FOR nodes`)
+  }
+  const labelNode = labels[0]
+  const outerLoop = directKind(parsed, labelNode.index, CST.FOR)[0]
+  if (!outerLoop) fail(`${label} LABEL does not own FOR directly`)
+  if (!directKind(parsed, outerLoop.index, CST.BLOCK).length) {
+    fail(`${label} outer FOR does not own BLOCK directly`)
+  }
+  const outerBlock = directKind(parsed, outerLoop.index, CST.BLOCK)[0]
+  if (directKind(parsed, outerBlock.index, CST.FOR).length !== 1) {
+    fail(`${label} outer FOR block does not own nested FOR`)
+  }
+  if (!directKind(parsed, outerLoop.index, CST.WORD).some((node) => nodeText(parsed, bytes, node) === "ref")) {
+    fail(`${label} FOR ownership marker is not a raw source leaf`)
+  }
+  const continueNode = parsed.nodes.find((node) => node.kind === CST.CONTINUE)
+  const breakNode = parsed.nodes.find((node) => node.kind === CST.BREAK)
+  if (!continueNode || !breakNode || nodeText(parsed, bytes, continueNode).trimEnd() !== "continue scanRows" ||
+      nodeText(parsed, bytes, breakNode).trimEnd() !== "break scanRows") {
+    fail(`${label} break/continue label spans are not source-shaped`)
+  }
+}
+
+function assertLabeledBlockWitness(parsed, bytes) {
+  assertClean(parsed, "labeled-block-for-witness")
+  const labels = parsed.nodes.filter((node) => node.kind === CST.LABEL)
+  if (labels.length !== 2) fail("labeled block witness does not contain two labels")
+  const blockLabel = labels.find((node) => directKind(parsed, node.index, CST.BLOCK).length === 1)
+  if (!blockLabel) fail("labeled block witness LABEL does not own BLOCK")
+  const block = directKind(parsed, blockLabel.index, CST.BLOCK)[0]
+  const nestedLabel = directKind(parsed, block.index, CST.LABEL)[0]
+  if (!nestedLabel || directKind(parsed, nestedLabel.index, CST.FOR).length !== 1) {
+    fail("labeled block witness BLOCK does not own LABEL->FOR")
+  }
+  const breakNode = parsed.nodes.find((node) => node.kind === CST.BREAK)
+  if (!breakNode || nodeText(parsed, bytes, breakNode).trimEnd() !== "break assembleWord") {
+    fail("labeled block witness break label span is not source-shaped")
+  }
+}
+
+function assertMarkerVector(parsed, bytes) {
+  assertClean(parsed, "for-marker-vector")
+  const block = parsed.nodes.find((node) => node.kind === CST.BLOCK)
+  if (!block) fail("for-marker-vector has no function block")
+  const loops = directKind(parsed, block.index, CST.FOR)
+  if (loops.length !== 3) fail("for-marker-vector does not contain three FOR nodes")
+  for (const [loop, marker] of loops.map((node, index) => [node, ["ref", "inout", "copy"][index]])) {
+    if (!directKind(parsed, loop.index, CST.WORD).some((node) => nodeText(parsed, bytes, node) === marker)) {
+      fail(`for-marker-vector is missing raw marker ${marker}`)
+    }
+  }
+}
+
 function assertFormattingWitness(parsed, bytes) {
   assertClean(parsed, "formatting.w")
   const imports = parsed.nodes.filter((node) => node.kind === CST.IMPORT)
@@ -340,6 +404,10 @@ async function main() {
         assertRepeatArray(inputParsed, input, `${id}:input`)
         assertRepeatArray(outputParsed, output, `${id}:output`)
       }
+      if (id === "F0-labeled-control") {
+        assertLabeledControl(inputParsed, input, `${id}:input`)
+        assertLabeledControl(outputParsed, output, `${id}:output`)
+      }
       if (inputParsed.signature !== second.signature) fail(`${id} CST signature is not deterministic`)
       if (inputParsed.nodes.length === 0 || outputParsed.nodes.length === 0) fail(`${id} has no CST nodes`)
     }
@@ -373,6 +441,22 @@ async function main() {
       ["expect-outside-test", Buffer.from("fn f(){expect value == other}\n"), "fatal", 6],
       ["root-const-fail-closed", Buffer.from("const value:T\n"), "fatal", 6],
       ["root-take-fail-closed", Buffer.from("take value\n"), "fatal", 6],
+      ["for-marker-vector", Buffer.from("fn markers(rows:Rows){for ref row in rows{}for inout item in rows{}for copy value in rows{}}\n"), "complete"],
+      ["for-in-operator-and-nested", Buffer.from("fn expr(rows:Rows,flags:Flags){for row in rows in flags{}for value in (rows[0]){}}\n"), "complete"],
+      ["labeled-block-for-witness", Buffer.from("fn scan(rows:Rows){assembleWord:{scanRows:for ref row in rows{for value in row{if value==0{continue scanRows} if value>31{break assembleWord}}}}}\n"), "complete"],
+      ["for-missing-binder", Buffer.from("fn f(rows:Rows){for ref in rows{}}\n"), "recovered", 1],
+      ["for-missing-unqualified-binder", Buffer.from("fn f(rows:Rows){for in rows{}}\n"), "recovered", 1],
+      ["for-missing-in", Buffer.from("fn f(rows:Rows){for ref row rows{}}\n"), "recovered", 1],
+      ["for-missing-iterable", Buffer.from("fn f(rows:Rows){for ref row in {}}\n"), "recovered", 1],
+      ["for-missing-block", Buffer.from("fn f(rows:Rows){for ref row in rows}\n"), "recovered", 2],
+      ["for-missing-close", Buffer.from("fn f(rows:Rows){for ref row in rows{}\n"), "recovered", 2],
+      ["while-labeled-stop", Buffer.from("fn f(rows:Rows){outer:while rows{}}\n"), "fatal", 6],
+      ["root-for-fail-closed", Buffer.from("for row in rows{}\n"), "fatal", 6],
+      ["for-async-marker", Buffer.from("fn f(rows:Rows){for async value in rows{}}\n"), "fatal", 6],
+      ["for-await-marker", Buffer.from("fn f(rows:Rows){for await value in rows{}}\n"), "fatal", 6],
+      ["for-try-await-marker", Buffer.from("fn f(rows:Rows){for try await value in rows{}}\n"), "fatal", 6],
+      ["for-take-marker", Buffer.from("fn f(rows:Rows){for take value in rows{}}\n"), "fatal", 6],
+      ["for-take-iterable", Buffer.from("fn f(rows:Rows){for row in take rows{}}\n"), "complete"],
       ["missing-parameter-colon", Buffer.from("fn f(a T){}\n"), "recovered", 1],
       ["missing-parameter-close", Buffer.from("fn f(a:T{}\n"), "recovered", 2],
       ["missing-import-close", Buffer.from("import {x from module.path\n"), "recovered", 2],
@@ -380,6 +464,19 @@ async function main() {
     ]
     for (const [label, bytes, status, issue] of handCases) {
       const parsed = invoke(probe, bytes, label, status, issue)
+      if ((label.startsWith("for-") || label === "while-labeled-stop") && issue !== undefined &&
+          parsed.issues[0]?.kind !== issue) {
+        fail(`${label} first issue ${parsed.issues[0]?.kind} != ${issue}`)
+      }
+      if (label === "for-marker-vector") assertMarkerVector(parsed, bytes)
+      if (label === "for-take-iterable") assertClean(parsed, label)
+      if (label === "labeled-block-for-witness") {
+        assertLabeledBlockWitness(parsed, bytes)
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} CST signature is not deterministic`)
+        }
+      }
       if (status === "fatal" && parsed.result.issueCount !== 1) {
         fail(`${label} fatal result has ${parsed.result.issueCount} issues, expected one`)
       }

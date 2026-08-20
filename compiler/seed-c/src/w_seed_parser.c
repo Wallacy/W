@@ -840,6 +840,36 @@ static bool parse_repeat_statement(w_seed_parser *parser) {
   return parse_repeat_after_keyword(parser, current_span(parser).start_byte);
 }
 
+static bool parse_for_statement(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_FOR_STATEMENT, start) == W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "for", NULL);
+  if (current_is_text(parser, "async") || current_is_text(parser, "await") ||
+      current_is_text(parser, "try") || current_is_text(parser, "take")) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    return false;
+  }
+  if (current_is_text(parser, "ref") || current_is_text(parser, "inout") ||
+      current_is_text(parser, "copy")) {
+    (void)consume_current(parser, NULL);
+  }
+  if (current_is_text(parser, "in") ||
+      !current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+  } else {
+    (void)consume_current(parser, NULL);
+  }
+  if (!expect_text(parser, "in", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+      !parse_expression(parser, 1, false) || !parse_block(parser, false)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
 static bool parse_break_statement(w_seed_parser *parser, bool continuation) {
   const size_t start = current_span(parser).start_byte;
   const w_seed_cst_kind kind = continuation ? W_SEED_CST_CONTINUE_STATEMENT
@@ -859,12 +889,20 @@ static bool parse_label_statement(w_seed_parser *parser) {
   if (push_node(parser, W_SEED_CST_LABEL, start) == W_SEED_CST_NONE)
     return false;
   (void)consume_current(parser, NULL);
-  if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
-      !current_is_text(parser, "repeat")) {
+  if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
     stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
     return false;
   }
-  if (!parse_repeat_statement(parser)) return false;
+  if (current_is_text(parser, "repeat")) {
+    if (!parse_repeat_statement(parser)) return false;
+  } else if (current_is_text(parser, "for")) {
+    if (!parse_for_statement(parser)) return false;
+  } else if (current_is_text(parser, "{")) {
+    if (!parse_block(parser, false)) return false;
+  } else {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    return false;
+  }
   pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
   return true;
 }
@@ -904,6 +942,7 @@ static bool parse_statement(w_seed_parser *parser) {
   if (current_is_text(parser, "return")) return parse_return_statement(parser);
   if (current_is_text(parser, "if")) return parse_if_statement(parser);
   if (current_is_text(parser, "repeat")) return parse_repeat_statement(parser);
+  if (current_is_text(parser, "for")) return parse_for_statement(parser);
   if (current_is_text(parser, "break")) return parse_break_statement(parser, false);
   if (current_is_text(parser, "continue"))
     return parse_break_statement(parser, true);

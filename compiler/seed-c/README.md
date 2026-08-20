@@ -36,10 +36,12 @@ ordinários no topo, `fn` com parâmetros simples e requirements
 `ref`/`inout`/`take`/`const`, retorno opcional (incluindo `()`), `throws Type`,
 `entry(name)`, `struct` simples exportável com fields, `test "..." for name`
 com `expect`, blocos, `let`, `return`, `if`/`else`, `repeat`/`while`, arrays
-repetidos `[expression; expression]`, labels,
-`break`/`continue`, argumentos posicionais ou `label: expression` e os
-prefixos sintáticos `copy`/`take`/`pin`/`inout`/`ref`. O parser Pratt
-delimitado é usado pelos quinze casos F0 selecionados. A tabela de
+repetidos `[expression; expression]`, `for` com marcador opcional
+`ref`/`inout`/`copy`, um binder WORD, `in expression` e bloco, labels para
+`repeat`, `for` ou bloco, `break`/`continue`, argumentos posicionais ou
+`label: expression` e os prefixos sintáticos `copy`/`take`/`pin`/`inout`/`ref`.
+O parser Pratt
+delimitado é usado pelos dezesseis casos F0 selecionados. A tabela de
 reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
 bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;
 isso é reconhecimento sintático, não uma declaração de semântica, tipos ou
@@ -50,6 +52,9 @@ do source. O parser mantém somente lookahead caller-owned e frames caller-owned
 capacity exhaustion é fatal determinístico. Cada instância é single-use: a
 primeira chamada a `w_seed_parser_parse` consome o parser; uma segunda chamada
 retorna `false` sem alterar o resultado ou os buffers caller-owned.
+
+Esta fatia de `for` não inclui `async`, patterns de destructuring ou `take` como
+marcador de iteração; um rótulo aplicado a `while` permanece STOP.
 
 O lexer continua emitindo `>>` como uma folha raw de dois bytes. Um owner de
 type cria duas `w_seed_parse_token_view` virtuais sem duplicar a folha; um owner
@@ -82,7 +87,7 @@ O corpus dirigido de lexer também pode ser executado com:
 
     bun tooling/check-seed-lexer.mjs
 
-O parser P0a e os quinze IDs F0 completos (input e output) podem ser
+O parser P0a e os dezesseis IDs F0 completos (input e output) podem ser
 validados com:
 
     bun tooling/check-seed-parser.mjs
