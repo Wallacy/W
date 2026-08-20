@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "w_seed_foreign.h"
 #include "w_seed_lexer.h"
 
 #ifdef __cplusplus
@@ -82,6 +83,8 @@ typedef enum {
   W_SEED_CST_CLOSURE_PARAMETER,
   W_SEED_CST_CAPTURE_EXPRESSION,
   W_SEED_CST_CAPTURE_ITEM,
+  W_SEED_CST_FOREIGN_LANGUAGE_TAG,
+  W_SEED_CST_FOREIGN_BODY_OWNER,
 } w_seed_cst_kind;
 
 enum {
@@ -109,6 +112,7 @@ typedef enum {
   W_SEED_PARSE_ISSUE_SPACED_HEAD, /* W-PARSE-0013 */
   W_SEED_PARSE_ISSUE_VALUE_IF_MISSING_ELSE, /* W-PARSE-0021 */
   W_SEED_PARSE_ISSUE_FOREIGN_UNSUPPORTED,
+  W_SEED_PARSE_ISSUE_FOREIGN_SCANNER,
   W_SEED_PARSE_ISSUE_LEXER,
   W_SEED_PARSE_ISSUE_CAPACITY,
 } w_seed_parse_issue_kind;
@@ -168,6 +172,7 @@ typedef struct {
 
 typedef struct {
   const w_seed_source *source;
+  w_seed_foreign_limits foreign_limits;
   w_seed_lexer lexer;
   w_seed_lexer_frame *lexer_frames;
   size_t lexer_frame_capacity;
@@ -196,8 +201,10 @@ typedef struct {
   bool in_test;
 } w_seed_parser;
 
-/* Initialize over a validated source span. All storage remains caller-owned. */
+/* Initialize over a validated source span. Limits are explicit; no ambient
+ * foreign defaults are selected by this API. All storage remains caller-owned. */
 bool w_seed_parser_init(const w_seed_source *source, w_seed_span bounds,
+                        w_seed_foreign_limits foreign_limits,
                         w_seed_lexer_frame *lexer_frames,
                         size_t lexer_frame_capacity,
                         w_seed_parse_token *token_cache,

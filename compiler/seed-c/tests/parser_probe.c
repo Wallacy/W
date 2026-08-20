@@ -19,6 +19,11 @@ enum {
   PROBE_ISSUES = 1024,
 };
 
+static const w_seed_foreign_limits PROBE_FOREIGN_LIMITS = {
+    64u * 1024u,
+    256u,
+};
+
 static uint8_t input_bytes[PROBE_SOURCE_CAPACITY];
 static w_seed_lexer_frame lexer_frames[PROBE_LEXER_FRAMES];
 static w_seed_parse_token tokens[PROBE_TOKENS];
@@ -72,7 +77,8 @@ int main(void) {
   w_seed_lex_error lex_error;
   const w_seed_span bounds = {0, length};
   if (!w_seed_parser_init(
-          &source, bounds, lexer_frames, PROBE_LEXER_FRAMES, tokens,
+          &source, bounds, PROBE_FOREIGN_LIMITS, lexer_frames,
+          PROBE_LEXER_FRAMES, tokens,
           PROBE_TOKENS, nodes, PROBE_NODES, parse_frames, PROBE_PARSE_FRAMES,
           issues, PROBE_ISSUES, &parser, &lex_error)) {
     (void)fprintf(stderr, "error=lexer kind=%d start=%" PRIuMAX "\n",

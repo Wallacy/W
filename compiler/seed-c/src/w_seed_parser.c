@@ -2160,15 +2160,199 @@ static bool parse_parameter_list(w_seed_parser *parser) {
   return true;
 }
 
+static bool foreign_failure(w_seed_parser *parser,
+                            const w_seed_foreign_error *scan_error,
+                            size_t input_start, size_t remainder_start) {
+  size_t primary_offset = input_start;
+  size_t primary_end = input_start;
+  if (scan_error != NULL &&
+      scan_error->primary.start_byte <=
+          parser->lexer.bounds.end_byte - input_start) {
+    primary_offset = input_start + scan_error->primary.start_byte;
+    const size_t relative_end = scan_error->primary.end_byte >=
+                                        scan_error->primary.start_byte
+                                    ? scan_error->primary.end_byte
+                                    : scan_error->primary.start_byte;
+    const size_t available = parser->lexer.bounds.end_byte - input_start;
+    const size_t clamped_end = relative_end <= available ? relative_end : available;
+    primary_end = input_start + clamped_end;
+  }
+  const w_seed_span primary = {primary_offset, primary_end};
+  (void)record_fatal(parser, W_SEED_PARSE_ISSUE_FOREIGN_SCANNER, primary, 0);
+  const size_t safe_remainder_start = remainder_start <= parser->lexer.bounds.end_byte
+                                          ? remainder_start
+                                          : input_start;
+  if (safe_remainder_start < parser->lexer.bounds.end_byte) {
+    (void)add_raw_span(parser, W_SEED_CST_ERROR, W_SEED_CST_FLAG_ERROR,
+                       (w_seed_span){safe_remainder_start,
+                                     parser->lexer.bounds.end_byte});
+  }
+  parser->token_count = 0;
+  parser->lexer.cursor = parser->lexer.bounds.end_byte;
+  parser->lexer.terminal = true;
+  return false;
+}
+
+static bool parse_foreign_language_tag(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (start != parser->last_token_end) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_FOREIGN_UNSUPPORTED);
+    return false;
+  }
+  if (push_node(parser, W_SEED_CST_FOREIGN_LANGUAGE_TAG, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "<", NULL);
+  bool accepted = false;
+  if (current_is_text(parser, "C")) {
+    (void)consume_text(parser, "C", NULL);
+    accepted = true;
+  } else if (current_is_text(parser, "lang")) {
+    (void)consume_text(parser, "lang", NULL);
+    if (expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) &&
+        expect_text(parser, ".", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) &&
+        current_is_text(parser, "c")) {
+      (void)consume_text(parser, "c", NULL);
+      accepted = true;
+    }
+  }
+  if (!accepted) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_FOREIGN_UNSUPPORTED);
+    pop_node(parser, parser->lexer.bounds.end_byte);
+    return false;
+  }
+  if (!expect_text(parser, ">", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_foreign_body(w_seed_parser *parser) {
+  if (!current_is_text(parser, "{")) return false;
+  const size_t opening_start = current_span(parser).start_byte;
+  const size_t body_start = opening_start + 1;
+  if (push_node(parser, W_SEED_CST_FOREIGN_BODY_OWNER, opening_start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "{", NULL);
+  if (parser->token_count != 0 || body_start > parser->lexer.bounds.end_byte) {
+    const w_seed_foreign_error error = {
+        W_SEED_FOREIGN_ERROR_NULL_ARGUMENT,
+        W_SEED_FOREIGN_TERMINAL_NONE,
+        {body_start, body_start},
+        {opening_start, body_start},
+        false,
+        0,
+    };
+    const bool failed = foreign_failure(parser, &error, opening_start, body_start);
+    pop_node(parser, parser->lexer.bounds.end_byte);
+    return failed;
+  }
+
+  const w_seed_byte_view input = {
+      parser->source->bytes.data + opening_start,
+      parser->lexer.bounds.end_byte - opening_start,
+  };
+  w_seed_foreign_source_validation scan;
+  w_seed_foreign_error scan_error;
+  if (!w_seed_foreign_scan_c_inline_1(input, parser->foreign_limits, &scan,
+                                      &scan_error)) {
+    const bool failed = foreign_failure(parser, &scan_error, opening_start, body_start);
+    pop_node(parser, parser->lexer.bounds.end_byte);
+    return failed;
+  }
+  if (scan.body_start_byte != 1 ||
+      scan.body_end_byte < scan.body_start_byte ||
+      scan.close_byte != scan.body_end_byte || scan.next_byte <= scan.close_byte ||
+      scan.next_byte > input.length || !scan.digest_valid ||
+      scan.body_start_byte > input.length ||
+      scan.body_end_byte > input.length) {
+    const w_seed_foreign_error error = {
+        W_SEED_FOREIGN_ERROR_MISSING_CLOSE,
+        W_SEED_FOREIGN_TERMINAL_MISSING_CLOSE,
+        {0, 0},
+        {0, 1},
+        false,
+        0,
+    };
+    const bool failed = foreign_failure(parser, &error, opening_start, body_start);
+    pop_node(parser, parser->lexer.bounds.end_byte);
+    return failed;
+  }
+  const size_t absolute_body_start = opening_start + scan.body_start_byte;
+  const size_t absolute_body_end = opening_start + scan.body_end_byte;
+  const size_t absolute_close = opening_start + scan.close_byte;
+  if (absolute_body_start != parser->lexer.cursor ||
+      absolute_close >= parser->source->bytes.length ||
+      parser->source->bytes.data[absolute_close] != (uint8_t)'}') {
+    const w_seed_foreign_error error = {
+        W_SEED_FOREIGN_ERROR_MISSING_CLOSE,
+        W_SEED_FOREIGN_TERMINAL_MISSING_CLOSE,
+        {absolute_close, absolute_close},
+        {opening_start, body_start},
+        false,
+        0,
+    };
+    const bool failed = foreign_failure(parser, &error, opening_start, body_start);
+    pop_node(parser, parser->lexer.bounds.end_byte);
+    return failed;
+  }
+  w_seed_lex_error lex_error;
+  if (!w_seed_lexer_require_opaque(&parser->lexer, &lex_error) ||
+      !w_seed_lexer_claim_opaque(
+          &parser->lexer, (w_seed_span){absolute_body_start, absolute_body_end},
+          &lex_error)) {
+    const w_seed_foreign_error error = {
+        W_SEED_FOREIGN_ERROR_MISSING_CLOSE,
+        W_SEED_FOREIGN_TERMINAL_MISSING_CLOSE,
+        lex_error.primary,
+        lex_error.opening,
+        false,
+        0,
+    };
+    const bool failed = foreign_failure(parser, &error, opening_start, body_start);
+    pop_node(parser, parser->lexer.bounds.end_byte);
+    return failed;
+  }
+  if (!consume_raw(parser, 0, W_SEED_CST_FOREIGN_BODY, NULL) ||
+      !expect_text(parser, "}", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end
+                                            : parser->lexer.bounds.end_byte);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
 static bool parse_function(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
   if (push_node(parser, W_SEED_CST_FUNCTION, start) == W_SEED_CST_NONE)
     return false;
   if (current_is_text(parser, "export"))
     (void)consume_text(parser, "export", NULL);
+  bool unsafe_prefix = false;
+  if (current_is_text(parser, "unsafe")) {
+    unsafe_prefix = true;
+    (void)consume_text(parser, "unsafe", NULL);
+  }
   if (current_is_text(parser, "async"))
     (void)consume_text(parser, "async", NULL);
   (void)consume_text(parser, "fn", NULL);
+  bool abi_contract = false;
+  bool foreign = false;
+  if (current_is_text(parser, "<") && parser->last_token_end ==
+                                             current_span(parser).start_byte &&
+      next_is_text(parser, "abi")) {
+    abi_contract = parse_contract_envelope(parser, parser->last_token_end, false);
+  } else if (current_is_text(parser, "<")) {
+    foreign = parse_foreign_language_tag(parser);
+  }
+  if (parser->status == W_SEED_PARSE_FATAL) {
+    pop_node(parser, parser->lexer.bounds.end_byte);
+    return false;
+  }
   if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
     append_missing(parser, current_span(parser).start_byte,
                    W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
@@ -2203,7 +2387,16 @@ static bool parse_function(w_seed_parser *parser) {
   }
   if (current_is_text(parser, "borrows") && !parse_borrow_clause(parser))
     return false;
-  if (!parse_block(parser, false)) return false;
+  if (foreign) {
+    if (!parse_foreign_body(parser)) return false;
+  } else {
+    if (unsafe_prefix && !abi_contract) {
+      stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+      pop_node(parser, parser->lexer.bounds.end_byte);
+      return false;
+    }
+    if (!parse_block(parser, false)) return false;
+  }
   pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
   return true;
 }
@@ -2235,6 +2428,7 @@ static void unwind_frames(w_seed_parser *parser, size_t end) {
 }
 
 bool w_seed_parser_init(const w_seed_source *source, w_seed_span bounds,
+                        w_seed_foreign_limits foreign_limits,
                         w_seed_lexer_frame *lexer_frames,
                         size_t lexer_frame_capacity,
                         w_seed_parse_token *token_cache,
@@ -2253,6 +2447,7 @@ bool w_seed_parser_init(const w_seed_source *source, w_seed_span bounds,
   }
   (void)memset(parser, 0, sizeof(*parser));
   parser->source = source;
+  parser->foreign_limits = foreign_limits;
   parser->lexer_frames = lexer_frames;
   parser->lexer_frame_capacity = lexer_frame_capacity;
   parser->token_cache = token_cache;
@@ -2314,6 +2509,7 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
     if (current_is_text(parser, "export")) {
       if (!next_is_text(parser, "fn") &&
           !next_two_are_text(parser, "async", "fn") &&
+          !next_two_are_text(parser, "unsafe", "fn") &&
           !next_is_text(parser, "struct") && !next_is_text(parser, "type") &&
           !next_is_text(parser, "alias")) {
         stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
@@ -2326,7 +2522,8 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
       parser->imports_allowed = false;
       saw_declaration = true;
       if (next_is_text(parser, "fn") ||
-          next_two_are_text(parser, "async", "fn")) {
+          next_two_are_text(parser, "async", "fn") ||
+          next_two_are_text(parser, "unsafe", "fn")) {
         if (!parse_function(parser)) break;
       } else if (next_is_text(parser, "type")) {
         if (!parse_type_or_alias_declaration(parser, false)) break;
@@ -2335,6 +2532,20 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
       } else if (!parse_struct_declaration(parser)) {
         break;
       }
+      continue;
+    }
+    if (current_is_text(parser, "unsafe")) {
+      if (!next_is_text(parser, "fn")) {
+        stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+        break;
+      }
+      if (saw_entry) {
+        stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+        break;
+      }
+      parser->imports_allowed = false;
+      saw_declaration = true;
+      if (!parse_function(parser)) break;
       continue;
     }
     if (current_is_text(parser, "async")) {

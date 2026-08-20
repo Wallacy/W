@@ -1,8 +1,9 @@
 # Tooling inicial de W
 
 > **Status:** Working Draft. Highlighting e o parser incremental experimental
-> são utilizáveis; o seed C possui source reader, lexer lossless e parser seed
-> incremental de CST/recovery sobre 23 IDs F0. Parser normativo do compilador,
+> são utilizáveis; o seed C possui source reader, lexer lossless, scanner C de
+> validação de fonte e parser seed incremental de CST/recovery sobre 28 IDs F0.
+> Parser normativo do compilador,
 > formatter, LSP e compilador ainda não existem.
 
 Este diretório antecipa a experiência de escrever W sem transformar cores em
@@ -61,7 +62,7 @@ compiler, runtime, provider ou execução W.
 | [VS Code/TextMate](vscode-w/README.md) | highlighting lexical local, comentários, pares e indentação | regex tolerante; não produz CST nem diagnósticos |
 | [Tree-sitter](tree-sitter-w/README.md) | parser incremental e queries estruturais sobre o subset candidato | protótipo; o gate do parser normativo está em `DESIGN.md` |
 | Corpus Tree-sitter | positivos e snapshots de CST em `tree-sitter-w/test/corpus/` | execução W ainda não existe |
-| [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) + `check-seed-source-reader.mjs` + `check-seed-lexer.mjs` + `check-seed-unicode.mjs` + `check-seed-parser.mjs` | source reader C11 allocation-free, byte-first, UTF-8 estrito, spans e pontos; lexer lossless com profile Unicode 17.0.0 pinado, itens/trivia e handshake de foreign; parser seed caller-owned/incremental de CST/recovery sobre 23 IDs F0 | componente interno do seed; o parser não é parser normativo/frontend/compiler; checkers validam dados pinados, witnesses e corpus; NFC/resolver, CR isolado, formatter, compiler/typechecker e scanner foreign continuam gaps |
+| [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) + `check-seed-source-reader.mjs` + `check-seed-lexer.mjs` + `check-seed-unicode.mjs` + `check-seed-parser.mjs` + `check-seed-foreign.mjs` | source reader C11 allocation-free, byte-first, UTF-8 estrito, spans e pontos; lexer lossless com profile Unicode 17.0.0 pinado e handshake de foreign; scanner C `c-inline-1` source-validation-only com spans/limites/SHA-256; parser seed caller-owned/incremental de CST/recovery sobre 28 IDs F0 | componente interno do seed; parser/scanner não são frontend/compiler/formatter, adapter ou publicação de build; checkers validam dados pinados, witnesses e corpus; NFC/resolver, CR isolado, compiler/typechecker e integração de adapter continuam gaps |
 | `check-design-examples.mjs` | confirma exemplo local em cada seção normativa terminal | inspeção estrutural; não valida a semântica do exemplo |
 | `check-markdown-links.mjs` | valida targets e anchors locais fora do histórico | não consulta links externos |
 | `design-index.mjs` | gera intervalos e métricas separadas de `DESIGN.md` e `RATIONALE.md` | projeção navegável; não define decisões |
@@ -85,7 +86,7 @@ compiler, runtime, provider ou execução W.
 | `semantic-diagnostic-matrix-cases.json` + máquina/checker/test | SDM0 deriva SemanticResult, CheckerContext, loop fixed point, AST→HIR schema, D0 records, causality, ordering, limits, policy, lex/parse boundary e cobertura de meta contracts | oracle host independente; não implementa checker, compiler, formatter ou runtime |
 | `execution-ergonomics-cases.json` + máquina/checker/snapshot | 80 casos (32 positivos, 46 negativos e duas informações) derivam labels, parâmetros, slots allocator contextuais/ordinários e collision, operações explícitas de ownership, suspension, placement, barriers, process projections, doctests, std e lanes seriais dinâmicas; 26 testes host usam entradas independentes | oracle host de design; não executa W nem implementa S0, scheduler, pool ou provider |
 | `check-source-call-shapes.mjs` | aplica labels, posição do contrato e operações explicitamente incompatíveis aos sources do Última Luz e da std | auditoria source; owner place sem marker exige type/value category em S0; member/import é conservador e não executa W |
-| `foreign-body-cases.json` + máquina/checker/snapshot | FB0 cobre 45 casos/90 operações (15 aceitos, 28 rejeitados e duas informações) para bytes opacos, delimitação C, fallback editorial, limits, source map e recipe; nove testes host usam source independente | oracle host de design; o external scanner Tree-sitter é projeção e não implementa adapter C, compiler, formatter ou builder |
+| `foreign-body-cases.json` + máquina/checker/snapshot | FB0 cobre 45 casos/90 operações (15 aceitos, 28 rejeitados e duas informações) para bytes opacos, delimitação C, fallback editorial, limits, source map e recipe; nove testes host usam source independente | oracle host de design; a máquina não é o scanner C; `check-seed-foreign.mjs` compara 32 operações FB0 com profile C, valida o witness source-backed atual de `hardware.w` e não implementa adapter C, compiler, formatter ou builder |
 | `web-body-cases.json` + máquina/checker/snapshot | WB0 cobre 27 casos/160 operações (12 aceitos + 15 rejeitados) para Blob, FormData, retained-byte limits, boundary, attachment e parse; seis testes host usam inputs independentes | oracle host de design; não executa W, compiler, HTTP provider ou codec multipart |
 | `process-root-cases.json` + máquina/checker/snapshot | PR0 cobre 48 casos/249 operações (27 aceitos + 21 rejeitados) para root projections, argv nativo, Context, filesystem, clock default/active, stdio, signals, service drain e ExitCode; onze testes host usam inputs independentes | oracle host de design; não executa W, compiler, OS, signal adapter, scheduler ou provider `std.process@1` |
 | `filesystem-cases.json` + máquina/checker/snapshot | FS0 cobre 99 casos/665 operações (40 aceitos + 59 rejeitados) para paths nativos, root containment bounded, child scopes, rights, I/O posicional u64, interferência, append, cursor, snapshot, directory, metadata, namespace, durability e cancellation; 14 testes host usam inputs independentes | oracle host de design; não executa W, syscalls, filesystem real, compiler, runtime ou provider `std.fs@1` |
@@ -598,10 +599,16 @@ acoplamento ao checker de formatter-cases. O gate usa Bun, CMake e Ninja:
 
     bun run check:seed-source-reader
 
-O parser seed incremental usa o mesmo build C11 caller-owned e os 23 IDs F0
+O parser seed incremental usa o mesmo build C11 caller-owned e os 28 IDs F0
 completos (input e output), sem copiar payloads:
 
     bun run check:seed-parser
+
+O scanner C source-validation-only e a integração `fn<C>` usam um gate separado
+que constrói o probe em diretório temporário e roda somente os scans C do
+corpus FB0:
+
+    bun run check:seed-foreign
 
 1. Para usar W localmente no VS Code, siga
    [tooling/vscode-w/README.md](vscode-w/README.md). O caminho mais rápido é abrir

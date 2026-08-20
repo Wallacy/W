@@ -34,6 +34,7 @@ const selectedIds = [
   "F0-allocator-named-override",
   "F0-spawn-domain-slots",
   "F0-explicit-capture-closure",
+  "F0-opaque-foreign-body",
 ]
 
 const CST = Object.freeze({
@@ -89,11 +90,16 @@ const CST = Object.freeze({
   CLOSURE_PARAMETER: 60,
   CAPTURE_EXPRESSION: 61,
   CAPTURE_ITEM: 62,
+  FOREIGN_BODY: 29,
+  FOREIGN_LANGUAGE_TAG: 63,
+  FOREIGN_BODY_OWNER: 64,
 })
 
 const ISSUE = Object.freeze({
   UNEXPECTED_TOKEN: 1,
   MISSING_OWNER_CLOSE: 2,
+  FOREIGN_UNSUPPORTED: 9,
+  FOREIGN_SCANNER: 10,
 })
 
 function fail(message) {
@@ -272,6 +278,22 @@ function assertClean(parsed, label) {
   if (parsed.nodes.some((node) => node.kind === CST.ERROR || node.kind === CST.MISSING ||
       (node.flags & (1 << 2 | 1 << 3)) !== 0)) {
     fail(`${label} contains ERROR/MISSING CST nodes`)
+  }
+}
+
+function assertForeignIsland(parsed, bytes, label, expectedBody) {
+  assertClean(parsed, label)
+  const tags = parsed.nodes.filter((node) => node.kind === CST.FOREIGN_LANGUAGE_TAG)
+  const owners = parsed.nodes.filter((node) => node.kind === CST.FOREIGN_BODY_OWNER)
+  const bodies = parsed.nodes.filter((node) => node.kind === CST.FOREIGN_BODY)
+  if (tags.length !== 1 || owners.length !== 1 || bodies.length !== 1) {
+    fail(`${label} foreign tag/owner/body counts are incomplete`)
+  }
+  if ((bodies[0].flags & 1) === 0 || nodeText(parsed, bytes, bodies[0]) !== expectedBody) {
+    fail(`${label} foreign body leaf is not source-exact`)
+  }
+  if (directKind(parsed, owners[0].index, CST.FOREIGN_BODY).length !== 1) {
+    fail(`${label} foreign owner does not contain its raw body leaf`)
   }
 }
 
@@ -1113,6 +1135,12 @@ async function main() {
       if (id === "F0-explicit-capture-closure") {
         assertClosureCapture(inputParsed, input, `${id}:input`)
         assertClosureCapture(outputParsed, output, `${id}:output`)
+      }
+      if (id === "F0-opaque-foreign-body") {
+        const expectedBody = testCase.opaqueForeignBodies?.[0]
+        if (typeof expectedBody !== "string") fail(`${id} has no pinned body text`)
+        assertForeignIsland(inputParsed, input, `${id}:input`, expectedBody)
+        assertForeignIsland(outputParsed, output, `${id}:output`, expectedBody)
       }
       if (inputParsed.signature !== second.signature) fail(`${id} CST signature is not deterministic`)
       if (inputParsed.nodes.length === 0 || outputParsed.nodes.length === 0) fail(`${id} has no CST nodes`)

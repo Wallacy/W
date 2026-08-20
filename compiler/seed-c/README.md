@@ -112,16 +112,18 @@ internos têm mapping futuro para D0, mas não são diagnósticos D0. `manifest`
 declarations além de `fn`/`struct`/`type`/`alias`/`test`/`entry`, patterns e bare
 closures, semântica de effects/async/lock, contratos de transaction,
 AST/HIR,
-name/type resolution, formatter e foreign scanner permanecem fora; `foreign`
-falha fechado antes do body. Imports só aparecem antes de qualquer
-declaration; `export` aceita `fn`, `async fn`, `struct`, `type` e `alias` nesta
-fatia.
+name/type resolution e formatter permanecem fora; `foreign` falha fechado antes
+do body. `unsafe fn<C>` e `export unsafe fn<C>` são aceitos somente pela ilha C
+validada abaixo; `unsafe fn` sem tag de linguagem permanece STOP. Imports só
+aparecem antes de qualquer declaration; `export` aceita `fn`, `async fn`,
+`struct`, `type` e `alias` nesta fatia.
 `transaction` não aceita argumentos de contract nesta fatia. Statements
 `commit` e transactions aninhadas são reconhecidos sintaticamente em qualquer
 block. O parser não valida owner, provider, nesting, commit, rollback, effects
 ou atomicidade. Outros
-modificadores de função (`static`, `const`, `unsafe` e receiver modifiers)
-permanecem fora. `expect` fora de `test` falha fechado.
+modificadores de função (`static`, `const` e receiver modifiers) permanecem
+fora; `unsafe` sem uma ilha de linguagem também falha fechado. `expect` fora de
+`test` falha fechado.
 
 Statements `allocator [binding:] expression { ... }` são reconhecidos em
 qualquer block, inclusive de forma aninhada. O owner `allocator_block` preserva
@@ -131,14 +133,29 @@ capacidades ou resolve chamadas contextuais. `try allocator` e `allocator` na
 raiz continuam STOP, e o parser não afirma a semântica de providers, contexto
 ou recuperação de allocation.
 
-Corpos foreign usam handshake dinâmico. O harness chama `require_opaque` no
-cursor atual, `claim_opaque` com um span pinado e então `next` emite um único
-FOREIGN_BODY. Um `next` sem claim é uma falha terminal OPAQUE_UNCLAIMED. O
-lexer não calcula profile ou digest do corpo; os digests dos spans pinados são
-evidence local do checker. Esse handshake não é um scanner hermético: o parser
-seed não escolhe adapter/profile, não valida limites, nesting, UTF-8/NUL ou
-digest, e ainda falha fechado antes de um corpo `foreign`. Nenhum AST, ABI,
-formatter ou fallback de foreign é afirmado por esta fatia.
+Corpos `fn<C>` e `fn<lang:.c>` usam um scanner C11 caller-owned com o profile
+`c-inline-1`. A entrada do scanner é somente a view que começa em `{` e os
+limites explícitos `maximum_body_bytes`/`maximum_nesting`; não há filesystem,
+locale, environment, shell, alocação ou estado global. O resultado é uma
+`w_seed_foreign_source_validation`: spans relativos (`body_start_byte`,
+`body_end_byte`, `close_byte`, `next_byte`), limites, nesting observado, estado
+terminal e SHA-256 do body. Este é um registro de validação de fonte, sem
+`adapterDigest`, `scannerDigest`, ABI/lock, recipe ou publicação de build.
+
+O profile valida strings/caracteres com escapes, comentários, braces aninhadas,
+digraphs `<%`/`%>`, UTF-8 estrito sem NUL, CRLF e limites. Diretivas de
+preprocessador e line splice fora de literal/comentário falham antes de o parser
+continuar. Uma falha produz exatamente um issue fatal `FOREIGN_SCANNER` com o
+span primário do scanner e um `ERROR` para o remainder; o C nunca é lexado como
+W. Em sucesso o parser consome `{`, exige cache interior vazio, faz
+`require_opaque`/`claim_opaque` no span exato, consome o leaf existente
+`FOREIGN_BODY` (inclusive zero bytes), verifica `}` e então permite o sufixo W.
+`<abi:.c>` continua o envelope ABI ordinário e não seleciona o scanner.
+
+O lexer permanece responsável apenas pelo handshake e pelo leaf raw; os owners
+append-only `FOREIGN_LANGUAGE_TAG` e `FOREIGN_BODY_OWNER` preservam a CST. Esta
+fatia não afirma AST, ABI, adapter, formatter, fallback editorial ou build do
+Last Light.
 
 ## Build local
 
@@ -153,10 +170,16 @@ O corpus dirigido de lexer também pode ser executado com:
 
     bun tooling/check-seed-lexer.mjs
 
-O parser seed e os vinte e sete IDs F0 completos (input e output) podem ser
+O parser seed e os vinte e oito IDs F0 completos (input e output) podem ser
 validados com:
 
     bun tooling/check-seed-parser.mjs
+
+O gate dedicado do scanner C constrói o probe em diretório temporário e compara
+32 operações de scan C do corpus FB0, o witness source-backed atual de
+`hardware.w` (`unsafe fn<C>`), limites e digest adulterado; sem claim de build:
+
+    bun tooling/check-seed-foreign.mjs
 
 O classifier usa somente os dados oficiais vendorizados em `unicode/17.0.0`.
 O check offline é executado com:
@@ -177,8 +200,9 @@ O source probe lê uma entrada limitada de stdin e devolve os bytes sem
 alteração. O lexer probe devolve somente itens e spans; o parser probe devolve
 CST, folhas e issues internos para o checker. O limite
 de 16 MiB pertence somente aos probes de teste; não é contrato da linguagem
-nem limite do source reader. NFC, resolver e o scanner de foreign continuam
-gaps intencionais desta fatia. Os checkers Bun usam os probes sobre os casos
+nem limite do source reader. NFC, resolver e adapter/build publication continuam
+gaps intencionais desta fatia; o scanner C acima é somente source validation. Os
+checkers Bun usam os probes sobre os casos
 F0 e os witnesses FZ0 quando aplicável. Esses casos continuam oracles de design
 e não são output de um compiler. A proveniência é mantida em
 [formatter-cases.json (F0)](../../tooling/formatter-cases.json),
