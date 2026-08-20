@@ -218,10 +218,10 @@ export struct Input: ByteSource<IoError> {
   export fn lines(
     named maximumBytes: usize<(1...)>,
   ): some Stream<String, InputError> {
-    let stream = unsafe {
+    let rawStream = unsafe {
       stdProcessInputLines(ref handle, maximumBytes)
     }
-    return LineStream(validatedHandle: stream)
+    return LineStream(validatedHandle: rawStream)
   }
 
   deinit {

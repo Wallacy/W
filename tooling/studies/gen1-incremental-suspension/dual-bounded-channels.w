@@ -1,4 +1,4 @@
-module gen1.dualBoundedChannels
+module gen1DualBoundedChannels
 
 import * from std.io
 import streaming from std.stream

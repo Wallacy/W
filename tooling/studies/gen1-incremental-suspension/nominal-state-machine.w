@@ -1,4 +1,4 @@
-module gen1.nominalStateMachine
+module gen1NominalStateMachine
 
 export enum DialogueState {
   waiting

@@ -469,10 +469,10 @@ export struct FileSystem {
     at path: ref Path,
     named limits: DirectoryLimits = DirectoryLimits(),
   ): some Stream<DirectoryEntry, DirectoryError> throws DirectoryError {
-    let stream = unsafe {
+    let rawStream = unsafe {
       try await stdFsEntries(ref handle, ref path.handle, limits)
     }
-    return DirectoryStream(validatedHandle: stream)
+    return DirectoryStream(validatedHandle: rawStream)
   }
 
   export async fn createDirectory(_ path: ref Path): () throws NamespaceError {
