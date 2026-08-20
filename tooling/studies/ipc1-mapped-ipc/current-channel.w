@@ -1,6 +1,6 @@
 // IPC1 current baseline: a bounded typed service channel.
 
-module ipc1.current.channel
+module ipc1CurrentChannel
 
 import * from std.io
 

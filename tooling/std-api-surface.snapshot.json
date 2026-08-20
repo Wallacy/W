@@ -1882,7 +1882,7 @@
           "static-rights"
         ]
       },
-      "catalogedDeclarationsDigest": "afdc00fe675df6f5269c67307443de60cd1b9030bfe95a07a0ea30a84de47bc9",
+      "catalogedDeclarationsDigest": "08aa094794fcea4370f1f44bbc15537c1590df9af3d172d3459569a9289f53fe",
       "apis": [
         {
           "symbol": "DirectoryEntry",
@@ -2174,7 +2174,7 @@
           "symbol": "FileSystem",
           "kind": "struct",
           "signature": "export struct FileSystem",
-          "declarationDigest": "56f77a799d009a6ff94246c222e1bfd8b12c4016ba51d6296f412f6b0473b1c4",
+          "declarationDigest": "a302886cbc2876ee5c041de529f3227045186c19e5de72fc11e74bf97887e802",
           "line": 442,
           "profile": "fs-root",
           "members": [
@@ -6837,7 +6837,7 @@
           "structured-callback-drain"
         ]
       },
-      "catalogedDeclarationsDigest": "016d7b34c92d6968e0b8e2a227b81d7b25a06eb2a21bcc98472ac67acf5d1216",
+      "catalogedDeclarationsDigest": "852365d7398e7328982b0b2acca6a9ce0440a4938d9abf06bd14213581538a24",
       "apis": [
         {
           "symbol": "Arguments",
@@ -7032,7 +7032,7 @@
           "symbol": "Input",
           "kind": "struct",
           "signature": "export struct Input: ByteSource<IoError>",
-          "declarationDigest": "e9a75b075acec9aafe54a8e88cfd7fac24310093ec7284d2e8b472f7c8880cdf",
+          "declarationDigest": "c1ee16767ce834e940f902ae5d849a9f00fae5c63a7100b843c36f5e7fd537b6",
           "line": 198,
           "profile": "process-input",
           "members": [

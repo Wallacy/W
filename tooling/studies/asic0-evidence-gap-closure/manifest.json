@@ -17,7 +17,7 @@
     { "id": "index", "role": "index", "path": "tooling/studies/asic0-evidence-gap-closure/INDEX.md", "digest": "sha256:10b63ebb85ded4bdfd1cc941be6eca9f74d6d5e4c06d7a9098e54f2828b41f08" },
     { "id": "current", "role": "current", "path": "tooling/studies/asic0-evidence-gap-closure/current.w", "digest": "sha256:432945d19409832590021cc5e37d33a9c79f7aac1bb1d2023cd1e7228f909204" },
     { "id": "adversarial", "role": "adversarial", "path": "tooling/studies/asic0-evidence-gap-closure/adversarial.w", "digest": "sha256:bbebeb235204aa1ea5c97cd56f76de66378a51681a31675e67e65297f74cf195" },
-    { "id": "ipc-study", "role": "ipc-study", "path": "tooling/studies/ipc1-mapped-ipc/study.json", "digest": "sha256:2bfa9efbc4789fdfe17d84f30a1e67f733825a178c2f6d3d7c9ea22082ce3626" },
+    { "id": "ipc-study", "role": "ipc-study", "path": "tooling/studies/ipc1-mapped-ipc/study.json", "digest": "sha256:b35c87ff6f106c96e762521540b6f876308ff26187e61f4bc7d648af3742f196" },
     { "id": "ipc-corpus", "role": "ipc-corpus", "path": "tooling/ipc1-mapped-ipc-cases.json", "digest": "sha256:ca10f9c141ec6a94bb5adbac68b99d7e6d446ab76082b8e2d489c399a178e676" },
     { "id": "ipc-machine", "role": "ipc-machine", "path": "tooling/ipc1-mapped-ipc-machine.mjs", "digest": "sha256:249e735effb262875644f19c55d068c35a226fb2027a307afae89fa308e303d7" },
     { "id": "ipc-snapshot", "role": "ipc-snapshot", "path": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl", "digest": "sha256:70046fa16c138a04909835109d7e13cf1bd2fb8026794a68a80f079b957be3c3" },

@@ -1,4 +1,4 @@
-module gen1.streamStructured
+module gen1StreamStructured
 
 import streaming from std.stream
 

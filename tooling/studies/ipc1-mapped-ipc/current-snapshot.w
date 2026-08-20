@@ -1,6 +1,6 @@
 // IPC1 current baseline: bounded snapshots and typed wire handoff.
 
-module ipc1.current.snapshot
+module ipc1CurrentSnapshot
 
 import * from std.io
 

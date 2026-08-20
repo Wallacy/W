@@ -51,7 +51,7 @@
       "id": "bounded-dialogue-builder",
       "path": "builder-helper.w",
       "symbol": "makeDialogue",
-      "digest": "sha256:b40886f324936d668bf10ed3ba98c0c2d0db5d7f8e97c86c2e576c681c4b6e07",
+      "digest": "sha256:da7fc606174e3c595556b7eee134cc79fd985f86a55c0a8798fde714edc892fb",
       "claim": "library helper keeps channel capacity explicit before any syntax candidate"
     }
   ],
@@ -62,7 +62,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "stream-structured.w",
-      "digest": "sha256:8c17a7e5c241fb46a91f78b7351bf3f92027f58f5928f48389d6b0f184c8f3be",
+      "digest": "sha256:12ebf5c6405c7dc8e00be3a3dfc512443165bf37238e7563ef0d1b2a8f718898",
       "changedConstructs": ["Stream pull", "for try await", "explicit cancel", "structured task boundary"],
       "parseEvidence": {"status": "tree-sitter-parse", "note": "Parseable source witness for the current composition."}
     },
@@ -72,7 +72,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "nominal-state-machine.w",
-      "digest": "sha256:073da2e348d930bad628592b170291e8be39cc72bcf74614f9de9a59f16e726d",
+      "digest": "sha256:bc08f55356b2dd00634aae918fdbb321ecd94f0853e46148fb8bfcf29747330b",
       "changedConstructs": ["nominal state enum", "owned session record", "explicit resume step", "typed terminal error"],
       "parseEvidence": {"status": "tree-sitter-parse", "note": "Parseable source witness for explicit state."}
     },
@@ -82,7 +82,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "dual-bounded-channels.w",
-      "digest": "sha256:9c3cb9f52daf572995b45dd4e3599a928bce7b0ba92e8b03301c87716f195f6e",
+      "digest": "sha256:e0c7cb31e050580370604dc9f373b2a23953c5ef8db19586ebfd8899310574a1",
       "changedConstructs": ["request channel", "response channel", "bounded ownership handoff", "typed receive failure"],
       "parseEvidence": {"status": "tree-sitter-parse", "note": "Parseable source witness for two bounded channels."}
     },

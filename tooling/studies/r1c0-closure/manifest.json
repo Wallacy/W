@@ -147,7 +147,7 @@
     {"id":"R1-end-relative-access","path":"tooling/studies/r1-end-relative-access/bundle.json","digest":"sha256:b3c75075e49e15f64b62e3c863dd63a578d065b7c7f9d269127855c9f41b2d2d"},
     {"id":"R1-fail-fast-last-light","path":"tooling/studies/r1-fail-fast/bundle.json","digest":"sha256:994141b042dc7810d3a311dcb9b4eb5e928353e6152b22da3af0c09fa83cdd05"},
     {"id":"R1-fluent-self","path":"tooling/studies/r1-fluent-self/bundle.json","digest":"sha256:4f7d0efb7c1dfc4ef500be005691119ea6bad3e4756882a04f3188525cf0f6bd"},
-    {"id":"R1-gen1-incremental-suspension","path":"tooling/studies/gen1-incremental-suspension/bundle.json","digest":"sha256:8381d44a4e9faf8e6c6a48502e85f98a46bfd1d323a6d6a783fa0b24016c9d97"},
+    {"id":"R1-gen1-incremental-suspension","path":"tooling/studies/gen1-incremental-suspension/bundle.json","digest":"sha256:c66492751385da2f6988a737b40a8f2494f3cb3f2cdd34abd54ef7301146e3c6"},
     {"id":"R1-gen2-stream-yield","path":"tooling/studies/gen2-stream-yield/bundle.json","digest":"sha256:347530ce6e0e2d4c7a2c88182a3d6401d83d1e87a0482e801118a8956ed942fa"},
     {"id":"R1-hrd0-hot-reload-dev","path":"tooling/studies/hrd0-hot-reload-dev/bundle.json","digest":"sha256:7c469a85d5406abe00096a1f92269ad03e32b6f8cdc650820776d19e02505f4f"},
     {"id":"R1-imports-last-light","path":"tooling/studies/r1-imports/bundle.json","digest":"sha256:1738e6e851b44a8b1853881e43bb3ee8d71036159fc9c6d7a48d7248ec1c88aa"},

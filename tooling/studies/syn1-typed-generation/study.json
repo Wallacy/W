@@ -32,7 +32,7 @@
       "role": "fixture-current",
       "disposition": "fixture",
       "fixture": true,
-      "digest": "sha256:6490402a500fcfd069f54bc2949238717c60d0e9d6c57aecd2bd043055fcc4a8"
+      "digest": "sha256:14756a1d143a0cd9f5bb6c59e87827a70a59b1d91ac5a251f2525acae26b62a0"
     },
     {
       "id": "current-kernel-module",

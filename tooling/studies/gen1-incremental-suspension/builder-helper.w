@@ -1,4 +1,4 @@
-module gen1.builderHelper
+module gen1BuilderHelper
 
 export struct DialogueSession {
   requestsOut: Channel<String><.send>
