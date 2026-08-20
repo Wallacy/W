@@ -61,6 +61,7 @@ typedef enum {
   W_SEED_CST_BORROW_CLAUSE,
   W_SEED_CST_BORROW_PAIR,
   W_SEED_CST_SLOT_REF,
+  W_SEED_CST_LOCK_EXPRESSION,
 } w_seed_cst_kind;
 
 enum {

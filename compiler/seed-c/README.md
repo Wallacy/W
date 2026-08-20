@@ -34,11 +34,16 @@ diagnósticos D0.
 alocação para a primeira fatia fechada: header `module` opcional, imports
 ordinários no topo, `fn` com parâmetros simples e requirements
 `ref`/`inout`/`take`/`const`, retorno opcional (incluindo `()`), `throws Type`,
-qualificador de tipo `view`, e cláusula contextual `borrows(...)` somente em
-declarações `fn` com body, após o retorno/`throws` e antes do bloco. A cláusula
-preserva `borrow_clause`, `borrow_pair` e `slot_ref` em ordem de origem; cada
-slot aceita somente a folha lexical WORD ou NUMBER. Isso é reconhecimento
-sintático: não há resolução de slots, ordinais, modos ou origem.
+qualificadores de tipo `view` e `shared`, e cláusula contextual `borrows(...)`
+somente em declarações `fn` com body, após o retorno/`throws` e antes do bloco. A
+cláusula preserva `borrow_clause`, `borrow_pair` e `slot_ref` em ordem de origem;
+cada slot aceita somente a folha lexical WORD ou NUMBER. O parser também
+reconhece a expressão delimitada
+`lock expression as identifier { ... }`, com os prefixos `await lock` e
+`try lock`. O reconhecimento é somente sintático: o CST preserva as folhas e a
+ordem estrutural. Nesta fase, `await`, `ref` e outro `lock` no corpo são aceitos
+apenas como sintaxe. A rejeição semântica de casos inválidos fica para uma etapa
+futura.
 `entry(name)`, `struct` simples exportável com fields, `test "..." for name`
 com `expect`, blocos, `let`, `return`, `if`/`else`, `repeat`/`while`, arrays
 repetidos `[expression; expression]`, `for` com marcador opcional
@@ -47,7 +52,8 @@ repetidos `[expression; expression]`, `for` com marcador opcional
 `label: expression`, declarações `async fn` e `export async fn`, e os prefixos
 sintáticos `copy`/`take`/`pin`/`inout`/`ref`, a expressão estruturada
 `transaction identifier = expression { ... }` e o statement `commit` com
-expression opcional. O parser Pratt delimitado é usado pelos dezenove casos F0
+expression opcional. O parser Pratt
+delimitado é usado pelos vinte casos F0
 selecionados. A tabela de
 reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
 bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;
@@ -72,7 +78,7 @@ de expression mantém `>>` como shift. Newline continua trivia. Recovery só cri
 `ERROR` com os bytes ignorados e `MISSING` zero-width. Os `w_seed_parse_issue`
 internos têm mapping futuro para D0, mas não são diagnósticos D0. `manifest`,
 declarations além de `fn`/`struct`/`test`/`entry`, contracts, patterns,
-closures, semântica de effects/async, allocator, contratos de transaction,
+closures, semântica de effects/async/lock, allocator, contratos de transaction,
 AST/HIR,
 name/type resolution, formatter e foreign scanner permanecem fora; `foreign`
 falha fechado antes do body. Imports só aparecem antes de qualquer
