@@ -1,8 +1,9 @@
 # Tooling inicial de W
 
 > **Status:** Working Draft. Highlighting e o parser incremental experimental
-> são utilizáveis; o seed C possui um source reader e um lexer lossless internos.
-> Parser do compilador, formatter, LSP e compilador ainda não existem.
+> são utilizáveis; o seed C possui source reader, lexer lossless e o parser P0a
+> interno de CST/recovery. Parser normativo do compilador, formatter, LSP e
+> compilador ainda não existem.
 
 Este diretório antecipa a experiência de escrever W sem transformar cores em
 semântica. A autoridade normativa continua em [DESIGN.md](../DESIGN.md).
@@ -60,7 +61,7 @@ compiler, runtime, provider ou execução W.
 | [VS Code/TextMate](vscode-w/README.md) | highlighting lexical local, comentários, pares e indentação | regex tolerante; não produz CST nem diagnósticos |
 | [Tree-sitter](tree-sitter-w/README.md) | parser incremental e queries estruturais sobre o subset candidato | protótipo; o gate do parser normativo está em `DESIGN.md` |
 | Corpus Tree-sitter | positivos e snapshots de CST em `tree-sitter-w/test/corpus/` | execução W ainda não existe |
-| [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) + `check-seed-source-reader.mjs` + `check-seed-lexer.mjs` + `check-seed-unicode.mjs` | source reader C11 allocation-free, byte-first, UTF-8 estrito, spans e pontos; lexer lossless com profile Unicode 17.0.0, itens/trivia e handshake de foreign | componente interno do seed; os checkers validam dados pinados e o corpus; NFC/resolver, CR isolado, parser, formatter, compiler e scanner foreign continuam gaps |
+| [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) + `check-seed-source-reader.mjs` + `check-seed-lexer.mjs` + `check-seed-unicode.mjs` + `check-seed-parser.mjs` | source reader C11 allocation-free, byte-first, UTF-8 estrito, spans e pontos; lexer lossless com profile Unicode 17.0.0, itens/trivia e handshake de foreign; parser P0a caller-owned de CST/recovery sobre seis IDs F0 | componente interno do seed; o parser cobre somente P0a e não é parser normativo/compiler; checkers validam dados pinados e o corpus; NFC/resolver, CR isolado, formatter, compiler e scanner foreign continuam gaps |
 | `check-design-examples.mjs` | confirma exemplo local em cada seção normativa terminal | inspeção estrutural; não valida a semântica do exemplo |
 | `check-markdown-links.mjs` | valida targets e anchors locais fora do histórico | não consulta links externos |
 | `design-index.mjs` | gera intervalos e métricas separadas de `DESIGN.md` e `RATIONALE.md` | projeção navegável; não define decisões |
@@ -596,6 +597,11 @@ O source reader interno do seed C é validado de forma independente, sem
 acoplamento ao checker de formatter-cases. O gate usa Bun, CMake e Ninja:
 
     bun run check:seed-source-reader
+
+O parser P0a interno usa o mesmo build C11 caller-owned e os seis IDs F0
+completos (input e output), sem copiar payloads:
+
+    bun run check:seed-parser
 
 1. Para usar W localmente no VS Code, siga
    [tooling/vscode-w/README.md](vscode-w/README.md). O caminho mais rápido é abrir

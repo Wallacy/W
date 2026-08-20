@@ -1,6 +1,7 @@
 # Source reader e lexer do seed C
 
-**Status:** componente real e interno do w-seed-c.
+**Status:** componente real e interno do w-seed-c. O parser P0a abaixo é uma
+fatia fechada de CST/recovery; ele não é um compiler frontend.
 
 Este componente fornece uma view de bytes sem cópia. Ele valida UTF-8 estrito,
 detecta o BOM inicial, conta linhas por LF, valida spans half-open e converte
@@ -22,10 +23,38 @@ quantity quando a expressão de unidade lexical fechada está adjacente. UTF-8
 fora de literais, comentários e BOM inicial usa o profile Unicode 17.0.0:
 `XID_Start` mais `_` no início, `XID_Continue` na continuação, e rejeição de
 `Default_Ignorable_Code_Point`. O WORD mantém os bytes e o span raw. NFC,
-colisões no resolver, confusables, scripts mistos, parser, owner, CST, recovery,
-formatter e scanner de foreign não pertencem a esta fatia. CRLF é um único item
+colisões no resolver, confusables, scripts mistos, formatter e scanner de
+foreign não pertencem a esta fatia. CRLF é um único item
 NEWLINE; CR isolado é UNSUPPORTED_CONTROL interno. Erros internos não são
 diagnósticos D0.
+
+## Parser P0a interno
+
+`include/w_seed_parser.h` e `src/w_seed_parser.c` adicionam uma API C11 sem
+alocação para a primeira fatia fechada: header `module` opcional, `fn` com
+parâmetros simples, retorno opcional (incluindo `()`), `entry(name)`, blocos,
+`let`, `return`, `if`/`else`, `repeat`/`while`, labels, `break`/`continue` e o
+parser Pratt delimitado usado pelos seis casos F0 selecionados. A tabela de
+reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
+bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;
+isso é reconhecimento sintático, não uma declaração de semântica, tipos ou
+validade contextual. O CST é
+flat e caller-owned: cada nó usa `first_child`/`next_sibling`, as folhas raw e
+trivia formam uma partição exata dos bytes e todos os textos continuam views
+do source. O parser mantém somente lookahead caller-owned e frames caller-owned;
+capacity exhaustion é fatal determinístico. Cada instância é single-use: a
+primeira chamada a `w_seed_parser_parse` consome o parser; uma segunda chamada
+retorna `false` sem alterar o resultado ou os buffers caller-owned.
+
+O lexer continua emitindo `>>` como uma folha raw de dois bytes. Um owner de
+type cria duas `w_seed_parse_token_view` virtuais sem duplicar a folha; um owner
+de expression mantém `>>` como shift. Newline continua trivia. Recovery só cria
+`ERROR` com os bytes ignorados e `MISSING` zero-width. Os `w_seed_parse_issue`
+internos têm mapping futuro para D0, mas não são diagnósticos D0. `manifest`,
+imports, declarations além de `fn`/`entry`, contracts, patterns, closures,
+effects/async, allocator, transaction, AST/HIR, name/type resolution,
+formatter e foreign scanner permanecem fora; `foreign` falha fechado antes do
+body.
 
 Corpos foreign usam handshake dinâmico. O harness chama `require_opaque` no
 cursor atual, `claim_opaque` com um span pinado e então `next` emite um único
@@ -46,6 +75,11 @@ O corpus dirigido de lexer também pode ser executado com:
 
     bun tooling/check-seed-lexer.mjs
 
+O parser P0a e os seis IDs F0 completos (input e output) podem ser validados
+com:
+
+    bun tooling/check-seed-parser.mjs
+
 O classifier usa somente os dados oficiais vendorizados em `unicode/17.0.0`.
 O check offline é executado com:
 
@@ -55,21 +89,23 @@ Uma atualização de dados é explícita e requer rede:
 
     bun tooling/generate-seed-unicode.mjs --update
 
-Os headers include/w_seed_source.h e include/w_seed_lexer.h e a biblioteca
-w_seed_source são detalhes de implementação do seed. A biblioteca não aloca,
+Os headers include/w_seed_source.h, include/w_seed_lexer.h e
+include/w_seed_parser.h e a biblioteca w_seed_source são detalhes de
+implementação do seed. A biblioteca e o parser não alocam,
 não acessa paths, locale, clock ou environment e não assume ownership dos
 bytes de entrada. O probe de lexer é somente ferramenta de teste.
 
 O source probe lê uma entrada limitada de stdin e devolve os bytes sem
-alteração. O lexer probe devolve somente itens e spans para o checker. O limite
+alteração. O lexer probe devolve somente itens e spans; o parser probe devolve
+CST, folhas e issues internos para o checker. O limite
 de 16 MiB pertence somente aos probes de teste; não é contrato da linguagem
 nem limite do source reader. NFC, resolver e o scanner de foreign continuam
-gaps intencionais desta fatia. O checker Bun usa o source
-probe sobre os casos
-F0 e os witnesses FZ0. Esses casos continuam oracles de design e não são output
-de um compiler. A proveniência é mantida em
+gaps intencionais desta fatia. Os checkers Bun usam os probes sobre os casos
+F0 e os witnesses FZ0 quando aplicável. Esses casos continuam oracles de design
+e não são output de um compiler. A proveniência é mantida em
 [formatter-cases.json (F0)](../../tooling/formatter-cases.json),
 [frontend-freeze-cases.json (FZ0)](../../tooling/frontend-freeze-cases.json),
 [formatting.w](../../reference/last-light/formatting.w) e no
 [check-seed-source-reader.mjs](../../tooling/check-seed-source-reader.mjs); o
-checker lê essas fontes e não copia seus payloads.
+checker lê essas fontes e não copia seus payloads. O parser P0a não promove
+nenhum comportamento de compiler, AST/HIR, checker semântico ou formatter.
