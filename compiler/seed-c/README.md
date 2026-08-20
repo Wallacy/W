@@ -34,6 +34,11 @@ diagnósticos D0.
 alocação para a primeira fatia fechada: header `module` opcional, imports
 ordinários no topo, `fn` com parâmetros simples e requirements
 `ref`/`inout`/`take`/`const`, retorno opcional (incluindo `()`), `throws Type`,
+qualificador de tipo `view`, e cláusula contextual `borrows(...)` somente em
+declarações `fn` com body, após o retorno/`throws` e antes do bloco. A cláusula
+preserva `borrow_clause`, `borrow_pair` e `slot_ref` em ordem de origem; cada
+slot aceita somente a folha lexical WORD ou NUMBER. Isso é reconhecimento
+sintático: não há resolução de slots, ordinais, modos ou origem.
 `entry(name)`, `struct` simples exportável com fields, `test "..." for name`
 com `expect`, blocos, `let`, `return`, `if`/`else`, `repeat`/`while`, arrays
 repetidos `[expression; expression]`, `for` com marcador opcional
@@ -42,7 +47,7 @@ repetidos `[expression; expression]`, `for` com marcador opcional
 `label: expression`, declarações `async fn` e `export async fn`, e os prefixos
 sintáticos `copy`/`take`/`pin`/`inout`/`ref`, a expressão estruturada
 `transaction identifier = expression { ... }` e o statement `commit` com
-expression opcional. O parser Pratt delimitado é usado pelos dezoito casos F0
+expression opcional. O parser Pratt delimitado é usado pelos dezenove casos F0
 selecionados. A tabela de
 reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
 bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;

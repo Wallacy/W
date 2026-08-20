@@ -490,11 +490,298 @@ static bool test_phase2_declaration_tree(void) {
         (size_t)(comparison - text));
   CHECK(value.nodes[expected_expression].raw_span.end_byte ==
         (size_t)(comparison - text) + strlen("command == audit"));
+  const char *test_body = strstr(text, "test \"fixture\" for namedCall {");
+  CHECK(test_body != NULL);
+  const char *expect_text = strstr(test_body, "expect command == audit");
+  CHECK(expect_text != NULL);
   CHECK(value.nodes[expect].raw_span.start_byte ==
-        (size_t)(strstr(text, "expect") - text));
+        (size_t)(expect_text - text));
   CHECK(value.nodes[expect].raw_span.end_byte ==
         value.nodes[expected_expression].raw_span.end_byte);
   CHECK(value.parser.in_test == false);
+  return true;
+}
+
+static bool test_borrow_clause_shapes(void) {
+  static const char text[] =
+      "fn pick(primary:ref S,fallback:ref S):view S throws E "
+      "borrows(0:[fallback,primary],1:[1,]){return primary}\n";
+  fixture value;
+  CHECK(fixture_init(&value, text,
+                     sizeof(value.nodes) / sizeof(value.nodes[0]),
+                     sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value.result.issue_count == 0);
+  CHECK(check_leaf_partition(&value));
+  CHECK(check_tree_links(&value));
+
+  const w_seed_cst_index function = first_kind(&value, W_SEED_CST_FUNCTION);
+  CHECK(function != W_SEED_CST_NONE);
+  const w_seed_cst_index parameters =
+      direct_child_after(&value, function, W_SEED_CST_PARAMETER_LIST, 0);
+  const w_seed_cst_index return_type =
+      direct_child_after(&value, function, W_SEED_CST_RETURN_TYPE, 0);
+  const w_seed_cst_index clause =
+      direct_child_after(&value, function, W_SEED_CST_BORROW_CLAUSE, 0);
+  const w_seed_cst_index block =
+      direct_child_after(&value, function, W_SEED_CST_BLOCK, 0);
+  CHECK(parameters != W_SEED_CST_NONE);
+  CHECK(return_type != W_SEED_CST_NONE);
+  CHECK(clause != W_SEED_CST_NONE);
+  CHECK(block != W_SEED_CST_NONE);
+  CHECK(value.nodes[parameters].raw_span.start_byte <
+        value.nodes[return_type].raw_span.start_byte);
+  CHECK(value.nodes[return_type].raw_span.start_byte <
+        value.nodes[clause].raw_span.start_byte);
+  CHECK(value.nodes[clause].raw_span.start_byte <
+        value.nodes[block].raw_span.start_byte);
+  CHECK(value.nodes[function].raw_span.end_byte ==
+        value.nodes[block].raw_span.end_byte);
+  CHECK(node_span_text(&value, clause,
+                       "borrows(0:[fallback,primary],1:[1,])"));
+  CHECK(count_direct_kind(&value, clause, W_SEED_CST_BORROW_PAIR) == 2);
+
+  const w_seed_cst_index first_pair =
+      direct_child_after(&value, clause, W_SEED_CST_BORROW_PAIR, 0);
+  const w_seed_cst_index second_pair =
+      direct_child_after(&value, clause, W_SEED_CST_BORROW_PAIR, 1);
+  CHECK(first_pair != W_SEED_CST_NONE);
+  CHECK(second_pair != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&value, first_pair, W_SEED_CST_SLOT_REF) == 3);
+  CHECK(count_direct_kind(&value, second_pair, W_SEED_CST_SLOT_REF) == 2);
+  CHECK(node_span_text(
+      &value,
+      direct_child_after(&value, first_pair, W_SEED_CST_SLOT_REF, 0), "0"));
+  CHECK(node_span_text(&value,
+                       direct_child_after(&value, first_pair,
+                                          W_SEED_CST_SLOT_REF, 1),
+                       "fallback"));
+  CHECK(node_span_text(&value,
+                       direct_child_after(&value, first_pair,
+                                          W_SEED_CST_SLOT_REF, 2),
+                       "primary"));
+  CHECK(node_span_text(
+      &value,
+      direct_child_after(&value, second_pair, W_SEED_CST_SLOT_REF, 0), "1"));
+  CHECK(node_span_text(
+      &value,
+      direct_child_after(&value, second_pair, W_SEED_CST_SLOT_REF, 1), "1"));
+
+  size_t view_types = 0;
+  for (size_t index = 0; index < value.result.node_count; index += 1) {
+    if (value.nodes[index].kind != W_SEED_CST_TYPE) continue;
+    if (has_direct_text(&value, (w_seed_cst_index)index, W_SEED_CST_WORD,
+                        "view")) {
+      view_types += 1;
+    }
+  }
+  CHECK(view_types == 1);
+
+  static const char view_parameter_text[] =
+      "fn pick(primary:view S,fallback:ref S):view S "
+      "borrows(0:[fallback,primary]){return primary}\n";
+  fixture view_parameter;
+  CHECK(fixture_init(&view_parameter, view_parameter_text,
+                     sizeof(view_parameter.nodes) /
+                         sizeof(view_parameter.nodes[0]),
+                     sizeof(view_parameter.issues) /
+                         sizeof(view_parameter.issues[0])));
+  CHECK(view_parameter.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(view_parameter.result.issue_count == 0);
+  CHECK(check_leaf_partition(&view_parameter));
+  CHECK(check_tree_links(&view_parameter));
+  size_t view_parameter_types = 0;
+  for (size_t index = 0; index < view_parameter.result.node_count;
+       index += 1) {
+    if (view_parameter.nodes[index].kind != W_SEED_CST_TYPE) continue;
+    if (has_direct_text(&view_parameter, (w_seed_cst_index)index,
+                        W_SEED_CST_WORD, "view")) {
+      view_parameter_types += 1;
+    }
+  }
+  CHECK(view_parameter_types == 2);
+
+  fixture repeat;
+  CHECK(fixture_init(&repeat, text,
+                     sizeof(repeat.nodes) / sizeof(repeat.nodes[0]),
+                     sizeof(repeat.issues) / sizeof(repeat.issues[0])));
+  CHECK(repeat.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(memcmp(&repeat.result, &value.result, sizeof(value.result)) == 0);
+  CHECK(memcmp(repeat.nodes, value.nodes,
+               value.result.node_count * sizeof(value.nodes[0])) == 0);
+  CHECK(memcmp(repeat.issues, value.issues,
+               value.result.issue_count * sizeof(value.issues[0])) == 0);
+
+  static const char lexical_text[] =
+      "fn f(primary:ref S):view S borrows(1.5:[unknown],99:[primary,])"
+      "{return primary}\n";
+  fixture lexical;
+  CHECK(fixture_init(&lexical, lexical_text,
+                     sizeof(lexical.nodes) / sizeof(lexical.nodes[0]),
+                     sizeof(lexical.issues) / sizeof(lexical.issues[0])));
+  CHECK(lexical.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(lexical.result.issue_count == 0);
+  CHECK(check_leaf_partition(&lexical));
+  CHECK(check_tree_links(&lexical));
+
+  static const char duplicate_result_text[] =
+      "fn f(primary:ref S):view S borrows(7:[primary],7:[unknown])"
+      "{return primary}\n";
+  fixture duplicate_result;
+  CHECK(fixture_init(&duplicate_result, duplicate_result_text,
+                     sizeof(duplicate_result.nodes) /
+                         sizeof(duplicate_result.nodes[0]),
+                     sizeof(duplicate_result.issues) /
+                         sizeof(duplicate_result.issues[0])));
+  CHECK(duplicate_result.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(duplicate_result.result.issue_count == 0);
+  CHECK(check_leaf_partition(&duplicate_result));
+  CHECK(check_tree_links(&duplicate_result));
+
+  static const char comments_text[] =
+      "fn f(primary:ref S):view S borrows(0:[/*x*/primary,/*y*/1,],"
+      "/*z*/1:[primary,]){return primary}\n";
+  fixture comments;
+  CHECK(fixture_init(&comments, comments_text,
+                     sizeof(comments.nodes) / sizeof(comments.nodes[0]),
+                     sizeof(comments.issues) / sizeof(comments.issues[0])));
+  CHECK(comments.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(comments.result.issue_count == 0);
+  CHECK(check_leaf_partition(&comments));
+  CHECK(check_tree_links(&comments));
+
+  fixture contextual;
+  CHECK(fixture_init(&contextual, "fn id():S{borrows}\n",
+                     sizeof(contextual.nodes) / sizeof(contextual.nodes[0]),
+                     sizeof(contextual.issues) / sizeof(contextual.issues[0])));
+  CHECK(contextual.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(contextual.result.issue_count == 0);
+  CHECK(check_leaf_partition(&contextual));
+  CHECK(check_tree_links(&contextual));
+
+  static const struct {
+    const char *text;
+    w_seed_parse_issue_kind issue;
+  } recovered[] = {
+      {"fn f(a:ref S):view S borrows(){return a}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(a:ref S):view S borrows(0:[]){return a}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(a:ref S):view S borrows(:[a]){return a}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(a:ref S):view S borrows(0[a]){return a}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(a:ref S):view S borrows(0:a){return a}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(a:ref S):view S borrows(0:[a){return a}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"fn f(a:ref S):view S borrows(0:[a]{return a}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"fn f(a:ref S):view S borrows(0:[a 1]){return a}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"fn f(a:ref S):view S borrows(0:[a])throws E{return a}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"fn f(a:ref S):view S borrows(0:[a])borrows(0:[a]){return a}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"fn f(a:ref S):view{return a}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+  };
+  for (size_t index = 0;
+       index < sizeof(recovered) / sizeof(recovered[0]); index += 1) {
+    fixture malformed;
+    CHECK(fixture_init(&malformed, recovered[index].text,
+                       sizeof(malformed.nodes) / sizeof(malformed.nodes[0]),
+                       sizeof(malformed.issues) / sizeof(malformed.issues[0])));
+    CHECK(malformed.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(malformed.result.issue_count >= 1);
+    CHECK(has_issue(&malformed, recovered[index].issue));
+    CHECK(check_leaf_partition(&malformed));
+    CHECK(check_tree_links(&malformed));
+  }
+
+  fixture after_body;
+  CHECK(fixture_init(&after_body,
+                     "fn f(a:ref S):view S{return a}borrows(0:[a])\n",
+                     sizeof(after_body.nodes) / sizeof(after_body.nodes[0]),
+                     sizeof(after_body.issues) / sizeof(after_body.issues[0])));
+  CHECK(after_body.result.status == W_SEED_PARSE_RECOVERED);
+  CHECK(after_body.result.issue_count >= 1);
+  CHECK(check_leaf_partition(&after_body));
+  CHECK(check_tree_links(&after_body));
+
+  static const char source_order_a[] =
+      "fn pick(primary:ref S,fallback:ref S):view S "
+      "borrows(0:[fallback,primary],1:[1]){return primary}\n";
+  static const char source_order_b[] =
+      "fn pick(primary:ref S,fallback:ref S):view S "
+      "borrows(0:[primary,fallback],1:[1]){return primary}\n";
+  fixture source_a;
+  fixture source_b;
+  CHECK(fixture_init(&source_a, source_order_a,
+                     sizeof(source_a.nodes) / sizeof(source_a.nodes[0]),
+                     sizeof(source_a.issues) / sizeof(source_a.issues[0])));
+  CHECK(fixture_init(&source_b, source_order_b,
+                     sizeof(source_b.nodes) / sizeof(source_b.nodes[0]),
+                     sizeof(source_b.issues) / sizeof(source_b.issues[0])));
+  CHECK(source_a.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(source_b.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(source_a.result.issue_count == 0);
+  CHECK(source_b.result.issue_count == 0);
+  CHECK(check_leaf_partition(&source_a));
+  CHECK(check_leaf_partition(&source_b));
+  CHECK(check_tree_links(&source_a));
+  CHECK(check_tree_links(&source_b));
+  const w_seed_cst_index source_a_clause =
+      first_kind(&source_a, W_SEED_CST_BORROW_CLAUSE);
+  const w_seed_cst_index source_b_clause =
+      first_kind(&source_b, W_SEED_CST_BORROW_CLAUSE);
+  const w_seed_cst_index source_a_pair =
+      direct_child_after(&source_a, source_a_clause,
+                         W_SEED_CST_BORROW_PAIR, 0);
+  const w_seed_cst_index source_b_pair =
+      direct_child_after(&source_b, source_b_clause,
+                         W_SEED_CST_BORROW_PAIR, 0);
+  CHECK(node_span_text(&source_a, source_a_pair, "0:[fallback,primary]"));
+  CHECK(node_span_text(&source_b, source_b_pair, "0:[primary,fallback]"));
+  CHECK(memcmp(source_a.nodes, source_b.nodes,
+               source_a.result.node_count * sizeof(source_a.nodes[0])) != 0);
+
+  static const char pair_order_a[] =
+      "fn pick(primary:ref S,fallback:ref S):view S "
+      "borrows(0:[fallback,primary],1:[1]){return primary}\n";
+  static const char pair_order_b[] =
+      "fn pick(primary:ref S,fallback:ref S):view S "
+      "borrows(1:[1],0:[fallback,primary]){return primary}\n";
+  fixture pair_a;
+  fixture pair_b;
+  CHECK(fixture_init(&pair_a, pair_order_a,
+                     sizeof(pair_a.nodes) / sizeof(pair_a.nodes[0]),
+                     sizeof(pair_a.issues) / sizeof(pair_a.issues[0])));
+  CHECK(fixture_init(&pair_b, pair_order_b,
+                     sizeof(pair_b.nodes) / sizeof(pair_b.nodes[0]),
+                     sizeof(pair_b.issues) / sizeof(pair_b.issues[0])));
+  CHECK(pair_a.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(pair_b.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(pair_a.result.issue_count == 0);
+  CHECK(pair_b.result.issue_count == 0);
+  CHECK(check_leaf_partition(&pair_a));
+  CHECK(check_leaf_partition(&pair_b));
+  CHECK(check_tree_links(&pair_a));
+  CHECK(check_tree_links(&pair_b));
+  const w_seed_cst_index pair_a_clause =
+      first_kind(&pair_a, W_SEED_CST_BORROW_CLAUSE);
+  const w_seed_cst_index pair_b_clause =
+      first_kind(&pair_b, W_SEED_CST_BORROW_CLAUSE);
+  CHECK(node_span_text(
+      &pair_a,
+      direct_child_after(&pair_a, pair_a_clause, W_SEED_CST_BORROW_PAIR, 0),
+      "0:[fallback,primary]"));
+  CHECK(node_span_text(
+      &pair_b,
+      direct_child_after(&pair_b, pair_b_clause, W_SEED_CST_BORROW_PAIR, 0),
+      "1:[1]"));
+  CHECK(memcmp(pair_a.nodes, pair_b.nodes,
+               pair_a.result.node_count * sizeof(pair_a.nodes[0])) != 0);
   return true;
 }
 
@@ -1328,30 +1615,33 @@ static bool test_parse_twice(void) {
 }
 
 int main(void) {
-  CHECK(test_positive_core());
-  CHECK(test_nested_close_and_shift());
-  CHECK(test_pratt_nesting());
-  CHECK(test_pratt_operator_table());
-  CHECK(test_repeat_array_shape());
-  CHECK(test_repeat_array_recovery());
-  CHECK(test_subspan_bounds());
-  CHECK(test_adjacency_and_boundaries());
-  CHECK(test_recovery_codes());
-  CHECK(test_fail_closed());
-  CHECK(test_capacity());
-  CHECK(test_init_validation());
-  CHECK(test_parse_twice());
-  CHECK(test_phase2_declaration_tree());
-  CHECK(test_async_function_shapes());
-  CHECK(test_transaction_shapes());
-  CHECK(test_phase2_parameter_and_argument_shapes());
-  CHECK(test_phase2_parameter_requirements());
-  CHECK(test_phase2_prefix_forms());
-  CHECK(test_phase2_fatal_boundaries());
-  CHECK(test_phase2_recovery_mutations());
-  CHECK(test_for_control_shapes());
-  CHECK(test_for_markers_and_iterables());
-  CHECK(test_for_control_recovery());
+  const bool passed =
+      test_positive_core() &&
+      test_nested_close_and_shift() &&
+      test_pratt_nesting() &&
+      test_pratt_operator_table() &&
+      test_repeat_array_shape() &&
+      test_repeat_array_recovery() &&
+      test_subspan_bounds() &&
+      test_adjacency_and_boundaries() &&
+      test_recovery_codes() &&
+      test_fail_closed() &&
+      test_capacity() &&
+      test_init_validation() &&
+      test_parse_twice() &&
+      test_phase2_declaration_tree() &&
+      test_borrow_clause_shapes() &&
+      test_async_function_shapes() &&
+      test_transaction_shapes() &&
+      test_phase2_parameter_and_argument_shapes() &&
+      test_phase2_parameter_requirements() &&
+      test_phase2_prefix_forms() &&
+      test_phase2_fatal_boundaries() &&
+      test_phase2_recovery_mutations() &&
+      test_for_control_shapes() &&
+      test_for_markers_and_iterables() &&
+      test_for_control_recovery();
+  if (!passed) return 1;
   (void)puts("Seed C parser: caller-owned CST, recovery and P0a hand cases passed");
   return 0;
 }
