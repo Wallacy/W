@@ -1115,6 +1115,204 @@ static bool test_transaction_shapes(void) {
   return true;
 }
 
+static bool test_language_lock_shapes(void) {
+  static const struct {
+    const char *text;
+    const char *lock_text;
+    const char *target_text;
+    const char *binding_text;
+    size_t lock_count;
+    const char *prefix;
+  } positive[] = {
+      {"fn snapshot(state:shared Ledger):Ledger{"
+       "return lock state as value{copy value}}\n",
+       "lock state as value{copy value}", "state ", "value", 1, NULL},
+      {"fn snapshot(state:shared Ledger):Ledger{"
+       "return await lock state as value{copy value}}\n",
+       "lock state as value{copy value}", "state ", "value", 1, "await"},
+      {"fn snapshot(state:shared Ledger):Ledger{"
+       "return try lock state as value{copy value}}\n",
+       "lock state as value{copy value}", "state ", "value", 1, "try"},
+      {"fn snapshot(state:shared Ledger):Ledger{"
+       "return lock state.current as value{await work()}}\n",
+       "lock state.current as value{await work()}", "state.current ",
+       "value", 1, NULL},
+      {"fn snapshot(state:shared Ledger):Ledger{"
+       "return lock (state) as value{copy value}}\n",
+       "lock (state) as value{copy value}", "(state) ", "value", 1, NULL},
+      {"fn snapshot(state:shared Ledger):Ledger{"
+       "return lock state as value{ref value}}\n",
+       "lock state as value{ref value}", "state ", "value", 1, NULL},
+      {"fn snapshot(state:shared Ledger):Ledger{"
+       "return lock state as value{lock state as nested{copy nested}}}\n",
+       "lock state as value{lock state as nested{copy nested}}", "state ",
+       "value", 2, NULL},
+  };
+  for (size_t index = 0;
+       index < sizeof(positive) / sizeof(positive[0]); index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, positive[index].text,
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+    CHECK(value.result.issue_count == 0);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+    CHECK(count_kind(&value, W_SEED_CST_LOCK_EXPRESSION) ==
+          positive[index].lock_count);
+
+    const w_seed_cst_index function = first_kind(&value, W_SEED_CST_FUNCTION);
+    CHECK(function != W_SEED_CST_NONE);
+    const w_seed_cst_index parameters =
+        direct_child_after(&value, function, W_SEED_CST_PARAMETER_LIST, 0);
+    CHECK(parameters != W_SEED_CST_NONE);
+    const w_seed_cst_index parameter =
+        direct_child_after(&value, parameters, W_SEED_CST_PARAMETER, 0);
+    CHECK(parameter != W_SEED_CST_NONE);
+    const w_seed_cst_index type =
+        direct_child_after(&value, parameter, W_SEED_CST_TYPE, 0);
+    CHECK(type != W_SEED_CST_NONE);
+    CHECK(node_span_text(&value, type, "shared Ledger"));
+    CHECK(has_direct_text(&value, type, W_SEED_CST_WORD, "shared"));
+
+    const w_seed_cst_index lock =
+        first_kind(&value, W_SEED_CST_LOCK_EXPRESSION);
+    CHECK(lock != W_SEED_CST_NONE);
+    CHECK(node_span_text(&value, lock, positive[index].lock_text));
+    CHECK(count_direct_kind(&value, lock, W_SEED_CST_WORD) == 3);
+    CHECK(count_direct_kind(&value, lock, W_SEED_CST_EXPRESSION) == 1);
+    CHECK(count_direct_kind(&value, lock, W_SEED_CST_BLOCK) == 1);
+    const w_seed_cst_index lock_word =
+        direct_child_after(&value, lock, W_SEED_CST_WORD, 0);
+    const w_seed_cst_index as_word =
+        direct_child_after(&value, lock, W_SEED_CST_WORD, 1);
+    const w_seed_cst_index binding =
+        direct_child_after(&value, lock, W_SEED_CST_WORD, 2);
+    const w_seed_cst_index target =
+        direct_child_after(&value, lock, W_SEED_CST_EXPRESSION, 0);
+    const w_seed_cst_index body =
+        direct_child_after(&value, lock, W_SEED_CST_BLOCK, 0);
+    CHECK(lock_word != W_SEED_CST_NONE);
+    CHECK(as_word != W_SEED_CST_NONE);
+    CHECK(binding != W_SEED_CST_NONE);
+    CHECK(target != W_SEED_CST_NONE);
+    CHECK(body != W_SEED_CST_NONE);
+    CHECK(node_span_text(&value, lock_word, "lock"));
+    CHECK(node_span_text(&value, as_word, "as"));
+    CHECK(node_span_text(&value, target, positive[index].target_text));
+    CHECK(node_span_text(&value, binding, positive[index].binding_text));
+    CHECK(value.nodes[lock].raw_span.start_byte ==
+          value.nodes[lock_word].raw_span.start_byte);
+    CHECK(value.nodes[lock_word].raw_span.end_byte <
+          value.nodes[target].raw_span.start_byte);
+    CHECK(value.nodes[target].raw_span.end_byte <=
+          value.nodes[as_word].raw_span.start_byte);
+    CHECK(value.nodes[as_word].raw_span.end_byte <
+          value.nodes[binding].raw_span.start_byte);
+    CHECK(value.nodes[binding].raw_span.end_byte <=
+          value.nodes[body].raw_span.start_byte);
+    CHECK(value.nodes[lock].raw_span.end_byte ==
+          value.nodes[body].raw_span.end_byte);
+
+    const w_seed_cst_index block =
+        direct_child_after(&value, function, W_SEED_CST_BLOCK, 0);
+    CHECK(block != W_SEED_CST_NONE);
+    const w_seed_cst_index return_statement =
+        direct_child_after(&value, block, W_SEED_CST_RETURN_STATEMENT, 0);
+    CHECK(return_statement != W_SEED_CST_NONE);
+    const w_seed_cst_index expression =
+        direct_child_after(&value, return_statement, W_SEED_CST_EXPRESSION, 0);
+    CHECK(expression != W_SEED_CST_NONE);
+    if (positive[index].prefix != NULL) {
+      CHECK(has_direct_text(&value, expression, W_SEED_CST_WORD,
+                            positive[index].prefix));
+    }
+
+    fixture repeat;
+    CHECK(fixture_init(&repeat, positive[index].text,
+                       sizeof(repeat.nodes) / sizeof(repeat.nodes[0]),
+                       sizeof(repeat.issues) / sizeof(repeat.issues[0])));
+    CHECK(repeat.result.status == W_SEED_PARSE_COMPLETE);
+    CHECK(repeat.result.node_count == value.result.node_count);
+    CHECK(repeat.result.leaf_count == value.result.leaf_count);
+    CHECK(memcmp(repeat.nodes, value.nodes,
+                 value.result.node_count * sizeof(value.nodes[0])) == 0);
+  }
+
+  static const struct {
+    const char *text;
+    w_seed_parse_issue_kind issue;
+  } recovered[] = {
+      {"fn f(state:shared Ledger):Ledger{"
+       "return lock state value{copy value}}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(state:shared Ledger):Ledger{"
+       "return lock as value{copy value}}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(state:shared Ledger):Ledger{"
+       "return lock state as{copy state}}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(state:shared Ledger):Ledger{"
+       "return lock state as value\n}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"fn f(state:shared Ledger):Ledger{"
+       "return lock state as value{copy value}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"fn f(state:shared Ledger):Ledger{"
+       "return lock state as 0{copy value}}\n",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"fn f(state:shared Ledger):Ledger{"
+       "return lock state as value(copy value)}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"fn f(state:shared Ledger):Ledger{"
+       "return lock state as value as other{copy value}}\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+  };
+  for (size_t index = 0;
+       index < sizeof(recovered) / sizeof(recovered[0]); index += 1) {
+    fixture malformed;
+    CHECK(fixture_init(&malformed, recovered[index].text,
+                       sizeof(malformed.nodes) / sizeof(malformed.nodes[0]),
+                       sizeof(malformed.issues) / sizeof(malformed.issues[0])));
+    CHECK(malformed.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(malformed.result.issue_count >= 1);
+    CHECK(has_issue(&malformed, recovered[index].issue));
+    CHECK(check_leaf_partition(&malformed));
+    CHECK(check_tree_links(&malformed));
+  }
+
+  fixture missing_target;
+  CHECK(fixture_init(&missing_target,
+                     "fn f(state:shared Ledger):Ledger{"
+                     "return lock as value{copy value}}\n",
+                     sizeof(missing_target.nodes) /
+                         sizeof(missing_target.nodes[0]),
+                     sizeof(missing_target.issues) /
+                         sizeof(missing_target.issues[0])));
+  const w_seed_cst_index missing_lock =
+      first_kind(&missing_target, W_SEED_CST_LOCK_EXPRESSION);
+  CHECK(missing_lock != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&missing_target, missing_lock,
+                          W_SEED_CST_EXPRESSION) == 0);
+  CHECK(count_direct_kind(&missing_target, missing_lock,
+                          W_SEED_CST_MISSING) >= 1);
+  CHECK(check_leaf_partition(&missing_target));
+  CHECK(check_tree_links(&missing_target));
+
+  fixture extra_as;
+  CHECK(fixture_init(&extra_as,
+                     "fn f(state:shared Ledger):Ledger{"
+                     "return lock state as value as other{copy value}}\n",
+                     sizeof(extra_as.nodes) / sizeof(extra_as.nodes[0]),
+                     sizeof(extra_as.issues) / sizeof(extra_as.issues[0])));
+  CHECK(node_span_text(
+      &extra_as, first_kind(&extra_as, W_SEED_CST_LOCK_EXPRESSION),
+      "lock state as value "));
+  CHECK(check_leaf_partition(&extra_as));
+  CHECK(check_tree_links(&extra_as));
+  return true;
+}
+
 static bool test_phase2_parameter_and_argument_shapes(void) {
   static const char text[] =
       "fn inspect(named:T,named audit:Audit,external internal:T,_ internal:T):T {"
@@ -1633,6 +1831,7 @@ int main(void) {
       test_borrow_clause_shapes() &&
       test_async_function_shapes() &&
       test_transaction_shapes() &&
+      test_language_lock_shapes() &&
       test_phase2_parameter_and_argument_shapes() &&
       test_phase2_parameter_requirements() &&
       test_phase2_prefix_forms() &&

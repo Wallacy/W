@@ -25,6 +25,7 @@ const selectedIds = [
   "F0-const-call-parameter",
   "F0-effect-prefix-order",
   "F0-structured-transaction",
+  "F0-language-lock",
   "F0-borrows-clause-source-order",
 ]
 
@@ -60,6 +61,7 @@ const CST = Object.freeze({
   BORROW_CLAUSE: 41,
   BORROW_PAIR: 42,
   SLOT_REF: 43,
+  LOCK: 44,
 })
 
 function fail(message) {
@@ -358,6 +360,44 @@ function assertStructuredTransaction(parsed, bytes, label) {
   }
 }
 
+function assertLanguageLock(parsed, bytes, label, { lockCount = 1, prefix = null } = {}) {
+  assertClean(parsed, label)
+  const locks = parsed.nodes.filter((node) => node.kind === CST.LOCK)
+  if (locks.length !== lockCount) fail(`${label} does not contain ${lockCount} LOCK nodes`)
+  const lock = locks[0]
+  const words = directKind(parsed, lock.index, CST.WORD)
+  const target = directKind(parsed, lock.index, CST.EXPRESSION)
+  const body = directKind(parsed, lock.index, CST.BLOCK)
+  if (words.length !== 3 || target.length !== 1 || body.length !== 1) {
+    fail(`${label} LOCK direct owners are not WORD x3, EXPRESSION, BLOCK`)
+  }
+  if (nodeText(parsed, bytes, words[0]) !== "lock" ||
+      nodeText(parsed, bytes, words[1]) !== "as") {
+    fail(`${label} LOCK keyword/binding order is not source-shaped`)
+  }
+  if (!(words[0].start < target[0].start &&
+        target[0].end <= words[1].start &&
+        words[1].end <= words[2].start &&
+        words[2].end <= body[0].start)) {
+    fail(`${label} LOCK owner order/spans are not source-shaped`)
+  }
+  if (lock.start !== words[0].start || lock.end !== body[0].end) {
+    fail(`${label} LOCK span does not cover keyword through body`)
+  }
+  const sharedTypes = parsed.nodes.filter((node) => node.kind === CST.TYPE)
+    .filter((node) => directKind(parsed, node.index, CST.WORD)
+      .some((word) => nodeText(parsed, bytes, word) === "shared"))
+  if (sharedTypes.length < 1) fail(`${label} does not preserve shared as a TYPE leaf`)
+  const expressions = parsed.nodes.filter((node) => node.kind === CST.EXPRESSION)
+  const outer = expressions.find((node) =>
+    descendants(parsed, node.index).some((child) => child.index === lock.index))
+  if (!outer) fail(`${label} LOCK has no owning outer EXPRESSION`)
+  if (prefix !== null && !directKind(parsed, outer.index, CST.WORD)
+      .some((word) => nodeText(parsed, bytes, word) === prefix)) {
+    fail(`${label} outer EXPRESSION does not preserve ${prefix}`)
+  }
+}
+
 function assertBorrowClause(parsed, bytes, label) {
   assertClean(parsed, label)
   const functions = parsed.nodes.filter((node) => node.kind === CST.FUNCTION)
@@ -568,6 +608,10 @@ async function main() {
         assertStructuredTransaction(inputParsed, input, `${id}:input`)
         assertStructuredTransaction(outputParsed, output, `${id}:output`)
       }
+      if (id === "F0-language-lock") {
+        assertLanguageLock(inputParsed, input, `${id}:input`)
+        assertLanguageLock(outputParsed, output, `${id}:output`)
+      }
       if (id === "F0-borrows-clause-source-order") {
         assertBorrowClause(inputParsed, input, `${id}:input`)
         assertBorrowClause(outputParsed, output, `${id}:output`)
@@ -615,6 +659,22 @@ async function main() {
       ["transaction-missing-close", Buffer.from("fn f(){return transaction tx=provider{commit value\n"), "recovered", 2],
       ["transaction-malformed-commit", Buffer.from("fn f(){commit value else}\n"), "recovered", 3],
       ["transaction-contract-stop", Buffer.from("fn f(){return transaction<.serializable> tx=provider{commit value}}\n"), "fatal", 6],
+      ["language-lock-plain", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as value{copy value}}\n"), "complete"],
+      ["language-lock-await", Buffer.from("fn f(state:shared Ledger):Ledger{return await lock state as value{copy value}}\n"), "complete"],
+      ["language-lock-try", Buffer.from("fn f(state:shared Ledger):Ledger{return try lock state as value{copy value}}\n"), "complete"],
+      ["language-lock-member", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state.current as value{copy value}}\n"), "complete"],
+      ["language-lock-group", Buffer.from("fn f(state:shared Ledger):Ledger{return lock (state) as value{copy value}}\n"), "complete"],
+      ["language-lock-semantic-await-body", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as value{await work()}}\n"), "complete"],
+      ["language-lock-semantic-ref-body", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as value{ref value}}\n"), "complete"],
+      ["language-lock-nested", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as value{lock state as nested{copy nested}}}\n"), "complete"],
+      ["language-lock-missing-as", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state value{copy value}}\n"), "recovered", 1],
+      ["language-lock-missing-target", Buffer.from("fn f(state:shared Ledger):Ledger{return lock as value{copy value}}\n"), "recovered", 1],
+      ["language-lock-missing-binding", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as{copy state}}\n"), "recovered", 1],
+      ["language-lock-missing-body", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as value}\n"), "recovered", 2],
+      ["language-lock-missing-close", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as value{copy value}\n"), "recovered", 2],
+      ["language-lock-nonword-binding", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as 0{copy value}}\n"), "recovered", 1],
+      ["language-lock-paren-body", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as value(copy value)}\n"), "recovered", 2],
+      ["language-lock-extra-as", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as value as other{copy value}}\n"), "recovered", 2],
       ["borrow-view-two-pairs", Buffer.from("fn pick(primary: ref S, fallback: ref S): view S borrows(0: [fallback, primary], 1: [1,]) { return primary }\n"), "complete"],
       ["borrow-view-param-return", Buffer.from("fn pick(primary: view S, fallback: ref S): view S borrows(0: [fallback, primary]) { return primary }\n"), "complete"],
       ["borrow-slot-lexical", Buffer.from("fn pick(primary: ref S): view S borrows(1.5: [unknown], 99: [primary,]) { return primary }\n"), "complete"],
@@ -699,6 +759,44 @@ async function main() {
         if (label === "transaction-commit-empty" &&
             directKind(parsed, commits[0].index, CST.EXPRESSION).length !== 0) {
           fail(`${label} unexpectedly owns an EXPRESSION`)
+        }
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} CST signature is not deterministic`)
+        }
+      }
+      if (label.startsWith("language-lock-")) {
+        if (status === "complete") {
+          const expectedLockCount = label === "language-lock-nested" ? 2 : 1
+          const expectedPrefix = label === "language-lock-await" ? "await" :
+            label === "language-lock-try" ? "try" : null
+          assertLanguageLock(parsed, bytes, label, {
+            lockCount: expectedLockCount,
+            prefix: expectedPrefix,
+          })
+        }
+        if (label === "language-lock-missing-target") {
+          const locks = parsed.nodes.filter((node) => node.kind === CST.LOCK)
+          if (locks.length !== 1) fail(`${label} does not contain one LOCK node`)
+          if (directKind(parsed, locks[0].index, CST.EXPRESSION).length !== 0) {
+            fail(`${label} fabricated a direct EXPRESSION for the missing target`)
+          }
+          if (directKind(parsed, locks[0].index, CST.MISSING).length < 1) {
+            fail(`${label} does not preserve a MISSING target marker`)
+          }
+        }
+        if (label === "language-lock-nested") {
+          const locks = parsed.nodes.filter((node) => node.kind === CST.LOCK)
+          const outer = locks.find((candidate) => locks.some((other) =>
+            other.index !== candidate.index && candidate.start < other.start &&
+            other.end < candidate.end))
+          const inner = locks.find((candidate) => candidate.index !== outer?.index)
+          if (!outer || !inner) fail(`${label} has no outer and inner LOCK pair`)
+          const blocks = directKind(parsed, outer.index, CST.BLOCK)
+          if (blocks.length !== 1 ||
+              !descendants(parsed, blocks[0].index).some((node) => node.index === inner.index)) {
+            fail(`${label} inner LOCK is not inside the outer LOCK block`)
+          }
         }
         const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
         if (parsed.signature !== repeated.signature) {
