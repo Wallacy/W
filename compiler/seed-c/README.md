@@ -1,7 +1,8 @@
-# Source reader, lexer e parser do seed C
+# Source reader, lexer, parser, formatter e D0 do seed C
 
 **Status:** componente real e interno do w-seed-c. O parser seed abaixo é uma
-fatia incremental de CST/recovery; ele não é um compiler frontend.
+fatia incremental de CST/recovery. O formatter e o adapter D0 são fatias fechadas
+caller-owned desta fatia; nenhum deles é um compiler frontend.
 
 Este componente fornece uma view de bytes sem cópia. Ele valida UTF-8 estrito,
 detecta o BOM inicial, conta linhas por LF, valida spans half-open e converte
@@ -23,7 +24,7 @@ quantity quando a expressão de unidade lexical fechada está adjacente. UTF-8
 fora de literais, comentários e BOM inicial usa o profile Unicode 17.0.0:
 `XID_Start` mais `_` no início, `XID_Continue` na continuação, e rejeição de
 `Default_Ignorable_Code_Point`. O WORD mantém os bytes e o span raw. NFC,
-colisões no resolver, confusables, scripts mistos, formatter e scanner de
+colisões no resolver, confusables, scripts mistos, formatter normativo e scanner de
 foreign não pertencem a esta fatia. CRLF é um único item
 NEWLINE; CR isolado é UNSUPPORTED_CONTROL interno. Erros internos não são
 diagnósticos D0.
@@ -112,7 +113,7 @@ internos têm mapping futuro para D0, mas não são diagnósticos D0. `manifest`
 declarations além de `fn`/`struct`/`type`/`alias`/`test`/`entry`, patterns e bare
 closures, semântica de effects/async/lock, contratos de transaction,
 AST/HIR,
-name/type resolution e formatter permanecem fora; `foreign` falha fechado antes
+name/type resolution e formatter normativo permanecem fora; `foreign` falha fechado antes
 do body. `unsafe fn<C>` e `export unsafe fn<C>` são aceitos somente pela ilha C
 validada abaixo; `unsafe fn` sem tag de linguagem permanece STOP. Imports só
 aparecem antes de qualquer declaration; `export` aceita `fn`, `async fn`,
@@ -154,8 +155,31 @@ W. Em sucesso o parser consome `{`, exige cache interior vazio, faz
 
 O lexer permanece responsável apenas pelo handshake e pelo leaf raw; os owners
 append-only `FOREIGN_LANGUAGE_TAG` e `FOREIGN_BODY_OWNER` preservam a CST. Esta
-fatia não afirma AST, ABI, adapter, formatter, fallback editorial ou build do
-Last Light.
+fatia não afirma AST, ABI, fallback editorial ou build do Last Light. O
+formatter interno só aceita CST `COMPLETE` sem issues e o adapter D0 só emite
+records determinísticos para `source.lex`, `source.parse` e `source.format`.
+Ele não inventa códigos para fatos sem mapping suportado.
+
+## Formatter seed e adapter D0
+
+`include/w_seed_formatter.h` e `src/w_seed_formatter.c` formam um formatter
+C11 sem heap, path, locale, clock ou environment. A API recebe buffers de
+tokens, grupos e output do caller, mede antes de escrever e rejeita
+CST recuperado/fatal. A renderização usa a estrutura CST e as folhas raw; não
+carrega o oracle JSON nem procura IDs ou digests em runtime. O gate compara os
+28 pares de [`formatter-cases.json`](../../tooling/formatter-cases.json),
+reparseia o output, verifica a assinatura CST recursiva, idempotência, capacity
+all-or-nothing e preservação byte-a-byte de `FOREIGN_BODY`. A política de
+quebra usa a coluna preferida 120 sobre largura sem trivia e é uma política
+limitada do seed, não uma especificação do formatter normativo.
+
+`include/w_seed_diagnostic.h` e `src/w_seed_diagnostic.c` formam o adapter D0
+mínimo. O record `W-FMT-0001` tem o schema JSONL canônico e SHA-256 de source e
+canonical; `W-LEX-0001` cobre somente literals/comments não terminados com
+facts semânticos estáveis; os mappings atuais de `W-PARSE-*` preservam
+`actual`, `construct`, `expected` e labels com spans. Identity, UTF-8, NUL,
+spans e capacity são validados. Lex facts não mapeados e parser internos sem
+catalog truth retornam `UNSUPPORTED`; não há claim semântico.
 
 ## Build local
 
@@ -175,6 +199,16 @@ validados com:
 
     bun tooling/check-seed-parser.mjs
 
+O formatter seed compara os 28 outputs canônicos, reparses e prova a
+idempotência, assinatura CST, capacidade e foreign body:
+
+    bun tooling/check-seed-formatter.mjs
+
+O adapter D0 compara os 28 records `W-FMT-0001` byte-a-byte ao snapshot e
+valida records lex/parse com JSON.parse e schema/ordem determinísticos:
+
+    bun tooling/check-seed-diagnostic.mjs
+
 O gate dedicado do scanner C constrói o probe em diretório temporário e compara
 32 operações de scan C do corpus FB0, o witness source-backed atual de
 `hardware.w` (`unsafe fn<C>`), limites e digest adulterado; sem claim de build:
@@ -190,29 +224,33 @@ Uma atualização de dados é explícita e requer rede:
 
     bun tooling/generate-seed-unicode.mjs --update
 
-Os headers include/w_seed_source.h, include/w_seed_lexer.h e
-include/w_seed_parser.h e a biblioteca w_seed_source são detalhes de
-implementação do seed. A biblioteca e o parser não alocam,
-não acessa paths, locale, clock ou environment e não assume ownership dos
+Os headers include/w_seed_source.h, include/w_seed_lexer.h,
+include/w_seed_parser.h, include/w_seed_formatter.h e
+include/w_seed_diagnostic.h e a biblioteca w_seed_source são detalhes de
+implementação do seed. A biblioteca, o parser, o formatter e o adapter não alocam,
+não acessam paths, locale, clock ou environment e não assumem ownership dos
 bytes de entrada. O probe de lexer é somente ferramenta de teste.
 
 O source probe lê uma entrada limitada de stdin e devolve os bytes sem
 alteração. O lexer probe devolve somente itens e spans; o parser probe devolve
 CST, folhas e issues internos para o checker. O limite
 de 16 MiB pertence somente aos probes de teste; não é contrato da linguagem
-nem limite do source reader. NFC, resolver e adapter/build publication continuam
-gaps intencionais desta fatia; o scanner C acima é somente source validation. Os
+nem limite do source reader. NFC, resolver e build publication continuam gaps
+intencionais desta fatia; o scanner C acima é somente source validation. O
+formatter e o adapter D0 são fatias fechadas internas, não frontend normativo. Os
 checkers Bun usam os probes sobre os casos
 F0 e os witnesses FZ0 quando aplicável. Esses casos continuam oracles de design
 e não são output de um compiler. A proveniência é mantida em
 [formatter-cases.json (F0)](../../tooling/formatter-cases.json),
 [frontend-freeze-cases.json (FZ0)](../../tooling/frontend-freeze-cases.json),
-[formatting.w](../../reference/last-light/formatting.w) e no
-[check-seed-source-reader.mjs](../../tooling/check-seed-source-reader.mjs); o
+[formatting.w](../../reference/last-light/formatting.w) e nos
+[check-seed-source-reader.mjs](../../tooling/check-seed-source-reader.mjs),
+[check-seed-formatter.mjs](../../tooling/check-seed-formatter.mjs) e
+[check-seed-diagnostic.mjs](../../tooling/check-seed-diagnostic.mjs); os
 checker lê essas fontes e não copia seus payloads. O checker do parser também
 extrai slices delimitados por marcadores de bytes atuais de
 `reference/last-light/generics.w`, `enum_contracts.w` e `allocation.w`; esses
 witnesses são
 somente entradas sintáticas do seed e não afirmam que o Last Light completo
-compila. O parser seed não promove
-nenhum comportamento de compiler, AST/HIR, checker semântico ou formatter.
+compila. O parser/formatter/adapter seed não promove nenhum comportamento de
+compiler, AST/HIR, checker semântico, resolver ou runtime.

@@ -450,7 +450,10 @@ static bool parse_static_value(w_seed_parser *parser);
 static bool parse_static_list(w_seed_parser *parser);
 static bool parse_switch_expression(w_seed_parser *parser);
 static bool parse_allocator_block(w_seed_parser *parser);
+static bool parse_binding_statement(w_seed_parser *parser, const char *keyword,
+                                    w_seed_cst_kind kind);
 static bool parse_let_statement(w_seed_parser *parser);
+static bool parse_var_statement(w_seed_parser *parser);
 static bool parse_spawn_statement(w_seed_parser *parser);
 static bool statement_boundary(w_seed_parser *parser);
 static bool parse_borrow_clause(w_seed_parser *parser);
@@ -1503,11 +1506,12 @@ static bool statement_boundary(w_seed_parser *parser) {
   return true;
 }
 
-static bool parse_let_statement(w_seed_parser *parser) {
+static bool parse_binding_statement(w_seed_parser *parser, const char *keyword,
+                                    w_seed_cst_kind kind) {
   const size_t start = current_span(parser).start_byte;
-  if (push_node(parser, W_SEED_CST_LET_STATEMENT, start) == W_SEED_CST_NONE)
+  if (push_node(parser, kind, start) == W_SEED_CST_NONE)
     return false;
-  (void)consume_text(parser, "let", NULL);
+  (void)consume_text(parser, keyword, NULL);
   if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
     append_missing(parser, current_span(parser).start_byte,
                    W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
@@ -1527,6 +1531,14 @@ static bool parse_let_statement(w_seed_parser *parser) {
   (void)statement_boundary(parser);
   pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
   return true;
+}
+
+static bool parse_let_statement(w_seed_parser *parser) {
+  return parse_binding_statement(parser, "let", W_SEED_CST_LET_STATEMENT);
+}
+
+static bool parse_var_statement(w_seed_parser *parser) {
+  return parse_binding_statement(parser, "var", W_SEED_CST_VAR_STATEMENT);
 }
 
 static bool parse_spawn_statement(w_seed_parser *parser) {
@@ -1734,6 +1746,7 @@ static bool parse_expect_statement(w_seed_parser *parser) {
 static bool parse_statement(w_seed_parser *parser) {
   if (!skip_trivia(parser) || current_is_eof(parser)) return false;
   if (current_is_text(parser, "let")) return parse_let_statement(parser);
+  if (current_is_text(parser, "var")) return parse_var_statement(parser);
   if (current_is_text(parser, "return")) return parse_return_statement(parser);
   if (current_is_text(parser, "commit")) return parse_commit_statement(parser);
   if (current_is_text(parser, "transaction"))
@@ -1829,7 +1842,74 @@ static bool parse_import_declaration(w_seed_parser *parser) {
     return false;
   (void)consume_text(parser, "import", NULL);
   if (!current_is_text(parser, "{")) {
-    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    if (current_is_text(parser, "*")) {
+      const size_t item_start = current_span(parser).start_byte;
+      if (push_node(parser, W_SEED_CST_IMPORT_ITEM, item_start) ==
+          W_SEED_CST_NONE)
+        return false;
+      (void)consume_text(parser, "*", NULL);
+      pop_node(parser, parser->last_token_end);
+      if (!current_is_text(parser, "from")) {
+        append_missing(parser, current_span(parser).start_byte,
+                       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+      } else {
+        (void)consume_text(parser, "from", NULL);
+      }
+      if (!parse_module_path(parser)) {
+        pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+      if (current_is_text(parser, ";")) (void)consume_text(parser, ";", NULL);
+      pop_node(parser, parser->last_token_end);
+      return true;
+    }
+    if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+      const size_t item_start = current_span(parser).start_byte;
+      if (push_node(parser, W_SEED_CST_IMPORT_ITEM, item_start) ==
+          W_SEED_CST_NONE)
+        return false;
+      (void)consume_current(parser, NULL);
+      if (current_is_text(parser, ".")) {
+        while (current_is_text(parser, ".")) {
+          (void)consume_text(parser, ".", NULL);
+          if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+            append_missing(parser, current_span(parser).start_byte,
+                           W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+            pop_node(parser, parser->last_token_end);
+            pop_node(parser, parser->last_token_end);
+            return false;
+          }
+          (void)consume_current(parser, NULL);
+        }
+        pop_node(parser, parser->last_token_end);
+        if (current_is_text(parser, ";")) (void)consume_text(parser, ";", NULL);
+        pop_node(parser, parser->last_token_end);
+        return true;
+      }
+      pop_node(parser, parser->last_token_end);
+      if (current_is_text(parser, "from")) {
+        (void)consume_text(parser, "from", NULL);
+        if (!parse_module_path(parser)) {
+          pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+          return false;
+        }
+      } else if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+        /* A second bare word denotes an alias form with its `from` missing. */
+        append_missing(parser, current_span(parser).start_byte,
+                       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+        if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD) &&
+            !parse_module_path(parser)) {
+          pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+          return false;
+        }
+      }
+      if (current_is_text(parser, ";")) (void)consume_text(parser, ";", NULL);
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return true;
+    }
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
     return false;
   }
   (void)consume_text(parser, "{", NULL);
@@ -2071,17 +2151,17 @@ static bool parse_test_declaration(w_seed_parser *parser) {
     pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
     return false;
   }
-  if (!expect_text(parser, "for", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
-    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
-    return false;
+  /* The `for WORD` target is optional in this bounded test declaration. */
+  if (current_is_text(parser, "for")) {
+    (void)consume_text(parser, "for", NULL);
+    if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+      append_missing(parser, current_span(parser).start_byte,
+                     W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    (void)consume_current(parser, NULL);
   }
-  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
-    append_missing(parser, current_span(parser).start_byte,
-                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
-    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
-    return false;
-  }
-  (void)consume_current(parser, NULL);
   if (!current_is_text(parser, "{")) {
     append_missing(parser, current_span(parser).start_byte,
                    W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE);

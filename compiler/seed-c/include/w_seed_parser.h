@@ -85,6 +85,8 @@ typedef enum {
   W_SEED_CST_CAPTURE_ITEM,
   W_SEED_CST_FOREIGN_LANGUAGE_TAG,
   W_SEED_CST_FOREIGN_BODY_OWNER,
+  /* Append-only binding owner; syntactically mirrors let in this seed. */
+  W_SEED_CST_VAR_STATEMENT,
 } w_seed_cst_kind;
 
 enum {

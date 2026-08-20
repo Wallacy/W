@@ -3,8 +3,9 @@
 > **Status:** Working Draft. Highlighting e o parser incremental experimental
 > são utilizáveis; o seed C possui source reader, lexer lossless, scanner C de
 > validação de fonte e parser seed incremental de CST/recovery sobre 28 IDs F0.
-> Parser normativo do compilador,
-> formatter, LSP e compilador ainda não existem.
+> Parser normativo do compilador, formatter normativo, LSP e compilador ainda
+> não existem; o formatter seed interno existe apenas como componente fechado
+> de validação.
 
 Este diretório antecipa a experiência de escrever W sem transformar cores em
 semântica. A autoridade normativa continua em [DESIGN.md](../DESIGN.md).
@@ -62,13 +63,14 @@ compiler, runtime, provider ou execução W.
 | [VS Code/TextMate](vscode-w/README.md) | highlighting lexical local, comentários, pares e indentação | regex tolerante; não produz CST nem diagnósticos |
 | [Tree-sitter](tree-sitter-w/README.md) | parser incremental e queries estruturais sobre o subset candidato | protótipo; o gate do parser normativo está em `DESIGN.md` |
 | Corpus Tree-sitter | positivos e snapshots de CST em `tree-sitter-w/test/corpus/` | execução W ainda não existe |
-| [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) + `check-seed-source-reader.mjs` + `check-seed-lexer.mjs` + `check-seed-unicode.mjs` + `check-seed-parser.mjs` + `check-seed-foreign.mjs` | source reader C11 allocation-free, byte-first, UTF-8 estrito, spans e pontos; lexer lossless com profile Unicode 17.0.0 pinado e handshake de foreign; scanner C `c-inline-1` source-validation-only com spans/limites/SHA-256; parser seed caller-owned/incremental de CST/recovery sobre 28 IDs F0 | componente interno do seed; parser/scanner não são frontend/compiler/formatter, adapter ou publicação de build; checkers validam dados pinados, witnesses e corpus; NFC/resolver, CR isolado, compiler/typechecker e integração de adapter continuam gaps |
+| [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) + `check-seed-source-reader.mjs` + `check-seed-lexer.mjs` + `check-seed-unicode.mjs` + `check-seed-parser.mjs` + `check-seed-formatter.mjs` + `check-seed-diagnostic.mjs` + `check-seed-foreign.mjs` | source reader C11 allocation-free, byte-first, UTF-8 estrito, spans e pontos; lexer lossless com profile Unicode 17.0.0 pinado e handshake de foreign; scanner C `c-inline-1` source-validation-only com spans/limites/SHA-256; parser seed caller-owned/incremental de CST/recovery, formatter CST-driven e adapter D0 bounded sobre 28 IDs F0 | componente interno do seed; parser/formatter/adapter/scanner não são frontend/compiler/typechecker ou publicação de build; checkers validam dados pinados, witnesses, corpus, outputs canônicos e records D0; NFC/resolver, CR isolado, compiler/typechecker e build publication continuam gaps |
 | `check-design-examples.mjs` | confirma exemplo local em cada seção normativa terminal | inspeção estrutural; não valida a semântica do exemplo |
 | `check-markdown-links.mjs` | valida targets e anchors locais fora do histórico | não consulta links externos |
 | `design-index.mjs` | gera intervalos e métricas separadas de `DESIGN.md` e `RATIONALE.md` | projeção navegável; não define decisões |
 | `design-ledger.mjs` | lê, valida e exporta as linhas ordenadas do ledger em `RATIONALE.md` para os checkers | helper de uma fonte; não define contratos |
 | `design-slice.mjs` | recorta seção/heading de DESIGN ou heading/ledger de RATIONALE com contexto | leitura somente; não cria autoridade paralela |
-| `formatter-cases.json` + checker | 28 pares CST-equivalentes e snapshots de `w fmt --check`; uma invocação `--cst` valida root extent, bounds e containment dos ranges reportados, BOM declarado e comments W por digest/ordem/caminho de ancestor nos 56 sources; o par foreign preserva cada byte do body opaco, cujos ranges external-scanner são isentos | oracle Tree-sitter; não afirma trivia integral nem implementa frontend/formatter |
+| `formatter-cases.json` + `check-seed-formatter.mjs` | 28 pares CST-equivalentes e snapshots de `w fmt --check`; o gate C11 valida bytes canônicos, reparse COMPLETE/0, assinatura CST recursiva, idempotência, capacity all-or-nothing, mutação whitespace e `FOREIGN_BODY` byte-a-byte | oracle Tree-sitter + formatter seed interno; não implementa frontend normativo, AST/HIR ou semantic checker |
+| `formatter-diagnostics.snapshot.jsonl` + `check-seed-diagnostic.mjs` | 28 records `W-FMT-0001` exatos, SHA-256 source/canonical, edit machine e primary zero-width; probes Bun fazem `JSON.parse`/ordem/escapes e records lex/parse cobrem mappings D0 suportados | snapshot é oracle de bytes; adapter D0 é bounded para `source.lex`, `source.parse`, `source.format`, sem claims semânticos ou códigos fabricados |
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
 | `frontend-freeze-cases.json` + `check-frontend-freeze.mjs` + guards/test + snapshot | FZ0 ratifica as seis famílias normalizadas G0–G5 com source Last Light real (digest/symbol), parse sem recovery, pares F0 CST-equivalentes com alvo byte canônico, inversão S0 ou waiver RU0 e D0 exato; 19 decisões são cobertas sem duplicatas ou expected echo | oracle de design; F0 não prova idempotência nem implementa formatter, e o checker não implementa parser, compiler, runtime ou provider |
 | `borrow-expressivity-cases.json` + máquina/checker/test + snapshot | BRX0 deriva 24 casos (17 mappings aceitos, cinco candidatos Research e quatro negativos de invocation) para receiver/body mapping, origem bodyless única, callable loans, lending cursor, adapter OriginSet, await, escapes, `any fn`, boundaries, alternativa nominal owned e drift/mutations de interface | oracle host de design; bodyless com duas ou mais entradas compatíveis rejeita com `W-BORROW-0011`; não implementa compiler, runtime, provider nem metadata de lifetime |
@@ -603,6 +605,18 @@ O parser seed incremental usa o mesmo build C11 caller-owned e os 28 IDs F0
 completos (input e output), sem copiar payloads:
 
     bun run check:seed-parser
+
+O formatter seed C11 é uma fatia CST-driven sobre os mesmos pares F0. O gate
+mede antes de escrever, exige CST `COMPLETE` sem issues, reparsea, compara a
+assinatura estrutural recursiva, prova idempotência e preserva foreign bodies:
+
+    bun run check:seed-formatter
+
+O adapter D0 C11 é uma fatia bounded para `source.lex`, `source.parse` e
+`source.format`. O gate compara os 28 records `W-FMT-0001` ao snapshot sem
+reescrevê-lo, faz `JSON.parse` e verifica ordem/escaping e mappings suportados:
+
+    bun run check:seed-diagnostic
 
 O scanner C source-validation-only e a integração `fn<C>` usam um gate separado
 que constrói o probe em diretório temporário e roda somente os scans C do
