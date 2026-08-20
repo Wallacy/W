@@ -279,6 +279,18 @@ static bool next_is_text(w_seed_parser *parser, const char *text) {
   return span_text(parser, item.span, text);
 }
 
+static bool next_adjacent_is_text(w_seed_parser *parser, const char *text) {
+  if (!skip_trivia(parser) || current_is_eof(parser)) return false;
+  const w_seed_span current = parser->token_cache[0].item.span;
+  const size_t length = strlen(text);
+  if (current.end_byte > parser->lexer.bounds.end_byte ||
+      length > parser->lexer.bounds.end_byte - current.end_byte) {
+    return false;
+  }
+  const w_seed_span adjacent = {current.end_byte, current.end_byte + length};
+  return span_text(parser, adjacent, text);
+}
+
 static bool next_two_are_text(w_seed_parser *parser, const char *first,
                               const char *second) {
   size_t index = 1;
@@ -441,6 +453,10 @@ static bool parse_allocator_block(w_seed_parser *parser);
 static bool parse_let_statement(w_seed_parser *parser);
 static bool parse_spawn_statement(w_seed_parser *parser);
 static bool statement_boundary(w_seed_parser *parser);
+static bool parse_borrow_clause(w_seed_parser *parser);
+static bool parse_function_type(w_seed_parser *parser, size_t start);
+static bool parse_closure_expression(w_seed_parser *parser, bool value_context);
+static bool parse_capture_expression(w_seed_parser *parser, bool value_context);
 
 static bool parse_transaction_expression(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
@@ -659,6 +675,144 @@ static bool parse_switch_expression(w_seed_parser *parser) {
   return true;
 }
 
+static bool parse_closure_parameter(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_CLOSURE_PARAMETER, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  if (current_is_text(parser, ":")) {
+    (void)consume_text(parser, ":", NULL);
+    if (!parse_type(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_closure_parameters(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_CLOSURE_PARAMETERS, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "(", NULL);
+  if (!current_is_text(parser, ")")) {
+    while (true) {
+      if (!parse_closure_parameter(parser)) {
+        pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+      if (current_is_text(parser, ",")) {
+        (void)consume_text(parser, ",", NULL);
+        if (current_is_text(parser, ")")) break;
+        continue;
+      }
+      if (current_is_text(parser, ")")) break;
+      append_missing(parser, current_span(parser).start_byte,
+                     W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  if (!expect_text(parser, ")", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_closure_expression(w_seed_parser *parser, bool value_context) {
+  if (!skip_trivia(parser) || current_is_eof(parser)) return false;
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_CLOSURE_EXPRESSION, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  if (!parse_closure_parameters(parser) ||
+      !expect_text(parser, "=>", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (current_is_text(parser, "{")) {
+    if (!parse_block(parser, true)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  } else if (!parse_expression(parser, 1, true)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  (void)value_context;
+  return true;
+}
+
+static bool parse_capture_item(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_CAPTURE_ITEM, start) == W_SEED_CST_NONE)
+    return false;
+  if (!(current_is_text(parser, "copy") || current_is_text(parser, "ref") ||
+        current_is_text(parser, "take") || current_is_text(parser, "weak"))) {
+    (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                       current_span(parser), W_SEED_PARSE_EXPECT_WORD);
+    if (!current_is_eof(parser) && !current_is_text(parser, "]")) {
+      (void)consume_raw(parser, W_SEED_CST_FLAG_ERROR, W_SEED_CST_ERROR, NULL);
+    }
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_capture_expression(w_seed_parser *parser, bool value_context) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_CAPTURE_EXPRESSION, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "<", NULL);
+  (void)consume_text(parser, "[", NULL);
+  if (current_is_text(parser, "]")) {
+    (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                       current_span(parser), W_SEED_PARSE_EXPECT_WORD);
+    pop_node(parser, parser->last_token_end);
+    return false;
+  }
+  while (true) {
+    if (!parse_capture_item(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    if (!current_is_text(parser, ",")) break;
+    (void)consume_text(parser, ",", NULL);
+    if (current_is_text(parser, "]")) break;
+  }
+  if (!expect_text(parser, "]", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE) ||
+      !expect_text(parser, ">", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE) ||
+      !parse_closure_expression(parser, value_context)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
 static bool parse_primary(w_seed_parser *parser, bool value_context) {
   if (!skip_trivia(parser) || current_is_eof(parser)) return false;
   if (current_is_text(parser, "spawn")) {
@@ -697,6 +851,9 @@ static bool parse_primary(w_seed_parser *parser, bool value_context) {
   }
   if (current_is_text(parser, "lock")) {
     return parse_lock_expression(parser);
+  }
+  if (current_is_text(parser, "<") && next_adjacent_is_text(parser, "[")) {
+    return parse_capture_expression(parser, value_context);
   }
   if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD) ||
       current_is_kind(parser, W_SEED_LEX_ITEM_NUMBER) ||
@@ -1074,11 +1231,107 @@ static bool parse_contract_envelope(w_seed_parser *parser, size_t head_end,
   return true;
 }
 
+static bool parse_function_type_parameters(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_FUNCTION_TYPE_PARAMETERS, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "(", NULL);
+  if (!current_is_text(parser, ")")) {
+    while (true) {
+      if (current_is_text(parser, "ref") || current_is_text(parser, "inout") ||
+          current_is_text(parser, "take") || current_is_text(parser, "const")) {
+        (void)consume_current(parser, NULL);
+      }
+      if (!parse_type(parser)) {
+        pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+      if (current_is_text(parser, ",")) {
+        (void)consume_text(parser, ",", NULL);
+        if (current_is_text(parser, ")")) break;
+        continue;
+      }
+      if (current_is_text(parser, ")")) break;
+      append_missing(parser, current_span(parser).start_byte,
+                     W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  if (!expect_text(parser, ")", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_function_type(w_seed_parser *parser, size_t start) {
+  if (push_node(parser, W_SEED_CST_FUNCTION_TYPE, start) == W_SEED_CST_NONE)
+    return false;
+  if (current_is_text(parser, "some") || current_is_text(parser, "any")) {
+    (void)consume_current(parser, NULL);
+  }
+  if (current_is_text(parser, "mut") || current_is_text(parser, "take")) {
+    (void)consume_current(parser, NULL);
+  }
+  if (!expect_text(parser, "fn", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+      !current_is_text(parser, "(")) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (!parse_function_type_parameters(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (current_is_text(parser, ":")) {
+    (void)consume_text(parser, ":", NULL);
+    if (!parse_type(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  if (current_is_text(parser, "throws")) {
+    (void)consume_text(parser, "throws", NULL);
+    if (!parse_type(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  if (current_is_text(parser, "borrows") && !parse_borrow_clause(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
 static bool parse_type(w_seed_parser *parser) {
   if (!skip_trivia(parser) || current_is_eof(parser)) return false;
   const size_t start = current_span(parser).start_byte;
   const w_seed_cst_index node = push_node(parser, W_SEED_CST_TYPE, start);
   if (node == W_SEED_CST_NONE) return false;
+  bool function_type = current_is_text(parser, "fn") ||
+                       current_is_text(parser, "mut") ||
+                       current_is_text(parser, "take");
+  if (current_is_text(parser, "some") || current_is_text(parser, "any")) {
+    w_seed_lex_item next;
+    if (next_significant(parser, &next) &&
+        (span_text(parser, next.span, "fn") ||
+         span_text(parser, next.span, "mut") ||
+         span_text(parser, next.span, "take"))) {
+      function_type = true;
+    }
+  }
+  if (function_type) {
+    if (!parse_function_type(parser, start)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return true;
+  }
   if (current_is_text(parser, "view") || current_is_text(parser, "shared"))
     (void)consume_current(parser, NULL);
   if (current_is_text(parser, "(")) {

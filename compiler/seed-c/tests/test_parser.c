@@ -2625,6 +2625,205 @@ static bool test_parse_twice(void) {
   return true;
 }
 
+static bool test_phase3_callable_closure_capture(void) {
+  static const char f0_text[] =
+      "fn ticketSequence(initial:usize):some mut fn():usize{var next=initial "
+      "return <[take next]>()=>{next+=1 return next}}";
+  fixture f0;
+  CHECK(fixture_init(&f0, f0_text,
+                     sizeof(f0.nodes) / sizeof(f0.nodes[0]),
+                     sizeof(f0.issues) / sizeof(f0.issues[0])));
+  CHECK(f0.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(f0.result.issue_count == 0);
+  CHECK(check_leaf_partition(&f0));
+  CHECK(check_tree_links(&f0));
+  CHECK(count_kind(&f0, W_SEED_CST_FUNCTION_TYPE) == 1);
+  CHECK(count_kind(&f0, W_SEED_CST_FUNCTION_TYPE_PARAMETERS) == 1);
+  CHECK(count_kind(&f0, W_SEED_CST_CLOSURE_EXPRESSION) == 1);
+  CHECK(count_kind(&f0, W_SEED_CST_CLOSURE_PARAMETERS) == 1);
+  CHECK(count_kind(&f0, W_SEED_CST_CAPTURE_EXPRESSION) == 1);
+  CHECK(count_kind(&f0, W_SEED_CST_CAPTURE_ITEM) == 1);
+  const w_seed_cst_index return_type = first_kind(&f0, W_SEED_CST_RETURN_TYPE);
+  CHECK(return_type != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&f0, return_type, W_SEED_CST_TYPE) == 1);
+  const w_seed_cst_index callable_type =
+      first_kind(&f0, W_SEED_CST_FUNCTION_TYPE);
+  CHECK(callable_type != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&f0, callable_type,
+                          W_SEED_CST_FUNCTION_TYPE_PARAMETERS) == 1);
+  const w_seed_cst_index capture =
+      first_kind(&f0, W_SEED_CST_CAPTURE_EXPRESSION);
+  CHECK(capture != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&f0, capture, W_SEED_CST_CAPTURE_ITEM) == 1);
+  CHECK(count_direct_kind(&f0, capture, W_SEED_CST_CLOSURE_EXPRESSION) == 1);
+  const w_seed_cst_index item = first_kind(&f0, W_SEED_CST_CAPTURE_ITEM);
+  CHECK(node_span_text(&f0, item, "take next"));
+
+  fixture f0_repeat;
+  CHECK(fixture_init(&f0_repeat, f0_text,
+                     sizeof(f0_repeat.nodes) / sizeof(f0_repeat.nodes[0]),
+                     sizeof(f0_repeat.issues) / sizeof(f0_repeat.issues[0])));
+  CHECK(memcmp(&f0.result, &f0_repeat.result, sizeof(f0.result)) == 0);
+  CHECK(memcmp(f0.nodes, f0_repeat.nodes,
+               f0.result.node_count * sizeof(f0.nodes[0])) == 0);
+  CHECK(memcmp(f0.issues, f0_repeat.issues,
+               f0.result.issue_count * sizeof(f0.issues[0])) == 0);
+
+  static const char *const callable_types[] = {
+      "fn f():fn(usize):usize{return 0}",
+      "fn f():any take fn(ref usize):usize throws Error borrows(0:[0]){return 0}",
+  };
+  for (size_t index = 0;
+       index < sizeof(callable_types) / sizeof(callable_types[0]); index += 1) {
+    fixture callable;
+    CHECK(fixture_init(&callable, callable_types[index],
+                       sizeof(callable.nodes) / sizeof(callable.nodes[0]),
+                       sizeof(callable.issues) / sizeof(callable.issues[0])));
+    CHECK(callable.result.status == W_SEED_PARSE_COMPLETE);
+    CHECK(callable.result.issue_count == 0);
+    CHECK(count_kind(&callable, W_SEED_CST_FUNCTION_TYPE) == 1);
+    CHECK(count_kind(&callable, W_SEED_CST_FUNCTION_TYPE_PARAMETERS) == 1);
+    CHECK(check_leaf_partition(&callable));
+    CHECK(check_tree_links(&callable));
+  }
+  fixture malformed_callable;
+  CHECK(fixture_init(&malformed_callable,
+                     "fn f():some mut fn(usize{return 0}",
+                     sizeof(malformed_callable.nodes) /
+                         sizeof(malformed_callable.nodes[0]),
+                     sizeof(malformed_callable.issues) /
+                         sizeof(malformed_callable.issues[0])));
+  CHECK(malformed_callable.result.status == W_SEED_PARSE_RECOVERED);
+  CHECK(malformed_callable.result.issue_count != 0);
+  CHECK(malformed_callable.issues[0].kind == W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+  const w_seed_cst_index malformed_function_type =
+      first_kind(&malformed_callable, W_SEED_CST_FUNCTION_TYPE);
+  CHECK(malformed_function_type != W_SEED_CST_NONE);
+  CHECK(contains_kind(&malformed_callable, malformed_function_type,
+                      W_SEED_CST_MISSING));
+  CHECK(check_leaf_partition(&malformed_callable));
+  CHECK(check_tree_links(&malformed_callable));
+  fixture malformed_callable_repeat;
+  CHECK(fixture_init(&malformed_callable_repeat,
+                     "fn f():some mut fn(usize{return 0}",
+                     sizeof(malformed_callable_repeat.nodes) /
+                         sizeof(malformed_callable_repeat.nodes[0]),
+                     sizeof(malformed_callable_repeat.issues) /
+                         sizeof(malformed_callable_repeat.issues[0])));
+  CHECK(memcmp(malformed_callable.nodes, malformed_callable_repeat.nodes,
+               malformed_callable.result.node_count *
+                   sizeof(malformed_callable.nodes[0])) == 0);
+  CHECK(memcmp(malformed_callable.issues, malformed_callable_repeat.issues,
+               malformed_callable.result.issue_count *
+                   sizeof(malformed_callable.issues[0])) == 0);
+
+  static const struct {
+    const char *text;
+    size_t closure_parameter_nodes;
+    size_t capture_items;
+  } positives[] = {
+      {"fn f(){return <[take next]>()=>next}", 0, 1},
+      {"fn f(){return <[copy gate,ref data,weak token,take id,]>()=>value}",
+       0, 4},
+      {"fn f(){return <[copy gate]>(x:usize,y:usize,)=>x+y}", 2, 1},
+  };
+  for (size_t index = 0; index < sizeof(positives) / sizeof(positives[0]);
+       index += 1) {
+    fixture positive;
+    CHECK(fixture_init(&positive, positives[index].text,
+                       sizeof(positive.nodes) / sizeof(positive.nodes[0]),
+                       sizeof(positive.issues) / sizeof(positive.issues[0])));
+    CHECK(positive.result.status == W_SEED_PARSE_COMPLETE);
+    CHECK(positive.result.issue_count == 0);
+    CHECK(check_leaf_partition(&positive));
+    CHECK(check_tree_links(&positive));
+    CHECK(count_kind(&positive, W_SEED_CST_CLOSURE_EXPRESSION) == 1);
+    CHECK(count_kind(&positive, W_SEED_CST_CLOSURE_PARAMETERS) == 1);
+    CHECK(count_kind(&positive, W_SEED_CST_CLOSURE_PARAMETER) ==
+          positives[index].closure_parameter_nodes);
+    CHECK(count_kind(&positive, W_SEED_CST_CAPTURE_ITEM) ==
+          positives[index].capture_items);
+  }
+
+  static const char long_parenthesized[] =
+      "fn f(){return (a+b+c+d+e+f+g+h+i+j+k+l+m+n+o+p+q+r+s+t+u+v+w+x+y+z)}";
+  fixture long_expression;
+  CHECK(fixture_init(&long_expression, long_parenthesized,
+                     sizeof(long_expression.nodes) /
+                         sizeof(long_expression.nodes[0]),
+                     sizeof(long_expression.issues) /
+                         sizeof(long_expression.issues[0])));
+  CHECK(long_expression.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(long_expression.result.issue_count == 0);
+  CHECK(count_kind(&long_expression, W_SEED_CST_CLOSURE_EXPRESSION) == 0);
+  CHECK(check_leaf_partition(&long_expression));
+  CHECK(check_tree_links(&long_expression));
+
+  static const struct {
+    const char *text;
+    w_seed_parse_issue_kind issue;
+    bool missing;
+    bool following;
+  } recovered[] = {
+      {"fn f(){return <[]> () => value return next}",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, false, false},
+      {"fn f(){return <[take]>()=>value return next}",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, true, false},
+      {"fn f(){return <[inout x]>()=>value return next}",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, false, false},
+      {"fn f(){return <[take x ref y]>()=>value return next}",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE, true, false},
+      {"fn f(){return <[take x>()=>value return next}",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE, true, false},
+      {"fn f(){return <[take x]> (x=>value) return next}",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, true, false},
+      {"fn f(){return <[take x]>(x=> value return next}",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, true, false},
+      {"fn f(){return <[take x]>() value return next}",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, true, true},
+      {"fn f(){return <[take x]>()=>} return next",
+       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN, false, false},
+      {"fn f(){return <[take x]>()=>{return value}",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE, false, false},
+  };
+  for (size_t index = 0; index < sizeof(recovered) / sizeof(recovered[0]);
+       index += 1) {
+    fixture malformed;
+    CHECK(fixture_init(&malformed, recovered[index].text,
+                       sizeof(malformed.nodes) / sizeof(malformed.nodes[0]),
+                       sizeof(malformed.issues) / sizeof(malformed.issues[0])));
+    CHECK(malformed.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(malformed.result.issue_count != 0);
+    CHECK(malformed.issues[0].kind == recovered[index].issue);
+    const w_seed_cst_index malformed_capture =
+        first_kind(&malformed, W_SEED_CST_CAPTURE_EXPRESSION);
+    CHECK(malformed_capture != W_SEED_CST_NONE);
+    CHECK(contains_kind(&malformed, malformed_capture, W_SEED_CST_MISSING) ==
+          recovered[index].missing);
+    if (recovered[index].following) {
+      const w_seed_cst_index block = first_kind(&malformed, W_SEED_CST_BLOCK);
+      const w_seed_cst_index following_return =
+          direct_child_after(&malformed, block, W_SEED_CST_RETURN_STATEMENT, 1);
+      CHECK(following_return != W_SEED_CST_NONE);
+      CHECK(node_span_text(&malformed, following_return, "return next"));
+    }
+    CHECK(check_leaf_partition(&malformed));
+    CHECK(check_tree_links(&malformed));
+  }
+
+  fixture legacy;
+  CHECK(fixture_init(&legacy, "fn f(){return capture(next)}",
+                     sizeof(legacy.nodes) / sizeof(legacy.nodes[0]),
+                     sizeof(legacy.issues) / sizeof(legacy.issues[0])));
+  CHECK(legacy.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(legacy.result.issue_count == 0);
+  CHECK(count_kind(&legacy, W_SEED_CST_CAPTURE_EXPRESSION) == 0);
+  CHECK(check_leaf_partition(&legacy));
+  CHECK(check_tree_links(&legacy));
+
+  return true;
+}
+
 int main(void) {
   const bool passed =
       test_positive_core() &&
@@ -2655,7 +2854,8 @@ int main(void) {
       test_spawn_tuple_shapes() &&
       test_for_control_shapes() &&
       test_for_markers_and_iterables() &&
-      test_for_control_recovery();
+      test_for_control_recovery() &&
+      test_phase3_callable_closure_capture();
   if (!passed) return 1;
   (void)puts("Seed C parser: caller-owned CST, recovery and incremental hand cases passed");
   return 0;
