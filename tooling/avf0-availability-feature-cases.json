@@ -11,7 +11,7 @@
     "availability": {
       "path": "../reference/last-light/billing.w",
       "symbol": "gatewayUnavailable",
-      "digest": "sha256:0e8390f3abf494acd581898734d0bf8fcf00190973423143194d390dcd4e41e7",
+      "digest": "sha256:cf2aebcffd957044296440e4acb41e7c7dcfe2a6b37a9d403b0be87aa077eb3e",
       "claim": "The restaurant already needs an explicit unavailable path for a provider-backed operation."
     },
     "runtime": {
@@ -23,7 +23,7 @@
     "composition": {
       "path": "../reference/last-light/billing.w",
       "symbol": "export service billing: BillingApi {",
-      "digest": "sha256:0e8390f3abf494acd581898734d0bf8fcf00190973423143194d390dcd4e41e7",
+      "digest": "sha256:cf2aebcffd957044296440e4acb41e7c7dcfe2a6b37a9d403b0be87aa077eb3e",
       "claim": "The billing boundary composes provider availability, generation, effects, and fallback behavior."
     }
   },

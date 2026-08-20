@@ -55,7 +55,7 @@ export enum BillingError: Error {
 export behavior Versioned<Value> for Value {
   storage var current: Value
   storage var revision: u64 = 0
-  initialValue
+  input initialValue: fn(): Value
 
   init {
     current = initialValue()
