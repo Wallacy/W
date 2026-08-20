@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "w_seed_unicode.h"
+
 static void clear_error(w_seed_lex_error *error) {
   if (error == NULL) return;
   error->kind = W_SEED_LEX_ERROR_NONE;
@@ -12,6 +14,7 @@ static void clear_error(w_seed_lex_error *error) {
   error->opening.start_byte = 0;
   error->opening.end_byte = 0;
   error->literal = W_SEED_LITERAL_NONE;
+  error->code_point = 0;
   error->reached_eof = false;
 }
 
@@ -163,15 +166,43 @@ static size_t utf8_width(const w_seed_lexer *lexer, size_t offset) {
   return 4;
 }
 
-static bool emit_unsupported_unicode(w_seed_lexer *lexer,
-                                      w_seed_lex_error *error) {
-  const size_t width = utf8_width(lexer, lexer->cursor);
+static uint32_t decode_utf8_code_point(const w_seed_lexer *lexer, size_t offset,
+                                       size_t *width) {
+  const uint8_t first = byte_at(lexer, offset);
+  if (first < 0x80u) {
+    *width = 1;
+    return (uint32_t)first;
+  }
+  if (first < 0xE0u) {
+    *width = 2;
+    return (((uint32_t)first & UINT32_C(0x1F)) << 6) |
+           ((uint32_t)byte_at(lexer, offset + 1) & UINT32_C(0x3F));
+  }
+  if (first < 0xF0u) {
+    *width = 3;
+    return (((uint32_t)first & UINT32_C(0x0F)) << 12) |
+           (((uint32_t)byte_at(lexer, offset + 1) & UINT32_C(0x3F)) << 6) |
+           ((uint32_t)byte_at(lexer, offset + 2) & UINT32_C(0x3F));
+  }
+  *width = 4;
+  return (((uint32_t)first & UINT32_C(0x07)) << 18) |
+         (((uint32_t)byte_at(lexer, offset + 1) & UINT32_C(0x3F)) << 12) |
+         (((uint32_t)byte_at(lexer, offset + 2) & UINT32_C(0x3F)) << 6) |
+         ((uint32_t)byte_at(lexer, offset + 3) & UINT32_C(0x3F));
+}
+
+static bool emit_disallowed_identifier_code_point(w_seed_lexer *lexer,
+                                                  w_seed_lex_error *error,
+                                                  uint32_t code_point,
+                                                  size_t width) {
   const size_t available = lexer->bounds.end_byte - lexer->cursor;
   const size_t used = width < available ? width : available;
   const w_seed_span span = make_span(lexer->cursor, lexer->cursor + used);
-  return fail_error(lexer, error,
-                    W_SEED_LEX_ERROR_UNSUPPORTED_UNICODE_IDENTIFIER, span,
-                    span, W_SEED_LITERAL_NONE, false);
+  const bool result = fail_error(
+      lexer, error, W_SEED_LEX_ERROR_DISALLOWED_IDENTIFIER_CODE_POINT, span,
+      span, W_SEED_LITERAL_NONE, false);
+  if (error != NULL) error->code_point = code_point;
+  return result;
 }
 
 static bool emit_control_error(w_seed_lexer *lexer, w_seed_lex_error *error) {
@@ -457,10 +488,25 @@ static bool scan_number(w_seed_lexer *lexer, w_seed_lex_item *item) {
 
 static bool scan_word(w_seed_lexer *lexer, w_seed_lex_item *item) {
   const size_t start = lexer->cursor;
-  lexer->cursor += 1;
-  while (lexer->cursor < lexer->bounds.end_byte &&
-         is_ascii_word_continue(byte_at(lexer, lexer->cursor))) {
+  if (byte_at(lexer, lexer->cursor) < 0x80u) {
     lexer->cursor += 1;
+  } else {
+    size_t width = 0;
+    (void)decode_utf8_code_point(lexer, lexer->cursor, &width);
+    lexer->cursor += width;
+  }
+  while (lexer->cursor < lexer->bounds.end_byte) {
+    const uint8_t byte = byte_at(lexer, lexer->cursor);
+    if (byte < 0x80u) {
+      if (!is_ascii_word_continue(byte)) break;
+      lexer->cursor += 1;
+      continue;
+    }
+    size_t width = 0;
+    const uint32_t code_point =
+        decode_utf8_code_point(lexer, lexer->cursor, &width);
+    if (!w_seed_unicode_is_identifier_continue(code_point)) break;
+    lexer->cursor += width;
   }
   return emit_token(item, W_SEED_LEX_ITEM_WORD, 0,
                     make_span(start, lexer->cursor));
@@ -601,7 +647,16 @@ static bool scan_root_item(w_seed_lexer *lexer, w_seed_lex_item *item,
   if (lexer->terminal) return false;
   if (is_ascii_digit(byte)) return scan_number(lexer, item);
   if (is_ascii_word_start(byte)) return scan_word(lexer, item);
-  if (byte >= 0x80u) return emit_unsupported_unicode(lexer, error);
+  if (byte >= 0x80u) {
+    size_t width = 0;
+    const uint32_t code_point =
+        decode_utf8_code_point(lexer, lexer->cursor, &width);
+    if (w_seed_unicode_is_identifier_start(code_point)) {
+      return scan_word(lexer, item);
+    }
+    return emit_disallowed_identifier_code_point(lexer, error, code_point,
+                                                 width);
+  }
   if (byte < 0x20u || byte == 0x7Fu) {
     return emit_control_error(lexer, error);
   }

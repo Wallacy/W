@@ -1,0 +1,36 @@
+{
+  "schema": "w-seed-unicode-manifest-1",
+  "unicodeVersion": "17.0.0",
+  "profileId": "W-Identifier-17.0.0-XID-NO-DICP-UNDERSCORE",
+  "source": {
+    "file": "DerivedCoreProperties.txt",
+    "url": "https://www.unicode.org/Public/17.0.0/ucd/DerivedCoreProperties.txt",
+    "sha256": "24c7fed1195c482faaefd5c1e7eb821c5ee1fb6de07ecdbaa64b56a99da22c08",
+    "bytes": 1134783
+  },
+  "license": {
+    "file": "LICENSE.txt",
+    "url": "https://www.unicode.org/license.txt",
+    "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+    "bytes": 1995
+  },
+  "properties": {
+    "XID_Start": {
+      "codePoints": 145893,
+      "ranges": 691
+    },
+    "XID_Continue": {
+      "codePoints": 149221,
+      "ranges": 806
+    },
+    "Default_Ignorable_Code_Point": {
+      "codePoints": 4174,
+      "ranges": 17
+    }
+  },
+  "generated": {
+    "file": "../../src/w_seed_unicode_data.c",
+    "sha256": "6f7095d0ec4f91207c5c46105f9c3da5a38bbda4a0326e3a7ce06736d5cb2cd6",
+    "bytes": 67227
+  }
+}
