@@ -1,4 +1,4 @@
-# FRC0 — índice de artefatos
+# FRC0 — índice de artefatos do snapshot histórico
 
 | Artefato | Função |
 |---|---|
@@ -10,5 +10,6 @@
 Os payloads permanecem em `tooling/frontend-freeze-cases.json`,
 `tooling/design-freeze-classification.json` e
 `tooling/hum0-human-review-protocol.json`. FRC0 referencia esses arquivos por
-digest. Não há payload copiado, resultado humano/modelo ou evidence de
-implementação.
+digest. A máquina fecha somente W-001–W-1450 com `Research=0` e checa a
+reabertura explícita PFU0 de W-1451–W-1453. Não há payload copiado, resultado
+humano/modelo ou evidence de implementação.

@@ -1,0 +1,8 @@
+PFU0 candidate witness. This file is reserved text, not W source.
+
+build.w { package { ... } workspace { ... } } // one or two records, at least one; order-independent; workspace owns when present
+service stream fn updates(...): Item throws Failure // interface normalizes to some Stream<Item,Failure>; ServiceFailure admission/open stays distinct from terminal Failure
+property value { modify + defer is the current local-hook control; replace / modify phases are reserved comparison text; willSet / didSet has no final spelling or owner }
+
+The candidate remains Research. It has no grammar or current atlas entry.
+pfu0Study

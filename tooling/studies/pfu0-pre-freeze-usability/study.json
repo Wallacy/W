@@ -1,0 +1,32 @@
+{
+  "$schema": "w-pfu0-pre-freeze-usability-study-1",
+  "status": "design-oracle-input",
+  "id": "PFU0",
+  "title": "Pre-freeze usability research for roots, service streams, and properties",
+  "decisions": ["W-1451", "W-1452", "W-1453"],
+  "gate": "PFU0-pre-freeze-usability",
+  "question": "Do three narrow candidates add measurable usability without changing current ownership, stream, service, or property contracts?",
+  "corpus": {
+    "path": "../../pfu0-pre-freeze-usability-cases.json",
+    "digest": "sha256:62b5327c23b648492ca9104ba40dd8ae12dc30138814b981256b4dec7d0099f0"
+  },
+  "machine": {
+    "path": "../../pfu0-pre-freeze-usability-machine.mjs",
+    "digest": "sha256:503febc25c2545e59e11879e878cd3341c2889b820ded89c250fedd0bb69155b"
+  },
+  "sourceRefs": [
+    { "path": "../../../reference/last-light/package.w", "symbol": "package {", "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc", "claim": "Current package root." },
+    { "path": "../../../reference/last-light/workspace.w", "symbol": "workspace {", "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd", "claim": "Current workspace owner." },
+    { "path": "../../../reference/last-light/streams.w", "symbol": "serveOneByOne", "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14", "claim": "Current pull stream." },
+    { "path": "../../../reference/last-light/streams.w", "symbol": "runBoundedOrderWindow", "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14", "claim": "Explicit channel capacity and endpoints." },
+    { "path": "../../../reference/last-light/execution.w", "symbol": "completionCount: u64 { get }", "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed", "claim": "Property-safe getter." },
+    { "path": "../../../reference/last-light/billing.w", "symbol": "mut set(newValue)", "digest": "sha256:cf2aebcffd957044296440e4acb41e7c7dcfe2a6b37a9d403b0be87aa077eb3e", "claim": "Property setter control." }
+  ],
+  "variants": ["current", "candidate", "adversarial"],
+  "evidence": {
+    "current": ["source-ref", "reused-current-contract", "host-oracle", "mutation-checks", "snapshot", "thin-parse", "reserved-study"],
+    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
+    "hostOnly": true
+  },
+  "stopCondition": "Stop on stale digest, caller echo, ID-derived outcome, hidden historical Research, candidate promotion, client-stream or bidi invention, hidden oldValue copy, or observer bypass ambiguity. Require an independent case, fresh digest, and reviewed promotion decision."
+}

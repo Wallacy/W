@@ -2,5 +2,5 @@
 module frc0_adversarial
 
 fn finalResearchClosure(): String {
-  return "FRC0 rejected routes: W-707 W-731 W-1408"
+  return "FRC0 rejects residual Research through W-1450 and hidden PFU0 reopen"
 }

@@ -190,7 +190,15 @@ function parseW(file) {
   const executable = process.platform === "win32"
     ? path.join(ROOT, "tooling", "tree-sitter-w", "node_modules", ".bin", "tree-sitter.cmd")
     : path.join(ROOT, "tooling", "tree-sitter-w", "node_modules", ".bin", "tree-sitter");
-  const result = spawnSync(executable, ["parse", "--grammar-path", "tooling/tree-sitter-w", "--quiet", "--stat", relative], { cwd: ROOT, encoding: "utf8" });
+  // Windows exposes the package launcher as a `.cmd` shim. Direct spawn of
+  // that shim returns status null/EINVAL on some Node releases, which makes a
+  // valid atlas fixture look like a recovery parse. Use the platform shell
+  // only for this repository-owned launcher; POSIX keeps the direct binary.
+  const result = spawnSync(executable, ["parse", "--grammar-path", "tooling/tree-sitter-w", "--quiet", "--stat", relative], {
+    cwd: ROOT,
+    encoding: "utf8",
+    shell: process.platform === "win32",
+  });
   const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
   return { ok: result.status === 0 && !/\b(?:ERROR|MISSING)\b/u.test(output), output };
 }
