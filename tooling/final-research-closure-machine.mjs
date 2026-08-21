@@ -14,6 +14,11 @@ export const manifestPath = path.join(studyDirectory, "manifest.json");
 export const bundlePath = path.join(studyDirectory, "bundle.json");
 
 export const DECISIONS = Object.freeze(["W-707", "W-731", "W-1408"]);
+export const HISTORICAL_SNAPSHOT_LAST = "W-1450";
+export const HISTORICAL_SNAPSHOT_IDS = Object.freeze(
+  ledgerIds.filter((decisionId) => Number(decisionId.slice(2)) <= Number(HISTORICAL_SNAPSHOT_LAST.slice(2))),
+);
+export const REOPENED_RESEARCH = Object.freeze(["W-1451", "W-1452", "W-1453"]);
 export const DISPOSITIONS = Object.freeze({
   "W-707": "oracle-backed-current",
   "W-731": "oracle-backed-current",
@@ -122,6 +127,8 @@ const TOP_LEVEL_KEYS = Object.freeze([
   "dispositions",
   "evidence",
   "reuse",
+  "historicalSnapshot",
+  "reopenedResearch",
   "cases",
 ]);
 const CASE_KEYS = Object.freeze(["id", "kind", "decisions", "gate", "mutation"]);
@@ -262,22 +269,43 @@ function classificationFacts(state) {
     Array.isArray(entry?.evidence) &&
     typeof entry?.reason === "string" && entry.reason.includes(entry.decisionId),
   );
-  const researchResidual = entries.filter((entry) => entry?.category === "research-gated").map((entry) => entry.decisionId);
+  const historicalEntries = entries.filter((entry) => HISTORICAL_SNAPSHOT_IDS.includes(entry?.decisionId));
+  const historicalComplete = historicalEntries.length === HISTORICAL_SNAPSHOT_IDS.length &&
+    new Set(historicalEntries.map((entry) => entry?.decisionId)).size === HISTORICAL_SNAPSHOT_IDS.length;
+  const researchResidual = historicalEntries.filter((entry) => entry?.category === "research-gated").map((entry) => entry.decisionId);
+  const reopenedCategories = Object.fromEntries(REOPENED_RESEARCH.map((decisionId) => [
+    decisionId,
+    entries.find((entry) => entry?.decisionId === decisionId)?.category ?? null,
+  ]));
+  const reopenedResearch = REOPENED_RESEARCH.every((decisionId) => reopenedCategories[decisionId] === "research-gated");
+  const globalResearch = entries.filter((entry) => entry?.category === "research-gated").map((entry) => entry.decisionId);
+  const globalResearchExact = same([...globalResearch].sort(), [...REOPENED_RESEARCH].sort());
   const targetCategories = Object.fromEntries(DECISIONS.map((decision) => [decision, entries.find((entry) => entry?.decisionId === decision)?.category ?? null]));
   const ledgerDigestValid = classification.ledger?.path === "RATIONALE.md" &&
     classification.ledger?.count === ledgerIds.length &&
     classification.ledger?.first === ledgerIds[0] &&
     classification.ledger?.last === ledgerIds.at(-1) &&
     classification.ledger?.sha256 === digestFile(path.join(repositoryRoot, "RATIONALE.md"));
-  const valid = complete && dispositions && researchResidual.length === 0 && ledgerDigestValid &&
+  const valid = complete && historicalComplete && dispositions && researchResidual.length === 0 && reopenedResearch && globalResearchExact && ledgerDigestValid &&
     DECISIONS.every((decision) => targetCategories[decision] === DISPOSITIONS[decision]);
   return {
     valid,
     entryCount: entries.length,
     uniqueDecisionCount: unique.size,
     complete,
+    historicalComplete,
+    historicalSnapshot: {
+      first: HISTORICAL_SNAPSHOT_IDS[0],
+      last: HISTORICAL_SNAPSHOT_IDS.at(-1),
+      count: HISTORICAL_SNAPSHOT_IDS.length,
+      researchZero: researchResidual.length === 0,
+    },
     dispositions,
     researchResidual,
+    reopenedCategories,
+    reopenedResearch,
+    globalResearch,
+    globalResearchExact,
     targetCategories,
     ledgerDigestValid,
   };
@@ -425,6 +453,19 @@ export function validateCorpus(input = readJson("tooling/final-research-closure-
   if (!exactKeys(input.evidence, ["current", "missing", "hostOnly"]) || input.evidence.hostOnly !== true) errors.push("FRC0 evidence boundary is invalid.");
   if (!same(input.evidence?.current, CURRENT_EVIDENCE)) errors.push("FRC0 evidence.current changed.");
   if (!same(input.evidence?.missing, MISSING_EVIDENCE)) errors.push("FRC0 evidence.missing changed.");
+  if (!exactKeys(input.historicalSnapshot, ["first", "last", "count", "researchZero"]) ||
+      input.historicalSnapshot.first !== HISTORICAL_SNAPSHOT_IDS[0] ||
+      input.historicalSnapshot.last !== HISTORICAL_SNAPSHOT_LAST ||
+      input.historicalSnapshot.count !== HISTORICAL_SNAPSHOT_IDS.length ||
+      input.historicalSnapshot.researchZero !== true) {
+    errors.push("FRC0 historical snapshot must close only W-001 through W-1450 with Research=0.");
+  }
+  if (!exactKeys(input.reopenedResearch, ["decisions", "category", "gate"]) ||
+      !same(input.reopenedResearch.decisions, REOPENED_RESEARCH) ||
+      input.reopenedResearch.category !== "research-gated" ||
+      input.reopenedResearch.gate !== "PFU0-pre-freeze-usability") {
+    errors.push("FRC0 reopenedResearch must name W-1451..W-1453 as PFU0 research-gated.");
+  }
   if (!exactKeys(input.reuse, DECISIONS)) errors.push("FRC0 reuse map must cover each decision exactly once.");
   for (const decision of DECISIONS) {
     if (!same(input.reuse?.[decision], REUSE[decision])) errors.push(`${decision}: reuse corpus changed.`);
@@ -592,8 +633,22 @@ export function mutationChecks() {
   checks.wrongCategoryRejected = validateCorpus(wrongCategory).errors.some((error) => error.includes("dispositions"));
 
   const researchResidual = clone(state);
-  researchResidual.classification.entries.find((entry) => entry.decisionId === "W-707").category = "research-gated";
+  researchResidual.classification.entries.find((entry) => entry.decisionId === "W-1450").category = "research-gated";
   checks.researchResidualRejected = classificationFacts(researchResidual).valid === false;
+
+  const reopenedCategory = clone(state);
+  reopenedCategory.classification.entries.find((entry) => entry.decisionId === "W-1451").category = "oracle-backed-current";
+  checks.reopenedResearchRejected = classificationFacts(reopenedCategory).valid === false;
+
+  const extraResearch = clone(state);
+  extraResearch.classification.entries.push({
+    decisionId: "W-1454",
+    category: "research-gated",
+    authorityRef: {},
+    evidence: [],
+    reason: "W-1454 hidden research gate",
+  });
+  checks.extraResearchGateRejected = classificationFacts(extraResearch).valid === false;
 
   const missingCase = clone(corpus);
   missingCase.cases.pop();

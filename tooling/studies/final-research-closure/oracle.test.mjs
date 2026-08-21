@@ -35,6 +35,24 @@ describe("FRC0 final research closure host oracle", () => {
     }
   });
 
+  test("keeps the historical boundary separate from the PFU0 reopen", () => {
+    const state = loadState();
+    const current = runFRC0Case(corpus.cases.find((testCase) => testCase.id === "FRC0-W-731-current"), { state });
+    expect(current.status).toBe("accepted");
+    expect(current.facts.historicalSnapshot).toEqual({
+      first: "W-001",
+      last: "W-1450",
+      count: 1450,
+      researchZero: true,
+    });
+    expect(current.facts.reopenedCategories).toEqual({
+      "W-1451": "research-gated",
+      "W-1452": "research-gated",
+      "W-1453": "research-gated",
+    });
+    expect(current.facts.reopenedResearch).toBe(true);
+  });
+
   test("rejects copied-state mutations for all three gates", () => {
     const state = loadState();
     const adversarial = corpus.cases.filter((testCase) => testCase.kind === "rejected-route");

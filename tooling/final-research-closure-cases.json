@@ -14,6 +14,17 @@
     "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
     "hostOnly": true
   },
+  "historicalSnapshot": {
+    "first": "W-001",
+    "last": "W-1450",
+    "count": 1450,
+    "researchZero": true
+  },
+  "reopenedResearch": {
+    "decisions": ["W-1451", "W-1452", "W-1453"],
+    "category": "research-gated",
+    "gate": "PFU0-pre-freeze-usability"
+  },
   "reuse": {
     "W-707": [
       "tooling/frontend-freeze-cases.json",

@@ -9,13 +9,13 @@
   "sourceBase": {
     "path": "current.w",
     "symbol": "finalResearchClosure",
-    "digest": "sha256:3581d6191bf207de78bda442a494a703422b8adccc1d86cc1e99a35f4bf28481"
+    "digest": "sha256:f07a2143e4b7bcfe0b0a4b2a05afa6ce55a87132993c7c4dd7f644f523534007"
   },
   "sourceRefs": [
     {
       "path": "../../../tooling/final-research-closure-cases.json",
       "symbol": "w-final-research-closure-cases-1",
-      "digest": "sha256:17d56b03843001ca59fa177ebc414fd610019d75454f23460575b8634e80d315"
+      "digest": "sha256:b0dc887596723957561dadb46ef3cde82d0cb44c2172b308757b00a8898c1ec4"
     },
     {
       "path": "../../../tooling/frontend-freeze-cases.json",
@@ -30,17 +30,17 @@
     {
       "path": "../../../tooling/design-freeze-classification.json",
       "symbol": "w-design-freeze-classification-1",
-      "digest": "sha256:caf253ce6acf18bbe58e36e7e19c47dafee832fe599a97d55750d7d87527e33f"
+      "digest": "sha256:7c70698aff31392460c8b09f1797f41394331b69c3e187a81c85e6a713f82229"
     },
     {
       "path": "../../../RATIONALE.md",
       "symbol": "| W-707 | gate de design freeze",
-      "digest": "sha256:3052b1a1bceb799aed15e46771952e44eac018086b01d8dd8d3a18042581a523"
+      "digest": "sha256:061b803def2e24e9bc1295a0a093f79e70842118bea512c7fe336cd8a86f7758"
     },
     {
       "path": "../../../DESIGN.md",
-      "symbol": "#### 24.4.2 FRC0",
-      "digest": "sha256:d7875ef3b8b01e985637fe5868f7dce982fb14f15a0e0a88c20be1f7b8cc5e17"
+      "symbol": "#### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa",
+      "digest": "sha256:2739e0bcb41ab2358a4740f0a2e9d23d983e6621a61f746a7f30b8b09115025f"
     }
   ],
   "variants": [
@@ -49,7 +49,7 @@
       "role": "selected",
       "language": "w",
       "path": "current.w",
-      "digest": "sha256:3581d6191bf207de78bda442a494a703422b8adccc1d86cc1e99a35f4bf28481",
+      "digest": "sha256:f07a2143e4b7bcfe0b0a4b2a05afa6ce55a87132993c7c4dd7f644f523534007",
       "changedConstructs": [
         "current gate contract",
         "reuse-only host evidence"
@@ -64,7 +64,7 @@
       "role": "rejected-witness",
       "language": "w",
       "path": "adversarial.w",
-      "digest": "sha256:bf5f4fbba0ebaaf53a2b5863d69ee2c2a042a22ea2331b064d8d845971c9824b",
+      "digest": "sha256:96a87cafc75dbe7e8c5dc6a2ac2797a04770139fdb33c63a8a36a76873da07aa",
       "changedConstructs": [
         "missing family/disposition/record mutation",
         "rejected gate route"
@@ -139,7 +139,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:3e61818b3ace2d06647028ccfe2e3a9a8d78dc89f75d61995eaf5803c3b338d0"
+    "digest": "sha256:fd8bd170a1596e303b703c514a2f684ce45494981a3f7063395fff629173229a"
   },
   "evidence": {
     "current": [
