@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-refinement-subject",
   "title": "Refinement subjects at the Last Light restaurant",
-  "r0Cases": ["R0-refinement-subject"],
+  "r0Cases": [
+    "R0-refinement-subject"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/domain.w",
     "symbol": "BoundedText<_ bounds: TextBounds>",
@@ -52,17 +54,29 @@
     {
       "id": "ordinary-title",
       "value": "Milliways",
-      "expected": { "status": "accepted", "value": "Milliways", "scalarCount": 9 }
+      "expected": {
+        "status": "accepted",
+        "value": "Milliways",
+        "scalarCount": 9
+      }
     },
     {
       "id": "astral-scalar-title",
       "value": "🌌 End",
-      "expected": { "status": "accepted", "value": "🌌 End", "scalarCount": 5 }
+      "expected": {
+        "status": "accepted",
+        "value": "🌌 End",
+        "scalarCount": 5
+      }
     },
     {
       "id": "above-bound",
       "value": "12345678901234567890123456789012345678901",
-      "expected": { "status": "rejected", "error": "outsideBounds", "scalarCount": 41 }
+      "expected": {
+        "status": "rejected",
+        "error": "outsideBounds",
+        "scalarCount": 41
+      }
     }
   ],
   "tasks": [
@@ -90,20 +104,49 @@
     }
   ],
   "presentationOrders": [
-    ["contextual", "explicit", "runtime-check"],
-    ["explicit", "runtime-check", "contextual"],
-    ["runtime-check", "contextual", "explicit"]
+    [
+      "contextual",
+      "explicit",
+      "runtime-check"
+    ],
+    [
+      "explicit",
+      "runtime-check",
+      "contextual"
+    ],
+    [
+      "runtime-check",
+      "contextual",
+      "explicit"
+    ]
   ],
   "blinding": {
-    "participantLabels": { "contextual": "A", "explicit": "B", "runtime-check": "C" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "contextual": "A",
+      "explicit": "B",
+      "runtime-check": "C"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:e6d6a59024dbf5a3035755e902fe88644453cf020bdaabc90cafbf8005019eb8"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

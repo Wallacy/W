@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-end-relative-access",
   "title": "Menu tail access at the Last Light restaurant",
-  "r0Cases": ["R0-end-relative-access"],
+  "r0Cases": [
+    "R0-end-relative-access"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/billing.w",
     "symbol": "menu.last",
@@ -16,7 +18,10 @@
       "language": "w",
       "path": "last.w",
       "digest": "sha256:bc47bbed953814bacfb4ee67d66210a789ea467b7a5d07bde1fdaf7f9faab74a",
-      "changedConstructs": ["Array.last optional", "implicit empty handling"]
+      "changedConstructs": [
+        "Array.last optional",
+        "implicit empty handling"
+      ]
     },
     {
       "id": "count-minus-one",
@@ -24,7 +29,11 @@
       "language": "w",
       "path": "count-minus-one.w",
       "digest": "sha256:37adbb4b73f1857e8e095d48c0fe5e9ee1bf7a9599751cf9c08bb868b3a9f4ec",
-      "changedConstructs": ["count arithmetic", "explicit empty guard", "checked get"]
+      "changedConstructs": [
+        "count arithmetic",
+        "explicit empty guard",
+        "checked get"
+      ]
     },
     {
       "id": "negative-index",
@@ -32,20 +41,34 @@
       "language": "w",
       "path": "negative-index.w",
       "digest": "sha256:d72d6b117fb345d59ae3c9cf3797b01e17f14355b8cb247cc7a85bda06618fdd",
-      "changedConstructs": ["negative index", "explicit empty guard", "optional some"]
+      "changedConstructs": [
+        "negative index",
+        "explicit empty guard",
+        "optional some"
+      ]
     }
   ],
   "entry": "lastLabel",
   "inputs": [
     {
       "id": "primary-nonempty-menu",
-      "items": ["nebula broth", "horizon cake"],
-      "expected": { "last": "horizon cake", "type": "ref String?" }
+      "items": [
+        "nebula broth",
+        "horizon cake"
+      ],
+      "expected": {
+        "last": "horizon cake",
+        "type": "ref String?"
+      }
     },
     {
       "id": "adversarial-empty-menu",
       "items": [],
-      "expected": { "last": null, "type": "ref String?", "status": "empty" }
+      "expected": {
+        "last": null,
+        "type": "ref String?",
+        "status": "empty"
+      }
     }
   ],
   "tasks": [
@@ -73,20 +96,49 @@
     }
   ],
   "presentationOrders": [
-    ["last", "count-minus-one", "negative-index"],
-    ["negative-index", "last", "count-minus-one"],
-    ["count-minus-one", "negative-index", "last"]
+    [
+      "last",
+      "count-minus-one",
+      "negative-index"
+    ],
+    [
+      "negative-index",
+      "last",
+      "count-minus-one"
+    ],
+    [
+      "count-minus-one",
+      "negative-index",
+      "last"
+    ]
   ],
   "blinding": {
-    "participantLabels": { "last": "A", "count-minus-one": "B", "negative-index": "C" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "last": "A",
+      "count-minus-one": "B",
+      "negative-index": "C"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:051373f7c28991cd7f7d97ffe2d4d81de7e719d83d1ddb63e46f044d13c93082"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

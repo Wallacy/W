@@ -27,7 +27,7 @@ package {
       namespace: "last_light.menu"
       root: "."
       include: ["*.w"]
-      exclude: ["package.w"]
+      exclude: ["build.w"]
       layout: .fileStem
     },
   ]

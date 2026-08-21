@@ -24,7 +24,7 @@
           "resolver": "w-resolver/1",
           "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827",
           "manifestDigests": { "last.light": "sha256:manifest" },
-          "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] },
+          "sourceInventories": { "last.light": ["build.w", "release_oracle.w"] },
           "contexts": [
             { "realm": "product", "root": "restaurant", "target": "x86_64-linux", "use": "product", "activeSourceSet": "sha256:active" }
           ]
@@ -34,7 +34,7 @@
           "lock": "release-lock",
           "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827",
           "manifestDigests": { "last.light": "sha256:manifest" },
-          "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] },
+          "sourceInventories": { "last.light": ["build.w", "release_oracle.w"] },
           "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" }
         }
       ]
@@ -73,7 +73,7 @@
   "cases": [
     {
       "id": "P0-resolver-selects-highest-compatible",
-      "references": [{ "path": "../reference/last-light/package.w", "symbol": "schema: \"w.package/1\"" }],
+      "references": [{ "path": "../reference/last-light/build.w", "symbol": "schema: \"w.package/1\"" }],
       "operations": [
         { "op": "acceptRegistrySnapshot", "snapshot": "stable", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
           { "identity": "astro.menu", "version": "1.0.0", "source": "registry", "content": "menu-v1" },
@@ -89,7 +89,7 @@
     },
     {
       "id": "P0-resolver-unions-transitive-features",
-      "references": [{ "path": "../reference/last-light/workspace.w", "symbol": "workspace" }],
+      "references": [{ "path": "../reference/last-light/build.w", "symbol": "workspace" }],
       "operations": [
         { "op": "acceptRegistrySnapshot", "snapshot": "stable", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
           { "identity": "restaurant", "version": "1.0.0", "source": "registry", "content": "restaurant", "dependencies": [{ "identity": "astro.menu", "constraint": "^1.0.0", "features": ["catalog"] }] },
@@ -105,7 +105,7 @@
     },
     {
       "id": "P0-resolver-rejects-single-realm-version-conflict",
-      "references": [{ "path": "../reference/last-light/package.w", "symbol": "dependencies" }],
+      "references": [{ "path": "../reference/last-light/build.w", "symbol": "dependencies" }],
       "operations": [
         { "op": "acceptRegistrySnapshot", "snapshot": "stable", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
           { "identity": "astro.menu", "version": "1.0.0", "source": "registry", "content": "menu-v1" },
@@ -120,7 +120,7 @@
     },
     {
       "id": "P0-resolver-prefers-compatible-workspace-member",
-      "references": [{ "path": "../reference/last-light/workspace.w", "symbol": "members" }],
+      "references": [{ "path": "../reference/last-light/build.w", "symbol": "members" }],
       "operations": [
         { "op": "acceptRegistrySnapshot", "snapshot": "workspace", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
           { "identity": "astro.menu", "version": "1.1.0", "source": "registry", "content": "registry-menu" },
@@ -135,7 +135,7 @@
     },
     {
       "id": "P0-resolver-does-not-hide-incompatible-member",
-      "references": [{ "path": "../reference/last-light/workspace.w", "symbol": "members" }],
+      "references": [{ "path": "../reference/last-light/build.w", "symbol": "members" }],
       "operations": [
         { "op": "acceptRegistrySnapshot", "snapshot": "workspace", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
           { "identity": "astro.menu", "version": "2.0.0", "source": "registry", "content": "registry-menu" },
@@ -149,7 +149,7 @@
     },
     {
       "id": "P0-resolver-backtracks-before-member-conflict",
-      "references": [{ "path": "../reference/last-light/workspace.w", "symbol": "members" }],
+      "references": [{ "path": "../reference/last-light/build.w", "symbol": "members" }],
       "operations": [
         { "op": "acceptRegistrySnapshot", "snapshot": "workspace", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
           { "identity": "restaurant", "version": "2.0.0", "source": "registry", "content": "restaurant-v2", "dependencies": [{ "identity": "astro.menu", "constraint": "^2.0.0" }] },
@@ -167,7 +167,7 @@
     },
     {
       "id": "P0-resolver-allows-version-split-across-realms",
-      "references": [{ "path": "../reference/last-light/package.w", "symbol": "products" }],
+      "references": [{ "path": "../reference/last-light/build.w", "symbol": "products" }],
       "operations": [
         { "op": "acceptRegistrySnapshot", "snapshot": "stable", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
           { "identity": "astro.menu", "version": "1.0.0", "source": "registry", "content": "menu-v1" },
@@ -226,29 +226,29 @@
     {
       "id": "P0-lock-rejects-workspace-change",
       "fixtures": ["resolved-lock"],
-      "references": [{ "path": "../reference/last-light/workspace.w", "symbol": "workspace" }],
-      "operations": [{ "op": "validateLocked", "lock": "release-lock", "ownerDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
+      "references": [{ "path": "../reference/last-light/build.w", "symbol": "workspace" }],
+      "operations": [{ "op": "validateLocked", "lock": "release-lock", "ownerDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["build.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
       "expected": { "status": "rejected", "code": "lockedOwnerMismatch", "at": "last" }
     },
     {
       "id": "P0-lock-rejects-manifest-change",
       "fixtures": ["resolved-lock"],
-      "references": [{ "path": "../reference/last-light/package.w", "symbol": "schema: \"w.package/1\"" }],
-      "operations": [{ "op": "validateLocked", "lock": "release-lock", "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827", "manifestDigests": { "last.light": "sha256:changed" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
+      "references": [{ "path": "../reference/last-light/build.w", "symbol": "schema: \"w.package/1\"" }],
+      "operations": [{ "op": "validateLocked", "lock": "release-lock", "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827", "manifestDigests": { "last.light": "sha256:changed" }, "sourceInventories": { "last.light": ["build.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
       "expected": { "status": "rejected", "code": "lockedManifestMismatch", "at": "last" }
     },
     {
       "id": "P0-lock-rejects-source-inventory-change",
       "fixtures": ["resolved-lock"],
       "references": [{ "path": "../reference/last-light/BUILD.md", "symbol": "source" }],
-      "operations": [{ "op": "validateLocked", "lock": "release-lock", "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w", "hidden.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
+      "operations": [{ "op": "validateLocked", "lock": "release-lock", "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["build.w", "release_oracle.w", "hidden.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
       "expected": { "status": "rejected", "code": "lockedSourceInventoryMismatch", "at": "last" }
     },
     {
       "id": "P0-lock-rejects-active-source-set-change",
       "fixtures": ["resolved-lock"],
-      "references": [{ "path": "../reference/last-light/package.w", "symbol": "target" }],
-      "operations": [{ "op": "validateLocked", "lock": "release-lock", "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:changed" } }],
+      "references": [{ "path": "../reference/last-light/build.w", "symbol": "target" }],
+      "operations": [{ "op": "validateLocked", "lock": "release-lock", "ownerDigest": "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["build.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:changed" } }],
       "expected": { "status": "rejected", "code": "lockedActiveSourceSetMismatch", "at": "last" }
     },
     {

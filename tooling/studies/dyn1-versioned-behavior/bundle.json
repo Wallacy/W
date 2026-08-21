@@ -3,40 +3,238 @@
   "status": "design-oracle-input",
   "id": "R1-dyn1-versioned-behavior",
   "title": "Versioned dynamic behavior at the Last Light restaurant",
-  "r0Cases": ["R0-module-run-context", "R0-module-run-capability-admission", "R0-python-transform"],
-  "sourceBase": { "path": "../../../reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461" },
+  "r0Cases": [
+    "R0-module-run-context",
+    "R0-module-run-capability-admission",
+    "R0-python-transform"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/repl_session_oracle.w",
+    "symbol": "SessionSnapshot",
+    "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461"
+  },
   "sourceRefs": [
-    { "path": "../../../reference/last-light/repl_session_oracle.w", "symbol": "GenerationReceipt", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461" },
-    { "path": "../../../reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de" },
-    { "path": "../../../reference/last-light/liveness_oracle.w", "symbol": "CommitGate", "digest": "sha256:447a3fc9252312c7403450a861a75324bb34e1a91df9a7a7981d0bc0b38b4119" },
-    { "path": "../../../reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc" },
-    { "path": "../../../reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40" }
+    {
+      "path": "../../../reference/last-light/repl_session_oracle.w",
+      "symbol": "GenerationReceipt",
+      "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461"
+    },
+    {
+      "path": "../../../reference/last-light/lifecycle_oracle.w",
+      "symbol": "nextServiceTurnState",
+      "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de"
+    },
+    {
+      "path": "../../../reference/last-light/liveness_oracle.w",
+      "symbol": "CommitGate",
+      "digest": "sha256:447a3fc9252312c7403450a861a75324bb34e1a91df9a7a7981d0bc0b38b4119"
+    },
+    {
+      "path": "../../../reference/last-light/build.w",
+      "symbol": "name: \"compile-final-menu\"",
+      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f"
+    },
+    {
+      "path": "../../../reference/last-light/abi.w",
+      "symbol": "export foreign c",
+      "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40"
+    }
   ],
   "variants": [
-    { "id": "repl-snapshot", "role": "selected", "disposition": "current-composable", "language": "w", "path": "repl-snapshot.w", "digest": "sha256:6647f6dfcc3d599c35b5978dd9d225aec04f535849984b0566495add94dd74db", "changedConstructs": ["committed snapshots", "generation invalidation", "canonical export"], "parseEvidence": { "status": "tree-sitter-parse", "note": "Source-shaped REPL witness; parser evidence is host-only." } },
-    { "id": "typed-service-plugin", "role": "alternative", "disposition": "current-composable", "language": "w", "path": "typed-service-plugin.w", "digest": "sha256:7e597b8519de6d16d37202cdec6acd873e0b8f764e1878c0178f40b72ff7fdba", "changedConstructs": ["typed interface identity", "WAbi identity", "runtime closure identity"], "parseEvidence": { "status": "tree-sitter-parse", "note": "Source-shaped typed plugin witness; parser evidence is host-only." } },
-    { "id": "split-service-plugin", "role": "alternative", "disposition": "current-composable", "language": "w", "path": "split-service-plugin.w", "digest": "sha256:337ab562a99515db1d1d018ccc6e592b64b03890d728afd39370680f0ac0de6b", "changedConstructs": ["split service projection", "atomic switch", "old generation drain"], "parseEvidence": { "status": "tree-sitter-parse", "note": "Source-shaped split projection witness; no provider claim." } },
-    { "id": "persistent-generation-reference", "role": "research-candidate", "disposition": "research-candidate", "language": "w-reserved", "path": "persistent-generation-reference.txt", "digest": "sha256:39bd2712603ebb46d7c62e84dfeb044ef997a87cfacd060f25999dd4838f3e54", "changedConstructs": ["bounded generation reference", "restart/deploy migration", "read-only facts"], "parseEvidence": { "status": "reserved-not-parsed", "note": "Narrow Research text; no syntax or implementation." } },
-    { "id": "rejected-dynamic-mutation", "role": "rejected-witness", "disposition": "intentionally-rejected", "language": "w-reserved", "path": "rejected-dynamic-mutation.txt", "digest": "sha256:7f14cc0c1ad60b9865870edfe0ad15e7d5401179bb0a6dbdae4a0a3512aa47c0", "changedConstructs": ["eval/exec", "active-frame write", "unsafe unload"], "parseEvidence": { "status": "reserved-not-parsed", "note": "Rejected text only; no grammar addition." } }
+    {
+      "id": "repl-snapshot",
+      "role": "selected",
+      "disposition": "current-composable",
+      "language": "w",
+      "path": "repl-snapshot.w",
+      "digest": "sha256:6647f6dfcc3d599c35b5978dd9d225aec04f535849984b0566495add94dd74db",
+      "changedConstructs": [
+        "committed snapshots",
+        "generation invalidation",
+        "canonical export"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Source-shaped REPL witness; parser evidence is host-only."
+      }
+    },
+    {
+      "id": "typed-service-plugin",
+      "role": "alternative",
+      "disposition": "current-composable",
+      "language": "w",
+      "path": "typed-service-plugin.w",
+      "digest": "sha256:7e597b8519de6d16d37202cdec6acd873e0b8f764e1878c0178f40b72ff7fdba",
+      "changedConstructs": [
+        "typed interface identity",
+        "WAbi identity",
+        "runtime closure identity"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Source-shaped typed plugin witness; parser evidence is host-only."
+      }
+    },
+    {
+      "id": "split-service-plugin",
+      "role": "alternative",
+      "disposition": "current-composable",
+      "language": "w",
+      "path": "split-service-plugin.w",
+      "digest": "sha256:337ab562a99515db1d1d018ccc6e592b64b03890d728afd39370680f0ac0de6b",
+      "changedConstructs": [
+        "split service projection",
+        "atomic switch",
+        "old generation drain"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Source-shaped split projection witness; no provider claim."
+      }
+    },
+    {
+      "id": "persistent-generation-reference",
+      "role": "research-candidate",
+      "disposition": "research-candidate",
+      "language": "w-reserved",
+      "path": "persistent-generation-reference.txt",
+      "digest": "sha256:39bd2712603ebb46d7c62e84dfeb044ef997a87cfacd060f25999dd4838f3e54",
+      "changedConstructs": [
+        "bounded generation reference",
+        "restart/deploy migration",
+        "read-only facts"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Narrow Research text; no syntax or implementation."
+      }
+    },
+    {
+      "id": "rejected-dynamic-mutation",
+      "role": "rejected-witness",
+      "disposition": "intentionally-rejected",
+      "language": "w-reserved",
+      "path": "rejected-dynamic-mutation.txt",
+      "digest": "sha256:7f14cc0c1ad60b9865870edfe0ad15e7d5401179bb0a6dbdae4a0a3512aa47c0",
+      "changedConstructs": [
+        "eval/exec",
+        "active-frame write",
+        "unsafe unload"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Rejected text only; no grammar addition."
+      }
+    }
   ],
   "entry": "VersionedBehaviorFixture",
   "inputs": [
-    { "id": "restaurant-repl", "scenario": "committed-snapshot-and-export", "expected": { "axis": "A" } },
-    { "id": "restaurant-service", "scenario": "generation-switch-and-drain", "expected": { "axis": "B" } },
-    { "id": "restaurant-gap", "scenario": "persistent-generation-reference", "expected": { "axis": "C" } },
-    { "id": "restaurant-rejection", "scenario": "dynamic-mutation", "expected": { "axis": "D" } }
+    {
+      "id": "restaurant-repl",
+      "scenario": "committed-snapshot-and-export",
+      "expected": {
+        "axis": "A"
+      }
+    },
+    {
+      "id": "restaurant-service",
+      "scenario": "generation-switch-and-drain",
+      "expected": {
+        "axis": "B"
+      }
+    },
+    {
+      "id": "restaurant-gap",
+      "scenario": "persistent-generation-reference",
+      "expected": {
+        "axis": "C"
+      }
+    },
+    {
+      "id": "restaurant-rejection",
+      "scenario": "dynamic-mutation",
+      "expected": {
+        "axis": "D"
+      }
+    }
   ],
   "tasks": [
-    { "kind": "explain", "instruction": "Compare committed snapshots, typed generation identities, admission close, drain, export receipts, and rejected dynamic mutation." },
-    { "kind": "recall", "instruction": "After a bounded delay, reconstruct prepare, validate, preflight, ready, atomic switch, stale rejection, and cleanup order.", "minimumDelaySeconds": 1 },
-    { "kind": "repair", "instruction": "Repair stale generation messages, forged export receipts, live callback unload, hidden capability, and rollback-after-publication.", "mutations": { "repl-snapshot": "Keep committed snapshots immutable and invalidate hard dependencies.", "typed-service-plugin": "Keep SemanticInterfaceKey, WAbiKey, and RuntimeClosureKey separate.", "split-service-plugin": "Keep local and split reducers independent and compare logical outcomes.", "persistent-generation-reference": "Keep the reference read-only, bounded, and digest-backed.", "rejected-dynamic-mutation": "Keep eval, frame mutation, ambient lookup, and live dlclose rejected." } },
-    { "kind": "change", "instruction": "Add a target projection or provider fault without changing logical generation, capability, effect, export, or cleanup invariants." }
+    {
+      "kind": "explain",
+      "instruction": "Compare committed snapshots, typed generation identities, admission close, drain, export receipts, and rejected dynamic mutation."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After a bounded delay, reconstruct prepare, validate, preflight, ready, atomic switch, stale rejection, and cleanup order.",
+      "minimumDelaySeconds": 1
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair stale generation messages, forged export receipts, live callback unload, hidden capability, and rollback-after-publication.",
+      "mutations": {
+        "repl-snapshot": "Keep committed snapshots immutable and invalidate hard dependencies.",
+        "typed-service-plugin": "Keep SemanticInterfaceKey, WAbiKey, and RuntimeClosureKey separate.",
+        "split-service-plugin": "Keep local and split reducers independent and compare logical outcomes.",
+        "persistent-generation-reference": "Keep the reference read-only, bounded, and digest-backed.",
+        "rejected-dynamic-mutation": "Keep eval, frame mutation, ambient lookup, and live dlclose rejected."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a target projection or provider fault without changing logical generation, capability, effect, export, or cleanup invariants."
+    }
   ],
   "presentationOrders": [
-    ["repl-snapshot", "typed-service-plugin", "split-service-plugin", "persistent-generation-reference", "rejected-dynamic-mutation"],
-    ["rejected-dynamic-mutation", "persistent-generation-reference", "split-service-plugin", "typed-service-plugin", "repl-snapshot"]
+    [
+      "repl-snapshot",
+      "typed-service-plugin",
+      "split-service-plugin",
+      "persistent-generation-reference",
+      "rejected-dynamic-mutation"
+    ],
+    [
+      "rejected-dynamic-mutation",
+      "persistent-generation-reference",
+      "split-service-plugin",
+      "typed-service-plugin",
+      "repl-snapshot"
+    ]
   ],
-  "blinding": { "participantLabels": { "repl-snapshot": "A", "typed-service-plugin": "B", "split-service-plugin": "C", "persistent-generation-reference": "D", "rejected-dynamic-mutation": "E" }, "hide": ["id", "role", "path", "changedConstructs"] },
-  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:1f1a1e278b73158314a08394de148402f4d291c7e300713142623630b7b08e7a" },
-  "evidence": { "current": ["tree-sitter-parse", "host-oracle", "event-reducer", "mutation-checker", "source-ref", "official-primary"], "missing": ["w-compile", "w-run", "provider", "runtime", "human-study", "model-study"] }
+  "blinding": {
+    "participantLabels": {
+      "repl-snapshot": "A",
+      "typed-service-plugin": "B",
+      "split-service-plugin": "C",
+      "persistent-generation-reference": "D",
+      "rejected-dynamic-mutation": "E"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:1f1a1e278b73158314a08394de148402f4d291c7e300713142623630b7b08e7a"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle",
+      "event-reducer",
+      "mutation-checker",
+      "source-ref",
+      "official-primary"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "provider",
+      "runtime",
+      "human-study",
+      "model-study"
+    ]
+  }
 }

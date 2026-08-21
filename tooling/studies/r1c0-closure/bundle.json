@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-r1c0-closure",
   "title": "Bounded WLO1 value codec at the Last Light restaurant",
-  "r0Cases": ["R0-fixed-formatter"],
+  "r0Cases": [
+    "R0-fixed-formatter"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/formatting.w",
     "symbol": "oneLine",
@@ -16,8 +18,15 @@
       "language": "w",
       "path": "portable.w",
       "digest": "sha256:afac7a6a9da2e702ab209901087e9d16c72475d29c7cd6eba14e72754afc0097",
-      "changedConstructs": ["deterministic-CBOR payload", "portable target receipt", "data-only String roundtrip"],
-      "parseEvidence": {"status": "tree-sitter-parse", "note": "Source-shaped fixture; parse is host evidence only."}
+      "changedConstructs": [
+        "deterministic-CBOR payload",
+        "portable target receipt",
+        "data-only String roundtrip"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Source-shaped fixture; parse is host evidence only."
+      }
     },
     {
       "id": "native",
@@ -25,28 +34,115 @@
       "language": "w",
       "path": "native.w",
       "digest": "sha256:b4e4c0ef9c580c4dd89a2ac8cb820994b90c8daaaac2bd0acdb98085496878e0",
-      "changedConstructs": ["deterministic-CBOR payload", "native layout receipt", "same logical String result"],
-      "parseEvidence": {"status": "tree-sitter-parse", "note": "Source-shaped fixture; target layout is not payload authority."}
+      "changedConstructs": [
+        "deterministic-CBOR payload",
+        "native layout receipt",
+        "same logical String result"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Source-shaped fixture; target layout is not payload authority."
+      }
     }
   ],
   "entry": "wlo1Canonical",
   "inputs": [
-    {"id": "primary-last-light", "value": "Last Light", "expected": {"result": "Last Light", "bytes": "6a4c617374204c69676874"}},
-    {"id": "adversarial-empty", "value": "", "expected": {"result": "", "bytes": "60"}},
-    {"id": "adversarial-corrupt-bytes", "value": "Last Light", "expected": {"status": "typed-error", "reason": "invalidUtf8"}}
+    {
+      "id": "primary-last-light",
+      "value": "Last Light",
+      "expected": {
+        "result": "Last Light",
+        "bytes": "6a4c617374204c69676874"
+      }
+    },
+    {
+      "id": "adversarial-empty",
+      "value": "",
+      "expected": {
+        "result": "",
+        "bytes": "60"
+      }
+    },
+    {
+      "id": "adversarial-corrupt-bytes",
+      "value": "Last Light",
+      "expected": {
+        "status": "typed-error",
+        "reason": "invalidUtf8"
+      }
+    }
   ],
   "tasks": [
-    {"kind": "explain", "instruction": "Explain why canonical deterministic-CBOR bytes carry only the logical String value while schema, target, ABI, package, and limits stay in receipts."},
-    {"kind": "recall", "instruction": "After a bounded delay, reconstruct the primary and empty roundtrips and the preflight order for corrupt bytes.", "minimumDelaySeconds": 1},
-    {"kind": "repair", "instruction": "Repair the prepared mutation without changing the logical Last Light value or making target layout authoritative.", "mutations": {"portable": "Replace the canonical text payload with a non-canonical map or add a header.", "native": "Allocate from an unchecked declared length before applying maxEncodedBytes."}},
-    {"kind": "change", "instruction": "Add one typed corrupt-byte mutation while preserving strict UTF-8, limits, target parity, and data-only authority."}
+    {
+      "kind": "explain",
+      "instruction": "Explain why canonical deterministic-CBOR bytes carry only the logical String value while schema, target, ABI, package, and limits stay in receipts."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After a bounded delay, reconstruct the primary and empty roundtrips and the preflight order for corrupt bytes.",
+      "minimumDelaySeconds": 1
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared mutation without changing the logical Last Light value or making target layout authoritative.",
+      "mutations": {
+        "portable": "Replace the canonical text payload with a non-canonical map or add a header.",
+        "native": "Allocate from an unchecked declared length before applying maxEncodedBytes."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add one typed corrupt-byte mutation while preserving strict UTF-8, limits, target parity, and data-only authority."
+    }
   ],
-  "presentationOrders": [["portable", "native"], ["native", "portable"]],
-  "blinding": {"participantLabels": {"portable": "A", "native": "B"}, "hide": ["id", "role", "path", "changedConstructs"]},
-  "oracle": {"path": "oracle.test.mjs", "digest": "sha256:ec9e830a4720c198ec9ab7d8e717007b574c47d2f678ab5f07046201758bc383"},
-  "wlo1": {"manifest": "wlo1-manifest.json", "corpus": "../../wlo1-closure-cases.json"},
+  "presentationOrders": [
+    [
+      "portable",
+      "native"
+    ],
+    [
+      "native",
+      "portable"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "portable": "A",
+      "native": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:ec9e830a4720c198ec9ab7d8e717007b574c47d2f678ab5f07046201758bc383"
+  },
+  "wlo1": {
+    "manifest": "wlo1-manifest.json",
+    "corpus": "../../wlo1-closure-cases.json"
+  },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle", "source-ref", "official-primary", "negative-mutations", "target-receipts"],
-    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "oom-fault-receipt", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle",
+      "source-ref",
+      "official-primary",
+      "negative-mutations",
+      "target-receipts"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "compiler",
+      "runtime",
+      "provider",
+      "oom-fault-receipt",
+      "human-study",
+      "model-study"
+    ]
   }
 }

@@ -14,7 +14,7 @@
     "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
     "hostOnly": true
   },
-  "stopCondition": "Stop on stale source digest, expected/result echo, ID-derived outcome, missing family or variant, hidden Research in W-001–W-1450, empty build.w, incompatible owner, duplicate build record, candidate promotion, general stream fn promotion, client-stream or bidi invention, implicit transport, hidden oldValue copy, observer bypass ambiguity, or conflated ServiceFailure admission/open and terminal Failure. Require an independent case, fresh digest, and reviewed promotion decision.",
+  "stopCondition": "Stop on stale source digest, expected/result echo, ID-derived outcome, missing family or variant, any residual Research in the full W-001–W-1453 ledger, empty build.w, incompatible owner, duplicate build record, candidate promotion, general stream fn promotion, client-stream or bidi invention, implicit transport, hidden oldValue copy, observer bypass ambiguity, or conflated ServiceFailure admission/open and terminal Failure. Require an independent case, fresh digest, and reviewed promotion decision.",
   "cases": [
     {
       "id": "PFU0-W-1451-current",
@@ -22,16 +22,17 @@
       "variant": "current",
       "decisions": ["W-1451"],
       "source": {
-        "path": "reference/last-light/package.w",
+        "path": "reference/last-light/build.w",
         "symbol": "package {",
-        "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc",
+        "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
         "claim": "Current package root is a data-only manifest."
       },
       "observations": {
         "samples": [
-          { "rootFiles": ["package.w"], "packageRecords": 1, "workspaceRecords": 0, "owner": "package", "memberTargets": [], "memberBuildPackages": [], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
-          { "rootFiles": ["workspace.w"], "packageRecords": 0, "workspaceRecords": 1, "owner": "workspace", "memberTargets": ["pkg-a"], "memberBuildPackages": ["pkg-a"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
-          { "rootFiles": ["package.w", "workspace.w"], "packageRecords": 1, "workspaceRecords": 1, "owner": "workspace", "memberTargets": ["pkg-a"], "memberBuildPackages": ["pkg-a"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false }
+          { "rootFiles": ["build.w"], "packageRecords": 1, "workspaceRecords": 0, "owner": "package", "ownerContext": "standalone", "resolutionOwner": "package", "deploymentOwner": "package", "memberTargets": [], "memberBuildPackages": [], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
+          { "rootFiles": ["build.w"], "packageRecords": 0, "workspaceRecords": 1, "owner": "workspace", "ownerContext": "workspace", "resolutionOwner": "workspace", "deploymentOwner": "workspace", "memberTargets": ["pkg-a"], "memberBuildPackages": ["pkg-a"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
+          { "rootFiles": ["build.w"], "packageRecords": 1, "workspaceRecords": 1, "owner": "workspace", "ownerContext": "workspace", "resolutionOwner": "workspace", "deploymentOwner": "workspace", "memberTargets": ["pkg-a"], "memberBuildPackages": ["pkg-a"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
+          { "rootFiles": ["build.w"], "packageRecords": 1, "workspaceRecords": 0, "owner": "workspace", "ownerContext": "workspace-member", "resolutionOwner": "workspace", "deploymentOwner": "workspace", "memberTargets": ["packages/menu-compiler"], "memberBuildPackages": ["packages/menu-compiler"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false }
         ]
       }
     },
@@ -41,16 +42,17 @@
       "variant": "candidate",
       "decisions": ["W-1451"],
       "source": {
-        "path": "reference/last-light/workspace.w",
+        "path": "reference/last-light/build.w",
         "symbol": "workspace {",
-        "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd",
+        "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
         "claim": "Current workspace member ownership is a candidate's control."
       },
       "observations": {
         "samples": [
-          { "rootFiles": ["build.w"], "packageRecords": 1, "workspaceRecords": 0, "owner": "package", "memberTargets": [], "memberBuildPackages": [], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
-          { "rootFiles": ["build.w"], "packageRecords": 0, "workspaceRecords": 1, "owner": "workspace", "memberTargets": ["pkg-a"], "memberBuildPackages": ["pkg-a"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
-          { "rootFiles": ["build.w"], "packageRecords": 1, "workspaceRecords": 1, "owner": "workspace", "memberTargets": ["pkg-a"], "memberBuildPackages": ["pkg-a"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false }
+          { "rootFiles": ["build.w"], "packageRecords": 1, "workspaceRecords": 0, "owner": "package", "ownerContext": "standalone", "resolutionOwner": "package", "deploymentOwner": "package", "memberTargets": [], "memberBuildPackages": [], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
+          { "rootFiles": ["build.w"], "packageRecords": 0, "workspaceRecords": 1, "owner": "workspace", "ownerContext": "workspace", "resolutionOwner": "workspace", "deploymentOwner": "workspace", "memberTargets": ["pkg-a"], "memberBuildPackages": ["pkg-a"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
+          { "rootFiles": ["build.w"], "packageRecords": 1, "workspaceRecords": 1, "owner": "workspace", "ownerContext": "workspace", "resolutionOwner": "workspace", "deploymentOwner": "workspace", "memberTargets": ["pkg-a"], "memberBuildPackages": ["pkg-a"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
+          { "rootFiles": ["build.w"], "packageRecords": 1, "workspaceRecords": 0, "owner": "workspace", "ownerContext": "workspace-member", "resolutionOwner": "workspace", "deploymentOwner": "workspace", "memberTargets": ["packages/menu-compiler"], "memberBuildPackages": ["packages/menu-compiler"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false }
         ]
       }
     },
@@ -60,16 +62,16 @@
       "variant": "adversarial",
       "decisions": ["W-1451"],
       "source": {
-        "path": "reference/last-light/workspace.w",
+        "path": "reference/last-light/build.w",
         "symbol": "workspace {",
-        "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd",
+        "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
         "claim": "Workspace root is the source-backed ownership boundary."
       },
       "observations": {
         "samples": [
-          { "rootFiles": ["build.w"], "packageRecords": 1, "workspaceRecords": 1, "owner": "workspace", "memberTargets": ["pkg-a"], "memberBuildPackages": [], "dataOnly": true, "inlinePackage": true, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
-          { "rootFiles": ["build.w"], "packageRecords": 0, "workspaceRecords": 1, "owner": "workspace", "memberTargets": ["nested"], "memberBuildPackages": ["nested"], "memberBuildWorkspaces": ["nested"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": true, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
-          { "rootFiles": ["build.w"], "packageRecords": 1, "workspaceRecords": 1, "owner": "both", "memberTargets": ["pkg-a"], "memberBuildPackages": ["pkg-a"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": true, "environmentalScan": true, "executableSource": true, "duplicateOwner": true }
+          { "rootFiles": ["build.w"], "packageRecords": 1, "workspaceRecords": 1, "owner": "workspace", "ownerContext": "workspace", "resolutionOwner": "workspace", "deploymentOwner": "workspace", "memberTargets": ["pkg-a"], "memberBuildPackages": [], "dataOnly": true, "inlinePackage": true, "nestedWorkspace": false, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
+          { "rootFiles": ["build.w"], "packageRecords": 0, "workspaceRecords": 1, "owner": "workspace", "ownerContext": "workspace", "resolutionOwner": "workspace", "deploymentOwner": "workspace", "memberTargets": ["nested"], "memberBuildPackages": ["nested"], "memberBuildWorkspaces": ["nested"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": true, "glob": false, "environmentalScan": false, "executableSource": false, "duplicateOwner": false },
+          { "rootFiles": ["build.w"], "packageRecords": 1, "workspaceRecords": 1, "owner": "both", "ownerContext": "workspace", "resolutionOwner": "both", "deploymentOwner": "both", "memberTargets": ["pkg-a"], "memberBuildPackages": ["pkg-a"], "dataOnly": true, "inlinePackage": false, "nestedWorkspace": false, "glob": true, "environmentalScan": true, "executableSource": true, "duplicateOwner": true }
         ]
       }
     },

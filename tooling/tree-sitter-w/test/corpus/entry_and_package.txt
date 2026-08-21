@@ -192,85 +192,86 @@ package {
 ---
 
 (source_file
-  (package_manifest
-    (manifest_record
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (string_literal)))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (string_literal)))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (manifest_list
-            (manifest_value
-              (manifest_record
-                (manifest_field
-                  (identifier)
-                  (manifest_value
-                    (string_literal)))
-                (manifest_field
-                  (identifier)
-                  (manifest_value
-                    (contextual_member_expression
-                      (identifier))))
-                (manifest_field
-                  (identifier)
-                  (manifest_value
-                    (manifest_list
-                      (manifest_value
-                        (contextual_member_expression
-                          (identifier)))
-                      (manifest_value
-                        (contextual_member_expression
-                          (identifier)))))))))))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (manifest_list
-            (manifest_value
-              (manifest_record
-                (manifest_field
-                  (identifier)
-                  (manifest_value
-                    (string_literal)))
-                (manifest_field
-                  (identifier)
-                  (manifest_value
-                    (manifest_list
-                      (manifest_value
-                        (string_literal))))))))))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (manifest_list
-            (manifest_value
-              (manifest_record
-                (manifest_field
-                  (identifier)
-                  (manifest_value
-                    (manifest_constructor
+  (build_manifest
+    (package_manifest
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (manifest_list
+              (manifest_value
+                (manifest_record
+                  (manifest_field
+                    (identifier)
+                    (manifest_value
+                      (string_literal)))
+                  (manifest_field
+                    (identifier)
+                    (manifest_value
                       (contextual_member_expression
-                        (identifier))
-                      (manifest_argument
+                        (identifier))))
+                  (manifest_field
+                    (identifier)
+                    (manifest_value
+                      (manifest_list
                         (manifest_value
-                          (string_literal)))))))))))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (manifest_record
-            (manifest_field
-              (identifier)
+                          (contextual_member_expression
+                            (identifier)))
+                        (manifest_value
+                          (contextual_member_expression
+                            (identifier)))))))))))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (manifest_list
               (manifest_value
-                (contextual_member_expression
-                  (identifier))))
-            (manifest_field
-              (identifier)
+                (manifest_record
+                  (manifest_field
+                    (identifier)
+                    (manifest_value
+                      (string_literal)))
+                  (manifest_field
+                    (identifier)
+                    (manifest_value
+                      (manifest_list
+                        (manifest_value
+                          (string_literal))))))))))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (manifest_list
               (manifest_value
-                (size_literal)))))))))
+                (manifest_record
+                  (manifest_field
+                    (identifier)
+                    (manifest_value
+                      (manifest_constructor
+                        (contextual_member_expression
+                          (identifier))
+                        (manifest_argument
+                          (manifest_value
+                            (string_literal)))))))))))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (manifest_record
+              (manifest_field
+                (identifier)
+                (manifest_value
+                  (contextual_member_expression
+                    (identifier))))
+              (manifest_field
+                (identifier)
+                (manifest_value
+                  (size_literal))))))))))
 
 ==================
 Data-only workspace manifest
@@ -286,30 +287,170 @@ workspace {
 ---
 
 (source_file
-  (workspace_manifest
-    (manifest_record
-      (manifest_field
-        (identifier)
+  (build_manifest
+    (workspace_manifest
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (manifest_list
+              (manifest_value
+                (string_literal))
+              (manifest_value
+                (string_literal)))))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (manifest_list
+              (manifest_value
+                (string_literal)))))
+        (manifest_field
+          (identifier)
         (manifest_value
-          (string_literal)))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (manifest_list
-            (manifest_value
-              (string_literal))
-            (manifest_value
-              (string_literal)))))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (manifest_list
-            (manifest_value
-              (string_literal)))))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (manifest_list))))))
+            (manifest_list)))))))
+
+==================
+Combined package and workspace manifest
+==================
+
+package {
+  schema: "w.package/1"
+  name: "example/pkg"
+}
+
+workspace {
+  schema: "w.workspace/1"
+  members: []
+}
+
+---
+
+(source_file
+  (build_manifest
+    (package_manifest
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))))
+    (workspace_manifest
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (manifest_list)))))))
+
+==================
+Reversed combined workspace and package manifest
+==================
+
+workspace {
+  schema: "w.workspace/1"
+  members: []
+}
+
+package {
+  schema: "w.package/1"
+  name: "example/pkg"
+}
+
+---
+
+(source_file
+  (build_manifest
+    (workspace_manifest
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (manifest_list)))))
+    (package_manifest
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))))))
+
+==================
+Duplicate package roots are rejected
+==================
+
+package {
+  schema: "w.package/1"
+}
+
+package {
+  schema: "w.package/1"
+}
+
+---
+
+(source_file
+  (ERROR
+    (package_manifest
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal))))))
+  (build_manifest
+    (package_manifest
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))))))
+
+==================
+Duplicate workspace roots are rejected
+==================
+
+workspace {
+  schema: "w.workspace/1"
+}
+
+workspace {
+  schema: "w.workspace/1"
+}
+
+---
+
+(source_file
+  (ERROR
+    (workspace_manifest
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal))))))
+  (build_manifest
+    (workspace_manifest
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))))))
+
 ==================
 Script header and implicit entry body are rejected
 ==================

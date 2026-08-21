@@ -10,27 +10,27 @@
   },
   "sourceRefs": [
     {
-      "path": "../../../reference/last-light/workspace.w",
+      "path": "../../../reference/last-light/build.w",
       "symbol": "workspace {",
-      "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd",
+      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
       "claim": "Unified physical workspace root with nested resolution and deployments."
     },
     {
-      "path": "../../../reference/last-light/package.w",
+      "path": "../../../reference/last-light/build.w",
       "symbol": "package {",
-      "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc",
+      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
       "claim": "Isolated package root remains a data-only manifest."
     },
     {
       "path": "../../../reference/last-light/BUILD.md",
       "symbol": "deployment",
-      "digest": "sha256:81008441c547802d16e925b3fd5ae319ddbcdbdb20fbd507ed3b64295945f88e",
+      "digest": "sha256:7e0c4cce0e6eb2e0bcc7267b19f10b332c4252747fe584eb2ee4d3dcdaaeb6cf",
       "claim": "Reference build documents named deployment records."
     },
     {
-      "path": "../../../reference/last-light/workspace.w",
+      "path": "../../../reference/last-light/build.w",
       "symbol": "resolution: {",
-      "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd",
+      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
       "claim": "Resolution is a nested logical record."
     }
   ],
@@ -63,7 +63,7 @@
   ],
   "corpus": {
     "path": "../../pkg1-project-transaction-cases.json",
-    "digest": "sha256:77fe34202bad2667289e2c5a9f3a7e94c1790f6c2b12cb966ee47a8cd6ce9b29"
+    "digest": "sha256:af25b954322a53b8a5da67891fbd886a6a081cfbfa0c6645282b4b441c8836cd"
   },
   "oracle": {
     "path": "../../pkg1-project-transaction-machine.mjs",
@@ -88,7 +88,7 @@
   "artifactRefs": [
     {
       "path": "../../pkg1-project-transaction-cases.json",
-      "digest": "sha256:77fe34202bad2667289e2c5a9f3a7e94c1790f6c2b12cb966ee47a8cd6ce9b29",
+      "digest": "sha256:af25b954322a53b8a5da67891fbd886a6a081cfbfa0c6645282b4b441c8836cd",
       "role": "corpus"
     },
     {
@@ -113,12 +113,12 @@
     },
     {
       "path": "../../pkg1-project-transaction-results.snapshot.jsonl",
-      "digest": "sha256:a369a41df4ee7a5d12121fa6e91b1494cc4497223f29b25877fdd7fa8a7c82cc",
+      "digest": "sha256:48087ec0a0cc4df6f9145be1bbd008da844037d5a58402f743c56f66e0f59650",
       "role": "snapshot"
     },
     {
       "path": "bundle.json",
-      "digest": "sha256:03244863b3d3e303e596e4593cd60d182c4139caf1cd41f0bd5f19637b7d3db6",
+      "digest": "sha256:73d43fb3b168001d7f52a0ab91806db6dd7ab1cf3eb0038d0627b53abf083cd2",
       "role": "study-bundle"
     },
     {

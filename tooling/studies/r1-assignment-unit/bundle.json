@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-assignment-unit",
   "title": "Unit assignment and place evaluation at the Last Light restaurant",
-  "r0Cases": ["R0-assignment-unit"],
+  "r0Cases": [
+    "R0-assignment-unit"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/restaurant.w",
     "symbol": "advance",
@@ -16,7 +18,11 @@
       "language": "w",
       "path": "separate-read.w",
       "digest": "sha256:d6de33903186e0e045a7f3cfd99ed9c8baf73bf3ca53eed57afbc237250f0ca0",
-      "changedConstructs": ["Unit assignment", "separate old-value read", "single-place compound update"]
+      "changedConstructs": [
+        "Unit assignment",
+        "separate old-value read",
+        "single-place compound update"
+      ]
     },
     {
       "id": "temporary",
@@ -24,7 +30,11 @@
       "language": "w",
       "path": "temporary.w",
       "digest": "sha256:e59a9428e42e16c792c8ec102698ecaa51890ca4fc0fc8f851951eb67931de0e",
-      "changedConstructs": ["explicit RHS temporary", "separate old-value read", "named compound delta"]
+      "changedConstructs": [
+        "explicit RHS temporary",
+        "separate old-value read",
+        "named compound delta"
+      ]
     },
     {
       "id": "value-producing",
@@ -32,7 +42,11 @@
       "language": "w",
       "path": "value-producing.w",
       "digest": "sha256:c6e80de036de647ac0524830638d3edc41257ee3c063df4482711603cc2e97ab",
-      "changedConstructs": ["parseable value-context assignment", "Unit-to-value semantic rejection", "chain-like return form"]
+      "changedConstructs": [
+        "parseable value-context assignment",
+        "Unit-to-value semantic rejection",
+        "chain-like return form"
+      ]
     }
   ],
   "entry": "assignUnit",
@@ -41,25 +55,50 @@
       "id": "primary-success",
       "old": 3,
       "next": 8,
-      "expected": { "result": "Unit", "value": 8, "events": ["place", "rhs", "replace", "drop-old"] }
+      "expected": {
+        "result": "Unit",
+        "value": 8,
+        "events": [
+          "place",
+          "rhs",
+          "replace",
+          "drop-old"
+        ]
+      }
     },
     {
       "id": "adversarial-rhs-failure",
       "old": 8,
       "next": "failure",
-      "expected": { "result": "error", "value": 8, "events": ["place", "rhs-failure"] }
+      "expected": {
+        "result": "error",
+        "value": 8,
+        "events": [
+          "place",
+          "rhs-failure"
+        ]
+      }
     },
     {
       "id": "move-only-and-compound",
       "old": "owner-1",
       "next": "owner-2",
-      "expected": { "oldOwnerDropped": 1, "ownerCopies": 0, "compoundPlaceReads": 1, "compoundPlaceWrites": 1 }
+      "expected": {
+        "oldOwnerDropped": 1,
+        "ownerCopies": 0,
+        "compoundPlaceReads": 1,
+        "compoundPlaceWrites": 1
+      }
     },
     {
       "id": "negative-value-context",
       "old": 3,
       "next": 8,
-      "expected": { "assignmentType": "Unit", "valueContext": "reject", "chain": "reject" }
+      "expected": {
+        "assignmentType": "Unit",
+        "valueContext": "reject",
+        "chain": "reject"
+      }
     }
   ],
   "tasks": [
@@ -87,20 +126,49 @@
     }
   ],
   "presentationOrders": [
-    ["separate-read", "temporary", "value-producing"],
-    ["value-producing", "separate-read", "temporary"],
-    ["temporary", "value-producing", "separate-read"]
+    [
+      "separate-read",
+      "temporary",
+      "value-producing"
+    ],
+    [
+      "value-producing",
+      "separate-read",
+      "temporary"
+    ],
+    [
+      "temporary",
+      "value-producing",
+      "separate-read"
+    ]
   ],
   "blinding": {
-    "participantLabels": { "separate-read": "A", "temporary": "B", "value-producing": "C" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "separate-read": "A",
+      "temporary": "B",
+      "value-producing": "C"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:37dc834d614b977e1d96ccf43dbe63b3a088dc730b2ee119d22791ec76caf30a"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

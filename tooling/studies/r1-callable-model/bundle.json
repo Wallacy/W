@@ -61,11 +61,18 @@
       "id": "capturing-route-and-manifest",
       "gate": 2,
       "initial": 40,
-      "orderIds": [7, 8, 9],
+      "orderIds": [
+        7,
+        8,
+        9
+      ],
       "expected": {
         "firstGate": 1,
         "routedGate": 2,
-        "tickets": [41, 42],
+        "tickets": [
+          41,
+          42
+        ],
         "manifestCount": 3
       }
     },
@@ -77,7 +84,10 @@
       "expected": {
         "firstGate": 1,
         "routedGate": 0,
-        "tickets": [1, 2],
+        "tickets": [
+          1,
+          2
+        ],
         "manifestCount": 0
       }
     }
@@ -107,12 +117,36 @@
     }
   ],
   "presentationOrders": [
-    ["separated", "unified", "protocols"],
-    ["unified", "protocols", "separated"],
-    ["protocols", "separated", "unified"],
-    ["separated", "protocols", "unified"],
-    ["protocols", "unified", "separated"],
-    ["unified", "separated", "protocols"]
+    [
+      "separated",
+      "unified",
+      "protocols"
+    ],
+    [
+      "unified",
+      "protocols",
+      "separated"
+    ],
+    [
+      "protocols",
+      "separated",
+      "unified"
+    ],
+    [
+      "separated",
+      "protocols",
+      "unified"
+    ],
+    [
+      "protocols",
+      "unified",
+      "separated"
+    ],
+    [
+      "unified",
+      "separated",
+      "protocols"
+    ]
   ],
   "blinding": {
     "participantLabels": {
@@ -120,14 +154,27 @@
       "unified": "B",
       "protocols": "C"
     },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:2841f7c7ccb738613408fa00e2ed35948fa20400f4268696ba3c083ac0f86efa"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

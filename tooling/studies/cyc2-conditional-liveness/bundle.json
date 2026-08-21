@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-cyc2-conditional-liveness",
   "title": "Close conditional liveness by composition",
-  "r0Cases": ["R0-weak-owner-acquisition"],
+  "r0Cases": [
+    "R0-weak-owner-acquisition"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/cyc2_liveness.w",
     "symbol": "generationIdCacheWithInvalidation",
@@ -92,22 +94,46 @@
     }
   ],
   "presentationOrders": [
-    ["three-compositions", "rejected-mechanisms"],
-    ["rejected-mechanisms", "three-compositions"]
+    [
+      "three-compositions",
+      "rejected-mechanisms"
+    ],
+    [
+      "rejected-mechanisms",
+      "three-compositions"
+    ]
   ],
   "blinding": {
     "participantLabels": {
       "three-compositions": "A",
       "rejected-mechanisms": "B"
     },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:2c6f5b376008aa114090ffedd8c8d006b9d8cdae1705251a64c1c3d814de7829"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle", "source-ref"],
-    "missing": ["w-compile", "w-run", "provider", "runtime-stress", "oom", "ffi-execution", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle",
+      "source-ref"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "provider",
+      "runtime-stress",
+      "oom",
+      "ffi-execution",
+      "human-study",
+      "model-study"
+    ]
   }
 }

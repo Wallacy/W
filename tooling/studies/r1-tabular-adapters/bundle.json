@@ -3,7 +3,10 @@
   "status": "design-oracle-input",
   "id": "R1-tabular-adapters",
   "title": "Same horizon telemetry through CSV, Parquet, and Arrow TAB1 workflows",
-  "r0Cases": ["R0-tabular-carrier", "R0-copy-release-boundary"],
+  "r0Cases": [
+    "R0-tabular-carrier",
+    "R0-copy-release-boundary"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/data_formats.w",
     "symbol": "summarize",
@@ -16,7 +19,11 @@
       "language": "w",
       "path": "csv-stream.w",
       "digest": "sha256:ce756d21da3fdbd9cb26eed7a322fe09bd26962a063cb38a9b58af149dfa48bf",
-      "changedConstructs": ["typed CSV async stream", "explicit null policy", "ByteSource ownership"]
+      "changedConstructs": [
+        "typed CSV async stream",
+        "explicit null policy",
+        "ByteSource ownership"
+      ]
     },
     {
       "id": "parquet-snapshot",
@@ -24,7 +31,11 @@
       "language": "w",
       "path": "parquet-snapshot.w",
       "digest": "sha256:c3e44ecb9a419e0ce863233e293fdc001747b968c2b56b229c2a44958505eba5",
-      "changedConstructs": ["SnapshotByteSource", "exact schema binding", "footer preflight"]
+      "changedConstructs": [
+        "SnapshotByteSource",
+        "exact schema binding",
+        "footer preflight"
+      ]
     },
     {
       "id": "arrow-ipc-stream",
@@ -32,7 +43,11 @@
       "language": "w",
       "path": "arrow-ipc-stream.w",
       "digest": "sha256:3cf0cd04779a8a341aac87bc4e701a44240a6c5dd95ff492116cb93506a4b4af",
-      "changedConstructs": ["IPC stream naming", "dictionary validation", "service handoff"]
+      "changedConstructs": [
+        "IPC stream naming",
+        "dictionary validation",
+        "service handoff"
+      ]
     }
   ],
   "entry": "summarize",
@@ -40,8 +55,16 @@
     {
       "id": "primary-horizon-telemetry",
       "rows": [
-        { "sequence": 7, "hawkingFlux": 0.2, "warning": null },
-        { "sequence": 8, "hawkingFlux": 0.8, "warning": "evacuate" }
+        {
+          "sequence": 7,
+          "hawkingFlux": 0.2,
+          "warning": null
+        },
+        {
+          "sequence": 8,
+          "hawkingFlux": 0.8,
+          "warning": "evacuate"
+        }
       ],
       "expected": {
         "count": 2,
@@ -50,7 +73,11 @@
         "warnings": 1,
         "nullWarning": true,
         "nanIsValue": false,
-        "fields": ["sequence", "hawkingFlux", "warning"],
+        "fields": [
+          "sequence",
+          "hawkingFlux",
+          "warning"
+        ],
         "status": "accepted"
       }
     },
@@ -68,7 +95,10 @@
         "arrow-schema-dictionary-endian-copy-alignment",
         "arrow-untrusted-c-double-release-device-cancel"
       ],
-      "expected": { "status": "rejected", "code": "typed-adversarial-error" }
+      "expected": {
+        "status": "rejected",
+        "code": "typed-adversarial-error"
+      }
     }
   ],
   "tasks": [
@@ -96,20 +126,49 @@
     }
   ],
   "presentationOrders": [
-    ["csv-stream", "parquet-snapshot", "arrow-ipc-stream"],
-    ["parquet-snapshot", "arrow-ipc-stream", "csv-stream"],
-    ["arrow-ipc-stream", "csv-stream", "parquet-snapshot"]
+    [
+      "csv-stream",
+      "parquet-snapshot",
+      "arrow-ipc-stream"
+    ],
+    [
+      "parquet-snapshot",
+      "arrow-ipc-stream",
+      "csv-stream"
+    ],
+    [
+      "arrow-ipc-stream",
+      "csv-stream",
+      "parquet-snapshot"
+    ]
   ],
   "blinding": {
-    "participantLabels": { "csv-stream": "A", "parquet-snapshot": "B", "arrow-ipc-stream": "C" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "csv-stream": "A",
+      "parquet-snapshot": "B",
+      "arrow-ipc-stream": "C"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:4b03f3b573cd712a69a2597bd8cc0caa2da31a3f9fa24c0d0829b578201081cb"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

@@ -2,24 +2,26 @@
   "$schema": "w-substitution-study-bundle-1",
   "status": "design-oracle-input",
   "id": "R1-pfu0-pre-freeze-usability",
-  "title": "Pre-freeze usability research for roots, service streams, and properties",
-  "r0Cases": ["R0-manifest-record"],
+  "title": "PFU0 closure evidence for roots, service streams, and properties",
+  "r0Cases": [
+    "R0-manifest-record"
+  ],
   "sourceBase": {
     "path": "current.w",
     "symbol": "pfu0Study",
-    "digest": "sha256:a5c9a09071963271afa70167741e7c4ed55381199c52f294f3381dc6f2b97d98"
+    "digest": "sha256:5d28aeb918925b3edd875d1403e4663e3f285e1e505a3231a35dc7c9b717095b"
   },
   "sourceRefs": [
     {
-      "path": "../../../reference/last-light/package.w",
+      "path": "../../../reference/last-light/build.w",
       "symbol": "package {",
-      "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc",
+      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
       "claim": "Current package root control."
     },
     {
-      "path": "../../../reference/last-light/workspace.w",
+      "path": "../../../reference/last-light/build.w",
       "symbol": "workspace {",
-      "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd",
+      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
       "claim": "Current workspace owner control."
     },
     {
@@ -41,19 +43,31 @@
       "role": "selected",
       "language": "w",
       "path": "current.w",
-      "digest": "sha256:a5c9a09071963271afa70167741e7c4ed55381199c52f294f3381dc6f2b97d98",
-      "changedConstructs": ["separate package and workspace roots", "explicit stream, channel, and mailbox", "get/set/modify lifecycle"],
-      "parseEvidence": { "status": "tree-sitter-parse", "note": "Thin current witness."
+      "digest": "sha256:5d28aeb918925b3edd875d1403e4663e3f285e1e505a3231a35dc7c9b717095b",
+      "changedConstructs": [
+        "single build.w root with explicit records",
+        "explicit stream, channel, and mailbox",
+        "get/set/modify lifecycle"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Thin current witness."
       }
     },
     {
       "id": "candidate",
-      "role": "research-candidate",
+      "role": "alternative",
       "language": "w-reserved",
       "path": "candidate.txt",
-      "digest": "sha256:502b8b366c358519c017a19e626a2efb9ccf18eaaea3eae336964e6ef71b25b1",
-      "changedConstructs": ["single build.w data-only manifest", "stream fn output producer", "local property lifecycle comparison"],
-      "parseEvidence": { "status": "reserved-not-parsed", "note": "Candidate syntax remains reserved study text."
+      "digest": "sha256:378b7fb6155f676f87016b854323e528b2bb95dcdfbadf6d22ee5cb520eb65df",
+      "changedConstructs": [
+        "single build.w data-only manifest",
+        "rejected stream fn comparison",
+        "local property lifecycle comparison"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Candidate syntax remains reserved study text."
       }
     },
     {
@@ -62,35 +76,115 @@
       "language": "w",
       "path": "adversarial.w",
       "digest": "sha256:3b25df51c267ab6e4e812477e1b6dcb10c2638d181a4ba0ff41777081f2d52a3",
-      "changedConstructs": ["inline package and nested workspace", "client/bidi and implicit transport", "hidden oldValue and observer bypass"],
-      "parseEvidence": { "status": "tree-sitter-parse", "note": "Thin adversarial witness."
+      "changedConstructs": [
+        "inline package and nested workspace",
+        "client/bidi and implicit transport",
+        "hidden oldValue and observer bypass"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Thin adversarial witness."
       }
     }
   ],
   "entry": "pfu0Study",
   "inputs": [
-    { "id": "current-controls", "expected": { "status": "accepted", "route": "current-control" } },
-    { "id": "candidate-routes", "expected": { "status": "accepted", "route": "candidate-research" } },
-    { "id": "adversarial-routes", "expected": { "status": "rejected", "route": "rejected-route" } }
+    {
+      "id": "current-controls",
+      "expected": {
+        "status": "accepted",
+        "route": "current-control"
+      }
+    },
+    {
+      "id": "candidate-routes",
+      "expected": {
+        "status": "mixed",
+        "route": "manifest-current-control; service/property-rejected-route"
+      }
+    },
+    {
+      "id": "adversarial-routes",
+      "expected": {
+        "status": "rejected",
+        "route": "rejected-route"
+      }
+    }
   ],
   "tasks": [
-    { "kind": "explain", "instruction": "Explain the three current controls and the evidence boundary without claiming implementation." },
-    { "kind": "recall", "instruction": "After a bounded delay, reconstruct the candidate gates and rejected boundaries.", "minimumDelaySeconds": 1 },
-    { "kind": "repair", "instruction": "Repair one copied fact mutation while preserving the current contract.", "mutations": { "current": "Restore separate ownership and explicit operations.", "candidate": "Keep the candidate in reserved research text.", "adversarial": "Restore the rejection for the mutated route." } },
-    { "kind": "change", "instruction": "Add one independent source-backed case without promoting a candidate." }
+    {
+      "kind": "explain",
+      "instruction": "Explain the three current controls and the evidence boundary without claiming implementation."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After a bounded delay, reconstruct the candidate gates and rejected boundaries.",
+      "minimumDelaySeconds": 1
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair one copied fact mutation while preserving the current contract.",
+      "mutations": {
+        "current": "Restore separate ownership and explicit operations.",
+        "candidate": "Keep the candidate in reserved research text.",
+        "adversarial": "Restore the rejection for the mutated route."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add one independent source-backed case while preserving the closed decisions and implementation gaps."
+    }
   ],
   "presentationOrders": [
-    ["current", "candidate", "adversarial"],
-    ["adversarial", "current", "candidate"],
-    ["candidate", "adversarial", "current"]
+    [
+      "current",
+      "candidate",
+      "adversarial"
+    ],
+    [
+      "adversarial",
+      "current",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "adversarial",
+      "current"
+    ]
   ],
   "blinding": {
-    "participantLabels": { "current": "A", "candidate": "B", "adversarial": "C" },
-    "hide": ["id", "role", "path", "changedConstructs", "expected"]
+    "participantLabels": {
+      "current": "A",
+      "candidate": "B",
+      "adversarial": "C"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs",
+      "expected"
+    ]
   },
-  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:2dc1c8226da2a8f6596119e4be647e90656ab207c74a4979ef402975de2c5114" },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:616b0aa4bc8b8a33abbfd5646466efc14e6ca567779cf7513e165882b49ad596"
+  },
   "evidence": {
-    "current": ["tree-sitter-parse", "source-ref", "host-oracle", "reserved-study"],
-    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "source-ref",
+      "host-oracle",
+      "reserved-study"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "compiler",
+      "runtime",
+      "provider",
+      "human-study",
+      "model-study"
+    ]
   }
 }

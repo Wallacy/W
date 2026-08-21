@@ -8,4 +8,4 @@ Este package mantém um compiler pequeno no profile `bootstrap.w0`. O product
 
 O package não recebe filesystem, network, environment, clock, random ou secret.
 O package principal o usa como `.build` dependency por meio do
-[`workspace.w`](../../workspace.w).
+[`build.w`](../../build.w).

@@ -6,24 +6,55 @@
   "title": "Human and model review protocol for W ergonomics",
   "protocol": {
     "path": "../../hum0-human-review-protocol.json",
-    "digest": "sha256:c8f1d8cdc603e384112536d74d46618af7194765b6a9e87ea1924aaff2fc3ca1"
+    "digest": "sha256:bafc69bf25533697f3b4fbb09dcad079b3bb6cbd2c969fd0b4602c296d4374ff"
   },
   "bundle": false,
   "variants": 0,
   "tasks": 32,
   "slices": 8,
-  "records": { "human": 0, "model": 0 },
+  "records": {
+    "human": 0,
+    "model": 0
+  },
   "evidence": {
-    "current": ["source-ref", "oracle-ref", "counterbalance", "blinding", "protocol-checker", "readiness-snapshot"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study", "provider"],
+    "current": [
+      "source-ref",
+      "oracle-ref",
+      "counterbalance",
+      "blinding",
+      "protocol-checker",
+      "readiness-snapshot"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study",
+      "provider"
+    ],
     "claims": "protocol structure only; no human or model results"
   },
   "artifacts": {
-    "machine": { "path": "../../hum0-human-review-machine.mjs", "digest": "sha256:a7726e27e9599a7d4e3a846b03f50c8780d7f0afbf63b2357924af3fd4c14c25" },
-    "checker": { "path": "../../check-hum0-human-review.mjs", "digest": "sha256:12b523247b2c280ec9f4def32b5625845b9413177b714fbb6e6062ed927ff9b3" },
-    "snapshot": { "path": "../../hum0-human-review-results.snapshot.jsonl", "digest": "sha256:ab919ff4a10d1f8521ec62ebff620f827434cf2543d3c26c74ab2ead76321a51" },
-    "referenceTest": { "path": "../../hum0-human-review-reference.test.mjs", "digest": "sha256:ea3a6b3570f05f7df36b94a2fabbfe39c0d4ff58efc0bab345365e9795dceb09" },
-    "studyOracle": { "path": "oracle.test.mjs", "digest": "sha256:7a2f0e78da23acf4b7170ba423f70e3a7305181810c3551fc809cb4036e36089" }
+    "machine": {
+      "path": "../../hum0-human-review-machine.mjs",
+      "digest": "sha256:a7726e27e9599a7d4e3a846b03f50c8780d7f0afbf63b2357924af3fd4c14c25"
+    },
+    "checker": {
+      "path": "../../check-hum0-human-review.mjs",
+      "digest": "sha256:12b523247b2c280ec9f4def32b5625845b9413177b714fbb6e6062ed927ff9b3"
+    },
+    "snapshot": {
+      "path": "../../hum0-human-review-results.snapshot.jsonl",
+      "digest": "sha256:07d9878a160354472f1f60e55816528a97fa2980eb1400235ce58fd56b63d5c2"
+    },
+    "referenceTest": {
+      "path": "../../hum0-human-review-reference.test.mjs",
+      "digest": "sha256:ea3a6b3570f05f7df36b94a2fabbfe39c0d4ff58efc0bab345365e9795dceb09"
+    },
+    "studyOracle": {
+      "path": "oracle.test.mjs",
+      "digest": "sha256:7a2f0e78da23acf4b7170ba423f70e3a7305181810c3551fc809cb4036e36089"
+    }
   },
   "stopCondition": "Stop at the first protocol violation or oracle disagreement; retain Research classification and require an independent case before normative review.",
   "promotionPolicy": "no-automatic-promotion"

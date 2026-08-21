@@ -13,9 +13,9 @@
   },
   "sourceRefs": [
     {
-      "path": "../../../reference/last-light/workspace.w",
+      "path": "../../../reference/last-light/build.w",
       "symbol": "targetVariants: [\"native-terminal::posix\"]",
-      "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd"
+      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f"
     },
     {
       "path": "../../../reference/last-light/synchronization.w",

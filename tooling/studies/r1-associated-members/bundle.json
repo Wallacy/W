@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-associated-members",
   "title": "Associated members at the Last Light restaurant",
-  "r0Cases": ["R0-associated-member"],
+  "r0Cases": [
+    "R0-associated-member"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/domain.w",
     "symbol": "Course",
@@ -40,17 +42,25 @@
     {
       "id": "first-course",
       "ordinal": 0,
-      "expected": { "status": "selected", "course": "nebulaBroth" }
+      "expected": {
+        "status": "selected",
+        "course": "nebulaBroth"
+      }
     },
     {
       "id": "last-course",
       "ordinal": 3,
-      "expected": { "status": "selected", "course": "horizonCake" }
+      "expected": {
+        "status": "selected",
+        "course": "horizonCake"
+      }
     },
     {
       "id": "outside-course-set",
       "ordinal": 4,
-      "expected": { "status": "absent" }
+      "expected": {
+        "status": "absent"
+      }
     }
   ],
   "tasks": [
@@ -77,19 +87,41 @@
     }
   ],
   "presentationOrders": [
-    ["direct", "protocol-requirement"],
-    ["protocol-requirement", "direct"]
+    [
+      "direct",
+      "protocol-requirement"
+    ],
+    [
+      "protocol-requirement",
+      "direct"
+    ]
   ],
   "blinding": {
-    "participantLabels": { "direct": "A", "protocol-requirement": "B" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "direct": "A",
+      "protocol-requirement": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:72f8d9654a0622870735124bab89378a3712381fe11aa1c4ac04857b83dc309a"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-tensor-broadcast",
   "title": "Horizon calibration broadcast at the Last Light restaurant",
-  "r0Cases": ["R0-tensor-broadcast"],
+  "r0Cases": [
+    "R0-tensor-broadcast"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/horizon.w",
     "symbol": "broadcast",
@@ -16,7 +18,10 @@
       "language": "w",
       "path": "explicit.w",
       "digest": "sha256:9b1b654045fc33d704e70f30fa6b476defce9c982301e3b2dfe1e890f76af818",
-      "changedConstructs": ["explicit broadcast target", "shape declaration"]
+      "changedConstructs": [
+        "explicit broadcast target",
+        "shape declaration"
+      ]
     },
     {
       "id": "checked-implicit",
@@ -24,31 +29,67 @@
       "language": "w",
       "path": "checked-implicit.w",
       "digest": "sha256:25adfe6ea69dd0cdff7d7e6714e779d224735337a0584f7b3f959c995aedd14d",
-      "changedConstructs": ["checked implicit shape", "broadcast omission"]
+      "changedConstructs": [
+        "checked implicit shape",
+        "broadcast omission"
+      ]
     }
   ],
   "entry": "centerSamples",
   "inputs": [
     {
       "id": "primary-valid-shape",
-      "calibratedShape": [3, 6],
-      "meansShape": [6],
+      "calibratedShape": [
+        3,
+        6
+      ],
+      "meansShape": [
+        6
+      ],
       "axis": 0,
-      "expected": { "shape": [3, 6], "status": "centered" }
+      "expected": {
+        "shape": [
+          3,
+          6
+        ],
+        "status": "centered"
+      }
     },
     {
       "id": "adversarial-mismatched-shape",
-      "calibratedShape": [3, 6],
-      "meansShape": [5],
+      "calibratedShape": [
+        3,
+        6
+      ],
+      "meansShape": [
+        5
+      ],
       "axis": 0,
-      "expected": { "shape": [3, 6], "status": "shapeMismatch" }
+      "expected": {
+        "shape": [
+          3,
+          6
+        ],
+        "status": "shapeMismatch"
+      }
     },
     {
       "id": "adversarial-axis-change",
-      "calibratedShape": [3, 6],
-      "meansShape": [3],
+      "calibratedShape": [
+        3,
+        6
+      ],
+      "meansShape": [
+        3
+      ],
       "axis": 1,
-      "expected": { "shape": [3, 6], "status": "shapeMismatch" }
+      "expected": {
+        "shape": [
+          3,
+          6
+        ],
+        "status": "shapeMismatch"
+      }
     }
   ],
   "tasks": [
@@ -74,17 +115,42 @@
       "instruction": "Add scalar expansion and a mismatched non-scalar shape while keeping shape errors explicit."
     }
   ],
-  "presentationOrders": [["explicit", "checked-implicit"], ["checked-implicit", "explicit"]],
+  "presentationOrders": [
+    [
+      "explicit",
+      "checked-implicit"
+    ],
+    [
+      "checked-implicit",
+      "explicit"
+    ]
+  ],
   "blinding": {
-    "participantLabels": { "explicit": "A", "checked-implicit": "B" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "explicit": "A",
+      "checked-implicit": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:c265d6d8c5bb13d5a6f31635fcc5649163065e371a49f9be28ccaf17b731e8f4"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

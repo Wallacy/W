@@ -35,7 +35,7 @@ describe("FRC0 final research closure host oracle", () => {
     }
   });
 
-  test("keeps the historical boundary separate from the PFU0 reopen", () => {
+  test("keeps the historical boundary and PFU0 closure explicit", () => {
     const state = loadState();
     const current = runFRC0Case(corpus.cases.find((testCase) => testCase.id === "FRC0-W-731-current"), { state });
     expect(current.status).toBe("accepted");
@@ -46,11 +46,13 @@ describe("FRC0 final research closure host oracle", () => {
       researchZero: true,
     });
     expect(current.facts.reopenedCategories).toEqual({
-      "W-1451": "research-gated",
-      "W-1452": "research-gated",
-      "W-1453": "research-gated",
+      "W-1451": "oracle-backed-current",
+      "W-1452": "oracle-backed-current",
+      "W-1453": "oracle-backed-current",
     });
     expect(current.facts.reopenedResearch).toBe(true);
+    expect(current.facts.globalResearch).toEqual([]);
+    expect(current.facts.globalResearchExact).toBe(true);
   });
 
   test("rejects copied-state mutations for all three gates", () => {

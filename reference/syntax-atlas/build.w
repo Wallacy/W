@@ -10,6 +10,15 @@ package {
       source: .registry("w")
     }
   ]
+}
+// atlas:end package-root
+
+// atlas:begin workspace-root
+workspace {
+  schema: "w.workspace/1"
+  members: ["."]
+  defaultMembers: ["."]
+  patches: []
   resolution: {
     schema: "w.resolution/1"
     resolver: "w.resolver/1"
@@ -24,4 +33,4 @@ package {
     },
   ]
 }
-// atlas:end package-root
+// atlas:end workspace-root

@@ -53,52 +53,90 @@
       "id": "newline-primary",
       "operation": "newline-return",
       "returnValue": 42,
-      "expected": { "value": 42 }
+      "expected": {
+        "value": 42
+      }
     },
     {
       "id": "newline-boundary",
       "operation": "newline-return",
       "returnValue": 0,
-      "expected": { "value": 0 }
+      "expected": {
+        "value": 0
+      }
     },
     {
       "id": "forced-semicolon",
       "operation": "forced-semicolon",
       "traceValue": "ready",
       "stage": "accepted",
-      "expected": { "stage": "accepted", "trace": ["ready"], "semicolon": true }
+      "expected": {
+        "stage": "accepted",
+        "trace": [
+          "ready"
+        ],
+        "semicolon": true
+      }
     },
     {
       "id": "discard-boundary",
       "operation": "discard",
       "traceValue": "",
       "stage": "reserving",
-      "expected": { "stage": "reserving", "trace": [], "discarded": true }
+      "expected": {
+        "stage": "reserving",
+        "trace": [],
+        "discarded": true
+      }
     },
     {
       "id": "formatter-order",
       "operation": "formatter-policy",
       "orderLabel": "presentation-label",
       "items": [
-        { "kind": "import", "value": "kitchen" },
-        { "kind": "declaration", "value": "fn serve(order: Order) { serve(order) }" }
+        {
+          "kind": "import",
+          "value": "kitchen"
+        },
+        {
+          "kind": "declaration",
+          "value": "fn serve(order: Order) { serve(order) }"
+        }
       ],
-      "expected": { "canonical": "import kitchen\nfn serve(order: Order) { serve(order) }", "orderLabel": "import-declaration" }
+      "expected": {
+        "canonical": "import kitchen\nfn serve(order: Order) { serve(order) }",
+        "orderLabel": "import-declaration"
+      }
     },
     {
       "id": "automatic-insertion",
       "operation": "automatic-semicolon-insertion",
-      "expected": { "accepted": false, "cause": "automatic-semicolon-insertion" }
+      "expected": {
+        "accepted": false,
+        "cause": "automatic-semicolon-insertion"
+      }
     },
     {
       "id": "environmental-formatter-candidate",
       "operation": "environmental-formatter-policy",
       "items": [
-        { "kind": "import", "value": "kitchen" },
-        { "kind": "declaration", "value": "fn serve(order: Order) { serve(order) }" }
+        {
+          "kind": "import",
+          "value": "kitchen"
+        },
+        {
+          "kind": "declaration",
+          "value": "fn serve(order: Order) { serve(order) }"
+        }
       ],
-      "policy": { "columnWidth": 80, "sortImports": true },
-      "expected": { "accepted": false, "cause": "environmental-formatter-policy" }
+      "policy": {
+        "columnWidth": 80,
+        "sortImports": true
+      },
+      "expected": {
+        "accepted": false,
+        "cause": "environmental-formatter-policy"
+      }
     }
   ],
   "tasks": [

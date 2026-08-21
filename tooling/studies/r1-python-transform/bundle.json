@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-python-transform",
   "title": "Urgent ticket transformation at the Last Light restaurant",
-  "r0Cases": ["R0-python-transform"],
+  "r0Cases": [
+    "R0-python-transform"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/collections.w",
     "symbol": "urgent",
@@ -16,7 +18,10 @@
       "language": "w",
       "path": "pipeline.w",
       "digest": "sha256:02dc6893593d73211ea09a7e07b0ec807bd3ec23c90b7fb5cfd747b1786d08bb",
-      "changedConstructs": ["lazy filter-map pipeline", "bounded collect"]
+      "changedConstructs": [
+        "lazy filter-map pipeline",
+        "bounded collect"
+      ]
     },
     {
       "id": "loop",
@@ -24,28 +29,73 @@
       "language": "w",
       "path": "loop.w",
       "digest": "sha256:caf4a53f13cc1192dd74c391104a8b3684a6f7e381d49351c4439289be450949",
-      "changedConstructs": ["explicit loop", "mutable result append"]
+      "changedConstructs": [
+        "explicit loop",
+        "mutable result append"
+      ]
     }
   ],
   "entry": "urgentOrderIds",
   "inputs": [
     {
       "id": "primary-two-matches",
-      "tickets": [[7, 1], [9, 1], [11, 0]],
+      "tickets": [
+        [
+          7,
+          1
+        ],
+        [
+          9,
+          1
+        ],
+        [
+          11,
+          0
+        ]
+      ],
       "limit": 1,
-      "expected": { "values": [7], "inspected": 1 }
+      "expected": {
+        "values": [
+          7
+        ],
+        "inspected": 1
+      }
     },
     {
       "id": "adversarial-zero-limit",
-      "tickets": [[21, 1], [22, 1]],
+      "tickets": [
+        [
+          21,
+          1
+        ],
+        [
+          22,
+          1
+        ]
+      ],
       "limit": 0,
-      "expected": { "values": [], "inspected": 0 }
+      "expected": {
+        "values": [],
+        "inspected": 0
+      }
     },
     {
       "id": "adversarial-no-match",
-      "tickets": [[21, 0], [22, 0]],
+      "tickets": [
+        [
+          21,
+          0
+        ],
+        [
+          22,
+          0
+        ]
+      ],
       "limit": 3,
-      "expected": { "values": [], "inspected": 2 }
+      "expected": {
+        "values": [],
+        "inspected": 2
+      }
     }
   ],
   "tasks": [
@@ -71,17 +121,42 @@
       "instruction": "Add a side-effecting audit for each selected ticket without making the lazy pipeline the side-effect mechanism."
     }
   ],
-  "presentationOrders": [["pipeline", "loop"], ["loop", "pipeline"]],
+  "presentationOrders": [
+    [
+      "pipeline",
+      "loop"
+    ],
+    [
+      "loop",
+      "pipeline"
+    ]
+  ],
   "blinding": {
-    "participantLabels": { "pipeline": "A", "loop": "B" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "pipeline": "A",
+      "loop": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:6ae68247518ed112dd17af88586f13d51c08d3775a54f92964e448535c8431df"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

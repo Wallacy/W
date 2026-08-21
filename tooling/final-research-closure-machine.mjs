@@ -18,7 +18,7 @@ export const HISTORICAL_SNAPSHOT_LAST = "W-1450";
 export const HISTORICAL_SNAPSHOT_IDS = Object.freeze(
   ledgerIds.filter((decisionId) => Number(decisionId.slice(2)) <= Number(HISTORICAL_SNAPSHOT_LAST.slice(2))),
 );
-export const REOPENED_RESEARCH = Object.freeze(["W-1451", "W-1452", "W-1453"]);
+export const PFU0_DECISIONS = Object.freeze(["W-1451", "W-1452", "W-1453"]);
 export const DISPOSITIONS = Object.freeze({
   "W-707": "oracle-backed-current",
   "W-731": "oracle-backed-current",
@@ -273,13 +273,13 @@ function classificationFacts(state) {
   const historicalComplete = historicalEntries.length === HISTORICAL_SNAPSHOT_IDS.length &&
     new Set(historicalEntries.map((entry) => entry?.decisionId)).size === HISTORICAL_SNAPSHOT_IDS.length;
   const researchResidual = historicalEntries.filter((entry) => entry?.category === "research-gated").map((entry) => entry.decisionId);
-  const reopenedCategories = Object.fromEntries(REOPENED_RESEARCH.map((decisionId) => [
+  const reopenedCategories = Object.fromEntries(PFU0_DECISIONS.map((decisionId) => [
     decisionId,
     entries.find((entry) => entry?.decisionId === decisionId)?.category ?? null,
   ]));
-  const reopenedResearch = REOPENED_RESEARCH.every((decisionId) => reopenedCategories[decisionId] === "research-gated");
+  const reopenedResearch = PFU0_DECISIONS.every((decisionId) => reopenedCategories[decisionId] === "oracle-backed-current");
   const globalResearch = entries.filter((entry) => entry?.category === "research-gated").map((entry) => entry.decisionId);
-  const globalResearchExact = same([...globalResearch].sort(), [...REOPENED_RESEARCH].sort());
+  const globalResearchExact = same([...globalResearch].sort(), []);
   const targetCategories = Object.fromEntries(DECISIONS.map((decision) => [decision, entries.find((entry) => entry?.decisionId === decision)?.category ?? null]));
   const ledgerDigestValid = classification.ledger?.path === "RATIONALE.md" &&
     classification.ledger?.count === ledgerIds.length &&
@@ -461,10 +461,10 @@ export function validateCorpus(input = readJson("tooling/final-research-closure-
     errors.push("FRC0 historical snapshot must close only W-001 through W-1450 with Research=0.");
   }
   if (!exactKeys(input.reopenedResearch, ["decisions", "category", "gate"]) ||
-      !same(input.reopenedResearch.decisions, REOPENED_RESEARCH) ||
-      input.reopenedResearch.category !== "research-gated" ||
+      !same(input.reopenedResearch.decisions, PFU0_DECISIONS) ||
+      input.reopenedResearch.category !== "oracle-backed-current" ||
       input.reopenedResearch.gate !== "PFU0-pre-freeze-usability") {
-    errors.push("FRC0 reopenedResearch must name W-1451..W-1453 as PFU0 research-gated.");
+    errors.push("FRC0 reopenedResearch must name W-1451..W-1453 as PFU0 oracle-backed-current.");
   }
   if (!exactKeys(input.reuse, DECISIONS)) errors.push("FRC0 reuse map must cover each decision exactly once.");
   for (const decision of DECISIONS) {
@@ -637,7 +637,7 @@ export function mutationChecks() {
   checks.researchResidualRejected = classificationFacts(researchResidual).valid === false;
 
   const reopenedCategory = clone(state);
-  reopenedCategory.classification.entries.find((entry) => entry.decisionId === "W-1451").category = "oracle-backed-current";
+  reopenedCategory.classification.entries.find((entry) => entry.decisionId === "W-1451").category = "research-gated";
   checks.reopenedResearchRejected = classificationFacts(reopenedCategory).valid === false;
 
   const extraResearch = clone(state);

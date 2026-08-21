@@ -101,8 +101,8 @@ lifecycle diferente             -> outro product e, normalmente, outro artifact
 
 ## 3. Products
 
-O workspace vigente está em [`workspace.w`](workspace.w). O package principal
-está em [`package.w`](package.w).
+O record `workspace` vigente e o record `package` principal estão no único
+[`build.w`](build.w); o workspace é o owner de resolution e deployments.
 
 | Product | Kind | Host | Finalidade |
 |---|---|---|---|
@@ -139,7 +139,7 @@ SDK futuros. A tabela define gates, não suporte entregue.
 
 ### 3.1 Runtime graphs
 
-`package.w` contém cinco grafos:
+`build.w` contém cinco grafos:
 
 | Graph | Uso | Imports abertos |
 |---|---|---|
@@ -213,7 +213,7 @@ Build profile e execution profile respondem a perguntas diferentes:
 | `executionProfile: "native-bounded"` | quais tasks, pools, domains e cleanups o artifact permite? |
 | `--execution-platform linux-x64` | em qual plataforma hermética o build executa? |
 
-`package.w` contém três execution profiles:
+`build.w` contém três execution profiles:
 
 | Profile | Products | Contrato |
 |---|---|---|
@@ -223,7 +223,8 @@ Build profile e execution profile respondem a perguntas diferentes:
 
 Cada unit criada pelo packing recebe seu próprio envelope. O packing
 `single-process` cria um runtime compartilhado. O packing `split-services`
-produz um runtime por unit. `workspace.w (deployment "distributed")` reduz cada unit
+produz um runtime por unit. O record `workspace` em `build.w` (deployment
+"distributed") reduz cada unit
 separadamente.
 
 O deployment não cria domain nem muda fallback. Ele reduz somente números
@@ -396,7 +397,7 @@ O source nativo importa sempre:
 import { nativeTerminalBackend } from platform.native
 ```
 
-`package.w` oferece dois module sets com a mesma module identity:
+`build.w` oferece dois module sets com a mesma module identity:
 
 ```text
 Linux, Darwin -> native-terminal/posix
@@ -653,7 +654,7 @@ O oracle de ABI cobre estes casos:
 
 ### 6.1 Workspace e resolução
 
-[`workspace.w`](workspace.w) contém dois members:
+[`build.w`](build.w) contém dois members:
 
 ```text
 .                       -> last-light/restaurant
@@ -717,7 +718,7 @@ mostra a authority, o alias, o usage, as versions candidatas e os novos edges.
 Ele não executa o package. `w remove` aplica a mesma regra e falha quando um
 product, feature, action ou target variant ainda referencia o alias.
 
-`workspace.w resolution` fixa:
+`resolution` do record `workspace` em `build.w` fixa:
 
 - digest do workspace manifest e dos package manifests;
 - roots e dependency usages;
@@ -1013,7 +1014,7 @@ O maintainer autoriza a release. Um builder produz provenance. Um segundo
 builder pode publicar evidência de reprodução. Um auditor publica análise
 separada.
 
-O source snapshot usa a allowlist de `package.w`. Ele não consulta
+O source snapshot usa a allowlist dos records em `build.w`. Ele não consulta
 `.gitignore`. Cada member inclui seu próprio `LICENSE`, e `package check`
 reconstrói usando somente o snapshot.
 
@@ -1087,7 +1088,7 @@ deployment não pode substituir os providers.
 
 ### 7.3 Deployment
 
-Os planos são records nomeados em [`workspace.w`](workspace.w):
+Os planos são records nomeados em [`build.w`](build.w):
 
 - `local` usa `single-process` e adapters locais;
 - `distributed` usa `split-services`, WASI 0.3, swarm e sensores externos;
@@ -1095,7 +1096,7 @@ Os planos são records nomeados em [`workspace.w`](workspace.w):
   desativados.
 
 O deployment muda placement. Ele não reagrupa providers, não religa edges
-privadas e não remove `await`. O record nomeado em `workspace.w` grava
+privadas e não remove `await`. O record nomeado em `build.w` grava
 artifacts, units, link kind, protocol, wire schema, codec profile, transport,
 peers e adapters por digest.
 

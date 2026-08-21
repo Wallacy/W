@@ -137,6 +137,7 @@ fn afterIncomplete(): Bool {
     (block
       (return_statement
         (boolean_literal)))))
+
 ==================
 Manifest cannot share a document with module source
 ==================
@@ -153,15 +154,16 @@ fn run() {}
 
 (source_file
   (ERROR
-    (manifest_record
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (string_literal)))
-      (manifest_field
-        (identifier)
-        (manifest_value
-          (string_literal))))
+    (package_manifest
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))))
     (identifier)
     (identifier))
   (function_declaration

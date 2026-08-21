@@ -17,8 +17,8 @@ O produto não prova que a linguagem está implementada. Ele pressiona a forma
 integrada de [DESIGN.md](../../DESIGN.md). O
 [plano de build](BUILD.md) aplica products, target specs, toolchain plans, host
 profiles e artifacts.
-O workspace data-only está em [`workspace.w`](workspace.w). O package principal
-está em [`package.w`](package.w).
+O record `workspace` data-only e o record `package` principal estão no único
+[`build.w`](build.w); o workspace é owner de resolution e deployments.
 
 ## 1. Rotas operacionais
 
@@ -198,7 +198,7 @@ alvo de execução independente.
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
 | `packages/menu-compiler/compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
 | `packages/menu-compiler/transform.w` | entry hermética de build e bindings tipados |
-| `packages/menu-compiler/package.w` | `.tool` product publicável do compiler |
+| `packages/menu-compiler/build.w` | `.tool` product publicável do compiler |
 | `menus/final.menu` | input do build transform |
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
 | `context_local_oracle.w` | inheritance de task-local, drain, boundaries e TLS físico |
@@ -250,12 +250,12 @@ alvo de execução independente.
 | `platform/posix/native.w` | implementação selecionada para Linux e Darwin |
 | `platform/windows/native.w` | implementação selecionada para Windows |
 | `worker_app.w` | component HTTP com lifecycle do host |
-| `package.w` | products, host bindings, service bindings, runtime graphs, targets e profiles |
-| `workspace.w` | members, defaults, patches e toolchain policy locais |
+| record `package` em `build.w` | products, host bindings, service bindings, runtime graphs, targets e profiles |
+| record `workspace` em `build.w` | members, defaults, patches, resolution e toolchain policy locais |
 | `BUILD.md` | matriz de toolchains, artifacts, comandos e gates |
-| `workspace.w (deployment "local")` | plano local com uma unit e adapters de desenvolvimento |
-| `workspace.w (deployment "distributed")` | plano heterogêneo com services, devices e WASI |
-| `workspace.w (deployment "benchmark")` | PostgreSQL, cache local, admission e limites do benchmark |
+| deployment `local` no record `workspace` | plano local com uma unit e adapters de desenvolvimento |
+| deployment `distributed` no record `workspace` | plano heterogêneo com services, devices e WASI |
+| deployment `benchmark` no record `workspace` | PostgreSQL, cache local, admission e limites do benchmark |
 | `orbit.w` | swarm de satélites, telemetria e propagação tipada |
 | `horizon.w` | sensores do buraco negro, event time e tensor fusion |
 | `horizon_tool.w` | oracle RU0 de módulo normal, dependency chart, entry explícito, requirement admission e menu do horizonte |
@@ -301,17 +301,17 @@ persistente usam carriers explícitos.
 | texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
-| service links e evolução | `service_oracle.w`, `session_security_oracle.w`, `capability_security_oracle.w`, `remote_stream_oracle.w`, `transaction_oracle.w`, `package.w`, `workspace.w` | placement, authority, streams, transaction e compatibility mantêm o mesmo contrato |
+| service links e evolução | `service_oracle.w`, `session_security_oracle.w`, `capability_security_oracle.w`, `remote_stream_oracle.w`, `transaction_oracle.w`, `build.w` | placement, authority, streams, transaction e compatibility mantêm o mesmo contrato |
 | wire portátil | `wire_oracle.w`, `orbit.w`, `kitchen.w` | codec rejeita tempo local, borrows e representações alternativas |
-| supervisão e workflow | `supervision.w`, `workflow.w`, `workspace.w` | trabalho longo, recovery e placement mantêm owners explícitos |
+| supervisão e workflow | `supervision.w`, `workflow.w`, `build.w` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
 | C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
-| escapes de sistema | `system_escapes.w`, `controller_app.w`, `package.w` | MMIO, interrupt, TLS, placement e assembly mantêm authority explícita |
-| ABI W e façade C | `horizon.w`, `abi.w`, `package.w` | interface, key, symbol e carrier ficam separados |
+| escapes de sistema | `system_escapes.w`, `controller_app.w`, `build.w` | MMIO, interrupt, TLS, placement e assembly mantêm authority explícita |
+| ABI W e façade C | `horizon.w`, `abi.w`, `build.w` | interface, key, symbol e carrier ficam separados |
 | self-host e build reproduzível | `packages/menu-compiler/` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
 | operação integrada | `simulation.w`, `gateway.w`, `app.w`, `restpc_oracle.w` | um dispatch tipado atende CLI, TUI e HTTP |
-| products e targets | `package.w`, `BUILD.md`, `workspace.w` | grafo, variante, execution envelope, target e placement ficam separados |
-| toolchains e SDKs | `workspace.w`, `BUILD.md` | requirements, providers e execution platforms ficam separados |
+| products e targets | `build.w`, `BUILD.md` | grafo, variante, execution envelope, target e placement ficam separados |
+| toolchains e SDKs | `build.w`, `BUILD.md` | requirements, providers e execution platforms ficam separados |
 | satélites e horizonte | `orbit.w`, `horizon.w` | units, event time, services e tensors compõem |
 | device e tempo real | `controller_app.w`, `audio.w` | interrupts, fixed buffers e deadlines ficam visíveis |
 | mobile e Wi-Fi | `mobile_app.w`, `wifi.w` | lifecycle e authority usam capabilities |
@@ -356,9 +356,10 @@ Aceite:
   `native-process` inclui as duas formas vigentes: `fn(): ()` e handlers que
   declaram `std.process` `Arguments`, `Context` e `ExitCode` com os effects
   e return types do profile;
-- package isolado é owner de sua resolution; com workspace, membership e owner
-  único selecionam `workspace.w`. Ancestor scan sozinho e duplicate owner
-  falham;
+- package selecionado em contexto standalone é owner de sua resolution; package
+  member omite resolution/deployments e a membership declarada seleciona o
+  record `workspace` owner em `build.w`. Ancestor scan sozinho e duplicate
+  owner falham;
 - fora de projeto, somente std e imports locais explícitos são aceitos.
   Dependency externa não resolvida orienta criar ou adotar package/workspace;
 - `w add/remove/resolve/update` operam no package/workspace. `w run` não faz
@@ -1199,7 +1200,7 @@ perder a causa. `Stream<..., Never>`, `view` e `any Stream` são inválidos ness
 boundary.
 
 `collectTelemetry` aplica `buffer(capacity: 8)` de forma explícita e para em um
-limite refinado. O `break` envia reset e drena o producer. `package.w` limita
+limite refinado. O `break` envia reset e drena o producer. `build.w` limita
 streams abertos, item bytes, items e bytes em voo, fila decoded, traversal,
 capability slots e taxa. Limites `perStream` e `total` impedem multiplicação do
 envelope por streams concorrentes.
@@ -2467,9 +2468,9 @@ e artifact.
 
 Aceite:
 
-- `package.w` usa somente o subset data-only;
-- `workspace.w` lista paths exatos e usa um lock compartilhado;
-- `workspace.w` permite catalog da distribuição e somente system imports
+- `build.w` usa somente o subset data-only;
+- `build.w` lista paths exatos e usa um lock compartilhado;
+- `build.w` permite catalog da distribuição e somente system imports
   explícitos;
 - o member `last-light/menu-compiler` satisfaz a `.build` dependency local;
 - a authority, o name e a version do member conferem com a dependency;
@@ -2511,7 +2512,7 @@ Aceite:
 - uma call normal ou borrow não cruza uma unit;
 - cada packing possui recipe, index e digests próprios;
 - deployment não reagrupa providers;
-- o registro nomeado `deployments` em `workspace.w` fixa products, releases, units e adapters;
+- o registro nomeado `deployments` em `build.w` fixa products, releases, units e adapters;
 - `w deploy apply --locked` não executa build;
 - secrets permanecem handles de host;
 - cada target possui recipe e digest próprios;
@@ -2541,8 +2542,8 @@ Aceite:
 - `w explain product` informa origem de cada binding;
 - importar um entry module não executa ou registra handlers.
 
-O oracle gera products e packings de [`package.w`](package.w). Depois ele resolve
-os dois planos nos records nomeados de [`workspace.w`](workspace.w). Ele rejeita graph aberto,
+O oracle gera products e packings de [`build.w`](build.w). Depois ele resolve
+os dois planos nos records nomeados de [`build.w`](build.w). Ele rejeita graph aberto,
 binding incompatível, quota maior, unit ausente, digest mutável, provider
 ambíguo e target sem SDK.
 
@@ -2644,7 +2645,7 @@ Aceite:
 Famílias: HTTP, JSON, database, allocation, admission e performance evidence.
 
 `benchmark_app.w` contém um oracle de source para as sete famílias do
-TechEmpower. `package.w` fecha o runtime graph. `workspace.w (deployment "benchmark")`
+TechEmpower. `build.w` fecha o runtime graph. `build.w (deployment "benchmark")`
 seleciona PostgreSQL, cache local e limites menores que o envelope do product.
 Isso ainda não é um resultado de benchmark. Não existem runtime, adapters,
 harness executável ou medição.
@@ -2688,7 +2689,7 @@ Famílias: interface semântica, ABI W exata, calling convention C, symbols,
 runtime requirements e version skew.
 
 `horizon.w` exporta `classifyHorizon` para a static library W. `abi.w` escreve
-em W a façade C `ll_horizon_classify_v1`. `package.w` declara cada boundary sem
+em W a façade C `ll_horizon_classify_v1`. `build.w` declara cada boundary sem
 dar `entry` ou `host` à library.
 
 Aceite:

@@ -1,4 +1,4 @@
-# PFU0 — índice de artefatos
+# PFU0 — índice de artefatos de encerramento
 
 | Artefato | Função |
 |---|---|
@@ -13,9 +13,11 @@ O payload semântico fica em `tooling/pfu0-pre-freeze-usability-cases.json`.
 O resultado não usa `expected` ou resultado fornecido pelo caller: o corpus e a
 machine rejeitam esses campos e `validateCorpus`/`evaluateCase` derivam todos
 os outcomes. `bundle.json.inputs[].expected` é somente rubric metadata R1,
-fica oculto por `blinding.hide` e nunca é mostrado ao participante. O candidato de manifesto exige um ou dois
-records (pelo menos um), em ordem independente, e workspace owner quando
-presente. O candidato de service é apenas a declaration `stream fn
-updates(...): Item throws Failure`; a interface normaliza para
-`some Stream<Item,Failure>`, enquanto `ServiceFailure` de admission/open e
-`Failure` terminal ainda precisam de decisão de promoção separada.
+fica oculto por `blinding.hide` e nunca é mostrado ao participante. O contrato
+de manifesto exige um ou dois records em `build.w`, pelo menos um e ordem
+independente. Package standalone é owner de `resolution`/`deployments`; package
+member omite esses fields e o workspace declarado é owner. O workspace é owner
+quando presente no mesmo arquivo. A comparação de service
+registra `stream fn updates(...): Item throws Failure` como rejeitada. APIs
+mantêm `some Stream<Item,Failure>` explícito, abertura `try await` e consumo
+`for try await`, com `ServiceFailure` separado de `Failure`.

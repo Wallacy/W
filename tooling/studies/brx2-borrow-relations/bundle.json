@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-brx2-borrow-relations",
   "title": "Requirement-owned relations for borrowed higher-order results",
-  "r0Cases": ["R0-borrow-bodyless-relation"],
+  "r0Cases": [
+    "R0-borrow-bodyless-relation"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/borrow_expressivity.w",
     "symbol": "selectPrimary",
@@ -103,12 +105,36 @@
     }
   ],
   "presentationOrders": [
-    ["baseline", "nominal-aggregate", "relation-contract"],
-    ["baseline", "relation-contract", "nominal-aggregate"],
-    ["nominal-aggregate", "baseline", "relation-contract"],
-    ["nominal-aggregate", "relation-contract", "baseline"],
-    ["relation-contract", "baseline", "nominal-aggregate"],
-    ["relation-contract", "nominal-aggregate", "baseline"]
+    [
+      "baseline",
+      "nominal-aggregate",
+      "relation-contract"
+    ],
+    [
+      "baseline",
+      "relation-contract",
+      "nominal-aggregate"
+    ],
+    [
+      "nominal-aggregate",
+      "baseline",
+      "relation-contract"
+    ],
+    [
+      "nominal-aggregate",
+      "relation-contract",
+      "baseline"
+    ],
+    [
+      "relation-contract",
+      "baseline",
+      "nominal-aggregate"
+    ],
+    [
+      "relation-contract",
+      "nominal-aggregate",
+      "baseline"
+    ]
   ],
   "blinding": {
     "participantLabels": {
@@ -116,15 +142,33 @@
       "nominal-aggregate": "B",
       "relation-contract": "C"
     },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
-      "digest": "sha256:3528755bba810bddedfc158cb7b5351eb7f2e123035a797def4226020b917c9b"
+    "digest": "sha256:3528755bba810bddedfc158cb7b5351eb7f2e123035a797def4226020b917c9b"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle", "official-primary-refs", "source-ref"],
-    "missing": ["w-compile", "w-run", "hir-verifier", "provider-linker", "foreign-execution", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle",
+      "official-primary-refs",
+      "source-ref"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "hir-verifier",
+      "provider-linker",
+      "foreign-execution",
+      "human-study",
+      "model-study"
+    ]
   },
   "officialRefs": [
     {

@@ -3,8 +3,8 @@
   "status": "design-oracle-input",
   "id": "FRC0",
   "gate": "FZ0-freeze-completeness/freeze-research-close/HUM0-promotion",
-  "title": "Historical snapshot of the three research gates",
-  "question": "Does the reuse-only oracle close the historical W-001–W-1450 boundary while recording the explicit PFU0 research reopen W-1451–W-1453 without implementation or human/model results?",
+  "title": "Final closure of the three research gates",
+  "question": "Does the reuse-only oracle close the historical W-001–W-1450 boundary, validate PFU0 decisions W-1451–W-1453 as current, and leave global Research=0 without implementation or human/model results?",
   "manifest": { "path": "manifest.json" },
   "corpus": { "path": "../../final-research-closure-cases.json" },
   "artifacts": {
@@ -24,5 +24,5 @@
     "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
     "hostOnly": true
   },
-  "stopCondition": "Stop on stale digest, caller echo, manual metric, forged human/model record, preference or score, missing or duplicate decision/case, source escape, wrong category, Research residual inside W-001–W-1450, or hidden W-1451–W-1453 reopen. Require an independent case, fresh digest, and reviewed promotion decision before canonical recascade."
+  "stopCondition": "Stop on stale digest, caller echo, manual metric, forged human/model record, preference or score, missing or duplicate decision/case, source escape, wrong category, or any global Research residual. Require PFU0 closure evidence and a reviewed freeze decision before canonical recascade."
 }

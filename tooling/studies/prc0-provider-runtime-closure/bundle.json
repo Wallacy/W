@@ -3,21 +3,55 @@
   "status": "design-oracle-input",
   "id": "R1-prc0-provider-runtime-closure",
   "title": "Provider/runtime closure routes for seven research gates",
-  "r0Cases": ["R0-unit-delimiter"],
+  "r0Cases": [
+    "R0-unit-delimiter"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/quantity_oracle.w",
     "symbol": "durationBitsAreCanonical",
     "digest": "sha256:e8fdabbedcd42fd9efb4e367b6c9d489604bbfea9e20f4a3f27343d2cd210dde"
   },
   "sourceRefs": [
-    { "path": "../../../reference/last-light/supervision.w", "symbol": "OrderCoordinatorApi", "digest": "sha256:329069e4689ee57e05749e7463a5e6bcd2d378d97887a3af550eacc672dbe5f7" },
-    { "path": "../../../reference/last-light/service_recovery_oracle.w", "symbol": "ServiceRecoveryAction", "digest": "sha256:2b3441f0e73039935149f2fbf0c5766798ed482d29be5a9f0c4e16102710e2cc" },
-    { "path": "../../../reference/last-light/horizon_tool.w", "symbol": "entry", "digest": "sha256:1b14a158204e203b9e7d202ad7a19800f5c663f90dae5819f185f4d869e4fd3f" },
-    { "path": "../../../reference/last-light/pyn3_oracle.w", "symbol": "TabularPreview", "digest": "sha256:369bd6f0cbb6fa869da7bbacf809351d064d5684c9f267c9f61f61648eccf5a3" },
-    { "path": "../../../reference/last-light/tensor_interop.w", "symbol": "ImportedTensor", "digest": "sha256:d41656b5fd41d464cdf9091c29f7076b5a23223d78ef66d3c67bc1f86441893b" },
-    { "path": "../../../reference/last-light/lazy_oracle.w", "symbol": "waitForWinner", "digest": "sha256:b4d6f8cdce222f42341b51015a0d44470e95ba2bf3cdb4cedecccfd10ca17872" },
-    { "path": "../../../reference/last-light/allocator_oracle.w", "symbol": "AllocatorProviderProfile", "digest": "sha256:c0b7b563ccc87b3b091aa1ef7e02936451cd34b0ea5b4d1ab33f00d8568b976c" },
-    { "path": "../../../std/si/contracts.w", "symbol": "TemperatureDelta", "digest": "sha256:73ec21a2ef015d86690d9516c7df0348c9eba663f35a4c4e3e93f84a76566d0f" }
+    {
+      "path": "../../../reference/last-light/supervision.w",
+      "symbol": "OrderCoordinatorApi",
+      "digest": "sha256:329069e4689ee57e05749e7463a5e6bcd2d378d97887a3af550eacc672dbe5f7"
+    },
+    {
+      "path": "../../../reference/last-light/service_recovery_oracle.w",
+      "symbol": "ServiceRecoveryAction",
+      "digest": "sha256:2b3441f0e73039935149f2fbf0c5766798ed482d29be5a9f0c4e16102710e2cc"
+    },
+    {
+      "path": "../../../reference/last-light/horizon_tool.w",
+      "symbol": "entry",
+      "digest": "sha256:5dd0ef36cdae1de19c1888458a82147191f1f06816d5aaa8ece8e99927a72936"
+    },
+    {
+      "path": "../../../reference/last-light/pyn3_oracle.w",
+      "symbol": "TabularPreview",
+      "digest": "sha256:369bd6f0cbb6fa869da7bbacf809351d064d5684c9f267c9f61f61648eccf5a3"
+    },
+    {
+      "path": "../../../reference/last-light/tensor_interop.w",
+      "symbol": "ImportedTensor",
+      "digest": "sha256:d41656b5fd41d464cdf9091c29f7076b5a23223d78ef66d3c67bc1f86441893b"
+    },
+    {
+      "path": "../../../reference/last-light/lazy_oracle.w",
+      "symbol": "waitForWinner",
+      "digest": "sha256:b4d6f8cdce222f42341b51015a0d44470e95ba2bf3cdb4cedecccfd10ca17872"
+    },
+    {
+      "path": "../../../reference/last-light/allocator_oracle.w",
+      "symbol": "AllocatorProviderProfile",
+      "digest": "sha256:c0b7b563ccc87b3b091aa1ef7e02936451cd34b0ea5b4d1ab33f00d8568b976c"
+    },
+    {
+      "path": "../../../std/si/contracts.w",
+      "symbol": "TemperatureDelta",
+      "digest": "sha256:73ec21a2ef015d86690d9516c7df0348c9eba663f35a4c4e3e93f84a76566d0f"
+    }
   ],
   "variants": [
     {
@@ -26,8 +60,14 @@
       "language": "w",
       "path": "current.w",
       "digest": "sha256:e0eb20092fef04142a425d48c21f14ad458a9f27764b6e22b5e2024ab9f2de6d",
-      "changedConstructs": ["current-contract route witness", "decision-linked source references"],
-      "parseEvidence": { "status": "tree-sitter-parse", "note": "Thin source-shaped witness; payload remains in reused corpora." }
+      "changedConstructs": [
+        "current-contract route witness",
+        "decision-linked source references"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Thin source-shaped witness; payload remains in reused corpora."
+      }
     },
     {
       "id": "rejected",
@@ -35,26 +75,99 @@
       "language": "w",
       "path": "rejected.w",
       "digest": "sha256:7de3b1eb3d37e67c9d6b39e129e9d2b53c08c41baa9f8aa585c1ce142fcdf77d",
-      "changedConstructs": ["rejected-route witness", "decision-linked source references"],
-      "parseEvidence": { "status": "tree-sitter-parse", "note": "Thin source-shaped witness; payload remains in reused corpora." }
+      "changedConstructs": [
+        "rejected-route witness",
+        "decision-linked source references"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Thin source-shaped witness; payload remains in reused corpora."
+      }
     }
   ],
   "entry": "prc0Route",
   "inputs": [
-    { "id": "current-route", "expected": { "status": "accepted", "decisions": 7 } },
-    { "id": "rejected-route", "expected": { "status": "rejected", "decisions": 7 } }
+    {
+      "id": "current-route",
+      "expected": {
+        "status": "accepted",
+        "decisions": 7
+      }
+    },
+    {
+      "id": "rejected-route",
+      "expected": {
+        "status": "rejected",
+        "decisions": 7
+      }
+    }
   ],
   "tasks": [
-    { "kind": "explain", "instruction": "Explain how the seven current routes reuse source corpora and host machines without claiming implementation." },
-    { "kind": "recall", "instruction": "After a bounded delay, reconstruct the accepted and rejected route boundaries and their missing evidence.", "minimumDelaySeconds": 1 },
-    { "kind": "repair", "instruction": "Repair a route mutation without changing the source contract or copying a reused payload.", "mutations": { "current": "Replace the current route with an unlinked provider claim.", "rejected": "Replace the rejected route with an accepted route." } },
-    { "kind": "change", "instruction": "Add one decision-linked adversarial route while preserving the implementation-gap boundary." }
+    {
+      "kind": "explain",
+      "instruction": "Explain how the seven current routes reuse source corpora and host machines without claiming implementation."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After a bounded delay, reconstruct the accepted and rejected route boundaries and their missing evidence.",
+      "minimumDelaySeconds": 1
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair a route mutation without changing the source contract or copying a reused payload.",
+      "mutations": {
+        "current": "Replace the current route with an unlinked provider claim.",
+        "rejected": "Replace the rejected route with an accepted route."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add one decision-linked adversarial route while preserving the implementation-gap boundary."
+    }
   ],
-  "presentationOrders": [["current", "rejected"], ["rejected", "current"]],
-  "blinding": { "participantLabels": { "current": "A", "rejected": "B" }, "hide": ["id", "role", "path", "changedConstructs"] },
-  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:326ae0d53603787c6ddd08803ee65190df24e1dcfeb5587a5e555177bf43e29f" },
+  "presentationOrders": [
+    [
+      "current",
+      "rejected"
+    ],
+    [
+      "rejected",
+      "current"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "current": "A",
+      "rejected": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:326ae0d53603787c6ddd08803ee65190df24e1dcfeb5587a5e555177bf43e29f"
+  },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle", "source-ref", "reused-corpus", "adversarial-route", "mutation-checks"],
-    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle",
+      "source-ref",
+      "reused-corpus",
+      "adversarial-route",
+      "mutation-checks"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "compiler",
+      "runtime",
+      "provider",
+      "human-study",
+      "model-study"
+    ]
   }
 }

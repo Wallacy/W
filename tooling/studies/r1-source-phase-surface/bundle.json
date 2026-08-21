@@ -50,54 +50,104 @@
       "id": "primary-order",
       "operation": "analyze-source",
       "sourceItems": [
-        { "kind": "import", "name": "kitchen" },
-        { "kind": "import", "name": "units.Temperature" },
-        { "kind": "declaration", "name": "helper" },
-        { "kind": "body", "name": "sourcePhaseEntry" }
+        {
+          "kind": "import",
+          "name": "kitchen"
+        },
+        {
+          "kind": "import",
+          "name": "units.Temperature"
+        },
+        {
+          "kind": "declaration",
+          "name": "helper"
+        },
+        {
+          "kind": "body",
+          "name": "sourcePhaseEntry"
+        }
       ],
       "expected": {
         "firstDeclaration": 2,
         "importAfterDeclaration": false,
         "bodyPresent": true,
         "importsFirst": true,
-        "imports": ["kitchen", "units.Temperature"]
+        "imports": [
+          "kitchen",
+          "units.Temperature"
+        ]
       }
     },
     {
       "id": "boundary-body",
       "operation": "analyze-source",
       "sourceItems": [
-        { "kind": "import", "name": "std.io" },
-        { "kind": "body", "name": "sourcePhaseEntry" }
+        {
+          "kind": "import",
+          "name": "std.io"
+        },
+        {
+          "kind": "body",
+          "name": "sourcePhaseEntry"
+        }
       ],
       "expected": {
         "firstDeclaration": 1,
         "importAfterDeclaration": false,
         "bodyPresent": true,
         "importsFirst": true,
-        "imports": ["std.io"]
+        "imports": [
+          "std.io"
+        ]
       }
     },
     {
       "id": "interleaved-import",
       "operation": "interleaved-import",
       "sourceItems": [
-        { "kind": "import", "name": "kitchen" },
-        { "kind": "declaration", "name": "helper" },
-        { "kind": "import", "name": "units.Temperature" },
-        { "kind": "prototype", "name": "sourcePhaseEntry" },
-        { "kind": "body", "name": "sourcePhaseEntry" }
+        {
+          "kind": "import",
+          "name": "kitchen"
+        },
+        {
+          "kind": "declaration",
+          "name": "helper"
+        },
+        {
+          "kind": "import",
+          "name": "units.Temperature"
+        },
+        {
+          "kind": "prototype",
+          "name": "sourcePhaseEntry"
+        },
+        {
+          "kind": "body",
+          "name": "sourcePhaseEntry"
+        }
       ],
-      "expected": { "accepted": false, "cause": "interleaved-import-and-prototype" }
+      "expected": {
+        "accepted": false,
+        "cause": "interleaved-import-and-prototype"
+      }
     },
     {
       "id": "prototype-without-body",
       "operation": "prototype-without-body",
       "sourceItems": [
-        { "kind": "import", "name": "kitchen" },
-        { "kind": "prototype", "name": "sourcePhaseEntry" }
+        {
+          "kind": "import",
+          "name": "kitchen"
+        },
+        {
+          "kind": "prototype",
+          "name": "sourcePhaseEntry"
+        }
       ],
-      "expected": { "accepted": false, "cause": "prototype-without-body" }
+      "expected": {
+        "accepted": false,
+        "cause": "prototype-without-body"
+      }
     }
   ],
   "tasks": [

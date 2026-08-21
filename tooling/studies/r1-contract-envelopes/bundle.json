@@ -42,13 +42,30 @@
   "inputs": [
     {
       "id": "standard-service",
-      "stages": ["accepted", "reserving", "preparing", "serving", "completed"],
-      "expected": { "valid": true, "firstInvalidIndex": null, "terminal": "completed" }
+      "stages": [
+        "accepted",
+        "reserving",
+        "preparing",
+        "serving",
+        "completed"
+      ],
+      "expected": {
+        "valid": true,
+        "firstInvalidIndex": null,
+        "terminal": "completed"
+      }
     },
     {
       "id": "skipped-reservation",
-      "stages": ["accepted", "completed"],
-      "expected": { "valid": false, "firstInvalidIndex": 1, "terminal": "completed" }
+      "stages": [
+        "accepted",
+        "completed"
+      ],
+      "expected": {
+        "valid": false,
+        "firstInvalidIndex": 1,
+        "terminal": "completed"
+      }
     }
   ],
   "tasks": [
@@ -74,17 +91,42 @@
       "instruction": "Limit a path to eight stages while preserving its element type and transition validation."
     }
   ],
-  "presentationOrders": [["sequential", "fused"], ["fused", "sequential"]],
+  "presentationOrders": [
+    [
+      "sequential",
+      "fused"
+    ],
+    [
+      "fused",
+      "sequential"
+    ]
+  ],
   "blinding": {
-    "participantLabels": { "sequential": "A", "fused": "B" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "sequential": "A",
+      "fused": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:94b3e701364b9031024228757f7d784c4bef49835e13dad486992feb3cbf46c6"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

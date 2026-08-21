@@ -109,7 +109,11 @@
       "status": 0,
       "arrival": 17,
       "gate": 3,
-      "expected": { "kind": "value", "idle": true, "effects": false }
+      "expected": {
+        "kind": "value",
+        "idle": true,
+        "effects": false
+      }
     },
     {
       "id": "adversarial-probe-failure",
@@ -119,7 +123,11 @@
       "status": -1,
       "arrival": 0,
       "gate": 0,
-      "expected": { "kind": "value", "idle": false, "effects": false }
+      "expected": {
+        "kind": "value",
+        "idle": false,
+        "effects": false
+      }
     },
     {
       "id": "method-candidate",
@@ -129,7 +137,11 @@
       "status": 0,
       "arrival": 17,
       "gate": 3,
-      "expected": { "kind": "value", "idle": true, "effects": false }
+      "expected": {
+        "kind": "value",
+        "idle": true,
+        "effects": false
+      }
     },
     {
       "id": "foreign-candidate",
@@ -139,7 +151,10 @@
       "status": -1,
       "arrival": 0,
       "gate": 0,
-      "expected": { "kind": "value", "probe": -1 }
+      "expected": {
+        "kind": "value",
+        "probe": -1
+      }
     },
     {
       "id": "closure-candidate",
@@ -149,7 +164,11 @@
       "status": 0,
       "arrival": 17,
       "gate": 3,
-      "expected": { "kind": "value", "welcome": 20, "capture": true }
+      "expected": {
+        "kind": "value",
+        "welcome": 20,
+        "capture": true
+      }
     },
     {
       "id": "named-language-slot-candidate",
@@ -159,7 +178,10 @@
       "status": -1,
       "arrival": 0,
       "gate": 0,
-      "expected": { "kind": "value", "probe": -1 }
+      "expected": {
+        "kind": "value",
+        "probe": -1
+      }
     },
     {
       "id": "anonymous-fn-candidate",
@@ -169,7 +191,11 @@
       "status": 0,
       "arrival": 17,
       "gate": 3,
-      "expected": { "kind": "value", "welcome": 20, "capture": true }
+      "expected": {
+        "kind": "value",
+        "welcome": 20,
+        "capture": true
+      }
     },
     {
       "id": "effectful-property-candidate",
@@ -179,7 +205,10 @@
       "status": 0,
       "arrival": 17,
       "gate": 3,
-      "expected": { "kind": "rejected", "cause": "effectful-property" }
+      "expected": {
+        "kind": "rejected",
+        "cause": "effectful-property"
+      }
     }
   ],
   "tasks": [

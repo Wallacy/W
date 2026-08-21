@@ -30,15 +30,15 @@
   ],
   "artifactRefs": [
     { "id": "readme", "role": "historical-research-note", "path": "tooling/studies/avf0-availability-feature/README.md", "digest": "sha256:341446880d486368095521d75cc911c624cbb4aef16b651dbb16cfcd943676ec" },
-    { "id": "corpus", "role": "design-input", "path": "tooling/avf0-availability-feature-cases.json", "digest": "sha256:ff5e585c60c68d2d761647a00c94b0e23749558bc741bc9dbdfa79cb67e6b9c2" },
+    { "id": "corpus", "role": "design-input", "path": "tooling/avf0-availability-feature-cases.json", "digest": "sha256:3590d3ea3ab37021f9b9ca90fe238ca5007a85bf014b1705263d5512d414b730" },
     { "id": "machine", "role": "host-oracle", "path": "tooling/avf0-availability-feature-machine.mjs", "digest": "sha256:037906cc6c19a01d3b4b5a4421d60a80c26afc4c4da7c910b631410b4f1ef49e" },
     { "id": "manifest", "role": "manifest-validator", "path": "tooling/avf0-availability-feature-manifest.mjs", "digest": "sha256:35141e65667ff9cc32340d8271acf42f5f22613ad1f826f8c1695f7a8adb46dd" },
     { "id": "checker", "role": "snapshot-checker", "path": "tooling/check-avf0-availability-feature.mjs", "digest": "sha256:3c9012de2383762f3d8bec8128cc19385eada2d9e23cfbcd4d5cda965a41f8f2" },
     { "id": "reference-test", "role": "mutation-test", "path": "tooling/avf0-availability-feature-reference.test.mjs", "digest": "sha256:6068652c76452143275631d93fee1ecfc8ff74734dba977b1841f912cd18519e" },
-    { "id": "snapshot", "role": "derived-output", "path": "tooling/avf0-availability-feature-results.snapshot.jsonl", "digest": "sha256:5de588fc84387508da09d90f749f159190ceeaa14afdc7d90b2eb44dfaad63c1" }
+    { "id": "snapshot", "role": "derived-output", "path": "tooling/avf0-availability-feature-results.snapshot.jsonl", "digest": "sha256:710a960b1bd565281d345a68ee00e9fdcf535b2f3858fd73d3a8963ba549a6e7" }
   ],
   "sourceRefs": [
-    { "path": "reference/last-light/workspace.w", "symbol": "targetVariants: [\"native-terminal::posix\"]", "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd", "claim": "package resolution keeps static feature selection outside runtime policy" },
+    { "path": "reference/last-light/build.w", "symbol": "targetVariants: [\"native-terminal::posix\"]", "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f", "claim": "package resolution keeps static feature selection outside runtime policy" },
     { "path": "reference/last-light/billing.w", "symbol": "gatewayUnavailable", "digest": "sha256:cf2aebcffd957044296440e4acb41e7c7dcfe2a6b37a9d403b0be87aa077eb3e", "claim": "provider-backed operation already has an explicit unavailable outcome" },
     { "path": "reference/last-light/synchronization.w", "symbol": "SnapshotCell<PublishedMenu>", "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6", "claim": "immutable atomic publication composes with runtime configuration" },
     { "path": "reference/last-light/billing.w", "symbol": "export service billing: BillingApi {", "digest": "sha256:cf2aebcffd957044296440e4acb41e7c7dcfe2a6b37a9d403b0be87aa077eb3e", "claim": "billing composes provider availability, effects, generation, and fallback" }

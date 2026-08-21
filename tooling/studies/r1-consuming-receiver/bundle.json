@@ -3,7 +3,10 @@
   "status": "design-oracle-input",
   "id": "R1-consuming-receiver-last-light",
   "title": "Command-stream ownership at the Last Light restaurant",
-  "r0Cases": ["R0-consuming-call", "R0-consuming-error"],
+  "r0Cases": [
+    "R0-consuming-call",
+    "R0-consuming-error"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/command.w",
     "symbol": "(take cursor).finish()",
@@ -38,12 +41,20 @@
     {
       "id": "complete-tail",
       "tail": "cake",
-      "expected": { "kind": "completed", "bytes": 4, "ownerAvailable": false }
+      "expected": {
+        "kind": "completed",
+        "bytes": 4,
+        "ownerAvailable": false
+      }
     },
     {
       "id": "invalid-tail",
       "tail": "invalid",
-      "expected": { "kind": "failed", "error": "invalidTail", "ownerAvailable": false }
+      "expected": {
+        "kind": "failed",
+        "error": "invalidTail",
+        "ownerAvailable": false
+      }
     }
   ],
   "tasks": [
@@ -69,17 +80,42 @@
       "instruction": "Permit retry after `invalidTail` without copying the stream or restoring an owner implicitly."
     }
   ],
-  "presentationOrders": [["explicit", "implicit"], ["implicit", "explicit"]],
+  "presentationOrders": [
+    [
+      "explicit",
+      "implicit"
+    ],
+    [
+      "implicit",
+      "explicit"
+    ]
+  ],
   "blinding": {
-    "participantLabels": { "explicit": "A", "implicit": "B" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "explicit": "A",
+      "implicit": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:9f62c836ace0d5634ae8de3fd6de512678e202c9af7d0456da41239d67c25ce6"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

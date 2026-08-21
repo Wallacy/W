@@ -3,7 +3,10 @@
   "status": "design-oracle-input",
   "id": "R1-call-label-order",
   "title": "Money initializer label order at the Last Light restaurant",
-  "r0Cases": ["R0-call-label-order", "R0-overload-shape"],
+  "r0Cases": [
+    "R0-call-label-order",
+    "R0-overload-shape"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/billing.w",
     "symbol": "Money(majorUnits",
@@ -16,7 +19,11 @@
       "language": "w",
       "path": "fixed-order.w",
       "digest": "sha256:3db36d24f4e306f91d94899576cb97a0f7ba49954947366c49ddb89dd661dd1d",
-      "changedConstructs": ["declaration-order labels", "initializer selection", "three distinct call shapes"]
+      "changedConstructs": [
+        "declaration-order labels",
+        "initializer selection",
+        "three distinct call shapes"
+      ]
     },
     {
       "id": "reordered",
@@ -24,7 +31,10 @@
       "language": "w",
       "path": "reordered.w",
       "digest": "sha256:90d0a04e39bd2be735e1e2e322bd7d0253c207defed5025caa54632e09221f06",
-      "changedConstructs": ["reordered labels", "same call shape intent"]
+      "changedConstructs": [
+        "reordered labels",
+        "same call shape intent"
+      ]
     }
   ],
   "entry": "price",
@@ -33,16 +43,26 @@
       "id": "primary-money-call",
       "majorUnits": 42,
       "currency": "cr",
-      "expected": { "minorUnits": 4200, "currency": "cr" }
+      "expected": {
+        "minorUnits": 4200,
+        "currency": "cr"
+      }
     },
     {
       "id": "adversarial-default-and-overload",
       "majorUnits": 42,
       "currency": "cr",
       "addedDefault": "currency",
-      "addedOverload": ["currency", "majorUnits"],
+      "addedOverload": [
+        "currency",
+        "majorUnits"
+      ],
       "expected": {
-        "fixedShapes": ["majorUnits:,currency:", "majorUnits:", "currency:,majorUnits:"],
+        "fixedShapes": [
+          "majorUnits:,currency:",
+          "majorUnits:",
+          "currency:,majorUnits:"
+        ],
         "unorderedCollision": "majorUnits:,currency:",
         "diagnostic": "ambiguity-before-types"
       }
@@ -71,17 +91,42 @@
       "instruction": "Add a default for currency and a reverse-label overload, then report policy collision before type ranking."
     }
   ],
-  "presentationOrders": [["fixed-order", "reordered"], ["reordered", "fixed-order"]],
+  "presentationOrders": [
+    [
+      "fixed-order",
+      "reordered"
+    ],
+    [
+      "reordered",
+      "fixed-order"
+    ]
+  ],
   "blinding": {
-    "participantLabels": { "fixed-order": "A", "reordered": "B" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "fixed-order": "A",
+      "reordered": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:4c802c5abc32aab657a247c9d0deee6c735bcc20732ac0a930c29b3e49c51cef"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

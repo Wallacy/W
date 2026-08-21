@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-brx3-borrow-relations",
   "title": "Explicit source clauses for borrowed-result relations",
-  "r0Cases": ["R0-borrow-bodyless-relation"],
+  "r0Cases": [
+    "R0-borrow-bodyless-relation"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/borrow_relations_brx3.w",
     "symbol": "selectPrimaryRelation",
@@ -90,22 +92,47 @@
     }
   ],
   "presentationOrders": [
-    ["selected-clause", "rejected-syntax"],
-    ["rejected-syntax", "selected-clause"]
+    [
+      "selected-clause",
+      "rejected-syntax"
+    ],
+    [
+      "rejected-syntax",
+      "selected-clause"
+    ]
   ],
   "blinding": {
     "participantLabels": {
       "selected-clause": "A",
       "rejected-syntax": "B"
     },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:8c7115f1d07cf40716716112db0644c0226cbef87a4b76d13114408bf3cb2f6e"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle", "source-ref", "official-primary-refs"],
-    "missing": ["w-compile", "w-run", "hir-verifier", "separate-compilation", "provider-linker", "foreign-execution", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle",
+      "source-ref",
+      "official-primary-refs"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "hir-verifier",
+      "separate-compilation",
+      "provider-linker",
+      "foreign-execution",
+      "human-study",
+      "model-study"
+    ]
   }
 }

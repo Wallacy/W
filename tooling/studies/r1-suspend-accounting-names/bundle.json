@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-suspend-accounting-names",
   "title": "Suspend accounting names at the Last Light clock",
-  "r0Cases": ["R0-suspend-accounting-names"],
+  "r0Cases": [
+    "R0-suspend-accounting-names"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/time_oracle.w",
     "symbol": "openObservationWindow",
@@ -16,8 +18,15 @@
       "language": "w-historical",
       "path": "baseline.w",
       "digest": "sha256:ac3973826c28ce29e1cb2dd2f3e4a76ebcf0ed191d776bd27dd78f6135d4c642",
-      "changedConstructs": ["retired SuspendAccounting enum names", "retired clock.suspendAccounting()", "HOST/SO-only fact"],
-      "parseEvidence": { "status": "tree-sitter-parse", "note": "The baseline source is a structural parse witness." }
+      "changedConstructs": [
+        "retired SuspendAccounting enum names",
+        "retired clock.suspendAccounting()",
+        "HOST/SO-only fact"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The baseline source is a structural parse witness."
+      }
     },
     {
       "id": "host-suspend-policy",
@@ -25,8 +34,15 @@
       "language": "w",
       "path": "host-suspend-policy.w",
       "digest": "sha256:1f6d0632e091c7b5bcc081b2167477ae2250c5819ade4dc97d1bad3b6f2c5923",
-      "changedConstructs": ["HostSuspendPolicy enum names", "clock.hostSuspendPolicy property", "explicit host wording"],
-      "parseEvidence": { "status": "tree-sitter-parse", "note": "The alternative is syntax-shaped evidence only." }
+      "changedConstructs": [
+        "HostSuspendPolicy enum names",
+        "clock.hostSuspendPolicy property",
+        "explicit host wording"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "The alternative is syntax-shaped evidence only."
+      }
     }
   ],
   "entry": "observeSuspend",
@@ -36,18 +52,51 @@
       "activeMs": 60,
       "hostSuspendMs": 50,
       "deadlineMs": 100,
-      "expected": { "included": { "elapsedMs": 110, "deadlineReached": true }, "excluded": { "elapsedMs": 60, "deadlineReached": false }, "unspecified": { "elapsedMs": null, "deadlineReached": null, "inferred": false } }
+      "expected": {
+        "included": {
+          "elapsedMs": 110,
+          "deadlineReached": true
+        },
+        "excluded": {
+          "elapsedMs": 60,
+          "deadlineReached": false
+        },
+        "unspecified": {
+          "elapsedMs": null,
+          "deadlineReached": null,
+          "inferred": false
+        }
+      }
     },
     {
       "id": "three-policy-states",
-      "policies": ["included", "excluded", "unspecified"],
-      "alternativePolicies": ["counted", "paused", "unknown"],
-      "expected": { "stateCount": 3, "oneToOne": true, "hostSoOnly": true }
+      "policies": [
+        "included",
+        "excluded",
+        "unspecified"
+      ],
+      "alternativePolicies": [
+        "counted",
+        "paused",
+        "unknown"
+      ],
+      "expected": {
+        "stateCount": 3,
+        "oneToOne": true,
+        "hostSoOnly": true
+      }
     },
     {
       "id": "adversarial-non-host-suspension",
-      "suspensionKinds": ["await", "task", "coroutine"],
-      "expected": { "status": "rejected", "reason": "only-host-so-suspension-is-a-clock-fact" }
+      "suspensionKinds": [
+        "await",
+        "task",
+        "coroutine"
+      ],
+      "expected": {
+        "status": "rejected",
+        "reason": "only-host-so-suspension-is-a-clock-fact"
+      }
     },
     {
       "id": "adversarial-boolean-policy",
@@ -56,7 +105,10 @@
       "activeMs": 60,
       "hostSuspendMs": 50,
       "deadlineMs": 100,
-      "expected": { "status": "rejected", "reason": "boolean-cannot-express-three-states" }
+      "expected": {
+        "status": "rejected",
+        "reason": "boolean-cannot-express-three-states"
+      }
     }
   ],
   "tasks": [
@@ -82,8 +134,42 @@
       "instruction": "Add a provider profile requirement for counted or included suspension without changing the unknown outcome."
     }
   ],
-  "presentationOrders": [["suspend-accounting", "host-suspend-policy"], ["host-suspend-policy", "suspend-accounting"]],
-  "blinding": { "participantLabels": { "suspend-accounting": "A", "host-suspend-policy": "B" }, "hide": ["id", "role", "path", "changedConstructs"] },
-  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:4742fa44dd95aefcac2fdb5637dac8a27c4ca54c2431a541aee10fba667fbece" },
-  "evidence": { "current": ["tree-sitter-parse", "host-oracle"], "missing": ["w-compile", "w-run", "human-study", "model-study"] }
+  "presentationOrders": [
+    [
+      "suspend-accounting",
+      "host-suspend-policy"
+    ],
+    [
+      "host-suspend-policy",
+      "suspend-accounting"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "suspend-accounting": "A",
+      "host-suspend-policy": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:4742fa44dd95aefcac2fdb5637dac8a27c4ca54c2431a541aee10fba667fbece"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
+  }
 }

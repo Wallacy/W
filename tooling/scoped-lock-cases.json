@@ -169,7 +169,7 @@
     {
       "id": "LM1-accepted-select-domain-barrier",
       "kind": "accepted",
-      "source": { "path": "reference/last-light/package.w", "symbol": "synchronization::apology" },
+      "source": { "path": "reference/last-light/build.w", "symbol": "synchronization::apology" },
       "decisions": ["W-1259"],
       "operations": [{ "op": "select", "facts": { "parallelReads": true, "exclusiveTaskWrite": true, "closedAccessGraph": true } }],
       "expect": { "status": "accepted", "selections": ["domain-barrier"] }
@@ -193,7 +193,7 @@
     {
       "id": "LM1-accepted-select-service",
       "kind": "accepted",
-      "source": { "path": "reference/last-light/package.w", "symbol": "services" },
+      "source": { "path": "reference/last-light/build.w", "symbol": "services" },
       "decisions": ["W-1259"],
       "operations": [{ "op": "select", "facts": { "durable": true } }],
       "expect": { "status": "accepted", "selections": ["service"] }
