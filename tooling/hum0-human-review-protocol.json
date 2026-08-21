@@ -8,8 +8,16 @@
   "claimsHumanResults": false,
   "claimsModelResults": false,
   "promotionPolicy": "no-automatic-promotion",
-  "taskKinds": ["explain", "recall", "repair", "change"],
-  "inputKinds": ["primary", "adversarial"],
+  "taskKinds": [
+    "explain",
+    "recall",
+    "repair",
+    "change"
+  ],
+  "inputKinds": [
+    "primary",
+    "adversarial"
+  ],
   "slices": [
     {
       "id": "diagnostics-w-explain",
@@ -17,27 +25,163 @@
       "problemKey": "restaurant-diagnostic-repair",
       "outcomeKey": "preserve-diagnostic-meaning-and-correct-source",
       "sourceRefs": [
-        { "id": "restaurant-place", "path": "reference/last-light/restaurant.w", "symbol": "mut async fn place", "digest": "sha256:6b934c27deeba2f94c1af4423dec7ca6f8a679338d4a6ea0f903c36c5cdb4a32", "claim": "Restaurant order placement and consuming ownership" },
-        { "id": "restaurant-status", "path": "reference/last-light/restaurant.w", "symbol": "async fn status(orderId: OrderId): ServiceStage throws RestaurantError {", "digest": "sha256:6b934c27deeba2f94c1af4423dec7ca6f8a679338d4a6ea0f903c36c5cdb4a32", "claim": "Restaurant observation after a failed or completed turn" }
+        {
+          "id": "restaurant-place",
+          "path": "reference/last-light/restaurant.w",
+          "symbol": "mut async fn place",
+          "digest": "sha256:6b934c27deeba2f94c1af4423dec7ca6f8a679338d4a6ea0f903c36c5cdb4a32",
+          "claim": "Restaurant order placement and consuming ownership"
+        },
+        {
+          "id": "restaurant-status",
+          "path": "reference/last-light/restaurant.w",
+          "symbol": "async fn status(orderId: OrderId): ServiceStage throws RestaurantError {",
+          "digest": "sha256:6b934c27deeba2f94c1af4423dec7ca6f8a679338d4a6ea0f903c36c5cdb4a32",
+          "claim": "Restaurant observation after a failed or completed turn"
+        }
       ],
       "oracleRefs": [
-        { "id": "sdm-cases", "path": "tooling/semantic-diagnostic-matrix-cases.json", "digest": "sha256:d2b21e2ac7c926b3ff45cb1c94a584f8d2a213a23f58b6a0ba51d1173dda36ce", "claim": "D0 and SemanticResult host cases" },
-        { "id": "sdm-reference", "path": "tooling/semantic-diagnostic-matrix-reference.test.mjs", "digest": "sha256:dd6d86c236d5000a6f37cdd0c5087df7017c4f24c18dc36a1c866f6d3615c1fd", "claim": "Independent diagnostic reference assertions" }
+        {
+          "id": "sdm-cases",
+          "path": "tooling/semantic-diagnostic-matrix-cases.json",
+          "digest": "sha256:d2b21e2ac7c926b3ff45cb1c94a584f8d2a213a23f58b6a0ba51d1173dda36ce",
+          "claim": "D0 and SemanticResult host cases"
+        },
+        {
+          "id": "sdm-reference",
+          "path": "tooling/semantic-diagnostic-matrix-reference.test.mjs",
+          "digest": "sha256:dd6d86c236d5000a6f37cdd0c5087df7017c4f24c18dc36a1c866f6d3615c1fd",
+          "claim": "Independent diagnostic reference assertions"
+        }
       ],
       "inputs": [
-        { "id": "diagnostic-primary", "kind": "primary", "problemKey": "restaurant-diagnostic-repair", "outcomeKey": "preserve-diagnostic-meaning-and-correct-source", "stimulus": { "sourceRefId": "restaurant-place", "symbol": "mut async fn place", "beforeLines": 2, "afterLines": 10, "maxBytes": 700, "derivedStimulusDigest": "sha256:2db076e4cbc4ca1b4fb19e5002e787d3c378a17809c99012624327f84f0a9226" }, "participantInput": { "scenario": "An order turn reports a structured ownership diagnostic while the kitchen result remains observable.", "task": "Use the shown program context to explain the first actionable correction." } },
-        { "id": "diagnostic-adversarial", "kind": "adversarial", "problemKey": "restaurant-diagnostic-repair", "outcomeKey": "preserve-diagnostic-meaning-and-correct-source", "stimulus": { "sourceRefId": "restaurant-place", "symbol": "mut async fn place", "beforeLines": 2, "afterLines": 10, "maxBytes": 700, "derivedStimulusDigest": "sha256:337f574a240090c10508e63575382b90fa336cfba5ed55996deb3faaca3e0d62" }, "observerOnly": { "baseInputId": "diagnostic-primary", "mutation": { "find": "take order", "replace": "ref order", "occurrences": 1 }, "expectedRepair": "restore consuming transfer for the prepared dish" }, "participantInput": { "scenario": "The same order turn has a nearby observation and a tempting correction that would hide the original cause.", "task": "Choose a correction that keeps the diagnostic facts and the order outcome aligned." } }
+        {
+          "id": "diagnostic-primary",
+          "kind": "primary",
+          "problemKey": "restaurant-diagnostic-repair",
+          "outcomeKey": "preserve-diagnostic-meaning-and-correct-source",
+          "stimulus": {
+            "sourceRefId": "restaurant-place",
+            "symbol": "mut async fn place",
+            "beforeLines": 2,
+            "afterLines": 10,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:2db076e4cbc4ca1b4fb19e5002e787d3c378a17809c99012624327f84f0a9226"
+          },
+          "participantInput": {
+            "scenario": "An order turn reports a structured ownership diagnostic while the kitchen result remains observable.",
+            "task": "Use the shown program context to explain the first actionable correction."
+          }
+        },
+        {
+          "id": "diagnostic-adversarial",
+          "kind": "adversarial",
+          "problemKey": "restaurant-diagnostic-repair",
+          "outcomeKey": "preserve-diagnostic-meaning-and-correct-source",
+          "stimulus": {
+            "sourceRefId": "restaurant-place",
+            "symbol": "mut async fn place",
+            "beforeLines": 2,
+            "afterLines": 10,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:337f574a240090c10508e63575382b90fa336cfba5ed55996deb3faaca3e0d62"
+          },
+          "observerOnly": {
+            "baseInputId": "diagnostic-primary",
+            "mutation": {
+              "find": "take order",
+              "replace": "ref order",
+              "occurrences": 1
+            },
+            "expectedRepair": "restore consuming transfer for the prepared dish"
+          },
+          "participantInput": {
+            "scenario": "The same order turn has a nearby observation and a tempting correction that would hide the original cause.",
+            "task": "Choose a correction that keeps the diagnostic facts and the order outcome aligned."
+          }
+        }
       ],
       "tasks": [
-        { "id": "diagnostics-explain", "kind": "explain", "inputId": "diagnostic-primary", "participantInput": { "instruction": "Explain what the program does, the first failing phase, and the smallest safe correction." } },
-        { "id": "diagnostics-recall", "kind": "recall", "inputId": "diagnostic-primary", "participantInput": { "instruction": "After a short delay, reconstruct the ownership fact and the correction without reopening the context." } },
-        { "id": "diagnostics-repair", "kind": "repair", "inputId": "diagnostic-adversarial", "participantInput": { "instruction": "Repair the prepared mistake and keep the observable order behavior unchanged." } },
-        { "id": "diagnostics-change", "kind": "change", "inputId": "diagnostic-adversarial", "participantInput": { "instruction": "Add the stated requirement and show the edit that preserves the same outcome." } }
+        {
+          "id": "diagnostics-explain",
+          "kind": "explain",
+          "inputId": "diagnostic-primary",
+          "participantInput": {
+            "instruction": "Explain what the program does, the first failing phase, and the smallest safe correction."
+          }
+        },
+        {
+          "id": "diagnostics-recall",
+          "kind": "recall",
+          "inputId": "diagnostic-primary",
+          "participantInput": {
+            "instruction": "After a short delay, reconstruct the ownership fact and the correction without reopening the context."
+          }
+        },
+        {
+          "id": "diagnostics-repair",
+          "kind": "repair",
+          "inputId": "diagnostic-adversarial",
+          "participantInput": {
+            "instruction": "Repair the prepared mistake and keep the observable order behavior unchanged."
+          }
+        },
+        {
+          "id": "diagnostics-change",
+          "kind": "change",
+          "inputId": "diagnostic-adversarial",
+          "participantInput": {
+            "instruction": "Add the stated requirement and show the edit that preserves the same outcome."
+          }
+        }
       ],
-      "hiddenInternalFacts": ["D0 instance identity", "PlaceId and LoanId", "oracle assertions", "source digest", "host phase implementation"],
-      "explainableFacts": ["diagnostic code meaning", "primary facts and correction roles", "owner and move facts", "fact versus estimate versus measurement"],
-      "counterbalance": { "orders": [["explain", "recall", "repair", "change"], ["repair", "change", "explain", "recall"]], "assignment": "balanced outside the participant prompt" },
-      "blinding": { "hiddenFields": ["expected", "status", "route", "role", "path", "digest", "oracle", "sourceRefId", "mutation", "expectedRepair"], "hideSourceIdentity": true, "hideVariantAssignment": true, "hideStimulusMetadata": true }
+      "hiddenInternalFacts": [
+        "D0 instance identity",
+        "PlaceId and LoanId",
+        "oracle assertions",
+        "source digest",
+        "host phase implementation"
+      ],
+      "explainableFacts": [
+        "diagnostic code meaning",
+        "primary facts and correction roles",
+        "owner and move facts",
+        "fact versus estimate versus measurement"
+      ],
+      "counterbalance": {
+        "orders": [
+          [
+            "explain",
+            "recall",
+            "repair",
+            "change"
+          ],
+          [
+            "repair",
+            "change",
+            "explain",
+            "recall"
+          ]
+        ],
+        "assignment": "balanced outside the participant prompt"
+      },
+      "blinding": {
+        "hiddenFields": [
+          "expected",
+          "status",
+          "route",
+          "role",
+          "path",
+          "digest",
+          "oracle",
+          "sourceRefId",
+          "mutation",
+          "expectedRepair"
+        ],
+        "hideSourceIdentity": true,
+        "hideVariantAssignment": true,
+        "hideStimulusMetadata": true
+      }
     },
     {
       "id": "ownership-borrow-shared-weak",
@@ -45,27 +189,163 @@
       "problemKey": "menu-owner-and-observer",
       "outcomeKey": "preserve-owner-graph-and-observation-lifecycle",
       "sourceRefs": [
-        { "id": "menu-root", "path": "reference/last-light/memory.w", "symbol": "export fn makeMenuRoot", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "Shared menu root construction" },
-        { "id": "borrow-primary", "path": "reference/last-light/borrow_expressivity.w", "symbol": "export fn selectPrimary", "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e", "claim": "Receiver and body-derived borrow relation" }
+        {
+          "id": "menu-root",
+          "path": "reference/last-light/memory.w",
+          "symbol": "export fn makeMenuRoot",
+          "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+          "claim": "Shared menu root construction"
+        },
+        {
+          "id": "borrow-primary",
+          "path": "reference/last-light/borrow_expressivity.w",
+          "symbol": "export fn selectPrimary",
+          "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
+          "claim": "Receiver and body-derived borrow relation"
+        }
       ],
       "oracleRefs": [
-        { "id": "memory-cases", "path": "tooling/memory-transition-cases.json", "digest": "sha256:bb318c31b7bdbb87fb63583e7624a53b880de32a9eb465044be173739fb9a466", "claim": "Owner, borrow, shared, weak, and cleanup transitions" },
-        { "id": "hir-memory-reference", "path": "tooling/hir-memory-reference.test.mjs", "digest": "sha256:bd59a934a81e3aab5b69edc7b06274d69a1ad1f139079efd328b201b91b37072", "claim": "Independent memory relation assertions" }
+        {
+          "id": "memory-cases",
+          "path": "tooling/memory-transition-cases.json",
+          "digest": "sha256:bb318c31b7bdbb87fb63583e7624a53b880de32a9eb465044be173739fb9a466",
+          "claim": "Owner, borrow, shared, weak, and cleanup transitions"
+        },
+        {
+          "id": "hir-memory-reference",
+          "path": "tooling/hir-memory-reference.test.mjs",
+          "digest": "sha256:bd59a934a81e3aab5b69edc7b06274d69a1ad1f139079efd328b201b91b37072",
+          "claim": "Independent memory relation assertions"
+        }
       ],
       "inputs": [
-        { "id": "ownership-primary", "kind": "primary", "problemKey": "menu-owner-and-observer", "outcomeKey": "preserve-owner-graph-and-observation-lifecycle", "stimulus": { "sourceRefId": "menu-root", "symbol": "export fn makeMenuRoot", "beforeLines": 2, "afterLines": 16, "maxBytes": 700, "derivedStimulusDigest": "sha256:3590748e8b920a302feebd6c29a084c2bf3783e9be128b9a61987a208ffee0da" }, "participantInput": { "scenario": "A shared menu root is constructed and returned across an ownership boundary.", "task": "Describe the explicit operation that transfers the root and the separate weak observation." } },
-        { "id": "ownership-adversarial", "kind": "adversarial", "problemKey": "menu-owner-and-observer", "outcomeKey": "preserve-owner-graph-and-observation-lifecycle", "stimulus": { "sourceRefId": "menu-root", "symbol": "export fn makeMenuRoot", "beforeLines": 2, "afterLines": 16, "maxBytes": 700, "derivedStimulusDigest": "sha256:c41c8d32ead94c20cdd61851082b76cde5e79663b9eace5b196a51cab42f73e4" }, "observerOnly": { "baseInputId": "ownership-primary", "mutation": { "find": "return take root", "replace": "return root", "occurrences": 1 }, "expectedRepair": "restore the explicit consuming operation at the shared-owner return" }, "participantInput": { "scenario": "The shared root crosses the return boundary without its explicit consuming operation.", "task": "Repair the ownership mismatch without adding public lifetime annotations or hidden retention." } }
+        {
+          "id": "ownership-primary",
+          "kind": "primary",
+          "problemKey": "menu-owner-and-observer",
+          "outcomeKey": "preserve-owner-graph-and-observation-lifecycle",
+          "stimulus": {
+            "sourceRefId": "menu-root",
+            "symbol": "export fn makeMenuRoot",
+            "beforeLines": 2,
+            "afterLines": 16,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:3590748e8b920a302feebd6c29a084c2bf3783e9be128b9a61987a208ffee0da"
+          },
+          "participantInput": {
+            "scenario": "A shared menu root is constructed and returned across an ownership boundary.",
+            "task": "Describe the explicit operation that transfers the root and the separate weak observation."
+          }
+        },
+        {
+          "id": "ownership-adversarial",
+          "kind": "adversarial",
+          "problemKey": "menu-owner-and-observer",
+          "outcomeKey": "preserve-owner-graph-and-observation-lifecycle",
+          "stimulus": {
+            "sourceRefId": "menu-root",
+            "symbol": "export fn makeMenuRoot",
+            "beforeLines": 2,
+            "afterLines": 16,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:c41c8d32ead94c20cdd61851082b76cde5e79663b9eace5b196a51cab42f73e4"
+          },
+          "observerOnly": {
+            "baseInputId": "ownership-primary",
+            "mutation": {
+              "find": "return take root",
+              "replace": "return root",
+              "occurrences": 1
+            },
+            "expectedRepair": "restore the explicit consuming operation at the shared-owner return"
+          },
+          "participantInput": {
+            "scenario": "The shared root crosses the return boundary without its explicit consuming operation.",
+            "task": "Repair the ownership mismatch without adding public lifetime annotations or hidden retention."
+          }
+        }
       ],
       "tasks": [
-        { "id": "ownership-explain", "kind": "explain", "inputId": "ownership-primary", "participantInput": { "instruction": "Explain the owner, borrow, shared, and weak edges visible at the operation boundary." } },
-        { "id": "ownership-recall", "kind": "recall", "inputId": "ownership-primary", "participantInput": { "instruction": "After a short delay, reconstruct which value is consumed and which observation may be absent." } },
-        { "id": "ownership-repair", "kind": "repair", "inputId": "ownership-adversarial", "participantInput": { "instruction": "Repair the prepared ownership mismatch while keeping cleanup and observation behavior." } },
-        { "id": "ownership-change", "kind": "change", "inputId": "ownership-adversarial", "participantInput": { "instruction": "Change the requirement to allow another menu observer without changing the owner graph." } }
+        {
+          "id": "ownership-explain",
+          "kind": "explain",
+          "inputId": "ownership-primary",
+          "participantInput": {
+            "instruction": "Explain the owner, borrow, shared, and weak edges visible at the operation boundary."
+          }
+        },
+        {
+          "id": "ownership-recall",
+          "kind": "recall",
+          "inputId": "ownership-primary",
+          "participantInput": {
+            "instruction": "After a short delay, reconstruct which value is consumed and which observation may be absent."
+          }
+        },
+        {
+          "id": "ownership-repair",
+          "kind": "repair",
+          "inputId": "ownership-adversarial",
+          "participantInput": {
+            "instruction": "Repair the prepared ownership mismatch while keeping cleanup and observation behavior."
+          }
+        },
+        {
+          "id": "ownership-change",
+          "kind": "change",
+          "inputId": "ownership-adversarial",
+          "participantInput": {
+            "instruction": "Change the requirement to allow another menu observer without changing the owner graph."
+          }
+        }
       ],
-      "hiddenInternalFacts": ["PlaceId and LoanId", "OriginSet", "control block storage", "strong and weak counters", "borrow verifier implementation"],
-      "explainableFacts": ["owner and move facts", "borrow relation and conflict", "shared and weak edge meaning", "drop and cleanup order"],
-      "counterbalance": { "orders": [["explain", "recall", "repair", "change"], ["recall", "repair", "change", "explain"]], "assignment": "balanced outside the participant prompt" },
-      "blinding": { "hiddenFields": ["expected", "status", "route", "role", "path", "digest", "oracle", "sourceRefId", "mutation", "expectedRepair"], "hideSourceIdentity": true, "hideVariantAssignment": true, "hideStimulusMetadata": true }
+      "hiddenInternalFacts": [
+        "PlaceId and LoanId",
+        "OriginSet",
+        "control block storage",
+        "strong and weak counters",
+        "borrow verifier implementation"
+      ],
+      "explainableFacts": [
+        "owner and move facts",
+        "borrow relation and conflict",
+        "shared and weak edge meaning",
+        "drop and cleanup order"
+      ],
+      "counterbalance": {
+        "orders": [
+          [
+            "explain",
+            "recall",
+            "repair",
+            "change"
+          ],
+          [
+            "recall",
+            "repair",
+            "change",
+            "explain"
+          ]
+        ],
+        "assignment": "balanced outside the participant prompt"
+      },
+      "blinding": {
+        "hiddenFields": [
+          "expected",
+          "status",
+          "route",
+          "role",
+          "path",
+          "digest",
+          "oracle",
+          "sourceRefId",
+          "mutation",
+          "expectedRepair"
+        ],
+        "hideSourceIdentity": true,
+        "hideVariantAssignment": true,
+        "hideStimulusMetadata": true
+      }
     },
     {
       "id": "allocator-contextual",
@@ -73,26 +353,156 @@
       "problemKey": "staged-menu-storage",
       "outcomeKey": "preserve-bounded-storage-and-drop-before-reclaim",
       "sourceRefs": [
-        { "id": "stage-menu", "path": "reference/last-light/allocation.w", "symbol": "export fn stageMenu", "digest": "sha256:38abe8d35bd194aac2baf5c9a9c941e3b54777265dc348de9afad2462105698e", "claim": "Lexical and contextual staging allocator" }
+        {
+          "id": "stage-menu",
+          "path": "reference/last-light/allocation.w",
+          "symbol": "export fn stageMenu",
+          "digest": "sha256:38abe8d35bd194aac2baf5c9a9c941e3b54777265dc348de9afad2462105698e",
+          "claim": "Lexical and contextual staging allocator"
+        }
       ],
       "oracleRefs": [
-        { "id": "allocator-scope-cases", "path": "tooling/allocator-scope-cases.json", "digest": "sha256:0c078915acc3c9e074ff617ce2a9daf6d1c0d645c7f576496a1bda1b5bb98367", "claim": "Allocator scope, stack, rehome, and fixed admission cases" },
-        { "id": "allocator-scope-reference", "path": "tooling/allocator-scope-reference.test.mjs", "digest": "sha256:1b93d3ecf1ac104b13706b3b8fbb42cf691aae3df51ee524c6c94b25eb537251", "claim": "Independent allocator reference assertions" }
+        {
+          "id": "allocator-scope-cases",
+          "path": "tooling/allocator-scope-cases.json",
+          "digest": "sha256:0c078915acc3c9e074ff617ce2a9daf6d1c0d645c7f576496a1bda1b5bb98367",
+          "claim": "Allocator scope, stack, rehome, and fixed admission cases"
+        },
+        {
+          "id": "allocator-scope-reference",
+          "path": "tooling/allocator-scope-reference.test.mjs",
+          "digest": "sha256:1b93d3ecf1ac104b13706b3b8fbb42cf691aae3df51ee524c6c94b25eb537251",
+          "claim": "Independent allocator reference assertions"
+        }
       ],
       "inputs": [
-        { "id": "allocator-primary", "kind": "primary", "problemKey": "staged-menu-storage", "outcomeKey": "preserve-bounded-storage-and-drop-before-reclaim", "stimulus": { "sourceRefId": "stage-menu", "symbol": "export fn stageMenu", "beforeLines": 2, "afterLines": 16, "maxBytes": 700, "derivedStimulusDigest": "sha256:9b6eef65b92ac822554f2f902781437f5aa108e2b1bcef004d2154490fa77783" }, "participantInput": { "scenario": "A staged menu uses a fixed lexical capacity and returns a value beyond the inner scope.", "task": "Explain which storage context applies and when reclamation is safe." } },
-        { "id": "allocator-adversarial", "kind": "adversarial", "problemKey": "staged-menu-storage", "outcomeKey": "preserve-bounded-storage-and-drop-before-reclaim", "stimulus": { "sourceRefId": "stage-menu", "symbol": "export fn stageMenu", "beforeLines": 2, "afterLines": 16, "maxBytes": 700, "derivedStimulusDigest": "sha256:c46e51c8922f5744b2a81247f26d163f3f26e63edfcec73b0720eb678d1736bd" }, "observerOnly": { "baseInputId": "allocator-primary", "mutation": { "find": "allocator .fixed", "replace": "allocator .none", "occurrences": 1 }, "expectedRepair": "restore the bounded fixed allocator" }, "participantInput": { "scenario": "A batch element escapes a fixed scope and a call omits a required contextual allocator slot.", "task": "Repair the boundary while keeping capacity and cleanup bounded." } }
+        {
+          "id": "allocator-primary",
+          "kind": "primary",
+          "problemKey": "staged-menu-storage",
+          "outcomeKey": "preserve-bounded-storage-and-drop-before-reclaim",
+          "stimulus": {
+            "sourceRefId": "stage-menu",
+            "symbol": "export fn stageMenu",
+            "beforeLines": 2,
+            "afterLines": 16,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:9b6eef65b92ac822554f2f902781437f5aa108e2b1bcef004d2154490fa77783"
+          },
+          "participantInput": {
+            "scenario": "A staged menu uses a fixed lexical capacity and returns a value beyond the inner scope.",
+            "task": "Explain which storage context applies and when reclamation is safe."
+          }
+        },
+        {
+          "id": "allocator-adversarial",
+          "kind": "adversarial",
+          "problemKey": "staged-menu-storage",
+          "outcomeKey": "preserve-bounded-storage-and-drop-before-reclaim",
+          "stimulus": {
+            "sourceRefId": "stage-menu",
+            "symbol": "export fn stageMenu",
+            "beforeLines": 2,
+            "afterLines": 16,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:c46e51c8922f5744b2a81247f26d163f3f26e63edfcec73b0720eb678d1736bd"
+          },
+          "observerOnly": {
+            "baseInputId": "allocator-primary",
+            "mutation": {
+              "find": "allocator .fixed",
+              "replace": "allocator .none",
+              "occurrences": 1
+            },
+            "expectedRepair": "restore the bounded fixed allocator"
+          },
+          "participantInput": {
+            "scenario": "A batch element escapes a fixed scope and a call omits a required contextual allocator slot.",
+            "task": "Repair the boundary while keeping capacity and cleanup bounded."
+          }
+        }
       ],
       "tasks": [
-        { "id": "allocator-explain", "kind": "explain", "inputId": "allocator-primary", "participantInput": { "instruction": "Explain allocator selection, allocation origin, mobility, and cleanup for the staged value." } },
-        { "id": "allocator-recall", "kind": "recall", "inputId": "allocator-primary", "participantInput": { "instruction": "After a short delay, reconstruct the precedence that selected the active storage context." } },
-        { "id": "allocator-repair", "kind": "repair", "inputId": "allocator-adversarial", "participantInput": { "instruction": "Repair the prepared escape or missing slot without making storage unbounded." } },
-        { "id": "allocator-change", "kind": "change", "inputId": "allocator-adversarial", "participantInput": { "instruction": "Add one bounded batch element and preserve admission, rehome, and cleanup behavior." } }
+        {
+          "id": "allocator-explain",
+          "kind": "explain",
+          "inputId": "allocator-primary",
+          "participantInput": {
+            "instruction": "Explain allocator selection, allocation origin, mobility, and cleanup for the staged value."
+          }
+        },
+        {
+          "id": "allocator-recall",
+          "kind": "recall",
+          "inputId": "allocator-primary",
+          "participantInput": {
+            "instruction": "After a short delay, reconstruct the precedence that selected the active storage context."
+          }
+        },
+        {
+          "id": "allocator-repair",
+          "kind": "repair",
+          "inputId": "allocator-adversarial",
+          "participantInput": {
+            "instruction": "Repair the prepared escape or missing slot without making storage unbounded."
+          }
+        },
+        {
+          "id": "allocator-change",
+          "kind": "change",
+          "inputId": "allocator-adversarial",
+          "participantInput": {
+            "instruction": "Add one bounded batch element and preserve admission, rehome, and cleanup behavior."
+          }
+        }
       ],
-      "hiddenInternalFacts": ["allocator identity and insertion point", "AllocationOrigin map", "provider profile", "address and pointer values", "host allocator implementation"],
-      "explainableFacts": ["explicit and contextual selection", "origin and mobility", "escape and rehome", "drop path and bounded estimates"],
-      "counterbalance": { "orders": [["explain", "recall", "repair", "change"], ["change", "explain", "recall", "repair"]], "assignment": "balanced outside the participant prompt" },
-      "blinding": { "hiddenFields": ["expected", "status", "route", "role", "path", "digest", "oracle", "sourceRefId", "mutation", "expectedRepair"], "hideSourceIdentity": true, "hideVariantAssignment": true, "hideStimulusMetadata": true }
+      "hiddenInternalFacts": [
+        "allocator identity and insertion point",
+        "AllocationOrigin map",
+        "provider profile",
+        "address and pointer values",
+        "host allocator implementation"
+      ],
+      "explainableFacts": [
+        "explicit and contextual selection",
+        "origin and mobility",
+        "escape and rehome",
+        "drop path and bounded estimates"
+      ],
+      "counterbalance": {
+        "orders": [
+          [
+            "explain",
+            "recall",
+            "repair",
+            "change"
+          ],
+          [
+            "change",
+            "explain",
+            "recall",
+            "repair"
+          ]
+        ],
+        "assignment": "balanced outside the participant prompt"
+      },
+      "blinding": {
+        "hiddenFields": [
+          "expected",
+          "status",
+          "route",
+          "role",
+          "path",
+          "digest",
+          "oracle",
+          "sourceRefId",
+          "mutation",
+          "expectedRepair"
+        ],
+        "hideSourceIdentity": true,
+        "hideVariantAssignment": true,
+        "hideStimulusMetadata": true
+      }
     },
     {
       "id": "execution-forms",
@@ -100,26 +510,156 @@
       "problemKey": "mix-pair-execution-form",
       "outcomeKey": "preserve-suspension-owner-and-domain-invariants",
       "sourceRefs": [
-        { "id": "mix-pair", "path": "reference/last-light/execution.w", "symbol": "export async fn mixPair", "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed", "claim": "Async execution form and domain preference" }
+        {
+          "id": "mix-pair",
+          "path": "reference/last-light/execution.w",
+          "symbol": "export async fn mixPair",
+          "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed",
+          "claim": "Async execution form and domain preference"
+        }
       ],
       "oracleRefs": [
-        { "id": "execution-ergonomics-cases", "path": "tooling/execution-ergonomics-cases.json", "digest": "sha256:68ccc55b5c260bd7f016e803ea467f626476fd407fc949ef95b71ff3350f17bc", "claim": "Execution labels, ownership operations, suspension, and placement cases" },
-        { "id": "execution-ergonomics-reference", "path": "tooling/execution-ergonomics-reference.test.mjs", "digest": "sha256:8b910c8cfe48c6a3319745ab95dc2f263c68566db02c975d33630691cc7ba668", "claim": "Independent execution form assertions" }
+        {
+          "id": "execution-ergonomics-cases",
+          "path": "tooling/execution-ergonomics-cases.json",
+          "digest": "sha256:68ccc55b5c260bd7f016e803ea467f626476fd407fc949ef95b71ff3350f17bc",
+          "claim": "Execution labels, ownership operations, suspension, and placement cases"
+        },
+        {
+          "id": "execution-ergonomics-reference",
+          "path": "tooling/execution-ergonomics-reference.test.mjs",
+          "digest": "sha256:8b910c8cfe48c6a3319745ab95dc2f263c68566db02c975d33630691cc7ba668",
+          "claim": "Independent execution form assertions"
+        }
       ],
       "inputs": [
-        { "id": "execution-primary", "kind": "primary", "problemKey": "mix-pair-execution-form", "outcomeKey": "preserve-suspension-owner-and-domain-invariants", "stimulus": { "sourceRefId": "mix-pair", "symbol": "export async fn mixPair", "beforeLines": 2, "afterLines": 16, "maxBytes": 700, "derivedStimulusDigest": "sha256:0b24882af4596f0d371045e1e1e93528536df1686ba0d12757c68e697d97ba90" }, "participantInput": { "scenario": "Two menu values are mixed by an asynchronous function with an explicit execution preference.", "task": "Explain the call labels, ownership operation, suspension point, and placement choice." } },
-        { "id": "execution-adversarial", "kind": "adversarial", "problemKey": "mix-pair-execution-form", "outcomeKey": "preserve-suspension-owner-and-domain-invariants", "stimulus": { "sourceRefId": "mix-pair", "symbol": "export async fn mixPair", "beforeLines": 2, "afterLines": 16, "maxBytes": 700, "derivedStimulusDigest": "sha256:58bef6da7090abc91caeb55951b97f8de058173152499e121bb7ee1cdaa5e9a2" }, "observerOnly": { "baseInputId": "execution-primary", "mutation": { "find": "left: take MixingJob", "replace": "left: ref MixingJob", "occurrences": 1 }, "expectedRepair": "restore consuming ownership for the left job" }, "participantInput": { "scenario": "The same mix operation uses a borrowed left value where the asynchronous body consumes it.", "task": "Repair the ownership form while preserving the logical result and owner obligations." } }
+        {
+          "id": "execution-primary",
+          "kind": "primary",
+          "problemKey": "mix-pair-execution-form",
+          "outcomeKey": "preserve-suspension-owner-and-domain-invariants",
+          "stimulus": {
+            "sourceRefId": "mix-pair",
+            "symbol": "export async fn mixPair",
+            "beforeLines": 2,
+            "afterLines": 16,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:0b24882af4596f0d371045e1e1e93528536df1686ba0d12757c68e697d97ba90"
+          },
+          "participantInput": {
+            "scenario": "Two menu values are mixed by an asynchronous function with an explicit execution preference.",
+            "task": "Explain the call labels, ownership operation, suspension point, and placement choice."
+          }
+        },
+        {
+          "id": "execution-adversarial",
+          "kind": "adversarial",
+          "problemKey": "mix-pair-execution-form",
+          "outcomeKey": "preserve-suspension-owner-and-domain-invariants",
+          "stimulus": {
+            "sourceRefId": "mix-pair",
+            "symbol": "export async fn mixPair",
+            "beforeLines": 2,
+            "afterLines": 16,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:58bef6da7090abc91caeb55951b97f8de058173152499e121bb7ee1cdaa5e9a2"
+          },
+          "observerOnly": {
+            "baseInputId": "execution-primary",
+            "mutation": {
+              "find": "left: take MixingJob",
+              "replace": "left: ref MixingJob",
+              "occurrences": 1
+            },
+            "expectedRepair": "restore consuming ownership for the left job"
+          },
+          "participantInput": {
+            "scenario": "The same mix operation uses a borrowed left value where the asynchronous body consumes it.",
+            "task": "Repair the ownership form while preserving the logical result and owner obligations."
+          }
+        }
       ],
       "tasks": [
-        { "id": "execution-explain", "kind": "explain", "inputId": "execution-primary", "participantInput": { "instruction": "Explain the labels, ownership operation, await point, and logical placement requirement." } },
-        { "id": "execution-recall", "kind": "recall", "inputId": "execution-primary", "participantInput": { "instruction": "After a short delay, reconstruct the explicit execution choices and their reason." } },
-        { "id": "execution-repair", "kind": "repair", "inputId": "execution-adversarial", "participantInput": { "instruction": "Repair the prepared call form without changing the logical mix result." } },
-        { "id": "execution-change", "kind": "change", "inputId": "execution-adversarial", "participantInput": { "instruction": "Move the operation to the named compute domain and preserve suspension and ownership invariants." } }
+        {
+          "id": "execution-explain",
+          "kind": "explain",
+          "inputId": "execution-primary",
+          "participantInput": {
+            "instruction": "Explain the labels, ownership operation, await point, and logical placement requirement."
+          }
+        },
+        {
+          "id": "execution-recall",
+          "kind": "recall",
+          "inputId": "execution-primary",
+          "participantInput": {
+            "instruction": "After a short delay, reconstruct the explicit execution choices and their reason."
+          }
+        },
+        {
+          "id": "execution-repair",
+          "kind": "repair",
+          "inputId": "execution-adversarial",
+          "participantInput": {
+            "instruction": "Repair the prepared call form without changing the logical mix result."
+          }
+        },
+        {
+          "id": "execution-change",
+          "kind": "change",
+          "inputId": "execution-adversarial",
+          "participantInput": {
+            "instruction": "Move the operation to the named compute domain and preserve suspension and ownership invariants."
+          }
+        }
       ],
-      "hiddenInternalFacts": ["scheduler worker and thread", "physical queue and migration", "frame address", "backend lowering", "source variant assignment"],
-      "explainableFacts": ["call labels and contracts", "suspension and cleanup", "logical domain requirement", "owner operation and placement facts"],
-      "counterbalance": { "orders": [["explain", "recall", "repair", "change"], ["repair", "change", "recall", "explain"]], "assignment": "balanced outside the participant prompt" },
-      "blinding": { "hiddenFields": ["expected", "status", "route", "role", "path", "digest", "oracle", "sourceRefId", "mutation", "expectedRepair"], "hideSourceIdentity": true, "hideVariantAssignment": true, "hideStimulusMetadata": true }
+      "hiddenInternalFacts": [
+        "scheduler worker and thread",
+        "physical queue and migration",
+        "frame address",
+        "backend lowering",
+        "source variant assignment"
+      ],
+      "explainableFacts": [
+        "call labels and contracts",
+        "suspension and cleanup",
+        "logical domain requirement",
+        "owner operation and placement facts"
+      ],
+      "counterbalance": {
+        "orders": [
+          [
+            "explain",
+            "recall",
+            "repair",
+            "change"
+          ],
+          [
+            "repair",
+            "change",
+            "recall",
+            "explain"
+          ]
+        ],
+        "assignment": "balanced outside the participant prompt"
+      },
+      "blinding": {
+        "hiddenFields": [
+          "expected",
+          "status",
+          "route",
+          "role",
+          "path",
+          "digest",
+          "oracle",
+          "sourceRefId",
+          "mutation",
+          "expectedRepair"
+        ],
+        "hideSourceIdentity": true,
+        "hideVariantAssignment": true,
+        "hideStimulusMetadata": true
+      }
     },
     {
       "id": "task-channel-backpressure",
@@ -127,26 +667,156 @@
       "problemKey": "bounded-order-window",
       "outcomeKey": "preserve-join-admission-and-bounded-lifecycle",
       "sourceRefs": [
-        { "id": "order-window", "path": "reference/last-light/streams.w", "symbol": "export async fn runBoundedOrderWindow", "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14", "claim": "Bounded order window and completion ordering" }
+        {
+          "id": "order-window",
+          "path": "reference/last-light/streams.w",
+          "symbol": "export async fn runBoundedOrderWindow",
+          "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14",
+          "claim": "Bounded order window and completion ordering"
+        }
       ],
       "oracleRefs": [
-        { "id": "channel-cases", "path": "tooling/channel-cases.json", "digest": "sha256:b09a65f63d8ffe333bb8b73cdee09a1ec9297c1d97429fc0d9d7fa2d10882c1d", "claim": "Bounded channel admission, ownership, cancellation, and close cases" },
-        { "id": "channel-reference", "path": "tooling/channel-reference.test.mjs", "digest": "sha256:d16adc7c6a61642186c115f004458b91963263070e45a1a1b8a927ef9e9bc136", "claim": "Independent channel lifecycle assertions" }
+        {
+          "id": "channel-cases",
+          "path": "tooling/channel-cases.json",
+          "digest": "sha256:b09a65f63d8ffe333bb8b73cdee09a1ec9297c1d97429fc0d9d7fa2d10882c1d",
+          "claim": "Bounded channel admission, ownership, cancellation, and close cases"
+        },
+        {
+          "id": "channel-reference",
+          "path": "tooling/channel-reference.test.mjs",
+          "digest": "sha256:d16adc7c6a61642186c115f004458b91963263070e45a1a1b8a927ef9e9bc136",
+          "claim": "Independent channel lifecycle assertions"
+        }
       ],
       "inputs": [
-        { "id": "channel-primary", "kind": "primary", "problemKey": "bounded-order-window", "outcomeKey": "preserve-join-admission-and-bounded-lifecycle", "stimulus": { "sourceRefId": "order-window", "symbol": "export async fn runBoundedOrderWindow", "beforeLines": 2, "afterLines": 16, "maxBytes": 700, "derivedStimulusDigest": "sha256:a38431f4cfe1945b6e97da17ead73b7a0eed2b6bf70ee6404a68ef84db0365f9" }, "participantInput": { "scenario": "A bounded order window sends owned menu values through a channel and joins child work before cleanup.", "task": "Explain admission, permits, completion ordering, and cancellation ownership." } },
-        { "id": "channel-adversarial", "kind": "adversarial", "problemKey": "bounded-order-window", "outcomeKey": "preserve-join-admission-and-bounded-lifecycle", "stimulus": { "sourceRefId": "order-window", "symbol": "export async fn runBoundedOrderWindow", "beforeLines": 2, "afterLines": 16, "maxBytes": 700, "derivedStimulusDigest": "sha256:70b70b8d22cb130f5ecb64e37e4becdd46d58cb5e918008f5781d37999b32ee0" }, "observerOnly": { "baseInputId": "channel-primary", "mutation": { "find": "let _ = take output", "replace": "let _ = take input", "occurrences": 1 }, "expectedRepair": "restore transfer of the output endpoint so the receiver remains available" }, "participantInput": { "scenario": "The bounded window moves the receive endpoint before admission, so the sender children cannot use the intended channel pair.", "task": "Repair the endpoint ownership sequence while keeping capacity and cleanup bounded." } }
+        {
+          "id": "channel-primary",
+          "kind": "primary",
+          "problemKey": "bounded-order-window",
+          "outcomeKey": "preserve-join-admission-and-bounded-lifecycle",
+          "stimulus": {
+            "sourceRefId": "order-window",
+            "symbol": "export async fn runBoundedOrderWindow",
+            "beforeLines": 2,
+            "afterLines": 16,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:a38431f4cfe1945b6e97da17ead73b7a0eed2b6bf70ee6404a68ef84db0365f9"
+          },
+          "participantInput": {
+            "scenario": "A bounded order window sends owned menu values through a channel and joins child work before cleanup.",
+            "task": "Explain admission, permits, completion ordering, and cancellation ownership."
+          }
+        },
+        {
+          "id": "channel-adversarial",
+          "kind": "adversarial",
+          "problemKey": "bounded-order-window",
+          "outcomeKey": "preserve-join-admission-and-bounded-lifecycle",
+          "stimulus": {
+            "sourceRefId": "order-window",
+            "symbol": "export async fn runBoundedOrderWindow",
+            "beforeLines": 2,
+            "afterLines": 16,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:70b70b8d22cb130f5ecb64e37e4becdd46d58cb5e918008f5781d37999b32ee0"
+          },
+          "observerOnly": {
+            "baseInputId": "channel-primary",
+            "mutation": {
+              "find": "let _ = take output",
+              "replace": "let _ = take input",
+              "occurrences": 1
+            },
+            "expectedRepair": "restore transfer of the output endpoint so the receiver remains available"
+          },
+          "participantInput": {
+            "scenario": "The bounded window moves the receive endpoint before admission, so the sender children cannot use the intended channel pair.",
+            "task": "Repair the endpoint ownership sequence while keeping capacity and cleanup bounded."
+          }
+        }
       ],
       "tasks": [
-        { "id": "channel-explain", "kind": "explain", "inputId": "channel-primary", "participantInput": { "instruction": "Explain how the bounded channel transfers ownership and how joined work closes it." } },
-        { "id": "channel-recall", "kind": "recall", "inputId": "channel-primary", "participantInput": { "instruction": "After a short delay, reconstruct the admission and completion order." } },
-        { "id": "channel-repair", "kind": "repair", "inputId": "channel-adversarial", "participantInput": { "instruction": "Repair the prepared send or child-lifecycle mistake without adding an unbounded queue." } },
-        { "id": "channel-change", "kind": "change", "inputId": "channel-adversarial", "participantInput": { "instruction": "Change completion ordering while preserving bounded capacity, ownership, and cleanup." } }
+        {
+          "id": "channel-explain",
+          "kind": "explain",
+          "inputId": "channel-primary",
+          "participantInput": {
+            "instruction": "Explain how the bounded channel transfers ownership and how joined work closes it."
+          }
+        },
+        {
+          "id": "channel-recall",
+          "kind": "recall",
+          "inputId": "channel-primary",
+          "participantInput": {
+            "instruction": "After a short delay, reconstruct the admission and completion order."
+          }
+        },
+        {
+          "id": "channel-repair",
+          "kind": "repair",
+          "inputId": "channel-adversarial",
+          "participantInput": {
+            "instruction": "Repair the prepared send or child-lifecycle mistake without adding an unbounded queue."
+          }
+        },
+        {
+          "id": "channel-change",
+          "kind": "change",
+          "inputId": "channel-adversarial",
+          "participantInput": {
+            "instruction": "Change completion ordering while preserving bounded capacity, ownership, and cleanup."
+          }
+        }
       ],
-      "hiddenInternalFacts": ["worker and thread assignment", "queue implementation", "buffer address", "scheduler fairness", "oracle event reducer internals"],
-      "explainableFacts": ["capacity and admission", "ownership transfer", "join and cancellation", "close, drain, and backpressure"],
-      "counterbalance": { "orders": [["explain", "recall", "repair", "change"], ["recall", "change", "explain", "repair"]], "assignment": "balanced outside the participant prompt" },
-      "blinding": { "hiddenFields": ["expected", "status", "route", "role", "path", "digest", "oracle", "sourceRefId", "mutation", "expectedRepair"], "hideSourceIdentity": true, "hideVariantAssignment": true, "hideStimulusMetadata": true }
+      "hiddenInternalFacts": [
+        "worker and thread assignment",
+        "queue implementation",
+        "buffer address",
+        "scheduler fairness",
+        "oracle event reducer internals"
+      ],
+      "explainableFacts": [
+        "capacity and admission",
+        "ownership transfer",
+        "join and cancellation",
+        "close, drain, and backpressure"
+      ],
+      "counterbalance": {
+        "orders": [
+          [
+            "explain",
+            "recall",
+            "repair",
+            "change"
+          ],
+          [
+            "recall",
+            "change",
+            "explain",
+            "repair"
+          ]
+        ],
+        "assignment": "balanced outside the participant prompt"
+      },
+      "blinding": {
+        "hiddenFields": [
+          "expected",
+          "status",
+          "route",
+          "role",
+          "path",
+          "digest",
+          "oracle",
+          "sourceRefId",
+          "mutation",
+          "expectedRepair"
+        ],
+        "hideSourceIdentity": true,
+        "hideVariantAssignment": true,
+        "hideStimulusMetadata": true
+      }
     },
     {
       "id": "services-generations",
@@ -154,27 +824,163 @@
       "problemKey": "service-turn-generation-boundary",
       "outcomeKey": "preserve-state-first-event-transition-and-generation-boundary",
       "sourceRefs": [
-        { "id": "service-turn", "path": "reference/last-light/lifecycle_oracle.w", "symbol": "const fn nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de", "claim": "Closed service turn and commit observation" },
-        { "id": "generation-receipt", "path": "reference/last-light/repl_session_oracle.w", "symbol": "export struct GenerationReceipt", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "claim": "Generation publication and invalidation receipt" }
+        {
+          "id": "service-turn",
+          "path": "reference/last-light/lifecycle_oracle.w",
+          "symbol": "const fn nextServiceTurnState",
+          "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de",
+          "claim": "Closed service turn and commit observation"
+        },
+        {
+          "id": "generation-receipt",
+          "path": "reference/last-light/repl_session_oracle.w",
+          "symbol": "export struct GenerationReceipt",
+          "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461",
+          "claim": "Generation publication and invalidation receipt"
+        }
       ],
       "oracleRefs": [
-        { "id": "service-recovery-cases", "path": "tooling/service-recovery-cases.json", "digest": "sha256:eace43c873cb1fc5675187dc7d7eaa85d89e535c98b32561afade74d0846a05e", "claim": "Service mailbox, recovery, generation, and drain cases" },
-        { "id": "repl-session-reference", "path": "tooling/repl-session-reference.test.mjs", "digest": "sha256:adf97908d88d700d0c9941593623a1b6633da7b62cb0b1cf17e41fb45448c9cf", "claim": "Independent session and generation assertions" }
+        {
+          "id": "service-recovery-cases",
+          "path": "tooling/service-recovery-cases.json",
+          "digest": "sha256:eace43c873cb1fc5675187dc7d7eaa85d89e535c98b32561afade74d0846a05e",
+          "claim": "Service mailbox, recovery, generation, and drain cases"
+        },
+        {
+          "id": "repl-session-reference",
+          "path": "tooling/repl-session-reference.test.mjs",
+          "digest": "sha256:adf97908d88d700d0c9941593623a1b6633da7b62cb0b1cf17e41fb45448c9cf",
+          "claim": "Independent session and generation assertions"
+        }
       ],
       "inputs": [
-        { "id": "service-primary", "kind": "primary", "problemKey": "service-turn-generation-boundary", "outcomeKey": "preserve-state-first-event-transition-and-generation-boundary", "stimulus": { "sourceRefId": "service-turn", "symbol": "const fn nextServiceTurnState", "beforeLines": 2, "afterLines": 16, "maxBytes": 700, "derivedStimulusDigest": "sha256:13cd00ca159f00e115e514989df4b490c65f21763a93f3d7984dcc67fe6fa723" }, "participantInput": { "scenario": "A service-turn reducer maps a current state and event to the next state before a generation receipt is published.", "task": "Explain the state-first transition and where the generation boundary is recorded." } },
-        { "id": "service-adversarial", "kind": "adversarial", "problemKey": "service-turn-generation-boundary", "outcomeKey": "preserve-state-first-event-transition-and-generation-boundary", "stimulus": { "sourceRefId": "service-turn", "symbol": "const fn nextServiceTurnState", "beforeLines": 2, "afterLines": 16, "maxBytes": 700, "derivedStimulusDigest": "sha256:d1cacef78c9018ceabe8438df633dfb82112a565bb0edcd77a9e8b0907077f79" }, "observerOnly": { "baseInputId": "service-primary", "mutation": { "find": "return switch (state, event)", "replace": "return switch (event, state)", "occurrences": 1 }, "expectedRepair": "restore state-first event selection before publishing the generation receipt" }, "participantInput": { "scenario": "The reducer selects the event before the current state, so valid service transitions no longer match their cases.", "task": "Repair the tuple order while preserving the closed-turn and generation boundary." } }
+        {
+          "id": "service-primary",
+          "kind": "primary",
+          "problemKey": "service-turn-generation-boundary",
+          "outcomeKey": "preserve-state-first-event-transition-and-generation-boundary",
+          "stimulus": {
+            "sourceRefId": "service-turn",
+            "symbol": "const fn nextServiceTurnState",
+            "beforeLines": 2,
+            "afterLines": 16,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:13cd00ca159f00e115e514989df4b490c65f21763a93f3d7984dcc67fe6fa723"
+          },
+          "participantInput": {
+            "scenario": "A service-turn reducer maps a current state and event to the next state before a generation receipt is published.",
+            "task": "Explain the state-first transition and where the generation boundary is recorded."
+          }
+        },
+        {
+          "id": "service-adversarial",
+          "kind": "adversarial",
+          "problemKey": "service-turn-generation-boundary",
+          "outcomeKey": "preserve-state-first-event-transition-and-generation-boundary",
+          "stimulus": {
+            "sourceRefId": "service-turn",
+            "symbol": "const fn nextServiceTurnState",
+            "beforeLines": 2,
+            "afterLines": 16,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:d1cacef78c9018ceabe8438df633dfb82112a565bb0edcd77a9e8b0907077f79"
+          },
+          "observerOnly": {
+            "baseInputId": "service-primary",
+            "mutation": {
+              "find": "return switch (state, event)",
+              "replace": "return switch (event, state)",
+              "occurrences": 1
+            },
+            "expectedRepair": "restore state-first event selection before publishing the generation receipt"
+          },
+          "participantInput": {
+            "scenario": "The reducer selects the event before the current state, so valid service transitions no longer match their cases.",
+            "task": "Repair the tuple order while preserving the closed-turn and generation boundary."
+          }
+        }
       ],
       "tasks": [
-        { "id": "service-explain", "kind": "explain", "inputId": "service-primary", "participantInput": { "instruction": "Explain the closed turn, commit receipt, drain, and generation identity facts." } },
-        { "id": "service-recall", "kind": "recall", "inputId": "service-primary", "participantInput": { "instruction": "After a short delay, reconstruct which completions are still admissible." } },
-        { "id": "service-repair", "kind": "repair", "inputId": "service-adversarial", "participantInput": { "instruction": "Repair the prepared stale completion without fabricating a cancellation or a commit." } },
-        { "id": "service-change", "kind": "change", "inputId": "service-adversarial", "participantInput": { "instruction": "Split the service projection and preserve the same logical receipt and cleanup behavior." } }
+        {
+          "id": "service-explain",
+          "kind": "explain",
+          "inputId": "service-primary",
+          "participantInput": {
+            "instruction": "Explain the closed turn, commit receipt, drain, and generation identity facts."
+          }
+        },
+        {
+          "id": "service-recall",
+          "kind": "recall",
+          "inputId": "service-primary",
+          "participantInput": {
+            "instruction": "After a short delay, reconstruct which completions are still admissible."
+          }
+        },
+        {
+          "id": "service-repair",
+          "kind": "repair",
+          "inputId": "service-adversarial",
+          "participantInput": {
+            "instruction": "Repair the prepared stale completion without fabricating a cancellation or a commit."
+          }
+        },
+        {
+          "id": "service-change",
+          "kind": "change",
+          "inputId": "service-adversarial",
+          "participantInput": {
+            "instruction": "Split the service projection and preserve the same logical receipt and cleanup behavior."
+          }
+        }
       ],
-      "hiddenInternalFacts": ["GenerationId numeric identity", "worker and process placement", "mailbox address", "receipt payload secrets", "recovery reducer implementation"],
-      "explainableFacts": ["closed turn phases", "commit and unknown outcome distinction", "generation hint and stale completion", "admission and drain receipts"],
-      "counterbalance": { "orders": [["explain", "recall", "repair", "change"], ["change", "repair", "explain", "recall"]], "assignment": "balanced outside the participant prompt" },
-      "blinding": { "hiddenFields": ["expected", "status", "route", "role", "path", "digest", "oracle", "sourceRefId", "mutation", "expectedRepair"], "hideSourceIdentity": true, "hideVariantAssignment": true, "hideStimulusMetadata": true }
+      "hiddenInternalFacts": [
+        "GenerationId numeric identity",
+        "worker and process placement",
+        "mailbox address",
+        "receipt payload secrets",
+        "recovery reducer implementation"
+      ],
+      "explainableFacts": [
+        "closed turn phases",
+        "commit and unknown outcome distinction",
+        "generation hint and stale completion",
+        "admission and drain receipts"
+      ],
+      "counterbalance": {
+        "orders": [
+          [
+            "explain",
+            "recall",
+            "repair",
+            "change"
+          ],
+          [
+            "change",
+            "repair",
+            "explain",
+            "recall"
+          ]
+        ],
+        "assignment": "balanced outside the participant prompt"
+      },
+      "blinding": {
+        "hiddenFields": [
+          "expected",
+          "status",
+          "route",
+          "role",
+          "path",
+          "digest",
+          "oracle",
+          "sourceRefId",
+          "mutation",
+          "expectedRepair"
+        ],
+        "hideSourceIdentity": true,
+        "hideVariantAssignment": true,
+        "hideStimulusMetadata": true
+      }
     },
     {
       "id": "package-build-repl",
@@ -182,28 +988,170 @@
       "problemKey": "hermetic-menu-build-session",
       "outcomeKey": "preserve-resolution-closure-and-generation-invalidation",
       "sourceRefs": [
-        { "id": "package-manifest", "path": "reference/last-light/package.w", "symbol": "package {", "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc", "claim": "Typed package manifest, roots, and declared actions" },
-        { "id": "package-action", "path": "reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc", "claim": "Menu build action and artifact closure" },
-        { "id": "session-snapshot", "path": "reference/last-light/repl_session_oracle.w", "symbol": "export struct SessionSnapshot", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "claim": "Committed REPL snapshot and bounded receipts" }
+        {
+          "id": "package-manifest",
+          "path": "reference/last-light/build.w",
+          "symbol": "package {",
+          "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
+          "claim": "Typed package manifest, roots, and declared actions"
+        },
+        {
+          "id": "package-action",
+          "path": "reference/last-light/build.w",
+          "symbol": "name: \"compile-final-menu\"",
+          "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
+          "claim": "Menu build action and artifact closure"
+        },
+        {
+          "id": "session-snapshot",
+          "path": "reference/last-light/repl_session_oracle.w",
+          "symbol": "export struct SessionSnapshot",
+          "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461",
+          "claim": "Committed REPL snapshot and bounded receipts"
+        }
       ],
       "oracleRefs": [
-        { "id": "module-run-cases", "path": "tooling/module-run-cases.json", "digest": "sha256:fdf4b9402526604c7b3b70ed9b9d567c27fd6dcc426f96b83ae1a32efb50e6fd", "claim": "Current RU0 module-run context, resolution, roots, and entry cases" },
-        { "id": "repl-session-cases", "path": "tooling/repl-session-cases.json", "digest": "sha256:4139afaef0812307eb4301107d7beb4f0926f1d563b3d05cdfa9a024956882cf", "claim": "Transactional REPL generation and invalidation cases" }
+        {
+          "id": "module-run-cases",
+          "path": "tooling/module-run-cases.json",
+          "digest": "sha256:20a9c4390aec396fee7c766da78fa0211cc023af19e28710249446dab1de5ed3",
+          "claim": "Current RU0 module-run context, resolution, roots, and entry cases"
+        },
+        {
+          "id": "repl-session-cases",
+          "path": "tooling/repl-session-cases.json",
+          "digest": "sha256:4139afaef0812307eb4301107d7beb4f0926f1d563b3d05cdfa9a024956882cf",
+          "claim": "Transactional REPL generation and invalidation cases"
+        }
       ],
       "inputs": [
-        { "id": "package-primary", "kind": "primary", "problemKey": "hermetic-menu-build-session", "outcomeKey": "preserve-resolution-closure-and-generation-invalidation", "stimulus": { "sourceRefId": "package-manifest", "symbol": "package {", "beforeLines": 2, "afterLines": 12, "maxBytes": 700, "derivedStimulusDigest": "sha256:92ed3495b37e4d3a881c182df6b9588f0acdf2c1ae97b62e0927638d827e0f62" }, "participantInput": { "scenario": "A single-file menu workflow uses an explicit root, package/workspace resolution, content cache, and committed session snapshot.", "task": "Explain the reproducible build inputs and the safe session boundary." } },
-        { "id": "package-adversarial", "kind": "adversarial", "problemKey": "hermetic-menu-build-session", "outcomeKey": "preserve-resolution-closure-and-generation-invalidation", "stimulus": { "sourceRefId": "package-manifest", "symbol": "package {", "beforeLines": 2, "afterLines": 12, "maxBytes": 700, "derivedStimulusDigest": "sha256:9ada4bb0021ce8a5a6e832c4d02c7c2f0ffcd1afc05bc75c1ff58ce2c47a553d" }, "observerOnly": { "baseInputId": "package-primary", "mutation": { "find": "authority: .registry(\"w\")", "replace": "authority: .registry(\"x\")", "occurrences": 1 }, "expectedRepair": "restore the declared package authority" }, "participantInput": { "scenario": "The manifest names an authority outside the declared resolution closure, so reproducible resolution cannot proceed.", "task": "Repair the authority entry while keeping the resolution closure and receipts reproducible." } }
+        {
+          "id": "package-primary",
+          "kind": "primary",
+          "problemKey": "hermetic-menu-build-session",
+          "outcomeKey": "preserve-resolution-closure-and-generation-invalidation",
+          "stimulus": {
+            "sourceRefId": "package-manifest",
+            "symbol": "package {",
+            "beforeLines": 2,
+            "afterLines": 12,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:47c998cfc3226abdc498e097fa79bed92e7630022859ff54000d6efd06829675"
+          },
+          "participantInput": {
+            "scenario": "A single-file menu workflow uses an explicit root, package/workspace resolution, content cache, and committed session snapshot.",
+            "task": "Explain the reproducible build inputs and the safe session boundary."
+          }
+        },
+        {
+          "id": "package-adversarial",
+          "kind": "adversarial",
+          "problemKey": "hermetic-menu-build-session",
+          "outcomeKey": "preserve-resolution-closure-and-generation-invalidation",
+          "stimulus": {
+            "sourceRefId": "package-manifest",
+            "symbol": "package {",
+            "beforeLines": 2,
+            "afterLines": 12,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:5034fc2997a9d90c9e78849becf8507ab052285bd6439043cc7c6589627aeee5"
+          },
+          "observerOnly": {
+            "baseInputId": "package-primary",
+            "mutation": {
+              "find": "authority: .registry(\"w\")",
+              "replace": "authority: .registry(\"x\")",
+              "occurrences": 1
+            },
+            "expectedRepair": "restore the declared package authority"
+          },
+          "participantInput": {
+            "scenario": "The manifest names an authority outside the declared resolution closure, so reproducible resolution cannot proceed.",
+            "task": "Repair the authority entry while keeping the resolution closure and receipts reproducible."
+          }
+        }
       ],
       "tasks": [
-        { "id": "package-explain", "kind": "explain", "inputId": "package-primary", "participantInput": { "instruction": "Explain root selection, resolution closure, content identity, and committed session facts." } },
-        { "id": "package-recall", "kind": "recall", "inputId": "package-primary", "participantInput": { "instruction": "After a short delay, reconstruct which inputs are required before promotion." } },
-        { "id": "package-repair", "kind": "repair", "inputId": "package-adversarial", "participantInput": { "instruction": "Repair the stale resolution or invalidated generation without ambient lookup." } },
-        { "id": "package-change", "kind": "change", "inputId": "package-adversarial", "participantInput": { "instruction": "Change one declared dependency and preserve the reproducible resolution closure and receipt sequence." } }
+        {
+          "id": "package-explain",
+          "kind": "explain",
+          "inputId": "package-primary",
+          "participantInput": {
+            "instruction": "Explain root selection, resolution closure, content identity, and committed session facts."
+          }
+        },
+        {
+          "id": "package-recall",
+          "kind": "recall",
+          "inputId": "package-primary",
+          "participantInput": {
+            "instruction": "After a short delay, reconstruct which inputs are required before promotion."
+          }
+        },
+        {
+          "id": "package-repair",
+          "kind": "repair",
+          "inputId": "package-adversarial",
+          "participantInput": {
+            "instruction": "Repair the stale resolution or invalidated generation without ambient lookup."
+          }
+        },
+        {
+          "id": "package-change",
+          "kind": "change",
+          "inputId": "package-adversarial",
+          "participantInput": {
+            "instruction": "Change one declared dependency and preserve the reproducible resolution closure and receipt sequence."
+          }
+        }
       ],
-      "hiddenInternalFacts": ["physical filesystem location", "CAS storage address", "session memory", "opaque generation identity", "resolver and registry implementation"],
-      "explainableFacts": ["explicit context and roots", "resolution and recipe inputs", "content and artifact receipts", "invalidation and reopen facts"],
-      "counterbalance": { "orders": [["explain", "recall", "repair", "change"], ["recall", "repair", "change", "explain"]], "assignment": "balanced outside the participant prompt" },
-      "blinding": { "hiddenFields": ["expected", "status", "route", "role", "path", "digest", "oracle", "sourceRefId", "mutation", "expectedRepair"], "hideSourceIdentity": true, "hideVariantAssignment": true, "hideStimulusMetadata": true }
+      "hiddenInternalFacts": [
+        "physical filesystem location",
+        "CAS storage address",
+        "session memory",
+        "opaque generation identity",
+        "resolver and registry implementation"
+      ],
+      "explainableFacts": [
+        "explicit context and roots",
+        "resolution and recipe inputs",
+        "content and artifact receipts",
+        "invalidation and reopen facts"
+      ],
+      "counterbalance": {
+        "orders": [
+          [
+            "explain",
+            "recall",
+            "repair",
+            "change"
+          ],
+          [
+            "recall",
+            "repair",
+            "change",
+            "explain"
+          ]
+        ],
+        "assignment": "balanced outside the participant prompt"
+      },
+      "blinding": {
+        "hiddenFields": [
+          "expected",
+          "status",
+          "route",
+          "role",
+          "path",
+          "digest",
+          "oracle",
+          "sourceRefId",
+          "mutation",
+          "expectedRepair"
+        ],
+        "hideSourceIdentity": true,
+        "hideVariantAssignment": true,
+        "hideStimulusMetadata": true
+      }
     },
     {
       "id": "ffi-callback-lease",
@@ -211,40 +1159,197 @@
       "problemKey": "closing-bell-foreign-lease",
       "outcomeKey": "preserve-optional-registration-guard-and-external-drain-contract",
       "sourceRefs": [
-        { "id": "bell-lease", "path": "reference/last-light/memory.w", "symbol": "export object BellLease", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "Callback lease ownership and cleanup" },
-        { "id": "watch-closing-bell", "path": "reference/last-light/memory.w", "symbol": "export fn watchClosingBell", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "Callback admission and lease creation" },
-        { "id": "foreign-c-boundary", "path": "reference/last-light/abi.w", "symbol": "export foreign c {", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40", "claim": "Foreign body and ABI boundary" }
+        {
+          "id": "bell-lease",
+          "path": "reference/last-light/memory.w",
+          "symbol": "export object BellLease",
+          "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+          "claim": "Callback lease ownership and cleanup"
+        },
+        {
+          "id": "watch-closing-bell",
+          "path": "reference/last-light/memory.w",
+          "symbol": "export fn watchClosingBell",
+          "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+          "claim": "Callback admission and lease creation"
+        },
+        {
+          "id": "foreign-c-boundary",
+          "path": "reference/last-light/abi.w",
+          "symbol": "export foreign c {",
+          "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40",
+          "claim": "Foreign body and ABI boundary"
+        }
       ],
       "oracleRefs": [
-        { "id": "shared-control-cases", "path": "tooling/shared-control-cases.json", "digest": "sha256:29910515825d2431cc0c533dad8bd70947e86e77615bcd7ee87b71e02c2a5d4d", "claim": "Shared control, FFI lease, and cleanup ordering cases" },
-        { "id": "cycle-reference", "path": "tooling/cyc1-explicit-cycle-reference.test.mjs", "digest": "sha256:492e4162e0f3523e894c85c437c2ffe1b9e5c0dcbd7d39c5299c9985ca96aea9", "claim": "Independent callback drain and cycle lifecycle assertions" }
+        {
+          "id": "shared-control-cases",
+          "path": "tooling/shared-control-cases.json",
+          "digest": "sha256:29910515825d2431cc0c533dad8bd70947e86e77615bcd7ee87b71e02c2a5d4d",
+          "claim": "Shared control, FFI lease, and cleanup ordering cases"
+        },
+        {
+          "id": "cycle-reference",
+          "path": "tooling/cyc1-explicit-cycle-reference.test.mjs",
+          "digest": "sha256:492e4162e0f3523e894c85c437c2ffe1b9e5c0dcbd7d39c5299c9985ca96aea9",
+          "claim": "Independent callback drain and cycle lifecycle assertions"
+        }
       ],
       "inputs": [
-        { "id": "ffi-primary", "kind": "primary", "problemKey": "closing-bell-foreign-lease", "outcomeKey": "preserve-optional-registration-guard-and-external-drain-contract", "stimulus": { "sourceRefId": "bell-lease", "symbol": "export object BellLease", "beforeLines": 2, "afterLines": 16, "maxBytes": 700, "derivedStimulusDigest": "sha256:5028b6aef09fd8119988ce74cfefbfa08e1a8802c3fabd8614d8073b7b2e8c0a" }, "participantInput": { "scenario": "A foreign closing-bell callback is admitted under a W lease with an optional registration and guarded unsubscribe.", "task": "Explain the owner, optional admission result, guarded cleanup, and the external drain obligation." } },
-        { "id": "ffi-adversarial", "kind": "adversarial", "problemKey": "closing-bell-foreign-lease", "outcomeKey": "preserve-optional-registration-guard-and-external-drain-contract", "stimulus": { "sourceRefId": "bell-lease", "symbol": "export object BellLease", "beforeLines": 2, "afterLines": 16, "maxBytes": 700, "derivedStimulusDigest": "sha256:96441db7c6c3056b55d7d559c4f4c4cc190358fb6375d2ab7daa362d5f4dbf6a" }, "observerOnly": { "baseInputId": "ffi-primary", "mutation": { "find": "registration: c.ptr<ll_registration>?", "replace": "registration: c.ptr<ll_registration>", "occurrences": 1 }, "expectedRepair": "restore optional registration and guarded unsubscribe; require external in-flight drain" }, "participantInput": { "scenario": "The lease makes registration mandatory, so the guarded cleanup no longer represents a failed admission.", "task": "Repair the registration type while keeping external drain evidence separate from this source window." } }
+        {
+          "id": "ffi-primary",
+          "kind": "primary",
+          "problemKey": "closing-bell-foreign-lease",
+          "outcomeKey": "preserve-optional-registration-guard-and-external-drain-contract",
+          "stimulus": {
+            "sourceRefId": "bell-lease",
+            "symbol": "export object BellLease",
+            "beforeLines": 2,
+            "afterLines": 16,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:5028b6aef09fd8119988ce74cfefbfa08e1a8802c3fabd8614d8073b7b2e8c0a"
+          },
+          "participantInput": {
+            "scenario": "A foreign closing-bell callback is admitted under a W lease with an optional registration and guarded unsubscribe.",
+            "task": "Explain the owner, optional admission result, guarded cleanup, and the external drain obligation."
+          }
+        },
+        {
+          "id": "ffi-adversarial",
+          "kind": "adversarial",
+          "problemKey": "closing-bell-foreign-lease",
+          "outcomeKey": "preserve-optional-registration-guard-and-external-drain-contract",
+          "stimulus": {
+            "sourceRefId": "bell-lease",
+            "symbol": "export object BellLease",
+            "beforeLines": 2,
+            "afterLines": 16,
+            "maxBytes": 700,
+            "derivedStimulusDigest": "sha256:96441db7c6c3056b55d7d559c4f4c4cc190358fb6375d2ab7daa362d5f4dbf6a"
+          },
+          "observerOnly": {
+            "baseInputId": "ffi-primary",
+            "mutation": {
+              "find": "registration: c.ptr<ll_registration>?",
+              "replace": "registration: c.ptr<ll_registration>",
+              "occurrences": 1
+            },
+            "expectedRepair": "restore optional registration and guarded unsubscribe; require external in-flight drain"
+          },
+          "participantInput": {
+            "scenario": "The lease makes registration mandatory, so the guarded cleanup no longer represents a failed admission.",
+            "task": "Repair the registration type while keeping external drain evidence separate from this source window."
+          }
+        }
       ],
       "tasks": [
-        { "id": "ffi-explain", "kind": "explain", "inputId": "ffi-primary", "participantInput": { "instruction": "Explain optional admission, guarded unsubscribe, and the required external in-flight drain before destroy, unpin, and reclaim." } },
-        { "id": "ffi-recall", "kind": "recall", "inputId": "ffi-primary", "participantInput": { "instruction": "After a short delay, reconstruct the cleanup order and the owner that authorizes it." } },
-        { "id": "ffi-repair", "kind": "repair", "inputId": "ffi-adversarial", "participantInput": { "instruction": "Repair the prepared shutdown sequence without relying on a callback after reclamation." } },
-        { "id": "ffi-change", "kind": "change", "inputId": "ffi-adversarial", "participantInput": { "instruction": "Change the callback scope and preserve the same drain and release invariants." } }
+        {
+          "id": "ffi-explain",
+          "kind": "explain",
+          "inputId": "ffi-primary",
+          "participantInput": {
+            "instruction": "Explain optional admission, guarded unsubscribe, and the required external in-flight drain before destroy, unpin, and reclaim."
+          }
+        },
+        {
+          "id": "ffi-recall",
+          "kind": "recall",
+          "inputId": "ffi-primary",
+          "participantInput": {
+            "instruction": "After a short delay, reconstruct the cleanup order and the owner that authorizes it."
+          }
+        },
+        {
+          "id": "ffi-repair",
+          "kind": "repair",
+          "inputId": "ffi-adversarial",
+          "participantInput": {
+            "instruction": "Repair the prepared shutdown sequence without relying on a callback after reclamation."
+          }
+        },
+        {
+          "id": "ffi-change",
+          "kind": "change",
+          "inputId": "ffi-adversarial",
+          "participantInput": {
+            "instruction": "Change the callback scope and preserve the same drain and release invariants."
+          }
+        }
       ],
-      "hiddenInternalFacts": ["foreign pointer and address", "provider callback thread", "FFI registry storage", "secret payload bytes", "runtime destructor implementation", "external drain receipt implementation"],
-      "explainableFacts": ["lease ownership", "optional registration and guarded unsubscribe", "external in-flight drain obligation", "destroy, unpin, reclaim order"],
-      "counterbalance": { "orders": [["explain", "recall", "repair", "change"], ["change", "explain", "repair", "recall"]], "assignment": "balanced outside the participant prompt" },
-      "blinding": { "hiddenFields": ["expected", "status", "route", "role", "path", "digest", "oracle", "sourceRefId", "mutation", "expectedRepair"], "hideSourceIdentity": true, "hideVariantAssignment": true, "hideStimulusMetadata": true }
+      "hiddenInternalFacts": [
+        "foreign pointer and address",
+        "provider callback thread",
+        "FFI registry storage",
+        "secret payload bytes",
+        "runtime destructor implementation",
+        "external drain receipt implementation"
+      ],
+      "explainableFacts": [
+        "lease ownership",
+        "optional registration and guarded unsubscribe",
+        "external in-flight drain obligation",
+        "destroy, unpin, reclaim order"
+      ],
+      "counterbalance": {
+        "orders": [
+          [
+            "explain",
+            "recall",
+            "repair",
+            "change"
+          ],
+          [
+            "change",
+            "explain",
+            "repair",
+            "recall"
+          ]
+        ],
+        "assignment": "balanced outside the participant prompt"
+      },
+      "blinding": {
+        "hiddenFields": [
+          "expected",
+          "status",
+          "route",
+          "role",
+          "path",
+          "digest",
+          "oracle",
+          "sourceRefId",
+          "mutation",
+          "expectedRepair"
+        ],
+        "hideSourceIdentity": true,
+        "hideVariantAssignment": true,
+        "hideStimulusMetadata": true
+      }
     }
   ],
   "resultContracts": {
     "human": {
       "participantIdHash": "sha256",
-      "background": ["C", "Rust", "Python", "W"],
+      "background": [
+        "C",
+        "Rust",
+        "Python",
+        "W"
+      ],
       "timeMs": "nonnegative-integer",
       "queryCount": "nonnegative-integer",
       "confidence": "required-integer-1-to-5",
-      "oracleCheckedOutcomes": { "semantic": "pass|fail|inconclusive", "repair": "pass|fail|inconclusive", "change": "pass|fail|inconclusive" },
+      "oracleCheckedOutcomes": {
+        "semantic": "pass|fail|inconclusive",
+        "repair": "pass|fail|inconclusive",
+        "change": "pass|fail|inconclusive"
+      },
       "observerReceiptDigest": "sha256",
-      "noPiiFields": ["name", "email", "contact", "address"]
+      "noPiiFields": [
+        "name",
+        "email",
+        "contact",
+        "address"
+      ]
     },
     "model": {
       "provider": "nonempty-string",
@@ -255,15 +1360,45 @@
       "inputDigest": "sha256",
       "observerReceiptDigest": "sha256",
       "tokens": "{input,output,total}:nonnegative-integer-sum",
-      "oracleCheckedOutcomes": { "semantic": "pass|fail|inconclusive", "repair": "pass|fail|inconclusive", "change": "pass|fail|inconclusive" }
+      "oracleCheckedOutcomes": {
+        "semantic": "pass|fail|inconclusive",
+        "repair": "pass|fail|inconclusive",
+        "change": "pass|fail|inconclusive"
+      }
     }
   },
-  "records": { "human": [], "model": [] },
+  "records": {
+    "human": [],
+    "model": []
+  },
   "stopCondition": "At the first protocol violation, stale or missing source/oracle reference, expected echo, forged outcome, identity leak, divergent problem or outcome, duplicate record, or oracle disagreement, stop collection and keep the slice in Research. Require an independent replacement case before any normative review.",
   "metricsPolicy": {
     "readiness": "derive only protocol-ready, eight slices, and 32 tasks",
-    "human": ["semantic accuracy", "first-failure classification", "oracle-checked repair", "oracle-checked change", "timeMs", "queryCount", "confidence"],
-    "model": ["compile/type-check when implementation exists", "tests passed", "diagnostics to correction", "provider/model/tokenizer/version/params/inputDigest", "tokens", "canonical edit distance", "consistency"],
-    "forbidden": ["fake participants", "manual outcome metrics", "score", "preference as evidence", "ergonomic win", "LOC as comprehension"]
+    "human": [
+      "semantic accuracy",
+      "first-failure classification",
+      "oracle-checked repair",
+      "oracle-checked change",
+      "timeMs",
+      "queryCount",
+      "confidence"
+    ],
+    "model": [
+      "compile/type-check when implementation exists",
+      "tests passed",
+      "diagnostics to correction",
+      "provider/model/tokenizer/version/params/inputDigest",
+      "tokens",
+      "canonical edit distance",
+      "consistency"
+    ],
+    "forbidden": [
+      "fake participants",
+      "manual outcome metrics",
+      "score",
+      "preference as evidence",
+      "ergonomic win",
+      "LOC as comprehension"
+    ]
   }
 }

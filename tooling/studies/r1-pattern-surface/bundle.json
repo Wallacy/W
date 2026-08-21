@@ -57,7 +57,9 @@
       "operation": "nominal-open",
       "order": {
         "id": 101,
-        "guest": { "name": "Ada Quasar" },
+        "guest": {
+          "name": "Ada Quasar"
+        },
         "stage": "accepted",
         "guests": 2,
         "route": "menu",
@@ -68,9 +70,18 @@
         "name": "Ada Quasar",
         "party": "intimate",
         "route": "show",
-        "consumed": ["id", "guest", "stage", "guests", "route", "newField"],
+        "consumed": [
+          "id",
+          "guest",
+          "stage",
+          "guests",
+          "route",
+          "newField"
+        ],
         "ownerConsumed": true,
-        "openRest": { "horizon-note": "clear" }
+        "openRest": {
+          "horizon-note": "clear"
+        }
       }
     },
     {
@@ -78,7 +89,9 @@
       "operation": "nominal-open",
       "order": {
         "id": 0,
-        "guest": { "name": "" },
+        "guest": {
+          "name": ""
+        },
         "stage": "unknown",
         "guests": 0,
         "route": "unknown",
@@ -89,9 +102,18 @@
         "name": "",
         "party": "regular",
         "route": "reject",
-        "consumed": ["id", "guest", "stage", "guests", "route", "newField"],
+        "consumed": [
+          "id",
+          "guest",
+          "stage",
+          "guests",
+          "route",
+          "newField"
+        ],
         "ownerConsumed": true,
-        "openRest": { "future": "pending" }
+        "openRest": {
+          "future": "pending"
+        }
       }
     },
     {
@@ -99,84 +121,122 @@
       "operation": "closed-route",
       "order": {
         "id": 101,
-        "guest": { "name": "Ada Quasar" },
+        "guest": {
+          "name": "Ada Quasar"
+        },
         "stage": "accepted",
         "guests": 2,
         "route": "menu",
         "newField": "horizon-note",
         "newFieldValue": "clear"
       },
-      "expected": { "route": "show", "consumed": ["route"], "effects": [] }
+      "expected": {
+        "route": "show",
+        "consumed": [
+          "route"
+        ],
+        "effects": []
+      }
     },
     {
       "id": "unknown-route-candidate",
       "operation": "unknown-route",
       "order": {
         "id": 0,
-        "guest": { "name": "" },
+        "guest": {
+          "name": ""
+        },
         "stage": "unknown",
         "guests": 0,
         "route": "unknown",
         "newField": "future",
         "newFieldValue": "pending"
       },
-      "expected": { "accepted": false, "cause": "unknown-route", "effects": [] }
+      "expected": {
+        "accepted": false,
+        "cause": "unknown-route",
+        "effects": []
+      }
     },
     {
       "id": "structural-pattern-candidate",
       "operation": "structural-pattern",
       "order": {
         "id": 101,
-        "guest": { "name": "Ada Quasar" },
+        "guest": {
+          "name": "Ada Quasar"
+        },
         "stage": "accepted",
         "guests": 2,
         "route": "menu",
         "newField": "horizon-note",
         "newFieldValue": "clear"
       },
-      "expected": { "accepted": false, "cause": "structural-pattern", "effects": [] }
+      "expected": {
+        "accepted": false,
+        "cause": "structural-pattern",
+        "effects": []
+      }
     },
     {
       "id": "multi-subject-switch-candidate",
       "operation": "multi-subject-switch",
       "order": {
         "id": 101,
-        "guest": { "name": "Ada Quasar" },
+        "guest": {
+          "name": "Ada Quasar"
+        },
         "stage": "accepted",
         "guests": 2,
         "route": "menu",
         "newField": "horizon-note",
         "newFieldValue": "clear"
       },
-      "expected": { "accepted": false, "cause": "multi-subject-switch", "effects": [] }
+      "expected": {
+        "accepted": false,
+        "cause": "multi-subject-switch",
+        "effects": []
+      }
     },
     {
       "id": "implicit-open-pattern-candidate",
       "operation": "implicit-open-pattern",
       "order": {
         "id": 101,
-        "guest": { "name": "Ada Quasar" },
+        "guest": {
+          "name": "Ada Quasar"
+        },
         "stage": "accepted",
         "guests": 2,
         "route": "menu",
         "newField": "horizon-note",
         "newFieldValue": "clear"
       },
-      "expected": { "accepted": false, "cause": "implicit-open-pattern", "effects": [] }
+      "expected": {
+        "accepted": false,
+        "cause": "implicit-open-pattern",
+        "effects": []
+      }
     },
     {
       "id": "custom-pattern-dispatch-candidate",
       "operation": "custom-pattern-dispatch",
       "order": {
         "id": 101,
-        "guest": { "name": "Ada Quasar" },
+        "guest": {
+          "name": "Ada Quasar"
+        },
         "stage": "accepted",
         "guests": 2,
         "route": "menu",
         "newField": "horizon-note",
         "newFieldValue": "clear"
       },
-      "expected": { "accepted": false, "cause": "custom-pattern-dispatch", "effects": [] }
+      "expected": {
+        "accepted": false,
+        "cause": "custom-pattern-dispatch",
+        "effects": []
+      }
     }
   ],
   "tasks": [

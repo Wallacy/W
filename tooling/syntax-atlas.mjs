@@ -9,7 +9,7 @@ const GRAMMAR = path.join(ROOT, "tooling", "tree-sitter-w", "grammar.js");
 const MANIFEST = path.join(ATLAS, "atlas-manifest.json");
 const CHEATSHEET = path.join(ATLAS, "CHEATSHEET.md");
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
-const RULE_SET_DIGEST = "sha256:488b4ea2148178f13e1ee2f40b78eb80bec63d5be53fbb2c71b850469d02eaf7";
+const RULE_SET_DIGEST = "sha256:587e99fbe114af19588ad4c925de8a8128d99f0c7cfc98d71709f0f386321522";
 const SCHEMA = "w-syntax-atlas-1";
 
 const ROOT_KINDS = new Set(["module", "package", "workspace"]);
@@ -56,7 +56,7 @@ const INTERNAL_RULES = new Set();
 const RECOVERY_RULES = new Set(["foreign_body_content"]);
 
 const MANIFEST_RULES = new Set([
-  "package_manifest", "workspace_manifest", "manifest_record",
+  "build_manifest", "package_manifest", "workspace_manifest", "manifest_record",
   "manifest_field", "manifest_value", "manifest_list", "manifest_constructor", "manifest_argument",
 ]);
 
@@ -120,6 +120,7 @@ function markerForRule(name) {
   if (MARKER_RULE_OVERRIDES.has(name)) return MARKER_RULE_OVERRIDES.get(name);
   if (name === "package_manifest") return "package-root";
   if (name === "workspace_manifest") return "workspace-root";
+  if (name === "build_manifest") return "package-root";
   if (["manifest_record", "manifest_field", "manifest_value", "manifest_list", "manifest_constructor", "manifest_argument"].includes(name)) return "package-root";
   if (ROOT_RULES.has(name)) return "source-roots-imports";
   if (LEXICAL_RULES.has(name)) return "literals-and-collections";
@@ -258,17 +259,15 @@ function validateSourceRefs(blocks) {
 function rootDisposition(files, blocks) {
   const byFile = new Map(files.map((file) => [path.relative(ATLAS, file.file).split(path.sep).join("/"), file]));
   const required = new Map([
-    ["language.w", "module"],
-    ["execution.w", "module"],
-    ["package.w", "package"],
-    ["workspace.w", "workspace"],
+    ["language.w", new Set(["module"])],
+    ["execution.w", new Set(["module"])],
+    ["build.w", new Set(["package", "workspace"])],
   ]);
   for (const [file, expected] of required) {
     const entry = byFile.get(file);
     if (!entry) throw new Error(`root atlas file ${file} is missing.`);
-    if (!entry.blocks.some((block) => block.root === expected)) throw new Error(`${file} must contain root=${expected}.`);
-    const allowed = new Set([expected]);
-    for (const block of entry.blocks) if (!allowed.has(block.root)) throw new Error(`${file} has incompatible root=${block.root} on ${block.id}.`);
+    for (const root of expected) if (!entry.blocks.some((block) => block.root === root)) throw new Error(`${file} must contain root=${root}.`);
+    for (const block of entry.blocks) if (!expected.has(block.root)) throw new Error(`${file} has incompatible root=${block.root} on ${block.id}.`);
   }
 }
 
@@ -416,8 +415,7 @@ function buildManifest(snapshot, cheatsheet) {
     rootForms: [
       { file: "language.w", root: "module", role: "main-reading-path" },
       { file: "execution.w", root: "module", role: "main-reading-path" },
-      { file: "package.w", root: "package", role: "exclusive-root" },
-      { file: "workspace.w", root: "workspace", role: "exclusive-root" },
+      { file: "build.w", root: "build_manifest", role: "unified-root" },
     ],
     grammarRules: snapshot.ruleEntries,
     families: snapshot.families,

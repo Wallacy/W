@@ -9,38 +9,38 @@
   "sourceBase": {
     "path": "current.w",
     "symbol": "finalResearchClosure",
-    "digest": "sha256:f07a2143e4b7bcfe0b0a4b2a05afa6ce55a87132993c7c4dd7f644f523534007"
+    "digest": "sha256:cbaecb38de25b8ff551841649977a85131f849cf0c12ecf7026cd06b6d61b866"
   },
   "sourceRefs": [
     {
       "path": "../../../tooling/final-research-closure-cases.json",
       "symbol": "w-final-research-closure-cases-1",
-      "digest": "sha256:b0dc887596723957561dadb46ef3cde82d0cb44c2172b308757b00a8898c1ec4"
+      "digest": "sha256:d8cbc1b47023f5a58840ec6af3e852bd1beffde1a2e32639e7f6b71b8a34b594"
     },
     {
       "path": "../../../tooling/frontend-freeze-cases.json",
       "symbol": "FZ0-G0-statements-control",
-      "digest": "sha256:80ffce3d4e87fd215cadf954ae1a8bda246ed880c08826aa892cdd7aee5db322"
+      "digest": "sha256:8ce615271840ed2386ee0646c45f8325baa2370b7d34f0ecd8f5a11b93441189"
     },
     {
       "path": "../../../tooling/hum0-human-review-protocol.json",
       "symbol": "w-hum0-human-review-protocol-1",
-      "digest": "sha256:c8f1d8cdc603e384112536d74d46618af7194765b6a9e87ea1924aaff2fc3ca1"
+      "digest": "sha256:bafc69bf25533697f3b4fbb09dcad079b3bb6cbd2c969fd0b4602c296d4374ff"
     },
     {
       "path": "../../../tooling/design-freeze-classification.json",
       "symbol": "w-design-freeze-classification-1",
-      "digest": "sha256:7c70698aff31392460c8b09f1797f41394331b69c3e187a81c85e6a713f82229"
+      "digest": "sha256:98a930773e5aa6c4c65d0f4b96cf5d5e2cdf0752e7756c8e46e3bc2a1feb42a3"
     },
     {
       "path": "../../../RATIONALE.md",
       "symbol": "| W-707 | gate de design freeze",
-      "digest": "sha256:061b803def2e24e9bc1295a0a093f79e70842118bea512c7fe336cd8a86f7758"
+      "digest": "sha256:597d4f472b00667812639ae7d28c185b68f43bd90d591916c145ba254a3d2514"
     },
     {
       "path": "../../../DESIGN.md",
       "symbol": "#### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa",
-      "digest": "sha256:2739e0bcb41ab2358a4740f0a2e9d23d983e6621a61f746a7f30b8b09115025f"
+      "digest": "sha256:9825dd52c9957f99ecf0e1a1a338d7af176f5a4ac5b0840747b1e769452688a3"
     }
   ],
   "variants": [
@@ -49,7 +49,7 @@
       "role": "selected",
       "language": "w",
       "path": "current.w",
-      "digest": "sha256:f07a2143e4b7bcfe0b0a4b2a05afa6ce55a87132993c7c4dd7f644f523534007",
+      "digest": "sha256:cbaecb38de25b8ff551841649977a85131f849cf0c12ecf7026cd06b6d61b866",
       "changedConstructs": [
         "current gate contract",
         "reuse-only host evidence"
@@ -64,7 +64,7 @@
       "role": "rejected-witness",
       "language": "w",
       "path": "adversarial.w",
-      "digest": "sha256:96a87cafc75dbe7e8c5dc6a2ac2797a04770139fdb33c63a8a36a76873da07aa",
+      "digest": "sha256:141251fe09e786e1a089b00fe441b762f67181986de38a259841acf82e118c4b",
       "changedConstructs": [
         "missing family/disposition/record mutation",
         "rejected gate route"
@@ -139,7 +139,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:fd8bd170a1596e303b703c514a2f684ce45494981a3f7063395fff629173229a"
+    "digest": "sha256:89c4dabaddd4d4580e2f765f6de4cbeb0ddeda6e7bbf31c1b2da605d1d276883"
   },
   "evidence": {
     "current": [

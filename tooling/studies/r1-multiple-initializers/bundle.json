@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-multiple-initializers",
   "title": "Money construction at the Last Light restaurant",
-  "r0Cases": ["R0-multiple-initializers"],
+  "r0Cases": [
+    "R0-multiple-initializers"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/domain.w",
     "symbol": "Money",
@@ -53,19 +55,25 @@
       "id": "minor-units",
       "unit": "minor",
       "value": "4242",
-      "expected": { "minorUnits": "4242" }
+      "expected": {
+        "minorUnits": "4242"
+      }
     },
     {
       "id": "major-units",
       "unit": "major",
       "value": "42",
-      "expected": { "minorUnits": "4200" }
+      "expected": {
+        "minorUnits": "4200"
+      }
     },
     {
       "id": "maximum-major-units",
       "unit": "major",
       "value": "9223372036854775807",
-      "expected": { "minorUnits": "922337203685477580700" }
+      "expected": {
+        "minorUnits": "922337203685477580700"
+      }
     }
   ],
   "tasks": [
@@ -93,20 +101,49 @@
     }
   ],
   "presentationOrders": [
-    ["multiple", "single-mode", "factories"],
-    ["single-mode", "factories", "multiple"],
-    ["factories", "multiple", "single-mode"]
+    [
+      "multiple",
+      "single-mode",
+      "factories"
+    ],
+    [
+      "single-mode",
+      "factories",
+      "multiple"
+    ],
+    [
+      "factories",
+      "multiple",
+      "single-mode"
+    ]
   ],
   "blinding": {
-    "participantLabels": { "multiple": "A", "single-mode": "B", "factories": "C" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "multiple": "A",
+      "single-mode": "B",
+      "factories": "C"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:68515a24a6cede6dc964433fea93d8da1050fecec784b036c6e299570fc1b5a5"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

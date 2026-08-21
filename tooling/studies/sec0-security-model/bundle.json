@@ -3,7 +3,10 @@
   "status": "design-oracle-input",
   "id": "R1-sec0-security-model",
   "title": "Security profiles and defense in depth at the Last Light restaurant",
-  "r0Cases": ["R0-manifest-record", "R0-spawn-domain"],
+  "r0Cases": [
+    "R0-manifest-record",
+    "R0-spawn-domain"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/capability_security_oracle.w",
     "symbol": "enum CapabilityOrigin",
@@ -43,8 +46,15 @@
       "language": "w",
       "path": "security-profile.w",
       "digest": "sha256:3bf7caef5309bfdbe49752360caba90f296450062370a7a943a7ef8bc712afd5",
-      "changedConstructs": ["profile boundary", "budget proof", "mediated API"],
-      "parseEvidence": {"status": "tree-sitter-parse", "note": "Source-shaped profile witness parses with the current grammar."}
+      "changedConstructs": [
+        "profile boundary",
+        "budget proof",
+        "mediated API"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Source-shaped profile witness parses with the current grammar."
+      }
     },
     {
       "id": "security-boundary",
@@ -52,8 +62,15 @@
       "language": "w",
       "path": "security-boundary.w",
       "digest": "sha256:05935c8470fea47330e1a84732152ab9ed47afb401ef44b77add2e1187f87eca",
-      "changedConstructs": ["tenant binding", "bounded input", "boundary function"],
-      "parseEvidence": {"status": "tree-sitter-parse", "note": "Source-shaped tenant witness parses with the current grammar."}
+      "changedConstructs": [
+        "tenant binding",
+        "bounded input",
+        "boundary function"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Source-shaped tenant witness parses with the current grammar."
+      }
     },
     {
       "id": "security-feature",
@@ -61,8 +78,14 @@
       "language": "w",
       "path": "security-feature.w",
       "digest": "sha256:aed6494f31b9461d672c918b9112bd53c28fc8dd159cf2b3320255a93ee72051",
-      "changedConstructs": ["typed runtime composition", "security-neutral flag"],
-      "parseEvidence": {"status": "tree-sitter-parse", "note": "Source-shaped feature witness does not add security authority."}
+      "changedConstructs": [
+        "typed runtime composition",
+        "security-neutral flag"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Source-shaped feature witness does not add security authority."
+      }
     },
     {
       "id": "rejected-ambient-security",
@@ -70,8 +93,15 @@
       "language": "w-reserved",
       "path": "rejected-ambient-security.txt",
       "digest": "sha256:f31604babc0d55f7c430107569356d1671ab7a3129f4f0cb3e51c3b176b11e08",
-      "changedConstructs": ["ambient authority", "runtime security disable", "deployment downgrade"],
-      "parseEvidence": {"status": "reserved-not-parsed", "note": "Rejected mechanisms remain text-only witnesses."}
+      "changedConstructs": [
+        "ambient authority",
+        "runtime security disable",
+        "deployment downgrade"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Rejected mechanisms remain text-only witnesses."
+      }
     },
     {
       "id": "security-patch",
@@ -79,39 +109,118 @@
       "language": "w-reserved",
       "path": "security-patch.txt",
       "digest": "sha256:f71ab546de17f1a7831933afa7df392955754b7918dd06c6159c7eaf5801a21b",
-      "changedConstructs": ["patch receipt", "attestation order", "deployment admission"],
-      "parseEvidence": {"status": "reserved-not-parsed", "note": "Host attestation sequence is not W syntax."}
+      "changedConstructs": [
+        "patch receipt",
+        "attestation order",
+        "deployment admission"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Host attestation sequence is not W syntax."
+      }
     }
   ],
   "entry": "security",
   "inputs": [
-    {"id": "safe-profile", "scenario": "safe-invariants-and-profile", "expected": {"axis": "safeInvariants"}},
-    {"id": "adversarial-boundary", "scenario": "authority-and-downgrade", "expected": {"axis": "featureComposition"}},
-    {"id": "physical-target", "scenario": "physical-profile-receipts", "expected": {"axis": "profileIsolation"}}
+    {
+      "id": "safe-profile",
+      "scenario": "safe-invariants-and-profile",
+      "expected": {
+        "axis": "safeInvariants"
+      }
+    },
+    {
+      "id": "adversarial-boundary",
+      "scenario": "authority-and-downgrade",
+      "expected": {
+        "axis": "featureComposition"
+      }
+    },
+    {
+      "id": "physical-target",
+      "scenario": "physical-profile-receipts",
+      "expected": {
+        "axis": "profileIsolation"
+      }
+    }
   ],
   "tasks": [
-    {"kind": "explain", "instruction": "Explain which security obligations stay static and which vary by target profile."},
-    {"kind": "recall", "instruction": "After the controlled delay, recall why omission needs proof, hardware, external mediation, or an explicit threat-model exception.", "minimumDelaySeconds": 1},
-    {"kind": "repair", "instruction": "Repair an authority amplification, missing receipt, stale patch, or deployment floor mutation.", "mutations": {
-      "security-profile": "Keep safe invariants and a product minimum.",
-      "security-boundary": "Keep tenant and input mediation explicit.",
-      "security-feature": "Keep runtime configuration security-neutral.",
-      "rejected-ambient-security": "Keep ambient and flag-based protection bypass rejected.",
-      "security-patch": "Restore ordered source, lock, artifact, signature, attestation, and admission evidence."
-    }},
-    {"kind": "change", "instruction": "Change the physical target or deployment budget without changing the public semantic interface or weakening the minimum."}
+    {
+      "kind": "explain",
+      "instruction": "Explain which security obligations stay static and which vary by target profile."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, recall why omission needs proof, hardware, external mediation, or an explicit threat-model exception.",
+      "minimumDelaySeconds": 1
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair an authority amplification, missing receipt, stale patch, or deployment floor mutation.",
+      "mutations": {
+        "security-profile": "Keep safe invariants and a product minimum.",
+        "security-boundary": "Keep tenant and input mediation explicit.",
+        "security-feature": "Keep runtime configuration security-neutral.",
+        "rejected-ambient-security": "Keep ambient and flag-based protection bypass rejected.",
+        "security-patch": "Restore ordered source, lock, artifact, signature, attestation, and admission evidence."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Change the physical target or deployment budget without changing the public semantic interface or weakening the minimum."
+    }
   ],
   "presentationOrders": [
-    ["security-profile", "security-boundary", "security-feature", "rejected-ambient-security", "security-patch"],
-    ["rejected-ambient-security", "security-patch", "security-feature", "security-boundary", "security-profile"]
+    [
+      "security-profile",
+      "security-boundary",
+      "security-feature",
+      "rejected-ambient-security",
+      "security-patch"
+    ],
+    [
+      "rejected-ambient-security",
+      "security-patch",
+      "security-feature",
+      "security-boundary",
+      "security-profile"
+    ]
   ],
   "blinding": {
-    "participantLabels": {"security-profile": "A", "security-boundary": "B", "security-feature": "C", "rejected-ambient-security": "D", "security-patch": "E"},
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "security-profile": "A",
+      "security-boundary": "B",
+      "security-feature": "C",
+      "rejected-ambient-security": "D",
+      "security-patch": "E"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
-  "oracle": {"path": "oracle.test.mjs", "digest": "sha256:501d19acbac29bf003aeccec859c085b975e2226bd0bc3fb6bd5a35432d8440d"},
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:501d19acbac29bf003aeccec859c085b975e2226bd0bc3fb6bd5a35432d8440d"
+  },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle", "source-ref", "official-primary"],
-    "missing": ["w-compile", "w-run", "provider", "runtime", "attestation", "fault-stress", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle",
+      "source-ref",
+      "official-primary"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "provider",
+      "runtime",
+      "attestation",
+      "fault-stress",
+      "human-study",
+      "model-study"
+    ]
   }
 }

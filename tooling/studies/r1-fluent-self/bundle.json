@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-fluent-self",
   "title": "Fluent receiver reborrow at the Last Light restaurant",
-  "r0Cases": ["R0-explicit-self-return"],
+  "r0Cases": [
+    "R0-explicit-self-return"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/audio.w",
     "symbol": "clear",
@@ -16,7 +18,11 @@
       "language": "w",
       "path": "fallthrough.w",
       "digest": "sha256:a9c2b7c620892245e290dea51aff876018f5f7fee7c1abb1d4ce91aacd369f35",
-      "changedConstructs": ["explicit : self contract", "canonical fallthrough", "receiver reborrow"]
+      "changedConstructs": [
+        "explicit : self contract",
+        "canonical fallthrough",
+        "receiver reborrow"
+      ]
     },
     {
       "id": "explicit-return",
@@ -24,7 +30,11 @@
       "language": "w",
       "path": "explicit-return.w",
       "digest": "sha256:94d1fd10035c290f5caa2e9dd1a1ffbc032b92967f887f566a3a5f15b8a2af37",
-      "changedConstructs": ["explicit return self", "same : self contract", "equivalent reborrow"]
+      "changedConstructs": [
+        "explicit return self",
+        "same : self contract",
+        "equivalent reborrow"
+      ]
     },
     {
       "id": "omitted-unit",
@@ -32,7 +42,11 @@
       "language": "w",
       "path": "omitted-unit.w",
       "digest": "sha256:7a0f5d56db7c79eaec991fb2cfe1fe9831a4a224251f11ed28e7b2579b272d13",
-      "changedConstructs": ["omitted return type", "Unit result", "fluent-use semantic rejection"]
+      "changedConstructs": [
+        "omitted return type",
+        "Unit result",
+        "fluent-use semantic rejection"
+      ]
     }
   ],
   "entry": "reset",
@@ -40,12 +54,22 @@
     {
       "id": "primary-reborrow",
       "phase": 0.75,
-      "expected": { "phase": 0, "sameReceiver": true, "allocations": 0, "moves": 0 }
+      "expected": {
+        "phase": 0,
+        "sameReceiver": true,
+        "allocations": 0,
+        "moves": 0
+      }
     },
     {
       "id": "adversarial-contracts",
       "phase": 0.25,
-      "expected": { "omittedType": "Unit", "fluentUse": "reject", "takeSelf": "reject", "ownedSelf": "distinct" }
+      "expected": {
+        "omittedType": "Unit",
+        "fluentUse": "reject",
+        "takeSelf": "reject",
+        "ownedSelf": "distinct"
+      }
     }
   ],
   "tasks": [
@@ -73,20 +97,49 @@
     }
   ],
   "presentationOrders": [
-    ["fallthrough", "explicit-return", "omitted-unit"],
-    ["omitted-unit", "fallthrough", "explicit-return"],
-    ["explicit-return", "omitted-unit", "fallthrough"]
+    [
+      "fallthrough",
+      "explicit-return",
+      "omitted-unit"
+    ],
+    [
+      "omitted-unit",
+      "fallthrough",
+      "explicit-return"
+    ],
+    [
+      "explicit-return",
+      "omitted-unit",
+      "fallthrough"
+    ]
   ],
   "blinding": {
-    "participantLabels": { "fallthrough": "A", "explicit-return": "B", "omitted-unit": "C" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "fallthrough": "A",
+      "explicit-return": "B",
+      "omitted-unit": "C"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:824a815b50d6d70edbeb0ad1172849a904d06279a6d9c6ab039500e95534ecda"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

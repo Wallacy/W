@@ -47,7 +47,7 @@
       "sourceRef": {
         "path": "reference/last-light/horizon_tool.w",
         "symbol": "print(result)",
-        "digest": "sha256:1b14a158204e203b9e7d202ad7a19800f5c663f90dae5819f185f4d869e4fd3f"
+        "digest": "sha256:5dd0ef36cdae1de19c1888458a82147191f1f06816d5aaa8ece8e99927a72936"
       },
       "positive": {
         "formatterCase": "F0-module-run-entry",

@@ -25,8 +25,8 @@
     { "axis": "D", "problem": "production reload, active-frame mutation, arbitrary eval, and unsafe unload", "disposition": "intentionally-rejected" }
   ],
   "crossStudies": [
-    { "id": "DYN1", "path": "../dyn1-versioned-behavior/study.json", "digest": "sha256:b77cd456d1f979dbbe904fd74270a585fc8b5ceb54e601d6036160fd0ed517da", "claim": "typed generations, drain, stale rejection, export/import, and rejected mechanisms" },
-    { "id": "SYN1", "path": "../syn1-typed-generation/study.json", "digest": "sha256:368a1c4ef7f7fa977e51b56882267db20676e973a599c61316b3b7a000949ccf", "claim": "content-addressed generated module set and normal-unit reopen" },
+    { "id": "DYN1", "path": "../dyn1-versioned-behavior/study.json", "digest": "sha256:7a0ed57ba67845764a4cdb57892570c554546eab329625f626023cf216eca871", "claim": "typed generations, drain, stale rejection, export/import, and rejected mechanisms" },
+    { "id": "SYN1", "path": "../syn1-typed-generation/study.json", "digest": "sha256:f9900bcd546773293f230bc3c84c5442beb2e8b337531a422386a2d44b99f2b1", "claim": "content-addressed generated module set and normal-unit reopen" },
     { "id": "CAP0", "path": "../cap0-capability-matrix/study.json", "digest": "sha256:739bf987eb1ef4ea9053d7b9716383b3e9bf40a7cccc8e52902c55312e74417e", "claim": "problem-first capability classification" }
   ],
   "sourceRefs": [
@@ -36,7 +36,7 @@
     { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "claim": "committed snapshot and generation receipt" },
     { "path": "reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de", "claim": "service turn commit and drain boundary" },
     { "path": "reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40", "claim": "foreign ABI and callback lifetime boundary" },
-    { "path": "reference/last-light/package.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc", "claim": "package/build identity and existing profiles" },
+    { "path": "reference/last-light/build.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f", "claim": "package/build identity and existing profiles" },
     { "path": "reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "callback lease registration and close" }
   ],
   "officialRefs": [

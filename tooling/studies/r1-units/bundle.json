@@ -3,7 +3,10 @@
   "status": "design-oracle-input",
   "id": "R1-units-last-light",
   "title": "Black-hole impact units at the Last Light restaurant",
-  "r0Cases": ["R0-unit-delimiter", "R0-quantity-alias"],
+  "r0Cases": [
+    "R0-unit-delimiter",
+    "R0-quantity-alias"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/units.w",
     "symbol": "unit smoot",
@@ -16,7 +19,10 @@
       "language": "w",
       "path": "angle.w",
       "digest": "sha256:ace4eb2c959e35fadfc2da958979839dec122942c9d4e0bcec67fe06f6a43130",
-      "changedConstructs": ["quantity literal with angle delimiter", "unit expression context"]
+      "changedConstructs": [
+        "quantity literal with angle delimiter",
+        "unit expression context"
+      ]
     },
     {
       "id": "square",
@@ -24,22 +30,92 @@
       "language": "w-reserved",
       "path": "square.w",
       "digest": "sha256:1c28e802b469c02dbf81f4e688be635a705e33a14ceab43a9c818514dbee0237",
-      "changedConstructs": ["quantity literal with square delimiter", "index-like unit expression"]
+      "changedConstructs": [
+        "quantity literal with square delimiter",
+        "index-like unit expression"
+      ]
     }
   ],
   "entry": "estimateHorizonImpact",
   "inputs": [
-    { "id": "service-tray", "mass": 2.0, "height": 5.0, "expected": { "energy": 98.0665, "fallTime": 1.0098099885512761 } },
-    { "id": "dense-cargo", "mass": 1250.0, "height": 0.25, "expected": { "energy": 3064.578125, "fallTime": 0.22580037787589377 } }
+    {
+      "id": "service-tray",
+      "mass": 2,
+      "height": 5,
+      "expected": {
+        "energy": 98.0665,
+        "fallTime": 1.0098099885512761
+      }
+    },
+    {
+      "id": "dense-cargo",
+      "mass": 1250,
+      "height": 0.25,
+      "expected": {
+        "energy": 3064.578125,
+        "fallTime": 0.22580037787589377
+      }
+    }
   ],
   "tasks": [
-    { "kind": "explain", "instruction": "Explain where the unit expression ends and whether the operation is type application or indexing." },
-    { "kind": "recall", "instruction": "After the controlled delay, reconstruct the gravity declaration and its squared-time denominator.", "minimumDelaySeconds": 60 },
-    { "kind": "repair", "instruction": "Repair the prepared defect that changes acceleration into velocity.", "mutations": { "angle": "Remove `^2` from the angle-delimited unit.", "square": "Remove `^2` from the square-delimited unit." } },
-    { "kind": "change", "instruction": "Add a terminal-velocity estimate and keep every unit boundary unambiguous." }
+    {
+      "kind": "explain",
+      "instruction": "Explain where the unit expression ends and whether the operation is type application or indexing."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the gravity declaration and its squared-time denominator.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that changes acceleration into velocity.",
+      "mutations": {
+        "angle": "Remove `^2` from the angle-delimited unit.",
+        "square": "Remove `^2` from the square-delimited unit."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a terminal-velocity estimate and keep every unit boundary unambiguous."
+    }
   ],
-  "presentationOrders": [["angle", "square"], ["square", "angle"]],
-  "blinding": { "participantLabels": { "angle": "A", "square": "B" }, "hide": ["id", "role", "path", "changedConstructs"] },
-  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:19b3b2b7936fcda86fc6b4a4388b46b0b2766255bfe625f53e1af4fef5e4c00b" },
-  "evidence": { "current": ["tree-sitter-parse", "host-oracle"], "missing": ["w-compile", "w-run", "human-study", "model-study"] }
+  "presentationOrders": [
+    [
+      "angle",
+      "square"
+    ],
+    [
+      "square",
+      "angle"
+    ]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "angle": "A",
+      "square": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:19b3b2b7936fcda86fc6b4a4388b46b0b2766255bfe625f53e1af4fef5e4c00b"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
+  }
 }

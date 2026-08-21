@@ -44,7 +44,7 @@ const EXPECTED_SOURCE_REFS = new Map([
   ["last-light-kernels", ["reference/last-light/ai_harness.w", "export const lastLightKernels", "finite compiler-owned kernel synthesis"]],
   ["last-light-menu-transform", ["reference/last-light/packages/menu-compiler/transform.w", "async fn transform(ctx: build.Context)", "hermetic typed transform"]],
   ["last-light-menu-compiler", ["reference/last-light/packages/menu-compiler/compiler.w", "export fn compileMenu(source: ref String)", "menu parser/compiler source"]],
-  ["last-light-package", ["reference/last-light/package.w", "name: \"compile-final-menu\"", "build action and target separation"]],
+  ["last-light-package", ["reference/last-light/build.w", "name: \"compile-final-menu\"", "build action and target separation"]],
   ["last-light-final-menu", ["reference/last-light/menus/final.menu", "ingredient horizon-fruit", "editable final.menu source and provenance root"]],
 ]);
 
@@ -147,7 +147,14 @@ export function parseWFile(root, relativePath) {
   const absolute = path.resolve(root, relativePath); const cacheKey = `${relativePath}\0${fs.existsSync(absolute) ? digestFile(absolute) : "missing"}`;
   if (PARSE_CACHE.has(cacheKey)) return PARSE_CACHE.get(cacheKey);
   const executable = process.platform === "win32" ? path.join(root, "tooling", "tree-sitter-w", "node_modules", ".bin", "tree-sitter.cmd") : path.join(root, "tooling", "tree-sitter-w", "node_modules", ".bin", "tree-sitter");
-  const parsed = spawnSync(executable, ["parse", "--grammar-path", "tooling/tree-sitter-w", "--quiet", "--stat", relativePath], { cwd: root, encoding: "utf8" });
+  // Windows exposes the package launcher as a `.cmd` shim. Direct spawn of
+  // that shim can return status null/EINVAL, so use the platform shell only
+  // for this repository-owned launcher; POSIX keeps the direct binary.
+  const parsed = spawnSync(executable, ["parse", "--grammar-path", "tooling/tree-sitter-w", "--quiet", "--stat", relativePath], {
+    cwd: root,
+    encoding: "utf8",
+    shell: process.platform === "win32",
+  });
   const text = `${parsed.stdout ?? ""}\n${parsed.stderr ?? ""}`;
   const result = { ok: parsed.status === 0 && !/\b(?:ERROR|MISSING)\b/.test(text), output: text }; PARSE_CACHE.set(cacheKey, result); return result;
 }
@@ -157,7 +164,11 @@ function parseWBytes(root, bytes) {
   try {
     fs.writeFileSync(file, bytes);
     const executable = process.platform === "win32" ? path.join(root, "tooling", "tree-sitter-w", "node_modules", ".bin", "tree-sitter.cmd") : path.join(root, "tooling", "tree-sitter-w", "node_modules", ".bin", "tree-sitter");
-    const parsed = spawnSync(executable, ["parse", "--grammar-path", path.join(root, "tooling", "tree-sitter-w"), "--quiet", "--stat", file], { cwd: root, encoding: "utf8" });
+    const parsed = spawnSync(executable, ["parse", "--grammar-path", path.join(root, "tooling", "tree-sitter-w"), "--quiet", "--stat", file], {
+      cwd: root,
+      encoding: "utf8",
+      shell: process.platform === "win32",
+    });
     const output = `${parsed.stdout ?? ""}\n${parsed.stderr ?? ""}`;
     return { ok: parsed.status === 0 && !/\b(?:ERROR|MISSING)\b/.test(output), output };
   } finally {

@@ -13,11 +13,10 @@ Depois leia [`execution.w`](execution.w). Ele reúne o módulo de execução com
 entry explícito, bindings, allocator scopes, controle, execução, effects,
 streams e channels.
 
-Os arquivos [`package.w`](package.w) e [`workspace.w`](workspace.w) são
-documentos independentes. O primeiro demonstra um package isolado que é owner
-de sua resolution e deployment nomeado; o segundo demonstra um workspace que é
-owner desses fields para seus members. Eles não formam um único projeto e não
-duplicam ownership. Os dois roots são pequenos por design.
+[`build.w`](build.w) é o único documento de manifesto do atlas e contém records
+diretos `package` e `workspace`. O package demonstra identidade e dependencies; o
+workspace é o owner de `resolution` e deployments quando os dois estão
+presentes. Os records não duplicam ownership e o arquivo é pequeno por design.
 
 [`atlas-manifest.json`](atlas-manifest.json) inventaria cada bloco marcado,
 cada família e cada regra pública nomeada da grammar. Ele registra design status,

@@ -15,9 +15,9 @@
   },
   "sourceRefs": [
     {
-      "path": "../../../reference/last-light/package.w",
+      "path": "../../../reference/last-light/build.w",
       "symbol": "package {",
-      "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc"
+      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f"
     }
   ],
   "variants": [
@@ -76,7 +76,12 @@
       "columns": 4,
       "dish": "nebula",
       "operation": "attached-contract",
-      "expected": { "accepted": true, "area": 32, "nested": true, "localContract": true }
+      "expected": {
+        "accepted": true,
+        "area": 32,
+        "nested": true,
+        "localContract": true
+      }
     },
     {
       "id": "adversarial-empty-boundary",
@@ -84,7 +89,12 @@
       "columns": 1,
       "dish": "",
       "operation": "attached-contract",
-      "expected": { "accepted": true, "area": 0, "nested": true, "localContract": true }
+      "expected": {
+        "accepted": true,
+        "area": 0,
+        "nested": true,
+        "localContract": true
+      }
     },
     {
       "id": "spaced-close-candidate",
@@ -92,7 +102,12 @@
       "columns": 4,
       "dish": "nebula",
       "operation": "spaced-close",
-      "expected": { "accepted": true, "area": 32, "nested": true, "close": "spaced" }
+      "expected": {
+        "accepted": true,
+        "area": 32,
+        "nested": true,
+        "close": "spaced"
+      }
     },
     {
       "id": "detached-envelope-candidate",
@@ -100,7 +115,10 @@
       "columns": 4,
       "dish": "nebula",
       "operation": "detached-envelope",
-      "expected": { "accepted": false, "cause": "detached-envelope" }
+      "expected": {
+        "accepted": false,
+        "cause": "detached-envelope"
+      }
     },
     {
       "id": "manifest-comparison",
@@ -110,7 +128,12 @@
       "operation": "manifest-comparison",
       "manifestName": "last-light/restaurant",
       "manifestVersion": "0.1.0",
-      "expected": { "accepted": true, "manifest": "last-light/restaurant", "version": "0.1.0", "localContract": true }
+      "expected": {
+        "accepted": true,
+        "manifest": "last-light/restaurant",
+        "version": "0.1.0",
+        "localContract": true
+      }
     },
     {
       "id": "angular-record-candidate",
@@ -118,7 +141,10 @@
       "columns": 4,
       "dish": "nebula",
       "operation": "angular-record",
-      "expected": { "accepted": false, "cause": "angular-record" }
+      "expected": {
+        "accepted": false,
+        "cause": "angular-record"
+      }
     }
   ],
   "tasks": [

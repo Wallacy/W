@@ -179,8 +179,7 @@ module.exports = grammar({
           ),
           repeat($._declaration),
         ),
-        $.package_manifest,
-        $.workspace_manifest,
+        $.build_manifest,
       ),
 
     module_header: ($) =>
@@ -785,6 +784,11 @@ module.exports = grammar({
     _entry_default_handler: ($) =>
       seq("(", field("default_handler", $.identifier), ")"),
 
+    build_manifest: ($) =>
+      choice(
+        seq($.package_manifest, optional($.workspace_manifest)),
+        seq($.workspace_manifest, optional($.package_manifest)),
+      ),
     package_manifest: ($) =>
       prec(
         1,

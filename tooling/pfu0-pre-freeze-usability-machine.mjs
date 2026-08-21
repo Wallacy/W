@@ -139,6 +139,9 @@ function commonManifestFacts(facts) {
   const workspaceRecords = facts?.workspaceRecords;
   const recordCount = (Number.isInteger(packageRecords) ? packageRecords : -1) +
     (Number.isInteger(workspaceRecords) ? workspaceRecords : -1);
+  const ownerContext = facts?.ownerContext;
+  const resolutionOwner = facts?.resolutionOwner;
+  const deploymentOwner = facts?.deploymentOwner;
   const base = object(facts) && facts.dataOnly === true &&
     Number.isInteger(packageRecords) && packageRecords >= 0 && packageRecords <= 1 &&
     Number.isInteger(workspaceRecords) && workspaceRecords >= 0 && workspaceRecords <= 1 &&
@@ -146,22 +149,24 @@ function commonManifestFacts(facts) {
     facts.inlinePackage !== true && facts.nestedWorkspace !== true && facts.glob !== true &&
     facts.environmentalScan !== true && facts.executableSource !== true && facts.duplicateOwner !== true &&
     facts.owner !== "both" && facts.owner !== "none";
-  if (!base || rootFiles.length === 0 || rootFiles.some((file) => !["package.w", "workspace.w", "build.w"].includes(file))) {
+  if (!base || rootFiles.length !== 1 || rootFiles[0] !== "build.w") {
     return { accepted: false, reason: "manifest-root-or-data-boundary" };
   }
-  const packageOnly = same(rootFiles, ["package.w"]) && packageRecords === 1 && workspaceRecords === 0 && facts.owner === "package";
-  const workspaceOnly = same(rootFiles, ["workspace.w"]) && packageRecords === 0 && workspaceRecords === 1 && facts.owner === "workspace";
-  const colocated = same(rootFiles, ["package.w", "workspace.w"]) && packageRecords === 1 && workspaceRecords === 1 && facts.owner === "workspace";
-  const candidateBuild = same(rootFiles, ["build.w"]) &&
-    ((workspaceRecords === 1 && facts.owner === "workspace") ||
-      (workspaceRecords === 0 && packageRecords === 1 && facts.owner === "package"));
-  if (!(packageOnly || workspaceOnly || colocated || candidateBuild)) return { accepted: false, reason: "manifest-owner-shape" };
+  const packageOnlyStandalone = packageRecords === 1 && workspaceRecords === 0 && facts.owner === "package" &&
+    ownerContext === "standalone" && resolutionOwner === "package" && deploymentOwner === "package";
+  const packageMember = packageRecords === 1 && workspaceRecords === 0 && facts.owner === "workspace" &&
+    ownerContext === "workspace-member" && resolutionOwner === "workspace" && deploymentOwner === "workspace";
+  const workspaceOnly = packageRecords === 0 && workspaceRecords === 1 && facts.owner === "workspace" &&
+    ownerContext === "workspace" && resolutionOwner === "workspace" && deploymentOwner === "workspace";
+  const colocated = packageRecords === 1 && workspaceRecords === 1 && facts.owner === "workspace" &&
+    ownerContext === "workspace" && resolutionOwner === "workspace" && deploymentOwner === "workspace";
+  if (!(packageOnlyStandalone || packageMember || workspaceOnly || colocated)) return { accepted: false, reason: "manifest-owner-context" };
   const targets = sortedStrings(facts.memberTargets);
   const packageTargets = sortedStrings(facts.memberBuildPackages);
   if (!same(targets, packageTargets)) return { accepted: false, reason: "member-without-package" };
-  if (workspaceOnly || colocated || (candidateBuild && workspaceRecords === 1)) {
+  if (workspaceOnly || colocated) {
     if (targets.length === 0) return { accepted: false, reason: "workspace-member-missing" };
-  } else if (targets.length !== 0) {
+  } else if (targets.length !== 0 && !packageMember) {
     return { accepted: false, reason: "package-member-unexpected" };
   }
   if (Array.isArray(facts.memberBuildWorkspaces) && facts.memberBuildWorkspaces.length > 0) {
@@ -169,8 +174,11 @@ function commonManifestFacts(facts) {
   }
   return {
     accepted: true,
-    reason: candidateBuild ? "single-build-data-only" : "separate-package-workspace-roots",
-    form: candidateBuild ? "build.w" : rootFiles.join("+")
+    reason: "single-build-data-only",
+    form: "build.w",
+    ownerContext,
+    resolutionOwner,
+    deploymentOwner,
   };
 }
 
@@ -180,7 +188,7 @@ function evaluateManifest(observations) {
   const valid = samples.length > 0 && results.every((result) => result.accepted);
   return {
     valid,
-    route: valid && results.some((result) => result.form === "build.w") ? "candidate-research" : valid ? "current-control" : "rejected-route",
+    route: valid ? "current-control" : "rejected-route",
     results,
   };
 }
@@ -205,12 +213,8 @@ function evaluateServiceSample(facts) {
   }
   if (facts.kind === "service-stream-fn") {
     return {
-      accepted: facts.serviceDeclaration === true && facts.serverOutput === true &&
-        facts.declaration === "stream fn updates(...): Item throws Failure" &&
-        facts.streamFunction === true && facts.producerAsync === true && facts.streamOpen === "explicit" &&
-        facts.consumer === "for try await" && facts.normalizedReturn === "some Stream<Item,Failure>" &&
-        facts.admissionFailure === "ServiceFailure" && facts.terminalFailure === "Failure",
-      reason: "stream-fn-candidate",
+      accepted: false,
+      reason: "stream-fn-rejected",
     };
   }
   return { accepted: false, reason: "unknown-service-route" };
@@ -220,8 +224,7 @@ function evaluateService(observations) {
   const samples = Array.isArray(observations?.samples) ? observations.samples : [];
   const results = samples.map(evaluateServiceSample);
   const valid = samples.length > 0 && results.every((result) => result.accepted);
-  const candidate = samples.some((sample) => sample?.kind === "service-stream-fn");
-  return { valid, route: valid ? (candidate ? "candidate-research" : "current-control") : "rejected-route", results };
+  return { valid, route: valid ? "current-control" : "rejected-route", results };
 }
 
 function evaluateProperty(observations) {
@@ -234,13 +237,13 @@ function evaluateProperty(observations) {
     observations.externalNotification === "method-service-channel" && lifecycleComplete;
   const unsafeOldValue = observations.oldValueCopy !== "none" || observations.noncopyableOwner === "none";
   const ambiguousObserver = observations.observerBypassAmbiguous === true || observations.externalNotificationImplicit === true;
-  const candidate = observations.form === "local-hook-comparison" && observations.gateDecision === "compare-no-promotion";
-  const valid = baseline && !unsafeOldValue && !ambiguousObserver;
+  const observerSpelling = (observations.hooks ?? []).some((hook) => hook === "willSet-didSet");
+  const valid = baseline && !unsafeOldValue && !ambiguousObserver && !observerSpelling;
   return {
     valid,
-    route: valid ? (candidate ? "candidate-research" : "current-control") : "rejected-route",
-    reason: valid ? (candidate ? "lifecycle-comparison" : "accessor-lifecycle-control") :
-      (!lifecycleComplete ? "lifecycle-missing" : unsafeOldValue ? "hidden-old-value-copy" : "observer-bypass-ambiguous"),
+    route: valid ? "current-control" : "rejected-route",
+    reason: valid ? "accessor-lifecycle-control" :
+      (!lifecycleComplete ? "lifecycle-missing" : observerSpelling ? "implicit-observer-rejected" : unsafeOldValue ? "hidden-old-value-copy" : "observer-bypass-ambiguous"),
     lifecycle: [...lifecycle].sort(),
   };
 }
@@ -288,7 +291,9 @@ export function validateCase(testCase) {
   if (forbiddenKey(testCase)) errors.push(`${testCase.id}: expected/result/status/route/metric echo is forbidden.`);
   try {
     const result = evaluateCase(testCase);
-    const expectedStatus = testCase.variant === "adversarial" ? "rejected" : "accepted";
+    const expectedStatus = testCase.variant === "adversarial" ||
+      (testCase.variant === "candidate" && ["service", "property"].includes(testCase.family))
+      ? "rejected" : "accepted";
     if (result.status !== expectedStatus) errors.push(`${testCase.id}: facts derive ${result.status}, not the variant route.`);
   } catch (error) {
     errors.push(`${testCase.id}: ${error instanceof Error ? error.message : "derivation failed"}.`);

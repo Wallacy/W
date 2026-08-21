@@ -3,7 +3,11 @@
   "status": "design-oracle-input",
   "id": "R1-tabular-carrier",
   "title": "Black-hole telemetry carrier at the Last Light restaurant",
-  "r0Cases": ["R0-tabular-carrier", "R0-data-row-synthesis", "R0-copy-release-boundary"],
+  "r0Cases": [
+    "R0-tabular-carrier",
+    "R0-data-row-synthesis",
+    "R0-copy-release-boundary"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/horizon.w",
     "symbol": "HorizonSample",
@@ -16,7 +20,11 @@
       "language": "w",
       "path": "typed-batch.w",
       "digest": "sha256:f5a7390eb384cda49348abdd5d9e4574e7b5102f9a3a5d7d247a1fb483d74faf",
-      "changedConstructs": ["data.Row synthesis", "typed data.Batch", "generated field descriptor"]
+      "changedConstructs": [
+        "data.Row synthesis",
+        "typed data.Batch",
+        "generated field descriptor"
+      ]
     },
     {
       "id": "dynamic-batch",
@@ -24,7 +32,11 @@
       "language": "w",
       "path": "dynamic-batch.w",
       "digest": "sha256:2eee80e91d7983b64c77efa7147f82505b95a47e44a5b79f28ff5c00dab80a45",
-      "changedConstructs": ["runtime schema", "explicit typed bind", "typed descriptor after bind"]
+      "changedConstructs": [
+        "runtime schema",
+        "explicit typed bind",
+        "typed descriptor after bind"
+      ]
     },
     {
       "id": "row-array",
@@ -32,7 +44,11 @@
       "language": "w",
       "path": "row-array.w",
       "digest": "sha256:702b227ceb73f49e5ac23568b88a56bf0aedce9a339c70de7e0c18f246001747",
-      "changedConstructs": ["Array<Row> baseline", "row-centric map", "non-universal carrier"]
+      "changedConstructs": [
+        "Array<Row> baseline",
+        "row-centric map",
+        "non-universal carrier"
+      ]
     }
   ],
   "entry": "summarizeHorizon",
@@ -40,8 +56,16 @@
     {
       "id": "primary-restaurant-telemetry",
       "rows": [
-        { "sequence": 7, "hawkingFlux": 0.2, "warning": null },
-        { "sequence": 8, "hawkingFlux": 0.8, "warning": "evacuate" }
+        {
+          "sequence": 7,
+          "hawkingFlux": 0.2,
+          "warning": null
+        },
+        {
+          "sequence": 8,
+          "hawkingFlux": 0.8,
+          "warning": "evacuate"
+        }
       ],
       "expected": {
         "count": 2,
@@ -50,14 +74,29 @@
         "warnings": 1,
         "nullWarning": true,
         "nanIsValue": false,
-        "fields": ["sequence", "hawkingFlux", "warning"],
+        "fields": [
+          "sequence",
+          "hawkingFlux",
+          "warning"
+        ],
         "status": "accepted"
       }
     },
     {
       "id": "adversarial-null-versus-nan",
-      "rows": [{ "sequence": 9, "hawkingFlux": "NaN", "warning": null }],
-      "expected": { "count": 1, "nullWarning": true, "nanIsValue": true, "status": "accepted" }
+      "rows": [
+        {
+          "sequence": 9,
+          "hawkingFlux": "NaN",
+          "warning": null
+        }
+      ],
+      "expected": {
+        "count": 1,
+        "nullWarning": true,
+        "nanIsValue": true,
+        "status": "accepted"
+      }
     },
     {
       "id": "adversarial-empty-batch",
@@ -69,16 +108,32 @@
         "warnings": 0,
         "nullWarning": false,
         "nanIsValue": false,
-        "fields": ["sequence", "hawkingFlux", "warning"],
+        "fields": [
+          "sequence",
+          "hawkingFlux",
+          "warning"
+        ],
         "status": "accepted"
       }
     },
     {
       "id": "adversarial-finite-negative-flux",
       "rows": [
-        { "sequence": 10, "hawkingFlux": -4, "warning": null },
-        { "sequence": 11, "hawkingFlux": "NaN", "warning": null },
-        { "sequence": 12, "hawkingFlux": -1, "warning": "late" }
+        {
+          "sequence": 10,
+          "hawkingFlux": -4,
+          "warning": null
+        },
+        {
+          "sequence": 11,
+          "hawkingFlux": "NaN",
+          "warning": null
+        },
+        {
+          "sequence": 12,
+          "hawkingFlux": -1,
+          "warning": "late"
+        }
       ],
       "expected": {
         "count": 3,
@@ -87,42 +142,108 @@
         "warnings": 1,
         "nullWarning": true,
         "nanIsValue": true,
-        "fields": ["sequence", "hawkingFlux", "warning"],
+        "fields": [
+          "sequence",
+          "hawkingFlux",
+          "warning"
+        ],
         "status": "accepted"
       }
     },
     {
       "id": "adversarial-duplicate-name",
-      "schema": { "fields": ["sequence", "sequence", "hawkingFlux"] },
-      "expected": { "status": "rejected", "code": "duplicateFieldName" }
+      "schema": {
+        "fields": [
+          "sequence",
+          "sequence",
+          "hawkingFlux"
+        ]
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "duplicateFieldName"
+      }
     },
     {
       "id": "adversarial-unequal-column-length",
-      "columns": { "sequence": [10, 11], "hawkingFlux": [0.5], "warning": [null, null] },
-      "expected": { "status": "rejected", "code": "unequalColumnLength" }
+      "columns": {
+        "sequence": [
+          10,
+          11
+        ],
+        "hawkingFlux": [
+          0.5
+        ],
+        "warning": [
+          null,
+          null
+        ]
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "unequalColumnLength"
+      }
     },
     {
       "id": "adversarial-schema-change-between-satellite-chunks",
       "chunks": [
-        { "schema": ["sequence", "hawkingFlux", "warning"] },
-        { "schema": ["sequence", "hawkingFlux", "warning", "satelliteId"] }
+        {
+          "schema": [
+            "sequence",
+            "hawkingFlux",
+            "warning"
+          ]
+        },
+        {
+          "schema": [
+            "sequence",
+            "hawkingFlux",
+            "warning",
+            "satelliteId"
+          ]
+        }
       ],
-      "expected": { "status": "rejected", "code": "streamSchemaChange" }
+      "expected": {
+        "status": "rejected",
+        "code": "streamSchemaChange"
+      }
     },
     {
       "id": "adversarial-copy-never-device-mismatch",
-      "device": { "source": "gpu", "target": "cpu", "copy": "never" },
-      "expected": { "status": "rejected", "code": "copyNeverDeviceMismatch" }
+      "device": {
+        "source": "gpu",
+        "target": "cpu",
+        "copy": "never"
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "copyNeverDeviceMismatch"
+      }
     },
     {
       "id": "adversarial-invalid-utf8-and-offset",
-      "foreign": { "utf8Declared": true, "validUtf8": false, "offset": 8, "length": 4, "byteLength": 8 },
-      "expected": { "status": "rejected", "code": "invalidUtf8" }
+      "foreign": {
+        "utf8Declared": true,
+        "validUtf8": false,
+        "offset": 8,
+        "length": 4,
+        "byteLength": 8
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "invalidUtf8"
+      }
     },
     {
       "id": "adversarial-release-exactly-once",
-      "owner": { "views": 0, "releaseAttempts": 2 },
-      "expected": { "status": "rejected", "code": "releaseExactlyOnce" }
+      "owner": {
+        "views": 0,
+        "releaseAttempts": 2
+      },
+      "expected": {
+        "status": "rejected",
+        "code": "releaseExactlyOnce"
+      }
     }
   ],
   "tasks": [
@@ -150,20 +271,49 @@
     }
   ],
   "presentationOrders": [
-    ["typed-batch", "dynamic-batch", "row-array"],
-    ["row-array", "typed-batch", "dynamic-batch"],
-    ["dynamic-batch", "row-array", "typed-batch"]
+    [
+      "typed-batch",
+      "dynamic-batch",
+      "row-array"
+    ],
+    [
+      "row-array",
+      "typed-batch",
+      "dynamic-batch"
+    ],
+    [
+      "dynamic-batch",
+      "row-array",
+      "typed-batch"
+    ]
   ],
   "blinding": {
-    "participantLabels": { "typed-batch": "A", "dynamic-batch": "B", "row-array": "C" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "typed-batch": "A",
+      "dynamic-batch": "B",
+      "row-array": "C"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:77295cf1361d6cbb46014e54f673685d452c308336c58a1e7523d22643057e64"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

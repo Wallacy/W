@@ -64,36 +64,106 @@
       "id": "primary-two-by-two",
       "operation": "nested-matrix",
       "dish": "nebula",
-      "rows": [[1, 0], [0, 1]],
-      "expected": { "accepted": true, "shape": [2, 2], "tupleArity": 1, "ownerConsumed": true, "destructured": ["only"] }
+      "rows": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "expected": {
+        "accepted": true,
+        "shape": [
+          2,
+          2
+        ],
+        "tupleArity": 1,
+        "ownerConsumed": true,
+        "destructured": [
+          "only"
+        ]
+      }
     },
     {
       "id": "boundary-empty-matrix",
       "operation": "nested-matrix",
       "dish": "",
       "rows": [],
-      "expected": { "accepted": true, "shape": [0, 0], "tupleArity": 1, "ownerConsumed": true, "destructured": ["only"] }
+      "expected": {
+        "accepted": true,
+        "shape": [
+          0,
+          0
+        ],
+        "tupleArity": 1,
+        "ownerConsumed": true,
+        "destructured": [
+          "only"
+        ]
+      }
     },
     {
       "id": "ragged-adversarial",
       "operation": "ragged-matrix",
       "dish": "nebula",
-      "rows": [[1], [1, 2]],
-      "expected": { "accepted": false, "cause": "ragged-matrix", "ownerConsumed": false }
+      "rows": [
+        [
+          1
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "expected": {
+        "accepted": false,
+        "cause": "ragged-matrix",
+        "ownerConsumed": false
+      }
     },
     {
       "id": "grouped-scalar-candidate",
       "operation": "grouped-scalar",
       "dish": "nebula",
-      "rows": [[1, 0], [0, 1]],
-      "expected": { "accepted": true, "grouped": true, "tupleArity": 0, "ownerConsumed": false }
+      "rows": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "expected": {
+        "accepted": true,
+        "grouped": true,
+        "tupleArity": 0,
+        "ownerConsumed": false
+      }
     },
     {
       "id": "semicolon-candidate",
       "operation": "semicolon-matrix",
       "dish": "nebula",
-      "rows": [[1, 0], [0, 1]],
-      "expected": { "accepted": false, "cause": "semicolon-row-separator", "ownerConsumed": false }
+      "rows": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "expected": {
+        "accepted": false,
+        "cause": "semicolon-row-separator",
+        "ownerConsumed": false
+      }
     }
   ],
   "tasks": [

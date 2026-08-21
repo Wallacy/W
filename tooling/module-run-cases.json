@@ -99,7 +99,7 @@
     {
       "id": "RU0-lock-root-rejected",
       "decisions": ["W-1415"],
-      "references": [{"path": "../reference/last-light/workspace.w", "symbol": "workspace"}],
+      "references": [{"path": "../reference/last-light/build.w", "symbol": "workspace"}],
       "operations": [
         {"op": "parseModule", "path": "reference/last-light/horizon_tool.w", "sourceText": "module horizon_tool\nentry(default)\n", "entry": "default", "imports": []},
         {"op": "selectContext", "mode": "package", "rootKind": "package"},
@@ -110,7 +110,7 @@
     {
       "id": "RU0-deployment-root-rejected",
       "decisions": ["W-1415"],
-      "references": [{"path": "../reference/last-light/workspace.w", "symbol": "deployment"}],
+      "references": [{"path": "../reference/last-light/build.w", "symbol": "deployment"}],
       "operations": [
         {"op": "parseModule", "path": "reference/last-light/horizon_tool.w", "sourceText": "module horizon_tool\nentry(default)\n", "entry": "default", "imports": []},
         {"op": "selectContext", "mode": "workspace", "rootKind": "workspace"},
@@ -121,7 +121,7 @@
     {
       "id": "RU0-resolution-legacy-root-rejected",
       "decisions": ["W-1415"],
-      "references": [{"path": "../reference/last-light/workspace.w", "symbol": "resolution:"}],
+      "references": [{"path": "../reference/last-light/build.w", "symbol": "resolution:"}],
       "operations": [
         {"op": "parseModule", "path": "examples/horizon.w", "sourceText": "module horizon\nentry(default)\n", "entry": "default", "imports": []},
         {"op": "selectContext", "mode": "package", "rootKind": "package"},

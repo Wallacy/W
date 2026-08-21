@@ -3,7 +3,10 @@
   "status": "design-oracle-input",
   "id": "R1-conditional-value-block",
   "title": "Conditional stage values at the Last Light restaurant",
-  "r0Cases": ["R0-if-expression", "R0-explicit-function-return"],
+  "r0Cases": [
+    "R0-if-expression",
+    "R0-explicit-function-return"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/allocation.w",
     "symbol": "countEmergencyTokens",
@@ -16,7 +19,12 @@
       "language": "w",
       "path": "value-block.w",
       "digest": "sha256:539e5faac054ed373acbe0f93d43c623c8678b6349a632c4dfeab35f8245a117",
-      "changedConstructs": ["if expression", "named value blocks", "explicit function return", "discard semicolon"]
+      "changedConstructs": [
+        "if expression",
+        "named value blocks",
+        "explicit function return",
+        "discard semicolon"
+      ]
     },
     {
       "id": "branch-return",
@@ -24,7 +32,11 @@
       "language": "w",
       "path": "branch-return.w",
       "digest": "sha256:693d96bac1cd1f20c13c0f5517946db8780b37b4225edcbd981d643863b25a18",
-      "changedConstructs": ["statement if", "explicit branch returns", "ordinary function body"]
+      "changedConstructs": [
+        "statement if",
+        "explicit branch returns",
+        "ordinary function body"
+      ]
     },
     {
       "id": "mutable-temporary",
@@ -32,7 +44,11 @@
       "language": "w",
       "path": "mutable-temporary.w",
       "digest": "sha256:1eaae63390381afe47e47f92dc58c6cd5920cd428dc9984d9737e5c7e634b5be",
-      "changedConstructs": ["mutable temporary e", "selected-branch trace", "value-block tail"]
+      "changedConstructs": [
+        "mutable temporary e",
+        "selected-branch trace",
+        "value-block tail"
+      ]
     },
     {
       "id": "implicit-function-tail",
@@ -40,7 +56,11 @@
       "language": "w",
       "path": "implicit-function-tail.w",
       "digest": "sha256:0c51decc56f13be763fbc9ce4b8794d2b9d97a341346449e5844a529a2a9e1c1",
-      "changedConstructs": ["parseable implicit tail", "ordinary function semantic rejection", "branch tail without return"]
+      "changedConstructs": [
+        "parseable implicit tail",
+        "ordinary function semantic rejection",
+        "branch tail without return"
+      ]
     }
   ],
   "entry": "nextStage",
@@ -48,12 +68,24 @@
     {
       "id": "primary-true-branch",
       "ready": true,
-      "expected": { "stage": "serving", "effects": [1], "otherBranchEffects": [] }
+      "expected": {
+        "stage": "serving",
+        "effects": [
+          1
+        ],
+        "otherBranchEffects": []
+      }
     },
     {
       "id": "adversarial-false-branch",
       "ready": false,
-      "expected": { "stage": "preparing", "effects": [2], "otherBranchEffects": [] }
+      "expected": {
+        "stage": "preparing",
+        "effects": [
+          2
+        ],
+        "otherBranchEffects": []
+      }
     },
     {
       "id": "negative-forms",
@@ -63,7 +95,14 @@
         "branchTypeMismatch": "reject-join",
         "unitStatementWithoutElse": "accept-unit",
         "implicitFunctionTail": "reject-non-unit",
-        "selectedEffects": { "true": [1], "false": [2] }
+        "selectedEffects": {
+          "true": [
+            1
+          ],
+          "false": [
+            2
+          ]
+        }
       }
     }
   ],
@@ -93,20 +132,53 @@
     }
   ],
   "presentationOrders": [
-    ["value-block", "branch-return", "mutable-temporary", "implicit-function-tail"],
-    ["implicit-function-tail", "mutable-temporary", "branch-return", "value-block"],
-    ["branch-return", "value-block", "implicit-function-tail", "mutable-temporary"]
+    [
+      "value-block",
+      "branch-return",
+      "mutable-temporary",
+      "implicit-function-tail"
+    ],
+    [
+      "implicit-function-tail",
+      "mutable-temporary",
+      "branch-return",
+      "value-block"
+    ],
+    [
+      "branch-return",
+      "value-block",
+      "implicit-function-tail",
+      "mutable-temporary"
+    ]
   ],
   "blinding": {
-    "participantLabels": { "value-block": "A", "branch-return": "B", "mutable-temporary": "C", "implicit-function-tail": "D" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "value-block": "A",
+      "branch-return": "B",
+      "mutable-temporary": "C",
+      "implicit-function-tail": "D"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:51752c30ba81524a16184d7653f1305e875dc0c42e2e4111d96c0a8b5889fc4f"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

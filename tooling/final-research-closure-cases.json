@@ -22,7 +22,7 @@
   },
   "reopenedResearch": {
     "decisions": ["W-1451", "W-1452", "W-1453"],
-    "category": "research-gated",
+    "category": "oracle-backed-current",
     "gate": "PFU0-pre-freeze-usability"
   },
   "reuse": {

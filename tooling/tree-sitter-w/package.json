@@ -19,7 +19,7 @@
     "check:cheatsheet": "bun test ../cheatsheet-snippets.test.mjs && bun ../check-cheatsheet-snippets.mjs",
     "parse:platforms": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/platform/*/*.w",
     "parse:packages": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/packages/*/*.w",
-    "parse:roots": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/package.w ../../reference/last-light/workspace.w",
+    "parse:roots": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/build.w",
     "parse:std": "tree-sitter parse --grammar-path . --quiet --stat ../../std/runtime/*.w ../../std/build/*.w ../../std/io/*.w ../../std/fs/*.w ../../std/process/*.w ../../std/time/*.w ../../std/si/*.w ../../std/iec/*.w ../../std/http/*.w ../../std/database/*.w ../../std/cache/*.w ../../std/url/*.w ../../std/stream/*.w ../../std/sync/*.w ../../std/memory/*.w ../../std/abort/*.w ../../std/blob/*.w ../../std/json/*.w ../../std/net/*.w ../../std/data/*.w ../../std/csv/*.w ../../std/parquet/*.w ../../std/arrow/*.w ../../std/presentation/*.w ../../std/accelerator/*.w ../../std/tensor/*.w ../../std/dlpack/*.w",
     "parse:fixture": "tree-sitter parse --grammar-path . --quiet --stat ../vscode-w/fixtures/*.w",
     "parse:studies": "tree-sitter parse --grammar-path . --quiet --stat ../studies/*/*.w",

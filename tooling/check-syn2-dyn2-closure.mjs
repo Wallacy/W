@@ -150,7 +150,7 @@ export function runSyn2Dyn2Closure({ write = writeSnapshot } = {}) {
     "reference/last-light/hot_reload_dev_contract.w\0ReloadResult",
     "reference/last-light/abi.w\0export foreign c",
     "reference/last-light/memory.w\0watchClosingBell",
-    "reference/last-light/package.w\0name: \"compile-final-menu\"",
+    "reference/last-light/build.w\0name: \"compile-final-menu\"",
   ]);
   assert(sourceRefs.length === expectedSourceKeys.size, "study.sourceRefs must contain exactly six pinned Last Light references", errors);
   const sourceKeys = new Set();

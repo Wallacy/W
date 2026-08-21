@@ -107,12 +107,36 @@
     }
   ],
   "presentationOrders": [
-    ["baseline", "aggregate", "relation-schema"],
-    ["aggregate", "relation-schema", "baseline"],
-    ["relation-schema", "baseline", "aggregate"],
-    ["baseline", "relation-schema", "aggregate"],
-    ["relation-schema", "aggregate", "baseline"],
-    ["aggregate", "baseline", "relation-schema"]
+    [
+      "baseline",
+      "aggregate",
+      "relation-schema"
+    ],
+    [
+      "aggregate",
+      "relation-schema",
+      "baseline"
+    ],
+    [
+      "relation-schema",
+      "baseline",
+      "aggregate"
+    ],
+    [
+      "baseline",
+      "relation-schema",
+      "aggregate"
+    ],
+    [
+      "relation-schema",
+      "aggregate",
+      "baseline"
+    ],
+    [
+      "aggregate",
+      "baseline",
+      "relation-schema"
+    ]
   ],
   "blinding": {
     "participantLabels": {
@@ -120,14 +144,27 @@
       "aggregate": "B",
       "relation-schema": "C"
     },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:ef17f72a886faa940bf2459d236f01230c4f5105dc1d206695f2453b73b7312a"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

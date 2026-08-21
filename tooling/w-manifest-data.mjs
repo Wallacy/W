@@ -172,12 +172,35 @@ class Parser {
     return token;
   }
 
-  parseDocument() {
+  parseRootRecord() {
     const root = this.take("identifier", "manifestRootMissing");
     if (!new Set(["package", "workspace"]).has(root.value)) fail("manifestRootInvalid", root.position);
-    const fields = this.parseRecord();
+    return { kind: root.value, ...this.parseRecord() };
+  }
+
+  parseBuildManifest() {
+    const records = [];
+    const seen = new Set();
+    while (!this.at("eof")) {
+      const rootPosition = this.current().position;
+      const record = this.parseRootRecord();
+      if (seen.has(record.kind)) fail("manifestDuplicateRoot", rootPosition);
+      seen.add(record.kind);
+      records.push(record);
+    }
+    if (records.length === 0) fail("manifestRootMissing", this.current().position);
+    return {
+      kind: "build_manifest",
+      records,
+      package: records.find((record) => record.kind === "package") ?? null,
+      workspace: records.find((record) => record.kind === "workspace") ?? null,
+    };
+  }
+
+  parseDocument() {
+    const record = this.parseRootRecord();
     this.take("eof", "manifestTrailingInput");
-    return { kind: root.value, ...fields };
+    return record;
   }
 
   parseRecord() {
@@ -273,6 +296,11 @@ export function digestRecord(tag, value) {
 export function parseManifestDocument(source) {
   if (typeof source !== "string") fail("manifestSourceInvalid", 0);
   return new Parser(source).parseDocument();
+}
+
+export function parseBuildManifest(source) {
+  if (typeof source !== "string") fail("manifestSourceInvalid", 0);
+  return new Parser(source).parseBuildManifest();
 }
 
 export function deriveOwnerBasis(document) {

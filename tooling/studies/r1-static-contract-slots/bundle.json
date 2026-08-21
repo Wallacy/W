@@ -3,7 +3,10 @@
   "status": "design-oracle-input",
   "id": "R1-static-contract-slots",
   "title": "Static contract slots at the Last Light restaurant",
-  "r0Cases": ["R0-named-static-slot", "R0-static-argument-parity"],
+  "r0Cases": [
+    "R0-named-static-slot",
+    "R0-static-argument-parity"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/generics.w",
     "symbol": "Matrix<Element, rows: usize, columns: usize>",
@@ -109,20 +112,49 @@
     }
   ],
   "presentationOrders": [
-    ["named", "positional", "split-call"],
-    ["positional", "split-call", "named"],
-    ["split-call", "named", "positional"]
+    [
+      "named",
+      "positional",
+      "split-call"
+    ],
+    [
+      "positional",
+      "split-call",
+      "named"
+    ],
+    [
+      "split-call",
+      "named",
+      "positional"
+    ]
   ],
   "blinding": {
-    "participantLabels": { "named": "A", "positional": "B", "split-call": "C" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "named": "A",
+      "positional": "B",
+      "split-call": "C"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:19b8709a45bffeee9257fb7c5a7d9a8dfe60810c923771d5831dec24ee69d6d5"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

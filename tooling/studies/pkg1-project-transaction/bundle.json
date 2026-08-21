@@ -7,21 +7,21 @@
     "R0-manifest-record"
   ],
   "sourceBase": {
-    "path": "../../../reference/last-light/workspace.w",
+    "path": "../../../reference/last-light/build.w",
     "symbol": "workspace {",
-    "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd"
+    "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f"
   },
   "sourceRefs": [
     {
-      "path": "../../../reference/last-light/package.w",
+      "path": "../../../reference/last-light/build.w",
       "symbol": "package {",
-      "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc",
+      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
       "claim": "Isolated package root witness."
     },
     {
       "path": "../../../reference/last-light/BUILD.md",
       "symbol": "deployment",
-      "digest": "sha256:81008441c547802d16e925b3fd5ae319ddbcdbdb20fbd507ed3b64295945f88e",
+      "digest": "sha256:7e0c4cce0e6eb2e0bcc7267b19f10b332c4252747fe584eb2ee4d3dcdaaeb6cf",
       "claim": "Named deployment witness."
     }
   ],

@@ -77,7 +77,10 @@
       "reserved": 3,
       "expected": {
         "accepted": true,
-        "item": { "code": "nebula", "price": 4200 },
+        "item": {
+          "code": "nebula",
+          "price": 4200
+        },
         "storageVisible": false,
         "released": 0
       }
@@ -90,7 +93,10 @@
       "reserved": 0,
       "expected": {
         "accepted": true,
-        "item": { "code": "", "price": 0 },
+        "item": {
+          "code": "",
+          "price": 0
+        },
         "storageVisible": false,
         "released": 0
       }
@@ -103,7 +109,10 @@
       "reserved": 3,
       "expected": {
         "accepted": true,
-        "item": { "code": "nebula", "price": 4200 },
+        "item": {
+          "code": "nebula",
+          "price": 4200
+        },
         "storageVisible": false,
         "released": 0
       }
@@ -114,7 +123,10 @@
       "code": "nebula",
       "price": 4200,
       "reserved": 3,
-      "expected": { "accepted": false, "cause": "public-storage" }
+      "expected": {
+        "accepted": false,
+        "cause": "public-storage"
+      }
     }
   ],
   "tasks": [

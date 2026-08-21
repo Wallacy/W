@@ -6,14 +6,17 @@ import {
 } from "../../pfu0-pre-freeze-usability-machine.mjs";
 
 describe("PFU0 pre-freeze usability host oracle", () => {
-  test("derives three current controls, three candidates, and three rejected routes", () => {
+  test("derives current controls, one accepted candidate, and rejected routes", () => {
     const corpus = loadCorpus();
     const checked = validateCorpus(corpus);
     expect(checked.errors).toEqual([]);
     expect(checked.results).toHaveLength(9);
-    expect(checked.results.filter((result) => result.status === "accepted")).toHaveLength(6);
-    expect(checked.results.filter((result) => result.status === "rejected")).toHaveLength(3);
-    expect(checked.results.filter((result) => result.variant === "candidate").every((result) => result.route === "candidate-research" && result.promotion === false)).toBe(true);
+    expect(checked.results.filter((result) => result.status === "accepted")).toHaveLength(4);
+    expect(checked.results.filter((result) => result.status === "rejected")).toHaveLength(5);
+    const candidates = new Map(checked.results.filter((result) => result.variant === "candidate").map((result) => [result.family, result]));
+    expect(candidates.get("manifest")).toMatchObject({ status: "accepted", route: "current-control", promotion: false });
+    expect(candidates.get("service")).toMatchObject({ status: "rejected", route: "rejected-route", promotion: false });
+    expect(candidates.get("property")).toMatchObject({ status: "rejected", route: "rejected-route", promotion: false });
   });
 
   test("keeps source, implementation, and human/model boundaries explicit", () => {

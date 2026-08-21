@@ -56,11 +56,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "package_manifest"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "workspace_manifest"
+          "name": "build_manifest"
         }
       ]
     },
@@ -4075,6 +4071,53 @@
         {
           "type": "STRING",
           "value": ")"
+        }
+      ]
+    },
+    "build_manifest": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "package_manifest"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "workspace_manifest"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "workspace_manifest"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "package_manifest"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            }
+          ]
         }
       ]
     },

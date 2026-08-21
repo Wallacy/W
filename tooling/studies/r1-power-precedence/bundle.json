@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-power-precedence",
   "title": "Mathematical power precedence at the Last Light restaurant",
-  "r0Cases": ["R0-power-precedence"],
+  "r0Cases": [
+    "R0-power-precedence"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/numerics.w",
     "symbol": "power follows mathematical unary precedence",
@@ -16,7 +18,12 @@
       "language": "w",
       "path": "mathematical.w",
       "digest": "sha256:bd4a2f05d1bb2217347e8ca1e5f6579d78d265f91fe6f4c2fcbf1a815febd5e7",
-      "changedConstructs": ["right-associative power", "prefix exponent", "power before unary base", "typed quantity literal"]
+      "changedConstructs": [
+        "right-associative power",
+        "prefix exponent",
+        "power before unary base",
+        "typed quantity literal"
+      ]
     },
     {
       "id": "parenthesized",
@@ -24,18 +31,36 @@
       "language": "w",
       "path": "parenthesized.w",
       "digest": "sha256:93bde216fbfc727a669faf5fb8aa50381674780ffab71f39b7e7bc6ad3a908df",
-      "changedConstructs": ["parenthesized equivalent primary", "explicit negative-base adversarial", "typed quantity literal"]
+      "changedConstructs": [
+        "parenthesized equivalent primary",
+        "explicit negative-base adversarial",
+        "typed quantity literal"
+      ]
     }
   ],
   "entry": "powerSamples",
   "inputs": [
     {
       "id": "primary-negative-base-and-exponent",
-      "expected": { "outcome": [-4, 0.125, 512, 6], "variantsEqual": true }
+      "expected": {
+        "outcome": [
+          -4,
+          0.125,
+          512,
+          6
+        ],
+        "variantsEqual": true
+      }
     },
     {
       "id": "adversarial-unit-and-xor",
-      "expected": { "explicitNegativeBase": 4, "explicitLeftAssociation": 64, "xor": 6, "unitOwner": "unit", "unitCaretIsNotRuntimePower": true }
+      "expected": {
+        "explicitNegativeBase": 4,
+        "explicitLeftAssociation": 64,
+        "xor": 6,
+        "unitOwner": "unit",
+        "unitCaretIsNotRuntimePower": true
+      }
     }
   ],
   "tasks": [
@@ -61,17 +86,42 @@
       "instruction": "Add a fractional exponent while preserving runtime power tokens and the separate unit grammar."
     }
   ],
-  "presentationOrders": [["mathematical", "parenthesized"], ["parenthesized", "mathematical"]],
+  "presentationOrders": [
+    [
+      "mathematical",
+      "parenthesized"
+    ],
+    [
+      "parenthesized",
+      "mathematical"
+    ]
+  ],
   "blinding": {
-    "participantLabels": { "mathematical": "A", "parenthesized": "B" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "mathematical": "A",
+      "parenthesized": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:0bcc248a9a42c589ae95cd77ffcc231ab8e1a47ad2e7c34410b5caf3463b04b8"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

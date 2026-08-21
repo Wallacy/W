@@ -1314,7 +1314,7 @@ elas não justificam um relógio global ou uma inferência de `.unspecified`.
 
 R1S1 promove 21 casos R0 em oito bundles organizados em sete famílias.
 O contexto concreto usa estas fontes centrais: `formatting.w`, `generics.w`,
-`package.w`, `domain.w`, `billing.w`, `kitchen.w`, `hardware.w`, `callables.w`,
+`build.w`, `domain.w`, `billing.w`, `kitchen.w`, `hardware.w`, `callables.w`,
 `app.w` e `oracle.w`. Os bundles também podem usar outras fontes reais via
 `sourceRefs`. Cada bundle fixa um
 `sourceBase` e um symbol real. Snippets compostos ficam na variante e não
@@ -2644,7 +2644,7 @@ implicitamente.
 
 O source graph do arquivo contém somente imports explícitos. Sem package
 context, a root local é o diretório do módulo. Com package context, a root é o
-package.w selecionado pela regra de workspace vigente. `w context` mostra a
+`build.w` selecionado pela regra de workspace vigente. `w context` mostra a
 seleção discoverable, o manifest, o workspace, a resolution e as roots antes
 da execução. Não há recursive scan, cwd scan, `PATH` scan ou environment
 discovery. `w run path/file.w` exige um entry explícito. Ele não cria execução
@@ -4887,8 +4887,9 @@ forma normativa.
 ### 1.32 PKG1 — identidade do owner e transação do root físico
 
 PKG1 fecha a inconsistência em que `workspaceDigest` incluía bytes de
-`resolution`. A forma corrente usa somente `package.w` ou `workspace.w` como
-documento físico. `resolution` e `deployments` permanecem records aninhados.
+`resolution`. A forma corrente usa somente `build.w` como documento físico,
+com records `package` e/ou `workspace` diretos. `resolution` e `deployments`
+permanecem records aninhados.
 
 O host deriva três identidades independentes:
 
@@ -5065,17 +5066,18 @@ deployment control plane. O stop condition exige facts de compiler, provider e
 hardware, receipts de artifact/hardening, fault injection, secret lifecycle,
 side-channel residuals, FFI tests e evidência local/split para os seis perfis.
 
-### 1.36 FRC0 — snapshot histórico de pesquisa
+### 1.36 FRC0 — encerramento final das gates de pesquisa
 
 FRC0 fecha o snapshot de processo que existia em W-707, W-731 e W-1408 até
-W-1450. Ele reutiliza FZ0, a classificação do ledger e HUM0. Ele não copia
-payload e não produz compiler, runtime, provider, resultado humano ou resultado
-de modelo.
+W-1450 e valida W-1451, W-1452 e W-1453 como decisões
+`oracle-backed-current` depois do PFU0. Ele reutiliza FZ0, a classificação do
+ledger e HUM0. Ele não copia payload e não produz compiler, runtime, provider,
+resultado humano ou resultado de modelo.
 
 | Decisão | Current | Adversarial | Fact derivado |
 |---|---|---|---|
 | W-707 | completude G0–G5, source refs e snapshot | família FZ0 ausente | `FZ0-freeze-completeness` falha closed |
-| W-731 | W-001–W-1450, uma disposition por decisão e `Research=0` na fronteira histórica | decisão W-1408 removida | `freeze-research-close` falha closed |
+| W-731 | uma disposition por decisão e `Research=0` global | decisão W-1408 removida | `freeze-research-close` falha closed |
 | W-1408 | HUM0 com 8 slices, 32 tasks, 0 human, 0 model e stop-on-first | registros human/model e preference/score forjados | `HUM0-promotion` falha closed |
 
 O corpus `tooling/final-research-closure-cases.json` contém exatamente uma
@@ -5091,9 +5093,8 @@ O manifest fixa a cadeia de artefatos, digests, containment e roles. O bundle
 R1 fixa duas variantes W finas e parseáveis, ordem de apresentação, blinding e
 oracle host. O stop condition cobre stale digest, caller echo, manual count,
 registro human/model, preference/score, decisão/caso ausente ou duplicado,
-source escape, categoria errada e `Research` residual dentro de W-001–W-1450.
-A reabertura posterior é explícita nos novos IDs W-1451–W-1453. FRC0 não muda
-essa reabertura e não promove qualquer implementação.
+source escape, categoria errada e qualquer `Research` residual global. FRC0
+preserva os gaps de implementação e não promove compiler, runtime ou provider.
 
 ### 1.37 Gate SOTA de performance e matriz de responsabilidade
 
@@ -5159,41 +5160,38 @@ benchmark isolado pode orientar uma hipótese. Ele não muda a API, o W-ID, o
 numeric mode ou a alegação de implementação. A matriz deve ser revisada quando
 o target, o workload, o provider ou o oracle mudar.
 
-### 1.38 PFU0 — pesquisa pré-freeze de usabilidade
+### 1.38 PFU0 — encerramento de usabilidade pré-freeze
 
-PFU0 reabre, de forma explícita e limitada, a pesquisa depois do snapshot
-histórico FRC0. O snapshot FRC0 continua fechado somente até W-1450; W-1451,
-W-1452 e W-1453 são três gates `Research` atuais e mantêm o design freeze
-aberto/bloqueado. PFU0 não promove syntax, não altera a semântica corrente e
-não trata a máquina host como compiler, runtime, provider ou resultado humano.
+PFU0 fornece a evidência host-only para três decisões depois do snapshot
+histórico FRC0. W-1451, W-1452 e W-1453 são agora
+`oracle-backed-current`; FRC0 verifica `Research=0` global e o design freeze
+pode ser fechado. PFU0 não trata a máquina host como compiler, runtime, provider
+ou resultado humano.
 
-| Gate | Controle vigente | Candidato estreito preservado | Rejeições observáveis |
+| Gate | Controle vigente | Alternativa avaliada | Rejeitado |
 |---|---|---|---|
-| W-1451 | `package.w` e `workspace.w` continuam separados; package standalone possui `resolution`/`deployments` e workspace é owner único desses fields para members | um `build.w` data-only por diretório contém exatamente um ou dois records, ao menos um e no máximo um package e um workspace, sem depender da ordem; package-only, workspace-only aggregator e package+workspace colocados; qualquer workspace record torna workspace o owner; `workspace.members` aponta para diretórios cujo `build.w` contém package | build vazio, owner incompatível, count duplicado, package inline, nested workspace como member, glob, scan ambiental, source W executável e ownership duplicado |
-| W-1452 | retorno explícito `some Stream<Item,Failure>`; `Stream`, `Channel` e mailbox continuam distintos e explícitos | somente declaration de service `stream fn updates(...): Item throws Failure` para server-output; a interface normaliza para `some Stream<Item,Failure>`, a chamada continua `try await` para admission/open e o consumo `for try await`; `ServiceFailure` e `Failure` permanecem separados | stream fn geral, client-stream, bidi, Channel/capacity implícitos, `ServiceRef` sem `await`, closed-turn change ou colapso da fronteira ServiceFailure/Failure |
-| W-1453 | `get`/`set`/`modify` continuam vigentes; `modify` abre borrow `inout` escopado e retoma o accessor | comparar set/modify+defer/behavior, com `modify` + `defer` como controle para hooks locais; hooks novos ficam como fases sem spelling final e `willSet`/`didSet` sem owner definido | oldValue com copy oculto, oldValue noncopyable sem owner explícito, bypass de modify por observer e notificação externa implícita |
+| W-1451 | `build.w` direto e data-only com um ou dois records top-level, em qualquer ordem; no máximo um `package` e um `workspace`, pelo menos um. Package-only selecionado em contexto standalone possui `resolution`/`deployments`; package-only membro de workspace omite esses fields e o workspace declarado é o owner; workspace-only ou package+workspace: workspace possui, package omite. `workspace.members` aponta para dirs cujo `build.w` contém package. | nenhuma forma alternativa é promovida | arquivo vazio, records duplicados, wrapper físico `build.w {}`, package inline, nested workspace member, glob, scan ambiental, source executável e owners duplicados; `package.w`/`workspace.w` sem shim |
+| W-1452 | APIs de service retornam explicitamente `some Stream<Item, Failure>`. A chamada via `ServiceRef` sempre acrescenta `ServiceFailure` na fase de abertura/admission; o erro da função chamadora deve ser `ServiceFailure` ou ter exatamente uma conversão total de `ServiceFailure`. Separadamente, o `Failure` terminal permanece no stream e deve admitir `ServiceFailure`. `Channel` é explícito em capacity, endpoints, ownership, backpressure e `close`; mailbox e stream permanecem distintos. | nenhuma promoção de `stream fn`; a forma geral é rejeitada por capturas, lifecycle e erro ambíguos | `stream fn`, client-stream, bidi, Channel implícito, capacity implícita, `ServiceRef` sem `await`, closed-turn change ou colapso de `ServiceFailure`/`Failure` |
+| W-1453 | `get`/`set`/`modify` continuam vigentes em property stored, computed e behavior. `init` bypassa accessors; assignment simples usa `set`/replacement; mutation compound usa `modify` uma vez; `return inout` é pre-borrow e `defer` retoma pós-borrow; drops ocorrem uma vez; notificação externa é método/service/channel nomeado. | nenhuma promoção de observer spelling | `willSet`/`didSet`, observers implícitos, cópia oculta de old value, backing type/deinit oculto e notificação externa sem nome |
 
 O estudo host/oracle é determinístico e source-backed. O corpus e a machine não
 aceitam `expected` ou resultado fornecido pelo caller; `bundle.inputs[].expected`
 é rubric metadata R1, fica oculto por `blinding.hide` e nunca entra em
 `validateCorpus`/`evaluateCase` nem é mostrado ao participante. As nove rotas
-(current, candidate e adversarial em cada família) derivam facts e mutations: manifesto
-package/workspace, streaming de saída com canais explícitos e lifecycle de
-property. As variantes candidatas ficam em texto reservado de study e não em
-grammar, atlas corrente ou Last Light. A evidência pode confirmar a fronteira
-de pesquisa e a utilidade observável; ela não escolhe hooks finais, não inventa
-client/bidi streaming, não define owner de `willSet`/`didSet` e não muda a
-semântica vigente. A separação entre `ServiceFailure` de admission/open e
-`Failure` terminal é um stop de promoção ainda não fechado.
+(current, candidate e adversarial em cada família) derivam facts e mutations:
+manifesto build.w, streaming de saída com canais explícitos e lifecycle de
+property. O manifest candidate é aceito como current-control; os candidates de
+`stream fn` e `willSet`/`didSet` são rejected-route. A evidência não afirma
+compiler/runtime/provider e mantém `Research=0` no ledger.
 
 Artefatos canônicos: `tooling/pfu0-pre-freeze-usability-cases.json`,
 `tooling/pfu0-pre-freeze-usability-machine.mjs`,
 `tooling/check-pfu0-pre-freeze-usability.mjs` e
 `tooling/studies/pfu0-pre-freeze-usability/`. As fontes reutilizadas são os
-contratos de package/workspace, stream/Channel/mailbox e property no atlas de
-Last Light; os digests são verificados pelo checker. O stop condition exige
-caso independente, digest novo e decisão de promoção revisada para cada gate;
-até lá, nenhum dos três IDs sai de `Research`.
+contratos de build.w, stream/Channel/mailbox e property no atlas de Last Light;
+os digests são verificados pelo checker. O stop condition rejeita qualquer
+Research residual global, stale digest ou caller echo. A decisão de freeze usa
+o resultado PFU0 e não afirma compiler, runtime ou provider.
 
 ## 2. Proveniência
 
@@ -5803,7 +5801,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-562 | versão de workflow | root fixa operation, point/event schemas e adapter ABI; migration é explícita | hot-swap do history; worker antigo executa versão nova |
 | W-563 | adapter de workflow | contrato portátil; SQLite profile é explícito e memory serve ao oracle volátil | SQLite universal; deployment reduz garantia; storage oculto |
 | W-564 | confidencialidade de journal | artifact fixa mínimo e retention; payload não entra em diagnostics; adapter prova storage | plaintext implícito; secret handle serializado; deployment reduz proteção |
-| W-565 | workspace | `workspace.w` data-only lista members exatos; não cria identity publicável | discovery recursivo; workspace executável; package e workspace fundidos |
+| W-565 | workspace | record `workspace` em `build.w` data-only lista members exatos; não cria identity publicável | discovery recursivo; workspace executável; package e workspace fundidos |
 | W-566 | lock de workspace | um lock compartilhado com contexts por root, usage e target | lock por member sem visão global; um grafo único para todos os targets |
 | W-567 | member local | identity + version compatíveis selecionam member e tree digest; mismatch falha | fallback silencioso para registry; import por path |
 | W-568 | usage de dependência | `.product`, `.build`, `.test` e `.benchmark` fecham reachability e target role | uma lista universal; dev dependency entra no payload |
@@ -6579,7 +6577,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1338 | evidence SHC0 e FFI | oracle independente e fixture do restaurante cobrem default/custom/try, weak, rehome, nested origins e cycles; `memory.w::watchClosingBell`/`BellLease` fornece a fonte FFI, enquanto os casos exigem unregister para fechar admission, drain in-flight, destroy/unpin/reclaim em ordem; `BellLease` não prova drain pelo header; lease externa fecha e drena separadamente no ASC0; métricas não alegam runtime | M1 interno chamado source, API FFI inventada no fixture SHC0, callback local escapante, drain antes de unregister, facts FFI incompletos, oracle como compiler/provider |
 | W-1339 | fronteira de evidência R1S1 | oito bundles em sete famílias fecham source-boundary, contracts, declarations, patterns, callable/property, phases e delimited values; parse/oracle são host evidence e compile/run/provider/human/model claims permanecem missing | chamar parse ou oracle host de execução W, declarar participante inexistente, ocultar witness |
 | W-1340 | bundle R1S1 de fronteiras source | `r1-source-boundaries` separa operações de newline, forced semicolon, discard e formatter; a canonização deriva da sequência de source items e usa `formatting.w` como source base | automatic semicolon insertion, remoção por aparência, policy de formatter ambiental ou fonte sem relação |
-| W-1341 | bundle R1S1 de contratos syntax | `r1-static-contract-syntax` compara envelope attached, close nested e contrato local no fixture `generics.w`; `package.w` é source reference e o manifest angular fica em witness textual | reparsing por whitespace, close obrigatório inventado ou package record tratado como contrato local |
+| W-1341 | bundle R1S1 de contratos syntax | `r1-static-contract-syntax` compara envelope attached, close nested e contrato local no fixture `generics.w`; `build.w` é source reference e o manifest angular fica em witness textual | reparsing por whitespace, close obrigatório inventado ou package record tratado como contrato local |
 | W-1342 | família R1S1 de declarations | `r1-manifest-surface` cobre manifest data-only e `r1-data-declaration-surface` cobre `billing.w::MenuItem` e `kitchen.w::StockReservation`; field export e projection segura são alternativas, enquanto storage público é rejeitado | package inline, export total implícito ou constructor público sintetizado |
 | W-1343 | bundle R1S1 de patterns | `r1-pattern-surface` compara identity nominal, tuple scrutinee, cases fechados e field-set/open-rest derivado de `newField`; structural, multi-subject, implicit-open e custom dispatch são witnesses | pattern estrutural sem nominalidade, exaustividade aberta implícita, route error escolhido por dado ou handler que esconde effects |
 | W-1344 | bundle R1S1 de callable e property | `r1-callable-property-surface` usa `kitchen.w::isIdle`, `hardware.w::legacyProbeStatus` e `callables.w` para a closure; separa property/method, effectful property, `fn<C>`/slot nomeado e closure/anonymous-fn | suspension ou failure escondidas em member access, capture omitido, status runtime usado para rejeitar sintaxe ou linguagem estrangeira reparseada |
@@ -6689,9 +6687,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1448 | IPC1 A/B implementation evidence gap | ASIC0 torna A immutable mapped snapshot e B bounded mapped byte channel/log contratos atuais de adapter/provider condicionados a receipts, mas produção ainda exige Windows two-process, provider receipts, crash/recovery, durability, w-compile, w-run, FFI e stress evidence; C universal permanece rejeitado e não há nova syntax/API W | **implementation-evidence-gap**; missing Windows two-process, provider receipts, crash-recovery, durability, w-compile, w-run, FFI e stress |
 | W-1449 | AVF0 typed binding implementation evidence gap | ASIC0 fecha direct availability facts, typed provider binding e runtime composition como design/oracle contract; produção ainda exige compiler/diagnostics, provider publication, local-split, fault e stress evidence sem alterar capability/effect/ABI/interface por flag | **implementation-evidence-gap**; missing compiler, diagnostics, provider publication, local-split e fault/stress |
 | W-1450 | SEC0 evidence/admission implementation evidence gap | ASIC0 fecha profile, side-channel, patch e ordered deployment/hardening receipts como evidence/admission contracts, não security conformance; produção ainda exige compiler/runtime/provider, hardware/sandbox, attestation verifier, secret lifecycle, FFI, fault, stress e local-split evidence | **implementation-evidence-gap**; missing compiler, runtime, provider, hardware, sandbox, attestation verifier, secret lifecycle, FFI, fault/stress e local-split |
-| W-1451 | manifest de projeto unificado | `package.w`/`workspace.w` separados; package standalone possui `resolution`/`deployments` e workspace é owner único desses fields para members; `build.w` data-only por diretório contém exatamente um ou dois records, ao menos um e no máximo um package e um workspace, sem depender da ordem; package-only, workspace-only aggregator e package+workspace colocados; qualquer workspace record torna workspace o owner; `workspace.members` aponta para diretórios cujo `build.w` contém package; build vazio, owner incompatível, count duplicado, package inline, nested workspace como member, glob, scan ambiental, source executável e ownership duplicado ficam rejeitados | **research-gated**; PFU0-W-1451-manifest aguarda caso independente, digest novo e decisão de promoção revisada |
-| W-1452 | streaming de saída de service | retorno explícito `some Stream<Item,Failure>` controla a saída; somente declaration de service `stream fn updates(...): Item throws Failure` para server-output; a interface normaliza para `some Stream<Item,Failure>`, a chamada continua `try await` para admission/open e o consumo `for try await`; `Channel` não é implícito; stream fn geral, client-stream, bidi, capacity implícita, `ServiceRef` sem await, closed-turn change e colapso da fronteira `ServiceFailure`/`Failure` ficam fora | **research-gated**; PFU0-W-1452-service-stream aguarda caso independente, digest novo e decisão de promoção revisada |
-| W-1453 | lifecycle de property | `get`/`set`/`modify` permanecem vigentes; comparar set/modify+defer/behavior, com `modify` + `defer` como controle para hooks locais; hooks novos ficam como fases sem spelling final e `willSet`/`didSet` sem owner definido; cobrir init, get, replace, modify-enter, borrow, resume, drops, reentry, panic/OOM e concurrency/service boundary; oldValue não exige copy oculto nem existe para noncopyable sem owner explícito; notificação externa é explícita | **research-gated**; PFU0-W-1453-property-lifecycle aguarda caso independente, digest novo e decisão de promoção revisada |
+| W-1451 | manifest de projeto unificado | `build.w` direto e data-only por diretório contém um ou dois records top-level em qualquer ordem, pelo menos um e no máximo um `package` e um `workspace`, sem wrapper físico `build.w {}`; package-only selecionado em contexto standalone possui `resolution`/`deployments`; package-only membro de workspace omite esses fields e o workspace declarado é o owner; workspace-only e package+workspace atribuem esses fields ao workspace e o package os omite; `workspace.members` aponta para diretórios cujo `build.w` contém `package`; schemas `w.package/1` e `w.workspace/1` permanecem; package inline, nested workspace member, glob, scan ambiental, source executável, arquivo vazio/duplicado e owners duplicados são rejeitados; `package.w`/`workspace.w` são removidos sem shim pré-1.0 | oracle-backed-current; PFU0-W-1451-current fornece o controle host-oracle e o candidate de manifest é aceito |
+| W-1452 | streaming de saída de service | APIs de service retornam explicitamente `some Stream<Item, Failure>`; a chamada via `ServiceRef` sempre acrescenta `ServiceFailure` na fase de abertura/admission; o erro da função chamadora deve ser `ServiceFailure` ou ter exatamente uma conversão total de `ServiceFailure`; separadamente, o `Failure` terminal permanece no stream e deve admitir `ServiceFailure`; `Channel` exige capacity, endpoints, ownership, backpressure e `close` explícitos; mailbox e `Stream` mantêm lifecycle distinto; `stream fn` é rejeitada por capturas, lifecycle e erro ambíguos; client-stream, bidi, channel implícito, capacity implícita, `ServiceRef` sem await e closed-turn change ficam fora | oracle-backed-current; PFU0-W-1452-current fecha o retorno explícito e rejeita o candidate `stream fn` |
+| W-1453 | lifecycle de property | `get`/`set`/`modify` permanecem vigentes em property stored, computed e behavior; `init` bypassa accessors; assignment simples usa `set`/replacement e nunca `modify`; mutation compound usa `modify` uma vez, sem get-copy-set; `return inout` é pre-borrow e `defer` retoma pós-borrow; old value e backing storage drop ocorrem uma vez pelas regras explícitas; cleanup customizado fica no backing type sem `deinit` oculto; notificação externa é método/service/channel nomeado; acesso à mesma property em accessor faz dispatch normal e sobreposição no borrow exclusivo falha; `willSet`/`didSet` e observers implícitos são rejeitados | oracle-backed-current; PFU0-W-1453-current fecha o lifecycle e rejeita o candidate observer |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,

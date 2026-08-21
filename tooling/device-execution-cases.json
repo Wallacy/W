@@ -109,7 +109,7 @@
     {
       "id": "DEV0-rejected-source-backed-artifact-open",
       "kind": "rejected",
-      "source": { "path": "reference/last-light/package.w", "symbol": "last-light-accelerators" },
+      "source": { "path": "reference/last-light/build.w", "symbol": "last-light-accelerators" },
       "decisions": ["W-1212", "W-1286", "W-1287"],
       "operations": [{ "$use": "openCuda", "with": { "artifactClass": "sourceBacked" } }],
       "expect": { "status": "rejected", "error": "W-DEVICE-0001", "phase": "uninitialized" }

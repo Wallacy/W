@@ -120,7 +120,7 @@
       "id": "PKG1-deployment-only",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "workspace {"
         }
       ],
@@ -179,7 +179,7 @@
       "id": "PKG1-resolution-only-refresh",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "resolution: {"
         }
       ],
@@ -251,7 +251,7 @@
       "id": "PKG1-dependency-member-edit",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "members:"
         }
       ],
@@ -309,7 +309,7 @@
       "id": "PKG1-add-success",
       "references": [
         {
-          "path": "../reference/last-light/package.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "dependencies"
         }
       ],
@@ -375,7 +375,7 @@
       "id": "PKG1-remove-success",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "members: ["
         }
       ],
@@ -429,7 +429,7 @@
       "id": "PKG1-solve-failure",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "resolver: \"w.resolver/1\""
         }
       ],
@@ -462,7 +462,7 @@
       "id": "PKG1-dry-run",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "defaultMembers:"
         }
       ],
@@ -508,7 +508,7 @@
       "id": "PKG1-stale-concurrent-writer",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "patches:"
         }
       ],
@@ -559,7 +559,7 @@
       "id": "PKG1-crash-before-replace",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "toolchainPolicy:"
         }
       ],
@@ -610,7 +610,7 @@
       "id": "PKG1-crash-after-replace",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "deployments: ["
         }
       ],
@@ -661,7 +661,7 @@
       "id": "PKG1-temp-cleanup",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "schema: \"w.workspace/1\""
         }
       ],
@@ -760,7 +760,7 @@
       "id": "PKG1-windows-replacefile-partial",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "name: \"local\""
         }
       ],
@@ -809,7 +809,7 @@
       "id": "PKG1-missing-flush-receipt",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "name: \"benchmark\""
         }
       ],
@@ -864,7 +864,7 @@
       "id": "PKG1-owner-ambiguity",
       "references": [
         {
-          "path": "../reference/last-light/package.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "package {"
         }
       ],
@@ -887,7 +887,7 @@
       "id": "PKG1-isolated-package-owner",
       "references": [
         {
-          "path": "../reference/last-light/package.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "schema: \"w.package/1\""
         }
       ],
@@ -952,7 +952,7 @@
       "id": "PKG1-external-fetch-missing",
       "references": [
         {
-          "path": "../reference/last-light/package.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "authority: .registry(\"w\")"
         }
       ],
@@ -977,7 +977,7 @@
       "id": "PKG1-alias-collision",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "rootEdges:"
         }
       ],
@@ -1023,7 +1023,7 @@
       "id": "PKG1-invalid-context-closure",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "contexts:"
         }
       ],
@@ -1059,7 +1059,7 @@
       "id": "PKG1-caller-echo-rejected",
       "references": [
         {
-          "path": "../reference/last-light/workspace.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "packages:"
         }
       ],
@@ -1084,7 +1084,7 @@
       "id": "PKG1-forged-digest-rejected",
       "references": [
         {
-          "path": "../reference/last-light/package.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "version: \"0.1.0\""
         }
       ],
@@ -1110,7 +1110,7 @@
       "id": "PKG1-formatting-identity-stable",
       "references": [
         {
-          "path": "../reference/last-light/package.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "license:"
         }
       ],
@@ -1141,7 +1141,7 @@
       "id": "PKG1-replay-idempotent",
       "references": [
         {
-          "path": "../reference/last-light/package.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "runtimeGraphs:"
         }
       ],
@@ -1241,7 +1241,7 @@
       "id": "PKG1-reducer-divergence",
       "references": [
         {
-          "path": "../reference/last-light/package.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "targetVariants:"
         }
       ],
@@ -1343,7 +1343,7 @@
       "id": "PKG1-publication-receipt-mismatch",
       "references": [
         {
-          "path": "../reference/last-light/package.w",
+          "path": "../reference/last-light/build.w",
           "symbol": "publish:"
         }
       ],

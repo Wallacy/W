@@ -7,9 +7,9 @@
     "R0-manifest-record"
   ],
   "sourceBase": {
-    "path": "../../../reference/last-light/package.w",
+    "path": "../../../reference/last-light/build.w",
     "symbol": "package {",
-    "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc"
+    "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f"
   },
   "variants": [
     {
@@ -33,7 +33,7 @@
       "role": "alternative",
       "language": "w-reserved",
       "path": "inline-package-record.txt",
-      "digest": "sha256:4d625dcfd9bfce5fd58b67bec66627ab4933dfd5638b4fc983cb3be86be9fe81",
+      "digest": "sha256:bf7f25c152940907f4e080285a4a844c67274888a535f857c9bfa37b2685f309",
       "changedConstructs": [
         "inline angular package record"
       ],
@@ -53,7 +53,11 @@
       "edition": "2026",
       "expected": {
         "accepted": true,
-        "manifest": { "name": "last-light/restaurant", "version": "0.1.0", "edition": "2026" },
+        "manifest": {
+          "name": "last-light/restaurant",
+          "version": "0.1.0",
+          "edition": "2026"
+        },
         "executableSource": false
       }
     },
@@ -63,7 +67,10 @@
       "name": "",
       "version": "0.0.0",
       "edition": "2026",
-      "expected": { "accepted": false, "cause": "invalid-name" }
+      "expected": {
+        "accepted": false,
+        "cause": "invalid-name"
+      }
     },
     {
       "id": "inline-candidate",
@@ -71,7 +78,10 @@
       "name": "last-light/restaurant",
       "version": "0.1.0",
       "edition": "2026",
-      "expected": { "accepted": false, "cause": "inline-package-contract" }
+      "expected": {
+        "accepted": false,
+        "cause": "inline-package-contract"
+      }
     }
   ],
   "tasks": [

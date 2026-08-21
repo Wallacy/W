@@ -3,7 +3,10 @@
   "status": "design-oracle-input",
   "id": "R1-spawn-domain-last-light",
   "title": "Bounded galley planning at the Last Light restaurant",
-  "r0Cases": ["R0-spawn-domain", "R0-product-execution-profile"],
+  "r0Cases": [
+    "R0-spawn-domain",
+    "R0-product-execution-profile"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/execution.w",
     "symbol": "spawn<.compute> let leftResult",
@@ -45,8 +48,13 @@
         "id": "native-bounded",
         "selectionOwner": "product",
         "domain": "compute",
-        "requiredCapabilities": ["parallel"],
-        "capabilities": ["concurrent", "parallel"],
+        "requiredCapabilities": [
+          "parallel"
+        ],
+        "capabilities": [
+          "concurrent",
+          "parallel"
+        ],
         "capacity": 1
       },
       "expected": {
@@ -55,7 +63,10 @@
         "dispatch": "explicit",
         "scheduling": "domain-contract",
         "parallelCapability": true,
-        "result": { "port": 5, "starboard": 10 }
+        "result": {
+          "port": 5,
+          "starboard": 10
+        }
       }
     },
     {
@@ -66,8 +77,12 @@
         "id": "native-bounded",
         "selectionOwner": "product",
         "domain": "compute",
-        "requiredCapabilities": ["parallel"],
-        "capabilities": ["serial"],
+        "requiredCapabilities": [
+          "parallel"
+        ],
+        "capabilities": [
+          "serial"
+        ],
         "capacity": 1
       },
       "expected": {
@@ -86,8 +101,13 @@
         "id": "native-bounded",
         "selectionOwner": "product",
         "domain": "compute",
-        "requiredCapabilities": ["parallel"],
-        "capabilities": ["concurrent", "parallel"],
+        "requiredCapabilities": [
+          "parallel"
+        ],
+        "capabilities": [
+          "concurrent",
+          "parallel"
+        ],
         "capacity": 0
       },
       "expected": {
@@ -105,8 +125,13 @@
         "id": "module-compute",
         "selectionOwner": "module",
         "domain": "compute",
-        "requiredCapabilities": ["parallel"],
-        "capabilities": ["concurrent", "parallel"],
+        "requiredCapabilities": [
+          "parallel"
+        ],
+        "capabilities": [
+          "concurrent",
+          "parallel"
+        ],
         "capacity": 1
       },
       "expected": {
@@ -141,17 +166,42 @@
       "instruction": "Add a third compute child, preserve input-order results, and keep capacity in the product profile rather than the source call."
     }
   ],
-  "presentationOrders": [["positional", "named"], ["named", "positional"]],
+  "presentationOrders": [
+    [
+      "positional",
+      "named"
+    ],
+    [
+      "named",
+      "positional"
+    ]
+  ],
   "blinding": {
-    "participantLabels": { "positional": "A", "named": "B" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "positional": "A",
+      "named": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:131f510450c31fa19b160f0d4b36e4ca28cc78dd11fe1fa4b627dfd3749a8af3"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

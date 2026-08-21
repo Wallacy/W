@@ -2811,6 +2811,25 @@
     }
   },
   {
+    "type": "build_manifest",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "package_manifest",
+          "named": true
+        },
+        {
+          "type": "workspace_manifest",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "call_expression",
     "named": true,
     "fields": {
@@ -10896,6 +10915,10 @@
           "named": true
         },
         {
+          "type": "build_manifest",
+          "named": true
+        },
+        {
           "type": "const_declaration",
           "named": true
         },
@@ -10944,10 +10967,6 @@
           "named": true
         },
         {
-          "type": "package_manifest",
-          "named": true
-        },
-        {
           "type": "protocol_declaration",
           "named": true
         },
@@ -10977,10 +10996,6 @@
         },
         {
           "type": "unit_declaration",
-          "named": true
-        },
-        {
-          "type": "workspace_manifest",
           "named": true
         }
       ]

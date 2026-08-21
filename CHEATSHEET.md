@@ -107,9 +107,8 @@ entry Hello(runHello)
 ```
 
 O nome do módulo e os imports pertencem ao source. Um package e um workspace
-são raízes de manifesto, não módulos W comuns. Veja os exemplos de dados em
-[package.w](reference/last-light/package.w) e
-[workspace.w](reference/last-light/workspace.w).
+são records de manifesto no único root físico [build.w](reference/last-light/build.w),
+não módulos W comuns.
 
 ### Comandos planejados
 
@@ -740,6 +739,15 @@ stream <[...]> { yield take/copy ... } é uma forma vigente e estreita. Generic
 generator, yield from, buffer oculto, channel bidirecional implícito, MPMC sem
 domínio e buffer infinito estão fora da forma vigente.
 
+No corpus de referência, `TaskGroup` e `async let`/`spawn` mostram o lifecycle
+lexical de tasks; `Stream` e `Channel` continuam tipos explícitos. O exemplo de
+channel abre capacidade e endpoints explícitos com `Channel<Order>.open(capacity: 1)`,
+envia/recebe, encerra o sender por drop e fecha ou drena o receiver conforme o
+contrato. A API de service mantém o retorno
+explícito `some Stream<Item, Failure>`; não há `stream fn` aceita. Não há um
+snippet source-backed separado para esse retorno de service, portanto esta
+nota não cria sintaxe nova.
+
 ## Shared, weak, lazy, atomic, locks e SnapshotCell
 
 Contrato: [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação),
@@ -1023,9 +1031,8 @@ Contrato: [DESIGN.md §21](DESIGN.md#21-packages-builds-e-releases),
 ### Package e workspace
 
 Manifestos separam identidade, dependências, targets, capabilities, artifacts
-e resolução. Eles são data-only roots. Consulte
-[package.w](reference/last-light/package.w),
-[workspace.w](reference/last-light/workspace.w) e
+e resolução. Eles são records data-only no root físico único [build.w](reference/last-light/build.w).
+Consulte
 [BUILD.md](reference/last-light/BUILD.md).
 
 Package e workspace são unidades de manifesto diferentes do `module` W. Um
@@ -1172,7 +1179,7 @@ w run last-light-native --deployment local -- --tui
 ```
 
 O primeiro excerpt vem do product em
-[package.w](reference/last-light/package.w); o segundo vem de
+[build.w](reference/last-light/build.w); o segundo vem de
 [app.w](reference/last-light/app.w). O package resolve o product para o module
 e entry declarados; o module fornece o symbol callable.
 O comando é a forma planejada em [BUILD.md](reference/last-light/BUILD.md),
@@ -1211,7 +1218,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Compartilhar estado | owner por domain, shared, atomic, channel | SnapshotCell e adapters especializados | Atomic<shared T>, mutex global ou RCU implícito | Serialização e snapshot reduzem races; cópia/sync têm custo visível | [DESIGN.md §12.10.7](DESIGN.md#12107-exclusão-mútua-como-último-recurso) · [synchronization.w](reference/last-light/synchronization.w) |
 | Fazer I/O | ByteSource/ByteSink, ReadStep.data/end | Adapters async-first e leitura posicional conforme capability | Scatter read/file-to-sink/zero-copy fora da superfície vigente; Reader/Writer síncronos e EOF sentinel | Async-first preserva backpressure; carrier explícito aumenta ceremony | [DESIGN.md §14](DESIGN.md#14-prelude-e-standard-library) · [io.w](reference/last-light/io.w) |
 | Modelar service | closed turn + SupervisorRef + WorkKeyRef | Recovery com snapshot/dedup | Reentrant service, detached Promise e retry implícito | Effect identity permite replay seguro; metadata e storage têm custo | [DESIGN.md §13.9.3](DESIGN.md#1393-recovery-de-service-e-deduplicação) · [service_recovery_oracle.w](reference/last-light/service_recovery_oracle.w) |
-| Selecionar build | package/workspace + target spec + digest | Provider por capability e CAS | PATH/SDK ambiente, target string e config invisível | Reprodutibilidade exige manifest e receipts; setup fica mais explícito | [DESIGN.md §21](DESIGN.md#21-packages-builds-e-releases) · [package.w](reference/last-light/package.w) |
+| Selecionar build | package/workspace records em build.w + target spec + digest | Provider por capability e CAS | PATH/SDK ambiente, target string e config invisível | Reprodutibilidade exige manifest e receipts; setup fica mais explícito | [DESIGN.md §21](DESIGN.md#21-packages-builds-e-releases) · [build.w](reference/last-light/build.w) |
 | Cruzar FFI | foreign c, carrier typed, unsafe fn<abi: .c> com nome | ABI adapters gerados sob prova; fn<C> é body inline C vigente | Tratar fn<C> como generic/sandbox, W object por C, foreign module W ou lib dinâmica sem capability | Unsafe ilha limita blast radius; marshaling custa cópia/validations | [DESIGN.md §19](DESIGN.md#19-ffi-unsafe-e-ilhas-de-linguagem) · [abi.w](reference/last-light/abi.w) |
 | Representar unidade | 9.81<m/s^2>, Quantity(value, unit:) | wWire/JSON de Quantity como contrato de design, decoder/provider em gap | Bracket syntax, narrowing implícito e número fast | Units no tipo evitam erro dimensional; adapters custam schema | [DESIGN.md §15.5.3](DESIGN.md#1553-wwire-para-quantity) · [quantity_oracle.w](reference/last-light/quantity_oracle.w) |
 | Serializar tabela | data.Batch<Row>, adapters CSV/Parquet/Arrow | Carrier tabular v1 e wWire | DataFrame universal, duck typing e Any | Schema fechado permite bounds e zero-copy futuro; adapters são verbosos | [DESIGN.md §14.4.1](DESIGN.md#1441-carrier-tabular) · [data_formats.w](reference/last-light/data_formats.w) |

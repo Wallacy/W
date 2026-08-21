@@ -3,7 +3,9 @@
   "status": "design-oracle-input",
   "id": "R1-tuple-unpacking",
   "title": "Menu compiler tuple result at the Last Light restaurant",
-  "r0Cases": ["R0-tuple-unpacking"],
+  "r0Cases": [
+    "R0-tuple-unpacking"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/packages/menu-compiler/compiler.w",
     "symbol": "word()",
@@ -16,7 +18,10 @@
       "language": "w",
       "path": "binding.w",
       "digest": "sha256:b0921a45d9775a850c9676c5e04c4887a60e1733d6d1986a6fe8cfef6a3c7530",
-      "changedConstructs": ["fixed tuple binding", "single word call"]
+      "changedConstructs": [
+        "fixed tuple binding",
+        "single word call"
+      ]
     },
     {
       "id": "projections",
@@ -24,20 +29,36 @@
       "language": "w",
       "path": "projections.w",
       "digest": "sha256:d5ce2b22fc41db85d0ee69b23f5b766123f0c7e73b459b42980eb335c80e5859",
-      "changedConstructs": ["tuple projections .0/.1", "copy for move-only component", "single word call"]
+      "changedConstructs": [
+        "tuple projections .0/.1",
+        "copy for move-only component",
+        "single word call"
+      ]
     }
   ],
   "entry": "readWord",
   "inputs": [
     {
       "id": "primary-word",
-      "tokens": ["horizon", "cake"],
-      "expected": { "text": "horizon", "line": 7, "wordCalls": 1, "projectionCopyCount": 1 }
+      "tokens": [
+        "horizon",
+        "cake"
+      ],
+      "expected": {
+        "text": "horizon",
+        "line": 7,
+        "wordCalls": 1,
+        "projectionCopyCount": 1
+      }
     },
     {
       "id": "adversarial-empty-input",
       "tokens": [],
-      "expected": { "error": "unexpectedEnd", "wordCalls": 1, "projectionCopyCount": 0 }
+      "expected": {
+        "error": "unexpectedEnd",
+        "wordCalls": 1,
+        "projectionCopyCount": 0
+      }
     }
   ],
   "tasks": [
@@ -63,17 +84,42 @@
       "instruction": "Add a variable-length middle with collection or view APIs and explain why fixed tuples have no starred grammar."
     }
   ],
-  "presentationOrders": [["binding", "projections"], ["projections", "binding"]],
+  "presentationOrders": [
+    [
+      "binding",
+      "projections"
+    ],
+    [
+      "projections",
+      "binding"
+    ]
+  ],
   "blinding": {
-    "participantLabels": { "binding": "A", "projections": "B" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "binding": "A",
+      "projections": "B"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
   "oracle": {
     "path": "oracle.test.mjs",
     "digest": "sha256:aa13faba7a2ae0cab6828c2c2f40bfda0ec288fedb5340711ed1101dc13700f3"
   },
   "evidence": {
-    "current": ["tree-sitter-parse", "host-oracle"],
-    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "human-study",
+      "model-study"
+    ]
   }
 }

@@ -876,8 +876,11 @@ module_source = module_header? import_declaration*
 module_header = "module" identifier contract_arguments? ";"? ;
 contract_arguments = "<" static_argument ("," static_argument)* ","? ">" ;
 
-manifest_document = manifest_kind manifest_record EOF ;
-manifest_kind = "package" | "workspace" ;
+manifest_document = build_manifest EOF ;
+build_manifest = package_manifest workspace_manifest?
+               | workspace_manifest package_manifest? ;
+package_manifest = "package" manifest_record ;
+workspace_manifest = "workspace" manifest_record ;
 manifest_record = "{" manifest_field* "}" ;
 manifest_field = identifier ":" manifest_value ","? ;
 manifest_value = manifest_record
@@ -895,7 +898,8 @@ manifest_constructor = contextual_member
 manifest_argument = (identifier ":")? manifest_value ;
 ```
 
-O documento físico é um `package` ou um `workspace`. Ele não possui um root
+O documento físico é um `build_manifest` com um ou dois records diretos
+`package`/`workspace`, em qualquer ordem, sem wrapper. Ele não possui um root
 `lock` ou `deployment` separado. O owner basis é o record canônico do owner
 sem os fields aninhados `resolution` e `deployments`. O owner basis usa ordem
 canônica de fields, valores normalizados e não inclui path físico, comments ou
@@ -4024,7 +4028,7 @@ module kitchen<
 O header usa `<...>` porque modifica o contrato de um módulo nomeado. Os valores
 são enum-like e possuem tipos conhecidos.
 
-`package.w` é outro tipo de documento. Ele usa um record data-only completo:
+`build.w` é outro tipo de documento. Ele usa um record data-only completo:
 
 ```w
 package {
@@ -5310,6 +5314,38 @@ Os accessors usam estes receivers:
 `get => expression` e `set(value) => expression` são corpos curtos. Um bloco
 permanece disponível. `modify` usa bloco. `return inout place` abre um borrow
 escopado. O accessor retoma seus `defer` quando esse borrow termina.
+
+#### 8.4.1 Lifecycle explícito de property
+
+Uma property armazenada e uma property apoiada por `behavior` possuem
+`storage` e participam de `init` e `drop`. Uma property computada participa
+somente das fases que declara e não recebe `storage` implícito. Quando existe
+storage em construção, sua escrita de inicialização bypassa `get`, `set` e
+`modify`.
+
+Uma atribuição simples chama `set` quando ele existe (ou substitui o storage
+diretamente); ela nunca passa por `modify`. Uma operação composta ou
+`mutating` usa `modify` exatamente uma vez e não baixa para um get-copy-set
+implícito.
+
+`return inout place` é um pre-borrow: o accessor produz o place antes de
+transferir o controle ao chamador. O `defer` declarado no accessor retoma como
+hook local depois que o borrow termina, antes de o accessor devolver o
+resultado. Ele não observa um valor por uma segunda cópia.
+
+Quando uma substituição explícita realmente ocorre, o valor antigo é consumido
+ou sofre `drop` exatamente uma vez. Um setter que valida ou delega pode não
+substituir o valor e, nesse caso, não cria um `drop` do valor antigo. O storage
+é descartado uma vez pelas regras normais do tipo ou por cleanup customizado
+declarado no tipo de backing; um property behavior não cria `deinit` nem tipo
+de backing oculto. A notificação externa é um método, service ou channel
+nomeado. `willSet`, `didSet` e observers implícitos são rejeitados.
+
+Não há supressão ou reentrada implícita de observer. Um acesso à mesma property
+dentro de um accessor faz o dispatch normal e pode recursar explicitamente;
+somente o acesso direto ao storage ou ao backing evita esse dispatch. Enquanto
+`modify` mantém o borrow exclusivo, um acesso sobreposto ao mesmo place falha
+na regra de exclusividade.
 
 Accessors são property-safe. O compiler aplica este teto de efeitos:
 
@@ -9488,9 +9524,16 @@ high-bit:       rejected; profile portable
 
 ## 10. Property behaviors
 
-Um behavior transforma um binding ou field em uma propriedade lógica. Ele
-possui backing storage, accessors e obrigações de drop. Reflection mostra a
-propriedade lógica e não expõe o backing storage.
+Um `behavior` transforma um binding ou field em uma property lógica. Ele
+possui storage de backing, accessors e obrigações de `drop`. Reflection mostra
+a property lógica e não expõe o storage de backing.
+
+Uma aplicação de `behavior` segue as fases normativas de
+[§8.4.1](#841-lifecycle-explícito-de-property): a inicialização escreve seu
+storage sem chamar accessors, atribuição simples usa `set`/replacement,
+mutação composta usa um único `modify` e `defer` retoma depois do borrow.
+Nenhum `behavior` adiciona `willSet`, `didSet`, observer implícito, tipo de
+backing ou `deinit` oculto.
 
 **W-1414 — initializer slot explícito de behavior:** a gramática aceita a forma
 `input name: Type`, mas a baseline v0 fecha no máximo um slot canônico:
@@ -10950,7 +10993,7 @@ Um execution profile é um record data-only do package. Ele fixa este envelope:
 | `cleanup` | grace bounds de cleanup assíncrono e blocking drain |
 
 **Exemplo:** o product seleciona o profile pelo nome; a forma completa fica no
-[`package.w` do Última Luz](reference/last-light/package.w) e no schema de
+[`build.w` do Última Luz](reference/last-light/build.w) e no schema de
 [manifest](#211-manifest-e-resolução):
 
 ```w
@@ -14814,7 +14857,7 @@ também precisa de scope, lifecycle, mailbox, limits e initializer. Reduzir essa
 fronteira a um handler esconderia partes necessárias do artifact contract.
 
 **Exemplo:** o grafo `restaurant-core` do
-[`package.w` do Última Luz](reference/last-light/package.w) fornece
+[`build.w` do Última Luz](reference/last-light/build.w) fornece
 `lastLight`, importa despensa e fornos e exporta as services públicas.
 
 O package graph declara services e requirements nomeadas. Um product seleciona
@@ -14842,7 +14885,7 @@ entry. `.deny` impede que uma referência ativa troque de provider.
 Um graph que alcança uma service stream declara `streamLimits`. O record fixa
 streams abertos e limites `perStream`/`total` de item bytes, traversal,
 in-flight, queue, capability slots, rate e burst. A forma parseável está no
-[`package.w` do Última Luz](reference/last-light/package.w).
+[`build.w` do Última Luz](reference/last-light/build.w).
 
 O product envelope fixa os máximos. Um deployment pode reduzi-los por unit ou
 edge. Ele não pode ampliar uma garantia publicada. O compiler rejeita um graph
@@ -14867,8 +14910,8 @@ Um foreign link usa `.adapter(digest)`. O adapter declara quais partes de
 `ServiceIR` preserva. Uma edge com capabilities, pipeline ou errors que o
 adapter não representa falha durante resolution.
 
-O deployment record pode restringir a escolha. O record nomeado em
-`workspace.w` grava link, adapter, codec, transport, peer e interface digests por
+O deployment record pode restringir a escolha. O record `workspace` nomeado em
+`build.w` grava link, adapter, codec, transport, peer e interface digests por
 edge. Startup não troca
 o link por uma alternativa ambiental.
 
@@ -14972,7 +15015,7 @@ runtime registry reservado na baseline.
 #### 13.8.3 Packing de build
 
 **Exemplo:** os packings `single-process` e `split-services` no
-[`package.w` do Última Luz](reference/last-light/package.w) geram,
+[`build.w` do Última Luz](reference/last-light/build.w) geram,
 respectivamente, um artifact único ou um index com quatro units.
 
 `packing` é uma decisão de build. Ele divide providers e supervisors em artifact
@@ -15017,8 +15060,8 @@ sem boundary, o programador usa import comum.
 
 #### 13.8.4 Manifest e deployment nomeado
 
-**Exemplo:** o deployment nomeado `local` em
-[`workspace.w`](reference/last-light/workspace.w) seleciona recipe, packing,
+**Exemplo:** o deployment nomeado `local` no record `workspace` de
+[`build.w`](reference/last-light/build.w) seleciona recipe, packing,
 bindings e limites. O deployment `distributed` também fixa placement e session
 wRPC. O record grava as escolhas por digest.
 
@@ -15030,8 +15073,8 @@ wRPC. O record grava as escolhas por digest.
 | `limits` | reduções por unit, supervisor e service edge |
 | `security.wrpc` | channels, peer identity, credentials, trust, handshake e lifecycle |
 
-O record `w.deployment/1` é data-only e fica aninhado em `workspace.w` (ou em
-`package.w` quando o package é isolado). `.product(...)` referencia uma recipe
+O record `w.deployment/1` é data-only e fica aninhado no record `workspace` (ou
+no record `package` quando o package é isolado) de `build.w`. `.product(...)` referencia uma recipe
 reproduzível. `w deploy resolve --deployment <name>` grava cada artifact e unit
 por digest no record nomeado.
 
@@ -15075,7 +15118,7 @@ O deployment não pode:
 - reduzir mutual authentication, confidentiality ou integrity exigidas;
 - conceder uma capability ausente no artifact.
 
-Secrets não entram em `package.w`, artifact ou deployment lock. O plano
+Secrets não entram em `build.w`, artifact ou deployment lock. O plano
 referencia uma capability do host. O runtime entrega um handle.
 
 O resolver deriva a identidade esperada de cada peer usando deployment, unit e
@@ -23528,7 +23571,7 @@ incremental. JSON serve somente para inspection. A especificação está fechada
 Nenhum compiler ou linker de produção está implementado por essa decisão.
 
 **Separação de domínios.** A v0 usa CBOR determinístico para records data-only de
-`package.w`, a `resolution` aninhada, `workspace.w`, recipe, toolchain plan e release
+`build.w`, a `resolution` aninhada, recipe, toolchain plan e release
 metadata. `WMeta1` contém chunks publicáveis de `WInterface` e ABI. Ele não
 serializa AST, HIR ou outro cache interno do compiler. Ele também não é o codec
 desses records e não é um payload de runtime. O payload de service continua
@@ -24718,12 +24761,28 @@ fecham cada linha da matriz. A evidência de LLVM, WASI, Android e MLIR fica em
 
 ### 21.1 Manifest e resolução
 
-`package.w` usa um subset data-only. Ele aceita records, lists, strings,
+`build.w` usa um documento data-only. Ele aceita records, lists, strings,
 numbers, size literals, booleans e enum values. Ele não executa imports, loops,
-funções ou I/O.
+funções ou I/O. O arquivo físico contém diretamente um ou dois records
+top-level, em qualquer ordem: no máximo um `package` e no máximo um
+`workspace`, e pelo menos um. Não existe um wrapper `build.w { ... }`.
+
+As formas válidas são package-only, workspace-only e package+workspace. Um
+package-only selecionado em contexto standalone (`--standalone`) é o owner de
+`resolution` e `deployments`. Quando o diretório do package-only é um member
+declarado de um workspace, o workspace que declarou esse member é o owner e o
+record `package` do member omite esses fields. Um workspace-only é o owner
+desses fields; quando os dois records estão no mesmo `build.w`, somente o
+workspace os contém e o package os omite. `workspace.members` aponta para
+diretórios cujo `build.w` contém um record `package`. Um member não pode conter
+um record `workspace` aninhado. A seleção usa membership declarada, nunca
+ancestor scan.
 
 O manifest ocupa o arquivo inteiro. Ele não pode coexistir com import, função,
-type ou outro manifest.
+type ou outro source executável. Arquivo vazio, record duplicado, package
+inline, workspace member nested, glob, scan ambiental e ownership duplicado
+são erros. Os schemas `w.package/1` e `w.workspace/1` permanecem. Antes de
+1.0, `package.w` e `workspace.w` são removidos sem shim ou compatibilidade.
 
 ```w
 package {
@@ -24905,7 +24964,7 @@ do product. `representation` escolhe o fallback portátil ou permite a seleção
 otimizada descrita na seção 9. A ausência desses fields é erro; a distribuição
 não consulta environment nem instala um allocator implícito.
 
-- `package.w` é um formato data-only;
+- `build.w` é um formato data-only com um ou dois records top-level;
 - `resolution` aninhada no owner package/workspace é obrigatória para build
   reprodutível;
 - o resolver é determinístico e registra sua versão;
@@ -24917,9 +24976,9 @@ não consulta environment nem instala um allocator implícito.
 - múltiplas versões ficam fora da v0;
 - features são aditivas, explícitas e entram na chave do artefato.
 
-**W-1415 — roots físicos unificados:** somente `package.w` e `workspace.w`
-são roots físicos aceitos. `lock` e `deployment` não são manifest kinds nem
-arquivos root independentes. Um root pode conter os fields data-only
+**W-1415 — roots físicos unificados:** somente `build.w` é root físico aceito.
+`lock` e `deployment` não são manifest kinds nem arquivos root independentes.
+Um `build.w` pode conter os fields data-only
 `resolution` e `deployments`:
 
 ```w
@@ -25001,16 +25060,17 @@ workspace {
 }
 ```
 
-`workspace.w` usa o mesmo codec data-only dos outros manifests. Ele é uma
-fronteira de desenvolvimento e resolução. Ele não é package, module, product ou
-release. O arquivo não é publicado como parte da identidade de um member.
+O record `workspace` em `build.w` usa o mesmo codec data-only dos outros
+manifests. Ele é uma fronteira de desenvolvimento e resolução. Ele não é
+package, module, product ou release. O record não é publicado como parte da
+identidade de um member.
 
 `members` contém `PackagePath` relativos e exatos. A v0 não aceita glob, path
 absoluto, `..` ou symlink que saia da raiz. Cada path precisa conter um
-`package.w`, e duas entries não podem resolver para a mesma árvore ou identity.
-Um workspace com um único member continua válido.
+`build.w` com record `package`, e duas entries não podem resolver para a mesma
+árvore ou identity. Um workspace com um único member continua válido.
 
-Todos os members compartilham a `resolution` aninhada em `workspace.w` e o mesmo
+Todos os members compartilham a `resolution` do record `workspace` e o mesmo
 CAS. A resolution mantém contexts separados por product, target e usage de
 dependência. Outputs continuam imutáveis; packages não escrevem no diretório de
 outro member.
@@ -25022,7 +25082,8 @@ no lugar do member local sem informar o usuário. A resolution grava o manifest
 digest, o source-inventory digest e a razão da seleção. Cada context grava seu
 active source-set digest. A recipe grava o content tree digest.
 
-O owner local é selecionado pela membership declarada em `workspace.w`, não por
+O owner local é selecionado pela membership declarada no record `workspace` de
+`build.w`, não por
 uma simples busca de ancestor. `w context` mostra manifest, workspace,
 resolution e roots antes de qualquer mutation. CI e release usam
 `--workspace <path>` ou `--standalone`; eles não dependem de discovery ambiental.
@@ -25368,7 +25429,7 @@ Package identity é:
 PackageIdentity = declared authority + scoped package name
 ```
 
-Todo `package.w` declara um field `authority`:
+Todo record `package` em `build.w` declara um field `authority`:
 
 ```w
 authority: .registry("w")
@@ -25396,13 +25457,13 @@ display name, não no identificador usado por filesystem, URL e type identity.
 - `.registry(name)` exige a mesma registry authority no package encontrado;
 - `.git(url, revision:)` exige a mesma Git authority e um commit completo na
   dependency;
-- dependency source `.path(path)` existe somente em `workspace.w` e aponta
-  para um `package.w`;
+- dependency source `.path(path)` existe somente no record `workspace` de
+  `build.w` e aponta para um diretório cujo `build.w` contém `package`;
 - um member compatível é uma source local implícita e registrada no lock;
 - binary artifacts são candidatos de uma release resolvida, não outra source
   declarada na dependency.
 
-Branch, tag, `latest` e URL de archive mutável não entram em `package.w`. Um
+Branch, tag, `latest` e URL de archive mutável não entram em `build.w`. Um
 comando de conveniência pode resolver uma referência humana, mas grava o commit
 imutável antes do build.
 
@@ -25569,7 +25630,7 @@ digests e invariants antes do uso.
 O lock de uma library publicado com sua release preserva a resolução usada nos
 próprios tests e artifacts. A recipe correspondente conclui a reprodução. O
 lock não força a resolution dos consumers. O consumer usa as constraints do
-`package.w` e grava o resultado no próprio lock.
+record `package` em `build.w` e grava o resultado no próprio lock.
 
 A evidência comparativa de workspaces, features e sources fica em
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
@@ -25598,11 +25659,11 @@ publish: {
 ```
 
 `publish.files` é uma allowlist obrigatória. A serialização canônica do
-`package.w` atual é metadata obrigatória e participa do snapshot digest. Nested
+record `package` em `build.w` é metadata obrigatória e participa do snapshot digest. Nested
 `resolution` e `deployments` locais são excluídos da publicação.
 `.modules` inclui os arquivos de todos os `modules` e `moduleSets`, inclusive
 cases inativos. Isso permite reconstruir toda a matriz publicável. Ele não
-inclui `package.w`, `workspace.w` ou manifest de subpackage. `.path` usa
+inclui `build.w` ou manifest de subpackage. `.path` usa
 `PackagePath` exato, não aceita glob, não segue symlink e não sai da raiz. A
 lista normalizada entra no release recipe. Um arquivo novo fora de `.modules`
 não é publicado até a allowlist mudar.
@@ -26786,7 +26847,7 @@ publica metadata somente depois de validar o conjunto.
 
 ```text
 $ w resolve
-resolved 14 packages; updated workspace.w resolution
+resolved 14 packages; updated build.w workspace resolution
 
 $ w build last-light-native --target x86_64-unknown-linux-gnu --locked
 built last-light-native
@@ -27728,9 +27789,15 @@ As referências de TLS, QUIC, channel binding e workload identity ficam em
 
 #### 23.1.5 Streaming e flow control
 
-**Forma vigente:** um service protocol usa o mesmo
-`Stream<Item, Failure>` da seção 12.9. A API não cria tipos distintos para
-server, client ou bidirectional streaming. A posição do stream define a direção:
+**Forma vigente:** um service API de saída retorna explicitamente
+`some Stream<Item, Failure>`. A chamada via `ServiceRef` sempre acrescenta
+`ServiceFailure` na fase de abertura/admission e continua `try await`; o
+consumo continua `for try await`. O erro declarado pela função chamadora deve
+ser `ServiceFailure` ou ter exatamente uma conversão total de `ServiceFailure`.
+Separadamente, o parâmetro `Failure` de `Stream` cobre o terminal e deve admitir
+`ServiceFailure` conforme a regra abaixo. A forma `stream fn` não é
+promovida: capturas, lifecycle do producer e ownership do erro ficam ambíguos,
+por isso `stream fn` é rejeitada como spelling de API geral.
 
 ```w
 export protocol TelemetryApi {
@@ -27738,24 +27805,17 @@ export protocol TelemetryApi {
     after sequence: u64,
   ): some Stream<Telemetry, TelemetryError>
 }
-
-export protocol ArchiveApi {
-  async fn ingest(
-    source: take some Stream<Telemetry, TelemetryError>,
-  ): ArchiveReceipt throws ArchiveError
-}
-
-export protocol RelayApi {
-  async fn exchange(
-    source: take some Stream<Request, RequestStreamError>,
-  ): some Stream<Response, ResponseStreamError> throws OpenError
-}
 ```
 
-Uma posição de input exige `take some Stream<Item, Failure>`. Uma posição de
-output exige `some Stream<Item, Failure>`. `any Stream` não aparece numa
-interface de service. Erasure continua disponível dentro de uma implementação,
-mas não altera o contrato publicado.
+Uma posição de output exige `some Stream<Item, Failure>`. Input-stream e
+bidirectional-stream em service permanecem rejeitados nesta baseline; `any
+Stream` também não aparece numa interface publicada. Erasure continua
+disponível dentro de uma implementação, mas não altera o contrato.
+
+`Channel` nunca é criado implicitamente por uma service. A declaração de um
+channel deve nomear capacidade, endpoints `send`/`receive`, ownership,
+backpressure e `close`; mailbox e `Stream` permanecem canais distintos com
+open/close/send/receive visíveis. `ServiceRef` preserva `await` e o closed turn.
 
 No output, a identidade opaque pertence ao result path da operation. O tipo
 concreto do producer não entra em `WInterface`, ABI ou wire schema. O
@@ -28944,12 +29004,14 @@ que declaram `std.process` `Arguments`, `Context` e `ExitCode`, com os
 effects e return types do profile. Descriptor incompatível não entra no conjunto
 CLI e seleção nomeada incompatível falha com `source.entry`.
 
-A root física é `package.w` ou `workspace.w`. Package isolado é o owner de
-sua resolution; quando há workspace, membership e owner único selecionam o
-workspace, e owners duplicados falham. Ancestor scan sozinho não seleciona um
-workspace. Fora de projeto, o contexto efêmero aceita somente std e imports
-locais explícitos. Dependency externa não resolvida falha e orienta criar ou
-adotar um package/workspace. `w run` não faz solve, update, install ou fetch
+A root física é `build.w`, com um ou dois records diretos. Package isolado em
+contexto standalone é o owner de sua resolution; um package member usa o
+workspace que o declarou, mesmo quando o member tem um `build.w` package-only.
+Quando há workspace, membership e owner único selecionam o workspace, e owners
+duplicados falham. Ancestor scan sozinho não seleciona um workspace. Fora de
+projeto, o contexto efêmero aceita somente std
+e imports locais explícitos. Dependency externa não resolvida falha e orienta
+criar ou adotar um package/workspace. `w run` não faz solve, update, install ou fetch
 oculto.
 
 O grafo de imports contém somente edges explícitos. Canonical containment,
@@ -28957,7 +29019,7 @@ symlink, traversal e escape são avaliados na boundary do target/provider.
 Recursive scan, cwd scan, `PATH` scan, environment scan, URL, stdin e shebang
 não são formas de source.
 
-Package e workspace podem carregar `resolution: { schema: "w.resolution/1", ... }`
+O owner selecionado pode carregar `resolution: { schema: "w.resolution/1", ... }`
 e uma lista `deployments` de records `w.deployment/1` nomeados. Em workspace,
 esses fields pertencem ao workspace e não são duplicados nos members. `w
 resolve` e `w update` reescrevem somente `resolution`; o deployment é
@@ -29811,21 +29873,21 @@ ownership.
 
 #### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa
 
-O bundle [`FRC0`](tooling/studies/final-research-closure) fecha somente o
-snapshot de processo W-707, W-731 e W-1408 até W-1450. Ele é
-`design-oracle-input` e `reuseOnly`. O corpus possui exatamente seis casos,
-uma rota `current` e uma rota `adversarial` para cada gate. A máquina deriva o
-outcome de facts em cópias do FZ0, da classificação do ledger e do protocolo
-HUM0. Ela não usa `expected`, ID, score, preference ou resultado fornecido pelo
-caller.
+O bundle [`FRC0`](tooling/studies/final-research-closure) fecha o snapshot de
+processo W-707, W-731 e W-1408 até W-1450 e valida as três decisões PFU0
+W-1451–W-1453 como `oracle-backed-current`. Ele é `design-oracle-input` e
+`reuseOnly`. O corpus possui exatamente seis casos, uma rota `current` e uma
+rota `adversarial` para cada gate. A máquina deriva o outcome de facts em
+cópias do FZ0, da classificação do ledger e do protocolo HUM0. Ela não usa
+`expected`, ID, score, preference ou resultado fornecido pelo caller.
 
 | Gate | Current | Adversarial | Contrato fechado |
 |---|---|---|---|
 | W-707 / `FZ0-freeze-completeness` | `FRC0-W-707-current` | `FRC0-W-707-adversarial` | completude G0–G5, refs e snapshot coerentes; não é `count=implementation` |
-| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão até W-1450 tem disposition e `Research=0`; a fronteira é histórica e não significa implementação total |
+| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão do ledger tem disposition e `Research=0` global; isso não significa implementação total |
 | W-1408 / `HUM0-promotion` | `FRC0-W-1408-current` | `FRC0-W-1408-adversarial` | stop-on-first-violation, no-automatic-promotion e 0 human/0 model preservados |
 
-O resultado de cada rota é `oracle-backed-current` para o snapshot histórico.
+O resultado de cada rota é `oracle-backed-current` para os contratos fechados.
 A rota adversarial é rejeitada quando uma família, decisão, registro ou política
 é removida ou forjada. FRC0 não compila, executa ou promove W. Os gaps de
 `w-compile`, `w-run`, compiler, runtime, provider, `human-study` e
@@ -29834,35 +29896,31 @@ preferência, score ou métrica manual é criado.
 
 O stop condition é stale digest, caller echo, métrica manual, registro humano
 ou de modelo forjado, preference/score, decisão ou caso ausente/duplicado,
-source escape, categoria errada ou `Research` residual dentro da fronteira
-W-001–W-1450. A máquina também exige a reabertura explícita de W-1451–W-1453
-como `research-gated`. A cadeia estrita é manifest → artefatos → bundle/study
+source escape, categoria errada ou qualquer `Research` residual global. A
+máquina exige W-1451–W-1453 como `oracle-backed-current` após PFU0. A cadeia
+estrita é manifest → artefatos → bundle/study
 → fixtures thin parseáveis → oracle e snapshot. O checker root e o checker
 aninhado devem permanecer verdes antes de qualquer recascade adicional. FRC0
 não reabre uma questão semântica e não autoriza alegação de implementação.
 
-#### 24.4.3 PFU0 — pesquisa pré-freeze de usabilidade
+#### 24.4.3 PFU0 — fechamento de usabilidade pré-freeze
 
-O bundle [`PFU0`](tooling/studies/pfu0-pre-freeze-usability) reabre o design
-freeze com três gates verificáveis. Ele registra pesquisa, não comportamento
-vigente. Enquanto W-1451, W-1452 ou W-1453 permanecer em **Pesquisa**, o design
-freeze fica aberto e bloqueado. FRC0 é somente o snapshot fechado até W-1450.
+O bundle [`PFU0`](tooling/studies/pfu0-pre-freeze-usability) fecha três gates
+verificáveis. Ele registra evidência host-only para as decisões vigentes e não
+afirma implementação. FRC0 valida a classificação final e exige Research=0;
+o design freeze fica fechado depois da revisão Sol.
 
-| ID | Controle | Candidato estreito | Rejeitado por enquanto |
+| ID | Controle vigente | Alternativa avaliada | Rejeitado |
 |---|---|---|---|
-| W-1451 | `package.w` e `workspace.w` continuam roots separados. Package standalone é owner de `resolution` e `deployments`. Workspace é owner único desses fields para members. | Um `build.w` data-only por diretório contém exatamente um ou dois records, ao menos um e no máximo um `package` e um `workspace`, sem depender da ordem. A forma admite package-only, workspace-only aggregator e package+workspace colocados. `workspace.members` aponta para diretórios cujo `build.w` contém `package`; qualquer workspace record torna workspace o owner. | Build vazio, owner incompatível, count duplicado, inline package completo no workspace, nested workspace como member, glob, scan ambiental, source W executável e ownership duplicado. O nome `build.w` é somente candidato de pesquisa. |
-| W-1452 | O controle é retorno explícito `some Stream<Item,Failure>`. `Stream` é pull single-cursor. `Channel` e mailbox permanecem distintos e explícitos. | Somente declaration de service `stream fn updates(...): Item throws Failure` para server-output. A interface normaliza para `some Stream<Item,Failure>`; a call continua `try await` para admission/open e o consumo continua `for try await`. `ServiceFailure` de admission/open e `Failure` terminal permanecem separados; não há Channel implícito. | `stream fn` geral fora de service server-output, client-stream, bidi, channel implícito, capacity implícita, `ServiceRef` sem `await`, closed-turn change ou colapso de `ServiceFailure`/`Failure`. |
-| W-1453 | `get`, `set` e `modify` permanecem vigentes. `modify` abre borrow `inout` escopado e retoma o accessor após o borrow. Accessors são property-safe. | Comparar `set`/`modify` com `defer` e behavior atuais contra hooks locais de replace/modify lifecycle. Comparar também a alternativa `willSet`/`didSet` estilo observer sem promovê-la. | Observer global, notificação externa implícita e `oldValue` com copy oculto. `oldValue` não existe para noncopyable sem owner explícito. |
+| W-1451 | `build.w` direto e data-only com um ou dois records top-level, em qualquer ordem; no máximo um `package` e um `workspace`, pelo menos um. Package-only selecionado em contexto standalone possui `resolution`/`deployments`; package-only membro de workspace omite esses fields e o workspace declarado é o owner; workspace-only ou package+workspace: workspace possui, package omite. `workspace.members` aponta para dirs cujo `build.w` contém package. | Nenhuma forma alternativa é promovida. | Arquivo vazio, records duplicados, wrapper físico `build.w {}`, package inline, nested workspace member, glob, scan ambiental, source executável e owners duplicados; `package.w`/`workspace.w` sem shim. |
+| W-1452 | APIs de service retornam explicitamente `some Stream<Item, Failure>`. A chamada via `ServiceRef` acrescenta `ServiceFailure` na fase de abertura/admission; o erro da função chamadora deve ser `ServiceFailure` ou ter exatamente uma conversão total. Separadamente, `Failure` terminal permanece no stream. `Channel` é sempre explícito (capacity, endpoints, ownership, backpressure e close); mailbox e `Stream` têm lifecycle próprio. | Nenhuma promoção de `stream fn`; a forma geral é rejeitada por capturas, lifecycle e erro ambíguos. | `stream fn`, client-stream, bidi, channel implícito, capacity implícita, `ServiceRef` sem `await`, closed-turn change ou colapso entre `ServiceFailure` e `Failure`. |
+| W-1453 | `get`, `set` e `modify` permanecem vigentes em stored/computed/behavior property. `init` bypassa accessors; assignment simples usa `set`/replacement; compound/mutating usa `modify` uma vez; `return inout` é pre-borrow e `defer` retoma pós-borrow; old value/backing drop ocorre uma vez; notificação externa é método/service/channel nomeado; acesso à mesma property em accessor faz dispatch normal, e sobreposição no borrow exclusivo falha. | Nenhuma promoção de observer spelling. | `willSet`/`didSet`, observers implícitos, hidden oldValue copy, backing type/deinit oculto e notificação externa sem nome. |
 
 PFU0 cobre init, get, replace, modify-enter, borrow, resume, drop do valor
 antigo, drop do backing, reentry, panic/OOM e fronteiras de concurrency/service.
-O candidato de property mostra `modify` + `defer` como controle para hooks
-locais; fases novas permanecem sem spelling final e sem owner definido para
-`willSet`/`didSet`.
-O gate exige um caso independente, digest novo e decisão de promoção revisada.
-O oracle host deriva os resultados de facts e source refs. Ele não executa W,
-não escolhe syntax, não promove observer hooks e não inventa semântica de
-client-stream ou bidi.
+O manifest candidate é aceito como current-control; os candidates de `stream fn`
+e `willSet`/`didSet` são rejected-route. O oracle host deriva os resultados de
+facts e source refs, não executa W e não afirma compiler/runtime/provider.
 
 ### 24.5 Blockers de allocator ASC0
 
@@ -30118,7 +30176,7 @@ type-check, lowering ou comportamento runtime.
 O produto detalhado está em
 [Restaurante Última Luz](reference/last-light/README.md). Products, targets e
 comandos estão em [BUILD.md](reference/last-light/BUILD.md). Os deployments
-nomeados ficam em [workspace.w](reference/last-light/workspace.w).
+nomeados ficam no record `workspace` de [build.w](reference/last-light/build.w).
 
 ## 26. Plano de implementação
 

@@ -63,10 +63,10 @@
     },
     {
       "id": "last-light-package",
-      "path": "reference/last-light/package.w",
+      "path": "reference/last-light/build.w",
       "symbol": "name: \"compile-final-menu\"",
       "claim": "build action and target separation",
-      "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc"
+      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f"
     },
     {
       "id": "last-light-final-menu",
@@ -15553,7 +15553,7 @@
               "binding": "menu",
               "mode": "read-only",
               "digest": "sha256:19c240d029c50ceae0cb270f6ac5f0d25c4a0a00e04b7d8d16fa3b2ee7aacc94",
-              "physicalPath": "reference/last-light/package.w"
+              "physicalPath": "reference/last-light/build.w"
             },
             {
               "binding": "dependency:std",

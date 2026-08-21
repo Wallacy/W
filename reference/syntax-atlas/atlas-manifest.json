@@ -4,14 +4,13 @@
   "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. CHEATSHEET.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:68f8653afc4e5ec1d3164365f464df1fba9986d732061c262c9bdbb1e081cf75",
-    "publicRuleSetDigest": "sha256:488b4ea2148178f13e1ee2f40b78eb80bec63d5be53fbb2c71b850469d02eaf7"
+    "digest": "sha256:70bec9b176d7f4580aacdc345bba913d2154185ce0d142623d929f18c92d479f",
+    "publicRuleSetDigest": "sha256:587e99fbe114af19588ad4c925de8a8128d99f0c7cfc98d71709f0f386321522"
   },
   "sourceFiles": [
+    "build.w",
     "execution.w",
-    "language.w",
-    "package.w",
-    "workspace.w"
+    "language.w"
   ],
   "pedagogicalOrder": [
     "module-run-root",
@@ -43,14 +42,9 @@
       "role": "main-reading-path"
     },
     {
-      "file": "package.w",
-      "root": "package",
-      "role": "exclusive-root"
-    },
-    {
-      "file": "workspace.w",
-      "root": "workspace",
-      "role": "exclusive-root"
+      "file": "build.w",
+      "root": "build_manifest",
+      "role": "unified-root"
     }
   ],
   "grammarRules": [
@@ -272,6 +266,14 @@
       "reason": "Direct source construction shown in the control-flow atlas block.",
       "markers": [
         "control-flow"
+      ]
+    },
+    {
+      "name": "build_manifest",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "package-root"
       ]
     },
     {
@@ -2534,7 +2536,7 @@
     },
     {
       "id": "package-root",
-      "file": "package.w",
+      "file": "build.w",
       "order": 14,
       "line": 1,
       "title": "Package manifest root",
@@ -2543,6 +2545,7 @@
       "evidenceStatus": "tree-sitter-parse-only-provider-missing",
       "root": "package",
       "grammarRefs": [
+        "build_manifest",
         "manifest_argument",
         "manifest_constructor",
         "manifest_field",
@@ -2556,19 +2559,19 @@
       ],
       "sourceRefs": [
         {
-          "path": "reference/last-light/package.w",
+          "path": "reference/last-light/build.w",
           "symbol": "package {",
-          "digest": "sha256:d382965ea69e2909b4d9830427fd6089af30f2757326acc6eae2faa526f7bedc"
+          "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f"
         }
       ],
-      "snippetDigest": "sha256:2841ad104096a0b8c7e20639b4ddbc0eb29122588ec6865ab29d14b3c1cfe8ce",
-      "snippetBytes": 465
+      "snippetDigest": "sha256:7e60ad5b7b3094ffc5b3bb8dc105bf5bce7301d41758ecf14585ba27696005ce",
+      "snippetBytes": 190
     },
     {
       "id": "workspace-root",
-      "file": "workspace.w",
+      "file": "build.w",
       "order": 15,
-      "line": 1,
+      "line": 16,
       "title": "Workspace manifest root",
       "family": "manifest",
       "designStatus": "current",
@@ -2582,9 +2585,9 @@
       ],
       "sourceRefs": [
         {
-          "path": "reference/last-light/workspace.w",
+          "path": "reference/last-light/build.w",
           "symbol": "workspace {",
-          "digest": "sha256:7a78ec3227f890d873ce9f847b0deb0dc9c6d7eed98b2c4432196b1725c329cd"
+          "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f"
         }
       ],
       "snippetDigest": "sha256:538bc3384f73031187fc9f9ad2caec358951f8e584c075e9cf212ac0075db345",
@@ -2611,6 +2614,6 @@
   ],
   "generated": {
     "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:1f7ad15304a81a8046ff7ab35d3996ca67d104e958d82abdc41ef48251bec078"
+    "cheatsheetDigest": "sha256:a1a85f6d238197e653e54681a2b218aa88cbe1f39efe4eb07a4a46113d4c58bc"
   }
 }

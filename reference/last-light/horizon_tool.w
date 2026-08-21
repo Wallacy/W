@@ -1,6 +1,6 @@
 // Module-run design oracle. The source is a normal module with an explicit
-// entry descriptor. Its chart dependency is declared by package.w and closed
-// by workspace.w resolution; this file does not carry a virtual root or lock.
+// entry descriptor. Its chart dependency is declared by build.w and closed
+// by build.w resolution; this file does not carry a virtual root or lock.
 
 module horizon_tool
 

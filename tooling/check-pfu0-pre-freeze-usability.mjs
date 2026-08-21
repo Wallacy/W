@@ -75,7 +75,15 @@ export function main(argv = process.argv.slice(2)) {
   const mutations = mutationChecks();
   for (const [name, passed] of Object.entries(mutations)) if (passed !== true) errors.push(`PFU0 mutation check failed: ${name}.`);
   const candidates = checked.results.filter((result) => result.variant === "candidate");
-  if (candidates.length !== 3 || candidates.some((result) => result.status !== "accepted" || result.route !== "candidate-research" || result.promotion !== false)) errors.push("PFU0 candidate routes must remain accepted research without promotion.");
+  const candidateExpectations = new Map([
+    ["manifest", ["accepted", "current-control"]],
+    ["service", ["rejected", "rejected-route"]],
+    ["property", ["rejected", "rejected-route"]],
+  ]);
+  if (candidates.length !== 3 || candidates.some((result) => {
+    const expected = candidateExpectations.get(result.family);
+    return !expected || result.status !== expected[0] || result.route !== expected[1] || result.promotion !== false;
+  })) errors.push("PFU0 candidates must promote only the build manifest; stream fn and implicit observer spellings remain rejected routes.");
   checkStudyArtifacts(errors);
   if (corpus) {
     const projected = snapshotText(checked.results, mutations);
@@ -89,7 +97,7 @@ export function main(argv = process.argv.slice(2)) {
   }
   const accepted = checked.results.filter((result) => result.status === "accepted").length;
   const rejected = checked.results.filter((result) => result.status === "rejected").length;
-  process.stdout.write(`PFU0 pre-freeze-usability: ${checked.results.length} cases, ${accepted} accepted, ${rejected} rejected; three research gates remain open.\n`);
+  process.stdout.write(`PFU0 closure evidence: ${checked.results.length} cases, ${accepted} accepted, ${rejected} rejected; Research=0 and freeze is closed.\n`);
   return true;
 }
 

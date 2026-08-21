@@ -3,18 +3,42 @@
   "status": "design-oracle-input",
   "id": "R1-cyc1-explicit-cycle-lifecycle",
   "title": "Explicit cycle lifecycle and conditional liveness at the Last Light restaurant",
-  "r0Cases": ["R0-shared-construction", "R0-weak-owner-acquisition", "R0-closed-patterns"],
+  "r0Cases": [
+    "R0-shared-construction",
+    "R0-weak-owner-acquisition",
+    "R0-closed-patterns"
+  ],
   "sourceBase": {
     "path": "../../../reference/last-light/memory.w",
     "symbol": "MenuSection",
     "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b"
   },
   "sourceRefs": [
-    { "path": "../../../reference/last-light/memory.w", "symbol": "expectedSharedCycleDisposition", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b" },
-    { "path": "../../../reference/last-light/app.w", "symbol": "shutdown", "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29" },
-    { "path": "../../../reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de" },
-    { "path": "../../../reference/last-light/liveness_oracle.w", "symbol": "CommitGate", "digest": "sha256:447a3fc9252312c7403450a861a75324bb34e1a91df9a7a7981d0bc0b38b4119" },
-    { "path": "../../../reference/last-light/shared_control_oracle.w", "symbol": "crossDomainOrder", "digest": "sha256:77c0e4bc95a7770f7497599fcd81f8dbaab57afa0b9285f70a89aafe30ba6241" }
+    {
+      "path": "../../../reference/last-light/memory.w",
+      "symbol": "expectedSharedCycleDisposition",
+      "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b"
+    },
+    {
+      "path": "../../../reference/last-light/app.w",
+      "symbol": "shutdown",
+      "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29"
+    },
+    {
+      "path": "../../../reference/last-light/lifecycle_oracle.w",
+      "symbol": "nextServiceTurnState",
+      "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de"
+    },
+    {
+      "path": "../../../reference/last-light/liveness_oracle.w",
+      "symbol": "CommitGate",
+      "digest": "sha256:447a3fc9252312c7403450a861a75324bb34e1a91df9a7a7981d0bc0b38b4119"
+    },
+    {
+      "path": "../../../reference/last-light/shared_control_oracle.w",
+      "symbol": "crossDomainOrder",
+      "digest": "sha256:77c0e4bc95a7770f7497599fcd81f8dbaab57afa0b9285f70a89aafe30ba6241"
+    }
   ],
   "variants": [
     {
@@ -24,8 +48,15 @@
       "language": "w",
       "path": "current-weak-owner.w",
       "digest": "sha256:c7b7064fe3a71ec2a0b4d3166a020997918a07a3011aa9572efbb9f423ac947a",
-      "changedConstructs": ["weak parent edge", "shared children", "explicit owner binding"],
-      "parseEvidence": { "status": "tree-sitter-parse", "note": "Parseable current W witness for MenuSection-style ownership." }
+      "changedConstructs": [
+        "weak parent edge",
+        "shared children",
+        "explicit owner binding"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Parseable current W witness for MenuSection-style ownership."
+      }
     },
     {
       "id": "explicit-owner-close",
@@ -34,8 +65,15 @@
       "language": "w",
       "path": "explicit-owner-close.w",
       "digest": "sha256:48db2812abb36d3956ced04558e7efdb6d95e05bc2c5754e90b8575fa7f8d0c0",
-      "changedConstructs": ["strong callback edge", "consuming close boundary", "owner-controlled unlink"],
-      "parseEvidence": { "status": "tree-sitter-parse", "note": "Parseable witness for an explicit close break." }
+      "changedConstructs": [
+        "strong callback edge",
+        "consuming close boundary",
+        "owner-controlled unlink"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Parseable witness for an explicit close break."
+      }
     },
     {
       "id": "post-init-self-weak",
@@ -44,8 +82,15 @@
       "language": "w",
       "path": "post-init-self-weak.w",
       "digest": "sha256:914b17c7589c9f093e98db7c262fcab5ada85537815b3a9e75417cd4c344dc13",
-      "changedConstructs": ["published owner", "post-init weak self link", "no partial self escape"],
-      "parseEvidence": { "status": "tree-sitter-parse", "note": "Parseable two-phase self-weak witness." }
+      "changedConstructs": [
+        "published owner",
+        "post-init weak self link",
+        "no partial self escape"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Parseable two-phase self-weak witness."
+      }
     },
     {
       "id": "conditional-liveness",
@@ -54,8 +99,15 @@
       "language": "w",
       "path": "conditional-liveness.w",
       "digest": "sha256:290e29f7b71a9993a6c706440d4145bfc2fc2f6f568a68945d7966f57df6c73c",
-      "changedConstructs": ["generation/ID cache with explicit invalidation", "owner-scoped lease with close", "detached value without value-to-key back edge"],
-      "parseEvidence": { "status": "tree-sitter-parse", "note": "Parseable library-composition witness; no new language primitive." }
+      "changedConstructs": [
+        "generation/ID cache with explicit invalidation",
+        "owner-scoped lease with close",
+        "detached value without value-to-key back edge"
+      ],
+      "parseEvidence": {
+        "status": "tree-sitter-parse",
+        "note": "Parseable library-composition witness; no new language primitive."
+      }
     },
     {
       "id": "transparent-collector",
@@ -64,8 +116,15 @@
       "language": "w-reserved",
       "path": "transparent-collector.txt",
       "digest": "sha256:a98f468ce08dd37cfe96d3afaece4333f5618e27072e80651c5b1c66a097b180",
-      "changedConstructs": ["transparent collector", "implicit finalizer", "hidden resurrection"],
-      "parseEvidence": { "status": "reserved-not-parsed", "note": "Reserved text only; transparent collection is not W syntax." }
+      "changedConstructs": [
+        "transparent collector",
+        "implicit finalizer",
+        "hidden resurrection"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Reserved text only; transparent collection is not W syntax."
+      }
     },
     {
       "id": "public-self-weak-constructor",
@@ -74,31 +133,127 @@
       "language": "w-reserved",
       "path": "public-self-weak-constructor.txt",
       "digest": "sha256:b4cde22d5e6ca7cadf436ae3018f383022a82d4c9b7366610bda947ce2ef1fdb",
-      "changedConstructs": ["public self-weak constructor", "partial initialization escape"],
-      "parseEvidence": { "status": "reserved-not-parsed", "note": "Reserved comparison text; post-init construction remains current." }
+      "changedConstructs": [
+        "public self-weak constructor",
+        "partial initialization escape"
+      ],
+      "parseEvidence": {
+        "status": "reserved-not-parsed",
+        "note": "Reserved comparison text; post-init construction remains current."
+      }
     }
   ],
   "entry": "CycleFixture",
   "inputs": [
-    { "id": "menu-and-observer", "scenario": "weak-parent-and-capture", "expected": { "route": "weak-or-owner" } },
-    { "id": "conditional-liveness", "scenario": "weak-key-and-ephemeron", "expected": { "route": "research-extension" } },
-    { "id": "collector-witness", "scenario": "transparent-collector", "expected": { "route": "rejected" } }
+    {
+      "id": "menu-and-observer",
+      "scenario": "weak-parent-and-capture",
+      "expected": {
+        "route": "weak-or-owner"
+      }
+    },
+    {
+      "id": "conditional-liveness",
+      "scenario": "weak-key-and-ephemeron",
+      "expected": {
+        "route": "research-extension"
+      }
+    },
+    {
+      "id": "collector-witness",
+      "scenario": "transparent-collector",
+      "expected": {
+        "route": "rejected"
+      }
+    }
   ],
   "tasks": [
-    { "kind": "explain", "instruction": "Compare weak edges, explicit close, lifecycle drain, opaque foreign roots, and post-drain census." },
-    { "kind": "recall", "instruction": "After the controlled delay, reconstruct SCC, root, callback, and FFI ordering.", "minimumDelaySeconds": 1 },
-    { "kind": "repair", "instruction": "Repair the strong callback SCC, missing FFI drain, and naive weak-key witness.", "mutations": { "current-weak-owner": "Keep the parent edge weak.", "explicit-owner-close": "Remove the strong callback edge before the owner drops.", "post-init-self-weak": "Publish before installing a weak self link.", "conditional-liveness": "Keep value-to-key ownership detached or explicit.", "transparent-collector": "Keep transparent collection rejected.", "public-self-weak-constructor": "Keep partial self escape reserved." } },
-    { "kind": "change", "instruction": "Add a bounded listener graph without hiding cleanup, FFI drain, or liveness uncertainty." }
+    {
+      "kind": "explain",
+      "instruction": "Compare weak edges, explicit close, lifecycle drain, opaque foreign roots, and post-drain census."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct SCC, root, callback, and FFI ordering.",
+      "minimumDelaySeconds": 1
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the strong callback SCC, missing FFI drain, and naive weak-key witness.",
+      "mutations": {
+        "current-weak-owner": "Keep the parent edge weak.",
+        "explicit-owner-close": "Remove the strong callback edge before the owner drops.",
+        "post-init-self-weak": "Publish before installing a weak self link.",
+        "conditional-liveness": "Keep value-to-key ownership detached or explicit.",
+        "transparent-collector": "Keep transparent collection rejected.",
+        "public-self-weak-constructor": "Keep partial self escape reserved."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a bounded listener graph without hiding cleanup, FFI drain, or liveness uncertainty."
+    }
   ],
   "presentationOrders": [
-    ["current-weak-owner", "explicit-owner-close", "post-init-self-weak", "conditional-liveness", "transparent-collector", "public-self-weak-constructor"],
-    ["public-self-weak-constructor", "transparent-collector", "conditional-liveness", "post-init-self-weak", "explicit-owner-close", "current-weak-owner"],
-    ["conditional-liveness", "current-weak-owner", "public-self-weak-constructor", "explicit-owner-close", "transparent-collector", "post-init-self-weak"]
+    [
+      "current-weak-owner",
+      "explicit-owner-close",
+      "post-init-self-weak",
+      "conditional-liveness",
+      "transparent-collector",
+      "public-self-weak-constructor"
+    ],
+    [
+      "public-self-weak-constructor",
+      "transparent-collector",
+      "conditional-liveness",
+      "post-init-self-weak",
+      "explicit-owner-close",
+      "current-weak-owner"
+    ],
+    [
+      "conditional-liveness",
+      "current-weak-owner",
+      "public-self-weak-constructor",
+      "explicit-owner-close",
+      "transparent-collector",
+      "post-init-self-weak"
+    ]
   ],
   "blinding": {
-    "participantLabels": { "current-weak-owner": "A", "explicit-owner-close": "B", "post-init-self-weak": "C", "conditional-liveness": "D", "transparent-collector": "E", "public-self-weak-constructor": "F" },
-    "hide": ["id", "role", "path", "changedConstructs"]
+    "participantLabels": {
+      "current-weak-owner": "A",
+      "explicit-owner-close": "B",
+      "post-init-self-weak": "C",
+      "conditional-liveness": "D",
+      "transparent-collector": "E",
+      "public-self-weak-constructor": "F"
+    },
+    "hide": [
+      "id",
+      "role",
+      "path",
+      "changedConstructs"
+    ]
   },
-  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:def6b7133c719ff534766f3fb81d25a827369c9f05eb1c273c1f29bbe7844f0c" },
-  "evidence": { "current": ["tree-sitter-parse", "host-oracle", "source-ref", "official-primary"], "missing": ["w-compile", "w-run", "cycle-stress-provider", "provider", "human-study", "model-study"] }
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:def6b7133c719ff534766f3fb81d25a827369c9f05eb1c273c1f29bbe7844f0c"
+  },
+  "evidence": {
+    "current": [
+      "tree-sitter-parse",
+      "host-oracle",
+      "source-ref",
+      "official-primary"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "cycle-stress-provider",
+      "provider",
+      "human-study",
+      "model-study"
+    ]
+  }
 }
