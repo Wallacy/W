@@ -29,7 +29,7 @@ function parseResult(output, label) {
   const lines = output.toString().split(/\r?\n/u)
   const line = lines.find((candidate) => candidate.startsWith("RESULT "))
   if (!line) fail(`${label} has no RESULT line`)
-  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
+  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
   if (!match) fail(`${label} has an invalid RESULT line: ${line}`)
   return {
     parse: Number(match[1]),
@@ -40,17 +40,18 @@ function parseResult(output, label) {
     enums: Number(match[6]),
     enum_cases: Number(match[7]),
     enum_case_parameters: Number(match[8]),
-    types: Number(match[9]),
-    functions: Number(match[10]),
-    params: Number(match[11]),
-    entries: Number(match[12]),
-    statements: Number(match[13]),
-    expressions: Number(match[14]),
-    arguments: Number(match[15]),
-    symbols: Number(match[16]),
-    facts: Number(match[17]),
-    diagnostics: Number(match[18]),
-    receipt: Number(match[19]),
+    switch_arms: Number(match[9]),
+    types: Number(match[10]),
+    functions: Number(match[11]),
+    params: Number(match[12]),
+    entries: Number(match[13]),
+    statements: Number(match[14]),
+    expressions: Number(match[15]),
+    arguments: Number(match[16]),
+    symbols: Number(match[17]),
+    facts: Number(match[18]),
+    diagnostics: Number(match[19]),
+    receipt: Number(match[20]),
   }
 }
 
@@ -77,6 +78,58 @@ function expectCompleteWitness(executable, bytes, label) {
     fail(`${label} did not produce declaration/signature/receipt output`)
   }
   return result
+}
+
+function expectOk(executable, bytes, label) {
+  const input = typeof bytes === "string" ? Buffer.from(bytes, "utf8") : bytes
+  const result = probe(executable, input, label)
+  if (result.parsed.parse !== 0 || result.parsed.frontend !== "ok" ||
+      result.parsed.facts !== 0 || result.parsed.diagnostics !== 0) {
+    fail(`${label} was not a clean supported witness`)
+  }
+  return result
+}
+
+function receiptLines(output, prefix) {
+  return output.split(/\r?\n/u).filter((line) => line.startsWith(prefix))
+}
+
+function expectSwitchReceipt(result, expectedCases, label, expectedPattern = 0) {
+  const lines = receiptLines(result.output, "switch-arm=")
+  if (lines.length !== expectedCases) {
+    fail(`${label} receipt has ${lines.length} switch arms, expected ${expectedCases}`)
+  }
+  const records = lines.map((line) => {
+    const fields = Object.fromEntries(line.split("|").map((field) => {
+      const separator = field.indexOf("=")
+      return separator < 0 ? [field, ""] : [field.slice(0, separator), field.slice(separator + 1)]
+    }))
+    return fields
+  })
+  for (const [index, record] of records.entries()) {
+    if (record.owner === undefined || record.pattern !== String(expectedPattern) ||
+        record.enum !== "0" || record.case !== String(index) ||
+        record.supported !== "1" || record.result === undefined ||
+        record["pattern-span"] === undefined || record.span === undefined) {
+      fail(`${label} switch arm ${index} receipt identity/order is incomplete`)
+    }
+  }
+  return records
+}
+
+function expectWildcardSwitchReceipt(result, label) {
+  const lines = receiptLines(result.output, "switch-arm=")
+  if (lines.length !== 1) fail(`${label} wildcard receipt has the wrong arm count`)
+  const fields = Object.fromEntries(lines[0].split("|").map((field) => {
+    const separator = field.indexOf("=")
+    return separator < 0 ? [field, ""] : [field.slice(0, separator), field.slice(separator + 1)]
+  }))
+  if (fields.pattern !== "1" || fields.enum !== "0" ||
+      fields.case !== "4294967295" || fields.supported !== "1" ||
+      fields.result === undefined || fields["pattern-span"] === undefined ||
+      fields.span === undefined) {
+    fail(`${label} wildcard switch arm does not retain enum identity`)
+  }
 }
 
 function expectDiagnostic(executable, source, code, label) {
@@ -216,6 +269,213 @@ try {
     0,
     ["accepted", "reserving", "preparing", "serving", "completed", "cancelled"],
   )
+  const stageLabelSource = Buffer.concat([
+    serviceStage,
+    Buffer.from(
+      "\nexport fn stageLabel(stage: ServiceStage): String {\n" +
+      "  return switch stage {\n" +
+      "    case .accepted: \"A\"\n" +
+      "    case .reserving: \"R\"\n" +
+      "    case .preparing: \"P\"\n" +
+      "    case .serving: \"S\"\n" +
+      "    case .completed: \"C\"\n" +
+      "    case .cancelled: \"X\"\n" +
+      "  }\n" +
+      "}\n",
+      "utf8",
+    ),
+  ])
+  const stageLabel = expectOk(
+    probeExecutable, stageLabelSource, "domain.w ServiceStage stageLabel",
+  )
+  if (stageLabel.parsed.enums !== 1 || stageLabel.parsed.enum_cases !== 6 ||
+      stageLabel.parsed.switch_arms !== 6 || stageLabel.parsed.functions !== 1) {
+    fail("domain.w ServiceStage stageLabel counts are incomplete")
+  }
+  expectSwitchReceipt(stageLabel, 6, "domain.w ServiceStage stageLabel")
+  const stageRepeat = probe(
+    probeExecutable, stageLabelSource, "domain.w ServiceStage stageLabel:repeat",
+  )
+  if (stageLabel.output !== stageRepeat.output) {
+    fail("domain.w ServiceStage stageLabel receipt is not deterministic")
+  }
+
+  const stageEnumPrefix = Buffer.from(
+    "export enum ServiceStage { accepted reserving preparing serving completed cancelled }\n",
+    "utf8",
+  )
+  const wildcardStage = expectOk(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from(
+        "fn stageDefault(stage: ServiceStage): String { return switch stage { case _: \"X\" } }\n",
+        "utf8",
+      ),
+    ]),
+    "enum wildcard switch identity",
+  )
+  expectWildcardSwitchReceipt(wildcardStage, "enum wildcard switch identity")
+  const switchBase = (arms) => Buffer.concat([
+    stageEnumPrefix,
+    Buffer.from(
+      "fn stageLabel(stage: ServiceStage): String { return switch stage { " +
+      arms + " } }\n",
+      "utf8",
+    ),
+  ])
+  expectDiagnostic(
+    probeExecutable,
+    switchBase(
+      "case .accepted: \"A\" case .reserving: \"R\" case .preparing: \"P\" " +
+      "case .serving: \"S\" case .completed: \"C\"",
+    ),
+    "W-MATCH-0001",
+    "enum switch missing arm",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    switchBase(
+      "case .accepted: \"A\" case .accepted: \"A2\" case .reserving: \"R\" " +
+      "case .preparing: \"P\" case .serving: \"S\" case .completed: \"C\" " +
+      "case .cancelled: \"X\"",
+    ),
+    "W-MATCH-0002",
+    "enum switch duplicate arm",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    switchBase(
+      "case _: \"rest\" case .accepted: \"A\"",
+    ),
+    "W-MATCH-0002",
+    "enum switch wildcard then arm",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    switchBase(
+      "case .accepted: \"A\" case .reserving: 1 case .preparing: \"P\" " +
+      "case .serving: \"S\" case .completed: \"C\" case .cancelled: \"X\"",
+    ),
+    "W-TYPE-0120",
+    "enum switch branch type conflict",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from(
+        "fn narrow(stage: ServiceStage): u8 { return switch stage { " +
+        "case .accepted: 1_u16 case .reserving: 2_u16 case .preparing: 3_u16 " +
+        "case .serving: 4_u16 case .completed: 5_u16 case .cancelled: 6_u16 } }\n",
+        "utf8",
+      ),
+    ]),
+    "W-TYPE-0122",
+    "enum switch real join then narrowing",
+  )
+  expectOk(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from(
+        "fn widen(stage: ServiceStage): u16 { return switch stage { " +
+        "case .accepted: 1_u8 case .reserving: 2_u8 case .preparing: 3_u8 " +
+        "case .serving: 4_u8 case .completed: 5_u8 case .cancelled: 6_u8 } }\n",
+        "utf8",
+      ),
+    ]),
+    "enum switch widening join",
+  )
+  expectUnsupported(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from(
+        "fn postfix(stage: ServiceStage): String { return switch stage { " +
+        "case .accepted: \"A\" case .reserving: \"R\" case .preparing: \"P\" " +
+        "case .serving: \"S\" case .completed: \"C\" case .cancelled: \"X\" }.length }\n" +
+        "fn binary(stage: ServiceStage): String { return switch stage { " +
+        "case .accepted: \"A\" case .reserving: \"R\" case .preparing: \"P\" " +
+        "case .serving: \"S\" case .completed: \"C\" case .cancelled: \"X\" } + \"x\" }\n",
+        "utf8",
+      ),
+    ]),
+    "enum switch composed outer expression",
+  )
+
+  expectOk(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from("fn short(): ServiceStage { return .preparing }\n", "utf8"),
+    ]),
+    "short enum value in typed return",
+  )
+  expectOk(
+    probeExecutable,
+    "enum Stage { ready }\nfn value(): Stage { return .ready }\n",
+    "payloadless enum case remains a value",
+  )
+  expectOk(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from("fn qualified(): ServiceStage { return ServiceStage.preparing }\n", "utf8"),
+    ]),
+    "qualified enum value in typed return",
+  )
+  expectOk(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from(
+        "fn acceptStage(value: ServiceStage): ServiceStage { return value }\n" +
+        "fn localCall(): ServiceStage { return acceptStage(.preparing) }\n",
+        "utf8",
+      ),
+    ]),
+    "short enum value in local call argument",
+  )
+  expectOk(
+    probeExecutable,
+    Buffer.from(
+      "import { externalFn } from extdep\n" +
+      "enum Stage { ready }\n" +
+      "fn externalCall(): u32 { return externalFn(.ready) }\n",
+      "utf8",
+    ),
+    "short enum value in external call argument",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    Buffer.from(
+      "import { externalFn } from extdep\n" +
+      "enum Stage { ready }\n" +
+      "enum Stage { other }\n" +
+      "fn ambiguousExternalCall(): u32 { return externalFn(.ready) }\n",
+      "utf8",
+    ),
+    "W-MATCH-0003",
+    "ambiguous local enum is not selected for external call",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from("fn untyped(): ServiceStage { let value = .preparing return value }\n", "utf8"),
+    ]),
+    "W-MATCH-0003",
+    "short enum value without expected type",
+  )
+  expectUnsupported(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from("fn wrongCase(): ServiceStage { return .missing }\n", "utf8"),
+    ]),
+    "wrong enum case remains an explicit fact",
+  )
   const domainError = await sourceBackedFragment(
     "reference/last-light/domain.w",
     "export enum DomainError: Error {",
@@ -232,6 +492,105 @@ try {
     ["", "from", "to", "", "expected", "found"],
     [0, 1, 1, 2, 3, 3],
   )
+  const domainConstructorSource = Buffer.concat([
+    serviceStage,
+    domainError,
+    Buffer.from(
+      "\nfn makeError(from: ServiceStage, to: ServiceStage): DomainError {\n" +
+      "  return .invalidTransition(from: from, to: to)\n" +
+      "}\n",
+      "utf8",
+    ),
+  ])
+  const constructorResult = expectOk(
+    probeExecutable, domainConstructorSource,
+    "domain.w DomainError invalidTransition constructor",
+  )
+  if (constructorResult.parsed.enums !== 2 ||
+      constructorResult.parsed.enum_cases !== 11 ||
+      constructorResult.parsed.enum_case_parameters !== 6 ||
+      constructorResult.parsed.arguments !== 2 ||
+      constructorResult.parsed.functions !== 1) {
+    fail("domain.w constructor counts are incomplete")
+  }
+  const constructorCaseLines = receiptLines(constructorResult.output, "enum-case=")
+  const constructorParameterLines = receiptLines(
+    constructorResult.output, "enum-case-parameter=",
+  )
+  if (constructorCaseLines.length !== 11 || constructorParameterLines.length !== 6 ||
+      !constructorCaseLines.some((line) => line.includes("|17:696e76616c69645472616e736974696f6e|")) ||
+      !constructorParameterLines.some((line) => line.includes("|label=4:66726f6d|has-label=1|")) ||
+      !constructorParameterLines.some((line) => line.includes("|label=2:746f|has-label=1|"))) {
+    fail("domain.w constructor receipt does not retain case labels/identity")
+  }
+  expectDiagnostic(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from(
+        "enum DomainError { invalidTransition(from: ServiceStage, to: ServiceStage) }\n" +
+        "fn makeError(from: ServiceStage, to: ServiceStage): DomainError { " +
+        "return .invalidTransition(wrong: from, to: to) }\n",
+        "utf8",
+      ),
+    ]),
+    "W-LABEL-0005",
+    "enum constructor wrong label",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from(
+        "enum DomainError { invalidTransition(from: ServiceStage, to: ServiceStage) }\n" +
+        "fn makeError(from: ServiceStage, to: ServiceStage): DomainError { " +
+        "return .invalidTransition(from: from) }\n",
+        "utf8",
+      ),
+    ]),
+    "W-LABEL-0005",
+    "enum constructor wrong arity",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from(
+        "enum DomainError { invalidTransition(from: ServiceStage, to: ServiceStage) }\n" +
+        "fn makeError(from: ServiceStage, to: ServiceStage): DomainError { " +
+        "return .invalidTransition(to: to, from: from) }\n",
+        "utf8",
+      ),
+    ]),
+    "W-LABEL-0005",
+    "enum constructor inverted labels",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    Buffer.concat([
+      stageEnumPrefix,
+      Buffer.from(
+        "enum DomainError { invalidTransition(from: ServiceStage, to: ServiceStage) }\n" +
+        "fn makeError(from: ServiceStage, to: ServiceStage): DomainError { " +
+        "return .invalidTransition(from: from, from: to) }\n",
+        "utf8",
+      ),
+    ]),
+    "W-LABEL-0006",
+    "enum constructor repeated previous label",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    "enum Numeric { value(value: u8) }\nfn make(): Numeric { return .value(value: 300_u16) }\n",
+    "W-TYPE-0122",
+    "enum constructor numeric narrowing",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    "enum Stage { ready }\nfn a(): Stage { return .ready() }\nfn b(): Stage { return Stage.ready() }\n",
+    "W-LABEL-0005",
+    "enum value zero-arity call",
+  )
   const course = await sourceBackedFragment(
     "reference/last-light/domain.w",
     "export enum Course {",
@@ -240,7 +599,7 @@ try {
   )
   expectBarrier(probeExecutable, course, "domain.w Course unsupported members")
   expectUnsupported(probeExecutable, "export enum Box<T> { value(T) }\n", "generic enum")
-  expectUnsupported(probeExecutable, "enum E { a }\nfn f(): E { return .a }\nentry(f)\n", "enum case expression")
+  expectOk(probeExecutable, "enum E { a }\nfn f(): E { return .a }\nentry(f)\n", "enum case expression")
   expectBarrier(probeExecutable, "fn f(){ enum E { a } }\n", "enum contextual fail-closed")
   expectEnumWitness(
     probeExecutable,
@@ -284,6 +643,27 @@ try {
     probeExecutable,
     "fn f(): u32 { return 1 << 2 }\nentry(f)\n",
     "unsupported operator",
+  )
+  const manyCaseNames = Array.from({ length: 70 }, (_, index) => `case${index}`)
+  const manyCases = manyCaseNames.join(" ")
+  const manyArms = manyCaseNames.map((name, index) => `case .${name}: \"${index}\"`).join(" ")
+  const manyEnumSource = `enum Many { ${manyCases} }\nfn all(value: Many): String { return switch value { ${manyArms} } }\n`
+  const manyResult = expectOk(probeExecutable, Buffer.from(manyEnumSource, "utf8"),
+    "enum switch exhaustiveness over 70 cases")
+  if (manyResult.parsed.enum_cases !== 70 || manyResult.parsed.switch_arms !== 70) {
+    fail("enum switch >64 case witness was truncated")
+  }
+  expectSwitchReceipt(manyResult, 70, "enum switch exhaustiveness over 70 cases")
+  const manyMissingArms = manyCaseNames.slice(0, 69)
+    .map((name, index) => `case .${name}: \"${index}\"`).join(" ")
+  expectDiagnostic(
+    probeExecutable,
+    Buffer.from(
+      `enum Many { ${manyCases} }\nfn missing(value: Many): String { return switch value { ${manyMissingArms} } }\n`,
+      "utf8",
+    ),
+    "W-MATCH-0001",
+    "enum switch >64 missing case",
   )
   expectBarrier(probeExecutable, "fn f(): () { if 1 { return }\n", "recovered CST")
 } finally {

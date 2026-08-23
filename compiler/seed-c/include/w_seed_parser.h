@@ -91,6 +91,10 @@ typedef enum {
   W_SEED_CST_ENUM,
   W_SEED_CST_ENUM_CASE,
   W_SEED_CST_ENUM_CASE_PARAMETER,
+  /* Append-only switch-pattern owners. */
+  W_SEED_CST_ENUM_PATTERN,
+  W_SEED_CST_WILDCARD_PATTERN,
+  W_SEED_CST_LITERAL_PATTERN,
 } w_seed_cst_kind;
 
 enum {

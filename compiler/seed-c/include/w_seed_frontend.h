@@ -83,7 +83,16 @@ typedef enum {
   W_SEED_FRONTEND_EXPR_BINARY,
   W_SEED_FRONTEND_EXPR_CALL,
   W_SEED_FRONTEND_EXPR_PARENTHESIS,
+  /* Append-only closed-enum expressions. */
+  W_SEED_FRONTEND_EXPR_ENUM_CASE,
+  W_SEED_FRONTEND_EXPR_SWITCH,
 } w_seed_frontend_expr_kind;
+
+typedef enum {
+  W_SEED_FRONTEND_SWITCH_PATTERN_ENUM_CASE = 0,
+  W_SEED_FRONTEND_SWITCH_PATTERN_WILDCARD,
+  W_SEED_FRONTEND_SWITCH_PATTERN_LITERAL,
+} w_seed_frontend_switch_pattern_kind;
 
 typedef enum {
   W_SEED_FRONTEND_STMT_UNSUPPORTED = 0,
@@ -167,6 +176,7 @@ typedef struct {
   size_t enums;
   size_t enum_cases;
   size_t enum_case_parameters;
+  size_t switch_arms;
 } w_seed_frontend_counts;
 
 typedef struct {
@@ -360,6 +370,18 @@ typedef struct {
 } w_seed_frontend_argument;
 
 typedef struct {
+  uint32_t module_index;
+  uint32_t owner_expression;
+  w_seed_frontend_switch_pattern_kind pattern_kind;
+  uint32_t enum_index;
+  uint32_t enum_case_index;
+  w_seed_span pattern_span;
+  uint32_t result_expression;
+  w_seed_span span;
+  bool supported;
+} w_seed_frontend_switch_arm;
+
+typedef struct {
   w_seed_frontend_expr_kind kind;
   uint32_t module_index;
   uint32_t owner_function;
@@ -372,6 +394,11 @@ typedef struct {
   uint32_t argument_count;
   uint32_t inferred_type;
   bool supported;
+  /* Append-only enum/switch identity fields. */
+  uint32_t enum_index;
+  uint32_t enum_case_index;
+  uint32_t first_switch_arm;
+  uint32_t switch_arm_count;
 } w_seed_frontend_expression;
 
 typedef enum {
@@ -443,6 +470,9 @@ typedef struct {
   size_t enum_case_capacity;
   w_seed_frontend_enum_case_parameter *enum_case_parameters;
   size_t enum_case_parameter_capacity;
+  /* Append-only switch-arm output arrays. */
+  w_seed_frontend_switch_arm *switch_arms;
+  size_t switch_arm_capacity;
 } w_seed_frontend_output;
 
 typedef struct {

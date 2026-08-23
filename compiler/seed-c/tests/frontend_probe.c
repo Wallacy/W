@@ -34,6 +34,7 @@ enum {
   PROBE_STATEMENTS = 65536,
   PROBE_EXPRESSIONS = 262144,
   PROBE_ARGUMENTS = 65536,
+  PROBE_SWITCH_ARMS = 65536,
   PROBE_SYMBOLS = 131072,
   PROBE_FACTS = 131072,
   PROBE_DIAGNOSTICS = 65536,
@@ -64,10 +65,29 @@ static w_seed_frontend_entry entries[PROBE_ENTRIES];
 static w_seed_frontend_statement statements[PROBE_STATEMENTS];
 static w_seed_frontend_expression expressions[PROBE_EXPRESSIONS];
 static w_seed_frontend_argument arguments[PROBE_ARGUMENTS];
+static w_seed_frontend_switch_arm switch_arms[PROBE_SWITCH_ARMS];
 static w_seed_frontend_symbol symbols[PROBE_SYMBOLS];
 static w_seed_frontend_fact facts[PROBE_FACTS];
 static w_seed_frontend_diagnostic diagnostics[PROBE_DIAGNOSTICS];
 static uint8_t receipt[PROBE_RECEIPT];
+static const w_seed_frontend_external_parameter probe_external_parameters[] = {
+    {.name = {"value", 5},
+     .type = {"Stage", 5},
+     .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY},
+};
+static const w_seed_frontend_external_symbol probe_external_symbols[] = {
+    {.name = {"externalFn", 10},
+     .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+     .exported = true,
+     .parameters = probe_external_parameters,
+     .parameter_count = 1,
+     .return_type = {"u32", 3}},
+};
+static const w_seed_frontend_external_module probe_external_modules[] = {
+    {.module_id = {"extdep", 6},
+     .symbols = probe_external_symbols,
+     .symbol_count = 1},
+};
 
 static const char *status_name(w_seed_frontend_status status) {
   switch (status) {
@@ -102,6 +122,16 @@ int main(void) {
     }
   }
   const w_seed_byte_view bytes = {input_bytes, length};
+  bool external_witness = false;
+  static const char external_marker[] = "externalFn";
+  for (size_t index = 0;
+       index + sizeof(external_marker) - 1u <= length; index += 1) {
+    if (memcmp(input_bytes + index, external_marker,
+               sizeof(external_marker) - 1u) == 0) {
+      external_witness = true;
+      break;
+    }
+  }
   w_seed_source source;
   w_seed_source_error source_error;
   if (!w_seed_source_init(bytes, &source, &source_error)) return 2;
@@ -119,7 +149,12 @@ int main(void) {
   if (!w_seed_parser_parse(&parser, &parse)) return 2;
   const w_seed_frontend_document document = {
       {"probe", 5}, {"probe", 5}, &source, nodes, parse.node_count, parse};
-  const w_seed_frontend_input input = {&document, 1, NULL, 0};
+  const w_seed_frontend_input input = {
+      .documents = &document,
+      .document_count = 1,
+      .external_modules = external_witness ? probe_external_modules : NULL,
+      .external_module_count = external_witness ? 1u : 0u,
+  };
   w_seed_frontend_output output = {
       .modules = modules,
       .module_capacity = PROBE_MODULES,
@@ -149,6 +184,8 @@ int main(void) {
       .parameter_capacity = PROBE_PARAMETERS,
       .arguments = arguments,
       .argument_capacity = PROBE_ARGUMENTS,
+      .switch_arms = switch_arms,
+      .switch_arm_capacity = PROBE_SWITCH_ARMS,
       .entries = entries,
       .entry_capacity = PROBE_ENTRIES,
       .statements = statements,
@@ -171,6 +208,7 @@ int main(void) {
                " imports=%" PRIuMAX " structs=%" PRIuMAX
                " enums=%" PRIuMAX " enum_cases=%" PRIuMAX
                " enum_case_parameters=%" PRIuMAX
+               " switch_arms=%" PRIuMAX
                " types=%" PRIuMAX " functions=%" PRIuMAX
                " params=%" PRIuMAX " entries=%" PRIuMAX
                " statements=%" PRIuMAX " expressions=%" PRIuMAX
@@ -184,6 +222,7 @@ int main(void) {
                (uintmax_t)result.written.enums,
                (uintmax_t)result.written.enum_cases,
                (uintmax_t)result.written.enum_case_parameters,
+               (uintmax_t)result.written.switch_arms,
                (uintmax_t)result.written.types,
                (uintmax_t)result.written.functions,
                (uintmax_t)result.written.parameters,

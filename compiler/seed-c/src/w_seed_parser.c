@@ -600,6 +600,63 @@ static binary_info binary_operator(w_seed_parser *parser) {
   return info;
 }
 
+/* Switch patterns are structural owners.  Keep the token leaves in source
+ * order under one direct pattern owner so the frontend can distinguish a
+ * pattern from the arm result without reparsing the entire switch span. */
+static bool parse_switch_pattern(w_seed_parser *parser) {
+  if (!skip_trivia(parser) || current_is_eof(parser)) return false;
+  const size_t start = current_span(parser).start_byte;
+  w_seed_cst_kind kind = W_SEED_CST_LITERAL_PATTERN;
+  if (current_is_text(parser, ".")) {
+    kind = W_SEED_CST_ENUM_PATTERN;
+  } else if (current_is_text(parser, "_")) {
+    kind = W_SEED_CST_WILDCARD_PATTERN;
+  } else if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD) &&
+             !current_is_text(parser, "true") &&
+             !current_is_text(parser, "false") &&
+             next_is_text(parser, ".")) {
+    kind = W_SEED_CST_ENUM_PATTERN;
+  } else if (current_is_kind(parser, W_SEED_LEX_ITEM_NUMBER) ||
+             current_is_text(parser, "true") ||
+             current_is_text(parser, "false") ||
+             current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT)) {
+    kind = W_SEED_CST_LITERAL_PATTERN;
+  } else {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    return false;
+  }
+  if (push_node(parser, kind, start) == W_SEED_CST_NONE) return false;
+  if (kind == W_SEED_CST_ENUM_PATTERN) {
+    if (current_is_text(parser, ".")) {
+      (void)consume_text(parser, ".", NULL);
+    } else {
+      (void)consume_current(parser, NULL);
+      if (!expect_text(parser, ".", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+        pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+    }
+    if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+      append_missing(parser, current_span(parser).start_byte,
+                     W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    (void)consume_current(parser, NULL);
+  } else if (kind == W_SEED_CST_WILDCARD_PATTERN) {
+    (void)consume_current(parser, NULL);
+  } else if (current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT)) {
+    do {
+      (void)consume_current(parser, NULL);
+    } while (current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT));
+  } else {
+    (void)consume_current(parser, NULL);
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
 static bool parse_switch_expression(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
   if (push_node(parser, W_SEED_CST_SWITCH_EXPRESSION, start) ==
@@ -624,26 +681,7 @@ static bool parse_switch_expression(w_seed_parser *parser) {
         W_SEED_CST_NONE)
       return false;
     (void)consume_text(parser, "case", NULL);
-    if (current_is_text(parser, ".")) {
-      (void)consume_text(parser, ".", NULL);
-      if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
-        append_missing(parser, current_span(parser).start_byte,
-                       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
-        pop_node(parser, parser->has_last_token ? parser->last_token_end : arm_start);
-        return false;
-      }
-      (void)consume_current(parser, NULL);
-    } else if (current_is_kind(parser, W_SEED_LEX_ITEM_NUMBER) ||
-               current_is_text(parser, "true") ||
-               current_is_text(parser, "false")) {
-      (void)consume_current(parser, NULL);
-    } else if (current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT)) {
-      do {
-        (void)consume_current(parser, NULL);
-      } while (current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT));
-    } else {
-      append_missing(parser, current_span(parser).start_byte,
-                     W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    if (!parse_switch_pattern(parser)) {
       pop_node(parser, parser->has_last_token ? parser->last_token_end : arm_start);
       return false;
     }
