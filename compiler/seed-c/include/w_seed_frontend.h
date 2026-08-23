@@ -61,6 +61,8 @@ typedef enum {
   W_SEED_FRONTEND_TYPE_UNKNOWN,
   /* Append-only nominal enum type. */
   W_SEED_FRONTEND_TYPE_ENUM,
+  /* Append-only closed enum case-set type. */
+  W_SEED_FRONTEND_TYPE_ENUM_SUBSET,
 } w_seed_frontend_type_kind;
 
 typedef enum {
@@ -177,6 +179,7 @@ typedef struct {
   size_t enum_cases;
   size_t enum_case_parameters;
   size_t switch_arms;
+  size_t enum_subset_members;
 } w_seed_frontend_counts;
 
 typedef struct {
@@ -292,7 +295,18 @@ typedef struct {
   uint32_t return_type;
   uint32_t first_parameter;
   uint32_t parameter_count;
+  /* Append-only closed-enum identity and normalized case-set fields. */
+  uint32_t enum_base_index;
+  uint32_t first_subset_member;
+  uint32_t subset_member_count;
 } w_seed_frontend_type;
+
+typedef struct {
+  uint32_t owner_type;
+  uint32_t enum_base_index;
+  uint32_t enum_case_index;
+  w_seed_span source_span;
+} w_seed_frontend_enum_subset_member;
 
 typedef struct {
   uint32_t module_index;
@@ -473,6 +487,9 @@ typedef struct {
   /* Append-only switch-arm output arrays. */
   w_seed_frontend_switch_arm *switch_arms;
   size_t switch_arm_capacity;
+  /* Append-only normalized enum-subset member records. */
+  w_seed_frontend_enum_subset_member *enum_subset_members;
+  size_t enum_subset_member_capacity;
 } w_seed_frontend_output;
 
 typedef struct {

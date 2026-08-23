@@ -29,7 +29,7 @@ function parseResult(output, label) {
   const lines = output.toString().split(/\r?\n/u)
   const line = lines.find((candidate) => candidate.startsWith("RESULT "))
   if (!line) fail(`${label} has no RESULT line`)
-  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
+  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
   if (!match) fail(`${label} has an invalid RESULT line: ${line}`)
   return {
     parse: Number(match[1]),
@@ -41,17 +41,18 @@ function parseResult(output, label) {
     enum_cases: Number(match[7]),
     enum_case_parameters: Number(match[8]),
     switch_arms: Number(match[9]),
-    types: Number(match[10]),
-    functions: Number(match[11]),
-    params: Number(match[12]),
-    entries: Number(match[13]),
-    statements: Number(match[14]),
-    expressions: Number(match[15]),
-    arguments: Number(match[16]),
-    symbols: Number(match[17]),
-    facts: Number(match[18]),
-    diagnostics: Number(match[19]),
-    receipt: Number(match[20]),
+    enum_subset_members: Number(match[10]),
+    types: Number(match[11]),
+    functions: Number(match[12]),
+    params: Number(match[13]),
+    entries: Number(match[14]),
+    statements: Number(match[15]),
+    expressions: Number(match[16]),
+    arguments: Number(match[17]),
+    symbols: Number(match[18]),
+    facts: Number(match[19]),
+    diagnostics: Number(match[20]),
+    receipt: Number(match[21]),
   }
 }
 
@@ -225,6 +226,56 @@ function expectEnumWitness(
   return result
 }
 
+function expectEnumSubsetWitness(executable, bytes, label, expectedMembers) {
+  const result = expectOk(executable, bytes, label)
+  if (result.parsed.enum_subset_members !== expectedMembers.length) {
+    fail(`${label} subset member count is not ${expectedMembers.length}`)
+  }
+  const lines = receiptLines(result.output, "enum-subset-member=")
+  if (lines.length !== expectedMembers.length) {
+    fail(`${label} subset member receipt is incomplete`)
+  }
+  const records = lines.map((line) => {
+    const fields = Object.fromEntries(line.split("|").map((field) => {
+      const separator = field.indexOf("=")
+      return separator < 0 ? [field, ""] : [field.slice(0, separator), field.slice(separator + 1)]
+    }))
+    return fields
+  })
+  for (const [index, record] of records.entries()) {
+    // The record key carries the caller-owned owner type, in the same
+    // positional form used by enum-case records.  Accept an explicit owner
+    // field too so the witness stays readable if the receipt grows one.
+    const owner = record.owner ?? record["enum-subset-member"]
+    if (record.enum !== "0" || record.case !== String(expectedMembers[index]) ||
+        owner === undefined || record.span === undefined) {
+      fail(`${label} subset member ${index} is not normalized by enum order`)
+    }
+  }
+  return result
+}
+
+function expectFullEnumSubsetCollapse(executable, bytes, label) {
+  const result = expectOk(executable, bytes, label)
+  if (result.parsed.enum_subset_members !== 0) {
+    fail(`${label} full case-set emitted subset member records`)
+  }
+  const types = receiptLines(result.output, "type=")
+  if (types.length < 2) fail(`${label} type receipt is incomplete`)
+  for (const line of types) {
+    const fields = Object.fromEntries(line.split("|").map((field) => {
+      const separator = field.indexOf("=")
+      return separator < 0 ? [field, ""] : [field.slice(0, separator), field.slice(separator + 1)]
+    }))
+    if (fields.type !== "11" || fields["enum-base"] !== "0" ||
+        fields["subset-first"] !== "4294967295" ||
+        fields["subset-count"] !== "0") {
+      fail(`${label} full case-set did not canonicalize to the base enum`)
+    }
+  }
+  return result
+}
+
 async function sourceBackedFragment(relativePath, startMarker, endMarker, label) {
   const bytes = Buffer.from(await Bun.file(resolve(root, relativePath)).arrayBuffer())
   const startNeedle = Buffer.from(startMarker, "utf8")
@@ -268,6 +319,91 @@ try {
     6,
     0,
     ["accepted", "reserving", "preparing", "serving", "completed", "cancelled"],
+  )
+  const cancelledStage = await sourceBackedFragment(
+    "reference/last-light/domain.w",
+    "export alias CancelledStage =",
+    "export const fn canMove",
+    "domain.w CancelledStage",
+  )
+  const cancelledSource = Buffer.concat([serviceStage, cancelledStage])
+  expectEnumSubsetWitness(
+    probeExecutable,
+    cancelledSource,
+    "domain.w CancelledStage subset",
+    [5],
+  )
+  const workStage = Buffer.from(
+    "enum WorkBase { accepted reserving preparing serving completed cancelled }\n" +
+    "alias WorkStage = WorkBase<[.serving, .preparing, .reserving]>\n" +
+    "fn stageLabel(stage: WorkStage): String { return switch stage { " +
+    "case .reserving: \"R\" case .preparing: \"P\" case .serving: \"S\" } }\n",
+    "utf8",
+  )
+  expectEnumSubsetWitness(
+    probeExecutable,
+    workStage,
+    "local WorkStage subset",
+    [1, 2, 3, 1, 2, 3],
+  )
+  expectDiagnostic(
+    probeExecutable,
+    Buffer.concat([
+      workStage,
+      Buffer.from("fn outside(stage: WorkStage): String { return switch stage { " +
+        "case .reserving: \"R\" case .preparing: \"P\" case .serving: \"S\" " +
+        "case .cancelled: \"X\" } }\n", "utf8"),
+    ]),
+    "W-MATCH-0002",
+    "enum subset outside arm",
+  )
+  expectUnsupported(
+    probeExecutable,
+    Buffer.from(
+      "enum E { a b c }\n" +
+      "alias Empty = E<[]>\n" +
+      "alias Duplicate = E<[.a, .a]>\n" +
+      "alias Unknown = E<[.z]>\n" +
+      "alias Wrong = E<[Other.a]>\n",
+      "utf8",
+    ),
+    "enum subset invalid case-set",
+  )
+  expectUnsupported(
+    probeExecutable,
+    "enum E { a b }\n" +
+      "alias Same = E<[.a]>\n" +
+      "alias Same = E<[.b]>\n" +
+      "fn ambiguous(): Same { return .a }\n",
+    "enum subset duplicate alias name",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    Buffer.from(
+      "enum E { a b c }\n" +
+      "alias Work = E<[.a, .b]>\n" +
+      "fn wrong(stage: E): Work { return stage }\n",
+      "utf8",
+    ),
+    "W-SEM-0001",
+    "enum subset base-to-subset rejection",
+  )
+  const subsetCaseNames = Array.from({ length: 65 }, (_, index) => `c${index}`)
+  const subsetCases = subsetCaseNames.join(" ")
+  const subsetMembers = subsetCaseNames.map((name) => `.${name}`).join(", ")
+  const fullCaseNames = Array.from({ length: 66 }, (_, index) => `c${index}`)
+  const fullCases = fullCaseNames.join(" ")
+  const fullMembers = fullCaseNames.map((name) => `.${name}`).join(", ")
+  expectFullEnumSubsetCollapse(
+    probeExecutable,
+    Buffer.from(`enum FullMany { ${fullCases} }\nalias FullManySet = FullMany<[${fullMembers}]>\n`, "utf8"),
+    "enum subset full-set collapse",
+  )
+  expectEnumSubsetWitness(
+    probeExecutable,
+    Buffer.from(`enum Many { ${subsetCases} c65 }\nalias ManySubset = Many<[${subsetMembers}]>\n`, "utf8"),
+    "enum subset over 64 cases",
+    subsetCaseNames.map((_, index) => index),
   )
   const stageLabelSource = Buffer.concat([
     serviceStage,

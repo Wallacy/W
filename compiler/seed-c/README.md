@@ -264,11 +264,30 @@ faz um join seguro único dos resultados. Os records de expression, switch arm e
 receipt retêm enum/case identity, spans, owner relation, ordem e sentinelas
 caller-owned.
 
-Esta fatia não implementa subsets de enum, patterns ou captures de payload,
-guards, switches de tuple/range/struct, enums importados ou facts completos de
-fluxo de branches. Payload patterns são recovery/barrier; literals em enum
-switch preservam fato explícito unsupported. Imports, subsets e resolução entre
-módulos não selecionam enum por ordem de declaração ou frequência.
+Esta fatia implementa somente o D0 executável de subsets locais de enum. A
+forma fechada é um alias local `Name = Enum<[.case, ...]>` (também aceita a
+forma qualificada `Enum.case`); o enum base deve ser local e inequívoco. A
+lista rejeita vazio, duplicatas, cases desconhecidos e qualificadores de outro
+enum. O frontend normaliza a lista na ordem declarada pelo enum e colapsa o
+conjunto completo para o descritor nominal base (sem records de subset para
+essa ocorrência). Para conjuntos próprios, o resultado caller-owned acrescenta
+`ENUM_SUBSET`, identidade do enum base, intervalo de membros e records de cada
+membro com owner, case e span de origem. `measure`/`run`, capacidade,
+sentinelas e receipt repetido permanecem determinísticos. Declarações inválidas
+ficam como `UNSUPPORTED_TYPE` fact/barrier explícito; esta fatia não inventa um
+código de diagnóstico para elas.
+
+O expected type aplica o case-set em returns, bindings tipados, chamadas locais
+e chamadas externas resolvidas por stub; um case fora do conjunto produz
+`W-TYPE-0121`. Subset para base e para superset é implícito; base para subset
+não é. `switch` usa somente o conjunto do subject: case fora é
+`W-MATCH-0002`, membro ausente é `W-MATCH-0001` e wildcard cobre o conjunto.
+Este D0 não implementa conversão explícita `try Subset(base)`, subsets
+importados, aliases genéricos ou empilhados, payload patterns/captures, guards,
+switches de tuple/range/struct ou facts completos de fluxo. Literals em enum
+switch preservam fato explícito unsupported. As formas sem código normativo
+continuam fatos/barreiras explícitos; o seed não apresenta esta fatia como
+implementação ampla da linguagem.
 
 O gate scoped constrói o probe e os testes em diretório temporário, executa os
 witnesses source-backed (`ServiceStage`/`DomainError` em `domain.w`, além de

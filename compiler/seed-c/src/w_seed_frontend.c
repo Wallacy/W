@@ -20,6 +20,10 @@ typedef struct {
   bool is_signed;
   uint16_t bit_width;
   w_seed_frontend_text spelling;
+  uint32_t enum_index;
+  w_seed_frontend_text enum_name;
+  w_seed_frontend_text enum_alias_name;
+  w_seed_span subset_span;
 } frontend_simple_type;
 
 typedef struct {
@@ -57,7 +61,25 @@ typedef struct {
   size_t enum_cases;
   size_t enum_case_parameters;
   size_t switch_arms;
+  size_t enum_subset_members;
 } frontend_measure;
+
+typedef struct {
+  bool has_contract;
+  bool valid;
+  bool full;
+  bool duplicate;
+  uint32_t enum_index;
+  w_seed_frontend_text enum_name;
+  w_seed_span list_span;
+  size_t item_count;
+} frontend_enum_subset_shape;
+
+typedef struct {
+  w_seed_frontend_text qualifier;
+  w_seed_frontend_text name;
+  w_seed_span span;
+} frontend_enum_subset_item;
 
 typedef struct {
   w_seed_frontend_input input;
@@ -89,6 +111,33 @@ static w_seed_frontend_text parameter_name_from_span(
     const w_seed_frontend_document *doc, w_seed_span span);
 static w_seed_frontend_text enum_case_parameter_label(
     const w_seed_frontend_document *doc, uint32_t parameter_node);
+static const w_seed_frontend_document *context_document(
+    const frontend_context *context);
+static w_seed_frontend_text first_word_in_span(
+    const w_seed_frontend_document *doc, w_seed_span span);
+static bool enum_declaration_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    uint32_t *enum_index, uint32_t *type_index,
+    const w_seed_frontend_document **owner_doc, uint32_t *enum_node);
+static bool enum_case_for_name(
+    const frontend_context *context, uint32_t expected_enum,
+    w_seed_frontend_text name, uint32_t *case_index,
+    const w_seed_frontend_document **owner_doc, uint32_t *case_node);
+static bool frontend_type_equal(const frontend_context *context,
+                                frontend_simple_type left,
+                                frontend_simple_type right);
+static bool frontend_widening_allowed(const frontend_context *context,
+                                      frontend_simple_type actual,
+                                      frontend_simple_type expected);
+static bool enum_subset_shape_for_type(
+    const frontend_context *context, const w_seed_frontend_document *doc,
+    uint32_t type_node, frontend_enum_subset_shape *shape);
+static bool enum_subset_shape_for_alias(
+    const frontend_context *context, w_seed_frontend_text alias_name,
+    frontend_enum_subset_shape *shape);
+static bool enum_subset_contains_case(
+    const frontend_context *context, frontend_simple_type type,
+    uint32_t enum_case_index);
 static frontend_simple_type contextual_type_from_span(
     const frontend_context *context, const w_seed_frontend_document *doc,
     w_seed_span span);
@@ -274,6 +323,26 @@ static bool receipt_size_type(frontend_context *context,
          receipt_size_size(context, (size_t)type->kind) &&
          receipt_size_literal(context, "|") &&
          receipt_size_text(context, type->spelling) &&
+         receipt_size_literal(context, "|enum-base=") &&
+         receipt_size_size(context, type->enum_base_index) &&
+         receipt_size_literal(context, "|subset-first=") &&
+         receipt_size_size(context, type->first_subset_member) &&
+         receipt_size_literal(context, "|subset-count=") &&
+         receipt_size_size(context, type->subset_member_count) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_enum_subset_member(
+    frontend_context *context,
+    const w_seed_frontend_enum_subset_member *member) {
+  return receipt_size_literal(context, "enum-subset-member=") &&
+         receipt_size_size(context, member->owner_type) &&
+         receipt_size_literal(context, "|enum=") &&
+         receipt_size_size(context, member->enum_base_index) &&
+         receipt_size_literal(context, "|case=") &&
+         receipt_size_size(context, member->enum_case_index) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, member->source_span) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -827,8 +896,11 @@ static bool integer_literal_value(w_seed_frontend_text text, size_t body_end,
 }
 
 static frontend_simple_type simple_type_unknown(void) {
-  const frontend_simple_type type = {W_SEED_FRONTEND_TYPE_UNKNOWN, false, 0,
-                                     {NULL, 0}};
+  frontend_simple_type type;
+  (void)memset(&type, 0, sizeof(type));
+  type.kind = W_SEED_FRONTEND_TYPE_UNKNOWN;
+  type.enum_index = W_SEED_FRONTEND_NONE;
+  type.subset_span = empty_span(0);
   return type;
 }
 
@@ -1004,6 +1076,112 @@ static bool widening_allowed(frontend_simple_type actual,
     if (expected.bit_width == 64u) return actual.bit_width <= 32u;
   }
   return false;
+}
+
+static bool frontend_type_is_enum(frontend_simple_type type) {
+  return type.kind == W_SEED_FRONTEND_TYPE_ENUM ||
+         type.kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET;
+}
+
+static bool enum_subset_set_equal(const frontend_context *context,
+                                  frontend_simple_type left,
+                                  frontend_simple_type right) {
+  if (!frontend_type_is_enum(left) || !frontend_type_is_enum(right) ||
+      left.enum_index == W_SEED_FRONTEND_NONE ||
+      left.enum_index != right.enum_index) {
+    return false;
+  }
+  if (left.kind == W_SEED_FRONTEND_TYPE_ENUM &&
+      right.kind == W_SEED_FRONTEND_TYPE_ENUM) {
+    return true;
+  }
+  if (left.kind == W_SEED_FRONTEND_TYPE_ENUM ||
+      right.kind == W_SEED_FRONTEND_TYPE_ENUM) {
+    return false;
+  }
+  const w_seed_frontend_document *doc = context_document(context);
+  const w_seed_frontend_document *enum_doc = NULL;
+  uint32_t enum_node = W_SEED_CST_NONE;
+  if (doc == NULL ||
+      !enum_declaration_for_name(context, left.enum_name, NULL, NULL,
+                                 &enum_doc, &enum_node)) {
+    return false;
+  }
+  uint32_t case_cursor = enum_doc->nodes[enum_node].first_child;
+  uint32_t case_node = W_SEED_CST_NONE;
+  size_t guard = 0;
+  while (next_child(enum_doc, &case_cursor, &case_node) &&
+         guard < enum_doc->parse.node_count) {
+    if (enum_doc->nodes[case_node].kind == W_SEED_CST_ENUM_CASE) {
+      const w_seed_frontend_text name =
+          first_word_in_span(enum_doc, enum_doc->nodes[case_node].raw_span);
+      uint32_t case_index = W_SEED_FRONTEND_NONE;
+      if (!enum_case_for_name(context, left.enum_index, name, &case_index,
+                              NULL, NULL) ||
+          enum_subset_contains_case(context, left, case_index) !=
+              enum_subset_contains_case(context, right, case_index)) {
+        return false;
+      }
+    }
+    guard += 1;
+  }
+  return true;
+}
+
+static bool frontend_type_equal(const frontend_context *context,
+                                frontend_simple_type left,
+                                frontend_simple_type right) {
+  if (frontend_type_is_enum(left) || frontend_type_is_enum(right)) {
+    return enum_subset_set_equal(context, left, right);
+  }
+  return type_equal(left, right);
+}
+
+static bool frontend_widening_allowed(const frontend_context *context,
+                                      frontend_simple_type actual,
+                                      frontend_simple_type expected) {
+  if (frontend_type_is_enum(actual) || frontend_type_is_enum(expected)) {
+    if (!frontend_type_is_enum(actual) || !frontend_type_is_enum(expected) ||
+        actual.enum_index == W_SEED_FRONTEND_NONE ||
+        actual.enum_index != expected.enum_index) {
+      return false;
+    }
+    if (expected.kind == W_SEED_FRONTEND_TYPE_ENUM) return true;
+    if (actual.kind == W_SEED_FRONTEND_TYPE_ENUM) return false;
+    if (enum_subset_set_equal(context, actual, expected)) return true;
+    /* A subset is assignable to a superset when every normalized member is
+     * present in the expected set.  The membership helper performs the
+     * bounded O(n²) scan without a fixed-width bitset. */
+    const w_seed_frontend_document *doc = context_document(context);
+    if (doc == NULL) return false;
+    frontend_token_cursor cursor = token_cursor_for(doc, actual.subset_span);
+    frontend_token token;
+    while (cursor_take(&cursor, &token)) {
+      w_seed_frontend_text name = {NULL, 0};
+      if (token_text(doc, &token, ".")) {
+        frontend_token member;
+        if (!cursor_take(&cursor, &member) ||
+            member.kind != W_SEED_CST_WORD) return false;
+        name = text_from_span(doc, member.span);
+      } else if (token.kind == W_SEED_CST_WORD) {
+        frontend_token dot;
+        frontend_token member;
+        if (!cursor_take(&cursor, &dot) ||
+            !token_text(doc, &dot, ".") || !cursor_take(&cursor, &member) ||
+            member.kind != W_SEED_CST_WORD) continue;
+        name = text_from_span(doc, member.span);
+      }
+      if (name.length == 0) continue;
+      uint32_t case_index = W_SEED_FRONTEND_NONE;
+      if (!enum_case_for_name(context, actual.enum_index, name, &case_index,
+                              NULL, NULL) ||
+          !enum_subset_contains_case(context, expected, case_index)) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return widening_allowed(actual, expected);
 }
 
 static bool is_binary_operator(w_seed_frontend_text text) {
@@ -1202,6 +1380,7 @@ static void counts_from_measure(const frontend_measure *measure,
   counts->enum_cases = measure->enum_cases;
   counts->enum_case_parameters = measure->enum_case_parameters;
   counts->switch_arms = measure->switch_arms;
+  counts->enum_subset_members = measure->enum_subset_members;
 }
 
 w_seed_frontend_status w_seed_frontend_measure(
@@ -1406,6 +1585,26 @@ static size_t enum_declaration_name_count(const frontend_context *context,
   return count;
 }
 
+static size_t alias_declaration_name_count(const frontend_context *context,
+                                           w_seed_frontend_text name) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL) return 0;
+  size_t count = 0;
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_ALIAS_DECLARATION &&
+        text_equal_text(name_after_keyword(doc, doc->nodes[child].raw_span,
+                                           "alias"),
+                        name)) {
+      count += 1;
+    }
+    guard += 1;
+  }
+  return count;
+}
+
 static bool enum_case_node_for_index(
     const frontend_context *context, uint32_t wanted_case,
     const w_seed_frontend_document **owner_doc, uint32_t *case_node) {
@@ -1516,16 +1715,279 @@ static size_t enum_case_parameter_count(const frontend_context *context,
   return count_direct_kind(doc, case_node, W_SEED_CST_ENUM_CASE_PARAMETER);
 }
 
+static bool enum_subset_item_at(const w_seed_frontend_document *doc,
+                                w_seed_span list_span, size_t wanted,
+                                frontend_enum_subset_item *item) {
+  if (doc == NULL || item == NULL || list_span.end_byte <= list_span.start_byte)
+    return false;
+  (void)memset(item, 0, sizeof(*item));
+  frontend_token_cursor cursor = token_cursor_for(doc, list_span);
+  frontend_token token;
+  if (!cursor_take_text(&cursor, "[", &token)) return false;
+  size_t ordinal = 0;
+  while (true) {
+    if (cursor_peek_text(&cursor, "]")) return false;
+    frontend_token first;
+    if (!cursor_take(&cursor, &first)) return false;
+    frontend_enum_subset_item current;
+    (void)memset(&current, 0, sizeof(current));
+    if (token_text(doc, &first, ".")) {
+      frontend_token member;
+      if (!cursor_take(&cursor, &member) || member.kind != W_SEED_CST_WORD)
+        return false;
+      current.name = text_from_span(doc, member.span);
+      current.span = (w_seed_span){first.span.start_byte, member.span.end_byte};
+    } else if (first.kind == W_SEED_CST_WORD) {
+      frontend_token dot;
+      frontend_token member;
+      if (!cursor_take(&cursor, &dot) || !token_text(doc, &dot, ".") ||
+          !cursor_take(&cursor, &member) || member.kind != W_SEED_CST_WORD) {
+        return false;
+      }
+      current.qualifier = text_from_span(doc, first.span);
+      current.name = text_from_span(doc, member.span);
+      current.span = (w_seed_span){first.span.start_byte, member.span.end_byte};
+    } else {
+      return false;
+    }
+    if (ordinal == wanted) {
+      *item = current;
+      return true;
+    }
+    ordinal += 1;
+    if (cursor_peek_text(&cursor, ",")) {
+      (void)cursor_take_text(&cursor, ",", NULL);
+      if (cursor_peek_text(&cursor, "]")) return false;
+      continue;
+    }
+    if (!cursor_peek_text(&cursor, "]")) return false;
+    return false;
+  }
+}
+
+static bool enum_subset_shape_for_type(
+    const frontend_context *context, const w_seed_frontend_document *doc,
+    uint32_t type_node, frontend_enum_subset_shape *shape) {
+  if (shape == NULL) return false;
+  (void)memset(shape, 0, sizeof(*shape));
+  shape->enum_index = W_SEED_FRONTEND_NONE;
+  shape->list_span = empty_span(0);
+  if (context == NULL || doc == NULL || type_node >= doc->parse.node_count)
+    return false;
+  const w_seed_span raw = trim_span(doc, doc->nodes[type_node].raw_span);
+  frontend_token_cursor cursor = token_cursor_for(doc, raw);
+  frontend_token base;
+  if (!cursor_take(&cursor, &base) || base.kind != W_SEED_CST_WORD) return false;
+  shape->enum_name = text_from_span(doc, base.span);
+  frontend_token next;
+  if (!cursor_peek(&cursor, &next) || !token_text(doc, &next, "<")) {
+    return false;
+  }
+  (void)cursor_take(&cursor, &next);
+  /* A subset envelope is the deliberately narrow `Enum<[.case, ...]>`
+   * shape.  Other generic/refinement envelopes (for example
+   * `Batch<Row>` or `Base<T>`) must stay on the existing unsupported
+   * contract path.  Do not turn their syntax failure into a subset
+   * diagnostic. */
+  if (!cursor_take_text(&cursor, "[", &next)) return false;
+  shape->has_contract = true;
+  const size_t list_start = next.span.start_byte;
+  size_t item_count = 0;
+  frontend_token_cursor list_cursor = cursor;
+  if (!cursor_peek_text(&list_cursor, "]")) {
+    while (true) {
+      frontend_token first;
+      if (!cursor_take(&list_cursor, &first)) return true;
+      if (token_text(doc, &first, ".")) {
+        frontend_token member;
+        if (!cursor_take(&list_cursor, &member) ||
+            member.kind != W_SEED_CST_WORD) return true;
+      } else if (first.kind == W_SEED_CST_WORD) {
+        frontend_token dot;
+        frontend_token member;
+        if (!cursor_take(&list_cursor, &dot) ||
+            !token_text(doc, &dot, ".") ||
+            !cursor_take(&list_cursor, &member) ||
+            member.kind != W_SEED_CST_WORD) return true;
+      } else {
+        return true;
+      }
+      item_count += 1;
+      frontend_token separator;
+      if (cursor_peek_text(&list_cursor, ",")) {
+        (void)cursor_take_text(&list_cursor, ",", &separator);
+        if (cursor_peek_text(&list_cursor, "]")) break;
+        continue;
+      }
+      if (!cursor_peek_text(&list_cursor, "]")) return true;
+      break;
+    }
+  }
+  cursor = list_cursor;
+  if (!cursor_take_text(&cursor, "]", &next)) return true;
+  shape->list_span = (w_seed_span){list_start, next.span.end_byte};
+  if (!cursor_take_text(&cursor, ">", &next)) return true;
+  if (cursor_peek(&cursor, &next)) return true;
+  shape->item_count = item_count;
+  if (enum_declaration_name_count(context, shape->enum_name) != 1u ||
+      !enum_declaration_for_name(context, shape->enum_name, &shape->enum_index,
+                                 NULL, NULL, NULL)) {
+    return true;
+  }
+  if (item_count == 0) return true;
+  for (size_t index = 0; index < item_count; index += 1) {
+    frontend_enum_subset_item item;
+    if (!enum_subset_item_at(doc, shape->list_span, index, &item)) return true;
+    if (item.qualifier.length != 0 &&
+        !text_equal_text(item.qualifier, shape->enum_name)) {
+      return true;
+    }
+    uint32_t current_case = W_SEED_FRONTEND_NONE;
+    if (!enum_case_for_name(context, shape->enum_index, item.name,
+                            &current_case, NULL, NULL)) {
+      return true;
+    }
+    for (size_t prior = 0; prior < index; prior += 1) {
+      frontend_enum_subset_item previous;
+      if (!enum_subset_item_at(doc, shape->list_span, prior, &previous)) {
+        return true;
+      }
+      uint32_t previous_case = W_SEED_FRONTEND_NONE;
+      if (enum_case_for_name(context, shape->enum_index, previous.name,
+                             &previous_case, NULL, NULL) &&
+          previous_case == current_case) {
+        shape->duplicate = true;
+        return true;
+      }
+    }
+  }
+  const w_seed_frontend_document *enum_doc = NULL;
+  uint32_t enum_node = W_SEED_CST_NONE;
+  if (!enum_declaration_for_name(context, shape->enum_name, NULL, NULL,
+                                 &enum_doc, &enum_node)) {
+    return true;
+  }
+  /* Generic enums are not closed base enums in this D0.  Keep their
+   * contract envelope on the explicit invalid-subset path instead of
+   * accidentally treating a type parameter as a concrete case-set owner. */
+  if (first_direct_kind(enum_doc, enum_node,
+                        W_SEED_CST_GENERIC_PARAMETERS) != W_SEED_CST_NONE) {
+    return true;
+  }
+  const size_t enum_case_count =
+      count_direct_kind(enum_doc, enum_node, W_SEED_CST_ENUM_CASE);
+  if (item_count == enum_case_count) {
+    bool all_present = true;
+    uint32_t case_cursor = enum_doc->nodes[enum_node].first_child;
+    uint32_t case_node = W_SEED_CST_NONE;
+    size_t guard = 0;
+    while (next_child(enum_doc, &case_cursor, &case_node) &&
+           guard < enum_doc->parse.node_count) {
+      if (enum_doc->nodes[case_node].kind == W_SEED_CST_ENUM_CASE) {
+        const w_seed_frontend_text name =
+            first_word_in_span(enum_doc, enum_doc->nodes[case_node].raw_span);
+        uint32_t index = W_SEED_FRONTEND_NONE;
+        if (!enum_case_for_name(context, shape->enum_index, name, &index, NULL,
+                                NULL)) {
+          all_present = false;
+          break;
+        }
+        bool present = false;
+        for (size_t item_index = 0; item_index < item_count; item_index += 1) {
+          frontend_enum_subset_item item;
+          if (enum_subset_item_at(doc, shape->list_span, item_index, &item) &&
+              text_equal_text(item.name, name)) {
+            present = true;
+            break;
+          }
+        }
+        if (!present) {
+          all_present = false;
+          break;
+        }
+      }
+      guard += 1;
+    }
+    shape->full = all_present;
+  }
+  shape->valid = true;
+  return true;
+}
+
+static bool enum_subset_shape_for_alias(
+    const frontend_context *context, w_seed_frontend_text alias_name,
+    frontend_enum_subset_shape *shape) {
+  if (shape == NULL) return false;
+  (void)memset(shape, 0, sizeof(*shape));
+  shape->enum_index = W_SEED_FRONTEND_NONE;
+  if (context == NULL || alias_name.length == 0) return false;
+  if (alias_declaration_name_count(context, alias_name) != 1u) return false;
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL) return false;
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_ALIAS_DECLARATION &&
+        text_equal_text(name_after_keyword(doc, doc->nodes[child].raw_span,
+                                           "alias"),
+                        alias_name)) {
+      const uint32_t type_node = direct_type_index(doc, child);
+      if (type_node == W_SEED_CST_NONE) return false;
+      return enum_subset_shape_for_type(context, doc, type_node, shape);
+    }
+    guard += 1;
+  }
+  return false;
+}
+
+static bool enum_subset_contains_case(
+    const frontend_context *context, frontend_simple_type type,
+    uint32_t enum_case_index) {
+  if (type.kind == W_SEED_FRONTEND_TYPE_ENUM) return true;
+  if (type.kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET || context == NULL)
+    return false;
+  const w_seed_frontend_document *doc = context_document(context);
+  const w_seed_frontend_document *case_doc = NULL;
+  uint32_t case_node = W_SEED_CST_NONE;
+  if (doc == NULL ||
+      !enum_case_node_for_index(context, enum_case_index, &case_doc,
+                                &case_node)) {
+    return false;
+  }
+  const w_seed_frontend_text name =
+      first_word_in_span(case_doc, case_doc->nodes[case_node].raw_span);
+  for (size_t index = 0; index < W_SEED_FRONTEND_MAX_CST_NODES; index += 1) {
+    frontend_enum_subset_item item;
+    if (!enum_subset_item_at(doc, type.subset_span, index, &item)) break;
+    if (text_equal_text(item.name, name)) return true;
+  }
+  return false;
+}
+
 static frontend_simple_type contextual_type_from_span(
     const frontend_context *context, const w_seed_frontend_document *doc,
     w_seed_span span) {
   frontend_simple_type type = simple_type_from_text(doc, span);
   if (type.kind == W_SEED_FRONTEND_TYPE_NOMINAL && context != NULL) {
+    frontend_enum_subset_shape shape;
+    if (enum_subset_shape_for_alias(context, type.spelling, &shape) &&
+        shape.has_contract && shape.valid) {
+      type.kind = shape.full ? W_SEED_FRONTEND_TYPE_ENUM
+                             : W_SEED_FRONTEND_TYPE_ENUM_SUBSET;
+      type.enum_index = shape.enum_index;
+      type.enum_name = shape.enum_name;
+      type.enum_alias_name = type.spelling;
+      type.subset_span = shape.list_span;
+      return type;
+    }
     uint32_t enum_index = W_SEED_FRONTEND_NONE;
     if (enum_declaration_name_count(context, type.spelling) == 1u &&
         enum_declaration_for_name(context, type.spelling, &enum_index, NULL,
                                   NULL, NULL)) {
       type.kind = W_SEED_FRONTEND_TYPE_ENUM;
+      type.enum_index = enum_index;
+      type.enum_name = type.spelling;
     }
   }
   return type;
@@ -1756,8 +2218,112 @@ static bool context_append_enum_case_parameter(
       context->emit && context->output != NULL
           ? context->output->enum_case_parameters
           : NULL,
-      context->output == NULL ? 0 : context->output->enum_case_parameter_capacity,
+                               context->output == NULL ? 0 : context->output->enum_case_parameter_capacity,
+                               index);
+}
+
+static bool context_append_enum_subset_member(
+    frontend_context *context, w_seed_frontend_enum_subset_member value,
+    uint32_t *index) {
+  if (context == NULL || index == NULL) return false;
+  const size_t ordinal = context->count.enum_subset_members;
+  context->count.enum_subset_members += 1;
+  if (!context->emit && !receipt_size_enum_subset_member(context, &value)) {
+    return false;
+  }
+  return context_append_record(
+      context, ordinal, &value, sizeof(value),
+      context->emit && context->output != NULL
+          ? context->output->enum_subset_members
+          : NULL,
+      context->output == NULL ? 0 : context->output->enum_subset_member_capacity,
       index);
+}
+
+static bool report_invalid_enum_subset(frontend_context *context,
+                                       w_seed_span span,
+                                       frontend_enum_subset_shape shape) {
+  (void)shape;
+  if (context == NULL) return false;
+  /* Invalid subset declarations have no dedicated normative diagnostic code
+   * in this D0.  Preserve the unsupported-type fact and closed barrier rather
+   * than inventing a contract or semantic diagnostic. */
+  return context_append_fact(context, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE,
+                             span, text_from_span(context_document(context), span));
+}
+
+static bool normalize_enum_subset_type(
+    frontend_context *context, const w_seed_frontend_document *doc,
+    const w_seed_frontend_type *base_value, frontend_enum_subset_shape shape,
+    uint32_t *root_index) {
+  if (context == NULL || doc == NULL || base_value == NULL || root_index == NULL)
+    return false;
+  w_seed_frontend_type value = *base_value;
+  value.kind = shape.full ? W_SEED_FRONTEND_TYPE_ENUM
+                          : W_SEED_FRONTEND_TYPE_ENUM_SUBSET;
+  value.nominal_name = shape.enum_name;
+  value.enum_base_index = shape.enum_index;
+  if (shape.full) {
+    /* A full case-set is semantically the base enum.  Keep the source
+     * spelling/span on the descriptor for provenance, but expose the same
+     * public member sentinels as the canonical enum and emit no duplicate
+     * subset records for this occurrence. */
+    value.first_subset_member = W_SEED_FRONTEND_NONE;
+    value.subset_member_count = 0;
+    return context_append_type(context, value, root_index);
+  }
+  value.first_subset_member = (uint32_t)context->count.enum_subset_members;
+  value.subset_member_count = (uint32_t)shape.item_count;
+  if (!context_append_type(context, value, root_index)) return false;
+
+  const w_seed_frontend_document *enum_doc = NULL;
+  uint32_t enum_node = W_SEED_CST_NONE;
+  if (!enum_declaration_for_name(context, shape.enum_name, NULL, NULL,
+                                 &enum_doc, &enum_node)) {
+    return false;
+  }
+  uint32_t case_cursor = enum_doc->nodes[enum_node].first_child;
+  uint32_t case_node = W_SEED_CST_NONE;
+  size_t guard = 0;
+  while (next_child(enum_doc, &case_cursor, &case_node) &&
+         guard < enum_doc->parse.node_count) {
+    if (enum_doc->nodes[case_node].kind == W_SEED_CST_ENUM_CASE) {
+      const w_seed_frontend_text name =
+          first_word_in_span(enum_doc, enum_doc->nodes[case_node].raw_span);
+      for (size_t item_index = 0; item_index < shape.item_count;
+           item_index += 1) {
+        frontend_enum_subset_item item;
+        if (!enum_subset_item_at(doc, shape.list_span, item_index, &item) ||
+            !text_equal_text(item.name, name)) {
+          continue;
+        }
+        uint32_t case_index = W_SEED_FRONTEND_NONE;
+        if (!enum_case_for_name(context, shape.enum_index, name, &case_index,
+                                NULL, NULL)) {
+          return false;
+        }
+        w_seed_frontend_enum_subset_member member;
+        member.owner_type = *root_index;
+        member.enum_base_index = shape.enum_index;
+        member.enum_case_index = case_index;
+        member.source_span = item.span;
+        uint32_t member_index = W_SEED_FRONTEND_NONE;
+        if (!context_append_enum_subset_member(context, member, &member_index)) {
+          return false;
+        }
+        break;
+      }
+    }
+    guard += 1;
+  }
+  if (context->emit && context->output != NULL &&
+      *root_index < context->output->type_capacity) {
+    context->output->types[*root_index].first_subset_member = value.first_subset_member;
+    context->output->types[*root_index].subset_member_count =
+        (uint32_t)(context->count.enum_subset_members -
+                   (size_t)value.first_subset_member);
+  }
+  return true;
 }
 
 static bool context_append_type_declaration(
@@ -1996,6 +2562,9 @@ static w_seed_frontend_type type_record_from_span(
   value.element_type = W_SEED_FRONTEND_NONE;
   value.return_type = W_SEED_FRONTEND_NONE;
   value.first_parameter = W_SEED_FRONTEND_NONE;
+  value.enum_base_index = W_SEED_FRONTEND_NONE;
+  value.first_subset_member = W_SEED_FRONTEND_NONE;
+  value.subset_member_count = 0;
   if (simple.kind == W_SEED_FRONTEND_TYPE_OPTION && value.spelling.length > 0) {
     value.nominal_name.data = value.spelling.data;
     value.nominal_name.length = value.spelling.length - 1;
@@ -2011,9 +2580,36 @@ static bool normalize_type_tree_depth(frontend_context *context,
     return false;
   }
   if (depth >= W_SEED_FRONTEND_MAX_NESTING) return false;
-  const w_seed_frontend_type value =
+  w_seed_frontend_type value =
       type_record_from_span(doc, doc->nodes[type_node].raw_span);
-  if (!context_append_type(context, value, root_index)) return false;
+  if (value.kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+      enum_declaration_name_count(context, value.spelling) == 1u) {
+    uint32_t enum_index = W_SEED_FRONTEND_NONE;
+    if (enum_declaration_for_name(context, value.spelling, &enum_index, NULL,
+                                  NULL, NULL)) {
+      value.kind = W_SEED_FRONTEND_TYPE_ENUM;
+      value.nominal_name = value.spelling;
+      value.enum_base_index = enum_index;
+    }
+  }
+  frontend_enum_subset_shape subset_shape;
+  bool has_subset_shape =
+      enum_subset_shape_for_type(context, doc, type_node, &subset_shape);
+  if (!has_subset_shape && value.kind == W_SEED_FRONTEND_TYPE_NOMINAL) {
+    has_subset_shape = enum_subset_shape_for_alias(context, value.spelling,
+                                                    &subset_shape);
+  }
+  if (has_subset_shape && subset_shape.has_contract) {
+    if (!subset_shape.valid) {
+      (void)report_invalid_enum_subset(context, value.span, subset_shape);
+      if (!context_append_type(context, value, root_index)) return false;
+    } else {
+      return normalize_enum_subset_type(context, doc, &value, subset_shape,
+                                        root_index);
+    }
+  } else {
+    if (!context_append_type(context, value, root_index)) return false;
+  }
   if (value.kind == W_SEED_FRONTEND_TYPE_UNKNOWN ||
       value.kind == W_SEED_FRONTEND_TYPE_FUNCTION) {
     (void)context_append_fact(context, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE,
@@ -2035,7 +2631,8 @@ static bool normalize_type_tree_depth(frontend_context *context,
   uint32_t child = W_SEED_CST_NONE;
   size_t guard = 0;
   while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
-    if (doc->nodes[child].kind == W_SEED_CST_CONTRACT_ENVELOPE) {
+    if (doc->nodes[child].kind == W_SEED_CST_CONTRACT_ENVELOPE &&
+        !has_subset_shape) {
       (void)context_append_fact(context, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE,
                                 doc->nodes[child].raw_span,
                                 text_from_span(doc, doc->nodes[child].raw_span));
@@ -2247,6 +2844,9 @@ static bool normalize_enum(frontend_context *context, uint32_t node_index,
   enum_type.element_type = W_SEED_FRONTEND_NONE;
   enum_type.return_type = W_SEED_FRONTEND_NONE;
   enum_type.first_parameter = W_SEED_FRONTEND_NONE;
+  enum_type.enum_base_index = (uint32_t)context->count.enums;
+  enum_type.first_subset_member = W_SEED_FRONTEND_NONE;
+  enum_type.subset_member_count = 0;
   if (!context_append_type(context, enum_type, &value.type_index)) return false;
 
   const uint32_t conformance_node = direct_type_index(doc, node_index);
@@ -2909,11 +3509,24 @@ static frontend_simple_type external_contextual_type(
     const frontend_context *context, w_seed_frontend_text spelling) {
   frontend_simple_type type = simple_type_from_view(spelling);
   if (type.kind == W_SEED_FRONTEND_TYPE_NOMINAL && context != NULL) {
+    frontend_enum_subset_shape shape;
+    if (enum_subset_shape_for_alias(context, spelling, &shape) &&
+        shape.has_contract && shape.valid) {
+      type.kind = shape.full ? W_SEED_FRONTEND_TYPE_ENUM
+                             : W_SEED_FRONTEND_TYPE_ENUM_SUBSET;
+      type.enum_index = shape.enum_index;
+      type.enum_name = shape.enum_name;
+      type.enum_alias_name = type.spelling;
+      type.subset_span = shape.list_span;
+      return type;
+    }
     uint32_t enum_index = W_SEED_FRONTEND_NONE;
     if (enum_declaration_name_count(context, type.spelling) == 1u &&
         enum_declaration_for_name(context, type.spelling, &enum_index, NULL,
                                   NULL, NULL)) {
       type.kind = W_SEED_FRONTEND_TYPE_ENUM;
+      type.enum_index = enum_index;
+      type.enum_name = type.spelling;
     }
   }
   return type;
@@ -3086,18 +3699,122 @@ static frontend_simple_type function_return_type(
                                          doc->nodes[type_node].raw_span);
 }
 
+static bool output_subset_members_match_simple(
+    const frontend_context *context, uint32_t candidate_index,
+    frontend_simple_type expected) {
+  if (context == NULL || context->output == NULL ||
+      candidate_index >= context->count.types ||
+      expected.kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET ||
+      expected.enum_index == W_SEED_FRONTEND_NONE) {
+    return false;
+  }
+  if (context->output->types == NULL) return false;
+  const w_seed_frontend_type *candidate =
+      &context->output->types[candidate_index];
+  if (candidate->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET ||
+      candidate->enum_base_index != expected.enum_index ||
+      candidate->first_subset_member == W_SEED_FRONTEND_NONE ||
+      (size_t)candidate->first_subset_member + candidate->subset_member_count >
+          context->count.enum_subset_members ||
+      context->output->enum_subset_members == NULL) {
+    return false;
+  }
+  const w_seed_frontend_document *enum_doc = NULL;
+  uint32_t enum_node = W_SEED_CST_NONE;
+  if (!enum_declaration_for_name(context, expected.enum_name, NULL, NULL,
+                                 &enum_doc, &enum_node)) {
+    return false;
+  }
+  uint32_t case_cursor = enum_doc->nodes[enum_node].first_child;
+  uint32_t case_node = W_SEED_CST_NONE;
+  size_t guard = 0;
+  while (next_child(enum_doc, &case_cursor, &case_node) &&
+         guard < enum_doc->parse.node_count) {
+    if (enum_doc->nodes[case_node].kind == W_SEED_CST_ENUM_CASE) {
+      const w_seed_frontend_text name =
+          first_word_in_span(enum_doc, enum_doc->nodes[case_node].raw_span);
+      uint32_t case_index = W_SEED_FRONTEND_NONE;
+      if (!enum_case_for_name(context, expected.enum_index, name, &case_index,
+                              NULL, NULL)) {
+        return false;
+      }
+      bool candidate_has_case = false;
+      for (uint32_t offset = 0; offset < candidate->subset_member_count;
+           offset += 1) {
+        const w_seed_frontend_enum_subset_member *member =
+            &context->output->enum_subset_members[
+                candidate->first_subset_member + offset];
+        if (member->enum_case_index == case_index) {
+          candidate_has_case = true;
+          break;
+        }
+      }
+      if (candidate_has_case !=
+          enum_subset_contains_case(context, expected, case_index)) {
+        return false;
+      }
+    }
+    guard += 1;
+  }
+  return true;
+}
+
+static bool output_alias_type_index_for_simple(
+    const frontend_context *context, frontend_simple_type type,
+    uint32_t *index) {
+  if (context == NULL || context->output == NULL || index == NULL ||
+      type.kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET ||
+      type.enum_alias_name.length == 0 ||
+      alias_declaration_name_count(context, type.enum_alias_name) != 1u ||
+      context->output->aliases == NULL) {
+    return false;
+  }
+  uint32_t alias_type_index = W_SEED_FRONTEND_NONE;
+  size_t matches = 0;
+  for (size_t alias_index = 0; alias_index < context->count.aliases;
+       alias_index += 1) {
+    const w_seed_frontend_alias *alias =
+        &context->output->aliases[alias_index];
+    if (!text_equal_text(alias->name, type.enum_alias_name)) continue;
+    alias_type_index = alias->type_index;
+    matches += 1;
+  }
+  if (matches != 1u ||
+      !output_subset_members_match_simple(context, alias_type_index, type)) {
+    return false;
+  }
+  *index = alias_type_index;
+  return true;
+}
+
 static bool output_type_index_for_simple(const frontend_context *context,
                                          frontend_simple_type type,
                                          uint32_t *index) {
   if (index == NULL) return false;
   *index = W_SEED_FRONTEND_NONE;
   if (context == NULL || !context->emit || context->output == NULL) return true;
+  if (type.kind == W_SEED_FRONTEND_TYPE_ENUM &&
+      type.enum_index != W_SEED_FRONTEND_NONE &&
+      context->output->enums != NULL &&
+      type.enum_index < context->count.enums) {
+    const uint32_t canonical =
+        context->output->enums[type.enum_index].type_index;
+    if (canonical < context->count.types &&
+        context->output->types[canonical].kind ==
+            W_SEED_FRONTEND_TYPE_ENUM &&
+        context->output->types[canonical].enum_base_index == type.enum_index) {
+      *index = canonical;
+      return true;
+    }
+  }
+  if (output_alias_type_index_for_simple(context, type, index)) return true;
   for (size_t item = 0; item < context->count.types; item += 1) {
     const w_seed_frontend_type *candidate = &context->output->types[item];
     if (candidate->kind == type.kind &&
         candidate->bit_width == type.bit_width &&
         candidate->is_signed == type.is_signed &&
-        text_equal_text(candidate->spelling, type.spelling)) {
+        text_equal_text(candidate->spelling, type.spelling) &&
+        candidate->enum_base_index == type.enum_index) {
       if (item >= (size_t)UINT32_MAX) return false;
       *index = (uint32_t)item;
       return true;
@@ -3130,8 +3847,10 @@ static bool expression_append(frontend_expression_parser *parser,
   record.first_argument = first_argument;
   record.argument_count = (uint32_t)argument_count;
   record.inferred_type = W_SEED_FRONTEND_NONE;
-  record.enum_index = value->is_enum_case ? value->enum_index
-                                          : W_SEED_FRONTEND_NONE;
+  record.enum_index = value->is_enum_case
+                          ? value->enum_index
+                          : (frontend_type_is_enum(type) ? type.enum_index
+                                                         : W_SEED_FRONTEND_NONE);
   record.enum_case_index = value->is_enum_case
                                ? value->enum_case_index
                                : W_SEED_FRONTEND_NONE;
@@ -3149,8 +3868,14 @@ static bool expression_append(frontend_expression_parser *parser,
   value->supported = supported;
   value->has_name = kind == W_SEED_FRONTEND_EXPR_IDENTIFIER;
   value->is_enum_case = kind == W_SEED_FRONTEND_EXPR_ENUM_CASE;
-  if (!value->is_enum_case) {
-    value->enum_index = W_SEED_FRONTEND_NONE;
+  if (value->is_enum_case) {
+    value->enum_index = value->enum_index == W_SEED_FRONTEND_NONE
+                            ? type.enum_index
+                            : value->enum_index;
+  } else {
+    value->enum_index = frontend_type_is_enum(type)
+                            ? type.enum_index
+                            : W_SEED_FRONTEND_NONE;
     value->enum_case_index = W_SEED_FRONTEND_NONE;
   }
   value->name = value->has_name ? spelling : (w_seed_frontend_text){NULL, 0};
@@ -3226,6 +3951,48 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
             const w_seed_span span = {token.span.start_byte, member.span.end_byte};
             frontend_simple_type enum_type = simple_type_from_view(spelling);
             enum_type.kind = W_SEED_FRONTEND_TYPE_ENUM;
+            enum_type.enum_index = enum_index;
+            enum_type.enum_name = spelling;
+            if (parser->has_expected_type &&
+                parser->expected_type.kind ==
+                    W_SEED_FRONTEND_TYPE_ENUM_SUBSET &&
+                parser->expected_type.enum_index != enum_index) {
+              (void)context_append_diagnostic(
+                  parser->context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE,
+                  "W-TYPE-0121", member_name,
+                  parser->expected_type.spelling, spelling,
+                  (w_seed_frontend_text){NULL, 0},
+                  (w_seed_frontend_text){"expected enum subset", 21}, span);
+              return expression_append(
+                  parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, span,
+                  text_from_span(parser->document, span),
+                  (w_seed_frontend_text){NULL, 0}, simple_type_unknown(),
+                  false, (size_t)W_SEED_FRONTEND_NONE,
+                  (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0,
+                  value);
+            }
+            if (parser->has_expected_type &&
+                frontend_type_is_enum(parser->expected_type) &&
+                parser->expected_type.enum_index == enum_index) {
+              if (!enum_subset_contains_case(parser->context,
+                                              parser->expected_type, case_index)) {
+                (void)context_append_diagnostic(
+                    parser->context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE,
+                    "W-TYPE-0121", member_name,
+                    parser->expected_type.spelling, spelling,
+                    (w_seed_frontend_text){NULL, 0},
+                    (w_seed_frontend_text){"expected enum subset", 21},
+                    span);
+                return expression_append(
+                    parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, span,
+                    text_from_span(parser->document, span),
+                    (w_seed_frontend_text){NULL, 0}, simple_type_unknown(),
+                    false, (size_t)W_SEED_FRONTEND_NONE,
+                    (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0,
+                    value);
+              }
+              enum_type = parser->expected_type;
+            }
             value->is_enum_case = true;
             value->enum_index = enum_index;
             value->enum_case_index = case_index;
@@ -3352,19 +4119,43 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
     const w_seed_frontend_text case_name =
         text_from_span(parser->document, member.span);
     if (parser->has_expected_type &&
-        parser->expected_type.kind == W_SEED_FRONTEND_TYPE_ENUM) {
-      uint32_t enum_index = W_SEED_FRONTEND_NONE;
-      uint32_t type_index = W_SEED_FRONTEND_NONE;
-      if (enum_declaration_name_count(parser->context,
-                                      parser->expected_type.spelling) == 1u &&
-          enum_declaration_for_name(parser->context,
-                                    parser->expected_type.spelling,
-                                    &enum_index, &type_index, NULL, NULL)) {
+        frontend_type_is_enum(parser->expected_type)) {
+      uint32_t enum_index = parser->expected_type.enum_index;
+      if (enum_index == W_SEED_FRONTEND_NONE &&
+          enum_declaration_name_count(parser->context,
+                                      parser->expected_type.spelling) == 1u) {
+        (void)enum_declaration_for_name(parser->context,
+                                        parser->expected_type.spelling,
+                                        &enum_index, NULL, NULL, NULL);
+      }
+      if (enum_index != W_SEED_FRONTEND_NONE) {
         uint32_t case_index = W_SEED_FRONTEND_NONE;
         if (enum_case_for_name(parser->context, enum_index, case_name,
                                &case_index, NULL, NULL)) {
+          if (!enum_subset_contains_case(parser->context,
+                                         parser->expected_type, case_index)) {
+            (void)context_append_diagnostic(
+                parser->context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE,
+                "W-TYPE-0121", case_name, parser->expected_type.spelling,
+                parser->expected_type.enum_name,
+                (w_seed_frontend_text){NULL, 0},
+                (w_seed_frontend_text){"expected enum subset", 21}, span);
+            return expression_append(
+                parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, span,
+                text_from_span(parser->document, span),
+                (w_seed_frontend_text){NULL, 0}, simple_type_unknown(), false,
+                (size_t)W_SEED_FRONTEND_NONE,
+                (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0, value);
+          }
           frontend_simple_type enum_type = parser->expected_type;
           enum_type.kind = W_SEED_FRONTEND_TYPE_ENUM;
+          if (parser->expected_type.kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET) {
+            enum_type.kind = W_SEED_FRONTEND_TYPE_ENUM_SUBSET;
+          }
+          enum_type.enum_index = enum_index;
+          if (enum_type.enum_name.length == 0) {
+            enum_type.enum_name = parser->expected_type.spelling;
+          }
           value->is_enum_case = true;
           value->enum_index = enum_index;
           value->enum_case_index = case_index;
@@ -3615,7 +4406,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           }
         } else if (argument_value.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
                    expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
-                   !widening_allowed(argument_value.type, expected)) {
+                   !frontend_widening_allowed(parser->context,
+                                               argument_value.type,
+                                               expected)) {
           labels_valid = false;
           if (enum_case_constructor) {
             if (!enum_constructor_diagnostic_emitted) {
@@ -3845,17 +4638,22 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
                text_equal(operator_text, "<=") || text_equal(operator_text, ">") ||
                text_equal(operator_text, ">=") || text_equal(operator_text, "in")) {
       result_type = simple_type_from_view((w_seed_frontend_text){"Bool", 4});
-      if (!type_equal(value->type, right.type) &&
+      if (!frontend_type_equal(parser->context, value->type, right.type) &&
           !(type_is_numeric(value->type) && type_is_numeric(right.type) &&
-            (widening_allowed(value->type, right.type) ||
-             widening_allowed(right.type, value->type)))) {
+            (frontend_widening_allowed(parser->context, value->type,
+                                       right.type) ||
+             frontend_widening_allowed(parser->context, right.type,
+                                       value->type)))) {
         supported = false;
       }
     } else if (type_is_numeric(value->type) && type_is_numeric(right.type)) {
-      if (!type_equal(value->type, right.type)) {
-        result_type = widening_allowed(value->type, right.type)
+      if (!frontend_type_equal(parser->context, value->type, right.type)) {
+        result_type = frontend_widening_allowed(parser->context, value->type,
+                                                right.type)
                           ? right.type
-                          : (widening_allowed(right.type, value->type)
+                          : (frontend_widening_allowed(parser->context,
+                                                       right.type,
+                                                       value->type)
                                  ? value->type
                                  : simple_type_unknown());
         if (result_type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN) supported = false;
@@ -4112,9 +4910,10 @@ static bool normalize_switch_expression(
   const w_seed_frontend_document *subject_enum_doc = NULL;
   uint32_t subject_enum_node = W_SEED_CST_NONE;
   const bool subject_is_enum =
-      subject_type.kind == W_SEED_FRONTEND_TYPE_ENUM &&
-      enum_declaration_name_count(context, subject_type.spelling) == 1u &&
-      enum_declaration_for_name(context, subject_type.spelling, &subject_enum,
+      frontend_type_is_enum(subject_type) &&
+      subject_type.enum_index != W_SEED_FRONTEND_NONE &&
+      subject_type.enum_name.length != 0 &&
+      enum_declaration_for_name(context, subject_type.enum_name, &subject_enum,
                                 &subject_enum_type, &subject_enum_doc,
                                 &subject_enum_node);
 
@@ -4190,8 +4989,8 @@ static bool normalize_switch_expression(
       w_seed_frontend_text case_name = {NULL, 0};
       if (!switch_pattern_names(doc, pattern_span, &qualifier, &case_name) ||
           !subject_is_enum ||
-          (qualifier.length != 0 &&
-           !text_equal_text(qualifier, subject_type.spelling)) ||
+           (qualifier.length != 0 &&
+           !text_equal_text(qualifier, subject_type.enum_name)) ||
           !enum_case_for_name(context, subject_enum, case_name, &arm_case,
                               NULL, NULL)) {
         arm_supported = false;
@@ -4202,6 +5001,15 @@ static bool normalize_switch_expression(
                                   pattern_span, text_from_span(doc, pattern_span));
       } else {
         arm_enum = subject_enum;
+        if (!enum_subset_contains_case(context, subject_type, arm_case)) {
+          arm_supported = false;
+          switch_supported = false;
+          (void)context_append_diagnostic(
+              context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-MATCH-0002",
+              case_name, (w_seed_frontend_text){"unreachable", 11},
+              subject_type.spelling, case_name,
+              (w_seed_frontend_text){"case-set member", 16}, pattern_span);
+        }
       }
     } else if (pattern_kind == W_SEED_FRONTEND_SWITCH_PATTERN_LITERAL) {
       arm_supported = false;
@@ -4272,9 +5080,9 @@ static bool normalize_switch_expression(
       }
     }
 
-    frontend_simple_type arm_expected =
-        expected.kind == W_SEED_FRONTEND_TYPE_ENUM ? expected
-                                                   : simple_type_unknown();
+    frontend_simple_type arm_expected = frontend_type_is_enum(expected)
+                                            ? expected
+                                            : simple_type_unknown();
     frontend_simple_type arm_type = simple_type_unknown();
     uint32_t result_expression = W_SEED_FRONTEND_NONE;
     if (result_node != W_SEED_CST_NONE &&
@@ -4296,8 +5104,8 @@ static bool normalize_switch_expression(
     } else if (!have_join) {
       join_type = arm_type;
       have_join = true;
-    } else if (!widening_allowed(arm_type, join_type) &&
-               !widening_allowed(join_type, arm_type)) {
+    } else if (!frontend_widening_allowed(context, arm_type, join_type) &&
+               !frontend_widening_allowed(context, join_type, arm_type)) {
       arm_supported = false;
       switch_supported = false;
       (void)context_append_diagnostic(
@@ -4306,7 +5114,7 @@ static bool normalize_switch_expression(
           (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
           (w_seed_frontend_text){"single join type", 16},
           doc->nodes[result_node].raw_span);
-    } else if (widening_allowed(join_type, arm_type)) {
+    } else if (frontend_widening_allowed(context, join_type, arm_type)) {
       join_type = arm_type;
     }
     w_seed_frontend_switch_arm arm;
@@ -4336,6 +5144,14 @@ static bool normalize_switch_expression(
           W_SEED_CST_ENUM_CASE) {
         const w_seed_frontend_text expected_name = first_word_in_span(
             subject_enum_doc, subject_enum_doc->nodes[expected_case_node].raw_span);
+        uint32_t expected_case_index = W_SEED_FRONTEND_NONE;
+        if (!enum_case_for_name(context, subject_enum, expected_name,
+                                &expected_case_index, NULL, NULL) ||
+            !enum_subset_contains_case(context, subject_type,
+                                       expected_case_index)) {
+          expected_guard += 1;
+          continue;
+        }
         bool covered = false;
         uint32_t scan_cursor = switch_cst->first_child;
         uint32_t scan_arm = W_SEED_CST_NONE;
@@ -4385,7 +5201,7 @@ static bool normalize_switch_expression(
     if (have_join) {
       frontend_simple_type inferred = join_type;
       if (expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
-          widening_allowed(join_type, expected)) {
+          frontend_widening_allowed(context, join_type, expected)) {
         inferred = expected;
       }
       (void)output_type_index_for_simple(context, inferred,
@@ -4480,7 +5296,7 @@ static bool normalize_statement_depth(frontend_context *context,
     const frontend_simple_type expected = expected_outer;
     if (actual.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
         expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
-        !widening_allowed(actual, expected)) {
+        !frontend_widening_allowed(context, actual, expected)) {
       const bool narrowing = actual.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
                              expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
                              actual.is_signed == expected.is_signed &&
@@ -4517,7 +5333,7 @@ static bool normalize_statement_depth(frontend_context *context,
     frontend_simple_type expected = expected_outer;
     if (actual.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
         expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
-        !widening_allowed(actual, expected)) {
+        !frontend_widening_allowed(context, actual, expected)) {
       const bool narrowing = actual.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
                              expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
                              actual.is_signed == expected.is_signed &&
@@ -5242,6 +6058,26 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, (size_t)type->kind);
       receipt_write_literal(writer, "|");
       receipt_write_text(writer, type->spelling);
+      receipt_write_literal(writer, "|enum-base=");
+      receipt_write_size(writer, type->enum_base_index);
+      receipt_write_literal(writer, "|subset-first=");
+      receipt_write_size(writer, type->first_subset_member);
+      receipt_write_literal(writer, "|subset-count=");
+      receipt_write_size(writer, type->subset_member_count);
+      receipt_write_literal(writer, "\n");
+    }
+    for (size_t index = 0; index < context->count.enum_subset_members;
+         index += 1) {
+      const w_seed_frontend_enum_subset_member *member =
+          &output->enum_subset_members[index];
+      receipt_write_literal(writer, "enum-subset-member=");
+      receipt_write_size(writer, member->owner_type);
+      receipt_write_literal(writer, "|enum=");
+      receipt_write_size(writer, member->enum_base_index);
+      receipt_write_literal(writer, "|case=");
+      receipt_write_size(writer, member->enum_case_index);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, member->source_span);
       receipt_write_literal(writer, "\n");
     }
     for (size_t index = 0; index < context->count.functions; index += 1) {
@@ -5315,6 +6151,9 @@ static bool output_capacity_ok(const w_seed_frontend_output *output,
                      output->argument_capacity) &&
          capacity_ok(required->switch_arms, output->switch_arms,
                      output->switch_arm_capacity) &&
+         capacity_ok(required->enum_subset_members,
+                     output->enum_subset_members,
+                     output->enum_subset_member_capacity) &&
          capacity_ok(required->symbols, output->symbols,
                      output->symbol_capacity) &&
          capacity_ok(required->facts, output->facts, output->fact_capacity) &&
