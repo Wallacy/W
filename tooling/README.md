@@ -63,7 +63,7 @@ compiler, runtime, provider ou execução W.
 | [VS Code/TextMate](vscode-w/README.md) | highlighting lexical local, comentários, pares e indentação | regex tolerante; não produz CST nem diagnósticos |
 | [Tree-sitter](tree-sitter-w/README.md) | parser incremental e queries estruturais sobre o subset candidato | protótipo; o gate do parser normativo está em `DESIGN.md` |
 | Corpus Tree-sitter | positivos e snapshots de CST em `tree-sitter-w/test/corpus/` | execução W ainda não existe |
-| [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) + `check-seed-source-reader.mjs` + `check-seed-lexer.mjs` + `check-seed-unicode.mjs` + `check-seed-parser.mjs` + `check-seed-formatter.mjs` + `check-seed-diagnostic.mjs` + `check-seed-foreign.mjs` | source reader C11 allocation-free, byte-first, UTF-8 estrito, spans e pontos; lexer lossless com profile Unicode 17.0.0 pinado e handshake de foreign; scanner C `c-inline-1` source-validation-only com spans/limites/SHA-256; parser seed caller-owned/incremental de CST/recovery, formatter CST-driven e adapter D0 bounded sobre 28 IDs F0 | componente interno do seed; parser/formatter/adapter/scanner não são frontend/compiler/typechecker ou publicação de build; checkers validam dados pinados, witnesses, corpus, outputs canônicos e records D0; NFC/resolver, CR isolado, compiler/typechecker e build publication continuam gaps |
+| [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) + `check-seed-source-reader.mjs` + `check-seed-lexer.mjs` + `check-seed-unicode.mjs` + `check-seed-parser.mjs` + `check-seed-formatter.mjs` + `check-seed-diagnostic.mjs` + `check-seed-foreign.mjs` + `check-seed-frontend.mjs` | source reader C11 allocation-free, byte-first, UTF-8 estrito, spans e pontos; lexer lossless com profile Unicode 17.0.0 pinado e handshake de foreign; scanner C `c-inline-1` source-validation-only com spans/limites/SHA-256; parser seed caller-owned/incremental de CST/recovery, formatter CST-driven, adapter D0 bounded sobre 28 IDs F0 e frontend seed caller-owned COMPLETE-only para AST/declarations, graph facts e type subset | componente interno do seed; parser/formatter/adapter/scanner/frontend não são compiler normativo, HIR, runtime, provider ou publicação de build; frontend é uma fatia semântica bounded, um documento por module ID, com imports externos somente por stubs estruturados; checkers validam dados pinados, witnesses, corpus, outputs canônicos e records D0; NFC, resolver completo, CR isolado, compiler/typechecker completo e build publication continuam gaps |
 | `check-design-examples.mjs` | confirma exemplo local em cada seção normativa terminal | inspeção estrutural; não valida a semântica do exemplo |
 | `check-markdown-links.mjs` | valida targets e anchors locais fora do histórico | não consulta links externos |
 | `design-index.mjs` | gera intervalos e métricas separadas de `DESIGN.md` e `RATIONALE.md` | projeção navegável; não define decisões |
@@ -687,6 +687,12 @@ que constrói o probe em diretório temporário e roda somente os scans C do
 corpus FB0:
 
     bun run check:seed-foreign
+
+O frontend seed interno é uma fatia caller-owned e COMPLETE-only. O gate usa o
+mesmo build C11, prova os três witnesses source-backed, receipt determinístico,
+diagnostics semânticos mínimos, facts unsupported e a barreira de recovery:
+
+    bun run check:seed-frontend
 
 1. Para usar W localmente no VS Code, siga
    [tooling/vscode-w/README.md](vscode-w/README.md). O caminho mais rápido é abrir
