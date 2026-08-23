@@ -200,6 +200,8 @@ typedef struct {
   size_t enum_subset_members;
   /* Append-only membership case records. */
   size_t enum_membership_cases;
+  /* Append-only generic declaration parameter records. */
+  size_t generic_parameters;
 } w_seed_frontend_counts;
 
 typedef struct {
@@ -246,7 +248,50 @@ typedef struct {
   w_seed_span span;
   uint32_t first_field;
   uint32_t field_count;
+  /* Append-only generic declaration parameter range. */
+  uint32_t first_generic_parameter;
+  uint32_t generic_parameter_count;
 } w_seed_frontend_struct;
+
+typedef enum {
+  W_SEED_FRONTEND_GENERIC_KIND_INVALID = 0,
+  W_SEED_FRONTEND_GENERIC_KIND_TYPE,
+  W_SEED_FRONTEND_GENERIC_KIND_VALUE,
+} w_seed_frontend_generic_kind;
+
+typedef enum {
+  W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE = 0,
+  W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE,
+  W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID,
+} w_seed_frontend_generic_refinement_kind;
+
+typedef enum {
+  W_SEED_FRONTEND_GENERIC_SUBJECT_NONE = 0,
+  W_SEED_FRONTEND_GENERIC_SUBJECT_MEMBER,
+  W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID,
+} w_seed_frontend_generic_subject_kind;
+
+/* A normalized generic parameter belongs to a declaration head.  This
+ * record contains declaration schema only.  It does not contain a static
+ * argument or a ConstIR result. */
+typedef struct {
+  uint32_t module_index;
+  w_seed_frontend_decl_kind owner_kind;
+  uint32_t owner_index;
+  uint32_t ordinal;
+  /* Empty for positional and optional-label parameters. */
+  w_seed_frontend_text external_label;
+  w_seed_frontend_text internal_name;
+  w_seed_frontend_label_kind label_kind;
+  w_seed_frontend_generic_kind kind;
+  w_seed_span span;
+  uint32_t domain_type;
+  w_seed_frontend_generic_refinement_kind refinement_kind;
+  uint32_t predicate_function_index;
+  w_seed_span predicate_span;
+  w_seed_span predicate_function_span;
+  w_seed_frontend_generic_subject_kind subject_kind;
+} w_seed_frontend_generic_parameter;
 
 typedef struct {
   uint32_t module_index;
@@ -547,6 +592,9 @@ typedef struct {
   /* Append-only enum membership case records. */
   w_seed_frontend_enum_membership_case *enum_membership_cases;
   size_t enum_membership_case_capacity;
+  /* Append-only generic declaration parameter records. */
+  w_seed_frontend_generic_parameter *generic_parameters;
+  size_t generic_parameter_capacity;
 } w_seed_frontend_output;
 
 typedef struct {

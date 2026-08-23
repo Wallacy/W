@@ -1433,6 +1433,7 @@ generic_parameters = immediate("<") generic_parameter
                      ("," generic_parameter)* ","? ">" ;
 
 generic_parameter = label_omission identifier ":" type
+                 | identifier identifier ":" type
                  | identifier (":" type)? ;
 
 label_omission = "_" ;

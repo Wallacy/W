@@ -2194,6 +2194,43 @@ static bool test_phase2_generic_contract_switch(void) {
         generic.nodes[alias_value].raw_span.start_byte);
   CHECK(count_direct_kind(&generic, alias_value, W_SEED_CST_CONTRACT_ENVELOPE) ==
         1);
+
+  fixture external_label;
+  CHECK(fixture_init(&external_label,
+                     "struct Box<external internal: Type> {}\n",
+                     sizeof(external_label.nodes) /
+                         sizeof(external_label.nodes[0]),
+                     sizeof(external_label.issues) /
+                         sizeof(external_label.issues[0])));
+  CHECK(check_complete_shape(&external_label));
+  const w_seed_cst_index external_struct =
+      first_kind(&external_label, W_SEED_CST_STRUCT);
+  const w_seed_cst_index external_generics = direct_child_after(
+      &external_label, external_struct, W_SEED_CST_GENERIC_PARAMETERS, 0);
+  const w_seed_cst_index external_parameter = direct_child_after(
+      &external_label, external_generics, W_SEED_CST_GENERIC_PARAMETER, 0);
+  CHECK(external_struct != W_SEED_CST_NONE &&
+        external_generics != W_SEED_CST_NONE &&
+        external_parameter != W_SEED_CST_NONE);
+  CHECK(has_direct_text(&external_label, external_parameter, W_SEED_CST_WORD,
+                        "external"));
+  CHECK(has_direct_text(&external_label, external_parameter, W_SEED_CST_WORD,
+                        "internal"));
+  CHECK(has_direct_text(&external_label, external_parameter,
+                        W_SEED_CST_PUNCTUATION, ":"));
+  CHECK(direct_child_after(&external_label, external_parameter,
+                           W_SEED_CST_TYPE, 0) != W_SEED_CST_NONE);
+  CHECK(node_span_text(&external_label, external_parameter,
+                       "external internal: Type"));
+  fixture external_label_repeat;
+  CHECK(fixture_init(&external_label_repeat,
+                     "struct Box<external internal: Type> {}\n",
+                     sizeof(external_label_repeat.nodes) /
+                         sizeof(external_label_repeat.nodes[0]),
+                     sizeof(external_label_repeat.issues) /
+                         sizeof(external_label_repeat.issues[0])));
+  CHECK(same_parse(&external_label, &external_label_repeat));
+
   size_t raw_shift_count = 0;
   for (size_t index = 0; index < generic.result.node_count; index += 1) {
     if (generic.nodes[index].kind != W_SEED_CST_PUNCTUATION) continue;

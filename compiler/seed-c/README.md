@@ -74,10 +74,24 @@ capacity exhaustion é fatal determinístico. Cada instância é single-use: a
 primeira chamada a `w_seed_parser_parse` consome o parser; uma segunda chamada
 retorna `false` sem alterar o resultado ou os buffers caller-owned.
 
-A fatia incremental adiciona `generic_parameters` append-only em `struct`,
-`fn`, `type` e `alias`, declarações de `type`/`alias` com ordem de origem, e
-envelopes de contract sequenciais em tipos e em postfix de expressão. Os argumentos de
-contract aceitam somente formas sintáticas: tipo/path WORD, membro contextual
+Uma fatia sintática anterior reconhece `generic_parameters` append-only em
+`struct`, `fn`, `type` e `alias`, declarações de `type`/`alias` com ordem de
+origem, e
+envelopes de contract sequenciais em tipos e em postfix de expressão. Para
+`struct`, a normalização semântica publica agora o schema caller-owned dos
+parâmetros genéricos. Ela distingue `type` de `value` por resolução de domínio,
+preserva policy de label (`positional`, `named`, `external` ou `optional`), normaliza o
+domínio base sem incluir um refinement posterior e registra predicate const,
+span e subject `.member` somente para um call direto `identifier(.member)`
+com assinatura compatível. Refinements inline/range e calls compostos ou
+aninhados permanecem `UNSUPPORTED` nesta fatia. O resolver usa ordinais de
+declarations e aceita predicate declarado depois do `struct`. Domínio nominal
+não resolvido fica `INVALID` e produz `W-GENERIC-0001`; predicate com retorno
+diferente de `Bool` produz `W-CONTRACT-0003` e mantém o refinement inválido.
+O registro preserva `external_label` separado de `internal_name`. Esta fatia
+não normaliza type applications, static arguments nem executa ConstIR.
+
+Os argumentos de contract aceitam somente formas sintáticas: tipo/path WORD, membro contextual
 `.id`, argumento nomeado `id: static_value`, predicado `(expression)`, lista
 `[static_value, ...]`, número, literal, bool ou quantity. `switch expression`
 aceita pelo menos um arm `case .id|literal: expression`. Listas vazias,
@@ -254,7 +268,7 @@ vários documentos para o mesmo módulo são rejeitadas como `INVALID` em vez de
 serem mescladas silenciosamente. Formas de import que o parser ainda recupera
 (por exemplo, alias de item não reconhecido pelo CST) continuam unsupported.
 Ownership/HIR, async/services/providers, avaliação de initializers/dependencies,
-cache e materialização, generics completos,
+cache e materialização, aplicações e chamadas genéricas completas,
 tensor, runtime, MLIR e WInterface permanecem fora desta fatia.
 
 Funções `const` no D0 conservam a normalização runtime. Literals, parâmetros,

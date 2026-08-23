@@ -22,6 +22,7 @@ enum {
   PROBE_IMPORTS = 4096,
   PROBE_IMPORT_ITEMS = 4096,
   PROBE_STRUCTS = 4096,
+  PROBE_GENERIC_PARAMETERS = 65536,
   PROBE_ENUMS = 4096,
   PROBE_ENUM_CASES = 16384,
   PROBE_ENUM_CASE_PARAMETERS = 32768,
@@ -53,6 +54,8 @@ static w_seed_frontend_module modules[PROBE_MODULES];
 static w_seed_frontend_import imports[PROBE_IMPORTS];
 static w_seed_frontend_import_item import_items[PROBE_IMPORT_ITEMS];
 static w_seed_frontend_struct structs[PROBE_STRUCTS];
+static w_seed_frontend_generic_parameter
+    generic_parameters[PROBE_GENERIC_PARAMETERS];
 static w_seed_frontend_enum enums[PROBE_ENUMS];
 static w_seed_frontend_enum_case enum_cases[PROBE_ENUM_CASES];
 static w_seed_frontend_enum_case_parameter
@@ -170,6 +173,8 @@ int main(void) {
       .import_item_capacity = PROBE_IMPORT_ITEMS,
       .structs = structs,
       .struct_capacity = PROBE_STRUCTS,
+      .generic_parameters = generic_parameters,
+      .generic_parameter_capacity = PROBE_GENERIC_PARAMETERS,
       .enums = enums,
       .enum_capacity = PROBE_ENUMS,
       .enum_cases = enum_cases,
@@ -216,6 +221,7 @@ int main(void) {
       w_seed_frontend_run(&input, &output, &result);
   (void)printf("RESULT parse=%d frontend=%s modules=%" PRIuMAX
                " imports=%" PRIuMAX " structs=%" PRIuMAX
+               " generic_parameters=%" PRIuMAX
                " enums=%" PRIuMAX " enum_cases=%" PRIuMAX
                " enum_case_parameters=%" PRIuMAX
                " switch_arms=%" PRIuMAX
@@ -231,6 +237,7 @@ int main(void) {
                (uintmax_t)result.written.modules,
                (uintmax_t)result.written.imports,
                (uintmax_t)result.written.structs,
+               (uintmax_t)result.written.generic_parameters,
                (uintmax_t)result.written.enums,
                (uintmax_t)result.written.enum_cases,
                (uintmax_t)result.written.enum_case_parameters,

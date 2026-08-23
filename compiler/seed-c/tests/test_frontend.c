@@ -25,6 +25,7 @@ enum {
   TEST_IMPORTS = 32,
   TEST_IMPORT_ITEMS = 32,
   TEST_STRUCTS = 16,
+  TEST_GENERIC_PARAMETERS = 64,
   TEST_ENUMS = 16,
   TEST_ENUM_CASES = 128,
   TEST_ENUM_CASE_PARAMETERS = 256,
@@ -61,6 +62,8 @@ typedef struct {
   w_seed_frontend_import imports[TEST_IMPORTS];
   w_seed_frontend_import_item import_items[TEST_IMPORT_ITEMS];
   w_seed_frontend_struct structs[TEST_STRUCTS];
+  w_seed_frontend_generic_parameter
+      generic_parameters[TEST_GENERIC_PARAMETERS];
   w_seed_frontend_enum enums[TEST_ENUMS];
   w_seed_frontend_enum_case enum_cases[TEST_ENUM_CASES];
   w_seed_frontend_enum_case_parameter
@@ -124,6 +127,8 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
   (void)memset(fixture_value->import_items, value,
                sizeof(fixture_value->import_items));
   (void)memset(fixture_value->structs, value, sizeof(fixture_value->structs));
+  (void)memset(fixture_value->generic_parameters, value,
+               sizeof(fixture_value->generic_parameters));
   (void)memset(fixture_value->enums, value, sizeof(fixture_value->enums));
   (void)memset(fixture_value->enum_cases, value,
                sizeof(fixture_value->enum_cases));
@@ -169,6 +174,8 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                          sizeof(fixture_value->import_items), value) &&
          all_bytes_equal(fixture_value->structs, sizeof(fixture_value->structs),
                          value) &&
+         all_bytes_equal(fixture_value->generic_parameters,
+                         sizeof(fixture_value->generic_parameters), value) &&
          all_bytes_equal(fixture_value->enums, sizeof(fixture_value->enums),
                          value) &&
          all_bytes_equal(fixture_value->enum_cases,
@@ -244,6 +251,8 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .import_item_capacity = TEST_IMPORT_ITEMS,
       .structs = fixture_value->structs,
       .struct_capacity = TEST_STRUCTS,
+      .generic_parameters = fixture_value->generic_parameters,
+      .generic_parameter_capacity = TEST_GENERIC_PARAMETERS,
       .enums = fixture_value->enums,
       .enum_capacity = TEST_ENUMS,
       .enum_cases = fixture_value->enum_cases,
@@ -300,6 +309,7 @@ static bool counts_equal(const w_seed_frontend_counts *left,
   return left->modules == right->modules && left->imports == right->imports &&
          left->import_items == right->import_items &&
          left->structs == right->structs && left->fields == right->fields &&
+         left->generic_parameters == right->generic_parameters &&
          left->enums == right->enums &&
          left->enum_cases == right->enum_cases &&
          left->enum_case_parameters == right->enum_case_parameters &&
@@ -1400,6 +1410,258 @@ static bool test_receipt_encoding_and_long_fields(void) {
   return true;
 }
 
+static bool test_generic_schema(void) {
+  static const char stage_source[] =
+      "export enum ServiceStage { accepted completed }\n"
+      "const fn isValidStagePath(stages: StaticList<ServiceStage>): Bool { "
+      "return true }\n"
+      "struct StagePath<_ stages: StaticList<ServiceStage>"
+      "<(isValidStagePath(.member))>> { orderId: u64 }\n";
+  fixture *stage = &fixture_a;
+  CHECK(fixture_run(stage, stage_source));
+  CHECK(stage->result.status == W_SEED_FRONTEND_OK);
+  CHECK(stage->result.written.generic_parameters == 1u);
+  CHECK(stage->structs[0].first_generic_parameter == 0u &&
+        stage->structs[0].generic_parameter_count == 1u);
+  const w_seed_frontend_generic_parameter *stage_parameter =
+      &stage->generic_parameters[0];
+  CHECK(stage_parameter->owner_kind == W_SEED_FRONTEND_DECL_STRUCT &&
+        stage_parameter->owner_index == 0u &&
+        stage_parameter->ordinal == 0u);
+  CHECK(stage_parameter->external_label.length == 0u &&
+        stage_parameter->internal_name.length == 6u &&
+        memcmp(stage_parameter->internal_name.data, "stages", 6u) == 0);
+  CHECK(stage_parameter->kind == W_SEED_FRONTEND_GENERIC_KIND_VALUE &&
+        stage_parameter->label_kind == W_SEED_FRONTEND_LABEL_OPTIONAL &&
+        stage_parameter->domain_type != W_SEED_FRONTEND_NONE);
+  CHECK(stage->types[stage_parameter->domain_type].kind ==
+        W_SEED_FRONTEND_TYPE_STATIC_LIST);
+  CHECK(stage->types[stage_parameter->domain_type].element_type !=
+        W_SEED_FRONTEND_NONE);
+  CHECK(stage->types[stage->types[stage_parameter->domain_type].element_type]
+            .kind == W_SEED_FRONTEND_TYPE_ENUM);
+  CHECK(stage_parameter->refinement_kind ==
+            W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE &&
+        stage_parameter->subject_kind ==
+            W_SEED_FRONTEND_GENERIC_SUBJECT_MEMBER &&
+        stage_parameter->predicate_function_index == 0u &&
+        stage_parameter->predicate_function_span.start_byte !=
+            stage_parameter->predicate_function_span.end_byte);
+  CHECK(!has_fact(stage, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE));
+  CHECK(receipt_contains(stage, "generic-parameter=", 18u));
+
+  fixture *matrix = &fixture_b;
+  CHECK(fixture_run(matrix,
+                    "struct Matrix<Element, rows: usize, columns: usize> {}\n"));
+  CHECK(matrix->result.status == W_SEED_FRONTEND_OK &&
+        matrix->result.written.generic_parameters == 3u);
+  CHECK(matrix->generic_parameters[0].kind ==
+            W_SEED_FRONTEND_GENERIC_KIND_TYPE &&
+        matrix->generic_parameters[0].label_kind ==
+            W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
+        matrix->generic_parameters[0].external_label.length == 0u &&
+        matrix->generic_parameters[0].domain_type == W_SEED_FRONTEND_NONE);
+  CHECK(matrix->generic_parameters[1].kind ==
+            W_SEED_FRONTEND_GENERIC_KIND_VALUE &&
+        matrix->generic_parameters[1].label_kind ==
+            W_SEED_FRONTEND_LABEL_NAMED_REQUIRED);
+  CHECK(matrix->generic_parameters[2].kind ==
+            W_SEED_FRONTEND_GENERIC_KIND_VALUE &&
+        matrix->generic_parameters[2].label_kind ==
+            W_SEED_FRONTEND_LABEL_NAMED_REQUIRED &&
+        matrix->generic_parameters[1].external_label.length == 4u &&
+        memcmp(matrix->generic_parameters[1].external_label.data, "rows",
+               4u) == 0);
+
+  fixture *labels = &fixture_label;
+  CHECK(fixture_run(labels,
+                    "struct Labels<required: usize, _ optional: usize> {}\n"));
+  CHECK(labels->result.status == W_SEED_FRONTEND_OK &&
+        labels->generic_parameters[0].label_kind ==
+            W_SEED_FRONTEND_LABEL_NAMED_REQUIRED &&
+        labels->generic_parameters[1].label_kind ==
+            W_SEED_FRONTEND_LABEL_OPTIONAL &&
+        labels->generic_parameters[0].external_label.length == 8u &&
+        memcmp(labels->generic_parameters[0].external_label.data, "required",
+               8u) == 0 &&
+        labels->generic_parameters[1].external_label.length == 0u);
+
+  CHECK(fixture_run(labels,
+                    "struct Box<external internal: usize> {}\n"));
+  CHECK(labels->result.status == W_SEED_FRONTEND_OK &&
+        labels->result.written.generic_parameters == 1u &&
+        labels->generic_parameters[0].label_kind ==
+            W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED &&
+        labels->generic_parameters[0].external_label.length == 8u &&
+        memcmp(labels->generic_parameters[0].external_label.data, "external",
+               8u) == 0 &&
+        labels->generic_parameters[0].internal_name.length == 8u &&
+        memcmp(labels->generic_parameters[0].internal_name.data, "internal",
+               8u) == 0);
+
+  fixture *range = &fixture_literal;
+  CHECK(fixture_run(range,
+                    "struct Tile<rows: usize<(1...4096)>> {}\n"));
+  CHECK(range->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        range->generic_parameters[0].kind ==
+            W_SEED_FRONTEND_GENERIC_KIND_VALUE &&
+        range->generic_parameters[0].refinement_kind ==
+            W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID &&
+        range->generic_parameters[0].subject_kind ==
+            W_SEED_FRONTEND_GENERIC_SUBJECT_NONE &&
+        range->generic_parameters[0].predicate_function_index ==
+            W_SEED_FRONTEND_NONE &&
+        has_fact(range, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
+  fixture *non_bool = &fixture_condition;
+  CHECK(fixture_run(
+      non_bool,
+      "enum Stage { accepted completed }\n"
+      "const fn invalid(stages: StaticList<Stage>): usize { return 1 }\n"
+      "struct Invalid<_ stages: StaticList<Stage><(invalid(.member))>> {}\n"));
+  CHECK(non_bool->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(non_bool, "W-CONTRACT-0003") &&
+        !has_diagnostic(non_bool, "W-CONST-0004") &&
+        non_bool->generic_parameters[0].refinement_kind ==
+            W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID &&
+        non_bool->generic_parameters[0].subject_kind ==
+            W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID);
+
+  fixture *non_const = &fixture_external;
+  CHECK(fixture_run(
+      non_const,
+      "enum Stage { accepted completed }\n"
+      "fn isValid(stages: StaticList<Stage>): Bool { return true }\n"
+      "struct Invalid<_ stages: StaticList<Stage><(isValid(.member))>> {}\n"));
+  CHECK(non_const->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(non_const, "W-CONST-0001") &&
+        !has_diagnostic(non_const, "W-CONST-0004") &&
+        non_const->generic_parameters[0].predicate_function_index == 0u &&
+        non_const->generic_parameters[0].refinement_kind ==
+            W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID &&
+        non_const->generic_parameters[0].subject_kind ==
+            W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID);
+
+  fixture *malformed = &fixture_narrowing;
+  CHECK(fixture_run(
+      malformed,
+      "enum Stage { accepted completed }\n"
+      "const fn isValid(stages: StaticList<Stage>): Bool { return true }\n"
+      "struct Invalid<_ stages: StaticList<Stage>"
+      "<(isValid(.member) && true)>> {}\n"));
+  CHECK(malformed->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(malformed, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION) &&
+        malformed->generic_parameters[0].refinement_kind ==
+            W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID &&
+        malformed->generic_parameters[0].subject_kind ==
+            W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID);
+
+  static const char *const strict_shapes[] = {
+      "isValid(.member, .member)",
+      "wrapper(isValid(.member))",
+  };
+  for (size_t shape = 0; shape < sizeof(strict_shapes) / sizeof(strict_shapes[0]);
+       shape += 1u) {
+    char source[512];
+    const int written = snprintf(
+        source, sizeof(source),
+        "enum Stage { accepted completed }\n"
+        "const fn isValid(stages: StaticList<Stage>): Bool { return true }\n"
+        "struct Invalid<_ stages: StaticList<Stage><(%s)>> {}\n",
+        strict_shapes[shape]);
+    CHECK(written > 0 && (size_t)written < sizeof(source));
+    CHECK(fixture_run(malformed, source));
+    CHECK(malformed->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+          has_fact(malformed, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION) &&
+          malformed->generic_parameters[0].predicate_function_index ==
+              W_SEED_FRONTEND_NONE &&
+          malformed->generic_parameters[0].refinement_kind ==
+              W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID &&
+          malformed->generic_parameters[0].subject_kind ==
+              W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID);
+  }
+
+  fixture *unresolved = &fixture_unresolved;
+  CHECK(fixture_run(unresolved,
+                    "struct Unknown<rows: UnknownName> {}\n"));
+  CHECK(unresolved->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        unresolved->generic_parameters[0].kind ==
+            W_SEED_FRONTEND_GENERIC_KIND_INVALID &&
+        has_diagnostic(unresolved, "W-GENERIC-0001"));
+
+  CHECK(fixture_run(
+      unresolved,
+      "enum Stage { accepted completed }\n"
+      "struct Invalid<_ stages: StaticList<Stage><(missing(.member))>> {}\n"));
+  CHECK(unresolved->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(unresolved, W_SEED_FRONTEND_FACT_UNRESOLVED_LOCAL_SYMBOL) &&
+        unresolved->generic_parameters[0].predicate_function_index ==
+            W_SEED_FRONTEND_NONE &&
+        unresolved->generic_parameters[0].refinement_kind ==
+            W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID &&
+        unresolved->generic_parameters[0].subject_kind ==
+            W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID);
+
+  fixture *wrong_signature = &fixture_collision;
+  CHECK(fixture_run(
+      wrong_signature,
+      "enum Stage { accepted completed }\n"
+      "const fn wrongArity(a: StaticList<Stage>, b: StaticList<Stage>): Bool { "
+      "return true }\n"
+      "const fn wrongDomain(value: usize): Bool { return true }\n"
+      "struct Arity<_ stages: StaticList<Stage><(wrongArity(.member))>> {}\n"
+      "struct Domain<_ stages: StaticList<Stage><(wrongDomain(.member))>> {}\n"));
+  CHECK(wrong_signature->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(wrong_signature, "W-CONTRACT-0002") &&
+        wrong_signature->result.written.generic_parameters == 2u &&
+        wrong_signature->generic_parameters[0].refinement_kind ==
+            W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID &&
+        wrong_signature->generic_parameters[0].subject_kind ==
+            W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID &&
+        wrong_signature->generic_parameters[1].refinement_kind ==
+            W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID &&
+        wrong_signature->generic_parameters[1].subject_kind ==
+            W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID);
+
+  fixture *forward = &fixture_generic;
+  CHECK(fixture_run(
+      forward,
+      "enum Stage { accepted completed }\n"
+      "struct Forward<_ stages: StaticList<Stage><(isValid(.member))>> {}\n"
+      "const fn isValid(stages: StaticList<Stage>): Bool { return true }\n"));
+  CHECK(forward->result.status == W_SEED_FRONTEND_OK &&
+        forward->generic_parameters[0].predicate_function_index == 0u &&
+        forward->generic_parameters[0].predicate_function_span.start_byte >
+            forward->generic_parameters[0].span.end_byte);
+  CHECK(fixture_run(
+      &fixture_callback,
+      "struct First<A, count: usize> {}\n"
+      "struct Second<_ value: usize> {}\n"));
+  CHECK(fixture_callback.result.status == W_SEED_FRONTEND_OK &&
+        fixture_callback.structs[0].first_generic_parameter == 0u &&
+        fixture_callback.structs[0].generic_parameter_count == 2u &&
+        fixture_callback.structs[1].first_generic_parameter == 2u &&
+        fixture_callback.structs[1].generic_parameter_count == 1u &&
+        fixture_callback.generic_parameters[0].owner_index == 0u &&
+        fixture_callback.generic_parameters[0].ordinal == 0u &&
+        fixture_callback.generic_parameters[1].owner_index == 0u &&
+        fixture_callback.generic_parameters[1].ordinal == 1u &&
+        fixture_callback.generic_parameters[2].owner_index == 1u &&
+        fixture_callback.generic_parameters[2].ordinal == 0u);
+  fixture *repeat = &fixture_callback;
+  CHECK(fixture_run(repeat,
+                    "enum Stage { accepted completed }\n"
+                    "struct Forward<_ stages: StaticList<Stage>"
+                    "<(isValid(.member))>> {}\n"
+                    "const fn isValid(stages: StaticList<Stage>): Bool { "
+                    "return true }\n"));
+  CHECK(repeat->result.status == forward->result.status &&
+        repeat->result.receipt_bytes == forward->result.receipt_bytes);
+  CHECK(memcmp(repeat->receipt, forward->receipt, forward->result.receipt_bytes) ==
+        0);
+  return true;
+}
+
 static bool test_barrier_and_capacity(void) {
   fixture *recovered = &fixture_recovered;
   CHECK(fixture_parse(recovered, "fn f(): () { if 1 { return }\n"));
@@ -1437,6 +1699,18 @@ static bool test_barrier_and_capacity(void) {
   capacity->output.enum_cases = NULL;
   capacity->output.enum_case_parameter_capacity = 0;
   capacity->output.enum_case_parameters = NULL;
+  (void)w_seed_frontend_run(&capacity->input, &capacity->output,
+                            &capacity->result);
+  CHECK(capacity->result.status == W_SEED_FRONTEND_CAPACITY);
+  CHECK(fixture_output_is(capacity, sentinel, true));
+
+  CHECK(fixture_parse(
+      capacity,
+      "enum Stage { accepted completed }\n"
+      "struct Path<_ stages: StaticList<Stage>> {}\n"));
+  fixture_fill_output(capacity, sentinel);
+  capacity->output.generic_parameter_capacity = 0;
+  capacity->output.generic_parameters = NULL;
   (void)w_seed_frontend_run(&capacity->input, &capacity->output,
                             &capacity->result);
   CHECK(capacity->result.status == W_SEED_FRONTEND_CAPACITY);
@@ -1482,6 +1756,7 @@ int main(void) {
   if (!test_semantic_diagnostics()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;
   if (!test_receipt_encoding_and_long_fields()) return 1;
+  if (!test_generic_schema()) return 1;
   if (!test_barrier_and_capacity()) return 1;
   return 0;
 }
