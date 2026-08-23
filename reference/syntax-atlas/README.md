@@ -13,6 +13,18 @@ Depois leia [`execution.w`](execution.w). Ele reúne o módulo de execução com
 entry explícito, bindings, allocator scopes, controle, execução, effects,
 streams e channels.
 
+Para a superfície fechada de operadores, leia [`operators.w`](operators.w).
+O bloco demonstra precedência, bitwise, shifts, power, coalescing, `in`, `is`,
+ranges, `@`, compound assignment e APIs numéricas nomeadas. O bloco é
+parse-only e não prova type-check, runtime ou provider.
+
+`>..` e `>..<` continuam formas current do contrato e das tabelas seed
+lexer/parser. O witness direto Tree-sitter dessas formas está em um gap
+conhecido do parser.
+`a = b = c` também tem um gap de conformance: o seed Pratt e a grammar formam
+uma árvore right-associative, mas DESIGN rejeita assignment encadeada. O atlas
+e seu checker registram esses fatos sem convertê-los em claims semânticos.
+
 [`build.w`](build.w) é o único documento de manifesto do atlas e contém records
 diretos `package` e `workspace`. O package demonstra identidade e dependencies; o
 workspace é o owner de `resolution` e deployments quando os dois estão

@@ -190,16 +190,55 @@ provider numérico. A semântica de Quantity está em
 
 ### Operadores de consulta rápida
 
-| Família | Formas correntes | Observação |
-| --- | --- | --- |
-| Aritmética | +, -, *, /, % | O tipo e o overflow continuam parte do contrato numérico. |
-| Comparação | ==, !=, <, <=, >, >= | Protocolos e refinements podem restringir o domínio. |
-| Lógicos | &&, ||, ! | Short-circuit é uma ordem de avaliação do design. |
-| Intervalo | a..<b, a...b | O primeiro exclui o limite final; o segundo inclui os limites segundo o tipo. |
-| Coalescência | value?, left ?? fallback | A leitura de Option não é conversão silenciosa. |
-| Acesso | .member, value[index] | Ownership do projection depende do contexto. |
-| Tipo/case | is | Testa tipo ou case conforme o contrato esperado. |
-| Assignment | =, +=, -=, *=, /= | Assignment não é uma expressão genérica em qualquer contexto. |
+A tabela usa a ordem da menor para a maior força.
+
+| Grupo | Formas | Associação | Semântica curta |
+| --- | --- | --- | --- |
+| assignment | `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `<<=`, `>>=`, `&=`, `^=`, `\|=` | não encadeável | Escreve no place uma vez e resulta em Unit (`()`). |
+| coalescing | `??` | direita | Seleciona o fallback somente para ausência. |
+| logical OR | `\|\|` | esquerda, short-circuit | Avalia o lado direito somente quando necessário. |
+| logical AND | `&&` | esquerda, short-circuit | Avalia o lado direito somente quando necessário. |
+| bitwise OR | `\|` | esquerda | Opera nos bits do mesmo tipo integer. |
+| bitwise XOR | `^` | esquerda | Opera nos bits do mesmo tipo integer. |
+| bitwise AND | `&` | esquerda | Opera nos bits do mesmo tipo integer. |
+| equality | `==`, `!=` | não encadeável | Compara valores conforme o contrato de tipo. |
+| relation | `<`, `<=`, `>`, `>=`, `is`, `in` | não encadeável | Compara, testa tipo/case ou testa membership em Range ou tuple finita. |
+| range | `...`, `..<`, `>..`, `>..<` | não encadeável | Cria um range com limites inclusivos ou exclusivos. |
+| shift | `<<`, `>>` | esquerda | Move bits com contagem `UInt`. |
+| additive | `+`, `-` | esquerda | Soma ou subtrai conforme a policy numérica. |
+| multiplicative | `*`, `/`, `%`, `@` | esquerda | Multiplica, divide, calcula remainder ou faz matmul rank 1/2. |
+| prefix | `!`, `~`, `-`, `try`, `try?`, `await`, `copy`, `take`, `pin`, `inout`, `ref` | direita | Opera no operand subtree e respeita effects/ownership. |
+| power | `**` | direita | Potência. O lado direito aceita prefix. |
+| postfix | call, member `.member`, index `[index]`, `?`, optional member `?.member` | esquerda | Encadeia call, projection, indexação e propagação de Option. |
+
+`-2 ** 2` significa `-(2 ** 2)`. `2 ** -3` significa `2 ** (-3)`.
+Assignment composta preserva a policy da operação e avalia o place uma vez.
+`a = b = c` continua rejeitado pelo contrato. O seed Pratt e a grammar atual
+formam uma árvore right-associative para este probe. O checker registra esse
+frontend/parser conformance gap. A associação sintática não é prova semântica.
+
+`>..` e `>..<` são formas current do contrato e estão nas tabelas seed
+lexer/parser. O witness direto Tree-sitter dessas duas formas ainda falha. O
+atlas registra o gap de parser. Esse texto não afirma parse-only para essas
+duas formas.
+
+### Política numérica e custo
+
+| Superfície | Contrato |
+| --- | --- |
+| Operators integer | `+`, `-`, `*`, `/`, `%`, unary `-`, integer `**` usam arithmetic checked. Overflow e divisor inválido causam panic em runtime e diagnostic em const evaluation. |
+| APIs named | `checked*` retorna `Result`; `wrapping*`, `saturating*` e `overflowing*` nomeiam a policy escolhida. |
+| Multiprecision | `carryingAdd`, `borrowingSubtract` e `fullMultiply` expõem carry, borrow e produto completo. |
+| Shifts e bits | `checkedShift*`, `wrappingShift*`, `maskedShift*`, `logicalShiftRight`, `rotatedLeft` e `rotatedRight` tornam a intenção explícita. |
+| Representação | `toBits`/`fromBits` e APIs endian `toBytes`/`fromBytes` usam `.little`, `.big` ou `.native` sem alterar o valor. |
+| `@` | Rank 1 e rank 2 usam a família fechada. Integer é checked e float usa mode `.strict`. Não há broadcast implícito. |
+| SIMD e tensor | Use APIs nomeadas, como `tensor.matmul`, `tensor.contract` e `materialize`. Não há operator extra. |
+| Otimização | Um operator não é hint de branchless, SIMD, unchecked ou fast-math. O optimizer só preserva semantics, panic, effects, ownership e numeric policy. |
+| Compound assignment | O place é resolvido uma vez. A operação lê, calcula e escreve no mesmo place. |
+
+Não existem custom/user operators, unary `+`, `++`, `--`, postfix force unwrap,
+`&&=`, `||=`, `??=` ou `@=`. `isSameInstance` é uma API nomeada de identidade.
+Ela não é uma segunda forma de `is`.
 
 Consulte a hierarquia normativa em
 [DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos) antes

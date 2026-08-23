@@ -630,6 +630,20 @@ acontecer, ambos rodam o mesmo corpus e testes diferenciais/fuzz impedem drift.
 Assim a escolha inicial continua reversível sem jogar fora grammar, queries ou
 integrações de editor.
 
+## Superfície fechada de operadores
+
+`check:operator-surface` compara o inventário vigente e rejeitado em
+`DESIGN.md`, `grammar.js`, as tabelas do seed lexer/parser e as projeções de
+documentação. Ele também valida longest-match e witnesses de precedência com
+probes Tree-sitter. Os probes informam `parser/grammar-only` e não alegam
+type-check, runtime ou provider.
+
+Execute no root do repositório:
+
+```text
+bun tooling/check-operator-surface.mjs
+```
+
 ## Validação de snippets do cheatsheet
 
 `check:cheatsheet` extrai fences `w`, valida metadata de `w excerpt` e verifica

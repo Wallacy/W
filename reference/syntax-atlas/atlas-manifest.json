@@ -10,7 +10,8 @@
   "sourceFiles": [
     "build.w",
     "execution.w",
-    "language.w"
+    "language.w",
+    "operators.w"
   ],
   "pedagogicalOrder": [
     "module-run-root",
@@ -24,6 +25,7 @@
     "control-flow",
     "execution-forms",
     "restricted-expressions",
+    "operators",
     "stream-and-channel",
     "entry-declaration",
     "module-run-entry",
@@ -1578,6 +1580,12 @@
       ]
     },
     {
+      "family": "operators",
+      "blocks": [
+        "operators"
+      ]
+    },
+    {
       "family": "streams",
       "blocks": [
         "stream-and-channel"
@@ -2463,9 +2471,31 @@
       "snippetBytes": 971
     },
     {
+      "id": "operators",
+      "file": "operators.w",
+      "order": 11,
+      "line": 1,
+      "title": "Operators and numeric policies",
+      "family": "operators",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "root": "module",
+      "grammarRefs": [],
+      "designRefs": [
+        "3.5.6",
+        "5.6",
+        "15.1.3",
+        "17",
+        "18"
+      ],
+      "sourceRefs": [],
+      "snippetDigest": "sha256:edf91d8bfb426358291e1f70bc2105ec3e6b7b9d3a8cbde6dea741963cb223cb",
+      "snippetBytes": 3042
+    },
+    {
       "id": "stream-and-channel",
       "file": "execution.w",
-      "order": 11,
+      "order": 12,
       "line": 153,
       "title": "Streams, channels, and directional contracts",
       "family": "streams",
@@ -2493,7 +2523,7 @@
     {
       "id": "entry-declaration",
       "file": "language.w",
-      "order": 12,
+      "order": 13,
       "line": 225,
       "title": "Explicit entry descriptor",
       "family": "entry",
@@ -2519,7 +2549,7 @@
     {
       "id": "module-run-entry",
       "file": "execution.w",
-      "order": 13,
+      "order": 14,
       "line": 182,
       "title": "Explicit module-run entry",
       "family": "entry",
@@ -2537,7 +2567,7 @@
     {
       "id": "package-root",
       "file": "build.w",
-      "order": 14,
+      "order": 15,
       "line": 1,
       "title": "Package manifest root",
       "family": "manifest",
@@ -2570,7 +2600,7 @@
     {
       "id": "workspace-root",
       "file": "build.w",
-      "order": 15,
+      "order": 16,
       "line": 16,
       "title": "Workspace manifest root",
       "family": "manifest",
@@ -2614,6 +2644,6 @@
   ],
   "generated": {
     "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:a1a85f6d238197e653e54681a2b218aa88cbe1f39efe4eb07a4a46113d4c58bc"
+    "cheatsheetDigest": "sha256:0d409a151b46a48c3b4a3937ed771ba8293be4ea4024ee7ea0eb5a3b629161d5"
   }
 }
