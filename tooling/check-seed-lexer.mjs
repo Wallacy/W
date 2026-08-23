@@ -5,6 +5,18 @@ import { join, relative, resolve } from "node:path"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
+const expectedMaintainedCorpusCount = 293
+const expectedMaintainedCorpusAdditions = [
+  "reference/last-light/build.w",
+  "tooling/studies/aeg0-app-essentials-gate/adversarial.w",
+  "tooling/studies/aeg0-app-essentials-gate/current.w",
+  "tooling/studies/pfu0-pre-freeze-usability/adversarial.w",
+  "tooling/studies/pfu0-pre-freeze-usability/current.w",
+]
+const retiredMaintainedCorpusPaths = [
+  "reference/last-light/package.w",
+  "reference/last-light/workspace.w",
+]
 const opaqueClaims = new Map([
   ["reference/last-light/abi.w", [
     { start: 1446, end: 1607, digest: "sha256:fcdcb287474cc7d876c4330e7206f5ada849d3c44bf18ea039a0e9e17bc24c80", profile: "C" },
@@ -68,7 +80,21 @@ async function corpusPaths() {
     ...(await collectW("tooling/studies", true)),
   ]
   paths.sort()
-  if (paths.length !== 290) fail("expected 290 maintained .w corpus files, got " + paths.length)
+  if (paths.length !== expectedMaintainedCorpusCount) {
+    fail(
+      `expected ${expectedMaintainedCorpusCount} maintained .w corpus files after ` +
+      `the known corpus additions and retirements, got ${paths.length}`,
+    )
+  }
+  const pathSet = new Set(paths)
+  const missingAdditions = expectedMaintainedCorpusAdditions.filter((path) => !pathSet.has(path))
+  if (missingAdditions.length > 0) {
+    fail("known maintained corpus additions are missing: " + missingAdditions.join(", "))
+  }
+  const retiredPathsPresent = retiredMaintainedCorpusPaths.filter((path) => pathSet.has(path))
+  if (retiredPathsPresent.length > 0) {
+    fail("retired maintained corpus paths are still present: " + retiredPathsPresent.join(", "))
+  }
   return paths
 }
 

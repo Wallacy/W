@@ -7,7 +7,7 @@
     "catalogedApis": 424,
     "draftCatalogedApis": 424,
     "missingCatalogedApis": 0,
-    "qualifiedReferenceSurfaces": 92,
+    "qualifiedReferenceSurfaces": 90,
     "referenceRequirements": 31,
     "contractedReferenceRequirements": 31,
     "missingReferenceRequirements": 0,
@@ -9197,14 +9197,6 @@
       ]
     },
     {
-      "module": "std.csv",
-      "surface": "Profile",
-      "status": "draft",
-      "consumers": [
-        "reference/last-light/data_formats.w"
-      ]
-    },
-    {
       "module": "std.data",
       "surface": "Batch",
       "status": "draft",
@@ -9617,14 +9609,6 @@
     {
       "module": "std.parquet",
       "surface": "DecodeOptions",
-      "status": "draft",
-      "consumers": [
-        "reference/last-light/data_formats.w"
-      ]
-    },
-    {
-      "module": "std.parquet",
-      "surface": "DecodeProfile",
       "status": "draft",
       "consumers": [
         "reference/last-light/data_formats.w"
