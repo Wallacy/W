@@ -1,8 +1,9 @@
-# Source reader, lexer, parser, formatter e D0 do seed C
+# Source reader, lexer, parser, formatter, frontend seed e D0 do seed C
 
 **Status:** componente real e interno do w-seed-c. O parser seed abaixo é uma
-fatia incremental de CST/recovery. O formatter e o adapter D0 são fatias fechadas
-caller-owned desta fatia; nenhum deles é um compiler frontend.
+fatia incremental de CST/recovery. O formatter, o adapter D0 e o frontend seed
+semântico são fatias fechadas caller-owned; o frontend é interno e não é um
+compiler driver normativo.
 
 Este componente fornece uma view de bytes sem cópia. Ele valida UTF-8 estrito,
 detecta o BOM inicial, conta linhas por LF, valida spans half-open e converte
@@ -215,6 +216,47 @@ O gate dedicado do scanner C constrói o probe em diretório temporário e compa
 
     bun tooling/check-seed-foreign.mjs
 
+## Frontend seed interno (fatia semântica)
+
+`include/w_seed_frontend.h` e `src/w_seed_frontend.c` formam a primeira fatia
+caller-owned do frontend. A API C11 mede antes de emitir e não usa heap,
+filesystem, locale, environment ou clock. Ela aceita somente documentos CST
+`COMPLETE`; CST `RECOVERED`/fatal cruza uma barreira sem alterar nenhum buffer.
+Logical source ID e module ID são entradas explícitas. Imports externos usam
+somente stubs estruturados fornecidos pelo caller (símbolos exportados,
+parâmetros, política de labels e retorno).
+
+A normalização preserva módulo, imports e aliases de itens, structs/fields,
+declarações de tipo/alias, funções, parâmetros, entry, bindings, argumentos e
+expressions suportadas. A projeção bounded de módulos/imports na ordem de input
+detecta duplicate local, unresolved import/local e entry inválido, e registra
+fatos explícitos para nodes, types e expressions fora do subset. O checker cobre
+Unit, Bool, String, bytes, inteiros e floats fixos, Option, nominais/opaque e
+assinaturas de função. Literals,
+bindings, returns, calls, condição Bool, aritmética/comparação e widenings
+conhecidos têm checagem mínima; narrowing produz `W-TYPE-0122`, condição não
+Bool produz `W-SEM-0001` e label inválido de assinatura resolvida produz
+`W-LABEL-0005`.
+
+O receipt é texto determinístico com schema interno, digests de source e
+records ordenados por documento/ordem de input. Campos textuais usam
+comprimento e bytes hex; assim, `|`, newline e identificadores longos não mudam
+a separação. `measure` e `run`
+produzem a mesma contagem exata; capacidades insuficientes têm comportamento
+all-or-nothing. Esta fatia aceita um documento por module ID; contribuições de
+vários documentos para o mesmo módulo são rejeitadas como `INVALID` em vez de
+serem mescladas silenciosamente. Formas de import que o parser ainda recupera
+(por exemplo, alias de item não reconhecido pelo CST) continuam unsupported.
+Ownership/HIR, async/services/providers, ConstIR, generics completos, tensor,
+runtime, MLIR e WInterface permanecem fora desta fatia.
+
+O gate scoped constrói o probe e os testes em diretório temporário, executa os
+três witnesses source-backed (`horizon_tool.w`, `formatting.w` e `numerics.w`),
+repete o probe para provar receipt byte-idêntico e verifica os negativos
+semânticos e a barreira de recovery:
+
+    bun tooling/check-seed-frontend.mjs
+
 O classifier usa somente os dados oficiais vendorizados em `unicode/17.0.0`.
 O check offline é executado com:
 
@@ -226,7 +268,8 @@ Uma atualização de dados é explícita e requer rede:
 
 Os headers include/w_seed_source.h, include/w_seed_lexer.h,
 include/w_seed_parser.h, include/w_seed_formatter.h e
-include/w_seed_diagnostic.h e a biblioteca w_seed_source são detalhes de
+include/w_seed_diagnostic.h, include/w_seed_frontend.h e a biblioteca
+w_seed_source são detalhes de
 implementação do seed. A biblioteca, o parser, o formatter e o adapter não alocam,
 não acessam paths, locale, clock ou environment e não assumem ownership dos
 bytes de entrada. O probe de lexer é somente ferramenta de teste.
@@ -235,7 +278,7 @@ O source probe lê uma entrada limitada de stdin e devolve os bytes sem
 alteração. O lexer probe devolve somente itens e spans; o parser probe devolve
 CST, folhas e issues internos para o checker. O limite
 de 16 MiB pertence somente aos probes de teste; não é contrato da linguagem
-nem limite do source reader. NFC, resolver e build publication continuam gaps
+nem limite do source reader. NFC, resolver completo e build publication continuam gaps
 intencionais desta fatia; o scanner C acima é somente source validation. O
 formatter e o adapter D0 são fatias fechadas internas, não frontend normativo. Os
 checkers Bun usam os probes sobre os casos
@@ -246,11 +289,13 @@ e não são output de um compiler. A proveniência é mantida em
 [formatting.w](../../reference/last-light/formatting.w) e nos
 [check-seed-source-reader.mjs](../../tooling/check-seed-source-reader.mjs),
 [check-seed-formatter.mjs](../../tooling/check-seed-formatter.mjs) e
-[check-seed-diagnostic.mjs](../../tooling/check-seed-diagnostic.mjs); os
+[check-seed-diagnostic.mjs](../../tooling/check-seed-diagnostic.mjs) e
+[check-seed-frontend.mjs](../../tooling/check-seed-frontend.mjs); os
 checker lê essas fontes e não copia seus payloads. O checker do parser também
 extrai slices delimitados por marcadores de bytes atuais de
 `reference/last-light/generics.w`, `enum_contracts.w` e `allocation.w`; esses
 witnesses são
 somente entradas sintáticas do seed e não afirmam que o Last Light completo
-compila. O parser/formatter/adapter seed não promove nenhum comportamento de
-compiler, AST/HIR, checker semântico, resolver ou runtime.
+compila. O parser/formatter/adapter seed não promove comportamento normativo de
+compiler, AST/HIR, resolver completo ou runtime; o frontend acima é somente a
+fatia semântica bounded explicitamente descrita nesta página.

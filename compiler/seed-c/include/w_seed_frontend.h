@@ -1,0 +1,422 @@
+#ifndef W_SEED_FRONTEND_H
+#define W_SEED_FRONTEND_H
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#include "w_seed_parser.h"
+#include "w_seed_sha256.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Internal seed frontend. It is not a public W command or compiler driver. */
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-1"
+#define W_SEED_FRONTEND_NONE UINT32_MAX
+#define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
+#define W_SEED_FRONTEND_MAX_CST_NODES 8192u
+#define W_SEED_FRONTEND_MAX_NESTING 256u
+#define W_SEED_FRONTEND_MAX_DOCUMENTS 256u
+#define W_SEED_FRONTEND_MAX_EXTERNAL_MODULES 256u
+#define W_SEED_FRONTEND_MAX_EXTERNAL_SYMBOLS 4096u
+#define W_SEED_FRONTEND_MAX_EXTERNAL_PARAMETERS 4096u
+
+typedef struct {
+  const char *data;
+  size_t length;
+} w_seed_frontend_text;
+
+typedef enum {
+  W_SEED_FRONTEND_OK = 0,
+  W_SEED_FRONTEND_DIAGNOSTICS,
+  W_SEED_FRONTEND_UNSUPPORTED,
+  W_SEED_FRONTEND_CAPACITY,
+  W_SEED_FRONTEND_BARRIER,
+  W_SEED_FRONTEND_INVALID,
+} w_seed_frontend_status;
+
+typedef enum {
+  W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE = 0,
+  W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE,
+  W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+  W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL,
+  W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL,
+  W_SEED_FRONTEND_FACT_UNRESOLVED_LOCAL_SYMBOL,
+  W_SEED_FRONTEND_FACT_INVALID_ENTRY,
+} w_seed_frontend_fact_kind;
+
+typedef enum {
+  W_SEED_FRONTEND_TYPE_INVALID = 0,
+  W_SEED_FRONTEND_TYPE_UNIT,
+  W_SEED_FRONTEND_TYPE_BOOL,
+  W_SEED_FRONTEND_TYPE_STRING,
+  W_SEED_FRONTEND_TYPE_BYTES,
+  W_SEED_FRONTEND_TYPE_INTEGER,
+  W_SEED_FRONTEND_TYPE_FLOAT,
+  W_SEED_FRONTEND_TYPE_OPTION,
+  W_SEED_FRONTEND_TYPE_NOMINAL,
+  W_SEED_FRONTEND_TYPE_FUNCTION,
+  W_SEED_FRONTEND_TYPE_UNKNOWN,
+} w_seed_frontend_type_kind;
+
+typedef enum {
+  W_SEED_FRONTEND_DECL_STRUCT = 0,
+  W_SEED_FRONTEND_DECL_TYPE,
+  W_SEED_FRONTEND_DECL_ALIAS,
+  W_SEED_FRONTEND_DECL_FUNCTION,
+} w_seed_frontend_decl_kind;
+
+typedef enum {
+  W_SEED_FRONTEND_EXPR_UNSUPPORTED = 0,
+  W_SEED_FRONTEND_EXPR_IDENTIFIER,
+  W_SEED_FRONTEND_EXPR_INTEGER,
+  W_SEED_FRONTEND_EXPR_FLOAT,
+  W_SEED_FRONTEND_EXPR_BOOL,
+  W_SEED_FRONTEND_EXPR_STRING,
+  W_SEED_FRONTEND_EXPR_BYTES,
+  W_SEED_FRONTEND_EXPR_UNARY,
+  W_SEED_FRONTEND_EXPR_BINARY,
+  W_SEED_FRONTEND_EXPR_CALL,
+  W_SEED_FRONTEND_EXPR_PARENTHESIS,
+} w_seed_frontend_expr_kind;
+
+typedef enum {
+  W_SEED_FRONTEND_STMT_UNSUPPORTED = 0,
+  W_SEED_FRONTEND_STMT_LET,
+  W_SEED_FRONTEND_STMT_VAR,
+  W_SEED_FRONTEND_STMT_RETURN,
+  W_SEED_FRONTEND_STMT_IF,
+  W_SEED_FRONTEND_STMT_EXPRESSION,
+  W_SEED_FRONTEND_STMT_EXPECT,
+} w_seed_frontend_stmt_kind;
+
+typedef struct {
+  w_seed_frontend_text logical_source_id;
+  w_seed_frontend_text module_id;
+  const w_seed_source *source;
+  const w_seed_cst_node *nodes;
+  size_t node_count;
+  w_seed_parse_result parse;
+} w_seed_frontend_document;
+
+typedef enum {
+  W_SEED_FRONTEND_EXTERNAL_VALUE = 0,
+  W_SEED_FRONTEND_EXTERNAL_TYPE,
+} w_seed_frontend_external_kind;
+
+typedef enum {
+  W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY = 0,
+  W_SEED_FRONTEND_LABEL_NAMED_REQUIRED,
+  W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED,
+  W_SEED_FRONTEND_LABEL_OPTIONAL,
+} w_seed_frontend_label_kind;
+
+typedef struct {
+  w_seed_frontend_text name;
+  w_seed_frontend_text type;
+  w_seed_frontend_label_kind label_kind;
+} w_seed_frontend_external_parameter;
+
+typedef struct {
+  w_seed_frontend_text name;
+  w_seed_frontend_external_kind kind;
+  bool exported;
+  const w_seed_frontend_external_parameter *parameters;
+  size_t parameter_count;
+  w_seed_frontend_text return_type;
+} w_seed_frontend_external_symbol;
+
+typedef struct {
+  w_seed_frontend_text module_id;
+  const w_seed_frontend_external_symbol *symbols;
+  size_t symbol_count;
+} w_seed_frontend_external_module;
+
+typedef struct {
+  const w_seed_frontend_document *documents;
+  size_t document_count;
+  const w_seed_frontend_external_module *external_modules;
+  size_t external_module_count;
+} w_seed_frontend_input;
+
+typedef struct {
+  size_t modules;
+  size_t imports;
+  size_t import_items;
+  size_t structs;
+  size_t fields;
+  size_t type_declarations;
+  size_t aliases;
+  size_t types;
+  size_t functions;
+  size_t parameters;
+  size_t entries;
+  size_t statements;
+  size_t expressions;
+  size_t arguments;
+  size_t symbols;
+  size_t facts;
+  size_t diagnostics;
+  size_t receipt_bytes;
+} w_seed_frontend_counts;
+
+typedef struct {
+  w_seed_frontend_text source_id;
+  w_seed_frontend_text module_id;
+  w_seed_span span;
+  size_t document_index;
+  uint32_t first_import;
+  uint32_t import_count;
+  uint32_t first_struct;
+  uint32_t struct_count;
+  uint32_t first_type_declaration;
+  uint32_t type_declaration_count;
+  uint32_t first_alias;
+  uint32_t alias_count;
+  uint32_t first_function;
+  uint32_t function_count;
+  uint32_t first_entry;
+  uint32_t entry_count;
+} w_seed_frontend_module;
+
+typedef struct {
+  uint32_t module_index;
+  w_seed_frontend_text path;
+  w_seed_frontend_text alias;
+  w_seed_span span;
+  uint32_t first_item;
+  uint32_t item_count;
+} w_seed_frontend_import;
+
+typedef struct {
+  uint32_t module_index;
+  w_seed_frontend_text name;
+  w_seed_frontend_text local_name;
+  w_seed_span span;
+} w_seed_frontend_import_item;
+
+typedef struct {
+  uint32_t module_index;
+  w_seed_frontend_text name;
+  bool exported;
+  w_seed_span span;
+  uint32_t first_field;
+  uint32_t field_count;
+} w_seed_frontend_struct;
+
+typedef struct {
+  uint32_t module_index;
+  uint32_t owner_struct;
+  w_seed_frontend_text name;
+  w_seed_span span;
+  uint32_t type_index;
+} w_seed_frontend_field;
+
+typedef struct {
+  uint32_t module_index;
+  w_seed_frontend_text name;
+  bool exported;
+  w_seed_span span;
+  uint32_t type_index;
+} w_seed_frontend_type_declaration;
+
+typedef struct {
+  uint32_t module_index;
+  w_seed_frontend_text name;
+  bool exported;
+  w_seed_span span;
+  uint32_t type_index;
+} w_seed_frontend_alias;
+
+typedef struct {
+  w_seed_frontend_type_kind kind;
+  w_seed_frontend_text spelling;
+  w_seed_frontend_text nominal_name;
+  w_seed_span span;
+  bool is_signed;
+  uint16_t bit_width;
+  uint32_t element_type;
+  uint32_t return_type;
+  uint32_t first_parameter;
+  uint32_t parameter_count;
+} w_seed_frontend_type;
+
+typedef struct {
+  uint32_t module_index;
+  uint32_t owner_function;
+  w_seed_frontend_text name;
+  w_seed_frontend_text label;
+  w_seed_frontend_label_kind label_kind;
+  w_seed_span span;
+  uint32_t type_index;
+} w_seed_frontend_parameter;
+
+typedef struct {
+  uint32_t module_index;
+  w_seed_frontend_text name;
+  bool exported;
+  w_seed_span span;
+  w_seed_span body_span;
+  uint32_t first_parameter;
+  uint32_t parameter_count;
+  uint32_t return_type;
+  uint32_t first_statement;
+  uint32_t statement_count;
+} w_seed_frontend_function;
+
+typedef struct {
+  uint32_t module_index;
+  w_seed_frontend_text target;
+  w_seed_span span;
+  bool valid;
+} w_seed_frontend_entry;
+
+typedef struct {
+  w_seed_frontend_stmt_kind kind;
+  uint32_t module_index;
+  uint32_t owner_function;
+  w_seed_span span;
+  uint32_t expression_index;
+  uint32_t condition_expression;
+  uint32_t first_child;
+  uint32_t child_count;
+  w_seed_frontend_text binding_name;
+  uint32_t declared_type;
+} w_seed_frontend_statement;
+
+typedef enum {
+  W_SEED_FRONTEND_SYMBOL_MODULE = 0,
+  W_SEED_FRONTEND_SYMBOL_STRUCT,
+  W_SEED_FRONTEND_SYMBOL_TYPE,
+  W_SEED_FRONTEND_SYMBOL_ALIAS,
+  W_SEED_FRONTEND_SYMBOL_FUNCTION,
+  W_SEED_FRONTEND_SYMBOL_FIELD,
+  W_SEED_FRONTEND_SYMBOL_PARAMETER,
+  W_SEED_FRONTEND_SYMBOL_BINDING,
+  W_SEED_FRONTEND_SYMBOL_ENTRY,
+} w_seed_frontend_symbol_kind;
+
+typedef struct {
+  w_seed_frontend_symbol_kind kind;
+  uint32_t module_index;
+  uint32_t owner_index;
+  w_seed_frontend_text name;
+  bool exported;
+  w_seed_span span;
+  uint32_t type_index;
+} w_seed_frontend_symbol;
+
+typedef struct {
+  uint32_t module_index;
+  uint32_t owner_expression;
+  w_seed_frontend_text label;
+  w_seed_span span;
+  uint32_t expression_index;
+} w_seed_frontend_argument;
+
+typedef struct {
+  w_seed_frontend_expr_kind kind;
+  uint32_t module_index;
+  uint32_t owner_function;
+  w_seed_frontend_text spelling;
+  w_seed_frontend_text operator_text;
+  w_seed_span span;
+  uint32_t left;
+  uint32_t right;
+  uint32_t first_argument;
+  uint32_t argument_count;
+  uint32_t inferred_type;
+  bool supported;
+} w_seed_frontend_expression;
+
+typedef enum {
+  W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC = 0,
+  W_SEED_FRONTEND_DIAGNOSTIC_TYPE,
+  W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
+} w_seed_frontend_diagnostic_kind;
+
+typedef struct {
+  w_seed_frontend_diagnostic_kind kind;
+  w_seed_frontend_text code;
+  w_seed_frontend_text actual;
+  w_seed_frontend_text expected;
+  w_seed_frontend_text declaration;
+  w_seed_frontend_text label;
+  w_seed_frontend_text accepted_forms;
+  w_seed_span primary;
+  size_t document_index;
+} w_seed_frontend_diagnostic;
+
+typedef struct {
+  w_seed_frontend_fact_kind kind;
+  w_seed_frontend_text detail;
+  w_seed_span span;
+  size_t document_index;
+} w_seed_frontend_fact;
+
+typedef struct {
+  w_seed_frontend_module *modules;
+  size_t module_capacity;
+  w_seed_frontend_import *imports;
+  size_t import_capacity;
+  w_seed_frontend_import_item *import_items;
+  size_t import_item_capacity;
+  w_seed_frontend_struct *structs;
+  size_t struct_capacity;
+  w_seed_frontend_field *fields;
+  size_t field_capacity;
+  w_seed_frontend_type_declaration *type_declarations;
+  size_t type_declaration_capacity;
+  w_seed_frontend_alias *aliases;
+  size_t alias_capacity;
+  w_seed_frontend_type *types;
+  size_t type_capacity;
+  w_seed_frontend_function *functions;
+  size_t function_capacity;
+  w_seed_frontend_parameter *parameters;
+  size_t parameter_capacity;
+  w_seed_frontend_argument *arguments;
+  size_t argument_capacity;
+  w_seed_frontend_entry *entries;
+  size_t entry_capacity;
+  w_seed_frontend_statement *statements;
+  size_t statement_capacity;
+  w_seed_frontend_expression *expressions;
+  size_t expression_capacity;
+  w_seed_frontend_symbol *symbols;
+  size_t symbol_capacity;
+  w_seed_frontend_fact *facts;
+  size_t fact_capacity;
+  w_seed_frontend_diagnostic *diagnostics;
+  size_t diagnostic_capacity;
+  uint8_t *receipt;
+  size_t receipt_capacity;
+} w_seed_frontend_output;
+
+typedef struct {
+  w_seed_frontend_status status;
+  w_seed_frontend_counts required;
+  w_seed_frontend_counts written;
+  size_t barrier_document;
+  w_seed_span barrier_span;
+  size_t primary_diagnostic;
+  size_t receipt_bytes;
+} w_seed_frontend_result;
+
+/* Measure all caller-owned output requirements without writing any output. */
+w_seed_frontend_status w_seed_frontend_measure(
+    const w_seed_frontend_input *input, w_seed_frontend_counts *counts,
+    w_seed_frontend_result *result);
+
+/* Normalize complete CST documents, resolve bounded symbols, and type-check. */
+w_seed_frontend_status w_seed_frontend_run(
+    const w_seed_frontend_input *input, w_seed_frontend_output *output,
+    w_seed_frontend_result *result);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
