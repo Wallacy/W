@@ -17,6 +17,7 @@ add_library(w_seed_source STATIC
   src/w_seed_sha256.c
   src/w_seed_diagnostic.c
   src/w_seed_frontend.c
+  src/w_seed_constir.c
 )
 
 target_include_directories(w_seed_source
@@ -113,6 +114,16 @@ add_executable(w_seed_frontend_probe
 )
 target_link_libraries(w_seed_frontend_probe PRIVATE w_seed_source)
 
+add_executable(w_seed_constir_probe
+  tests/constir_probe.c
+)
+target_link_libraries(w_seed_constir_probe PRIVATE w_seed_source)
+
+add_executable(w_seed_constir_tests
+  tests/test_constir.c
+)
+target_link_libraries(w_seed_constir_tests PRIVATE w_seed_source)
+
 add_executable(w_seed_frontend_tests
   tests/test_frontend.c
 )
@@ -135,6 +146,8 @@ if(MSVC)
   target_compile_options(w_seed_foreign_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_frontend_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_frontend_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_constir_probe PRIVATE /W4 /WX)
+  target_compile_options(w_seed_constir_tests PRIVATE /W4 /WX)
 else()
   target_compile_options(w_seed_source_tests PRIVATE
     -Wall
@@ -280,6 +293,24 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_constir_probe PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_constir_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
 endif()
 
 enable_testing()
@@ -291,3 +322,4 @@ add_test(NAME w_seed_formatter_unit COMMAND w_seed_formatter_tests)
 add_test(NAME w_seed_diagnostic_unit COMMAND w_seed_diagnostic_tests)
 add_test(NAME w_seed_foreign_unit COMMAND w_seed_foreign_tests)
 add_test(NAME w_seed_frontend_unit COMMAND w_seed_frontend_tests)
+add_test(NAME w_seed_constir_unit COMMAND w_seed_constir_tests)

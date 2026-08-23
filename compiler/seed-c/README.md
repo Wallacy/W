@@ -253,8 +253,8 @@ all-or-nothing. Esta fatia aceita um documento por module ID; contribuições de
 vários documentos para o mesmo módulo são rejeitadas como `INVALID` em vez de
 serem mescladas silenciosamente. Formas de import que o parser ainda recupera
 (por exemplo, alias de item não reconhecido pelo CST) continuam unsupported.
-Ownership/HIR, async/services/providers, ConstIR, avaliação de constantes,
-initializers/dependencies, quotas, cache e materialização, generics completos,
+Ownership/HIR, async/services/providers, avaliação de initializers/dependencies,
+cache e materialização, generics completos,
 tensor, runtime, MLIR e WInterface permanecem fora desta fatia.
 
 Funções `const` no D0 conservam a normalização runtime. Literals, parâmetros,
@@ -311,6 +311,64 @@ switches de tuple/range/struct ou facts completos de fluxo. Literals em enum
 switch preservam fato explícito unsupported. As formas sem código normativo
 continuam fatos/barreiras explícitos; o seed não apresenta esta fatia como
 implementação ampla da linguagem.
+
+## ConstIR D0 seed
+
+`include/w_seed_constir.h` e `src/w_seed_constir.c` formam um executor interno
+caller-owned para uma projeção ConstIR D0. O componente recebe documentos CST,
+o output completo do frontend e o `w_seed_frontend_result`. Ele não reparseia
+source e não faz resolução de nomes ou tipos.
+
+Para manter essa fronteira, o frontend publica campos append-only normalizados
+para valor Bool/integer e para ordinal de parâmetro e target de call. ConstIR
+consome esses facts; ele usa os spans apenas para provenance e diagnósticos.
+Para parâmetros com dois nomes, o primeiro é o label externo required e o
+segundo é o nome interno (`from current: Stage`, `at index: u8`). `named name`
+é required(name), `_ name` é optional(name), e um único nome é positional-only.
+
+O lowering publica registros tipados para uma `const fn` com um único
+`return expression`. A projeção preserva a função owner, a expressão frontend,
+o tipo inferido, o span, os operands, os ordinais de parâmetros, a identidade
+de enum e case, o operador normalizado, as calls locais, os arms de `switch` e
+os cases de membership. Ela aceita Bool, inteiros, enums payloadless, unary e
+binary tipados, calls locais, enum switch e membership. Ela rejeita locals,
+String, Bytes, heap values, errors, panic builtin, loops, generics e calls
+externas sem body ConstIR.
+
+`w_seed_constir_measure` calcula todas as capacidades. `w_seed_constir_run`
+escreve somente quando cada array e o receipt possuem capacidade. Uma função
+fora da fatia recebe um único root `W-CONST-0001` e não publica nodes parciais.
+Cada função lowerable publica um digest SHA-256 do corpo semântico. O digest
+exclui spans, trivia, offsets e nomes de parâmetros. Parênteses redundantes são
+provenance do frontend: o ConstIR normalizado não publica um node para eles.
+
+O evaluator recebe uma função ConstIR e argumentos tipados. Ele executa Bool,
+inteiros e enums com a mesma policy checked. Ele usa quotas de steps, heap,
+call depth e result bytes. Heap scalar usa zero bytes. Short-circuit não avalia
+o RHS. Overflow, divisão inválida e divisão por zero emitem exatamente
+`W-CONST-0006`. Excesso de quota emite exatamente `W-CONST-0003`. Entrada
+estrutural, arity, tipo ou enum inválidos retornam `INVALID` sem execução.
+O depth da função de entrada é 1; `call_depth=1` aceita uma função folha e
+`call_depth=2` aceita uma call aninhada. Um limite de implementação de 256 para
+call depth e de 1024 para a cadeia de nodes impede recursão C não limitada.
+Uma quota finita acima de 256 é `INVALID`; `SIZE_MAX` pede a mesma política
+limitada, sem clamp silencioso. Workspace ausente ou pequeno para uma call é
+entrada estrutural `INVALID`, sem diagnóstico W.
+`w_seed_constir_value` é zerado quando qualquer diagnóstico runtime W3/W6
+ocorre, inclusive quando a quota de result bytes falha.
+Result bytes usa o encoding D0 versionado: prefixo explícito de version, kind,
+type e enum/value fields, seguido por payload Bool de um byte ou integer de 16
+bytes. Literals frontend usam magnitude não-negativa little-endian canônica com
+bytes altos zero; nodes/values ConstIR usam little-endian canônico em
+two's-complement sign-extended para signed e zero-extended para unsigned,
+limitado a 128 bits. O encoding não usa `sizeof`, layout ou endianness do host.
+
+O probe source-backed e o gate dedicado executam o witness `ServiceStage` e
+`canMove` de [domain.w](../../reference/last-light/domain.w). Eles repetem o
+lowering e a avaliação para provar determinismo de receipt, digest, valor e
+contadores:
+
+    bun tooling/check-seed-constir.mjs
 
 O gate scoped constrói o probe e os testes em diretório temporário, executa os
 witnesses source-backed (`ServiceStage`/`DomainError` em `domain.w`, além de
