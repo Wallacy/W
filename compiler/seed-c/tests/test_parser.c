@@ -307,6 +307,27 @@ static bool test_for_control_shapes(void) {
   return true;
 }
 
+static bool test_guard_shapes(void) {
+  fixture valid;
+  CHECK(fixture_init(
+      &valid,
+      "fn f(){guard value else {return false}\nreturn true}\n",
+      sizeof(valid.nodes) / sizeof(valid.nodes[0]),
+      sizeof(valid.issues) / sizeof(valid.issues[0])));
+  CHECK(valid.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(valid.result.issue_count == 0u);
+  CHECK(count_kind(&valid, W_SEED_CST_GUARD_STATEMENT) == 1u);
+
+  fixture missing_else;
+  CHECK(fixture_init(
+      &missing_else, "fn f(){guard value\nreturn true}\n",
+      sizeof(missing_else.nodes) / sizeof(missing_else.nodes[0]),
+      sizeof(missing_else.issues) / sizeof(missing_else.issues[0])));
+  CHECK(missing_else.result.status == W_SEED_PARSE_RECOVERED);
+  CHECK(has_issue(&missing_else, W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE));
+  return true;
+}
+
 static bool test_for_markers_and_iterables(void) {
   static const char marker_text[] =
       "fn markers(rows:Rows){for ref row in rows{}for inout item in rows{}"
@@ -3252,6 +3273,7 @@ int main(void) {
       test_allocator_block_shapes() &&
       test_spawn_tuple_shapes() &&
       test_for_control_shapes() &&
+      test_guard_shapes() &&
       test_for_markers_and_iterables() &&
       test_for_control_recovery() &&
       test_phase3_callable_closure_capture() &&

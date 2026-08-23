@@ -95,6 +95,8 @@ typedef enum {
   W_SEED_CST_ENUM_PATTERN,
   W_SEED_CST_WILDCARD_PATTERN,
   W_SEED_CST_LITERAL_PATTERN,
+  /* Append-only structured guard statement. */
+  W_SEED_CST_GUARD_STATEMENT,
 } w_seed_cst_kind;
 
 enum {
