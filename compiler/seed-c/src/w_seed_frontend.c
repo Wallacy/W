@@ -50,6 +50,9 @@ typedef struct {
   size_t symbols;
   size_t facts;
   size_t diagnostics;
+  size_t enums;
+  size_t enum_cases;
+  size_t enum_case_parameters;
 } frontend_measure;
 
 typedef struct {
@@ -80,6 +83,8 @@ static w_seed_frontend_label_kind parameter_label_kind(
     const w_seed_frontend_document *doc, w_seed_span span);
 static w_seed_frontend_text parameter_name_from_span(
     const w_seed_frontend_document *doc, w_seed_span span);
+static w_seed_frontend_text enum_case_parameter_label(
+    const w_seed_frontend_document *doc, uint32_t parameter_node);
 
 static w_seed_span empty_span(size_t offset) {
   const w_seed_span span = {offset, offset};
@@ -263,6 +268,68 @@ static bool receipt_size_function(frontend_context *context,
          receipt_size_size(context, function->parameter_count) &&
          receipt_size_literal(context, "|") &&
          receipt_size_size(context, function->return_type) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_enum(frontend_context *context,
+                              const w_seed_frontend_enum *value) {
+  return receipt_size_literal(context, "enum=") &&
+         receipt_size_size(context, value->module_index) &&
+         receipt_size_literal(context, "|") &&
+         receipt_size_text(context, value->name) &&
+         receipt_size_literal(context, "|exported=") &&
+         receipt_size_size(context, value->exported ? 1u : 0u) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "|generic=") &&
+         receipt_size_span(context, value->generic_span) &&
+         receipt_size_literal(context, "|has-generic=") &&
+         receipt_size_size(context, value->has_generic_parameters ? 1u : 0u) &&
+         receipt_size_literal(context, "|conformance=") &&
+         receipt_size_size(context, value->conformance_type) &&
+         receipt_size_literal(context, "|conformance-span=") &&
+         receipt_size_span(context, value->conformance_span) &&
+         receipt_size_literal(context, "|first-case=") &&
+         receipt_size_size(context, value->first_case) &&
+         receipt_size_literal(context, "|case-count=") &&
+         receipt_size_size(context, value->case_count) &&
+         receipt_size_literal(context, "|type=") &&
+         receipt_size_size(context, value->type_index) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_enum_case(
+    frontend_context *context, const w_seed_frontend_enum_case *value) {
+  return receipt_size_literal(context, "enum-case=") &&
+         receipt_size_size(context, value->module_index) &&
+         receipt_size_literal(context, "|") &&
+         receipt_size_size(context, value->owner_enum) &&
+         receipt_size_literal(context, "|") &&
+         receipt_size_text(context, value->name) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "|first-payload=") &&
+         receipt_size_size(context, value->first_payload) &&
+         receipt_size_literal(context, "|payload-count=") &&
+         receipt_size_size(context, value->payload_count) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_enum_case_parameter(
+    frontend_context *context,
+    const w_seed_frontend_enum_case_parameter *value) {
+  return receipt_size_literal(context, "enum-case-parameter=") &&
+         receipt_size_size(context, value->module_index) &&
+         receipt_size_literal(context, "|") &&
+         receipt_size_size(context, value->owner_case) &&
+         receipt_size_literal(context, "|label=") &&
+         receipt_size_text(context, value->label) &&
+         receipt_size_literal(context, "|has-label=") &&
+         receipt_size_size(context, value->has_label ? 1u : 0u) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "|type=") &&
+         receipt_size_size(context, value->type_index) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -969,6 +1036,7 @@ static bool measure_document(const w_seed_frontend_document *doc,
   measure->modules += 1;
   measure->imports += count_root_children(doc, W_SEED_CST_IMPORT);
   measure->structs += count_root_children(doc, W_SEED_CST_STRUCT);
+  measure->enums += count_root_children(doc, W_SEED_CST_ENUM);
   measure->type_declarations +=
       count_root_children(doc, W_SEED_CST_TYPE_DECLARATION);
   measure->aliases += count_root_children(doc, W_SEED_CST_ALIAS_DECLARATION);
@@ -980,6 +1048,9 @@ static bool measure_document(const w_seed_frontend_document *doc,
     if (kind == W_SEED_CST_IMPORT_ITEM) measure->import_items += 1;
     if (kind == W_SEED_CST_FIELD) measure->fields += 1;
     if (kind == W_SEED_CST_PARAMETER) measure->parameters += 1;
+    if (kind == W_SEED_CST_ENUM_CASE) measure->enum_cases += 1;
+    if (kind == W_SEED_CST_ENUM_CASE_PARAMETER)
+      measure->enum_case_parameters += 1;
     if (kind == W_SEED_CST_TYPE) measure->types += 1;
     if (kind == W_SEED_CST_ARGUMENT) measure->arguments += 1;
     if (kind_is_statement(kind)) measure->statements += 1;
@@ -991,6 +1062,8 @@ static bool measure_document(const w_seed_frontend_document *doc,
         kind == W_SEED_CST_ALIAS_DECLARATION || kind == W_SEED_CST_ENTRY) {
       measure->symbols += 1;
     }
+    if (kind == W_SEED_CST_ENUM || kind == W_SEED_CST_ENUM_CASE)
+      measure->symbols += 1;
     if (kind_is_unsupported_owner(kind)) measure->facts += 1;
   }
   /* Pratt trees contain a primary for each operator side. Reserve one AST
@@ -1084,6 +1157,9 @@ static void counts_from_measure(const frontend_measure *measure,
   counts->symbols = measure->symbols;
   counts->facts = measure->facts;
   counts->diagnostics = measure->diagnostics;
+  counts->enums = measure->enums;
+  counts->enum_cases = measure->enum_cases;
+  counts->enum_case_parameters = measure->enum_case_parameters;
 }
 
 w_seed_frontend_status w_seed_frontend_measure(
@@ -1271,6 +1347,24 @@ static bool context_append_struct(frontend_context *context,
   return true;
 }
 
+static bool context_append_enum(frontend_context *context,
+                                w_seed_frontend_enum value,
+                                uint32_t *index) {
+  if (context == NULL || index == NULL) return false;
+  const size_t ordinal = context->count.enums;
+  context->count.enums += 1;
+  if (!add_u32(ordinal, index)) return false;
+  if (!context->emit && !receipt_size_enum(context, &value)) return false;
+  if (context->emit) {
+    if (context->output == NULL || context->output->enums == NULL ||
+        ordinal >= context->output->enum_capacity) {
+      return false;
+    }
+    context->output->enums[ordinal] = value;
+  }
+  return true;
+}
+
 static bool context_append_record(frontend_context *context, size_t ordinal,
                                   const void *value, size_t value_size,
                                   void *array, size_t capacity,
@@ -1329,6 +1423,35 @@ static bool context_append_field(frontend_context *context,
                                    ? 0
                                    : context->output->field_capacity,
                                index);
+}
+
+static bool context_append_enum_case(
+    frontend_context *context, w_seed_frontend_enum_case value,
+    uint32_t *index) {
+  const size_t ordinal = context->count.enum_cases;
+  context->count.enum_cases += 1;
+  if (!context->emit && !receipt_size_enum_case(context, &value)) return false;
+  return context_append_record(
+      context, ordinal, &value, sizeof(value),
+      context->emit && context->output != NULL ? context->output->enum_cases
+                                                : NULL,
+      context->output == NULL ? 0 : context->output->enum_case_capacity, index);
+}
+
+static bool context_append_enum_case_parameter(
+    frontend_context *context, w_seed_frontend_enum_case_parameter value,
+    uint32_t *index) {
+  const size_t ordinal = context->count.enum_case_parameters;
+  context->count.enum_case_parameters += 1;
+  if (!context->emit && !receipt_size_enum_case_parameter(context, &value))
+    return false;
+  return context_append_record(
+      context, ordinal, &value, sizeof(value),
+      context->emit && context->output != NULL
+          ? context->output->enum_case_parameters
+          : NULL,
+      context->output == NULL ? 0 : context->output->enum_case_parameter_capacity,
+      index);
 }
 
 static bool context_append_type_declaration(
@@ -1763,6 +1886,145 @@ static bool normalize_struct(frontend_context *context, uint32_t node_index,
   return true;
 }
 
+static bool normalize_enum(frontend_context *context, uint32_t node_index,
+                           uint32_t *enum_index);
+
+static bool normalize_enum(frontend_context *context, uint32_t node_index,
+                           uint32_t *enum_index) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL || enum_index == NULL || node_index >= doc->parse.node_count)
+    return false;
+  const w_seed_cst_node *node = &doc->nodes[node_index];
+  w_seed_frontend_enum value;
+  (void)memset(&value, 0, sizeof(value));
+  value.module_index = (uint32_t)context->module_index;
+  value.name = name_after_keyword(doc, node->raw_span, "enum");
+  value.exported = span_has_keyword(doc, node->raw_span, "export");
+  value.span = node->raw_span;
+  value.generic_span = empty_span(node->raw_span.start_byte);
+  value.has_generic_parameters = false;
+  value.conformance_type = W_SEED_FRONTEND_NONE;
+  value.conformance_span = empty_span(node->raw_span.start_byte);
+  value.first_case = (uint32_t)context->count.enum_cases;
+  value.case_count = (uint32_t)count_direct_kind(doc, node_index,
+                                                  W_SEED_CST_ENUM_CASE);
+  value.type_index = W_SEED_FRONTEND_NONE;
+
+  const uint32_t generic_node =
+      first_direct_kind(doc, node_index, W_SEED_CST_GENERIC_PARAMETERS);
+  if (generic_node != W_SEED_CST_NONE) {
+    value.generic_span = doc->nodes[generic_node].raw_span;
+    value.has_generic_parameters = true;
+  }
+
+  /* Emit the enum's canonical nominal type before its conformance surface.
+   * This makes the type index stable and independent of payload traversal. */
+  w_seed_frontend_type enum_type;
+  (void)memset(&enum_type, 0, sizeof(enum_type));
+  enum_type.kind = W_SEED_FRONTEND_TYPE_ENUM;
+  enum_type.spelling = value.name;
+  enum_type.nominal_name = value.name;
+  enum_type.span = node->raw_span;
+  enum_type.element_type = W_SEED_FRONTEND_NONE;
+  enum_type.return_type = W_SEED_FRONTEND_NONE;
+  enum_type.first_parameter = W_SEED_FRONTEND_NONE;
+  if (!context_append_type(context, enum_type, &value.type_index)) return false;
+
+  const uint32_t conformance_node = direct_type_index(doc, node_index);
+  if (conformance_node != W_SEED_CST_NONE)
+    value.conformance_span = doc->nodes[conformance_node].raw_span;
+  if (conformance_node != W_SEED_CST_NONE &&
+      !normalize_type_tree(context, conformance_node,
+                           &value.conformance_type)) {
+    return false;
+  }
+  if (value.has_generic_parameters) {
+    (void)context_append_fact(
+        context, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE, value.generic_span,
+        text_from_span(doc, value.generic_span));
+  }
+  if (!context_append_enum(context, value, enum_index)) return false;
+  uint32_t symbol_index = W_SEED_FRONTEND_NONE;
+  if (!normalize_symbol(context, W_SEED_FRONTEND_SYMBOL_ENUM, *enum_index,
+                        value.name, value.exported, value.span, value.type_index,
+                        &symbol_index)) {
+    return false;
+  }
+
+  uint32_t case_cursor = node->first_child;
+  uint32_t case_node = W_SEED_CST_NONE;
+  size_t case_guard = 0;
+  while (next_child(doc, &case_cursor, &case_node) &&
+         case_guard < doc->parse.node_count) {
+    if (doc->nodes[case_node].kind != W_SEED_CST_ENUM_CASE) {
+      case_guard += 1;
+      continue;
+    }
+    const w_seed_cst_node *case_cst = &doc->nodes[case_node];
+    w_seed_frontend_enum_case case_value;
+    (void)memset(&case_value, 0, sizeof(case_value));
+    case_value.module_index = (uint32_t)context->module_index;
+    case_value.owner_enum = *enum_index;
+    case_value.name = first_word_in_span(doc, case_cst->raw_span);
+    case_value.span = case_cst->raw_span;
+    case_value.first_payload = (uint32_t)context->count.enum_case_parameters;
+    case_value.payload_count = (uint32_t)count_direct_kind(
+        doc, case_node, W_SEED_CST_ENUM_CASE_PARAMETER);
+    uint32_t case_index = W_SEED_FRONTEND_NONE;
+    if (!context_append_enum_case(context, case_value, &case_index)) return false;
+    if (!normalize_symbol(context, W_SEED_FRONTEND_SYMBOL_ENUM_CASE,
+                          case_index, case_value.name, value.exported,
+                          case_value.span, value.type_index, &symbol_index)) {
+      return false;
+    }
+
+    uint32_t parameter_cursor = case_cst->first_child;
+    uint32_t parameter_node = W_SEED_CST_NONE;
+    size_t parameter_guard = 0;
+    while (next_child(doc, &parameter_cursor, &parameter_node) &&
+           parameter_guard < doc->parse.node_count) {
+      if (doc->nodes[parameter_node].kind !=
+          W_SEED_CST_ENUM_CASE_PARAMETER) {
+        parameter_guard += 1;
+        continue;
+      }
+      const w_seed_cst_node *parameter_cst = &doc->nodes[parameter_node];
+      w_seed_frontend_enum_case_parameter parameter;
+      (void)memset(&parameter, 0, sizeof(parameter));
+      parameter.module_index = (uint32_t)context->module_index;
+      parameter.owner_case = case_index;
+      parameter.label = enum_case_parameter_label(doc, parameter_node);
+      parameter.has_label = parameter.label.length != 0;
+      parameter.span = parameter_cst->raw_span;
+      parameter.type_index = W_SEED_FRONTEND_NONE;
+      const uint32_t type_node = direct_type_index(doc, parameter_node);
+      if (type_node != W_SEED_CST_NONE &&
+          !normalize_type_tree(context, type_node, &parameter.type_index)) {
+        return false;
+      }
+      uint32_t parameter_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_enum_case_parameter(context, parameter,
+                                              &parameter_index)) {
+        return false;
+      }
+      parameter_guard += 1;
+    }
+    if (context->emit && context->output != NULL &&
+        case_index < context->output->enum_case_capacity) {
+      context->output->enum_cases[case_index].payload_count =
+          (uint32_t)(context->count.enum_case_parameters -
+                     (size_t)case_value.first_payload);
+    }
+    case_guard += 1;
+  }
+  if (context->emit && context->output != NULL &&
+      *enum_index < context->output->enum_capacity) {
+    context->output->enums[*enum_index].case_count =
+        (uint32_t)(context->count.enum_cases - (size_t)value.first_case);
+  }
+  return true;
+}
+
 static bool normalize_type_declaration(frontend_context *context,
                                        uint32_t node_index, bool alias,
                                        uint32_t *declaration_index) {
@@ -2161,6 +2423,33 @@ static w_seed_frontend_text parameter_name_from_span(
     return second;
   }
   return first;
+}
+
+static w_seed_frontend_text enum_case_parameter_label(
+    const w_seed_frontend_document *doc, uint32_t parameter_node) {
+  if (doc == NULL || parameter_node >= doc->parse.node_count) {
+    return (w_seed_frontend_text){NULL, 0};
+  }
+  const w_seed_span span = doc->nodes[parameter_node].raw_span;
+  const uint32_t type_node = direct_type_index(doc, parameter_node);
+  if (type_node == W_SEED_CST_NONE) return (w_seed_frontend_text){NULL, 0};
+  const w_seed_span type_span = doc->nodes[type_node].raw_span;
+  /* A positional payload owns a TYPE at the parameter start.  Only inspect
+   * the prefix before that TYPE for a label; colons inside function types or
+   * nested contracts are part of the type surface. */
+  if (type_span.start_byte <= span.start_byte) {
+    return (w_seed_frontend_text){NULL, 0};
+  }
+  const w_seed_span prefix = {span.start_byte, type_span.start_byte};
+  frontend_token_cursor cursor = token_cursor_for(doc, prefix);
+  frontend_token token;
+  w_seed_frontend_text first = {NULL, 0};
+  while (cursor_take(&cursor, &token)) {
+    if (token_text(doc, &token, ":")) return first;
+    if (token.kind == W_SEED_CST_WORD && first.length == 0)
+      first = text_from_span(doc, token.span);
+  }
+  return (w_seed_frontend_text){NULL, 0};
 }
 
 static bool imported_target_for_name(
@@ -3400,12 +3689,14 @@ static bool normalize_document(frontend_context *context) {
   module.first_alias = (uint32_t)context->count.aliases;
   module.first_function = (uint32_t)context->count.functions;
   module.first_entry = (uint32_t)context->count.entries;
+  module.first_enum = (uint32_t)context->count.enums;
   module.import_count = 0;
   module.struct_count = 0;
   module.type_declaration_count = 0;
   module.alias_count = 0;
   module.function_count = 0;
   module.entry_count = 0;
+  module.enum_count = 0;
   uint32_t module_index = W_SEED_FRONTEND_NONE;
   if (!append_module(context, module, &module_index)) return false;
   context->count.modules += 1;
@@ -3430,6 +3721,10 @@ static bool normalize_document(frontend_context *context) {
       case W_SEED_CST_STRUCT:
         if (!normalize_struct(context, child, &item_index)) return false;
         module.struct_count += 1;
+        break;
+      case W_SEED_CST_ENUM:
+        if (!normalize_enum(context, child, &item_index)) return false;
+        module.enum_count += 1;
         break;
       case W_SEED_CST_TYPE_DECLARATION:
         if (!normalize_type_declaration(context, child, false, &item_index)) {
@@ -3522,9 +3817,11 @@ static bool local_module_has_symbol(const w_seed_frontend_input *input,
           doc, doc->nodes[child].raw_span, "type");
       if (kind == W_SEED_CST_ALIAS_DECLARATION) name = name_after_keyword(
           doc, doc->nodes[child].raw_span, "alias");
+      if (kind == W_SEED_CST_ENUM) name = name_after_keyword(
+          doc, doc->nodes[child].raw_span, "enum");
       if (kind == W_SEED_CST_FUNCTION || kind == W_SEED_CST_STRUCT ||
           kind == W_SEED_CST_TYPE_DECLARATION ||
-          kind == W_SEED_CST_ALIAS_DECLARATION) {
+          kind == W_SEED_CST_ALIAS_DECLARATION || kind == W_SEED_CST_ENUM) {
         exported = span_has_keyword(doc, doc->nodes[child].raw_span, "export");
       }
       if (exported && name.length != 0 && text_equal_text(name, symbol_name)) {
@@ -3554,6 +3851,25 @@ static bool external_module_has_symbol(const w_seed_frontend_input *input,
   return false;
 }
 
+static const char *declaration_keyword(w_seed_cst_kind kind) {
+  switch (kind) {
+    case W_SEED_CST_FUNCTION:
+      return "fn";
+    case W_SEED_CST_STRUCT:
+      return "struct";
+    case W_SEED_CST_TYPE_DECLARATION:
+      return "type";
+    case W_SEED_CST_ALIAS_DECLARATION:
+      return "alias";
+    case W_SEED_CST_ENUM:
+      return "enum";
+    case W_SEED_CST_ENTRY:
+      return "entry";
+    default:
+      return "";
+  }
+}
+
 static bool detect_duplicate_declarations(frontend_context *context) {
   const w_seed_frontend_document *doc = context_document(context);
   if (doc == NULL) return false;
@@ -3564,19 +3880,12 @@ static bool detect_duplicate_declarations(frontend_context *context) {
     const w_seed_cst_kind kind = doc->nodes[child].kind;
     if (kind != W_SEED_CST_FUNCTION && kind != W_SEED_CST_STRUCT &&
         kind != W_SEED_CST_TYPE_DECLARATION &&
-        kind != W_SEED_CST_ALIAS_DECLARATION && kind != W_SEED_CST_ENTRY) {
+        kind != W_SEED_CST_ALIAS_DECLARATION && kind != W_SEED_CST_ENUM &&
+        kind != W_SEED_CST_ENTRY) {
       guard += 1;
       continue;
     }
-    const char *keyword = kind == W_SEED_CST_FUNCTION
-                              ? "fn"
-                              : (kind == W_SEED_CST_STRUCT
-                                     ? "struct"
-                                     : (kind == W_SEED_CST_TYPE_DECLARATION
-                                            ? "type"
-                                            : (kind == W_SEED_CST_ALIAS_DECLARATION
-                                                   ? "alias"
-                                                   : "entry")));
+    const char *keyword = declaration_keyword(kind);
     const w_seed_frontend_text name =
         name_after_keyword(doc, doc->nodes[child].raw_span, keyword);
     uint32_t earlier_cursor = doc->nodes[doc->parse.root].first_child;
@@ -3590,18 +3899,9 @@ static bool detect_duplicate_declarations(frontend_context *context) {
            (earlier_kind == W_SEED_CST_FUNCTION ||
             earlier_kind == W_SEED_CST_STRUCT ||
             earlier_kind == W_SEED_CST_TYPE_DECLARATION ||
-            earlier_kind == W_SEED_CST_ALIAS_DECLARATION))) {
-        const char *earlier_keyword = earlier_kind == W_SEED_CST_FUNCTION
-                                          ? "fn"
-                                          : (earlier_kind == W_SEED_CST_STRUCT
-                                                 ? "struct"
-                                                 : (earlier_kind ==
-                                                            W_SEED_CST_TYPE_DECLARATION
-                                                        ? "type"
-                                                        : (earlier_kind ==
-                                                                   W_SEED_CST_ALIAS_DECLARATION
-                                                               ? "alias"
-                                                               : "entry")));
+            earlier_kind == W_SEED_CST_ALIAS_DECLARATION ||
+            earlier_kind == W_SEED_CST_ENUM))) {
+        const char *earlier_keyword = declaration_keyword(earlier_kind);
         if (text_equal_text(name_after_keyword(
                                 doc, doc->nodes[earlier].raw_span,
                                 earlier_keyword),
@@ -3613,6 +3913,36 @@ static bool detect_duplicate_declarations(frontend_context *context) {
         }
       }
       earlier_guard += 1;
+    }
+    if (kind == W_SEED_CST_ENUM) {
+      uint32_t case_cursor = doc->nodes[child].first_child;
+      uint32_t case_node = W_SEED_CST_NONE;
+      size_t case_guard = 0;
+      while (next_child(doc, &case_cursor, &case_node) &&
+             case_guard < doc->parse.node_count) {
+        if (doc->nodes[case_node].kind == W_SEED_CST_ENUM_CASE) {
+          const w_seed_frontend_text case_name =
+              first_word_in_span(doc, doc->nodes[case_node].raw_span);
+          uint32_t earlier_case_cursor = doc->nodes[child].first_child;
+          uint32_t earlier_case = W_SEED_CST_NONE;
+          size_t earlier_case_guard = 0;
+          while (next_child(doc, &earlier_case_cursor, &earlier_case) &&
+                 earlier_case_guard < doc->parse.node_count &&
+                 earlier_case != case_node) {
+            if (doc->nodes[earlier_case].kind == W_SEED_CST_ENUM_CASE &&
+                text_equal_text(
+                    first_word_in_span(doc, doc->nodes[earlier_case].raw_span),
+                    case_name)) {
+              (void)context_append_fact(
+                  context, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL,
+                  doc->nodes[case_node].raw_span, case_name);
+              break;
+            }
+            earlier_case_guard += 1;
+          }
+        }
+        case_guard += 1;
+      }
     }
     guard += 1;
   }
@@ -3861,6 +4191,66 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_text(writer, item->path);
       receipt_write_literal(writer, "\n");
     }
+    for (size_t index = 0; index < context->count.enums; index += 1) {
+      const w_seed_frontend_enum *value = &output->enums[index];
+      receipt_write_literal(writer, "enum=");
+      receipt_write_size(writer, value->module_index);
+      receipt_write_literal(writer, "|");
+      receipt_write_text(writer, value->name);
+      receipt_write_literal(writer, "|exported=");
+      receipt_write_size(writer, value->exported ? 1u : 0u);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, value->span);
+      receipt_write_literal(writer, "|generic=");
+      receipt_write_span(writer, value->generic_span);
+      receipt_write_literal(writer, "|has-generic=");
+      receipt_write_size(writer, value->has_generic_parameters ? 1u : 0u);
+      receipt_write_literal(writer, "|conformance=");
+      receipt_write_size(writer, value->conformance_type);
+      receipt_write_literal(writer, "|conformance-span=");
+      receipt_write_span(writer, value->conformance_span);
+      receipt_write_literal(writer, "|first-case=");
+      receipt_write_size(writer, value->first_case);
+      receipt_write_literal(writer, "|case-count=");
+      receipt_write_size(writer, value->case_count);
+      receipt_write_literal(writer, "|type=");
+      receipt_write_size(writer, value->type_index);
+      receipt_write_literal(writer, "\n");
+    }
+    for (size_t index = 0; index < context->count.enum_cases; index += 1) {
+      const w_seed_frontend_enum_case *value = &output->enum_cases[index];
+      receipt_write_literal(writer, "enum-case=");
+      receipt_write_size(writer, value->module_index);
+      receipt_write_literal(writer, "|");
+      receipt_write_size(writer, value->owner_enum);
+      receipt_write_literal(writer, "|");
+      receipt_write_text(writer, value->name);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, value->span);
+      receipt_write_literal(writer, "|first-payload=");
+      receipt_write_size(writer, value->first_payload);
+      receipt_write_literal(writer, "|payload-count=");
+      receipt_write_size(writer, value->payload_count);
+      receipt_write_literal(writer, "\n");
+    }
+    for (size_t index = 0; index < context->count.enum_case_parameters;
+         index += 1) {
+      const w_seed_frontend_enum_case_parameter *value =
+          &output->enum_case_parameters[index];
+      receipt_write_literal(writer, "enum-case-parameter=");
+      receipt_write_size(writer, value->module_index);
+      receipt_write_literal(writer, "|");
+      receipt_write_size(writer, value->owner_case);
+      receipt_write_literal(writer, "|label=");
+      receipt_write_text(writer, value->label);
+      receipt_write_literal(writer, "|has-label=");
+      receipt_write_size(writer, value->has_label ? 1u : 0u);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, value->span);
+      receipt_write_literal(writer, "|type=");
+      receipt_write_size(writer, value->type_index);
+      receipt_write_literal(writer, "\n");
+    }
     for (size_t index = 0; index < context->count.symbols; index += 1) {
       const w_seed_frontend_symbol *symbol = &output->symbols[index];
       receipt_write_literal(writer, "symbol=");
@@ -3926,6 +4316,12 @@ static bool output_capacity_ok(const w_seed_frontend_output *output,
                      output->import_item_capacity) &&
          capacity_ok(required->structs, output->structs,
                      output->struct_capacity) &&
+         capacity_ok(required->enums, output->enums, output->enum_capacity) &&
+         capacity_ok(required->enum_cases, output->enum_cases,
+                     output->enum_case_capacity) &&
+         capacity_ok(required->enum_case_parameters,
+                     output->enum_case_parameters,
+                     output->enum_case_parameter_capacity) &&
          capacity_ok(required->fields, output->fields, output->field_capacity) &&
          capacity_ok(required->type_declarations, output->type_declarations,
                      output->type_declaration_capacity) &&

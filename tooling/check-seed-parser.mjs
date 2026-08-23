@@ -93,11 +93,15 @@ const CST = Object.freeze({
   FOREIGN_BODY: 29,
   FOREIGN_LANGUAGE_TAG: 63,
   FOREIGN_BODY_OWNER: 64,
+  ENUM: 66,
+  ENUM_CASE: 67,
+  ENUM_CASE_PARAMETER: 68,
 })
 
 const ISSUE = Object.freeze({
   UNEXPECTED_TOKEN: 1,
   MISSING_OWNER_CLOSE: 2,
+  UNSUPPORTED_FORM: 6,
   FOREIGN_UNSUPPORTED: 9,
   FOREIGN_SCANNER: 10,
 })
@@ -278,6 +282,36 @@ function assertClean(parsed, label) {
   if (parsed.nodes.some((node) => node.kind === CST.ERROR || node.kind === CST.MISSING ||
       (node.flags & (1 << 2 | 1 << 3)) !== 0)) {
     fail(`${label} contains ERROR/MISSING CST nodes`)
+  }
+}
+
+function assertEnumWitness(parsed, bytes, label, expectedCases, expectedParameters, labels = []) {
+  assertClean(parsed, label)
+  const enums = parsed.nodes.filter((node) => node.kind === CST.ENUM)
+  const cases = parsed.nodes.filter((node) => node.kind === CST.ENUM_CASE)
+  const parameters = parsed.nodes.filter((node) => node.kind === CST.ENUM_CASE_PARAMETER)
+  if (enums.length !== 1 || cases.length !== expectedCases ||
+      parameters.length !== expectedParameters) {
+    fail(`${label} enum/case/payload counts are ${enums.length}/${cases.length}/${parameters.length}`)
+  }
+  if (directKind(parsed, enums[0].index, CST.ENUM_CASE).length !== expectedCases) {
+    fail(`${label} enum does not own ordered direct cases`)
+  }
+  const orderedCases = directKind(parsed, enums[0].index, CST.ENUM_CASE)
+  if (orderedCases.length !== cases.length ||
+      orderedCases.some((node, index) => node.index !== cases[index].index)) {
+    fail(`${label} enum cases are not preserved in source order`)
+  }
+  const caseNames = orderedCases.map((node) => nodeText(parsed, bytes, node).trim().split(/\s|\(/u)[0])
+  if (labels.length !== 0 &&
+      (caseNames.length !== labels.length ||
+       labels.some((name, index) => caseNames[index] !== name))) {
+    fail(`${label} case names are not source-ordered: ${caseNames.join(", ")}`)
+  }
+  for (const parameter of parameters) {
+    if (directKind(parsed, parameter.index, CST.TYPE).length !== 1) {
+      fail(`${label} payload parameter does not own one TYPE`)
+    }
   }
 }
 
@@ -1146,6 +1180,45 @@ async function main() {
       if (inputParsed.nodes.length === 0 || outputParsed.nodes.length === 0) fail(`${id} has no CST nodes`)
     }
 
+    const serviceStageWitness = await sourceBackedFragment(
+      "reference/last-light/domain.w",
+      "export enum ServiceStage {",
+      "export alias CancelledStage",
+      "domain.w ServiceStage enum witness",
+    )
+    const serviceStageParsed = invoke(
+      probe, serviceStageWitness, "domain.w:ServiceStage", "complete",
+    )
+    assertEnumWitness(serviceStageParsed, serviceStageWitness,
+      "domain.w:ServiceStage", 6, 0,
+      ["accepted", "reserving", "preparing", "serving", "completed", "cancelled"])
+    const serviceStageRepeat = invoke(
+      probe, serviceStageWitness, "domain.w:ServiceStage:repeat", "complete",
+    )
+    if (serviceStageParsed.signature !== serviceStageRepeat.signature) {
+      fail("domain.w ServiceStage enum CST signature is not deterministic")
+    }
+
+    const domainErrorWitness = await sourceBackedFragment(
+      "reference/last-light/domain.w",
+      "export enum DomainError: Error {",
+      "export fn add(",
+      "domain.w DomainError enum witness",
+    )
+    const domainErrorParsed = invoke(
+      probe, domainErrorWitness, "domain.w:DomainError", "complete",
+    )
+    assertEnumWitness(domainErrorParsed, domainErrorWitness,
+      "domain.w:DomainError", 5, 6,
+      ["invalidGuestCount", "invalidTransition", "unknownOrder",
+        "currencyMismatch", "overflow"])
+    const domainErrorRepeat = invoke(
+      probe, domainErrorWitness, "domain.w:DomainError:repeat", "complete",
+    )
+    if (domainErrorParsed.signature !== domainErrorRepeat.signature) {
+      fail("domain.w DomainError enum CST signature is not deterministic")
+    }
+
     const witness = await formattingWitnessBytes()
     const witnessParsed = invoke(probe, witness, "formatting.w", "complete")
     const witnessRepeat = invoke(probe, witness, "formatting.w:repeat", "complete")
@@ -1450,6 +1523,13 @@ async function main() {
       ["expect-outside-test", Buffer.from("fn f(){expect value == other}\n"), "fatal", 6],
       ["root-const-fail-closed", Buffer.from("const value:T\n"), "fatal", 6],
       ["root-take-fail-closed", Buffer.from("take value\n"), "fatal", 6],
+      ["enum-empty-payload", Buffer.from("enum E { empty() }\n"), "recovered"],
+      ["enum-missing-comma", Buffer.from("enum E { pair(A B) }\n"), "recovered"],
+      ["enum-missing-colon", Buffer.from("enum E { pair(label Type) }\n"), "recovered"],
+      ["enum-missing-close", Buffer.from("enum E { pair(A, label: B }\n"), "recovered"],
+      ["enum-case-comma", Buffer.from("enum E { a, b }\n"), "recovered"],
+      ["enum-unsupported-member", Buffer.from("enum E { export static fn make() {} }\n"), "recovered"],
+      ["enum-context", Buffer.from("fn f(){ enum E { a } }\n"), "fatal", ISSUE.UNSUPPORTED_FORM],
       ["var-owner", Buffer.from("fn f(){var value=1}\n"), "complete"],
       ["var-missing-name", Buffer.from("fn f(){var =1}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
       ["var-missing-equals", Buffer.from("fn f(){var value 1}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
@@ -1766,6 +1846,12 @@ async function main() {
         const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
         if (parsed.signature !== repeated.signature) {
           fail(`${label} CST signature is not deterministic`)
+        }
+      }
+      if (label.startsWith("enum-")) {
+        const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
+        if (parsed.signature !== repeated.signature) {
+          fail(`${label} recovery CST signature is not deterministic`)
         }
       }
       if (status === "fatal" && parsed.result.issueCount !== 1) {

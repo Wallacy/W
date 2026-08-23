@@ -25,6 +25,9 @@ enum {
   TEST_IMPORTS = 32,
   TEST_IMPORT_ITEMS = 32,
   TEST_STRUCTS = 16,
+  TEST_ENUMS = 16,
+  TEST_ENUM_CASES = 64,
+  TEST_ENUM_CASE_PARAMETERS = 128,
   TEST_FIELDS = 64,
   TEST_DECLARATIONS = 32,
   TEST_TYPES = 128,
@@ -55,6 +58,10 @@ typedef struct {
   w_seed_frontend_import imports[TEST_IMPORTS];
   w_seed_frontend_import_item import_items[TEST_IMPORT_ITEMS];
   w_seed_frontend_struct structs[TEST_STRUCTS];
+  w_seed_frontend_enum enums[TEST_ENUMS];
+  w_seed_frontend_enum_case enum_cases[TEST_ENUM_CASES];
+  w_seed_frontend_enum_case_parameter
+      enum_case_parameters[TEST_ENUM_CASE_PARAMETERS];
   w_seed_frontend_field fields[TEST_FIELDS];
   w_seed_frontend_type_declaration type_declarations[TEST_DECLARATIONS];
   w_seed_frontend_alias aliases[TEST_DECLARATIONS];
@@ -87,6 +94,9 @@ static fixture fixture_capacity;
 static fixture fixture_duplicate;
 static fixture fixture_unresolved;
 static fixture fixture_external;
+static fixture fixture_generic;
+static fixture fixture_callback;
+static fixture fixture_collision;
 static char long_source[8192];
 
 static bool all_bytes_equal(const void *data, size_t size, uint8_t value) {
@@ -105,6 +115,11 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
   (void)memset(fixture_value->import_items, value,
                sizeof(fixture_value->import_items));
   (void)memset(fixture_value->structs, value, sizeof(fixture_value->structs));
+  (void)memset(fixture_value->enums, value, sizeof(fixture_value->enums));
+  (void)memset(fixture_value->enum_cases, value,
+               sizeof(fixture_value->enum_cases));
+  (void)memset(fixture_value->enum_case_parameters, value,
+               sizeof(fixture_value->enum_case_parameters));
   (void)memset(fixture_value->fields, value, sizeof(fixture_value->fields));
   (void)memset(fixture_value->type_declarations, value,
                sizeof(fixture_value->type_declarations));
@@ -139,6 +154,12 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                          sizeof(fixture_value->import_items), value) &&
          all_bytes_equal(fixture_value->structs, sizeof(fixture_value->structs),
                          value) &&
+         all_bytes_equal(fixture_value->enums, sizeof(fixture_value->enums),
+                         value) &&
+         all_bytes_equal(fixture_value->enum_cases,
+                         sizeof(fixture_value->enum_cases), value) &&
+         all_bytes_equal(fixture_value->enum_case_parameters,
+                         sizeof(fixture_value->enum_case_parameters), value) &&
          all_bytes_equal(fixture_value->fields, sizeof(fixture_value->fields),
                          value) &&
          all_bytes_equal(fixture_value->type_declarations,
@@ -202,6 +223,12 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .import_item_capacity = TEST_IMPORT_ITEMS,
       .structs = fixture_value->structs,
       .struct_capacity = TEST_STRUCTS,
+      .enums = fixture_value->enums,
+      .enum_capacity = TEST_ENUMS,
+      .enum_cases = fixture_value->enum_cases,
+      .enum_case_capacity = TEST_ENUM_CASES,
+      .enum_case_parameters = fixture_value->enum_case_parameters,
+      .enum_case_parameter_capacity = TEST_ENUM_CASE_PARAMETERS,
       .fields = fixture_value->fields,
       .field_capacity = TEST_FIELDS,
       .type_declarations = fixture_value->type_declarations,
@@ -246,6 +273,9 @@ static bool counts_equal(const w_seed_frontend_counts *left,
   return left->modules == right->modules && left->imports == right->imports &&
          left->import_items == right->import_items &&
          left->structs == right->structs && left->fields == right->fields &&
+         left->enums == right->enums &&
+         left->enum_cases == right->enum_cases &&
+         left->enum_case_parameters == right->enum_case_parameters &&
          left->type_declarations == right->type_declarations &&
          left->aliases == right->aliases && left->types == right->types &&
          left->functions == right->functions &&
@@ -258,6 +288,9 @@ static bool counts_equal(const w_seed_frontend_counts *left,
          left->diagnostics == right->diagnostics &&
          left->receipt_bytes == right->receipt_bytes;
 }
+
+static bool has_fact(const fixture *fixture_value,
+                     w_seed_frontend_fact_kind kind);
 
 static bool has_fact(const fixture *fixture_value,
                      w_seed_frontend_fact_kind kind) {
@@ -321,6 +354,108 @@ static bool test_declarations_and_determinism(void) {
   CHECK(second->result.status == first->result.status);
   CHECK(second->result.receipt_bytes == first->result.receipt_bytes);
   CHECK(memcmp(first->receipt, second->receipt, first->result.receipt_bytes) == 0);
+  return true;
+}
+
+static bool test_enums_and_payloads(void) {
+  static const char source[] =
+      "export enum Outcome: Error {\n"
+      "  ready\n"
+      "  delayed(Duration)\n"
+      "  failed(reason: Failure, code: u16)\n"
+      "}\n";
+  fixture *value = &fixture_a;
+  CHECK(fixture_run(value, source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.enums == 1);
+  CHECK(value->result.written.enum_cases == 3);
+  CHECK(value->result.written.enum_case_parameters == 3);
+  CHECK(value->modules[0].first_enum == 0 && value->modules[0].enum_count == 1);
+  CHECK(value->enums[0].type_index != W_SEED_FRONTEND_NONE);
+  CHECK(value->types[value->enums[0].type_index].kind ==
+        W_SEED_FRONTEND_TYPE_ENUM);
+  CHECK(value->enums[0].conformance_type != W_SEED_FRONTEND_NONE);
+  CHECK(value->enum_cases[0].owner_enum == 0 &&
+        value->enum_cases[1].owner_enum == 0 &&
+        value->enum_cases[2].owner_enum == 0);
+  CHECK(value->enum_cases[1].payload_count == 1);
+  CHECK(value->enum_case_parameters[0].owner_case == 1 &&
+        value->enum_case_parameters[1].owner_case == 2 &&
+        value->enum_case_parameters[2].owner_case == 2);
+  CHECK(value->enum_case_parameters[0].has_label == false);
+  CHECK(value->enum_case_parameters[1].has_label == true);
+  CHECK(value->enum_case_parameters[1].label.length == 6);
+  static const char *const case_names[] = {"ready", "delayed", "failed"};
+  size_t case_symbol_count = 0;
+  for (size_t symbol = 0; symbol < value->result.written.symbols; symbol += 1) {
+    const w_seed_frontend_symbol *record = &value->symbols[symbol];
+    if (record->kind != W_SEED_FRONTEND_SYMBOL_ENUM_CASE) continue;
+    CHECK(case_symbol_count < 3);
+    CHECK(record->owner_index == case_symbol_count);
+    CHECK(record->type_index == value->enums[0].type_index);
+    const size_t expected_length = strlen(case_names[case_symbol_count]);
+    CHECK(record->name.length == expected_length &&
+          memcmp(record->name.data, case_names[case_symbol_count],
+                 expected_length) == 0);
+    case_symbol_count += 1;
+  }
+  CHECK(case_symbol_count == 3);
+  fixture *repeat = &fixture_b;
+  CHECK(fixture_run(repeat, source));
+  CHECK(repeat->result.status == value->result.status);
+  CHECK(counts_equal(&repeat->result.written, &value->result.written));
+  CHECK(repeat->result.receipt_bytes == value->result.receipt_bytes);
+  CHECK(memcmp(repeat->receipt, value->receipt, value->result.receipt_bytes) ==
+        0);
+
+  fixture *duplicate = &fixture_duplicate;
+  CHECK(fixture_run(duplicate, "enum E { same same }\n"));
+  CHECK(duplicate->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(duplicate->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(duplicate->result.written.enums == 1 &&
+        duplicate->result.written.enum_cases == 2);
+  CHECK(has_fact(duplicate, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL));
+
+  fixture *generic = &fixture_generic;
+  CHECK(fixture_run(generic, "enum Box<T> { value(T) }\n"));
+  CHECK(generic->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(generic->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(has_fact(generic, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE));
+
+  fixture *callback = &fixture_callback;
+  CHECK(fixture_run(
+      callback,
+      "enum Callbacks { positional(fn(named value: u32): Bool) "
+      "labeled(handler: fn(named value: u32): Bool) }\n"));
+  CHECK(callback->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(callback->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(callback->result.written.enums == 1 &&
+        callback->result.written.enum_cases == 2 &&
+        callback->result.written.enum_case_parameters == 2);
+  CHECK(callback->enum_cases[0].owner_enum == 0 &&
+        callback->enum_cases[1].owner_enum == 0);
+  CHECK(callback->enum_case_parameters[0].owner_case == 0 &&
+        callback->enum_case_parameters[1].owner_case == 1);
+  CHECK(callback->enum_case_parameters[0].has_label == false &&
+        callback->enum_case_parameters[1].has_label == true);
+  CHECK(callback->enum_case_parameters[0].label.length == 0 &&
+        callback->enum_case_parameters[1].label.length == 7);
+  CHECK(has_fact(callback, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE));
+
+  fixture *collision = &fixture_collision;
+  CHECK(fixture_run(collision, "enum E { first }\nstruct E {}\n"));
+  CHECK(collision->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(collision->result.written.enums == 1 &&
+        collision->result.written.structs == 1 &&
+        collision->result.written.enum_cases == 1);
+  CHECK(has_fact(collision, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL));
+  CHECK(fixture_run(collision, "enum E { first }\nfn E(){}\n"));
+  CHECK(collision->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(collision->result.written.enums == 1 &&
+        collision->result.written.functions == 1 &&
+        collision->result.written.enum_cases == 1);
+  CHECK(has_fact(collision, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL));
   return true;
 }
 
@@ -576,6 +711,25 @@ static bool test_barrier_and_capacity(void) {
   CHECK(capacity->result.status == W_SEED_FRONTEND_CAPACITY);
   CHECK(fixture_output_is(capacity, sentinel, false));
 
+  CHECK(fixture_parse(capacity,
+                      "enum E { ready(Value) failed(reason: Error) }\n"));
+  fixture_fill_output(capacity, sentinel);
+  /* Restore the module slot from the previous zero-capacity probe.  The
+   * enum/case/payload capacities below must be the barrier that prevents the
+   * emit pass, not a stale module pointer. */
+  capacity->output.module_capacity = TEST_MODULES;
+  capacity->output.modules = capacity->modules;
+  capacity->output.enum_capacity = 0;
+  capacity->output.enums = NULL;
+  capacity->output.enum_case_capacity = 0;
+  capacity->output.enum_cases = NULL;
+  capacity->output.enum_case_parameter_capacity = 0;
+  capacity->output.enum_case_parameters = NULL;
+  (void)w_seed_frontend_run(&capacity->input, &capacity->output,
+                            &capacity->result);
+  CHECK(capacity->result.status == W_SEED_FRONTEND_CAPACITY);
+  CHECK(fixture_output_is(capacity, sentinel, true));
+
   fixture *cycle = &fixture_capacity;
   CHECK(fixture_parse(cycle, "fn f(): () { if true { return } }\nentry(f)\n"));
   uint32_t block_index = W_SEED_CST_NONE;
@@ -596,6 +750,7 @@ static bool test_barrier_and_capacity(void) {
 
 int main(void) {
   if (!test_declarations_and_determinism()) return 1;
+  if (!test_enums_and_payloads()) return 1;
   if (!test_semantic_diagnostics()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;
   if (!test_receipt_encoding_and_long_fields()) return 1;

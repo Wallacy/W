@@ -59,6 +59,8 @@ typedef enum {
   W_SEED_FRONTEND_TYPE_NOMINAL,
   W_SEED_FRONTEND_TYPE_FUNCTION,
   W_SEED_FRONTEND_TYPE_UNKNOWN,
+  /* Append-only nominal enum type. */
+  W_SEED_FRONTEND_TYPE_ENUM,
 } w_seed_frontend_type_kind;
 
 typedef enum {
@@ -66,6 +68,7 @@ typedef enum {
   W_SEED_FRONTEND_DECL_TYPE,
   W_SEED_FRONTEND_DECL_ALIAS,
   W_SEED_FRONTEND_DECL_FUNCTION,
+  W_SEED_FRONTEND_DECL_ENUM,
 } w_seed_frontend_decl_kind;
 
 typedef enum {
@@ -160,6 +163,10 @@ typedef struct {
   size_t facts;
   size_t diagnostics;
   size_t receipt_bytes;
+  /* Append-only enum declaration/case/payload counts. */
+  size_t enums;
+  size_t enum_cases;
+  size_t enum_case_parameters;
 } w_seed_frontend_counts;
 
 typedef struct {
@@ -179,6 +186,8 @@ typedef struct {
   uint32_t function_count;
   uint32_t first_entry;
   uint32_t entry_count;
+  uint32_t first_enum;
+  uint32_t enum_count;
 } w_seed_frontend_module;
 
 typedef struct {
@@ -213,6 +222,38 @@ typedef struct {
   w_seed_span span;
   uint32_t type_index;
 } w_seed_frontend_field;
+
+typedef struct {
+  uint32_t module_index;
+  w_seed_frontend_text name;
+  bool exported;
+  w_seed_span span;
+  w_seed_span generic_span;
+  bool has_generic_parameters;
+  uint32_t conformance_type;
+  uint32_t first_case;
+  uint32_t case_count;
+  uint32_t type_index;
+  w_seed_span conformance_span;
+} w_seed_frontend_enum;
+
+typedef struct {
+  uint32_t module_index;
+  uint32_t owner_enum;
+  w_seed_frontend_text name;
+  w_seed_span span;
+  uint32_t first_payload;
+  uint32_t payload_count;
+} w_seed_frontend_enum_case;
+
+typedef struct {
+  uint32_t module_index;
+  uint32_t owner_case;
+  w_seed_frontend_text label;
+  bool has_label;
+  w_seed_span span;
+  uint32_t type_index;
+} w_seed_frontend_enum_case_parameter;
 
 typedef struct {
   uint32_t module_index;
@@ -296,6 +337,8 @@ typedef enum {
   W_SEED_FRONTEND_SYMBOL_PARAMETER,
   W_SEED_FRONTEND_SYMBOL_BINDING,
   W_SEED_FRONTEND_SYMBOL_ENTRY,
+  W_SEED_FRONTEND_SYMBOL_ENUM,
+  W_SEED_FRONTEND_SYMBOL_ENUM_CASE,
 } w_seed_frontend_symbol_kind;
 
 typedef struct {
@@ -393,6 +436,13 @@ typedef struct {
   size_t diagnostic_capacity;
   uint8_t *receipt;
   size_t receipt_capacity;
+  /* Append-only enum output arrays. */
+  w_seed_frontend_enum *enums;
+  size_t enum_capacity;
+  w_seed_frontend_enum_case *enum_cases;
+  size_t enum_case_capacity;
+  w_seed_frontend_enum_case_parameter *enum_case_parameters;
+  size_t enum_case_parameter_capacity;
 } w_seed_frontend_output;
 
 typedef struct {

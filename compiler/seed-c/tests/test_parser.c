@@ -3025,6 +3025,176 @@ static bool test_phase3_callable_closure_capture(void) {
   return true;
 }
 
+static bool test_enum_declaration_shapes(void) {
+  static const char enum_text[] =
+      "export enum Outcome: Error {"
+      "ready delayed(Duration) failed(reason: Failure, code: u16)"
+      "}\n";
+  fixture value;
+  CHECK(fixture_init(&value, enum_text,
+                     sizeof(value.nodes) / sizeof(value.nodes[0]),
+                     sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(check_complete_shape(&value));
+  CHECK(count_kind(&value, W_SEED_CST_ENUM) == 1);
+  CHECK(count_kind(&value, W_SEED_CST_ENUM_CASE) == 3);
+  CHECK(count_kind(&value, W_SEED_CST_ENUM_CASE_PARAMETER) == 3);
+  const w_seed_cst_index owner = first_kind(&value, W_SEED_CST_ENUM);
+  CHECK(owner != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&value, owner, W_SEED_CST_ENUM_CASE) == 3);
+  const w_seed_cst_index ready =
+      direct_child_after(&value, owner, W_SEED_CST_ENUM_CASE, 0);
+  const w_seed_cst_index delayed =
+      direct_child_after(&value, owner, W_SEED_CST_ENUM_CASE, 1);
+  const w_seed_cst_index failed =
+      direct_child_after(&value, owner, W_SEED_CST_ENUM_CASE, 2);
+  CHECK(ready != W_SEED_CST_NONE && delayed != W_SEED_CST_NONE &&
+        failed != W_SEED_CST_NONE);
+  CHECK(node_span_text(&value, ready, "ready "));
+  CHECK(node_span_text(&value, delayed, "delayed(Duration) "));
+  CHECK(node_span_text(&value, failed,
+                       "failed(reason: Failure, code: u16)"));
+  CHECK(count_direct_kind(&value, ready, W_SEED_CST_ENUM_CASE_PARAMETER) == 0);
+  CHECK(count_direct_kind(&value, delayed,
+                          W_SEED_CST_ENUM_CASE_PARAMETER) == 1);
+  CHECK(count_direct_kind(&value, failed,
+                          W_SEED_CST_ENUM_CASE_PARAMETER) == 2);
+  const w_seed_cst_index duration = direct_child_after(
+      &value, delayed, W_SEED_CST_ENUM_CASE_PARAMETER, 0);
+  CHECK(duration != W_SEED_CST_NONE);
+  CHECK(node_span_text(&value, direct_child_after(&value, duration,
+                                                 W_SEED_CST_TYPE, 0),
+                       "Duration"));
+  const w_seed_cst_index reason = direct_child_after(
+      &value, failed, W_SEED_CST_ENUM_CASE_PARAMETER, 0);
+  CHECK(reason != W_SEED_CST_NONE);
+  CHECK(node_span_text(&value, reason, "reason: Failure"));
+
+  fixture repeat;
+  CHECK(fixture_init(&repeat, enum_text,
+                     sizeof(repeat.nodes) / sizeof(repeat.nodes[0]),
+                     sizeof(repeat.issues) / sizeof(repeat.issues[0])));
+  CHECK(same_parse(&value, &repeat));
+
+  fixture generic;
+  CHECK(fixture_init(&generic, "enum Box<T> { value(T) }\n",
+                     sizeof(generic.nodes) / sizeof(generic.nodes[0]),
+                     sizeof(generic.issues) / sizeof(generic.issues[0])));
+  CHECK(check_complete_shape(&generic));
+  CHECK(count_kind(&generic, W_SEED_CST_ENUM) == 1);
+  CHECK(count_kind(&generic, W_SEED_CST_GENERIC_PARAMETERS) == 1);
+  CHECK(count_kind(&generic, W_SEED_CST_ENUM_CASE_PARAMETER) == 1);
+
+  fixture property_case;
+  CHECK(fixture_init(&property_case, "enum E { property }\n",
+                     sizeof(property_case.nodes) /
+                         sizeof(property_case.nodes[0]),
+                     sizeof(property_case.issues) /
+                         sizeof(property_case.issues[0])));
+  CHECK(check_complete_shape(&property_case));
+  CHECK(count_kind(&property_case, W_SEED_CST_ENUM_CASE) == 1);
+  CHECK(first_kind(&property_case, W_SEED_CST_ENUM_CASE) != W_SEED_CST_NONE);
+
+  static const char function_type_payloads[] =
+      "enum Callbacks { positional(fn(named value: u32): Bool) "
+      "labeled(handler: fn(named value: u32): Bool) }\n";
+  fixture function_types;
+  CHECK(fixture_init(&function_types, function_type_payloads,
+                     sizeof(function_types.nodes) /
+                         sizeof(function_types.nodes[0]),
+                     sizeof(function_types.issues) /
+                         sizeof(function_types.issues[0])));
+  CHECK(check_complete_shape(&function_types));
+  CHECK(count_kind(&function_types, W_SEED_CST_ENUM_CASE) == 2);
+  CHECK(count_kind(&function_types, W_SEED_CST_ENUM_CASE_PARAMETER) == 2);
+  CHECK(count_kind(&function_types, W_SEED_CST_FUNCTION_TYPE) == 2);
+  const w_seed_cst_index function_enum = first_kind(
+      &function_types, W_SEED_CST_ENUM);
+  const w_seed_cst_index positional_case = direct_child_after(
+      &function_types, function_enum, W_SEED_CST_ENUM_CASE, 0);
+  const w_seed_cst_index handler_case = direct_child_after(
+      &function_types, function_enum, W_SEED_CST_ENUM_CASE, 1);
+  CHECK(positional_case != W_SEED_CST_NONE && handler_case != W_SEED_CST_NONE);
+  const w_seed_cst_index positional_parameter = direct_child_after(
+      &function_types, positional_case, W_SEED_CST_ENUM_CASE_PARAMETER, 0);
+  const w_seed_cst_index handler_parameter = direct_child_after(
+      &function_types, handler_case, W_SEED_CST_ENUM_CASE_PARAMETER, 0);
+  CHECK(count_direct_kind(&function_types, positional_parameter,
+                          W_SEED_CST_TYPE) == 1);
+  CHECK(count_direct_kind(&function_types, handler_parameter,
+                          W_SEED_CST_TYPE) == 1);
+
+  static const struct {
+    const char *text;
+    w_seed_parse_issue_kind issue;
+  } recovered[] = {
+      {"enum E { empty() }\n", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"enum E { pair(A B) }\n", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"enum E { pair(label Type) }\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"enum E { pair(A, label: B }\n",
+       W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
+      {"enum E { a, b }\n", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
+      {"export enum Course { ready export static fn courseLabel(x: Course): "
+       "String { return \"x\" } }\n",
+       W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM},
+  };
+  for (size_t index = 0; index < sizeof(recovered) / sizeof(recovered[0]);
+       index += 1) {
+    fixture malformed;
+    CHECK(fixture_init(&malformed, recovered[index].text,
+                       sizeof(malformed.nodes) / sizeof(malformed.nodes[0]),
+                       sizeof(malformed.issues) / sizeof(malformed.issues[0])));
+    CHECK(malformed.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(malformed.result.issue_count >= 1);
+    CHECK(has_issue(&malformed, recovered[index].issue));
+    CHECK(check_leaf_partition(&malformed));
+    CHECK(check_tree_links(&malformed));
+    fixture malformed_repeat;
+    CHECK(fixture_init(&malformed_repeat, recovered[index].text,
+                       sizeof(malformed_repeat.nodes) /
+                           sizeof(malformed_repeat.nodes[0]),
+                       sizeof(malformed_repeat.issues) /
+                           sizeof(malformed_repeat.issues[0])));
+    CHECK(malformed.result.status == malformed_repeat.result.status &&
+          malformed.result.node_count == malformed_repeat.result.node_count &&
+          malformed.result.leaf_count == malformed_repeat.result.leaf_count &&
+          malformed.result.issue_count == malformed_repeat.result.issue_count &&
+          malformed.result.consumed_byte ==
+              malformed_repeat.result.consumed_byte);
+    CHECK(memcmp(malformed.nodes, malformed_repeat.nodes,
+                 malformed.result.node_count * sizeof(malformed.nodes[0])) ==
+          0);
+    for (size_t issue = 0; issue < malformed.result.issue_count; issue += 1) {
+      const w_seed_parse_issue *left = &malformed.issues[issue];
+      const w_seed_parse_issue *right = &malformed_repeat.issues[issue];
+      CHECK(left->kind == right->kind &&
+            left->primary.start_byte == right->primary.start_byte &&
+            left->primary.end_byte == right->primary.end_byte &&
+            left->owner.start_byte == right->owner.start_byte &&
+            left->owner.end_byte == right->owner.end_byte &&
+            left->actual_kind == right->actual_kind &&
+            left->expected_mask == right->expected_mask);
+    }
+  }
+
+  fixture contextual;
+  CHECK(fixture_init(&contextual, "fn f(){ enum E { a } }\n",
+                     sizeof(contextual.nodes) / sizeof(contextual.nodes[0]),
+                     sizeof(contextual.issues) /
+                         sizeof(contextual.issues[0])));
+  CHECK(contextual.result.status == W_SEED_PARSE_FATAL);
+  CHECK(has_issue(&contextual, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM));
+  CHECK(check_leaf_partition(&contextual));
+  CHECK(check_tree_links(&contextual));
+
+  fixture capacity;
+  CHECK(fixture_init(&capacity, "enum E { value(Value) }\n", 2,
+                     sizeof(capacity.issues) / sizeof(capacity.issues[0])));
+  CHECK(capacity.result.status == W_SEED_PARSE_FATAL);
+  CHECK(has_issue(&capacity, W_SEED_PARSE_ISSUE_CAPACITY));
+  return true;
+}
+
 int main(void) {
   const bool passed =
       test_positive_core() &&
@@ -3058,7 +3228,8 @@ int main(void) {
       test_for_control_shapes() &&
       test_for_markers_and_iterables() &&
       test_for_control_recovery() &&
-      test_phase3_callable_closure_capture();
+      test_phase3_callable_closure_capture() &&
+      test_enum_declaration_shapes();
   if (!passed) return 1;
   (void)puts("Seed C parser: caller-owned CST, recovery and incremental hand cases passed");
   return 0;

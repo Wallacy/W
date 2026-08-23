@@ -46,7 +46,8 @@ reconhece a expressão delimitada
 ordem estrutural. Nesta fase, `await`, `ref` e outro `lock` no corpo são aceitos
 apenas como sintaxe. A rejeição semântica de casos inválidos fica para uma etapa
 futura.
-`entry(name)`, `struct` simples exportável com fields, `test "..." for name`
+`entry(name)`, `struct` simples exportável com fields, enums fechados com cases
+posicionais ou rotulados e payloads, `test "..." for name`
 com `expect`, blocos, `let`, `return`, `if`/`else`, `repeat`/`while`, arrays
 repetidos `[expression; expression]`, `for` com marcador opcional
 `ref`/`inout`/`copy`, um binder WORD, `in expression` e bloco, labels para
@@ -111,14 +112,16 @@ type cria duas `w_seed_parse_token_view` virtuais sem duplicar a folha; um owner
 de expression mantém `>>` como shift. Newline continua trivia. Recovery só cria
 `ERROR` com os bytes ignorados e `MISSING` zero-width. Os `w_seed_parse_issue`
 internos têm mapping futuro para D0, mas não são diagnósticos D0. `manifest`,
-declarations além de `fn`/`struct`/`type`/`alias`/`test`/`entry`, patterns e bare
+members/methods dentro de enum são recuperados como unsupported; declarations
+além de `fn`/`struct`/`enum`/`type`/`alias`/`test`/`entry`, patterns e bare
 closures, semântica de effects/async/lock, contratos de transaction,
 AST/HIR,
 name/type resolution e formatter normativo permanecem fora; `foreign` falha fechado antes
 do body. `unsafe fn<C>` e `export unsafe fn<C>` são aceitos somente pela ilha C
 validada abaixo; `unsafe fn` sem tag de linguagem permanece STOP. Imports só
 aparecem antes de qualquer declaration; `export` aceita `fn`, `async fn`,
-`struct`, `type` e `alias` nesta fatia.
+`struct`, `enum`, `type` e `alias` nesta fatia. Enum generics são reconhecidos
+sintaticamente, mas continuam unsupported no frontend.
 `transaction` não aceita argumentos de contract nesta fatia. Statements
 `commit` e transactions aninhadas são reconhecidos sintaticamente em qualquer
 block. O parser não valida owner, provider, nesting, commit, rollback, effects
@@ -227,8 +230,10 @@ somente stubs estruturados fornecidos pelo caller (símbolos exportados,
 parâmetros, política de labels e retorno).
 
 A normalização preserva módulo, imports e aliases de itens, structs/fields,
-declarações de tipo/alias, funções, parâmetros, entry, bindings, argumentos e
-expressions suportadas. A projeção bounded de módulos/imports na ordem de input
+enums/cases/payloads, declarações de tipo/alias, funções, parâmetros, entry,
+bindings, argumentos e expressions suportadas. Enum declarations produzem um
+tipo nominal `ENUM`; conformance é uma superfície de tipo, e generics de enum
+geram fato explícito `UNSUPPORTED_TYPE`. A projeção bounded de módulos/imports na ordem de input
 detecta duplicate local, unresolved import/local e entry inválido, e registra
 fatos explícitos para nodes, types e expressions fora do subset. O checker cobre
 Unit, Bool, String, bytes, inteiros e floats fixos, Option, nominais/opaque e
@@ -251,9 +256,9 @@ Ownership/HIR, async/services/providers, ConstIR, generics completos, tensor,
 runtime, MLIR e WInterface permanecem fora desta fatia.
 
 O gate scoped constrói o probe e os testes em diretório temporário, executa os
-três witnesses source-backed (`horizon_tool.w`, `formatting.w` e `numerics.w`),
-repete o probe para provar receipt byte-idêntico e verifica os negativos
-semânticos e a barreira de recovery:
+witnesses source-backed (`ServiceStage`/`DomainError` em `domain.w`, além de
+`horizon_tool.w`, `formatting.w` e `numerics.w`), repete o probe para provar
+receipt byte-idêntico e verifica os negativos semânticos e a barreira de recovery:
 
     bun tooling/check-seed-frontend.mjs
 
