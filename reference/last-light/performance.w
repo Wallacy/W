@@ -1,6 +1,7 @@
 // Proof-driven performance cases for the Last Light restaurant.
 
 import { Tensor } from std.tensor
+import { Simd, SimdMask } from std.simd
 import { ServiceStage } from domain
 
 export type FlavorSignal = Int<(1...128)>
@@ -8,6 +9,47 @@ export type FlavorPair = Int<(2...256)>
 export type WireName = String<(.bytes.count <= 64)>
 export type ScalarName = String<(.scalars.count <= 64)>
 export type DisplayName = String<(.graphemes.count <= 64)>
+export type RestaurantMenuBytes = Array<u8><(.count in 16...32)>
+
+export struct MenuScanResult {
+  fullMatches: UInt
+  tailMatches: UInt
+  tailLive: SimdMask<16>
+}
+
+// SIMD1 design oracle only. It does not claim compiler, runtime or provider.
+export fn scanMenuDelimiters(
+  menu: ref RestaurantMenuBytes,
+  delimiter: u8,
+): MenuScanResult {
+  let delimiterVector = Simd<u8, lanes: 16>.splat(delimiter)
+  let lfVector = Simd<u8, lanes: 16>.splat(10)
+  let full = Simd<u8, lanes: 16>.load(from: menu, at: 0)
+  let fullMatches = full.equalLanes(delimiterVector) | full.equalLanes(lfVector)
+  let (tail, tailLive) = Simd<u8, lanes: 16>.loadPartial(
+    from: menu,
+    at: 16,
+    fill: delimiter,
+  )
+  let tailMatches = (tail.equalLanes(delimiterVector) | tail.equalLanes(lfVector)) & tailLive
+  return MenuScanResult(
+    fullMatches: fullMatches.countTrue(),
+    tailMatches: tailMatches.countTrue(),
+    tailLive: tailLive,
+  )
+}
+
+// The fill byte equals the delimiter. The inactive mask must prevent a false hit.
+export fn wrappingByteVectorOracle(): (Simd<u8, lanes: 4>, SimdMask<4>) {
+  let left = Simd<u8, lanes: 4>.fromArray([250, 255, 1, 127])
+  let right = Simd<u8, lanes: 4>.fromArray([10, 2, 255, 1])
+  return left.overflowingAdd(right)
+}
+
+export fn duplicateStaticSwizzle(): Simd<u8, lanes: 3> {
+  let source = Simd<u8, lanes: 4>.fromArray([10, 20, 30, 40])
+  return source.swizzled<indices: [3, 3, 0]>()
+}
 
 export struct BrigadeCount {
   completed: u64
@@ -110,4 +152,25 @@ test "partitioned counts combine only at the join" for combineBrigadeCounts {
 
   expect total.completed == 3
   expect total.failed == 2
+}
+
+test "SIMD delimiter scan masks a delimiter fill in the tail" for scanMenuDelimiters {
+  let menu: RestaurantMenuBytes = [
+    82, 101, 115, 116, 97, 117, 114, 97, 110, 116, 124, 10, 101, 110, 117, 124,
+    83, 101, 10, 124,
+  ]
+  let result = scanMenuDelimiters(ref menu, 124)
+
+  expect result.fullMatches == 3
+  expect result.tailMatches == 2
+  expect result.tailLive.countTrue() == 4
+}
+
+test "SIMD overflowing integer and duplicate swizzle are explicit" {
+  let (wrapped, overflowed) = wrappingByteVectorOracle()
+  expect wrapped.toArray() == [4, 1, 0, 128]
+  expect overflowed.toArray() == [true, true, true, false]
+
+  let duplicate = duplicateStaticSwizzle()
+  expect duplicate.toArray() == [40, 40, 10]
 }

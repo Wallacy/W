@@ -19,6 +19,8 @@ ranges, `@`, compound assignment e APIs numéricas nomeadas, incluindo
 `bitWidth`, counts, `reversedBits` e `reversedBytes`. Essas APIs são nomes
 portáveis, não novos tokens de operador. O bloco é
 parse-only e não prova type-check, runtime ou provider.
+Para a matriz semântica, leia [`Operadores, bits e política numérica`](../../CHEATSHEET.md#operadores-bits-e-política-numérica).
+Para o limite de custo, leia [`Performance e custo`](../../CHEATSHEET.md#performance-e-custo).
 
 `>..` e `>..<` continuam formas current do contrato e das tabelas seed
 lexer/parser. O witness direto Tree-sitter dessas formas está em um gap

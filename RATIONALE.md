@@ -5246,6 +5246,69 @@ crypto) e rejeita oito rotas contrafactuais. Mutation guards cobrem authority am
 fallback, plaintext/serialization, codec inference e source/digest stale. A
 máquina é host-only. Ela não afirma execução W nem readiness de provider.
 
+### 1.40 SIMD1 — evidência para a baseline portátil
+
+W-1459 fecha a superfície sem importar a semântica de outra linguagem. A
+evidência primária orienta alternativas, mas a decisão normativa permanece em
+`DESIGN.md`. `Simd<Element, lanes: usize>` mantém label required; a declaração
+`SimdMask<_ lanes: usize>` torna o label da mask optional, por isso a aplicação
+`SimdMask<16>` é corrente e não uma segunda identity:
+
+- Rust documenta integer overflow e as APIs `wrapping`, `saturating` e
+  `overflowing` em [primitive integer](https://doc.rust-lang.org/std/primitive.u8.html).
+  A documentação de [portable SIMD](https://doc.rust-lang.org/stable/std/simd/index.html)
+  mostra lanes e masks como uma superfície explícita, mas continua instável e
+  não define a disponibilidade de W.
+- Swift define operações de integer e overflow em
+  [`FixedWidthInteger`](https://developer.apple.com/documentation/swift/fixedwidthinteger).
+  W usa a separação de policies como evidência de nomenclatura, sem copiar
+  overloads, ABI ou disponibilidade de Swift.
+- Zig especifica vectors, lanes e operações por lane em
+  [Vectors](https://ziglang.org/documentation/master/#Vectors). W preserva a
+  sequência lógica e rejeita a promessa de vector width físico.
+- LLVM descreve [vector predication](https://llvm.org/docs/LangRef.html#vector-predication-intrinsics)
+  e masks como lowering. Isso apoia a separação entre lanes vivas, tail e
+  backend. Não é autoridade para a safe memory boundary de W.
+
+O caso concreto do Última Luz é uma varredura de delimitador em menus de
+`16...32` bytes. O chunk completo usa `load`, o restante usa `loadPartial` com
+fill igual ao delimitador e a mask impede que inactive lanes contem. O mesmo
+caso cobre `|`, `&`, `countTrue` e um swizzle com índice duplicado. O oracle
+host deriva todos os valores a partir dos bytes e das policies. Ele rejeita
+expected caller-owned, leitura OOB, write antes do bounds failure, lane count
+fora de `1...64`, índice de swizzle inválido, reduction fora da ordem e
+`select` short-circuit. A propriedade de `storePartial` (borrow/inout,
+preflight e inactive OOB) é verificada somente pelo host oracle; o witness
+Last Light não alega uma execução de store.
+
+As APIs de mask são `splat(Bool) -> SimdMask<N>`,
+`fromArray([Bool; N]) -> SimdMask<N>` e `toArray() -> [Bool; N]`, todas sem
+allocation; `all()`, `any()` e `none()` retornam `Bool`, e `countTrue()` retorna
+`UInt`. Integer reductions usam os
+nomes fechados `reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`,
+`reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`,
+`reduceBitAnd`, `reduceBitOr` e `reduceBitXor`, sempre na ordem `0..N-1`.
+Float reductions usam `reduceAdd(mode:)` e `reduceMultiply(mode:)` com mode
+obrigatório. Arithmetic, bitwise, shifts e policies só existem quando o
+scalar Element admite a operação; floats não ganham bitwise, shifts ou
+`overflowingX`.
+
+**Amendamento de W-392:** o contrato de bits agora publica a matriz exata.
+`add`, `subtract`, `multiply`, `negate` e `power` têm as quatro families
+`checked`, `wrapping`, `saturating` e `overflowing`. `divide` e `remainder`
+somente têm `checked`; divide rejeita `signed.min / -1`, mas remainder rejeita
+somente divisor zero e `signed.min % -1` produz `0`. Left shift tem `checked`,
+`wrapping` e `masked`.
+Right shift tem `checked` e `masked`, com `logicalShiftRight` nomeado. Não há
+wrapping/saturating/overflowing divide, remainder ou right shift. Rotations
+reduzem count módulo width, `saturatingNegate` clampa unsigned para zero e
+`overflowingX` devolve low wrapped bits mais flag. Isso substitui a frase aberta
+“nas quais a policy tem significado” sem alterar os tokens correntes.
+
+SIMD1 é `oracle-backed-current` e não é implementação. Compiler, runtime,
+provider, native acceleration, ABI, FFI, measurements e estudos humanos/modelos
+continuam missing. `Research=0` permanece.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
@@ -5681,7 +5744,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-389 | conversão explícita | `exactly`, `rounding`, `saturating`, `truncatingBits` e bits nomeados | um cast com policy dependente do par |
 | W-390 | overflow integer | operators checked em todo profile; const vira diagnostic | wrap em release; undefined behavior |
 | W-391 | divisão integer | zero e min/-1 causam panic; quotient toward zero; Euclidean nomeado | floor universal; resultado Option implícito |
-| W-392 | shift e primitives portáveis de bits | count `UInt`; bound e perda à esquerda causam panic; `bitWidth`, counts, reverse de bits e bytes são APIs puras, const-evaluable, com zero definido pela largura; bit policies nomeadas | mask do count; regras C; wrap silencioso; novos operators ou intrinsics target-specific no core |
+| W-392 | shift e primitives portáveis de bits | count `UInt`; `add`/`subtract`/`multiply`/`negate`/`power` têm `checked`/`wrapping`/`saturating`/`overflowing`; divide/remainder somente `checked`; left shift `checked`/`wrapping`/`masked`; right shift `checked`/`masked` mais `logicalShiftRight`; count inválido e perda à esquerda causam panic; `rotated*` reduz módulo width; `saturatingNegate` clampa unsigned para zero; `overflowingX` devolve low wrapped bits + flag; bitWidth, counts, reverse de bits e bytes são APIs puras, const-evaluable, com zero definido pela largura | matrix aberta; mask do count como regra universal; regras C; wrap silencioso; wrapping/saturating/overflowing divide ou remainder; novos operators ou intrinsics target-specific no core |
 | W-393 | float baseline | f32/f64 IEEE strict, nearest-even, subnormal e sem FMA implícito | fast-math em release; flush-to-zero default |
 | W-394 | float equality | comparação IEEE parcial; `TotalFloat` para key e ordem total | float conforma aos protocols totais; bit equality como `==` |
 | W-395 | modes float | strict default; fast e reproducible explícitos e versionados | flag global muda semântica; reproducible sem algoritmo |
@@ -6748,6 +6811,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1456 | perfis de random | package/profile geral separa secure provider-backed de deterministic explicit-seed. Secure não aceita seed, fallback ou downgrade e exige bytes bounded, integer uniforme checked e erro tipado. Deterministic é replayable e não satisfaz secure. Draw order é owner-local, sem inheritance entre task/service/process. Context HTTP projeta o mesmo contrato. Somente seed/profile determinístico pode entrar em test receipt; secure seed/draw/bytes não entram em receipt/log/diagnostic. Handles não são WireValue | oracle-backed-current; AEG0-W-1456-current fecha secure/deterministic e rejeita seeded secure, fallback e inheritance implícita |
 | W-1457 | codecs e compression explícitos | packages específicos declaram ByteSource/Sink, profile+digest, streaming e quotas separadas para encoded, logical, allocation, depth e ratio. Offset/progress errors são tipados. Cancellation não desfaz bytes committed. Dictionary/state tem owner explícito. Codec/schema e compression transform têm identity/limits separados | oracle-backed-current; AEG0-W-1457-current fecha requisitos operacionais e rejeita `Codec<T>` universal, reflection, inference ambiental e quota colapsada |
 | W-1458 | crypto e secrets scoped | app crypto passa por package/provider capability ligada pelo deployment. Algorithm/profile são typed e pinned, sem string/fallback/downgrade. Secret/key handle é opaque, nonextractable por default, purpose/audience/generation scoped e move-only. Lifecycle tem dois caminhos: acquire→active→revoking→revoked→released para revoke/rotation, ou acquire→active→expired→released para expiry. Revoke fecha nova admission e drena operações admitidas. Host controla rotation/expiry/zeroization. Secret não entra em wire/storage/log/diagnostic/receipt | oracle-backed-current; AEG0-W-1458-current fecha lifecycle e rejeita plaintext/env lookup, secret wire e downgrade |
+| W-1459 | baseline portátil de `std.simd` | `Simd<Element, lanes: usize>` e `SimdMask<_ lanes: usize>`, lanes `1...64`, label required somente em Simd e optional em mask com aplicação `SimdMask<16>`, Element escalar fechado, sequence target-independent, layout opaco, scalar fallback obrigatório, mask `splat(Bool) -> SimdMask<N>`/`fromArray([Bool; N]) -> SimdMask<N>`/`toArray() -> [Bool; N]` sem allocation, `all`/`any`/`none` retornam `Bool` e `countTrue` retorna `UInt`, load borrow source e store destination `inout` com partial tail total e preflight, arithmetic lane-wise condicionado ao scalar Element, floats sem bitwise/shift/overflow APIs, integer overflow mask por lane, masks com bitwise operators, reductions nomeadas em ordem/policy (`reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`, `reduceBitOr`, `reduceBitXor`) e float mode obrigatório, static swizzle com duplicata e `w explain performance` com lowering facts | oracle-backed-current; SIMD1-W-1459-current fecha o contrato host-only e rejeita width/layout nativo, Bool lane, dynamic shuffle, alignment flag, write antes de bounds failure, short-circuit e performance universal |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,

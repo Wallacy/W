@@ -18929,9 +18929,11 @@ hyperbolic functions, `fma`, constants e classification. Cada transcendental
 publica accuracy e special cases. `std.science` inclui `Complex<T>`, integração,
 interpolação e solvers com tolerância e iteration limit explícitos.
 
-`std.simd` usa `Simd<Element, lanes: usize>`. A largura faz parte do tipo.
-Uma implementação pode baixar para scalar quando o target não possui a vector
-width. SIMD não muda overflow, float mode ou alignment público.
+`std.simd` usa `Simd<Element, lanes: usize>` com lanes lógicas no tipo.
+O contrato portátil de Element, mask, memory, reductions e lowering fica em
+[§18.5](#185-matrizes-simd-e-devices). Uma implementação pode baixar para
+scalar quando o target não possui vector width. SIMD não muda overflow, float
+mode ou alignment público.
 
 Collections mínimas são `Array`, fixed array, `Map`, `Set`, `SortedMap`,
 `SortedSet`, `Deque`, `PriorityQueue` e views. Linked list e intrusive
@@ -19641,12 +19643,42 @@ let clipped = u16.saturatingAdd(current, 1)
 let (sum, overflowed) = u16.overflowingAdd(current, 1)
 ```
 
-`checkedAdd`, `checkedSubtract`, `checkedMultiply`, `checkedNegate`,
-`checkedDivide`, `checkedPower`, `checkedShiftLeft` e `checkedShiftRight` retornam
-`Result<T, ArithmeticError>`.
-As famílias `wrapping`, `saturating` e `overflowing` cobrem as operações nas
-quais a policy tem significado. `carryingAdd`, `borrowingSubtract` e
-`fullMultiply` servem multiprecision e crypto sem depender de flags da CPU.
+As policies numéricas têm um inventário fechado. Cada nome abaixo é uma
+associated function e publica o tipo de retorno indicado:
+
+| Operação | `checked` | `wrapping` | `saturating` | `overflowing` | Outra forma nomeada |
+| --- | --- | --- | --- | --- | --- |
+| add | `checkedAdd -> Result<T, ArithmeticError>` | `wrappingAdd -> T` | `saturatingAdd -> T` | `overflowingAdd -> (T, Bool)` | — |
+| subtract | `checkedSubtract -> Result<T, ArithmeticError>` | `wrappingSubtract -> T` | `saturatingSubtract -> T` | `overflowingSubtract -> (T, Bool)` | — |
+| multiply | `checkedMultiply -> Result<T, ArithmeticError>` | `wrappingMultiply -> T` | `saturatingMultiply -> T` | `overflowingMultiply -> (T, Bool)` | — |
+| negate | `checkedNegate -> Result<T, ArithmeticError>` | `wrappingNegate -> T` | `saturatingNegate -> T` | `overflowingNegate -> (T, Bool)` | — |
+| power | `checkedPower -> Result<T, ArithmeticError>` | `wrappingPower -> T` | `saturatingPower -> T` | `overflowingPower -> (T, Bool)` | — |
+| divide | `checkedDivide -> Result<T, ArithmeticError>` | — | — | — | — |
+| remainder | `checkedRemainder -> Result<T, ArithmeticError>` | — | — | — | — |
+| left shift | `checkedShiftLeft -> Result<T, ArithmeticError>` | `wrappingShiftLeft -> T` | — | — | `maskedShiftLeft -> T` |
+| right shift | `checkedShiftRight -> Result<T, ArithmeticError>` | — | — | — | `maskedShiftRight -> T`, `logicalShiftRight -> T` |
+| rotate left | — | — | — | — | `rotatedLeft -> T` |
+| rotate right | — | — | — | — | `rotatedRight -> T` |
+
+`overflowingX` devolve os low wrapped bits e uma flag que indica overflow.
+`checkedDivide` rejeita divisor zero e `signed.min / -1`. `checkedRemainder`
+rejeita somente divisor zero; `signed.min % -1` produz `0`, porque o
+resultado matemático cabe no tipo.
+W não publica `wrappingDivide`, `saturatingDivide`, `overflowingDivide`,
+`wrappingRemainder`, `saturatingRemainder` ou `overflowingRemainder`.
+
+`checkedShiftLeft` rejeita count inválido ou perda de bits. `wrappingShiftLeft`
+descarta bits altos, mas exige count menor que `bitWidth`. `maskedShiftLeft`
+aplica count módulo `bitWidth`. `checkedShiftRight` rejeita count maior ou igual
+à largura. `maskedShiftRight` aplica o mesmo módulo. Não há policy
+`saturating` ou `overflowing` para shifts. `logicalShiftRight` torna o
+preenchimento zero explícito para qualquer integer representado como bits.
+`rotatedLeft` e `rotatedRight` aceitam `UInt` e reduzem o count módulo da
+largura. O operando exponent de `**` é `UInt`.
+
+`saturatingNegate` aplica clamp ao resultado matemático. Em unsigned, `x > 0`
+produz zero. `carryingAdd`, `borrowingSubtract` e `fullMultiply` servem
+multiprecision e crypto sem depender de flags da CPU.
 
 ```w
 export enum ArithmeticError: Error {
@@ -19657,7 +19689,8 @@ export enum ArithmeticError: Error {
 ```
 
 Integer division causa panic em divisor zero e em `signed.min / -1`. O quotient
-trunca em direção a zero. O remainder possui o sinal do dividendo. APIs
+trunca em direção a zero. O remainder possui o sinal do dividendo, e
+`signed.min % -1` é `0`; somente o divisor zero causa erro em remainder. APIs
 `euclideanDivide` e `euclideanRemainder` tornam a alternativa não negativa
 explícita. `0 ** 0` produz `1`; o exponent de integer `**` é `UInt`.
 `float ** Int` usa exponentiation integer strict, inclusive exponent negativo.
@@ -22448,6 +22481,78 @@ let text = report
 ```
 
 ### 18.5 Matrizes, SIMD e devices
+
+**W-1459 — SIMD portátil:** `std.simd` publica `Simd<Element, lanes: usize>`
+e `SimdMask<_ lanes: usize>`. `lanes` é compile-time, está entre 1 e 64 e
+não exige potência de dois. O label de `Simd` é required porque o tipo
+combina `Element` e o value parameter `lanes`; o label de `SimdMask` é
+optional porque mask só tem a largura. Assim, a aplicação curta corrente é
+`SimdMask<16>`, sem criar uma segunda identity. O baseline aceita `i8`, `i16`,
+`i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128`, `Int`, `UInt`,
+`isize`, `usize`, `f32` e `f64`. `Bool` usa mask e não é lane Element.
+
+O valor semântico é uma sequência fixa de lanes e é idêntico em todo target.
+O backend pode escolher native, split ou scalarize. `Simd` não promete speed,
+instruction, vector width ou layout físico. O layout é opaco. Não há ABI, FFI,
+wire, persistência ou `transmute` implícito. `fromArray` e `toArray` são a
+boundary semântica e não alocam.
+
+Construção usa `splat`, `fromArray` e `toArray`. `SimdMask.splat(Bool) ->
+SimdMask<N>`, `fromArray([Bool; N]) -> SimdMask<N>` e `toArray() -> [Bool; N]`
+também são sem allocation.
+Indexing checked lê uma lane. O baseline não publica `ref` ou `inout` de lane.
+`load(from:at:)` e `loadPartial(from:at:fill:)` borrow a source; `store(to:at:)`
+e `storePartial(to:at:where:)` recebem o destination como `inout`. Não há owner
+copy. `load(from:at:)` é safe e checked, exige `lanes` elementos in-bounds e
+causa o mesmo bounds panic de indexing. Uma prova pode remover o check.
+`loadPartial(from:at:fill:) -> (Simd, SimdMask)` não lê fora do array, preenche
+lanes inactive e marca lanes live. `at == count` é válido e produz a tail toda
+inactive; `at > count` causa bounds panic antes de qualquer read. `storePartial`
+só escreve lanes ativas e in-bounds. Ela faz preflight de todas as lanes ativas:
+uma lane ativa OOB causa bounds panic antes de qualquer write; lanes inactive OOB
+são permitidas e não são acessadas. Não há flag Boolean de alignment. Fixed Array
+e `Array` são a baseline. `Bytes` tem overload para `u8`.
+Gather, scatter, raw pointer e assertion de alignment ficam fora da baseline
+safe.
+
+Arithmetic, bitwise, shifts, compound operators e numeric policies só existem
+quando o scalar `Element` admite a mesma operação. Integers herdam a matriz
+escalar exata de [§15.1.3](#1513-aritmética-inteira-e-bits); floats não ganham
+bitwise, shifts ou APIs `overflowingX`. Não há token novo. Em integer,
+`overflowingX` retorna `(Simd<T, N>, SimdMask<N>)`, com uma flag por lane.
+`==` e `!=` comparam o valor lógico inteiro e retornam `Bool`. Comparações de lanes usam
+`equalLanes`, `notEqualLanes`, `lessThanLanes`, `lessThanOrEqualLanes`,
+`greaterThanLanes` e `greaterThanOrEqualLanes`, que retornam `SimdMask`.
+
+`SimdMask` suporta `&`, `|`, `^`, `~`, `all() -> Bool`, `any() -> Bool`,
+`none() -> Bool` e `countTrue() -> UInt`. Não suporta `&&` ou `||`.
+`select(whenTrue: Simd<T, N>, otherwise: Simd<T, N>) -> Simd<T, N>` exige
+lanes iguais, escolhe lane a lane e avalia seus argumentos já formados
+normalmente antes da call. A call não é short-circuit.
+`swizzled<indices: StaticList<usize>>` retorna
+`Simd<Element, lanes: indices.count>`. Índice inválido é compile diagnostic.
+Índice duplicado é aceito. Shuffle dinâmico fica fora do baseline.
+
+Reductions integer têm os nomes exatos `reduceAdd`, `wrappingReduceAdd`,
+`saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply` e
+`saturatingReduceMultiply`. As formas checked usam a ordem de lanes `0..N-1` e
+a semântica escalar checked; wrapping e saturating usam a mesma ordem, mesmo
+quando o resultado é associative. Reductions bitwise exatas são
+`reduceBitAnd`, `reduceBitOr` e `reduceBitXor`. Para floats, os nomes são
+`reduceAdd(mode:)` e `reduceMultiply(mode:)`, com `mode` obrigatório em
+`.strict`, `.fast` ou `.reproducible`. Strict usa a ordem das lanes. Fast pode
+reassociate ou usar FMA somente pelo contrato float vigente. Reproducible fixa
+algoritmo e versão pela policy vigente. O baseline não promete performance
+independente do target.
+
+`w explain performance` informa `native`, `split` ou `scalar`, physical width,
+missed reason, loads, tails e reduction mode. Recipe e target facts escolhem
+lowering. Branch hints, prefetch, funnel/carryless/CRC/AES, bit
+deposit/extract, target intrinsics e native-lane type ficam em package,
+provider, `unsafe` ou foreign. `nativeLanes` não participa da identidade do
+tipo. A API semântica portable está disponível onde o Element escalar existe,
+porque o scalar fallback é obrigatório. Target acceleration não define
+availability.
 
 Shape estático elimina validações de dimensão e fornece trip counts para tiling
 e vectorização.
@@ -30036,11 +30141,34 @@ O corpus AEG0 possui seis casos current e oito casos rejected. O host oracle
 deriva as rotas de facts. Ele rejeita `expected`, `result`, status caller-owned,
 ID-derived outcome e provider/runtime claims. Mutation guards cobrem ambient
 authority, fallback, plaintext/serialization, codec inference e stale
-source/digest. `Research=0` permanece obrigatório para todo W-001–W-1458.
+source/digest. `Research=0` permanece obrigatório para todo W-001–W-1459.
 
 AEG0 não promove provider. Continuam missing compiler, runtime, provider,
 target, FFI, stress, fault, rotation, zeroization e estudos humano/modelo.
 Last Light fornece somente os witnesses existentes e não recebe nova syntax.
+
+#### 24.4.5 SIMD1 — baseline portátil de `std.simd`
+
+O bundle `SIMD1` fecha W-1459 como contrato de design com oracle host. Ele não
+cria token, operator, performance hint, ABI ou provider. A API semântica está
+disponível onde o Element escalar existe. Native acceleration, compiler,
+runtime e provider continuam ausentes.
+
+| ID | Forma vigente | Alternativa avaliada | Rejeitado |
+|---|---|---|---|
+| W-1459 | `Simd<Element, lanes: usize>` e `SimdMask<_ lanes: usize>` com lanes compile-time `1...64`, sem power-of-two requirement; o label de `Simd` é required e o de `SimdMask` é optional, por isso `SimdMask<16>` é a aplicação corrente. Element baseline: `i8`/`i16`/`i32`/`i64`/`i128`, `u8`/`u16`/`u32`/`u64`/`u128`, `Int`/`UInt`/`isize`/`usize`, `f32`/`f64`; `Bool` usa mask. A sequência de lanes é fixed e target-independent. Backend escolhe native, split ou scalarize. Layout é opaco, sem ABI/FFI/wire/persist/transmute implícito. `splat`, `fromArray`, `toArray`, indexing checked e memory partial APIs fecham a boundary; mask publica `splat`, `fromArray` e `toArray` sem allocation, load borrow source e store recebe destination `inout`, com partial tail total e preflight fail-before-write. Arithmetic, bitwise, shifts, compounds e `overflowingX` só existem quando o scalar Element admite a operação; floats não ganham bitwise, shifts ou overflow APIs. Integer `overflowingX` retorna `(Simd<T, N>, SimdMask<N>)` com flag por lane. `SimdMask` usa `&`/`|`/`^`/`~`, `all`/`any`/`none`/`countTrue`, comparações lane-wise e `select` sem short-circuit. Swizzle static aceita índices duplicados e rejeita índice OOB. Reductions têm `reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`, `reduceBitOr`, `reduceBitXor`; floats usam `reduceAdd(mode:)`/`reduceMultiply(mode:)` com mode obrigatório. `w explain performance` separa native/split/scalar, physical width, loads, tails, reduction mode e missed reason. | Um tipo que promete vector width ou layout nativo, uma mask com `&&`/`||`, shuffle dinâmico, alignment flag ou um operator de performance foram avaliados para ergonomia. A forma vigente conserva sequência lógica e delega lowering a facts. | `lanes=0` ou `lanes>64`, Bool como lane Element, native-lane type, ABI/FFI/wire/persistência implícita, `ref`/`inout` de lane, gather/scatter/raw pointer safe, alignment assertion, mask ativa OOB com write parcial, short-circuit de `select`, reassociation float sem mode, performance universal e intrinsics target-specific no core. |
+
+O oracle [`tooling/simd-reference.test.mjs`](tooling/simd-reference.test.mjs)
+deriva os resultados de arrays e policies. Ele cobre lanes inválidas e válidas,
+equivalência scalar/native/split, tail fill mascarado, bounds fail-before-write,
+overflow values/mask, swizzle duplicado e reductions. O oracle verifica também
+snippets e claims proibidos em `DESIGN.md`, `CHEATSHEET.md` e Last Light. Ele
+não compila, executa ou mede W.
+
+`Research=0` permanece obrigatório para W-001–W-1459. A classificação de W-1459
+é `oracle-backed-current` por evidence do oracle host e design contract.
+Compiler, runtime, provider, native acceleration, ABI e measurements continuam
+missing. Nenhuma evidência de parse ou oracle promove implementação.
 
 ### 24.5 Blockers de allocator ASC0
 

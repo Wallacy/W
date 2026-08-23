@@ -38,8 +38,10 @@ const groups = [
 ];
 
 const namedNumeric = [
-  "checkedAdd", "checkedSubtract", "checkedMultiply", "checkedNegate", "checkedDivide", "checkedPower",
-  "checkedShiftLeft", "checkedShiftRight", "wrappingAdd", "wrappingShiftLeft", "saturatingAdd", "overflowingAdd",
+  "checkedAdd", "checkedSubtract", "checkedMultiply", "checkedNegate", "checkedDivide", "checkedRemainder", "checkedPower",
+  "checkedShiftLeft", "checkedShiftRight", "wrappingAdd", "wrappingSubtract", "wrappingMultiply", "wrappingNegate", "wrappingPower", "wrappingShiftLeft",
+  "saturatingAdd", "saturatingSubtract", "saturatingMultiply", "saturatingNegate", "saturatingPower",
+  "overflowingAdd", "overflowingSubtract", "overflowingMultiply", "overflowingNegate", "overflowingPower",
   "carryingAdd", "borrowingSubtract", "fullMultiply", "maskedShiftLeft", "maskedShiftRight",
   "logicalShiftRight", "rotatedLeft", "rotatedRight", "toBits", "fromBits", "toBytes", "fromBytes",
 ];
@@ -47,6 +49,24 @@ const namedBitPrimitives = [
   "bitWidth", "countOnes", "countZeros", "countLeadingZeros", "countTrailingZeros", "reversedBits", "reversedBytes",
 ];
 namedNumeric.push(...namedBitPrimitives);
+
+const rejectedNumeric = [
+  "wrappingDivide", "saturatingDivide", "overflowingDivide",
+  "wrappingRemainder", "saturatingRemainder", "overflowingRemainder",
+  "saturatingShiftLeft", "overflowingShiftLeft", "wrappingShiftRight",
+  "saturatingShiftRight", "overflowingShiftRight",
+];
+const policySignatures = [
+  ["checkedAdd", "Result<T, ArithmeticError>"], ["wrappingAdd", "T"], ["saturatingAdd", "T"], ["overflowingAdd", "(T, Bool)"],
+  ["checkedSubtract", "Result<T, ArithmeticError>"], ["wrappingSubtract", "T"], ["saturatingSubtract", "T"], ["overflowingSubtract", "(T, Bool)"],
+  ["checkedMultiply", "Result<T, ArithmeticError>"], ["wrappingMultiply", "T"], ["saturatingMultiply", "T"], ["overflowingMultiply", "(T, Bool)"],
+  ["checkedNegate", "Result<T, ArithmeticError>"], ["wrappingNegate", "T"], ["saturatingNegate", "T"], ["overflowingNegate", "(T, Bool)"],
+  ["checkedPower", "Result<T, ArithmeticError>"], ["wrappingPower", "T"], ["saturatingPower", "T"], ["overflowingPower", "(T, Bool)"],
+  ["checkedDivide", "Result<T, ArithmeticError>"], ["checkedRemainder", "Result<T, ArithmeticError>"],
+  ["checkedShiftLeft", "Result<T, ArithmeticError>"], ["wrappingShiftLeft", "T"],
+  ["checkedShiftRight", "Result<T, ArithmeticError>"], ["maskedShiftLeft", "T"],
+  ["maskedShiftRight", "T"], ["logicalShiftRight", "T"], ["rotatedLeft", "T"], ["rotatedRight", "T"],
+];
 
 const rejected = ["custom/user operators", "unary +", "++", "--", "postfix force unwrap", "&&=", "||=", "??=", "@="];
 const lexicalOperators = [
@@ -405,6 +425,24 @@ function check() {
     if (!design.includes(form)) fail(errors, `DESIGN numeric policy is missing ${form}`);
     if (!atlasSource.includes(form)) fail(errors, `operators.w is missing ${form}`);
   }
+  const designPolicyMatrix = extractBlock(design, "As policies numéricas têm um inventário fechado.", "`overflowingX` devolve");
+  const rootPolicyMatrix = extractBlock(rootCheatsheet, "#### Matriz fechada de policies integer", "| Qual forma usar");
+  for (const [name, returnType] of policySignatures) {
+    const signature = `\`${name} -> ${returnType}\``;
+    if (!designPolicyMatrix.includes(signature)) fail(errors, `DESIGN closed policy matrix is missing ${signature}`);
+    if (!rootPolicyMatrix.includes(signature)) fail(errors, `root CHEATSHEET closed policy matrix is missing ${signature}`);
+  }
+  for (const form of rejectedNumeric) {
+    if (designPolicyMatrix.includes(`\`${form}`)) fail(errors, `DESIGN closed policy matrix presents rejected numeric policy ${form}`);
+    if (rootPolicyMatrix.includes(`\`${form}`)) fail(errors, `root CHEATSHEET closed policy matrix presents rejected numeric policy ${form}`);
+  }
+  for (const form of rejectedNumeric) {
+    if (atlasSource.includes(form)) fail(errors, `operators.w presents rejected numeric policy ${form}`);
+  }
+  if (design.includes("`signed.min % -1` produz `0`") === false ||
+      !design.includes("checkedRemainder`\nrejeita somente divisor zero")) {
+    fail(errors, "remainder must reject only zero divisor and define signed.min % -1 as zero");
+  }
   for (const form of namedBitPrimitives) {
     if (!rootCheatsheet.includes(form)) fail(errors, `root CHEATSHEET bit primitive inventory is missing ${form}`);
     if (!lastLightNumerics.includes(form)) fail(errors, `Last Light numerics is missing ${form}`);
@@ -465,4 +503,4 @@ if (import.meta.main) {
   }
 }
 
-export { check, groups, assignment, namedNumeric, namedBitPrimitives, rejected };
+export { check, groups, assignment, namedNumeric, namedBitPrimitives, rejected, rejectedNumeric, policySignatures };
