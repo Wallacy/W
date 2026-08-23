@@ -28,6 +28,7 @@ enum {
   TEST_ENUMS = 16,
   TEST_ENUM_CASES = 128,
   TEST_ENUM_CASE_PARAMETERS = 256,
+  TEST_ENUM_SUBSET_MEMBERS = 256,
   TEST_FIELDS = 64,
   TEST_DECLARATIONS = 32,
   TEST_TYPES = 128,
@@ -63,6 +64,8 @@ typedef struct {
   w_seed_frontend_enum_case enum_cases[TEST_ENUM_CASES];
   w_seed_frontend_enum_case_parameter
       enum_case_parameters[TEST_ENUM_CASE_PARAMETERS];
+  w_seed_frontend_enum_subset_member
+      enum_subset_members[TEST_ENUM_SUBSET_MEMBERS];
   w_seed_frontend_field fields[TEST_FIELDS];
   w_seed_frontend_type_declaration type_declarations[TEST_DECLARATIONS];
   w_seed_frontend_alias aliases[TEST_DECLARATIONS];
@@ -122,6 +125,8 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
                sizeof(fixture_value->enum_cases));
   (void)memset(fixture_value->enum_case_parameters, value,
                sizeof(fixture_value->enum_case_parameters));
+  (void)memset(fixture_value->enum_subset_members, value,
+               sizeof(fixture_value->enum_subset_members));
   (void)memset(fixture_value->fields, value, sizeof(fixture_value->fields));
   (void)memset(fixture_value->type_declarations, value,
                sizeof(fixture_value->type_declarations));
@@ -186,6 +191,8 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                          sizeof(fixture_value->arguments), value) &&
          all_bytes_equal(fixture_value->switch_arms,
                          sizeof(fixture_value->switch_arms), value) &&
+         all_bytes_equal(fixture_value->enum_subset_members,
+                         sizeof(fixture_value->enum_subset_members), value) &&
          all_bytes_equal(fixture_value->symbols, sizeof(fixture_value->symbols),
                          value) &&
          all_bytes_equal(fixture_value->facts, sizeof(fixture_value->facts),
@@ -235,6 +242,8 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .enum_case_capacity = TEST_ENUM_CASES,
       .enum_case_parameters = fixture_value->enum_case_parameters,
       .enum_case_parameter_capacity = TEST_ENUM_CASE_PARAMETERS,
+      .enum_subset_members = fixture_value->enum_subset_members,
+      .enum_subset_member_capacity = TEST_ENUM_SUBSET_MEMBERS,
       .fields = fixture_value->fields,
       .field_capacity = TEST_FIELDS,
       .type_declarations = fixture_value->type_declarations,
@@ -284,6 +293,7 @@ static bool counts_equal(const w_seed_frontend_counts *left,
          left->enums == right->enums &&
          left->enum_cases == right->enum_cases &&
          left->enum_case_parameters == right->enum_case_parameters &&
+         left->enum_subset_members == right->enum_subset_members &&
          left->type_declarations == right->type_declarations &&
          left->aliases == right->aliases && left->types == right->types &&
          left->functions == right->functions &&
@@ -614,6 +624,165 @@ static bool append_many_piece(char *destination, size_t capacity,
                                (unsigned long long)index, suffix);
   if (written < 0 || (size_t)written >= sizeof(piece)) return false;
   return append_many_source(destination, capacity, length, piece);
+}
+
+static bool test_enum_subsets(void) {
+  static const char source[] =
+      "enum Stage { accepted reserving preparing serving }\n"
+      "alias FullStage = Stage<[.serving, .accepted, .preparing, .reserving]>\n"
+      "alias WorkStage = Stage<[Stage.serving, .preparing]>\n"
+      "fn asBase(stage: WorkStage): Stage { return stage }\n"
+      "fn asSuperset(stage: WorkStage): FullStage { return stage }\n"
+      "fn call(stage: WorkStage): FullStage { return asSuperset(stage) }\n"
+      "fn caseValue(): WorkStage { return .preparing }\n"
+      "fn label(stage: WorkStage): String { return switch stage { "
+      "case .preparing: \"P\" case .serving: \"S\" } }\n";
+  fixture *value = &fixture_a;
+  CHECK(fixture_run(value, source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.enums == 1);
+  CHECK(value->result.written.aliases == 2);
+  CHECK(value->result.written.enum_subset_members > 0);
+
+  const w_seed_frontend_type *full =
+      &value->types[value->aliases[0].type_index];
+  const w_seed_frontend_type *work =
+      &value->types[value->aliases[1].type_index];
+  CHECK(full->kind == W_SEED_FRONTEND_TYPE_ENUM);
+  CHECK(full->enum_base_index == 0 &&
+        full->first_subset_member == W_SEED_FRONTEND_NONE &&
+        full->subset_member_count == 0);
+  CHECK(work->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET);
+  CHECK(work->enum_base_index == 0 && work->subset_member_count == 2);
+  CHECK(work->first_subset_member == 0);
+  size_t stage_identifier_count = 0;
+  size_t subset_case_count = 0;
+  for (size_t expression_index = 0;
+       expression_index < value->result.written.expressions;
+       expression_index += 1) {
+    const w_seed_frontend_expression *expression =
+        &value->expressions[expression_index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        expression->spelling.length == 5 &&
+        memcmp(expression->spelling.data, "stage", 5) == 0) {
+      CHECK(expression->inferred_type != W_SEED_FRONTEND_NONE);
+      CHECK(expression->inferred_type < value->result.written.types);
+      CHECK(value->types[expression->inferred_type].kind ==
+            W_SEED_FRONTEND_TYPE_ENUM_SUBSET);
+      CHECK(value->types[expression->inferred_type].enum_base_index == 0);
+      CHECK(expression->inferred_type == value->aliases[1].type_index);
+      stage_identifier_count += 1;
+    }
+    if (expression->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE) {
+      CHECK(expression->inferred_type != W_SEED_FRONTEND_NONE);
+      CHECK(expression->inferred_type < value->result.written.types);
+      CHECK(value->types[expression->inferred_type].kind ==
+            W_SEED_FRONTEND_TYPE_ENUM_SUBSET);
+      CHECK(expression->inferred_type == value->aliases[1].type_index);
+      subset_case_count += 1;
+    }
+  }
+  CHECK(stage_identifier_count >= 4);
+  CHECK(subset_case_count >= 1);
+  for (size_t type_index = 0; type_index < value->result.written.types;
+       type_index += 1) {
+    const w_seed_frontend_type *subset = &value->types[type_index];
+    if (subset->subset_member_count == 0) continue;
+    CHECK((size_t)subset->first_subset_member +
+              subset->subset_member_count <=
+          value->result.written.enum_subset_members);
+    uint32_t previous_case = W_SEED_FRONTEND_NONE;
+    for (uint32_t member_offset = 0; member_offset < subset->subset_member_count;
+         member_offset += 1) {
+      const w_seed_frontend_enum_subset_member *member =
+          &value->enum_subset_members[subset->first_subset_member +
+                                      member_offset];
+      CHECK(member->owner_type == type_index);
+      CHECK(member->enum_base_index == 0);
+      CHECK(member->enum_case_index < 4);
+      CHECK(previous_case == W_SEED_FRONTEND_NONE ||
+            previous_case < member->enum_case_index);
+      previous_case = member->enum_case_index;
+    }
+  }
+  CHECK(receipt_contains(value, "enum-subset-member=2|enum=0|case=2",
+                         strlen("enum-subset-member=2|enum=0|case=2")));
+
+  w_seed_frontend_counts measured_counts;
+  w_seed_frontend_result measured_result;
+  CHECK(w_seed_frontend_measure(&value->input, &measured_counts,
+                                &measured_result) == W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&measured_counts, &value->result.required));
+  CHECK(measured_counts.enum_subset_members ==
+        value->result.written.enum_subset_members);
+
+  fixture *repeat = &fixture_b;
+  CHECK(fixture_run(repeat, source));
+  CHECK(repeat->result.status == value->result.status);
+  CHECK(counts_equal(&repeat->result.written, &value->result.written));
+  CHECK(repeat->result.receipt_bytes == value->result.receipt_bytes);
+  CHECK(memcmp(repeat->receipt, value->receipt, value->result.receipt_bytes) ==
+        0);
+
+  CHECK(fixture_run(
+      value,
+      "enum Stage { accepted preparing }\n"
+      "enum Other { accepted }\n"
+      "alias WorkStage = Stage<[.preparing]>\n"
+      "fn wrong(): WorkStage { return Other.accepted }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(value, "W-TYPE-0121"));
+  CHECK(fixture_run(value,
+                    "enum Generic<T> { value(T) }\n"
+                    "alias Bad = Generic<[.value]>\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE));
+  CHECK(fixture_run(value,
+                    "enum E { a b }\n"
+                    "alias Same = E<[.a]>\n"
+                    "alias Same = E<[.b]>\n"
+                    "fn ambiguous(): Same { return .a }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(has_fact(value, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL));
+  for (size_t expression_index = 0;
+       expression_index < value->result.written.expressions;
+       expression_index += 1) {
+    CHECK(value->expressions[expression_index].kind !=
+          W_SEED_FRONTEND_EXPR_ENUM_CASE);
+  }
+
+  /* A case-set member array is an explicit capacity surface.  Exhausting it
+   * must stop before emit and leave every caller-owned buffer at its sentinel. */
+  static char many_source[8192];
+  size_t many_length = 0;
+  CHECK(append_many_source(many_source, sizeof(many_source), &many_length,
+                           "enum Many { "));
+  for (size_t index = 0; index < 66; index += 1)
+    CHECK(append_many_piece(many_source, sizeof(many_source), &many_length,
+                            index, "c", " "));
+  CHECK(append_many_source(many_source, sizeof(many_source), &many_length,
+                           "}\n"
+                           "alias ManySubset = Many<["));
+  for (size_t index = 0; index < 65; index += 1) {
+    const char *separator = index + 1u < 65u ? ", " : "";
+    CHECK(append_many_piece(many_source, sizeof(many_source), &many_length,
+                            index, ".c", separator));
+  }
+  CHECK(append_many_source(many_source, sizeof(many_source), &many_length,
+                           "]>\n"));
+  fixture *capacity = &fixture_capacity;
+  CHECK(fixture_parse(capacity, many_source));
+  const uint8_t sentinel = 0xa5u;
+  fixture_fill_output(capacity, sentinel);
+  capacity->output.enum_subset_member_capacity = 0;
+  capacity->output.enum_subset_members = NULL;
+  (void)w_seed_frontend_run(&capacity->input, &capacity->output,
+                            &capacity->result);
+  CHECK(capacity->result.status == W_SEED_FRONTEND_CAPACITY);
+  CHECK(capacity->result.required.enum_subset_members == 65);
+  CHECK(fixture_output_is(capacity, sentinel, true));
+  return true;
 }
 
 static bool test_enum_values_constructors_and_switches(void) {
@@ -973,6 +1142,41 @@ static bool test_graph_facts_and_external_stub(void) {
   CHECK(external->result.status == W_SEED_FRONTEND_OK);
   CHECK(external->result.written.diagnostics == 0);
   CHECK(external->result.written.arguments == 1);
+
+  /* External stubs carry only the nominal alias spelling.  The local alias
+   * declaration must still recover its enum identity and case-set at the
+   * call boundary. */
+  CHECK(fixture_parse(
+      external,
+      "import { externalSubset } from extdep\n"
+      "enum Stage { accepted preparing serving }\n"
+      "alias WorkStage = Stage<[.preparing, .serving]>\n"
+      "fn good(stage: WorkStage): WorkStage { return externalSubset(stage) }\n"
+      "fn bad(): WorkStage { return externalSubset(.accepted) }\n"));
+  external->external_parameters[0] = (w_seed_frontend_external_parameter){
+      .name = (w_seed_frontend_text){"stage", 5},
+      .type = (w_seed_frontend_text){"WorkStage", 9},
+      .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY,
+  };
+  external->external_symbols[0] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"externalSubset", 14},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .exported = true,
+      .parameters = external->external_parameters,
+      .parameter_count = 1,
+      .return_type = (w_seed_frontend_text){"WorkStage", 9},
+  };
+  external->external_modules[0] = (w_seed_frontend_external_module){
+      .module_id = (w_seed_frontend_text){"extdep", 6},
+      .symbols = external->external_symbols,
+      .symbol_count = 1,
+  };
+  external->input.external_modules = external->external_modules;
+  external->input.external_module_count = 1;
+  (void)w_seed_frontend_run(&external->input, &external->output,
+                            &external->result);
+  CHECK(external->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(external, "W-TYPE-0121"));
   return true;
 }
 
@@ -1081,6 +1285,7 @@ static bool test_barrier_and_capacity(void) {
 int main(void) {
   if (!test_declarations_and_determinism()) return 1;
   if (!test_enums_and_payloads()) return 1;
+  if (!test_enum_subsets()) return 1;
   if (!test_enum_values_constructors_and_switches()) return 1;
   if (!test_semantic_diagnostics()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;
