@@ -70,6 +70,7 @@ typedef struct {
   size_t switch_arms;
   size_t enum_subset_members;
   size_t enum_membership_cases;
+  size_t generic_parameters;
 } frontend_measure;
 
 typedef struct {
@@ -105,6 +106,7 @@ typedef struct {
   bool current_const_body_supported;
   bool current_const_root_emitted;
   uint32_t builtin_usize_type_index;
+  bool normalizing_generic_domain;
 } frontend_context;
 
 static bool normalize_document(frontend_context *context);
@@ -178,6 +180,15 @@ static bool context_append_diagnostic(
     w_seed_span primary);
 static bool const_record_failure(frontend_context *context, w_seed_span span,
                                  w_seed_frontend_text detail);
+static bool context_append_record(frontend_context *context, size_t ordinal,
+                                  const void *value, size_t value_size,
+                                  void *array, size_t capacity,
+                                  uint32_t *index);
+static bool module_id_equal(w_seed_frontend_text left,
+                            w_seed_frontend_text right);
+static bool normalize_struct_generic_parameters(
+    frontend_context *context, uint32_t struct_node, uint32_t struct_index,
+    uint32_t first_generic_parameter, uint32_t *generic_parameter_count);
 
 static w_seed_span empty_span(size_t offset) {
   const w_seed_span span = {offset, offset};
@@ -403,6 +414,42 @@ static bool receipt_size_enum_membership_case(
          receipt_size_size(context, value->enum_case_index) &&
          receipt_size_literal(context, "|span=") &&
          receipt_size_span(context, value->source_span) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_generic_parameter(
+    frontend_context *context,
+    const w_seed_frontend_generic_parameter *value) {
+  return receipt_size_literal(context, "generic-parameter=") &&
+         receipt_size_size(context, value->module_index) &&
+         receipt_size_literal(context, "|owner-kind=") &&
+         receipt_size_size(context, (size_t)value->owner_kind) &&
+         receipt_size_literal(context, "|owner=") &&
+         receipt_size_size(context, value->owner_index) &&
+         receipt_size_literal(context, "|ordinal=") &&
+         receipt_size_size(context, value->ordinal) &&
+         receipt_size_literal(context, "|external-label=") &&
+         receipt_size_text(context, value->external_label) &&
+         receipt_size_literal(context, "|name=") &&
+         receipt_size_text(context, value->internal_name) &&
+         receipt_size_literal(context, "|label=") &&
+         receipt_size_size(context, (size_t)value->label_kind) &&
+         receipt_size_literal(context, "|kind=") &&
+         receipt_size_size(context, (size_t)value->kind) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "|domain=") &&
+         receipt_size_size(context, value->domain_type) &&
+         receipt_size_literal(context, "|refinement=") &&
+         receipt_size_size(context, (size_t)value->refinement_kind) &&
+         receipt_size_literal(context, "|predicate=") &&
+         receipt_size_size(context, value->predicate_function_index) &&
+         receipt_size_literal(context, "|predicate-span=") &&
+         receipt_size_span(context, value->predicate_span) &&
+         receipt_size_literal(context, "|predicate-function-span=") &&
+         receipt_size_span(context, value->predicate_function_span) &&
+         receipt_size_literal(context, "|subject=") &&
+         receipt_size_size(context, (size_t)value->subject_kind) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -1290,6 +1337,28 @@ static size_t count_root_children(const w_seed_frontend_document *doc,
   return count_direct_kind(doc, doc->parse.root, kind);
 }
 
+static size_t count_struct_generic_parameters(
+    const w_seed_frontend_document *doc) {
+  if (doc == NULL || doc->parse.root >= doc->parse.node_count) return 0;
+  size_t count = 0;
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0;
+  while (next_child(doc, &cursor, &child) &&
+         guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_STRUCT) {
+      const uint32_t generic_node =
+          first_direct_kind(doc, child, W_SEED_CST_GENERIC_PARAMETERS);
+      if (generic_node != W_SEED_CST_NONE) {
+        count += count_direct_kind(doc, generic_node,
+                                   W_SEED_CST_GENERIC_PARAMETER);
+      }
+    }
+    guard += 1;
+  }
+  return count;
+}
+
 static bool kind_is_statement(w_seed_cst_kind kind) {
   return kind == W_SEED_CST_LET_STATEMENT ||
          kind == W_SEED_CST_VAR_STATEMENT ||
@@ -1328,6 +1397,7 @@ static bool measure_document(const w_seed_frontend_document *doc,
   measure->modules += 1;
   measure->imports += count_root_children(doc, W_SEED_CST_IMPORT);
   measure->structs += count_root_children(doc, W_SEED_CST_STRUCT);
+  measure->generic_parameters += count_struct_generic_parameters(doc);
   measure->enums += count_root_children(doc, W_SEED_CST_ENUM);
   measure->type_declarations +=
       count_root_children(doc, W_SEED_CST_TYPE_DECLARATION);
@@ -1427,7 +1497,8 @@ static bool measure_input(const w_seed_frontend_input *input,
   }
   /* A diagnostic upper bound is deterministic and caller-independent. The
    * semantic pass lowers it to the actual count before output is published. */
-  measure->diagnostics = measure->expressions + measure->facts + 8u;
+  measure->diagnostics = measure->expressions + measure->facts +
+                         measure->generic_parameters + 8u;
   return true;
 }
 
@@ -1456,6 +1527,7 @@ static void counts_from_measure(const frontend_measure *measure,
   counts->switch_arms = measure->switch_arms;
   counts->enum_subset_members = measure->enum_subset_members;
   counts->enum_membership_cases = measure->enum_membership_cases;
+  counts->generic_parameters = measure->generic_parameters;
 }
 
 w_seed_frontend_status w_seed_frontend_measure(
@@ -2221,6 +2293,24 @@ static bool context_append_struct(frontend_context *context,
   return true;
 }
 
+static bool context_append_generic_parameter(
+    frontend_context *context, w_seed_frontend_generic_parameter value,
+    uint32_t *index) {
+  if (context == NULL || index == NULL) return false;
+  const size_t ordinal = context->count.generic_parameters;
+  context->count.generic_parameters += 1;
+  if (!add_u32(ordinal, index)) return false;
+  if (!context->emit && !receipt_size_generic_parameter(context, &value))
+    return false;
+  return context_append_record(
+      context, ordinal, &value, sizeof(value),
+      context->emit && context->output != NULL
+          ? context->output->generic_parameters
+          : NULL,
+      context->output == NULL ? 0 : context->output->generic_parameter_capacity,
+      index);
+}
+
 static bool context_append_enum(frontend_context *context,
                                 w_seed_frontend_enum value,
                                 uint32_t *index) {
@@ -2718,8 +2808,25 @@ static bool normalize_type_tree_depth(frontend_context *context,
     return false;
   }
   if (depth >= W_SEED_FRONTEND_MAX_NESTING) return false;
-  w_seed_frontend_type value =
-      type_record_from_span(doc, doc->nodes[type_node].raw_span);
+  w_seed_span type_span = doc->nodes[type_node].raw_span;
+  if (context->normalizing_generic_domain) {
+    /* A generic domain keeps the base spelling separate from a refinement.
+     * For StaticList<ServiceStage>, retain the first type envelope and stop
+     * before the following predicate envelope. */
+    const uint32_t first_envelope =
+        first_direct_kind(doc, type_node, W_SEED_CST_CONTRACT_ENVELOPE);
+    if (first_envelope != W_SEED_CST_NONE) {
+      const bool envelope_has_type =
+          first_direct_kind(doc, first_envelope, W_SEED_CST_TYPE) !=
+          W_SEED_CST_NONE;
+      if (envelope_has_type) {
+        type_span.end_byte = doc->nodes[first_envelope].raw_span.end_byte;
+      } else {
+        type_span.end_byte = doc->nodes[first_envelope].raw_span.start_byte;
+      }
+    }
+  }
+  w_seed_frontend_type value = type_record_from_span(doc, type_span);
   if (value.kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
       enum_declaration_name_count(context, value.spelling) == 1u) {
     uint32_t enum_index = W_SEED_FRONTEND_NONE;
@@ -2772,6 +2879,7 @@ static bool normalize_type_tree_depth(frontend_context *context,
   bool saw_nested_type = false;
   while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
     if (doc->nodes[child].kind == W_SEED_CST_CONTRACT_ENVELOPE &&
+        !context->normalizing_generic_domain &&
         !has_subset_shape && value.kind != W_SEED_FRONTEND_TYPE_STATIC_LIST &&
         value.kind != W_SEED_FRONTEND_TYPE_RANGE) {
       (void)context_append_fact(context, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE,
@@ -2927,6 +3035,457 @@ static bool normalize_import(frontend_context *context, uint32_t node_index,
   return true;
 }
 
+static bool generic_parameter_label_omitted(
+    const w_seed_frontend_document *doc, uint32_t parameter_node) {
+  if (doc == NULL || parameter_node >= doc->parse.node_count) return false;
+  const uint32_t first_word = first_direct_kind(doc, parameter_node,
+                                                 W_SEED_CST_WORD);
+  if (first_word == W_SEED_CST_NONE) return false;
+  return text_equal(text_from_span(doc, doc->nodes[first_word].raw_span), "_");
+}
+
+static w_seed_frontend_text generic_parameter_word_at(
+    const w_seed_frontend_document *doc, uint32_t parameter_node,
+    size_t ordinal) {
+  if (doc == NULL || parameter_node >= doc->parse.node_count)
+    return (w_seed_frontend_text){NULL, 0};
+  uint32_t cursor = doc->nodes[parameter_node].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0;
+  size_t word_ordinal = 0;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_WORD) {
+      if (word_ordinal == ordinal) {
+        return text_from_span(doc, doc->nodes[child].raw_span);
+      }
+      word_ordinal += 1u;
+    }
+    guard += 1;
+  }
+  return (w_seed_frontend_text){NULL, 0};
+}
+
+static w_seed_frontend_text generic_parameter_name(
+    const w_seed_frontend_document *doc, uint32_t parameter_node) {
+  const w_seed_frontend_text first =
+      generic_parameter_word_at(doc, parameter_node, 0u);
+  const bool omitted = text_equal(first, "_");
+  const w_seed_frontend_text candidate =
+      generic_parameter_word_at(doc, parameter_node, omitted ? 2u : 1u);
+  return candidate.length != 0u
+             ? candidate
+             : (omitted ? generic_parameter_word_at(doc, parameter_node, 1u)
+                        : first);
+}
+
+static uint32_t generic_parameter_type_node(
+    const w_seed_frontend_document *doc, uint32_t parameter_node) {
+  return first_direct_kind(doc, parameter_node, W_SEED_CST_TYPE);
+}
+
+static w_seed_frontend_text generic_parameter_external_label(
+    const w_seed_frontend_document *doc, uint32_t parameter_node) {
+  if (generic_parameter_label_omitted(doc, parameter_node) ||
+      generic_parameter_type_node(doc, parameter_node) == W_SEED_CST_NONE) {
+    return (w_seed_frontend_text){NULL, 0};
+  }
+  return generic_parameter_word_at(doc, parameter_node, 0u);
+}
+
+static bool contract_envelope_has_type(const w_seed_frontend_document *doc,
+                                       uint32_t envelope_node) {
+  return doc != NULL && envelope_node != W_SEED_CST_NONE &&
+         first_direct_kind(doc, envelope_node, W_SEED_CST_TYPE) !=
+             W_SEED_CST_NONE;
+}
+
+static w_seed_span generic_base_type_span(
+    const w_seed_frontend_document *doc, uint32_t type_node) {
+  if (doc == NULL || type_node == W_SEED_CST_NONE ||
+      type_node >= doc->parse.node_count) {
+    return empty_span(0);
+  }
+  w_seed_span span = doc->nodes[type_node].raw_span;
+  const uint32_t first_envelope =
+      first_direct_kind(doc, type_node, W_SEED_CST_CONTRACT_ENVELOPE);
+  if (first_envelope != W_SEED_CST_NONE) {
+    span.end_byte = contract_envelope_has_type(doc, first_envelope)
+                        ? doc->nodes[first_envelope].raw_span.end_byte
+                        : doc->nodes[first_envelope].raw_span.start_byte;
+  }
+  return trim_span(doc, span);
+}
+
+static uint32_t generic_refinement_envelope(
+    const w_seed_frontend_document *doc, uint32_t type_node) {
+  if (doc == NULL || type_node == W_SEED_CST_NONE ||
+      type_node >= doc->parse.node_count)
+    return W_SEED_CST_NONE;
+  uint32_t cursor = doc->nodes[type_node].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_CONTRACT_ENVELOPE &&
+        !contract_envelope_has_type(doc, child)) {
+      return child;
+    }
+    guard += 1;
+  }
+  return W_SEED_CST_NONE;
+}
+
+static w_seed_span generic_predicate_span(
+    const w_seed_frontend_document *doc, uint32_t envelope_node) {
+  if (doc == NULL || envelope_node == W_SEED_CST_NONE) return empty_span(0);
+  const uint32_t expression =
+      first_direct_kind(doc, envelope_node, W_SEED_CST_EXPRESSION);
+  if (expression != W_SEED_CST_NONE) return doc->nodes[expression].raw_span;
+  const uint32_t parentheses =
+      first_direct_kind(doc, envelope_node, W_SEED_CST_PARENTHESES);
+  if (parentheses != W_SEED_CST_NONE) return doc->nodes[parentheses].raw_span;
+  return doc->nodes[envelope_node].raw_span;
+}
+
+static w_seed_frontend_text generic_predicate_call_name(
+    const w_seed_frontend_document *doc, w_seed_span span) {
+  if (doc == NULL) return (w_seed_frontend_text){NULL, 0};
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token tokens[16];
+  size_t token_count = 0;
+  frontend_token token;
+  while (cursor_take(&cursor, &token)) {
+    if (token_count >= sizeof(tokens) / sizeof(tokens[0])) {
+      return (w_seed_frontend_text){NULL, 0};
+    }
+    tokens[token_count] = token;
+    token_count += 1u;
+  }
+  while (token_count >= 2u && token_text(doc, &tokens[0], "(") &&
+         token_text(doc, &tokens[token_count - 1u], ")")) {
+    (void)memmove(tokens, tokens + 1u,
+                  (token_count - 2u) * sizeof(tokens[0]));
+    token_count -= 2u;
+  }
+  if (token_count != 5u || tokens[0].kind != W_SEED_CST_WORD ||
+      !token_text(doc, &tokens[1], "(") ||
+      !token_text(doc, &tokens[2], ".") || tokens[3].kind != W_SEED_CST_WORD ||
+      !token_text(doc, &tokens[3], "member") ||
+      !token_text(doc, &tokens[4], ")")) {
+    return (w_seed_frontend_text){NULL, 0};
+  }
+  return text_from_span(doc, tokens[0].span);
+}
+
+static bool generic_predicate_mentions_member(
+    const w_seed_frontend_document *doc, w_seed_span span) {
+  if (doc == NULL) return false;
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token token;
+  while (cursor_take(&cursor, &token)) {
+    if (!token_text(doc, &token, ".")) continue;
+    frontend_token member;
+    if (cursor_take(&cursor, &member) &&
+        token_text(doc, &member, "member")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool function_declaration_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    uint32_t *function_index, const w_seed_frontend_document **owner_doc,
+    uint32_t *function_node) {
+  if (function_index != NULL) *function_index = W_SEED_FRONTEND_NONE;
+  if (owner_doc != NULL) *owner_doc = NULL;
+  if (function_node != NULL) *function_node = W_SEED_CST_NONE;
+  if (context == NULL || name.length == 0) return false;
+  const w_seed_frontend_document *current = context_document(context);
+  if (current == NULL) return false;
+  size_t ordinal = 0;
+  bool found = false;
+  for (size_t document_index = 0;
+       document_index < context->input.document_count; document_index += 1) {
+    const w_seed_frontend_document *doc =
+        &context->input.documents[document_index];
+    uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t guard = 0;
+    while (next_child(doc, &cursor, &child) &&
+           guard < doc->parse.node_count) {
+      if (doc->nodes[child].kind == W_SEED_CST_FUNCTION) {
+        const w_seed_frontend_text candidate =
+            name_after_keyword(doc, doc->nodes[child].raw_span, "fn");
+        if (module_id_equal(document_module_name(doc),
+                            document_module_name(current)) &&
+            text_equal_text(candidate, name)) {
+          if (found) return false;
+          found = true;
+          if (!add_u32(ordinal, function_index)) return false;
+          if (owner_doc != NULL) *owner_doc = doc;
+          if (function_node != NULL) *function_node = child;
+        }
+        ordinal += 1;
+      }
+      guard += 1;
+    }
+  }
+  return found;
+}
+
+static bool generic_value_domain_supported(
+    const frontend_context *context, const w_seed_frontend_document *doc,
+    uint32_t type_node, frontend_simple_type *simple_out) {
+  if (simple_out != NULL) *simple_out = simple_type_unknown();
+  if (context == NULL || doc == NULL || type_node == W_SEED_CST_NONE)
+    return false;
+  const frontend_simple_type simple =
+      contextual_type_from_span(context, doc, generic_base_type_span(doc,
+                                                                       type_node));
+  if (simple_out != NULL) *simple_out = simple;
+  if (simple.kind == W_SEED_FRONTEND_TYPE_ENUM) return true;
+  if (simple.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
+      simple.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+      simple.kind == W_SEED_FRONTEND_TYPE_STRING ||
+      simple.kind == W_SEED_FRONTEND_TYPE_BYTES) {
+    return true;
+  }
+  if (simple.kind != W_SEED_FRONTEND_TYPE_STATIC_LIST) return false;
+  const uint32_t envelope =
+      first_direct_kind(doc, type_node, W_SEED_CST_CONTRACT_ENVELOPE);
+  if (envelope == W_SEED_CST_NONE ||
+      !contract_envelope_has_type(doc, envelope))
+    return false;
+  const uint32_t element_node =
+      first_direct_kind(doc, envelope, W_SEED_CST_TYPE);
+  if (element_node == W_SEED_CST_NONE) return false;
+  const frontend_simple_type element = contextual_type_from_span(
+      context, doc, doc->nodes[element_node].raw_span);
+  return element.kind == W_SEED_FRONTEND_TYPE_ENUM ||
+         element.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
+         element.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+         element.kind == W_SEED_FRONTEND_TYPE_STRING ||
+         element.kind == W_SEED_FRONTEND_TYPE_BYTES;
+}
+
+static bool generic_predicate_signature_valid(
+    frontend_context *context, const w_seed_frontend_document *domain_doc,
+    uint32_t domain_type_node, const w_seed_frontend_document *predicate_doc,
+    uint32_t predicate_node, bool *returns_bool) {
+  if (returns_bool != NULL) *returns_bool = false;
+  if (context == NULL || domain_doc == NULL || predicate_doc == NULL ||
+      predicate_node == W_SEED_CST_NONE)
+    return false;
+  const uint32_t parameter_list =
+      first_direct_kind(predicate_doc, predicate_node,
+                        W_SEED_CST_PARAMETER_LIST);
+  const size_t parameter_count =
+      parameter_list == W_SEED_CST_NONE
+          ? 0u
+          : count_direct_kind(predicate_doc, parameter_list,
+                              W_SEED_CST_PARAMETER);
+  const uint32_t return_node =
+      first_direct_kind(predicate_doc, predicate_node, W_SEED_CST_RETURN_TYPE);
+  if (return_node == W_SEED_CST_NONE) return false;
+  const uint32_t return_type = direct_type_index(predicate_doc, return_node);
+  if (return_type == W_SEED_CST_NONE) return false;
+  const frontend_simple_type returned = contextual_type_from_span(
+      context, predicate_doc, predicate_doc->nodes[return_type].raw_span);
+  if (returns_bool != NULL) *returns_bool = type_is_bool(returned);
+  if (parameter_count != 1u) return false;
+  const uint32_t parameter =
+      parameter_list == W_SEED_CST_NONE
+          ? W_SEED_CST_NONE
+          : first_direct_kind(predicate_doc, parameter_list,
+                              W_SEED_CST_PARAMETER);
+  const uint32_t parameter_type =
+      parameter == W_SEED_CST_NONE
+          ? W_SEED_CST_NONE
+          : direct_type_index(predicate_doc, parameter);
+  if (parameter_type == W_SEED_CST_NONE)
+    return false;
+  const frontend_simple_type expected = contextual_type_from_span(
+      context, domain_doc, generic_base_type_span(domain_doc, domain_type_node));
+  const frontend_simple_type actual = contextual_type_from_span(
+      context, predicate_doc, predicate_doc->nodes[parameter_type].raw_span);
+  return frontend_type_equal(context, expected, actual);
+}
+
+static bool normalize_struct_generic_parameters(
+    frontend_context *context, uint32_t struct_node, uint32_t struct_index,
+    uint32_t first_generic_parameter, uint32_t *generic_parameter_count) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (generic_parameter_count != NULL) *generic_parameter_count = 0;
+  if (context == NULL || doc == NULL || struct_node >= doc->parse.node_count)
+    return false;
+  const uint32_t generic_node =
+      first_direct_kind(doc, struct_node, W_SEED_CST_GENERIC_PARAMETERS);
+  if (generic_node == W_SEED_CST_NONE) return true;
+  uint32_t cursor = doc->nodes[generic_node].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  uint32_t ordinal = 0;
+  size_t guard = 0;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind != W_SEED_CST_GENERIC_PARAMETER) {
+      guard += 1;
+      continue;
+    }
+    w_seed_frontend_generic_parameter value;
+    (void)memset(&value, 0, sizeof(value));
+    value.module_index = (uint32_t)context->module_index;
+    value.owner_kind = W_SEED_FRONTEND_DECL_STRUCT;
+    value.owner_index = struct_index;
+    value.ordinal = ordinal;
+    value.external_label = generic_parameter_external_label(doc, child);
+    value.internal_name = generic_parameter_name(doc, child);
+    value.label_kind = generic_parameter_label_omitted(doc, child)
+                           ? W_SEED_FRONTEND_LABEL_OPTIONAL
+                           : W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
+    value.kind = W_SEED_FRONTEND_GENERIC_KIND_TYPE;
+    value.span = doc->nodes[child].raw_span;
+    value.domain_type = W_SEED_FRONTEND_NONE;
+    value.refinement_kind = W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE;
+    value.predicate_function_index = W_SEED_FRONTEND_NONE;
+    value.predicate_span = empty_span(value.span.start_byte);
+    value.predicate_function_span = empty_span(value.span.start_byte);
+    value.subject_kind = W_SEED_FRONTEND_GENERIC_SUBJECT_NONE;
+
+    const uint32_t type_node = generic_parameter_type_node(doc, child);
+    if (type_node != W_SEED_CST_NONE) {
+      value.label_kind = generic_parameter_label_omitted(doc, child)
+                             ? W_SEED_FRONTEND_LABEL_OPTIONAL
+                             : generic_parameter_word_at(doc, child, 1u)
+                                           .length != 0u
+                                   ? W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED
+                                   : W_SEED_FRONTEND_LABEL_NAMED_REQUIRED;
+      frontend_simple_type domain_simple = simple_type_unknown();
+      const bool domain_supported = generic_value_domain_supported(
+          context, doc, type_node, &domain_simple);
+      value.kind = domain_supported
+                       ? W_SEED_FRONTEND_GENERIC_KIND_VALUE
+                       : W_SEED_FRONTEND_GENERIC_KIND_INVALID;
+      const bool previous_generic_domain = context->normalizing_generic_domain;
+      context->normalizing_generic_domain = true;
+      const bool normalized_domain =
+          normalize_type_tree(context, type_node, &value.domain_type);
+      context->normalizing_generic_domain = previous_generic_domain;
+      if (!normalized_domain) return false;
+      const uint32_t refinement = generic_refinement_envelope(doc, type_node);
+      if (refinement != W_SEED_CST_NONE) {
+        value.predicate_span = generic_predicate_span(doc, refinement);
+        const w_seed_frontend_text predicate_name =
+            generic_predicate_call_name(doc, value.predicate_span);
+        const w_seed_frontend_document *predicate_doc = NULL;
+        uint32_t predicate_node = W_SEED_CST_NONE;
+        if (predicate_name.length == 0u) {
+          /* This schema publishes only a direct callable predicate.  Inline
+           * refinements and compound/nested calls remain unsupported. */
+          value.refinement_kind =
+              W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID;
+          value.subject_kind = generic_predicate_mentions_member(
+                                   doc, value.predicate_span)
+                                   ? W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID
+                                   : W_SEED_FRONTEND_GENERIC_SUBJECT_NONE;
+          (void)context_append_fact(
+              context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+              value.predicate_span,
+              text_from_span(doc, value.predicate_span));
+        } else if (function_declaration_for_name(context, predicate_name,
+                                           &value.predicate_function_index,
+                                           &predicate_doc, &predicate_node)) {
+          value.predicate_function_span =
+              predicate_doc->nodes[predicate_node].raw_span;
+          const bool is_const = function_prefix_has_keyword(
+              predicate_doc, value.predicate_function_span, "const");
+          bool returns_bool = false;
+          const bool signature_compatible = generic_predicate_signature_valid(
+              context, doc, type_node, predicate_doc, predicate_node,
+              &returns_bool);
+          if (!returns_bool) {
+            value.refinement_kind =
+                W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID;
+            value.subject_kind = W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID;
+            (void)context_append_diagnostic(
+                context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE,
+                "W-CONTRACT-0003", predicate_name,
+                (w_seed_frontend_text){"Bool", 4}, value.internal_name,
+                (w_seed_frontend_text){NULL, 0},
+                (w_seed_frontend_text){"predicate", 9},
+                value.predicate_span);
+          } else if (!is_const) {
+            value.refinement_kind =
+                W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID;
+            value.subject_kind = W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID;
+            (void)context_append_diagnostic(
+                context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
+                "W-CONST-0001", predicate_name,
+                (w_seed_frontend_text){"const-safe", 10}, value.internal_name,
+                (w_seed_frontend_text){NULL, 0},
+                (w_seed_frontend_text){"predicate", 9},
+                value.predicate_span);
+          } else if (!signature_compatible) {
+            value.refinement_kind =
+                W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID;
+            value.subject_kind = W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID;
+            (void)context_append_diagnostic(
+                context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE,
+                "W-CONTRACT-0002", predicate_name,
+                (w_seed_frontend_text){"one compatible argument", 23},
+                value.internal_name, (w_seed_frontend_text){NULL, 0},
+                (w_seed_frontend_text){"predicate", 9},
+                value.predicate_span);
+          } else {
+            value.refinement_kind =
+                W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE;
+            value.subject_kind = W_SEED_FRONTEND_GENERIC_SUBJECT_MEMBER;
+          }
+        } else {
+          value.predicate_function_index = W_SEED_FRONTEND_NONE;
+          value.refinement_kind = W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID;
+          value.subject_kind = W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID;
+          (void)context_append_fact(
+              context, W_SEED_FRONTEND_FACT_UNRESOLVED_LOCAL_SYMBOL,
+              value.predicate_span, predicate_name);
+        }
+      }
+      if (!domain_supported) {
+        (void)context_append_diagnostic(
+            context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE, "W-GENERIC-0001",
+            value.internal_name,
+            text_from_span(doc, generic_base_type_span(doc, type_node)),
+            value.internal_name, (w_seed_frontend_text){NULL, 0},
+            (w_seed_frontend_text){"const-representable domain", 26},
+            doc->nodes[type_node].raw_span);
+      }
+    } else if (value.internal_name.length == 0) {
+      value.kind = W_SEED_FRONTEND_GENERIC_KIND_INVALID;
+      value.refinement_kind = W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID;
+      (void)context_append_fact(
+          context, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE,
+          doc->nodes[child].raw_span, text_from_span(doc, doc->nodes[child].raw_span));
+    }
+    const size_t prior_count = generic_parameter_count == NULL
+                                   ? 0u
+                                   : (size_t)*generic_parameter_count;
+    size_t expected_size = 0;
+    uint32_t expected_index = W_SEED_FRONTEND_NONE;
+    if (!add_size((size_t)first_generic_parameter, prior_count,
+                  &expected_size) ||
+        !add_u32(expected_size, &expected_index) ||
+        context->count.generic_parameters != expected_size) {
+      return false;
+    }
+    uint32_t generic_index = W_SEED_FRONTEND_NONE;
+    if (!context_append_generic_parameter(context, value, &generic_index) ||
+        generic_index != expected_index)
+      return false;
+    if (generic_parameter_count != NULL) *generic_parameter_count += 1u;
+    ordinal += 1u;
+    guard += 1;
+  }
+  return true;
+}
+
 static bool normalize_struct(frontend_context *context, uint32_t node_index,
                              uint32_t *struct_index) {
   const w_seed_frontend_document *doc = context_document(context);
@@ -2938,6 +3497,8 @@ static bool normalize_struct(frontend_context *context, uint32_t node_index,
   value.name = name_after_keyword(doc, node->raw_span, "struct");
   value.exported = span_has_keyword(doc, node->raw_span, "export");
   value.span = node->raw_span;
+  value.first_generic_parameter = (uint32_t)context->count.generic_parameters;
+  value.generic_parameter_count = 0;
   value.first_field = (uint32_t)context->count.fields;
   value.field_count = (uint32_t)count_direct_kind(doc, node_index,
                                                    W_SEED_CST_FIELD);
@@ -2947,6 +3508,16 @@ static bool normalize_struct(frontend_context *context, uint32_t node_index,
                         value.name, value.exported, value.span,
                         W_SEED_FRONTEND_NONE, &symbol_index)) {
     return false;
+  }
+  if (!normalize_struct_generic_parameters(
+          context, node_index, *struct_index,
+          value.first_generic_parameter, &value.generic_parameter_count)) {
+    return false;
+  }
+  if (context->emit && context->output != NULL &&
+      *struct_index < context->output->struct_capacity) {
+    context->output->structs[*struct_index].generic_parameter_count =
+        value.generic_parameter_count;
   }
   uint32_t child_cursor = node->first_child;
   uint32_t child = W_SEED_CST_NONE;
@@ -7171,6 +7742,42 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_span(writer, value->source_span);
       receipt_write_literal(writer, "\n");
     }
+    for (size_t index = 0; index < context->count.generic_parameters;
+         index += 1) {
+      const w_seed_frontend_generic_parameter *value =
+          &output->generic_parameters[index];
+      receipt_write_literal(writer, "generic-parameter=");
+      receipt_write_size(writer, value->module_index);
+      receipt_write_literal(writer, "|owner-kind=");
+      receipt_write_size(writer, (size_t)value->owner_kind);
+      receipt_write_literal(writer, "|owner=");
+      receipt_write_size(writer, value->owner_index);
+      receipt_write_literal(writer, "|ordinal=");
+      receipt_write_size(writer, value->ordinal);
+      receipt_write_literal(writer, "|external-label=");
+      receipt_write_text(writer, value->external_label);
+      receipt_write_literal(writer, "|name=");
+      receipt_write_text(writer, value->internal_name);
+      receipt_write_literal(writer, "|label=");
+      receipt_write_size(writer, (size_t)value->label_kind);
+      receipt_write_literal(writer, "|kind=");
+      receipt_write_size(writer, (size_t)value->kind);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, value->span);
+      receipt_write_literal(writer, "|domain=");
+      receipt_write_size(writer, value->domain_type);
+      receipt_write_literal(writer, "|refinement=");
+      receipt_write_size(writer, (size_t)value->refinement_kind);
+      receipt_write_literal(writer, "|predicate=");
+      receipt_write_size(writer, value->predicate_function_index);
+      receipt_write_literal(writer, "|predicate-span=");
+      receipt_write_span(writer, value->predicate_span);
+      receipt_write_literal(writer, "|predicate-function-span=");
+      receipt_write_span(writer, value->predicate_function_span);
+      receipt_write_literal(writer, "|subject=");
+      receipt_write_size(writer, (size_t)value->subject_kind);
+      receipt_write_literal(writer, "\n");
+    }
     for (size_t index = 0; index < context->count.symbols; index += 1) {
       const w_seed_frontend_symbol *symbol = &output->symbols[index];
       receipt_write_literal(writer, "symbol=");
@@ -7290,6 +7897,9 @@ static bool output_capacity_ok(const w_seed_frontend_output *output,
          capacity_ok(required->enum_membership_cases,
                      output->enum_membership_cases,
                      output->enum_membership_case_capacity) &&
+         capacity_ok(required->generic_parameters,
+                     output->generic_parameters,
+                     output->generic_parameter_capacity) &&
          capacity_ok(required->symbols, output->symbols,
                      output->symbol_capacity) &&
          capacity_ok(required->facts, output->facts, output->fact_capacity) &&

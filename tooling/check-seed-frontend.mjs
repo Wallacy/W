@@ -29,7 +29,7 @@ function parseResult(output, label) {
   const lines = output.toString().split(/\r?\n/u)
   const line = lines.find((candidate) => candidate.startsWith("RESULT "))
   if (!line) fail(`${label} has no RESULT line`)
-  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) enum_membership_cases=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
+  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) generic_parameters=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) enum_membership_cases=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
   if (!match) fail(`${label} has an invalid RESULT line: ${line}`)
   return {
     parse: Number(match[1]),
@@ -37,23 +37,24 @@ function parseResult(output, label) {
     modules: Number(match[3]),
     imports: Number(match[4]),
     structs: Number(match[5]),
-    enums: Number(match[6]),
-    enum_cases: Number(match[7]),
-    enum_case_parameters: Number(match[8]),
-    switch_arms: Number(match[9]),
-    enum_subset_members: Number(match[10]),
-    enum_membership_cases: Number(match[11]),
-    types: Number(match[12]),
-    functions: Number(match[13]),
-    params: Number(match[14]),
-    entries: Number(match[15]),
-    statements: Number(match[16]),
-    expressions: Number(match[17]),
-    arguments: Number(match[18]),
-    symbols: Number(match[19]),
-    facts: Number(match[20]),
-    diagnostics: Number(match[21]),
-    receipt: Number(match[22]),
+    generic_parameters: Number(match[6]),
+    enums: Number(match[7]),
+    enum_cases: Number(match[8]),
+    enum_case_parameters: Number(match[9]),
+    switch_arms: Number(match[10]),
+    enum_subset_members: Number(match[11]),
+    enum_membership_cases: Number(match[12]),
+    types: Number(match[13]),
+    functions: Number(match[14]),
+    params: Number(match[15]),
+    entries: Number(match[16]),
+    statements: Number(match[17]),
+    expressions: Number(match[18]),
+    arguments: Number(match[19]),
+    symbols: Number(match[20]),
+    facts: Number(match[21]),
+    diagnostics: Number(match[22]),
+    receipt: Number(match[23]),
   }
 }
 
@@ -173,6 +174,194 @@ function expectDiagnostic(executable, source, code, label) {
   if (result.parsed.frontend !== "diagnostics" || !result.output.includes(`DIAGNOSTIC code=${code} `)) {
     fail(`${label} did not report ${code}`)
   }
+  return result
+}
+
+function expectGenericDeclarationSchema(executable) {
+  const stageSource =
+    "export enum ServiceStage { accepted completed }\n" +
+    "const fn isValidStagePath(stages: StaticList<ServiceStage>): Bool { " +
+    "return true }\n" +
+    "struct StagePath<_ stages: StaticList<ServiceStage>" +
+    "<(isValidStagePath(.member))>> { orderId: u64 }\n"
+  const stage = expectOk(executable, stageSource, "generic StagePath declaration")
+  if (stage.parsed.generic_parameters !== 1) {
+    fail("generic StagePath declaration did not publish one parameter")
+  }
+  const stageLines = receiptLines(stage.output, "generic-parameter=")
+  if (stageLines.length !== 1) fail("generic StagePath receipt is incomplete")
+  const stageFields = Object.fromEntries(stageLines[0].split("|").map((field) => {
+    const separator = field.indexOf("=")
+    return separator < 0 ? [field, ""] : [field.slice(0, separator), field.slice(separator + 1)]
+  }))
+  if (stageFields["owner-kind"] !== "0" || stageFields.owner !== "0" ||
+      stageFields.ordinal !== "0" || stageFields["external-label"] !== "0:" ||
+      stageFields.label !== "3" ||
+      stageFields.kind !== "2" || stageFields.domain === "4294967295" ||
+      stageFields.refinement !== "1" || stageFields.predicate !== "0" ||
+      stageFields.subject !== "1" || stageFields["predicate-span"] === "0:0" ||
+      stageFields["predicate-function-span"] === "0:0") {
+    fail("generic StagePath schema did not retain kind, label, domain, predicate, or subject")
+  }
+  const matrix = expectOk(
+    executable,
+    "struct Matrix<Element, rows: usize, columns: usize> {}\n",
+    "generic Matrix declaration",
+  )
+  if (matrix.parsed.generic_parameters !== 3) fail("generic Matrix count is not three")
+  const matrixFields = receiptLines(matrix.output, "generic-parameter=").map((line) =>
+    Object.fromEntries(line.split("|").map((field) => {
+      const separator = field.indexOf("=")
+      return separator < 0 ? [field, ""] : [field.slice(0, separator), field.slice(separator + 1)]
+    })))
+  if (matrixFields.map((record) => record.kind).join(",") !== "1,2,2" ||
+      matrixFields.map((record) => record.label).join(",") !== "0,1,1" ||
+      matrixFields.map((record) => record["external-label"]).join(",") !==
+        "0:,4:726f7773,7:636f6c756d6e73") {
+    fail("generic Matrix did not distinguish type and value label policies")
+  }
+  const labels = expectOk(
+    executable,
+    "struct Labels<required: usize, _ optional: usize> {}\n",
+    "generic label policies",
+  )
+  const labelFields = receiptLines(labels.output, "generic-parameter=")
+  if (labelFields.length !== 2 || !labelFields[0].includes("|label=1|") ||
+      !labelFields[1].includes("|label=3|") ||
+      !labelFields[0].includes("|external-label=8:7265717569726564|") ||
+      !labelFields[1].includes("|external-label=0:|")) {
+    fail("generic named and optional labels were not normalized")
+  }
+  const external = expectOk(
+    executable,
+    "struct Box<external internal: usize> {}\n",
+    "generic external and internal labels",
+  )
+  const externalFields = receiptLines(external.output, "generic-parameter=")
+  if (externalFields.length !== 1 ||
+      !externalFields[0].includes("|external-label=8:65787465726e616c|") ||
+      !externalFields[0].includes("|label=2|") ||
+      !externalFields[0].includes("|name=8:696e7465726e616c|")) {
+    fail("generic external/internal labels were not retained")
+  }
+  const range = expectUnsupported(
+    executable,
+    "struct Tile<rows: usize<(1...4096)>> {}\n",
+    "generic inline range refinement",
+  )
+  const rangeFields = receiptLines(range.output, "generic-parameter=")
+  if (rangeFields.length !== 1 || !rangeFields[0].includes("|refinement=2|") ||
+      !rangeFields[0].includes("|subject=0")) {
+    fail("generic inline range was published as a valid predicate")
+  }
+  const nonBool = expectDiagnostic(
+    executable,
+    "enum Stage { accepted completed }\n" +
+      "const fn invalid(stages: StaticList<Stage>): usize { return 1 }\n" +
+      "struct Invalid<_ stages: StaticList<Stage><(invalid(.member))>> {}\n",
+    "W-CONTRACT-0003",
+    "generic non-Bool predicate",
+  )
+  if (nonBool.output.includes("DIAGNOSTIC code=W-CONST-0004 ")) {
+    fail("generic non-Bool predicate was misclassified as W-CONST-0004")
+  }
+  if (!receiptLines(nonBool.output, "generic-parameter=")[0].includes("|refinement=2|") ||
+      !receiptLines(nonBool.output, "generic-parameter=")[0].includes("|subject=2")) {
+    fail("generic non-Bool predicate did not retain invalid schema state")
+  }
+  const nonConst = expectDiagnostic(
+    executable,
+    "enum Stage { accepted completed }\n" +
+      "fn isValid(stages: StaticList<Stage>): Bool { return true }\n" +
+      "struct Invalid<_ stages: StaticList<Stage><(isValid(.member))>> {}\n",
+    "W-CONST-0001",
+    "generic non-const predicate",
+  )
+  if (nonConst.output.includes("DIAGNOSTIC code=W-CONST-0004 ")) {
+    fail("generic non-const predicate was misclassified as W-CONST-0004")
+  }
+  const nonConstLine = receiptLines(nonConst.output, "generic-parameter=")[0]
+  if (!nonConstLine.includes("|refinement=2|") ||
+      !nonConstLine.includes("|subject=2")) {
+    fail("generic non-const predicate did not retain invalid schema state")
+  }
+  const malformed = expectUnsupported(
+    executable,
+    "enum Stage { accepted completed }\n" +
+      "const fn isValid(stages: StaticList<Stage>): Bool { return true }\n" +
+      "struct Invalid<_ stages: StaticList<Stage>" +
+      "<(isValid(.member) && true)>> {}\n",
+    "generic compound predicate",
+  )
+  const malformedFields = receiptLines(malformed.output, "generic-parameter=")
+  if (malformedFields.length !== 1 ||
+      !malformedFields[0].includes("|refinement=2|") ||
+      !malformedFields[0].includes("|subject=2")) {
+    fail("generic compound predicate was accepted as a direct call")
+  }
+  const unresolvedPredicate = expectUnsupported(
+    executable,
+    "enum Stage { accepted completed }\n" +
+      "struct Invalid<_ stages: StaticList<Stage><(missing(.member))>> {}\n",
+    "generic unresolved predicate",
+  )
+  const unresolvedPredicateLine =
+    receiptLines(unresolvedPredicate.output, "generic-parameter=")[0]
+  if (!unresolvedPredicateLine.includes("|refinement=2|") ||
+      !unresolvedPredicateLine.includes("|predicate=4294967295|") ||
+      !unresolvedPredicateLine.includes("|subject=2")) {
+    fail("generic unresolved predicate did not retain invalid schema state")
+  }
+  const wrongSignature = expectDiagnostic(
+    executable,
+    "enum Stage { accepted completed }\n" +
+      "const fn wrongArity(a: StaticList<Stage>, b: StaticList<Stage>): Bool { " +
+      "return true }\n" +
+      "const fn wrongDomain(value: usize): Bool { return true }\n" +
+      "struct Arity<_ stages: StaticList<Stage><(wrongArity(.member))>> {}\n" +
+      "struct Domain<_ stages: StaticList<Stage><(wrongDomain(.member))>> {}\n",
+    "W-CONTRACT-0002",
+    "generic incompatible predicate signatures",
+  )
+  const wrongSignatureLines = receiptLines(wrongSignature.output, "generic-parameter=")
+  if (wrongSignatureLines.length !== 2 ||
+      wrongSignatureLines.some((line) => !line.includes("|refinement=2|") ||
+        !line.includes("|subject=2"))) {
+    fail("generic incompatible predicate signatures did not remain invalid")
+  }
+  const unresolved = expectDiagnostic(
+    executable,
+    "struct Unknown<rows: UnknownName> {}\n",
+    "W-GENERIC-0001",
+    "generic unresolved nominal domain",
+  )
+  if (receiptLines(unresolved.output, "generic-parameter=").some((line) =>
+      line.includes("|kind=2|"))) {
+    fail("unresolved nominal generic domain was classified as value")
+  }
+  const forward = expectOk(
+    executable,
+    "enum Stage { accepted completed }\n" +
+      "struct Forward<_ stages: StaticList<Stage><(isValid(.member))>> {}\n" +
+      "const fn isValid(stages: StaticList<Stage>): Bool { return true }\n",
+    "generic forward predicate declaration",
+  )
+  if (!receiptLines(forward.output, "generic-parameter=")[0].includes("|predicate=0|")) {
+    fail("generic forward predicate did not resolve by declaration ordinal")
+  }
+  const contiguous = expectOk(
+    executable,
+    "struct First<A, count: usize> {}\n" +
+      "struct Second<_ value: usize> {}\n",
+    "generic append-only ranges",
+  )
+  const contiguousLines = receiptLines(contiguous.output, "generic-parameter=")
+  if (contiguous.parsed.generic_parameters !== 3 ||
+      contiguousLines.length !== 3 ||
+      contiguousLines[0].includes("|owner=1|") ||
+      !contiguousLines[2].includes("|owner=1|ordinal=0|")) {
+    fail("generic append-only ranges lost declaration ownership or ordinal")
+  }
 }
 
 function expectUnsupported(executable, source, label) {
@@ -180,6 +369,7 @@ function expectUnsupported(executable, source, label) {
   if (result.parsed.frontend !== "unsupported" || result.parsed.facts === 0) {
     fail(`${label} did not retain an explicit unsupported fact`)
   }
+  return result
 }
 
 function expectBarrier(executable, source, label) {
@@ -841,6 +1031,7 @@ try {
   )
   expectBarrier(probeExecutable, course, "domain.w Course unsupported members")
   expectUnsupported(probeExecutable, "export enum Box<T> { value(T) }\n", "generic enum")
+  expectGenericDeclarationSchema(probeExecutable)
   expectOk(probeExecutable, "enum E { a }\nfn f(): E { return .a }\nentry(f)\n", "enum case expression")
   expectBarrier(probeExecutable, "fn f(){ enum E { a } }\n", "enum contextual fail-closed")
   expectEnumWitness(

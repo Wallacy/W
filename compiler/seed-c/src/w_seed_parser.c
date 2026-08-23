@@ -2093,6 +2093,19 @@ static bool parse_generic_parameters(w_seed_parser *parser,
           pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
           return false;
         }
+      } else if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD) &&
+                 next_is_text(parser, ":")) {
+        /* An explicit external label uses two identifiers: `external
+         * internal: Type`.  Keep both words as direct CST children so the
+         * frontend can publish the two names without reparsing source. */
+        (void)consume_current(parser, NULL);
+        if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+            !parse_type(parser)) {
+          pop_node(parser, parser->has_last_token ? parser->last_token_end
+                                                  : parameter_start);
+          pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+          return false;
+        }
       }
     } else {
       append_missing(parser, current_span(parser).start_byte,
