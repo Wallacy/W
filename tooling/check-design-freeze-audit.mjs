@@ -754,7 +754,7 @@ const oldCorpusNames = new Set([
   "jupyter-cases.json", "notebook-export-cases.json", "wmeta-cases.json", "tabular-carrier-cases.json",
   "tabular-adapter-cases.json", "dlpack-cases.json", "device-execution-cases.json", "kernel-module-cases.json",
   "foreign-body-cases.json", "web-body-cases.json", "process-root-cases.json", "filesystem-cases.json",
-  "io-error-cases.json", "operational-time-cases.json",
+  "io-error-cases.json", "operational-time-cases.json", "aeg0-app-essentials-gate-cases.json",
 ]);
 const legacySourceIds = new Set((substitutions.cases ?? []).flatMap((testCase) => testCase.decisions ?? []));
 const legacyOracleIds = new Set();

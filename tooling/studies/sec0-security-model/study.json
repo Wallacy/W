@@ -45,7 +45,7 @@
     {"id": "checker", "role": "snapshot-checker", "path": "tooling/check-sec0-security-model.mjs", "digest": "sha256:080b9d6baa4ce29394d7d20cfa0c9144ca9146f1c04d302da4590fa244a7080e"},
     {"id": "reference-test", "role": "mutation-test", "path": "tooling/sec0-security-model-reference.test.mjs", "digest": "sha256:b836a28fdcdbb3dbe9cc2262070cdd8ecfb5b2c174799d7954026f598c0b7f7e"},
     {"id": "snapshot", "role": "derived-output", "path": "tooling/sec0-security-model-results.snapshot.jsonl", "digest": "sha256:4badd96f6b2d28e5a84539c5027cac5a9fea80e67c6519114a31d52ab9a817df"},
-    {"id": "bundle", "role": "study-bundle", "path": "tooling/studies/sec0-security-model/bundle.json", "digest": "sha256:8da44781be1736b51a74925f75b4f61a45d766dc46dd11c1a5720c9dd87f5afd"},
+    {"id": "bundle", "role": "study-bundle", "path": "tooling/studies/sec0-security-model/bundle.json", "digest": "sha256:9ac61c7b891d4ea8c0f35222005099658a05dce4f992a678c5ab483ff3c02438"},
     {"id": "oracle", "role": "study-test", "path": "tooling/studies/sec0-security-model/oracle.test.mjs", "digest": "sha256:501d19acbac29bf003aeccec859c085b975e2226bd0bc3fb6bd5a35432d8440d"}
   ],
   "sourceRefs": [

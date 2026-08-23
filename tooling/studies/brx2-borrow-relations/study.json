@@ -52,7 +52,7 @@
     {
       "id": "bundle",
       "path": "bundle.json",
-      "digest": "sha256:67f3758124fce9df4efb245b3959ece61b08df74a7ecfc4d6703baed844c6be4",
+      "digest": "sha256:2725b3a37498256ac2e1d6544d81c13ca161f35a08c8ec8cc93cc831d7ba028e",
       "schema": "w-substitution-study-bundle-1",
       "identity": "R1-brx2-borrow-relations"
     }

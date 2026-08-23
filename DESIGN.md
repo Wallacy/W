@@ -10915,11 +10915,7 @@ mensurável.
 **W-1315 — tempo civil é outro contrato:** `.clock` concede somente o relógio
 operacional. Data UTC, timezone, calendário e relógio de parede exigem uma
 capability e values próprios. Eles não entram em deadline ou elapsed time e não
-ficam implícitos em `std.time`. A forma pública de tempo civil permanece fora
-deste slice até fechar calendário, leap seconds, serialization e autoridade.
-
-**Pesquisa:** `WallClock`/`Timestamp` ou um par `CivilTime`/`TimeZone` são
-candidatos de estudo. Esta seção não escolhe syntax ou API.
+ficam implícitos em `std.time`. A direção civil corrente é fechada em W-1455.
 
 **W-1316 — evidence TIME0:** source W, 47 casos tabelados e oito testes host
 derivam range, exatidão, capability, origem, profile, deadline, cancellation,
@@ -29921,6 +29917,31 @@ antigo, drop do backing, reentry, panic/OOM e fronteiras de concurrency/service.
 O manifest candidate é aceito como current-control; os candidates de `stream fn`
 e `willSet`/`didSet` são rejected-route. O oracle host deriva os resultados de
 facts e source refs, não executa W e não afirma compiler/runtime/provider.
+
+#### 24.4.4 AEG0 — App Essentials Gate
+
+O bundle [`AEG0`](tooling/studies/aeg0-app-essentials-gate) fecha cinco
+fronteiras correntes para aplicações. W-1454–W-1458 são
+`oracle-backed-current`. A evidência é host-only. Ela não cria syntax, keyword,
+manifest field, std provider, compiler ou runtime.
+
+| ID | Forma vigente | Alternativa avaliada | Rejeitado |
+|---|---|---|---|
+| W-1454 | Capability nominal não forjável, sem initializer público. Provider, profile e digest são explícitos. Owner ou lease é bound a root+generation. Operações declaram effect, error, ownership, bounds, complexity e cancellation. Values portáveis ficam separados de handles locais. Child task recebe borrow/move explícito. Service/process faz host rebind. Test provider é explícito. | A arquitetura comum compõe capability, profile, lease, operation contract, value/handle split e host boundary existentes. | Capability forjada ou lookup ambiental, initializer público, owner/generation ausente, child transfer implícito, handle no wire e provider de teste ambiental. |
+| W-1455 | `std.time` operacional não muda. `UtcTimestamp` é `WireValue` portable; `Instant` e `Deadline` continuam locais. Civil date, local datetime, timezone e calendar são values de data explícitos. Conversão exige provider/database profile com version/digest e zone/calendar/profile explícitos. DST gap/fold rejeita por default ou exige policy. Locale, calendar, timezone e wall clock não são ambientais. Wall clock não dirige deadline. Leap-second/smear policy fica no profile. Não há conversão implícita. | Package/profile civil separado, sem catálogo completo e sem provider implementado. | Global `wallNow`/`now` civil, deadline operacional derivado de civil clock, timezone/locale/calendar implícitos, conversão automática e fallback leap/smear. |
+| W-1456 | Package/profile geral separa secure provider-backed de deterministic explicit-seed. Secure rejeita seed, fallback e downgrade, exige bytes bounded, integer uniforme checked e erro tipado. Deterministic é replayable e não satisfaz secure. Draw order é owner-local. Context HTTP projeta o mesmo contrato. Somente seed/profile determinístico pode entrar em test receipt; secure seed/draw/bytes não entram em receipt, log ou diagnostic. Handles não são WireValue. | Um contrato comum para secure e deterministic mantém tipos, errors, ownership e projection distintos, sem nova syntax. | Seeded secure, secure→deterministic fallback, inheritance implícita, secure seed/draw/bytes em receipt/log/diagnostic, handle wire e semântica RNG duplicada em HTTP. |
+| W-1457 | Packages específicos declaram ByteSource/Sink, profile+digest, streaming e quotas separadas para encoded, logical, allocation, depth e ratio. Offset/progress errors são tipados. Cancellation não desfaz bytes committed. Dictionary/state tem owner explícito. Codec/schema e compression transform têm identity/limits separados. | Requisitos comuns ficam em packages específicos. Codec/schema e compression não viram uma primitive ou `Codec<T>` universal. | Reflection-driven universal codec, primitive/syntax nova, filename/magic/locale/env inference, quota compartilhada e rollback de bytes committed. |
+| W-1458 | Crypto passa por package/provider capability ligada pelo deployment. Algorithm/profile são typed e pinned. Secret/key handle é opaque, move-only e nonextractable por default, com purpose/audience/generation scope. Lifecycle tem dois caminhos: acquire→active→revoking→revoked→released para revoke/rotation, ou acquire→active→expired→released para expiry. Revoke bloqueia nova admission e drena operações admitidas. Host controla rotation/expiry/zeroization. Secret não entra em wire/storage/log/diagnostic/receipt. | App crypto compõe package/provider capability e deployment já existentes. Outputs públicos, ciphertext, digest e signature podem ser portable. | `std.crypto` universal, vault/global lookup, plaintext/env lookup, secret no wire, algorithm string, fallback e downgrade. |
+
+O corpus AEG0 possui seis casos current e oito casos rejected. O host oracle
+deriva as rotas de facts. Ele rejeita `expected`, `result`, status caller-owned,
+ID-derived outcome e provider/runtime claims. Mutation guards cobrem ambient
+authority, fallback, plaintext/serialization, codec inference e stale
+source/digest. `Research=0` permanece obrigatório para todo W-001–W-1458.
+
+AEG0 não promove provider. Continuam missing compiler, runtime, provider,
+target, FFI, stress, fault, rotation, zeroization e estudos humano/modelo.
+Last Light fornece somente os witnesses existentes e não recebe nova syntax.
 
 ### 24.5 Blockers de allocator ASC0
 
