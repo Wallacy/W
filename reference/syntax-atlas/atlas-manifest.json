@@ -2276,7 +2276,7 @@
         {
           "path": "reference/last-light/numerics.w",
           "symbol": "SeatNumber",
-          "digest": "sha256:bf3a727ddcba3a265d107c975916772286498b2e8462fe405d8c5f92257d5479"
+          "digest": "sha256:6cf4ccfedee8366545d9b679cbed1b43f669215b038652797914a3c928ec5bee"
         }
       ],
       "snippetDigest": "sha256:09e0ebf38d4ae5b9c4cedeea811584ccc47bcfc313df3615992c1e802c5d1659",
@@ -2489,8 +2489,8 @@
         "18"
       ],
       "sourceRefs": [],
-      "snippetDigest": "sha256:edf91d8bfb426358291e1f70bc2105ec3e6b7b9d3a8cbde6dea741963cb223cb",
-      "snippetBytes": 3042
+      "snippetDigest": "sha256:9b911e36a23b00807822256673d55307bf44abe0a0367722ddc48dd5ee43ae3b",
+      "snippetBytes": 3514
     },
     {
       "id": "stream-and-channel",
@@ -2644,6 +2644,6 @@
   ],
   "generated": {
     "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:0d409a151b46a48c3b4a3937ed771ba8293be4ea4024ee7ea0eb5a3b629161d5"
+    "cheatsheetDigest": "sha256:be7c0c7c4d31e27a388316c6f8a7f783e2644c1b21155b1539a1d74d1c4a7239"
   }
 }

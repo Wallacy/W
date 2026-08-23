@@ -94,6 +94,34 @@ test "integer operators keep one policy in every profile" {
   expect u8.saturatingAdd(u8.max, 1) == u8.max
 }
 
+test "portable bit primitives use logical width and two's complement" {
+  let zero: u8 = 0
+  let sparse: u8 = 0b0010_1000
+  let pair: u16 = 0x1234
+  let negative: i8 = -2
+
+  expect u8.bitWidth == 8
+  expect u8.countOnes(zero) == 0
+  expect u8.countZeros(zero) == 8
+  expect u8.countLeadingZeros(zero) == 8
+  expect u8.countTrailingZeros(zero) == 8
+
+  expect u8.countOnes(sparse) == 2
+  expect u8.countZeros(sparse) == 6
+  expect u8.countLeadingZeros(sparse) == 2
+  expect u8.countTrailingZeros(sparse) == 3
+  expect u8.reversedBits(sparse) == 0b0001_0100
+
+  expect u16.reversedBytes(pair) == 0x3412
+  expect u16.reversedBits(pair) == 0x2c48
+
+  // Signed i8 -2 has the full two's-complement pattern 0xfe.
+  expect negative.toBits() == 0xfe_u8
+  expect i8.countOnes(negative) == 7
+  expect i8.countTrailingZeros(negative) == 1
+  expect i8.reversedBits(negative) == 0x7f_i8
+}
+
 test "power follows mathematical unary precedence" {
   expect -2.0 ** 2 == -4.0
   expect 2.0 ** -3 == 0.125

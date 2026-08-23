@@ -635,8 +635,10 @@ integrações de editor.
 `check:operator-surface` compara o inventário vigente e rejeitado em
 `DESIGN.md`, `grammar.js`, as tabelas do seed lexer/parser e as projeções de
 documentação. Ele também valida longest-match e witnesses de precedência com
-probes Tree-sitter. Os probes informam `parser/grammar-only` e não alegam
-type-check, runtime ou provider.
+probes Tree-sitter. Ele inventaria as sete APIs portáveis de bits, executa um
+oracle host determinístico para vetores de largura e confirma que esses nomes
+não entram nas tabelas de tokens ou operadores. Os probes informam
+`parser/grammar-only` e não alegam type-check, runtime ou provider.
 
 Execute no root do repositório:
 

@@ -16,14 +16,14 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 30541 |
-| tokens aproximados de `DESIGN.md` | 328600 |
-| linhas de `RATIONALE.md` | 6727 |
-| tokens aproximados de `RATIONALE.md` | 174000 |
+| linhas de `DESIGN.md` | 30575 |
+| tokens aproximados de `DESIGN.md` | 329000 |
+| linhas de `RATIONALE.md` | 6753 |
+| tokens aproximados de `RATIONALE.md` | 174500 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 349/349 |
 | decisões | 1458 (W-001–W-1458) |
-| famílias de viabilidade | 182 |
+| famílias de viabilidade | 183 |
 | slices normativos de grammar | 6 |
 | requisitos de ratificação comparativa | 75 |
 | casos de substituição estruturados | 75/75 |
@@ -83,7 +83,7 @@
 | sources W em todo o Última Luz | 109 |
 | sources W no rascunho da std | 31 |
 | módulos/APIs catalogados da std | 31/424 |
-| superfícies qualificadas da std usadas pelo Última Luz | 92 |
+| superfícies qualificadas da std usadas pelo Última Luz | 90 |
 | requisitos do Última Luz com contrato std | 31/31 |
 | requisitos do Última Luz ausentes na std | 0/31 |
 
@@ -154,26 +154,26 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 12 | 10034–13209 | 35700 | Concorrência, paralelismo e execução |
 | 13 | 13210–15479 | 23000 | Módulos de execução, services e entries |
 | 14 | 15480–19426 | 50200 | Prelude e standard library |
-| 15 | 19427–20157 | 7400 | Números, ranges e unidades |
-| 16 | 20158–21757 | 13500 | Texto, bytes e collections |
-| 17 | 21758–22107 | 4100 | Matrizes, tensors e ML |
-| 18 | 22108–22660 | 5800 | Performance e custo |
-| 19 | 22661–23235 | 6900 | FFI, unsafe e ilhas de linguagem |
-| 20 | 23236–24755 | 16300 | Compilador e bootstrap |
-| 21 | 24756–26922 | 21200 | Packages, builds e releases |
-| 22 | 26923–27434 | 4900 | Tooling e interface para máquinas |
-| 23 | 27435–28943 | 18500 | Protocolos e pesquisas de ecossistema |
-| 24 | 28944–29990 | 16700 | Design freeze e pendências |
-| 25 | 29991–30201 | 1900 | Produto de referência Última Luz |
-| 26 | 30202–30541 | 4300 | Plano de implementação |
+| 15 | 19427–20191 | 7800 | Números, ranges e unidades |
+| 16 | 20192–21791 | 13500 | Texto, bytes e collections |
+| 17 | 21792–22141 | 4100 | Matrizes, tensors e ML |
+| 18 | 22142–22694 | 5800 | Performance e custo |
+| 19 | 22695–23269 | 6900 | FFI, unsafe e ilhas de linguagem |
+| 20 | 23270–24789 | 16300 | Compilador e bootstrap |
+| 21 | 24790–26956 | 21200 | Packages, builds e releases |
+| 22 | 26957–27468 | 4900 | Tooling e interface para máquinas |
+| 23 | 27469–28977 | 18500 | Protocolos e pesquisas de ecossistema |
+| 24 | 28978–30024 | 16700 | Design freeze e pendências |
+| 25 | 30025–30235 | 1900 | Produto de referência Última Luz |
+| 26 | 30236–30575 | 4300 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 14–5214 | 83000 | Evidência comparativa |
-| 2 | 5215–5245 | 500 | Proveniência |
-| 3 | 5246–6727 | 90400 | Ledger |
+| 1 | 14–5240 | 83500 | Evidência comparativa |
+| 2 | 5241–5271 | 500 | Proveniência |
+| 3 | 5272–6753 | 90400 | Ledger |
 
 ## Bundles de leitura
 
@@ -183,9 +183,9 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 |---|---:|---:|---:|---|
 | orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 15–7510 | 70400 | promessa, símbolos, source, módulos, funções e tipos |
 | segurança e execução | 9, 10, 11, 12, 13 | 7511–15479 | 87500 | ownership, errors, tasks, domains, services e entries |
-| std e performance | 14, 15, 16, 17, 18, 19 | 15480–23235 | 87900 | módulos, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 23236–28943 | 60900 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 28944–30541 | 22900 | freeze, Última Luz, gates e roadmap |
+| std e performance | 14, 15, 16, 17, 18, 19 | 15480–23269 | 88300 | módulos, números, texto, tensors, custo, C e unsafe |
+| compiler e distribuição | 20, 21, 22, 23 | 23270–28977 | 60900 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26 | 28978–30575 | 22900 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 
@@ -197,7 +197,7 @@ O bundle agrupa seções para planejamento; os intervalos não são uma nova aut
 | Design comum fechado; providers missing | 1 |
 | Design fechado | 1 |
 | Design fechado; provider missing | 1 |
-| Possível agora | 86 |
+| Possível agora | 87 |
 | Possível por transport profile | 1 |
 | Provável | 63 |
 | Rejeitado na baseline | 3 |

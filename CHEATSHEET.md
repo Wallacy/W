@@ -32,6 +32,7 @@ editado manualmente.
 - [Shared, weak, lazy, atomic, locks e SnapshotCell](#shared-weak-lazy-atomic-locks-e-snapshotcell)
 - [Services, recovery e capabilities](#services-recovery-e-capabilities)
 - [I/O, texto, bytes e collections](#io-texto-bytes-e-collections)
+- [Operadores, bits e política numérica](#operadores-bits-e-política-numérica)
 - [Números, units, Quantity, dados e serialização](#números-units-quantity-dados-e-serialização)
 - [Tensors, devices e custo](#tensors-devices-e-custo)
 - [FFI, foreign bodies e segurança](#ffi-foreign-bodies-e-segurança)
@@ -188,6 +189,8 @@ provider numérico. A semântica de Quantity está em
 [DESIGN.md §15](DESIGN.md#15-números-ranges-e-unidades) e no oracle
 [quantity_oracle.w](reference/last-light/quantity_oracle.w).
 
+## Operadores, bits e política numérica
+
 ### Operadores de consulta rápida
 
 A tabela usa a ordem da menor para a maior força.
@@ -235,6 +238,21 @@ duas formas.
 | SIMD e tensor | Use APIs nomeadas, como `tensor.matmul`, `tensor.contract` e `materialize`. Não há operator extra. |
 | Otimização | Um operator não é hint de branchless, SIMD, unchecked ou fast-math. O optimizer só preserva semantics, panic, effects, ownership e numeric policy. |
 | Compound assignment | O place é resolvido uma vez. A operação lê, calcula e escreve no mesmo place. |
+
+| Qual forma usar | Forma corrente | Limite |
+| --- | --- | --- |
+| Álgebra booleana de bits | `&`, `\|`, `^`, `~`, `<<`, `>>` | Operadores fixos. Não há operator definido pelo usuário. |
+| Aritmética checked | `+`, `-`, `*`, `/`, `%`, `**` ou `checked*` | Overflow e divisor inválido permanecem explícitos. |
+| Policy de overflow | `wrapping*`, `saturating*`, `overflowing*` | Nomeie a policy. Nenhum profile muda os operadores básicos. |
+| Multiprecision | `carryingAdd`, `borrowingSubtract`, `fullMultiply` | Use `BigInt` ou `BigUInt` quando a largura fixa não basta. |
+| Primitiva portátil de bits | `bitWidth`, `countOnes`, `countZeros`, `countLeadingZeros`, `countTrailingZeros`, `reversedBits`, `reversedBytes` | APIs puras, const-evaluable e sem allocation. Não prometem tempo constante. |
+| FMA explícito | `math.fma(a, b, c)` | `a * b + c` não vira FMA em mode strict. |
+| SIMD, tensor ou device explícito | `tensor.matmul`, `tensor.contract`, `materialize` e APIs de device | Transfer e shape ficam nomeados. Não há operator de performance. |
+| Otimização ou PGO | profile, facts e `w explain performance` | PGO orienta otimização. Não altera value, panic, effects ou numeric policy. |
+
+Não existe **performance operator**. Intrinsics, instruções e fallback podem
+implementar primitives portáteis. Crypto com exigência de side-channel usa seu
+package, provider ou profile e publica evidence própria.
 
 Não existem custom/user operators, unary `+`, `++`, `--`, postfix force unwrap,
 `&&=`, `||=`, `??=` ou `@=`. `isSameInstance` é uma API nomeada de identidade.
