@@ -16,6 +16,12 @@ describe("syntax atlas coverage checker", () => {
     expect(checkManifest(snapshot, manifest)).toEqual([]);
   });
 
+  test("generated header links normative operator and performance guidance", () => {
+    expect(cheatsheet).toContain("`language.w`, `execution.w`, `operators.w`, and `build.w`");
+    expect(cheatsheet).toContain("../../CHEATSHEET.md#operadores-bits-e-política-numérica");
+    expect(cheatsheet).toContain("../../CHEATSHEET.md#performance-e-custo");
+  });
+
   test("rejects an unlisted marker", () => {
     const errors = errorsFor((candidate) => candidate.blocks.pop());
     expect(errors.some((error) => error.includes("missing or has unlisted markers"))).toBe(true);

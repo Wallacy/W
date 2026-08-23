@@ -183,7 +183,7 @@ alvo de execução independente.
 | `numerics.w` | literais, conversões, overflow, primitives de bits portáveis, float, ranges, post-test loop e quantization |
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
-| `performance.w` | fatos de prova, largura interna, SIMD e custos de texto |
+| `performance.w` | fatos de prova, baseline portátil `std.simd`, largura interna e custos de texto |
 | `hardware.w` | fronteira C, layout e deallocator |
 | `abi.w` | façade C escrita em W, carriers e export exato |
 | `abi_oracle.w` | reuse W exact, expectativa de import, call shape e fallback de boundary |
@@ -2049,12 +2049,23 @@ Aceite:
 - `InterferenceCounters` permite layout privado sem adicionar `cache` a
   `Atomic<T>`;
 - `countCompleted` e `combineBrigadeCounts` tornam partition e join explícitos;
+- `scanMenuDelimiters` aceita somente `RestaurantMenuBytes` de `16...32` bytes,
+  recebe `menu: ref`, usa `Simd<u8, lanes: 16>` em chunk completo e tail
+  parcial, e combina delimiter e LF dentro de cada chunk. Fill igual ao
+  delimiter não conta quando a mask marca lane inactive;
+- `wrappingByteVectorOracle` deriva low wrapped bits e overflow mask por lane;
+  `duplicateStaticSwizzle` aceita índice static duplicado;
 - desligar toda especialização produz os mesmos valores, errors e panic.
 
 O oracle diferencial executa `flavorScore` com lowering portátil, vector,
 storage estreito desativado e storage estreito ativado. Cada execução precisa
 produzir o mesmo tensor e o mesmo overflow. O benchmark registra target, CPU,
 dataset, allocations, code size e intervalo de ruído.
+
+O caso SIMD é um oracle de design host-only. Ele não executa W nem implementa
+`std.simd`, compiler, runtime ou provider. A baseline semântica fica em
+`DESIGN.md` §18.5 e W-1459. Native, split e scalar são lowerings equivalentes,
+não claims de speed ou de instruction.
 
 ### 3.32 Caixa dos Números que Recusam Disfarces
 

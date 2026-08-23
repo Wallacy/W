@@ -1,0 +1,64 @@
+{
+  "$schema": "w-simd-reference-cases-1",
+  "status": "design-oracle-input",
+  "decisions": ["W-1459"],
+  "cases": [
+    {
+      "id": "SIMD1-W-1459-current",
+      "kind": "accepted",
+      "decisions": ["W-1459"],
+      "source": {
+        "path": "reference/last-light/performance.w",
+        "symbol": "export fn scanMenuDelimiters("
+      },
+      "input": {
+        "lanes": 16,
+        "bytes": [82, 101, 115, 116, 97, 117, 114, 97, 110, 116, 124, 10, 101, 110, 117, 124, 83, 101, 10, 124],
+        "delimiter": 124,
+        "fillEqualsDelimiter": true,
+        "operations": ["load", "loadPartial", "equalLanes", "&", "|", "countTrue"]
+      },
+      "contract": [
+        "full chunk and tail are compared",
+        "inactive fill lanes do not count",
+        "mask combination is lane-wise"
+      ]
+    },
+    {
+      "id": "SIMD1-W-1459-overflow-swizzle",
+      "kind": "accepted",
+      "decisions": ["W-1459"],
+      "source": {
+        "path": "reference/last-light/performance.w",
+        "symbol": "export fn wrappingByteVectorOracle("
+      },
+      "input": {
+        "lanes": 4,
+        "element": "u8",
+        "operation": "overflowingAdd",
+        "operands": {
+          "left": [250, 255, 1, 127],
+          "right": [10, 2, 255, 1]
+        },
+        "swizzleIndices": [3, 3, 0]
+      },
+      "contract": [
+        "low wrapped bits and overflow mask are lane-wise",
+        "duplicate static swizzle indices are accepted"
+      ]
+    },
+    {
+      "id": "SIMD1-W-1459-reject-lanes-65",
+      "kind": "rejected",
+      "decisions": ["W-1459"],
+      "source": {
+        "path": "reference/last-light/performance.w",
+        "symbol": "export fn scanMenuDelimiters("
+      },
+      "input": {
+        "lanes": 65
+      },
+      "contract": ["lane count is outside 1...64"]
+    }
+  ]
+}

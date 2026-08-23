@@ -239,6 +239,33 @@ duas formas.
 | Otimização | Um operator não é hint de branchless, SIMD, unchecked ou fast-math. O optimizer só preserva semantics, panic, effects, ownership e numeric policy. |
 | Compound assignment | O place é resolvido uma vez. A operação lê, calcula e escreve no mesmo place. |
 
+#### Matriz fechada de policies integer
+
+Cada nome é uma API associada. `overflowingX` retorna os low wrapped bits e a
+flag de overflow.
+
+| Operação | Checked | Wrapping | Saturating | Overflowing | Outra forma nomeada |
+| --- | --- | --- | --- | --- | --- |
+| add | `checkedAdd -> Result<T, ArithmeticError>` | `wrappingAdd -> T` | `saturatingAdd -> T` | `overflowingAdd -> (T, Bool)` | — |
+| subtract | `checkedSubtract -> Result<T, ArithmeticError>` | `wrappingSubtract -> T` | `saturatingSubtract -> T` | `overflowingSubtract -> (T, Bool)` | — |
+| multiply | `checkedMultiply -> Result<T, ArithmeticError>` | `wrappingMultiply -> T` | `saturatingMultiply -> T` | `overflowingMultiply -> (T, Bool)` | — |
+| negate | `checkedNegate -> Result<T, ArithmeticError>` | `wrappingNegate -> T` | `saturatingNegate -> T` | `overflowingNegate -> (T, Bool)` | — |
+| power | `checkedPower -> Result<T, ArithmeticError>` | `wrappingPower -> T` | `saturatingPower -> T` | `overflowingPower -> (T, Bool)` | — |
+| divide | `checkedDivide -> Result<T, ArithmeticError>` | — | — | — | — |
+| remainder | `checkedRemainder -> Result<T, ArithmeticError>` | — | — | — | — |
+| left shift | `checkedShiftLeft -> Result<T, ArithmeticError>` | `wrappingShiftLeft -> T` | — | — | `maskedShiftLeft -> T` |
+| right shift | `checkedShiftRight -> Result<T, ArithmeticError>` | — | — | — | `maskedShiftRight -> T`, `logicalShiftRight -> T` |
+| rotate left | — | — | — | — | `rotatedLeft -> T` |
+| rotate right | — | — | — | — | `rotatedRight -> T` |
+
+`maskedShiftLeft` e `maskedShiftRight` aplicam count módulo da largura.
+`logicalShiftRight` explicita preenchimento zero. `rotatedLeft` e
+`rotatedRight` reduzem `UInt` módulo da largura. `saturatingNegate` clampa o
+resultado matemático, inclusive unsigned (`x > 0` produz zero). `checkedDivide`
+rejeita divisor zero e `signed.min / -1`; `checkedRemainder` rejeita somente
+divisor zero, e `signed.min % -1` produz `0`. W não publica
+wrapping, saturating ou overflowing divide/remainder.
+
 | Qual forma usar | Forma corrente | Limite |
 | --- | --- | --- |
 | Álgebra booleana de bits | `&`, `\|`, `^`, `~`, `<<`, `>>` | Operadores fixos. Não há operator definido pelo usuário. |
@@ -249,6 +276,9 @@ duas formas.
 | FMA explícito | `math.fma(a, b, c)` | `a * b + c` não vira FMA em mode strict. |
 | SIMD, tensor ou device explícito | `tensor.matmul`, `tensor.contract`, `materialize` e APIs de device | Transfer e shape ficam nomeados. Não há operator de performance. |
 | Otimização ou PGO | profile, facts e `w explain performance` | PGO orienta otimização. Não altera value, panic, effects ou numeric policy. |
+
+`%` mantém a semântica checked do operador: divisor zero causa panic; em signed,
+`signed.min % -1` é `0`, enquanto somente `signed.min / -1` é erro.
 
 Não existe **performance operator**. Intrinsics, instruções e fallback podem
 implementar primitives portáteis. Crypto com exigência de side-channel usa seu
@@ -1039,6 +1069,46 @@ escolhem packing, microkernels, dispatch e device. Trabalho pequeno e estático
 pode receber lowering para código inline; trabalho grande ou irregular vai para
 provider/library, e sparse/graph mantém rota separada. `.strict`, `.fast` e
 `.reproducible` ficam explícitos.
+
+### SIMD portátil
+
+`std.simd` publica `Simd<Element, lanes: usize>` e
+`SimdMask<_ lanes: usize>`. `lanes` é compile-time em `1...64`, sem
+power-of-two requirement. O label de `Simd` é required porque há `Element` e
+value parameter; o label de `SimdMask` é optional porque a mask só tem a
+largura. A aplicação curta corrente é `SimdMask<16>`, sem uma segunda identity.
+Element aceita os integer fixos, `Int`, `UInt`, `isize`, `usize`, `f32` e `f64`.
+`Bool` usa mask. A sequência de lanes é fixa e igual em todo target. O backend
+escolhe native, split ou scalarize. Layout, ABI, FFI, wire, persistência e
+`transmute` não são implícitos.
+
+Use `splat`, `fromArray`, `toArray`, `load`, `store`, `loadPartial` e
+`storePartial`. `SimdMask.splat(Bool) -> SimdMask<N>`,
+`fromArray([Bool; N]) -> SimdMask<N>` e `toArray() -> [Bool; N]` não alocam.
+Partial load borrow a source, preenche
+lanes inativas e devolve `SimdMask`; `at == count` é toda inactive e `at > count`
+falha antes de qualquer read. Store recebe destination `inout`; partial store
+faz preflight de todas as lanes ativas e falha antes de qualquer write. Lanes
+inactive OOB são permitidas e não são acessadas. Arithmetic, bitwise, shifts,
+compound e policy só existem quando o scalar Element admite a operação; floats
+não ganham bitwise, shifts ou overflow APIs. Integer `overflowingX` retorna
+`(Simd<T, N>, SimdMask<N>)` com flag por lane. `==`/`!=` retornam `Bool`;
+comparações nomeadas retornam mask. `SimdMask` usa `&`, `|`, `^`, `~`,
+`all() -> Bool`, `any() -> Bool`, `none() -> Bool` e `countTrue() -> UInt`, sem
+`&&`/`||`. `select(whenTrue: Simd<T, N>, otherwise: Simd<T, N>) -> Simd<T, N>`
+exige lanes iguais e não é short-circuit. Swizzle é static, aceita duplicatas e
+rejeita índice inválido. Integer reductions têm `reduceAdd`,
+`wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`,
+`wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`,
+`reduceBitOr` e `reduceBitXor`, sempre em ordem de lanes. Float reductions usam
+`reduceAdd(mode:)`/`reduceMultiply(mode:)` com mode obrigatório `.strict`,
+`.fast` ou `.reproducible`.
+
+O scalar fallback é requisito de disponibilidade. Native acceleration não é
+uma promessa de API ou de performance. `w explain performance` informa
+native/split/scalar, physical width, loads, tails, reduction mode e missed
+reason. Gather, scatter, raw pointer, alignment assertion, intrinsics e
+`nativeLanes` ficam fora do core portable.
 
 ## FFI, foreign bodies e segurança
 
