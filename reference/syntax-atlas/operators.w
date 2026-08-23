@@ -64,6 +64,13 @@ fn operatorSurface() {
   let decoded = u16.fromBits(encoded)
   let wire = value.toBytes(order: .big)
   let restored = u16.fromBytes(wire, order: .big)
+  let bitWidth = u8.bitWidth
+  let countOnes = u8.countOnes(value)
+  let countZeros = u8.countZeros(value)
+  let countLeadingZeros = u8.countLeadingZeros(value)
+  let countTrailingZeros = u8.countTrailingZeros(value)
+  let reversedBits = u8.reversedBits(value)
+  let reversedBytes = u16.reversedBytes(value)
 
   let _ = coalesced
   let _ = logical
@@ -102,5 +109,12 @@ fn operatorSurface() {
   let _ = rotatedRight
   let _ = decoded
   let _ = restored
+  let _ = bitWidth
+  let _ = countOnes
+  let _ = countZeros
+  let _ = countLeadingZeros
+  let _ = countTrailingZeros
+  let _ = reversedBits
+  let _ = reversedBytes
 }
 // atlas:end operators

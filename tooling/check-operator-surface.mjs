@@ -14,6 +14,7 @@ const paths = {
   atlasSource: path.join(ROOT, "reference", "syntax-atlas", "operators.w"),
   atlasManifest: path.join(ROOT, "reference", "syntax-atlas", "atlas-manifest.json"),
   atlasCheatsheet: path.join(ROOT, "reference", "syntax-atlas", "CHEATSHEET.md"),
+  lastLightNumerics: path.join(ROOT, "reference", "last-light", "numerics.w"),
 };
 
 const assignment = ["=", "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", "&=", "^=", "|="];
@@ -42,6 +43,10 @@ const namedNumeric = [
   "carryingAdd", "borrowingSubtract", "fullMultiply", "maskedShiftLeft", "maskedShiftRight",
   "logicalShiftRight", "rotatedLeft", "rotatedRight", "toBits", "fromBits", "toBytes", "fromBytes",
 ];
+const namedBitPrimitives = [
+  "bitWidth", "countOnes", "countZeros", "countLeadingZeros", "countTrailingZeros", "reversedBits", "reversedBytes",
+];
+namedNumeric.push(...namedBitPrimitives);
 
 const rejected = ["custom/user operators", "unary +", "++", "--", "postfix force unwrap", "&&=", "||=", "??=", "@="];
 const lexicalOperators = [
@@ -71,6 +76,98 @@ function requireCodeForms(errors, text, label, forms) {
   for (const form of forms) {
     const needle = `\`${codeForm(form)}\``;
     if (!text.includes(needle)) fail(errors, `${label} is missing ${form}`);
+  }
+}
+
+function normalizeBits(value, width) {
+  return BigInt.asUintN(width, BigInt(value));
+}
+
+function countOnes(value) {
+  let count = 0n;
+  let remaining = value;
+  while (remaining !== 0n) {
+    count += remaining & 1n;
+    remaining >>= 1n;
+  }
+  return count;
+}
+
+function countLeadingZeros(value, width) {
+  if (value === 0n) return BigInt(width);
+  let count = 0n;
+  for (let bit = width - 1; bit >= 0; bit -= 1) {
+    if (((value >> BigInt(bit)) & 1n) !== 0n) break;
+    count += 1n;
+  }
+  return count;
+}
+
+function countTrailingZeros(value, width) {
+  if (value === 0n) return BigInt(width);
+  let count = 0n;
+  for (let bit = 0; bit < width; bit += 1) {
+    if (((value >> BigInt(bit)) & 1n) !== 0n) break;
+    count += 1n;
+  }
+  return count;
+}
+
+function reverseBits(value, width) {
+  let result = 0n;
+  for (let bit = 0; bit < width; bit += 1) {
+    if (((value >> BigInt(bit)) & 1n) !== 0n) result |= 1n << BigInt(width - bit - 1);
+  }
+  return result;
+}
+
+function reverseBytes(value, width) {
+  let result = 0n;
+  const bytes = width / 8;
+  for (let index = 0; index < bytes; index += 1) {
+    const byte = (value >> BigInt(index * 8)) & 0xffn;
+    result |= byte << BigInt((bytes - index - 1) * 8);
+  }
+  return result;
+}
+
+function checkBitPrimitiveOracle(errors) {
+  const vectors = [
+    {
+      label: "u8 zero", width: 8, value: 0n,
+      ones: 0n, zeros: 8n, leading: 8n, trailing: 8n, bits: 0n, bytes: 0n,
+    },
+    {
+      label: "u8 0b0010_1000", width: 8, value: 0b0010_1000n,
+      ones: 2n, zeros: 6n, leading: 2n, trailing: 3n, bits: 0b0001_0100n, bytes: 0b0010_1000n,
+    },
+    {
+      label: "u16 0x1234", width: 16, value: 0x1234n,
+      ones: 5n, zeros: 11n, leading: 3n, trailing: 2n, bits: 0x2c48n, bytes: 0x3412n,
+    },
+    {
+      label: "signed i8 -2 pattern 0xfe", width: 8, value: -2n,
+      ones: 7n, zeros: 1n, leading: 0n, trailing: 1n, bits: 0x7fn, bytes: 0xfen,
+    },
+  ];
+  for (const vector of vectors) {
+    const value = normalizeBits(vector.value, vector.width);
+    const actual = {
+      width: BigInt(vector.width),
+      ones: countOnes(value),
+      zeros: BigInt(vector.width) - countOnes(value),
+      leading: countLeadingZeros(value, vector.width),
+      trailing: countTrailingZeros(value, vector.width),
+      bits: reverseBits(value, vector.width),
+      bytes: reverseBytes(value, vector.width),
+    };
+    const expected = {
+      width: BigInt(vector.width), ones: vector.ones, zeros: vector.zeros,
+      leading: vector.leading, trailing: vector.trailing, bits: vector.bits, bytes: vector.bytes,
+    };
+    for (const key of Object.keys(expected)) {
+      if (actual[key] !== expected[key]) fail(errors, `bit primitive oracle mismatch for ${vector.label}: ${key}`);
+    }
   }
 }
 
@@ -243,6 +340,7 @@ function check() {
   const rootCheatsheet = read(paths.rootCheatsheet);
   const atlasSource = read(paths.atlasSource);
   const atlasCheatsheet = read(paths.atlasCheatsheet);
+  const lastLightNumerics = read(paths.lastLightNumerics);
   let manifest;
   try {
     manifest = JSON.parse(read(paths.atlasManifest));
@@ -307,6 +405,16 @@ function check() {
     if (!design.includes(form)) fail(errors, `DESIGN numeric policy is missing ${form}`);
     if (!atlasSource.includes(form)) fail(errors, `operators.w is missing ${form}`);
   }
+  for (const form of namedBitPrimitives) {
+    if (!rootCheatsheet.includes(form)) fail(errors, `root CHEATSHEET bit primitive inventory is missing ${form}`);
+    if (!lastLightNumerics.includes(form)) fail(errors, `Last Light numerics is missing ${form}`);
+    if (grammar.binary.has(form) || grammar.assignments.includes(form) || parserTable.has(form) || lexerOperators.includes(form)) {
+      fail(errors, `named bit primitive ${form} was treated as a token/operator`);
+    }
+  }
+  for (const vector of ["0b0010_1000", "0x1234", "0x3412", "0x2c48", "0xfe", "0x7f"]) {
+    if (!lastLightNumerics.includes(vector)) fail(errors, `Last Light numerics is missing bit primitive vector ${vector}`);
+  }
   for (const form of [...assignment, "??", "|", "^", "&", "<<", ">>", "**", "in", "is", "...", "..<", "@", "?."]) {
     if (!atlasSource.includes(form)) fail(errors, `operators.w is missing a ${form} witness`);
   }
@@ -343,6 +451,7 @@ function check() {
   const gaps = checkProbes(errors);
   if (parserTable.get("=")?.rightAssociative !== true) fail(errors, "seed parser assignment associativity changed without a conformance decision");
   if (!design.includes("Assignment encadeada fica inválida") || !design.includes("Assignment produz `()`")) fail(errors, "DESIGN assignment chain rejection contract is missing");
+  checkBitPrimitiveOracle(errors);
   if (errors.length > 0) throw new Error(errors.join("\n"));
   console.log(`operator-surface: ok (${groups.length} groups, ${assignment.length} assignments, ${namedNumeric.length} named numeric APIs; probes parser/grammar-only; gaps: ${gaps.join(", ")})`);
 }
@@ -356,4 +465,4 @@ if (import.meta.main) {
   }
 }
 
-export { check, groups, assignment, namedNumeric, rejected };
+export { check, groups, assignment, namedNumeric, namedBitPrimitives, rejected };

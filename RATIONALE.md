@@ -2334,6 +2334,7 @@ O índice gerado usa esta tabela somente como projeção.
 | graphemes default e normalização versionados | **Possível agora** | tabelas Unicode geradas; custo linear permanece visível |
 | `InlineString` com capacity no tipo | **Rejeitado por enquanto** | refinement, gate de allocation e carrier físico cobrem os três contratos sem outro tipo textual |
 | strict numerics e overflow verificado | **Possível agora** | backend oferece operações adequadas |
+| primitives de bits integer portáveis | **Possível agora** | counts, reverse e byte swap possuem lowering para intrinsics ou fallback; a superfície é pura e não exige allocation |
 | literal exato até materialização | **Possível agora** | big integer e rational decimal ficam no frontend |
 | conversões pelo domínio completo | **Possível agora** | tabela fechada e facts de refinement decidem sem heurística |
 | float strict e total-order wrapper | **Possível agora** | IEEE e backend fornecem as operações necessárias |
@@ -2501,6 +2502,31 @@ A auditoria de 4 de agosto de 2026 usa estas fontes primárias:
 
 O objetivo é cobrir necessidades. Igualdade de feature ou syntax não é o
 critério.
+
+#### 1.9.1 Primitives portáveis de bits
+
+A comparação usa fontes primárias e orienta a ergonomia, não copia APIs externas.
+O [integer primitive de Rust](https://doc.rust-lang.org/stable/core/primitive.u32.html)
+reúne largura, counts, reverse de bits, swap de bytes e famílias checked ou
+wrapping em operações const. O protocolo
+[FixedWidthInteger de Swift](https://developer.apple.com/documentation/swift/fixedwidthinteger)
+expõe largura fixa, counts de zeros e a propriedade
+[`byteSwapped`](https://developer.apple.com/documentation/swift/fixedwidthinteger/byteswapped)
+como transformação do mesmo tipo. Os builtins de
+[Zig](https://ziglang.org/documentation/master/) definem `@clz`, `@ctz`,
+`@popCount`, `@bitReverse` e `@byteSwap`, incluindo resultado definido para
+zero e o sign bit em reverse. O
+[LLVM Language Reference](https://llvm.org/docs/LangRef.html) lista intrinsics
+overloaded para popcount, leading/trailing zero, bitreverse e byte swap, mas
+registra que nem todo target suporta toda largura.
+
+W sintetiza essa evidência em `bitWidth` e seis associated functions em lower
+camel case. Counts retornam `UInt`, zero retorna a largura lógica e as
+transformações retornam o mesmo tipo. O resultado não depende de endianness do
+host. O compiler pode escolher instruction, intrinsic ou fallback equivalente.
+Nenhuma dessas APIs promete tempo constante ou resistência a side-channel.
+Funnel shift, carryless multiply, bit deposit/extract e hints continuam fora do
+core porque exigem contratos de target ou de segurança próprios.
 
 | Família | C23 | Rust | Swift | W vigente |
 |---|---|---|---|---|
@@ -5647,7 +5673,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-389 | conversão explícita | `exactly`, `rounding`, `saturating`, `truncatingBits` e bits nomeados | um cast com policy dependente do par |
 | W-390 | overflow integer | operators checked em todo profile; const vira diagnostic | wrap em release; undefined behavior |
 | W-391 | divisão integer | zero e min/-1 causam panic; quotient toward zero; Euclidean nomeado | floor universal; resultado Option implícito |
-| W-392 | shift | count `UInt`; bound e perda à esquerda causam panic; bit policies nomeadas | mask do count; regras C; wrap silencioso |
+| W-392 | shift e primitives portáveis de bits | count `UInt`; bound e perda à esquerda causam panic; `bitWidth`, counts, reverse de bits e bytes são APIs puras, const-evaluable, com zero definido pela largura; bit policies nomeadas | mask do count; regras C; wrap silencioso; novos operators ou intrinsics target-specific no core |
 | W-393 | float baseline | f32/f64 IEEE strict, nearest-even, subnormal e sem FMA implícito | fast-math em release; flush-to-zero default |
 | W-394 | float equality | comparação IEEE parcial; `TotalFloat` para key e ordem total | float conforma aos protocols totais; bit equality como `==` |
 | W-395 | modes float | strict default; fast e reproducible explícitos e versionados | flag global muda semântica; reproducible sem algoritmo |

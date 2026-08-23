@@ -19606,6 +19606,40 @@ equivale à multiplicação matemática por `2 ** n` e causa panic se perder bit
 sem sobrecarregar os operadores. `wrappingShiftLeft` ainda valida o count;
 `maskedShiftLeft` e `maskedShiftRight` aplicam count módulo width.
 
+Todo integer de largura fixa, `Int`, `UInt`, `isize` e `usize` fornece a mesma
+superfície portátil e pura de primitives de bits. `bitWidth` é uma associated
+constant `UInt`. As seis operações seguintes são associated functions nomeadas,
+const-evaluable e sem allocation:
+
+```w
+let width = u8.bitWidth
+let ones = u8.countOnes(value)
+let zeros = u8.countZeros(value)
+let leading = u8.countLeadingZeros(value)
+let trailing = u8.countTrailingZeros(value)
+let bits = u8.reversedBits(value)
+let bytes = u16.reversedBytes(word)
+```
+
+`countOnes`, `countZeros`, `countLeadingZeros` e `countTrailingZeros` retornam
+`UInt`. Para zero, `countLeadingZeros` e `countTrailingZeros` retornam
+`bitWidth`. Integer signed usa o padrão two's-complement completo, inclusive o
+sign bit. `reversedBits` retorna o mesmo tipo e inverte os bits da largura
+lógica. `reversedBytes` retorna o mesmo tipo e inverte os bytes da largura
+lógica. As larguras integer correntes são múltiplas de oito. Endianness do host
+não altera nenhum desses resultados.
+
+O compiler pode baixar essas APIs para intrinsics, instruções do target ou um
+fallback equivalente. Uma operação numérica comum não promete tempo constante
+nem resistência a side-channel. Crypto que exige essa propriedade usa package,
+provider ou profile próprio e publica sua evidence.
+
+Leading e trailing ones derivam de `~` e dos counts de zero. `bitWidth -
+countOnes` deriva o count de zeros, mas `countZeros` permanece por ergonomia.
+Funnel shift, carryless multiply, bit deposit/extract, CRC/AES, prefetch e
+branch hints não entram no core. Hardware-specific fica em package, provider,
+`unsafe` ou foreign conforme o contrato existente.
+
 Endianness não altera o valor numérico. A memória nativa segue o target e a ABI.
 Serialização escolhe uma ordem:
 

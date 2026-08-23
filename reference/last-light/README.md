@@ -180,7 +180,7 @@ alvo de execução independente.
 | `rest_arguments.w` | rest homogêneo, expansão `each`, ownership e call shape |
 | `units.w` | SI, dimensão e units customizadas |
 | `quantity_oracle.w` | Quantity/SI canonical value, affine points, IEC bits e schemas JSON |
-| `numerics.w` | literais, conversões, overflow, float, ranges, post-test loop e quantization |
+| `numerics.w` | literais, conversões, overflow, primitives de bits portáveis, float, ranges, post-test loop e quantization |
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
 | `performance.w` | fatos de prova, largura interna, SIMD e custos de texto |
