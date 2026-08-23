@@ -1400,6 +1400,15 @@ O checker executa estas etapas:
 5. aplica cada envelope da esquerda para a direita;
 6. grava o contrato normalizado na interface e na HIR.
 
+A fronteira de implementação separa o frontend tipado do evaluator. O frontend
+resolve head, schema, slots, kinds, labels e `.member`. Ele normaliza cada value
+argument para `ConstValue` tipado e não chama ConstIR. Não há dependência do
+frontend em ConstIR. Depois do frontend, o grafo const substitui os value
+parameters e entrega o predicate resolvido ao evaluator ConstIR. Somente um
+predicate resolvido, const-safe e com resultado `Bool(false)` produz
+`W-CONST-0004`. Erros de type, kind, label, generic domain ou predicate que não
+produz `Bool` permanecem em `W-CONTRACT` ou `W-GENERIC`.
+
 O delimitador interno não cria outra semântica por aparência:
 
 | Forma | Categoria estrutural | Semântica depende de |
@@ -3299,6 +3308,10 @@ resolve kinds -> type-check parametric ConstIR -> substitute value arguments
               -> evaluate -> instantiate type/HIR
 ```
 
+A substituição e a avaliação do predicate ocorrem depois do frontend. O frontend
+não executa ConstIR. Essa ordem mantém name resolution, schema checking e
+diagnostics de contrato fora da execução const.
+
 Overload e member lookup terminam antes da execução. O evaluator não cria novos
 symbols nem reinicia name resolution.
 
@@ -3330,12 +3343,63 @@ O evaluator emite um root diagnostic para a primeira falha que impede o
 `ConstValue`. A cadeia de calls e dependências fica em facts ou labels. Uma
 falha não produz entrada de cache.
 
+Quando um predicate const válido retorna `false`, o evaluator monta uma
+`ConstRejectionSlice`. A slice é um backward slice determinístico, alcançável a
+partir do `Bool(false)`, com no máximo 64 records executados. Ela contém somente
+dependencies de dados e controle que ligam o argumento normalizado ao resultado.
+Cada record preserva `kind` (`call`, `primitive` ou `branch`), operation
+resolvida, argumentos e resultado como `ConstValue` normalizado e source span.
+Para um `branch`, `result=Bool(true)` significa que o branch foi tomado. A ordem
+é topológica e causal pela execução. Empates usam source span, kind e operation
+em ordem byte-sort. O evaluator não tenta uma minimização global.
+
+`ConstRejectionSlice` não é full trace. A serialização canônica possui, além do
+limite de 64 records, um teto de 4096 bytes. Se adicionar qualquer record fizer
+a contagem passar de 64 ou a serialização UTF-8 completa passar de 4096 bytes, o
+evaluator descarta a evidência inteira. Ele não publica um trace parcial. Esse
+budget é somente da evidência do diagnostic e não muda o resultado, as quotas ou
+o `ConstValue`. A projeção D0 publica a sequência
+machine-readable em `facts.rejectionTrace: string[]`. Cada item é a serialização
+canônica, como um objeto JSON serializado em uma string UTF-8. O objeto possui
+`args` como array de `ConstValue` textuais, `kind`, `operation`, `result` como um
+`ConstValue` textual e `span` com `source`, `start` e `end`. Seus keys e os keys
+internos de `span` usam byte-sort e o JSON não possui whitespace. Esse formato
+preserva arguments, result e source span. O teto de 4096 bytes conta a
+serialização UTF-8 canônica da sequência JSON completa, com o escaping normal
+das strings. Quando não há uma causal boundary derivável ou a evidência excede
+qualquer bound, a sequência é
+`["predicate:false"]` e `failure` é `"predicate:false"`. O compiler não infere
+uma mensagem de domínio por nomes.
+
+`W-CONST-0004` mantém `head`, `argument` e `predicate`. Ele também publica
+`failure` e `rejectionTrace`. A busca começa nas dependencies do body do
+predicate. Uma causal boundary é o primeiro `call` ou `primitive` com resultado
+`Bool(false)` ao percorrer essas dependencies a partir do root, depois de remover
+wrappers e control records, quando essa boundary sozinha domina e basta para
+explicar o resultado. O root predicate invocation é record de contexto e não
+pode ser `failure`. Para um predicate direto, uma primitive false no body pode
+ser a boundary. A call permanece atômica para escolher `failure`, mesmo quando
+seus records internos aparecem na slice. Se há múltiplas boundaries indispensáveis
+ou ambiguidade, o evaluator usa o fallback.
+Um renderer pode mostrar uma causa específica somente quando a slice a deriva.
+Por exemplo, uma slice que
+contém a call executada e seu resultado pode produzir:
+
+```text
+error[W-CONST-0004]: canMove(from: .accepted, to: .completed) returned false
+```
+
+Esse texto é uma projeção da call, dos arguments, do result e do source span. Ele
+não é uma semântica adicional do predicate. Overflow de record ou de bytes não
+muda o code e não reavalia o predicate. Ele somente troca a slice e `failure`
+por `predicate:false`.
+
 | Code | Condição |
 |---|---|
 | `W-CONST-0001` | operation, call ou target semantic não é const-safe |
 | `W-CONST-0002` | dependency graph contém ciclo |
 | `W-CONST-0003` | steps, heap, call depth ou result excede a quota |
-| `W-CONST-0004` | predicate const válido rejeita o argumento estático |
+| `W-CONST-0004` | predicate const válido rejeita o argumento estático e publica uma `ConstRejectionSlice` bounded |
 | `W-CONST-0005` | typed error escapa do contexto const obrigatório |
 | `W-CONST-0006` | panic ocorre durante avaliação const |
 | `W-CONST-0007` | call parameter exige valor compile-time indisponível |
@@ -6129,7 +6193,7 @@ O tipo abaixo falha na transição `.accepted → .completed`:
 
 ```w
 let skipped: StagePath<[.accepted, .completed]>
-// error[W-CONST-0004]: invalid transition at stages[0] -> stages[1]
+// error[W-CONST-0004]: canMove(from: .accepted, to: .completed) returned false
 ```
 
 `StagePath` prova a sequência declarada. Ele não prova que uma service instance
@@ -30309,6 +30373,10 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - generic signatures, primary associated types, witnesses e inference local;
 - refinements e enum case subsets;
 - argumentos de valor de enum, extensions especializadas e paths refinados;
+- schemas genéricos, aplicações de type e value e `ConstValue` normalizado no
+  frontend tipado;
+- substituição pós-frontend no grafo const, avaliação de predicates por ConstIR
+  e projeção bounded de `ConstRejectionSlice`;
 - rest signatures, call-shape intersection e `each` expansion;
 - synthesis core, `TypeId` e interfaces de reflection;
 - grafo const, ConstIR, quotas e ConstValue;

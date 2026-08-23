@@ -347,6 +347,14 @@ expectativas de design. Eles não provam type checker, evaluator ou ConstIR. O
 primeiro frontend S0 deve emitir records compatíveis antes que o status deixe de
 ser `design-oracle-input`.
 
+W-846 corrige a promessa de causalidade de `W-CONST-0004`. O diagnostic sempre
+preserva `head`, `argument` e `predicate`. Uma causa específica aparece somente
+quando uma `ConstRejectionSlice` bounded possui uma causal boundary única,
+suficiente e dominante. O witness StagePath negativo inclui `canMove` e
+`isValidStagePath`. A call `canMove(.accepted, .completed)` e seu resultado false
+podem justificar a causa.
+Uma slice truncada, ambígua ou sem causal boundary usa `failure: predicate:false`.
+
 ### 1.3 Bundles R1 do Última Luz
 
 Cada bundle mantém o mesmo source base, os mesmos inputs e o mesmo application
@@ -6127,7 +6135,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-843 | operação não const-safe | W-CONST-0001 cobre call, capability ou target semantic que ConstIR não reproduz; target é fact, não outro meaning | usar W-CONST-0007 para target; executar host semantic; fallback runtime num const obrigatório |
 | W-844 | ciclo const | grafo falha antes de executar quando contém ciclo; diagnostic registra sequência fechada e todos os members | executar até quota; escolher member por hash; cortar ciclo sem mostrar edge de retorno |
 | W-845 | quota const | steps, heap, call depth e result usam W-CONST-0003 com quota, consumed, limit e call chain | um code por resource; wall clock como resultado semântico; quota escondida no compiler |
-| W-846 | predicate const false | predicate Bool que rejeita argumento estático usa W-CONST-0004 e preserva head, argumento e causa específica | W-CONTRACT-0003; type mismatch genérico; aceitar type e inserir runtime check |
+| W-846 | predicate const false | predicate Bool que rejeita argumento estático usa W-CONST-0004, preserva head e argumento e publica uma `ConstRejectionSlice` bounded; `failure` serializa a causal boundary única quando suficiente e usa `predicate:false` no fallback | W-CONTRACT-0003; type mismatch genérico; aceitar type e inserir runtime check; inferir causa de domínio fora da slice |
 | W-847 | failure durante const | typed error escapante e panic permanecem W-CONST-0005 e 0006; nenhum cria fault boundary ou cache entry | converter ambos em quota; panic do compiler; materializar Result oculto |
 | W-848 | parâmetro de call const | W-CONST-0007 pertence somente ao argumento indisponível no call site e aponta call e requirement | code de operação target; monomorphization implícita; aceitar descriptor runtime |
 | W-849 | corpus CE0/S0 | sete families CONST possuem baseline único do Última Luz, inversão syntax-valid, outcome e snapshot D0 | examples sem evaluator state; negativo com múltiplas causas; tratar snapshot manual como execução ConstIR |
