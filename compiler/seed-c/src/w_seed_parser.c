@@ -460,6 +460,7 @@ static bool parse_borrow_clause(w_seed_parser *parser);
 static bool parse_function_type(w_seed_parser *parser, size_t start);
 static bool parse_closure_expression(w_seed_parser *parser, bool value_context);
 static bool parse_capture_expression(w_seed_parser *parser, bool value_context);
+static bool parse_enum_declaration(w_seed_parser *parser);
 
 static bool parse_transaction_expression(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
@@ -1242,7 +1243,30 @@ static bool parse_function_type_parameters(w_seed_parser *parser) {
   (void)consume_text(parser, "(", NULL);
   if (!current_is_text(parser, ")")) {
     while (true) {
-      if (current_is_text(parser, "ref") || current_is_text(parser, "inout") ||
+      /* Function-type parameter labels use the same `named value: Type`
+       * surface as declaration parameters.  Preserve the label in the raw
+       * owner span while keeping the direct TYPE child authoritative. */
+      w_seed_lex_item next;
+      const bool named_parameter =
+          current_is_text(parser, "named") && next_significant(parser, &next) &&
+          next.kind == W_SEED_LEX_ITEM_WORD;
+      if (named_parameter) {
+        (void)consume_current(parser, NULL);
+        if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD) ||
+            !next_is_text(parser, ":")) {
+          append_missing(parser, current_span(parser).start_byte,
+                         W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+          pop_node(parser, parser->has_last_token ? parser->last_token_end
+                                                   : start);
+          return false;
+        }
+        (void)consume_current(parser, NULL);
+        if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+          pop_node(parser, parser->has_last_token ? parser->last_token_end
+                                                   : start);
+          return false;
+        }
+      } else if (current_is_text(parser, "ref") || current_is_text(parser, "inout") ||
           current_is_text(parser, "take") || current_is_text(parser, "const")) {
         (void)consume_current(parser, NULL);
       }
@@ -2130,6 +2154,164 @@ static bool parse_struct_declaration(w_seed_parser *parser) {
   return true;
 }
 
+/* Enum payloads use a distinct owner from function parameters.  This keeps
+ * declaration order and the positional/named surface visible to the
+ * caller-owned frontend without reinterpreting a case as a function. */
+static bool parse_enum_case_parameter(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_ENUM_CASE_PARAMETER, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD) &&
+      next_is_text(parser, ":")) {
+    (void)consume_current(parser, NULL);
+    if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+        !parse_type(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  } else if (!parse_type(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
+static bool parse_enum_case(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_ENUM_CASE, start) == W_SEED_CST_NONE)
+    return false;
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  if (current_is_text(parser, "(")) {
+    const size_t parameter_start = current_span(parser).start_byte;
+    (void)consume_text(parser, "(", NULL);
+    if (current_is_text(parser, ")")) {
+      append_missing(parser, current_span(parser).start_byte,
+                     W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    } else {
+      while (true) {
+        if (!parse_enum_case_parameter(parser)) {
+          pop_node(parser, parser->has_last_token ? parser->last_token_end
+                                                   : parameter_start);
+          return false;
+        }
+        if (!current_is_text(parser, ",")) break;
+        (void)consume_text(parser, ",", NULL);
+        if (current_is_text(parser, ")")) break;
+      }
+    }
+    if (!expect_text(parser, ")", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  if (current_is_text(parser, ";"))
+    (void)consume_current(parser, NULL);
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
+static bool enum_member_keyword(w_seed_parser *parser) {
+  static const char *const keywords[] = {
+      "export", "static", "fn",       "async", "unsafe", "init",
+      "const",  "type",   "alias",    "extension",
+      "mut",    "take",   "protocol", "struct",
+  };
+  for (size_t index = 0; index < sizeof(keywords) / sizeof(keywords[0]);
+       index += 1) {
+    if (current_is_text(parser, keywords[index])) return true;
+  }
+  return false;
+}
+
+/* Keep unsupported members in the CST as error leaves.  The enum remains
+ * deterministic and recovered, but it cannot cross the COMPLETE frontend
+ * barrier until a later bundle models members and methods. */
+static void recover_enum_member(w_seed_parser *parser) {
+  const w_seed_span start = current_span(parser);
+  (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM, start, 0);
+  size_t brace_depth = 0;
+  while (!current_is_eof(parser)) {
+    if (current_is_text(parser, "{")) {
+      brace_depth += 1;
+      (void)consume_raw(parser, W_SEED_CST_FLAG_ERROR, W_SEED_CST_ERROR, NULL);
+      continue;
+    }
+    if (current_is_text(parser, "}")) {
+      if (brace_depth == 0) break;
+      brace_depth -= 1;
+      (void)consume_raw(parser, W_SEED_CST_FLAG_ERROR, W_SEED_CST_ERROR, NULL);
+      continue;
+    }
+    const bool semicolon = brace_depth == 0 && current_is_text(parser, ";");
+    (void)consume_raw(parser, W_SEED_CST_FLAG_ERROR, W_SEED_CST_ERROR, NULL);
+    if (semicolon) break;
+  }
+}
+
+static bool parse_enum_declaration(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_ENUM, start) == W_SEED_CST_NONE)
+    return false;
+  if (current_is_text(parser, "export")) (void)consume_text(parser, "export", NULL);
+  (void)consume_text(parser, "enum", NULL);
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  if (current_is_text(parser, "<") &&
+      !parse_generic_parameters(parser, parser->last_token_end)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (current_is_text(parser, ":")) {
+    (void)consume_text(parser, ":", NULL);
+    if (!parse_type(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  if (!current_is_text(parser, "{")) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)consume_text(parser, "{", NULL);
+  while (!current_is_eof(parser) && !current_is_text(parser, "}")) {
+    const size_t before = current_span(parser).start_byte;
+    if (enum_member_keyword(parser)) {
+      recover_enum_member(parser);
+    } else if (!parse_enum_case(parser)) {
+      if (parser->status == W_SEED_PARSE_FATAL || current_is_eof(parser) ||
+          current_is_text(parser, "}")) {
+        break;
+      }
+      if (current_span(parser).start_byte == before) {
+        (void)consume_raw(parser, W_SEED_CST_FLAG_ERROR, W_SEED_CST_ERROR,
+                           NULL);
+      }
+    }
+  }
+  if (!expect_text(parser, "}", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (current_is_text(parser, ";")) (void)consume_text(parser, ";", NULL);
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
 static bool parse_literal_events(w_seed_parser *parser) {
   if (!current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT)) {
     (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
@@ -2591,7 +2773,7 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
           !next_two_are_text(parser, "async", "fn") &&
           !next_two_are_text(parser, "unsafe", "fn") &&
           !next_is_text(parser, "struct") && !next_is_text(parser, "type") &&
-          !next_is_text(parser, "alias")) {
+          !next_is_text(parser, "alias") && !next_is_text(parser, "enum")) {
         stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
         break;
       }
@@ -2609,6 +2791,8 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
         if (!parse_type_or_alias_declaration(parser, false)) break;
       } else if (next_is_text(parser, "alias")) {
         if (!parse_type_or_alias_declaration(parser, true)) break;
+      } else if (next_is_text(parser, "enum")) {
+        if (!parse_enum_declaration(parser)) break;
       } else if (!parse_struct_declaration(parser)) {
         break;
       }
@@ -2671,6 +2855,16 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
       parser->imports_allowed = false;
       saw_declaration = true;
       if (!parse_struct_declaration(parser)) break;
+      continue;
+    }
+    if (current_is_text(parser, "enum")) {
+      if (saw_entry) {
+        stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+        break;
+      }
+      parser->imports_allowed = false;
+      saw_declaration = true;
+      if (!parse_enum_declaration(parser)) break;
       continue;
     }
     if (current_is_text(parser, "type")) {

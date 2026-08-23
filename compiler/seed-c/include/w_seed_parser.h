@@ -87,6 +87,10 @@ typedef enum {
   W_SEED_CST_FOREIGN_BODY_OWNER,
   /* Append-only binding owner; syntactically mirrors let in this seed. */
   W_SEED_CST_VAR_STATEMENT,
+  /* Append-only closed-enum declaration and payload owners. */
+  W_SEED_CST_ENUM,
+  W_SEED_CST_ENUM_CASE,
+  W_SEED_CST_ENUM_CASE_PARAMETER,
 } w_seed_cst_kind;
 
 enum {
