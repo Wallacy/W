@@ -62,6 +62,7 @@ typedef struct {
   size_t enum_case_parameters;
   size_t switch_arms;
   size_t enum_subset_members;
+  size_t enum_membership_cases;
 } frontend_measure;
 
 typedef struct {
@@ -92,6 +93,10 @@ typedef struct {
   frontend_measure count;
   size_t receipt_size;
   bool receipt_overflow;
+  bool current_function_is_const;
+  bool current_const_body_active;
+  bool current_const_body_supported;
+  bool current_const_root_emitted;
 } frontend_context;
 
 static bool normalize_document(frontend_context *context);
@@ -151,6 +156,14 @@ static bool normalize_switch_expression(frontend_context *context,
                                          uint32_t *expression_index,
                                          frontend_simple_type expected,
                                          frontend_simple_type *actual_out);
+static bool context_append_diagnostic(
+    frontend_context *context, w_seed_frontend_diagnostic_kind kind,
+    const char *code, w_seed_frontend_text actual,
+    w_seed_frontend_text expected, w_seed_frontend_text declaration,
+    w_seed_frontend_text label, w_seed_frontend_text accepted_forms,
+    w_seed_span primary);
+static bool const_record_failure(frontend_context *context, w_seed_span span,
+                                 w_seed_frontend_text detail);
 
 static w_seed_span empty_span(size_t offset) {
   const w_seed_span span = {offset, offset};
@@ -264,6 +277,8 @@ static bool receipt_size_external_records(frontend_context *context) {
           !receipt_size_size(context, (size_t)symbol->kind) ||
           !receipt_size_literal(context, "|exported=") ||
           !receipt_size_size(context, symbol->exported ? 1u : 0u) ||
+          !receipt_size_literal(context, "|const=") ||
+          !receipt_size_size(context, symbol->is_const ? 1u : 0u) ||
           !receipt_size_literal(context, "|return=") ||
           !receipt_size_text(context, symbol->return_type) ||
           !receipt_size_literal(context, "\n")) {
@@ -354,6 +369,26 @@ static bool receipt_size_function(frontend_context *context,
          receipt_size_size(context, function->parameter_count) &&
          receipt_size_literal(context, "|") &&
          receipt_size_size(context, function->return_type) &&
+         receipt_size_literal(context, "|const=") &&
+         receipt_size_size(context, function->is_const ? 1u : 0u) &&
+         receipt_size_literal(context, "|const-body=") &&
+         receipt_size_size(context, function->const_body_supported ? 1u : 0u) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_enum_membership_case(
+    frontend_context *context,
+    const w_seed_frontend_enum_membership_case *value) {
+  return receipt_size_literal(context, "enum-membership-case=") &&
+         receipt_size_size(context, value->module_index) &&
+         receipt_size_literal(context, "|owner=") &&
+         receipt_size_size(context, value->owner_expression) &&
+         receipt_size_literal(context, "|enum=") &&
+         receipt_size_size(context, value->enum_base_index) &&
+         receipt_size_literal(context, "|case=") &&
+         receipt_size_size(context, value->enum_case_index) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->source_span) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -1187,7 +1222,7 @@ static bool frontend_widening_allowed(const frontend_context *context,
 static bool is_binary_operator(w_seed_frontend_text text) {
   static const char *const operators[] = {
       "+",  "-",  "*",  "/",  "%",  "==", "!=", "<", "<=", ">",
-      ">=", "&&", "||",
+      ">=", "&&", "||", "in",
   };
   for (size_t index = 0; index < sizeof(operators) / sizeof(operators[0]);
        index += 1) {
@@ -1200,6 +1235,7 @@ static int operator_precedence(w_seed_frontend_text text) {
   if (text_equal(text, "||")) return 1;
   if (text_equal(text, "&&")) return 2;
   if (text_equal(text, "==") || text_equal(text, "!=")) return 3;
+  if (text_equal(text, "in")) return 4;
   if (text_equal(text, "<") || text_equal(text, "<=") ||
       text_equal(text, ">") || text_equal(text, ">=")) {
     return 4;
@@ -1381,6 +1417,7 @@ static void counts_from_measure(const frontend_measure *measure,
   counts->enum_case_parameters = measure->enum_case_parameters;
   counts->switch_arms = measure->switch_arms;
   counts->enum_subset_members = measure->enum_subset_members;
+  counts->enum_membership_cases = measure->enum_membership_cases;
 }
 
 w_seed_frontend_status w_seed_frontend_measure(
@@ -1997,6 +2034,14 @@ static bool context_append_fact(frontend_context *context,
                                 w_seed_frontend_fact_kind kind,
                                 w_seed_span span, w_seed_frontend_text detail) {
   if (context == NULL) return false;
+  if (context->current_function_is_const &&
+      context->current_const_body_active &&
+      (kind == W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE ||
+       kind == W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE ||
+       kind == W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION) &&
+      !const_record_failure(context, span, detail)) {
+    return false;
+  }
   const size_t ordinal = context->count.facts;
   context->count.facts += 1;
   if (!context->emit) {
@@ -2060,6 +2105,28 @@ static bool context_append_diagnostic(
   diagnostic->primary = primary;
   diagnostic->document_index = context->module_index;
   return true;
+}
+
+static bool const_record_failure(frontend_context *context, w_seed_span span,
+                                 w_seed_frontend_text detail) {
+  if (context == NULL || !context->current_function_is_const ||
+      !context->current_const_body_active) {
+    return true;
+  }
+  context->current_const_body_supported = false;
+  if (context->emit && context->output != NULL &&
+      context->function_index < context->output->function_capacity &&
+      context->output->functions != NULL) {
+    context->output->functions[context->function_index].const_body_supported =
+        false;
+  }
+  if (context->current_const_root_emitted) return true;
+  context->current_const_root_emitted = true;
+  return context_append_diagnostic(
+      context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-CONST-0001", detail,
+      (w_seed_frontend_text){"const-safe", 10},
+      (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
+      (w_seed_frontend_text){"const body", 10}, span);
 }
 
 static bool append_module(frontend_context *context, w_seed_frontend_module value,
@@ -2237,6 +2304,24 @@ static bool context_append_enum_subset_member(
           ? context->output->enum_subset_members
           : NULL,
       context->output == NULL ? 0 : context->output->enum_subset_member_capacity,
+      index);
+}
+
+static bool context_append_enum_membership_case(
+    frontend_context *context, w_seed_frontend_enum_membership_case value,
+    uint32_t *index) {
+  if (context == NULL || index == NULL) return false;
+  const size_t ordinal = context->count.enum_membership_cases;
+  context->count.enum_membership_cases += 1;
+  if (!context->emit && !receipt_size_enum_membership_case(context, &value)) {
+    return false;
+  }
+  return context_append_record(
+      context, ordinal, &value, sizeof(value),
+      context->emit && context->output != NULL
+          ? context->output->enum_membership_cases
+          : NULL,
+      context->output == NULL ? 0 : context->output->enum_membership_case_capacity,
       index);
 }
 
@@ -2505,6 +2590,20 @@ static bool span_has_keyword(const w_seed_frontend_document *doc,
   frontend_token_cursor cursor = token_cursor_for(doc, span);
   frontend_token token;
   while (cursor_take(&cursor, &token)) {
+    if (token_text(doc, &token, keyword)) return true;
+  }
+  return false;
+}
+
+/* Function modifiers are declaration-prefix facts.  Do not scan the body for
+ * a matching word because a local binding or literal can use the same text. */
+static bool function_prefix_has_keyword(const w_seed_frontend_document *doc,
+                                        w_seed_span span,
+                                        const char *keyword) {
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token token;
+  while (cursor_take(&cursor, &token)) {
+    if (token_text(doc, &token, "fn")) break;
     if (token_text(doc, &token, keyword)) return true;
   }
   return false;
@@ -3008,7 +3107,9 @@ static bool normalize_function(frontend_context *context, uint32_t node_index,
   (void)memset(&value, 0, sizeof(value));
   value.module_index = (uint32_t)context->module_index;
   value.name = name_after_keyword(doc, node->raw_span, "fn");
-  value.exported = span_has_keyword(doc, node->raw_span, "export");
+  value.exported = function_prefix_has_keyword(doc, node->raw_span, "export");
+  value.is_const = function_prefix_has_keyword(doc, node->raw_span, "const");
+  value.const_body_supported = value.is_const;
   value.span = node->raw_span;
   value.body_span = empty_span(node->raw_span.end_byte);
   value.first_parameter = (uint32_t)context->count.parameters;
@@ -3017,6 +3118,10 @@ static bool normalize_function(frontend_context *context, uint32_t node_index,
   value.return_type = W_SEED_FRONTEND_NONE;
   value.first_statement = (uint32_t)context->count.statements;
   value.statement_count = 0;
+  context->current_function_is_const = value.is_const;
+  context->current_const_body_active = false;
+  context->current_const_body_supported = value.const_body_supported;
+  context->current_const_root_emitted = false;
   if (!context_append_function(context, value, function_index)) return false;
   context->function_index = *function_index;
   context->function_node = node;
@@ -3071,8 +3176,16 @@ static bool normalize_function(frontend_context *context, uint32_t node_index,
   const uint32_t block_node = first_direct_kind(doc, node_index, W_SEED_CST_BLOCK);
   if (block_node != W_SEED_CST_NONE) {
     value.body_span = doc->nodes[block_node].raw_span;
+    context->current_const_body_active = value.is_const;
     if (!normalize_block_statements(context, block_node)) return false;
+    context->current_const_body_active = false;
+  } else if (value.is_const) {
+    context->current_const_body_active = true;
+    (void)const_record_failure(context, node->raw_span,
+                               text_from_span(doc, node->raw_span));
+    context->current_const_body_active = false;
   }
+  value.const_body_supported = context->current_const_body_supported;
   value.parameter_count = (uint32_t)(context->count.parameters -
                                      (size_t)value.first_parameter);
   value.statement_count = (uint32_t)(context->count.statements -
@@ -3269,6 +3382,16 @@ static bool function_in_document(const w_seed_frontend_document *doc,
   return false;
 }
 
+static bool function_node_is_const(const w_seed_frontend_document *doc,
+                                   uint32_t function_node) {
+  if (doc == NULL || function_node >= doc->parse.node_count ||
+      doc->nodes[function_node].kind != W_SEED_CST_FUNCTION) {
+    return false;
+  }
+  return function_prefix_has_keyword(doc, doc->nodes[function_node].raw_span,
+                                     "const");
+}
+
 static w_seed_frontend_text import_item_local_name(
     const w_seed_frontend_document *doc, w_seed_span span,
     w_seed_frontend_text *imported_name) {
@@ -3314,7 +3437,8 @@ static w_seed_frontend_label_kind parameter_label_kind(
     return W_SEED_FRONTEND_LABEL_NAMED_REQUIRED;
   }
   if (second.length != 0 &&
-      (text_equal(first, "external") || text_equal(first, "from"))) {
+      (text_equal(first, "external") || text_equal(first, "from") ||
+       text_equal(first, "to"))) {
     return W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED;
   }
   if (second.length != 0 && text_equal(first, "_")) {
@@ -3341,7 +3465,8 @@ static w_seed_frontend_text parameter_name_from_span(
   }
   if (second.length != 0 &&
       (text_equal(first, "named") || text_equal(first, "external") ||
-       text_equal(first, "from") || text_equal(first, "_"))) {
+       text_equal(first, "from") || text_equal(first, "to") ||
+       text_equal(first, "_"))) {
     return second;
   }
   return first;
@@ -3856,6 +3981,12 @@ static bool expression_append(frontend_expression_parser *parser,
                                : W_SEED_FRONTEND_NONE;
   record.first_switch_arm = W_SEED_FRONTEND_NONE;
   record.switch_arm_count = 0;
+  record.first_membership_case = W_SEED_FRONTEND_NONE;
+  record.membership_case_count = 0;
+  if (kind == W_SEED_FRONTEND_EXPR_ENUM_MEMBERSHIP &&
+      value->enum_index != W_SEED_FRONTEND_NONE) {
+    record.enum_index = value->enum_index;
+  }
   record.supported = supported;
   if (!output_type_index_for_simple(parser->context, type,
                                     &record.inferred_type)) {
@@ -3881,6 +4012,10 @@ static bool expression_append(frontend_expression_parser *parser,
   value->name = value->has_name ? spelling : (w_seed_frontend_text){NULL, 0};
   value->operator_text = operator_text;
   value->span = span;
+  if (kind == W_SEED_FRONTEND_EXPR_ENUM_MEMBERSHIP) {
+    value->enum_index = record.enum_index;
+    value->enum_case_index = W_SEED_FRONTEND_NONE;
+  }
   return true;
 }
 
@@ -4527,8 +4662,22 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                                   span, text_from_span(parser->document, span));
       }
     }
+    bool const_call_safe = true;
+    if (parser->context->current_function_is_const && value->has_name &&
+        !enum_case_constructor) {
+      const bool local_const =
+          local_signature && function_node_is_const(signature_doc, signature_node);
+      const bool external_const =
+          external_signature_found && external_signature->is_const;
+      if ((local_signature && !local_const) ||
+          (external_signature_found && !external_const)) {
+        const_call_safe = false;
+        (void)const_record_failure(parser->context, span, value->name);
+      }
+    }
     const bool supported = value->supported && labels_valid &&
-                           return_type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+                           return_type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
+                           const_call_safe;
     if (!supported && value->has_name && return_type.kind ==
                                       W_SEED_FRONTEND_TYPE_UNKNOWN) {
       (void)context_append_fact(parser->context,
@@ -4596,7 +4745,7 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
 }
 
 static bool expression_parse_prefix(frontend_expression_parser *parser,
-                                    frontend_expr_value *value) {
+                                     frontend_expr_value *value) {
   if (parser == NULL || value == NULL ||
       parser->depth >= W_SEED_FRONTEND_MAX_NESTING) {
     return false;
@@ -4605,6 +4754,222 @@ static bool expression_parse_prefix(frontend_expression_parser *parser,
   const bool result = expression_parse_prefix_inner(parser, value);
   parser->depth -= 1u;
   return result;
+}
+
+typedef struct {
+  uint32_t case_index;
+  w_seed_span span;
+} frontend_membership_item;
+
+static void membership_consume_to_delimiter(frontend_expression_parser *parser,
+                                            w_seed_span *span) {
+  if (parser == NULL) return;
+  size_t nested = 0;
+  frontend_token token;
+  while (cursor_take(&parser->cursor, &token)) {
+    if (span != NULL) span->end_byte = token.span.end_byte;
+    if (token_text(parser->document, &token, "(")) {
+      nested += 1u;
+      continue;
+    }
+    if (token_text(parser->document, &token, ")")) {
+      if (nested != 0) {
+        nested -= 1u;
+        continue;
+      }
+      return;
+    }
+    if (nested == 0 && token_text(parser->document, &token, ",")) return;
+  }
+}
+
+static bool expression_parse_membership(
+    frontend_expression_parser *parser, const frontend_expr_value *subject,
+    frontend_token operator_token, frontend_expr_value *value) {
+  if (parser == NULL || subject == NULL || value == NULL) return false;
+  frontend_token open;
+  if (!cursor_take_text(&parser->cursor, "(", &open)) return false;
+  frontend_membership_item items[W_SEED_FRONTEND_MAX_CST_NODES];
+  size_t item_count = 0;
+  bool valid = subject->supported && subject->has_name &&
+               frontend_type_is_enum(subject->type) &&
+               subject->type.enum_index != W_SEED_FRONTEND_NONE &&
+               subject->type.enum_name.length != 0;
+  bool saw_item = false;
+  bool closed = false;
+  w_seed_span span = {subject->span.start_byte, open.span.end_byte};
+  while (true) {
+    frontend_token next;
+    if (!cursor_peek(&parser->cursor, &next)) break;
+    if (token_text(parser->document, &next, ")")) {
+      (void)cursor_take(&parser->cursor, &next);
+      span.end_byte = next.span.end_byte;
+      closed = true;
+      break;
+    }
+    frontend_token first;
+    if (!cursor_take(&parser->cursor, &first)) break;
+    span.end_byte = first.span.end_byte;
+    w_seed_frontend_text qualifier = {NULL, 0};
+    w_seed_frontend_text case_name = {NULL, 0};
+    w_seed_span case_span = first.span;
+    bool item_shape = false;
+    if (token_text(parser->document, &first, ".")) {
+      frontend_token member;
+      if (cursor_take(&parser->cursor, &member) &&
+          member.kind == W_SEED_CST_WORD) {
+        case_name = text_from_span(parser->document, member.span);
+        case_span.end_byte = member.span.end_byte;
+        item_shape = true;
+      }
+    } else if (first.kind == W_SEED_CST_WORD) {
+      frontend_token dot;
+      frontend_token member;
+      if (cursor_take(&parser->cursor, &dot) &&
+          token_text(parser->document, &dot, ".") &&
+          cursor_take(&parser->cursor, &member) &&
+          member.kind == W_SEED_CST_WORD) {
+        qualifier = text_from_span(parser->document, first.span);
+        case_name = text_from_span(parser->document, member.span);
+        case_span.end_byte = member.span.end_byte;
+        item_shape = true;
+      }
+    }
+    saw_item = true;
+    if (!item_shape) {
+      valid = false;
+      membership_consume_to_delimiter(parser, &span);
+    } else {
+      bool case_valid = valid;
+      if (qualifier.length != 0 &&
+          !text_equal_text(qualifier, subject->type.enum_name)) {
+        case_valid = false;
+      }
+      uint32_t case_index = W_SEED_FRONTEND_NONE;
+      if (case_valid &&
+          !enum_case_for_name(parser->context, subject->type.enum_index,
+                              case_name, &case_index, NULL, NULL)) {
+        case_valid = false;
+      }
+      if (case_valid && enum_case_parameter_count(parser->context, case_index) != 0)
+        case_valid = false;
+      frontend_token payload;
+      if (cursor_peek(&parser->cursor, &payload) &&
+          token_text(parser->document, &payload, "(")) {
+        case_valid = false;
+        membership_consume_to_delimiter(parser, &span);
+      }
+      if (case_valid) {
+        for (size_t prior = 0; prior < item_count; prior += 1) {
+          if (items[prior].case_index == case_index) {
+            case_valid = false;
+            break;
+          }
+        }
+      }
+      if (!case_valid) {
+        valid = false;
+      } else if (item_count < W_SEED_FRONTEND_MAX_CST_NODES) {
+        items[item_count].case_index = case_index;
+        items[item_count].span = case_span;
+        item_count += 1u;
+      } else {
+        valid = false;
+      }
+    }
+    frontend_token separator;
+    if (cursor_peek(&parser->cursor, &separator) &&
+        token_text(parser->document, &separator, ",")) {
+      (void)cursor_take(&parser->cursor, &separator);
+      span.end_byte = separator.span.end_byte;
+      continue;
+    }
+    if (cursor_peek(&parser->cursor, &separator) &&
+        token_text(parser->document, &separator, ")")) {
+      (void)cursor_take(&parser->cursor, &separator);
+      span.end_byte = separator.span.end_byte;
+      closed = true;
+      break;
+    }
+    valid = false;
+    membership_consume_to_delimiter(parser, &span);
+    if (cursor_peek(&parser->cursor, &separator) &&
+        token_text(parser->document, &separator, ")")) {
+      (void)cursor_take(&parser->cursor, &separator);
+      span.end_byte = separator.span.end_byte;
+      closed = true;
+    }
+    break;
+  }
+  if (!closed || !saw_item || item_count == 0) valid = false;
+  /* Canonical identity follows enum declaration order.  Source spans remain
+   * attached to each case record for diagnostics and source maps. */
+  for (size_t left = 0; left < item_count; left += 1) {
+    for (size_t right = left + 1; right < item_count; right += 1) {
+      if (items[right].case_index < items[left].case_index) {
+        const frontend_membership_item swap = items[left];
+        items[left] = items[right];
+        items[right] = swap;
+      }
+    }
+  }
+  if (!valid) {
+    (void)context_append_fact(parser->context,
+                              W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+                              span, text_from_span(parser->document, span));
+  }
+  frontend_simple_type bool_type =
+      simple_type_from_view((w_seed_frontend_text){"Bool", 4});
+  (void)memset(value, 0, sizeof(*value));
+  value->index = W_SEED_FRONTEND_NONE;
+  value->enum_index = subject->type.enum_index;
+  value->enum_case_index = W_SEED_FRONTEND_NONE;
+  if (!expression_append(parser, W_SEED_FRONTEND_EXPR_ENUM_MEMBERSHIP, span,
+                         text_from_span(parser->document, span),
+                         text_from_span(parser->document, operator_token.span),
+                         bool_type, valid, subject->index,
+                         (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0,
+                         value)) {
+    return false;
+  }
+  const uint32_t owner = (uint32_t)value->index;
+  const uint32_t first_case = (uint32_t)parser->context->count.enum_membership_cases;
+  if (valid) {
+    for (size_t index = 0; index < item_count; index += 1) {
+      w_seed_frontend_enum_membership_case record;
+      record.module_index = (uint32_t)parser->context->module_index;
+      record.owner_expression = owner;
+      record.enum_base_index = subject->type.enum_index;
+      record.enum_case_index = items[index].case_index;
+      record.source_span = items[index].span;
+      uint32_t ignored = W_SEED_FRONTEND_NONE;
+      if (!context_append_enum_membership_case(parser->context, record,
+                                               &ignored)) {
+        return false;
+      }
+    }
+  }
+  if (parser->context->emit && parser->context->output != NULL &&
+      owner < parser->context->output->expression_capacity) {
+    w_seed_frontend_expression *record =
+        &parser->context->output->expressions[owner];
+    record->first_membership_case = valid ? first_case : W_SEED_FRONTEND_NONE;
+    record->membership_case_count = valid
+                                        ? (uint32_t)(parser->context->count.enum_membership_cases -
+                                                     (size_t)first_case)
+                                        : 0;
+    record->supported = valid;
+  }
+  value->type = bool_type;
+  value->supported = valid;
+  value->has_name = false;
+  value->is_enum_case = false;
+  value->enum_index = subject->type.enum_index;
+  value->enum_case_index = W_SEED_FRONTEND_NONE;
+  value->name = (w_seed_frontend_text){NULL, 0};
+  value->operator_text = text_from_span(parser->document, operator_token.span);
+  value->span = span;
+  return true;
 }
 
 static bool expression_parse_bp_inner(frontend_expression_parser *parser,
@@ -4624,6 +4989,14 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
       break;
     }
     (void)cursor_take(&parser->cursor, &operator_token);
+    if (text_equal(operator_text, "in")) {
+      const frontend_expr_value subject = *value;
+      if (!expression_parse_membership(parser, &subject, operator_token,
+                                       value)) {
+        return false;
+      }
+      continue;
+    }
     frontend_expr_value right;
     const int next_precedence = precedence + 1;
     if (!expression_parse_bp(parser, next_precedence, &right)) return false;
@@ -4744,6 +5117,8 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.enum_case_index = W_SEED_FRONTEND_NONE;
     fallback.first_switch_arm = W_SEED_FRONTEND_NONE;
     fallback.switch_arm_count = 0;
+    fallback.first_membership_case = W_SEED_FRONTEND_NONE;
+    fallback.membership_case_count = 0;
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
     return context_append_expression(context, fallback, expression_index);
@@ -4768,6 +5143,8 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.enum_case_index = W_SEED_FRONTEND_NONE;
     fallback.first_switch_arm = W_SEED_FRONTEND_NONE;
     fallback.switch_arm_count = 0;
+    fallback.first_membership_case = W_SEED_FRONTEND_NONE;
+    fallback.membership_case_count = 0;
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
     return context_append_expression(context, fallback, expression_index);
@@ -4934,6 +5311,8 @@ static bool normalize_switch_expression(
   switch_record.enum_case_index = W_SEED_FRONTEND_NONE;
   switch_record.first_switch_arm = (uint32_t)context->count.switch_arms;
   switch_record.switch_arm_count = 0;
+  switch_record.first_membership_case = W_SEED_FRONTEND_NONE;
+  switch_record.membership_case_count = 0;
   switch_record.supported = subject_is_enum;
   uint32_t switch_index = W_SEED_FRONTEND_NONE;
   if (!context_append_expression(context, switch_record, &switch_index)) {
@@ -5879,6 +6258,8 @@ static void receipt_write_external_records(
       receipt_write_size(writer, (size_t)symbol->kind);
       receipt_write_literal(writer, "|exported=");
       receipt_write_size(writer, symbol->exported ? 1u : 0u);
+      receipt_write_literal(writer, "|const=");
+      receipt_write_size(writer, symbol->is_const ? 1u : 0u);
       receipt_write_literal(writer, "|return=");
       receipt_write_text(writer, symbol->return_type);
       receipt_write_literal(writer, "\n");
@@ -6042,6 +6423,22 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, value->supported ? 1u : 0u);
       receipt_write_literal(writer, "\n");
     }
+    for (size_t index = 0; index < context->count.enum_membership_cases;
+         index += 1) {
+      const w_seed_frontend_enum_membership_case *value =
+          &output->enum_membership_cases[index];
+      receipt_write_literal(writer, "enum-membership-case=");
+      receipt_write_size(writer, value->module_index);
+      receipt_write_literal(writer, "|owner=");
+      receipt_write_size(writer, value->owner_expression);
+      receipt_write_literal(writer, "|enum=");
+      receipt_write_size(writer, value->enum_base_index);
+      receipt_write_literal(writer, "|case=");
+      receipt_write_size(writer, value->enum_case_index);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, value->source_span);
+      receipt_write_literal(writer, "\n");
+    }
     for (size_t index = 0; index < context->count.symbols; index += 1) {
       const w_seed_frontend_symbol *symbol = &output->symbols[index];
       receipt_write_literal(writer, "symbol=");
@@ -6088,6 +6485,10 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, function->parameter_count);
       receipt_write_literal(writer, "|");
       receipt_write_size(writer, function->return_type);
+      receipt_write_literal(writer, "|const=");
+      receipt_write_size(writer, function->is_const ? 1u : 0u);
+      receipt_write_literal(writer, "|const-body=");
+      receipt_write_size(writer, function->const_body_supported ? 1u : 0u);
       receipt_write_literal(writer, "\n");
     }
     for (size_t index = 0; index < context->count.facts; index += 1) {
@@ -6154,6 +6555,9 @@ static bool output_capacity_ok(const w_seed_frontend_output *output,
          capacity_ok(required->enum_subset_members,
                      output->enum_subset_members,
                      output->enum_subset_member_capacity) &&
+         capacity_ok(required->enum_membership_cases,
+                     output->enum_membership_cases,
+                     output->enum_membership_case_capacity) &&
          capacity_ok(required->symbols, output->symbols,
                      output->symbol_capacity) &&
          capacity_ok(required->facts, output->facts, output->fact_capacity) &&

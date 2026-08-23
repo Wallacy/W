@@ -119,16 +119,17 @@ AST/HIR,
 name/type resolution e formatter normativo permanecem fora; `foreign` falha fechado antes
 do body. `unsafe fn<C>` e `export unsafe fn<C>` são aceitos somente pela ilha C
 validada abaixo; `unsafe fn` sem tag de linguagem permanece STOP. Imports só
-aparecem antes de qualquer declaration; `export` aceita `fn`, `async fn`,
-`struct`, `enum`, `type` e `alias` nesta fatia. Enum generics são reconhecidos
+aparecem antes de qualquer declaration; `export` aceita `fn`, `const fn`,
+`async fn`, `struct`, `enum`, `type` e `alias` nesta fatia. Enum generics são reconhecidos
 sintaticamente, mas continuam unsupported no frontend.
 `transaction` não aceita argumentos de contract nesta fatia. Statements
 `commit` e transactions aninhadas são reconhecidos sintaticamente em qualquer
 block. O parser não valida owner, provider, nesting, commit, rollback, effects
-ou atomicidade. Outros
-modificadores de função (`static`, `const` e receiver modifiers) permanecem
-fora; `unsafe` sem uma ilha de linguagem também falha fechado. `expect` fora de
-`test` falha fechado.
+ou atomicidade. `const fn` e `export const fn` preservam o modifier no CST e
+são as únicas formas const desta fatia. `const async fn`, `const unsafe fn`,
+`async const fn`, duplicatas e `const` sem `fn` falham fechado. `static` e
+receiver modifiers permanecem fora; `unsafe` sem uma ilha de linguagem também
+falha fechado. `expect` fora de `test` falha fechado.
 
 Statements `allocator [binding:] expression { ... }` são reconhecidos em
 qualquer block, inclusive de forma aninhada. O owner `allocator_block` preserva
@@ -252,8 +253,19 @@ all-or-nothing. Esta fatia aceita um documento por module ID; contribuições de
 vários documentos para o mesmo módulo são rejeitadas como `INVALID` em vez de
 serem mescladas silenciosamente. Formas de import que o parser ainda recupera
 (por exemplo, alias de item não reconhecido pelo CST) continuam unsupported.
-Ownership/HIR, async/services/providers, ConstIR, generics completos, tensor,
-runtime, MLIR e WInterface permanecem fora desta fatia.
+Ownership/HIR, async/services/providers, ConstIR, avaliação de constantes,
+initializers/dependencies, quotas, cache e materialização, generics completos,
+tensor, runtime, MLIR e WInterface permanecem fora desta fatia.
+
+Funções `const` no D0 conservam a normalização runtime. Literals, parâmetros,
+bindings, valores/construtores de enum, operadores já suportados, `switch` e
+chamadas diretas a funções locais `const` são const-safe. Uma chamada direta a
+função local não-const ou a símbolo externo sem `is_const` produz um único
+`W-CONST-0001` no span da chamada e marca `const_body_supported=false`. Um
+fato existente `UNSUPPORTED_NODE`, `UNSUPPORTED_TYPE` ou
+`UNSUPPORTED_EXPRESSION` dentro do corpo produz o mesmo root, sem alterar os
+facts ou diagnósticos existentes. CE0 ainda não fornece ConstIR, evaluator ou
+análise de initializer/dependency.
 
 A fatia fechada de enum aceita valores `.case` somente com expected type nominal
 enum local inequívoco e aceita `Enum.case` nominalmente. Cases sem payload são
@@ -276,6 +288,17 @@ membro com owner, case e span de origem. `measure`/`run`, capacidade,
 sentinelas e receipt repetido permanecem determinísticos. Declarações inválidas
 ficam como `UNSUPPORTED_TYPE` fact/barrier explícito; esta fatia não inventa um
 código de diagnóstico para elas.
+
+A expressão de membership D0 aceita somente subject enum local inequívoco e
+lista parenthesized não-vazia de cases payloadless, em forma curta `.case` ou
+qualificada `Enum.case`. A normalização gera `EXPR_ENUM_MEMBERSHIP` com tipo
+`Bool` e records caller-owned por case; a identidade dos records segue a ordem
+canônica do enum, enquanto cada span preserva a origem no source. Duplicatas,
+cases desconhecidos, enum errado, payload ou forma malformada ficam como
+`UNSUPPORTED_EXPRESSION` explícito (não usam códigos `W-MATCH`). Um subject de
+subset pode listar cases da base fora do subset; o resultado é `false` nesse
+caso. A implementação usa scans bounded e suporta enums com mais de 64 cases,
+sem bitset.
 
 O expected type aplica o case-set em returns, bindings tipados, chamadas locais
 e chamadas externas resolvidas por stub; um case fora do conjunto produz

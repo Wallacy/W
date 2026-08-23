@@ -39,6 +39,7 @@ enum {
   TEST_EXPRESSIONS = 1024,
   TEST_ARGUMENTS = 256,
   TEST_SWITCH_ARMS = 256,
+  TEST_ENUM_MEMBERSHIP_CASES = 1024,
   TEST_SYMBOLS = 512,
   TEST_FACTS = 512,
   TEST_DIAGNOSTICS = 128,
@@ -77,6 +78,8 @@ typedef struct {
   w_seed_frontend_expression expressions[TEST_EXPRESSIONS];
   w_seed_frontend_argument arguments[TEST_ARGUMENTS];
   w_seed_frontend_switch_arm switch_arms[TEST_SWITCH_ARMS];
+  w_seed_frontend_enum_membership_case
+      enum_membership_cases[TEST_ENUM_MEMBERSHIP_CASES];
   w_seed_frontend_symbol symbols[TEST_SYMBOLS];
   w_seed_frontend_fact facts[TEST_FACTS];
   w_seed_frontend_diagnostic diagnostics[TEST_DIAGNOSTICS];
@@ -102,6 +105,7 @@ static fixture fixture_external;
 static fixture fixture_generic;
 static fixture fixture_callback;
 static fixture fixture_collision;
+static fixture fixture_const;
 static char long_source[8192];
 
 static bool all_bytes_equal(const void *data, size_t size, uint8_t value) {
@@ -145,6 +149,8 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
                sizeof(fixture_value->arguments));
   (void)memset(fixture_value->switch_arms, value,
                sizeof(fixture_value->switch_arms));
+  (void)memset(fixture_value->enum_membership_cases, value,
+               sizeof(fixture_value->enum_membership_cases));
   (void)memset(fixture_value->symbols, value, sizeof(fixture_value->symbols));
   (void)memset(fixture_value->facts, value, sizeof(fixture_value->facts));
   (void)memset(fixture_value->diagnostics, value,
@@ -191,6 +197,8 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                          sizeof(fixture_value->arguments), value) &&
          all_bytes_equal(fixture_value->switch_arms,
                          sizeof(fixture_value->switch_arms), value) &&
+         all_bytes_equal(fixture_value->enum_membership_cases,
+                         sizeof(fixture_value->enum_membership_cases), value) &&
          all_bytes_equal(fixture_value->enum_subset_members,
                          sizeof(fixture_value->enum_subset_members), value) &&
          all_bytes_equal(fixture_value->symbols, sizeof(fixture_value->symbols),
@@ -260,6 +268,8 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .argument_capacity = TEST_ARGUMENTS,
       .switch_arms = fixture_value->switch_arms,
       .switch_arm_capacity = TEST_SWITCH_ARMS,
+      .enum_membership_cases = fixture_value->enum_membership_cases,
+      .enum_membership_case_capacity = TEST_ENUM_MEMBERSHIP_CASES,
       .entries = fixture_value->entries,
       .entry_capacity = TEST_ENTRIES,
       .statements = fixture_value->statements,
@@ -303,6 +313,7 @@ static bool counts_equal(const w_seed_frontend_counts *left,
          left->expressions == right->expressions &&
          left->arguments == right->arguments && left->symbols == right->symbols &&
          left->switch_arms == right->switch_arms &&
+         left->enum_membership_cases == right->enum_membership_cases &&
          left->facts == right->facts &&
          left->diagnostics == right->diagnostics &&
          left->receipt_bytes == right->receipt_bytes;
@@ -1026,6 +1037,186 @@ static bool test_enum_values_constructors_and_switches(void) {
   return true;
 }
 
+static bool test_const_and_membership(void) {
+  static const char source[] =
+      "enum Stage { accepted reserving preparing serving }\n"
+      "alias WorkStage = Stage<[.preparing, .serving]>\n"
+      "const fn isWork(stage: Stage): Bool { return stage in "
+      "(Stage.serving, .preparing) }\n"
+      "const fn subset(stage: WorkStage): Bool { return stage in "
+      "(.accepted, .preparing) }\n"
+      "const fn calls(stage: Stage): Bool { return isWork(stage) }\n"
+      "fn ordinary(stage: Stage): Bool { return stage in (.accepted) }\n";
+  fixture *value = &fixture_const;
+  CHECK(fixture_run(value, source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.functions == 4);
+  CHECK(value->result.written.enum_membership_cases == 5);
+  CHECK(value->functions[0].is_const && value->functions[0].const_body_supported);
+  CHECK(value->functions[1].is_const && value->functions[1].const_body_supported);
+  CHECK(value->functions[2].is_const && value->functions[2].const_body_supported);
+  CHECK(!value->functions[3].is_const && !value->functions[3].const_body_supported);
+
+  size_t membership_count = 0;
+  for (size_t index = 0; index < value->result.written.expressions; index += 1) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_ENUM_MEMBERSHIP) continue;
+    CHECK(expression->supported);
+    CHECK(expression->inferred_type != W_SEED_FRONTEND_NONE);
+    CHECK(value->types[expression->inferred_type].kind ==
+          W_SEED_FRONTEND_TYPE_BOOL);
+    CHECK(expression->first_membership_case != W_SEED_FRONTEND_NONE);
+    CHECK(expression->membership_case_count != 0);
+    CHECK((size_t)expression->first_membership_case +
+              expression->membership_case_count <=
+          value->result.written.enum_membership_cases);
+    uint32_t previous_case = W_SEED_FRONTEND_NONE;
+    for (uint32_t offset = 0; offset < expression->membership_case_count;
+         offset += 1) {
+      const w_seed_frontend_enum_membership_case *record =
+          &value->enum_membership_cases[expression->first_membership_case +
+                                        offset];
+      CHECK(record->owner_expression == index);
+      CHECK(record->enum_base_index == 0);
+      CHECK(previous_case == W_SEED_FRONTEND_NONE ||
+            previous_case < record->enum_case_index);
+      previous_case = record->enum_case_index;
+    }
+    membership_count += 1;
+  }
+  CHECK(membership_count == 3);
+  CHECK(receipt_contains(value, "enum-membership-case=0|owner=1|enum=0|case=2",
+                         strlen("enum-membership-case=0|owner=1|enum=0|case=2")));
+  w_seed_frontend_counts measured_counts;
+  w_seed_frontend_result measured_result;
+  CHECK(w_seed_frontend_measure(&value->input, &measured_counts,
+                                &measured_result) == W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&measured_counts, &value->result.required));
+  CHECK(measured_counts.enum_membership_cases ==
+        value->result.written.enum_membership_cases);
+  fixture *repeat = &fixture_b;
+  CHECK(fixture_run(repeat, source));
+  CHECK(repeat->result.status == value->result.status);
+  CHECK(repeat->result.receipt_bytes == value->result.receipt_bytes);
+  CHECK(memcmp(repeat->receipt, value->receipt, value->result.receipt_bytes) ==
+        0);
+
+  /* A subset may list a base case outside its subset.  Membership remains a
+   * Bool expression and does not reject that case at normalization time. */
+  CHECK(fixture_run(value,
+                    "enum Stage { accepted preparing serving }\n"
+                    "alias Work = Stage<[.preparing, .serving]>\n"
+                    "const fn f(stage: Work): Bool { return stage in "
+                    "(.accepted, .preparing) }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.enum_membership_cases == 2);
+
+  static const char *const invalid_sources[] = {
+      "enum Stage { accepted preparing }\n"
+      "fn f(stage: Stage): Bool { return stage in () }\n",
+      "enum Stage { accepted preparing }\n"
+      "fn f(stage: Stage): Bool { return stage in (.accepted, .accepted) }\n",
+      "enum Stage { accepted preparing }\n"
+      "fn f(stage: Stage): Bool { return stage in (.missing) }\n",
+      "enum Stage { accepted preparing }\n"
+      "fn f(stage: Stage): Bool { return stage in (.accepted .preparing) }\n",
+      "enum Stage { accepted preparing }\n"
+      "enum Other { nope }\n"
+      "fn f(stage: Stage): Bool { return stage in (Other.nope) }\n",
+  };
+  for (size_t index = 0;
+       index < sizeof(invalid_sources) / sizeof(invalid_sources[0]); index += 1) {
+    CHECK(fixture_run(value, invalid_sources[index]));
+    CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+    CHECK(value->result.written.enum_membership_cases == 0);
+    CHECK(has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+    CHECK(!has_diagnostic(value, "W-MATCH-0001"));
+    CHECK(!has_diagnostic(value, "W-MATCH-0002"));
+  }
+
+  /* The bounded list has no 64-case shortcut. */
+  static char many_source[8192];
+  size_t many_length = 0;
+  CHECK(append_many_source(many_source, sizeof(many_source), &many_length,
+                           "enum Many { "));
+  for (size_t index = 0; index < 70; index += 1)
+    CHECK(append_many_piece(many_source, sizeof(many_source), &many_length,
+                            index, "case", " "));
+  CHECK(append_many_source(many_source, sizeof(many_source), &many_length,
+                           "}\nfn f(value: Many): Bool { return value in ("));
+  for (size_t index = 0; index < 70; index += 1)
+    CHECK(append_many_piece(many_source, sizeof(many_source), &many_length,
+                            index, ".case", index + 1u < 70u ? ", " : ""));
+  CHECK(append_many_source(many_source, sizeof(many_source), &many_length,
+                           ") }\n"));
+  CHECK(fixture_run(value, many_source));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.enum_membership_cases == 70);
+  CHECK(value->expressions[1].kind == W_SEED_FRONTEND_EXPR_ENUM_MEMBERSHIP);
+  CHECK(value->expressions[1].membership_case_count == 70);
+  const uint8_t sentinel = 0xa5u;
+  CHECK(fixture_parse(&fixture_capacity, many_source));
+  fixture_fill_output(&fixture_capacity, sentinel);
+  fixture_capacity.output.enum_membership_case_capacity = 0;
+  fixture_capacity.output.enum_membership_cases = NULL;
+  (void)w_seed_frontend_run(&fixture_capacity.input, &fixture_capacity.output,
+                            &fixture_capacity.result);
+  CHECK(fixture_capacity.result.status == W_SEED_FRONTEND_CAPACITY);
+  CHECK(fixture_capacity.result.required.enum_membership_cases == 70);
+  CHECK(fixture_output_is(&fixture_capacity, sentinel, true));
+
+  CHECK(fixture_run(value,
+                    "fn normal(): Bool { return true }\n"
+                    "const fn bad(): Bool { return normal() }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(value->result.written.diagnostics == 1);
+  CHECK(has_diagnostic(value, "W-CONST-0001"));
+  CHECK(value->functions[1].is_const && !value->functions[1].const_body_supported);
+  CHECK(value->diagnostics[0].primary.start_byte <
+        value->diagnostics[0].primary.end_byte);
+
+  CHECK(fixture_run(value,
+                    "const fn bad(): Bool { return true.foo }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(value->result.written.diagnostics == 1);
+  CHECK(has_diagnostic(value, "W-CONST-0001"));
+  CHECK(has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  CHECK(!value->functions[0].const_body_supported);
+
+  CHECK(fixture_parse(&fixture_external,
+                      "import { ext } from extdep\n"
+                      "const fn f(): Bool { return ext() }\n"));
+  fixture_external.external_symbols[0] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"ext", 3},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0,
+      .return_type = (w_seed_frontend_text){"Bool", 4},
+      .is_const = false,
+  };
+  fixture_external.external_modules[0] = (w_seed_frontend_external_module){
+      .module_id = (w_seed_frontend_text){"extdep", 6},
+      .symbols = fixture_external.external_symbols,
+      .symbol_count = 1,
+  };
+  fixture_external.input.external_modules = fixture_external.external_modules;
+  fixture_external.input.external_module_count = 1;
+  (void)w_seed_frontend_run(&fixture_external.input, &fixture_external.output,
+                            &fixture_external.result);
+  CHECK(fixture_external.result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(fixture_external.result.written.diagnostics == 1);
+  CHECK(has_diagnostic(&fixture_external, "W-CONST-0001"));
+  fixture_external.external_symbols[0].is_const = true;
+  (void)w_seed_frontend_run(&fixture_external.input, &fixture_external.output,
+                            &fixture_external.result);
+  CHECK(fixture_external.result.status == W_SEED_FRONTEND_OK);
+  CHECK(fixture_external.functions[0].is_const &&
+        fixture_external.functions[0].const_body_supported);
+  return true;
+}
+
 static bool test_graph_facts_and_external_stub(void) {
   fixture *duplicate = &fixture_duplicate;
   CHECK(fixture_run(duplicate,
@@ -1287,6 +1478,7 @@ int main(void) {
   if (!test_enums_and_payloads()) return 1;
   if (!test_enum_subsets()) return 1;
   if (!test_enum_values_constructors_and_switches()) return 1;
+  if (!test_const_and_membership()) return 1;
   if (!test_semantic_diagnostics()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;
   if (!test_receipt_encoding_and_long_fields()) return 1;
