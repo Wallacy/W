@@ -36,6 +36,8 @@ enum {
   CONSTIR_ARGUMENTS = 16384,
   CONSTIR_SWITCH = 16384,
   CONSTIR_MEMBERSHIP = 65536,
+  CONSTIR_STATEMENTS = 8192,
+  CONSTIR_LOCALS = 1024,
   CONSTIR_DIAGNOSTICS = 256,
   CONSTIR_RECEIPT = 8 * 1024 * 1024,
 };
@@ -89,6 +91,8 @@ typedef struct {
   w_seed_constir_call_argument constir_arguments[CONSTIR_ARGUMENTS];
   w_seed_constir_switch_arm constir_switch[CONSTIR_SWITCH];
   w_seed_constir_membership_case constir_membership[CONSTIR_MEMBERSHIP];
+  w_seed_constir_statement constir_statements[CONSTIR_STATEMENTS];
+  w_seed_constir_local constir_locals[CONSTIR_LOCALS];
   w_seed_constir_diagnostic constir_diagnostics[CONSTIR_DIAGNOSTICS];
   uint8_t constir_receipt[CONSTIR_RECEIPT];
 } fixture;
@@ -161,6 +165,10 @@ static void fixture_init_output(fixture *value) {
       .switch_arm_capacity = CONSTIR_SWITCH,
       .membership_cases = value->constir_membership,
       .membership_case_capacity = CONSTIR_MEMBERSHIP,
+      .statements = value->constir_statements,
+      .statement_capacity = CONSTIR_STATEMENTS,
+      .locals = value->constir_locals,
+      .local_capacity = CONSTIR_LOCALS,
       .diagnostics = value->constir_diagnostics,
       .diagnostic_capacity = CONSTIR_DIAGNOSTICS,
       .receipt = value->constir_receipt,
@@ -204,13 +212,24 @@ static bool fixture_lower(fixture *value, const char *text) {
 
 static w_seed_constir_program fixture_program(const fixture *value) {
   return (w_seed_constir_program){
-      value->constir_functions, value->constir_result.written.functions,
-      value->constir_parameters, value->constir_result.written.parameters,
-      value->constir_nodes, value->constir_result.written.nodes,
-      value->constir_arguments, value->constir_result.written.call_arguments,
-      value->constir_switch, value->constir_result.written.switch_arms,
-      value->constir_membership, value->constir_result.written.membership_cases,
-      &value->frontend_output, &value->frontend_result};
+      .functions = value->constir_functions,
+      .function_count = value->constir_result.written.functions,
+      .parameters = value->constir_parameters,
+      .parameter_count = value->constir_result.written.parameters,
+      .nodes = value->constir_nodes,
+      .node_count = value->constir_result.written.nodes,
+      .call_arguments = value->constir_arguments,
+      .call_argument_count = value->constir_result.written.call_arguments,
+      .switch_arms = value->constir_switch,
+      .switch_arm_count = value->constir_result.written.switch_arms,
+      .membership_cases = value->constir_membership,
+      .membership_case_count = value->constir_result.written.membership_cases,
+      .frontend_output = &value->frontend_output,
+      .frontend_result = &value->frontend_result,
+      .statements = value->constir_statements,
+      .statement_count = value->constir_result.written.statements,
+      .locals = value->constir_locals,
+      .local_count = value->constir_result.written.locals};
 }
 
 static bool evaluate_enum(const fixture *value, uint32_t from, uint32_t to,
@@ -310,6 +329,285 @@ static bool test_can_move_and_digest(void) {
             &invalid_workspace, &invalid_value, &invalid_result) ==
         W_SEED_CONSTIR_INVALID &&
         invalid_result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE);
+  return true;
+}
+
+static bool test_static_list_stage_path(void) {
+  static const char source[] =
+      "enum ServiceStage { accepted reserving preparing serving completed cancelled }\n"
+      "const fn canMove(from current: ServiceStage, to next: ServiceStage): Bool { "
+      "return switch current { case .accepted: next in (.reserving, .cancelled) "
+      "case .reserving: next in (.preparing, .cancelled) "
+      "case .preparing: next in (.serving, .cancelled) "
+      "case .serving: next in (.completed, .cancelled) "
+      "case .completed: false case .cancelled: false } }\n"
+      "const fn isValidStagePath(stages: StaticList<ServiceStage>): Bool { "
+      "guard stages.count > 0 else return false "
+      "for index in 1..<stages.count { if !canMove(from: stages[index - 1], "
+      "to: stages[index]) { return false } } return true }\n"
+      "const fn firstStage(stages: StaticList<ServiceStage>, index: usize): Bool {\n"
+      "return stages[index] == stages[index]\n}\n";
+  fixture *value = &first_fixture;
+  CHECK(fixture_lower(value, source));
+  CHECK(value->constir_result.written.functions == 3u &&
+        value->constir_result.written.parameters == 5u &&
+        value->constir_result.written.statements != 0u &&
+        value->constir_result.written.locals == 1u);
+  const w_seed_constir_program program = fixture_program(value);
+  const w_seed_constir_parameter *list_parameter = &value->constir_parameters[2];
+  const w_seed_constir_parameter *bounds_list_parameter =
+      &value->constir_parameters[3];
+  const w_seed_constir_parameter *index_parameter =
+      &value->constir_parameters[4];
+  CHECK(list_parameter->type_kind == W_SEED_FRONTEND_TYPE_STATIC_LIST &&
+        list_parameter->type_index < value->frontend_result.written.types);
+  const w_seed_frontend_type *list_type =
+      &value->types[list_parameter->type_index];
+  CHECK(list_type->kind == W_SEED_FRONTEND_TYPE_STATIC_LIST &&
+        list_type->element_type != W_SEED_FRONTEND_NONE &&
+        list_type->element_type < value->frontend_result.written.types);
+  const uint32_t element_type_index = list_type->element_type;
+  const uint32_t bounds_element_type_index =
+      value->types[bounds_list_parameter->type_index].element_type;
+  const uint32_t enum_base = value->constir_parameters[0].enum_base_index;
+  static const uint32_t paths[][6] = {
+      {0u, 0u, 0u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u, 0u},
+      {0u, 1u, 2u, 3u, 4u, 0u}, {0u, 1u, 2u, 0u, 0u, 0u},
+      {0u, 5u, 0u, 0u, 0u, 0u}, {1u, 5u, 0u, 0u, 0u, 0u},
+      {2u, 5u, 0u, 0u, 0u, 0u}, {3u, 5u, 0u, 0u, 0u, 0u},
+      {0u, 2u, 0u, 0u, 0u, 0u}, {1u, 0u, 0u, 0u, 0u, 0u},
+      {4u, 5u, 0u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u, 0u}};
+  static const size_t lengths[] = {0u, 1u, 5u, 3u, 2u, 2u,
+                                   2u, 2u, 2u, 2u, 2u, 2u};
+  static const bool expected[] = {false, true, true, true, true, true,
+                                  true,  true, false, false, false, false};
+  for (size_t path = 0u; path < sizeof(lengths) / sizeof(lengths[0]);
+       path += 1u) {
+    w_seed_constir_value elements[6];
+    for (size_t index = 0u; index < lengths[path]; index += 1u)
+      CHECK(w_seed_constir_value_enum(element_type_index, enum_base,
+                                      paths[path][index], &elements[index]));
+    w_seed_constir_value list;
+    CHECK(w_seed_constir_value_static_list(
+        list_parameter->type_index, element_type_index,
+        lengths[path] == 0u ? NULL : elements, lengths[path], &list));
+    w_seed_constir_value result_value;
+    w_seed_constir_eval_result result;
+    w_seed_constir_eval_frame frames[16];
+    w_seed_constir_eval_workspace workspace = {frames, 16u};
+    CHECK(w_seed_constir_evaluate(
+              &program, 1u, &list, 1u,
+              (w_seed_constir_quota){10000u, 0u, 32u, SIZE_MAX}, &workspace,
+              &result_value, &result) == W_SEED_CONSTIR_OK &&
+          result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+          result.consumed_heap_bytes == 0u &&
+          result_value.kind == W_SEED_CONSTIR_VALUE_BOOL &&
+          result_value.bool_value == expected[path]);
+  }
+
+  /* Invalid arity, scalar, wrong enum base, and a non-empty NULL list must
+   * reject before execution and leave no result value. */
+  w_seed_constir_value result_value;
+  w_seed_constir_eval_result result;
+  w_seed_constir_eval_frame frames[4];
+  w_seed_constir_eval_workspace workspace = {frames, 4u};
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, NULL, 0u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result_value.kind == W_SEED_CONSTIR_VALUE_INVALID &&
+        result.consumed_steps == 0u);
+  w_seed_constir_value scalar;
+  CHECK(w_seed_constir_value_bool(list_parameter->type_index, true, &scalar));
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &scalar, 1u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result_value.kind == W_SEED_CONSTIR_VALUE_INVALID &&
+        result.consumed_steps == 0u);
+  w_seed_constir_value wrong_element;
+  CHECK(w_seed_constir_value_enum(element_type_index, enum_base + 1u, 0u,
+                                  &wrong_element));
+  w_seed_constir_value wrong_base_list;
+  CHECK(w_seed_constir_value_static_list(
+      list_parameter->type_index, element_type_index, &wrong_element, 1u,
+      &wrong_base_list));
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &wrong_base_list, 1u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result_value.kind == W_SEED_CONSTIR_VALUE_INVALID &&
+        result.consumed_steps == 0u);
+  w_seed_constir_value null_nonempty;
+  CHECK(w_seed_constir_value_static_list(
+      list_parameter->type_index, element_type_index, &wrong_element, 1u,
+      &null_nonempty));
+  null_nonempty.elements = NULL;
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &null_nonempty, 1u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result_value.kind == W_SEED_CONSTIR_VALUE_INVALID &&
+        result.consumed_steps == 0u);
+
+  /* An empty list is valid input, but indexing it is a deterministic bounds
+   * fault.  A small step quota must also produce W-CONST-0003 repeatedly. */
+  w_seed_constir_value empty;
+  CHECK(w_seed_constir_value_static_list(
+      bounds_list_parameter->type_index, bounds_element_type_index, NULL, 0u,
+      &empty));
+  uint8_t zero_index[W_SEED_CONSTIR_INTEGER_BYTES] = {0u};
+  w_seed_constir_value bounds_index;
+  CHECK(w_seed_constir_value_integer(
+      index_parameter->type_index, index_parameter->type_kind,
+      index_parameter->type_is_signed, index_parameter->type_bit_width,
+      zero_index, &bounds_index));
+  w_seed_constir_value bounds_arguments[2] = {empty, bounds_index};
+  const w_seed_constir_status bounds_status = w_seed_constir_evaluate(
+      &program, 2u, bounds_arguments, 2u,
+      (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+      &result_value, &result);
+  CHECK(bounds_status == W_SEED_CONSTIR_OK &&
+        result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0006 &&
+        result_value.kind == W_SEED_CONSTIR_VALUE_INVALID);
+  enum { large_count = 256u };
+  w_seed_constir_value elements[large_count];
+  for (uint32_t index = 0u; index < large_count; index += 1u)
+    CHECK(w_seed_constir_value_enum(element_type_index, enum_base, index % 6u,
+                                    &elements[index]));
+  w_seed_constir_value large_list;
+  CHECK(w_seed_constir_value_static_list(
+      list_parameter->type_index, element_type_index, elements, large_count,
+      &large_list));
+  /* The caller-owned validation scan has a deterministic D1 ceiling that is
+   * independent of the execution step quota. */
+  w_seed_constir_value over_limit = large_list;
+  over_limit.element_count = W_SEED_CONSTIR_MAX_STATIC_LIST_ELEMENTS + 1u;
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &over_limit, 1u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result_value.kind == W_SEED_CONSTIR_VALUE_INVALID &&
+        result.consumed_steps == 0u);
+  w_seed_constir_eval_result quota_first;
+  w_seed_constir_eval_result quota_second;
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &large_list, 1u,
+            (w_seed_constir_quota){10u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &quota_first) == W_SEED_CONSTIR_OK &&
+        quota_first.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0003 &&
+        result_value.kind == W_SEED_CONSTIR_VALUE_INVALID);
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &large_list, 1u,
+            (w_seed_constir_quota){10u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &quota_second) == W_SEED_CONSTIR_OK &&
+        quota_second.diagnostic == quota_first.diagnostic &&
+        quota_second.consumed_steps == quota_first.consumed_steps &&
+        quota_second.consumed_heap_bytes == 0u);
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &large_list, 1u,
+            (w_seed_constir_quota){10000u, 0u, 32u, SIZE_MAX}, NULL,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result_value.kind == W_SEED_CONSTIR_VALUE_INVALID &&
+        result.consumed_steps == 0u);
+
+  /* The statement tree is mutable caller-owned IR.  Wrong child counts,
+   * cycles, and out-of-range local ordinals must fail before any step. */
+  w_seed_constir_function *path_function = &value->constir_functions[1];
+  uint32_t for_statement = W_SEED_CONSTIR_NONE;
+  for (uint32_t offset = 0u; offset < path_function->statement_count;
+       offset += 1u) {
+    if (value->constir_statements[path_function->first_statement + offset].kind ==
+        W_SEED_CONSTIR_STATEMENT_FOR_RANGE) {
+      for_statement = path_function->first_statement + offset;
+      break;
+    }
+  }
+  CHECK(for_statement != W_SEED_CONSTIR_NONE);
+  w_seed_constir_statement saved_statement = value->constir_statements[for_statement];
+  value->constir_statements[for_statement].child_count += 1u;
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &large_list, 1u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result.consumed_steps == 0u);
+  value->constir_statements[for_statement] = saved_statement;
+  value->constir_statements[for_statement].local_ordinal = 1u;
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &large_list, 1u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result.consumed_steps == 0u);
+  value->constir_statements[for_statement] = saved_statement;
+  uint32_t bool_node = W_SEED_CONSTIR_NONE;
+  for (uint32_t offset = 0u; offset < path_function->node_count;
+       offset += 1u) {
+    const w_seed_constir_node *node =
+        &value->constir_nodes[path_function->first_node + offset];
+    if (node->type_kind == W_SEED_FRONTEND_TYPE_BOOL) {
+      bool_node = path_function->first_node + offset;
+      break;
+    }
+  }
+  CHECK(bool_node != W_SEED_CONSTIR_NONE);
+  value->constir_statements[for_statement].lower_node = bool_node;
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &large_list, 1u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result.consumed_steps == 0u);
+  value->constir_statements[for_statement] = saved_statement;
+  w_seed_constir_local *path_local =
+      &value->constir_locals[path_function->first_local];
+  w_seed_constir_local saved_local = *path_local;
+  path_local->ordinal = 1u;
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &large_list, 1u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result.consumed_steps == 0u);
+  *path_local = saved_local;
+  path_local->type_bit_width += 1u;
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &large_list, 1u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result.consumed_steps == 0u);
+  *path_local = saved_local;
+  path_local->owner_function = 0u;
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &large_list, 1u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result.consumed_steps == 0u);
+  *path_local = saved_local;
+  uint32_t return_statement = W_SEED_CONSTIR_NONE;
+  for (uint32_t offset = 0u; offset < path_function->statement_count;
+       offset += 1u) {
+    const w_seed_constir_statement *statement =
+        &value->constir_statements[path_function->first_statement + offset];
+    if (statement->kind == W_SEED_CONSTIR_STATEMENT_RETURN) {
+      return_statement = path_function->first_statement + offset;
+      break;
+    }
+  }
+  CHECK(return_statement != W_SEED_CONSTIR_NONE);
+  w_seed_constir_statement saved_return_statement =
+      value->constir_statements[return_statement];
+  value->constir_statements[return_statement].condition_node = bool_node;
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &large_list, 1u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result.consumed_steps == 0u);
+  value->constir_statements[return_statement] = saved_return_statement;
+  value->constir_statements[for_statement].next_sibling = for_statement;
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &large_list, 1u,
+            (w_seed_constir_quota){100u, 0u, 32u, SIZE_MAX}, &workspace,
+            &result_value, &result) == W_SEED_CONSTIR_INVALID &&
+        result.consumed_steps == 0u);
+  value->constir_statements[for_statement] = saved_statement;
   return true;
 }
 
@@ -430,7 +728,8 @@ static bool test_labels_relations_and_parentheses(void) {
                   value->constir_switch, value->constir_result.written.switch_arms,
                   value->constir_membership,
                   value->constir_result.written.membership_cases,
-                  &value->frontend_output, &value->frontend_result},
+                  &value->frontend_output, &value->frontend_result, NULL, 0u,
+                  NULL, 0u},
               function_index, &one_value, 1u,
               (w_seed_constir_quota){100u, 0u, 1u, SIZE_MAX}, &workspace, &output,
               &evaluation) == W_SEED_CONSTIR_OK &&
@@ -465,7 +764,8 @@ static bool test_labels_relations_and_parentheses(void) {
                 value->constir_switch, value->constir_result.written.switch_arms,
                 value->constir_membership,
                 value->constir_result.written.membership_cases,
-                &value->frontend_output, &value->frontend_result},
+                &value->frontend_output, &value->frontend_result, NULL, 0u,
+                NULL, 0u},
             0u, mixed_arguments, 2u,
             (w_seed_constir_quota){100u, 0u, 1u, SIZE_MAX}, &workspace, &output,
             &evaluation) == W_SEED_CONSTIR_OK &&
@@ -488,7 +788,8 @@ static bool test_labels_relations_and_parentheses(void) {
                 value->constir_switch, value->constir_result.written.switch_arms,
                 value->constir_membership,
                 value->constir_result.written.membership_cases,
-                &value->frontend_output, &value->frontend_result},
+                &value->frontend_output, &value->frontend_result, NULL, 0u,
+                NULL, 0u},
             1u, mixed_arguments, 2u,
             (w_seed_constir_quota){100u, 0u, 1u, SIZE_MAX}, &workspace, &output,
             &evaluation) == W_SEED_CONSTIR_OK &&
@@ -506,7 +807,8 @@ static bool test_labels_relations_and_parentheses(void) {
                 value->constir_switch, value->constir_result.written.switch_arms,
                 value->constir_membership,
                 value->constir_result.written.membership_cases,
-                &value->frontend_output, &value->frontend_result},
+                &value->frontend_output, &value->frontend_result, NULL, 0u,
+                NULL, 0u},
             1u, mixed_arguments, 2u,
             (w_seed_constir_quota){100u, 0u, 1u, SIZE_MAX}, &workspace, &output,
             &evaluation) == W_SEED_CONSTIR_OK &&
@@ -528,7 +830,8 @@ static bool test_labels_relations_and_parentheses(void) {
                 value->constir_switch, value->constir_result.written.switch_arms,
                 value->constir_membership,
                 value->constir_result.written.membership_cases,
-                &value->frontend_output, &value->frontend_result},
+                &value->frontend_output, &value->frontend_result, NULL, 0u,
+                NULL, 0u},
             2u, mixed_arguments, 2u,
             (w_seed_constir_quota){100u, 0u, 1u, SIZE_MAX}, &workspace, &output,
             &evaluation) == W_SEED_CONSTIR_OK &&
@@ -609,7 +912,8 @@ static bool test_typed_literal_projection(void) {
                 decimal->constir_arguments, decimal->constir_result.written.call_arguments,
                 decimal->constir_switch, decimal->constir_result.written.switch_arms,
                 decimal->constir_membership, decimal->constir_result.written.membership_cases,
-                &decimal->frontend_output, &decimal->frontend_result},
+                &decimal->frontend_output, &decimal->frontend_result, NULL, 0u,
+                NULL, 0u},
             0u, NULL, 0u, (w_seed_constir_quota){32u, 0u, 2u, SIZE_MAX},
             &workspace, &decimal_value, &decimal_result) == W_SEED_CONSTIR_OK &&
         decimal_result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
@@ -623,7 +927,8 @@ static bool test_typed_literal_projection(void) {
                 hexadecimal->constir_arguments, hexadecimal->constir_result.written.call_arguments,
                 hexadecimal->constir_switch, hexadecimal->constir_result.written.switch_arms,
                 hexadecimal->constir_membership, hexadecimal->constir_result.written.membership_cases,
-                &hexadecimal->frontend_output, &hexadecimal->frontend_result},
+                &hexadecimal->frontend_output, &hexadecimal->frontend_result,
+                NULL, 0u, NULL, 0u},
             0u, NULL, 0u, (w_seed_constir_quota){32u, 0u, 2u, SIZE_MAX},
             &workspace, &hexadecimal_value, &hexadecimal_result) == W_SEED_CONSTIR_OK &&
         hexadecimal_result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
@@ -724,6 +1029,19 @@ static bool test_depth_and_caller_owned_validation(void) {
   CHECK(fixture_lower(value, scalar_source));
   w_seed_constir_function function_copy = value->constir_functions[0];
   const w_seed_constir_node original = value->constir_nodes[function_copy.root_node];
+  w_seed_constir_program scalar_program = fixture_program(value);
+  scalar_program.frontend_output = NULL;
+  scalar_program.frontend_result = NULL;
+  value->constir_nodes[function_copy.root_node].type_kind =
+      W_SEED_FRONTEND_TYPE_RANGE;
+  CHECK(w_seed_constir_evaluate(
+            &scalar_program, 0u, NULL, 0u,
+            (w_seed_constir_quota){32u, 0u, 1u, SIZE_MAX}, &workspace, &output,
+            &evaluation) == W_SEED_CONSTIR_INVALID &&
+        evaluation.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+        evaluation.consumed_steps == 0u &&
+        output.kind == W_SEED_CONSTIR_VALUE_INVALID);
+  value->constir_nodes[function_copy.root_node].type_kind = original.type_kind;
   const uint32_t first = function_copy.first_node;
   const size_t chain_count = (size_t)W_SEED_CONSTIR_MAX_EVAL_DEPTH + 1u;
   for (size_t offset = 0; offset < chain_count; offset += 1u) {
@@ -754,7 +1072,7 @@ static bool test_depth_and_caller_owned_validation(void) {
   const w_seed_constir_program deep_program = {
       &function_copy, 1u, value->constir_parameters, 0u, value->constir_nodes,
       first + chain_count, NULL, 0u, NULL, 0u, NULL, 0u,
-      &value->frontend_output, &value->frontend_result};
+      &value->frontend_output, &value->frontend_result, NULL, 0u, NULL, 0u};
   CHECK(w_seed_constir_evaluate(
             &deep_program, 0u, NULL, 0u,
             (w_seed_constir_quota){SIZE_MAX, 0u, SIZE_MAX, SIZE_MAX},
@@ -768,12 +1086,15 @@ static bool test_depth_and_caller_owned_validation(void) {
   value->constir_nodes[first].normalized_operator = W_SEED_CONSTIR_OPERATOR_NOT;
   value->constir_nodes[first].left = first;
   CHECK(w_seed_constir_evaluate(
-            &(w_seed_constir_program){&function_copy, 1u,
-                                      value->constir_parameters, 0u,
-                                      value->constir_nodes, first + 1u, NULL, 0u,
-                                      NULL, 0u, NULL, 0u,
-                                      &value->frontend_output,
-                                      &value->frontend_result},
+            &(w_seed_constir_program){
+                .functions = &function_copy,
+                .function_count = 1u,
+                .parameters = value->constir_parameters,
+                .parameter_count = 0u,
+                .nodes = value->constir_nodes,
+                .node_count = first + 1u,
+                .frontend_output = &value->frontend_output,
+                .frontend_result = &value->frontend_result},
             0u, NULL, 0u,
             (w_seed_constir_quota){32u, 0u, 1u, SIZE_MAX}, &workspace, &output,
             &evaluation) == W_SEED_CONSTIR_INVALID &&
@@ -984,6 +1305,12 @@ static bool test_capacity_and_barrier(void) {
       "case .preparing: next in (.serving, .cancelled) "
       "case .serving: next in (.completed, .cancelled) "
       "case .completed: false case .cancelled: false } }\n"
+      "const fn structured(stages: StaticList<Stage>): Bool {\n"
+      "for index in 0..<stages.count {\n"
+      "return true\n"
+      "}\n"
+      "return false\n"
+      "}\n"
       "const fn bad(value: u8): u8 { let local = value return local }\n";
   CHECK(fixture_parse(value, complete_source));
   const w_seed_constir_input complete_input = {
@@ -995,7 +1322,21 @@ static bool test_capacity_and_barrier(void) {
         complete_counts.nodes != 0u && complete_counts.call_arguments != 0u &&
         complete_counts.switch_arms != 0u &&
         complete_counts.membership_cases != 0u &&
+        complete_counts.statements != 0u && complete_counts.locals != 0u &&
         complete_counts.diagnostics != 0u && complete_counts.receipt_bytes != 0u);
+
+  static const char list_result_source[] =
+      "enum Stage { accepted reserving preparing serving completed cancelled }\n"
+      "const fn identity(stages: StaticList<Stage>): StaticList<Stage> {\n"
+      "return stages\n"
+      "}\n";
+  CHECK(fixture_lower(value, list_result_source));
+  CHECK(value->constir_result.written.functions == 1u &&
+        !value->constir_functions[0].lowerable &&
+        value->constir_result.written.diagnostics == 1u &&
+        value->constir_diagnostics[0].code ==
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0001);
+  CHECK(fixture_parse(value, complete_source));
 
   (void)memset(value->constir_functions, 0xa5, sizeof(value->constir_functions));
   (void)memset(value->constir_parameters, 0xa5, sizeof(value->constir_parameters));
@@ -1003,6 +1344,8 @@ static bool test_capacity_and_barrier(void) {
   (void)memset(value->constir_arguments, 0xa5, sizeof(value->constir_arguments));
   (void)memset(value->constir_switch, 0xa5, sizeof(value->constir_switch));
   (void)memset(value->constir_membership, 0xa5, sizeof(value->constir_membership));
+  (void)memset(value->constir_statements, 0xa5, sizeof(value->constir_statements));
+  (void)memset(value->constir_locals, 0xa5, sizeof(value->constir_locals));
   (void)memset(value->constir_diagnostics, 0xa5, sizeof(value->constir_diagnostics));
   (void)memset(value->constir_receipt, 0xa5, sizeof(value->constir_receipt));
 #define CHECK_CONSTIR_SENTINELS()                                               \
@@ -1012,6 +1355,8 @@ static bool test_capacity_and_barrier(void) {
         ((const uint8_t *)value->constir_arguments)[0] == 0xa5u &&              \
         ((const uint8_t *)value->constir_switch)[0] == 0xa5u &&                 \
         ((const uint8_t *)value->constir_membership)[0] == 0xa5u &&             \
+        ((const uint8_t *)value->constir_statements)[0] == 0xa5u &&             \
+        ((const uint8_t *)value->constir_locals)[0] == 0xa5u &&                 \
         ((const uint8_t *)value->constir_diagnostics)[0] == 0xa5u &&            \
         value->constir_receipt[0] == 0xa5u)
 
@@ -1030,6 +1375,18 @@ static bool test_capacity_and_barrier(void) {
   fixture_init_output(value);
   value->constir_output.nodes = NULL;
   value->constir_output.node_capacity = 0u;
+  CHECK(w_seed_constir_run(&complete_input, &value->constir_output, &result) ==
+        W_SEED_CONSTIR_CAPACITY);
+  CHECK_CONSTIR_SENTINELS();
+  fixture_init_output(value);
+  value->constir_output.statements = NULL;
+  value->constir_output.statement_capacity = 0u;
+  CHECK(w_seed_constir_run(&complete_input, &value->constir_output, &result) ==
+        W_SEED_CONSTIR_CAPACITY);
+  CHECK_CONSTIR_SENTINELS();
+  fixture_init_output(value);
+  value->constir_output.locals = NULL;
+  value->constir_output.local_capacity = 0u;
   CHECK(w_seed_constir_run(&complete_input, &value->constir_output, &result) ==
         W_SEED_CONSTIR_CAPACITY);
   CHECK_CONSTIR_SENTINELS();
@@ -1069,6 +1426,7 @@ static bool test_capacity_and_barrier(void) {
 
 int main(void) {
   CHECK(test_can_move_and_digest());
+  CHECK(test_static_list_stage_path());
   CHECK(test_diagnostics_and_quotas());
   CHECK(test_labels_relations_and_parentheses());
   CHECK(test_typed_literal_projection());

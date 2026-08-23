@@ -11,8 +11,8 @@
 extern "C" {
 #endif
 
-/* Internal seed-C ConstIR D0. This is not an importable W interface. */
-#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-1"
+/* Internal seed-C ConstIR D1. This is not an importable W interface. */
+#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-2"
 #define W_SEED_CONSTIR_NONE UINT32_MAX
 #define W_SEED_CONSTIR_INTEGER_BYTES 16u
 #define W_SEED_CONSTIR_MAX_PARAMETERS 256u
@@ -20,6 +20,9 @@ extern "C" {
  * same bounded policy; it does not remove these limits. */
 #define W_SEED_CONSTIR_MAX_CALL_DEPTH 256u
 #define W_SEED_CONSTIR_MAX_EVAL_DEPTH 1024u
+/* D1 validates borrowed StaticList values before execution.  This ceiling
+ * bounds that caller-owned scan independently of the step quota. */
+#define W_SEED_CONSTIR_MAX_STATIC_LIST_ELEMENTS 4096u
 
 typedef enum {
   W_SEED_CONSTIR_OK = 0,
@@ -38,7 +41,18 @@ typedef enum {
   W_SEED_CONSTIR_NODE_CALL,
   W_SEED_CONSTIR_NODE_SWITCH,
   W_SEED_CONSTIR_NODE_MEMBERSHIP,
+  W_SEED_CONSTIR_NODE_LOCAL,
+  W_SEED_CONSTIR_NODE_STATIC_LIST_COUNT,
+  W_SEED_CONSTIR_NODE_STATIC_LIST_INDEX,
 } w_seed_constir_node_kind;
+
+typedef enum {
+  W_SEED_CONSTIR_STATEMENT_INVALID = 0,
+  W_SEED_CONSTIR_STATEMENT_RETURN,
+  W_SEED_CONSTIR_STATEMENT_GUARD,
+  W_SEED_CONSTIR_STATEMENT_IF,
+  W_SEED_CONSTIR_STATEMENT_FOR_RANGE,
+} w_seed_constir_statement_kind;
 
 typedef enum {
   W_SEED_CONSTIR_OPERATOR_INVALID = 0,
@@ -77,6 +91,7 @@ typedef enum {
   W_SEED_CONSTIR_VALUE_BOOL,
   W_SEED_CONSTIR_VALUE_INTEGER,
   W_SEED_CONSTIR_VALUE_ENUM,
+  W_SEED_CONSTIR_VALUE_STATIC_LIST,
 } w_seed_constir_value_kind;
 
 typedef struct {
@@ -92,6 +107,8 @@ typedef struct {
   size_t call_arguments;
   size_t switch_arms;
   size_t membership_cases;
+  size_t statements;
+  size_t locals;
   size_t diagnostics;
   size_t receipt_bytes;
 } w_seed_constir_counts;
@@ -117,6 +134,8 @@ typedef struct {
   uint32_t switch_arm_count;
   uint32_t first_membership_case;
   uint32_t membership_case_count;
+  uint32_t element_type_index;
+  uint32_t local_ordinal;
   w_seed_constir_operator normalized_operator;
   bool bool_value;
   /* Canonical little-endian two's-complement sign extension for signed
@@ -161,6 +180,37 @@ typedef struct {
 } w_seed_constir_membership_case;
 
 typedef struct {
+  w_seed_constir_statement_kind kind;
+  uint32_t owner_function;
+  w_seed_span source_span;
+  uint32_t expression_node;
+  uint32_t condition_node;
+  uint32_t first_child;
+  uint32_t child_count;
+  uint32_t else_child;
+  uint32_t next_sibling;
+  uint32_t lower_node;
+  uint32_t upper_node;
+  uint32_t local_ordinal;
+  uint32_t local_type_index;
+  w_seed_frontend_type_kind local_type_kind;
+  bool local_type_is_signed;
+  uint16_t local_type_bit_width;
+  uint8_t half_open;
+} w_seed_constir_statement;
+
+typedef struct {
+  uint32_t owner_function;
+  uint32_t ordinal;
+  uint32_t type_index;
+  w_seed_frontend_type_kind type_kind;
+  bool type_is_signed;
+  uint16_t type_bit_width;
+  uint32_t element_type_index;
+  w_seed_span source_span;
+} w_seed_constir_local;
+
+typedef struct {
   w_seed_constir_diagnostic_code code;
   uint32_t owner_function;
   uint32_t frontend_expression;
@@ -177,6 +227,11 @@ typedef struct {
   uint32_t first_node;
   uint32_t node_count;
   uint32_t root_node;
+  uint32_t first_statement;
+  uint32_t statement_count;
+  uint32_t root_statement;
+  uint32_t first_local;
+  uint32_t local_count;
   uint32_t diagnostic_index;
   uint8_t body_digest[32];
 } w_seed_constir_function;
@@ -194,6 +249,10 @@ typedef struct {
   size_t switch_arm_capacity;
   w_seed_constir_membership_case *membership_cases;
   size_t membership_case_capacity;
+  w_seed_constir_statement *statements;
+  size_t statement_capacity;
+  w_seed_constir_local *locals;
+  size_t local_capacity;
   w_seed_constir_diagnostic *diagnostics;
   size_t diagnostic_capacity;
   uint8_t *receipt;
@@ -218,7 +277,7 @@ w_seed_constir_status w_seed_constir_run(
     const w_seed_constir_input *input, w_seed_constir_output *output,
     w_seed_constir_result *result);
 
-typedef struct {
+typedef struct w_seed_constir_value {
   w_seed_constir_value_kind kind;
   uint32_t type_index;
   w_seed_frontend_type_kind type_kind;
@@ -226,6 +285,9 @@ typedef struct {
   uint16_t type_bit_width;
   uint32_t enum_base_index;
   uint32_t enum_case_index;
+  uint32_t element_type_index;
+  const struct w_seed_constir_value *elements;
+  size_t element_count;
   bool bool_value;
   /* Canonical little-endian two's-complement sign extension for signed
    * integers and zero extension for unsigned integers, limited to 128 bits. */
@@ -244,6 +306,7 @@ typedef struct {
 
 typedef struct {
   w_seed_constir_value values[W_SEED_CONSTIR_MAX_PARAMETERS];
+  w_seed_constir_value locals[W_SEED_CONSTIR_MAX_PARAMETERS];
 } w_seed_constir_eval_frame;
 
 typedef struct {
@@ -277,6 +340,10 @@ typedef struct {
   size_t membership_case_count;
   const w_seed_frontend_output *frontend_output;
   const w_seed_frontend_result *frontend_result;
+  const w_seed_constir_statement *statements;
+  size_t statement_count;
+  const w_seed_constir_local *locals;
+  size_t local_count;
 } w_seed_constir_program;
 
 /* Evaluate one lowerable function with typed arguments and deterministic quotas. */
@@ -297,6 +364,10 @@ bool w_seed_constir_value_integer(uint32_t type_index,
 bool w_seed_constir_value_enum(uint32_t type_index, uint32_t enum_base_index,
                                uint32_t enum_case_index,
                                w_seed_constir_value *out);
+bool w_seed_constir_value_static_list(
+    uint32_t type_index, uint32_t element_type_index,
+    const w_seed_constir_value *elements, size_t element_count,
+    w_seed_constir_value *out);
 
 #ifdef __cplusplus
 }

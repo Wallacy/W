@@ -35,6 +35,8 @@ enum {
   CONSTIR_CALL_ARGUMENTS = 262144,
   CONSTIR_SWITCH_ARMS = 262144,
   CONSTIR_MEMBERSHIP = 524288,
+  CONSTIR_STATEMENTS = 131072,
+  CONSTIR_LOCALS = 16384,
   CONSTIR_DIAGNOSTICS = 8192,
   CONSTIR_RECEIPT = 32 * 1024 * 1024,
 };
@@ -75,6 +77,8 @@ static w_seed_constir_node constir_nodes[CONSTIR_NODES];
 static w_seed_constir_call_argument constir_call_arguments[CONSTIR_CALL_ARGUMENTS];
 static w_seed_constir_switch_arm constir_switch_arms[CONSTIR_SWITCH_ARMS];
 static w_seed_constir_membership_case constir_membership[CONSTIR_MEMBERSHIP];
+static w_seed_constir_statement constir_statements[CONSTIR_STATEMENTS];
+static w_seed_constir_local constir_locals[CONSTIR_LOCALS];
 static w_seed_constir_diagnostic constir_diagnostics[CONSTIR_DIAGNOSTICS];
 static uint8_t constir_receipt[CONSTIR_RECEIPT];
 static w_seed_constir_eval_frame eval_frames[64];
@@ -193,6 +197,10 @@ int main(void) {
       .switch_arm_capacity = CONSTIR_SWITCH_ARMS,
       .membership_cases = constir_membership,
       .membership_case_capacity = CONSTIR_MEMBERSHIP,
+      .statements = constir_statements,
+      .statement_capacity = CONSTIR_STATEMENTS,
+      .locals = constir_locals,
+      .local_capacity = CONSTIR_LOCALS,
       .diagnostics = constir_diagnostics,
       .diagnostic_capacity = CONSTIR_DIAGNOSTICS,
       .receipt = constir_receipt,
@@ -205,6 +213,7 @@ int main(void) {
   (void)printf("CONSTIR status=%s measured=%s functions=%" PRIuMAX
                " parameters=%" PRIuMAX " nodes=%" PRIuMAX
                " calls=%" PRIuMAX " switch=%" PRIuMAX " membership=%" PRIuMAX
+               " statements=%" PRIuMAX " locals=%" PRIuMAX
                " diagnostics=%" PRIuMAX " receipt=%" PRIuMAX "\n",
                status_name(run_status), status_name(measured_status),
                (uintmax_t)constir_result.written.functions,
@@ -213,6 +222,8 @@ int main(void) {
                (uintmax_t)constir_result.written.call_arguments,
                (uintmax_t)constir_result.written.switch_arms,
                (uintmax_t)constir_result.written.membership_cases,
+               (uintmax_t)constir_result.written.statements,
+               (uintmax_t)constir_result.written.locals,
                (uintmax_t)constir_result.written.diagnostics,
                (uintmax_t)constir_result.written.receipt_bytes);
   uint8_t receipt_digest[32];
@@ -243,12 +254,24 @@ int main(void) {
   if (run_status != W_SEED_CONSTIR_OK || constir_result.written.functions == 0u)
     return 1;
   const w_seed_constir_program program = {
-      constir_functions, constir_result.written.functions, constir_parameters,
-      constir_result.written.parameters, constir_nodes, constir_result.written.nodes,
-      constir_call_arguments, constir_result.written.call_arguments,
-      constir_switch_arms, constir_result.written.switch_arms,
-      constir_membership, constir_result.written.membership_cases,
-      &frontend_output, &frontend_result};
+      .functions = constir_functions,
+      .function_count = constir_result.written.functions,
+      .parameters = constir_parameters,
+      .parameter_count = constir_result.written.parameters,
+      .nodes = constir_nodes,
+      .node_count = constir_result.written.nodes,
+      .call_arguments = constir_call_arguments,
+      .call_argument_count = constir_result.written.call_arguments,
+      .switch_arms = constir_switch_arms,
+      .switch_arm_count = constir_result.written.switch_arms,
+      .membership_cases = constir_membership,
+      .membership_case_count = constir_result.written.membership_cases,
+      .frontend_output = &frontend_output,
+      .frontend_result = &frontend_result,
+      .statements = constir_statements,
+      .statement_count = constir_result.written.statements,
+      .locals = constir_locals,
+      .local_count = constir_result.written.locals};
   const w_seed_constir_function *function = &constir_functions[0];
   for (uint32_t from = 0; from < 6u; from += 1) {
     for (uint32_t to = 0; to < 6u; to += 1) {
@@ -271,6 +294,64 @@ int main(void) {
                                value.bool_value ? 1 : 0,
                    (int)eval_result.diagnostic,
                    (uintmax_t)eval_result.consumed_steps);
+    }
+  }
+  if (constir_result.written.functions > 1u &&
+      constir_result.written.parameters > 2u) {
+    const w_seed_constir_parameter *list_parameter = &constir_parameters[2];
+    const uint32_t element_type_index =
+        types[list_parameter->type_index].element_type;
+    static const char *const path_names[] = {
+        "empty", "singleton", "default", "prefix", "cancel-accepted",
+        "cancel-reserving", "cancel-preparing", "cancel-serving", "skipped",
+        "reverse", "terminal-out", "duplicate"};
+    static const uint32_t path_values[][6] = {
+        {0u, 0u, 0u, 0u, 0u, 0u},
+        {0u, 0u, 0u, 0u, 0u, 0u},
+        {0u, 1u, 2u, 3u, 4u, 0u},
+        {0u, 1u, 2u, 0u, 0u, 0u},
+        {0u, 5u, 0u, 0u, 0u, 0u},
+        {1u, 5u, 0u, 0u, 0u, 0u},
+        {2u, 5u, 0u, 0u, 0u, 0u},
+        {3u, 5u, 0u, 0u, 0u, 0u},
+        {0u, 2u, 0u, 0u, 0u, 0u},
+        {1u, 0u, 0u, 0u, 0u, 0u},
+        {4u, 5u, 0u, 0u, 0u, 0u},
+        {0u, 0u, 0u, 0u, 0u, 0u},
+    };
+    static const size_t path_lengths[] = {0u, 1u, 5u, 3u, 2u, 2u,
+                                          2u, 2u, 2u, 2u, 2u, 2u};
+    const size_t path_count = sizeof(path_lengths) / sizeof(path_lengths[0]);
+    for (size_t path_index = 0u; path_index < path_count; path_index += 1u) {
+      w_seed_constir_value elements[6];
+      for (size_t element = 0u; element < path_lengths[path_index];
+           element += 1u) {
+        if (!w_seed_constir_value_enum(
+                element_type_index, constir_parameters[0].enum_base_index,
+                path_values[path_index][element], &elements[element]))
+          return 1;
+      }
+      w_seed_constir_value list;
+      if (!w_seed_constir_value_static_list(
+              list_parameter->type_index, element_type_index,
+              path_lengths[path_index] == 0u ? NULL : elements,
+              path_lengths[path_index], &list))
+        return 1;
+      w_seed_constir_value value;
+      w_seed_constir_eval_result eval_result;
+      const w_seed_constir_quota quota = {10000u, 0u, 32u, SIZE_MAX};
+      w_seed_constir_eval_workspace workspace = {eval_frames, 64u};
+      const w_seed_constir_status status = w_seed_constir_evaluate(
+          &program, 1u, &list, 1u, quota, &workspace, &value, &eval_result);
+      (void)printf("PATH case=%s status=%d kind=%d bool=%d diag=%d steps=%" PRIuMAX
+                   " heap=%" PRIuMAX "\n",
+                   path_names[path_index], (int)status, (int)value.kind,
+                   value.kind == W_SEED_CONSTIR_VALUE_BOOL && value.bool_value
+                       ? 1
+                       : 0,
+                   (int)eval_result.diagnostic,
+                   (uintmax_t)eval_result.consumed_steps,
+                   (uintmax_t)eval_result.consumed_heap_bytes);
     }
   }
   (void)function;

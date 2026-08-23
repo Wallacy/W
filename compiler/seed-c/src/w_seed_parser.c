@@ -1687,6 +1687,32 @@ static bool parse_if_statement(w_seed_parser *parser) {
   return true;
 }
 
+static bool parse_statement(w_seed_parser *parser);
+
+static bool parse_guard_statement(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_GUARD_STATEMENT, start) == W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "guard", NULL);
+  if (!parse_expression(parser, 1, false) ||
+      !expect_text(parser, "else", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (current_is_text(parser, "{")) {
+    if (!parse_block(parser, false)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  } else if (!parse_statement(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)statement_boundary(parser);
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
 static bool parse_repeat_after_keyword(w_seed_parser *parser, size_t start) {
   if (push_node(parser, W_SEED_CST_REPEAT_STATEMENT, start) == W_SEED_CST_NONE)
     return false;
@@ -1814,6 +1840,7 @@ static bool parse_statement(w_seed_parser *parser) {
   if (current_is_text(parser, "transaction"))
     return parse_expression_statement(parser);
   if (current_is_text(parser, "if")) return parse_if_statement(parser);
+  if (current_is_text(parser, "guard")) return parse_guard_statement(parser);
   if (current_is_text(parser, "repeat")) return parse_repeat_statement(parser);
   if (current_is_text(parser, "for")) return parse_for_statement(parser);
   if (current_is_text(parser, "break")) return parse_break_statement(parser, false);

@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-1"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-2"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 8192u
@@ -22,6 +22,10 @@ extern "C" {
 #define W_SEED_FRONTEND_MAX_EXTERNAL_MODULES 256u
 #define W_SEED_FRONTEND_MAX_EXTERNAL_SYMBOLS 4096u
 #define W_SEED_FRONTEND_MAX_EXTERNAL_PARAMETERS 4096u
+/* D1 uses an explicit 64-bit target profile.  This is a semantic target
+ * fact, not a query of the host compiler's size_t width; changing it changes
+ * normalized usize types and therefore the frontend/ConstIR receipt key. */
+#define W_SEED_FRONTEND_TARGET_USIZE_BITS 64u
 
 typedef struct {
   const char *data;
@@ -63,6 +67,9 @@ typedef enum {
   W_SEED_FRONTEND_TYPE_ENUM,
   /* Append-only closed enum case-set type. */
   W_SEED_FRONTEND_TYPE_ENUM_SUBSET,
+  /* Append-only compile-time ordered list and half-open range types. */
+  W_SEED_FRONTEND_TYPE_STATIC_LIST,
+  W_SEED_FRONTEND_TYPE_RANGE,
 } w_seed_frontend_type_kind;
 
 typedef enum {
@@ -90,6 +97,10 @@ typedef enum {
   W_SEED_FRONTEND_EXPR_SWITCH,
   /* Append-only enum membership expression. */
   W_SEED_FRONTEND_EXPR_ENUM_MEMBERSHIP,
+  /* Append-only member, index, and half-open range expressions. */
+  W_SEED_FRONTEND_EXPR_MEMBER,
+  W_SEED_FRONTEND_EXPR_INDEX,
+  W_SEED_FRONTEND_EXPR_RANGE,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -106,6 +117,9 @@ typedef enum {
   W_SEED_FRONTEND_STMT_IF,
   W_SEED_FRONTEND_STMT_EXPRESSION,
   W_SEED_FRONTEND_STMT_EXPECT,
+  /* Append-only structured control statements for ConstIR. */
+  W_SEED_FRONTEND_STMT_GUARD,
+  W_SEED_FRONTEND_STMT_FOR,
 } w_seed_frontend_stmt_kind;
 
 typedef struct {
@@ -366,6 +380,12 @@ typedef struct {
   uint32_t child_count;
   w_seed_frontend_text binding_name;
   uint32_t declared_type;
+  /* Append-only normalized statement relations. */
+  uint32_t next_sibling;
+  uint32_t else_child;
+  uint32_t range_lower_expression;
+  uint32_t range_upper_expression;
+  uint32_t loop_local_ordinal;
 } w_seed_frontend_statement;
 
 typedef enum {
@@ -445,6 +465,8 @@ typedef struct {
   /* Append-only frontend resolution facts for ConstIR lowering. */
   uint32_t resolved_parameter_ordinal;
   uint32_t resolved_function_index;
+  uint32_t resolved_local_ordinal;
+  w_seed_frontend_text member_name;
 } w_seed_frontend_expression;
 
 typedef enum {

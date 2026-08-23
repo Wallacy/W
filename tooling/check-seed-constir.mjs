@@ -45,18 +45,28 @@ function line(output, prefix, label) {
 
 function parseConstir(output, label) {
   const value = line(output, "CONSTIR ", label)
-  const match = /^CONSTIR status=(\w+) measured=(\w+) functions=(\d+) parameters=(\d+) nodes=(\d+) calls=(\d+) switch=(\d+) membership=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(value)
+  const match = /^CONSTIR status=(\w+) measured=(\w+) functions=(\d+) parameters=(\d+) nodes=(\d+) calls=(\d+) switch=(\d+) membership=(\d+) statements=(\d+) locals=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(value)
   if (!match) fail(`${label} has an invalid CONSTIR line: ${value}`)
   return {
     status: match[1], measured: match[2], functions: Number(match[3]),
     parameters: Number(match[4]), nodes: Number(match[5]), calls: Number(match[6]),
     switchArms: Number(match[7]), membership: Number(match[8]),
-    diagnostics: Number(match[9]), receipt: Number(match[10]),
+    statements: Number(match[9]), locals: Number(match[10]),
+    diagnostics: Number(match[11]), receipt: Number(match[12]),
   }
 }
 
 function parseFunction(output, label) {
   const value = line(output, "FUNCTION ", label)
+  const match = /^FUNCTION frontend=(\d+) lowerable=(\d+) digest=([0-9a-f]{64}) nodes=(\d+)$/u.exec(value)
+  if (!match) fail(`${label} has an invalid FUNCTION line: ${value}`)
+  return { frontend: Number(match[1]), lowerable: match[2] === "1", digest: match[3], nodes: Number(match[4]) }
+}
+
+function parseFunctionForFrontend(output, frontend, label) {
+  const value = output.split(/\r?\n/u)
+    .find((item) => item.startsWith(`FUNCTION frontend=${frontend} `))
+  if (!value) fail(`${label} has no FUNCTION frontend=${frontend} line`)
   const match = /^FUNCTION frontend=(\d+) lowerable=(\d+) digest=([0-9a-f]{64}) nodes=(\d+)$/u.exec(value)
   if (!match) fail(`${label} has an invalid FUNCTION line: ${value}`)
   return { frontend: Number(match[1]), lowerable: match[2] === "1", digest: match[3], nodes: Number(match[4]) }
@@ -73,6 +83,10 @@ function evalLines(output) {
   return output.split(/\r?\n/u).filter((item) => item.startsWith("EVAL "))
 }
 
+function pathLines(output) {
+  return output.split(/\r?\n/u).filter((item) => item.startsWith("PATH "))
+}
+
 function assertCanMove(output, label) {
   const parsed = parseConstir(output, label)
   const functionRecord = parseFunction(output, label)
@@ -81,7 +95,7 @@ function assertCanMove(output, label) {
       parsed.parameters !== 2 || parsed.nodes === 0 || parsed.switchArms !== 6 ||
       parsed.membership !== 8 || parsed.diagnostics !== 0 || parsed.receipt === 0 ||
       !functionRecord.lowerable || functionRecord.nodes === 0)
-    fail(`${label} did not lower canMove as ConstIR D0`)
+    fail(`${label} did not lower canMove as ConstIR D1`)
   const expected = new Map([
     ["0:1", true], ["0:5", true], ["1:2", true], ["1:5", true],
     ["2:3", true], ["2:5", true], ["3:4", true], ["3:5", true],
@@ -97,6 +111,38 @@ function assertCanMove(output, label) {
       fail(`${label} has wrong canMove result for ${key}`)
   }
   return { parsed, functionRecord, receiptDigest, evals: lines }
+}
+
+function assertStagePath(output, label) {
+  const parsed = parseConstir(output, label)
+  const canMove = parseFunctionForFrontend(output, 0, label)
+  const path = parseFunctionForFrontend(output, 1, label)
+  const receiptDigest = parseReceiptDigest(output, label)
+  if (parsed.status !== "ok" || parsed.measured !== "ok" || parsed.functions !== 2 ||
+      parsed.parameters !== 3 || parsed.nodes === 0 || parsed.calls !== 2 ||
+      parsed.switchArms !== 6 || parsed.membership !== 8 || parsed.statements !== 6 ||
+      parsed.locals !== 1 || parsed.diagnostics !== 0 || parsed.receipt === 0 ||
+      !canMove.lowerable || canMove.nodes === 0 || !path.lowerable || path.nodes === 0)
+    fail(`${label} did not lower isValidStagePath as statement ConstIR`)
+  const expected = new Map([
+    ["empty", false], ["singleton", true], ["default", true],
+    ["prefix", true], ["cancel-accepted", true], ["cancel-reserving", true],
+    ["cancel-preparing", true], ["cancel-serving", true], ["skipped", false],
+    ["reverse", false], ["terminal-out", false], ["duplicate", false],
+  ])
+  const lines = pathLines(output)
+  if (lines.length !== expected.size) fail(`${label} evaluated ${lines.length} stage paths`)
+  for (const item of lines) {
+    const match = /^PATH case=([a-z-]+) status=(\d+) kind=(\d+) bool=(\d+) diag=(\d+) steps=(\d+) heap=(\d+)$/u.exec(item)
+    if (!match) fail(`${label} has an invalid PATH line: ${item}`)
+    const name = match[1]
+    const actual = match[4] === "1"
+    if (!expected.has(name) || actual !== expected.get(name) || match[2] !== "0" ||
+        match[3] !== "1" || match[5] !== "0" || Number(match[6]) === 0 ||
+        match[7] !== "0")
+      fail(`${label} has wrong isValidStagePath result for ${name}`)
+  }
+  return { parsed, canMove, path, receiptDigest, paths: lines }
 }
 
 function fragment(bytes, startMarker, endMarker, label) {
@@ -119,6 +165,7 @@ try {
   const serviceStage = fragment(domain, "export enum ServiceStage {", "export alias CancelledStage", "ServiceStage")
   const cancelled = fragment(domain, "export alias CancelledStage =", "export const fn canMove", "CancelledStage")
   const canMove = fragment(domain, "export const fn canMove", "export const fn isValidStagePath", "canMove")
+  const isValidStagePath = fragment(domain, "export const fn isValidStagePath", "export enum PartySize", "isValidStagePath")
   const witness = Buffer.concat([serviceStage, cancelled, canMove])
   const first = assertCanMove(probe(executable, witness, "domain.w canMove"), "domain.w canMove")
   const second = assertCanMove(probe(executable, witness, "domain.w canMove repeat"), "domain.w canMove repeat")
@@ -127,6 +174,17 @@ try {
       first.receiptDigest !== second.receiptDigest ||
       first.evals.join("\n") !== second.evals.join("\n"))
     fail("repeat lower/eval changed digest, receipt size, value, or counters")
+
+  const pathWitness = Buffer.concat([serviceStage, cancelled, canMove, isValidStagePath])
+  const pathFirst = assertStagePath(probe(executable, pathWitness, "domain.w isValidStagePath"),
+                                    "domain.w isValidStagePath")
+  const pathSecond = assertStagePath(probe(executable, pathWitness, "domain.w isValidStagePath repeat"),
+                                     "domain.w isValidStagePath repeat")
+  if (pathFirst.path.digest !== pathSecond.path.digest ||
+      pathFirst.receiptDigest !== pathSecond.receiptDigest ||
+      pathFirst.parsed.receipt !== pathSecond.parsed.receipt ||
+      pathFirst.paths.join("\n") !== pathSecond.paths.join("\n"))
+    fail("repeat stage-path lower/eval changed digest, receipt size, value, or counters")
 
   const witnessText = witness.toString("utf8")
   const renamed = witnessText.replace("from current", "from sourceStage")
@@ -170,4 +228,4 @@ try {
   await rm(build, { recursive: true, force: true })
 }
 
-console.log("seed ConstIR: source-backed canMove, digest, membership, and barriers passed")
+console.log("seed ConstIR: source-backed canMove/isValidStagePath, digest, membership, and barriers passed")
