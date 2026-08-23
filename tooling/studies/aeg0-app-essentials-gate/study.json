@@ -1,0 +1,21 @@
+{
+  "$schema": "w-aeg0-app-essentials-gate-study-1",
+  "status": "design-oracle-input",
+  "id": "AEG0",
+  "title": "App Essentials Gate host study",
+  "decisions": ["W-1454", "W-1455", "W-1456", "W-1457", "W-1458"],
+  "gate": "AEG0-app-essentials-gate",
+  "question": "Do explicit capability, civil, random, codec, and secret contracts reject ambient and fallback routes without claiming implementation?",
+  "corpus": { "path": "../../aeg0-app-essentials-gate-cases.json", "digest": "sha256:f0ddddbcfaefd573ff0df9e139bf4cb4f10d0d4c9ac329485bf37dcfa65f743c" },
+  "machine": { "path": "../../aeg0-app-essentials-gate-machine.mjs", "digest": "sha256:3a98adcbc3140aa7bfcea964975b71aa953cdff8d1a40dceea5f1e7395c58d79" },
+  "sourceRefs": [
+    { "path": "../../../reference/last-light/capability_security_oracle.w", "symbol": "enum CapabilityOrigin {", "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b", "claim": "Capability boundary." },
+    { "path": "../../../reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:025d2a5a0e10b356c9eced9ddcfecd6ffe5cc75492f0e3f71aceba1bccb367a9", "claim": "Operational time boundary." },
+    { "path": "../../../reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:2021ebd06c480ef2bc9df3e8a95ca562cdcc64ff5816b28e2ff579bcf46336f5", "claim": "Random context boundary." },
+    { "path": "../../../reference/last-light/data_formats.w", "symbol": "export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(", "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab", "claim": "Typed codec boundary." },
+    { "path": "../../../reference/last-light/session_security_oracle.w", "symbol": "enum SessionLifecycleEvent {", "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992", "claim": "Lifecycle boundary." }
+  ],
+  "variants": ["current", "candidate", "adversarial"],
+  "evidence": { "current": ["source-ref", "host-oracle", "mutation-checks", "snapshot", "thin-parse", "reserved-study"], "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "ffi", "stress", "fault", "human-study", "model-study"], "hostOnly": true },
+  "stopCondition": "Stop on stale source or digest, caller echo, ambient authority, fallback, plaintext serialization, codec inference, missing current or rejected route, or Research residual. Preserve all implementation gaps."
+}

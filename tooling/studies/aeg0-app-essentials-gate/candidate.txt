@@ -1,0 +1,9 @@
+AEG0 candidate witness. This file is reserved study text, not W source.
+
+capability: nominal and provider/profile/digest bound; no ambient lookup or public initializer
+UtcTimestamp: portable civil value distinct from Instant; provider/database profile and DST policy are explicit
+secure random: provider-backed, no seed, no fallback; deterministic random: explicit seed and replayable, never secure
+ByteSource / ByteSink: explicit, bounded, streaming, typed progress; Codec<T> reflection and filename inference are rejected
+SecretHandle: opaque, move-only, purpose/audience/generation scoped; plaintext, wire, log, and environment lookup are rejected
+no new syntax: AEG0 composes existing packages, profiles, capabilities, ownership, and host rebinding
+aeg0Study

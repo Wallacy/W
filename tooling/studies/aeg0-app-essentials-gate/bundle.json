@@ -1,0 +1,39 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-aeg0-app-essentials-gate",
+  "title": "AEG0 host-oracle evidence for application essentials",
+  "r0Cases": ["R0-manifest-record", "R0-spawn-domain", "R0-computed-contract"],
+  "sourceBase": {
+    "path": "current.w",
+    "symbol": "aeg0Study",
+    "digest": "sha256:e3c676831dff5197843c479fc4b72d508eae90c61662db92e4316835304e0e62"
+  },
+  "sourceRefs": [
+    { "path": "../../../reference/last-light/capability_security_oracle.w", "symbol": "enum CapabilityOrigin {", "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b", "claim": "Explicit capability binding and projection." },
+    { "path": "../../../reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:025d2a5a0e10b356c9eced9ddcfecd6ffe5cc75492f0e3f71aceba1bccb367a9", "claim": "Operational clock and deadline boundary." },
+    { "path": "../../../reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:2021ebd06c480ef2bc9df3e8a95ca562cdcc64ff5816b28e2ff579bcf46336f5", "claim": "Context random capability projection." },
+    { "path": "../../../reference/last-light/data_formats.w", "symbol": "export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(", "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab", "claim": "Explicit source, options, and typed codec error." },
+    { "path": "../../../reference/last-light/session_security_oracle.w", "symbol": "enum SessionLifecycleEvent {", "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992", "claim": "Credential and channel lifecycle events." }
+  ],
+  "variants": [
+    { "id": "current", "role": "selected", "language": "w", "path": "current.w", "digest": "sha256:e3c676831dff5197843c479fc4b72d508eae90c61662db92e4316835304e0e62", "changedConstructs": ["nominal capability and explicit provider", "civil profile and operational deadline separation", "secure/deterministic random split", "bounded codec and compression contracts", "scoped secret lifecycle"], "parseEvidence": { "status": "tree-sitter-parse", "note": "Thin current witness." } },
+    { "id": "candidate", "role": "alternative", "language": "w-reserved", "path": "candidate.txt", "digest": "sha256:55ec19082f5b2e00dd7665abfb0e13b7ae42fc089e39e84cfc070b352b5c415b", "changedConstructs": ["reserved application essentials comparison"], "parseEvidence": { "status": "reserved-not-parsed", "note": "Candidate is reserved study text." } },
+    { "id": "adversarial", "role": "rejected-witness", "language": "w", "path": "adversarial.w", "digest": "sha256:319fd1ac54dd10a1daceab3c56e6f3f3df7dd44034cb090f663f5764fc0d2c1e", "changedConstructs": ["ambient authority and civil clock misuse", "secure random seed/fallback and codec inference", "plaintext secret, wire, and downgrade routes"], "parseEvidence": { "status": "tree-sitter-parse", "note": "Thin adversarial witness." } }
+  ],
+  "entry": "aeg0Study",
+  "inputs": [
+    { "id": "current-controls", "expected": { "status": "accepted", "route": "current-control" } },
+    { "id": "rejected-routes", "expected": { "status": "rejected", "route": "rejected-route" } }
+  ],
+  "tasks": [
+    { "kind": "explain", "instruction": "Explain the five current controls and the host-only evidence boundary." },
+    { "kind": "recall", "instruction": "After a bounded delay, reconstruct the five controls and rejected contrafactuals.", "minimumDelaySeconds": 1 },
+    { "kind": "repair", "instruction": "Repair one authority, fallback, inference, or serialization mutation while preserving the current contract.", "mutations": { "current": "Restore explicit contracts.", "candidate": "Keep reserved comparison text.", "adversarial": "Restore the rejected route." } },
+    { "kind": "change", "instruction": "Add one independent source-backed case without changing syntax or implementation claims." }
+  ],
+  "presentationOrders": [["current", "candidate", "adversarial"], ["adversarial", "current", "candidate"], ["candidate", "adversarial", "current"]],
+  "blinding": { "participantLabels": { "current": "A", "candidate": "B", "adversarial": "C" }, "hide": ["id", "role", "path", "changedConstructs", "expected"] },
+  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:a3828ccf9a0023536125c7631f695a70321d4a71b179b835b6963a330a4cd10a" },
+  "evidence": { "current": ["tree-sitter-parse", "source-ref", "host-oracle", "mutation-checks", "reserved-study"], "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "ffi", "stress", "fault", "human-study", "model-study"] }
+}
