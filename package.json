@@ -20,6 +20,7 @@
     "check:allocator-scope": "bun test tooling/allocator-scope-reference.test.mjs && bun tooling/check-allocator-scope-cases.mjs",
     "check:boundary": "bun tooling/check-boundary-effect-cases.mjs",
     "check:syntax-atlas": "bun test tooling/syntax-atlas.test.mjs && bun tooling/syntax-atlas.mjs --check",
+    "check:operator-surface": "bun tooling/check-operator-surface.mjs",
     "check:cheatsheet": "bun test tooling/cheatsheet-snippets.test.mjs && bun tooling/check-cheatsheet-snippets.mjs",
     "check:service-recovery": "bun test tooling/service-recovery-reference.test.mjs && bun tooling/check-service-recovery-cases.mjs",
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
