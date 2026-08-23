@@ -79,6 +79,179 @@ function structuralCharacters(line) {
   return result;
 }
 
+function maskQualifiedScanSource(source, sourcePath) {
+  const characters = source.split("");
+  const issues = [];
+  const blank = (index) => {
+    if (characters[index] !== "\n" && characters[index] !== "\r") {
+      characters[index] = " ";
+    }
+  };
+  const blankRange = (start, end) => {
+    for (let index = start; index < end; index += 1) blank(index);
+  };
+  const delimiterAt = (index, delimiter) => source.startsWith(delimiter, index);
+  let mode = "code";
+  let delimiter = "";
+
+  for (let index = 0; index < source.length;) {
+    if (mode === "line-comment") {
+      if (source[index] === "\n" || source[index] === "\r") mode = "code";
+      else blank(index);
+      index += 1;
+      continue;
+    }
+
+    if (mode === "block-comment") {
+      if (delimiterAt(index, "*/")) {
+        blankRange(index, index + 2);
+        index += 2;
+        mode = "code";
+      } else {
+        blank(index);
+        index += 1;
+      }
+      continue;
+    }
+
+    if (mode === "raw-string") {
+      if (delimiterAt(index, delimiter)) {
+        blankRange(index, index + delimiter.length);
+        index += delimiter.length;
+        mode = "code";
+      } else {
+        blank(index);
+        index += 1;
+      }
+      continue;
+    }
+
+    if (mode === "triple-string") {
+      if (delimiterAt(index, delimiter)) {
+        blankRange(index, index + delimiter.length);
+        index += delimiter.length;
+        mode = "code";
+      } else if (source[index] === "\\" && index + 1 < source.length) {
+        blankRange(index, index + 2);
+        index += 2;
+      } else {
+        blank(index);
+        index += 1;
+      }
+      continue;
+    }
+
+    if (mode === "quoted-string" || mode === "scalar") {
+      const terminator = mode === "quoted-string" ? '"' : "'";
+      if (source[index] === terminator) {
+        blank(index);
+        index += 1;
+        mode = "code";
+      } else if (source[index] === "\\" && index + 1 < source.length) {
+        blankRange(index, index + 2);
+        index += 2;
+      } else {
+        blank(index);
+        index += 1;
+      }
+      continue;
+    }
+
+    if (delimiterAt(index, "//")) {
+      blankRange(index, index + 2);
+      mode = "line-comment";
+      index += 2;
+      continue;
+    }
+    if (delimiterAt(index, "/*")) {
+      blankRange(index, index + 2);
+      mode = "block-comment";
+      index += 2;
+      continue;
+    }
+
+    if (source[index] === "#") {
+      let hashCount = 0;
+      while (source[index + hashCount] === "#") hashCount += 1;
+      const quoteIndex = index + hashCount;
+      if (source[quoteIndex] === '"') {
+        const triple = source.startsWith('"""', quoteIndex);
+        const openingLength = hashCount + (triple ? 3 : 1);
+        delimiter = `${triple ? '"""' : '"'}${"#".repeat(hashCount)}`;
+        blankRange(index, index + openingLength);
+        mode = "raw-string";
+        index += openingLength;
+        continue;
+      }
+    }
+
+    if (source.startsWith('"""', index)) {
+      delimiter = '"""';
+      blankRange(index, index + 3);
+      mode = "triple-string";
+      index += 3;
+      continue;
+    }
+    if (source[index] === '"') {
+      blank(index);
+      mode = "quoted-string";
+      index += 1;
+      continue;
+    }
+    if (source[index] === "'") {
+      blank(index);
+      mode = "scalar";
+      index += 1;
+      continue;
+    }
+
+    index += 1;
+  }
+
+  if (mode === "line-comment") mode = "code";
+  if (mode !== "code") {
+    issues.push(`${sourcePath}: unterminated ${mode.replace("-", " ")}`);
+  }
+  return { masked: characters.join(""), issues };
+}
+
+function runQualifiedScanMaskingChecks() {
+  const fixture = [
+    'let normal = "std.normal"',
+    'let raw = #"std.raw"#',
+    'let triple = """std.triple',
+    'std.tripleAgain"""',
+    "let scalar = 'std.scalar'",
+    "let byte = b'std.byte'",
+    'let byteString = b"std.byteString"',
+    "// std.line",
+    "/* std.block build.fake */",
+    "std.real.surface",
+  ].join("\n");
+  const result = maskQualifiedScanSource(fixture, "<masking-fixture>");
+  const matches = [...result.masked.matchAll(/\bstd\.([A-Za-z_][A-Za-z0-9_]*)/gu)]
+    .map((match) => match[1]);
+  if (result.issues.length > 0 || JSON.stringify(matches) !== JSON.stringify(["real"])) {
+    errors.push("qualified Last Light masking self-test failed.");
+  }
+  if (result.masked.length !== fixture.length ||
+      [...fixture].map((character, index) => character === "\n" ? index : null)
+        .filter((index) => index !== null)
+        .some((index) => result.masked[index] !== "\n")) {
+    errors.push("qualified Last Light masking changed source offsets or newlines.");
+  }
+  const unterminated = maskQualifiedScanSource('let missing = "std.hidden', "<unterminated-fixture>");
+  if (unterminated.issues.length !== 1 || !unterminated.issues[0].includes("unterminated quoted string")) {
+    errors.push("qualified Last Light masking does not reject an unterminated string.");
+  }
+  const lineCommentAtEof = maskQualifiedScanSource("// std.line", "<line-comment-fixture>");
+  if (lineCommentAtEof.issues.length !== 0) {
+    errors.push("qualified Last Light masking rejects a valid line comment at EOF.");
+  }
+}
+
+runQualifiedScanMaskingChecks();
+
 function extractExports(source, sourcePath) {
   const lines = source.split(/\r?\n/);
   const declarations = [];
@@ -771,7 +944,12 @@ for (const scan of catalog.referenceScans ?? []) {
 
   for (const sourcePath of referenceSources) {
     const source = fs.readFileSync(sourcePath, "utf8");
-    for (const match of source.matchAll(pattern)) {
+    const scan = maskQualifiedScanSource(
+      source,
+      path.relative(rootDirectory, sourcePath).replaceAll("\\", "/"),
+    );
+    for (const issue of scan.issues) errors.push(issue);
+    for (const match of scan.masked.matchAll(pattern)) {
       const consumers = surfaces.get(match[1]) ?? new Set();
       consumers.add(path.relative(rootDirectory, sourcePath).replaceAll("\\", "/"));
       surfaces.set(match[1], consumers);
