@@ -16,10 +16,10 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 30575 |
-| tokens aproximados de `DESIGN.md` | 329000 |
-| linhas de `RATIONALE.md` | 6753 |
-| tokens aproximados de `RATIONALE.md` | 174500 |
+| linhas de `DESIGN.md` | 30643 |
+| tokens aproximados de `DESIGN.md` | 330100 |
+| linhas de `RATIONALE.md` | 6761 |
+| tokens aproximados de `RATIONALE.md` | 174600 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 349/349 |
 | decisões | 1458 (W-001–W-1458) |
@@ -142,38 +142,38 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 0 | 15–230 | 2700 | Como ler este documento |
 | 1 | 231–254 | 300 | Limite da alegação |
 | 2 | 255–280 | 400 | Invariantes |
-| 3 | 281–3350 | 31500 | Contratos estáticos e orçamento de símbolos |
-| 4 | 3351–3413 | 400 | Superfície integrada |
-| 5 | 3414–3732 | 2900 | Source, nomes e edição |
-| 6 | 3733–4140 | 3700 | Módulos, imports e visibilidade |
-| 7 | 4141–4947 | 7800 | Bindings, funções e closures |
-| 8 | 4948–7510 | 20700 | Tipos e conversões |
-| 9 | 7511–9524 | 24100 | Memória, layout e alocação |
-| 10 | 9525–9668 | 1800 | Property behaviors |
-| 11 | 9669–10033 | 2900 | Erros, panic, OOM e cleanup |
-| 12 | 10034–13209 | 35700 | Concorrência, paralelismo e execução |
-| 13 | 13210–15479 | 23000 | Módulos de execução, services e entries |
-| 14 | 15480–19426 | 50200 | Prelude e standard library |
-| 15 | 19427–20191 | 7800 | Números, ranges e unidades |
-| 16 | 20192–21791 | 13500 | Texto, bytes e collections |
-| 17 | 21792–22141 | 4100 | Matrizes, tensors e ML |
-| 18 | 22142–22694 | 5800 | Performance e custo |
-| 19 | 22695–23269 | 6900 | FFI, unsafe e ilhas de linguagem |
-| 20 | 23270–24789 | 16300 | Compilador e bootstrap |
-| 21 | 24790–26956 | 21200 | Packages, builds e releases |
-| 22 | 26957–27468 | 4900 | Tooling e interface para máquinas |
-| 23 | 27469–28977 | 18500 | Protocolos e pesquisas de ecossistema |
-| 24 | 28978–30024 | 16700 | Design freeze e pendências |
-| 25 | 30025–30235 | 1900 | Produto de referência Última Luz |
-| 26 | 30236–30575 | 4300 | Plano de implementação |
+| 3 | 281–3414 | 32600 | Contratos estáticos e orçamento de símbolos |
+| 4 | 3415–3477 | 400 | Superfície integrada |
+| 5 | 3478–3796 | 2900 | Source, nomes e edição |
+| 6 | 3797–4204 | 3700 | Módulos, imports e visibilidade |
+| 7 | 4205–5011 | 7800 | Bindings, funções e closures |
+| 8 | 5012–7574 | 20700 | Tipos e conversões |
+| 9 | 7575–9588 | 24100 | Memória, layout e alocação |
+| 10 | 9589–9732 | 1800 | Property behaviors |
+| 11 | 9733–10097 | 2900 | Erros, panic, OOM e cleanup |
+| 12 | 10098–13273 | 35700 | Concorrência, paralelismo e execução |
+| 13 | 13274–15543 | 23000 | Módulos de execução, services e entries |
+| 14 | 15544–19490 | 50200 | Prelude e standard library |
+| 15 | 19491–20255 | 7800 | Números, ranges e unidades |
+| 16 | 20256–21855 | 13500 | Texto, bytes e collections |
+| 17 | 21856–22205 | 4100 | Matrizes, tensors e ML |
+| 18 | 22206–22758 | 5800 | Performance e custo |
+| 19 | 22759–23333 | 6900 | FFI, unsafe e ilhas de linguagem |
+| 20 | 23334–24853 | 16300 | Compilador e bootstrap |
+| 21 | 24854–27020 | 21200 | Packages, builds e releases |
+| 22 | 27021–27532 | 4900 | Tooling e interface para máquinas |
+| 23 | 27533–29041 | 18500 | Protocolos e pesquisas de ecossistema |
+| 24 | 29042–30088 | 16700 | Design freeze e pendências |
+| 25 | 30089–30299 | 1900 | Produto de referência Última Luz |
+| 26 | 30300–30643 | 4400 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 14–5240 | 83500 | Evidência comparativa |
-| 2 | 5241–5271 | 500 | Proveniência |
-| 3 | 5272–6753 | 90400 | Ledger |
+| 1 | 14–5248 | 83600 | Evidência comparativa |
+| 2 | 5249–5279 | 500 | Proveniência |
+| 3 | 5280–6761 | 90500 | Ledger |
 
 ## Bundles de leitura
 
@@ -181,11 +181,11 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 
 | Bundle | Seções | Linhas | Tokens aproximados | Foco |
 |---|---:|---:|---:|---|
-| orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 15–7510 | 70400 | promessa, símbolos, source, módulos, funções e tipos |
-| segurança e execução | 9, 10, 11, 12, 13 | 7511–15479 | 87500 | ownership, errors, tasks, domains, services e entries |
-| std e performance | 14, 15, 16, 17, 18, 19 | 15480–23269 | 88300 | módulos, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 23270–28977 | 60900 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 28978–30575 | 22900 | freeze, Última Luz, gates e roadmap |
+| orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 15–7574 | 71500 | promessa, símbolos, source, módulos, funções e tipos |
+| segurança e execução | 9, 10, 11, 12, 13 | 7575–15543 | 87500 | ownership, errors, tasks, domains, services e entries |
+| std e performance | 14, 15, 16, 17, 18, 19 | 15544–23333 | 88300 | módulos, números, texto, tensors, custo, C e unsafe |
+| compiler e distribuição | 20, 21, 22, 23 | 23334–29041 | 60900 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26 | 29042–30643 | 23000 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

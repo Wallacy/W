@@ -387,12 +387,13 @@
       "state": "active",
       "phase": "semantic.const",
       "defaultSeverity": "error",
-      "meaning": "a valid const predicate rejects a static argument",
+      "meaning": "a valid const predicate rejects a static argument and publishes bounded rejection evidence",
       "requiredFacts": {
         "argument": "string",
         "failure": "string",
         "head": "string",
-        "predicate": "string"
+        "predicate": "string",
+        "rejectionTrace": "string[]"
       },
       "labelRoles": {
         "contract-head": { "minimum": 1, "maximum": 1 }
