@@ -29,7 +29,7 @@ function parseResult(output, label) {
   const lines = output.toString().split(/\r?\n/u)
   const line = lines.find((candidate) => candidate.startsWith("RESULT "))
   if (!line) fail(`${label} has no RESULT line`)
-  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) generic_parameters=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) enum_membership_cases=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
+  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) generic_parameters=(\d+) generic_applications=(\d+) generic_arguments=(\d+) const_values=(\d+) const_elements=(\d+) const_bytes=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) enum_membership_cases=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
   if (!match) fail(`${label} has an invalid RESULT line: ${line}`)
   return {
     parse: Number(match[1]),
@@ -38,23 +38,28 @@ function parseResult(output, label) {
     imports: Number(match[4]),
     structs: Number(match[5]),
     generic_parameters: Number(match[6]),
-    enums: Number(match[7]),
-    enum_cases: Number(match[8]),
-    enum_case_parameters: Number(match[9]),
-    switch_arms: Number(match[10]),
-    enum_subset_members: Number(match[11]),
-    enum_membership_cases: Number(match[12]),
-    types: Number(match[13]),
-    functions: Number(match[14]),
-    params: Number(match[15]),
-    entries: Number(match[16]),
-    statements: Number(match[17]),
-    expressions: Number(match[18]),
-    arguments: Number(match[19]),
-    symbols: Number(match[20]),
-    facts: Number(match[21]),
-    diagnostics: Number(match[22]),
-    receipt: Number(match[23]),
+    generic_applications: Number(match[7]),
+    generic_arguments: Number(match[8]),
+    const_values: Number(match[9]),
+    const_elements: Number(match[10]),
+    const_bytes: Number(match[11]),
+    enums: Number(match[12]),
+    enum_cases: Number(match[13]),
+    enum_case_parameters: Number(match[14]),
+    switch_arms: Number(match[15]),
+    enum_subset_members: Number(match[16]),
+    enum_membership_cases: Number(match[17]),
+    types: Number(match[18]),
+    functions: Number(match[19]),
+    params: Number(match[20]),
+    entries: Number(match[21]),
+    statements: Number(match[22]),
+    expressions: Number(match[23]),
+    arguments: Number(match[24]),
+    symbols: Number(match[25]),
+    facts: Number(match[26]),
+    diagnostics: Number(match[27]),
+    receipt: Number(match[28]),
   }
 }
 
@@ -361,6 +366,274 @@ function expectGenericDeclarationSchema(executable) {
       contiguousLines[0].includes("|owner=1|") ||
       !contiguousLines[2].includes("|owner=1|ordinal=0|")) {
     fail("generic append-only ranges lost declaration ownership or ordinal")
+  }
+}
+
+function expectGenericApplications(executable) {
+  const matrix = expectOk(
+    executable,
+    "type MatrixUse = Matrix<f32, rows: 3, columns: 4,>\n" +
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n",
+    "forward Matrix application",
+  )
+  if (matrix.parsed.generic_applications !== 1 ||
+      matrix.parsed.generic_arguments !== 3 ||
+      matrix.parsed.const_values !== 2) {
+    fail("forward Matrix application counts are incomplete")
+  }
+  const matrixApplication = receiptLines(matrix.output, "generic-application=")
+  const matrixArguments = receiptLines(matrix.output, "generic-argument=")
+  const matrixConstants = receiptLines(matrix.output, "const-value=")
+  if (matrixApplication.length !== 1 ||
+      !matrixApplication[0].includes("|head=0|") ||
+      !matrixApplication[0].includes("|binding=3|") ||
+      !matrixArguments[0].includes("|kind=0|") ||
+      !matrixArguments[1].includes("|label=4:726f7773|") ||
+      !matrixArguments[2].includes("|label=7:636f6c756d6e73|") ||
+      !matrixConstants[0].includes("|integer=0300000000000000|") ||
+      !matrixConstants[1].includes("|integer=0400000000000000|")) {
+    fail("Matrix application did not retain head, slots, labels, or integers")
+  }
+
+  const nested = expectOk(
+    executable,
+    "struct Inner<T> {}\n" +
+      "struct Outer<X> {}\n" +
+      "struct Use { value: Outer<Inner<u8>> }\n",
+    "nested generic application",
+  )
+  const nestedApplications = receiptLines(nested.output, "generic-application=")
+  if (nested.parsed.generic_applications !== 2 ||
+      nested.parsed.generic_arguments !== 2 ||
+      !nestedApplications[0].includes("|binding=3|") ||
+      !nestedApplications[1].includes("|binding=3|")) {
+    fail("nested generic application did not cross the >> boundary")
+  }
+
+  const limitParameters = Array.from({ length: 65 }, (_, index) => `T${index}`).join(", ")
+  const limitArguments = Array.from({ length: 65 }, () => "u8").join(", ")
+  const genericLimit = expectUnsupported(
+    executable,
+    `struct Too<${limitParameters}> {}\n` +
+      `struct Good<T> {}\n` +
+      `type TooUse = Too<${limitArguments}>\n` +
+      "type GoodUse = Good<u8>\n",
+    "generic slot ceiling",
+  )
+  const genericLimitApplications = receiptLines(
+    genericLimit.output,
+    "generic-application=",
+  )
+  if (genericLimit.parsed.generic_applications !== 2 ||
+      genericLimitApplications.length !== 2 ||
+      !genericLimitApplications[0].includes("|binding=1|") ||
+      !genericLimitApplications[1].includes("|binding=3|")) {
+    fail("generic slot ceiling did not remain local to the overflowing head")
+  }
+  const crossKind = expectUnsupported(
+    executable,
+    "enum Matrix { a }\n" +
+      "struct Matrix<T> {}\n" +
+      "type Use = Matrix<u8>\n",
+    "cross-kind duplicate generic head",
+  )
+  if (crossKind.parsed.generic_applications !== 0 ||
+      receiptLines(crossKind.output, "generic-application=").length !== 0) {
+    fail("cross-kind duplicate head published a consumable application")
+  }
+
+  const staticValue = expectOk(
+    executable,
+    "struct StaticValue<T, _ value: T> {}\n" +
+      "struct Use { a: StaticValue<Bool, true> " +
+      "b: StaticValue<String, \"The final seating\"> }\n",
+    "dependent StaticValue applications",
+  )
+  const parameter = receiptLines(staticValue.output, "generic-parameter=")
+  if (staticValue.parsed.generic_applications !== 2 ||
+      staticValue.parsed.const_values !== 2 ||
+      !parameter[1].includes("|domain-kind=3|dependent=0") ||
+      !receiptLines(staticValue.output, "const-value=")[0].includes("const-value=1|") ||
+      !receiptLines(staticValue.output, "const-value=")[1].includes("const-value=3|")) {
+    fail("dependent StaticValue applications were not typed")
+  }
+
+  const stage = expectOk(
+    executable,
+    "enum ServiceStage { accepted completed }\n" +
+      "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n" +
+      "struct Use { a: StagePath<[.accepted, .accepted]> " +
+      "b: StagePath<[]> c: StagePath<stages: [.accepted]> }\n",
+    "StagePath list applications",
+  )
+  if (stage.parsed.generic_applications !== 3 ||
+      stage.parsed.const_values !== 6 || stage.parsed.const_elements !== 3) {
+    fail("StagePath applications did not preserve list/value counts")
+  }
+  const stageValues = receiptLines(stage.output, "const-value=")
+  const stageElements = receiptLines(stage.output, "const-element=")
+  if (!stageValues[0].includes("|element-count=2") ||
+      !stageValues[3].includes("|first-element=4294967295|element-count=0") ||
+      stageElements.length !== 3 || !stageElements[1].includes("|ordinal=1|") ||
+      !receiptLines(stage.output, "generic-argument=")[2].includes("|label=6:737461676573|")) {
+    fail("StagePath order, empty list, duplicate, or label was not retained")
+  }
+
+  const spaced = expectOk(
+    executable,
+    "enum ServiceStage { accepted completed }\n" +
+    "struct StagePath<_ stages: StaticList</* c */ ServiceStage ><(isValid(.member))>> {}\n" +
+      "const fn isValid(stages: StaticList</* c */ ServiceStage >): Bool { return true }\n" +
+      "struct Use { value: StagePath<[.accepted]> }\n",
+    "whitespace StaticList application",
+  )
+  const spacedApplications = receiptLines(spaced.output, "generic-application=")
+  if (spaced.parsed.generic_applications !== 1 ||
+      spaced.parsed.const_values !== 2 ||
+      !spacedApplications[0].includes("|binding=3|") ||
+      !spacedApplications[0].includes("|requires-const=1")) {
+    fail("whitespace StaticList application diverged between dry and emit")
+  }
+
+  const largeList = `.accepted, `.repeat(300) + ".accepted"
+  const large = expectOk(
+    executable,
+    "enum ServiceStage { accepted }\n" +
+      "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n" +
+      `type Large = StagePath<[${largeList}]>\n`,
+    "StaticList above the old nesting ceiling",
+  )
+  if (large.parsed.const_elements !== 301) {
+    fail("StaticList scanner retained the old false 256-element ceiling")
+  }
+  const boundaryList = `.accepted, `.repeat(4095) + ".accepted"
+  const boundary = expectOk(
+    executable,
+    "enum ServiceStage { accepted }\n" +
+      "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n" +
+      `type Boundary = StagePath<[${boundaryList}]>\n`,
+    "StaticList at the published ceiling",
+  )
+  if (boundary.parsed.const_elements !== 4096) {
+    fail("StaticList published ceiling did not admit exactly 4096 elements")
+  }
+  const overBoundaryList = `.accepted, `.repeat(4096) + ".accepted"
+  const overBoundary = expectUnsupported(
+    executable,
+    "enum ServiceStage { accepted }\n" +
+      "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n" +
+      `type OverBoundary = StagePath<[${overBoundaryList}]>\n`,
+    "StaticList over the published ceiling",
+  )
+  if (overBoundary.parsed.const_elements !== 0) {
+    fail("StaticList over-ceiling input published child edges")
+  }
+
+  const invalid = [
+    ["Matrix<f32, 3, columns: 4>", "W-GENERIC-0003"],
+    ["Matrix<f32, columns: 4, rows: 3>", "W-GENERIC-0003"],
+    ["Matrix<f32, rows: 3, 3>", "W-GENERIC-0003"],
+    ["Matrix<f32, bogus: 3, columns: 4>", "W-CONTRACT-0001"],
+    ["Matrix<f32, rows: 3, rows: 4>", "W-CONTRACT-0004"],
+    ["Matrix<f32, rows: 3>", "W-GENERIC-0002"],
+    ["Matrix<f32, rows: 3, columns: 4, 5>", "W-GENERIC-0003"],
+    ["Matrix<rows: f32, columns: 3>", "W-GENERIC-0003"],
+    ["Matrix<f32, rows: 3, columns: 18446744073709551616>", "W-TYPE-0122"],
+  ]
+  for (const [application, code] of invalid) {
+    const result = expectDiagnostic(
+      executable,
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n" +
+        `struct Use { x: ${application} }\n`,
+      code,
+      `invalid generic application ${application}`,
+    )
+    if (!receiptLines(result.output, "generic-application=")[0].includes("|binding=0|")) {
+      fail(`invalid generic application ${application} remained valid`)
+    }
+  }
+
+  const qualified = expectUnsupported(
+    executable,
+    "enum ServiceStage { accepted completed }\n" +
+      "enum OtherStage { accepted }\n" +
+      "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n" +
+      "struct Use { value: StagePath<[OtherStage.accepted]> }\n",
+    "qualified enum member mismatch",
+  )
+  if (!receiptLines(qualified.output, "generic-application=")[0].includes("|binding=0|")) {
+    fail("qualified enum member mismatch published a valid application")
+  }
+
+  const seedUnsupported = [
+    [
+      "struct S<_ value: Bool> {}\n" +
+        "struct Use { x: S<value: (true)> }\n",
+      "computed generic value",
+    ],
+    [
+      "struct S<_ value: String> {}\n" +
+        "struct Use { x: S<value: \"a\\\\n\"> }\n",
+      "escaped generic string",
+    ],
+    [
+      "struct S<_ value: Bytes> {}\n" +
+        "struct Use { x: S<value: b\"abc\"> }\n",
+      "Bytes generic domain",
+    ],
+    [
+      "struct S<_ value: StaticList<StaticList<Bool>>> {}\n" +
+        "struct Use { x: S<value: [[true]]> }\n",
+      "nested StaticList generic domain",
+    ],
+    [
+      "struct Fixed {}\n" +
+        "struct S<_ value: Fixed> {}\n" +
+        "struct Use { x: S<value: Fixed> }\n",
+      "fixed aggregate generic domain",
+    ],
+  ]
+  for (const [source, label] of seedUnsupported) {
+    const unsupported = expectUnsupported(executable, source, label)
+    const application = receiptLines(unsupported.output, "generic-application=")[0]
+    if (application === undefined || !application.includes("|binding=1|")) {
+      fail(`${label} did not remain non-consumable UNSUPPORTED`)
+    }
+    if (label === "computed generic value" &&
+        !application.includes("|requires-const=1")) {
+      fail("computed generic value did not retain pending const-evaluation state")
+    }
+  }
+
+  const enumPayload = expectUnsupported(
+    executable,
+    "enum E { a(value: u8) }\n" +
+      "struct S<_ value: E> {}\n" +
+      "struct Use { x: S<value: .a> }\n",
+    "enum case payload generic value",
+  )
+  if (!receiptLines(enumPayload.output, "generic-application=")[0].includes("|binding=0|")) {
+    fail("enum case payload was published as a valid ENUM_CASE")
+  }
+  const unknownEnum = expectUnsupported(
+    executable,
+    "enum E { a }\n" +
+      "struct S<_ value: E> {}\n" +
+      "struct Use { x: S<value: .missing> }\n",
+    "unknown contextual enum case",
+  )
+  if (!receiptLines(unknownEnum.output, "generic-application=")[0].includes("|binding=0|")) {
+    fail("unknown contextual enum case was published as a valid binding")
+  }
+  const mixed = expectDiagnostic(
+    executable,
+    "struct S<_ first: String, _ second: Bool> {}\n" +
+      "struct Use { x: S<first: \"a\\\\n\", bogus: (true)> }\n",
+    "W-CONTRACT-0001",
+    "mixed invalid and unsupported generic value",
+  )
+  if (!receiptLines(mixed.output, "generic-application=")[0].includes("|binding=0|")) {
+    fail("mixed invalid and unsupported generic value lost INVALID precedence")
   }
 }
 
@@ -1032,6 +1305,7 @@ try {
   expectBarrier(probeExecutable, course, "domain.w Course unsupported members")
   expectUnsupported(probeExecutable, "export enum Box<T> { value(T) }\n", "generic enum")
   expectGenericDeclarationSchema(probeExecutable)
+  expectGenericApplications(probeExecutable)
   expectOk(probeExecutable, "enum E { a }\nfn f(): E { return .a }\nentry(f)\n", "enum case expression")
   expectBarrier(probeExecutable, "fn f(){ enum E { a } }\n", "enum contextual fail-closed")
   expectEnumWitness(
