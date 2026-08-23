@@ -255,6 +255,21 @@ serem mescladas silenciosamente. Formas de import que o parser ainda recupera
 Ownership/HIR, async/services/providers, ConstIR, generics completos, tensor,
 runtime, MLIR e WInterface permanecem fora desta fatia.
 
+A fatia fechada de enum aceita valores `.case` somente com expected type nominal
+enum local inequívoco e aceita `Enum.case` nominalmente. Cases sem payload são
+values; cases com payload exigem uma chamada que valida arity, labels e tipos e
+retorna o tipo enum. `switch` sobre enum local fechado preserva um owner por arm,
+resolve patterns `.case` e `Enum.case`, aceita `_`, exige cobertura exaustiva e
+faz um join seguro único dos resultados. Os records de expression, switch arm e
+receipt retêm enum/case identity, spans, owner relation, ordem e sentinelas
+caller-owned.
+
+Esta fatia não implementa subsets de enum, patterns ou captures de payload,
+guards, switches de tuple/range/struct, enums importados ou facts completos de
+fluxo de branches. Payload patterns são recovery/barrier; literals em enum
+switch preservam fato explícito unsupported. Imports, subsets e resolução entre
+módulos não selecionam enum por ordem de declaração ou frequência.
+
 O gate scoped constrói o probe e os testes em diretório temporário, executa os
 witnesses source-backed (`ServiceStage`/`DomainError` em `domain.w`, além de
 `horizon_tool.w`, `formatting.w` e `numerics.w`), repete o probe para provar

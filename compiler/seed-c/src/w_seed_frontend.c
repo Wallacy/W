@@ -27,6 +27,9 @@ typedef struct {
   frontend_simple_type type;
   bool supported;
   bool has_name;
+  bool is_enum_case;
+  uint32_t enum_index;
+  uint32_t enum_case_index;
   w_seed_frontend_text name;
   w_seed_frontend_text operator_text;
   w_seed_span span;
@@ -53,6 +56,7 @@ typedef struct {
   size_t enums;
   size_t enum_cases;
   size_t enum_case_parameters;
+  size_t switch_arms;
 } frontend_measure;
 
 typedef struct {
@@ -85,6 +89,19 @@ static w_seed_frontend_text parameter_name_from_span(
     const w_seed_frontend_document *doc, w_seed_span span);
 static w_seed_frontend_text enum_case_parameter_label(
     const w_seed_frontend_document *doc, uint32_t parameter_node);
+static frontend_simple_type contextual_type_from_span(
+    const frontend_context *context, const w_seed_frontend_document *doc,
+    w_seed_span span);
+static bool normalize_expression_node(frontend_context *context,
+                                      uint32_t expression_node,
+                                      uint32_t *expression_index,
+                                      frontend_simple_type expected,
+                                      frontend_simple_type *actual_out);
+static bool normalize_switch_expression(frontend_context *context,
+                                         uint32_t switch_node,
+                                         uint32_t *expression_index,
+                                         frontend_simple_type expected,
+                                         frontend_simple_type *actual_out);
 
 static w_seed_span empty_span(size_t offset) {
   const w_seed_span span = {offset, offset};
@@ -330,6 +347,29 @@ static bool receipt_size_enum_case_parameter(
          receipt_size_span(context, value->span) &&
          receipt_size_literal(context, "|type=") &&
          receipt_size_size(context, value->type_index) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_switch_arm(
+    frontend_context *context, const w_seed_frontend_switch_arm *value) {
+  return receipt_size_literal(context, "switch-arm=") &&
+         receipt_size_size(context, value->module_index) &&
+         receipt_size_literal(context, "|owner=") &&
+         receipt_size_size(context, value->owner_expression) &&
+         receipt_size_literal(context, "|pattern=") &&
+         receipt_size_size(context, (size_t)value->pattern_kind) &&
+         receipt_size_literal(context, "|enum=") &&
+         receipt_size_size(context, value->enum_index) &&
+         receipt_size_literal(context, "|case=") &&
+         receipt_size_size(context, value->enum_case_index) &&
+         receipt_size_literal(context, "|pattern-span=") &&
+         receipt_size_span(context, value->pattern_span) &&
+         receipt_size_literal(context, "|result=") &&
+         receipt_size_size(context, value->result_expression) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "|supported=") &&
+         receipt_size_size(context, value->supported ? 1u : 0u) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -1051,6 +1091,7 @@ static bool measure_document(const w_seed_frontend_document *doc,
     if (kind == W_SEED_CST_ENUM_CASE) measure->enum_cases += 1;
     if (kind == W_SEED_CST_ENUM_CASE_PARAMETER)
       measure->enum_case_parameters += 1;
+    if (kind == W_SEED_CST_SWITCH_ARM) measure->switch_arms += 1;
     if (kind == W_SEED_CST_TYPE) measure->types += 1;
     if (kind == W_SEED_CST_ARGUMENT) measure->arguments += 1;
     if (kind_is_statement(kind)) measure->statements += 1;
@@ -1160,6 +1201,7 @@ static void counts_from_measure(const frontend_measure *measure,
   counts->enums = measure->enums;
   counts->enum_cases = measure->enum_cases;
   counts->enum_case_parameters = measure->enum_case_parameters;
+  counts->switch_arms = measure->switch_arms;
 }
 
 w_seed_frontend_status w_seed_frontend_measure(
@@ -1223,6 +1265,270 @@ static const w_seed_frontend_document *context_document(
     return NULL;
   }
   return &context->input.documents[context->module_index];
+}
+
+static w_seed_frontend_text first_word_in_span(
+    const w_seed_frontend_document *doc, w_seed_span span);
+static w_seed_frontend_text name_after_keyword(
+    const w_seed_frontend_document *doc, w_seed_span span,
+    const char *keyword);
+static uint32_t direct_type_index(const w_seed_frontend_document *doc,
+                                  uint32_t owner);
+
+/* Resolve enum declarations from the CST, not from the order in which the
+ * normalizer happened to visit functions.  This makes forward declarations
+ * usable while keeping the append-only enum/case indices authoritative. */
+static bool enum_declaration_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    uint32_t *enum_index, uint32_t *type_index,
+    const w_seed_frontend_document **owner_doc, uint32_t *enum_node) {
+  if (enum_index != NULL) *enum_index = W_SEED_FRONTEND_NONE;
+  if (type_index != NULL) *type_index = W_SEED_FRONTEND_NONE;
+  if (owner_doc != NULL) *owner_doc = NULL;
+  if (enum_node != NULL) *enum_node = W_SEED_CST_NONE;
+  if (context == NULL) return false;
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL) return false;
+  size_t ordinal = 0;
+  for (size_t document_index = 0; document_index < context->module_index;
+       document_index += 1) {
+    const w_seed_frontend_document *prior =
+        &context->input.documents[document_index];
+    for (size_t node_index = 0; node_index < prior->parse.node_count;
+         node_index += 1) {
+      if (prior->nodes[node_index].kind == W_SEED_CST_ENUM) ordinal += 1;
+    }
+  }
+  {
+    uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t guard = 0;
+    while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+      if (doc->nodes[child].kind == W_SEED_CST_ENUM) {
+        const w_seed_frontend_text candidate =
+            name_after_keyword(doc, doc->nodes[child].raw_span, "enum");
+        if (text_equal_text(candidate, name)) {
+          if (enum_index != NULL) {
+            if (!add_u32(ordinal, enum_index)) return false;
+          }
+          if (owner_doc != NULL) *owner_doc = doc;
+          if (enum_node != NULL) *enum_node = child;
+          if (type_index != NULL && context->emit && context->output != NULL &&
+              ordinal < context->count.enums &&
+              context->output->enums != NULL) {
+            *type_index = context->output->enums[ordinal].type_index;
+          }
+          return true;
+        }
+        ordinal += 1;
+      }
+      guard += 1;
+    }
+  }
+  return false;
+}
+
+static bool enum_case_for_name(
+    const frontend_context *context, uint32_t expected_enum,
+    w_seed_frontend_text name, uint32_t *case_index,
+    const w_seed_frontend_document **owner_doc, uint32_t *case_node) {
+  if (case_index != NULL) *case_index = W_SEED_FRONTEND_NONE;
+  if (owner_doc != NULL) *owner_doc = NULL;
+  if (case_node != NULL) *case_node = W_SEED_CST_NONE;
+  if (context == NULL || expected_enum == W_SEED_FRONTEND_NONE) return false;
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL) return false;
+  size_t enum_ordinal = 0;
+  size_t case_ordinal = 0;
+  for (size_t document_index = 0; document_index < context->module_index;
+       document_index += 1) {
+    const w_seed_frontend_document *prior =
+        &context->input.documents[document_index];
+    for (size_t node_index = 0; node_index < prior->parse.node_count;
+         node_index += 1) {
+      if (prior->nodes[node_index].kind == W_SEED_CST_ENUM) enum_ordinal += 1;
+      if (prior->nodes[node_index].kind == W_SEED_CST_ENUM_CASE)
+        case_ordinal += 1;
+    }
+  }
+  {
+    uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t guard = 0;
+    while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+      if (doc->nodes[child].kind == W_SEED_CST_ENUM) {
+        uint32_t case_cursor = doc->nodes[child].first_child;
+        uint32_t case_child = W_SEED_CST_NONE;
+        size_t case_guard = 0;
+        while (next_child(doc, &case_cursor, &case_child) &&
+               case_guard < doc->parse.node_count) {
+          if (doc->nodes[case_child].kind == W_SEED_CST_ENUM_CASE) {
+            const w_seed_frontend_text candidate =
+                first_word_in_span(doc, doc->nodes[case_child].raw_span);
+            if (enum_ordinal == (size_t)expected_enum &&
+                text_equal_text(candidate, name)) {
+              if (case_index != NULL) {
+                if (!add_u32(case_ordinal, case_index)) return false;
+              }
+              if (owner_doc != NULL) *owner_doc = doc;
+              if (case_node != NULL) *case_node = case_child;
+              return true;
+            }
+            case_ordinal += 1;
+          }
+          case_guard += 1;
+        }
+        enum_ordinal += 1;
+      }
+      guard += 1;
+    }
+  }
+  return false;
+}
+
+static size_t enum_declaration_name_count(const frontend_context *context,
+                                          w_seed_frontend_text name) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL) return 0;
+  size_t count = 0;
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_ENUM &&
+        text_equal_text(name_after_keyword(doc, doc->nodes[child].raw_span,
+                                           "enum"),
+                        name)) {
+      count += 1;
+    }
+    guard += 1;
+  }
+  return count;
+}
+
+static bool enum_case_node_for_index(
+    const frontend_context *context, uint32_t wanted_case,
+    const w_seed_frontend_document **owner_doc, uint32_t *case_node) {
+  if (owner_doc != NULL) *owner_doc = NULL;
+  if (case_node != NULL) *case_node = W_SEED_CST_NONE;
+  if (context == NULL || wanted_case == W_SEED_FRONTEND_NONE) return false;
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL) return false;
+  size_t ordinal = 0;
+  for (size_t document_index = 0; document_index < context->module_index;
+       document_index += 1) {
+    const w_seed_frontend_document *prior =
+        &context->input.documents[document_index];
+    for (size_t node_index = 0; node_index < prior->parse.node_count;
+         node_index += 1) {
+      if (prior->nodes[node_index].kind == W_SEED_CST_ENUM_CASE) ordinal += 1;
+    }
+  }
+  {
+    for (size_t node_index = 0; node_index < doc->parse.node_count;
+         node_index += 1) {
+      if (doc->nodes[node_index].kind != W_SEED_CST_ENUM_CASE) continue;
+      if (ordinal == (size_t)wanted_case) {
+        if (owner_doc != NULL) *owner_doc = doc;
+        if (case_node != NULL) *case_node = (uint32_t)node_index;
+        return true;
+      }
+      ordinal += 1;
+    }
+  }
+  return false;
+}
+
+static bool enum_case_argument_expected(
+    const frontend_context *context, uint32_t case_index, size_t ordinal,
+    w_seed_frontend_text label, frontend_simple_type *expected,
+    bool *label_valid, bool *label_previous) {
+  const w_seed_frontend_document *doc = NULL;
+  uint32_t case_node = W_SEED_CST_NONE;
+  if (label_valid != NULL) *label_valid = false;
+  if (label_previous != NULL) *label_previous = false;
+  if (expected == NULL ||
+      !enum_case_node_for_index(context, case_index, &doc, &case_node)) {
+    return false;
+  }
+  uint32_t cursor = doc->nodes[case_node].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t position = 0;
+  size_t guard = 0;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_ENUM_CASE_PARAMETER) {
+      const w_seed_frontend_text parameter_label =
+          enum_case_parameter_label(doc, child);
+      /* Parameter slots are selected by source ordinal.  A label can only
+       * validate that slot; it never reorders the constructor payload. */
+      if (position == ordinal) {
+        const uint32_t type_node = direct_type_index(doc, child);
+        if (type_node != W_SEED_CST_NONE) {
+          *expected = contextual_type_from_span(
+              context, doc, doc->nodes[type_node].raw_span);
+        }
+        bool valid = false;
+        bool previous = false;
+        if (label.length == 0) {
+          valid = parameter_label.length == 0;
+        } else {
+          valid = parameter_label.length != 0 &&
+                  text_equal_text(parameter_label, label);
+          if (!valid) {
+            uint32_t prior_cursor = doc->nodes[case_node].first_child;
+            uint32_t prior_child = W_SEED_CST_NONE;
+            size_t prior_position = 0;
+            size_t prior_guard = 0;
+            while (next_child(doc, &prior_cursor, &prior_child) &&
+                   prior_guard < doc->parse.node_count &&
+                   prior_position < ordinal) {
+              if (doc->nodes[prior_child].kind ==
+                  W_SEED_CST_ENUM_CASE_PARAMETER) {
+                const w_seed_frontend_text prior_label =
+                    enum_case_parameter_label(doc, prior_child);
+                if (prior_label.length != 0 &&
+                    text_equal_text(prior_label, label)) {
+                  previous = true;
+                  break;
+                }
+                prior_position += 1;
+              }
+              prior_guard += 1;
+            }
+          }
+        }
+        if (label_valid != NULL) *label_valid = valid;
+        if (label_previous != NULL) *label_previous = previous;
+        return true;
+      }
+      position += 1;
+    }
+    guard += 1;
+  }
+  return false;
+}
+
+static size_t enum_case_parameter_count(const frontend_context *context,
+                                        uint32_t case_index) {
+  const w_seed_frontend_document *doc = NULL;
+  uint32_t case_node = W_SEED_CST_NONE;
+  if (!enum_case_node_for_index(context, case_index, &doc, &case_node)) return 0;
+  return count_direct_kind(doc, case_node, W_SEED_CST_ENUM_CASE_PARAMETER);
+}
+
+static frontend_simple_type contextual_type_from_span(
+    const frontend_context *context, const w_seed_frontend_document *doc,
+    w_seed_span span) {
+  frontend_simple_type type = simple_type_from_text(doc, span);
+  if (type.kind == W_SEED_FRONTEND_TYPE_NOMINAL && context != NULL) {
+    uint32_t enum_index = W_SEED_FRONTEND_NONE;
+    if (enum_declaration_name_count(context, type.spelling) == 1u &&
+        enum_declaration_for_name(context, type.spelling, &enum_index, NULL,
+                                  NULL, NULL)) {
+      type.kind = W_SEED_FRONTEND_TYPE_ENUM;
+    }
+  }
+  return type;
 }
 
 static bool context_append_fact(frontend_context *context,
@@ -1572,6 +1878,19 @@ static bool context_append_argument(frontend_context *context,
                                    ? 0
                                    : context->output->argument_capacity,
                                index);
+}
+
+static bool context_append_switch_arm(
+    frontend_context *context, w_seed_frontend_switch_arm value,
+    uint32_t *index) {
+  const size_t ordinal = context->count.switch_arms;
+  context->count.switch_arms += 1;
+  if (!context->emit && !receipt_size_switch_arm(context, &value)) return false;
+  return context_append_record(
+      context, ordinal, &value, sizeof(value),
+      context->emit && context->output != NULL ? context->output->switch_arms
+                                                : NULL,
+      context->output == NULL ? 0 : context->output->switch_arm_capacity, index);
 }
 
 static bool context_append_symbol(frontend_context *context,
@@ -2212,6 +2531,9 @@ typedef struct {
   const w_seed_frontend_document *document;
   frontend_token_cursor cursor;
   size_t depth;
+  frontend_simple_type expected_type;
+  bool has_expected_type;
+  bool suppress_short_diagnostic;
 } frontend_expression_parser;
 
 static frontend_simple_type simple_type_from_view(w_seed_frontend_text spelling) {
@@ -2542,7 +2864,8 @@ static bool external_label_known(const frontend_context *context,
 }
 
 static bool local_argument_expected(
-    const w_seed_frontend_document *doc, uint32_t function_node,
+    const frontend_context *context, const w_seed_frontend_document *doc,
+    uint32_t function_node,
     size_t ordinal, w_seed_frontend_text label,
     frontend_simple_type *expected) {
   const uint32_t parameters =
@@ -2571,7 +2894,8 @@ static bool local_argument_expected(
       if (selected) {
         const uint32_t type_node = direct_type_index(doc, child);
         if (type_node == W_SEED_CST_NONE) return false;
-        *expected = simple_type_from_text(doc, doc->nodes[type_node].raw_span);
+        *expected = contextual_type_from_span(
+            context, doc, doc->nodes[type_node].raw_span);
         return true;
       }
       index += 1;
@@ -2581,7 +2905,22 @@ static bool local_argument_expected(
   return false;
 }
 
+static frontend_simple_type external_contextual_type(
+    const frontend_context *context, w_seed_frontend_text spelling) {
+  frontend_simple_type type = simple_type_from_view(spelling);
+  if (type.kind == W_SEED_FRONTEND_TYPE_NOMINAL && context != NULL) {
+    uint32_t enum_index = W_SEED_FRONTEND_NONE;
+    if (enum_declaration_name_count(context, type.spelling) == 1u &&
+        enum_declaration_for_name(context, type.spelling, &enum_index, NULL,
+                                  NULL, NULL)) {
+      type.kind = W_SEED_FRONTEND_TYPE_ENUM;
+    }
+  }
+  return type;
+}
+
 static bool external_argument_expected(
+    const frontend_context *context,
     const w_seed_frontend_external_symbol *symbol, size_t ordinal,
     w_seed_frontend_text label, frontend_simple_type *expected) {
   if (symbol == NULL || expected == NULL) return false;
@@ -2591,7 +2930,7 @@ static bool external_argument_expected(
         &symbol->parameters[ordinal];
     if (parameter->label_kind != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
         text_equal_text(parameter->name, label)) {
-      *expected = simple_type_from_view(parameter->type);
+      *expected = external_contextual_type(context, parameter->type);
       return true;
     }
     return false;
@@ -2603,7 +2942,7 @@ static bool external_argument_expected(
       parameter->label_kind == W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED) {
     return false;
   }
-  *expected = simple_type_from_view(parameter->type);
+  *expected = external_contextual_type(context, parameter->type);
   return true;
 }
 
@@ -2695,7 +3034,8 @@ static frontend_simple_type binding_type_for_name(
                           name)) {
         const uint32_t type_node = direct_type_index(doc, child);
         if (type_node != W_SEED_CST_NONE)
-          return simple_type_from_text(doc, doc->nodes[type_node].raw_span);
+          return contextual_type_from_span(context, doc,
+                                           doc->nodes[type_node].raw_span);
       }
       guard += 1;
     }
@@ -2723,7 +3063,8 @@ static frontend_simple_type binding_type_for_name(
             use_block)) {
       const uint32_t type_node = direct_type_index(doc, (uint32_t)index);
       if (type_node != W_SEED_CST_NONE) {
-        return simple_type_from_text(doc, doc->nodes[type_node].raw_span);
+        return contextual_type_from_span(context, doc,
+                                         doc->nodes[type_node].raw_span);
       }
     }
   }
@@ -2731,7 +3072,8 @@ static frontend_simple_type binding_type_for_name(
 }
 
 static frontend_simple_type function_return_type(
-    const w_seed_frontend_document *doc, uint32_t function_node) {
+    const frontend_context *context, const w_seed_frontend_document *doc,
+    uint32_t function_node) {
   const uint32_t return_node =
       first_direct_kind(doc, function_node, W_SEED_CST_RETURN_TYPE);
   if (return_node == W_SEED_CST_NONE) {
@@ -2740,7 +3082,8 @@ static frontend_simple_type function_return_type(
   const uint32_t type_node = direct_type_index(doc, return_node);
   return type_node == W_SEED_CST_NONE
              ? simple_type_unknown()
-             : simple_type_from_text(doc, doc->nodes[type_node].raw_span);
+             : contextual_type_from_span(context, doc,
+                                         doc->nodes[type_node].raw_span);
 }
 
 static bool output_type_index_for_simple(const frontend_context *context,
@@ -2787,6 +3130,13 @@ static bool expression_append(frontend_expression_parser *parser,
   record.first_argument = first_argument;
   record.argument_count = (uint32_t)argument_count;
   record.inferred_type = W_SEED_FRONTEND_NONE;
+  record.enum_index = value->is_enum_case ? value->enum_index
+                                          : W_SEED_FRONTEND_NONE;
+  record.enum_case_index = value->is_enum_case
+                               ? value->enum_case_index
+                               : W_SEED_FRONTEND_NONE;
+  record.first_switch_arm = W_SEED_FRONTEND_NONE;
+  record.switch_arm_count = 0;
   record.supported = supported;
   if (!output_type_index_for_simple(parser->context, type,
                                     &record.inferred_type)) {
@@ -2798,6 +3148,11 @@ static bool expression_append(frontend_expression_parser *parser,
   value->type = type;
   value->supported = supported;
   value->has_name = kind == W_SEED_FRONTEND_EXPR_IDENTIFIER;
+  value->is_enum_case = kind == W_SEED_FRONTEND_EXPR_ENUM_CASE;
+  if (!value->is_enum_case) {
+    value->enum_index = W_SEED_FRONTEND_NONE;
+    value->enum_case_index = W_SEED_FRONTEND_NONE;
+  }
   value->name = value->has_name ? spelling : (w_seed_frontend_text){NULL, 0};
   value->operator_text = operator_text;
   value->span = span;
@@ -2814,6 +3169,10 @@ static bool expression_parse_prefix(frontend_expression_parser *parser,
 static bool expression_parse_primary(frontend_expression_parser *parser,
                                      frontend_expr_value *value) {
   if (parser == NULL || value == NULL) return false;
+  (void)memset(value, 0, sizeof(*value));
+  value->index = W_SEED_FRONTEND_NONE;
+  value->enum_index = W_SEED_FRONTEND_NONE;
+  value->enum_case_index = W_SEED_FRONTEND_NONE;
   frontend_token token;
   if (!cursor_take(&parser->cursor, &token)) return false;
   const w_seed_frontend_text spelling = text_from_span(parser->document,
@@ -2841,7 +3200,44 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
                                text_from_span(parser->document, span), spelling,
                                nested.type, false, nested.index,
                                (size_t)W_SEED_FRONTEND_NONE,
-                               W_SEED_FRONTEND_NONE, 0, value);
+                             W_SEED_FRONTEND_NONE, 0, value);
+    }
+    /* A qualified enum value is nominally resolved before the generic postfix
+     * path.  Unknown members remain unsupported facts through the existing
+     * member-postfix barrier. */
+    frontend_token dot;
+    frontend_token member;
+    frontend_token_cursor qualified = parser->cursor;
+    if (cursor_peek(&qualified, &dot) && token_text(parser->document, &dot, ".")) {
+      (void)cursor_take(&qualified, &dot);
+      if (cursor_peek(&qualified, &member) && member.kind == W_SEED_CST_WORD) {
+        const w_seed_frontend_text member_name =
+            text_from_span(parser->document, member.span);
+        uint32_t enum_index = W_SEED_FRONTEND_NONE;
+        uint32_t type_index = W_SEED_FRONTEND_NONE;
+        if (enum_declaration_name_count(parser->context, spelling) == 1u &&
+            enum_declaration_for_name(parser->context, spelling, &enum_index,
+                                      &type_index, NULL, NULL)) {
+          uint32_t case_index = W_SEED_FRONTEND_NONE;
+          if (enum_case_for_name(parser->context, enum_index, member_name,
+                                 &case_index, NULL, NULL)) {
+            (void)cursor_take(&parser->cursor, &dot);
+            (void)cursor_take(&parser->cursor, &member);
+            const w_seed_span span = {token.span.start_byte, member.span.end_byte};
+            frontend_simple_type enum_type = simple_type_from_view(spelling);
+            enum_type.kind = W_SEED_FRONTEND_TYPE_ENUM;
+            value->is_enum_case = true;
+            value->enum_index = enum_index;
+            value->enum_case_index = case_index;
+            return expression_append(
+                parser, W_SEED_FRONTEND_EXPR_ENUM_CASE, span,
+                text_from_span(parser->document, span),
+                (w_seed_frontend_text){NULL, 0}, enum_type, true,
+                (size_t)W_SEED_FRONTEND_NONE,
+                (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0, value);
+          }
+        }
+      }
     }
     frontend_simple_type type = binding_type_for_name(
         parser->context, spelling, token.span);
@@ -2953,9 +3349,72 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
     frontend_token member;
     if (!cursor_take(&parser->cursor, &member)) return false;
     const w_seed_span span = {token.span.start_byte, member.span.end_byte};
-    (void)context_append_fact(parser->context,
-                              W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
-                              span, text_from_span(parser->document, span));
+    const w_seed_frontend_text case_name =
+        text_from_span(parser->document, member.span);
+    if (parser->has_expected_type &&
+        parser->expected_type.kind == W_SEED_FRONTEND_TYPE_ENUM) {
+      uint32_t enum_index = W_SEED_FRONTEND_NONE;
+      uint32_t type_index = W_SEED_FRONTEND_NONE;
+      if (enum_declaration_name_count(parser->context,
+                                      parser->expected_type.spelling) == 1u &&
+          enum_declaration_for_name(parser->context,
+                                    parser->expected_type.spelling,
+                                    &enum_index, &type_index, NULL, NULL)) {
+        uint32_t case_index = W_SEED_FRONTEND_NONE;
+        if (enum_case_for_name(parser->context, enum_index, case_name,
+                               &case_index, NULL, NULL)) {
+          frontend_simple_type enum_type = parser->expected_type;
+          enum_type.kind = W_SEED_FRONTEND_TYPE_ENUM;
+          value->is_enum_case = true;
+          value->enum_index = enum_index;
+          value->enum_case_index = case_index;
+          return expression_append(
+              parser, W_SEED_FRONTEND_EXPR_ENUM_CASE, span,
+              text_from_span(parser->document, span),
+              (w_seed_frontend_text){NULL, 0}, enum_type, true,
+              (size_t)W_SEED_FRONTEND_NONE,
+              (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0, value);
+        }
+      }
+      if (enum_declaration_name_count(parser->context,
+                                      parser->expected_type.spelling) != 1u) {
+        (void)context_append_diagnostic(
+            parser->context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
+            "W-MATCH-0003", case_name,
+            (w_seed_frontend_text){"enum", 4}, parser->expected_type.spelling,
+            (w_seed_frontend_text){NULL, 0},
+            (w_seed_frontend_text){"qualified", 9}, span);
+      } else {
+        (void)context_append_fact(
+            parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+            span, text_from_span(parser->document, span));
+      }
+      return expression_append(parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, span,
+                               text_from_span(parser->document, span),
+                               (w_seed_frontend_text){NULL, 0},
+                               simple_type_unknown(), false,
+                               (size_t)W_SEED_FRONTEND_NONE,
+                               (size_t)W_SEED_FRONTEND_NONE,
+                               W_SEED_FRONTEND_NONE, 0, value);
+    }
+    const bool ambiguous_expected_enum =
+        parser->has_expected_type &&
+        parser->expected_type.kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+        enum_declaration_name_count(parser->context,
+                                    parser->expected_type.spelling) > 1u;
+    if ((!parser->has_expected_type || ambiguous_expected_enum) &&
+        !parser->suppress_short_diagnostic) {
+      (void)context_append_diagnostic(
+          parser->context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
+          "W-MATCH-0003", case_name,
+          (w_seed_frontend_text){"enum", 4},
+          (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
+          (w_seed_frontend_text){"qualified", 9}, span);
+    } else {
+      (void)context_append_fact(
+          parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, span,
+          text_from_span(parser->document, span));
+    }
     return expression_append(parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, span,
                              text_from_span(parser->document, span),
                              (w_seed_frontend_text){NULL, 0},
@@ -3016,6 +3475,7 @@ static bool call_label_known(const frontend_context *context,
 
 static bool expression_parse_postfix(frontend_expression_parser *parser,
                                      frontend_expr_value *value) {
+  bool enum_case_constructor_called = false;
   while (true) {
     frontend_token token;
     if (!cursor_peek(&parser->cursor, &token)) break;
@@ -3043,6 +3503,14 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     const uint32_t first_argument = (uint32_t)parser->context->count.arguments;
     size_t argument_count = 0;
     bool labels_valid = true;
+    const bool enum_case_constructor = value->is_enum_case;
+    bool enum_constructor_diagnostic_emitted = false;
+    const size_t enum_constructor_parameter_count =
+        enum_case_constructor
+            ? enum_case_parameter_count(parser->context,
+                                        value->enum_case_index)
+            : 0;
+    if (enum_case_constructor) enum_case_constructor_called = true;
     const w_seed_frontend_document *signature_doc = NULL;
     uint32_t signature_node = W_SEED_CST_NONE;
     const bool local_signature =
@@ -3084,34 +3552,98 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
               (w_seed_frontend_text){"positional", 10}, value->span);
         }
       }
+      frontend_simple_type expected = simple_type_unknown();
+      bool expected_found = false;
+      bool enum_label_valid = false;
+      bool enum_label_previous = false;
+      if (enum_case_constructor) {
+        expected_found = enum_case_argument_expected(
+            parser->context, value->enum_case_index, argument_count, label,
+            &expected, &enum_label_valid, &enum_label_previous);
+      } else if (local_signature || external_signature_found) {
+        expected_found = local_signature
+                             ? local_argument_expected(
+                                   parser->context, signature_doc,
+                                   signature_node, argument_count, label,
+                                   &expected)
+                             : external_argument_expected(
+                                   parser->context, external_signature,
+                                   argument_count, label, &expected);
+      }
+      const frontend_simple_type saved_expected = parser->expected_type;
+      const bool saved_has_expected = parser->has_expected_type;
+      const bool saved_suppress_short = parser->suppress_short_diagnostic;
+      parser->expected_type = expected;
+      parser->has_expected_type = expected_found;
+      parser->suppress_short_diagnostic =
+          !expected_found && !local_signature && !external_signature_found;
       frontend_expr_value argument_value;
       if (!expression_parse_bp(parser, 0, &argument_value)) return false;
-      if (local_signature || external_signature_found) {
-        frontend_simple_type expected = simple_type_unknown();
-        const bool expected_found = local_signature
-                                        ? local_argument_expected(
-                                              signature_doc, signature_node,
-                                              argument_count, label, &expected)
-                                        : external_argument_expected(
-                                              external_signature, argument_count,
-                                              label, &expected);
+      parser->expected_type = saved_expected;
+      parser->has_expected_type = saved_has_expected;
+      parser->suppress_short_diagnostic = saved_suppress_short;
+      if (enum_case_constructor || local_signature || external_signature_found) {
         if (!expected_found) {
           labels_valid = false;
-          if (label.length == 0) {
+          if (enum_case_constructor) {
+            if (!enum_constructor_diagnostic_emitted) {
+              (void)context_append_diagnostic(
+                  parser->context, W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
+                  "W-LABEL-0005", value->name,
+                  (w_seed_frontend_text){"enum-case", 9}, value->name, label,
+                  (w_seed_frontend_text){"source-order labels", 19},
+                  value->span);
+              enum_constructor_diagnostic_emitted = true;
+            }
+          } else if (label.length == 0) {
             (void)context_append_diagnostic(
                 parser->context, W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
                 "W-LABEL-0005", value->name,
                 (w_seed_frontend_text){"signature", 9}, value->name, label,
                 (w_seed_frontend_text){"named", 5}, value->span);
           }
+        } else if (enum_case_constructor && !enum_label_valid) {
+          labels_valid = false;
+          if (!enum_constructor_diagnostic_emitted) {
+            (void)context_append_diagnostic(
+                parser->context, W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
+                enum_label_previous ? "W-LABEL-0006" : "W-LABEL-0005",
+                value->name, (w_seed_frontend_text){"enum-case", 9},
+                value->name, label,
+                (w_seed_frontend_text){"source-order labels", 19}, value->span);
+            enum_constructor_diagnostic_emitted = true;
+          }
         } else if (argument_value.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
                    expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
                    !widening_allowed(argument_value.type, expected)) {
           labels_valid = false;
-          (void)context_append_fact(
-              parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
-              argument_value.span,
-              text_from_span(parser->document, argument_value.span));
+          if (enum_case_constructor) {
+            if (!enum_constructor_diagnostic_emitted) {
+              const bool narrowing =
+                  argument_value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+                  expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+                  argument_value.type.is_signed == expected.is_signed &&
+                  argument_value.type.bit_width != 0 &&
+                  expected.bit_width != 0 &&
+                  argument_value.type.bit_width > expected.bit_width;
+              (void)context_append_diagnostic(
+                  parser->context,
+                  narrowing ? W_SEED_FRONTEND_DIAGNOSTIC_TYPE
+                            : W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
+                  narrowing ? "W-TYPE-0122" : "W-SEM-0001",
+                  argument_value.type.spelling, expected.spelling,
+                  (w_seed_frontend_text){NULL, 0},
+                  (w_seed_frontend_text){NULL, 0},
+                  (w_seed_frontend_text){"enum-case argument", 18},
+                  argument_value.span);
+              enum_constructor_diagnostic_emitted = true;
+            }
+          } else {
+            (void)context_append_fact(
+                parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+                argument_value.span,
+                text_from_span(parser->document, argument_value.span));
+          }
         }
       }
       w_seed_frontend_argument argument;
@@ -3134,7 +3666,20 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     }
     frontend_token close;
     if (!cursor_take_text(&parser->cursor, ")", &close)) return false;
-    if (local_signature) {
+    if (enum_case_constructor) {
+      if (enum_constructor_parameter_count != argument_count) {
+        labels_valid = false;
+        if (!enum_constructor_diagnostic_emitted) {
+          (void)context_append_diagnostic(
+              parser->context, W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
+              "W-LABEL-0005", value->name,
+              (w_seed_frontend_text){"enum-case", 9}, value->name,
+              (w_seed_frontend_text){NULL, 0},
+              (w_seed_frontend_text){"constructor arity", 17}, value->span);
+          enum_constructor_diagnostic_emitted = true;
+        }
+      }
+    } else if (local_signature) {
       const uint32_t parameters = first_direct_kind(
           signature_doc, signature_node, W_SEED_CST_PARAMETER_LIST);
       if (parameters == W_SEED_CST_NONE ||
@@ -3161,16 +3706,33 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       }
     }
     frontend_simple_type return_type = simple_type_unknown();
-    if (local_signature) {
-      return_type = function_return_type(signature_doc, signature_node);
+    if (enum_case_constructor) {
+      return_type = value->type;
+    } else if (local_signature) {
+      return_type = function_return_type(parser->context, signature_doc,
+                                          signature_node);
     } else if (external_signature_found) {
       return_type = simple_type_from_view(external_signature->return_type);
     }
     const w_seed_span span = {value->span.start_byte, close.span.end_byte};
+    if (enum_case_constructor && enum_constructor_parameter_count == 0) {
+      labels_valid = false;
+      if (!enum_constructor_diagnostic_emitted) {
+        (void)context_append_diagnostic(
+            parser->context, W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
+            "W-LABEL-0005", value->name,
+            (w_seed_frontend_text){"enum-case", 9}, value->name,
+            (w_seed_frontend_text){NULL, 0},
+            (w_seed_frontend_text){"bare value", 10}, span);
+        enum_constructor_diagnostic_emitted = true;
+      }
+    }
     if (!labels_valid) {
-      (void)context_append_fact(parser->context,
-                                W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
-                                span, text_from_span(parser->document, span));
+      if (!enum_case_constructor) {
+        (void)context_append_fact(parser->context,
+                                  W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+                                  span, text_from_span(parser->document, span));
+      }
     }
     const bool supported = value->supported && labels_valid &&
                            return_type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
@@ -3187,6 +3749,18 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                            (size_t)W_SEED_FRONTEND_NONE, first_argument,
                            argument_count, value)) {
       return false;
+    }
+  }
+  if (value->is_enum_case && !enum_case_constructor_called &&
+      enum_case_parameter_count(parser->context, value->enum_case_index) != 0) {
+    (void)context_append_fact(parser->context,
+                              W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+                              value->span,
+                              text_from_span(parser->document, value->span));
+    value->supported = false;
+    if (parser->context->emit && parser->context->output != NULL &&
+        value->index < parser->context->count.expressions) {
+      parser->context->output->expressions[value->index].supported = false;
     }
   }
   return true;
@@ -3322,17 +3896,37 @@ static bool expression_parse_bp(frontend_expression_parser *parser,
 
 static bool normalize_expression_node(frontend_context *context,
                                       uint32_t expression_node,
-                                      uint32_t *expression_index) {
+                                      uint32_t *expression_index,
+                                      frontend_simple_type expected,
+                                      frontend_simple_type *actual_out) {
   const w_seed_frontend_document *doc = context_document(context);
+  if (actual_out != NULL) *actual_out = simple_type_unknown();
   if (doc == NULL || expression_index == NULL ||
       expression_node >= doc->parse.node_count) {
     return false;
+  }
+  const uint32_t switch_node =
+      first_direct_kind(doc, expression_node, W_SEED_CST_SWITCH_EXPRESSION);
+  const bool switch_owner_exact =
+      switch_node != W_SEED_CST_NONE &&
+      count_direct_kind(doc, expression_node, W_SEED_CST_SWITCH_EXPRESSION) ==
+          1u &&
+      trim_span(doc, doc->nodes[expression_node].raw_span).start_byte ==
+          trim_span(doc, doc->nodes[switch_node].raw_span).start_byte &&
+      trim_span(doc, doc->nodes[expression_node].raw_span).end_byte ==
+          trim_span(doc, doc->nodes[switch_node].raw_span).end_byte;
+  if (switch_owner_exact) {
+    return normalize_switch_expression(context, switch_node, expression_index,
+                                       expected, actual_out);
   }
   frontend_expression_parser parser;
   parser.context = context;
   parser.document = doc;
   parser.cursor = token_cursor_for(doc, doc->nodes[expression_node].raw_span);
   parser.depth = 0;
+  parser.expected_type = expected;
+  parser.has_expected_type = expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+  parser.suppress_short_diagnostic = false;
   frontend_expr_value value;
   if (!expression_parse_bp(&parser, 0, &value)) {
     const w_seed_span span = doc->nodes[expression_node].raw_span;
@@ -3348,7 +3942,12 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.left = W_SEED_FRONTEND_NONE;
     fallback.right = W_SEED_FRONTEND_NONE;
     fallback.first_argument = W_SEED_FRONTEND_NONE;
+    fallback.enum_index = W_SEED_FRONTEND_NONE;
+    fallback.enum_case_index = W_SEED_FRONTEND_NONE;
+    fallback.first_switch_arm = W_SEED_FRONTEND_NONE;
+    fallback.switch_arm_count = 0;
     fallback.supported = false;
+    if (actual_out != NULL) *actual_out = simple_type_unknown();
     return context_append_expression(context, fallback, expression_index);
   }
   frontend_token trailing;
@@ -3367,11 +3966,17 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.left = W_SEED_FRONTEND_NONE;
     fallback.right = W_SEED_FRONTEND_NONE;
     fallback.first_argument = W_SEED_FRONTEND_NONE;
+    fallback.enum_index = W_SEED_FRONTEND_NONE;
+    fallback.enum_case_index = W_SEED_FRONTEND_NONE;
+    fallback.first_switch_arm = W_SEED_FRONTEND_NONE;
+    fallback.switch_arm_count = 0;
     fallback.supported = false;
+    if (actual_out != NULL) *actual_out = simple_type_unknown();
     return context_append_expression(context, fallback, expression_index);
   }
   if (value.index >= (size_t)UINT32_MAX) return false;
   *expression_index = (uint32_t)value.index;
+  if (actual_out != NULL) *actual_out = value.type;
   return true;
 }
 
@@ -3440,7 +4045,7 @@ static frontend_simple_type infer_expression_span(frontend_context *context,
     uint32_t function_node = W_SEED_CST_NONE;
     if (function_signature_for_name(context, first_text, &owner_doc,
                                     &function_node)) {
-      return function_return_type(owner_doc, function_node);
+      return function_return_type(context, owner_doc, function_node);
     }
     const w_seed_frontend_external_symbol *external = NULL;
     if (external_symbol_for_name(context, first_text, &external)) {
@@ -3453,6 +4058,344 @@ static frontend_simple_type infer_expression_span(frontend_context *context,
 static uint32_t first_direct_expression(const w_seed_frontend_document *doc,
                                         uint32_t owner) {
   return first_direct_kind(doc, owner, W_SEED_CST_EXPRESSION);
+}
+
+static bool switch_pattern_names(
+    const w_seed_frontend_document *doc, w_seed_span span,
+    w_seed_frontend_text *qualifier, w_seed_frontend_text *case_name) {
+  if (qualifier != NULL) *qualifier = (w_seed_frontend_text){NULL, 0};
+  if (case_name != NULL) *case_name = (w_seed_frontend_text){NULL, 0};
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token first;
+  if (!cursor_take(&cursor, &first)) return false;
+  if (token_text(doc, &first, ".")) {
+    frontend_token member;
+    if (!cursor_take(&cursor, &member) || member.kind != W_SEED_CST_WORD)
+      return false;
+    if (case_name != NULL) *case_name = text_from_span(doc, member.span);
+    return true;
+  }
+  if (first.kind != W_SEED_CST_WORD) return false;
+  frontend_token dot;
+  frontend_token member;
+  if (!cursor_take(&cursor, &dot) || !token_text(doc, &dot, ".") ||
+      !cursor_take(&cursor, &member) || member.kind != W_SEED_CST_WORD) {
+    return false;
+  }
+  if (qualifier != NULL) *qualifier = text_from_span(doc, first.span);
+  if (case_name != NULL) *case_name = text_from_span(doc, member.span);
+  return true;
+}
+
+static bool normalize_switch_expression(
+    frontend_context *context, uint32_t switch_node,
+    uint32_t *expression_index, frontend_simple_type expected,
+    frontend_simple_type *actual_out) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (actual_out != NULL) *actual_out = simple_type_unknown();
+  if (doc == NULL || expression_index == NULL ||
+      switch_node >= doc->parse.node_count) {
+    return false;
+  }
+  const w_seed_cst_node *switch_cst = &doc->nodes[switch_node];
+  const uint32_t subject_node = first_direct_expression(doc, switch_node);
+  if (subject_node == W_SEED_CST_NONE) return false;
+  frontend_simple_type subject_type = simple_type_unknown();
+  uint32_t subject_expression = W_SEED_FRONTEND_NONE;
+  if (!normalize_expression_node(context, subject_node, &subject_expression,
+                                 simple_type_unknown(), &subject_type)) {
+    return false;
+  }
+
+  uint32_t subject_enum = W_SEED_FRONTEND_NONE;
+  uint32_t subject_enum_type = W_SEED_FRONTEND_NONE;
+  const w_seed_frontend_document *subject_enum_doc = NULL;
+  uint32_t subject_enum_node = W_SEED_CST_NONE;
+  const bool subject_is_enum =
+      subject_type.kind == W_SEED_FRONTEND_TYPE_ENUM &&
+      enum_declaration_name_count(context, subject_type.spelling) == 1u &&
+      enum_declaration_for_name(context, subject_type.spelling, &subject_enum,
+                                &subject_enum_type, &subject_enum_doc,
+                                &subject_enum_node);
+
+  w_seed_frontend_expression switch_record;
+  (void)memset(&switch_record, 0, sizeof(switch_record));
+  switch_record.kind = W_SEED_FRONTEND_EXPR_SWITCH;
+  switch_record.module_index = (uint32_t)context->module_index;
+  switch_record.owner_function = context->function_index;
+  switch_record.spelling = text_from_span(doc, switch_cst->raw_span);
+  switch_record.span = switch_cst->raw_span;
+  switch_record.left = subject_expression;
+  switch_record.right = W_SEED_FRONTEND_NONE;
+  switch_record.first_argument = W_SEED_FRONTEND_NONE;
+  switch_record.argument_count = 0;
+  switch_record.inferred_type = W_SEED_FRONTEND_NONE;
+  switch_record.enum_index = subject_is_enum ? subject_enum
+                                             : W_SEED_FRONTEND_NONE;
+  switch_record.enum_case_index = W_SEED_FRONTEND_NONE;
+  switch_record.first_switch_arm = (uint32_t)context->count.switch_arms;
+  switch_record.switch_arm_count = 0;
+  switch_record.supported = subject_is_enum;
+  uint32_t switch_index = W_SEED_FRONTEND_NONE;
+  if (!context_append_expression(context, switch_record, &switch_index)) {
+    return false;
+  }
+
+  bool switch_supported = subject_is_enum;
+  bool patterns_supported = subject_is_enum;
+  bool wildcard_seen = false;
+  size_t arm_count = 0;
+  /* Derive the join from arm results.  An outer expected type only supplies
+   * nominal context for short enum values; it must not hide narrowing at the
+   * statement boundary. */
+  frontend_simple_type join_type = simple_type_unknown();
+  bool have_join = false;
+  uint32_t arm_cursor = switch_cst->first_child;
+  uint32_t arm_node = W_SEED_CST_NONE;
+  size_t guard = 0;
+  while (next_child(doc, &arm_cursor, &arm_node) &&
+         guard < doc->parse.node_count) {
+    if (doc->nodes[arm_node].kind != W_SEED_CST_SWITCH_ARM) {
+      guard += 1;
+      continue;
+    }
+    const uint32_t pattern_node =
+        first_direct_kind(doc, arm_node, W_SEED_CST_ENUM_PATTERN);
+    const uint32_t wildcard_node =
+        first_direct_kind(doc, arm_node, W_SEED_CST_WILDCARD_PATTERN);
+    const uint32_t literal_node =
+        first_direct_kind(doc, arm_node, W_SEED_CST_LITERAL_PATTERN);
+    const uint32_t result_node = first_direct_expression(doc, arm_node);
+    const w_seed_cst_node *pattern_cst = NULL;
+    w_seed_frontend_switch_pattern_kind pattern_kind =
+        W_SEED_FRONTEND_SWITCH_PATTERN_LITERAL;
+    if (pattern_node != W_SEED_CST_NONE) {
+      pattern_cst = &doc->nodes[pattern_node];
+      pattern_kind = W_SEED_FRONTEND_SWITCH_PATTERN_ENUM_CASE;
+    } else if (wildcard_node != W_SEED_CST_NONE) {
+      pattern_cst = &doc->nodes[wildcard_node];
+      pattern_kind = W_SEED_FRONTEND_SWITCH_PATTERN_WILDCARD;
+    } else if (literal_node != W_SEED_CST_NONE) {
+      pattern_cst = &doc->nodes[literal_node];
+    }
+    const w_seed_span pattern_span =
+        pattern_cst == NULL ? owner_span(doc, arm_node) : pattern_cst->raw_span;
+    uint32_t arm_enum = W_SEED_FRONTEND_NONE;
+    uint32_t arm_case = W_SEED_FRONTEND_NONE;
+    bool arm_supported = subject_is_enum && pattern_cst != NULL &&
+                         result_node != W_SEED_CST_NONE;
+    if (pattern_kind == W_SEED_FRONTEND_SWITCH_PATTERN_ENUM_CASE &&
+        pattern_cst != NULL) {
+      w_seed_frontend_text qualifier = {NULL, 0};
+      w_seed_frontend_text case_name = {NULL, 0};
+      if (!switch_pattern_names(doc, pattern_span, &qualifier, &case_name) ||
+          !subject_is_enum ||
+          (qualifier.length != 0 &&
+           !text_equal_text(qualifier, subject_type.spelling)) ||
+          !enum_case_for_name(context, subject_enum, case_name, &arm_case,
+                              NULL, NULL)) {
+        arm_supported = false;
+        switch_supported = false;
+        patterns_supported = false;
+        (void)context_append_fact(context,
+                                  W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+                                  pattern_span, text_from_span(doc, pattern_span));
+      } else {
+        arm_enum = subject_enum;
+      }
+    } else if (pattern_kind == W_SEED_FRONTEND_SWITCH_PATTERN_LITERAL) {
+      arm_supported = false;
+      switch_supported = false;
+      patterns_supported = false;
+      (void)context_append_fact(context,
+                                W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+                                pattern_span, text_from_span(doc, pattern_span));
+    }
+    if (subject_is_enum) arm_enum = subject_enum;
+    const bool arm_after_wildcard = wildcard_seen;
+    if (arm_after_wildcard) {
+      arm_supported = false;
+      switch_supported = false;
+      (void)context_append_diagnostic(
+          context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-MATCH-0002",
+          text_from_span(doc, pattern_span),
+          (w_seed_frontend_text){"unreachable", 11},
+          (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
+          (w_seed_frontend_text){"wildcard", 8}, pattern_span);
+    }
+    if (pattern_kind == W_SEED_FRONTEND_SWITCH_PATTERN_WILDCARD) {
+      if (wildcard_seen && !arm_after_wildcard) {
+        arm_supported = false;
+        switch_supported = false;
+        (void)context_append_diagnostic(
+            context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-MATCH-0002",
+            text_from_span(doc, pattern_span),
+            (w_seed_frontend_text){"wildcard", 8},
+            (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
+            (w_seed_frontend_text){"one wildcard", 12}, pattern_span);
+      }
+      wildcard_seen = true;
+    }
+    if (arm_enum != W_SEED_FRONTEND_NONE && arm_case != W_SEED_FRONTEND_NONE &&
+        !arm_after_wildcard) {
+      uint32_t prior_cursor = switch_cst->first_child;
+      uint32_t prior_node = W_SEED_CST_NONE;
+      size_t prior_guard = 0;
+      while (next_child(doc, &prior_cursor, &prior_node) &&
+             prior_guard < doc->parse.node_count && prior_node != arm_node) {
+        if (doc->nodes[prior_node].kind == W_SEED_CST_SWITCH_ARM) {
+          const uint32_t prior_pattern =
+              first_direct_kind(doc, prior_node, W_SEED_CST_ENUM_PATTERN);
+          if (prior_pattern != W_SEED_CST_NONE) {
+            w_seed_frontend_text ignored_qualifier = {NULL, 0};
+            w_seed_frontend_text prior_name = {NULL, 0};
+            if (switch_pattern_names(doc, doc->nodes[prior_pattern].raw_span,
+                                     &ignored_qualifier, &prior_name)) {
+              uint32_t prior_case = W_SEED_FRONTEND_NONE;
+              if (enum_case_for_name(context, subject_enum, prior_name,
+                                     &prior_case, NULL, NULL) &&
+                  prior_case == arm_case) {
+                arm_supported = false;
+                switch_supported = false;
+                (void)context_append_diagnostic(
+                    context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
+                    "W-MATCH-0002", prior_name,
+                    (w_seed_frontend_text){"duplicate enum case", 19},
+                    (w_seed_frontend_text){NULL, 0}, prior_name,
+                    (w_seed_frontend_text){"unique", 6}, pattern_span);
+                break;
+              }
+            }
+          }
+        }
+        prior_guard += 1;
+      }
+    }
+
+    frontend_simple_type arm_expected =
+        expected.kind == W_SEED_FRONTEND_TYPE_ENUM ? expected
+                                                   : simple_type_unknown();
+    frontend_simple_type arm_type = simple_type_unknown();
+    uint32_t result_expression = W_SEED_FRONTEND_NONE;
+    if (result_node != W_SEED_CST_NONE &&
+        !normalize_expression_node(context, result_node, &result_expression,
+                                   arm_expected, &arm_type)) {
+      return false;
+    }
+    if (context->emit && context->output != NULL &&
+        result_expression != W_SEED_FRONTEND_NONE &&
+        result_expression < context->count.expressions &&
+        !context->output->expressions[result_expression].supported) {
+      arm_supported = false;
+      switch_supported = false;
+    }
+    if (result_node == W_SEED_CST_NONE ||
+        arm_type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN) {
+      arm_supported = false;
+      switch_supported = false;
+    } else if (!have_join) {
+      join_type = arm_type;
+      have_join = true;
+    } else if (!widening_allowed(arm_type, join_type) &&
+               !widening_allowed(join_type, arm_type)) {
+      arm_supported = false;
+      switch_supported = false;
+      (void)context_append_diagnostic(
+          context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE, "W-TYPE-0120",
+          arm_type.spelling, join_type.spelling,
+          (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
+          (w_seed_frontend_text){"single join type", 16},
+          doc->nodes[result_node].raw_span);
+    } else if (widening_allowed(join_type, arm_type)) {
+      join_type = arm_type;
+    }
+    w_seed_frontend_switch_arm arm;
+    (void)memset(&arm, 0, sizeof(arm));
+    arm.module_index = (uint32_t)context->module_index;
+    arm.owner_expression = switch_index;
+    arm.pattern_kind = pattern_kind;
+    arm.enum_index = arm_enum;
+    arm.enum_case_index = arm_case;
+    arm.pattern_span = pattern_span;
+    arm.result_expression = result_expression;
+    arm.span = doc->nodes[arm_node].raw_span;
+    arm.supported = arm_supported;
+    uint32_t arm_index = W_SEED_FRONTEND_NONE;
+    if (!context_append_switch_arm(context, arm, &arm_index)) return false;
+    arm_count += 1;
+    guard += 1;
+  }
+
+  if (subject_is_enum && patterns_supported && !wildcard_seen) {
+    uint32_t expected_cursor = subject_enum_doc->nodes[subject_enum_node].first_child;
+    uint32_t expected_case_node = W_SEED_CST_NONE;
+    size_t expected_guard = 0;
+    while (next_child(subject_enum_doc, &expected_cursor, &expected_case_node) &&
+           expected_guard < subject_enum_doc->parse.node_count) {
+      if (subject_enum_doc->nodes[expected_case_node].kind ==
+          W_SEED_CST_ENUM_CASE) {
+        const w_seed_frontend_text expected_name = first_word_in_span(
+            subject_enum_doc, subject_enum_doc->nodes[expected_case_node].raw_span);
+        bool covered = false;
+        uint32_t scan_cursor = switch_cst->first_child;
+        uint32_t scan_arm = W_SEED_CST_NONE;
+        size_t scan_guard = 0;
+        while (next_child(doc, &scan_cursor, &scan_arm) &&
+               scan_guard < doc->parse.node_count) {
+          if (doc->nodes[scan_arm].kind == W_SEED_CST_SWITCH_ARM) {
+            const uint32_t scan_pattern =
+                first_direct_kind(doc, scan_arm, W_SEED_CST_ENUM_PATTERN);
+            if (scan_pattern != W_SEED_CST_NONE) {
+              w_seed_frontend_text ignored_qualifier = {NULL, 0};
+              w_seed_frontend_text scan_name = {NULL, 0};
+              if (switch_pattern_names(doc, doc->nodes[scan_pattern].raw_span,
+                                       &ignored_qualifier, &scan_name) &&
+                  text_equal_text(scan_name, expected_name)) {
+                covered = true;
+                break;
+              }
+            }
+          }
+          scan_guard += 1;
+        }
+        if (!covered) {
+          switch_supported = false;
+          (void)context_append_diagnostic(
+              context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-MATCH-0001",
+              expected_name, (w_seed_frontend_text){"enum case", 9},
+              subject_type.spelling, (w_seed_frontend_text){NULL, 0},
+              (w_seed_frontend_text){"all cases or _", 14},
+              subject_enum_doc->nodes[expected_case_node].raw_span);
+        }
+      }
+      expected_guard += 1;
+    }
+  }
+  if (!subject_is_enum) {
+    (void)context_append_fact(context, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE,
+                              switch_cst->raw_span,
+                              text_from_span(doc, switch_cst->raw_span));
+  }
+  if (context->emit && context->output != NULL &&
+      switch_index < context->output->expression_capacity) {
+    w_seed_frontend_expression *record =
+        &context->output->expressions[switch_index];
+    record->switch_arm_count = (uint32_t)arm_count;
+    record->inferred_type = W_SEED_FRONTEND_NONE;
+    if (have_join) {
+      frontend_simple_type inferred = join_type;
+      if (expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
+          widening_allowed(join_type, expected)) {
+        inferred = expected;
+      }
+      (void)output_type_index_for_simple(context, inferred,
+                                         &record->inferred_type);
+    }
+    record->supported = switch_supported && have_join;
+  }
+  if (actual_out != NULL) *actual_out = have_join ? join_type : simple_type_unknown();
+  *expression_index = switch_index;
+  return true;
 }
 
 static bool normalize_statement_depth(frontend_context *context,
@@ -3507,18 +4450,34 @@ static bool normalize_statement_depth(frontend_context *context,
     return false;
   }
   const uint32_t expression_node = first_direct_expression(doc, node_index);
+  frontend_simple_type expected_outer = simple_type_unknown();
+  if ((node->kind == W_SEED_CST_LET_STATEMENT ||
+       node->kind == W_SEED_CST_VAR_STATEMENT) &&
+      type_node != W_SEED_CST_NONE) {
+    expected_outer = contextual_type_from_span(context, doc,
+                                               doc->nodes[type_node].raw_span);
+  } else if (node->kind == W_SEED_CST_RETURN_STATEMENT &&
+             context->function_node != NULL) {
+    expected_outer = function_return_type(
+        context, doc, (uint32_t)(context->function_node - doc->nodes));
+  }
+  frontend_simple_type normalized_actual = simple_type_unknown();
   if (expression_node != W_SEED_CST_NONE &&
       !normalize_expression_node(context, expression_node,
-                                 &value.expression_index)) {
+                                 &value.expression_index, expected_outer,
+                                 &normalized_actual)) {
     return false;
+  }
+  if (expression_node != W_SEED_CST_NONE &&
+      normalized_actual.kind == W_SEED_FRONTEND_TYPE_UNKNOWN) {
+    normalized_actual = infer_expression_span(
+        context, doc->nodes[expression_node].raw_span);
   }
   if ((node->kind == W_SEED_CST_LET_STATEMENT ||
        node->kind == W_SEED_CST_VAR_STATEMENT) &&
       expression_node != W_SEED_CST_NONE && type_node != W_SEED_CST_NONE) {
-    const frontend_simple_type actual =
-        infer_expression_span(context, doc->nodes[expression_node].raw_span);
-    const frontend_simple_type expected =
-        simple_type_from_text(doc, doc->nodes[type_node].raw_span);
+    const frontend_simple_type actual = normalized_actual;
+    const frontend_simple_type expected = expected_outer;
     if (actual.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
         expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
         !widening_allowed(actual, expected)) {
@@ -3542,8 +4501,7 @@ static bool normalize_statement_depth(frontend_context *context,
   }
   if (node->kind == W_SEED_CST_IF_STATEMENT) {
     value.condition_expression = value.expression_index;
-    const frontend_simple_type condition =
-        infer_expression_span(context, doc->nodes[expression_node].raw_span);
+    const frontend_simple_type condition = normalized_actual;
     if (condition.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
         !type_is_bool(condition)) {
       (void)context_append_diagnostic(
@@ -3555,13 +4513,8 @@ static bool normalize_statement_depth(frontend_context *context,
     }
   }
   if (node->kind == W_SEED_CST_RETURN_STATEMENT && expression_node != W_SEED_CST_NONE) {
-    frontend_simple_type actual =
-        infer_expression_span(context, doc->nodes[expression_node].raw_span);
-    frontend_simple_type expected = simple_type_unknown();
-    if (context->function_node != NULL) {
-      expected = function_return_type(
-          doc, (uint32_t)(context->function_node - doc->nodes));
-    }
+    frontend_simple_type actual = normalized_actual;
+    frontend_simple_type expected = expected_outer;
     if (actual.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
         expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
         !widening_allowed(actual, expected)) {
@@ -3582,7 +4535,7 @@ static bool normalize_statement_depth(frontend_context *context,
   if (node->kind == W_SEED_CST_RETURN_STATEMENT &&
       expression_node == W_SEED_CST_NONE && context->function_node != NULL) {
     const frontend_simple_type expected = function_return_type(
-        doc, (uint32_t)(context->function_node - doc->nodes));
+        context, doc, (uint32_t)(context->function_node - doc->nodes));
     if (expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
         expected.kind != W_SEED_FRONTEND_TYPE_UNIT) {
       (void)context_append_diagnostic(
@@ -4251,6 +5204,28 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, value->type_index);
       receipt_write_literal(writer, "\n");
     }
+    for (size_t index = 0; index < context->count.switch_arms; index += 1) {
+      const w_seed_frontend_switch_arm *value = &output->switch_arms[index];
+      receipt_write_literal(writer, "switch-arm=");
+      receipt_write_size(writer, value->module_index);
+      receipt_write_literal(writer, "|owner=");
+      receipt_write_size(writer, value->owner_expression);
+      receipt_write_literal(writer, "|pattern=");
+      receipt_write_size(writer, (size_t)value->pattern_kind);
+      receipt_write_literal(writer, "|enum=");
+      receipt_write_size(writer, value->enum_index);
+      receipt_write_literal(writer, "|case=");
+      receipt_write_size(writer, value->enum_case_index);
+      receipt_write_literal(writer, "|pattern-span=");
+      receipt_write_span(writer, value->pattern_span);
+      receipt_write_literal(writer, "|result=");
+      receipt_write_size(writer, value->result_expression);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, value->span);
+      receipt_write_literal(writer, "|supported=");
+      receipt_write_size(writer, value->supported ? 1u : 0u);
+      receipt_write_literal(writer, "\n");
+    }
     for (size_t index = 0; index < context->count.symbols; index += 1) {
       const w_seed_frontend_symbol *symbol = &output->symbols[index];
       receipt_write_literal(writer, "symbol=");
@@ -4338,6 +5313,8 @@ static bool output_capacity_ok(const w_seed_frontend_output *output,
                      output->expression_capacity) &&
          capacity_ok(required->arguments, output->arguments,
                      output->argument_capacity) &&
+         capacity_ok(required->switch_arms, output->switch_arms,
+                     output->switch_arm_capacity) &&
          capacity_ok(required->symbols, output->symbols,
                      output->symbol_capacity) &&
          capacity_ok(required->facts, output->facts, output->fact_capacity) &&

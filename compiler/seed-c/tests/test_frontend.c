@@ -17,17 +17,17 @@
 
 enum {
   TEST_NODES = 2048,
-  TEST_TOKENS = 256,
-  TEST_FRAMES = 256,
-  TEST_LEX_FRAMES = 128,
+  TEST_TOKENS = 1024,
+  TEST_FRAMES = 1024,
+  TEST_LEX_FRAMES = 512,
   TEST_ISSUES = 64,
   TEST_MODULES = 8,
   TEST_IMPORTS = 32,
   TEST_IMPORT_ITEMS = 32,
   TEST_STRUCTS = 16,
   TEST_ENUMS = 16,
-  TEST_ENUM_CASES = 64,
-  TEST_ENUM_CASE_PARAMETERS = 128,
+  TEST_ENUM_CASES = 128,
+  TEST_ENUM_CASE_PARAMETERS = 256,
   TEST_FIELDS = 64,
   TEST_DECLARATIONS = 32,
   TEST_TYPES = 128,
@@ -37,6 +37,7 @@ enum {
   TEST_STATEMENTS = 256,
   TEST_EXPRESSIONS = 1024,
   TEST_ARGUMENTS = 256,
+  TEST_SWITCH_ARMS = 256,
   TEST_SYMBOLS = 512,
   TEST_FACTS = 512,
   TEST_DIAGNOSTICS = 128,
@@ -72,6 +73,7 @@ typedef struct {
   w_seed_frontend_statement statements[TEST_STATEMENTS];
   w_seed_frontend_expression expressions[TEST_EXPRESSIONS];
   w_seed_frontend_argument arguments[TEST_ARGUMENTS];
+  w_seed_frontend_switch_arm switch_arms[TEST_SWITCH_ARMS];
   w_seed_frontend_symbol symbols[TEST_SYMBOLS];
   w_seed_frontend_fact facts[TEST_FACTS];
   w_seed_frontend_diagnostic diagnostics[TEST_DIAGNOSTICS];
@@ -136,6 +138,8 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
                sizeof(fixture_value->expressions));
   (void)memset(fixture_value->arguments, value,
                sizeof(fixture_value->arguments));
+  (void)memset(fixture_value->switch_arms, value,
+               sizeof(fixture_value->switch_arms));
   (void)memset(fixture_value->symbols, value, sizeof(fixture_value->symbols));
   (void)memset(fixture_value->facts, value, sizeof(fixture_value->facts));
   (void)memset(fixture_value->diagnostics, value,
@@ -180,6 +184,8 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                          sizeof(fixture_value->expressions), value) &&
          all_bytes_equal(fixture_value->arguments,
                          sizeof(fixture_value->arguments), value) &&
+         all_bytes_equal(fixture_value->switch_arms,
+                         sizeof(fixture_value->switch_arms), value) &&
          all_bytes_equal(fixture_value->symbols, sizeof(fixture_value->symbols),
                          value) &&
          all_bytes_equal(fixture_value->facts, sizeof(fixture_value->facts),
@@ -243,6 +249,8 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .parameter_capacity = TEST_PARAMETERS,
       .arguments = fixture_value->arguments,
       .argument_capacity = TEST_ARGUMENTS,
+      .switch_arms = fixture_value->switch_arms,
+      .switch_arm_capacity = TEST_SWITCH_ARMS,
       .entries = fixture_value->entries,
       .entry_capacity = TEST_ENTRIES,
       .statements = fixture_value->statements,
@@ -284,6 +292,7 @@ static bool counts_equal(const w_seed_frontend_counts *left,
          left->statements == right->statements &&
          left->expressions == right->expressions &&
          left->arguments == right->arguments && left->symbols == right->symbols &&
+         left->switch_arms == right->switch_arms &&
          left->facts == right->facts &&
          left->diagnostics == right->diagnostics &&
          left->receipt_bytes == right->receipt_bytes;
@@ -307,6 +316,21 @@ static bool receipt_contains(const fixture *fixture_value, const char *needle,
   for (size_t start = 0;
        start + needle_length <= fixture_value->result.receipt_bytes; start += 1) {
     if (memcmp(fixture_value->receipt + start, needle, needle_length) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool has_diagnostic(const fixture *fixture_value, const char *code) {
+  if (fixture_value == NULL || code == NULL) return false;
+  const size_t length = strlen(code);
+  for (size_t index = 0; index < fixture_value->result.written.diagnostics;
+       index += 1) {
+    const w_seed_frontend_diagnostic *diagnostic =
+        &fixture_value->diagnostics[index];
+    if (diagnostic->code.length == length &&
+        memcmp(diagnostic->code.data, code, length) == 0) {
       return true;
     }
   }
@@ -571,6 +595,268 @@ static bool test_semantic_diagnostics(void) {
   return true;
 }
 
+static bool append_many_source(char *destination, size_t capacity,
+                               size_t *length, const char *text) {
+  if (destination == NULL || length == NULL || text == NULL) return false;
+  const size_t text_length = strlen(text);
+  if (*length >= capacity || text_length >= capacity - *length) return false;
+  (void)memcpy(destination + *length, text, text_length);
+  *length += text_length;
+  destination[*length] = '\0';
+  return true;
+}
+
+static bool append_many_piece(char *destination, size_t capacity,
+                              size_t *length, size_t index,
+                              const char *prefix, const char *suffix) {
+  char piece[64];
+  const int written = snprintf(piece, sizeof(piece), "%s%llu%s", prefix,
+                               (unsigned long long)index, suffix);
+  if (written < 0 || (size_t)written >= sizeof(piece)) return false;
+  return append_many_source(destination, capacity, length, piece);
+}
+
+static bool test_enum_values_constructors_and_switches(void) {
+  static const char values_source[] =
+      "enum Stage { accepted reserving preparing serving completed cancelled }\n"
+      "enum DomainError { invalidTransition(from: Stage, to: Stage) }\n"
+      "fn acceptStage(value: Stage): Stage { return value }\n"
+      "fn shortValue(): Stage { return .preparing }\n"
+      "fn qualifiedValue(): Stage { return Stage.preparing }\n"
+      "fn localCall(): Stage { return acceptStage(.preparing) }\n"
+      "fn makeError(from: Stage, to: Stage): DomainError { "
+      "return .invalidTransition(from: from, to: to) }\n";
+  fixture *values = &fixture_a;
+  CHECK(fixture_run(values, values_source));
+  CHECK(values->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(values->result.status == W_SEED_FRONTEND_OK);
+  CHECK(values->result.written.enums == 2);
+  CHECK(values->result.written.enum_cases == 7);
+  CHECK(values->result.written.enum_case_parameters == 2);
+  CHECK(values->result.written.arguments == 3);
+  CHECK(values->result.written.diagnostics == 0);
+  CHECK(values->result.required.receipt_bytes == values->result.written.receipt_bytes);
+  CHECK(values->enums[0].type_index != W_SEED_FRONTEND_NONE &&
+        values->enums[1].type_index != W_SEED_FRONTEND_NONE);
+  size_t enum_value_count = 0;
+  size_t constructor_count = 0;
+  for (size_t index = 0; index < values->result.written.expressions; index += 1) {
+    const w_seed_frontend_expression *expression = &values->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE) {
+      CHECK(expression->enum_index != W_SEED_FRONTEND_NONE);
+      CHECK(expression->enum_case_index != W_SEED_FRONTEND_NONE);
+      CHECK(expression->enum_index < 2);
+      CHECK(expression->inferred_type ==
+                values->enums[expression->enum_index].type_index ||
+            expression->inferred_type == W_SEED_FRONTEND_NONE);
+      enum_value_count += 1;
+    }
+    if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        expression->left != W_SEED_FRONTEND_NONE &&
+        expression->left < values->result.written.expressions &&
+        values->expressions[expression->left].kind ==
+            W_SEED_FRONTEND_EXPR_ENUM_CASE) {
+      CHECK(expression->argument_count == 2);
+      CHECK(values->expressions[expression->left].enum_index == 1);
+      CHECK(values->expressions[expression->left].enum_case_index == 6);
+      CHECK(expression->inferred_type == values->enums[1].type_index ||
+            expression->inferred_type == W_SEED_FRONTEND_NONE);
+      constructor_count += 1;
+    }
+  }
+  CHECK(enum_value_count == 4);
+  CHECK(constructor_count == 1);
+  CHECK(values->arguments[1].label.length == 4 &&
+        memcmp(values->arguments[1].label.data, "from", 4) == 0);
+  CHECK(values->arguments[2].label.length == 2 &&
+        memcmp(values->arguments[2].label.data, "to", 2) == 0);
+  CHECK(fixture_run(values,
+                    "enum Stage { ready }\n"
+                    "fn value(): Stage { return .ready }\n"));
+  CHECK(values->result.status == W_SEED_FRONTEND_OK);
+
+  CHECK(fixture_run(values,
+                    "enum Stage { accepted reserving preparing }\n"
+                    "enum DomainError { invalidTransition(from: Stage, to: Stage) }\n"
+                    "fn f(from: Stage, to: Stage): DomainError { "
+                    "return .invalidTransition(to: to, from: from) }\n"));
+  CHECK(values->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(values, "W-LABEL-0005"));
+  CHECK(!has_diagnostic(values, "W-PATTERN-0002"));
+  CHECK(fixture_run(values,
+                    "enum Stage { accepted reserving preparing }\n"
+                    "enum DomainError { invalidTransition(from: Stage, to: Stage) }\n"
+                    "fn f(from: Stage, to: Stage): DomainError { "
+                    "return .invalidTransition(from: from, from: to) }\n"));
+  CHECK(values->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(values, "W-LABEL-0006"));
+  CHECK(fixture_run(values,
+                    "enum Stage { accepted reserving preparing }\n"
+                    "enum DomainError { invalidTransition(from: Stage, to: Stage) }\n"
+                    "fn f(from: Stage, to: Stage): DomainError { "
+                    "return .invalidTransition(from: from) }\n"));
+  CHECK(values->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(values, "W-LABEL-0005"));
+  CHECK(fixture_run(values,
+                    "enum Numeric { value(value: u8) }\n"
+                    "fn f(): Numeric { return .value(value: 300_u16) }\n"));
+  CHECK(values->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(values, "W-TYPE-0122"));
+  CHECK(fixture_run(values,
+                    "enum Stage { ready }\n"
+                    "fn a(): Stage { return .ready() }\n"
+                    "fn b(): Stage { return Stage.ready() }\n"));
+  CHECK(values->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(values->result.written.diagnostics == 2);
+  CHECK(has_diagnostic(values, "W-LABEL-0005"));
+
+  fixture *short_case = &fixture_b;
+  CHECK(fixture_run(short_case,
+                    "enum Stage { accepted preparing }\n"
+                    "fn f(): Stage { let value = .preparing return value }\n"));
+  CHECK(short_case->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(short_case, "W-MATCH-0003"));
+  CHECK(fixture_run(short_case,
+                    "enum Stage { accepted preparing }\n"
+                    "fn f(): Stage { return .missing }\n"));
+  CHECK(short_case->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(has_fact(short_case, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
+  static const char switch_source[] =
+      "enum Stage { accepted reserving preparing }\n"
+      "fn label(stage: Stage): String { return switch stage { "
+      "case .accepted: \"A\" case Stage.reserving: \"R\" case _: \"P\" } }\n";
+  fixture *switch_value = &fixture_condition;
+  CHECK(fixture_run(switch_value, switch_source));
+  CHECK(switch_value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(switch_value->result.written.switch_arms == 3);
+  CHECK(switch_value->result.required.switch_arms == 3);
+  CHECK(switch_value->result.required.switch_arms ==
+        switch_value->result.written.switch_arms);
+  w_seed_frontend_counts switch_measured_counts;
+  w_seed_frontend_result switch_measured_result;
+  CHECK(w_seed_frontend_measure(&switch_value->input, &switch_measured_counts,
+                                &switch_measured_result) == W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&switch_measured_counts, &switch_value->result.required));
+  CHECK(switch_measured_result.required.receipt_bytes ==
+        switch_value->result.required.receipt_bytes);
+  CHECK(switch_value->expressions[1].kind == W_SEED_FRONTEND_EXPR_SWITCH);
+  CHECK(switch_value->expressions[1].first_switch_arm == 0 &&
+        switch_value->expressions[1].switch_arm_count == 3);
+  CHECK(switch_value->switch_arms[0].owner_expression == 1 &&
+        switch_value->switch_arms[0].pattern_kind ==
+            W_SEED_FRONTEND_SWITCH_PATTERN_ENUM_CASE &&
+        switch_value->switch_arms[0].enum_index == 0 &&
+        switch_value->switch_arms[0].enum_case_index == 0 &&
+        switch_value->switch_arms[0].supported);
+  CHECK(switch_value->switch_arms[1].enum_index == 0 &&
+        switch_value->switch_arms[1].enum_case_index == 1 &&
+        switch_value->switch_arms[1].supported);
+  CHECK(switch_value->switch_arms[2].pattern_kind ==
+            W_SEED_FRONTEND_SWITCH_PATTERN_WILDCARD &&
+        switch_value->switch_arms[2].enum_index == 0 &&
+        switch_value->switch_arms[2].enum_case_index == W_SEED_FRONTEND_NONE &&
+        switch_value->switch_arms[2].supported);
+  CHECK(receipt_contains(
+      switch_value, "switch-arm=0|owner=1|pattern=0|enum=0|case=0",
+      strlen("switch-arm=0|owner=1|pattern=0|enum=0|case=0")));
+  fixture *switch_repeat = &fixture_narrowing;
+  CHECK(fixture_run(switch_repeat, switch_source));
+  CHECK(switch_repeat->result.receipt_bytes == switch_value->result.receipt_bytes);
+  CHECK(memcmp(switch_repeat->receipt, switch_value->receipt,
+               switch_value->result.receipt_bytes) == 0);
+
+  CHECK(fixture_run(switch_value,
+                    "enum Stage { accepted reserving preparing }\n"
+                    "fn label(stage: Stage): String { return switch stage { "
+                    "case .accepted: \"A\" case .accepted: \"A2\" "
+                    "case .reserving: \"R\" case .preparing: \"P\" } }\n"));
+  CHECK(switch_value->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(switch_value, "W-MATCH-0002"));
+  CHECK(fixture_run(switch_value,
+                    "enum Stage { accepted reserving preparing }\n"
+                    "fn label(stage: Stage): String { return switch stage { "
+                    "case _: \"all\" case .accepted: \"A\" } }\n"));
+  CHECK(switch_value->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(switch_value, "W-MATCH-0002"));
+  CHECK(fixture_run(switch_value,
+                    "enum Stage { accepted reserving preparing }\n"
+                    "fn label(stage: Stage): String { return switch stage { "
+                    "case .accepted: \"A\" case .reserving: 1 "
+                    "case .preparing: \"P\" } }\n"));
+  CHECK(switch_value->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(switch_value, "W-TYPE-0120"));
+
+  CHECK(fixture_run(switch_value,
+                    "enum Stage { accepted reserving preparing }\n"
+                    "fn narrow(stage: Stage): u8 { return switch stage { "
+                    "case .accepted: 1_u16 case .reserving: 2_u16 "
+                    "case .preparing: 3_u16 } }\n"));
+  CHECK(switch_value->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(switch_value, "W-TYPE-0122"));
+  CHECK(!has_diagnostic(switch_value, "W-TYPE-0120"));
+  CHECK(fixture_run(switch_value,
+                    "enum Stage { accepted reserving preparing }\n"
+                    "fn widen(stage: Stage): u16 { return switch stage { "
+                    "case .accepted: 1_u8 case .reserving: 2_u8 "
+                    "case .preparing: 3_u8 } }\n"));
+  CHECK(switch_value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(fixture_run(switch_value,
+                    "enum Stage { accepted reserving preparing }\n"
+                    "fn postfix(stage: Stage): String { return switch stage { "
+                    "case .accepted: \"A\" case .reserving: \"R\" "
+                    "case .preparing: \"P\" }.length }\n"
+                    "fn binary(stage: Stage): String { return switch stage { "
+                    "case .accepted: \"A\" case .reserving: \"R\" "
+                    "case .preparing: \"P\" } + \"x\" }\n"));
+  CHECK(switch_value->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(switch_value->result.written.switch_arms == 0);
+  CHECK(has_fact(switch_value,
+                 W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
+  size_t many_length = 0;
+  CHECK(append_many_source(long_source, sizeof(long_source), &many_length,
+                           "enum Many { "));
+  for (size_t index = 0; index < 70; index += 1) {
+    CHECK(append_many_piece(long_source, sizeof(long_source), &many_length,
+                            index, "case", index + 1u < 70u ? " " : ""));
+  }
+  CHECK(append_many_source(long_source, sizeof(long_source), &many_length,
+                           " }\nfn all(value: Many): String { return switch value { "));
+  for (size_t index = 0; index < 70; index += 1) {
+    CHECK(append_many_piece(long_source, sizeof(long_source), &many_length,
+                            index, "case .case", ": \"x\" "));
+  }
+  CHECK(append_many_source(long_source, sizeof(long_source), &many_length,
+                           "} }\n"));
+  fixture *many = &fixture_callback;
+  CHECK(fixture_run(many, long_source));
+  CHECK(many->result.status == W_SEED_FRONTEND_OK);
+  CHECK(many->result.written.enum_cases == 70 &&
+        many->result.written.switch_arms == 70);
+  CHECK(many->result.written.diagnostics == 0);
+
+  size_t missing_length = 0;
+  CHECK(append_many_source(long_source, sizeof(long_source), &missing_length,
+                           "enum Many { "));
+  for (size_t index = 0; index < 70; index += 1) {
+    CHECK(append_many_piece(long_source, sizeof(long_source), &missing_length,
+                            index, "case", index + 1u < 70u ? " " : ""));
+  }
+  CHECK(append_many_source(long_source, sizeof(long_source), &missing_length,
+                           " }\nfn missing(value: Many): String { return switch value { "));
+  for (size_t index = 0; index < 69; index += 1) {
+    CHECK(append_many_piece(long_source, sizeof(long_source), &missing_length,
+                            index, "case .case", ": \"x\" "));
+  }
+  CHECK(append_many_source(long_source, sizeof(long_source), &missing_length,
+                           "} }\n"));
+  CHECK(fixture_run(many, long_source));
+  CHECK(many->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(many, "W-MATCH-0001"));
+  return true;
+}
+
 static bool test_graph_facts_and_external_stub(void) {
   fixture *duplicate = &fixture_duplicate;
   CHECK(fixture_run(duplicate,
@@ -656,6 +942,37 @@ static bool test_graph_facts_and_external_stub(void) {
       (w_seed_frontend_text){"test", 4};
   CHECK(w_seed_frontend_run(&external->input, &external->output,
                             &external->result) == W_SEED_FRONTEND_INVALID);
+
+  CHECK(fixture_parse(
+      external,
+      "import { externalFn } from extdep\n"
+      "enum Stage { ready }\n"
+      "fn f(): u32 { return externalFn(.ready) }\n"));
+  external->external_parameters[0] = (w_seed_frontend_external_parameter){
+      .name = (w_seed_frontend_text){"value", 5},
+      .type = (w_seed_frontend_text){"Stage", 5},
+      .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY,
+  };
+  external->external_symbols[0] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"externalFn", 10},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .exported = true,
+      .parameters = external->external_parameters,
+      .parameter_count = 1,
+      .return_type = (w_seed_frontend_text){"u32", 3},
+  };
+  external->external_modules[0] = (w_seed_frontend_external_module){
+      .module_id = (w_seed_frontend_text){"extdep", 6},
+      .symbols = external->external_symbols,
+      .symbol_count = 1,
+  };
+  external->input.external_modules = external->external_modules;
+  external->input.external_module_count = 1;
+  (void)w_seed_frontend_run(&external->input, &external->output,
+                            &external->result);
+  CHECK(external->result.status == W_SEED_FRONTEND_OK);
+  CHECK(external->result.written.diagnostics == 0);
+  CHECK(external->result.written.arguments == 1);
   return true;
 }
 
@@ -730,6 +1047,19 @@ static bool test_barrier_and_capacity(void) {
   CHECK(capacity->result.status == W_SEED_FRONTEND_CAPACITY);
   CHECK(fixture_output_is(capacity, sentinel, true));
 
+  CHECK(fixture_parse(
+      capacity,
+      "enum Stage { accepted reserving preparing }\n"
+      "fn label(stage: Stage): String { return switch stage { "
+      "case .accepted: \"A\" case .reserving: \"R\" case .preparing: \"P\" } }\n"));
+  fixture_fill_output(capacity, sentinel);
+  capacity->output.switch_arm_capacity = 0;
+  capacity->output.switch_arms = NULL;
+  (void)w_seed_frontend_run(&capacity->input, &capacity->output,
+                            &capacity->result);
+  CHECK(capacity->result.status == W_SEED_FRONTEND_CAPACITY);
+  CHECK(fixture_output_is(capacity, sentinel, true));
+
   fixture *cycle = &fixture_capacity;
   CHECK(fixture_parse(cycle, "fn f(): () { if true { return } }\nentry(f)\n"));
   uint32_t block_index = W_SEED_CST_NONE;
@@ -751,6 +1081,7 @@ static bool test_barrier_and_capacity(void) {
 int main(void) {
   if (!test_declarations_and_determinism()) return 1;
   if (!test_enums_and_payloads()) return 1;
+  if (!test_enum_values_constructors_and_switches()) return 1;
   if (!test_semantic_diagnostics()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;
   if (!test_receipt_encoding_and_long_fields()) return 1;

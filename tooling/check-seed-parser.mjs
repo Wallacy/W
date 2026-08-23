@@ -96,6 +96,9 @@ const CST = Object.freeze({
   ENUM: 66,
   ENUM_CASE: 67,
   ENUM_CASE_PARAMETER: 68,
+  ENUM_PATTERN: 69,
+  WILDCARD_PATTERN: 70,
+  LITERAL_PATTERN: 71,
 })
 
 const ISSUE = Object.freeze({
@@ -827,10 +830,21 @@ function assertPhase2Switch(parsed, bytes, label) {
   const switchNode = switches[0]
   const arms = directKind(parsed, switchNode.index, CST.SWITCH_ARM)
   if (arms.length !== 3) fail(`${label} SWITCH_EXPRESSION does not directly own three arms`)
+  const expectedPatternKinds = [CST.ENUM_PATTERN, CST.ENUM_PATTERN, CST.ENUM_PATTERN]
   const expected = ["case .reserving", "case .preparing", "case .serving"]
   for (const [index, arm] of arms.entries()) {
     if (!nodeText(parsed, bytes, arm).trimStart().startsWith(expected[index])) {
       fail(`${label} SWITCH_ARM source order is not preserved`)
+    }
+    const patternOwners = childrenOf(parsed, arm.index).filter((child) =>
+      Number(child.kind) === Number(CST.ENUM_PATTERN) ||
+      Number(child.kind) === Number(CST.WILDCARD_PATTERN) ||
+      Number(child.kind) === Number(CST.LITERAL_PATTERN))
+    if (patternOwners.length !== 1 || Number(patternOwners[0].kind) !== Number(expectedPatternKinds[index])) {
+      fail(`${label} SWITCH_ARM ${index} does not have exactly one direct enum pattern owner`)
+    }
+    if (directKind(parsed, arm.index, CST.EXPRESSION).length !== 1) {
+      fail(`${label} SWITCH_ARM ${index} does not have exactly one direct result EXPRESSION`)
     }
   }
   const aliasType = directKind(parsed, aliases[0].index, CST.TYPE)[0]
@@ -1371,6 +1385,11 @@ async function main() {
       ["contract-static-forms", Buffer.from("type A=Base<Widget><.ready><state:.ready><(count<=4)><[.a,.b]>\n"), "complete"],
       ["switch-three-arms", Buffer.from("fn f(stage:Stage):String{return switch stage{case .a:\"A\" case .b:\"B\" case .c:\"C\"}}\n"), "complete"],
       ["switch-semicolon-arms", Buffer.from("fn f(stage:Stage):String{return switch stage{case .a:\"A\";case .b:\"B\";case .c:\"C\";}}\n"), "complete"],
+      ["switch-qualified-pattern", Buffer.from("fn f(stage:Stage):String{return switch stage{case Stage.a:\"A\" case Stage.b:\"B\"}}\n"), "complete"],
+      ["switch-wildcard-pattern", Buffer.from("fn f(stage:Stage):String{return switch stage{case .a:\"A\" case _:\"rest\"}}\n"), "complete"],
+      ["switch-literal-pattern", Buffer.from("fn f(stage:Stage):String{return switch stage{case 1:\"one\"}}\n"), "complete"],
+      ["switch-boolean-qualified-recovery", Buffer.from("fn f(stage:Stage):String{return switch stage{case true.member:\"A\"}}\n"), "recovered"],
+      ["switch-payload-pattern", Buffer.from("fn f(stage:Stage):String{return switch stage{case .a(value):\"A\"}}\n"), "recovered"],
       ["spaced-head", Buffer.from("fn f(x:Array /* note */ <u8>){return x}\n"), "recovered", 7],
       ["spaced-generic", Buffer.from("fn f <T>(x:T):T{return x}\n"), "recovered", 7],
       ["missing-generic-name", Buffer.from("fn f<:T>(x:T):T{return x}\n"), "recovered", 1],
@@ -1829,6 +1848,49 @@ async function main() {
         }
         const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
         if (parsed.signature !== repeated.signature) fail(`${label} CST signature is not deterministic`)
+      }
+      if (label === "switch-qualified-pattern") {
+        assertClean(parsed, label)
+        const switchNode = parsed.nodes.find((node) => node.kind === CST.SWITCH_EXPRESSION)
+        const arms = switchNode ? directKind(parsed, switchNode.index, CST.SWITCH_ARM) : []
+        if (arms.length !== 2 || arms.some((arm) => {
+          const patterns = childrenOf(parsed, arm.index).filter((child) =>
+            child.kind === CST.ENUM_PATTERN || child.kind === CST.WILDCARD_PATTERN ||
+            child.kind === CST.LITERAL_PATTERN)
+          return patterns.length !== 1 || patterns[0].kind !== CST.ENUM_PATTERN ||
+            directKind(parsed, arm.index, CST.EXPRESSION).length !== 1
+        })) {
+          fail(`${label} qualified arms do not preserve enum pattern/result owners`)
+        }
+      }
+      if (label === "switch-wildcard-pattern") {
+        assertClean(parsed, label)
+        const switchNode = parsed.nodes.find((node) => node.kind === CST.SWITCH_EXPRESSION)
+        const arms = switchNode ? directKind(parsed, switchNode.index, CST.SWITCH_ARM) : []
+        if (arms.length !== 2 ||
+            childrenOf(parsed, arms[1].index).filter((child) => child.kind === CST.WILDCARD_PATTERN).length !== 1 ||
+            directKind(parsed, arms[1].index, CST.EXPRESSION).length !== 1) {
+          fail(`${label} wildcard arm does not preserve exact pattern/result owners`)
+        }
+      }
+      if (label === "switch-literal-pattern") {
+        assertClean(parsed, label)
+        const switchNode = parsed.nodes.find((node) => node.kind === CST.SWITCH_EXPRESSION)
+        const arms = switchNode ? directKind(parsed, switchNode.index, CST.SWITCH_ARM) : []
+        if (arms.length !== 1 ||
+            childrenOf(parsed, arms[0].index).filter((child) => child.kind === CST.LITERAL_PATTERN).length !== 1 ||
+            directKind(parsed, arms[0].index, CST.EXPRESSION).length !== 1) {
+          fail(`${label} literal arm does not preserve exact pattern/result owners`)
+        }
+      }
+      if (label === "switch-boolean-qualified-recovery") {
+        const switchNode = parsed.nodes.find((node) => node.kind === CST.SWITCH_EXPRESSION)
+        const arms = switchNode ? directKind(parsed, switchNode.index, CST.SWITCH_ARM) : []
+        if (arms.length !== 1 ||
+            childrenOf(parsed, arms[0].index).filter((child) => child.kind === CST.ENUM_PATTERN).length !== 0 ||
+            childrenOf(parsed, arms[0].index).filter((child) => child.kind === CST.LITERAL_PATTERN).length !== 1) {
+          fail(`${label} treated a boolean literal as a qualified enum pattern`)
+        }
       }
       if (label === "spaced-comparison") {
         assertClean(parsed, label)
