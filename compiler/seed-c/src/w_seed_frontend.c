@@ -102,6 +102,7 @@ typedef struct {
 static bool normalize_document(frontend_context *context);
 static bool detect_duplicate_declarations(frontend_context *context);
 static bool resolve_imports(frontend_context *context);
+static bool resolve_constir_links(frontend_context *context);
 static const char *fact_name(w_seed_frontend_fact_kind kind);
 static w_seed_frontend_text document_module_name(
     const w_seed_frontend_document *doc);
@@ -113,6 +114,8 @@ static w_seed_frontend_text import_item_local_name(
 static w_seed_frontend_label_kind parameter_label_kind(
     const w_seed_frontend_document *doc, w_seed_span span);
 static w_seed_frontend_text parameter_name_from_span(
+    const w_seed_frontend_document *doc, w_seed_span span);
+static w_seed_frontend_text parameter_external_label_from_span(
     const w_seed_frontend_document *doc, w_seed_span span);
 static w_seed_frontend_text enum_case_parameter_label(
     const w_seed_frontend_document *doc, uint32_t parameter_node);
@@ -3140,7 +3143,8 @@ static bool normalize_function(frontend_context *context, uint32_t node_index,
         parameter.module_index = (uint32_t)context->module_index;
         parameter.owner_function = *function_index;
         parameter.name = parameter_name_from_span(doc, doc->nodes[child].raw_span);
-        parameter.label = parameter.name;
+        parameter.label =
+            parameter_external_label_from_span(doc, doc->nodes[child].raw_span);
         parameter.label_kind = parameter_label_kind(doc, doc->nodes[child].raw_span);
         parameter.span = doc->nodes[child].raw_span;
         parameter.type_index = W_SEED_FRONTEND_NONE;
@@ -3436,14 +3440,12 @@ static w_seed_frontend_label_kind parameter_label_kind(
   if (second.length != 0 && text_equal(first, "named")) {
     return W_SEED_FRONTEND_LABEL_NAMED_REQUIRED;
   }
-  if (second.length != 0 &&
-      (text_equal(first, "external") || text_equal(first, "from") ||
-       text_equal(first, "to"))) {
-    return W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED;
-  }
   if (second.length != 0 && text_equal(first, "_")) {
     return W_SEED_FRONTEND_LABEL_OPTIONAL;
   }
+  /* Any two-name form is external/internal.  `from` and `to` are common
+   * spellings, but they are not keywords. */
+  if (second.length != 0) return W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED;
   return W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
 }
 
@@ -3463,12 +3465,28 @@ static w_seed_frontend_text parameter_name_from_span(
       second = value;
     }
   }
-  if (second.length != 0 &&
-      (text_equal(first, "named") || text_equal(first, "external") ||
-       text_equal(first, "from") || text_equal(first, "to") ||
-       text_equal(first, "_"))) {
-    return second;
+  if (second.length != 0) return second;
+  return first;
+}
+
+static w_seed_frontend_text parameter_external_label_from_span(
+    const w_seed_frontend_document *doc, w_seed_span span) {
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token token;
+  w_seed_frontend_text first = {NULL, 0};
+  w_seed_frontend_text second = {NULL, 0};
+  while (cursor_take(&cursor, &token)) {
+    if (token_text(doc, &token, ":")) break;
+    if (token.kind != W_SEED_CST_WORD) continue;
+    const w_seed_frontend_text value = text_from_span(doc, token.span);
+    if (first.length == 0) {
+      first = value;
+    } else if (second.length == 0) {
+      second = value;
+    }
   }
+  if (second.length == 0) return (w_seed_frontend_text){NULL, 0};
+  if (text_equal(first, "named") || text_equal(first, "_")) return second;
   return first;
 }
 
@@ -3604,13 +3622,13 @@ static bool local_argument_expected(
     if (doc->nodes[child].kind == W_SEED_CST_PARAMETER) {
       const w_seed_frontend_label_kind policy =
           parameter_label_kind(doc, doc->nodes[child].raw_span);
-      const w_seed_frontend_text name =
-          parameter_name_from_span(doc, doc->nodes[child].raw_span);
+      const w_seed_frontend_text label_from_span =
+          parameter_external_label_from_span(doc, doc->nodes[child].raw_span);
       bool selected = false;
       if (label.length != 0) {
         selected = index == ordinal &&
                    policy != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
-                   text_equal_text(name, label);
+                   text_equal_text(label_from_span, label);
       } else {
         selected = index == ordinal &&
                    policy != W_SEED_FRONTEND_LABEL_NAMED_REQUIRED &&
@@ -3945,6 +3963,24 @@ static bool output_type_index_for_simple(const frontend_context *context,
       return true;
     }
   }
+  /* A typed integer literal keeps its source spelling (for example
+   * ``1_u8``) in the expression record.  Its resolved type spelling is the
+   * suffix (``u8``), so exact spelling cannot identify the canonical type.
+   * The intrinsic kind/width/signedness tuple is the existing frontend type
+   * identity for integers; use its first deterministic candidate. */
+  if (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.bit_width != 0u) {
+    for (size_t item = 0; item < context->count.types; item += 1u) {
+      const w_seed_frontend_type *candidate = &context->output->types[item];
+      if (candidate->kind == type.kind &&
+          candidate->bit_width == type.bit_width &&
+          candidate->is_signed == type.is_signed &&
+          candidate->enum_base_index == W_SEED_FRONTEND_NONE) {
+        if (item >= (size_t)UINT32_MAX) return false;
+        *index = (uint32_t)item;
+        return true;
+      }
+    }
+  }
   return true;
 }
 
@@ -3983,6 +4019,36 @@ static bool expression_append(frontend_expression_parser *parser,
   record.switch_arm_count = 0;
   record.first_membership_case = W_SEED_FRONTEND_NONE;
   record.membership_case_count = 0;
+  record.has_bool_value = false;
+  record.bool_value = false;
+  record.has_integer_value = false;
+  (void)memset(record.integer_value, 0, sizeof(record.integer_value));
+  record.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
+  record.resolved_function_index = W_SEED_FRONTEND_NONE;
+  if (kind == W_SEED_FRONTEND_EXPR_BOOL &&
+      (text_equal(spelling, "true") || text_equal(spelling, "false"))) {
+    record.has_bool_value = true;
+    record.bool_value = text_equal(spelling, "true");
+  } else if (kind == W_SEED_FRONTEND_EXPR_INTEGER &&
+             type.kind == W_SEED_FRONTEND_TYPE_INTEGER) {
+    size_t body_end = spelling.length;
+    bool has_suffix = false;
+    bool is_signed = true;
+    uint16_t width = 0;
+    uint64_t integer_value = 0;
+    if (integer_literal_parts(spelling, &body_end, &has_suffix, &is_signed,
+                              &width) &&
+        integer_literal_value(spelling, body_end, &integer_value)) {
+      record.has_integer_value = true;
+      for (size_t byte = 0; byte < sizeof(integer_value); byte += 1u) {
+        record.integer_value[byte] =
+            (uint8_t)(integer_value >> (byte * 8u));
+      }
+    }
+    (void)has_suffix;
+    (void)is_signed;
+    (void)width;
+  }
   if (kind == W_SEED_FRONTEND_EXPR_ENUM_MEMBERSHIP &&
       value->enum_index != W_SEED_FRONTEND_NONE) {
     record.enum_index = value->enum_index;
@@ -4382,8 +4448,9 @@ static bool call_label_known(const frontend_context *context,
     if (owner_doc->nodes[child].kind == W_SEED_CST_PARAMETER) {
       const w_seed_frontend_label_kind policy = parameter_label_kind(
           owner_doc, owner_doc->nodes[child].raw_span);
-      const w_seed_frontend_text parameter = parameter_name_from_span(
-          owner_doc, owner_doc->nodes[child].raw_span);
+      const w_seed_frontend_text parameter_label =
+          parameter_external_label_from_span(owner_doc,
+                                             owner_doc->nodes[child].raw_span);
       if (label.length == 0) {
         return policy == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY ||
                policy == W_SEED_FRONTEND_LABEL_OPTIONAL;
@@ -4392,7 +4459,7 @@ static bool call_label_known(const frontend_context *context,
         guard += 1;
         continue;
       }
-      if (text_equal_text(parameter, label)) return true;
+      if (text_equal_text(parameter_label, label)) return true;
     }
     guard += 1;
   }
@@ -4584,6 +4651,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       argument.expression_index = argument_value.index >= (size_t)UINT32_MAX
                                       ? W_SEED_FRONTEND_NONE
                                       : (uint32_t)argument_value.index;
+      argument.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
       uint32_t argument_index = W_SEED_FRONTEND_NONE;
       if (!context_append_argument(parser->context, argument, &argument_index)) {
         return false;
@@ -5119,6 +5187,8 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.switch_arm_count = 0;
     fallback.first_membership_case = W_SEED_FRONTEND_NONE;
     fallback.membership_case_count = 0;
+    fallback.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
+    fallback.resolved_function_index = W_SEED_FRONTEND_NONE;
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
     return context_append_expression(context, fallback, expression_index);
@@ -5145,6 +5215,8 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.switch_arm_count = 0;
     fallback.first_membership_case = W_SEED_FRONTEND_NONE;
     fallback.membership_case_count = 0;
+    fallback.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
+    fallback.resolved_function_index = W_SEED_FRONTEND_NONE;
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
     return context_append_expression(context, fallback, expression_index);
@@ -5313,6 +5385,8 @@ static bool normalize_switch_expression(
   switch_record.switch_arm_count = 0;
   switch_record.first_membership_case = W_SEED_FRONTEND_NONE;
   switch_record.membership_case_count = 0;
+  switch_record.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
+  switch_record.resolved_function_index = W_SEED_FRONTEND_NONE;
   switch_record.supported = subject_is_enum;
   uint32_t switch_index = W_SEED_FRONTEND_NONE;
   if (!context_append_expression(context, switch_record, &switch_index)) {
@@ -5920,6 +5994,109 @@ static bool normalize_document(frontend_context *context) {
   if (context->emit && context->output != NULL &&
       context->module_index < context->output->module_capacity) {
     context->output->modules[context->module_index] = module;
+  }
+  return true;
+}
+
+/* Resolve the append-only facts consumed by ConstIR after every declaration
+ * is present in the frontend output.  The ConstIR component must not repeat
+ * this name-based frontend resolution. */
+static bool resolve_constir_links(frontend_context *context) {
+  if (context == NULL || context->output == NULL ||
+      (context->count.expressions != 0u &&
+       context->output->expressions == NULL) ||
+      (context->count.functions != 0u && context->output->functions == NULL) ||
+      (context->count.parameters != 0u &&
+       context->output->parameters == NULL) ||
+      (context->count.arguments != 0u && context->output->arguments == NULL))
+    return false;
+  for (size_t expression_index = 0;
+       expression_index < context->count.expressions; expression_index += 1u) {
+    w_seed_frontend_expression *expression =
+        &context->output->expressions[expression_index];
+    if ((size_t)expression->owner_function >= context->count.functions)
+      return false;
+    const w_seed_frontend_function *owner =
+        &context->output->functions[expression->owner_function];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
+      for (uint32_t ordinal = 0; ordinal < owner->parameter_count;
+           ordinal += 1u) {
+        const size_t parameter_index =
+            (size_t)owner->first_parameter + ordinal;
+        if (parameter_index >= context->count.parameters) return false;
+        const w_seed_frontend_parameter *parameter =
+            &context->output->parameters[parameter_index];
+        if (text_equal_text(parameter->name, expression->spelling)) {
+          expression->resolved_parameter_ordinal = ordinal;
+          break;
+        }
+      }
+    }
+    if (expression->kind != W_SEED_FRONTEND_EXPR_CALL ||
+        expression->left == W_SEED_FRONTEND_NONE ||
+        (size_t)expression->left >= context->count.expressions)
+      continue;
+    w_seed_frontend_expression *callee =
+        &context->output->expressions[expression->left];
+    if (callee->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER) continue;
+    uint32_t target = W_SEED_FRONTEND_NONE;
+    bool duplicate = false;
+    for (size_t function_index = 0; function_index < context->count.functions;
+         function_index += 1u) {
+      const w_seed_frontend_function *candidate =
+          &context->output->functions[function_index];
+      if (candidate->module_index == owner->module_index &&
+          text_equal_text(candidate->name, callee->spelling)) {
+        if (target != W_SEED_FRONTEND_NONE) duplicate = true;
+        target = (uint32_t)function_index;
+      }
+    }
+    if (duplicate) target = W_SEED_FRONTEND_NONE;
+    callee->resolved_function_index = target;
+    expression->resolved_function_index = target;
+    if (target == W_SEED_FRONTEND_NONE) continue;
+    const w_seed_frontend_function *target_function =
+        &context->output->functions[target];
+    for (uint32_t offset = 0; offset < expression->argument_count; offset += 1u) {
+      const size_t argument_index =
+          (size_t)expression->first_argument + offset;
+      if (argument_index >= context->count.arguments) return false;
+      w_seed_frontend_argument *argument =
+          &context->output->arguments[argument_index];
+      uint32_t ordinal = W_SEED_FRONTEND_NONE;
+      if (argument->label.length == 0u) {
+        if (offset < target_function->parameter_count) {
+          const size_t parameter_index =
+              (size_t)target_function->first_parameter + offset;
+          if (parameter_index >= context->count.parameters) return false;
+          const w_seed_frontend_parameter *parameter =
+              &context->output->parameters[parameter_index];
+          if (parameter->label_kind ==
+                  W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY ||
+              parameter->label_kind == W_SEED_FRONTEND_LABEL_OPTIONAL) {
+            ordinal = offset;
+          }
+        }
+      } else {
+        for (uint32_t parameter_offset = 0;
+             parameter_offset < target_function->parameter_count;
+             parameter_offset += 1u) {
+          const size_t parameter_index =
+              (size_t)target_function->first_parameter + parameter_offset;
+          if (parameter_index >= context->count.parameters) return false;
+          const w_seed_frontend_parameter *parameter =
+              &context->output->parameters[parameter_index];
+          if (text_equal_text(parameter->label, argument->label)) {
+            if (ordinal != W_SEED_FRONTEND_NONE) {
+              ordinal = W_SEED_FRONTEND_NONE;
+              break;
+            }
+            ordinal = parameter_offset;
+          }
+        }
+      }
+      argument->resolved_parameter_ordinal = ordinal;
+    }
   }
   return true;
 }
@@ -6638,6 +6815,10 @@ w_seed_frontend_status w_seed_frontend_run(
       result->status = W_SEED_FRONTEND_INVALID;
       return result->status;
     }
+  }
+  if (!resolve_constir_links(&emit)) {
+    result->status = W_SEED_FRONTEND_INVALID;
+    return result->status;
   }
   frontend_receipt_writer writer = {output->receipt, output->receipt_capacity, 0,
                                     false};

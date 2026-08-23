@@ -398,6 +398,8 @@ typedef struct {
   w_seed_frontend_text label;
   w_seed_span span;
   uint32_t expression_index;
+  /* Append-only frontend resolution fact for ConstIR call lowering. */
+  uint32_t resolved_parameter_ordinal;
 } w_seed_frontend_argument;
 
 typedef struct {
@@ -433,6 +435,16 @@ typedef struct {
   /* Append-only enum membership case range. */
   uint32_t first_membership_case;
   uint32_t membership_case_count;
+  /* Append-only typed literal projections. ConstIR consumes these fields
+   * without reparsing source spelling. integer_value is a non-negative
+   * magnitude in canonical little-endian order with unused high bytes zero. */
+  bool has_bool_value;
+  bool bool_value;
+  bool has_integer_value;
+  uint8_t integer_value[16];
+  /* Append-only frontend resolution facts for ConstIR lowering. */
+  uint32_t resolved_parameter_ordinal;
+  uint32_t resolved_function_index;
 } w_seed_frontend_expression;
 
 typedef enum {
