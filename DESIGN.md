@@ -1374,7 +1374,7 @@ Um identifier posicional permanece sintaticamente type-shaped. Depois de
 resolver o head, o checker classifica o parâmetro após name resolution. Um
 parâmetro sem `:` é type parameter. `T: P` é type parameter quando `P` resolve
 para um protocol constraint. `name: Type` é value parameter quando `Type`
-resolve para um tipo const-representable. `_ name: Type` é value parameter com
+resolve para um tipo `StaticArgumentRepresentable`. `_ name: Type` é value parameter com
 label externo opcional. RHS unresolved ou ambiguous falha antes da
 classificação.
 W não possui inheritance ou base-class constraint que crie outra classificação.
@@ -1400,14 +1400,42 @@ O checker executa estas etapas:
 5. aplica cada envelope da esquerda para a direita;
 6. grava o contrato normalizado na interface e na HIR.
 
-A fronteira de implementação separa o frontend tipado do evaluator. O frontend
-resolve head, schema, slots, kinds, labels e `.member`. Ele normaliza cada value
-argument para `ConstValue` tipado e não chama ConstIR. Não há dependência do
-frontend em ConstIR. Depois do frontend, o grafo const substitui os value
-parameters e entrega o predicate resolvido ao evaluator ConstIR. Somente um
-predicate resolvido, const-safe e com resultado `Bool(false)` produz
-`W-CONST-0004`. Erros de type, kind, label, generic domain ou predicate que não
-produz `Bool` permanecem em `W-CONTRACT` ou `W-GENERIC`.
+A fronteira de implementação separa o frontend tipado do grafo const. O frontend
+resolve head, schema, slots, kinds, labels e `.member`. Um value argument que já
+é literal estrutural torna-se um `ConstValue` tipado caller-owned; um argumento
+calculado é um `TypedConstArgument` que referencia um `TypedConstExpr` no grafo
+const. O frontend não avalia expressions arbitrárias, não reparseia source e
+não chama nem depende de ConstIR. Depois do frontend, o grafo const pode
+substituir value parameters, avaliar o `TypedConstExpr` por ConstIR e publicar o
+`ConstValue`/type identity final. O seed inicial implementa somente o subconjunto
+imediato de Bool, integer, String simples, enum case e `StaticList`; quantity,
+size, calls, nested/computed forms e outras categorias são explicitamente
+`UNSUPPORTED` nesta projeção, não uma nova regra da linguagem.
+
+Formalmente, `TypedConstArgument = immediate(ConstValue) |
+expression(TypedConstExprId)`. Literal e computed forms são ambos
+`TypedConstArgument`; somente a forma `immediate` entra no registro ConstValue
+caller-owned desta fatia seed.
+
+O domínio que participa da type identity ou da generic-specialization identity
+exige o predicate `StaticArgumentRepresentable` definido em §3.6.3; esta seção
+não redefine esse conjunto. A implementação seed materializa imediatamente
+somente Bool, integer bounded pelo target, String simples canônica, enum case
+fechado e `StaticList` de valores representáveis. Um parâmetro value dependente
+pode referenciar somente um type parameter anterior do mesmo head:
+`StaticValue<T, _ value: T>`. O slot depende do type argument já resolvido; o
+checker verifica que esse argumento anterior é `StaticArgumentRepresentable`
+antes de aceitar o `ConstValue`. Referência posterior ou cíclica é inválida.
+Parâmetros comuns `const` de call continuam usando `ConstRepresentable`, que é
+mais amplo. Nenhum desses slots cria storage runtime.
+
+Binding falha fechado: label desconhecido usa `W-CONTRACT-0001`, kind ou domain
+incompatível usa `W-CONTRACT-0002`, slot duplicado usa `W-CONTRACT-0004`, e
+label-policy, ordem nomeada ou positional-after-named usam `W-GENERIC-0003`.
+Slot ausente ou inferência aberta usa `W-GENERIC-0002`; `_` torna somente o
+label externo opcional e não fornece default. Uma aplicação com falha mantém,
+quando útil para diagnostics, um record append-only não consumível como
+especialização válida.
 
 O delimitador interno não cria outra semântica por aparência:
 
@@ -1580,7 +1608,7 @@ O checker usa uma família separada para schema de contrato:
 | `W-CONTRACT-0001` | slot desconhecido ou não publicado pelo head |
 | `W-CONTRACT-0002` | argumento possui kind incompatível |
 | `W-CONTRACT-0003` | predicate de refinement não produz `Bool` |
-| `W-CONTRACT-0004` | label está duplicado ou fora da ordem declarada |
+| `W-CONTRACT-0004` | label duplica um slot já ocupado |
 | `W-CONTRACT-0005` | envelope posterior não se aplica ao resultado anterior |
 
 #### 3.5.5 Grammar normativa G3: patterns
@@ -2730,7 +2758,7 @@ As famílias específicas usam estes códigos:
 | `W-CONTRACT-0001` | static slot não existe no head |
 | `W-CONTRACT-0002` | argumento usa o kind errado |
 | `W-CONTRACT-0003` | refinement predicate não produz Bool |
-| `W-CONTRACT-0004` | label duplica ou viola schema order |
+| `W-CONTRACT-0004` | label duplica um slot já ocupado |
 | `W-CONTRACT-0005` | envelope não se aplica ao resultado anterior |
 | `W-PATTERN-0001` | capture não pertence à modalidade do pattern |
 | `W-PATTERN-0002` | payload possui arity, labels ou modalidade incompatível |
@@ -6454,13 +6482,32 @@ parameter é inválido porque type parameters já são posicionais. Um label ext
 explícito diferente do nome interno segue a mesma policy de normalização e
 aparece na HIR como `required(external)`.
 
+Cada slot da aplicação é obrigatório; `_` não declara um default. O binding
+consome sempre o próximo slot declarado. Type slots são posicionais e sem
+label; value slots com label required exigem o label externo exato; `_ name`
+aceita ausência do label ou `name:` no mesmo slot. Label desconhecido,
+duplicado, fora da ordem, extra ou aplicado a type slot não salta slots nem
+reordena argumentos e produz as famílias de diagnostics da seção 3.5.4.
+
+O value usado na identidade de um type head ou generic specialization deve
+satisfazer o predicate `StaticArgumentRepresentable` de §3.6.3. `const` em uma
+call comum pode usar `ConstRepresentable`, que é um domínio diferente. O seed
+normaliza imediatamente somente o subconjunto Bool, integer bounded pelo
+target, String simples canônica, enum case e `StaticList` que sua API publica;
+as demais formas do predicate completo permanecem para o grafo const posterior.
+Um domínio dependente, como `_ value: T`, referencia somente um type parameter
+anterior do mesmo head; após resolver o slot de `T`, o checker exige que seu
+type seja `StaticArgumentRepresentable` antes de normalizar o value. Referência
+posterior ou ciclo é inválido. O marker `_` muda somente a policy do label e não
+cria storage, inferência ou valor default.
+
 Cada argumento possui o kind declarado pelo head resolvido. O checker executa a
 classificação após name resolution, sem heurística de casing:
 
 1. parâmetro sem `:` é type parameter;
 2. `T: P` é type parameter se `P` resolve para protocol constraint;
 3. `name: Type` é value parameter se `Type` resolve para um tipo
-   const-representable;
+   `StaticArgumentRepresentable`;
 4. `_ name: Type` é value parameter com label externo opcional;
 5. RHS unresolved ou ambiguous falha antes da classificação do kind.
 
@@ -6471,7 +6518,8 @@ sem heurística de casing.
 
 Value parameters declarados no envelope são compile-time e imutáveis por
 definição. O slot não aceita `const`, `let` ou `var`. O parâmetro participa da
-type identity, de `ConstIR` e da monomorphization. Ele não cria storage runtime.
+type identity e da monomorphization. Ele não cria storage runtime; a avaliação
+de um `TypedConstExpr`, quando existir, ocorre no grafo const posterior.
 Os argumentos mantêm o kind e a ordem declarados:
 
 ```w
@@ -6575,8 +6623,8 @@ duas spellings aceitas e `.state` resolve nos dois casos; nenhuma forma cria um
 alias ou elimina a associated contract value.
 
 Callable generic value parameters são bindings compile-time da call. Eles não
-criam associated members. Type identity, `ConstIR`, monomorphization e cache
-usam o valor normalizado em todos os casos.
+criam associated members. Type identity, o grafo const posterior,
+monomorphization e cache usam o valor normalizado em todos os casos.
 
 O ensaio comparativo de labels, slots posicionais e paridade entre type
 application e generic call fica em
@@ -7000,6 +7048,36 @@ HIR generic contém:
 - relações de borrow e effects;
 - body tipado independente de instantiation.
 
+O HIR lógico completo pode carregar `TypedConstArgument` imediato ou referência
+`TypedConstExprId`, constraints e identities que o grafo const resolve depois.
+O seed C publica somente uma projeção caller-owned append-only para aplicações
+locais de `struct`; essa projeção não é uma lista de fields runtime e não
+substitui o HIR completo:
+
+| Registro | Conteúdo mínimo |
+|---|---|
+| `GenericApplication` | module, owner type, head local, span/envelope, primeiro argumento, count e binding status |
+| `GenericArgument` | source ordinal/span/label, parâmetro declarado e ordinal, kind `TYPE`/`VALUE`, type index ou `ConstValue` index e binding status |
+| `ConstValue` (seed) | kind `INVALID`, `BOOL`, `INTEGER`, `STRING`, `ENUM_CASE` ou `STATIC_LIST`; type identity e span |
+| `ConstElement` | owner `ConstValue`, ordinal, child value e span para cada item de `StaticList` |
+
+Inteiros usam bytes little-endian canônicos bounded, com signedness e width
+explícitos, sem usar `size_t` para identidade. Strings guardam bytes canônicos
+em arena caller-owned por `first_byte`/`byte_count`. `StaticList` guarda
+`first_element`/`element_count`, inclusive para lista vazia, e preserva ordem e
+duplicatas; nenhum ponteiro interno persistente escapa da API. O type root liga
+à aplicação por índice sentinel. `binding_status` descreve somente o binding do
+frontend (`INVALID`, `UNSUPPORTED`, `TYPED_PENDING_CONST` ou
+`BOUND_IMMEDIATE`); `requires_const_evaluation` sinaliza uma refinement ou
+`TypedConstExpr` para a fase posterior. Nenhum `binding_status` afirma predicate
+truth ou especialização verificada.
+
+Na fatia seed, o resolver publica esses registros apenas para heads `struct`
+locais, inclusive forward reference no mesmo módulo/documento. Generic calls,
+heads importados e aplicações de enum/object/type/alias/function ficam fora da
+implementação seed; a representação lógica não transforma esses casos em
+válidos por conveniência.
+
 Uma interface exportada inclui a assinatura, o digest do body generic e um blob
 de HIR genérica no content-addressed storage (CAS). Um importer não reparseia o
 source:
@@ -7110,9 +7188,9 @@ Os precedentes de generics e inference ficam em
 
 | Code | Condição |
 |---|---|
-| `W-GENERIC-0001` | domain de parâmetro generic não resolve para constraint de protocol ou tipo representável por const |
-| `W-GENERIC-0002` | inference não possui solução única para um parâmetro aberto |
-| `W-GENERIC-0003` | label de generic value parameter é inválido, está fora de ordem ou usa `_` em type parameter |
+| `W-GENERIC-0001` | domain de parâmetro generic não resolve para constraint de protocol, `StaticArgumentRepresentable` ou type parameter anterior permitido |
+| `W-GENERIC-0002` | slot obrigatório está ausente ou inference não possui solução única para um parâmetro aberto |
+| `W-GENERIC-0003` | label de generic value parameter é inválido, está fora de ordem, ocorre após named, ou usa `_` em type parameter |
 | `W-GENERIC-0004` | nome de associated contract value duplica um member do type head |
 | `W-GENERIC-0005` | sequência de instantiations cresce sem convergir |
 

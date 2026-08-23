@@ -13,18 +13,23 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-2"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-3"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
-#define W_SEED_FRONTEND_MAX_CST_NODES 8192u
+#define W_SEED_FRONTEND_MAX_CST_NODES 32768u
 #define W_SEED_FRONTEND_MAX_NESTING 256u
+/* Generic schema/application scratch is deliberately bounded below the CST
+ * budget so the two dry/emit contexts remain safe on the seed's Windows
+ * stack.  Crossing this ceiling is an UNSUPPORTED projection with a fact. */
+#define W_SEED_FRONTEND_MAX_GENERIC_SLOTS 64u
+#define W_SEED_FRONTEND_MAX_STATIC_LIST_ELEMENTS 4096u
 #define W_SEED_FRONTEND_MAX_DOCUMENTS 256u
 #define W_SEED_FRONTEND_MAX_EXTERNAL_MODULES 256u
 #define W_SEED_FRONTEND_MAX_EXTERNAL_SYMBOLS 4096u
 #define W_SEED_FRONTEND_MAX_EXTERNAL_PARAMETERS 4096u
 /* D1 uses an explicit 64-bit target profile.  This is a semantic target
  * fact, not a query of the host compiler's size_t width; changing it changes
- * normalized usize types and therefore the frontend/ConstIR receipt key. */
+ * normalized usize types and therefore the frontend receipt key. */
 #define W_SEED_FRONTEND_TARGET_USIZE_BITS 64u
 
 typedef struct {
@@ -117,7 +122,7 @@ typedef enum {
   W_SEED_FRONTEND_STMT_IF,
   W_SEED_FRONTEND_STMT_EXPRESSION,
   W_SEED_FRONTEND_STMT_EXPECT,
-  /* Append-only structured control statements for ConstIR. */
+  /* Append-only structured control statements for downstream const lowering. */
   W_SEED_FRONTEND_STMT_GUARD,
   W_SEED_FRONTEND_STMT_FOR,
 } w_seed_frontend_stmt_kind;
@@ -202,6 +207,12 @@ typedef struct {
   size_t enum_membership_cases;
   /* Append-only generic declaration parameter records. */
   size_t generic_parameters;
+  /* Append-only generic type-application and frontend ConstValue records. */
+  size_t generic_applications;
+  size_t generic_arguments;
+  size_t const_values;
+  size_t const_elements;
+  size_t const_bytes;
 } w_seed_frontend_counts;
 
 typedef struct {
@@ -260,6 +271,13 @@ typedef enum {
 } w_seed_frontend_generic_kind;
 
 typedef enum {
+  W_SEED_FRONTEND_GENERIC_DOMAIN_NONE = 0,
+  W_SEED_FRONTEND_GENERIC_DOMAIN_INVALID,
+  W_SEED_FRONTEND_GENERIC_DOMAIN_CONCRETE,
+  W_SEED_FRONTEND_GENERIC_DOMAIN_DEPENDENT,
+} w_seed_frontend_generic_domain_kind;
+
+typedef enum {
   W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE = 0,
   W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE,
   W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID,
@@ -272,8 +290,8 @@ typedef enum {
 } w_seed_frontend_generic_subject_kind;
 
 /* A normalized generic parameter belongs to a declaration head.  This
- * record contains declaration schema only.  It does not contain a static
- * argument or a ConstIR result. */
+ * record contains declaration schema only. It does not contain a static
+ * argument or a downstream const result. */
 typedef struct {
   uint32_t module_index;
   w_seed_frontend_decl_kind owner_kind;
@@ -291,6 +309,9 @@ typedef struct {
   w_seed_span predicate_span;
   w_seed_span predicate_function_span;
   w_seed_frontend_generic_subject_kind subject_kind;
+  /* Value-domain classification.  DEPENDENT links to a previous TYPE slot. */
+  w_seed_frontend_generic_domain_kind domain_kind;
+  uint32_t dependent_type_parameter_ordinal;
 } w_seed_frontend_generic_parameter;
 
 typedef struct {
@@ -364,6 +385,8 @@ typedef struct {
   uint32_t enum_base_index;
   uint32_t first_subset_member;
   uint32_t subset_member_count;
+  /* W_SEED_FRONTEND_NONE unless this root owns a generic application. */
+  uint32_t generic_application_index;
 } w_seed_frontend_type;
 
 typedef struct {
@@ -463,9 +486,85 @@ typedef struct {
   w_seed_frontend_text label;
   w_seed_span span;
   uint32_t expression_index;
-  /* Append-only frontend resolution fact for ConstIR call lowering. */
+  /* Append-only frontend resolution fact for downstream call lowering. */
   uint32_t resolved_parameter_ordinal;
 } w_seed_frontend_argument;
+
+typedef enum {
+  W_SEED_FRONTEND_GENERIC_ARGUMENT_TYPE = 0,
+  W_SEED_FRONTEND_GENERIC_ARGUMENT_VALUE,
+} w_seed_frontend_generic_argument_kind;
+
+/* Binding status only.  It never asserts predicate truth or a completed
+ * specialization. */
+typedef enum {
+  W_SEED_FRONTEND_GENERIC_BINDING_INVALID = 0,
+  W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED,
+  W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST,
+  W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE,
+} w_seed_frontend_generic_binding_status;
+
+typedef struct {
+  uint32_t module_index;
+  uint32_t owner_type;
+  uint32_t head_struct;
+  w_seed_frontend_text head_name;
+  w_seed_span span;
+  w_seed_span envelope_span;
+  uint32_t first_argument;
+  uint32_t argument_count;
+  w_seed_frontend_generic_binding_status binding_status;
+  /* True when a later const graph must evaluate a typed ConstExpr or
+   * declared refinement. This seed sets it for declared refinements. */
+  bool requires_const_evaluation;
+} w_seed_frontend_generic_application;
+
+typedef struct {
+  uint32_t module_index;
+  uint32_t owner_application;
+  uint32_t source_ordinal;
+  w_seed_span span;
+  w_seed_frontend_text label;
+  uint32_t parameter_index;
+  uint32_t parameter_ordinal;
+  w_seed_frontend_generic_argument_kind kind;
+  uint32_t type_index;
+  uint32_t const_value_index;
+  w_seed_frontend_generic_binding_status binding_status;
+} w_seed_frontend_generic_argument;
+
+typedef enum {
+  W_SEED_FRONTEND_CONST_INVALID = 0,
+  W_SEED_FRONTEND_CONST_BOOL,
+  W_SEED_FRONTEND_CONST_INTEGER,
+  W_SEED_FRONTEND_CONST_STRING,
+  W_SEED_FRONTEND_CONST_ENUM_CASE,
+  W_SEED_FRONTEND_CONST_STATIC_LIST,
+} w_seed_frontend_const_value_kind;
+
+typedef struct {
+  w_seed_frontend_const_value_kind kind;
+  uint32_t type_index;
+  w_seed_span span;
+  bool bool_value;
+  bool integer_signed;
+  uint16_t integer_bit_width;
+  uint8_t integer_byte_count;
+  uint8_t integer_bytes[16];
+  uint32_t first_byte;
+  uint32_t byte_count;
+  uint32_t enum_base_index;
+  uint32_t enum_case_index;
+  uint32_t first_element;
+  uint32_t element_count;
+} w_seed_frontend_const_value;
+
+typedef struct {
+  uint32_t owner_value;
+  uint32_t ordinal;
+  uint32_t value_index;
+  w_seed_span span;
+} w_seed_frontend_const_element;
 
 typedef struct {
   uint32_t module_index;
@@ -500,14 +599,14 @@ typedef struct {
   /* Append-only enum membership case range. */
   uint32_t first_membership_case;
   uint32_t membership_case_count;
-  /* Append-only typed literal projections. ConstIR consumes these fields
-   * without reparsing source spelling. integer_value is a non-negative
+  /* Append-only typed literal projections. Downstream const lowering consumes
+   * these fields without reparsing source spelling. integer_value is a non-negative
    * magnitude in canonical little-endian order with unused high bytes zero. */
   bool has_bool_value;
   bool bool_value;
   bool has_integer_value;
   uint8_t integer_value[16];
-  /* Append-only frontend resolution facts for ConstIR lowering. */
+  /* Append-only frontend resolution facts for downstream const lowering. */
   uint32_t resolved_parameter_ordinal;
   uint32_t resolved_function_index;
   uint32_t resolved_local_ordinal;
@@ -595,6 +694,16 @@ typedef struct {
   /* Append-only generic declaration parameter records. */
   w_seed_frontend_generic_parameter *generic_parameters;
   size_t generic_parameter_capacity;
+  w_seed_frontend_generic_application *generic_applications;
+  size_t generic_application_capacity;
+  w_seed_frontend_generic_argument *generic_arguments;
+  size_t generic_argument_capacity;
+  w_seed_frontend_const_value *const_values;
+  size_t const_value_capacity;
+  w_seed_frontend_const_element *const_elements;
+  size_t const_element_capacity;
+  uint8_t *const_bytes;
+  size_t const_bytes_capacity;
 } w_seed_frontend_output;
 
 typedef struct {

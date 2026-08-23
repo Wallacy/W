@@ -26,6 +26,11 @@ enum {
   TEST_IMPORT_ITEMS = 32,
   TEST_STRUCTS = 16,
   TEST_GENERIC_PARAMETERS = 64,
+  TEST_GENERIC_APPLICATIONS = 64,
+  TEST_GENERIC_ARGUMENTS = 256,
+  TEST_CONST_VALUES = 512,
+  TEST_CONST_ELEMENTS = 512,
+  TEST_CONST_BYTES = 8192,
   TEST_ENUMS = 16,
   TEST_ENUM_CASES = 128,
   TEST_ENUM_CASE_PARAMETERS = 256,
@@ -64,6 +69,12 @@ typedef struct {
   w_seed_frontend_struct structs[TEST_STRUCTS];
   w_seed_frontend_generic_parameter
       generic_parameters[TEST_GENERIC_PARAMETERS];
+  w_seed_frontend_generic_application
+      generic_applications[TEST_GENERIC_APPLICATIONS];
+  w_seed_frontend_generic_argument generic_arguments[TEST_GENERIC_ARGUMENTS];
+  w_seed_frontend_const_value const_values[TEST_CONST_VALUES];
+  w_seed_frontend_const_element const_elements[TEST_CONST_ELEMENTS];
+  uint8_t const_bytes[TEST_CONST_BYTES];
   w_seed_frontend_enum enums[TEST_ENUMS];
   w_seed_frontend_enum_case enum_cases[TEST_ENUM_CASES];
   w_seed_frontend_enum_case_parameter
@@ -129,6 +140,16 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
   (void)memset(fixture_value->structs, value, sizeof(fixture_value->structs));
   (void)memset(fixture_value->generic_parameters, value,
                sizeof(fixture_value->generic_parameters));
+  (void)memset(fixture_value->generic_applications, value,
+               sizeof(fixture_value->generic_applications));
+  (void)memset(fixture_value->generic_arguments, value,
+               sizeof(fixture_value->generic_arguments));
+  (void)memset(fixture_value->const_values, value,
+               sizeof(fixture_value->const_values));
+  (void)memset(fixture_value->const_elements, value,
+               sizeof(fixture_value->const_elements));
+  (void)memset(fixture_value->const_bytes, value,
+               sizeof(fixture_value->const_bytes));
   (void)memset(fixture_value->enums, value, sizeof(fixture_value->enums));
   (void)memset(fixture_value->enum_cases, value,
                sizeof(fixture_value->enum_cases));
@@ -176,6 +197,16 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                          value) &&
          all_bytes_equal(fixture_value->generic_parameters,
                          sizeof(fixture_value->generic_parameters), value) &&
+         all_bytes_equal(fixture_value->generic_applications,
+                         sizeof(fixture_value->generic_applications), value) &&
+         all_bytes_equal(fixture_value->generic_arguments,
+                         sizeof(fixture_value->generic_arguments), value) &&
+         all_bytes_equal(fixture_value->const_values,
+                         sizeof(fixture_value->const_values), value) &&
+         all_bytes_equal(fixture_value->const_elements,
+                         sizeof(fixture_value->const_elements), value) &&
+         all_bytes_equal(fixture_value->const_bytes,
+                         sizeof(fixture_value->const_bytes), value) &&
          all_bytes_equal(fixture_value->enums, sizeof(fixture_value->enums),
                          value) &&
          all_bytes_equal(fixture_value->enum_cases,
@@ -253,6 +284,16 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .struct_capacity = TEST_STRUCTS,
       .generic_parameters = fixture_value->generic_parameters,
       .generic_parameter_capacity = TEST_GENERIC_PARAMETERS,
+      .generic_applications = fixture_value->generic_applications,
+      .generic_application_capacity = TEST_GENERIC_APPLICATIONS,
+      .generic_arguments = fixture_value->generic_arguments,
+      .generic_argument_capacity = TEST_GENERIC_ARGUMENTS,
+      .const_values = fixture_value->const_values,
+      .const_value_capacity = TEST_CONST_VALUES,
+      .const_elements = fixture_value->const_elements,
+      .const_element_capacity = TEST_CONST_ELEMENTS,
+      .const_bytes = fixture_value->const_bytes,
+      .const_bytes_capacity = TEST_CONST_BYTES,
       .enums = fixture_value->enums,
       .enum_capacity = TEST_ENUMS,
       .enum_cases = fixture_value->enum_cases,
@@ -310,6 +351,11 @@ static bool counts_equal(const w_seed_frontend_counts *left,
          left->import_items == right->import_items &&
          left->structs == right->structs && left->fields == right->fields &&
          left->generic_parameters == right->generic_parameters &&
+         left->generic_applications == right->generic_applications &&
+         left->generic_arguments == right->generic_arguments &&
+         left->const_values == right->const_values &&
+         left->const_elements == right->const_elements &&
+         left->const_bytes == right->const_bytes &&
          left->enums == right->enums &&
          left->enum_cases == right->enum_cases &&
          left->enum_case_parameters == right->enum_case_parameters &&
@@ -1662,6 +1708,300 @@ static bool test_generic_schema(void) {
   return true;
 }
 
+static bool test_generic_applications(void) {
+  fixture *forward = &fixture_generic;
+  CHECK(fixture_run(
+      forward,
+      "type MatrixUse = Matrix<f32, rows: 3, columns: 4,>\n"
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"));
+  CHECK(forward->result.status == W_SEED_FRONTEND_OK &&
+        forward->result.written.generic_applications == 1u &&
+        forward->result.written.generic_arguments == 3u &&
+        forward->result.written.const_values == 2u);
+  const w_seed_frontend_generic_application *matrix_application =
+      &forward->generic_applications[0];
+  CHECK(matrix_application->head_struct == 0u &&
+        matrix_application->owner_type == 0u &&
+        matrix_application->binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE &&
+        forward->types[matrix_application->owner_type]
+                .generic_application_index == 0u);
+  CHECK(forward->generic_arguments[0].kind ==
+            W_SEED_FRONTEND_GENERIC_ARGUMENT_TYPE &&
+        forward->generic_arguments[0].parameter_index == 0u &&
+        forward->generic_arguments[1].kind ==
+            W_SEED_FRONTEND_GENERIC_ARGUMENT_VALUE &&
+        forward->generic_arguments[1].label.length == 4u &&
+        forward->generic_arguments[1].parameter_index == 1u &&
+        forward->generic_arguments[2].parameter_index == 2u);
+  CHECK(forward->const_values[0].kind == W_SEED_FRONTEND_CONST_INTEGER &&
+        forward->const_values[0].integer_byte_count == 8u &&
+        forward->const_values[0].integer_bytes[0] == 3u &&
+        forward->const_values[1].integer_bytes[0] == 4u);
+  CHECK(fixture_run(
+      forward,
+      "struct Inner<T> {}\n"
+      "struct Outer<X> {}\n"
+      "struct Use { value: Outer<Inner<u8>> }\n"));
+  CHECK(forward->result.status == W_SEED_FRONTEND_OK &&
+        forward->result.written.generic_applications == 2u &&
+        forward->result.written.generic_arguments == 2u &&
+        forward->generic_applications[0].head_struct == 1u &&
+        forward->generic_applications[1].head_struct == 0u &&
+        forward->generic_arguments[0].type_index == 1u &&
+        forward->generic_arguments[1].type_index == 2u);
+
+  fixture *static_value = &fixture_label;
+  CHECK(fixture_run(
+      static_value,
+      "struct StaticValue<T, _ value: T> {}\n"
+      "struct Use { a: StaticValue<Bool, true> "
+      "b: StaticValue<String, \"The final seating\"> }\n"));
+  CHECK(static_value->result.status == W_SEED_FRONTEND_OK &&
+        static_value->result.written.generic_applications == 2u &&
+        static_value->result.written.const_values == 2u);
+  CHECK(static_value->generic_parameters[1].kind ==
+            W_SEED_FRONTEND_GENERIC_KIND_VALUE &&
+        static_value->generic_parameters[1].domain_kind ==
+            W_SEED_FRONTEND_GENERIC_DOMAIN_DEPENDENT &&
+        static_value->generic_parameters[1].dependent_type_parameter_ordinal ==
+            0u);
+  CHECK(static_value->const_values[0].kind == W_SEED_FRONTEND_CONST_BOOL &&
+        static_value->const_values[0].bool_value &&
+        static_value->const_values[1].kind == W_SEED_FRONTEND_CONST_STRING &&
+        static_value->const_values[1].byte_count == 17u &&
+        memcmp(static_value->const_bytes + static_value->const_values[1].first_byte,
+               "The final seating", 17u) == 0);
+
+  fixture *stage = &fixture_condition;
+  CHECK(fixture_run(
+      stage,
+      "enum ServiceStage { accepted completed }\n"
+      "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n"
+      "struct Use { a: StagePath<[.accepted, .accepted]> "
+      "b: StagePath<[]> c: StagePath<stages: [.accepted]> }\n"));
+  CHECK(stage->result.status == W_SEED_FRONTEND_OK &&
+        stage->result.written.generic_applications == 3u &&
+        stage->result.written.generic_arguments == 3u &&
+        stage->result.written.const_values == 6u &&
+        stage->result.written.const_elements == 3u);
+  CHECK(stage->const_values[0].kind == W_SEED_FRONTEND_CONST_STATIC_LIST &&
+        stage->const_values[0].element_count == 2u &&
+        stage->const_values[3].kind == W_SEED_FRONTEND_CONST_STATIC_LIST &&
+        stage->const_values[3].element_count == 0u &&
+        stage->const_values[3].first_element == W_SEED_FRONTEND_NONE &&
+        stage->const_values[4].element_count == 1u &&
+        stage->const_elements[0].owner_value == 0u &&
+        stage->const_elements[1].ordinal == 1u &&
+        stage->const_elements[2].owner_value == 4u);
+  CHECK(stage->generic_arguments[0].label.length == 0u &&
+        stage->generic_arguments[2].label.length == 6u &&
+        stage->generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE &&
+        stage->generic_applications[1].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE &&
+        stage->generic_applications[2].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE);
+  CHECK(fixture_run(
+      stage,
+      "enum ServiceStage { accepted completed }\n"
+      "struct StagePath<_ stages: StaticList</* c */ ServiceStage >"
+      "<(isValid(.member))>> {}\n"
+      "const fn isValid(stages: StaticList</* c */ ServiceStage >): Bool { "
+      "return true }\n"
+      "struct Use { value: StagePath<[.accepted]> }\n"));
+  CHECK(stage->result.status == W_SEED_FRONTEND_OK &&
+        stage->result.written.generic_applications == 1u &&
+        stage->generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE &&
+        stage->generic_applications[0].requires_const_evaluation);
+
+  static const char *const invalid_sources[] = {
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, 3, columns: 4> }\n",
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, columns: 4, rows: 3> }\n",
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, rows: 3, 3> }\n",
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, bogus: 3, columns: 4> }\n",
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, rows: 3, rows: 4> }\n",
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, rows: 3> }\n",
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, rows: 3, columns: 4, 5> }\n",
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<rows: f32, columns: 3> }\n",
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, rows: 3, columns: "
+      "18446744073709551616> }\n",
+  };
+  static const char *const invalid_codes[] = {
+      "W-GENERIC-0003", "W-GENERIC-0003", "W-GENERIC-0003",
+      "W-CONTRACT-0001", "W-CONTRACT-0004", "W-GENERIC-0002",
+      "W-GENERIC-0003", "W-GENERIC-0003", "W-TYPE-0122",
+  };
+  for (size_t index = 0u;
+       index < sizeof(invalid_sources) / sizeof(invalid_sources[0]);
+       index += 1u) {
+    CHECK(fixture_run(&fixture_collision, invalid_sources[index]));
+    CHECK(fixture_collision.result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+          has_diagnostic(&fixture_collision, invalid_codes[index]) &&
+          fixture_collision.result.written.generic_applications == 1u &&
+          fixture_collision.generic_applications[0].binding_status ==
+              W_SEED_FRONTEND_GENERIC_BINDING_INVALID);
+  }
+
+  CHECK(fixture_run(
+      &fixture_unresolved,
+      "struct StaticValue<T, _ value: T> {}\n"
+      "struct Use { bad: StaticValue<f32, value: 0> }\n"));
+  CHECK(fixture_unresolved.result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(&fixture_unresolved, "W-CONTRACT-0002") &&
+        fixture_unresolved.generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_INVALID);
+
+  CHECK(fixture_run(
+      &fixture_external,
+      "struct Box<T> {}\n"
+      "type Bad = Box<true>\n"));
+  CHECK(fixture_external.result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(&fixture_external, "W-CONTRACT-0002") &&
+        fixture_external.generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_INVALID);
+
+  CHECK(fixture_run(
+      &fixture_narrowing,
+      "struct Plain {}\n"
+      "struct Use { value: Plain<true> }\n"));
+  CHECK(fixture_narrowing.result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        fixture_narrowing.result.written.generic_applications == 1u &&
+        fixture_narrowing.generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_INVALID &&
+        has_diagnostic(&fixture_narrowing, "W-GENERIC-0003"));
+
+  CHECK(fixture_run(
+      &fixture_generic,
+      "enum ServiceStage { accepted completed }\n"
+      "enum OtherStage { accepted }\n"
+      "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n"
+      "struct Use { value: StagePath<[OtherStage.accepted]> }\n"));
+  CHECK(fixture_generic.result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        fixture_generic.result.written.generic_applications == 1u &&
+        fixture_generic.generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_INVALID &&
+        fixture_generic.const_values[0].kind ==
+            W_SEED_FRONTEND_CONST_INVALID &&
+        fixture_generic.const_values[1].kind ==
+            W_SEED_FRONTEND_CONST_INVALID);
+
+  CHECK(fixture_run(
+      &fixture_label,
+      "struct Holder<_ value: u64> {}\n"
+      "struct Use { a: Holder<value: 1> b: Holder<value: 1_u8> }\n"));
+  CHECK(fixture_label.result.status == W_SEED_FRONTEND_OK &&
+        fixture_label.result.written.const_values == 2u &&
+        fixture_label.const_values[0].integer_bit_width == 64u &&
+        fixture_label.const_values[1].integer_bit_width == 64u &&
+        fixture_label.const_values[0].integer_byte_count == 8u &&
+        fixture_label.const_values[1].integer_byte_count == 8u &&
+        memcmp(fixture_label.const_values[0].integer_bytes,
+               fixture_label.const_values[1].integer_bytes, 8u) == 0);
+
+  CHECK(fixture_run(
+      &fixture_collision,
+      "struct Duplicate<T, T> {}\n"
+      "struct Use { value: Duplicate<u8, u8> }\n"));
+  CHECK(fixture_collision.result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(&fixture_collision, "W-CONTRACT-0004") &&
+        fixture_collision.generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_INVALID);
+
+  CHECK(fixture_run(
+      &fixture_collision,
+      "struct S<T> {}\n"
+      "type Use = S<u8><(true)>\n"));
+  CHECK(fixture_collision.result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(&fixture_collision, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE) &&
+        fixture_collision.generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED);
+
+  CHECK(fixture_run(
+      &fixture_collision,
+      "struct S<_ value: String> {}\n"
+      "struct Use { value: S<value: \"a\\\\n\"> }\n"));
+  CHECK(fixture_collision.result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        fixture_collision.generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED &&
+        has_fact(&fixture_collision, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE));
+
+  CHECK(fixture_run(
+      &fixture_collision,
+      "struct S<_ value: String> {}\n"
+      "struct Use { value: S<bad: \"a\\\\n\"> }\n"));
+  CHECK(fixture_collision.result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(&fixture_collision, "W-CONTRACT-0001") &&
+        fixture_collision.generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_INVALID);
+
+  CHECK(fixture_run(
+      &fixture_collision,
+      "struct S<T> {}\n"
+      "struct Use { value: S<u8> }\n"));
+  CHECK(fixture_collision.result.status == W_SEED_FRONTEND_OK &&
+        fixture_collision.result.written.generic_applications == 1u &&
+        fixture_collision.types[fixture_collision.generic_applications[0].owner_type]
+                .generic_application_index == 0u);
+  return true;
+}
+
+typedef enum {
+  TEST_GENERIC_CAPACITY_APPLICATION = 0,
+  TEST_GENERIC_CAPACITY_ARGUMENT,
+  TEST_GENERIC_CAPACITY_CONST_VALUE,
+  TEST_GENERIC_CAPACITY_CONST_ELEMENT,
+  TEST_GENERIC_CAPACITY_CONST_BYTES,
+} test_generic_capacity_target;
+
+static bool test_generic_capacity_target_run(
+    fixture *value, test_generic_capacity_target target) {
+  static const char source[] =
+      "enum Stage { accepted }\n"
+      "struct Text<_ value: String> {}\n"
+      "struct Path<_ stages: StaticList<Stage>> {}\n"
+      "struct Use { text: Text<value: \"x\"> path: Path<stages: [.accepted]> }\n";
+  const uint8_t sentinel = 0xa5u;
+  CHECK(fixture_parse(value, source));
+  fixture_fill_output(value, sentinel);
+  switch (target) {
+    case TEST_GENERIC_CAPACITY_APPLICATION:
+      value->output.generic_application_capacity = 0u;
+      value->output.generic_applications = NULL;
+      break;
+    case TEST_GENERIC_CAPACITY_ARGUMENT:
+      value->output.generic_argument_capacity = 0u;
+      value->output.generic_arguments = NULL;
+      break;
+    case TEST_GENERIC_CAPACITY_CONST_VALUE:
+      value->output.const_value_capacity = 0u;
+      value->output.const_values = NULL;
+      break;
+    case TEST_GENERIC_CAPACITY_CONST_ELEMENT:
+      value->output.const_element_capacity = 0u;
+      value->output.const_elements = NULL;
+      break;
+    case TEST_GENERIC_CAPACITY_CONST_BYTES:
+      value->output.const_bytes_capacity = 0u;
+      value->output.const_bytes = NULL;
+      break;
+  }
+  (void)w_seed_frontend_run(&value->input, &value->output, &value->result);
+  CHECK(value->result.status == W_SEED_FRONTEND_CAPACITY);
+  CHECK(fixture_output_is(value, sentinel, true));
+  return true;
+}
+
 static bool test_barrier_and_capacity(void) {
   fixture *recovered = &fixture_recovered;
   CHECK(fixture_parse(recovered, "fn f(): () { if 1 { return }\n"));
@@ -1744,6 +2084,11 @@ static bool test_barrier_and_capacity(void) {
   (void)w_seed_frontend_run(&cycle->input, &cycle->output, &cycle->result);
   CHECK(cycle->result.status == W_SEED_FRONTEND_INVALID);
   CHECK(fixture_output_is(cycle, sentinel, true));
+  for (int target = TEST_GENERIC_CAPACITY_APPLICATION;
+       target <= TEST_GENERIC_CAPACITY_CONST_BYTES; target += 1) {
+    CHECK(test_generic_capacity_target_run(
+        &fixture_capacity, (test_generic_capacity_target)target));
+  }
   return true;
 }
 
@@ -1757,6 +2102,7 @@ int main(void) {
   if (!test_graph_facts_and_external_stub()) return 1;
   if (!test_receipt_encoding_and_long_fields()) return 1;
   if (!test_generic_schema()) return 1;
+  if (!test_generic_applications()) return 1;
   if (!test_barrier_and_capacity()) return 1;
   return 0;
 }

@@ -14,7 +14,9 @@
 enum {
   PROBE_SOURCE_CAPACITY = 16 * 1024 * 1024,
   PROBE_LEXER_FRAMES = 2048,
-  PROBE_TOKENS = 4096,
+  /* Large StaticList witnesses must not hit a lexer-token ceiling before the
+   * frontend's published 4096-element semantic ceiling. */
+  PROBE_TOKENS = 32768,
   PROBE_NODES = 262144,
   PROBE_PARSE_FRAMES = 16384,
   PROBE_ISSUES = 4096,
@@ -23,6 +25,11 @@ enum {
   PROBE_IMPORT_ITEMS = 4096,
   PROBE_STRUCTS = 4096,
   PROBE_GENERIC_PARAMETERS = 65536,
+  PROBE_GENERIC_APPLICATIONS = 65536,
+  PROBE_GENERIC_ARGUMENTS = 262144,
+  PROBE_CONST_VALUES = 262144,
+  PROBE_CONST_ELEMENTS = 262144,
+  PROBE_CONST_BYTES = 8 * 1024 * 1024,
   PROBE_ENUMS = 4096,
   PROBE_ENUM_CASES = 16384,
   PROBE_ENUM_CASE_PARAMETERS = 32768,
@@ -56,6 +63,13 @@ static w_seed_frontend_import_item import_items[PROBE_IMPORT_ITEMS];
 static w_seed_frontend_struct structs[PROBE_STRUCTS];
 static w_seed_frontend_generic_parameter
     generic_parameters[PROBE_GENERIC_PARAMETERS];
+static w_seed_frontend_generic_application
+    generic_applications[PROBE_GENERIC_APPLICATIONS];
+static w_seed_frontend_generic_argument
+    generic_arguments[PROBE_GENERIC_ARGUMENTS];
+static w_seed_frontend_const_value const_values[PROBE_CONST_VALUES];
+static w_seed_frontend_const_element const_elements[PROBE_CONST_ELEMENTS];
+static uint8_t const_bytes[PROBE_CONST_BYTES];
 static w_seed_frontend_enum enums[PROBE_ENUMS];
 static w_seed_frontend_enum_case enum_cases[PROBE_ENUM_CASES];
 static w_seed_frontend_enum_case_parameter
@@ -175,6 +189,16 @@ int main(void) {
       .struct_capacity = PROBE_STRUCTS,
       .generic_parameters = generic_parameters,
       .generic_parameter_capacity = PROBE_GENERIC_PARAMETERS,
+      .generic_applications = generic_applications,
+      .generic_application_capacity = PROBE_GENERIC_APPLICATIONS,
+      .generic_arguments = generic_arguments,
+      .generic_argument_capacity = PROBE_GENERIC_ARGUMENTS,
+      .const_values = const_values,
+      .const_value_capacity = PROBE_CONST_VALUES,
+      .const_elements = const_elements,
+      .const_element_capacity = PROBE_CONST_ELEMENTS,
+      .const_bytes = const_bytes,
+      .const_bytes_capacity = PROBE_CONST_BYTES,
       .enums = enums,
       .enum_capacity = PROBE_ENUMS,
       .enum_cases = enum_cases,
@@ -222,6 +246,11 @@ int main(void) {
   (void)printf("RESULT parse=%d frontend=%s modules=%" PRIuMAX
                " imports=%" PRIuMAX " structs=%" PRIuMAX
                " generic_parameters=%" PRIuMAX
+               " generic_applications=%" PRIuMAX
+               " generic_arguments=%" PRIuMAX
+               " const_values=%" PRIuMAX
+               " const_elements=%" PRIuMAX
+               " const_bytes=%" PRIuMAX
                " enums=%" PRIuMAX " enum_cases=%" PRIuMAX
                " enum_case_parameters=%" PRIuMAX
                " switch_arms=%" PRIuMAX
@@ -238,6 +267,11 @@ int main(void) {
                (uintmax_t)result.written.imports,
                (uintmax_t)result.written.structs,
                (uintmax_t)result.written.generic_parameters,
+               (uintmax_t)result.written.generic_applications,
+               (uintmax_t)result.written.generic_arguments,
+               (uintmax_t)result.written.const_values,
+               (uintmax_t)result.written.const_elements,
+               (uintmax_t)result.written.const_bytes,
                (uintmax_t)result.written.enums,
                (uintmax_t)result.written.enum_cases,
                (uintmax_t)result.written.enum_case_parameters,

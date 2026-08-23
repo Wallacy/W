@@ -473,7 +473,7 @@
       "state": "active",
       "phase": "semantic.type",
       "defaultSeverity": "error",
-      "meaning": "a contract argument has a kind that its resolved slot does not accept",
+      "meaning": "a contract argument kind or value domain is incompatible with its resolved slot",
       "requiredFacts": {
         "actualKind": "string",
         "expectedKind": "string",
@@ -508,7 +508,7 @@
       "state": "active",
       "phase": "semantic.type",
       "defaultSeverity": "error",
-      "meaning": "a contract label is duplicated or violates the declared slot order",
+      "meaning": "a contract slot is duplicated",
       "requiredFacts": {
         "head": "string",
         "slot": "string",
@@ -871,7 +871,7 @@
       "state": "active",
       "phase": "semantic.type",
       "defaultSeverity": "error",
-      "meaning": "a generic parameter domain does not resolve to a protocol constraint or const-representable type",
+      "meaning": "a generic parameter domain does not resolve to a protocol constraint, StaticArgumentRepresentable type, or an earlier type parameter",
       "requiredFacts": {
         "domain": "string",
         "parameter": "string",
@@ -887,7 +887,7 @@
       "state": "active",
       "phase": "semantic.type",
       "defaultSeverity": "error",
-      "meaning": "generic inference does not have one unique solution for an open parameter",
+      "meaning": "a required generic slot is missing or open inference has no unique solution",
       "requiredFacts": {
         "candidates": "string-set",
         "equationSources": "string-set",

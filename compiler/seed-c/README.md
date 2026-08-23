@@ -88,15 +88,37 @@ aninhados permanecem `UNSUPPORTED` nesta fatia. O resolver usa ordinais de
 declarations e aceita predicate declarado depois do `struct`. Domínio nominal
 não resolvido fica `INVALID` e produz `W-GENERIC-0001`; predicate com retorno
 diferente de `Bool` produz `W-CONTRACT-0003` e mantém o refinement inválido.
-O registro preserva `external_label` separado de `internal_name`. Esta fatia
-não normaliza type applications, static arguments nem executa ConstIR.
+O registro preserva `external_label` separado de `internal_name`. A fatia atual
+também publica aplicações genéricas de `struct` locais no mesmo módulo/documento.
+Cada aplicação tem owner type, head, envelope, argumentos ordenados e status de
+binding; cada argumento preserva ordinal, span, label, parâmetro, kind e o índice
+de type ou `ConstValue`. O root liga à aplicação por
+`generic_application_index`. `W_SEED_FRONTEND_SCHEMA_VERSION` é
+`w-seed-frontend-3`.
+
+O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
+sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
+bytes little-endian canônicos; strings usam offsets em `const_bytes`; listas
+preservam ordem, vazio e duplicatas com `const_elements`. O teto explícito de
+lista é 4096 elementos e o de slots de uma aplicação é 64. `_ value: T` é um
+value domain dependente somente quando
+`T` é type parameter anterior e resolve para `StaticArgumentRepresentable`.
+Todos os slots continuam obrigatórios: `_` torna apenas o label externo opcional.
+O status de binding não prova predicate, especialização ou execução posterior.
+
+A resolução exige head `struct` local, inclusive forward reference, e não chama,
+inclui ou depende do componente ConstIR. Generic calls e heads importados,
+enum/object/type/alias/function, quantity/size, `Bytes`, listas aninhadas,
+expressions calculadas e avaliação de predicate permanecem `UNSUPPORTED` ou
+fora do seed conforme a forma. O seed não apresenta esta fatia como compiler W
+completo.
 
 Os argumentos de contract aceitam somente formas sintáticas: tipo/path WORD, membro contextual
 `.id`, argumento nomeado `id: static_value`, predicado `(expression)`, lista
 `[static_value, ...]`, número, literal, bool ou quantity. `switch expression`
-aceita pelo menos um arm `case .id|literal: expression`. Listas vazias,
-duplicatas, nomes desconhecidos e exaustividade não são avaliados; não há
-inferência, resolução ou avaliação de constantes nesta fatia.
+aceita pelo menos um arm `case .id|literal: expression`. Para as aplicações
+locais suportadas, listas vazias e duplicatas são preservadas; predicate truth,
+expressions calculadas e inferência permanecem fora do seed.
 
 Esta fatia de `for` não inclui `async`, patterns de destructuring ou `take` como
 marcador de iteração; um rótulo aplicado a `while` permanece STOP. O prefixo
@@ -267,9 +289,10 @@ all-or-nothing. Esta fatia aceita um documento por module ID; contribuições de
 vários documentos para o mesmo módulo são rejeitadas como `INVALID` em vez de
 serem mescladas silenciosamente. Formas de import que o parser ainda recupera
 (por exemplo, alias de item não reconhecido pelo CST) continuam unsupported.
-Ownership/HIR, async/services/providers, avaliação de initializers/dependencies,
-cache e materialização, aplicações e chamadas genéricas completas,
-tensor, runtime, MLIR e WInterface permanecem fora desta fatia.
+Ownership/HIR completo, async/services/providers, avaliação de
+initializers/dependencies, cache e materialização, generic calls completas,
+heads importados e aplicações de enum/object/type/alias/function, tensor,
+runtime, MLIR e WInterface permanecem fora desta fatia.
 
 Funções `const` no D0 conservam a normalização runtime. Literals, parâmetros,
 bindings, valores/construtores de enum, operadores já suportados, `switch` e
@@ -334,8 +357,10 @@ o output completo do frontend e o `w_seed_frontend_result`. Ele não reparseia
 source e não faz resolução de nomes ou tipos.
 
 Para manter essa fronteira, o frontend publica campos append-only normalizados
-para valor Bool/integer e para ordinal de parâmetro e target de call. ConstIR
-consome esses facts; ele usa os spans apenas para provenance e diagnósticos.
+para valor Bool/integer e para ordinal de parâmetro e target de call. O seed de
+aplicações genéricas desta seção é independente: ele não chama nem inclui este
+executor. Uma integração posterior pode consumir facts compatíveis; ela usa os
+spans apenas para provenance e diagnósticos.
 Para parâmetros com dois nomes, o primeiro é o label externo required e o
 segundo é o nome interno (`from current: Stage`, `at index: u8`). `named name`
 é required(name), `_ name` é optional(name), e um único nome é positional-only.
@@ -371,7 +396,7 @@ fatia e têm um teto determinístico de 4096 elementos antes da avaliação; ess
 é uma limitação da implementação D1, não uma regra completa da linguagem.
 O depth da função de entrada é 1; `call_depth=1` aceita uma função folha e
 `call_depth=2` aceita uma call aninhada. Um limite de implementação de 256 para
-call depth e de 1024 para a cadeia de nodes impede recursão C não limitada.
+call depth e de 64 para slots de uma aplicação impede recursão C não limitada.
 Uma quota finita acima de 256 é `INVALID`; `SIZE_MAX` pede a mesma política
 limitada, sem clamp silencioso. Workspace ausente ou pequeno para uma call é
 entrada estrutural `INVALID`, sem diagnóstico W.

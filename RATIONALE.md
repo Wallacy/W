@@ -1057,6 +1057,22 @@ label identifica cada slot nessa ordem. O oracle host deriva outcome, erro antes
 da publicação e paridade de categorias. Ele não executa W. `w-compile`, `w-run`,
 estudo humano e estudo de modelos permanecem missing.
 
+A evidência do Restaurante no Fim do Universo é concreta: `reference/last-light/
+domain.w` declara `ServiceStage`, `isValidStagePath` e `StagePath<_ stages:
+StaticList<ServiceStage><(isValidStagePath(.member))>>`; `state_transitions.w`
+usa aliases `StandardStagePath` e `CancelledStagePath` com listas ordenadas.
+Esses heads são importados pelo produto Last Light. O seed C desta entrega usa
+somente heads `struct` locais, portanto comprova binding, labels, spans,
+`ConstValue` e records caller-owned para a fatia local, não uma execução
+end-to-end do Restaurante nem a avaliação do predicate.
+
+O limite é deliberado: `StaticArgumentRepresentable` continua sendo o predicate
+completo de DESIGN §3.6.3, enquanto este seed materializa apenas Bool, integer,
+String simples sem escape, enum case contextual e `StaticList`; computed forms,
+quantity/size, `Bytes`, nested lists, generic calls, heads importados e avaliação
+ConstIR permanecem posteriores ou `UNSUPPORTED`. Assim a evidência sustenta a
+representação sem transformar a proposta em implementação ampla do compiler.
+
 #### 1.3.22 Subject de refinement
 
 **Exemplo:** `String<(.scalars.count in 1...40)>` e
