@@ -29,7 +29,7 @@ function parseResult(output, label) {
   const lines = output.toString().split(/\r?\n/u)
   const line = lines.find((candidate) => candidate.startsWith("RESULT "))
   if (!line) fail(`${label} has no RESULT line`)
-  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
+  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) enum_membership_cases=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
   if (!match) fail(`${label} has an invalid RESULT line: ${line}`)
   return {
     parse: Number(match[1]),
@@ -42,17 +42,18 @@ function parseResult(output, label) {
     enum_case_parameters: Number(match[8]),
     switch_arms: Number(match[9]),
     enum_subset_members: Number(match[10]),
-    types: Number(match[11]),
-    functions: Number(match[12]),
-    params: Number(match[13]),
-    entries: Number(match[14]),
-    statements: Number(match[15]),
-    expressions: Number(match[16]),
-    arguments: Number(match[17]),
-    symbols: Number(match[18]),
-    facts: Number(match[19]),
-    diagnostics: Number(match[20]),
-    receipt: Number(match[21]),
+    enum_membership_cases: Number(match[11]),
+    types: Number(match[12]),
+    functions: Number(match[13]),
+    params: Number(match[14]),
+    entries: Number(match[15]),
+    statements: Number(match[16]),
+    expressions: Number(match[17]),
+    arguments: Number(match[18]),
+    symbols: Number(match[19]),
+    facts: Number(match[20]),
+    diagnostics: Number(match[21]),
+    receipt: Number(match[22]),
   }
 }
 
@@ -131,6 +132,40 @@ function expectWildcardSwitchReceipt(result, label) {
       fields.span === undefined) {
     fail(`${label} wildcard switch arm does not retain enum identity`)
   }
+}
+
+function expectMembershipReceipt(result, expectedCases, expectedGroups, label) {
+  const lines = receiptLines(result.output, "enum-membership-case=")
+  if (lines.length !== expectedCases.length) {
+    fail(`${label} membership receipt has ${lines.length} cases, expected ${expectedCases.length}`)
+  }
+  const records = lines.map((line) => {
+    const fields = Object.fromEntries(line.split("|").map((field) => {
+      const separator = field.indexOf("=")
+      return separator < 0 ? [field, ""] : [field.slice(0, separator), field.slice(separator + 1)]
+    }))
+    return fields
+  })
+  const owners = new Map()
+  for (const [index, record] of records.entries()) {
+    if (record.owner === undefined || record.enum !== "0" ||
+        record.case !== String(expectedCases[index]) || record.span === undefined) {
+      fail(`${label} membership case ${index} is not canonical or lacks its source span`)
+    }
+    const group = owners.get(record.owner) ?? []
+    group.push(record.case)
+    owners.set(record.owner, group)
+  }
+  if (owners.size !== expectedGroups.length) {
+    fail(`${label} membership owner count is ${owners.size}, expected ${expectedGroups.length}`)
+  }
+  for (const [index, expected] of expectedGroups.entries()) {
+    const actual = owners.get(expected.owner)
+    if (actual === undefined || actual.join(",") !== expected.cases.join(",")) {
+      fail(`${label} membership owner ${expected.owner} does not retain canonical cases`)
+    }
+  }
+  return records
 }
 
 function expectDiagnostic(executable, source, code, label) {
@@ -332,6 +367,77 @@ try {
     cancelledSource,
     "domain.w CancelledStage subset",
     [5],
+  )
+  const canMove = await sourceBackedFragment(
+    "reference/last-light/domain.w",
+    "export const fn canMove",
+    "export const fn isValidStagePath",
+    "domain.w canMove",
+  )
+  const canMoveSource = Buffer.concat([serviceStage, cancelledStage, canMove])
+  const canMoveResult = expectOk(
+    probeExecutable,
+    canMoveSource,
+    "domain.w canMove",
+  )
+  if (canMoveResult.parsed.enums !== 1 ||
+      canMoveResult.parsed.enum_cases !== 6 ||
+      canMoveResult.parsed.enum_subset_members !== 1 ||
+      canMoveResult.parsed.enum_membership_cases !== 8 ||
+      canMoveResult.parsed.switch_arms !== 6 ||
+      canMoveResult.parsed.functions !== 1 ||
+      canMoveResult.parsed.params !== 2 ||
+      canMoveResult.parsed.statements !== 1 ||
+      canMoveResult.parsed.expressions !== 12) {
+    fail("domain.w canMove counts are incomplete")
+  }
+  const canMoveSignature = receiptLines(canMoveResult.output, "signature=")
+  if (canMoveSignature.length !== 1 ||
+      !canMoveSignature[0].includes("|const=1|const-body=1")) {
+    fail("domain.w canMove is not marked const and body-supported in the receipt")
+  }
+  expectSwitchReceipt(canMoveResult, 6, "domain.w canMove")
+  expectMembershipReceipt(
+    canMoveResult,
+    [1, 5, 2, 5, 3, 5, 4, 5],
+    [
+      { owner: "3", cases: ["1", "5"] },
+      { owner: "5", cases: ["2", "5"] },
+      { owner: "7", cases: ["3", "5"] },
+      { owner: "9", cases: ["4", "5"] },
+    ],
+    "domain.w canMove",
+  )
+  const canMoveRepeat = probe(
+    probeExecutable, canMoveSource, "domain.w canMove:repeat",
+  )
+  if (canMoveResult.output !== canMoveRepeat.output) {
+    fail("domain.w canMove receipt is not deterministic")
+  }
+
+  expectOk(
+    probeExecutable,
+    "const fn add(value: u32): u32 { return value }\n" +
+      "const fn use(value: u32): u32 { return add(value) }\n",
+    "local const function call",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    "fn plain(): Bool { return true }\n" +
+      "const fn bad(): Bool { return plain() }\n",
+    "W-CONST-0001",
+    "local non-const call from const function",
+  )
+  expectDiagnostic(
+    probeExecutable,
+    "const fn bad(): Bool { return true.foo }\n",
+    "W-CONST-0001",
+    "unsupported const body root",
+  )
+  expectUnsupported(
+    probeExecutable,
+    "fn ordinary(): Bool { return true.foo }\n",
+    "ordinary unsupported body remains unchanged",
   )
   const workStage = Buffer.from(
     "enum WorkBase { accepted reserving preparing serving completed cancelled }\n" +

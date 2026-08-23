@@ -983,6 +983,30 @@ static bool test_async_function_shapes(void) {
                  value.result.node_count * sizeof(value.nodes[0])) == 0);
   }
 
+  static const char const_text[] = "const fn value(){}\n";
+  static const char export_const_text[] = "export const fn value(){}\n";
+  const char *const const_texts[] = {const_text, export_const_text};
+  for (size_t text_index = 0;
+       text_index < sizeof(const_texts) / sizeof(const_texts[0]);
+       text_index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, const_texts[text_index],
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+    CHECK(value.result.issue_count == 0);
+    const w_seed_cst_index function = first_kind(&value, W_SEED_CST_FUNCTION);
+    CHECK(function != W_SEED_CST_NONE);
+    CHECK(has_direct_text(&value, function, W_SEED_CST_WORD, "const"));
+    CHECK(has_direct_text(&value, function, W_SEED_CST_WORD, "fn"));
+    CHECK(value.nodes[function].raw_span.start_byte == 0);
+    if (text_index == 1) {
+      CHECK(has_direct_text(&value, function, W_SEED_CST_WORD, "export"));
+    }
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+  }
+
   static const char trivia_text[] =
       "export /*a*/ async /*b*/ fn f(){}\n";
   fixture trivia;
@@ -1026,7 +1050,9 @@ static bool test_async_function_shapes(void) {
       "async\n",             "async async fn f(){}\n",
       "async struct S {}\n", "async test \"bad\" for f {}\n",
       "async entry(f)\n",    "export async struct S {}\n",
-      "static fn f(){}\n",   "const fn f(){}\n",
+      "static fn f(){}\n",   "const async fn f(){}\n",
+      "const unsafe fn f(){}\n", "async const fn f(){}\n",
+      "const const fn f(){}\n", "const\n",
       "unsafe fn f(){}\n",   "mut fn f(){}\n",
       "take fn f(){}\n",
   };

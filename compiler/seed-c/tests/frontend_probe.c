@@ -36,6 +36,7 @@ enum {
   PROBE_EXPRESSIONS = 262144,
   PROBE_ARGUMENTS = 65536,
   PROBE_SWITCH_ARMS = 65536,
+  PROBE_ENUM_MEMBERSHIP_CASES = 262144,
   PROBE_SYMBOLS = 131072,
   PROBE_FACTS = 131072,
   PROBE_DIAGNOSTICS = 65536,
@@ -69,6 +70,8 @@ static w_seed_frontend_statement statements[PROBE_STATEMENTS];
 static w_seed_frontend_expression expressions[PROBE_EXPRESSIONS];
 static w_seed_frontend_argument arguments[PROBE_ARGUMENTS];
 static w_seed_frontend_switch_arm switch_arms[PROBE_SWITCH_ARMS];
+static w_seed_frontend_enum_membership_case
+    enum_membership_cases[PROBE_ENUM_MEMBERSHIP_CASES];
 static w_seed_frontend_symbol symbols[PROBE_SYMBOLS];
 static w_seed_frontend_fact facts[PROBE_FACTS];
 static w_seed_frontend_diagnostic diagnostics[PROBE_DIAGNOSTICS];
@@ -191,6 +194,8 @@ int main(void) {
       .argument_capacity = PROBE_ARGUMENTS,
       .switch_arms = switch_arms,
       .switch_arm_capacity = PROBE_SWITCH_ARMS,
+      .enum_membership_cases = enum_membership_cases,
+      .enum_membership_case_capacity = PROBE_ENUM_MEMBERSHIP_CASES,
       .entries = entries,
       .entry_capacity = PROBE_ENTRIES,
       .statements = statements,
@@ -215,6 +220,7 @@ int main(void) {
                " enum_case_parameters=%" PRIuMAX
                " switch_arms=%" PRIuMAX
                " enum_subset_members=%" PRIuMAX
+               " enum_membership_cases=%" PRIuMAX
                " types=%" PRIuMAX " functions=%" PRIuMAX
                " params=%" PRIuMAX " entries=%" PRIuMAX
                " statements=%" PRIuMAX " expressions=%" PRIuMAX
@@ -230,6 +236,7 @@ int main(void) {
                (uintmax_t)result.written.enum_case_parameters,
                (uintmax_t)result.written.switch_arms,
                (uintmax_t)result.written.enum_subset_members,
+               (uintmax_t)result.written.enum_membership_cases,
                (uintmax_t)result.written.types,
                (uintmax_t)result.written.functions,
                (uintmax_t)result.written.parameters,

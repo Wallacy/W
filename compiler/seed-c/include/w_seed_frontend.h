@@ -88,6 +88,8 @@ typedef enum {
   /* Append-only closed-enum expressions. */
   W_SEED_FRONTEND_EXPR_ENUM_CASE,
   W_SEED_FRONTEND_EXPR_SWITCH,
+  /* Append-only enum membership expression. */
+  W_SEED_FRONTEND_EXPR_ENUM_MEMBERSHIP,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -140,6 +142,8 @@ typedef struct {
   const w_seed_frontend_external_parameter *parameters;
   size_t parameter_count;
   w_seed_frontend_text return_type;
+  /* Append-only const capability flag. The default is false. */
+  bool is_const;
 } w_seed_frontend_external_symbol;
 
 typedef struct {
@@ -180,6 +184,8 @@ typedef struct {
   size_t enum_case_parameters;
   size_t switch_arms;
   size_t enum_subset_members;
+  /* Append-only membership case records. */
+  size_t enum_membership_cases;
 } w_seed_frontend_counts;
 
 typedef struct {
@@ -310,6 +316,14 @@ typedef struct {
 
 typedef struct {
   uint32_t module_index;
+  uint32_t owner_expression;
+  uint32_t enum_base_index;
+  uint32_t enum_case_index;
+  w_seed_span source_span;
+} w_seed_frontend_enum_membership_case;
+
+typedef struct {
+  uint32_t module_index;
   uint32_t owner_function;
   w_seed_frontend_text name;
   w_seed_frontend_text label;
@@ -329,6 +343,9 @@ typedef struct {
   uint32_t return_type;
   uint32_t first_statement;
   uint32_t statement_count;
+  /* Append-only const capability and D0 body support flags. */
+  bool is_const;
+  bool const_body_supported;
 } w_seed_frontend_function;
 
 typedef struct {
@@ -413,6 +430,9 @@ typedef struct {
   uint32_t enum_case_index;
   uint32_t first_switch_arm;
   uint32_t switch_arm_count;
+  /* Append-only enum membership case range. */
+  uint32_t first_membership_case;
+  uint32_t membership_case_count;
 } w_seed_frontend_expression;
 
 typedef enum {
@@ -490,6 +510,9 @@ typedef struct {
   /* Append-only normalized enum-subset member records. */
   w_seed_frontend_enum_subset_member *enum_subset_members;
   size_t enum_subset_member_capacity;
+  /* Append-only enum membership case records. */
+  w_seed_frontend_enum_membership_case *enum_membership_cases;
+  size_t enum_membership_case_capacity;
 } w_seed_frontend_output;
 
 typedef struct {
