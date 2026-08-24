@@ -433,7 +433,10 @@ String, `TYPED_PENDING_CONST`, computed values, função ausente/não lowerable 
 categorias fora desta lista são `UNSUPPORTED`. Índices, spans, relations,
 signature, arity ou tipo de retorno malformados são `INVALID`. Cada lista D1
 limita 4.096 elementos. A travessia e a validação estrutural caller-owned têm
-depth máximo 256. Listas aninhadas continuam `UNSUPPORTED`.
+depth máximo 256. Listas aninhadas continuam `UNSUPPORTED`. O binder source
+atual ainda não produz `BOUND_IMMEDIATE` para literal String; o teste C usa um
+record caller-owned coerente, sem relação malformada, para cobrir a forma
+canônica String e documentar apenas esse gap do binder.
 
 O estado público distingue `VERIFIED`, `REJECTED`, `UNSUPPORTED`, `INVALID`,
 `EVALUATION_FAILED` e `CAPACITY`. `EVALUATION_FAILED` conserva o
@@ -449,11 +452,41 @@ fallback. O item usa 15 bytes UTF-8 compartilhados para `failure` e
 dependencies para uma slice detalhada. Esta fatia D1 usa, portanto, o fallback
 inteiro permitido. A capacidade da arena é medida antes da primeira avaliação.
 
+Depois da validação, o result também expõe
+`W_SEED_GENERIC_VALIDATION_FINGERPRINT_SCHEMA_VERSION =
+"w-seed-generic-fingerprint-1"` e um estado separado
+`NOT_AVAILABLE`/`AVAILABLE`/`UNSUPPORTED`, com digest fixo de 32 bytes. Todos
+os resultados não `VERIFIED` mantêm `NOT_AVAILABLE` e bytes zero. `VERIFIED`
+encodable finaliza `AVAILABLE` somente depois que todos os predicates retornam
+`Bool(true)`; `VERIFIED` fora do subconjunto encodable pode manter o resultado
+principal e publicar `UNSUPPORTED`. O preflight constrói o SHA em estado local
+antes da avaliação e valida cada relação consumida, sem counters, quotas,
+workspace, receipts ou arena de evidence no preimage.
+
+O preimage versionado começa com o prefixo ASCII
+`w-seed-generic-fingerprint-1` e usa tags estáveis, integers/counts
+big-endian, text UTF-8 length-prefixed, canonical type e `ConstValue` conforme
+DESIGN §8.7.12. Ele exclui spans, source spelling, labels, índices,
+allocation/layout e versões ambientais. O `body_digest` é evidence do lowering
+ConstIR, não uma recomputação criptográfica nesta camada. O fingerprint é
+evidence interna de comparação, não `TypeId`, `SemanticInterfaceKey`,
+`WAbiKey`, wire/schema ID ou cache/instantiation key. Digests diferentes implicam
+preimages diferentes; um digest igual isolado não prova preimages iguais nem
+identidade collision-safe sem o preimage completo. A identity final
+continua exigindo os dados canônicos e receipts definidos em DESIGN §8.7.8.
+
 O probe/gate source-backed usa `ServiceStage`, `canMove`, `isValidStagePath` e
 `StagePath` de [domain.w](../../reference/last-light/domain.w). Ele prova o path
 canônico como `VERIFIED` e vazio, salto e duplicata como `REJECTED`, repete o
 probe para provar determinismo e verifica quota, relações inválidas, categorias
-unsupported, Bool/integer/enum/list conversion e capacity:
+unsupported, Bool/integer/enum/list conversion e capacity. O witness usa o
+module id `restaurant`: duas aplicações idênticas do standard path
+publicam `AVAILABLE` com digest igual; a rota
+`[.accepted, .cancelled]` também é `VERIFIED`, mas tem digest
+diferente; vazio, salto e duplicata permanecem `NOT_AVAILABLE` com
+bytes zero. O gate Bun reconstrói o preimage de forma independente e o probe
+imprime module/head, estado do fingerprint, digest e `body_digest` do
+predicate.
 
     bun tooling/check-seed-generic-validation.mjs
 

@@ -212,7 +212,9 @@ static void fixture_init_outputs(fixture *fixture_value) {
       .receipt_capacity = CONSTIR_RECEIPT};
 }
 
-static bool fixture_lower(fixture *fixture_value, const char *source_text) {
+static bool fixture_lower_with_module(fixture *fixture_value,
+                                      const char *source_text,
+                                      const char *module_id) {
   const size_t length = strlen(source_text);
   CHECK(length < sizeof(fixture_value->source_bytes));
   (void)memset(fixture_value, 0, sizeof(*fixture_value));
@@ -230,7 +232,8 @@ static bool fixture_lower(fixture *fixture_value, const char *source_text) {
       fixture_value->issues, ISSUES, &fixture_value->parser, &lex_error));
   CHECK(w_seed_parser_parse(&fixture_value->parser, &fixture_value->parse));
   fixture_value->document = (w_seed_frontend_document){
-      {"generic-test", 12u}, {"generic-test", 12u}, &fixture_value->source,
+      {module_id, strlen(module_id)}, {module_id, strlen(module_id)},
+      &fixture_value->source,
       fixture_value->cst_nodes, fixture_value->parse.node_count,
       fixture_value->parse};
   fixture_init_outputs(fixture_value);
@@ -246,6 +249,11 @@ static bool fixture_lower(fixture *fixture_value, const char *source_text) {
                            &fixture_value->constir_result) ==
         W_SEED_CONSTIR_OK);
   return true;
+}
+
+static bool fixture_lower(fixture *fixture_value, const char *source_text) {
+  return fixture_lower_with_module(fixture_value, source_text,
+                                   "generic-test");
 }
 
 static w_seed_constir_program fixture_program(const fixture *fixture_value) {
@@ -311,6 +319,24 @@ static w_seed_generic_validation_state validate_application(
                                  result);
 }
 
+static bool fingerprint_not_available(const w_seed_generic_validation_result *result) {
+  return result != NULL &&
+         result->fingerprint_state ==
+             W_SEED_GENERIC_VALIDATION_FINGERPRINT_NOT_AVAILABLE &&
+         memcmp(result->fingerprint_digest,
+                (uint8_t[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES]){0},
+                W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES) == 0;
+}
+
+static bool fingerprint_unsupported(const w_seed_generic_validation_result *result) {
+  return result != NULL &&
+         result->fingerprint_state ==
+             W_SEED_GENERIC_VALIDATION_FINGERPRINT_UNSUPPORTED &&
+         memcmp(result->fingerprint_digest,
+                (uint8_t[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES]){0},
+                W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES) == 0;
+}
+
 static const char *const STAGE_PREFIX =
     "enum ServiceStage { accepted reserving preparing serving completed cancelled }\n"
     "const fn canMove(from current: ServiceStage, to next: ServiceStage): Bool { "
@@ -338,6 +364,42 @@ static bool fixture_lower_stage(fixture *fixture_value, const char *suffix) {
   return fixture_lower(fixture_value, source);
 }
 
+static void print_digest(const uint8_t digest[32]) {
+  for (size_t index = 0u; index < 32u; index += 1u)
+    (void)printf("%02x", (unsigned int)digest[index]);
+}
+
+static bool predicate_body_digest_for_application(
+    const fixture *fixture_value,
+    const w_seed_frontend_generic_application *application,
+    uint8_t digest[32]) {
+  if (fixture_value == NULL || application == NULL || digest == NULL ||
+      application->head_struct >= fixture_value->frontend_result.written.structs ||
+      fixture_value->frontend_output.structs == NULL ||
+      fixture_value->frontend_output.generic_parameters == NULL)
+    return false;
+  const w_seed_frontend_struct *head =
+      &fixture_value->structs[application->head_struct];
+  if (head->generic_parameter_count == 0u ||
+      head->first_generic_parameter >=
+          fixture_value->frontend_result.written.generic_parameters)
+    return false;
+  const w_seed_frontend_generic_parameter *parameter =
+      &fixture_value->generic_parameters[head->first_generic_parameter];
+  if (parameter->refinement_kind != W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE)
+    return false;
+  for (size_t index = 0u;
+       index < fixture_value->constir_result.written.functions; index += 1u) {
+    const w_seed_constir_function *function =
+        &fixture_value->constir_functions[index];
+    if (function->frontend_function == parameter->predicate_function_index) {
+      (void)memcpy(digest, function->body_digest, 32u);
+      return true;
+    }
+  }
+  return false;
+}
+
 static bool probe_domain_file(const char *path) {
   if (path == NULL) return false;
   FILE *file = fopen(path, "rb");
@@ -349,7 +411,7 @@ static bool probe_domain_file(const char *path) {
   const bool read_ok = !read_error && close_status == 0;
   if (!read_ok || length == sizeof(source) - 1u) return false;
   source[length] = '\0';
-  if (!fixture_lower(&value, source)) return false;
+  if (!fixture_lower_with_module(&value, source, "restaurant")) return false;
 
   size_t stage_path_count = 0u;
   printf("GENERIC_RESULT applications=%llu frontend=%d constir=%d\n",
@@ -367,15 +429,32 @@ static bool probe_domain_file(const char *path) {
     const w_seed_generic_validation_state state = validate_application_at(
         &value, (uint32_t)application_index, CONVERSION_VALUES,
         (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result);
+    uint8_t predicate_digest[32] = {0u};
+    (void)predicate_body_digest_for_application(&value, application,
+                                                predicate_digest);
     printf("GENERIC app=%llu state=%s failure=%s diagnostic=%d predicates=%llu "
-           "receipts=%llu steps=%llu\n",
+           "receipts=%llu steps=%llu module=%.*s head=%.*s "
+           "fingerprint_state=%s fingerprint_digest=",
            (unsigned long long)application_index,
            w_seed_generic_validation_state_name(state),
            w_seed_generic_validation_failure_name(result.failure),
            (int)result.diagnostic,
            (unsigned long long)result.predicate_count,
            (unsigned long long)result.receipts_written,
-           (unsigned long long)result.evaluation.consumed_steps);
+           (unsigned long long)result.evaluation.consumed_steps,
+           (int)value.modules[application->module_index].module_id.length,
+           value.modules[application->module_index].module_id.data,
+           (int)application->head_name.length, application->head_name.data,
+           w_seed_generic_validation_fingerprint_state_name(
+               result.fingerprint_state));
+    if (result.fingerprint_state ==
+        W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE)
+      print_digest(result.fingerprint_digest);
+    else
+      for (size_t byte = 0u; byte < 32u; byte += 1u) (void)printf("00");
+    (void)printf(" predicate_body_digest=");
+    print_digest(predicate_digest);
+    (void)printf("\n");
     stage_path_count += 1u;
   }
   return stage_path_count != 0u;
@@ -401,6 +480,8 @@ static bool test_verified_and_rejected_paths(void) {
   CHECK(result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
         result.predicate_count == 1u && result.receipts_written == 1u &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_NONE &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE &&
         value.receipts[0].result_is_bool && value.receipts[0].bool_value);
   w_seed_generic_validation_result first_result = result;
   w_seed_generic_validation_receipt first_receipt = value.receipts[0];
@@ -416,6 +497,11 @@ static bool test_verified_and_rejected_paths(void) {
                              &result) == W_SEED_GENERIC_VALIDATION_REJECTED);
   CHECK(result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0004 &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_PREDICATE_FALSE &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_NOT_AVAILABLE &&
+        memcmp(result.fingerprint_digest,
+               (uint8_t[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES]){0},
+               W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES) == 0 &&
         result.rejection.failure.length == 15u &&
         result.rejection.failure.data == (const char *)value.evidence_bytes &&
         result.rejection.rejection_trace[0].data ==
@@ -438,12 +524,14 @@ static bool test_verified_and_rejected_paths(void) {
   CHECK(validate_application(&value, CONVERSION_VALUES,
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_REJECTED &&
-        result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0004);
+        result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0004 &&
+        fingerprint_not_available(&result));
   CHECK(fixture_lower_stage(&value, duplicate));
   CHECK(validate_application(&value, CONVERSION_VALUES,
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_REJECTED &&
-        result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0004);
+        result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0004 &&
+        fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, empty));
   (void)memset(value.evidence_bytes, 0xa5, sizeof(value.evidence_bytes));
@@ -455,7 +543,8 @@ static bool test_verified_and_rejected_paths(void) {
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result) ==
         W_SEED_GENERIC_VALIDATION_CAPACITY &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY &&
-        result.evaluation.consumed_steps == 0u && result.receipts_written == 0u);
+        result.evaluation.consumed_steps == 0u && result.receipts_written == 0u &&
+        fingerprint_not_available(&result));
   for (size_t byte = 0u; byte < sizeof(value.evidence_bytes); byte += 1u)
     CHECK(value.evidence_bytes[byte] == 0xa5u);
   for (size_t byte = 0u; byte < sizeof(value.conversion_values); byte += 1u)
@@ -472,7 +561,8 @@ static bool test_verified_and_rejected_paths(void) {
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result) ==
         W_SEED_GENERIC_VALIDATION_CAPACITY &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY &&
-        result.evaluation.consumed_steps == 0u && result.receipts_written == 0u);
+        result.evaluation.consumed_steps == 0u && result.receipts_written == 0u &&
+        fingerprint_not_available(&result));
   for (size_t byte = 0u; byte < sizeof(value.receipts); byte += 1u)
     CHECK(((const uint8_t *)value.receipts)[byte] == 0xa5u);
   for (size_t byte = 0u; byte < sizeof(value.conversion_values); byte += 1u)
@@ -492,7 +582,7 @@ static bool test_quota_unsupported_and_invalid(void) {
         W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED);
   CHECK(result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0003 &&
         result.evaluation.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0003 &&
-        result.receipts_written == 0u);
+        result.receipts_written == 0u && fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   value.generic_applications[0].binding_status =
@@ -501,7 +591,7 @@ static bool test_quota_unsupported_and_invalid(void) {
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_UNSUPPORTED &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_BINDING &&
-        result.receipts_written == 0u);
+        result.receipts_written == 0u && fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   value.generic_applications[0].binding_status =
@@ -510,7 +600,8 @@ static bool test_quota_unsupported_and_invalid(void) {
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
-        result.evaluation.consumed_steps == 0u);
+        result.evaluation.consumed_steps == 0u &&
+        fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   value.generic_parameters[0].predicate_function_span.start_byte += 1u;
@@ -518,7 +609,8 @@ static bool test_quota_unsupported_and_invalid(void) {
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
-        result.evaluation.consumed_steps == 0u);
+        result.evaluation.consumed_steps == 0u &&
+        fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   value.generic_parameters[0].module_index = 1u;
@@ -526,7 +618,8 @@ static bool test_quota_unsupported_and_invalid(void) {
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
-        result.evaluation.consumed_steps == 0u);
+        result.evaluation.consumed_steps == 0u &&
+        fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   value.generic_arguments[value.generic_applications[0].first_argument]
@@ -535,7 +628,8 @@ static bool test_quota_unsupported_and_invalid(void) {
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_UNSUPPORTED &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_BINDING &&
-        result.evaluation.consumed_steps == 0u);
+        result.evaluation.consumed_steps == 0u &&
+        fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   value.generic_arguments[value.generic_applications[0].first_argument]
@@ -543,7 +637,8 @@ static bool test_quota_unsupported_and_invalid(void) {
   CHECK(validate_application(&value, CONVERSION_VALUES,
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
-        result.receipts_written == 0u && result.evaluation.consumed_steps == 0u);
+        result.receipts_written == 0u && result.evaluation.consumed_steps == 0u &&
+        fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   value.generic_applications[0].argument_count = 0u;
@@ -551,7 +646,8 @@ static bool test_quota_unsupported_and_invalid(void) {
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
-        result.evaluation.consumed_steps == 0u);
+        result.evaluation.consumed_steps == 0u &&
+        fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   value.generic_parameters[0].predicate_function_index = FUNCTIONS + 1u;
@@ -559,7 +655,8 @@ static bool test_quota_unsupported_and_invalid(void) {
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
-        result.evaluation.consumed_steps == 0u);
+        result.evaluation.consumed_steps == 0u &&
+        fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   const uint32_t predicate_frontend_function =
@@ -580,7 +677,7 @@ static bool test_quota_unsupported_and_invalid(void) {
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_UNSUPPORTED &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION &&
-        result.receipts_written == 0u);
+        result.receipts_written == 0u && fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   (void)memset(value.receipts, 0xa5, sizeof(value.receipts));
@@ -589,7 +686,7 @@ static bool test_quota_unsupported_and_invalid(void) {
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_CAPACITY &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY &&
-        result.receipts_written == 0u);
+        result.receipts_written == 0u && fingerprint_not_available(&result));
   for (size_t index = 0u; index < sizeof(value.receipts); index += 1u)
     CHECK(((const uint8_t *)value.receipts)[index] == 0xa5u);
   for (size_t index = 0u; index < sizeof(value.conversion_values); index += 1u)
@@ -606,9 +703,22 @@ static bool test_quota_unsupported_and_invalid(void) {
   value.const_values[string_value_index].byte_count = 0u;
   CHECK(validate_application(&value, CONVERSION_VALUES,
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
-                             &result) == W_SEED_GENERIC_VALIDATION_UNSUPPORTED &&
-        result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_VALUE &&
-        result.receipts_written == 0u);
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
+        result.receipts_written == 0u && result.evaluation.consumed_steps == 0u &&
+        fingerprint_not_available(&result));
+
+  CHECK(fixture_lower_stage(&value, standard));
+  const uint32_t invalid_value_index =
+      value.generic_arguments[value.generic_applications[0].first_argument]
+          .const_value_index;
+  value.const_values[invalid_value_index].kind = W_SEED_FRONTEND_CONST_INVALID;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
+        result.receipts_written == 0u && result.evaluation.consumed_steps == 0u &&
+        fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   const uint32_t over_limit_index =
@@ -620,7 +730,7 @@ static bool test_quota_unsupported_and_invalid(void) {
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
-        result.evaluation.consumed_steps == 0u);
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   const uint32_t complete_over_limit_index =
@@ -646,7 +756,7 @@ static bool test_quota_unsupported_and_invalid(void) {
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_UNSUPPORTED &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_VALUE &&
-        result.evaluation.consumed_steps == 0u);
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
 
   CHECK(fixture_lower_stage(&value, standard));
   const uint32_t const_value_index =
@@ -656,7 +766,7 @@ static bool test_quota_unsupported_and_invalid(void) {
   CHECK(validate_application(&value, CONVERSION_VALUES,
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
-        result.evaluation.consumed_steps == 0u);
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
   return true;
 }
 
@@ -791,6 +901,10 @@ static bool test_direct_scalar_predicates(void) {
             &value, color_applications[0], CONVERSION_VALUES,
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result) ==
         W_SEED_GENERIC_VALIDATION_VERIFIED);
+  uint8_t full_color_fingerprint[
+      W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  (void)memcpy(full_color_fingerprint, result.fingerprint_digest,
+               sizeof(full_color_fingerprint));
   const uint32_t red_value_index =
       value.generic_arguments[value.generic_applications[color_applications[0]]
                                   .first_argument]
@@ -813,7 +927,7 @@ static bool test_direct_scalar_predicates(void) {
             &value, color_applications[1], CONVERSION_VALUES,
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result) ==
         W_SEED_GENERIC_VALIDATION_INVALID &&
-        result.evaluation.consumed_steps == 0u);
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
   value.const_values[green_value_index].enum_base_index = 0u;
   value.enum_cases[value.const_values[green_value_index].enum_case_index]
       .first_payload = W_SEED_FRONTEND_NONE;
@@ -824,7 +938,7 @@ static bool test_direct_scalar_predicates(void) {
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result) ==
         W_SEED_GENERIC_VALIDATION_INVALID &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
-        result.evaluation.consumed_steps == 0u);
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
 
   CHECK(fixture_lower(&value, enum_source));
   const uint32_t subset_type_index =
@@ -867,7 +981,55 @@ static bool test_direct_scalar_predicates(void) {
   CHECK(validate_application_at(
             &value, color_applications[0], CONVERSION_VALUES,
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result) ==
-        W_SEED_GENERIC_VALIDATION_VERIFIED);
+        W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE &&
+        memcmp(full_color_fingerprint, result.fingerprint_digest,
+               sizeof(full_color_fingerprint)) != 0);
+  const w_seed_span subset_enum_span = value.enums[0].span;
+  value.enums[0].span.start_byte = subset_enum_span.end_byte + 1u;
+  CHECK(validate_application_at(
+            &value, color_applications[0], CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result) ==
+        W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
+  value.enums[0].span = subset_enum_span;
+  CHECK(validate_application_at(
+            &value, color_applications[0], CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE);
+  uint8_t subset_fingerprint[
+      W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  (void)memcpy(subset_fingerprint, result.fingerprint_digest,
+               sizeof(subset_fingerprint));
+  const w_seed_frontend_enum_subset_member first_subset_member =
+      value.enum_subset_members[subset_member_index];
+  value.enum_subset_members[subset_member_index] =
+      value.enum_subset_members[subset_member_index + 1u];
+  value.enum_subset_members[subset_member_index + 1u] = first_subset_member;
+  CHECK(validate_application_at(
+            &value, color_applications[0], CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(subset_fingerprint, result.fingerprint_digest,
+               sizeof(subset_fingerprint)) == 0);
+  value.enum_subset_members[subset_member_index + 1u] =
+      value.enum_subset_members[subset_member_index];
+  value.enum_subset_members[subset_member_index] = first_subset_member;
+  const uint32_t blue_case_index = red_case_index + 2u;
+  CHECK(blue_case_index < value.frontend_result.written.enum_cases);
+  value.enum_subset_members[subset_member_index + 1u].enum_case_index =
+      blue_case_index;
+  CHECK(validate_application_at(
+            &value, color_applications[0], CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(subset_fingerprint, result.fingerprint_digest,
+               sizeof(subset_fingerprint)) != 0);
+  value.enum_subset_members[subset_member_index + 1u].enum_case_index =
+      green_case_index;
   CHECK(validate_application_at(
             &value, color_applications[1], CONVERSION_VALUES,
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result) ==
@@ -879,7 +1041,479 @@ static bool test_direct_scalar_predicates(void) {
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result) ==
         W_SEED_GENERIC_VALIDATION_INVALID &&
         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
+  return true;
+}
+
+static bool test_fingerprint_adversarial_inputs(void) {
+  static const char always_source[] =
+      "const fn always(value: Bool): Bool { return true }\n"
+      "struct Box<_ value: Bool<(always(.member))>> {}\n"
+      "struct Use { item: Box<true> }\n";
+  static const char always_spaced_source[] =
+      "\n// formatting does not change the semantic projection\n"
+      "const fn always(value: Bool): Bool { return true }\n\n"
+      "struct Box<_ value: Bool<(always(.member))>> {}\n"
+      "// optional labels remain outside the semantic projection\n"
+      "struct Use { item: Box<true> }\n";
+  static const char always_prefixed_source[] =
+      "struct Unrelated {}\n"
+      "const fn always(value: Bool): Bool { return true }\n"
+      "struct Box<_ value: Bool<(always(.member))>> {}\n"
+      "struct Use { item: Box<true> }\n";
+  static const char always_label_source[] =
+      "const fn always(value: Bool): Bool { return true }\n"
+      "struct Box<_ value: Bool<(always(.member))>> {}\n"
+      "struct Use { item: Box<value: true> }\n";
+  static const char other_head_source[] =
+      "const fn always(value: Bool): Bool { return true }\n"
+      "struct OtherBox<_ value: Bool<(always(.member))>> {}\n"
+      "struct Use { item: OtherBox<true> }\n";
+  static const char list_source[] =
+      "enum Color { red green }\n"
+      "const fn alwaysList(value: StaticList<Color>): Bool { return true }\n"
+      "struct ListBox<_ value: StaticList<Color><(alwaysList(.member))>> {}\n"
+      "struct Use { item: ListBox<[.red, .green]> }\n";
+  static const char nominal_source[] =
+      "const fn keep(value: Bool): Bool { return value }\n"
+      "type LocalId = u64\n"
+      "struct Box<T> {}\n"
+      "struct Use { item: Box<LocalId> }\n";
+  static const char alias_source[] =
+      "const fn keep(value: Bool): Bool { return value }\n"
+      "type LocalId = u64\n"
+      "alias AliasId = LocalId\n"
+      "struct Box<T> {}\n"
+      "struct Use { item: Box<AliasId> }\n";
+  static const char unknown_nominal_source[] =
+      "const fn keep(value: Bool): Bool { return value }\n"
+      "struct Box<T> {}\n"
+      "struct Use { item: Box<Unknown> }\n";
+  static const char nested_nominal_source[] =
+      "const fn keep(value: Bool): Bool { return value }\n"
+      "struct Inner<T> {}\n"
+      "struct Outer<T> {}\n"
+      "struct Use { item: Outer<Inner<u64>> }\n";
+  static const char integer_source[] =
+      "const fn alwaysInt(value: u8): Bool { return true }\n"
+      "struct IntBox<_ value: u8<(alwaysInt(.member))>> {}\n"
+      "struct Use { item: IntBox<7> }\n";
+  static const char same_head_integer_source[] =
+      "const fn always(value: u8): Bool { return true }\n"
+      "struct Box<_ value: u8<(always(.member))>> {}\n"
+      "struct Use { item: Box<7> }\n";
+  static const char enum_source[] =
+      "enum Color { red green blue }\n"
+      "const fn isRed(value: Color): Bool { return true }\n"
+      "struct ColorBox<_ value: Color<(isRed(.member))>> {}\n"
+      "struct Use { item: ColorBox<.red> }\n";
+  w_seed_generic_validation_result result;
+  CHECK(fixture_lower(&value, always_source));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED);
+  CHECK(result.fingerprint_state ==
+        W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE);
+  uint8_t first_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  (void)memcpy(first_digest, result.fingerprint_digest,
+               sizeof(first_digest));
+  uint8_t first_body_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  CHECK(predicate_body_digest_for_application(
+      &value, &value.generic_applications[0], first_body_digest));
+  uint8_t spaced_body_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  CHECK(fixture_lower(&value, always_spaced_source));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(first_digest, result.fingerprint_digest,
+               sizeof(first_digest)) == 0 &&
+        predicate_body_digest_for_application(
+            &value, &value.generic_applications[0], spaced_body_digest) &&
+        memcmp(first_body_digest, spaced_body_digest,
+               sizeof(first_body_digest)) == 0);
+  uint8_t prefixed_body_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  CHECK(fixture_lower(&value, always_prefixed_source));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(first_digest, result.fingerprint_digest,
+               sizeof(first_digest)) == 0 &&
+        predicate_body_digest_for_application(
+            &value, &value.generic_applications[0], prefixed_body_digest) &&
+        memcmp(first_body_digest, prefixed_body_digest,
+               sizeof(first_body_digest)) == 0);
+  CHECK(fixture_lower(&value, always_source));
+  const uint32_t stale_refinement_parameter =
+      value.structs[value.generic_applications[0].head_struct]
+          .first_generic_parameter;
+  value.generic_parameters[stale_refinement_parameter].refinement_kind =
+      W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
+        result.evaluation.consumed_steps == 0u &&
+        fingerprint_not_available(&result));
+  CHECK(fixture_lower(&value, always_source));
+  /* The source binder does not yet produce a BOUND_IMMEDIATE String literal.
+   * Complete the caller-owned relation for this no-predicate fixture so the
+   * fingerprint's String payload is tested without a malformed record. */
+  const uint32_t string_parameter_index =
+      value.structs[value.generic_applications[0].head_struct]
+          .first_generic_parameter;
+  const uint32_t string_type_index =
+      value.generic_parameters[string_parameter_index].domain_type;
+  value.types[string_type_index].kind = W_SEED_FRONTEND_TYPE_STRING;
+  value.types[string_type_index].spelling =
+      (w_seed_frontend_text){"String", 6u};
+  value.types[string_type_index].nominal_name =
+      (w_seed_frontend_text){NULL, 0u};
+  value.generic_parameters[string_parameter_index].refinement_kind =
+      W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE;
+  value.generic_parameters[string_parameter_index].predicate_function_index =
+      W_SEED_FRONTEND_NONE;
+  value.generic_parameters[string_parameter_index].subject_kind =
+      W_SEED_FRONTEND_GENERIC_SUBJECT_NONE;
+  value.generic_parameters[string_parameter_index].predicate_span =
+      (w_seed_span){0u, 0u};
+  value.generic_parameters[string_parameter_index].predicate_function_span =
+      (w_seed_span){0u, 0u};
+  value.generic_applications[0].requires_const_evaluation = false;
+  const uint32_t string_value_index =
+      value.generic_arguments[value.generic_applications[0].first_argument]
+          .const_value_index;
+  const size_t string_byte_offset = value.frontend_result.written.const_bytes;
+  CHECK(string_byte_offset + 5u <= CONST_BYTES);
+  (void)memcpy(value.const_bytes + string_byte_offset, "ready", 5u);
+  value.frontend_result.written.const_bytes = string_byte_offset + 5u;
+  value.const_values[string_value_index].kind = W_SEED_FRONTEND_CONST_STRING;
+  value.const_values[string_value_index].type_index = string_type_index;
+  value.const_values[string_value_index].first_byte =
+      (uint32_t)string_byte_offset;
+  value.const_values[string_value_index].byte_count = 5u;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE);
+  uint8_t string_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  (void)memcpy(string_digest, result.fingerprint_digest,
+               sizeof(string_digest));
+  value.const_bytes[string_byte_offset] = 's';
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(string_digest, result.fingerprint_digest,
+               sizeof(string_digest)) != 0);
+  CHECK(fixture_lower(&value, integer_source));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE);
+  uint8_t integer_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  (void)memcpy(integer_digest, result.fingerprint_digest,
+               sizeof(integer_digest));
+  const uint32_t integer_value_index =
+      value.generic_arguments[value.generic_applications[0].first_argument]
+          .const_value_index;
+  value.const_values[integer_value_index].integer_bytes[0] = 8u;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(integer_digest, result.fingerprint_digest,
+               sizeof(integer_digest)) != 0);
+  CHECK(memcmp(first_digest, integer_digest, sizeof(first_digest)) != 0);
+  CHECK(fixture_lower(&value, same_head_integer_source));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE &&
+        memcmp(first_digest, result.fingerprint_digest,
+               sizeof(first_digest)) != 0);
+  CHECK(fixture_lower(&value, enum_source));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE);
+  uint8_t enum_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  (void)memcpy(enum_digest, result.fingerprint_digest, sizeof(enum_digest));
+  const uint32_t enum_value_index =
+      value.generic_arguments[value.generic_applications[0].first_argument]
+          .const_value_index;
+  const uint32_t enum_case_index =
+      value.const_values[enum_value_index].enum_case_index;
+  CHECK(enum_case_index + 1u < value.frontend_result.written.enum_cases);
+  value.const_values[enum_value_index].enum_case_index = enum_case_index + 1u;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(enum_digest, result.fingerprint_digest,
+               sizeof(enum_digest)) != 0);
+  value.const_values[enum_value_index].enum_case_index = enum_case_index;
+  const w_seed_span enum_span = value.enums[0].span;
+  value.enums[0].span.start_byte = enum_span.end_byte + 1u;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
+  value.enums[0].span = enum_span;
+  const uint32_t enum_case_module =
+      value.enum_cases[enum_case_index].module_index;
+  value.enum_cases[enum_case_index].module_index = 1u;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
+  value.enum_cases[enum_case_index].module_index = enum_case_module;
+  const w_seed_frontend_text enum_case_name =
+      value.enum_cases[enum_case_index].name;
+  value.enum_cases[enum_case_index].name = (w_seed_frontend_text){NULL, 0u};
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
+  value.enum_cases[enum_case_index].name = enum_case_name;
+  const w_seed_frontend_text enum_name = value.enums[0].name;
+  value.enums[0].name = (w_seed_frontend_text){NULL, 0u};
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
+  value.enums[0].name = enum_name;
+  CHECK(fixture_lower(&value, always_label_source));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(first_digest, result.fingerprint_digest,
+               sizeof(first_digest)) == 0);
+  CHECK(fixture_lower_with_module(&value, always_source, "other"));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE &&
+        memcmp(first_digest, result.fingerprint_digest,
+               sizeof(first_digest)) != 0);
+
+  CHECK(fixture_lower(&value, other_head_source));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(first_digest, result.fingerprint_digest,
+               sizeof(first_digest)) != 0);
+
+  CHECK(fixture_lower(&value, list_source));
+  CHECK(value.frontend_result.written.generic_applications == 1u);
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE);
+  uint8_t list_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  (void)memcpy(list_digest, result.fingerprint_digest, sizeof(list_digest));
+  const uint32_t list_value_index =
+      value.generic_arguments[value.generic_applications[0].first_argument]
+          .const_value_index;
+  CHECK(value.const_values[list_value_index].element_count == 2u);
+  const uint32_t list_first_element =
+      value.const_values[list_value_index].first_element;
+  CHECK(list_first_element != W_SEED_FRONTEND_NONE);
+  const uint32_t list_first_case =
+      value.const_values[value.const_elements[list_first_element].value_index]
+          .enum_case_index;
+  const uint32_t list_second_case = value.const_values[
+      value.const_elements[list_first_element + 1u].value_index]
+                                          .enum_case_index;
+  value.const_values[value.const_elements[list_first_element].value_index]
+      .enum_case_index = list_second_case;
+  value.const_values[value.const_elements[list_first_element + 1u].value_index]
+      .enum_case_index = list_first_case;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(list_digest, result.fingerprint_digest, sizeof(list_digest)) != 0);
+  uint8_t list_reordered_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  (void)memcpy(list_reordered_digest, result.fingerprint_digest,
+               sizeof(list_reordered_digest));
+  value.const_values[value.const_elements[list_first_element + 1u].value_index]
+      .enum_case_index = list_second_case;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(list_reordered_digest, result.fingerprint_digest,
+               sizeof(list_reordered_digest)) != 0);
+
+  CHECK(fixture_lower(&value, always_source));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE);
+  uint8_t stable_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  (void)memcpy(stable_digest, result.fingerprint_digest,
+               sizeof(stable_digest));
+  const uint32_t stable_value_index =
+      value.generic_arguments[value.generic_applications[0].first_argument]
+          .const_value_index;
+  value.const_values[stable_value_index].bool_value = false;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(stable_digest, result.fingerprint_digest,
+               sizeof(stable_digest)) != 0);
+
+  CHECK(fixture_lower(&value, always_source));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED);
+  uint8_t body_digest_before[
+      W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  (void)memcpy(body_digest_before, result.fingerprint_digest,
+               sizeof(body_digest_before));
+  const uint32_t predicate_function =
+      value.generic_parameters[value.structs[0].first_generic_parameter]
+          .predicate_function_index;
+  for (size_t index = 0u; index < value.constir_result.written.functions;
+       index += 1u) {
+    if (value.constir_functions[index].frontend_function == predicate_function) {
+      value.constir_functions[index].body_digest[0] ^= 0x01u;
+      break;
+    }
+  }
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(body_digest_before, result.fingerprint_digest,
+               sizeof(body_digest_before)) != 0);
+
+  /* A local `type` declaration is a resolvable nominal in the same module. */
+  CHECK(fixture_lower(&value, nominal_source));
+  CHECK(value.frontend_result.written.generic_applications == 1u);
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE);
+  uint8_t nominal_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  (void)memcpy(nominal_digest, result.fingerprint_digest,
+               sizeof(nominal_digest));
+
+  /* Alias names are transparent identities.  The projection reports the
+   * nominal alias as unsupported, while the valid application stays VERIFIED. */
+  CHECK(fixture_lower(&value, alias_source));
+  CHECK(value.frontend_result.written.generic_applications == 1u);
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        fingerprint_unsupported(&result));
+
+  /* Unknown source nominals may be rejected by the current binder.  If a
+   * valid application is representable, it must remain VERIFIED with an
+   * UNSUPPORTED fingerprint; otherwise it is the ordinary binding gap. */
+  CHECK(fixture_lower(&value, unknown_nominal_source));
+  CHECK(value.frontend_result.written.generic_applications == 1u);
+  const w_seed_generic_validation_state unknown_state =
+      validate_application(&value, CONVERSION_VALUES,
+                           (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                           &result);
+  if (unknown_state == W_SEED_GENERIC_VALIDATION_VERIFIED)
+    CHECK(fingerprint_unsupported(&result));
+  else
+    CHECK((unknown_state == W_SEED_GENERIC_VALIDATION_UNSUPPORTED ||
+           unknown_state == W_SEED_GENERIC_VALIDATION_INVALID) &&
+          fingerprint_not_available(&result));
+
+  CHECK(fixture_lower(&value, nested_nominal_source));
+  CHECK(value.frontend_result.written.generic_applications >= 1u);
+  uint32_t outer_application_index = W_SEED_FRONTEND_NONE;
+  for (size_t application_index = 0u;
+       application_index < value.frontend_result.written.generic_applications;
+       application_index += 1u) {
+    const w_seed_frontend_generic_application *application =
+        &value.generic_applications[application_index];
+    if (application->head_name.length == 5u &&
+        memcmp(application->head_name.data, "Outer", 5u) == 0) {
+      outer_application_index = (uint32_t)application_index;
+      break;
+    }
+  }
+  CHECK(outer_application_index != W_SEED_FRONTEND_NONE);
+  const w_seed_generic_validation_state nested_state =
+      validate_application_at(
+          &value, outer_application_index, CONVERSION_VALUES,
+          (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result);
+  if (nested_state == W_SEED_GENERIC_VALIDATION_VERIFIED)
+    CHECK(fingerprint_unsupported(&result));
+  else
+    CHECK((nested_state == W_SEED_GENERIC_VALIDATION_UNSUPPORTED ||
+           nested_state == W_SEED_GENERIC_VALIDATION_INVALID) &&
+          fingerprint_not_available(&result));
+
+  CHECK(fixture_lower(&value, always_source));
+  const size_t saved_type_declaration_count =
+      value.frontend_result.written.type_declarations;
+  w_seed_frontend_type_declaration *saved_type_declarations =
+      value.frontend_output.type_declarations;
+  const size_t saved_type_declaration_capacity =
+      value.frontend_output.type_declaration_capacity;
+  value.frontend_result.written.type_declarations = 1u;
+  value.frontend_output.type_declarations = NULL;
+  value.frontend_output.type_declaration_capacity = 0u;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_NOT_AVAILABLE &&
+        result.evaluation.consumed_steps == 0u &&
+        memcmp(result.fingerprint_digest,
+               (uint8_t[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES]){0},
+               W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES) == 0);
+  value.frontend_result.written.type_declarations =
+      saved_type_declaration_count;
+  value.frontend_output.type_declarations = saved_type_declarations;
+  value.frontend_output.type_declaration_capacity =
+      saved_type_declaration_capacity;
+  value.frontend_result.written.type_declarations = 1u;
+  value.frontend_output.type_declaration_capacity = 0u;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        fingerprint_not_available(&result) &&
         result.evaluation.consumed_steps == 0u);
+  value.frontend_result.written.type_declarations =
+      saved_type_declaration_count;
+  value.frontend_output.type_declaration_capacity =
+      saved_type_declaration_capacity;
+  const size_t saved_alias_count = value.frontend_result.written.aliases;
+  w_seed_frontend_alias *saved_aliases = value.frontend_output.aliases;
+  const size_t saved_alias_capacity = value.frontend_output.alias_capacity;
+  value.frontend_result.written.aliases = 1u;
+  value.frontend_output.aliases = NULL;
+  value.frontend_output.alias_capacity = 0u;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_NOT_AVAILABLE &&
+        result.evaluation.consumed_steps == 0u &&
+        memcmp(result.fingerprint_digest,
+               (uint8_t[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES]){0},
+               W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES) == 0);
+  value.frontend_result.written.aliases = saved_alias_count;
+  value.frontend_output.aliases = saved_aliases;
+  value.frontend_output.alias_capacity = saved_alias_capacity;
+  value.frontend_result.written.aliases = 1u;
+  value.frontend_output.alias_capacity = 0u;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        fingerprint_not_available(&result) &&
+        result.evaluation.consumed_steps == 0u);
+  value.frontend_result.written.aliases = saved_alias_count;
+  value.frontend_output.alias_capacity = saved_alias_capacity;
   return true;
 }
 
@@ -889,7 +1523,8 @@ int main(int argc, char **argv) {
   if (argc != 1) return 1;
   if (!test_verified_and_rejected_paths() ||
       !test_quota_unsupported_and_invalid() ||
-      !test_direct_scalar_predicates())
+      !test_direct_scalar_predicates() ||
+      !test_fingerprint_adversarial_inputs())
     return 1;
   return 0;
 }

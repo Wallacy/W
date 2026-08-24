@@ -30,7 +30,21 @@ typedef struct {
   const w_seed_constir_function *function;
 } predicate_candidate;
 
+typedef enum {
+  FINGERPRINT_ENCODED = 0,
+  FINGERPRINT_UNSUPPORTED,
+  FINGERPRINT_INVALID,
+} fingerprint_encode_status;
+
+typedef struct {
+  w_seed_sha256_state sha;
+  bool unsupported;
+  bool invalid;
+} fingerprint_builder;
+
 static const char FALLBACK_BYTES[] = "predicate:false";
+static const uint8_t FINGERPRINT_PREFIX[] =
+    "w-seed-generic-fingerprint-1";
 
 _Static_assert(W_SEED_GENERIC_VALIDATION_MAX_PREDICATES <=
                    W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_RECORDS,
@@ -54,6 +68,13 @@ static bool text_valid(w_seed_frontend_text text) {
   return text.length == 0u || text.data != NULL;
 }
 
+static bool text_equal(w_seed_frontend_text left, w_seed_frontend_text right) {
+  return left.length == right.length &&
+         (left.length == 0u ||
+          (left.data != NULL && right.data != NULL &&
+           memcmp(left.data, right.data, left.length) == 0));
+}
+
 static bool pointer_count_valid(const void *pointer, size_t count,
                                 size_t capacity) {
   return count == 0u || (pointer != NULL && capacity >= count);
@@ -71,6 +92,11 @@ static bool frontend_arrays_valid(const validation_context *context) {
                              output->module_capacity) &&
          pointer_count_valid(output->structs, written->structs,
                              output->struct_capacity) &&
+         pointer_count_valid(output->type_declarations,
+                             written->type_declarations,
+                             output->type_declaration_capacity) &&
+         pointer_count_valid(output->aliases, written->aliases,
+                             output->alias_capacity) &&
          pointer_count_valid(output->types, written->types,
                              output->type_capacity) &&
          pointer_count_valid(output->functions, written->functions,
@@ -132,9 +158,13 @@ static bool type_index_valid_depth(const validation_context *context,
   if (type->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET) {
     if (type->enum_base_index == W_SEED_FRONTEND_NONE ||
         (size_t)type->enum_base_index >= context->frontend_result->written.enums ||
-        context->frontend->enum_subset_members == NULL ||
-        !range_valid(type->first_subset_member, type->subset_member_count,
-                     context->frontend_result->written.enum_subset_members))
+        (type->subset_member_count == 0u &&
+         type->first_subset_member != W_SEED_FRONTEND_NONE) ||
+        (type->subset_member_count != 0u &&
+         (context->frontend->enum_subset_members == NULL ||
+          type->first_subset_member == W_SEED_FRONTEND_NONE ||
+          !range_valid(type->first_subset_member, type->subset_member_count,
+                       context->frontend_result->written.enum_subset_members))))
       return false;
   }
   if (type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
@@ -164,11 +194,16 @@ static bool enum_case_valid(const validation_context *context,
       &context->frontend->enums[enum_base];
   if (!range_valid(enumeration->first_case, enumeration->case_count,
                    context->frontend_result->written.enum_cases) ||
+      enumeration->module_index >= context->frontend_result->written.modules ||
+      enumeration->name.length == 0u || !text_valid(enumeration->name) ||
+      !span_valid(enumeration->span) ||
       enum_case < enumeration->first_case ||
       (size_t)enum_case - enumeration->first_case >=
           enumeration->case_count ||
-      value->owner_enum != enum_base || !span_valid(value->span) ||
-      !text_valid(value->name) ||
+      value->owner_enum != enum_base ||
+      value->module_index != enumeration->module_index ||
+      !span_valid(value->span) ||
+      value->name.length == 0u || !text_valid(value->name) ||
       !range_valid(value->first_payload, value->payload_count,
                    context->frontend_result->written.enum_case_parameters))
     return false;
@@ -516,6 +551,17 @@ static bool parameter_relation_valid(const validation_context *context,
           !span_valid(parameter->predicate_function_span) ||
           parameter->subject_kind != W_SEED_FRONTEND_GENERIC_SUBJECT_MEMBER)
         return false;
+    } else if (parameter->refinement_kind ==
+               W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE) {
+      if (parameter->predicate_function_index != W_SEED_FRONTEND_NONE ||
+          parameter->subject_kind != W_SEED_FRONTEND_GENERIC_SUBJECT_NONE ||
+          !span_valid(parameter->predicate_span) ||
+          parameter->predicate_span.start_byte !=
+              parameter->predicate_span.end_byte ||
+          !span_valid(parameter->predicate_function_span) ||
+          parameter->predicate_function_span.start_byte !=
+              parameter->predicate_function_span.end_byte)
+        return false;
     } else if (parameter->refinement_kind !=
                    W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE &&
                parameter->refinement_kind !=
@@ -525,6 +571,15 @@ static bool parameter_relation_valid(const validation_context *context,
   } else if (parameter->kind == W_SEED_FRONTEND_GENERIC_KIND_TYPE) {
     if (parameter->domain_type != W_SEED_FRONTEND_NONE ||
         parameter->refinement_kind != W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE)
+      return false;
+    if (parameter->predicate_function_index != W_SEED_FRONTEND_NONE ||
+        parameter->subject_kind != W_SEED_FRONTEND_GENERIC_SUBJECT_NONE ||
+        !span_valid(parameter->predicate_span) ||
+        parameter->predicate_span.start_byte !=
+            parameter->predicate_span.end_byte ||
+        !span_valid(parameter->predicate_function_span) ||
+        parameter->predicate_function_span.start_byte !=
+            parameter->predicate_function_span.end_byte)
       return false;
   } else {
     return false;
@@ -559,7 +614,7 @@ static bool application_relations_valid(
   const w_seed_frontend_struct *head =
       &context->frontend->structs[application->head_struct];
   if (head->module_index != application->module_index ||
-      !text_valid(head->name) ||
+      !text_valid(head->name) || !span_valid(head->span) ||
       head->name.length != application->head_name.length ||
       (head->name.length != 0u &&
        memcmp(head->name.data, application->head_name.data,
@@ -818,6 +873,551 @@ static bool set_rejection(
   return true;
 }
 
+static void fingerprint_bytes(fingerprint_builder *builder,
+                              const uint8_t *bytes, size_t length);
+
+static void fingerprint_u8(fingerprint_builder *builder, uint8_t value) {
+  if (builder == NULL || builder->unsupported || builder->invalid) return;
+  fingerprint_bytes(builder, &value, 1u);
+}
+
+static void fingerprint_u16(fingerprint_builder *builder, uint16_t value) {
+  uint8_t bytes[2];
+  if (builder == NULL || builder->unsupported || builder->invalid) return;
+  bytes[0] = (uint8_t)(value >> 8);
+  bytes[1] = (uint8_t)value;
+  fingerprint_bytes(builder, bytes, sizeof(bytes));
+}
+
+static void fingerprint_u32(fingerprint_builder *builder, uint32_t value) {
+  uint8_t bytes[4];
+  if (builder == NULL || builder->unsupported || builder->invalid) return;
+  bytes[0] = (uint8_t)(value >> 24);
+  bytes[1] = (uint8_t)(value >> 16);
+  bytes[2] = (uint8_t)(value >> 8);
+  bytes[3] = (uint8_t)value;
+  fingerprint_bytes(builder, bytes, sizeof(bytes));
+}
+
+static void fingerprint_bytes(fingerprint_builder *builder,
+                              const uint8_t *bytes, size_t length) {
+  if (builder == NULL || builder->unsupported || builder->invalid ||
+      (length != 0u && bytes == NULL)) {
+    if (builder != NULL && length != 0u && bytes == NULL)
+      builder->invalid = true;
+    return;
+  }
+  w_seed_sha256_update(&builder->sha, bytes, length);
+}
+
+static fingerprint_encode_status fingerprint_text(
+    fingerprint_builder *builder, w_seed_frontend_text text) {
+  if (builder == NULL || !text_valid(text) || text.length > (size_t)UINT32_MAX)
+    return FINGERPRINT_INVALID;
+  fingerprint_u32(builder, (uint32_t)text.length);
+  fingerprint_bytes(builder, (const uint8_t *)text.data, text.length);
+  return FINGERPRINT_ENCODED;
+}
+
+static void fingerprint_mark_unsupported(fingerprint_builder *builder) {
+  if (builder != NULL && !builder->invalid) builder->unsupported = true;
+}
+
+static fingerprint_encode_status fingerprint_module_text(
+    const validation_context *context, uint32_t module_index,
+    fingerprint_builder *builder) {
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || context->frontend->modules == NULL ||
+      (size_t)module_index >= context->frontend_result->written.modules)
+    return FINGERPRINT_INVALID;
+  const w_seed_frontend_text module_id =
+      context->frontend->modules[module_index].module_id;
+  if (module_id.length == 0u || !text_valid(module_id))
+    return FINGERPRINT_INVALID;
+  return fingerprint_text(builder, module_id);
+}
+
+static fingerprint_encode_status fingerprint_enum_identity(
+    const validation_context *context, uint32_t module_index, uint32_t enum_index,
+    fingerprint_builder *builder) {
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || context->frontend->enums == NULL ||
+      (size_t)enum_index >= context->frontend_result->written.enums)
+    return FINGERPRINT_INVALID;
+  const w_seed_frontend_enum *enumeration =
+      &context->frontend->enums[enum_index];
+  if (enumeration->module_index != module_index) {
+    fingerprint_mark_unsupported(builder);
+    return FINGERPRINT_UNSUPPORTED;
+  }
+  if (enumeration->name.length == 0u || !text_valid(enumeration->name) ||
+      !span_valid(enumeration->span) ||
+      !range_valid(enumeration->first_case, enumeration->case_count,
+                   context->frontend_result->written.enum_cases))
+    return FINGERPRINT_INVALID;
+  for (uint32_t offset = 0u; offset < enumeration->case_count; offset += 1u) {
+    if (!enum_case_valid(context, enum_index,
+                         enumeration->first_case + offset, false))
+      return FINGERPRINT_INVALID;
+  }
+  fingerprint_encode_status status =
+      fingerprint_module_text(context, module_index, builder);
+  if (status != FINGERPRINT_ENCODED) return status;
+  return fingerprint_text(builder, enumeration->name);
+}
+
+static fingerprint_encode_status fingerprint_enum_case_name(
+    const validation_context *context, uint32_t enum_base_index,
+    uint32_t enum_case_index, fingerprint_builder *builder) {
+  if (!enum_case_valid(context, enum_base_index, enum_case_index, false))
+    return FINGERPRINT_INVALID;
+  if (context->frontend == NULL || context->frontend->enum_cases == NULL)
+    return FINGERPRINT_INVALID;
+  return fingerprint_text(builder,
+                          context->frontend->enum_cases[enum_case_index].name);
+}
+
+typedef enum {
+  FINGERPRINT_NOMINAL_STRUCT = 0,
+  FINGERPRINT_NOMINAL_TYPE,
+  FINGERPRINT_NOMINAL_UNSUPPORTED,
+} fingerprint_nominal_kind;
+
+static fingerprint_encode_status local_nominal_resolution(
+    const validation_context *context, uint32_t module_index,
+    w_seed_frontend_text name, fingerprint_nominal_kind *kind_out) {
+  if (kind_out != NULL) *kind_out = FINGERPRINT_NOMINAL_UNSUPPORTED;
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || !text_valid(name))
+    return FINGERPRINT_INVALID;
+  size_t struct_matches = 0u;
+  size_t type_matches = 0u;
+  size_t alias_matches = 0u;
+  bool struct_generic = false;
+  bool type_generic = false;
+  for (size_t index = 0u; index < context->frontend_result->written.structs;
+       index += 1u) {
+    const w_seed_frontend_struct *item = &context->frontend->structs[index];
+    if (item->module_index != module_index ||
+        !text_equal(item->name, name))
+      continue;
+    if (item->name.length == 0u || !text_valid(item->name) ||
+        !span_valid(item->span) ||
+        !range_valid(item->first_generic_parameter,
+                     item->generic_parameter_count,
+                     context->frontend_result->written.generic_parameters))
+      return FINGERPRINT_INVALID;
+    struct_matches += 1u;
+    struct_generic = struct_generic || item->generic_parameter_count != 0u;
+  }
+  for (size_t index = 0u;
+       index < context->frontend_result->written.type_declarations;
+       index += 1u) {
+    const w_seed_frontend_type_declaration *item =
+        &context->frontend->type_declarations[index];
+    if (item->module_index != module_index ||
+        !text_equal(item->name, name))
+      continue;
+    if (item->name.length == 0u || !text_valid(item->name) ||
+        !span_valid(item->span) ||
+        !type_index_valid(context, item->type_index))
+      return FINGERPRINT_INVALID;
+    type_matches += 1u;
+    type_generic =
+        type_generic ||
+        context->frontend->types[item->type_index].generic_application_index !=
+            W_SEED_FRONTEND_NONE;
+  }
+  for (size_t index = 0u; index < context->frontend_result->written.aliases;
+       index += 1u) {
+    const w_seed_frontend_alias *item = &context->frontend->aliases[index];
+    if (item->module_index != module_index ||
+        !text_equal(item->name, name))
+      continue;
+    if (item->name.length == 0u || !text_valid(item->name) ||
+        !span_valid(item->span) || !type_index_valid(context, item->type_index))
+      return FINGERPRINT_INVALID;
+    alias_matches += 1u;
+  }
+  if (alias_matches != 0u || struct_matches + type_matches != 1u)
+    return FINGERPRINT_UNSUPPORTED;
+  if (struct_matches == 1u && !struct_generic) {
+    if (kind_out != NULL) *kind_out = FINGERPRINT_NOMINAL_STRUCT;
+    return FINGERPRINT_ENCODED;
+  }
+  if (type_matches == 1u && !type_generic) {
+    if (kind_out != NULL) *kind_out = FINGERPRINT_NOMINAL_TYPE;
+    return FINGERPRINT_ENCODED;
+  }
+  return FINGERPRINT_UNSUPPORTED;
+}
+
+static fingerprint_encode_status fingerprint_type(
+    const validation_context *context, uint32_t module_index,
+    uint32_t type_index, fingerprint_builder *builder, size_t depth);
+
+static fingerprint_encode_status fingerprint_type(
+    const validation_context *context, uint32_t module_index,
+    uint32_t type_index, fingerprint_builder *builder, size_t depth) {
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || builder == NULL || depth == 0u ||
+      depth > W_SEED_GENERIC_VALIDATION_MAX_DEPTH ||
+      !type_index_valid(context, type_index))
+    return FINGERPRINT_INVALID;
+  const w_seed_frontend_type *type = &context->frontend->types[type_index];
+  fingerprint_u8(builder, 0x74u);
+  switch (type->kind) {
+    case W_SEED_FRONTEND_TYPE_UNIT:
+      fingerprint_u8(builder, 1u);
+      return FINGERPRINT_ENCODED;
+    case W_SEED_FRONTEND_TYPE_BOOL:
+      fingerprint_u8(builder, 2u);
+      return FINGERPRINT_ENCODED;
+    case W_SEED_FRONTEND_TYPE_STRING:
+      fingerprint_u8(builder, 3u);
+      return FINGERPRINT_ENCODED;
+    case W_SEED_FRONTEND_TYPE_BYTES:
+      fingerprint_u8(builder, 4u);
+      return FINGERPRINT_ENCODED;
+    case W_SEED_FRONTEND_TYPE_INTEGER:
+      if (type->bit_width == 0u) return FINGERPRINT_INVALID;
+      fingerprint_u8(builder, 5u);
+      fingerprint_u8(builder, type->is_signed ? 1u : 0u);
+      fingerprint_u16(builder, type->bit_width);
+      return FINGERPRINT_ENCODED;
+    case W_SEED_FRONTEND_TYPE_FLOAT:
+      if (type->bit_width == 0u) return FINGERPRINT_INVALID;
+      fingerprint_u8(builder, 6u);
+      fingerprint_u8(builder, type->is_signed ? 1u : 0u);
+      fingerprint_u16(builder, type->bit_width);
+      return FINGERPRINT_ENCODED;
+    case W_SEED_FRONTEND_TYPE_OPTION:
+    case W_SEED_FRONTEND_TYPE_STATIC_LIST:
+    case W_SEED_FRONTEND_TYPE_RANGE: {
+      if (type->element_type == W_SEED_FRONTEND_NONE)
+        return FINGERPRINT_INVALID;
+      const uint8_t kind =
+          type->kind == W_SEED_FRONTEND_TYPE_OPTION
+              ? 7u
+              : type->kind == W_SEED_FRONTEND_TYPE_STATIC_LIST ? 11u : 12u;
+      fingerprint_u8(builder, kind);
+      return fingerprint_type(context, module_index, type->element_type,
+                              builder, depth + 1u);
+    }
+    case W_SEED_FRONTEND_TYPE_NOMINAL: {
+      if (type->generic_application_index != W_SEED_FRONTEND_NONE) {
+        if ((size_t)type->generic_application_index >=
+            context->frontend_result->written.generic_applications)
+          return FINGERPRINT_INVALID;
+        fingerprint_mark_unsupported(builder);
+        return FINGERPRINT_UNSUPPORTED;
+      }
+      if (type->nominal_name.length == 0u || !text_valid(type->nominal_name))
+        return FINGERPRINT_INVALID;
+      fingerprint_nominal_kind nominal_kind = FINGERPRINT_NOMINAL_UNSUPPORTED;
+      fingerprint_encode_status nominal_status = local_nominal_resolution(
+          context, module_index, type->nominal_name, &nominal_kind);
+      if (nominal_status != FINGERPRINT_ENCODED) {
+        if (nominal_status == FINGERPRINT_UNSUPPORTED)
+          fingerprint_mark_unsupported(builder);
+        return nominal_status;
+      }
+      if (nominal_kind == FINGERPRINT_NOMINAL_UNSUPPORTED) {
+        fingerprint_mark_unsupported(builder);
+        return FINGERPRINT_UNSUPPORTED;
+      }
+      fingerprint_u8(builder, 8u);
+      fingerprint_encode_status status =
+          fingerprint_module_text(context, module_index, builder);
+      if (status != FINGERPRINT_ENCODED) return status;
+      return fingerprint_text(builder, type->nominal_name);
+    }
+    case W_SEED_FRONTEND_TYPE_ENUM:
+      fingerprint_u8(builder, 9u);
+      return fingerprint_enum_identity(context, module_index,
+                                       type->enum_base_index, builder);
+    case W_SEED_FRONTEND_TYPE_ENUM_SUBSET: {
+      if (type->enum_base_index == W_SEED_FRONTEND_NONE ||
+          context->frontend->enums == NULL ||
+          (size_t)type->enum_base_index >=
+              context->frontend_result->written.enums)
+        return FINGERPRINT_INVALID;
+      const w_seed_frontend_enum *enumeration =
+          &context->frontend->enums[type->enum_base_index];
+      if ((type->subset_member_count == 0u &&
+           type->first_subset_member != W_SEED_FRONTEND_NONE) ||
+          (type->subset_member_count != 0u &&
+           (type->first_subset_member == W_SEED_FRONTEND_NONE ||
+            !range_valid(type->first_subset_member, type->subset_member_count,
+                         context->frontend_result->written.enum_subset_members))))
+        return FINGERPRINT_INVALID;
+      if (enumeration->module_index != module_index) {
+        fingerprint_mark_unsupported(builder);
+        return FINGERPRINT_UNSUPPORTED;
+      }
+      if (enumeration->name.length == 0u || !text_valid(enumeration->name) ||
+          !span_valid(enumeration->span) ||
+          !range_valid(enumeration->first_case, enumeration->case_count,
+                       context->frontend_result->written.enum_cases))
+        return FINGERPRINT_INVALID;
+      fingerprint_u8(builder, 10u);
+      fingerprint_encode_status status =
+          fingerprint_module_text(context, module_index, builder);
+      if (status != FINGERPRINT_ENCODED) return status;
+      status = fingerprint_text(builder, enumeration->name);
+      if (status != FINGERPRINT_ENCODED) return status;
+      fingerprint_u32(builder, type->subset_member_count);
+      uint32_t emitted_members = 0u;
+      for (uint32_t case_offset = 0u; case_offset < enumeration->case_count;
+           case_offset += 1u) {
+        const uint32_t case_index = enumeration->first_case + case_offset;
+        uint32_t matches = 0u;
+        for (uint32_t member_offset = 0u;
+             member_offset < type->subset_member_count; member_offset += 1u) {
+          const w_seed_frontend_enum_subset_member *member =
+              &context->frontend->enum_subset_members[
+                  (size_t)type->first_subset_member + member_offset];
+          if (member->owner_type != type_index ||
+              member->enum_base_index != type->enum_base_index ||
+              !enum_case_valid(context, member->enum_base_index,
+                               member->enum_case_index, false) ||
+              !span_valid(member->source_span))
+            return FINGERPRINT_INVALID;
+          if (member->enum_case_index == case_index) matches += 1u;
+        }
+        if (matches > 1u) return FINGERPRINT_INVALID;
+        if (matches == 1u) {
+          if (fingerprint_enum_case_name(context, type->enum_base_index,
+                                         case_index, builder) !=
+              FINGERPRINT_ENCODED)
+            return FINGERPRINT_INVALID;
+          emitted_members += 1u;
+        }
+      }
+      if (emitted_members != type->subset_member_count)
+        return FINGERPRINT_INVALID;
+      return FINGERPRINT_ENCODED;
+    }
+    case W_SEED_FRONTEND_TYPE_FUNCTION:
+    case W_SEED_FRONTEND_TYPE_UNKNOWN:
+      fingerprint_mark_unsupported(builder);
+      return FINGERPRINT_UNSUPPORTED;
+    case W_SEED_FRONTEND_TYPE_INVALID:
+      return FINGERPRINT_INVALID;
+  }
+  return FINGERPRINT_INVALID;
+}
+
+static fingerprint_encode_status fingerprint_const_value(
+    const validation_context *context, uint32_t module_index,
+    uint32_t value_index, uint32_t expected_type_index,
+    fingerprint_builder *builder, size_t depth);
+
+static fingerprint_encode_status fingerprint_const_value(
+    const validation_context *context, uint32_t module_index,
+    uint32_t value_index, uint32_t expected_type_index,
+    fingerprint_builder *builder, size_t depth) {
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || builder == NULL || depth == 0u ||
+      depth > W_SEED_GENERIC_VALIDATION_MAX_DEPTH ||
+      !frontend_const_value_basic_valid(context, value_index) ||
+      !type_index_valid(context, expected_type_index))
+    return FINGERPRINT_INVALID;
+  const w_seed_frontend_const_value *value =
+      &context->frontend->const_values[value_index];
+  if (value->type_index != expected_type_index) return FINGERPRINT_INVALID;
+  const w_seed_frontend_type *type =
+      &context->frontend->types[expected_type_index];
+  fingerprint_u8(builder, 0x76u);
+  switch (value->kind) {
+    case W_SEED_FRONTEND_CONST_BOOL:
+      if (type->kind != W_SEED_FRONTEND_TYPE_BOOL) {
+        return FINGERPRINT_INVALID;
+      }
+      fingerprint_u8(builder, 1u);
+      break;
+    case W_SEED_FRONTEND_CONST_INTEGER:
+      if (type->kind != W_SEED_FRONTEND_TYPE_INTEGER) {
+        return FINGERPRINT_INVALID;
+      }
+      if (!frontend_integer_canonical(value, type)) return FINGERPRINT_INVALID;
+      fingerprint_u8(builder, 2u);
+      break;
+    case W_SEED_FRONTEND_CONST_STRING:
+      if (type->kind != W_SEED_FRONTEND_TYPE_STRING) {
+        return FINGERPRINT_INVALID;
+      }
+      if (!range_valid(value->first_byte, value->byte_count,
+                       context->frontend_result->written.const_bytes))
+        return FINGERPRINT_INVALID;
+      fingerprint_u8(builder, 3u);
+      break;
+    case W_SEED_FRONTEND_CONST_ENUM_CASE:
+      if (type->kind != W_SEED_FRONTEND_TYPE_ENUM &&
+          type->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET) {
+        return FINGERPRINT_INVALID;
+      }
+      if (!enum_case_valid(context, value->enum_base_index,
+                           value->enum_case_index, false) ||
+          !enum_case_member_of_type(context, type, expected_type_index,
+                                    value->enum_base_index,
+                                    value->enum_case_index))
+        return FINGERPRINT_INVALID;
+      fingerprint_u8(builder, 4u);
+      break;
+    case W_SEED_FRONTEND_CONST_STATIC_LIST:
+      if (type->kind != W_SEED_FRONTEND_TYPE_STATIC_LIST) {
+        return FINGERPRINT_INVALID;
+      }
+      if (value->element_count > W_SEED_FRONTEND_MAX_STATIC_LIST_ELEMENTS) {
+        fingerprint_mark_unsupported(builder);
+        return FINGERPRINT_UNSUPPORTED;
+      }
+      if ((value->element_count == 0u &&
+           value->first_element != W_SEED_FRONTEND_NONE) ||
+          (value->element_count != 0u &&
+           !range_valid(value->first_element, value->element_count,
+                        context->frontend_result->written.const_elements)) ||
+          type->element_type == W_SEED_FRONTEND_NONE ||
+          !type_index_valid(context, type->element_type))
+        return FINGERPRINT_INVALID;
+      fingerprint_u8(builder, 5u);
+      break;
+    case W_SEED_FRONTEND_CONST_INVALID:
+      return FINGERPRINT_INVALID;
+  }
+  fingerprint_encode_status status =
+      fingerprint_type(context, module_index, expected_type_index, builder, depth);
+  if (status != FINGERPRINT_ENCODED) return status;
+  switch (value->kind) {
+    case W_SEED_FRONTEND_CONST_BOOL:
+      fingerprint_u8(builder, value->bool_value ? 1u : 0u);
+      return FINGERPRINT_ENCODED;
+    case W_SEED_FRONTEND_CONST_INTEGER:
+      fingerprint_u8(builder, value->integer_signed ? 1u : 0u);
+      fingerprint_u16(builder, value->integer_bit_width);
+      fingerprint_u8(builder, value->integer_byte_count);
+      fingerprint_bytes(builder, value->integer_bytes,
+                        value->integer_byte_count);
+      return FINGERPRINT_ENCODED;
+    case W_SEED_FRONTEND_CONST_STRING:
+      fingerprint_u32(builder, value->byte_count);
+      fingerprint_bytes(builder,
+                        context->frontend->const_bytes + value->first_byte,
+                        value->byte_count);
+      return FINGERPRINT_ENCODED;
+    case W_SEED_FRONTEND_CONST_ENUM_CASE:
+      return fingerprint_enum_case_name(context, value->enum_base_index,
+                                        value->enum_case_index, builder);
+    case W_SEED_FRONTEND_CONST_STATIC_LIST:
+      fingerprint_u32(builder, value->element_count);
+      for (uint32_t offset = 0u; offset < value->element_count; offset += 1u) {
+        const w_seed_frontend_const_element *element =
+            &context->frontend->const_elements[
+                (size_t)value->first_element + offset];
+        if (element->owner_value != value_index || element->ordinal != offset ||
+            !span_contains(value->span, element->span) ||
+            !frontend_const_value_relation_valid(context, element->value_index,
+                                                 depth + 1u))
+          return FINGERPRINT_INVALID;
+        status = fingerprint_const_value(context, module_index,
+                                         element->value_index, type->element_type,
+                                         builder, depth + 1u);
+        if (status != FINGERPRINT_ENCODED) return status;
+      }
+      return FINGERPRINT_ENCODED;
+    case W_SEED_FRONTEND_CONST_INVALID:
+      return FINGERPRINT_INVALID;
+  }
+  return FINGERPRINT_INVALID;
+}
+
+static const predicate_candidate *fingerprint_candidate_for_argument(
+    const predicate_candidate *candidates, size_t candidate_count,
+    uint32_t argument_index) {
+  if (candidates == NULL) return NULL;
+  for (size_t index = 0u; index < candidate_count; index += 1u)
+    if (candidates[index].argument_index == argument_index) return &candidates[index];
+  return NULL;
+}
+
+static fingerprint_encode_status fingerprint_application(
+    const validation_context *context,
+    const w_seed_frontend_generic_application *application,
+    const w_seed_frontend_struct *head, const predicate_candidate *candidates,
+    size_t candidate_count, fingerprint_builder *builder) {
+  if (context == NULL || application == NULL || head == NULL || builder == NULL ||
+      context->frontend == NULL || context->frontend_result == NULL ||
+      context->frontend->generic_arguments == NULL ||
+      context->frontend->generic_parameters == NULL ||
+      application->module_index >= context->frontend_result->written.modules ||
+      application->argument_count != head->generic_parameter_count)
+    return FINGERPRINT_INVALID;
+  const w_seed_frontend_module *module =
+      &context->frontend->modules[application->module_index];
+  if (module->module_id.length == 0u || !text_valid(module->module_id) ||
+      application->head_name.length == 0u || !text_valid(application->head_name))
+    return FINGERPRINT_INVALID;
+  fingerprint_bytes(builder, FINGERPRINT_PREFIX, sizeof(FINGERPRINT_PREFIX) - 1u);
+  fingerprint_u8(builder, 0x47u);
+  fingerprint_encode_status status =
+      fingerprint_text(builder, module->module_id);
+  if (status != FINGERPRINT_ENCODED) return status;
+  status = fingerprint_text(builder, application->head_name);
+  if (status != FINGERPRINT_ENCODED) return status;
+  fingerprint_u32(builder, application->argument_count);
+  for (uint32_t offset = 0u; offset < application->argument_count; offset += 1u) {
+    const w_seed_frontend_generic_argument *argument =
+        &context->frontend->generic_arguments[
+            (size_t)application->first_argument + offset];
+    const w_seed_frontend_generic_parameter *parameter =
+        &context->frontend->generic_parameters[
+            (size_t)head->first_generic_parameter + offset];
+    fingerprint_u8(builder, 0x41u);
+    fingerprint_u32(builder, offset);
+    if (parameter->kind == W_SEED_FRONTEND_GENERIC_KIND_TYPE) {
+      fingerprint_u8(builder, 1u);
+      fingerprint_u8(builder, 0x54u);
+      status = fingerprint_type(context, application->module_index,
+                                argument->type_index, builder, 1u);
+      if (status == FINGERPRINT_INVALID) return status;
+      continue;
+    }
+    if (parameter->kind != W_SEED_FRONTEND_GENERIC_KIND_VALUE ||
+        parameter->domain_type == W_SEED_FRONTEND_NONE)
+      return FINGERPRINT_INVALID;
+    fingerprint_u8(builder, 2u);
+    fingerprint_u8(builder, 0x56u);
+    if (parameter->domain_kind == W_SEED_FRONTEND_GENERIC_DOMAIN_DEPENDENT)
+      fingerprint_mark_unsupported(builder);
+    status = fingerprint_type(context, application->module_index,
+                              parameter->domain_type, builder, 1u);
+    if (status == FINGERPRINT_INVALID) return status;
+    status = fingerprint_const_value(
+        context, application->module_index, argument->const_value_index,
+        parameter->domain_type, builder, 1u);
+    if (status == FINGERPRINT_INVALID) return status;
+    if (parameter->refinement_kind == W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE) {
+      fingerprint_u8(builder, 0u);
+    } else if (parameter->refinement_kind ==
+               W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE) {
+      const predicate_candidate *candidate = fingerprint_candidate_for_argument(
+          candidates, candidate_count,
+          application->first_argument + offset);
+      if (candidate == NULL || candidate->function == NULL)
+        return FINGERPRINT_INVALID;
+      fingerprint_u8(builder, 1u);
+      fingerprint_bytes(builder, candidate->function->body_digest,
+                        sizeof(candidate->function->body_digest));
+    } else {
+      return FINGERPRINT_INVALID;
+    }
+  }
+  if (builder->invalid) return FINGERPRINT_INVALID;
+  return builder->unsupported ? FINGERPRINT_UNSUPPORTED
+                              : FINGERPRINT_ENCODED;
+}
+
 const char *w_seed_generic_validation_state_name(
     w_seed_generic_validation_state state) {
   switch (state) {
@@ -860,6 +1460,19 @@ const char *w_seed_generic_validation_failure_name(
       return "invalid-input";
   }
   return "unknown";
+}
+
+const char *w_seed_generic_validation_fingerprint_state_name(
+    w_seed_generic_validation_fingerprint_state state) {
+  switch (state) {
+    case W_SEED_GENERIC_VALIDATION_FINGERPRINT_NOT_AVAILABLE:
+      return "NOT_AVAILABLE";
+    case W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE:
+      return "AVAILABLE";
+    case W_SEED_GENERIC_VALIDATION_FINGERPRINT_UNSUPPORTED:
+      return "UNSUPPORTED";
+  }
+  return "UNKNOWN";
 }
 
 w_seed_generic_validation_state w_seed_generic_validation_run(
@@ -975,6 +1588,16 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
     }
     candidate_count += 1u;
   }
+  fingerprint_builder fingerprint;
+  (void)memset(&fingerprint, 0, sizeof(fingerprint));
+  w_seed_sha256_init(&fingerprint.sha);
+  const fingerprint_encode_status fingerprint_status =
+      fingerprint_application(&context, application, head, candidates,
+                               candidate_count, &fingerprint);
+  if (fingerprint_status == FINGERPRINT_INVALID) {
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+    return result->state;
+  }
   if (candidate_count != 0u &&
       (input->evidence_bytes == NULL ||
        input->evidence_byte_capacity <
@@ -1050,7 +1673,8 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
         candidates[index].predicate_constir_index,
         &context.input->conversion_values[candidates[index].value_index], 1u};
   }
-  if (!w_seed_constir_validate_invocations_in_validated_program(
+  if (candidate_count != 0u &&
+      !w_seed_constir_validate_invocations_in_validated_program(
           context.program, invocations, candidate_count)) {
     result->state = W_SEED_GENERIC_VALIDATION_INVALID;
     result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
@@ -1117,5 +1741,13 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
   }
   result->state = W_SEED_GENERIC_VALIDATION_VERIFIED;
   result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_NONE;
+  if (fingerprint_status == FINGERPRINT_UNSUPPORTED) {
+    result->fingerprint_state =
+        W_SEED_GENERIC_VALIDATION_FINGERPRINT_UNSUPPORTED;
+  } else {
+    w_seed_sha256_final(&fingerprint.sha, result->fingerprint_digest);
+    result->fingerprint_state =
+        W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE;
+  }
   return result->state;
 }

@@ -7264,6 +7264,110 @@ Esta fronteira não promove o seed C a compiler W completo. Imported heads,
 computed argument evaluation, identity final, detailed causal slices, runtime e
 self-host continuam gaps de implementação.
 
+#### 8.7.12 Fingerprint semântico pós-validação (W-1460)
+
+A camada pós-frontend pode publicar um fingerprint semântico somente depois
+que a aplicação genérica foi validada. O schema é
+`w-seed-generic-fingerprint-1`. O resultado mantém seu estado
+principal (REJECTED, UNSUPPORTED, INVALID, EVALUATION_FAILED ou CAPACITY) sem mudança:
+esses estados publicam fingerprint
+`FINGERPRINT_NOT_AVAILABLE` e 32 bytes zero. Uma aplicação
+`VERIFIED` dentro do subconjunto encodable publica
+`FINGERPRINT_AVAILABLE` e 32 bytes de digest. Uma aplicação
+`VERIFIED` fora desse subconjunto pode publicar
+`FINGERPRINT_UNSUPPORTED`; isso não converte o resultado principal em
+falha. O enum de fingerprint é separado do enum do resultado principal.
+
+O fingerprint é evidence para comparação de machine e para o próximo passo de
+identidade. Ele não é `TypeId`, `SemanticInterfaceKey`,
+`WAbiKey`, wire/schema ID, chave final de instantiation/cache,
+monomorphization ou autoridade de igualdade. Ele é local à versão do schema e
+não é persistível entre versões de schema. Digests diferentes implicam preimages
+diferentes; um digest igual isolado não prova que os preimages são iguais nem
+constitui identidade collision-safe. O preimage canônico completo é a autoridade
+desta projeção. A chave de instância
+final de §8.7.8 ainda precisa declaration digest, witnesses,
+target/profile/edition/compiler/bundle versions e dados canônicos
+collision-safe.
+
+O preflight constrói o SHA em estado local, antes da primeira avaliação. Ele
+valida toda relação que será consumida e não publica output parcial. Somente
+depois que todos os predicates retornarem `Bool(true)` o resultado
+finaliza e copia o digest. Counters, quota, workspace, receipts de execução e
+arena de evidence não entram no preimage.
+
+O preimage não usa terminador NUL e usa este encoding fechado (bytes zero podem
+aparecer nos lengths e counts):
+
+- prefixo ASCII `w-seed-generic-fingerprint-1`;
+- todos os integers, lengths e counts em big-endian; text é `u32
+  length` seguido dos bytes UTF-8;
+- root: tag `0x47`, `module_id`, `head_name` e
+  `u32 argument_count`;
+- cada argumento, na ordem declarada: tag `0x41`,
+  `u32 parameter_ordinal` e `u8 kind` (1 para type, 2 para
+  value);
+- type: tag `0x54` e o canonical type;
+- value: tag `0x56`, o canonical parameter domain type, o canonical
+  `ConstValue` e uma refinement flag (0, ou 1 seguida dos 32 bytes de
+  `body_digest` da função ConstIR mapeada).
+
+Um canonical type começa com tag `0x74` e um kind estável: 1 UNIT,
+2 BOOL, 3 STRING, 4 BYTES, 5 INTEGER, 6 FLOAT, 7 OPTION, 8 NOMINAL,
+9 ENUM, 10 ENUM_SUBSET, 11 STATIC_LIST ou 12 RANGE. `INTEGER` e
+`FLOAT` acrescentam signedness `u8` e width
+`u16`. `OPTION`, `STATIC_LIST` e `RANGE`
+recorrem ao element type. `NOMINAL` aceita somente um nominal local,
+não aplicado, que resolva univocamente no mesmo módulo; o encoding é
+`module_id` e `nominal_name`. Nominal genérico aninhado,
+desconhecido, function, imported ou ambíguo produz
+`FINGERPRINT_UNSUPPORTED`, sem inventar identidade. `ENUM`
+codifica o módulo e o nome do enum. `ENUM_SUBSET` codifica a
+identidade do enum base, o count e os nomes dos cases na ordem de declaração
+do enum base, independentemente de source spans ou da ordem em que o subset
+foi escrito. A recursão máxima é 256.
+
+Um canonical `ConstValue` começa com tag `0x76` e kind
+1 BOOL, 2 INTEGER, 3 STRING, 4 ENUM_CASE ou 5 STATIC_LIST; depois vem o
+canonical type. Boolean usa payload `u8`. Integer usa signedness
+`u8`, width `u16`, byte count `u8` e exatamente os
+bytes little-endian usados. String usa `u32 length` e os bytes crus
+da arena. Enum case usa o case name. List usa `u32 count` e os
+children recursivos na ordem, preservando duplicatas. O `body_digest`
+é evidence produzida pelo lowering seed; esta camada não a alega recomputar
+nem verificar criptograficamente.
+
+Spans, source spelling, source ordinals, labels, índices do frontend,
+allocation/layout, receipt/capacity, target/profile/edition/compiler versions e
+field bodies são excluídos. Assim, comentários, whitespace, labels opcionais e
+índices de allocation diferentes mantêm o mesmo preimage quando a projeção
+semântica é a mesma. Mudar module, head, type/value, ordem da lista, subset ou
+`body_digest` muda o preimage. Digests diferentes implicam preimages diferentes;
+um digest igual isolado não prova preimages iguais nem identidade collision-safe.
+O preimage completo continua sendo a autoridade.
+
+O witness source-backed extrai os fragments reais de
+`reference/last-light/domain.w` e usa o module id documental
+`restaurant`. O gate deriva e concatena o witness em um arquivo
+temporário sem alterar Last Light, grammar ou portal:
+
+```text
+StagePath standard       = [.accepted, .reserving, .preparing, .serving, .completed]
+StagePath standardAgain   = [.accepted, .reserving, .preparing, .serving, .completed]
+StagePath cancelled       = [.accepted, .cancelled]
+StagePath empty           = []
+StagePath skipped         = [.accepted, .completed]
+StagePath duplicate       = [.accepted, .reserving, .reserving]
+```
+
+As duas aplicações `standard` são `VERIFIED` com
+`FINGERPRINT_AVAILABLE` e digest igual. `cancelled` é
+`VERIFIED` e `FINGERPRINT_AVAILABLE`, mas possui preimage e digest
+ diferentes. `empty`, `skipped` e `duplicate` são
+rejeitados e permanecem `NOT_AVAILABLE` com bytes zero. O gate Bun
+reconstrói independentemente os bytes exatos e calcula SHA-256; não aceita
+somente um golden emitido pelo C. Duas execuções preservam o mesmo resultado.
+
 ### 8.8 Conversões
 
 **Exemplo:** `u8` pode converter para `u16`. A conversão de `u16` para `u8`

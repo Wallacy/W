@@ -23,10 +23,10 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:f878e4f46122c39c1bebad3343eefc4ce236ad0a589ee74253bc8adab1c82a23",
-    "count": 1459,
+    "sha256": "sha256:8d475339224dd9e27c0c60774d7ba26956214e96ac97646f36fe3c266e075757",
+    "count": 1460,
     "first": "W-001",
-    "last": "W-1459"
+    "last": "W-1460"
   },
   "epochs": [
     {
@@ -57,7 +57,7 @@
     {
       "id": "frontend-and-research",
       "from": "W-1323",
-      "to": "W-1459"
+      "to": "W-1460"
     }
   ],
   "preservedLegacyCoverage": {
@@ -67,10 +67,10 @@
     "overlap": 52
   },
   "archiveGapDistribution": {
-    "count": 919,
+    "count": 920,
     "byCategory": {
       "source-backed-current": 0,
-      "oracle-backed-current": 71,
+      "oracle-backed-current": 72,
       "research-gated": 0,
       "implementation-evidence-gap": 806,
       "superseded": 35,
@@ -119,7 +119,7 @@
       },
       "frontend-and-research": {
         "source-backed-current": 0,
-        "oracle-backed-current": 25,
+        "oracle-backed-current": 26,
         "research-gated": 0,
         "implementation-evidence-gap": 85,
         "superseded": 1,
@@ -50872,6 +50872,48 @@
         "section": "3. Ledger",
         "decisionId": "W-1459",
         "claimDigest": "sha256:c7234bb66997decc108ca5252b23f9c650c48c2ed4ba6b8f6d357aeda372ee80"
+      }
+    },
+    {
+      "decisionId": "W-1460",
+      "summary": "fingerprint semântico pós-validação de generic D1",
+      "canonicalClaim": "evidence interna versionada `w-seed-generic-fingerprint-1`: preimage canônico independente de spans/indices/source spelling, validação/preflight antes da avaliação, `VERIFIED` + `AVAILABLE` somente após todos os predicates true, `VERIFIED` fora do subconjunto + `UNSUPPORTED`, demais estados + `NOT_AVAILABLE`/bytes zero; witness `restaurant` com standard duplicado, cancelled, vazio, salto e duplicata; C e Bun reconstrutores independentes",
+      "claimDigest": "sha256:0d9537eaa633b2befd8121fd9a4559aa7ec0c5832f3559044c636b4b16ab79f1",
+      "category": "oracle-backed-current",
+      "basis": "linked-host-oracle-case",
+      "authorityRef": {
+        "kind": "oracle-case",
+        "path": "tooling/generic-fingerprint-cases.json",
+        "sha256": "sha256:281a2f7518f711ede20876f345e69d70b2f289186bbfee5185cc40a93f59b66e",
+        "caseId": "GPF0-W-1460-current",
+        "sourceRef": {
+          "path": "reference/last-light/domain.w",
+          "sha256": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553",
+          "symbol": "export struct StagePath<"
+        }
+      },
+      "evidence": [
+        {
+          "kind": "oracle",
+          "path": "tooling/generic-fingerprint-cases.json",
+          "sha256": "sha256:281a2f7518f711ede20876f345e69d70b2f289186bbfee5185cc40a93f59b66e",
+          "caseId": "GPF0-W-1460-current",
+          "sourceRef": {
+            "path": "reference/last-light/domain.w",
+            "sha256": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553",
+            "symbol": "export struct StagePath<"
+          }
+        }
+      ],
+      "reason": "W-1460 (fingerprint semântico pós-validação de generic D1, sha256:0d9537eaa633b2befd8121fd9a4559aa7ec0c5832f3559044c636b4b16ab79f1) tem o caso host-oracle GPF0-W-1460-current; o seed C e o oráculo Bun independente validam a projeção e não afirmam compiler completo, runtime, provider ou identidade final.",
+      "selection": "explicit-ledger-id",
+      "basisRef": {
+        "kind": "ledger-row",
+        "path": "RATIONALE.md",
+        "sha256": "sha256:8d475339224dd9e27c0c60774d7ba26956214e96ac97646f36fe3c266e075757",
+        "section": "3. Ledger",
+        "decisionId": "W-1460",
+        "claimDigest": "sha256:0d9537eaa633b2befd8121fd9a4559aa7ec0c5832f3559044c636b4b16ab79f1"
       }
     }
   ],

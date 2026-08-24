@@ -1,0 +1,35 @@
+{
+  "$schema": "w-generic-fingerprint-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "GPF0-W-1460-current",
+      "decisions": ["W-1460"],
+      "source": {
+        "path": "reference/last-light/domain.w",
+        "symbol": "export struct StagePath<"
+      },
+      "description": "Corpus mínimo para a evidence pós-validação do fingerprint semântico versionado de generic D1.",
+      "witnesses": {
+        "module": "restaurant",
+        "standard": "Aplicação StagePath no standard path.",
+        "standardAgain": "Segunda aplicação idêntica do standard path; preserva o preimage.",
+        "cancelled": "Rota válida cancelada [accepted, cancelled]; mantém AVAILABLE e muda o preimage pela relação de estado.",
+        "rejected": [
+          "vazio",
+          "skipped",
+          "duplicate"
+        ]
+      },
+      "oracle": {
+        "runner": "tooling/check-seed-generic-validation.mjs",
+        "implementations": [
+          "seed C",
+          "Bun com reconstrução independente dos bytes canônicos e SHA-256"
+        ],
+        "determinism": "standard e standardAgain são executados em duas passagens e comparados pelo oracle independente."
+      },
+      "scope": "Evidence local da projeção definida em DESIGN.md §8.7.12; não é compiler completo, runtime ou identidade final."
+    }
+  ]
+}
