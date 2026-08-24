@@ -88,6 +88,7 @@ typedef struct {
   size_t generic_parameters;
   size_t generic_applications;
   size_t generic_arguments;
+  size_t typed_const_expressions;
   size_t const_values;
   size_t const_elements;
   size_t const_bytes;
@@ -203,6 +204,12 @@ static bool normalize_expression_node(frontend_context *context,
                                       frontend_simple_type expected,
                                       frontend_simple_type *actual_out,
                                       frontend_expr_value *root_out);
+static bool normalize_expression_span(frontend_context *context,
+                                      w_seed_span span,
+                                      frontend_simple_type expected,
+                                      uint32_t *expression_index,
+                                      frontend_simple_type *actual_out,
+                                      frontend_expr_value *root_out);
 static bool normalize_switch_expression(frontend_context *context,
                                          uint32_t switch_node,
                                          uint32_t *expression_index,
@@ -301,6 +308,9 @@ static bool context_append_generic_application(
     uint32_t *index);
 static bool context_append_generic_argument(
     frontend_context *context, w_seed_frontend_generic_argument value,
+    uint32_t *index);
+static bool context_append_typed_const_expression(
+    frontend_context *context, w_seed_frontend_typed_const_expression value,
     uint32_t *index);
 static bool context_append_const_value(frontend_context *context,
                                        w_seed_frontend_const_value value,
@@ -1188,6 +1198,26 @@ static bool generic_type_argument_is_literal(
   return false;
 }
 
+static bool generic_value_is_parenthesized(
+    const w_seed_frontend_document *doc, w_seed_span span) {
+  if (doc == NULL) return false;
+  frontend_token tokens[W_SEED_FRONTEND_MAX_NESTING * 2u];
+  size_t token_count = 0u;
+  if (!const_tokens_for_span(doc, span, tokens,
+                             sizeof(tokens) / sizeof(tokens[0]),
+                             &token_count) ||
+      token_count < 2u)
+    return false;
+  return text_equal(text_from_span(doc, tokens[0].span), "(") &&
+         text_equal(text_from_span(doc, tokens[token_count - 1u].span), ")");
+}
+
+static bool generic_typed_scalar_expected(frontend_simple_type type) {
+  return type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+         (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.bit_width != 0u &&
+          type.bit_width <= 128u);
+}
+
 static bool generic_application_diagnostic(
     frontend_context *context, const char *code, w_seed_span span,
     w_seed_frontend_text actual, w_seed_frontend_text expected) {
@@ -1307,6 +1337,7 @@ static bool resolve_one_pending_generic_application(
                                : W_SEED_FRONTEND_GENERIC_ARGUMENT_TYPE;
     argument->value.type_index = W_SEED_FRONTEND_NONE;
     argument->value.const_value_index = W_SEED_FRONTEND_NONE;
+    argument->value.typed_const_expression_index = W_SEED_FRONTEND_NONE;
     argument->value.binding_status =
         W_SEED_FRONTEND_GENERIC_BINDING_INVALID;
     argument->type_simple = simple_type_unknown();
@@ -1491,6 +1522,94 @@ static bool resolve_one_pending_generic_application(
               : simple_type_unknown();
       const frontend_static_argument_support expected_support =
           static_argument_representable(context, expected);
+      if (generic_value_is_parenthesized(doc, shape->value_span)) {
+        /* D3 calculated generic values are deliberately closed scalar
+         * expressions.  Keep the frontend responsible only for typing and
+         * recording the relation; ConstIR owns evaluation. */
+        if (!generic_typed_scalar_expected(expected)) {
+          (void)context_append_fact(
+              context, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE,
+              shape->value_span, text_from_span(doc, shape->value_span));
+          argument->value.binding_status =
+              W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED;
+          unsupported_seen = true;
+          valid = false;
+          bound[slot] = true;
+          if (slot == next_slot) next_slot += 1u;
+          continue;
+        }
+        const uint32_t saved_function_index = context->function_index;
+        const w_seed_cst_node *saved_function_node = context->function_node;
+        const bool saved_const_function = context->current_function_is_const;
+        const bool saved_const_active = context->current_const_body_active;
+        context->function_index = W_SEED_FRONTEND_NONE;
+        context->function_node = NULL;
+        context->current_function_is_const = false;
+        context->current_const_body_active = false;
+        uint32_t expression_index = W_SEED_FRONTEND_NONE;
+        frontend_simple_type actual = simple_type_unknown();
+        frontend_expr_value root;
+        (void)memset(&root, 0, sizeof(root));
+        const bool normalized = normalize_expression_span(
+            context, shape->value_span, expected, &expression_index, &actual,
+            &root);
+        context->function_index = saved_function_index;
+        context->function_node = saved_function_node;
+        context->current_function_is_const = saved_const_function;
+        context->current_const_body_active = saved_const_active;
+        if (!normalized || !root.supported ||
+            !frontend_type_equal(context, actual, expected)) {
+          (void)context_append_fact(
+              context, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE,
+              shape->value_span, text_from_span(doc, shape->value_span));
+          argument->value.binding_status =
+              W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED;
+          unsupported_seen = true;
+          valid = false;
+          bound[slot] = true;
+          if (slot == next_slot) next_slot += 1u;
+          continue;
+        }
+        /* A typed record is executable only when this application has no
+         * earlier semantic or unsupported relation.  Keep the malformed
+         * application in its existing INVALID/UNSUPPORTED state; do not
+         * publish an apparently executable pending relation for it. */
+        if (!valid || unsupported_seen ||
+            context->count.diagnostics > diagnostics_before) {
+          bound[slot] = true;
+          if (slot == next_slot) next_slot += 1u;
+          continue;
+        }
+        w_seed_frontend_typed_const_expression typed;
+        (void)memset(&typed, 0, sizeof(typed));
+        typed.module_index = (uint32_t)pending->module_index;
+        if (context->count.generic_applications >= (size_t)UINT32_MAX)
+          return false;
+        typed.owner_application = (uint32_t)context->count.generic_applications;
+        typed.argument_ordinal = (uint32_t)ordinal;
+        typed.expression_index = expression_index;
+        typed.span = shape->value_span;
+        typed.expected_type = expected_type_index;
+        /* The effective domain is the application slot's resolved type.  The
+         * expression tree can carry an equivalent canonical type record (for
+         * example, a parameter and a domain can each spell i64), so retain
+         * the domain index here and let downstream validation compare the
+         * semantic type shape. */
+        typed.effective_type = expected_type_index;
+        uint32_t typed_index = W_SEED_FRONTEND_NONE;
+        if (!context_append_typed_const_expression(context, typed,
+                                                   &typed_index)) {
+          context->module_index = saved_module;
+          return false;
+        }
+        argument->value.typed_const_expression_index = typed_index;
+        argument->value.binding_status =
+            W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST;
+        typed_const_expr_seen = true;
+        bound[slot] = true;
+        if (slot == next_slot) next_slot += 1u;
+        continue;
+      }
       if (expected.kind == W_SEED_FRONTEND_TYPE_BYTES ||
           list_element.kind == W_SEED_FRONTEND_TYPE_BYTES ||
           list_element.kind == W_SEED_FRONTEND_TYPE_STATIC_LIST ||
@@ -1619,6 +1738,8 @@ static bool resolve_one_pending_generic_application(
       semantic_error ? W_SEED_FRONTEND_GENERIC_BINDING_INVALID
                      : unsupported_seen
                            ? W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED
+                           : (valid && typed_const_expr_seen)
+                                 ? W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST
                            : valid
                                  ? W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE
                                  : W_SEED_FRONTEND_GENERIC_BINDING_INVALID;
@@ -1627,6 +1748,18 @@ static bool resolve_one_pending_generic_application(
                                            &application_index)) {
     context->module_index = saved_module;
     return false;
+  }
+  if (context->emit && context->output != NULL &&
+      context->output->typed_const_expressions != NULL) {
+    for (size_t ordinal = 0u; ordinal < shape_count; ordinal += 1u) {
+      const uint32_t typed_index =
+          built[ordinal].value.typed_const_expression_index;
+      if (typed_index != W_SEED_FRONTEND_NONE &&
+          typed_index < context->count.typed_const_expressions) {
+        context->output->typed_const_expressions[typed_index]
+            .owner_application = application_index;
+      }
+    }
   }
   for (size_t ordinal = 0u; ordinal < shape_count; ordinal += 1u) {
     built[ordinal].value.owner_application = application_index;
@@ -1881,8 +2014,30 @@ static bool receipt_size_generic_argument(
          receipt_size_size(context, value->type_index) &&
          receipt_size_literal(context, "|const=") &&
          receipt_size_size(context, value->const_value_index) &&
+         receipt_size_literal(context, "|typed-expr=") &&
+         receipt_size_size(context, value->typed_const_expression_index) &&
          receipt_size_literal(context, "|binding=") &&
          receipt_size_size(context, (size_t)value->binding_status) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_typed_const_expression(
+    frontend_context *context,
+    const w_seed_frontend_typed_const_expression *value) {
+  return receipt_size_literal(context, "typed-const-expression=") &&
+         receipt_size_size(context, value->module_index) &&
+         receipt_size_literal(context, "|owner=") &&
+         receipt_size_size(context, value->owner_application) &&
+         receipt_size_literal(context, "|argument=") &&
+         receipt_size_size(context, value->argument_ordinal) &&
+         receipt_size_literal(context, "|expression=") &&
+         receipt_size_size(context, value->expression_index) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "|expected=") &&
+         receipt_size_size(context, value->expected_type) &&
+         receipt_size_literal(context, "|effective=") &&
+         receipt_size_size(context, value->effective_type) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -3097,6 +3252,7 @@ static void counts_from_measure(const frontend_measure *measure,
   counts->generic_parameters = measure->generic_parameters;
   counts->generic_applications = measure->generic_applications;
   counts->generic_arguments = measure->generic_arguments;
+  counts->typed_const_expressions = measure->typed_const_expressions;
   counts->const_values = measure->const_values;
   counts->const_elements = measure->const_elements;
   counts->const_bytes = measure->const_bytes;
@@ -4316,6 +4472,25 @@ static bool context_append_generic_argument(
           ? context->output->generic_arguments
           : NULL,
       context->output == NULL ? 0 : context->output->generic_argument_capacity,
+      index);
+}
+
+static bool context_append_typed_const_expression(
+    frontend_context *context, w_seed_frontend_typed_const_expression value,
+    uint32_t *index) {
+  if (context == NULL || index == NULL) return false;
+  const size_t ordinal = context->count.typed_const_expressions;
+  context->count.typed_const_expressions += 1u;
+  if (!add_u32(ordinal, index)) return false;
+  if (!context->emit && !receipt_size_typed_const_expression(context, &value))
+    return false;
+  return context_append_record(
+      context, ordinal, &value, sizeof(value),
+      context->emit && context->output != NULL
+          ? context->output->typed_const_expressions
+          : NULL,
+      context->output == NULL ? 0
+                              : context->output->typed_const_expression_capacity,
       index);
 }
 
@@ -7129,8 +7304,18 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
   }
   if (token.kind == W_SEED_CST_NUMBER ||
       token.kind == W_SEED_CST_LITERAL_EVENT) {
-    const frontend_simple_type type = literal_simple_type(
+    frontend_simple_type type = literal_simple_type(
         parser->document, token.span, token.kind);
+    /* A calculated generic scalar has an explicit domain.  Apply that
+     * context to unsuffixed integer leaves before appending the record so a
+     * closed `(6 * 7)` tree carries i64 (or the declared width) throughout. */
+    if (parser->has_expected_type &&
+        parser->expected_type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.bit_width == 0u &&
+        unsuffixed_integer_fits(text_from_span(parser->document, token.span),
+                                parser->expected_type)) {
+      type = parser->expected_type;
+    }
     const bool literal_supported = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
     if (!literal_supported) {
       (void)context_append_fact(parser->context,
@@ -8288,6 +8473,38 @@ static bool normalize_expression_node(frontend_context *context,
   return true;
 }
 
+/* Generic value arguments do not own a CST expression node.  Parse the
+ * already bounded value span through the same typed Pratt frontend used by
+ * statements, without reparsing source downstream. */
+static bool normalize_expression_span(frontend_context *context,
+                                      w_seed_span span,
+                                      frontend_simple_type expected,
+                                      uint32_t *expression_index,
+                                      frontend_simple_type *actual_out,
+                                      frontend_expr_value *root_out) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (actual_out != NULL) *actual_out = simple_type_unknown();
+  if (root_out != NULL) (void)memset(root_out, 0, sizeof(*root_out));
+  if (doc == NULL || expression_index == NULL) return false;
+  frontend_expression_parser parser;
+  parser.context = context;
+  parser.document = doc;
+  parser.cursor = token_cursor_for(doc, trim_span(doc, span));
+  parser.depth = 0u;
+  parser.expected_type = expected;
+  parser.has_expected_type = expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+  parser.suppress_short_diagnostic = true;
+  frontend_expr_value value;
+  if (!expression_parse_bp(&parser, 0, &value)) return false;
+  frontend_token trailing;
+  if (cursor_peek(&parser.cursor, &trailing)) return false;
+  if (value.index >= (size_t)UINT32_MAX) return false;
+  *expression_index = (uint32_t)value.index;
+  if (actual_out != NULL) *actual_out = value.type;
+  if (root_out != NULL) *root_out = value;
+  return true;
+}
+
 static w_seed_frontend_text binding_name_after_keyword(
     const w_seed_frontend_document *doc, w_seed_span span, const char *keyword) {
   frontend_token_cursor cursor = token_cursor_for(doc, span);
@@ -9198,6 +9415,7 @@ static bool resolve_frontend_links(frontend_context *context) {
        expression_index < context->count.expressions; expression_index += 1u) {
     w_seed_frontend_expression *expression =
         &context->output->expressions[expression_index];
+    if (expression->owner_function == W_SEED_FRONTEND_NONE) continue;
     if ((size_t)expression->owner_function >= context->count.functions)
       return false;
     const w_seed_frontend_function *owner =
@@ -9900,8 +10118,30 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, value->type_index);
       receipt_write_literal(writer, "|const=");
       receipt_write_size(writer, value->const_value_index);
+      receipt_write_literal(writer, "|typed-expr=");
+      receipt_write_size(writer, value->typed_const_expression_index);
       receipt_write_literal(writer, "|binding=");
       receipt_write_size(writer, (size_t)value->binding_status);
+      receipt_write_literal(writer, "\n");
+    }
+    for (size_t index = 0; index < context->count.typed_const_expressions;
+         index += 1u) {
+      const w_seed_frontend_typed_const_expression *value =
+          &output->typed_const_expressions[index];
+      receipt_write_literal(writer, "typed-const-expression=");
+      receipt_write_size(writer, value->module_index);
+      receipt_write_literal(writer, "|owner=");
+      receipt_write_size(writer, value->owner_application);
+      receipt_write_literal(writer, "|argument=");
+      receipt_write_size(writer, value->argument_ordinal);
+      receipt_write_literal(writer, "|expression=");
+      receipt_write_size(writer, value->expression_index);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, value->span);
+      receipt_write_literal(writer, "|expected=");
+      receipt_write_size(writer, value->expected_type);
+      receipt_write_literal(writer, "|effective=");
+      receipt_write_size(writer, value->effective_type);
       receipt_write_literal(writer, "\n");
     }
     for (size_t index = 0; index < context->count.const_values; index += 1u) {
@@ -10075,6 +10315,9 @@ static bool output_capacity_ok(const w_seed_frontend_output *output,
          capacity_ok(required->generic_arguments,
                      output->generic_arguments,
                      output->generic_argument_capacity) &&
+         capacity_ok(required->typed_const_expressions,
+                     output->typed_const_expressions,
+                     output->typed_const_expression_capacity) &&
          capacity_ok(required->const_values, output->const_values,
                      output->const_value_capacity) &&
          capacity_ok(required->const_elements, output->const_elements,

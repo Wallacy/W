@@ -71,6 +71,77 @@
         "determinism": "positive duplicate fingerprints, rejected zero fingerprints, over-limit and corrupt zero-step outcomes are checked by the C and Bun gate."
       },
       "scope": "Evidence local D2 para literal String simples UTF-8 <= 4.096 bytes e ==/!=; não é String completa, compiler, runtime ou identidade final."
+    },
+    {
+      "id": "GPF0-W-1462-current",
+      "decisions": ["W-1462"],
+      "source": {
+        "path": "reference/last-light/generics.w",
+        "symbol": "export alias UltimateAnswerComputed = UltimateAnswer<(6 * 7)>"
+      },
+      "description": "Corpus source-backed para expressão escalar parentetizada, ConstIR sintética, receipts ordenados e normalização do fingerprint.",
+      "witnesses": {
+        "module": "restaurant",
+        "immediate": {
+          "value": 42,
+          "state": "VERIFIED",
+          "receiptKinds": "P"
+        },
+        "computed": {
+          "expression": "(6 * 7)",
+          "value": 42,
+          "state": "VERIFIED",
+          "receiptKinds": "CP"
+        },
+        "duplicateComputed": {
+          "expression": "(6 * 7)",
+          "value": 42,
+          "state": "VERIFIED",
+          "receiptKinds": "CP"
+        },
+        "rejected": {
+          "expression": "(6 * 6)",
+          "value": 36,
+          "state": "REJECTED",
+          "receiptKinds": "CP",
+          "fingerprint": "zero"
+        },
+        "quota": {
+          "mode": "computed_steps_plus_predicate_steps_minus_one",
+          "state": "EVALUATION_FAILED",
+          "diagnostic": "W-CONST-0003",
+          "receiptKinds": "CP",
+          "fingerprint": "zero"
+        },
+        "overflow": {
+          "expression": "(127 + 1)",
+          "type": "i8",
+          "state": "EVALUATION_FAILED",
+          "diagnostic": "W-CONST-0006",
+          "fingerprint": "zero"
+        },
+        "unsupported": {
+          "expression": "(helper(42))",
+          "state": "UNSUPPORTED",
+          "steps": 0,
+          "fingerprint": "zero"
+        },
+        "corrupt": {
+          "cases": ["origin", "relation", "type", "application", "duplicate"],
+          "state": "INVALID",
+          "steps": 0,
+          "fingerprint": "zero"
+        }
+      },
+      "oracle": {
+        "runner": "tooling/check-seed-generic-validation.mjs",
+        "implementations": [
+          "seed C",
+          "Bun com reconstrução independente dos bytes canônicos e SHA-256"
+        ],
+        "determinism": "O gate extrai os markers reais uma vez, compara immediate/computed/duplicate, verifica a ordem CONST_ARGUMENT,PREDICATE, quota cumulativa, overflow, unsupported e corrupção em zero-step."
+      },
+      "scope": "Evidence local D3 para Bool/integer explícito, árvore escalar fechada de literais/grouping/unary/binary em ConstIR; não implementa identifiers/named const, graph dependencies/cycles, imported heads/predicates, String computed result, identity final, compiler/runtime ou self-host."
     }
   ]
 }

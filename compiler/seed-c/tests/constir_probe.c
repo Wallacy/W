@@ -25,6 +25,12 @@ enum {
   FRONTEND_STATEMENTS = 65536,
   FRONTEND_EXPRESSIONS = 262144,
   FRONTEND_ARGUMENTS = 65536,
+  FRONTEND_TYPED_CONST_EXPRESSIONS = 65536,
+  FRONTEND_GENERIC_PARAMETERS = 65536,
+  FRONTEND_GENERIC_APPLICATIONS = 65536,
+  FRONTEND_GENERIC_ARGUMENTS = 65536,
+  FRONTEND_CONST_VALUES = 262144,
+  FRONTEND_CONST_ELEMENTS = 262144,
   FRONTEND_CONST_BYTES = 8 * 1024 * 1024,
   FRONTEND_SWITCH_ARMS = 65536,
   FRONTEND_MEMBERSHIP = 262144,
@@ -59,6 +65,16 @@ static w_seed_frontend_parameter parameters[FRONTEND_PARAMETERS];
 static w_seed_frontend_statement statements[FRONTEND_STATEMENTS];
 static w_seed_frontend_expression expressions[FRONTEND_EXPRESSIONS];
 static w_seed_frontend_argument arguments[FRONTEND_ARGUMENTS];
+static w_seed_frontend_typed_const_expression
+    typed_const_expressions[FRONTEND_TYPED_CONST_EXPRESSIONS];
+static w_seed_frontend_generic_parameter
+    generic_parameters[FRONTEND_GENERIC_PARAMETERS];
+static w_seed_frontend_generic_application
+    generic_applications[FRONTEND_GENERIC_APPLICATIONS];
+static w_seed_frontend_generic_argument
+    generic_arguments[FRONTEND_GENERIC_ARGUMENTS];
+static w_seed_frontend_const_value const_values[FRONTEND_CONST_VALUES];
+static w_seed_frontend_const_element const_elements[FRONTEND_CONST_ELEMENTS];
 static uint8_t frontend_const_bytes[FRONTEND_CONST_BYTES];
 static w_seed_frontend_switch_arm switch_arms[FRONTEND_SWITCH_ARMS];
 static w_seed_frontend_enum_membership_case membership[FRONTEND_MEMBERSHIP];
@@ -158,8 +174,20 @@ int main(void) {
       .parameter_capacity = FRONTEND_PARAMETERS,
       .arguments = arguments,
       .argument_capacity = FRONTEND_ARGUMENTS,
+      .typed_const_expressions = typed_const_expressions,
+      .typed_const_expression_capacity = FRONTEND_TYPED_CONST_EXPRESSIONS,
+      .generic_parameters = generic_parameters,
+      .generic_parameter_capacity = FRONTEND_GENERIC_PARAMETERS,
+      .generic_applications = generic_applications,
+      .generic_application_capacity = FRONTEND_GENERIC_APPLICATIONS,
+      .generic_arguments = generic_arguments,
+      .generic_argument_capacity = FRONTEND_GENERIC_ARGUMENTS,
       .const_bytes = frontend_const_bytes,
       .const_bytes_capacity = FRONTEND_CONST_BYTES,
+      .const_values = const_values,
+      .const_value_capacity = FRONTEND_CONST_VALUES,
+      .const_elements = const_elements,
+      .const_element_capacity = FRONTEND_CONST_ELEMENTS,
       .switch_arms = switch_arms,
       .switch_arm_capacity = FRONTEND_SWITCH_ARMS,
       .enum_membership_cases = membership,
@@ -212,8 +240,11 @@ int main(void) {
   };
   const w_seed_constir_status run_status = w_seed_constir_run(
       &constir_input, &constir_output, &constir_result);
-  (void)printf("FRONTEND status=%d parse=%d\n", (int)frontend_status,
-               (int)parse.status);
+  (void)printf("FRONTEND status=%d parse=%d applications=%" PRIuMAX
+               " typed_const_expressions=%" PRIuMAX "\n",
+               (int)frontend_status, (int)parse.status,
+               (uintmax_t)frontend_result.written.generic_applications,
+               (uintmax_t)frontend_result.written.typed_const_expressions);
   (void)printf("CONSTIR status=%s measured=%s functions=%" PRIuMAX
                " parameters=%" PRIuMAX " nodes=%" PRIuMAX
                " calls=%" PRIuMAX " switch=%" PRIuMAX " membership=%" PRIuMAX
@@ -242,8 +273,11 @@ int main(void) {
     (void)printf("%02x", receipt_digest[byte]);
   (void)putchar('\n');
   for (size_t index = 0; index < constir_result.written.functions; index += 1) {
-    (void)printf("FUNCTION frontend=%" PRIu32 " lowerable=%d digest=",
+    (void)printf("FUNCTION origin=%d frontend=%" PRIu32
+                 " typed=%" PRIu32 " lowerable=%d digest=",
+                 (int)constir_functions[index].origin,
                  constir_functions[index].frontend_function,
+                 constir_functions[index].typed_const_expression_index,
                  constir_functions[index].lowerable ? 1 : 0);
     for (size_t byte = 0; byte < sizeof(constir_functions[index].body_digest);
          byte += 1) (void)printf("%02x", constir_functions[index].body_digest[byte]);

@@ -21,6 +21,7 @@ typedef struct {
   uint32_t module_index;
   uint32_t argument_index;
   uint32_t argument_const_value_index;
+  uint32_t typed_const_expression_index;
   uint32_t parameter_index;
   uint32_t effective_domain_type_index;
   uint32_t predicate_function_index;
@@ -102,6 +103,8 @@ static bool frontend_arrays_valid(const validation_context *context) {
                              output->type_capacity) &&
          pointer_count_valid(output->functions, written->functions,
                              output->function_capacity) &&
+         pointer_count_valid(output->expressions, written->expressions,
+                             output->expression_capacity) &&
          pointer_count_valid(output->parameters, written->parameters,
                              output->parameter_capacity) &&
          pointer_count_valid(output->generic_parameters,
@@ -113,6 +116,9 @@ static bool frontend_arrays_valid(const validation_context *context) {
          pointer_count_valid(output->generic_arguments,
                              written->generic_arguments,
                              output->generic_argument_capacity) &&
+         pointer_count_valid(output->typed_const_expressions,
+                             written->typed_const_expressions,
+                             output->typed_const_expression_capacity) &&
          pointer_count_valid(output->const_values, written->const_values,
                              output->const_value_capacity) &&
          pointer_count_valid(output->const_elements, written->const_elements,
@@ -309,7 +315,7 @@ static bool frontend_const_value_basic_valid(const validation_context *context,
              range_valid(value->first_element, value->element_count,
                          context->frontend_result->written.const_elements);
     case W_SEED_FRONTEND_CONST_INVALID:
-      return true;
+      return false;
   }
   return false;
 }
@@ -373,6 +379,33 @@ static const w_seed_constir_function *constir_function_for_frontend(
       return NULL;
     }
     found = &program->functions[offset];
+    found_index = offset;
+  }
+  if (index != NULL) *index = found_index;
+  return found;
+}
+
+static const w_seed_constir_function *constir_function_for_typed_expression(
+    const w_seed_constir_program *program, uint32_t typed_index,
+    size_t *index, bool *duplicate) {
+  if (index != NULL) *index = SIZE_MAX;
+  if (duplicate != NULL) *duplicate = false;
+  if (program == NULL || program->functions == NULL ||
+      typed_index == W_SEED_CONSTIR_NONE)
+    return NULL;
+  const w_seed_constir_function *found = NULL;
+  size_t found_index = SIZE_MAX;
+  for (size_t offset = 0u; offset < program->function_count; offset += 1u) {
+    const w_seed_constir_function *function = &program->functions[offset];
+    if (function->origin !=
+            W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION ||
+        function->typed_const_expression_index != typed_index)
+      continue;
+    if (found != NULL) {
+      if (duplicate != NULL) *duplicate = true;
+      return NULL;
+    }
+    found = function;
     found_index = offset;
   }
   if (index != NULL) *index = found_index;
@@ -685,6 +718,51 @@ static bool effective_domain_type_index(
   return true;
 }
 
+static bool predicate_parameter_type_compatible(
+    const validation_context *context, uint32_t left_index,
+    uint32_t right_index, size_t depth);
+
+static bool typed_const_expression_relation_valid(
+    const validation_context *context,
+    const w_seed_frontend_generic_application *application,
+    uint32_t argument_ordinal,
+    const w_seed_frontend_generic_argument *argument,
+    const w_seed_frontend_typed_const_expression **typed_out) {
+  if (typed_out != NULL) *typed_out = NULL;
+  if (context == NULL || application == NULL || argument == NULL ||
+      context->frontend == NULL || context->frontend_result == NULL ||
+      context->frontend->typed_const_expressions == NULL ||
+      argument->typed_const_expression_index == W_SEED_FRONTEND_NONE ||
+      (size_t)argument->typed_const_expression_index >=
+          context->frontend_result->written.typed_const_expressions)
+    return false;
+  const w_seed_frontend_typed_const_expression *typed =
+      &context->frontend->typed_const_expressions[
+          argument->typed_const_expression_index];
+  if (typed->module_index != application->module_index ||
+      typed->owner_application != context->input->application_index ||
+      typed->argument_ordinal != argument_ordinal ||
+      typed->expression_index == W_SEED_FRONTEND_NONE ||
+      (size_t)typed->expression_index >=
+          context->frontend_result->written.expressions ||
+      typed->expected_type == W_SEED_FRONTEND_NONE ||
+      typed->effective_type == W_SEED_FRONTEND_NONE ||
+      !type_index_valid(context, typed->expected_type) ||
+      !type_index_valid(context, typed->effective_type) ||
+      !span_contains(argument->span, typed->span))
+    return false;
+  const w_seed_frontend_expression *expression =
+      &context->frontend->expressions[typed->expression_index];
+  if (!span_contains(typed->span, expression->span) ||
+      expression->owner_function != W_SEED_FRONTEND_NONE ||
+      !expression->supported ||
+      !predicate_parameter_type_compatible(context, expression->inferred_type,
+                                           typed->effective_type, 1u))
+    return false;
+  if (typed_out != NULL) *typed_out = typed;
+  return true;
+}
+
 static bool application_relations_valid(
     const validation_context *context,
     const w_seed_frontend_generic_application **application_out,
@@ -726,6 +804,8 @@ static bool application_relations_valid(
       application->binding_status >
           W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE)
     return false;
+  bool saw_typed_pending = false;
+  bool declared_const_evaluation = false;
   for (uint32_t offset = 0u; offset < application->argument_count; offset += 1u) {
     const w_seed_frontend_generic_argument *argument =
         &context->frontend->generic_arguments[(size_t)application->first_argument + offset];
@@ -739,12 +819,33 @@ static bool application_relations_valid(
         !parameter_relation_valid(context, application, offset, &parameter))
       return false;
     const bool value_kind = parameter->kind == W_SEED_FRONTEND_GENERIC_KIND_VALUE;
+    if (value_kind && parameter->refinement_kind ==
+                         W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE)
+      declared_const_evaluation = true;
     if ((value_kind && argument->kind != W_SEED_FRONTEND_GENERIC_ARGUMENT_VALUE) ||
         (!value_kind && argument->kind != W_SEED_FRONTEND_GENERIC_ARGUMENT_TYPE) ||
         argument->binding_status < W_SEED_FRONTEND_GENERIC_BINDING_INVALID ||
         argument->binding_status > W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE)
       return false;
     if (value_kind) {
+      if (argument->binding_status ==
+          W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED) {
+        if (argument->type_index != W_SEED_FRONTEND_NONE ||
+            argument->const_value_index != W_SEED_FRONTEND_NONE ||
+            argument->typed_const_expression_index != W_SEED_FRONTEND_NONE)
+          return false;
+        continue;
+      }
+      if (argument->binding_status ==
+          W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST) {
+        saw_typed_pending = true;
+        if (argument->type_index != W_SEED_FRONTEND_NONE ||
+            argument->const_value_index != W_SEED_FRONTEND_NONE ||
+            !typed_const_expression_relation_valid(context, application,
+                                                   offset, argument, NULL))
+          return false;
+        continue;
+      }
       uint32_t effective_domain = W_SEED_FRONTEND_NONE;
       if (argument->type_index != W_SEED_FRONTEND_NONE ||
           !effective_domain_type_index(context, application, offset,
@@ -759,12 +860,26 @@ static bool application_relations_valid(
                              ->const_values[argument->const_value_index]
                              .span))
         return false;
+      if (argument->typed_const_expression_index != W_SEED_FRONTEND_NONE)
+        return false;
     } else if (argument->type_index == W_SEED_FRONTEND_NONE ||
                !type_index_valid(context, argument->type_index) ||
-               argument->const_value_index != W_SEED_FRONTEND_NONE) {
+               argument->const_value_index != W_SEED_FRONTEND_NONE ||
+               argument->typed_const_expression_index != W_SEED_FRONTEND_NONE) {
       return false;
     }
   }
+  if (application->binding_status ==
+          W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE &&
+      saw_typed_pending)
+    return false;
+  if (application->binding_status ==
+          W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST &&
+      !saw_typed_pending)
+    return false;
+  if ((saw_typed_pending || declared_const_evaluation) &&
+      !application->requires_const_evaluation)
+    return false;
   if (application_out != NULL) *application_out = application;
   if (head_out != NULL) *head_out = head;
   return true;
@@ -971,6 +1086,8 @@ static bool set_rejection(
   result->rejection.generic_argument_index = candidate->argument_index;
   result->rejection.argument_const_value_index =
       candidate->argument_const_value_index;
+  result->rejection.typed_const_expression_index =
+      candidate->typed_const_expression_index;
   result->rejection.argument_span = candidate->argument->span;
   result->rejection.predicate_function_index =
       candidate->predicate_function_index;
@@ -1318,131 +1435,100 @@ static fingerprint_encode_status fingerprint_type(
   return FINGERPRINT_INVALID;
 }
 
-static fingerprint_encode_status fingerprint_const_value(
+/* Encode the normalized ConstIR value with the same semantic framing as an
+ * immediate frontend ConstValue.  This is the bridge that makes `42` and
+ * `(6 * 7)` share one fingerprint preimage. */
+static fingerprint_encode_status fingerprint_constir_value(
     const validation_context *context, uint32_t module_index,
-    uint32_t value_index, uint32_t expected_type_index,
-    fingerprint_builder *builder, size_t depth);
-
-static fingerprint_encode_status fingerprint_const_value(
-    const validation_context *context, uint32_t module_index,
-    uint32_t value_index, uint32_t expected_type_index,
+    const w_seed_constir_value *value, uint32_t expected_type_index,
     fingerprint_builder *builder, size_t depth) {
-  if (context == NULL || context->frontend == NULL ||
-      context->frontend_result == NULL || builder == NULL || depth == 0u ||
+  if (context == NULL || value == NULL || builder == NULL || depth == 0u ||
       depth > W_SEED_GENERIC_VALIDATION_MAX_DEPTH ||
-      !frontend_const_value_basic_valid(context, value_index) ||
       !type_index_valid(context, expected_type_index))
     return FINGERPRINT_INVALID;
-  const w_seed_frontend_const_value *value =
-      &context->frontend->const_values[value_index];
-  if (value->type_index != expected_type_index) return FINGERPRINT_INVALID;
-  const w_seed_frontend_type *type =
-      &context->frontend->types[expected_type_index];
-  fingerprint_u8(builder, 0x76u);
+  uint8_t kind = 0u;
   switch (value->kind) {
-    case W_SEED_FRONTEND_CONST_BOOL:
-      if (type->kind != W_SEED_FRONTEND_TYPE_BOOL) {
-        return FINGERPRINT_INVALID;
-      }
-      fingerprint_u8(builder, 1u);
+    case W_SEED_CONSTIR_VALUE_BOOL:
+      kind = 1u;
       break;
-    case W_SEED_FRONTEND_CONST_INTEGER:
-      if (type->kind != W_SEED_FRONTEND_TYPE_INTEGER) {
-        return FINGERPRINT_INVALID;
-      }
-      if (!frontend_integer_canonical(value, type)) return FINGERPRINT_INVALID;
-      fingerprint_u8(builder, 2u);
+    case W_SEED_CONSTIR_VALUE_INTEGER:
+      kind = 2u;
       break;
-    case W_SEED_FRONTEND_CONST_STRING:
-      if (type->kind != W_SEED_FRONTEND_TYPE_STRING) {
-        return FINGERPRINT_INVALID;
-      }
-      if (!range_valid(value->first_byte, value->byte_count,
-                       context->frontend_result->written.const_bytes))
-        return FINGERPRINT_INVALID;
-      fingerprint_u8(builder, 3u);
+    case W_SEED_CONSTIR_VALUE_STRING:
+      kind = 3u;
       break;
-    case W_SEED_FRONTEND_CONST_ENUM_CASE:
-      if (type->kind != W_SEED_FRONTEND_TYPE_ENUM &&
-          type->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET) {
+    case W_SEED_CONSTIR_VALUE_ENUM:
+      kind = 4u;
+      break;
+    case W_SEED_CONSTIR_VALUE_STATIC_LIST:
+      kind = 5u;
+      break;
+    default:
+      return FINGERPRINT_INVALID;
+  }
+  fingerprint_u8(builder, 0x76u);
+  fingerprint_u8(builder, kind);
+  fingerprint_encode_status status = fingerprint_type(
+      context, module_index, expected_type_index, builder, depth);
+  if (status != FINGERPRINT_ENCODED) return status;
+  const w_seed_frontend_type *expected =
+      &context->frontend->types[expected_type_index];
+  switch (value->kind) {
+    case W_SEED_CONSTIR_VALUE_BOOL:
+      if (expected->kind != W_SEED_FRONTEND_TYPE_BOOL ||
+          value->type_kind != W_SEED_FRONTEND_TYPE_BOOL)
         return FINGERPRINT_INVALID;
-      }
-      if (!enum_case_valid(context, value->enum_base_index,
-                           value->enum_case_index, false) ||
-          !enum_case_member_of_type(context, type, expected_type_index,
+      fingerprint_u8(builder, value->bool_value ? 1u : 0u);
+      return FINGERPRINT_ENCODED;
+    case W_SEED_CONSTIR_VALUE_INTEGER: {
+      if (expected->kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+          value->type_kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+          value->type_is_signed != expected->is_signed ||
+          value->type_bit_width != expected->bit_width ||
+          value->type_bit_width == 0u || value->type_bit_width > 128u)
+        return FINGERPRINT_INVALID;
+      const uint8_t byte_count =
+          (uint8_t)((value->type_bit_width + 7u) / 8u);
+      fingerprint_u8(builder, value->type_is_signed ? 1u : 0u);
+      fingerprint_u16(builder, value->type_bit_width);
+      fingerprint_u8(builder, byte_count);
+      fingerprint_bytes(builder, value->integer_value, byte_count);
+      return FINGERPRINT_ENCODED;
+    }
+    case W_SEED_CONSTIR_VALUE_STRING:
+      if (expected->kind != W_SEED_FRONTEND_TYPE_STRING ||
+          value->string_count > W_SEED_CONSTIR_MAX_STRING_BYTES ||
+          (value->string_count != 0u && value->string_bytes == NULL))
+        return FINGERPRINT_INVALID;
+      fingerprint_u32(builder, (uint32_t)value->string_count);
+      fingerprint_bytes(builder, value->string_bytes, value->string_count);
+      return FINGERPRINT_ENCODED;
+    case W_SEED_CONSTIR_VALUE_ENUM:
+      if ((expected->kind != W_SEED_FRONTEND_TYPE_ENUM &&
+           expected->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET) ||
+          !enum_case_member_of_type(context, expected, expected_type_index,
                                     value->enum_base_index,
                                     value->enum_case_index))
         return FINGERPRINT_INVALID;
-      fingerprint_u8(builder, 4u);
-      break;
-    case W_SEED_FRONTEND_CONST_STATIC_LIST:
-      if (type->kind != W_SEED_FRONTEND_TYPE_STATIC_LIST) {
-        return FINGERPRINT_INVALID;
-      }
-      if (value->element_count > W_SEED_FRONTEND_MAX_STATIC_LIST_ELEMENTS) {
-        fingerprint_mark_unsupported(builder);
-        return FINGERPRINT_UNSUPPORTED;
-      }
-      if ((value->element_count == 0u &&
-           value->first_element != W_SEED_FRONTEND_NONE) ||
-          (value->element_count != 0u &&
-           !range_valid(value->first_element, value->element_count,
-                        context->frontend_result->written.const_elements)) ||
-          type->element_type == W_SEED_FRONTEND_NONE ||
-          !type_index_valid(context, type->element_type))
-        return FINGERPRINT_INVALID;
-      fingerprint_u8(builder, 5u);
-      break;
-    case W_SEED_FRONTEND_CONST_INVALID:
-      return FINGERPRINT_INVALID;
-  }
-  fingerprint_encode_status status =
-      fingerprint_type(context, module_index, expected_type_index, builder, depth);
-  if (status != FINGERPRINT_ENCODED) return status;
-  switch (value->kind) {
-    case W_SEED_FRONTEND_CONST_BOOL:
-      fingerprint_u8(builder, value->bool_value ? 1u : 0u);
-      return FINGERPRINT_ENCODED;
-    case W_SEED_FRONTEND_CONST_INTEGER:
-      fingerprint_u8(builder, value->integer_signed ? 1u : 0u);
-      fingerprint_u16(builder, value->integer_bit_width);
-      fingerprint_u8(builder, value->integer_byte_count);
-      fingerprint_bytes(builder, value->integer_bytes,
-                        value->integer_byte_count);
-      return FINGERPRINT_ENCODED;
-    case W_SEED_FRONTEND_CONST_STRING:
-      fingerprint_u32(builder, value->byte_count);
-      fingerprint_bytes(
-          builder,
-          value->byte_count == 0u
-              ? NULL
-              : context->frontend->const_bytes + value->first_byte,
-          value->byte_count);
-      return FINGERPRINT_ENCODED;
-    case W_SEED_FRONTEND_CONST_ENUM_CASE:
       return fingerprint_enum_case_name(context, value->enum_base_index,
                                         value->enum_case_index, builder);
-    case W_SEED_FRONTEND_CONST_STATIC_LIST:
-      fingerprint_u32(builder, value->element_count);
-      for (uint32_t offset = 0u; offset < value->element_count; offset += 1u) {
-        const w_seed_frontend_const_element *element =
-            &context->frontend->const_elements[
-                (size_t)value->first_element + offset];
-        if (element->owner_value != value_index || element->ordinal != offset ||
-            !span_contains(value->span, element->span) ||
-            !frontend_const_value_relation_valid(context, element->value_index,
-                                                 depth + 1u))
-          return FINGERPRINT_INVALID;
-        status = fingerprint_const_value(context, module_index,
-                                         element->value_index, type->element_type,
-                                         builder, depth + 1u);
+    case W_SEED_CONSTIR_VALUE_STATIC_LIST:
+      if (expected->kind != W_SEED_FRONTEND_TYPE_STATIC_LIST ||
+          expected->element_type == W_SEED_FRONTEND_NONE ||
+          value->element_count > W_SEED_FRONTEND_MAX_STATIC_LIST_ELEMENTS ||
+          (value->element_count != 0u && value->elements == NULL))
+        return FINGERPRINT_INVALID;
+      fingerprint_u32(builder, (uint32_t)value->element_count);
+      for (size_t index = 0u; index < value->element_count; index += 1u) {
+        status = fingerprint_constir_value(
+            context, module_index, &value->elements[index],
+            expected->element_type, builder, depth + 1u);
         if (status != FINGERPRINT_ENCODED) return status;
       }
       return FINGERPRINT_ENCODED;
-    case W_SEED_FRONTEND_CONST_INVALID:
+    default:
       return FINGERPRINT_INVALID;
   }
-  return FINGERPRINT_INVALID;
 }
 
 static const predicate_candidate *fingerprint_candidate_for_argument(
@@ -1458,7 +1544,8 @@ static fingerprint_encode_status fingerprint_application(
     const validation_context *context,
     const w_seed_frontend_generic_application *application,
     const w_seed_frontend_struct *head, const predicate_candidate *candidates,
-    size_t candidate_count, fingerprint_builder *builder) {
+    size_t candidate_count, const uint32_t *value_indices,
+    fingerprint_builder *builder) {
   if (context == NULL || application == NULL || head == NULL || builder == NULL ||
       context->frontend == NULL || context->frontend_result == NULL ||
       context->frontend->generic_arguments == NULL ||
@@ -1507,8 +1594,12 @@ static fingerprint_encode_status fingerprint_application(
     status = fingerprint_type(context, application->module_index,
                               effective_domain_type, builder, 1u);
     if (status == FINGERPRINT_INVALID) return status;
-    status = fingerprint_const_value(
-        context, application->module_index, argument->const_value_index,
+    if (value_indices == NULL || value_indices[offset] == W_SEED_FRONTEND_NONE ||
+        (size_t)value_indices[offset] >= context->arena_count)
+      return FINGERPRINT_INVALID;
+    status = fingerprint_constir_value(
+        context, application->module_index,
+        &context->input->conversion_values[value_indices[offset]],
         effective_domain_type, builder, 1u);
     if (status == FINGERPRINT_INVALID) return status;
     if (parameter->refinement_kind == W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE) {
@@ -1589,6 +1680,40 @@ const char *w_seed_generic_validation_fingerprint_state_name(
   return "UNKNOWN";
 }
 
+static void quota_consume(w_seed_constir_quota *remaining,
+                          const w_seed_constir_eval_result *evaluation) {
+  if (remaining == NULL || evaluation == NULL) return;
+  if (remaining->steps != SIZE_MAX) {
+    remaining->steps = evaluation->consumed_steps >= remaining->steps
+                           ? 0u
+                           : remaining->steps - evaluation->consumed_steps;
+  }
+  if (remaining->heap_bytes != SIZE_MAX) {
+    remaining->heap_bytes = evaluation->consumed_heap_bytes >=
+                                    remaining->heap_bytes
+                                ? 0u
+                                : remaining->heap_bytes -
+                                      evaluation->consumed_heap_bytes;
+  }
+  if (remaining->result_bytes != SIZE_MAX) {
+    remaining->result_bytes = evaluation->consumed_result_bytes >=
+                                      remaining->result_bytes
+                                  ? 0u
+                                  : remaining->result_bytes -
+                                        evaluation->consumed_result_bytes;
+  }
+}
+
+static void receipt_init(w_seed_generic_validation_receipt *receipt) {
+  if (receipt == NULL) return;
+  (void)memset(receipt, 0, sizeof(*receipt));
+  receipt->generic_argument_index = W_SEED_FRONTEND_NONE;
+  receipt->argument_const_value_index = W_SEED_FRONTEND_NONE;
+  receipt->typed_const_expression_index = W_SEED_FRONTEND_NONE;
+  receipt->predicate_parameter_index = W_SEED_FRONTEND_NONE;
+  receipt->predicate_function_index = W_SEED_FRONTEND_NONE;
+}
+
 w_seed_generic_validation_state w_seed_generic_validation_run(
     const w_seed_generic_validation_input *input,
     w_seed_generic_validation_result *result) {
@@ -1616,71 +1741,148 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
   if (!application_relations_valid(&context, &application, &head))
     return result->state;
   result->head_struct_index = application->head_struct;
-  if (application->binding_status !=
-      W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE) {
-    if (application->binding_status ==
-        W_SEED_FRONTEND_GENERIC_BINDING_INVALID)
-      return result->state;
+  if (application->binding_status ==
+      W_SEED_FRONTEND_GENERIC_BINDING_INVALID)
+    return result->state;
+  if (application->binding_status ==
+      W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED) {
     result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
     result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_BINDING;
     return result->state;
   }
+  if (application->binding_status !=
+          W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE &&
+      application->binding_status !=
+          W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST)
+    return result->state;
+  if (application->argument_count != head->generic_parameter_count)
+    return result->state;
+
+  predicate_candidate candidates[W_SEED_GENERIC_VALIDATION_MAX_PREDICATES];
+  size_t candidate_count = 0u;
+  uint32_t value_indices[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
+  uint32_t typed_function_indices[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
+  size_t value_counts[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
+  for (size_t index = 0u; index < W_SEED_FRONTEND_MAX_GENERIC_SLOTS;
+       index += 1u) {
+    value_indices[index] = W_SEED_FRONTEND_NONE;
+    typed_function_indices[index] = W_SEED_CONSTIR_NONE;
+    value_counts[index] = 0u;
+  }
+  size_t computed_argument_count = 0u;
+  size_t required_values = 0u;
+  /* Read-only preflight of every argument, including synthetic functions and
+   * conversion shape.  No caller-owned arena or receipt is written below. */
   for (uint32_t offset = 0u; offset < application->argument_count;
        offset += 1u) {
+    const w_seed_frontend_generic_parameter *parameter = NULL;
+    if (!parameter_relation_valid(&context, application, offset, &parameter) ||
+        parameter == NULL)
+      return result->state;
     const w_seed_frontend_generic_argument *argument =
         &context.frontend->generic_arguments[(size_t)application->first_argument +
                                              offset];
-    if (argument->binding_status ==
-        W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE)
+    if (parameter->kind != W_SEED_FRONTEND_GENERIC_KIND_VALUE) {
+      if (argument->binding_status !=
+              W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE ||
+          argument->typed_const_expression_index != W_SEED_FRONTEND_NONE)
+        return result->state;
       continue;
+    }
+    uint32_t effective_domain = W_SEED_FRONTEND_NONE;
+    if (!effective_domain_type_index(&context, application, offset,
+                                     &effective_domain))
+      return result->state;
     if (argument->binding_status ==
-            W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED ||
-        argument->binding_status ==
-            W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST) {
+        W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST) {
+      const w_seed_frontend_typed_const_expression *typed = NULL;
+      if (!typed_const_expression_relation_valid(&context, application, offset,
+                                                 argument, &typed) ||
+          typed->effective_type != effective_domain)
+        return result->state;
+      bool duplicate = false;
+      size_t function_index = SIZE_MAX;
+      const w_seed_constir_function *function =
+          constir_function_for_typed_expression(
+              context.program, argument->typed_const_expression_index,
+              &function_index, &duplicate);
+      if (duplicate || function == NULL) {
+        result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+        result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+        return result->state;
+      }
+      if (!function->lowerable) {
+        result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+        result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION;
+        return result->state;
+      }
+      if (function->parameter_count != 0u ||
+          function->origin !=
+              W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION)
+        return result->state;
+      if (computed_argument_count == SIZE_MAX)
+        return result->state;
+      computed_argument_count += 1u;
+      typed_function_indices[offset] = (uint32_t)function_index;
+      value_counts[offset] = 1u;
+    } else if (argument->binding_status ==
+               W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE) {
+      if (argument->typed_const_expression_index != W_SEED_FRONTEND_NONE)
+        return result->state;
+      size_t count = 0u;
+      const conversion_status count_status = conversion_value_count(
+          &context, argument->const_value_index, effective_domain, &count);
+      if (count_status == CONVERSION_UNSUPPORTED) {
+        result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+        result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_VALUE;
+        return result->state;
+      }
+      if (count_status != CONVERSION_OK)
+        return result->state;
+      value_counts[offset] = count;
+    } else {
       result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
       result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_BINDING;
       return result->state;
     }
-    return result->state;
+    if (value_counts[offset] > SIZE_MAX - required_values)
+      return result->state;
+    required_values += value_counts[offset];
   }
-  if (application->argument_count != head->generic_parameter_count) {
-    /* A BOUND_IMMEDIATE application must have one argument for every head
-     * parameter.  A mismatch is malformed input, not a feature gap. */
-    return result->state;
-  }
-  predicate_candidate candidates[W_SEED_GENERIC_VALIDATION_MAX_PREDICATES];
-  size_t candidate_count = 0u;
-  for (uint32_t offset = 0u; offset < application->argument_count; offset += 1u) {
+  /* Publish the complete calculated-argument count as soon as the argument
+   * preflight is complete.  This remains observable on a later preflight
+   * capacity result, and is established before any evaluator step. */
+  result->computed_argument_count = computed_argument_count;
+  /* Preflight all declared predicates after every value relation is known. */
+  for (uint32_t offset = 0u; offset < application->argument_count;
+       offset += 1u) {
     const w_seed_frontend_generic_parameter *parameter = NULL;
-    (void)parameter_relation_valid(&context, application, offset, &parameter);
-    const w_seed_frontend_generic_argument *argument =
-        &context.frontend->generic_arguments[(size_t)application->first_argument +
-                                             offset];
+    if (!parameter_relation_valid(&context, application, offset, &parameter) ||
+        parameter == NULL || parameter->kind !=
+                                 W_SEED_FRONTEND_GENERIC_KIND_VALUE)
+      continue;
     if (parameter->refinement_kind !=
         W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE)
       continue;
-    if (candidate_count >= W_SEED_GENERIC_VALIDATION_MAX_PREDICATES) {
-      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
-      return result->state = W_SEED_GENERIC_VALIDATION_CAPACITY;
-    }
+    const w_seed_frontend_generic_argument *argument =
+        &context.frontend->generic_arguments[(size_t)application->first_argument +
+                                             offset];
     predicate_candidate *candidate = &candidates[candidate_count];
     (void)memset(candidate, 0, sizeof(*candidate));
     candidate->argument_index = application->first_argument + offset;
     candidate->module_index = application->module_index;
     candidate->argument_const_value_index = argument->const_value_index;
+    candidate->typed_const_expression_index =
+        argument->typed_const_expression_index;
     candidate->parameter_index = argument->parameter_index;
     candidate->argument = argument;
     candidate->parameter = parameter;
     if (!effective_domain_type_index(&context, application, offset,
-                                     &candidate->effective_domain_type_index)) {
-      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+                                     &candidate->effective_domain_type_index))
       return result->state;
-    }
     if (!frontend_function_index_valid(
-            &context, candidate->parameter->predicate_function_index)) {
-      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+            &context, candidate->parameter->predicate_function_index))
       return result->state;
-    }
     bool duplicate_mapping = false;
     if (!predicate_candidate_function_valid(&context, candidate,
                                             &duplicate_mapping)) {
@@ -1691,30 +1893,29 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
                                  ? W_SEED_GENERIC_VALIDATION_INVALID
                                  : W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
     }
-    if (!predicate_frontend_signature_valid(&context, candidate)) {
-      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+    if (!predicate_frontend_signature_valid(&context, candidate))
       return result->state;
+    if (candidate->function == NULL) {
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+      return result->state = W_SEED_GENERIC_VALIDATION_INVALID;
     }
-    if (candidate->function == NULL || !candidate->function->lowerable) {
+    if (!candidate->function->lowerable) {
       result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION;
       return result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
     }
-    if (candidate->function->parameter_count !=
-        context.frontend->functions[candidate->predicate_function_index]
-            .parameter_count) {
-      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
-      return result->state;
-    }
     candidate_count += 1u;
   }
-  fingerprint_builder fingerprint;
-  (void)memset(&fingerprint, 0, sizeof(fingerprint));
-  w_seed_sha256_init(&fingerprint.sha);
-  const fingerprint_encode_status fingerprint_status =
-      fingerprint_application(&context, application, head, candidates,
-                               candidate_count, &fingerprint);
-  if (fingerprint_status == FINGERPRINT_INVALID) {
-    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+  result->predicate_count = candidate_count;
+  /* Publish the complete computed count from read-only preflight.  No
+   * evaluator step has run at this point, and the count remains stable for
+   * all later success/failure states. */
+  /* Capacity is decided only after every argument and predicate relation,
+   * synthetic function, and signature has passed read-only preflight.  This
+   * preserves INVALID precedence when malformed input also has short arenas. */
+  if (required_values > input->conversion_value_capacity ||
+      (required_values != 0u && input->conversion_values == NULL)) {
+    result->state = W_SEED_GENERIC_VALIDATION_CAPACITY;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
     return result->state;
   }
   if (candidate_count != 0u &&
@@ -1725,69 +1926,131 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
     result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
     return result->state;
   }
-  if (candidate_count > input->receipt_capacity ||
-      (candidate_count != 0u && input->receipts == NULL)) {
-    context.arena_count = 0u;
+  /* Receipts are causal records only for calculated arguments and predicates;
+   * immediate values are converted without an evaluation receipt. */
+  if (computed_argument_count > SIZE_MAX - candidate_count) {
+    result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+    return result->state;
+  }
+  const size_t required_receipts = computed_argument_count + candidate_count;
+  if (required_receipts > input->receipt_capacity ||
+      (required_receipts != 0u && input->receipts == NULL)) {
     result->state = W_SEED_GENERIC_VALIDATION_CAPACITY;
     result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
     return result->state;
   }
-  size_t required_values = 0u;
-  for (size_t index = 0u; index < candidate_count; index += 1u) {
-    size_t value_count = 0u;
-    const conversion_status count_status = conversion_value_count(
-        &context, candidates[index].argument_const_value_index,
-        candidates[index].effective_domain_type_index, &value_count);
-    if (count_status == CONVERSION_UNSUPPORTED) {
-      result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
-      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_VALUE;
-      return result->state;
+
+  w_seed_constir_quota remaining = input->quota;
+  size_t const_receipt_index = 0u;
+  bool evaluation_started = false;
+  /* Evaluate calculated values in argument order.  Immediate values are
+   * converted into the same bounded arena and receive the same normalized
+   * value representation. */
+  for (uint32_t offset = 0u; offset < application->argument_count;
+       offset += 1u) {
+    const w_seed_frontend_generic_parameter *parameter = NULL;
+    if (!parameter_relation_valid(&context, application, offset, &parameter) ||
+        parameter == NULL || parameter->kind !=
+                                 W_SEED_FRONTEND_GENERIC_KIND_VALUE)
+      continue;
+    const w_seed_frontend_generic_argument *argument =
+        &context.frontend->generic_arguments[(size_t)application->first_argument +
+                                             offset];
+    uint32_t value_index = W_SEED_FRONTEND_NONE;
+    w_seed_constir_eval_result evaluation;
+    (void)memset(&evaluation, 0, sizeof(evaluation));
+    w_seed_constir_value value;
+    (void)memset(&value, 0, sizeof(value));
+    if (argument->binding_status ==
+        W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST) {
+      const size_t function_index = typed_function_indices[offset];
+      evaluation_started = true;
+      const w_seed_constir_status status = w_seed_constir_evaluate(
+          context.program, (uint32_t)function_index, NULL, 0u,
+          remaining, input->eval_workspace, &value, &evaluation);
+      quota_consume(&remaining, &evaluation);
+      result->evaluation = evaluation;
+      result->diagnostic = evaluation.diagnostic;
+      result->diagnostic_span = evaluation.diagnostic_span;
+      w_seed_generic_validation_receipt *receipt =
+          &input->receipts[const_receipt_index++];
+      receipt_init(receipt);
+      receipt->kind = W_SEED_GENERIC_VALIDATION_RECEIPT_CONST_ARGUMENT;
+      receipt->generic_argument_index = application->first_argument + offset;
+      receipt->argument_const_value_index = argument->const_value_index;
+      receipt->typed_const_expression_index =
+          argument->typed_const_expression_index;
+      receipt->argument_span = argument->span;
+      receipt->evaluation = evaluation;
+      receipt->eval_value = value;
+      result->receipts_written = const_receipt_index;
+      if (status != W_SEED_CONSTIR_OK ||
+          evaluation.diagnostic != W_SEED_CONSTIR_DIAGNOSTIC_NONE) {
+        result->state = evaluation.diagnostic !=
+                                W_SEED_CONSTIR_DIAGNOSTIC_NONE
+                            ? W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED
+                            : W_SEED_GENERIC_VALIDATION_INVALID;
+        result->failure = evaluation.diagnostic !=
+                                  W_SEED_CONSTIR_DIAGNOSTIC_NONE
+                              ? W_SEED_GENERIC_VALIDATION_FAILURE_EVALUATOR_DIAGNOSTIC
+                              : W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+        return result->state;
+      }
+    } else {
+      uint32_t domain = W_SEED_FRONTEND_NONE;
+      if (!effective_domain_type_index(&context, application, offset, &domain))
+        return result->state;
+      const conversion_status conversion = convert_const_value(
+          &context, argument->const_value_index, domain, 1u, &value_index);
+      if (conversion != CONVERSION_OK) {
+        const bool post_step_capacity =
+            conversion == CONVERSION_CAPACITY && evaluation_started;
+        result->state = conversion == CONVERSION_UNSUPPORTED
+                            ? W_SEED_GENERIC_VALIDATION_UNSUPPORTED
+                            : conversion == CONVERSION_CAPACITY
+                                  ? (post_step_capacity
+                                         ? W_SEED_GENERIC_VALIDATION_INVALID
+                                         : W_SEED_GENERIC_VALIDATION_CAPACITY)
+                                  : W_SEED_GENERIC_VALIDATION_INVALID;
+        result->failure = conversion == CONVERSION_UNSUPPORTED
+                              ? W_SEED_GENERIC_VALIDATION_FAILURE_VALUE
+                              : conversion == CONVERSION_CAPACITY
+                                    ? (post_step_capacity
+                                           ? W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT
+                                           : W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY)
+                                    : W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+        return result->state;
+      }
+      value = context.input->conversion_values[value_index];
     }
-    if (count_status != CONVERSION_OK) {
-      result->state = count_status == CONVERSION_CAPACITY
-                          ? W_SEED_GENERIC_VALIDATION_CAPACITY
-                          : W_SEED_GENERIC_VALIDATION_INVALID;
-      result->failure = count_status == CONVERSION_CAPACITY
-                            ? W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY
-                            : W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
-      return result->state;
+    if (argument->binding_status ==
+        W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST) {
+      const conversion_status append_status = append_value(
+          &context, &value, &value_index);
+      if (append_status != CONVERSION_OK) {
+        /* Preflight reserved this exact scalar slot.  A post-step append
+         * failure is therefore an internal relation failure, not a caller
+         * capacity result. */
+        result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+        result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+        return result->state;
+      }
+      w_seed_generic_validation_receipt *receipt =
+          &input->receipts[const_receipt_index - 1u];
+      receipt->eval_value = context.input->conversion_values[value_index];
     }
-    if (value_count > SIZE_MAX - required_values ||
-        required_values > input->conversion_value_capacity ||
-        value_count > input->conversion_value_capacity - required_values) {
-      result->state = W_SEED_GENERIC_VALIDATION_CAPACITY;
-      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
-      return result->state;
-    }
-    required_values += value_count;
+    value_indices[offset] = value_index;
   }
-  if (candidate_count != 0u &&
-      (input->conversion_values == NULL ||
-       required_values > input->conversion_value_capacity)) {
-    result->state = W_SEED_GENERIC_VALIDATION_CAPACITY;
-    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
-    return result->state;
-  }
-  for (size_t index = 0u; index < candidate_count; index += 1u) {
-    const conversion_status conversion = convert_const_value(
-        &context, candidates[index].argument_const_value_index,
-        candidates[index].effective_domain_type_index, 1u,
-        &candidates[index].value_index);
-    if (conversion != CONVERSION_OK) {
-      context.arena_count = 0u;
-      result->state = conversion == CONVERSION_CAPACITY
-                          ? W_SEED_GENERIC_VALIDATION_CAPACITY
-                          : conversion == CONVERSION_UNSUPPORTED
-                                ? W_SEED_GENERIC_VALIDATION_UNSUPPORTED
-                                : W_SEED_GENERIC_VALIDATION_INVALID;
-      result->failure = conversion == CONVERSION_CAPACITY
-                            ? W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY
-                            : W_SEED_GENERIC_VALIDATION_FAILURE_VALUE;
-      return result->state;
-    }
-  }
+
   w_seed_constir_invocation invocations[W_SEED_GENERIC_VALIDATION_MAX_PREDICATES];
   for (size_t index = 0u; index < candidate_count; index += 1u) {
+    const uint32_t offset = candidates[index].argument_index -
+                            application->first_argument;
+    if (offset >= application->argument_count ||
+        value_indices[offset] == W_SEED_FRONTEND_NONE)
+      return result->state;
+    candidates[index].value_index = value_indices[offset];
     invocations[index] = (w_seed_constir_invocation){
         candidates[index].predicate_constir_index,
         &context.input->conversion_values[candidates[index].value_index], 1u};
@@ -1799,7 +2062,6 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
     result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
     return result->state;
   }
-  result->predicate_count = candidate_count;
   for (size_t index = 0u; index < candidate_count; index += 1u) {
     predicate_candidate *candidate = &candidates[index];
     w_seed_constir_value predicate_value;
@@ -1809,37 +2071,44 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
     const w_seed_constir_status status = w_seed_constir_evaluate(
         context.program, candidate->predicate_constir_index,
         &context.input->conversion_values[candidate->value_index], 1u,
-        input->quota, input->eval_workspace, &predicate_value, &evaluation);
-    if (status != W_SEED_CONSTIR_OK) {
-      result->state = W_SEED_GENERIC_VALIDATION_INVALID;
-      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
-      result->evaluation = evaluation;
-      result->diagnostic = evaluation.diagnostic;
-      result->diagnostic_span = evaluation.diagnostic_span;
-      return result->state;
-    }
-    if (evaluation.diagnostic != W_SEED_CONSTIR_DIAGNOSTIC_NONE) {
-      result->state = W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED;
-      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_EVALUATOR_DIAGNOSTIC;
-      result->evaluation = evaluation;
-      result->diagnostic = evaluation.diagnostic;
-      result->diagnostic_span = evaluation.diagnostic_span;
-      return result->state;
-    }
-    w_seed_generic_validation_receipt *receipt = &input->receipts[index];
-    (void)memset(receipt, 0, sizeof(*receipt));
+        remaining, input->eval_workspace, &predicate_value, &evaluation);
+    quota_consume(&remaining, &evaluation);
+    result->evaluation = evaluation;
+    result->diagnostic = evaluation.diagnostic;
+    result->diagnostic_span = evaluation.diagnostic_span;
+    w_seed_generic_validation_receipt *receipt =
+        &input->receipts[computed_argument_count + index];
+    receipt_init(receipt);
+    receipt->kind = W_SEED_GENERIC_VALIDATION_RECEIPT_PREDICATE;
     receipt->generic_argument_index = candidate->argument_index;
     receipt->argument_const_value_index = candidate->argument_const_value_index;
+    receipt->typed_const_expression_index =
+        candidate->typed_const_expression_index;
     receipt->argument_span = candidate->argument->span;
     receipt->predicate_parameter_index = candidate->parameter_index;
     receipt->predicate_function_index = candidate->predicate_function_index;
     receipt->predicate_span = candidate->parameter->predicate_span;
     receipt->predicate_function_span = candidate->parameter->predicate_function_span;
     receipt->evaluation = evaluation;
+    receipt->eval_value = predicate_value;
     receipt->result_is_bool = predicate_value.kind == W_SEED_CONSTIR_VALUE_BOOL;
     receipt->bool_value = predicate_value.bool_value;
-    result->receipts_written = index + 1u;
-    result->evaluation = evaluation;
+    result->receipts_written = computed_argument_count + index + 1u;
+    if (status != W_SEED_CONSTIR_OK) {
+      result->state = evaluation.diagnostic != W_SEED_CONSTIR_DIAGNOSTIC_NONE
+                          ? W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED
+                          : W_SEED_GENERIC_VALIDATION_INVALID;
+      result->failure = evaluation.diagnostic !=
+                                W_SEED_CONSTIR_DIAGNOSTIC_NONE
+                            ? W_SEED_GENERIC_VALIDATION_FAILURE_EVALUATOR_DIAGNOSTIC
+                            : W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+      return result->state;
+    }
+    if (evaluation.diagnostic != W_SEED_CONSTIR_DIAGNOSTIC_NONE) {
+      result->state = W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_EVALUATOR_DIAGNOSTIC;
+      return result->state;
+    }
     if (!receipt->result_is_bool) {
       result->state = W_SEED_GENERIC_VALIDATION_INVALID;
       result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_RESULT_TYPE;
@@ -1853,10 +2122,19 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
       if (!set_rejection(&context, application, candidate, result)) {
         result->state = W_SEED_GENERIC_VALIDATION_CAPACITY;
         result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
-        return result->state;
       }
       return result->state;
     }
+  }
+  fingerprint_builder fingerprint;
+  (void)memset(&fingerprint, 0, sizeof(fingerprint));
+  w_seed_sha256_init(&fingerprint.sha);
+  const fingerprint_encode_status fingerprint_status = fingerprint_application(
+      &context, application, head, candidates, candidate_count, value_indices,
+      &fingerprint);
+  if (fingerprint_status == FINGERPRINT_INVALID) {
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+    return result->state;
   }
   result->state = W_SEED_GENERIC_VALIDATION_VERIFIED;
   result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_NONE;

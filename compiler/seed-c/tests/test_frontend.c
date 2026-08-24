@@ -28,6 +28,7 @@ enum {
   TEST_GENERIC_PARAMETERS = 64,
   TEST_GENERIC_APPLICATIONS = 64,
   TEST_GENERIC_ARGUMENTS = 256,
+  TEST_TYPED_CONST_EXPRESSIONS = 256,
   TEST_CONST_VALUES = 512,
   TEST_CONST_ELEMENTS = 512,
   TEST_CONST_BYTES = 8192,
@@ -72,6 +73,8 @@ typedef struct {
   w_seed_frontend_generic_application
       generic_applications[TEST_GENERIC_APPLICATIONS];
   w_seed_frontend_generic_argument generic_arguments[TEST_GENERIC_ARGUMENTS];
+  w_seed_frontend_typed_const_expression
+      typed_const_expressions[TEST_TYPED_CONST_EXPRESSIONS];
   w_seed_frontend_const_value const_values[TEST_CONST_VALUES];
   w_seed_frontend_const_element const_elements[TEST_CONST_ELEMENTS];
   uint8_t const_bytes[TEST_CONST_BYTES];
@@ -144,6 +147,8 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
                sizeof(fixture_value->generic_applications));
   (void)memset(fixture_value->generic_arguments, value,
                sizeof(fixture_value->generic_arguments));
+  (void)memset(fixture_value->typed_const_expressions, value,
+               sizeof(fixture_value->typed_const_expressions));
   (void)memset(fixture_value->const_values, value,
                sizeof(fixture_value->const_values));
   (void)memset(fixture_value->const_elements, value,
@@ -201,6 +206,8 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                          sizeof(fixture_value->generic_applications), value) &&
          all_bytes_equal(fixture_value->generic_arguments,
                          sizeof(fixture_value->generic_arguments), value) &&
+         all_bytes_equal(fixture_value->typed_const_expressions,
+                         sizeof(fixture_value->typed_const_expressions), value) &&
          all_bytes_equal(fixture_value->const_values,
                          sizeof(fixture_value->const_values), value) &&
          all_bytes_equal(fixture_value->const_elements,
@@ -288,6 +295,8 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .generic_application_capacity = TEST_GENERIC_APPLICATIONS,
       .generic_arguments = fixture_value->generic_arguments,
       .generic_argument_capacity = TEST_GENERIC_ARGUMENTS,
+      .typed_const_expressions = fixture_value->typed_const_expressions,
+      .typed_const_expression_capacity = TEST_TYPED_CONST_EXPRESSIONS,
       .const_values = fixture_value->const_values,
       .const_value_capacity = TEST_CONST_VALUES,
       .const_elements = fixture_value->const_elements,
@@ -353,6 +362,7 @@ static bool counts_equal(const w_seed_frontend_counts *left,
          left->generic_parameters == right->generic_parameters &&
          left->generic_applications == right->generic_applications &&
          left->generic_arguments == right->generic_arguments &&
+         left->typed_const_expressions == right->typed_const_expressions &&
          left->const_values == right->const_values &&
          left->const_elements == right->const_elements &&
          left->const_bytes == right->const_bytes &&
@@ -1961,6 +1971,95 @@ static bool test_generic_applications(void) {
   return true;
 }
 
+static bool test_typed_const_expressions(void) {
+  static const char source[] =
+      "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n"
+      "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
+      "struct Use { immediate: UltimateAnswer<42> computed: "
+      "UltimateAnswer<(6 * 7)> }\n";
+  fixture *value = &fixture_const;
+  CHECK(fixture_run(value, source));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.generic_applications == 2u &&
+        value->result.written.generic_arguments == 2u &&
+        value->result.written.typed_const_expressions == 1u);
+  uint32_t pending_application = W_SEED_FRONTEND_NONE;
+  uint32_t immediate_application = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.generic_applications;
+       index += 1u) {
+    const w_seed_frontend_generic_application *application =
+        &value->generic_applications[index];
+    if (application->binding_status ==
+        W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST)
+      pending_application = (uint32_t)index;
+    else if (application->binding_status ==
+             W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE)
+      immediate_application = (uint32_t)index;
+  }
+  CHECK(pending_application != W_SEED_FRONTEND_NONE &&
+        immediate_application != W_SEED_FRONTEND_NONE);
+  const w_seed_frontend_generic_argument *immediate =
+      &value->generic_arguments[
+          value->generic_applications[immediate_application].first_argument];
+  const w_seed_frontend_generic_argument *pending =
+      &value->generic_arguments[
+          value->generic_applications[pending_application].first_argument];
+  CHECK(immediate->binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE &&
+        immediate->const_value_index != W_SEED_FRONTEND_NONE &&
+        immediate->typed_const_expression_index == W_SEED_FRONTEND_NONE &&
+        pending->binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST &&
+        pending->const_value_index == W_SEED_FRONTEND_NONE &&
+        pending->typed_const_expression_index == 0u &&
+        value->generic_applications[pending_application]
+            .requires_const_evaluation);
+  const w_seed_frontend_typed_const_expression *typed =
+      &value->typed_const_expressions[0];
+  CHECK(typed->owner_application == pending_application &&
+        typed->argument_ordinal == 0u &&
+        typed->expression_index != W_SEED_FRONTEND_NONE &&
+        typed->expected_type != W_SEED_FRONTEND_NONE &&
+        typed->effective_type != W_SEED_FRONTEND_NONE &&
+        typed->span.start_byte < typed->span.end_byte &&
+        receipt_contains(value, "typed-const-expression=",
+                         strlen("typed-const-expression=")));
+
+  static const char unsupported_identifier[] =
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { value: Box<(unknownValue)> }\n";
+  CHECK(fixture_run(value, unsupported_identifier));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        value->result.written.typed_const_expressions == 0u &&
+        value->generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED &&
+        value->generic_arguments[0].typed_const_expression_index ==
+            W_SEED_FRONTEND_NONE &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE));
+
+  static const char unsupported_string[] =
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { value: Box<(\"42\")> }\n";
+  CHECK(fixture_run(value, unsupported_string));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        value->result.written.typed_const_expressions == 0u &&
+        value->generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED &&
+        value->generic_arguments[0].typed_const_expression_index ==
+            W_SEED_FRONTEND_NONE);
+
+  CHECK(fixture_parse(value, source));
+  const uint8_t sentinel = 0xa5u;
+  fixture_fill_output(value, sentinel);
+  value->output.typed_const_expression_capacity = 0u;
+  value->output.typed_const_expressions = NULL;
+  (void)w_seed_frontend_run(&value->input, &value->output, &value->result);
+  CHECK(value->result.status == W_SEED_FRONTEND_CAPACITY &&
+        value->result.required.typed_const_expressions == 1u &&
+        fixture_output_is(value, sentinel, true));
+  return true;
+}
+
 static bool test_string_expression_projection(void) {
   static const char source[] =
       "const fn equals(value: String): Bool { return value == \"a\" }\n"
@@ -2173,6 +2272,7 @@ int main(void) {
   if (!test_receipt_encoding_and_long_fields()) return 1;
   if (!test_generic_schema()) return 1;
   if (!test_generic_applications()) return 1;
+  if (!test_typed_const_expressions()) return 1;
   if (!test_string_expression_projection()) return 1;
   if (!test_barrier_and_capacity()) return 1;
   return 0;

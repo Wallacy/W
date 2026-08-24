@@ -13,7 +13,7 @@ extern "C" {
 
 /* Internal seed-C generic predicate validation.  This is not a W interface
  * and it does not create a final specialization or a type identity. */
-#define W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION "w-seed-generic-validation-1"
+#define W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION "w-seed-generic-validation-2"
 #define W_SEED_GENERIC_VALIDATION_FINGERPRINT_SCHEMA_VERSION \
   "w-seed-generic-fingerprint-1"
 #define W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES 32u
@@ -57,17 +57,26 @@ typedef enum {
   W_SEED_GENERIC_VALIDATION_FINGERPRINT_UNSUPPORTED,
 } w_seed_generic_validation_fingerprint_state;
 
+typedef enum {
+  W_SEED_GENERIC_VALIDATION_RECEIPT_CONST_ARGUMENT = 0,
+  W_SEED_GENERIC_VALIDATION_RECEIPT_PREDICATE,
+} w_seed_generic_validation_receipt_kind;
+
 /* One causal evaluation record.  The record is written only after all input
  * relations and output capacities pass the preflight. */
 typedef struct {
+  w_seed_generic_validation_receipt_kind kind;
   uint32_t generic_argument_index;
   uint32_t argument_const_value_index;
+  uint32_t typed_const_expression_index;
   w_seed_span argument_span;
   uint32_t predicate_parameter_index;
   uint32_t predicate_function_index;
   w_seed_span predicate_span;
   w_seed_span predicate_function_span;
   w_seed_constir_eval_result evaluation;
+  /* The value produced by a calculated argument or predicate. */
+  w_seed_constir_value eval_value;
   bool result_is_bool;
   bool bool_value;
 } w_seed_generic_validation_receipt;
@@ -80,6 +89,7 @@ typedef struct {
   w_seed_frontend_text head_name;
   uint32_t generic_argument_index;
   uint32_t argument_const_value_index;
+  uint32_t typed_const_expression_index;
   w_seed_span argument_span;
   uint32_t predicate_function_index;
   w_seed_span predicate_span;
@@ -114,6 +124,7 @@ typedef struct {
   uint32_t application_index;
   uint32_t head_struct_index;
   size_t predicate_count;
+  size_t computed_argument_count;
   size_t receipts_written;
   w_seed_constir_diagnostic_code diagnostic;
   w_seed_span diagnostic_span;

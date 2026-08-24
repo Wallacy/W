@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-4"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-5"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -210,6 +210,7 @@ typedef struct {
   /* Append-only generic type-application and frontend ConstValue records. */
   size_t generic_applications;
   size_t generic_arguments;
+  size_t typed_const_expressions;
   size_t const_values;
   size_t const_elements;
   size_t const_bytes;
@@ -531,7 +532,22 @@ typedef struct {
   uint32_t type_index;
   uint32_t const_value_index;
   w_seed_frontend_generic_binding_status binding_status;
+  /* Append-only relation for a calculated generic value.  Immediate values
+   * keep this at W_SEED_FRONTEND_NONE. */
+  uint32_t typed_const_expression_index;
 } w_seed_frontend_generic_argument;
+
+/* A frontend-only, typed expression relation.  It records type and source
+ * ownership for the later const graph; it never contains an evaluated value. */
+typedef struct {
+  uint32_t module_index;
+  uint32_t owner_application;
+  uint32_t argument_ordinal;
+  uint32_t expression_index;
+  w_seed_span span;
+  uint32_t expected_type;
+  uint32_t effective_type;
+} w_seed_frontend_typed_const_expression;
 
 typedef enum {
   W_SEED_FRONTEND_CONST_INVALID = 0,
@@ -703,6 +719,8 @@ typedef struct {
   size_t generic_application_capacity;
   w_seed_frontend_generic_argument *generic_arguments;
   size_t generic_argument_capacity;
+  w_seed_frontend_typed_const_expression *typed_const_expressions;
+  size_t typed_const_expression_capacity;
   w_seed_frontend_const_value *const_values;
   size_t const_value_capacity;
   w_seed_frontend_const_element *const_elements;

@@ -29,7 +29,7 @@ function parseResult(output, label) {
   const lines = output.toString().split(/\r?\n/u)
   const line = lines.find((candidate) => candidate.startsWith("RESULT "))
   if (!line) fail(`${label} has no RESULT line`)
-  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) generic_parameters=(\d+) generic_applications=(\d+) generic_arguments=(\d+) const_values=(\d+) const_elements=(\d+) const_bytes=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) enum_membership_cases=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
+  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) generic_parameters=(\d+) generic_applications=(\d+) generic_arguments=(\d+) typed_const_expressions=(\d+) const_values=(\d+) const_elements=(\d+) const_bytes=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) enum_membership_cases=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
   if (!match) fail(`${label} has an invalid RESULT line: ${line}`)
   return {
     parse: Number(match[1]),
@@ -40,26 +40,27 @@ function parseResult(output, label) {
     generic_parameters: Number(match[6]),
     generic_applications: Number(match[7]),
     generic_arguments: Number(match[8]),
-    const_values: Number(match[9]),
-    const_elements: Number(match[10]),
-    const_bytes: Number(match[11]),
-    enums: Number(match[12]),
-    enum_cases: Number(match[13]),
-    enum_case_parameters: Number(match[14]),
-    switch_arms: Number(match[15]),
-    enum_subset_members: Number(match[16]),
-    enum_membership_cases: Number(match[17]),
-    types: Number(match[18]),
-    functions: Number(match[19]),
-    params: Number(match[20]),
-    entries: Number(match[21]),
-    statements: Number(match[22]),
-    expressions: Number(match[23]),
-    arguments: Number(match[24]),
-    symbols: Number(match[25]),
-    facts: Number(match[26]),
-    diagnostics: Number(match[27]),
-    receipt: Number(match[28]),
+    typed_const_expressions: Number(match[9]),
+    const_values: Number(match[10]),
+    const_elements: Number(match[11]),
+    const_bytes: Number(match[12]),
+    enums: Number(match[13]),
+    enum_cases: Number(match[14]),
+    enum_case_parameters: Number(match[15]),
+    switch_arms: Number(match[16]),
+    enum_subset_members: Number(match[17]),
+    enum_membership_cases: Number(match[18]),
+    types: Number(match[19]),
+    functions: Number(match[20]),
+    params: Number(match[21]),
+    entries: Number(match[22]),
+    statements: Number(match[23]),
+    expressions: Number(match[24]),
+    arguments: Number(match[25]),
+    symbols: Number(match[26]),
+    facts: Number(match[27]),
+    diagnostics: Number(match[28]),
+    receipt: Number(match[29]),
   }
 }
 
@@ -369,6 +370,38 @@ function expectGenericDeclarationSchema(executable) {
   }
 }
 
+function expectTypedConstExpressions(executable) {
+  const source =
+    "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n" +
+    "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n" +
+    "struct Use { immediate: UltimateAnswer<42> computed: " +
+    "UltimateAnswer<(6 * 7)> }\n"
+  const result = expectOk(executable, source, "typed const expression witness")
+  if (result.parsed.generic_applications !== 2 ||
+      result.parsed.generic_arguments !== 2 ||
+      result.parsed.typed_const_expressions !== 1 ||
+      result.parsed.const_values !== 1) {
+    fail("typed const expression counts are incomplete")
+  }
+  const applications = receiptLines(result.output, "generic-application=")
+  const genericArgumentLines = receiptLines(result.output, "generic-argument=")
+  const typed = receiptLines(result.output, "typed-const-expression=")
+  if (applications.length !== 2 || genericArgumentLines.length !== 2 || typed.length !== 1 ||
+      !applications.some((line) => line.includes("|binding=2|requires-const=1")) ||
+      !applications.some((line) => line.includes("|binding=3|requires-const=1")) ||
+      !genericArgumentLines.some((line) => line.includes("|typed-expr=4294967295|binding=3")) ||
+      !genericArgumentLines.some((line) => line.includes("|typed-expr=0|binding=2")) ||
+      !typed[0].includes("typed-const-expression=0|owner=1|argument=0|")) {
+    fail("typed const expression relations or immediate sentinels are incomplete")
+  }
+  expectUnsupported(
+    executable,
+    "struct Box<_ value: i64> {}\n" +
+      "struct Use { value: Box<(unknownValue)> }\n",
+    "unsupported typed const identifier",
+  )
+}
+
 function expectGenericApplications(executable) {
   const matrix = expectOk(
     executable,
@@ -567,8 +600,9 @@ function expectGenericApplications(executable) {
 
   const seedUnsupported = [
     [
-      "struct S<_ value: Bool> {}\n" +
-        "struct Use { x: S<value: (true)> }\n",
+      "const fn helper(value: Bool): Bool { return value }\n" +
+        "struct S<_ value: Bool> {}\n" +
+        "struct Use { x: S<value: (helper(true))> }\n",
       "computed generic value",
     ],
     [
@@ -594,9 +628,12 @@ function expectGenericApplications(executable) {
     ],
   ]
   for (const [source, label] of seedUnsupported) {
-    const unsupported = expectUnsupported(executable, source, label)
+    const unsupported = label === "computed generic value"
+      ? expectOk(executable, source, label)
+      : expectUnsupported(executable, source, label)
     const application = receiptLines(unsupported.output, "generic-application=")[0]
-    if (application === undefined || !application.includes("|binding=1|")) {
+    const expectedBinding = label === "computed generic value" ? "|binding=2|" : "|binding=1|"
+    if (application === undefined || !application.includes(expectedBinding)) {
       fail(`${label} did not remain non-consumable UNSUPPORTED`)
     }
     if (label === "computed generic value" &&
@@ -1306,6 +1343,7 @@ try {
   expectUnsupported(probeExecutable, "export enum Box<T> { value(T) }\n", "generic enum")
   expectGenericDeclarationSchema(probeExecutable)
   expectGenericApplications(probeExecutable)
+  expectTypedConstExpressions(probeExecutable)
   expectOk(probeExecutable, "enum E { a }\nfn f(): E { return .a }\nentry(f)\n", "enum case expression")
   expectBarrier(probeExecutable, "fn f(){ enum E { a } }\n", "enum contextual fail-closed")
   expectEnumWitness(
