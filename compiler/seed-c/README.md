@@ -94,7 +94,9 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` é `w-seed-frontend-5`.
+`W_SEED_FRONTEND_SCHEMA_VERSION` é `w-seed-frontend-6`. Os campos D2/D3
+anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
+counts/capacities e relações de module const.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
@@ -351,7 +353,7 @@ switch preservam fato explícito unsupported. As formas sem código normativo
 continuam fatos/barreiras explícitos; o seed não apresenta esta fatia como
 implementação ampla da linguagem.
 
-## ConstIR D1-D3 seed
+## ConstIR D1-D4 seed
 
 `include/w_seed_constir.h` e `src/w_seed_constir.c` formam um executor interno
 caller-owned para uma projeção ConstIR D1. O componente recebe documentos CST,
@@ -391,6 +393,31 @@ imported head/predicate e String computed result ficam `UNSUPPORTED`; origem,
 mapping, application status, relação ou type shape incoerentes ficam
 `INVALID`. O digest sintético exclui span/trivia/spelling e o valor calculado
 usa a mesma codificação de fingerprint do immediate.
+
+Para D4, `const name: Type = expression` e `export const` continuam sintaxe
+append-only do parser. O frontend publica `w_seed_frontend_const_declaration`
+caller-owned, com module/name/export, spans, declared type, initializer,
+counts, capacities, ranges e relação explícita de identifier; ele resolve e
+tipa, mas não avalia nem materializa `ConstValue`. Local/parameter lookup tem
+precedência e forward reference no mesmo módulo é válida. Imports, associated
+const e environment ficam fora. A forma lowerable exige `Bool` ou integer de
+width/signedness explícitos e aceita literal, grouping, unary, binary e
+referência a module const. Mismatch, unresolved ou relação corrompida é
+`INVALID`; untyped, `String`, enum/list/quantity/size, call, member/index,
+nested generic e imported const/head/predicate são `UNSUPPORTED`.
+
+`W_SEED_CONSTIR_SCHEMA_VERSION` é `w-seed-constir-5`. Cada declaration vira
+função sintética zero-arg com origem `FRONTEND_CONST_DECLARATION`; cada
+identifier vira dependency `CALL`. A ordem é frontend functions, declarations
+de module const em source order e `TypedConstExpr`. O body digest exclui
+span/trivia/spelling e inclui estrutura e identity/digest de dependency. O
+grafo é validado antes de execution e capacity: corruption é `INVALID` zero-step,
+dependency fora do subset é `UNSUPPORTED` zero-step com failure `function` e
+ciclo alcançável é
+`EVALUATION_FAILED` com `W-CONST-0002`, counters zero e caminho causal fechado.
+O limite é 256 dependencies; excedê-lo mantém `UNSUPPORTED` com failure
+`dependency-limit`; receipts `CONST_ARGUMENT` de ciclo precedem o
+retorno e predicates posteriores não executam. Não existe memoization invisível.
 
 `w_seed_constir_measure` calcula todas as capacidades. `w_seed_constir_run`
 escreve somente quando cada array e o receipt possuem capacidade. Uma função
@@ -477,6 +504,14 @@ zero. Calls, identifiers/named const, String computed result, nested generic,
 imported head/predicate e graph dependencies/cycles permanecem fora. A
 validação não muta frontend/ConstIR.
 
+D4 adiciona somente referências a module const locais explicitamente tipadas.
+O frontend mantém a aplicação `TYPED_PENDING_CONST` e o ConstIR baixa
+declarations como funções zero-arg com dependency `CALL`; graph preflight,
+cycles e capacities ocorrem antes de evaluation. Forward references são
+válidas, mas imports, associated const, inference, calls, member/index,
+untyped/String/enum/list/quantity/size e nested generic permanecem
+`UNSUPPORTED`.
+
 Um `TypedConstExpr` retido em aplicação `INVALID` ou `UNSUPPORTED` é somente
 audit: sua função sintética permanece não lowerable e não pode executar.
 
@@ -538,7 +573,7 @@ imprime module/head, estado do fingerprint, digest e `body_digest` do
 predicate.
 
 O gate também lê `tooling/generic-fingerprint-cases.json` e exige os casos
-únicos GPF0-W-1460/W-1461/W-1462, suas decisões, sources e runner C+Bun. Ele verifica
+únicos GPF0-W-1460/W-1461/W-1462/GPF0-W-1463-current, suas decisões, sources e runner C+Bun. Ele verifica
 em `reference/last-light/generics.w` os marcadores únicos da assinatura de
 `StaticValue`, do body `export const expected = value`, dos aliases
 `EnabledFeature`/`LastCallLabel`/`VerifiedFinalCall`, da função
@@ -554,6 +589,17 @@ e duplicate, rejeita `(6 * 6)`, deriva quota cumulativa, overflow, unsupported
 call e corrupção de origem/relação/type/application/mapping. Bun reconstrói
 independentemente o preimage i64 e SHA-256; a projeção não é compiler, runtime,
 self-host ou identity final.
+
+Para W-1463, o gate também lê `ultimateAnswer` e `UltimateAnswerNamed` reais,
+prova named/duplicate `42`, forward chain, rejected, ciclos self/2/3 e caminho
+fechado, ciclo inalcançável, mismatch, unresolved, unsupported, corruption,
+zero capacity, quota, dependency graph ceiling de 257 declarations com failure
+`dependency-limit` e named
+const arithmetic overflow `i8` com `W-CONST-0006`. Bun reconstrói o preimage i64 e
+verifica que immediate, D3 e D4 usam o schema
+`w-seed-generic-fingerprint-1`; compiler completo, imports, associated const,
+initializer inference, cache/memoization, identity final, runtime e self-host
+continuam fora.
 
     bun tooling/check-seed-generic-validation.mjs
 

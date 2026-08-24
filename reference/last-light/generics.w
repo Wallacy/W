@@ -28,6 +28,8 @@ export struct FinalCallValue<_ value: String<(isFinalCallLabel(.member))>> {
   export const expected = value
 }
 
+export const ultimateAnswer: i64 = 6 * 7
+
 export const fn isUltimateAnswer(value: i64): Bool {
   return value == 42
 }
@@ -53,6 +55,7 @@ export alias LastCallLabel = StaticValue<String, "The final seating">
 export alias VerifiedFinalCall = FinalCallValue<"The final seating">
 export alias UltimateAnswerImmediate = UltimateAnswer<42>
 export alias UltimateAnswerComputed = UltimateAnswer<(6 * 7)>
+export alias UltimateAnswerNamed = UltimateAnswer<(ultimateAnswer)>
 export alias LastCallDeadline = StaticValue<PhysicalDuration, 10<si.s>>
 export alias HorizonWindow = StaticWindow<0, 60, unit: 1<si.s>>
 
@@ -95,6 +98,7 @@ test "contract atoms preserve their compile-time kind" {
   expect VerifiedFinalCall.expected == "The final seating"
   expect UltimateAnswerImmediate.expected == 42
   expect UltimateAnswerComputed.expected == 42
+  expect UltimateAnswerNamed.expected == 42
   expect LastCallDeadline.expected == 10<si.s>
   expect HorizonWindow.span == 60
   expect Matrix<f32, rows: 3, columns: 4>.rows == 3

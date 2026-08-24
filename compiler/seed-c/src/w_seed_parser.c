@@ -2186,6 +2186,49 @@ static bool parse_type_or_alias_declaration(w_seed_parser *parser,
   return true;
 }
 
+/* Parse the canonical module-level named const form.  The type annotation is
+ * optional in the CST.  The frontend decides whether an omitted annotation is
+ * lowerable in this seed projection. */
+static bool parse_const_declaration(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_CONST_DECLARATION, start) == W_SEED_CST_NONE)
+    return false;
+  if (current_is_text(parser, "export")) (void)consume_text(parser, "export", NULL);
+  if (!expect_text(parser, "const", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD) ||
+      current_is_text(parser, "async") || current_is_text(parser, "unsafe") ||
+      current_is_text(parser, "const")) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    pop_node(parser, parser->lexer.bounds.end_byte);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  if (current_is_text(parser, ":")) {
+    (void)consume_text(parser, ":", NULL);
+    if (!parse_type(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  if (!current_is_text(parser, "=")) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    pop_node(parser, parser->lexer.bounds.end_byte);
+    return false;
+  }
+  (void)consume_text(parser, "=", NULL);
+  if (!parse_expression(parser, 1, false)) {
+    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+    pop_node(parser, parser->lexer.bounds.end_byte);
+    return false;
+  }
+  if (current_is_text(parser, ";")) (void)consume_text(parser, ";", NULL);
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
 static bool parse_struct_declaration(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
   if (push_node(parser, W_SEED_CST_STRUCT, start) == W_SEED_CST_NONE)
@@ -2864,6 +2907,7 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
           !next_two_are_text(parser, "const", "fn") &&
           !next_two_are_text(parser, "async", "fn") &&
           !next_two_are_text(parser, "unsafe", "fn") &&
+          !next_is_text(parser, "const") &&
           !next_is_text(parser, "struct") && !next_is_text(parser, "type") &&
           !next_is_text(parser, "alias") && !next_is_text(parser, "enum")) {
         stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
@@ -2886,6 +2930,8 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
         if (!parse_type_or_alias_declaration(parser, true)) break;
       } else if (next_is_text(parser, "enum")) {
         if (!parse_enum_declaration(parser)) break;
+      } else if (next_is_text(parser, "const")) {
+        if (!parse_const_declaration(parser)) break;
       } else if (!parse_struct_declaration(parser)) {
         break;
       }
@@ -2906,17 +2952,17 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
       continue;
     }
     if (current_is_text(parser, "const")) {
-      if (!next_is_text(parser, "fn")) {
-        stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
-        break;
-      }
       if (saw_entry) {
         stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
         break;
       }
       parser->imports_allowed = false;
       saw_declaration = true;
-      if (!parse_function(parser)) break;
+      if (next_is_text(parser, "fn")) {
+        if (!parse_function(parser)) break;
+      } else if (!parse_const_declaration(parser)) {
+        break;
+      }
       continue;
     }
     if (current_is_text(parser, "async")) {

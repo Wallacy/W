@@ -49,9 +49,10 @@ function parseProbe(output) {
   if (!resultMatch) fail(`invalid result line: ${resultLine}`)
   const lines = output.split(/\r?\n/u)
     .filter((line) => line.startsWith("GENERIC app=") ||
-      line.startsWith("STRING app=") || line.startsWith("D3 app="))
+      line.startsWith("STRING app=") || line.startsWith("D3 app=") ||
+      line.startsWith("D4 app="))
   const records = lines.map((line) => {
-    const match = /^(GENERIC|STRING|D3) app=(\d+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) predicates=(\d+) computed=(\d+) receipts=(\d+) steps=(\d+) receipt_kinds=([CP]*) receipt_steps=([0-9,]*) receipt_args=([0-9,]*) receipt_typed=([0-9,]*) receipt_values=([ibx0-9,]*) module=([^\s]+) head=([^\s]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) predicate_body_digest=([0-9a-f]{64})$/u.exec(line)
+    const match = /^(GENERIC|STRING|D3|D4) app=(\d+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) predicates=(\d+) computed=(\d+) receipts=(\d+) steps=(\d+) receipt_kinds=([CP]*) receipt_steps=([0-9,]*) receipt_args=([0-9,]*) receipt_typed=([0-9,]*) receipt_values=([ibx0-9,]*) module=([^\s]+) head=([^\s]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) predicate_body_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u.exec(line)
     if (!match) fail(`invalid application line: ${line}`)
     const parseList = (value) => value === "" ? [] : value.split(",").map((item) => Number(item))
     return {
@@ -63,6 +64,7 @@ function parseProbe(output) {
       receiptValues: match[14] === "" ? [] : match[14].split(","),
       module: match[15], head: match[16], fingerprintState: match[17],
       fingerprintDigest: match[18], predicateBodyDigest: match[19],
+      cyclePath: parseList(match[20]),
     }
   })
   return {
@@ -71,6 +73,7 @@ function parseProbe(output) {
     records: records.filter((record) => record.kind === "GENERIC"),
     stringRecords: records.filter((record) => record.kind === "STRING"),
     d3Records: records.filter((record) => record.kind === "D3"),
+    d4Records: records.filter((record) => record.kind === "D4"),
   }
 }
 
@@ -265,9 +268,19 @@ const fingerprintD3Case = requireCorpusCase(
   "export alias UltimateAnswerComputed = UltimateAnswer<(6 * 7)>",
   ["immediate", "computed", "duplicateComputed", "rejected", "quota", "overflow", "unsupported", "corrupt"],
 )
+const fingerprintD4Case = requireCorpusCase(
+  "GPF0-W-1463-current", ["W-1463"],
+  "reference/last-light/generics.w",
+  "export alias UltimateAnswerNamed = UltimateAnswer<(ultimateAnswer)>",
+  ["forward", "duplicate", "rejected", "selfCycle", "twoCycle", "threeCycle",
+  "unreachable", "typeMismatch", "unresolved", "call", "string", "untyped",
+    "imported", "quantity", "size", "corrupt", "zeroCapacity", "quota",
+    "dependencyLimit", "arithmeticOverflow", "repeated"],
+)
 const d1Witnesses = fingerprintD1Case.witnesses
 const d2Witnesses = fingerprintD2Case.witnesses
 const d3Witnesses = fingerprintD3Case.witnesses
+const d4Witnesses = fingerprintD4Case.witnesses
 if (d1Witnesses?.module !== "restaurant" ||
     typeof d1Witnesses?.standard !== "string" ||
     typeof d1Witnesses?.standardAgain !== "string" ||
@@ -294,7 +307,35 @@ if (d1Witnesses?.module !== "restaurant" ||
     d3Witnesses.overflow?.state !== "EVALUATION_FAILED" ||
     d3Witnesses.unsupported?.state !== "UNSUPPORTED" ||
     d3Witnesses.corrupt?.state !== "INVALID" ||
-    d3Witnesses.quota?.state !== "EVALUATION_FAILED")
+    d3Witnesses.quota?.state !== "EVALUATION_FAILED" ||
+    d4Witnesses?.module !== "restaurant" ||
+    d4Witnesses.forward?.state !== "VERIFIED" ||
+    d4Witnesses.duplicate?.state !== "VERIFIED" ||
+    d4Witnesses.rejected?.state !== "REJECTED" ||
+    d4Witnesses.selfCycle?.state !== "EVALUATION_FAILED" ||
+    d4Witnesses.twoCycle?.path !== "1,2,1" ||
+    d4Witnesses.threeCycle?.path !== "1,2,3,1" ||
+    d4Witnesses.unreachable?.state !== "VERIFIED" ||
+    d4Witnesses.typeMismatch?.state !== "INVALID" ||
+    d4Witnesses.unresolved?.state !== "INVALID" ||
+    d4Witnesses.call?.state !== "UNSUPPORTED" ||
+    d4Witnesses.call?.failure !== "function" ||
+    d4Witnesses.string?.state !== "UNSUPPORTED" ||
+    d4Witnesses.untyped?.state !== "UNSUPPORTED" ||
+    d4Witnesses.imported?.state !== "UNSUPPORTED" ||
+    d4Witnesses.quantity?.state !== "UNSUPPORTED" ||
+    d4Witnesses.size?.state !== "UNSUPPORTED" ||
+    d4Witnesses.corrupt?.state !== "INVALID" ||
+    d4Witnesses.zeroCapacity?.state !== "EVALUATION_FAILED" ||
+    d4Witnesses.quota?.state !== "EVALUATION_FAILED" ||
+    d4Witnesses.dependencyLimit?.state !== "UNSUPPORTED" ||
+    d4Witnesses.dependencyLimit?.failure !== "dependency-limit" ||
+    d4Witnesses.arithmeticOverflow?.state !== "EVALUATION_FAILED" ||
+    d4Witnesses.arithmeticOverflow?.diagnostic !== "W-CONST-0006" ||
+    d4Witnesses.arithmeticOverflow?.receiptKinds !== "C" ||
+    d4Witnesses.arithmeticOverflow?.receipts !== 1 ||
+    d4Witnesses.arithmeticOverflow?.predicates !== 1 ||
+    d4Witnesses.repeated?.count !== 2)
   fail("generic fingerprint corpus witnesses do not match the executable contract")
 
 const domain = await Bun.file(resolve(root, "reference/last-light/domain.w")).text()
@@ -315,6 +356,8 @@ const finalCallValueMarker = uniqueMarker(
   generics, "export struct FinalCallValue<_ value: String<(isFinalCallLabel(.member))>> {", "FinalCallValue declaration")
 const verifiedFinalCallMarker = uniqueMarker(
   generics, "export alias VerifiedFinalCall = FinalCallValue<\"The final seating\">", "VerifiedFinalCall alias")
+const ultimateAnswerConstMarker = uniqueMarker(
+  generics, "export const ultimateAnswer: i64 = 6 * 7", "ultimateAnswer module const")
 const ultimateAnswerPredicateMarker = uniqueMarker(
   generics, "export const fn isUltimateAnswer(value: i64): Bool {", "UltimateAnswer predicate")
 const ultimateAnswerValueMarker = uniqueMarker(
@@ -323,6 +366,8 @@ const ultimateAnswerImmediateAliasMarker = uniqueMarker(
   generics, "export alias UltimateAnswerImmediate = UltimateAnswer<42>", "UltimateAnswer immediate alias")
 const ultimateAnswerComputedAliasMarker = uniqueMarker(
   generics, "export alias UltimateAnswerComputed = UltimateAnswer<(6 * 7)>", "UltimateAnswer computed alias")
+const ultimateAnswerNamedAliasMarker = uniqueMarker(
+  generics, "export alias UltimateAnswerNamed = UltimateAnswer<(ultimateAnswer)>", "UltimateAnswer named alias")
 const staticValueSignature = staticValueMarker
   .replace(/^export /u, "")
   .replace(/\s*\{$/u, "")
@@ -335,7 +380,8 @@ if (!generics.includes(staticValueBodyMarker) ||
     !generics.includes(ultimateAnswerPredicateMarker) ||
     !generics.includes(ultimateAnswerValueMarker) ||
     !generics.includes(ultimateAnswerImmediateAliasMarker) ||
-    !generics.includes(ultimateAnswerComputedAliasMarker))
+    !generics.includes(ultimateAnswerComputedAliasMarker) ||
+    !generics.includes(ultimateAnswerNamedAliasMarker))
   fail("generics.w markers are not present in the extracted source")
 const orderId = fragment(domain, "export type OrderId = u64", "export type GuestCount", "OrderId")
 const serviceStage = fragment(domain, "export enum ServiceStage {", "export alias CancelledStage", "ServiceStage")
@@ -386,7 +432,19 @@ const ultimateAnswerUse = `struct UltimateAnswerUse {
   rejected: UltimateAnswer<(6 * 6)>
 }
 `
+const ultimateAnswerNamedUse = `struct UltimateAnswerNamedUse {
+  forward: UltimateAnswer<(forwardAnswer)>
+  duplicate: UltimateAnswer<(ultimateAnswer)>
+  rejected: UltimateAnswer<(rejectedAnswer)>
+}
+`
 const witness = `${orderId}\n${serviceStage}\n${canMove}\n${isValidStagePath}\n${stagePath}\n${finalCallPredicate}\n${finalCallValueSignature} {}\n${ultimateAnswerPredicate}\n${ultimateAnswerValueSignature} {}\n${staticValueProjection}${enabledFeatureMarker}\n${lastCallLabelMarker}\n${verifiedFinalCallMarker}\n${useSource}\n${ultimateAnswerUse}`
+const d4Witness = `${ultimateAnswerConstMarker}\n` +
+  "const forwardAnswer: i64 = laterAnswer\n" +
+  "const laterAnswer: i64 = 42\n" +
+  "const rejectedAnswer: i64 = 6 * 6\n" +
+  `${ultimateAnswerPredicate}\n${ultimateAnswerValueSignature} {}\n` +
+  ultimateAnswerNamedUse
 
 const build = await mkdtemp(join(tmpdir(), "w-seed-generic-validation-check-"))
 const witnessPath = join(build, "domain-generic-witness.w")
@@ -411,7 +469,7 @@ try {
     if (record.module !== "restaurant" || record.head !== "StagePath" ||
         record.state !== expected[index] || record.predicates !== 1 || record.receipts !== 1 ||
         record.steps === 0 || (record.state === "REJECTED" &&
-          (record.failure !== "predicate:false" || record.diagnostic !== 4 ||
+          (record.failure !== "predicate:false" || record.diagnostic !== 5 ||
            record.fingerprintState !== "NOT_AVAILABLE" ||
            record.fingerprintDigest !== "0".repeat(64))) ||
         (record.state === "VERIFIED" && (record.failure !== "none" || record.diagnostic !== 0 ||
@@ -441,7 +499,7 @@ try {
         record.state !== expectedState || record.predicates !== 1 ||
         record.receipts !== 1 || record.steps === 0 ||
         record.state === "REJECTED" &&
-          (record.failure !== "predicate:false" || record.diagnostic !== 4 ||
+          (record.failure !== "predicate:false" || record.diagnostic !== 5 ||
            record.fingerprintState !== "NOT_AVAILABLE" ||
            record.fingerprintDigest !== "0".repeat(64)) ||
         record.state === "VERIFIED" &&
@@ -485,7 +543,7 @@ try {
         (computed && record.receiptTyped.some((typed) => typed !== index - 1)) ||
         (!computed && record.receiptTyped.some((typed) => typed !== 4294967295)) ||
         (record.state === "REJECTED" &&
-          (record.failure !== "predicate:false" || record.diagnostic !== 4 ||
+          (record.failure !== "predicate:false" || record.diagnostic !== 5 ||
            record.fingerprintState !== "NOT_AVAILABLE" ||
            record.fingerprintDigest !== "0".repeat(64))) ||
         (record.state === "VERIFIED" &&
@@ -514,14 +572,218 @@ try {
   )
   if (!cumulativeQuotaRecord || cumulativeQuotaRecord.state !== d3Witnesses.quota.state ||
       cumulativeQuotaRecord.failure !== "evaluator-diagnostic" ||
-      cumulativeQuotaRecord.diagnostic !== 2 || cumulativeQuotaRecord.computed !== 1 ||
+       cumulativeQuotaRecord.diagnostic !== 3 || cumulativeQuotaRecord.computed !== 1 ||
       cumulativeQuotaRecord.predicates !== 1 || cumulativeQuotaRecord.receipts !== 2 ||
       cumulativeQuotaRecord.receiptKinds !== d3Witnesses.quota.receiptKinds ||
       cumulativeQuotaRecord.receiptSteps.length !== 2 ||
       cumulativeQuotaRecord.receiptSteps[0] !== computedSteps ||
-      cumulativeQuotaRecord.fingerprintState !== "NOT_AVAILABLE" ||
-      cumulativeQuotaRecord.fingerprintDigest !== "0".repeat(64))
-    fail("cumulative quota did not preserve computed receipt before predicate failure")
+       cumulativeQuotaRecord.fingerprintState !== "NOT_AVAILABLE" ||
+       cumulativeQuotaRecord.fingerprintDigest !== "0".repeat(64))
+     fail("cumulative quota did not preserve computed receipt before predicate failure")
+
+  await Bun.write(join(build, "domain-generic-d4.w"), d4Witness)
+  const d4Path = join(build, "domain-generic-d4.w")
+  const d4FirstOutput = run(executable, ["--domain-witness", d4Path])
+  const d4SecondOutput = run(executable, ["--domain-witness", d4Path])
+  const d4Parsed = parseProbe(d4SecondOutput)
+  if (d4FirstOutput !== d4SecondOutput || d4Parsed.d4Records.length !== 3)
+    fail("D4 witness output is not deterministic or had the wrong application count")
+  const d4Values = [d4Witnesses.forward.value, d4Witnesses.duplicate.value,
+    d4Witnesses.rejected.value]
+  const d4ExpectedStates = ["VERIFIED", "VERIFIED", "REJECTED"]
+  const d4Digests = []
+  for (const [index, record] of d4Parsed.d4Records.entries()) {
+    const expectedDigest = record.state === "VERIFIED"
+      ? sha256Hex(ultimateAnswerPreimage(d4Values[index], record.predicateBodyDigest))
+      : null
+    if (record.module !== d4Witnesses.module || record.head !== "UltimateAnswer" ||
+        record.state !== d4ExpectedStates[index] || record.predicates !== 1 ||
+        record.computed !== 1 || record.receipts !== 2 || record.steps === 0 ||
+        record.receiptKinds !== "CP" || record.receiptSteps.length !== 2 ||
+        record.receiptSteps.some((steps) => steps === 0) ||
+        record.receiptArgs.length !== 2 || record.receiptArgs.some((argument) => argument !== index) ||
+        record.receiptTyped.length !== 2 || record.receiptTyped.some((typed) => typed !== index) ||
+        record.cyclePath.length !== 0 ||
+        record.receiptValues.join(",") !==
+          (index === 2 ? "i36,b0" : "i42,b1") ||
+        (record.state === "REJECTED" &&
+          (record.failure !== "predicate:false" || record.diagnostic !== 5 ||
+           record.fingerprintState !== "NOT_AVAILABLE" ||
+           record.fingerprintDigest !== "0".repeat(64))) ||
+        (record.state === "VERIFIED" &&
+          (record.failure !== "none" || record.diagnostic !== 0 ||
+           record.fingerprintState !== "AVAILABLE" ||
+           record.fingerprintDigest !== expectedDigest)))
+      fail(`D4 application ${index} has wrong source dependency, receipt, or fingerprint evidence`)
+    if (record.state === "VERIFIED") d4Digests.push(record.fingerprintDigest)
+  }
+  if (d4Digests.length !== 2 || d4Digests[0] !== d4Digests[1] ||
+      d4Digests[0] !== parsed.d3Records[1].fingerprintDigest ||
+      d4Parsed.d4Records[0].predicateBodyDigest !== d4Parsed.d4Records[1].predicateBodyDigest ||
+      d4Parsed.d4Records[1].predicateBodyDigest !== d4Parsed.d4Records[2].predicateBodyDigest ||
+      d4Parsed.d4Records.filter((record) => record.fingerprintDigest === d4Digests[0]).length !==
+        d4Witnesses.repeated.count)
+    fail("named D4 and duplicate D4 fingerprints do not match the immediate/computed preimage")
+  const d4QuotaRecord = parseProbe(
+    run(executable, ["--domain-witness-quota", d4Path,
+      String(d4Parsed.d4Records[0].receiptSteps[0] + d4Parsed.d4Records[0].receiptSteps[1] - 1)]),
+  ).d4Records[0]
+  if (!d4QuotaRecord || d4QuotaRecord.state !== d4Witnesses.quota.state ||
+      d4QuotaRecord.failure !== "evaluator-diagnostic" || d4QuotaRecord.diagnostic !== 3 ||
+      d4QuotaRecord.computed !== 1 || d4QuotaRecord.predicates !== 1 ||
+      d4QuotaRecord.receipts !== 2 || d4QuotaRecord.receiptKinds !== "CP" ||
+      d4QuotaRecord.receiptSteps.length !== 2 ||
+      d4QuotaRecord.receiptSteps[0] !== d4Parsed.d4Records[0].receiptSteps[0] ||
+      d4QuotaRecord.fingerprintState !== "NOT_AVAILABLE" ||
+      d4QuotaRecord.fingerprintDigest !== "0".repeat(64))
+    fail("D4 cumulative quota did not preserve the const dependency receipt")
+
+  const runD4Case = async (name, source) => {
+    const path = join(build, `domain-generic-d4-${name}.w`)
+    await Bun.write(path, source)
+    const parsedCase = parseProbe(run(executable, ["--domain-witness", path]))
+    const record = [...parsedCase.d4Records, ...parsedCase.d3Records]
+      .find((candidate) => candidate.head === "UltimateAnswer")
+    if (!record) fail(`D4 ${name} witness produced no UltimateAnswer record`)
+    return { path, parsed: parsedCase, record }
+  }
+  const d4PredicateAndValue = `${ultimateAnswerPredicate}\n${ultimateAnswerValueSignature} {}\n`
+  const forwardCase = await runD4Case(
+    "forward", "const forwardAnswer: i64 = laterAnswer\nconst laterAnswer: i64 = 42\n" +
+      `${d4PredicateAndValue}struct Use { forward: UltimateAnswer<(forwardAnswer)> }\n`)
+  if (forwardCase.record.state !== d4Witnesses.forward.state ||
+      forwardCase.record.receiptKinds !== "CP" || forwardCase.record.receipts !== 2 ||
+      forwardCase.record.receiptValues.join(",") !== "i42,b1" ||
+      forwardCase.record.cyclePath.length !== 0)
+    fail("forward named-const chain did not verify with causal receipts")
+  const selfCase = await runD4Case(
+    "self", "const self: i64 = self\n" +
+      `${d4PredicateAndValue}struct Use { self: UltimateAnswer<(self)> }\n`)
+  if (selfCase.record.state !== d4Witnesses.selfCycle.state ||
+      selfCase.record.failure !== "evaluator-diagnostic" || selfCase.record.diagnostic !== 2 ||
+      selfCase.record.steps !== 0 || selfCase.record.receipts !== 1 ||
+      selfCase.record.receiptKinds !== "C" || selfCase.record.cyclePath.join(",") !== "1,1")
+    fail("self-cycle did not fail before evaluation with the closed path")
+  const twoCycleCase = await runD4Case(
+    "two-cycle", "const left: i64 = right\nconst right: i64 = left\n" +
+      `${d4PredicateAndValue}struct Use { cycle: UltimateAnswer<(left)> }\n`)
+  if (twoCycleCase.record.state !== d4Witnesses.twoCycle.state ||
+      twoCycleCase.record.diagnostic !== 2 || twoCycleCase.record.steps !== 0 ||
+      twoCycleCase.record.cyclePath.join(",") !== d4Witnesses.twoCycle.path)
+    fail("two-member cycle path was not deterministic")
+  const zeroCapacityOutput = run(
+    executable, ["--domain-witness-d4-zero-capacity", twoCycleCase.path],
+  )
+  const zeroCapacityMatch = /^D4_ZERO state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) receipts=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u
+    .exec(zeroCapacityOutput.trim())
+  if (!zeroCapacityMatch || zeroCapacityMatch[1] !== d4Witnesses.zeroCapacity.state ||
+      zeroCapacityMatch[2] !== "evaluator-diagnostic" || zeroCapacityMatch[3] !== "2" ||
+      zeroCapacityMatch[4] !== "0" || zeroCapacityMatch[5] !== "0" ||
+      zeroCapacityMatch[6] !== "NOT_AVAILABLE" ||
+      zeroCapacityMatch[7] !== "0".repeat(64) || zeroCapacityMatch[8] !== "1,2,1")
+    fail("zero-capacity cycle preflight did not preserve buffers or the closed path")
+  const threeCycleCase = await runD4Case(
+    "three-cycle", "const first: i64 = second\nconst second: i64 = third\n" +
+      "const third: i64 = first\n" +
+      `${d4PredicateAndValue}struct Use { cycle: UltimateAnswer<(first)> }\n`)
+  if (threeCycleCase.record.state !== d4Witnesses.threeCycle.state ||
+      threeCycleCase.record.diagnostic !== 2 || threeCycleCase.record.steps !== 0 ||
+      threeCycleCase.record.cyclePath.join(",") !== d4Witnesses.threeCycle.path)
+    fail("three-member cycle path was not deterministic")
+  const dependencyLimitSource = Array.from({ length: 257 }, (_, index) =>
+    `const c${index}: i64 = ${index + 1 < 257 ? `c${index + 1}` : "42"}\n`).join("") +
+    `${d4PredicateAndValue}struct Use { dependencyLimit: UltimateAnswer<(c0)> }\n`
+  const dependencyLimitCase = await runD4Case("dependency-limit", dependencyLimitSource)
+  if (dependencyLimitCase.record.state !== d4Witnesses.dependencyLimit.state ||
+      dependencyLimitCase.record.failure !== "dependency-limit" ||
+      dependencyLimitCase.record.computed !== 1 || dependencyLimitCase.record.steps !== 0 ||
+      dependencyLimitCase.record.receipts !== 0 ||
+      dependencyLimitCase.record.fingerprintState !== "NOT_AVAILABLE")
+    fail("D4 dependency ceiling did not stop before conversion or evaluation")
+  const unreachableCase = await runD4Case(
+    "unreachable", "const deadLeft: i64 = deadRight\nconst deadRight: i64 = deadLeft\n" +
+      "const good: i64 = 42\n" +
+      `${d4PredicateAndValue}struct Use { independent: UltimateAnswer<(good)> }\n`)
+  if (unreachableCase.record.state !== d4Witnesses.unreachable.state ||
+      unreachableCase.record.fingerprintState !== "AVAILABLE" ||
+      unreachableCase.record.receiptValues.join(",") !== "i42,b1" ||
+      unreachableCase.record.cyclePath.length !== 0)
+    fail("unreachable cycle blocked an independent named-const application")
+  const typeMismatchCase = await runD4Case(
+    "type-mismatch", "const wrong: i64 = true\n" +
+      `${d4PredicateAndValue}struct Use { mismatch: UltimateAnswer<(wrong)> }\n`)
+  if (typeMismatchCase.record.state !== d4Witnesses.typeMismatch.state ||
+      typeMismatchCase.record.failure !== "invalid-input" || typeMismatchCase.record.steps !== 0 ||
+      typeMismatchCase.record.receipts !== 0)
+    fail("named-const type mismatch was not rejected in frontend preflight")
+  const unresolvedCase = await runD4Case(
+    "unresolved", "const anchor: i64 = 42\n" +
+      `${d4PredicateAndValue}struct Use { missing: UltimateAnswer<(missing)> }\n`)
+  if (unresolvedCase.record.state !== d4Witnesses.unresolved.state ||
+      unresolvedCase.record.failure !== "invalid-input" ||
+      unresolvedCase.record.steps !== 0 || unresolvedCase.record.receipts !== 0 ||
+      unresolvedCase.record.fingerprintState !== "NOT_AVAILABLE")
+    fail("unresolved named-const reference did not stop before evaluation")
+  const callCase = await runD4Case(
+    "call", "const fn helper(value: i64): i64 { return value }\n" +
+      "const called: i64 = helper(42)\n" +
+      `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(called)> }\n`)
+  if (callCase.record.state !== d4Witnesses.call.state ||
+      callCase.record.failure !== "function" || callCase.record.steps !== 0 ||
+      callCase.record.receipts !== 0)
+    fail("unsupported named-const call was not stopped at the frontend boundary")
+  const stringCase = await runD4Case(
+    "string", "const textValue: String = \"42\"\n" +
+      `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(textValue)> }\n`)
+  if (stringCase.record.state !== d4Witnesses.string.state || stringCase.record.steps !== 0 ||
+      stringCase.record.receipts !== 0)
+    fail("unsupported String named const was not stopped before execution")
+  const untypedCase = await runD4Case(
+    "untyped", "const untyped = 42\n" +
+      `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(untyped)> }\n`)
+  if (untypedCase.record.state !== d4Witnesses.untyped.state || untypedCase.record.steps !== 0 ||
+      untypedCase.record.receipts !== 0)
+    fail("untyped named const was not rejected as outside D4")
+  const importedCase = await runD4Case(
+    "imported", "import { answer } from other\n" +
+      `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(answer)> }\n`)
+  if (importedCase.record.state !== d4Witnesses.imported.state ||
+      importedCase.record.steps !== 0 || importedCase.record.receipts !== 0)
+    fail("imported named const was not rejected as outside D4")
+  const quantityCase = await runD4Case(
+    "quantity", "const duration: PhysicalDuration = 10<si.s>\n" +
+      `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(duration)> }\n`)
+  if (quantityCase.record.state !== d4Witnesses.quantity.state ||
+      quantityCase.record.steps !== 0 || quantityCase.record.receipts !== 0 ||
+      quantityCase.record.fingerprintState !== "NOT_AVAILABLE")
+    fail("quantity named const escaped the D4 unsupported boundary")
+  const sizeCase = await runD4Case(
+    "size", "const sizeValue: usize = 1<iec.MiB>\n" +
+      `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(sizeValue)> }\n`)
+  if (sizeCase.record.state !== d4Witnesses.size.state ||
+      sizeCase.record.steps !== 0 || sizeCase.record.receipts !== 0 ||
+      sizeCase.record.fingerprintState !== "NOT_AVAILABLE")
+    fail("size named const escaped the D4 unsupported boundary")
+
+  const arithmeticOverflowCase = await runD4Case(
+    "arithmetic-overflow",
+    "const overflowValue: i8 = 127 + 1\n" +
+      "const fn isUltimateAnswer8(value: i8): Bool { return value == 42 }\n" +
+      "struct UltimateAnswer<_ value: i8<(isUltimateAnswer8(.member))>> {}\n" +
+      "struct Use { arithmeticOverflow: UltimateAnswer<(overflowValue)> }\n",
+  )
+  if (arithmeticOverflowCase.record.state !== d4Witnesses.arithmeticOverflow.state ||
+      arithmeticOverflowCase.record.failure !== "evaluator-diagnostic" ||
+      arithmeticOverflowCase.record.diagnostic !== 4 ||
+      arithmeticOverflowCase.record.computed !== 1 ||
+      arithmeticOverflowCase.record.predicates !== 1 ||
+      arithmeticOverflowCase.record.steps === 0 ||
+      arithmeticOverflowCase.record.receipts !== d4Witnesses.arithmeticOverflow.receipts ||
+      arithmeticOverflowCase.record.receiptKinds !== d4Witnesses.arithmeticOverflow.receiptKinds ||
+      arithmeticOverflowCase.record.receiptKinds.includes("P") ||
+      arithmeticOverflowCase.record.fingerprintState !== "NOT_AVAILABLE" ||
+      arithmeticOverflowCase.record.fingerprintDigest !== "0".repeat(64))
+    fail("D4 named-const arithmetic overflow did not preserve only its causal receipt")
 
   const overflowWitness = `${ultimateAnswerPredicate}\n${ultimateAnswerValueSignature} {}\n` +
     `struct Narrow<_ value: i8> {}\nstruct Use { overflow: Narrow<(127 + 1)> }\n`
@@ -531,7 +793,7 @@ try {
   const overflowRecord = overflowParsed.d3Records.find((record) => record.head === "Narrow")
   if (!overflowRecord || overflowRecord.state !== d3Witnesses.overflow.state ||
       overflowRecord.failure !== "evaluator-diagnostic" ||
-      overflowRecord.diagnostic !== 3 || overflowRecord.steps === 0 ||
+      overflowRecord.diagnostic !== 4 || overflowRecord.steps === 0 ||
       overflowRecord.receipts !== 1 || overflowRecord.receiptKinds !== "C" ||
       overflowRecord.fingerprintState !== "NOT_AVAILABLE" ||
       overflowRecord.fingerprintDigest !== "0".repeat(64))
@@ -571,6 +833,26 @@ try {
         record.receipts !== 0 || record.fingerprintState !== "NOT_AVAILABLE" ||
         record.fingerprintDigest !== "0".repeat(64)))
     fail("D3 origin/relation/type/application corruption did not fail in zero steps")
+
+  const d4CorruptOutput = run(executable, ["--domain-witness-d4-corrupt", d4Path])
+  const d4CorruptRecords = d4CorruptOutput.split(/\r?\n/u)
+    .filter((line) => line.startsWith("D4_CORRUPT "))
+    .map((line) => {
+      const match = /^D4_CORRUPT case=([a-z]+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) receipts=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64})$/u.exec(line)
+      if (!match) fail(`invalid D4 corruption line: ${line}`)
+      return {
+        case: match[1], state: match[2], failure: match[3],
+        diagnostic: Number(match[4]), steps: Number(match[5]),
+        receipts: Number(match[6]), fingerprintState: match[7], fingerprintDigest: match[8],
+      }
+    })
+  if (d4CorruptRecords.length !== d4Witnesses.corrupt.cases.length ||
+      d4CorruptRecords.some((record, index) =>
+        record.case !== d4Witnesses.corrupt.cases[index] ||
+        record.state !== d4Witnesses.corrupt.state || record.steps !== 0 ||
+        record.receipts !== 0 || record.fingerprintState !== "NOT_AVAILABLE" ||
+        record.fingerprintDigest !== "0".repeat(64)))
+    fail("D4 origin/mapping/dependency/type/application corruption did not fail in zero steps")
 
   const overLimitWitness = `${finalCallPredicate}\n${finalCallValueSignature} {}\n` +
     `struct Use { over: FinalCallValue<"${"x".repeat(d2Witnesses.overLimit.byteCount)}"> }\n`

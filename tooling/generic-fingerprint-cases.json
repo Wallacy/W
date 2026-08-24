@@ -142,6 +142,110 @@
         "determinism": "O gate extrai os markers reais uma vez, compara immediate/computed/duplicate, verifica a ordem CONST_ARGUMENT,PREDICATE, quota cumulativa, overflow, unsupported e corrupção em zero-step."
       },
       "scope": "Evidence local D3 para Bool/integer explícito, árvore escalar fechada de literais/grouping/unary/binary em ConstIR; não implementa identifiers/named const, graph dependencies/cycles, imported heads/predicates, String computed result, identity final, compiler/runtime ou self-host."
+    },
+    {
+      "id": "GPF0-W-1463-current",
+      "decisions": ["W-1463"],
+      "source": {
+        "path": "reference/last-light/generics.w",
+        "symbol": "export alias UltimateAnswerNamed = UltimateAnswer<(ultimateAnswer)>"
+      },
+      "description": "Corpus source-backed para module named const explícito, dependências locais, preflight de grafo e ciclos determinísticos.",
+      "witnesses": {
+        "module": "restaurant",
+        "forward": {
+          "value": 42,
+          "state": "VERIFIED",
+          "receiptKinds": "CP"
+        },
+        "duplicate": {
+          "value": 42,
+          "state": "VERIFIED",
+          "receiptKinds": "CP"
+        },
+        "rejected": {
+          "value": 36,
+          "state": "REJECTED"
+        },
+        "selfCycle": {
+          "state": "EVALUATION_FAILED",
+          "path": "1,1"
+        },
+        "twoCycle": {
+          "state": "EVALUATION_FAILED",
+          "path": "1,2,1"
+        },
+        "threeCycle": {
+          "state": "EVALUATION_FAILED",
+          "path": "1,2,3,1"
+        },
+        "unreachable": {
+          "state": "VERIFIED"
+        },
+        "typeMismatch": {
+          "state": "INVALID"
+        },
+        "unresolved": {
+          "state": "INVALID"
+        },
+        "call": {
+          "state": "UNSUPPORTED",
+          "failure": "function"
+        },
+        "string": {
+          "state": "UNSUPPORTED"
+        },
+        "untyped": {
+          "state": "UNSUPPORTED"
+        },
+        "imported": {
+          "state": "UNSUPPORTED"
+        },
+        "quantity": {
+          "state": "UNSUPPORTED"
+        },
+        "size": {
+          "state": "UNSUPPORTED"
+        },
+        "corrupt": {
+          "cases": ["origin", "mapping", "dependency", "type", "application"],
+          "state": "INVALID"
+        },
+        "zeroCapacity": {
+          "state": "EVALUATION_FAILED"
+        },
+        "quota": {
+          "state": "EVALUATION_FAILED"
+        },
+        "dependencyLimit": {
+          "state": "UNSUPPORTED",
+          "dependencies": 257,
+          "failure": "dependency-limit",
+          "fingerprint": "zero"
+        },
+        "arithmeticOverflow": {
+          "expression": "const overflowValue: i8 = 127 + 1",
+          "state": "EVALUATION_FAILED",
+          "diagnostic": "W-CONST-0006",
+          "computed": 1,
+          "predicates": 1,
+          "receiptKinds": "C",
+          "receipts": 1,
+          "fingerprint": "zero"
+        },
+        "repeated": {
+          "count": 2
+        }
+      },
+      "oracle": {
+        "runner": "tooling/check-seed-generic-validation.mjs",
+        "implementations": [
+          "seed C",
+          "Bun com reconstrução independente dos bytes canônicos e SHA-256"
+        ],
+        "determinism": "O gate compara named/duplicate/immediate, receipts CONST_ARGUMENT,PREDICATE, preflight de forward/cycles, caminhos fechados, quota cumulativa, dependency graph ceiling com failure dependency-limit, arithmetic overflow e corrupção em zero-step."
+      },
+      "scope": "Evidence local D4 para module const source-backed com tipo explícito Bool ou integer, dependências locais e limite de 256; arithmetic overflow usa W-CONST-0006; dependency graph ceiling mantém estado UNSUPPORTED e failure dependency-limit, enquanto dependency fora do subset mantém a failure function; não é compiler completo, imports, associated const, inference, cache/memoization, identidade final, runtime ou self-host."
     }
   ]
 }

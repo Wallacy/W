@@ -13,7 +13,7 @@ extern "C" {
 
 /* Internal seed-C generic predicate validation.  This is not a W interface
  * and it does not create a final specialization or a type identity. */
-#define W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION "w-seed-generic-validation-2"
+#define W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION "w-seed-generic-validation-3"
 #define W_SEED_GENERIC_VALIDATION_FINGERPRINT_SCHEMA_VERSION \
   "w-seed-generic-fingerprint-1"
 #define W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES 32u
@@ -24,6 +24,9 @@ extern "C" {
 #define W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_BYTES 4096u
 #define W_SEED_GENERIC_VALIDATION_MAX_REJECTION_TRACE_ITEMS 1u
 #define W_SEED_GENERIC_VALIDATION_FALLBACK_BYTES 15u
+#define W_SEED_GENERIC_VALIDATION_MAX_CONST_DEPENDENCIES 256u
+#define W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH \
+  (W_SEED_GENERIC_VALIDATION_MAX_CONST_DEPENDENCIES + 1u)
 
 typedef enum {
   W_SEED_GENERIC_VALIDATION_VERIFIED = 0,
@@ -47,6 +50,8 @@ typedef enum {
   W_SEED_GENERIC_VALIDATION_FAILURE_EVALUATOR_DIAGNOSTIC,
   W_SEED_GENERIC_VALIDATION_FAILURE_RESULT_TYPE,
   W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT,
+  /* The well-formed D4 dependency graph exceeded its 256-dependency ceiling. */
+  W_SEED_GENERIC_VALIDATION_FAILURE_DEPENDENCY_LIMIT,
 } w_seed_generic_validation_failure;
 
 /* A fingerprint is a local, versioned evidence projection.  It is not a
@@ -62,8 +67,10 @@ typedef enum {
   W_SEED_GENERIC_VALIDATION_RECEIPT_PREDICATE,
 } w_seed_generic_validation_receipt_kind;
 
-/* One causal evaluation record.  The record is written only after all input
- * relations and output capacities pass the preflight. */
+/* One causal evaluation record.  Normal validation writes a record after the
+ * caller-owned capacities pass preflight.  D4 cycle preflight runs before
+ * capacity and can publish only CONST_ARGUMENT when receipt storage is
+ * sufficient; it never writes beyond caller-owned storage. */
 typedef struct {
   w_seed_generic_validation_receipt_kind kind;
   uint32_t generic_argument_index;
@@ -133,6 +140,10 @@ typedef struct {
   w_seed_generic_validation_rejection rejection;
   w_seed_generic_validation_fingerprint_state fingerprint_state;
   uint8_t fingerprint_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES];
+  /* Closed causal path for W-CONST-0002.  Entries use ConstIR function
+   * indices.  The first entry is repeated at the end. */
+  uint32_t const_cycle_path[W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH];
+  size_t const_cycle_path_length;
 } w_seed_generic_validation_result;
 
 /* Validate one normalized local generic application.  The function performs

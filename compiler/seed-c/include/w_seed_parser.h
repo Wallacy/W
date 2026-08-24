@@ -97,6 +97,8 @@ typedef enum {
   W_SEED_CST_LITERAL_PATTERN,
   /* Append-only structured guard statement. */
   W_SEED_CST_GUARD_STATEMENT,
+  /* Append-only module-level named const declaration. */
+  W_SEED_CST_CONST_DECLARATION,
 } w_seed_cst_kind;
 
 enum {

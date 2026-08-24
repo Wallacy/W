@@ -132,6 +132,9 @@ static bool frontend_arrays_valid(const validation_context *context) {
          pointer_count_valid(output->enum_case_parameters,
                              written->enum_case_parameters,
                              output->enum_case_parameter_capacity) &&
+         pointer_count_valid(output->const_declarations,
+                             written->const_declarations,
+                             output->const_declaration_capacity) &&
          pointer_count_valid(output->enum_subset_members,
                              written->enum_subset_members,
                              output->enum_subset_member_capacity);
@@ -410,6 +413,245 @@ static const w_seed_constir_function *constir_function_for_typed_expression(
   }
   if (index != NULL) *index = found_index;
   return found;
+}
+
+typedef enum {
+  CONST_GRAPH_OK = 0,
+  CONST_GRAPH_CYCLE,
+  CONST_GRAPH_UNSUPPORTED,
+  CONST_GRAPH_INVALID,
+  CONST_GRAPH_LIMIT,
+} const_graph_status;
+
+typedef struct {
+  const validation_context *context;
+  uint32_t path[W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH];
+  size_t path_length;
+  uint32_t seen[W_SEED_GENERIC_VALIDATION_MAX_CONST_DEPENDENCIES];
+  size_t seen_count;
+  uint32_t cycle[W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH];
+  size_t cycle_length;
+} const_graph_context;
+
+static const w_seed_constir_function *constir_function_for_const_declaration(
+    const w_seed_constir_program *program, uint32_t declaration_index,
+    size_t *function_index, bool *duplicate) {
+  if (function_index != NULL) *function_index = SIZE_MAX;
+  if (duplicate != NULL) *duplicate = false;
+  if (program == NULL || program->functions == NULL ||
+      declaration_index == W_SEED_CONSTIR_NONE)
+    return NULL;
+  const w_seed_constir_function *found = NULL;
+  size_t found_index = SIZE_MAX;
+  for (size_t offset = 0u; offset < program->function_count; offset += 1u) {
+    const w_seed_constir_function *function = &program->functions[offset];
+    if (function->origin !=
+            W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION ||
+        function->frontend_const_declaration != declaration_index)
+      continue;
+    if (found != NULL) {
+      if (duplicate != NULL) *duplicate = true;
+      return NULL;
+    }
+    found = function;
+    found_index = offset;
+  }
+  if (function_index != NULL) *function_index = found_index;
+  return found;
+}
+
+static bool const_graph_seen(const const_graph_context *graph,
+                             uint32_t function_index) {
+  if (graph == NULL) return false;
+  for (size_t offset = 0u; offset < graph->seen_count; offset += 1u)
+    if (graph->seen[offset] == function_index) return true;
+  return false;
+}
+
+static bool const_graph_on_path(const const_graph_context *graph,
+                                uint32_t function_index, size_t *position) {
+  if (position != NULL) *position = SIZE_MAX;
+  if (graph == NULL) return false;
+  for (size_t offset = 0u; offset < graph->path_length; offset += 1u) {
+    if (graph->path[offset] == function_index) {
+      if (position != NULL) *position = offset;
+      return true;
+    }
+  }
+  return false;
+}
+
+static const_graph_status const_graph_visit_node(const_graph_context *graph,
+                                                 uint32_t function_index,
+                                                 uint32_t node_index,
+                                                 size_t depth);
+
+static const_graph_status const_graph_visit_function(
+    const_graph_context *graph, uint32_t function_index, size_t depth) {
+  if (graph == NULL || graph->context == NULL ||
+      graph->context->program == NULL ||
+      (size_t)function_index >= graph->context->program->function_count)
+    return CONST_GRAPH_INVALID;
+  const w_seed_constir_function *function =
+      &graph->context->program->functions[function_index];
+  if (!function->lowerable || function->root_node == W_SEED_CONSTIR_NONE)
+    return CONST_GRAPH_UNSUPPORTED;
+  /* A dependency edge starts a fresh expression-depth budget.  The graph
+   * itself is bounded by MAX_CONST_DEPENDENCIES; charging each edge to the
+   * expression depth would reject a valid 256-member forward chain. */
+  (void)depth;
+  return const_graph_visit_node(graph, function_index, function->root_node, 1u);
+}
+
+static const_graph_status const_graph_visit_const_target(
+    const_graph_context *graph, uint32_t declaration_index, size_t depth) {
+  if (graph == NULL || graph->context == NULL ||
+      graph->context->program == NULL || declaration_index == W_SEED_CONSTIR_NONE)
+    return CONST_GRAPH_INVALID;
+  bool duplicate = false;
+  size_t target_index = SIZE_MAX;
+  const w_seed_constir_function *target =
+      constir_function_for_const_declaration(graph->context->program,
+                                             declaration_index, &target_index,
+                                             &duplicate);
+  if (duplicate || target == NULL || target_index == SIZE_MAX ||
+      target->origin !=
+          W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION)
+    return CONST_GRAPH_INVALID;
+  size_t cycle_start = SIZE_MAX;
+  if (const_graph_on_path(graph, (uint32_t)target_index, &cycle_start)) {
+    const size_t cycle_members = graph->path_length - cycle_start;
+    if (cycle_members == 0u)
+      return CONST_GRAPH_INVALID;
+    if (cycle_members > W_SEED_GENERIC_VALIDATION_MAX_CONST_DEPENDENCIES ||
+        cycle_members + 1u > W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH)
+      return CONST_GRAPH_LIMIT;
+    graph->cycle_length = cycle_members + 1u;
+    for (size_t offset = 0u; offset < cycle_members; offset += 1u)
+      graph->cycle[offset] = graph->path[cycle_start + offset];
+    graph->cycle[cycle_members] = (uint32_t)target_index;
+    return CONST_GRAPH_CYCLE;
+  }
+  if (const_graph_seen(graph, (uint32_t)target_index))
+    return CONST_GRAPH_OK;
+  if (graph->seen_count >= W_SEED_GENERIC_VALIDATION_MAX_CONST_DEPENDENCIES)
+    return CONST_GRAPH_LIMIT;
+  graph->seen[graph->seen_count] = (uint32_t)target_index;
+  /* The entry is provisional.  const_graph_visit_function replaces it with
+   * the same identity only after its complete dependency tree succeeds. */
+  graph->seen_count += 1u;
+  if (graph->path_length >= W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH)
+    return CONST_GRAPH_LIMIT;
+  graph->path[graph->path_length++] = (uint32_t)target_index;
+  const_graph_status status =
+      const_graph_visit_function(graph, (uint32_t)target_index, 1u);
+  (void)depth;
+  graph->path_length -= 1u;
+  return status;
+}
+
+static const_graph_status const_graph_visit_node(const_graph_context *graph,
+                                                 uint32_t function_index,
+                                                 uint32_t node_index,
+                                                 size_t depth) {
+  if (graph == NULL || graph->context == NULL ||
+      graph->context->program == NULL || depth == 0u ||
+      depth > W_SEED_GENERIC_VALIDATION_MAX_DEPTH ||
+      (size_t)node_index >= graph->context->program->node_count)
+    return CONST_GRAPH_INVALID;
+  const w_seed_constir_program *program = graph->context->program;
+  const w_seed_constir_node *node = &program->nodes[node_index];
+  if (node->owner_function !=
+          (program->functions[function_index].origin ==
+                   W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION
+               ? program->functions[function_index].frontend_function
+               : W_SEED_CONSTIR_NONE))
+    return CONST_GRAPH_INVALID;
+  if (node->kind == W_SEED_CONSTIR_NODE_CALL &&
+      node->call_target_const_declaration != W_SEED_CONSTIR_NONE) {
+    const_graph_status status = const_graph_visit_const_target(
+        graph, node->call_target_const_declaration, depth + 1u);
+    if (status != CONST_GRAPH_OK) return status;
+  }
+  if (node->left != W_SEED_CONSTIR_NONE) {
+    const_graph_status status = const_graph_visit_node(
+        graph, function_index, node->left, depth + 1u);
+    if (status != CONST_GRAPH_OK) return status;
+  }
+  if (node->right != W_SEED_CONSTIR_NONE) {
+    const_graph_status status = const_graph_visit_node(
+        graph, function_index, node->right, depth + 1u);
+    if (status != CONST_GRAPH_OK) return status;
+  }
+  if (node->kind == W_SEED_CONSTIR_NODE_CALL &&
+      node->call_argument_count != 0u) {
+    if (program->call_arguments == NULL ||
+        !range_valid(node->first_call_argument, node->call_argument_count,
+                     program->call_argument_count))
+      return CONST_GRAPH_INVALID;
+    for (uint32_t offset = 0u; offset < node->call_argument_count;
+         offset += 1u) {
+      const w_seed_constir_call_argument *argument = &program->call_arguments[
+          (size_t)node->first_call_argument + offset];
+      const_graph_status status = const_graph_visit_node(
+          graph, function_index, argument->node_index, depth + 1u);
+      if (status != CONST_GRAPH_OK) return status;
+    }
+  }
+  if (node->kind == W_SEED_CONSTIR_NODE_SWITCH &&
+      node->switch_arm_count != 0u) {
+    if (program->switch_arms == NULL ||
+        !range_valid(node->first_switch_arm, node->switch_arm_count,
+                     program->switch_arm_count))
+      return CONST_GRAPH_INVALID;
+    for (uint32_t offset = 0u; offset < node->switch_arm_count; offset += 1u) {
+      const w_seed_constir_switch_arm *arm = &program->switch_arms[
+          (size_t)node->first_switch_arm + offset];
+      const_graph_status status = const_graph_visit_node(
+          graph, function_index, arm->result_node, depth + 1u);
+      if (status != CONST_GRAPH_OK) return status;
+    }
+  }
+  return CONST_GRAPH_OK;
+}
+
+static const_graph_status const_graph_preflight(
+    const validation_context *context, const w_seed_frontend_generic_application *application,
+    const uint32_t typed_function_indices[W_SEED_FRONTEND_MAX_GENERIC_SLOTS],
+    uint32_t cycle_path[W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH],
+    size_t *cycle_path_length, uint32_t *cycle_argument_offset) {
+  if (cycle_path_length != NULL) *cycle_path_length = 0u;
+  if (cycle_argument_offset != NULL) *cycle_argument_offset = W_SEED_FRONTEND_NONE;
+  if (context == NULL || context->program == NULL || application == NULL ||
+      typed_function_indices == NULL)
+    return CONST_GRAPH_INVALID;
+  const_graph_context graph;
+  (void)memset(&graph, 0, sizeof(graph));
+  graph.context = context;
+  for (uint32_t offset = 0u; offset < application->argument_count; offset += 1u) {
+    const uint32_t function_index = typed_function_indices[offset];
+    if (function_index == W_SEED_CONSTIR_NONE) continue;
+    if ((size_t)function_index >= context->program->function_count)
+      return CONST_GRAPH_INVALID;
+    const_graph_status status;
+    const w_seed_constir_function *function =
+        &context->program->functions[function_index];
+    if (function->origin !=
+        W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION)
+      return CONST_GRAPH_INVALID;
+    status = const_graph_visit_node(&graph, function_index, function->root_node, 1u);
+    if (status != CONST_GRAPH_OK) {
+      if (status == CONST_GRAPH_CYCLE && cycle_path != NULL &&
+          cycle_path_length != NULL) {
+        *cycle_path_length = graph.cycle_length;
+        (void)memcpy(cycle_path, graph.cycle,
+                     graph.cycle_length * sizeof(graph.cycle[0]));
+        if (cycle_argument_offset != NULL) *cycle_argument_offset = offset;
+      }
+      return status;
+    }
+  }
+  return CONST_GRAPH_OK;
 }
 
 static conversion_status append_value(validation_context *context,
@@ -1663,6 +1905,8 @@ const char *w_seed_generic_validation_failure_name(
       return "result-type";
     case W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT:
       return "invalid-input";
+    case W_SEED_GENERIC_VALIDATION_FAILURE_DEPENDENCY_LIMIT:
+      return "dependency-limit";
   }
   return "unknown";
 }
@@ -1712,6 +1956,44 @@ static void receipt_init(w_seed_generic_validation_receipt *receipt) {
   receipt->typed_const_expression_index = W_SEED_FRONTEND_NONE;
   receipt->predicate_parameter_index = W_SEED_FRONTEND_NONE;
   receipt->predicate_function_index = W_SEED_FRONTEND_NONE;
+}
+
+static void publish_const_cycle_failure(
+    const w_seed_generic_validation_input *input,
+    const w_seed_frontend_generic_application *application,
+    uint32_t argument_offset, const uint32_t *cycle_path,
+    size_t cycle_path_length, w_seed_generic_validation_result *result) {
+  if (input == NULL || application == NULL || result == NULL ||
+      argument_offset >= application->argument_count ||
+      input->receipts == NULL || input->receipt_capacity == 0u ||
+      input->frontend_output == NULL ||
+      input->frontend_output->generic_arguments == NULL)
+    return;
+  const w_seed_frontend_generic_argument *argument =
+      &input->frontend_output->generic_arguments[
+          (size_t)application->first_argument + argument_offset];
+  w_seed_generic_validation_receipt *receipt = &input->receipts[0];
+  receipt_init(receipt);
+  receipt->kind = W_SEED_GENERIC_VALIDATION_RECEIPT_CONST_ARGUMENT;
+  receipt->generic_argument_index = application->first_argument + argument_offset;
+  receipt->argument_const_value_index = argument->const_value_index;
+  receipt->typed_const_expression_index =
+      argument->typed_const_expression_index;
+  receipt->argument_span = argument->span;
+  receipt->evaluation.status = W_SEED_CONSTIR_OK;
+  receipt->evaluation.diagnostic =
+      W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002;
+  receipt->evaluation.diagnostic_span = argument->span;
+  if (cycle_path != NULL && cycle_path_length != 0u &&
+      input->constir_program != NULL &&
+      cycle_path[0] < input->constir_program->function_count) {
+    receipt->evaluation.diagnostic_span =
+        input->constir_program->functions[cycle_path[0]].body_span;
+  }
+  result->receipts_written = 1u;
+  result->evaluation = receipt->evaluation;
+  result->diagnostic = receipt->evaluation.diagnostic;
+  result->diagnostic_span = receipt->evaluation.diagnostic_span;
 }
 
 w_seed_generic_validation_state w_seed_generic_validation_run(
@@ -1906,6 +2188,42 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
     candidate_count += 1u;
   }
   result->predicate_count = candidate_count;
+  /* A D4 dependency graph is checked before any conversion, receipt-capacity,
+   * quota, or evaluator decision.  This gives a reachable cycle its own
+   * deterministic diagnostic even when a caller supplied zero capacity. */
+  uint32_t cycle_path[W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH];
+  size_t cycle_path_length = 0u;
+  uint32_t cycle_argument_offset = W_SEED_FRONTEND_NONE;
+  const const_graph_status graph_status = const_graph_preflight(
+      &context, application, typed_function_indices, cycle_path,
+      &cycle_path_length, &cycle_argument_offset);
+  if (graph_status == CONST_GRAPH_INVALID) {
+    result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+    return result->state;
+  }
+  if (graph_status == CONST_GRAPH_UNSUPPORTED) {
+    result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION;
+    return result->state;
+  }
+  if (graph_status == CONST_GRAPH_LIMIT) {
+    result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_DEPENDENCY_LIMIT;
+    return result->state;
+  }
+  if (graph_status == CONST_GRAPH_CYCLE) {
+    result->state = W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_EVALUATOR_DIAGNOSTIC;
+    result->const_cycle_path_length = cycle_path_length;
+    if (cycle_path_length != 0u)
+      (void)memcpy(result->const_cycle_path, cycle_path,
+                   cycle_path_length * sizeof(cycle_path[0]));
+    result->diagnostic = W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002;
+    publish_const_cycle_failure(input, application, cycle_argument_offset,
+                                cycle_path, cycle_path_length, result);
+    return result->state;
+  }
   /* Publish the complete computed count from read-only preflight.  No
    * evaluator step has run at this point, and the count remains stable for
    * all later success/failure states. */

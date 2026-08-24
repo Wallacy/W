@@ -74,6 +74,7 @@ typedef struct {
   w_seed_frontend_field fields[ARRAY];
   w_seed_frontend_type_declaration declarations[ARRAY];
   w_seed_frontend_alias aliases[ARRAY];
+  w_seed_frontend_const_declaration const_declarations[ARRAY];
   w_seed_frontend_type types[TYPES];
   w_seed_frontend_function functions[FUNCTIONS];
   w_seed_frontend_parameter parameters[PARAMETERS];
@@ -145,6 +146,8 @@ static void fixture_init_output(fixture *value) {
       .type_declaration_capacity = ARRAY,
       .aliases = value->aliases,
       .alias_capacity = ARRAY,
+      .const_declarations = value->const_declarations,
+      .const_declaration_capacity = ARRAY,
       .types = value->types,
       .type_capacity = TYPES,
       .functions = value->functions,
@@ -1732,12 +1735,13 @@ static bool test_typed_const_expression_synthetic(void) {
   CHECK(computed_node->type_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
         computed_node->type_bit_width == 64u &&
         computed_node->type_is_signed);
-  const size_t receipt_prefix = strlen("w-seed-constir-4");
+  const size_t receipt_prefix = strlen("w-seed-constir-5");
+  const size_t receipt_function_bytes = 94u;
   CHECK(first_fixture.constir_receipt[receipt_prefix] ==
             (uint8_t)W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION &&
-        first_fixture.constir_receipt[receipt_prefix + 90u] ==
+        first_fixture.constir_receipt[receipt_prefix + receipt_function_bytes] ==
             (uint8_t)W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION &&
-        first_fixture.constir_receipt[receipt_prefix + 90u + 90u] ==
+        first_fixture.constir_receipt[receipt_prefix + receipt_function_bytes * 2u] ==
             (uint8_t)W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION);
   CHECK(fixture_constir_valid(&first_fixture));
 
@@ -1791,6 +1795,65 @@ static bool test_typed_const_expression_synthetic(void) {
   return true;
 }
 
+static bool test_module_const_synthetic_d4(void) {
+  static const char source[] =
+      "export const ultimateAnswer: i64 = 6 * 7\n"
+      "const forward: i64 = ultimateAnswer\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { named: Box<(forward)> direct: Box<(ultimateAnswer)> }\n";
+  CHECK(fixture_lower(&first_fixture, source));
+  CHECK(first_fixture.frontend_result.written.const_declarations == 2u &&
+        first_fixture.constir_result.written.functions == 4u &&
+        first_fixture.constir_functions[0].origin ==
+            W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION &&
+        first_fixture.constir_functions[1].origin ==
+            W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION &&
+        first_fixture.constir_functions[2].origin ==
+            W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION &&
+        first_fixture.constir_functions[3].origin ==
+            W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION);
+  const w_seed_constir_function *forward = &first_fixture.constir_functions[1];
+  CHECK(forward->frontend_const_declaration == 1u && forward->lowerable &&
+        forward->root_node != W_SEED_CONSTIR_NONE);
+  const w_seed_constir_node *forward_node =
+      &first_fixture.constir_nodes[forward->root_node];
+  CHECK(forward_node->kind == W_SEED_CONSTIR_NODE_CALL &&
+        forward_node->call_target_function == W_SEED_CONSTIR_NONE &&
+        forward_node->call_target_const_declaration == 0u);
+  CHECK(fixture_constir_valid(&first_fixture));
+
+  static const char changed_source[] =
+      "export const ultimateAnswer: i64 = 6 * 8\n"
+      "const forward: i64 = ultimateAnswer\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { named: Box<(forward)> direct: Box<(ultimateAnswer)> }\n";
+  CHECK(fixture_lower(&second_fixture, changed_source));
+  CHECK(memcmp(first_fixture.constir_functions[1].body_digest,
+               second_fixture.constir_functions[1].body_digest, 32u) != 0);
+
+  static const char cycle_source[] =
+      "const left: i64 = right\n"
+      "const right: i64 = left\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { value: Box<(left)> }\n";
+  CHECK(fixture_lower(&first_fixture, cycle_source));
+  CHECK(first_fixture.constir_result.written.functions == 3u &&
+        first_fixture.constir_functions[0].lowerable &&
+        first_fixture.constir_functions[1].lowerable &&
+        fixture_constir_valid(&first_fixture));
+
+  static const char untyped_source[] =
+      "const answer = 42\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { value: Box<(answer)> }\n";
+  CHECK(fixture_lower(&first_fixture, untyped_source));
+  CHECK(first_fixture.frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(first_fixture.constir_result.written.functions == 1u);
+  CHECK(!first_fixture.constir_functions[0].lowerable);
+  CHECK(fixture_constir_valid(&first_fixture));
+  return true;
+}
+
 int main(void) {
   CHECK(test_can_move_and_digest());
   CHECK(test_static_list_stage_path());
@@ -1804,6 +1867,7 @@ int main(void) {
   CHECK(test_direct_call_and_external_barrier());
   CHECK(test_capacity_and_barrier());
   CHECK(test_typed_const_expression_synthetic());
+  CHECK(test_module_const_synthetic_d4());
   (void)puts("constir tests passed");
   return 0;
 }

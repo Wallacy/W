@@ -1220,6 +1220,53 @@ cycles do graph const, imported heads/predicates, resultado computed `String`,
 identity final, compiler/runtime ou self-host. O caso é oracle-backed-current,
 não conformance de W completo.
 
+#### 1.3.21.3 Module named const no generic value (W-1463)
+
+**Motivação:** D3 já permitia calcular uma expression escalar no call site,
+mas não permitia que a expression usasse um valor nomeado publicado pelo
+source. W-1463 fecha a menor extensão útil: declarations `const` já aceitas
+pela gramática, com type explícito, no mesmo módulo e com dependências locais
+bounded. Isso torna `UltimateAnswer<(ultimateAnswer)>` observavelmente igual a
+`42` e `(6 * 7)` sem criar syntax nova ou inferência de initializer.
+
+O frontend continua caller-owned. Ele publica o record da declaration, spans,
+declared type, initializer, ranges e relação explícita do identifier, resolve e
+tipa em ordem source e mantém `TYPED_PENDING_CONST`; não avalia, não chama
+ConstIR e não materializa `ConstValue`. Locals e parameters mantêm precedence.
+ConstIR registra a origem `FRONTEND_CONST_DECLARATION`, baixa cada declaration
+como função sintética zero-arg e baixa cada referência como dependency `CALL`.
+O body digest omite spans, trivia e spelling e inclui a identidade/digest das
+dependencies para evitar colisões estruturais.
+
+O preflight do grafo é anterior a steps, execution e capacity. Relações
+corrompidas produzem `INVALID` sem step; uma dependency bem formada fora do
+subset produz `UNSUPPORTED` sem step; ciclo alcançável produz
+`EVALUATION_FAILED` com `W-CONST-0002`, counters zero e caminho determinístico
+fechado na ordem causal. O limite é 256 dependencies alcançáveis: um grafo
+bem formado com 257 declarations é `UNSUPPORTED` com failure
+`dependency-limit`, o caso `dependencyLimit`, antes de conversion, receipt ou
+step. Uma dependency bem formada fora do subset mantém a failure `function`.
+Esse limite de grafo não é arithmetic overflow. Uma declaration lowerable como
+`const overflowValue: i8 = 127 + 1`
+falha durante evaluation com `EVALUATION_FAILED`/`W-CONST-0006`, publica um
+único `CONST_ARGUMENT`, não executa predicate e deixa o fingerprint
+indisponível. O receipt
+`CONST_ARGUMENT` precede o retorno de ciclo, predicates posteriores não
+executam e quota continua agregada computed→predicates. O gate
+`tooling/check-seed-generic-validation.mjs` lê os markers reais de
+`generics.w`, cruza probe C e oráculo Bun independente e registra
+`GPF0-W-1463-current`; o witness cobre forward chain, duplicate, rejected,
+cycles self/2/3, unreachable cycle, corruption, zero capacity,
+`dependencyLimit`, `arithmeticOverflow`, quota e unsupported forms.
+
+Alternativas de resolver durante a execução, materializar initializers no
+frontend, aceitar imports/associated const ou usar memoization global foram
+rejeitadas. Elas ocultam ownership, alteram ordem de receipts, ampliam o
+ambiente de resolução ou introduzem estado sem contrato. Inferência de
+initializer, compiler completo, imports, associated const, cache/memoization,
+identity final, runtime e self-host permanecem limites explícitos. O caso é
+`oracle-backed-current`, não compiler conformance.
+
 #### 1.3.22 Subject de refinement
 
 **Exemplo:** `String<(.scalars.count in 1...40)>` e
@@ -6988,6 +7035,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1460 | fingerprint semântico pós-validação de generic D1 | evidence interna versionada `w-seed-generic-fingerprint-1`: preimage canônico independente de spans/indices/source spelling, validação/preflight antes da avaliação, `VERIFIED` + `AVAILABLE` somente após todos os predicates true, `VERIFIED` fora do subconjunto + `UNSUPPORTED`, demais estados + `NOT_AVAILABLE`/bytes zero; witness `restaurant` com standard duplicado, cancelled, vazio, salto e duplicata; C e Bun reconstrutores independentes | oracle-backed-current; `GPF0-W-1460-current` usa fragments reais de Last Light, seed C e oráculo Bun independente; usar spans/indices/source spelling, chamar digest de `TypeId`/cache key/identidade, emitir antes de `VERIFIED` ou confiar somente no C; digests diferentes implicam preimages diferentes, mas digest igual isolado sem preimage não prova igualdade nem identidade collision-safe; a identidade final ainda exige declaration digest, witnesses, target/profile/edition/compiler/bundle versions e dados canônicos |
 | W-1461 | evidência D2 String source-backed em generic predicates | D2 source-backed bounded de `String` em predicates genéricos: literal simples até 4.096 bytes, `==`/`!=`, preflight canônico, `VERIFIED`/`REJECTED`/`UNSUPPORTED`/`INVALID` e fingerprint Bun independente | oracle-backed-current; `GPF0-W-1461-current` liga diretamente os markers reais de `generics.w`, `isFinalCallLabel`, positivos duplicados, rejeitados, empty, over-limit, corrupção e digests Bun ao gate independente `tooling/check-seed-generic-validation.mjs`; o caso não afirma String completa, compiler, runtime ou self-host |
 | W-1462 | expressão const tipada escalar em generic value | D3 source-backed bounded de expressão parentetizada com literais, grouping, unary e binary operators escalares, resultado `Bool` ou integer explícito, função ConstIR sintética com origem explícita, receipts `CONST_ARGUMENT`/`PREDICATE` ordenados e fingerprint normalizado | oracle-backed-current; `GPF0-W-1462-current` liga os markers reais de `generics.w`, prova immediate `42`, computed `(6 * 7)`, duplicate, rejected `(6 * 6)`, quota cumulativa, overflow, unsupported call e corrupção com seed C e reconstrução Bun independente; identifiers/named const, graph dependencies/cycles, imported heads/predicates, String computed result, identity final, compiler/runtime e self-host permanecem limites |
+| W-1463 | module named const no generic value | D4 source-backed bounded de `const name: Type = expression` local, relation explícita, forward reference, lowering ConstIR sintético com dependency `CALL`, preflight causal de graph/cycles, receipts e fingerprint normalizado igual ao immediate/D3 | oracle-backed-current; `GPF0-W-1463-current` liga markers reais de `generics.w`, prova named/duplicate `42`, forward chain, rejected, cycles self/2/3 com paths fechados, ciclo inalcançável, type mismatch, unresolved, unsupported, corruption, zero capacity, quota, `dependencyLimit` (257 declarations, `UNSUPPORTED` + failure `dependency-limit`) e `arithmeticOverflow` (`W-CONST-0006`, receipt `CONST_ARGUMENT` sem predicate) com seed C e oráculo Bun independente; dependency fora do subset mantém failure `function`; imports, associated const, initializer inference, cache/memoization, identity final, compiler/runtime e self-host permanecem limites |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,

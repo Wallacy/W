@@ -29,7 +29,7 @@ function parseResult(output, label) {
   const lines = output.toString().split(/\r?\n/u)
   const line = lines.find((candidate) => candidate.startsWith("RESULT "))
   if (!line) fail(`${label} has no RESULT line`)
-  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) generic_parameters=(\d+) generic_applications=(\d+) generic_arguments=(\d+) typed_const_expressions=(\d+) const_values=(\d+) const_elements=(\d+) const_bytes=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) enum_membership_cases=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
+  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) generic_parameters=(\d+) generic_applications=(\d+) generic_arguments=(\d+) typed_const_expressions=(\d+) const_values=(\d+) const_elements=(\d+) const_bytes=(\d+) const_declarations=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) enum_membership_cases=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
   if (!match) fail(`${label} has an invalid RESULT line: ${line}`)
   return {
     parse: Number(match[1]),
@@ -44,23 +44,24 @@ function parseResult(output, label) {
     const_values: Number(match[10]),
     const_elements: Number(match[11]),
     const_bytes: Number(match[12]),
-    enums: Number(match[13]),
-    enum_cases: Number(match[14]),
-    enum_case_parameters: Number(match[15]),
-    switch_arms: Number(match[16]),
-    enum_subset_members: Number(match[17]),
-    enum_membership_cases: Number(match[18]),
-    types: Number(match[19]),
-    functions: Number(match[20]),
-    params: Number(match[21]),
-    entries: Number(match[22]),
-    statements: Number(match[23]),
-    expressions: Number(match[24]),
-    arguments: Number(match[25]),
-    symbols: Number(match[26]),
-    facts: Number(match[27]),
-    diagnostics: Number(match[28]),
-    receipt: Number(match[29]),
+    const_declarations: Number(match[13]),
+    enums: Number(match[14]),
+    enum_cases: Number(match[15]),
+    enum_case_parameters: Number(match[16]),
+    switch_arms: Number(match[17]),
+    enum_subset_members: Number(match[18]),
+    enum_membership_cases: Number(match[19]),
+    types: Number(match[20]),
+    functions: Number(match[21]),
+    params: Number(match[22]),
+    entries: Number(match[23]),
+    statements: Number(match[24]),
+    expressions: Number(match[25]),
+    arguments: Number(match[26]),
+    symbols: Number(match[27]),
+    facts: Number(match[28]),
+    diagnostics: Number(match[29]),
+    receipt: Number(match[30]),
   }
 }
 
