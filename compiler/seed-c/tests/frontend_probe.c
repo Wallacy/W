@@ -27,6 +27,7 @@ enum {
   PROBE_GENERIC_PARAMETERS = 65536,
   PROBE_GENERIC_APPLICATIONS = 65536,
   PROBE_GENERIC_ARGUMENTS = 262144,
+  PROBE_TYPED_CONST_EXPRESSIONS = 262144,
   PROBE_CONST_VALUES = 262144,
   PROBE_CONST_ELEMENTS = 262144,
   PROBE_CONST_BYTES = 8 * 1024 * 1024,
@@ -67,6 +68,8 @@ static w_seed_frontend_generic_application
     generic_applications[PROBE_GENERIC_APPLICATIONS];
 static w_seed_frontend_generic_argument
     generic_arguments[PROBE_GENERIC_ARGUMENTS];
+static w_seed_frontend_typed_const_expression
+    typed_const_expressions[PROBE_TYPED_CONST_EXPRESSIONS];
 static w_seed_frontend_const_value const_values[PROBE_CONST_VALUES];
 static w_seed_frontend_const_element const_elements[PROBE_CONST_ELEMENTS];
 static uint8_t const_bytes[PROBE_CONST_BYTES];
@@ -193,6 +196,8 @@ int main(void) {
       .generic_application_capacity = PROBE_GENERIC_APPLICATIONS,
       .generic_arguments = generic_arguments,
       .generic_argument_capacity = PROBE_GENERIC_ARGUMENTS,
+      .typed_const_expressions = typed_const_expressions,
+      .typed_const_expression_capacity = PROBE_TYPED_CONST_EXPRESSIONS,
       .const_values = const_values,
       .const_value_capacity = PROBE_CONST_VALUES,
       .const_elements = const_elements,
@@ -248,6 +253,7 @@ int main(void) {
                " generic_parameters=%" PRIuMAX
                " generic_applications=%" PRIuMAX
                " generic_arguments=%" PRIuMAX
+               " typed_const_expressions=%" PRIuMAX
                " const_values=%" PRIuMAX
                " const_elements=%" PRIuMAX
                " const_bytes=%" PRIuMAX
@@ -269,6 +275,7 @@ int main(void) {
                (uintmax_t)result.written.generic_parameters,
                (uintmax_t)result.written.generic_applications,
                (uintmax_t)result.written.generic_arguments,
+               (uintmax_t)result.written.typed_const_expressions,
                (uintmax_t)result.written.const_values,
                (uintmax_t)result.written.const_elements,
                (uintmax_t)result.written.const_bytes,
@@ -289,6 +296,20 @@ int main(void) {
                (uintmax_t)result.written.facts,
                (uintmax_t)result.written.diagnostics,
                (uintmax_t)result.receipt_bytes);
+  for (size_t index = 0; index < result.written.typed_const_expressions;
+       index += 1u) {
+    const w_seed_frontend_typed_const_expression *typed =
+        &typed_const_expressions[index];
+    (void)printf("TYPED index=%" PRIuMAX " owner=%" PRIu32
+                 " argument=%" PRIu32 " expression=%" PRIu32
+                 " expected=%" PRIu32 " effective=%" PRIu32
+                 " span=%" PRIuMAX ":%" PRIuMAX "\n",
+                 (uintmax_t)index, typed->owner_application,
+                 typed->argument_ordinal, typed->expression_index,
+                 typed->expected_type, typed->effective_type,
+                 (uintmax_t)typed->span.start_byte,
+                 (uintmax_t)typed->span.end_byte);
+  }
   for (size_t index = 0; index < result.written.diagnostics; index += 1) {
     const w_seed_frontend_diagnostic *diagnostic = &diagnostics[index];
     (void)printf("DIAGNOSTIC code=%.*s start=%" PRIuMAX " end=%" PRIuMAX

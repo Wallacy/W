@@ -58,18 +58,25 @@ function parseConstir(output, label) {
 
 function parseFunction(output, label) {
   const value = line(output, "FUNCTION ", label)
-  const match = /^FUNCTION frontend=(\d+) lowerable=(\d+) digest=([0-9a-f]{64}) nodes=(\d+)$/u.exec(value)
+  const match = /^FUNCTION origin=(\d+) frontend=(\d+) typed=(\d+) lowerable=(\d+) digest=([0-9a-f]{64}) nodes=(\d+)$/u.exec(value)
   if (!match) fail(`${label} has an invalid FUNCTION line: ${value}`)
-  return { frontend: Number(match[1]), lowerable: match[2] === "1", digest: match[3], nodes: Number(match[4]) }
+  return {
+    origin: Number(match[1]), frontend: Number(match[2]), typed: Number(match[3]),
+    lowerable: match[4] === "1", digest: match[5], nodes: Number(match[6]),
+  }
 }
 
 function parseFunctionForFrontend(output, frontend, label) {
   const value = output.split(/\r?\n/u)
-    .find((item) => item.startsWith(`FUNCTION frontend=${frontend} `))
+    .find((item) => item.startsWith("FUNCTION ") &&
+      item.includes(` frontend=${frontend} `))
   if (!value) fail(`${label} has no FUNCTION frontend=${frontend} line`)
-  const match = /^FUNCTION frontend=(\d+) lowerable=(\d+) digest=([0-9a-f]{64}) nodes=(\d+)$/u.exec(value)
+  const match = /^FUNCTION origin=(\d+) frontend=(\d+) typed=(\d+) lowerable=(\d+) digest=([0-9a-f]{64}) nodes=(\d+)$/u.exec(value)
   if (!match) fail(`${label} has an invalid FUNCTION line: ${value}`)
-  return { frontend: Number(match[1]), lowerable: match[2] === "1", digest: match[3], nodes: Number(match[4]) }
+  return {
+    origin: Number(match[1]), frontend: Number(match[2]), typed: Number(match[3]),
+    lowerable: match[4] === "1", digest: match[5], nodes: Number(match[6]),
+  }
 }
 
 function parseReceiptDigest(output, label) {

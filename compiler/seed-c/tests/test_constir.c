@@ -61,6 +61,12 @@ typedef struct {
   w_seed_frontend_import imports[ARRAY];
   w_seed_frontend_import_item import_items[ARRAY];
   w_seed_frontend_struct structs[ARRAY];
+  w_seed_frontend_generic_parameter generic_parameters[ARRAY];
+  w_seed_frontend_generic_application generic_applications[ARRAY];
+  w_seed_frontend_generic_argument generic_arguments[ARRAY];
+  w_seed_frontend_typed_const_expression typed_const_expressions[ARRAY];
+  w_seed_frontend_const_value const_values[ARRAY];
+  w_seed_frontend_const_element const_elements[ARRAY];
   w_seed_frontend_enum enums[ARRAY];
   w_seed_frontend_enum_case enum_cases[ARRAY];
   w_seed_frontend_enum_case_parameter enum_case_parameters[ARRAY];
@@ -113,6 +119,18 @@ static void fixture_init_output(fixture *value) {
       .import_item_capacity = ARRAY,
       .structs = value->structs,
       .struct_capacity = ARRAY,
+      .generic_parameters = value->generic_parameters,
+      .generic_parameter_capacity = ARRAY,
+      .generic_applications = value->generic_applications,
+      .generic_application_capacity = ARRAY,
+      .generic_arguments = value->generic_arguments,
+      .generic_argument_capacity = ARRAY,
+      .typed_const_expressions = value->typed_const_expressions,
+      .typed_const_expression_capacity = ARRAY,
+      .const_values = value->const_values,
+      .const_value_capacity = ARRAY,
+      .const_elements = value->const_elements,
+      .const_element_capacity = ARRAY,
       .enums = value->enums,
       .enum_capacity = ARRAY,
       .enum_cases = value->enum_cases,
@@ -234,6 +252,11 @@ static w_seed_constir_program fixture_program(const fixture *value) {
       .statement_count = value->constir_result.written.statements,
       .locals = value->constir_locals,
       .local_count = value->constir_result.written.locals};
+}
+
+static bool fixture_constir_valid(const fixture *value) {
+  const w_seed_constir_program program = fixture_program(value);
+  return w_seed_constir_validate_program(&program);
 }
 
 static bool make_repeated_string_source(char *destination, size_t capacity,
@@ -1677,6 +1700,97 @@ static bool test_capacity_and_barrier(void) {
   return true;
 }
 
+static bool test_typed_const_expression_synthetic(void) {
+  static const char source[] =
+      "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n"
+      "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
+      "struct Use { immediate: UltimateAnswer<42> computed: "
+      "UltimateAnswer<(6 * 7)> duplicate: UltimateAnswer<(6 * 7)> }\n";
+  CHECK(fixture_lower(&first_fixture, source));
+  CHECK(first_fixture.frontend_result.written.typed_const_expressions == 2u &&
+        first_fixture.constir_result.written.functions == 3u);
+  const w_seed_constir_function *predicate =
+      &first_fixture.constir_functions[0];
+  const w_seed_constir_function *computed =
+      &first_fixture.constir_functions[1];
+  const w_seed_constir_function *duplicate =
+      &first_fixture.constir_functions[2];
+  CHECK(predicate->origin == W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION &&
+        predicate->frontend_function == 0u &&
+        predicate->typed_const_expression_index == W_SEED_CONSTIR_NONE &&
+        computed->origin ==
+            W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION &&
+        computed->frontend_function == W_SEED_CONSTIR_NONE &&
+        computed->typed_const_expression_index == 0u &&
+        computed->parameter_count == 0u && computed->lowerable &&
+        duplicate->origin ==
+            W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION &&
+        duplicate->typed_const_expression_index == 1u && duplicate->lowerable &&
+        memcmp(computed->body_digest, duplicate->body_digest, 32u) == 0);
+  const w_seed_constir_node *computed_node =
+      &first_fixture.constir_nodes[computed->root_node];
+  CHECK(computed_node->type_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        computed_node->type_bit_width == 64u &&
+        computed_node->type_is_signed);
+  const size_t receipt_prefix = strlen("w-seed-constir-4");
+  CHECK(first_fixture.constir_receipt[receipt_prefix] ==
+            (uint8_t)W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION &&
+        first_fixture.constir_receipt[receipt_prefix + 90u] ==
+            (uint8_t)W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION &&
+        first_fixture.constir_receipt[receipt_prefix + 90u + 90u] ==
+            (uint8_t)W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION);
+  CHECK(fixture_constir_valid(&first_fixture));
+
+  CHECK(fixture_lower(&second_fixture, source));
+  CHECK(second_fixture.constir_result.written.receipt_bytes ==
+        first_fixture.constir_result.written.receipt_bytes &&
+        memcmp(first_fixture.constir_receipt, second_fixture.constir_receipt,
+               first_fixture.constir_result.written.receipt_bytes) == 0 &&
+        memcmp(first_fixture.constir_functions[1].body_digest,
+               second_fixture.constir_functions[1].body_digest, 32u) == 0);
+
+  CHECK(fixture_lower(&first_fixture, source));
+  first_fixture.constir_functions[1].origin =
+      W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION;
+  CHECK(!fixture_constir_valid(&first_fixture));
+  CHECK(fixture_lower(&first_fixture, source));
+  first_fixture.constir_functions[2].typed_const_expression_index = 0u;
+  CHECK(!fixture_constir_valid(&first_fixture));
+  CHECK(fixture_lower(&first_fixture, source));
+  first_fixture.constir_nodes[first_fixture.constir_functions[1].root_node]
+      .type_bit_width = 32u;
+  CHECK(!fixture_constir_valid(&first_fixture));
+  CHECK(fixture_lower(&first_fixture, source));
+  first_fixture.generic_applications[1].binding_status =
+      W_SEED_FRONTEND_GENERIC_BINDING_INVALID;
+  CHECK(!fixture_constir_valid(&first_fixture));
+
+  static const char unsupported_call[] =
+      "const fn helper(value: i64): i64 { return value }\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { value: Box<(helper(6))> }\n";
+  CHECK(fixture_lower(&first_fixture, unsupported_call));
+  CHECK(first_fixture.constir_result.written.functions == 2u &&
+        !first_fixture.constir_functions[1].lowerable &&
+        fixture_constir_valid(&first_fixture));
+
+  /* A calculated relation retained for an UNSUPPORTED application is audit
+   * data only.  ConstIR may keep its non-lowerable synthetic record, but the
+   * origin validator must not make that record executable. */
+  static const char audit_only[] =
+      "struct Pair<_ first: i64, _ second: i64> {}\n"
+      "struct Use { pair: Pair<(6 * 7), (\"42\")> }\n";
+  CHECK(fixture_lower(&first_fixture, audit_only));
+  CHECK(first_fixture.frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        first_fixture.frontend_result.written.typed_const_expressions == 1u &&
+        first_fixture.generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED &&
+        first_fixture.constir_result.written.functions == 1u &&
+        !first_fixture.constir_functions[0].lowerable &&
+        fixture_constir_valid(&first_fixture));
+  return true;
+}
+
 int main(void) {
   CHECK(test_can_move_and_digest());
   CHECK(test_static_list_stage_path());
@@ -1689,6 +1803,7 @@ int main(void) {
   CHECK(test_depth_and_caller_owned_validation());
   CHECK(test_direct_call_and_external_barrier());
   CHECK(test_capacity_and_barrier());
+  CHECK(test_typed_const_expression_synthetic());
   (void)puts("constir tests passed");
   return 0;
 }

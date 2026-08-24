@@ -11,8 +11,8 @@
 extern "C" {
 #endif
 
-/* Internal seed-C ConstIR D1/D2. This is not an importable W interface. */
-#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-3"
+/* Internal seed-C ConstIR D1-D3. This is not an importable W interface. */
+#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-4"
 #define W_SEED_CONSTIR_NONE UINT32_MAX
 #define W_SEED_CONSTIR_INTEGER_BYTES 16u
 #define W_SEED_CONSTIR_MAX_PARAMETERS 256u
@@ -228,8 +228,15 @@ typedef struct {
   w_seed_span source_span;
 } w_seed_constir_diagnostic;
 
+typedef enum {
+  W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION = 0,
+  W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION,
+} w_seed_constir_function_origin;
+
 typedef struct {
+  w_seed_constir_function_origin origin;
   uint32_t frontend_function;
+  uint32_t typed_const_expression_index;
   bool lowerable;
   w_seed_span source_span;
   w_seed_span body_span;

@@ -91,10 +91,10 @@ diferente de `Bool` produz `W-CONTRACT-0003` e mantém o refinement inválido.
 O registro preserva `external_label` separado de `internal_name`. A fatia atual
 também publica aplicações genéricas de `struct` locais no mesmo módulo/documento.
 Cada aplicação tem owner type, head, envelope, argumentos ordenados e status de
-binding; cada argumento preserva ordinal, span, label, parâmetro, kind e o índice
-de type ou `ConstValue`. O root liga à aplicação por
-`generic_application_index`. `W_SEED_FRONTEND_SCHEMA_VERSION` é
-`w-seed-frontend-4`.
+binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
+de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
+root liga à aplicação por `generic_application_index`.
+`W_SEED_FRONTEND_SCHEMA_VERSION` é `w-seed-frontend-5`.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
@@ -107,11 +107,13 @@ Todos os slots continuam obrigatórios: `_` torna apenas o label externo opciona
 O status de binding não prova predicate, especialização ou execução posterior.
 
 A resolução exige head `struct` local, inclusive forward reference, e não chama,
-inclui ou depende do componente ConstIR. Generic calls e heads importados,
+inclui ou depende do componente ConstIR. A forma D3 parentetizada publica
+`TypedConstExpr` e `TYPED_PENDING_CONST` somente para árvore fechada de literais,
+grouping, unary e binary operators com resultado Bool ou integer explícito;
+o frontend não avalia. Generic calls, identifiers/named const, heads importados,
 enum/object/type/alias/function, quantity/size, `Bytes`, listas aninhadas,
-expressions calculadas e avaliação de predicate permanecem `UNSUPPORTED` ou
-fora do seed conforme a forma. O seed não apresenta esta fatia como compiler W
-completo.
+String result e outras formas permanecem `UNSUPPORTED` ou fora do seed conforme
+a forma. O seed não apresenta esta fatia como compiler W completo.
 
 Os argumentos de contract aceitam somente formas sintáticas: tipo/path WORD, membro contextual
 `.id`, argumento nomeado `id: static_value`, predicado `(expression)`, lista
@@ -349,7 +351,7 @@ switch preservam fato explícito unsupported. As formas sem código normativo
 continuam fatos/barreiras explícitos; o seed não apresenta esta fatia como
 implementação ampla da linguagem.
 
-## ConstIR D1/D2 seed
+## ConstIR D1-D3 seed
 
 `include/w_seed_constir.h` e `src/w_seed_constir.c` formam um executor interno
 caller-owned para uma projeção ConstIR D1. O componente recebe documentos CST,
@@ -379,6 +381,16 @@ limite de 4.096 bytes e heap quota zero. O resultado da função permanece Bool,
 integer ou enum nesta fatia. `String` result, escapes/interpolation, ordering,
 concatenação, member/index, `Bytes`, heap values, errors, panic builtin,
 generics e calls externas sem body ConstIR continuam fora da fatia.
+
+Para D3, cada `TypedConstExpr` lowerable vira uma função sintética zero-arg com
+origem `TYPED_CONST_EXPRESSION` e índice sentinel explícito para
+`FRONTEND_FUNCTION`. O subset é uma árvore parentetizada fechada de literal,
+grouping, unary e binary operator escalar com resultado Bool ou integer de
+width/signedness explícitos. Calls, identifiers/named const, nested generic,
+imported head/predicate e String computed result ficam `UNSUPPORTED`; origem,
+mapping, application status, relação ou type shape incoerentes ficam
+`INVALID`. O digest sintético exclui span/trivia/spelling e o valor calculado
+usa a mesma codificação de fingerprint do immediate.
 
 `w_seed_constir_measure` calcula todas as capacidades. `w_seed_constir_run`
 escreve somente quando cada array e o receipt possuem capacidade. Uma função
@@ -424,12 +436,14 @@ camada não reparseia source, não
 modifica os arrays do frontend e não publica type identity final ou
 monomorphization.
 
-Somente `BOUND_IMMEDIATE` é elegível. O predicate é localizado pela relação
-`frontend_function == predicate_function_index`. O preflight read-only chama
+`BOUND_IMMEDIATE` e `TYPED_PENDING_CONST` são elegíveis. O predicate é
+localizado pela relação `frontend_function == predicate_function_index`; uma
+expression pending usa uma função sintética pela origem e índice
+`TypedConstExpr`. O preflight read-only chama
 `w_seed_constir_validate_program` uma vez e depois
 `w_seed_constir_validate_invocations_in_validated_program` para todas as
-relações. Ele verifica todos os predicates e relações
-antes da primeira avaliação. Quando um predicate precisa receber o value, a
+relações, funções sintéticas, predicates e capacities antes da primeira
+avaliação. Quando um predicate precisa receber o value, a
 conversão D1 fechada aceita `Bool`, integers com
 width/signedness, enum cases payloadless (inclusive enum subset) e
 `StaticList` destes enum cases. Bytes integer são little-endian canônicos.
@@ -457,6 +471,15 @@ dependent válido não é `UNSUPPORTED` por si. String source-backed sem predica
 bounded, enquanto over-limit, escape, interpolation e outras formas não
 lowerable continuam `UNSUPPORTED`.
 
+D3 avalia expressions parentetizadas fechadas de literal, grouping, unary e
+binary operator com resultado Bool ou integer explícito; heap scalar permanece
+zero. Calls, identifiers/named const, String computed result, nested generic,
+imported head/predicate e graph dependencies/cycles permanecem fora. A
+validação não muta frontend/ConstIR.
+
+Um `TypedConstExpr` retido em aplicação `INVALID` ou `UNSUPPORTED` é somente
+audit: sua função sintética permanece não lowerable e não pode executar.
+
 O estado público distingue `VERIFIED`, `REJECTED`, `UNSUPPORTED`, `INVALID`,
 `EVALUATION_FAILED` e `CAPACITY`. `EVALUATION_FAILED` conserva o
 `w_seed_constir_eval_result`, counters e o diagnostic W-CONST-0003/W-CONST-0006.
@@ -470,6 +493,13 @@ fallback. O item usa 15 bytes UTF-8 compartilhados para `failure` e
 `rejection_trace` na arena caller-owned. O evaluator atual não guarda execution
 dependencies para uma slice detalhada. Esta fatia D1 usa, portanto, o fallback
 inteiro permitido. A capacidade da arena é medida antes da primeira avaliação.
+
+`computed_argument_count` é publicado integralmente no preflight. Immediate não
+gera receipt causal; cada pending gera `CONST_ARGUMENT` antes da avaliação e
+depois o predicate gera `PREDICATE`. `required_receipts` é a soma dessas duas
+contagens e a ordem é determinística por argumento e depois predicate. Uma
+falha pending de quota/overflow/panic preserva seu receipt/evaluation antes de
+`EVALUATION_FAILED`; todos os estados não-verificados mantêm fingerprint zero.
 
 Depois da validação, o result também expõe
 `W_SEED_GENERIC_VALIDATION_FINGERPRINT_SCHEMA_VERSION =
@@ -508,7 +538,7 @@ imprime module/head, estado do fingerprint, digest e `body_digest` do
 predicate.
 
 O gate também lê `tooling/generic-fingerprint-cases.json` e exige os casos
-únicos GPF0-W-1460/W-1461, suas decisões, sources e runner C+Bun. Ele verifica
+únicos GPF0-W-1460/W-1461/W-1462, suas decisões, sources e runner C+Bun. Ele verifica
 em `reference/last-light/generics.w` os marcadores únicos da assinatura de
 `StaticValue`, do body `export const expected = value`, dos aliases
 `EnabledFeature`/`LastCallLabel`/`VerifiedFinalCall`, da função
@@ -517,6 +547,13 @@ assinatura real com body `{}` porque o body associado completo ainda está fora
 da projeção seed; o gate prova os positivos String duplicados, `Mostly
 harmless`/empty rejeitados, over-limit e corrupção de arena sem alegar que
 `generics.w` inteiro compila.
+
+Para W-1462, o gate extrai uma vez os markers reais de
+`isUltimateAnswer`/`UltimateAnswer`, executa immediate `42`, computed `(6 * 7)`
+e duplicate, rejeita `(6 * 6)`, deriva quota cumulativa, overflow, unsupported
+call e corrupção de origem/relação/type/application/mapping. Bun reconstrói
+independentemente o preimage i64 e SHA-256; a projeção não é compiler, runtime,
+self-host ou identity final.
 
     bun tooling/check-seed-generic-validation.mjs
 

@@ -1170,7 +1170,7 @@ literal fechado para bytes UTF-8 na arena `const_bytes`, com campos append-only
 e transação all-or-nothing. ConstIR guarda offset/count no node e bytes
 borrowed no value. O limite de 4.096 bytes torna quota, lifetime e digest
 bounded sem allocation ou heap quota. O body digest inclui tag, length e bytes
-canônicos, e o bump `w-seed-constir-3` versiona os digests de propósito.
+canônicos, e o bump corrente `w-seed-constir-4` versiona os digests de propósito.
 
 O subset é deliberadamente estreito: literal simples, parâmetro/local e
 `==`/`!=`; ordering, concatenação, member/index, String result,
@@ -1183,6 +1183,42 @@ um falso é `REJECTED` com `W-CONST-0004` e fingerprint indisponível. As
 alternativas de implementar String completa, reparsear spelling ou fazer
 avaliação downstream sem o validator canônico foram rejeitadas por ampliar a
 superfície, quebrar determinismo ou ocultar corrupção.
+
+#### 1.3.21.2 Expressão const tipada escalar em generic value (W-1462)
+
+**Motivação:** a forma parentetizada já pertence à gramática vigente, mas o
+seed D1/D2 não publicava uma relação executável para um value generic
+calculado. W-1462 fecha somente a fatia escalar que o ConstIR já consegue
+lower: literais, grouping, unary e binary operators em uma árvore fechada,
+com resultado `Bool` ou integer de width e signedness explícitos. O Restaurante
+usa `isUltimateAnswer(value: i64)` e compara o literal `42` com o cálculo
+`(6 * 7)`.
+
+O frontend continua caller-owned e tipado. Ele grava `TypedConstExpr`, liga o
+record ao application/argument ordinal e publica `TYPED_PENDING_CONST` sem
+avaliar nem chamar ConstIR. Immediate não produz receipt `CONST_ARGUMENT`;
+somente a forma pending gera uma função ConstIR sintética zero-arg, com origem
+explícita, body digest canônico sem span/trivia/spelling e result type
+verificado. A validação faz preflight de relações, funções sintéticas,
+predicates e capacities, publica `computed_argument_count`, avalia calculated
+arguments em ordem e predicates depois, e conserva receipts locais
+`CONST_ARGUMENT, PREDICATE`. Quota é agregada entre as duas fases; heap de
+scalar é zero. Uma falha da expressão mantém o receipt causal antes de
+`EVALUATION_FAILED`.
+
+O fingerprint recebe o valor ConstIR normalizado exatamente no mesmo encoding
+do immediate. Assim `42`, `(6 * 7)` e uma cópia do cálculo compartilham o
+preimage e digest; `(6 * 6)` é `REJECTED` com `W-CONST-0004` e bytes zero.
+Overflow, quota, unsupported call/identifier/String result e corrupção de
+origem, relação, aplicação ou type são casos distintos, com zero-step quando
+o preflight rejeita. O gate Bun extrai os markers reais de `generics.w` uma
+vez, cruza receipts e steps do seed C, reconstrói independentemente o preimage
+i64 e calcula SHA-256.
+
+Limites honestos: isto não implementa identifiers/named const, dependencies ou
+cycles do graph const, imported heads/predicates, resultado computed `String`,
+identity final, compiler/runtime ou self-host. O caso é oracle-backed-current,
+não conformance de W completo.
 
 #### 1.3.22 Subject de refinement
 
@@ -6951,6 +6987,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1459 | baseline portátil de `std.simd` | `Simd<Element, lanes: usize>` e `SimdMask<_ lanes: usize>`, lanes `1...64`, label required somente em Simd e optional em mask com aplicação `SimdMask<16>`, Element escalar fechado com `Bool` em mask, sequence target-independent, layout opaco, scalar fallback obrigatório, mask `splat(Bool) -> SimdMask<N>`/`fromArray([Bool; N]) -> SimdMask<N>`/`toArray() -> [Bool; N]` sem allocation, `all`/`any`/`none` retornam `Bool` e `countTrue` retorna `UInt`, load borrow source e store destination `inout` com partial tail total e preflight, arithmetic lane-wise condicionado ao scalar Element, floats sem bitwise/shift/overflow APIs, integer overflow mask por lane, masks com bitwise operators, reductions nomeadas em ordem/policy (`reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`, `reduceBitOr`, `reduceBitXor`) e float `ReductionMode` obrigatório (`strict` left fold, `reproducible` árvore balanceada v1, `fast` sem igualdade de bits cross-backend; omission/positional/wrong-label/wrong-arity de mode: usa W-LABEL-0005 e repetição usa W-LABEL-0006), static swizzle com count-first em `1...64`, duplicata e primeiro OOB em source order, e `w explain performance` com lowering facts | oracle-backed-current; SIMD1-W-1459-current fecha o contrato host-only e rejeita width/layout nativo, Bool lane, dynamic shuffle, alignment flag, write antes de bounds failure, short-circuit e performance universal |
 | W-1460 | fingerprint semântico pós-validação de generic D1 | evidence interna versionada `w-seed-generic-fingerprint-1`: preimage canônico independente de spans/indices/source spelling, validação/preflight antes da avaliação, `VERIFIED` + `AVAILABLE` somente após todos os predicates true, `VERIFIED` fora do subconjunto + `UNSUPPORTED`, demais estados + `NOT_AVAILABLE`/bytes zero; witness `restaurant` com standard duplicado, cancelled, vazio, salto e duplicata; C e Bun reconstrutores independentes | oracle-backed-current; `GPF0-W-1460-current` usa fragments reais de Last Light, seed C e oráculo Bun independente; usar spans/indices/source spelling, chamar digest de `TypeId`/cache key/identidade, emitir antes de `VERIFIED` ou confiar somente no C; digests diferentes implicam preimages diferentes, mas digest igual isolado sem preimage não prova igualdade nem identidade collision-safe; a identidade final ainda exige declaration digest, witnesses, target/profile/edition/compiler/bundle versions e dados canônicos |
 | W-1461 | evidência D2 String source-backed em generic predicates | D2 source-backed bounded de `String` em predicates genéricos: literal simples até 4.096 bytes, `==`/`!=`, preflight canônico, `VERIFIED`/`REJECTED`/`UNSUPPORTED`/`INVALID` e fingerprint Bun independente | oracle-backed-current; `GPF0-W-1461-current` liga diretamente os markers reais de `generics.w`, `isFinalCallLabel`, positivos duplicados, rejeitados, empty, over-limit, corrupção e digests Bun ao gate independente `tooling/check-seed-generic-validation.mjs`; o caso não afirma String completa, compiler, runtime ou self-host |
+| W-1462 | expressão const tipada escalar em generic value | D3 source-backed bounded de expressão parentetizada com literais, grouping, unary e binary operators escalares, resultado `Bool` ou integer explícito, função ConstIR sintética com origem explícita, receipts `CONST_ARGUMENT`/`PREDICATE` ordenados e fingerprint normalizado | oracle-backed-current; `GPF0-W-1462-current` liga os markers reais de `generics.w`, prova immediate `42`, computed `(6 * 7)`, duplicate, rejected `(6 * 6)`, quota cumulativa, overflow, unsupported call e corrupção com seed C e reconstrução Bun independente; identifiers/named const, graph dependencies/cycles, imported heads/predicates, String computed result, identity final, compiler/runtime e self-host permanecem limites |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
