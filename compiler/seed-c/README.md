@@ -94,7 +94,7 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind e o índice
 de type ou `ConstValue`. O root liga à aplicação por
 `generic_application_index`. `W_SEED_FRONTEND_SCHEMA_VERSION` é
-`w-seed-frontend-3`.
+`w-seed-frontend-4`.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
@@ -349,7 +349,7 @@ switch preservam fato explícito unsupported. As formas sem código normativo
 continuam fatos/barreiras explícitos; o seed não apresenta esta fatia como
 implementação ampla da linguagem.
 
-## ConstIR D1 seed
+## ConstIR D1/D2 seed
 
 `include/w_seed_constir.h` e `src/w_seed_constir.c` formam um executor interno
 caller-owned para uma projeção ConstIR D1. O componente recebe documentos CST,
@@ -373,9 +373,12 @@ locais, os arms de `switch`, os cases de membership, os locals normalizados e
 as relações de `guard`, `if` e `for` com range half-open. Ela aceita Bool,
 inteiros, enums payloadless, unary e binary tipados, calls locais, enum switch,
 membership, `StaticList<enum>` caller-owned com `.count`/index e loops
-bounded. O resultado da função permanece Bool, integer ou enum nesta fatia.
-String, Bytes, heap values, errors, panic builtin, generics e calls externas
-sem body ConstIR continuam fora da fatia.
+bounded. A extensão D2 aceita `String` somente como literal simples, parâmetro
+ou local e operand de `==`/`!=`; compara length e bytes UTF-8 borrowed, com
+limite de 4.096 bytes e heap quota zero. O resultado da função permanece Bool,
+integer ou enum nesta fatia. `String` result, escapes/interpolation, ordering,
+concatenação, member/index, `Bytes`, heap values, errors, panic builtin,
+generics e calls externas sem body ConstIR continuam fora da fatia.
 
 `w_seed_constir_measure` calcula todas as capacidades. `w_seed_constir_run`
 escreve somente quando cada array e o receipt possuem capacidade. Uma função
@@ -430,9 +433,10 @@ antes da primeira avaliação. Quando um predicate precisa receber o value, a
 conversão D1 fechada aceita `Bool`, integers com
 width/signedness, enum cases payloadless (inclusive enum subset) e
 `StaticList` destes enum cases. Bytes integer são little-endian canônicos.
-String, `TYPED_PENDING_CONST`, computed values e categorias fora desta lista que
-precisem dessa conversão são `UNSUPPORTED`; função ausente/não lowerable também
-é `UNSUPPORTED`. Índices, spans, relations,
+`String` simples usa offsets/counts da arena `const_bytes` no frontend e value
+borrowed no ConstIR; literal ou argumento acima de 4.096 bytes, escape,
+interpolation e categorias fora desta lista que precisem dessa conversão são
+`UNSUPPORTED`; função ausente/não lowerable também é `UNSUPPORTED`. Índices, spans, relations,
 signature, arity ou tipo de retorno malformados são `INVALID`. Cada lista D1
 limita 4.096 elementos. A travessia e a validação estrutural caller-owned têm
 depth máximo 256. Listas aninhadas continuam `UNSUPPORTED`.
@@ -449,8 +453,9 @@ um parâmetro `TYPE`, cujo argumento na mesma aplicação seja `TYPE`,
 assinatura, conversão e fingerprint; ordem, kind, status, índice incoerente ou
 `ConstValue.type_index` divergente retornam `INVALID` antes do evaluator. Um
 dependent válido não é `UNSUPPORTED` por si. String source-backed sem predicate
-é validável e fingerprintável; String que precisa de conversão para predicate
-continua `UNSUPPORTED` porque não pertence à conversão ConstIR D1.
+é validável e fingerprintável; o predicate D2 simples usa a conversão borrowed
+bounded, enquanto over-limit, escape, interpolation e outras formas não
+lowerable continuam `UNSUPPORTED`.
 
 O estado público distingue `VERIFIED`, `REJECTED`, `UNSUPPORTED`, `INVALID`,
 `EVALUATION_FAILED` e `CAPACITY`. `EVALUATION_FAILED` conserva o
@@ -502,12 +507,16 @@ bytes zero. O gate Bun reconstrói o preimage de forma independente e o probe
 imprime module/head, estado do fingerprint, digest e `body_digest` do
 predicate.
 
-O gate também lê `reference/last-light/generics.w`, verifica os marcadores
-únicos da assinatura de `StaticValue`, do body `export const expected = value`
-e dos aliases `EnabledFeature`/`LastCallLabel`. O body associado completo ainda
-está fora da projeção seed: o witness temporário usa a assinatura real com
-body `{}` e o gate documenta esse limite, sem alegar que `generics.w` inteiro
-compila.
+O gate também lê `tooling/generic-fingerprint-cases.json` e exige os casos
+únicos GPF0-W-1460/W-1461, suas decisões, sources e runner C+Bun. Ele verifica
+em `reference/last-light/generics.w` os marcadores únicos da assinatura de
+`StaticValue`, do body `export const expected = value`, dos aliases
+`EnabledFeature`/`LastCallLabel`/`VerifiedFinalCall`, da função
+`isFinalCallLabel` e do head `FinalCallValue`. O witness temporário usa a
+assinatura real com body `{}` porque o body associado completo ainda está fora
+da projeção seed; o gate prova os positivos String duplicados, `Mostly
+harmless`/empty rejeitados, over-limit e corrupção de arena sem alegar que
+`generics.w` inteiro compila.
 
     bun tooling/check-seed-generic-validation.mjs
 

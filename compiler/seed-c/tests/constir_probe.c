@@ -25,6 +25,7 @@ enum {
   FRONTEND_STATEMENTS = 65536,
   FRONTEND_EXPRESSIONS = 262144,
   FRONTEND_ARGUMENTS = 65536,
+  FRONTEND_CONST_BYTES = 8 * 1024 * 1024,
   FRONTEND_SWITCH_ARMS = 65536,
   FRONTEND_MEMBERSHIP = 262144,
   FRONTEND_ARRAY = 262144,
@@ -58,6 +59,7 @@ static w_seed_frontend_parameter parameters[FRONTEND_PARAMETERS];
 static w_seed_frontend_statement statements[FRONTEND_STATEMENTS];
 static w_seed_frontend_expression expressions[FRONTEND_EXPRESSIONS];
 static w_seed_frontend_argument arguments[FRONTEND_ARGUMENTS];
+static uint8_t frontend_const_bytes[FRONTEND_CONST_BYTES];
 static w_seed_frontend_switch_arm switch_arms[FRONTEND_SWITCH_ARMS];
 static w_seed_frontend_enum_membership_case membership[FRONTEND_MEMBERSHIP];
 static w_seed_frontend_import imports[FRONTEND_ARRAY];
@@ -156,6 +158,8 @@ int main(void) {
       .parameter_capacity = FRONTEND_PARAMETERS,
       .arguments = arguments,
       .argument_capacity = FRONTEND_ARGUMENTS,
+      .const_bytes = frontend_const_bytes,
+      .const_bytes_capacity = FRONTEND_CONST_BYTES,
       .switch_arms = switch_arms,
       .switch_arm_capacity = FRONTEND_SWITCH_ARMS,
       .enum_membership_cases = membership,

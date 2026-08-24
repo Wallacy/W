@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-3"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-4"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -611,6 +611,11 @@ typedef struct {
   uint32_t resolved_function_index;
   uint32_t resolved_local_ordinal;
   w_seed_frontend_text member_name;
+  /* Append-only normalized simple String literal slice.  The offset is
+   * W_SEED_FRONTEND_NONE for every other expression kind.  An empty String
+   * uses a valid offset and a zero count. */
+  uint32_t const_byte_offset;
+  uint32_t const_byte_count;
 } w_seed_frontend_expression;
 
 typedef enum {

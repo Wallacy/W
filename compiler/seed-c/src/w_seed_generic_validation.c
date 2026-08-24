@@ -292,7 +292,12 @@ static bool frontend_const_value_basic_valid(const validation_context *context,
     case W_SEED_FRONTEND_CONST_INTEGER:
       return frontend_integer_canonical(value, type);
     case W_SEED_FRONTEND_CONST_STRING:
-      return range_valid(value->first_byte, value->byte_count,
+      return type->kind == W_SEED_FRONTEND_TYPE_STRING &&
+             context->frontend->const_bytes_capacity >=
+                 context->frontend_result->written.const_bytes &&
+             (value->byte_count == 0u ||
+              context->frontend->const_bytes != NULL) &&
+             range_valid(value->first_byte, value->byte_count,
                          context->frontend_result->written.const_bytes);
     case W_SEED_FRONTEND_CONST_ENUM_CASE:
       return enum_case_valid(context, value->enum_base_index,
@@ -505,7 +510,21 @@ static conversion_status convert_const_value(validation_context *context,
       return append_value(context, &converted, arena_index);
     }
     case W_SEED_FRONTEND_CONST_STRING:
-      return CONVERSION_UNSUPPORTED;
+      if (expected->kind != W_SEED_FRONTEND_TYPE_STRING)
+        return CONVERSION_UNSUPPORTED;
+      if (source->byte_count > W_SEED_CONSTIR_MAX_STRING_BYTES)
+        return CONVERSION_UNSUPPORTED;
+      {
+        const uint8_t *bytes = source->byte_count == 0u
+                                   ? NULL
+                                   : context->frontend->const_bytes +
+                                         source->first_byte;
+        w_seed_constir_value converted;
+        if (!w_seed_constir_value_string(source->type_index, bytes,
+                                          source->byte_count, &converted))
+          return CONVERSION_INVALID;
+        return append_value(context, &converted, arena_index);
+      }
     case W_SEED_FRONTEND_CONST_INVALID:
       return CONVERSION_UNSUPPORTED;
   }
@@ -763,9 +782,16 @@ static conversion_status conversion_value_count(
   const w_seed_frontend_type *expected =
       &context->frontend->types[expected_type_index];
   if (source->type_index != expected_type_index) return CONVERSION_INVALID;
-  if (source->kind == W_SEED_FRONTEND_CONST_STRING ||
-      source->kind == W_SEED_FRONTEND_CONST_INVALID)
+  if (source->kind == W_SEED_FRONTEND_CONST_INVALID)
     return CONVERSION_UNSUPPORTED;
+  if (source->kind == W_SEED_FRONTEND_CONST_STRING) {
+    if (expected->kind != W_SEED_FRONTEND_TYPE_STRING)
+      return CONVERSION_UNSUPPORTED;
+    if (source->byte_count > W_SEED_CONSTIR_MAX_STRING_BYTES)
+      return CONVERSION_UNSUPPORTED;
+    *count = 1u;
+    return CONVERSION_OK;
+  }
   if (source->kind == W_SEED_FRONTEND_CONST_BOOL)
     return expected->kind == W_SEED_FRONTEND_TYPE_BOOL ? (*count = 1u,
                                                           CONVERSION_OK)
@@ -1386,9 +1412,12 @@ static fingerprint_encode_status fingerprint_const_value(
       return FINGERPRINT_ENCODED;
     case W_SEED_FRONTEND_CONST_STRING:
       fingerprint_u32(builder, value->byte_count);
-      fingerprint_bytes(builder,
-                        context->frontend->const_bytes + value->first_byte,
-                        value->byte_count);
+      fingerprint_bytes(
+          builder,
+          value->byte_count == 0u
+              ? NULL
+              : context->frontend->const_bytes + value->first_byte,
+          value->byte_count);
       return FINGERPRINT_ENCODED;
     case W_SEED_FRONTEND_CONST_ENUM_CASE:
       return fingerprint_enum_case_name(context, value->enum_base_index,

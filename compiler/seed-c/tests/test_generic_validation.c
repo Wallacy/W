@@ -425,6 +425,7 @@ static bool probe_domain_file(const char *path) {
   if (!fixture_lower_with_module(&value, source, "restaurant")) return false;
 
   size_t stage_path_count = 0u;
+  size_t final_call_count = 0u;
   printf("GENERIC_RESULT applications=%llu frontend=%d constir=%d\n",
          (unsigned long long)value.frontend_result.written.generic_applications,
          (int)value.frontend_result.status, (int)value.constir_result.status);
@@ -433,8 +434,13 @@ static bool probe_domain_file(const char *path) {
        application_index += 1u) {
     const w_seed_frontend_generic_application *application =
         &value.generic_applications[application_index];
-    if (application->head_name.length != 9u ||
-        memcmp(application->head_name.data, "StagePath", 9u) != 0)
+    const bool is_stage_path =
+        application->head_name.length == 9u &&
+        memcmp(application->head_name.data, "StagePath", 9u) == 0;
+    const bool is_final_call =
+        application->head_name.length == 14u &&
+        memcmp(application->head_name.data, "FinalCallValue", 14u) == 0;
+    if (!is_stage_path && !is_final_call)
       continue;
     w_seed_generic_validation_result result;
     const w_seed_generic_validation_state state = validate_application_at(
@@ -443,9 +449,10 @@ static bool probe_domain_file(const char *path) {
     uint8_t predicate_digest[32] = {0u};
     (void)predicate_body_digest_for_application(&value, application,
                                                 predicate_digest);
-    printf("GENERIC app=%llu state=%s failure=%s diagnostic=%d predicates=%llu "
+    printf("%s app=%llu state=%s failure=%s diagnostic=%d predicates=%llu "
            "receipts=%llu steps=%llu module=%.*s head=%.*s "
            "fingerprint_state=%s fingerprint_digest=",
+           is_stage_path ? "GENERIC" : "STRING",
            (unsigned long long)application_index,
            w_seed_generic_validation_state_name(state),
            w_seed_generic_validation_failure_name(result.failure),
@@ -466,7 +473,10 @@ static bool probe_domain_file(const char *path) {
     (void)printf(" predicate_body_digest=");
     print_digest(predicate_digest);
     (void)printf("\n");
-    stage_path_count += 1u;
+    if (is_stage_path)
+      stage_path_count += 1u;
+    else
+      final_call_count += 1u;
   }
   size_t static_value_count = 0u;
   for (size_t application_index = 0u;
@@ -496,7 +506,53 @@ static bool probe_domain_file(const char *path) {
     (void)printf("\n");
     static_value_count += 1u;
   }
-  return stage_path_count != 0u || static_value_count != 0u;
+  return stage_path_count != 0u || final_call_count != 0u ||
+         static_value_count != 0u;
+}
+
+static bool probe_domain_file_corrupt(const char *path) {
+  if (path == NULL) return false;
+  FILE *file = fopen(path, "rb");
+  if (file == NULL) return false;
+  char source[SOURCE_BYTES];
+  const size_t length = fread(source, 1u, sizeof(source) - 1u, file);
+  const bool read_error = ferror(file) != 0;
+  const int close_status = fclose(file);
+  if (read_error || close_status != 0 || length == sizeof(source) - 1u)
+    return false;
+  source[length] = '\0';
+  if (!fixture_lower_with_module(&value, source, "restaurant")) return false;
+  for (size_t application_index = 0u;
+       application_index < value.frontend_result.written.generic_applications;
+       application_index += 1u) {
+    const w_seed_frontend_generic_application *application =
+        &value.generic_applications[application_index];
+    if (application->head_name.length != 14u ||
+        memcmp(application->head_name.data, "FinalCallValue", 14u) != 0)
+      continue;
+    const w_seed_frontend_generic_argument *argument =
+        &value.generic_arguments[application->first_argument];
+    CHECK(argument->const_value_index <
+          value.frontend_result.written.const_values);
+    value.const_values[argument->const_value_index].first_byte = CONST_BYTES - 1u;
+    w_seed_generic_validation_result result;
+    const w_seed_generic_validation_state state = validate_application_at(
+        &value, (uint32_t)application_index, CONVERSION_VALUES,
+        (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result);
+    printf("STRING_CORRUPT state=%s failure=%s diagnostic=%d steps=%llu "
+           "fingerprint_state=%s fingerprint_digest=",
+           w_seed_generic_validation_state_name(state),
+           w_seed_generic_validation_failure_name(result.failure),
+           (int)result.diagnostic,
+           (unsigned long long)result.evaluation.consumed_steps,
+           w_seed_generic_validation_fingerprint_state_name(
+               result.fingerprint_state));
+    for (size_t byte = 0u; byte < 32u; byte += 1u) (void)printf("00");
+    (void)printf("\n");
+    return state == W_SEED_GENERIC_VALIDATION_INVALID &&
+           result.evaluation.consumed_steps == 0u;
+  }
+  return false;
 }
 
 static bool test_verified_and_rejected_paths(void) {
@@ -1247,23 +1303,146 @@ static bool test_dependent_effective_domains(void) {
 
 static bool test_string_predicate_conversion_boundary(void) {
   static const char source[] =
-      "const fn acceptsLabel(value: String): Bool { return true }\n"
+      "const fn acceptsLabel(value: String): Bool { "
+      "return value == \"The final seating\" }\n"
       "struct StringBox<_ value: String<(acceptsLabel(.member))>> {}\n"
       "struct Use { item: StringBox<\"The final seating\"> }\n";
   w_seed_generic_validation_result result;
   w_seed_constir_status constir_status = W_SEED_CONSTIR_OK;
   CHECK(fixture_lower_base(&value, source, "generic-test", &constir_status));
-  CHECK(constir_status == W_SEED_CONSTIR_INVALID);
+  CHECK(constir_status == W_SEED_CONSTIR_OK);
   CHECK(value.frontend_result.written.generic_applications == 1u);
+  const w_seed_generic_validation_state string_state = validate_application(
+      &value, CONVERSION_VALUES,
+      (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result);
+  CHECK(string_state == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_NONE &&
+        result.receipts_written == 1u && result.evaluation.consumed_steps != 0u &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE);
+  uint8_t first_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0u};
+  (void)memcpy(first_digest, result.fingerprint_digest, sizeof(first_digest));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE &&
+        memcmp(first_digest, result.fingerprint_digest, sizeof(first_digest)) ==
+            0);
+
+  static const char false_source[] =
+      "const fn acceptsLabel(value: String): Bool { "
+      "return value != \"Mostly harmless\" }\n"
+      "struct StringBox<_ value: String<(acceptsLabel(.member))>> {}\n"
+      "struct Use { item: StringBox<\"Mostly harmless\"> }\n";
+  CHECK(fixture_lower(&value, false_source));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_REJECTED &&
+        result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_PREDICATE_FALSE &&
+        result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0004 &&
+        result.receipts_written == 1u && result.evaluation.consumed_steps != 0u &&
+        fingerprint_not_available(&result));
+
+  static const char empty_source[] =
+      "const fn acceptsEmpty(value: String): Bool { return value == \"\" }\n"
+      "struct StringBox<_ value: String<(acceptsEmpty(.member))>> {}\n"
+      "struct Use { item: StringBox<\"\"> }\n";
+  CHECK(fixture_lower(&value, empty_source));
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE &&
+        result.evaluation.consumed_steps != 0u);
+  CHECK(value.frontend_result.written.const_bytes == 0u);
+  value.frontend_output.const_bytes = NULL;
+  value.frontend_output.const_bytes_capacity = 0u;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        result.fingerprint_state ==
+            W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE &&
+        result.evaluation.consumed_steps != 0u &&
+        memcmp(result.fingerprint_digest,
+               (uint8_t[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES]){0},
+               W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES) != 0);
+
+  /* The limit is a feature boundary.  A body without String literals remains
+   * lowerable, while an over-limit argument is rejected before evaluation. */
+  static char over_limit_source[SOURCE_BYTES];
+  static const char over_limit_prefix[] =
+      "const fn acceptsLabel(value: String): Bool { return true }\n"
+      "struct StringBox<_ value: String<(acceptsLabel(.member))>> {}\n"
+      "struct Use { item: StringBox<\"";
+  static const char over_limit_suffix[] = "\"> }\n";
+  const size_t over_limit_prefix_length = strlen(over_limit_prefix);
+  const size_t over_limit_suffix_length = strlen(over_limit_suffix);
+  CHECK(over_limit_prefix_length + W_SEED_CONSTIR_MAX_STRING_BYTES +
+            1u + over_limit_suffix_length + 1u <
+        sizeof(over_limit_source));
+  (void)memcpy(over_limit_source, over_limit_prefix,
+               over_limit_prefix_length);
+  (void)memset(over_limit_source + over_limit_prefix_length, 'x',
+               W_SEED_CONSTIR_MAX_STRING_BYTES + 1u);
+  (void)memcpy(over_limit_source + over_limit_prefix_length +
+                   W_SEED_CONSTIR_MAX_STRING_BYTES + 1u,
+               over_limit_suffix, over_limit_suffix_length);
+  over_limit_source[over_limit_prefix_length +
+                    W_SEED_CONSTIR_MAX_STRING_BYTES + 1u +
+                    over_limit_suffix_length] = '\0';
+  CHECK(fixture_lower(&value, over_limit_source));
   CHECK(validate_application(&value, CONVERSION_VALUES,
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
                              &result) == W_SEED_GENERIC_VALIDATION_UNSUPPORTED &&
-        (result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_VALUE ||
-         result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION) &&
-        result.receipts_written == 0u && result.evaluation.consumed_steps == 0u &&
-        fingerprint_not_available(&result));
-  /* This source-backed String witness proves the D1 conversion boundary. A
-   * non-lowerable predicate may report FUNCTION before value conversion. */
+        result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_VALUE &&
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
+
+  /* Corrupt the normalized arena relation.  The generic preflight must reject
+   * it before fingerprinting or ConstIR evaluation. */
+  CHECK(fixture_lower(&value, source));
+  const uint32_t malformed_value_index =
+      value.generic_arguments[value.generic_applications[0].first_argument]
+          .const_value_index;
+  CHECK(malformed_value_index < value.frontend_result.written.const_values);
+  value.const_values[malformed_value_index].first_byte = CONST_BYTES - 1u;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
+
+  CHECK(fixture_lower(&value, source));
+  const uint32_t mismatch_value_index =
+      value.generic_arguments[value.generic_applications[0].first_argument]
+          .const_value_index;
+  CHECK(mismatch_value_index < value.frontend_result.written.const_values);
+  value.const_values[mismatch_value_index].type_index =
+      value.generic_applications[0].owner_type;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
+
+  CHECK(fixture_lower(&value, source));
+  value.frontend_output.const_bytes_capacity = 0u;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
+  CHECK(fixture_lower(&value, source));
+  value.frontend_output.const_bytes = NULL;
+  CHECK(validate_application(&value, CONVERSION_VALUES,
+                             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+                             &result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        result.failure == W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
+        result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
+
+  /* This source-backed String witness closes the D2 conversion boundary:
+   * valid borrowed values reach the ordinary evaluator and false predicates
+   * preserve W-CONST-0004 with no fingerprint. */
   return true;
 }
 
@@ -1691,6 +1870,8 @@ static bool test_fingerprint_adversarial_inputs(void) {
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "--domain-witness") == 0)
     return probe_domain_file(argv[2]) ? 0 : 1;
+  if (argc == 3 && strcmp(argv[1], "--domain-witness-corrupt") == 0)
+    return probe_domain_file_corrupt(argv[2]) ? 0 : 1;
   if (argc != 1) return 1;
   if (!test_verified_and_rejected_paths() ||
       !test_quota_unsupported_and_invalid() ||

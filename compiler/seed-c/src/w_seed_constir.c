@@ -28,7 +28,7 @@ typedef struct {
   bool valid;
 } constir_value_result;
 
-static const uint8_t CONSTIR_RECEIPT_SCHEMA[] = "w-seed-constir-2";
+static const uint8_t CONSTIR_RECEIPT_SCHEMA[] = "w-seed-constir-3";
 
 static bool add_size(size_t left, size_t right, size_t *out) {
   if (out == NULL || right > SIZE_MAX - left) return false;
@@ -88,6 +88,20 @@ static const w_seed_frontend_type *frontend_type_at(
     return NULL;
   }
   return &context->frontend->types[index];
+}
+
+static bool frontend_string_slice_valid(const constir_lower_context *context,
+                                        uint32_t offset, uint32_t count) {
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || offset == W_SEED_FRONTEND_NONE ||
+      count > W_SEED_CONSTIR_MAX_STRING_BYTES ||
+      offset > context->frontend_result->written.const_bytes ||
+      count > context->frontend_result->written.const_bytes - offset)
+    return false;
+  if (context->frontend->const_bytes_capacity <
+      context->frontend_result->written.const_bytes)
+    return false;
+  return count == 0u || context->frontend->const_bytes != NULL;
 }
 
 static bool constir_result_type_supported(w_seed_frontend_type_kind kind) {
@@ -411,6 +425,7 @@ static bool type_metadata(const constir_lower_context *context, uint32_t type_in
   if (type->kind == W_SEED_FRONTEND_TYPE_INTEGER)
     return type->bit_width != 0u && type->bit_width <= 128u;
   return type->kind == W_SEED_FRONTEND_TYPE_BOOL ||
+         type->kind == W_SEED_FRONTEND_TYPE_STRING ||
          type->kind == W_SEED_FRONTEND_TYPE_ENUM ||
          type->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET ||
          type->kind == W_SEED_FRONTEND_TYPE_STATIC_LIST ||
@@ -512,7 +527,8 @@ static bool comparison_operand_types_compatible(
   if (left_kind != right_kind) return false;
   if (left_kind == W_SEED_FRONTEND_TYPE_INTEGER)
     return left_signed == right_signed;
-  return left_kind == W_SEED_FRONTEND_TYPE_BOOL;
+  return left_kind == W_SEED_FRONTEND_TYPE_BOOL ||
+         left_kind == W_SEED_FRONTEND_TYPE_STRING;
 }
 
 static bool binary_operator_supported(const constir_lower_context *context,
@@ -1015,6 +1031,19 @@ static bool digest_expression(const constir_lower_context *context,
       w_seed_sha256_update(state, value.bytes, sizeof(value.bytes));
       break;
     }
+    case W_SEED_FRONTEND_EXPR_STRING:
+      if (!frontend_string_slice_valid(context, expression->const_byte_offset,
+                                       expression->const_byte_count))
+        return false;
+      /* Stable String framing excludes source spelling, spans, and trivia. */
+      digest_u8(state, 0x53u);
+      digest_u32(state, expression->const_byte_count);
+      if (expression->const_byte_count != 0u)
+        w_seed_sha256_update(
+            state, context->frontend->const_bytes +
+                       expression->const_byte_offset,
+            expression->const_byte_count);
+      break;
     case W_SEED_FRONTEND_EXPR_ENUM_CASE:
       if (!enum_case_identity(context, expression->enum_index,
                               expression->enum_case_index, state)) return false;
@@ -1270,7 +1299,7 @@ static bool digest_statement_chain(const constir_lower_context *context,
   return true;
 }
 
-static size_t receipt_node_bytes(void) { return 99u; }
+static size_t receipt_node_bytes(void) { return 107u; }
 static size_t receipt_function_bytes(void) { return 85u; }
 static size_t receipt_parameter_bytes(void) { return 40u; }
 static size_t receipt_call_argument_bytes(void) { return 28u; }
@@ -1600,6 +1629,8 @@ static bool write_receipt(const w_seed_constir_output *output,
     (void)memcpy(output->receipt + offset, node->integer_value,
                  sizeof(node->integer_value));
     offset += sizeof(node->integer_value);
+    write_u32_be(output->receipt, &offset, node->const_byte_offset);
+    write_u32_be(output->receipt, &offset, node->const_byte_count);
   }
   for (size_t index = 0; index < counts->call_arguments; index += 1) {
     const w_seed_constir_call_argument *argument = &output->call_arguments[index];
@@ -1882,6 +1913,10 @@ static bool value_kind_matches_type(const w_seed_constir_value *value,
     return value->kind == W_SEED_CONSTIR_VALUE_INTEGER;
   if (kind == W_SEED_FRONTEND_TYPE_BOOL)
     return value->kind == W_SEED_CONSTIR_VALUE_BOOL;
+  if (kind == W_SEED_FRONTEND_TYPE_STRING)
+    return value->kind == W_SEED_CONSTIR_VALUE_STRING &&
+           value->string_count <= W_SEED_CONSTIR_MAX_STRING_BYTES &&
+           (value->string_count == 0u || value->string_bytes != NULL);
   if (kind == W_SEED_FRONTEND_TYPE_STATIC_LIST)
     return value->kind == W_SEED_CONSTIR_VALUE_STATIC_LIST;
   return false;
@@ -2330,6 +2365,32 @@ static bool node_matches_type(const w_seed_constir_node *node,
                               w_seed_frontend_type_kind kind, bool is_signed,
                               uint16_t width, uint32_t enum_base);
 
+static bool constir_string_value_valid(
+    const w_seed_constir_value *value,
+    const w_seed_constir_program *program) {
+  if (value == NULL || value->kind != W_SEED_CONSTIR_VALUE_STRING ||
+      value->type_kind != W_SEED_FRONTEND_TYPE_STRING ||
+      value->type_is_signed || value->type_bit_width != 0u ||
+      value->string_count > W_SEED_CONSTIR_MAX_STRING_BYTES ||
+      (value->string_count != 0u && value->string_bytes == NULL))
+    return false;
+  if (program == NULL || program->frontend_output == NULL ||
+      program->frontend_result == NULL)
+    return true;
+  const w_seed_frontend_output *frontend = program->frontend_output;
+  if (frontend->types == NULL || value->type_index == W_SEED_CONSTIR_NONE ||
+      (size_t)value->type_index >= program->frontend_result->written.types)
+    return false;
+  const w_seed_frontend_type *type = &frontend->types[value->type_index];
+  if (type->kind != W_SEED_FRONTEND_TYPE_STRING || type->is_signed ||
+      type->bit_width != 0u)
+    return false;
+  /* String values are borrowed caller-owned buffers.  The source-backed
+   * relation is checked before conversion; ConstIR itself must not impose an
+   * undocumented dependency on the frontend arena. */
+  return true;
+}
+
 static bool validate_value_against_parameter(
   const w_seed_constir_value *value,
   const w_seed_constir_parameter *parameter,
@@ -2339,6 +2400,12 @@ static bool validate_value_against_parameter(
                                parameter->type_is_signed,
                                parameter->type_bit_width,
                                parameter->enum_base_index)) return false;
+  /* Existing D1 enum/list values are checked by their canonical domain
+   * metadata below.  String conversion additionally carries the exact
+   * source type index through its helper. */
+  if (value->kind == W_SEED_CONSTIR_VALUE_STRING &&
+      !constir_string_value_valid(value, program))
+    return false;
   if (value->kind == W_SEED_CONSTIR_VALUE_INTEGER) {
     constir_bits bits;
     (void)memcpy(bits.bytes, value->integer_value, sizeof(bits.bytes));
@@ -2462,6 +2529,19 @@ static bool range_valid(size_t start, size_t count, size_t total) {
   return start <= total && count <= total - start;
 }
 
+static bool program_string_slice_valid(const w_seed_constir_program *program,
+                                       uint32_t offset, uint32_t count) {
+  if (program == NULL || program->frontend_output == NULL ||
+      program->frontend_result == NULL || offset == W_SEED_CONSTIR_NONE ||
+      count > W_SEED_CONSTIR_MAX_STRING_BYTES)
+    return false;
+  const size_t total = program->frontend_result->written.const_bytes;
+  if (program->frontend_output->const_bytes_capacity < total ||
+      (size_t)offset > total || (size_t)count > total - offset)
+    return false;
+  return count == 0u || program->frontend_output->const_bytes != NULL;
+}
+
 static bool node_operator_valid(const w_seed_constir_node *node) {
   if (node == NULL) return false;
   switch (node->kind) {
@@ -2474,6 +2554,7 @@ static bool node_operator_valid(const w_seed_constir_node *node) {
     case W_SEED_CONSTIR_NODE_BOOL:
     case W_SEED_CONSTIR_NODE_INTEGER:
     case W_SEED_CONSTIR_NODE_ENUM_CASE:
+    case W_SEED_CONSTIR_NODE_STRING:
     case W_SEED_CONSTIR_NODE_PARAMETER:
     case W_SEED_CONSTIR_NODE_CALL:
     case W_SEED_CONSTIR_NODE_SWITCH:
@@ -3027,6 +3108,10 @@ static bool validate_program(const w_seed_constir_program *program) {
       const w_seed_constir_node *right = node->right == W_SEED_CONSTIR_NONE
                                              ? NULL
                                              : &program->nodes[node->right];
+      if (node->kind != W_SEED_CONSTIR_NODE_STRING &&
+          (node->const_byte_offset != W_SEED_CONSTIR_NONE ||
+           node->const_byte_count != 0u))
+        return false;
       switch (node->kind) {
         case W_SEED_CONSTIR_NODE_BOOL:
           if (node->type_kind != W_SEED_FRONTEND_TYPE_BOOL) return false;
@@ -3042,6 +3127,12 @@ static bool validate_program(const w_seed_constir_program *program) {
             if (!bits_fit(literal, node->type_is_signed,
                           node->type_bit_width)) return false;
           }
+          break;
+        case W_SEED_CONSTIR_NODE_STRING:
+          if (node->type_kind != W_SEED_FRONTEND_TYPE_STRING ||
+              !program_string_slice_valid(program, node->const_byte_offset,
+                                           node->const_byte_count))
+            return false;
           break;
         case W_SEED_CONSTIR_NODE_ENUM_CASE:
           if ((node->type_kind != W_SEED_FRONTEND_TYPE_ENUM &&
@@ -3343,6 +3434,21 @@ static bool eval_comparison(const w_seed_constir_node *node,
     comparison = left->enum_case_index < right->enum_case_index
                      ? -1
                      : (left->enum_case_index > right->enum_case_index ? 1 : 0);
+  } else if (left->kind == W_SEED_CONSTIR_VALUE_STRING &&
+             right->kind == W_SEED_CONSTIR_VALUE_STRING) {
+    const size_t common = left->string_count < right->string_count
+                              ? left->string_count
+                              : right->string_count;
+    if (common != 0u) {
+      const int compared = memcmp(left->string_bytes, right->string_bytes,
+                                   common);
+      comparison = compared < 0 ? -1 : (compared > 0 ? 1 : 0);
+    }
+    if (comparison == 0) {
+      comparison = left->string_count < right->string_count
+                       ? -1
+                       : (left->string_count > right->string_count ? 1 : 0);
+    }
   } else {
     return false;
   }
@@ -3410,6 +3516,22 @@ static bool eval_node_at(constir_eval_context *context,
       (void)memcpy(value->integer_value, node->integer_value,
                    sizeof(value->integer_value));
       return true;
+    case W_SEED_CONSTIR_NODE_STRING:
+      if (node->type_kind != W_SEED_FRONTEND_TYPE_STRING ||
+          !program_string_slice_valid(context->program,
+                                       node->const_byte_offset,
+                                       node->const_byte_count))
+        return false;
+      (void)memset(value, 0, sizeof(*value));
+      value->kind = W_SEED_CONSTIR_VALUE_STRING;
+      value->type_index = node->type_index;
+      value->type_kind = node->type_kind;
+      value->string_bytes = node->const_byte_count == 0u
+                                ? NULL
+                                : context->program->frontend_output->const_bytes +
+                                      node->const_byte_offset;
+      value->string_count = node->const_byte_count;
+      return true;
     case W_SEED_CONSTIR_NODE_ENUM_CASE:
       (void)memset(value, 0, sizeof(*value));
       value->kind = W_SEED_CONSTIR_VALUE_ENUM;
@@ -3436,6 +3558,9 @@ static bool eval_node_at(constir_eval_context *context,
               W_SEED_CONSTIR_VALUE_INVALID)
         return false;
       *value = context->active_frame->locals[node->local_ordinal];
+      if (value->kind == W_SEED_CONSTIR_VALUE_STRING &&
+          !constir_string_value_valid(value, context->program))
+        return false;
       return true;
     case W_SEED_CONSTIR_NODE_STATIC_LIST_COUNT: {
       w_seed_constir_value list;
@@ -3934,6 +4059,21 @@ bool w_seed_constir_value_static_list(
   return true;
 }
 
+bool w_seed_constir_value_string(uint32_t type_index, const uint8_t *bytes,
+                                 size_t count, w_seed_constir_value *out) {
+  if (out == NULL || type_index == W_SEED_CONSTIR_NONE ||
+      (bytes == NULL && count != 0u) ||
+      count > W_SEED_CONSTIR_MAX_STRING_BYTES)
+    return false;
+  (void)memset(out, 0, sizeof(*out));
+  out->kind = W_SEED_CONSTIR_VALUE_STRING;
+  out->type_index = type_index;
+  out->type_kind = W_SEED_FRONTEND_TYPE_STRING;
+  out->string_bytes = bytes;
+  out->string_count = count;
+  return true;
+}
+
 
 
 
@@ -3972,6 +4112,8 @@ static bool lower_expression(constir_lower_context *context,
   node.element_type_index = W_SEED_CONSTIR_NONE;
   node.local_ordinal = W_SEED_CONSTIR_NONE;
   node.normalized_operator = W_SEED_CONSTIR_OPERATOR_INVALID;
+  node.const_byte_offset = W_SEED_CONSTIR_NONE;
+  node.const_byte_count = 0u;
   node.enum_base_index = expression->enum_index;
   node.enum_case_index = expression->enum_case_index;
   node.source_span = expression->span;
@@ -4001,6 +4143,17 @@ static bool lower_expression(constir_lower_context *context,
       (void)memcpy(node.integer_value, value.bytes, sizeof(node.integer_value));
       break;
     }
+    case W_SEED_FRONTEND_EXPR_STRING:
+      if (node.type_kind != W_SEED_FRONTEND_TYPE_STRING ||
+          !frontend_string_slice_valid(context, expression->const_byte_offset,
+                                       expression->const_byte_count)) {
+        mark_failure(context, expression->span, expression_index);
+        return false;
+      }
+      node.kind = W_SEED_CONSTIR_NODE_STRING;
+      node.const_byte_offset = expression->const_byte_offset;
+      node.const_byte_count = expression->const_byte_count;
+      break;
     case W_SEED_FRONTEND_EXPR_ENUM_CASE:
       if (node.type_kind != W_SEED_FRONTEND_TYPE_ENUM &&
           node.type_kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET) {

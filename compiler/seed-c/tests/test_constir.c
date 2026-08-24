@@ -29,6 +29,7 @@ enum {
   ARGUMENTS = 8192,
   SWITCH_ARMS = 8192,
   MEMBERSHIP = 32768,
+  CONST_BYTES = 65536,
   FRONTEND_RECEIPT = 2 * 1024 * 1024,
   CONSTIR_FUNCTIONS = 256,
   CONSTIR_PARAMETERS = 4096,
@@ -82,6 +83,7 @@ typedef struct {
   w_seed_frontend_external_parameter external_parameters[ARRAY];
   w_seed_frontend_external_symbol external_symbols[ARRAY];
   w_seed_frontend_external_module external_modules[ARRAY];
+  uint8_t const_bytes[CONST_BYTES];
   uint8_t frontend_receipt[FRONTEND_RECEIPT];
   w_seed_constir_output constir_output;
   w_seed_constir_result constir_result;
@@ -143,6 +145,8 @@ static void fixture_init_output(fixture *value) {
       .statement_capacity = STATEMENTS,
       .expressions = value->expressions,
       .expression_capacity = EXPRESSIONS,
+      .const_bytes = value->const_bytes,
+      .const_bytes_capacity = CONST_BYTES,
       .symbols = value->symbols,
       .symbol_capacity = ARRAY,
       .facts = value->facts,
@@ -230,6 +234,23 @@ static w_seed_constir_program fixture_program(const fixture *value) {
       .statement_count = value->constir_result.written.statements,
       .locals = value->constir_locals,
       .local_count = value->constir_result.written.locals};
+}
+
+static bool make_repeated_string_source(char *destination, size_t capacity,
+                                        const char *prefix, size_t count,
+                                        const char *suffix) {
+  if (destination == NULL || prefix == NULL || suffix == NULL) return false;
+  const size_t prefix_length = strlen(prefix);
+  const size_t suffix_length = strlen(suffix);
+  if (prefix_length > capacity || count > capacity - prefix_length ||
+      suffix_length > capacity - prefix_length - count ||
+      prefix_length + count + suffix_length + 1u > capacity)
+    return false;
+  (void)memcpy(destination, prefix, prefix_length);
+  (void)memset(destination + prefix_length, 'x', count);
+  (void)memcpy(destination + prefix_length + count, suffix, suffix_length);
+  destination[prefix_length + count + suffix_length] = '\0';
+  return true;
 }
 
 static bool evaluate_enum(const fixture *value, uint32_t from, uint32_t to,
@@ -937,6 +958,209 @@ static bool test_typed_literal_projection(void) {
   return true;
 }
 
+static bool test_string_literals_and_comparisons(void) {
+  static const char source[] =
+      "const fn equals(value: String): Bool { return value == \"a\" }\n"
+      "const fn differs(value: String): Bool { return value != \"b\" }\n"
+      "const fn empty(value: String): Bool { return value == \"\" }\n";
+  fixture *value = &first_fixture;
+  CHECK(fixture_lower(value, source));
+  CHECK(value->constir_result.written.functions == 3u &&
+        value->constir_result.written.parameters == 3u);
+  const w_seed_constir_program program = fixture_program(value);
+  uint32_t one_node = W_SEED_CONSTIR_NONE;
+  uint32_t other_node = W_SEED_CONSTIR_NONE;
+  uint32_t empty_node = W_SEED_CONSTIR_NONE;
+  for (size_t index = 0u; index < value->constir_result.written.nodes;
+       index += 1u) {
+    const w_seed_constir_node *node = &value->constir_nodes[index];
+    if (node->kind != W_SEED_CONSTIR_NODE_STRING) continue;
+    if (node->const_byte_count == 0u)
+      empty_node = (uint32_t)index;
+    else if (one_node == W_SEED_CONSTIR_NONE)
+      one_node = (uint32_t)index;
+    else
+      other_node = (uint32_t)index;
+  }
+  CHECK(one_node != W_SEED_CONSTIR_NONE &&
+        other_node != W_SEED_CONSTIR_NONE &&
+        empty_node != W_SEED_CONSTIR_NONE &&
+        value->constir_nodes[one_node].const_byte_count == 1u &&
+        value->constir_nodes[other_node].const_byte_count == 1u &&
+        value->const_bytes[value->constir_nodes[one_node].const_byte_offset] ==
+            'a' &&
+        value->const_bytes[value->constir_nodes[other_node].const_byte_offset] ==
+            'b');
+
+  w_seed_constir_value argument;
+  w_seed_constir_value result_value;
+  w_seed_constir_eval_result evaluation;
+  w_seed_constir_eval_frame frames[8];
+  w_seed_constir_eval_workspace workspace = {frames, 8u};
+  const w_seed_constir_node *one = &value->constir_nodes[one_node];
+  CHECK(w_seed_constir_value_string(
+      value->constir_parameters[0].type_index,
+      value->const_bytes + one->const_byte_offset, one->const_byte_count,
+      &argument));
+  CHECK(w_seed_constir_evaluate(
+            &program, 0u, &argument, 1u,
+            (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX}, &workspace,
+            &result_value, &evaluation) == W_SEED_CONSTIR_OK &&
+        evaluation.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+        evaluation.consumed_heap_bytes == 0u &&
+        result_value.kind == W_SEED_CONSTIR_VALUE_BOOL &&
+        result_value.bool_value);
+  CHECK(w_seed_constir_evaluate(
+            &program, 1u, &argument, 1u,
+            (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX}, &workspace,
+            &result_value, &evaluation) == W_SEED_CONSTIR_OK &&
+        evaluation.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+        result_value.kind == W_SEED_CONSTIR_VALUE_BOOL &&
+        result_value.bool_value);
+  CHECK(w_seed_constir_value_string(value->constir_parameters[2].type_index,
+                                    NULL, 0u, &argument));
+  CHECK(w_seed_constir_evaluate(
+            &program, 2u, &argument, 1u,
+            (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX}, &workspace,
+            &result_value, &evaluation) == W_SEED_CONSTIR_OK &&
+        evaluation.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+        result_value.kind == W_SEED_CONSTIR_VALUE_BOOL &&
+        result_value.bool_value);
+
+  static const char digest_source[] =
+      "const fn equal(value: String): Bool { return value == \"a\" }\n";
+  static const char digest_spaced_source[] =
+      "// trivia is outside the body preimage\n"
+      "const fn equal(value: String): Bool {\n  return value == \"a\"\n}\n";
+  static const char digest_other_source[] =
+      "const fn equal(value: String): Bool { return value == \"b\" }\n";
+  CHECK(fixture_lower(&first_fixture, digest_source));
+  uint8_t digest[32];
+  (void)memcpy(digest, first_fixture.constir_functions[0].body_digest,
+               sizeof(digest));
+  CHECK(fixture_lower(&second_fixture, digest_spaced_source));
+  CHECK(memcmp(digest, second_fixture.constir_functions[0].body_digest,
+               sizeof(digest)) == 0);
+  CHECK(fixture_lower(&second_fixture, digest_other_source));
+  CHECK(memcmp(digest, second_fixture.constir_functions[0].body_digest,
+               sizeof(digest)) != 0);
+
+  static char max_source[SOURCE_BYTES];
+  CHECK(make_repeated_string_source(
+      max_source, sizeof(max_source),
+      "const fn maximum(value: String): Bool { return value == \"",
+      W_SEED_CONSTIR_MAX_STRING_BYTES, "\" }\n"));
+  CHECK(fixture_lower(value, max_source));
+  CHECK(value->constir_result.written.functions == 1u &&
+        value->constir_functions[0].lowerable);
+  uint32_t max_node = W_SEED_CONSTIR_NONE;
+  for (size_t index = 0u; index < value->constir_result.written.nodes;
+       index += 1u) {
+    if (value->constir_nodes[index].kind == W_SEED_CONSTIR_NODE_STRING) {
+      max_node = (uint32_t)index;
+      break;
+    }
+  }
+  CHECK(max_node != W_SEED_CONSTIR_NONE &&
+        value->constir_nodes[max_node].const_byte_count ==
+            W_SEED_CONSTIR_MAX_STRING_BYTES);
+  CHECK(w_seed_constir_value_string(
+      value->constir_parameters[0].type_index,
+      value->const_bytes + value->constir_nodes[max_node].const_byte_offset,
+      W_SEED_CONSTIR_MAX_STRING_BYTES, &argument));
+  const w_seed_constir_program max_program = fixture_program(value);
+  CHECK(w_seed_constir_evaluate(
+            &max_program, 0u, &argument, 1u,
+            (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX}, &workspace,
+            &result_value, &evaluation) == W_SEED_CONSTIR_OK &&
+        result_value.kind == W_SEED_CONSTIR_VALUE_BOOL &&
+        result_value.bool_value && evaluation.consumed_heap_bytes == 0u);
+
+  static char over_limit_source[SOURCE_BYTES];
+  CHECK(make_repeated_string_source(
+      over_limit_source, sizeof(over_limit_source),
+      "const fn over(value: String): Bool { return value == \"",
+      W_SEED_CONSTIR_MAX_STRING_BYTES + 1u, "\" }\n"));
+  CHECK(fixture_lower(value, over_limit_source));
+  CHECK(value->constir_result.written.functions == 1u &&
+        !value->constir_functions[0].lowerable &&
+        memcmp(value->constir_functions[0].body_digest,
+               (uint8_t[32]){0}, 32u) == 0);
+
+  /* All malformed String node relations fail the canonical program
+   * preflight, before a single evaluation step. */
+  CHECK(fixture_lower(value, source));
+  const w_seed_constir_program valid_program = fixture_program(value);
+  uint32_t malformed_node = W_SEED_CONSTIR_NONE;
+  for (size_t index = 0u; index < value->constir_result.written.nodes;
+       index += 1u) {
+    if (value->constir_nodes[index].kind == W_SEED_CONSTIR_NODE_STRING) {
+      malformed_node = (uint32_t)index;
+      break;
+    }
+  }
+  CHECK(malformed_node != W_SEED_CONSTIR_NONE);
+  CHECK(w_seed_constir_value_string(
+      value->constir_parameters[0].type_index,
+      value->const_bytes + value->constir_nodes[malformed_node].const_byte_offset,
+      value->constir_nodes[malformed_node].const_byte_count, &argument));
+  w_seed_constir_node saved_node = value->constir_nodes[malformed_node];
+  value->constir_nodes[malformed_node].const_byte_offset = CONST_BYTES - 1u;
+  CHECK(!w_seed_constir_validate_program(&valid_program));
+  CHECK(w_seed_constir_evaluate(
+            &valid_program, 0u, &argument, 1u,
+            (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX}, &workspace,
+            &result_value, &evaluation) == W_SEED_CONSTIR_INVALID &&
+        evaluation.consumed_steps == 0u);
+  value->constir_nodes[malformed_node] = saved_node;
+  value->constir_nodes[malformed_node].const_byte_count =
+      W_SEED_CONSTIR_MAX_STRING_BYTES + 1u;
+  CHECK(!w_seed_constir_validate_program(&valid_program));
+  value->constir_nodes[malformed_node] = saved_node;
+  value->constir_nodes[malformed_node].type_kind = W_SEED_FRONTEND_TYPE_BOOL;
+  CHECK(!w_seed_constir_validate_program(&valid_program));
+  value->constir_nodes[malformed_node] = saved_node;
+  const uint8_t caller_owned_byte = 'a';
+  CHECK(w_seed_constir_value_string(value->constir_parameters[0].type_index,
+                                    &caller_owned_byte, 1u, &argument));
+  CHECK(w_seed_constir_evaluate(
+            &valid_program, 0u, &argument, 1u,
+            (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX}, &workspace,
+            &result_value, &evaluation) == W_SEED_CONSTIR_OK &&
+        evaluation.consumed_steps != 0u && result_value.bool_value &&
+        evaluation.consumed_heap_bytes == 0u);
+
+  w_seed_constir_value malformed_value = argument;
+  malformed_value.string_bytes = NULL;
+  CHECK(w_seed_constir_evaluate(
+            &valid_program, 0u, &malformed_value, 1u,
+            (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX}, &workspace,
+            &result_value, &evaluation) == W_SEED_CONSTIR_INVALID &&
+        evaluation.consumed_steps == 0u);
+  malformed_value = argument;
+  malformed_value.string_count = W_SEED_CONSTIR_MAX_STRING_BYTES + 1u;
+  CHECK(w_seed_constir_evaluate(
+            &valid_program, 0u, &malformed_value, 1u,
+            (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX}, &workspace,
+            &result_value, &evaluation) == W_SEED_CONSTIR_INVALID &&
+        evaluation.consumed_steps == 0u);
+  malformed_value = argument;
+  malformed_value.type_kind = W_SEED_FRONTEND_TYPE_BOOL;
+  CHECK(w_seed_constir_evaluate(
+            &valid_program, 0u, &malformed_value, 1u,
+            (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX}, &workspace,
+            &result_value, &evaluation) == W_SEED_CONSTIR_INVALID &&
+        evaluation.consumed_steps == 0u);
+  malformed_value = argument;
+  malformed_value.type_index = W_SEED_CONSTIR_NONE;
+  CHECK(w_seed_constir_evaluate(
+            &valid_program, 0u, &malformed_value, 1u,
+            (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX}, &workspace,
+            &result_value, &evaluation) == W_SEED_CONSTIR_INVALID &&
+        evaluation.consumed_steps == 0u);
+  return true;
+}
+
 static bool test_recursion_and_invalid_inputs(void) {
   static const char source[] = "const fn recurse(): Bool { return recurse() }\n";
   fixture *value = &first_fixture;
@@ -1459,6 +1683,7 @@ int main(void) {
   CHECK(test_diagnostics_and_quotas());
   CHECK(test_labels_relations_and_parentheses());
   CHECK(test_typed_literal_projection());
+  CHECK(test_string_literals_and_comparisons());
   CHECK(test_recursion_and_invalid_inputs());
   CHECK(test_empty_program_validation());
   CHECK(test_depth_and_caller_owned_validation());

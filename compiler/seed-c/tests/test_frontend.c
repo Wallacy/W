@@ -1961,6 +1961,71 @@ static bool test_generic_applications(void) {
   return true;
 }
 
+static bool test_string_expression_projection(void) {
+  static const char source[] =
+      "const fn equals(value: String): Bool { return value == \"a\" }\n"
+      "const fn empty(value: String): Bool { return value == \"\" }\n"
+      "struct Text<_ value: String> {}\n"
+      "struct Use { one: Text<\"a\"> zero: Text<\"\"> }\n";
+  fixture *value = &fixture_const;
+  CHECK(fixture_run(value, source));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  bool saw_one = false;
+  bool saw_empty = false;
+  size_t string_expression_count = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_STRING) {
+      string_expression_count += 1u;
+      CHECK(expression->inferred_type != W_SEED_FRONTEND_NONE &&
+            expression->const_byte_offset != W_SEED_FRONTEND_NONE &&
+            expression->const_byte_offset <= value->result.written.const_bytes &&
+            expression->const_byte_count <=
+                value->result.written.const_bytes -
+                    expression->const_byte_offset);
+      if (expression->const_byte_count == 0u) {
+        saw_empty = true;
+      } else {
+        CHECK(expression->const_byte_count == 1u &&
+              value->const_bytes[expression->const_byte_offset] == 'a');
+        saw_one = true;
+      }
+    } else {
+      CHECK(expression->const_byte_offset == W_SEED_FRONTEND_NONE &&
+            expression->const_byte_count == 0u);
+    }
+  }
+  CHECK(string_expression_count == 2u && saw_one && saw_empty);
+
+  /* The const-byte arena is part of the same measured transaction. */
+  const uint8_t sentinel = 0xa5u;
+  CHECK(fixture_parse(&fixture_capacity, source));
+  fixture_fill_output(&fixture_capacity, sentinel);
+  fixture_capacity.output.const_bytes_capacity = 0u;
+  fixture_capacity.output.const_bytes = NULL;
+  (void)w_seed_frontend_run(&fixture_capacity.input,
+                            &fixture_capacity.output,
+                            &fixture_capacity.result);
+  CHECK(fixture_capacity.result.status == W_SEED_FRONTEND_CAPACITY &&
+        fixture_output_is(&fixture_capacity, sentinel, true));
+
+  CHECK(fixture_run(
+      value,
+      "const fn equals(value: String): Bool { return value == \"a\\\\n\" }\n"));
+  CHECK(value->result.status != W_SEED_FRONTEND_OK &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    if (value->expressions[index].kind == W_SEED_FRONTEND_EXPR_STRING)
+      CHECK(!value->expressions[index].supported &&
+            value->expressions[index].const_byte_offset ==
+                W_SEED_FRONTEND_NONE &&
+            value->expressions[index].const_byte_count == 0u);
+  }
+  return true;
+}
+
 typedef enum {
   TEST_GENERIC_CAPACITY_APPLICATION = 0,
   TEST_GENERIC_CAPACITY_ARGUMENT,
@@ -2108,6 +2173,7 @@ int main(void) {
   if (!test_receipt_encoding_and_long_fields()) return 1;
   if (!test_generic_schema()) return 1;
   if (!test_generic_applications()) return 1;
+  if (!test_string_expression_projection()) return 1;
   if (!test_barrier_and_capacity()) return 1;
   return 0;
 }
