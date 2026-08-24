@@ -84,6 +84,8 @@ typedef enum {
   W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0001,
   W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0003,
   W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0006,
+  /* Published by the caller-owned generic predicate boundary. */
+  W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0004,
 } w_seed_constir_diagnostic_code;
 
 typedef enum {
@@ -345,6 +347,35 @@ typedef struct {
   const w_seed_constir_local *locals;
   size_t local_count;
 } w_seed_constir_program;
+
+typedef struct {
+  uint32_t function_index;
+  const w_seed_constir_value *arguments;
+  size_t argument_count;
+} w_seed_constir_invocation;
+
+/* Read-only structural preflight used by downstream caller-owned passes.
+ * This wrapper shares the evaluator's canonical validator. */
+bool w_seed_constir_validate_program(const w_seed_constir_program *program);
+
+/* Validate a batch of invocations with one program preflight and no
+ * evaluator quota consumption. */
+bool w_seed_constir_validate_invocations(
+    const w_seed_constir_program *program,
+    const w_seed_constir_invocation *invocations, size_t invocation_count);
+
+/* Validate only invocation relations after the caller has completed the
+ * canonical program preflight. */
+bool w_seed_constir_validate_invocations_in_validated_program(
+    const w_seed_constir_program *program,
+    const w_seed_constir_invocation *invocations, size_t invocation_count);
+
+/* Validate one invocation without consuming evaluator quota or writing a
+ * result.  This shares the program and parameter/value checks used by the
+ * evaluator. */
+bool w_seed_constir_validate_invocation(
+    const w_seed_constir_program *program, uint32_t function_index,
+    const w_seed_constir_value *arguments, size_t argument_count);
 
 /* Evaluate one lowerable function with typed arguments and deterministic quotas. */
 w_seed_constir_status w_seed_constir_evaluate(

@@ -37,6 +37,7 @@
     "check:seed-foreign": "bun tooling/check-seed-foreign.mjs",
     "check:seed-frontend": "bun tooling/check-seed-frontend.mjs",
     "check:seed-constir": "bun tooling/check-seed-constir.mjs",
+    "check:seed-generic-validation": "bun tooling/check-seed-generic-validation.mjs",
     "check:seed-unicode": "bun tooling/check-seed-unicode.mjs",
     "check:semantic-matrix": "bun tooling/check-semantic-diagnostic-matrix.mjs && bun test tooling/semantic-diagnostic-matrix-reference.test.mjs",
     "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",

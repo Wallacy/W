@@ -3262,6 +3262,55 @@ static bool validate_program(const w_seed_constir_program *program) {
   return true;
 }
 
+bool w_seed_constir_validate_program(const w_seed_constir_program *program) {
+  return validate_program(program);
+}
+
+bool w_seed_constir_validate_invocations_in_validated_program(
+    const w_seed_constir_program *program,
+    const w_seed_constir_invocation *invocations, size_t invocation_count) {
+  if (program == NULL || program->functions == NULL ||
+      (invocation_count != 0u && invocations == NULL))
+    return false;
+  for (size_t index = 0u; index < invocation_count; index += 1u) {
+    const w_seed_constir_invocation *invocation = &invocations[index];
+    if (invocation->function_index >= program->function_count ||
+        (invocation->argument_count != 0u && invocation->arguments == NULL))
+      return false;
+    const w_seed_constir_function *function =
+        &program->functions[invocation->function_index];
+    if (!function->lowerable ||
+        invocation->argument_count != function->parameter_count)
+      return false;
+    const constir_eval_context context = {.program = program};
+    for (uint32_t ordinal = 0u; ordinal < function->parameter_count;
+         ordinal += 1u) {
+      const w_seed_constir_parameter *parameter =
+          function_parameter_for_ordinal(&context, function, ordinal);
+      if (!validate_value_against_parameter(
+              &invocation->arguments[ordinal], parameter, program))
+        return false;
+    }
+  }
+  return true;
+}
+
+bool w_seed_constir_validate_invocations(
+    const w_seed_constir_program *program,
+    const w_seed_constir_invocation *invocations, size_t invocation_count) {
+  return validate_program(program) &&
+         w_seed_constir_validate_invocations_in_validated_program(
+             program, invocations, invocation_count);
+}
+
+bool w_seed_constir_validate_invocation(
+    const w_seed_constir_program *program, uint32_t function_index,
+    const w_seed_constir_value *arguments, size_t argument_count) {
+  const w_seed_constir_invocation invocation = {
+      function_index, arguments, argument_count};
+  return w_seed_constir_validate_invocations(program, &invocation, 1u);
+}
+
 static bool eval_comparison(const w_seed_constir_node *node,
                             const w_seed_constir_value *left,
                             const w_seed_constir_value *right,

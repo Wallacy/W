@@ -993,6 +993,7 @@ static bool const_value_for_span(frontend_context *context,
     value.element_count = (uint32_t)child_count;
     uint32_t parent_index = W_SEED_FRONTEND_NONE;
     if (!context_append_const_value(context, value, &parent_index)) return false;
+    *index = parent_index;
     frontend_static_list_emit emit = {
         context, doc, element_expected, element_type_index, parent_index, true};
     size_t emitted_count = 0u;

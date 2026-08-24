@@ -1073,6 +1073,34 @@ quantity/size, `Bytes`, nested lists, generic calls, heads importados e avaliaç
 ConstIR permanecem posteriores ou `UNSUPPORTED`. Assim a evidência sustenta a
 representação sem transformar a proposta em implementação ampla do compiler.
 
+Esta fatia agora fecha a primeira prova pós-frontend sem alterar essa fronteira.
+`w_seed_generic_validation_run` consome os records normalizados e o programa
+ConstIR já lowered. O gate Bun extrai `OrderId`, `ServiceStage`, `canMove`,
+`isValidStagePath`, `StagePath` e o path padrão diretamente de
+[`reference/last-light/domain.w`](reference/last-light/domain.w). A camada não
+reparseia source. O gate passa o witness uma vez pelo pipeline seed. O path
+`[.accepted, .reserving, .preparing, .serving,
+.completed]` produz `VERIFIED`. Lista vazia, salto direto para `completed` e
+duplicata de `reserving` produzem `REJECTED` com W-CONST-0004, os facts mínimos e
+o fallback exato `failure = "predicate:false"`,
+`rejectionTrace = ["predicate:false"]`. Duas execuções do mesmo witness têm
+status, facts e counters idênticos. Testes C separados cobrem Bool, integer com
+width/signedness e bytes canônicos, enum full/subset payloadless, StaticList,
+quota W-CONST-0003 sem W4, relações inválidas, categorias unsupported e
+capacity caller-owned.
+
+O preflight reutiliza o validador estrutural canônico de ConstIR antes de
+qualquer predicate. `EVALUATION_FAILED` preserva W-CONST-0003/W-CONST-0006 e o
+`w_seed_constir_eval_result`, inclusive counters. Não confunde falha do
+evaluator com ausência de capacidade.
+`CAPACITY` preserva sentinels quando a arena é insuficiente. A evidência
+caller-owned reserva 15 bytes compartilhados para `failure` e o único item de
+`rejectionTrace` publicado pela projeção D1. A capacidade é medida antes da
+avaliação. O evaluator atual não publica execution dependencies suficientes
+para uma slice causal detalhada, por isso a projeção D1 usa o fallback permitido
+inteiro. Imported heads, computed arguments, identity final, monomorphization,
+runtime e compiler W completo continuam gaps.
+
 #### 1.3.22 Subject de refinement
 
 **Exemplo:** `String<(.scalars.count in 1...40)>` e

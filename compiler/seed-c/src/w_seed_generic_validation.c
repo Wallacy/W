@@ -1,0 +1,1121 @@
+#include "w_seed_generic_validation.h"
+
+#include <string.h>
+
+typedef enum {
+  CONVERSION_OK = 0,
+  CONVERSION_UNSUPPORTED,
+  CONVERSION_INVALID,
+  CONVERSION_CAPACITY,
+} conversion_status;
+
+typedef struct {
+  const w_seed_generic_validation_input *input;
+  const w_seed_frontend_output *frontend;
+  const w_seed_frontend_result *frontend_result;
+  const w_seed_constir_program *program;
+  size_t arena_count;
+} validation_context;
+
+typedef struct {
+  uint32_t module_index;
+  uint32_t argument_index;
+  uint32_t argument_const_value_index;
+  uint32_t parameter_index;
+  uint32_t predicate_function_index;
+  uint32_t predicate_constir_index;
+  uint32_t value_index;
+  const w_seed_frontend_generic_argument *argument;
+  const w_seed_frontend_generic_parameter *parameter;
+  const w_seed_constir_function *function;
+} predicate_candidate;
+
+static const char FALLBACK_BYTES[] = "predicate:false";
+
+_Static_assert(W_SEED_GENERIC_VALIDATION_MAX_PREDICATES <=
+                   W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_RECORDS,
+               "generic evidence record ceiling must cover predicates");
+_Static_assert(sizeof("predicate:false") - 1u <=
+                   W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_BYTES,
+               "generic rejection evidence exceeds byte ceiling");
+_Static_assert(sizeof(FALLBACK_BYTES) - 1u ==
+                   W_SEED_GENERIC_VALIDATION_FALLBACK_BYTES,
+               "generic fallback byte count must stay canonical");
+
+static bool range_valid(size_t start, size_t count, size_t total) {
+  return start <= total && count <= total - start;
+}
+
+static bool span_valid(w_seed_span span) {
+  return span.start_byte <= span.end_byte;
+}
+
+static bool text_valid(w_seed_frontend_text text) {
+  return text.length == 0u || text.data != NULL;
+}
+
+static bool pointer_count_valid(const void *pointer, size_t count,
+                                size_t capacity) {
+  return count == 0u || (pointer != NULL && capacity >= count);
+}
+
+static bool frontend_arrays_valid(const validation_context *context) {
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL ||
+      (context->frontend_result->status != W_SEED_FRONTEND_OK &&
+       context->frontend_result->status != W_SEED_FRONTEND_UNSUPPORTED))
+    return false;
+  const w_seed_frontend_output *output = context->frontend;
+  const w_seed_frontend_counts *written = &context->frontend_result->written;
+  return pointer_count_valid(output->modules, written->modules,
+                             output->module_capacity) &&
+         pointer_count_valid(output->structs, written->structs,
+                             output->struct_capacity) &&
+         pointer_count_valid(output->types, written->types,
+                             output->type_capacity) &&
+         pointer_count_valid(output->functions, written->functions,
+                             output->function_capacity) &&
+         pointer_count_valid(output->parameters, written->parameters,
+                             output->parameter_capacity) &&
+         pointer_count_valid(output->generic_parameters,
+                             written->generic_parameters,
+                             output->generic_parameter_capacity) &&
+         pointer_count_valid(output->generic_applications,
+                             written->generic_applications,
+                             output->generic_application_capacity) &&
+         pointer_count_valid(output->generic_arguments,
+                             written->generic_arguments,
+                             output->generic_argument_capacity) &&
+         pointer_count_valid(output->const_values, written->const_values,
+                             output->const_value_capacity) &&
+         pointer_count_valid(output->const_elements, written->const_elements,
+                             output->const_element_capacity) &&
+         pointer_count_valid(output->const_bytes, written->const_bytes,
+                             output->const_bytes_capacity) &&
+         pointer_count_valid(output->enums, written->enums,
+                             output->enum_capacity) &&
+         pointer_count_valid(output->enum_cases, written->enum_cases,
+                             output->enum_case_capacity) &&
+         pointer_count_valid(output->enum_case_parameters,
+                             written->enum_case_parameters,
+                             output->enum_case_parameter_capacity) &&
+         pointer_count_valid(output->enum_subset_members,
+                             written->enum_subset_members,
+                             output->enum_subset_member_capacity);
+}
+
+static bool type_index_valid_depth(const validation_context *context,
+                                   uint32_t type_index, size_t depth) {
+  if (context == NULL || context->frontend_result == NULL ||
+      context->frontend == NULL || type_index == W_SEED_FRONTEND_NONE ||
+      depth == 0u || depth > W_SEED_GENERIC_VALIDATION_MAX_DEPTH ||
+      (size_t)type_index >= context->frontend_result->written.types ||
+      context->frontend->types == NULL)
+    return false;
+  const w_seed_frontend_type *type = &context->frontend->types[type_index];
+  if (type->kind == W_SEED_FRONTEND_TYPE_INVALID ||
+      !text_valid(type->spelling) || !text_valid(type->nominal_name))
+    return false;
+  if (type->kind == W_SEED_FRONTEND_TYPE_STATIC_LIST) {
+    if (type->element_type == W_SEED_FRONTEND_NONE ||
+        !type_index_valid_depth(context, type->element_type, depth + 1u))
+      return false;
+  }
+  if (type->kind == W_SEED_FRONTEND_TYPE_ENUM ||
+      type->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET) {
+    if (type->enum_base_index == W_SEED_FRONTEND_NONE ||
+        (size_t)type->enum_base_index >=
+            context->frontend_result->written.enums ||
+        context->frontend->enums == NULL)
+      return false;
+  }
+  if (type->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET) {
+    if (type->enum_base_index == W_SEED_FRONTEND_NONE ||
+        (size_t)type->enum_base_index >= context->frontend_result->written.enums ||
+        context->frontend->enum_subset_members == NULL ||
+        !range_valid(type->first_subset_member, type->subset_member_count,
+                     context->frontend_result->written.enum_subset_members))
+      return false;
+  }
+  if (type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      (type->bit_width == 0u || type->bit_width > 128u))
+    return false;
+  return true;
+}
+
+static bool type_index_valid(const validation_context *context,
+                             uint32_t type_index) {
+  return type_index_valid_depth(context, type_index, 1u);
+}
+
+static bool enum_case_valid(const validation_context *context,
+                            uint32_t enum_base, uint32_t enum_case,
+                            bool require_payloadless) {
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || enum_base == W_SEED_FRONTEND_NONE ||
+      enum_case == W_SEED_FRONTEND_NONE ||
+      (size_t)enum_base >= context->frontend_result->written.enums ||
+      (size_t)enum_case >= context->frontend_result->written.enum_cases ||
+      context->frontend->enums == NULL || context->frontend->enum_cases == NULL)
+    return false;
+  const w_seed_frontend_enum_case *value =
+      &context->frontend->enum_cases[enum_case];
+  const w_seed_frontend_enum *enumeration =
+      &context->frontend->enums[enum_base];
+  if (!range_valid(enumeration->first_case, enumeration->case_count,
+                   context->frontend_result->written.enum_cases) ||
+      enum_case < enumeration->first_case ||
+      (size_t)enum_case - enumeration->first_case >=
+          enumeration->case_count ||
+      value->owner_enum != enum_base || !span_valid(value->span) ||
+      !text_valid(value->name) ||
+      !range_valid(value->first_payload, value->payload_count,
+                   context->frontend_result->written.enum_case_parameters))
+    return false;
+  if (require_payloadless && value->payload_count != 0u) return false;
+  return true;
+}
+
+static bool enum_case_member_of_type(const validation_context *context,
+                                     const w_seed_frontend_type *type,
+                                     uint32_t expected_type_index,
+                                     uint32_t enum_base,
+                                     uint32_t enum_case) {
+  if (context == NULL || type == NULL ||
+      !enum_case_valid(context, enum_base, enum_case, false) ||
+      type->enum_base_index != enum_base ||
+      expected_type_index >= context->frontend_result->written.types)
+    return false;
+  if (type->kind == W_SEED_FRONTEND_TYPE_ENUM) return true;
+  if (type->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET ||
+      context->frontend->enum_subset_members == NULL)
+    return false;
+  for (uint32_t offset = 0u; offset < type->subset_member_count; offset += 1u) {
+    const w_seed_frontend_enum_subset_member *item =
+        &context->frontend->enum_subset_members[
+            (size_t)type->first_subset_member + offset];
+    if (!enum_case_valid(context, item->enum_base_index,
+                         item->enum_case_index, false) ||
+        item->owner_type != expected_type_index ||
+        !span_valid(item->source_span) ||
+        item->enum_base_index != type->enum_base_index)
+      return false;
+    if (item->enum_base_index == enum_base &&
+        item->enum_case_index == enum_case)
+      return true;
+  }
+  return false;
+}
+
+static bool frontend_integer_canonical(
+    const w_seed_frontend_const_value *value,
+    const w_seed_frontend_type *type) {
+  if (value == NULL || type == NULL ||
+      type->kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+      value->integer_bit_width == 0u || value->integer_bit_width > 128u ||
+      value->integer_bit_width != type->bit_width ||
+      value->integer_signed != type->is_signed)
+    return false;
+  const size_t byte_count =
+      ((size_t)value->integer_bit_width + 7u) / 8u;
+  if (value->integer_byte_count != byte_count || byte_count == 0u ||
+      byte_count > W_SEED_CONSTIR_INTEGER_BYTES)
+    return false;
+  for (size_t index = byte_count; index < W_SEED_CONSTIR_INTEGER_BYTES;
+       index += 1u) {
+    if (value->integer_bytes[index] != 0u) return false;
+  }
+  const unsigned remainder = (unsigned)(value->integer_bit_width % 8u);
+  if (remainder != 0u &&
+      (value->integer_bytes[byte_count - 1u] &
+       (uint8_t)~((uint8_t)((1u << remainder) - 1u))) != 0u)
+    return false;
+  /* Frontend immediate integers use a non-negative magnitude.  A signed
+   * value therefore cannot set its sign bit in the canonical bytes. */
+  if (value->integer_signed &&
+      (value->integer_bytes[(value->integer_bit_width - 1u) / 8u] &
+       (uint8_t)(1u << ((value->integer_bit_width - 1u) % 8u))) != 0u)
+    return false;
+  return true;
+}
+
+static bool frontend_const_value_basic_valid(const validation_context *context,
+                                             uint32_t value_index) {
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || context->frontend->const_values == NULL ||
+      (size_t)value_index >= context->frontend_result->written.const_values)
+    return false;
+  const w_seed_frontend_const_value *value =
+      &context->frontend->const_values[value_index];
+  if (!span_valid(value->span) || !type_index_valid(context, value->type_index))
+    return false;
+  const w_seed_frontend_type *type = &context->frontend->types[value->type_index];
+  switch (value->kind) {
+    case W_SEED_FRONTEND_CONST_BOOL:
+      return type->kind == W_SEED_FRONTEND_TYPE_BOOL;
+    case W_SEED_FRONTEND_CONST_INTEGER:
+      return frontend_integer_canonical(value, type);
+    case W_SEED_FRONTEND_CONST_STRING:
+      return range_valid(value->first_byte, value->byte_count,
+                         context->frontend_result->written.const_bytes);
+    case W_SEED_FRONTEND_CONST_ENUM_CASE:
+      return enum_case_valid(context, value->enum_base_index,
+                             value->enum_case_index, false);
+    case W_SEED_FRONTEND_CONST_STATIC_LIST:
+      if (value->element_count == 0u)
+        return value->first_element == W_SEED_FRONTEND_NONE;
+      return value->first_element != W_SEED_FRONTEND_NONE &&
+             range_valid(value->first_element, value->element_count,
+                         context->frontend_result->written.const_elements);
+    case W_SEED_FRONTEND_CONST_INVALID:
+      return true;
+  }
+  return false;
+}
+
+static bool span_contains(w_seed_span outer, w_seed_span inner) {
+  return span_valid(outer) && span_valid(inner) &&
+         outer.start_byte <= inner.start_byte &&
+         inner.end_byte <= outer.end_byte;
+}
+
+/* Validate only normalized ConstValue relations.  D1 support decisions stay
+ * in conversion_value_count; this pass catches cross-index corruption before
+ * any evaluator call, including applications without a predicate. */
+static bool frontend_const_value_relation_valid(
+    const validation_context *context, uint32_t value_index, size_t depth) {
+  if (context == NULL || depth == 0u ||
+      depth > W_SEED_GENERIC_VALIDATION_MAX_DEPTH ||
+      !frontend_const_value_basic_valid(context, value_index))
+    return false;
+  const w_seed_frontend_const_value *value =
+      &context->frontend->const_values[value_index];
+  if (value->kind != W_SEED_FRONTEND_CONST_STATIC_LIST) return true;
+  if (value->element_count == 0u) return true;
+  if (value->element_count > W_SEED_FRONTEND_MAX_STATIC_LIST_ELEMENTS)
+    return true;
+  for (uint32_t offset = 0u; offset < value->element_count; offset += 1u) {
+    const w_seed_frontend_const_element *element =
+        &context->frontend->const_elements[(size_t)value->first_element + offset];
+    if (element->owner_value != value_index || element->ordinal != offset ||
+        !span_contains(value->span, element->span) ||
+        !frontend_const_value_relation_valid(context, element->value_index,
+                                             depth + 1u))
+      return false;
+  }
+  return true;
+}
+
+static bool frontend_function_index_valid(const validation_context *context,
+                                          uint32_t function_index) {
+  return context != NULL && context->frontend_result != NULL &&
+         context->frontend != NULL && function_index != W_SEED_FRONTEND_NONE &&
+         (size_t)function_index < context->frontend_result->written.functions &&
+         context->frontend->functions != NULL;
+}
+
+static const w_seed_constir_function *constir_function_for_frontend(
+    const w_seed_constir_program *program, uint32_t frontend_function,
+    size_t *index, bool *duplicate) {
+  if (index != NULL) *index = SIZE_MAX;
+  if (duplicate != NULL) *duplicate = false;
+  if (program == NULL || program->functions == NULL ||
+      frontend_function == W_SEED_CONSTIR_NONE)
+    return NULL;
+  const w_seed_constir_function *found = NULL;
+  size_t found_index = SIZE_MAX;
+  for (size_t offset = 0u; offset < program->function_count; offset += 1u) {
+    if (program->functions[offset].frontend_function != frontend_function)
+      continue;
+    if (found != NULL) {
+      if (duplicate != NULL) *duplicate = true;
+      return NULL;
+    }
+    found = &program->functions[offset];
+    found_index = offset;
+  }
+  if (index != NULL) *index = found_index;
+  return found;
+}
+
+static conversion_status append_value(validation_context *context,
+                                      const w_seed_constir_value *value,
+                                      uint32_t *index) {
+  if (context == NULL || value == NULL || index == NULL ||
+      context->input == NULL ||
+      context->input->conversion_values == NULL ||
+      context->arena_count >= context->input->conversion_value_capacity ||
+      context->arena_count > (size_t)UINT32_MAX)
+    return CONVERSION_CAPACITY;
+  *index = (uint32_t)context->arena_count;
+  context->input->conversion_values[context->arena_count] = *value;
+  context->arena_count += 1u;
+  return CONVERSION_OK;
+}
+
+static conversion_status convert_const_value(validation_context *context,
+                                             uint32_t value_index,
+                                             uint32_t expected_type_index,
+                                             size_t depth, uint32_t *arena_index);
+
+static conversion_status convert_enum_value(validation_context *context,
+                                            const w_seed_frontend_const_value *source,
+                                            const w_seed_frontend_type *expected,
+                                            uint32_t expected_type_index,
+                                            uint32_t *arena_index) {
+  if (!enum_case_valid(context, source->enum_base_index,
+                       source->enum_case_index, true))
+    return CONVERSION_UNSUPPORTED;
+  if (!enum_case_member_of_type(context, expected, expected_type_index,
+                                source->enum_base_index,
+                                source->enum_case_index))
+    return CONVERSION_INVALID;
+  w_seed_constir_value converted;
+  if (!w_seed_constir_value_enum(source->type_index, source->enum_base_index,
+                                 source->enum_case_index, &converted))
+    return CONVERSION_INVALID;
+  return append_value(context, &converted, arena_index);
+}
+
+static conversion_status convert_const_value(validation_context *context,
+                                             uint32_t value_index,
+                                             uint32_t expected_type_index,
+                                             size_t depth, uint32_t *arena_index) {
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || arena_index == NULL || depth == 0u ||
+      depth > W_SEED_GENERIC_VALIDATION_MAX_DEPTH ||
+      !type_index_valid(context, expected_type_index) ||
+      !frontend_const_value_basic_valid(context, value_index))
+    return CONVERSION_INVALID;
+  const w_seed_frontend_const_value *source =
+      &context->frontend->const_values[value_index];
+  const w_seed_frontend_type *expected =
+      &context->frontend->types[expected_type_index];
+  if (source->type_index != expected_type_index) return CONVERSION_INVALID;
+  switch (source->kind) {
+    case W_SEED_FRONTEND_CONST_BOOL: {
+      if (expected->kind != W_SEED_FRONTEND_TYPE_BOOL) return CONVERSION_UNSUPPORTED;
+      w_seed_constir_value converted;
+      if (!w_seed_constir_value_bool(source->type_index, source->bool_value,
+                                     &converted))
+        return CONVERSION_INVALID;
+      return append_value(context, &converted, arena_index);
+    }
+    case W_SEED_FRONTEND_CONST_INTEGER: {
+      if (expected->kind != W_SEED_FRONTEND_TYPE_INTEGER) return CONVERSION_UNSUPPORTED;
+      if (source->integer_byte_count > W_SEED_CONSTIR_INTEGER_BYTES ||
+          source->integer_bit_width != expected->bit_width ||
+          source->integer_signed != expected->is_signed)
+        return CONVERSION_INVALID;
+      uint8_t bytes[W_SEED_CONSTIR_INTEGER_BYTES] = {0u};
+      (void)memcpy(bytes, source->integer_bytes, source->integer_byte_count);
+      w_seed_constir_value converted;
+      if (!w_seed_constir_value_integer(
+              source->type_index, W_SEED_FRONTEND_TYPE_INTEGER,
+              source->integer_signed, source->integer_bit_width, bytes,
+              &converted))
+        return CONVERSION_INVALID;
+      return append_value(context, &converted, arena_index);
+    }
+    case W_SEED_FRONTEND_CONST_ENUM_CASE:
+      if (expected->kind != W_SEED_FRONTEND_TYPE_ENUM &&
+          expected->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET)
+        return CONVERSION_UNSUPPORTED;
+      return convert_enum_value(context, source, expected, expected_type_index,
+                                arena_index);
+    case W_SEED_FRONTEND_CONST_STATIC_LIST: {
+      if (expected->kind != W_SEED_FRONTEND_TYPE_STATIC_LIST) return CONVERSION_UNSUPPORTED;
+      if (source->element_count == 0u &&
+          source->first_element != W_SEED_FRONTEND_NONE)
+        return CONVERSION_INVALID;
+      if (source->element_count > W_SEED_FRONTEND_MAX_STATIC_LIST_ELEMENTS ||
+          (source->element_count != 0u &&
+           !range_valid(source->first_element, source->element_count,
+                        context->frontend_result->written.const_elements)))
+        return source->element_count > W_SEED_FRONTEND_MAX_STATIC_LIST_ELEMENTS
+                   ? CONVERSION_UNSUPPORTED
+                   : CONVERSION_INVALID;
+      const uint32_t element_type_index = expected->element_type;
+      if (element_type_index == W_SEED_FRONTEND_NONE ||
+          !type_index_valid(context, element_type_index))
+        return CONVERSION_INVALID;
+      const w_seed_frontend_type *element_type =
+          &context->frontend->types[element_type_index];
+      if (element_type->kind != W_SEED_FRONTEND_TYPE_ENUM &&
+          element_type->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET)
+        return CONVERSION_UNSUPPORTED;
+      const size_t first_child = context->arena_count;
+      for (uint32_t offset = 0u; offset < source->element_count; offset += 1u) {
+        const w_seed_frontend_const_element *element =
+            &context->frontend->const_elements[(size_t)source->first_element +
+                                               offset];
+        if (element->owner_value != value_index || element->ordinal != offset ||
+            !span_valid(element->span) ||
+            !frontend_const_value_basic_valid(context, element->value_index))
+          return CONVERSION_INVALID;
+        conversion_status child = convert_const_value(
+            context, element->value_index, element_type_index, depth + 1u,
+            arena_index);
+        if (child != CONVERSION_OK) return child;
+      }
+      w_seed_constir_value converted;
+      if (!w_seed_constir_value_static_list(
+              source->type_index, element_type_index,
+              source->element_count == 0u
+                  ? NULL
+                  : &context->input->conversion_values[first_child],
+              source->element_count, &converted))
+        return CONVERSION_INVALID;
+      return append_value(context, &converted, arena_index);
+    }
+    case W_SEED_FRONTEND_CONST_STRING:
+      return CONVERSION_UNSUPPORTED;
+    case W_SEED_FRONTEND_CONST_INVALID:
+      return CONVERSION_UNSUPPORTED;
+  }
+  return CONVERSION_UNSUPPORTED;
+}
+
+static bool parameter_relation_valid(const validation_context *context,
+                                     const w_seed_frontend_generic_application *application,
+                                     uint32_t offset,
+                                     const w_seed_frontend_generic_parameter **out) {
+  if (out != NULL) *out = NULL;
+  if (context == NULL || application == NULL ||
+      context->frontend == NULL || context->frontend_result == NULL ||
+      application->head_struct >= context->frontend_result->written.structs ||
+      context->frontend->structs == NULL)
+    return false;
+  const w_seed_frontend_struct *head =
+      &context->frontend->structs[application->head_struct];
+  if (!range_valid(head->first_generic_parameter,
+                   head->generic_parameter_count,
+                   context->frontend_result->written.generic_parameters) ||
+      offset >= head->generic_parameter_count)
+    return false;
+  const w_seed_frontend_generic_parameter *parameter =
+      &context->frontend->generic_parameters[(size_t)head->first_generic_parameter +
+                                             offset];
+  if (parameter->owner_kind != W_SEED_FRONTEND_DECL_STRUCT ||
+      parameter->owner_index != application->head_struct ||
+      parameter->module_index != application->module_index ||
+      parameter->ordinal != offset || !span_valid(parameter->span) ||
+      !text_valid(parameter->external_label) ||
+      !text_valid(parameter->internal_name))
+    return false;
+  if (parameter->kind == W_SEED_FRONTEND_GENERIC_KIND_VALUE) {
+    if (parameter->domain_type == W_SEED_FRONTEND_NONE ||
+        !type_index_valid(context, parameter->domain_type) ||
+        (parameter->domain_kind != W_SEED_FRONTEND_GENERIC_DOMAIN_CONCRETE &&
+         parameter->domain_kind != W_SEED_FRONTEND_GENERIC_DOMAIN_DEPENDENT))
+      return false;
+    if (parameter->refinement_kind ==
+        W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE) {
+      if (parameter->predicate_function_index == W_SEED_FRONTEND_NONE ||
+          !span_valid(parameter->predicate_span) ||
+          !span_valid(parameter->predicate_function_span) ||
+          parameter->subject_kind != W_SEED_FRONTEND_GENERIC_SUBJECT_MEMBER)
+        return false;
+    } else if (parameter->refinement_kind !=
+                   W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE &&
+               parameter->refinement_kind !=
+                   W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID) {
+      return false;
+    }
+  } else if (parameter->kind == W_SEED_FRONTEND_GENERIC_KIND_TYPE) {
+    if (parameter->domain_type != W_SEED_FRONTEND_NONE ||
+        parameter->refinement_kind != W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE)
+      return false;
+  } else {
+    return false;
+  }
+  if (out != NULL) *out = parameter;
+  return true;
+}
+
+static bool application_relations_valid(
+    const validation_context *context,
+    const w_seed_frontend_generic_application **application_out,
+    const w_seed_frontend_struct **head_out) {
+  if (application_out != NULL) *application_out = NULL;
+  if (head_out != NULL) *head_out = NULL;
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || context->frontend->generic_applications == NULL ||
+      context->frontend->structs == NULL ||
+      (size_t)context->input->application_index >=
+          context->frontend_result->written.generic_applications)
+    return false;
+  const w_seed_frontend_generic_application *application =
+      &context->frontend->generic_applications[context->input->application_index];
+  if (application->module_index >= context->frontend_result->written.modules ||
+      application->head_struct >= context->frontend_result->written.structs ||
+      application->owner_type >= context->frontend_result->written.types ||
+      !span_valid(application->span) || !span_valid(application->envelope_span) ||
+      !text_valid(application->head_name) ||
+      !range_valid(application->first_argument, application->argument_count,
+                   context->frontend_result->written.generic_arguments) ||
+      application->argument_count > W_SEED_FRONTEND_MAX_GENERIC_SLOTS)
+    return false;
+  const w_seed_frontend_struct *head =
+      &context->frontend->structs[application->head_struct];
+  if (head->module_index != application->module_index ||
+      !text_valid(head->name) ||
+      head->name.length != application->head_name.length ||
+      (head->name.length != 0u &&
+       memcmp(head->name.data, application->head_name.data,
+              head->name.length) != 0) ||
+      context->frontend->types[application->owner_type].generic_application_index !=
+          context->input->application_index ||
+      !range_valid(head->first_generic_parameter,
+                   head->generic_parameter_count,
+                   context->frontend_result->written.generic_parameters))
+    return false;
+  if (application->binding_status < W_SEED_FRONTEND_GENERIC_BINDING_INVALID ||
+      application->binding_status >
+          W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE)
+    return false;
+  for (uint32_t offset = 0u; offset < application->argument_count; offset += 1u) {
+    const w_seed_frontend_generic_argument *argument =
+        &context->frontend->generic_arguments[(size_t)application->first_argument + offset];
+    const w_seed_frontend_generic_parameter *parameter = NULL;
+    if (argument->owner_application != context->input->application_index ||
+        argument->source_ordinal != offset || argument->module_index != application->module_index ||
+        argument->parameter_ordinal != offset ||
+        argument->parameter_index !=
+            head->first_generic_parameter + offset ||
+        !span_valid(argument->span) || !text_valid(argument->label) ||
+        !parameter_relation_valid(context, application, offset, &parameter))
+      return false;
+    const bool value_kind = parameter->kind == W_SEED_FRONTEND_GENERIC_KIND_VALUE;
+    if ((value_kind && argument->kind != W_SEED_FRONTEND_GENERIC_ARGUMENT_VALUE) ||
+        (!value_kind && argument->kind != W_SEED_FRONTEND_GENERIC_ARGUMENT_TYPE) ||
+        argument->binding_status < W_SEED_FRONTEND_GENERIC_BINDING_INVALID ||
+        argument->binding_status > W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE)
+      return false;
+    if (value_kind) {
+      if (argument->const_value_index == W_SEED_FRONTEND_NONE ||
+          !frontend_const_value_relation_valid(context,
+                                               argument->const_value_index, 1u) ||
+          !span_contains(argument->span,
+                         context->frontend
+                             ->const_values[argument->const_value_index]
+                             .span))
+        return false;
+    } else if (argument->type_index == W_SEED_FRONTEND_NONE ||
+               !type_index_valid(context, argument->type_index) ||
+               argument->const_value_index != W_SEED_FRONTEND_NONE) {
+      return false;
+    }
+  }
+  if (application_out != NULL) *application_out = application;
+  if (head_out != NULL) *head_out = head;
+  return true;
+}
+
+static conversion_status conversion_value_count(
+    const validation_context *context, uint32_t value_index,
+    uint32_t expected_type_index, size_t *count) {
+  if (context == NULL || count == NULL ||
+      !type_index_valid(context, expected_type_index) ||
+      !frontend_const_value_basic_valid(context, value_index))
+    return CONVERSION_INVALID;
+  const w_seed_frontend_const_value *source =
+      &context->frontend->const_values[value_index];
+  const w_seed_frontend_type *expected =
+      &context->frontend->types[expected_type_index];
+  if (source->type_index != expected_type_index) return CONVERSION_INVALID;
+  if (source->kind == W_SEED_FRONTEND_CONST_STRING ||
+      source->kind == W_SEED_FRONTEND_CONST_INVALID)
+    return CONVERSION_UNSUPPORTED;
+  if (source->kind == W_SEED_FRONTEND_CONST_BOOL)
+    return expected->kind == W_SEED_FRONTEND_TYPE_BOOL ? (*count = 1u,
+                                                          CONVERSION_OK)
+                                                       : CONVERSION_UNSUPPORTED;
+  if (source->kind == W_SEED_FRONTEND_CONST_INTEGER) {
+    if (expected->kind != W_SEED_FRONTEND_TYPE_INTEGER)
+      return CONVERSION_UNSUPPORTED;
+    if (source->integer_byte_count > W_SEED_CONSTIR_INTEGER_BYTES ||
+        source->integer_bit_width != expected->bit_width ||
+        source->integer_signed != expected->is_signed)
+      return CONVERSION_INVALID;
+    *count = 1u;
+    return CONVERSION_OK;
+  }
+  if (source->kind == W_SEED_FRONTEND_CONST_ENUM_CASE) {
+    if (expected->kind != W_SEED_FRONTEND_TYPE_ENUM &&
+        expected->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET)
+      return CONVERSION_UNSUPPORTED;
+    if (!enum_case_valid(context, source->enum_base_index,
+                         source->enum_case_index, true))
+      return CONVERSION_UNSUPPORTED;
+    if (!enum_case_member_of_type(context, expected, expected_type_index,
+                                  source->enum_base_index,
+                                  source->enum_case_index))
+      return CONVERSION_INVALID;
+    *count = 1u;
+    return CONVERSION_OK;
+  }
+  if (source->kind != W_SEED_FRONTEND_CONST_STATIC_LIST ||
+      expected->kind != W_SEED_FRONTEND_TYPE_STATIC_LIST)
+    return CONVERSION_UNSUPPORTED;
+  if (source->element_count > W_SEED_FRONTEND_MAX_STATIC_LIST_ELEMENTS)
+    return CONVERSION_UNSUPPORTED;
+  const uint32_t element_type_index = expected->element_type;
+  if (element_type_index == W_SEED_FRONTEND_NONE ||
+      !type_index_valid(context, element_type_index))
+    return CONVERSION_INVALID;
+  const w_seed_frontend_type *element_type =
+      &context->frontend->types[element_type_index];
+  if (element_type->kind != W_SEED_FRONTEND_TYPE_ENUM &&
+      element_type->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET)
+    return CONVERSION_UNSUPPORTED;
+  if (source->element_count != 0u &&
+      !range_valid(source->first_element, source->element_count,
+                   context->frontend_result->written.const_elements))
+    return CONVERSION_INVALID;
+  if (source->element_count == 0u &&
+      source->first_element != W_SEED_FRONTEND_NONE)
+    return CONVERSION_INVALID;
+  *count = source->element_count + 1u;
+  for (uint32_t offset = 0u; offset < source->element_count; offset += 1u) {
+    const w_seed_frontend_const_element *element =
+        &context->frontend->const_elements[(size_t)source->first_element +
+                                           offset];
+    if (element->owner_value != value_index || element->ordinal != offset ||
+        !span_valid(element->span) ||
+        !frontend_const_value_basic_valid(context, element->value_index))
+      return CONVERSION_INVALID;
+    const w_seed_frontend_const_value *child =
+        &context->frontend->const_values[element->value_index];
+    if (child->kind != W_SEED_FRONTEND_CONST_ENUM_CASE ||
+        child->type_index != element_type_index ||
+        !enum_case_valid(context, child->enum_base_index,
+                         child->enum_case_index, true))
+      return child->kind == W_SEED_FRONTEND_CONST_STATIC_LIST
+                 ? CONVERSION_UNSUPPORTED
+                 : CONVERSION_INVALID;
+    if (!enum_case_member_of_type(context, element_type, element_type_index,
+                                  child->enum_base_index,
+                                  child->enum_case_index))
+      return CONVERSION_INVALID;
+  }
+  return CONVERSION_OK;
+}
+
+static bool predicate_candidate_function_valid(
+    const validation_context *context, predicate_candidate *candidate,
+    bool *duplicate) {
+  if (duplicate != NULL) *duplicate = false;
+  if (context == NULL || candidate == NULL || candidate->parameter == NULL ||
+      !frontend_function_index_valid(context,
+                                     candidate->parameter->predicate_function_index))
+    return false;
+  candidate->predicate_function_index =
+      candidate->parameter->predicate_function_index;
+  size_t constir_index = SIZE_MAX;
+  bool duplicate_mapping = false;
+  const w_seed_constir_function *function = constir_function_for_frontend(
+      context->program, candidate->predicate_function_index, &constir_index,
+      &duplicate_mapping);
+  if (duplicate != NULL) *duplicate = duplicate_mapping;
+  candidate->predicate_constir_index =
+      constir_index == SIZE_MAX ? W_SEED_CONSTIR_NONE : (uint32_t)constir_index;
+  candidate->function = function;
+  return true;
+}
+
+static bool predicate_parameter_type_compatible(
+    const validation_context *context, uint32_t left_index,
+    uint32_t right_index, size_t depth) {
+  if (context == NULL || depth == 0u ||
+      depth > W_SEED_GENERIC_VALIDATION_MAX_DEPTH ||
+      !type_index_valid(context, left_index) ||
+      !type_index_valid(context, right_index))
+    return false;
+  const w_seed_frontend_type *left = &context->frontend->types[left_index];
+  const w_seed_frontend_type *right = &context->frontend->types[right_index];
+  if ((left->kind == W_SEED_FRONTEND_TYPE_ENUM ||
+       left->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET) &&
+      (right->kind == W_SEED_FRONTEND_TYPE_ENUM ||
+       right->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET))
+    return left->enum_base_index == right->enum_base_index;
+  if (left->kind != right->kind) return false;
+  if (left->kind == W_SEED_FRONTEND_TYPE_INTEGER)
+    return left->is_signed == right->is_signed &&
+           left->bit_width == right->bit_width;
+  if (left->kind == W_SEED_FRONTEND_TYPE_STATIC_LIST)
+    return predicate_parameter_type_compatible(context, left->element_type,
+                                               right->element_type,
+                                               depth + 1u);
+  return true;
+}
+
+static bool predicate_frontend_signature_valid(
+    const validation_context *context, const predicate_candidate *candidate) {
+  if (context == NULL || candidate == NULL || candidate->parameter == NULL ||
+      !frontend_function_index_valid(context,
+                                     candidate->predicate_function_index))
+    return false;
+  const w_seed_frontend_function *function =
+      &context->frontend->functions[candidate->predicate_function_index];
+  if (function->module_index != candidate->module_index ||
+      !text_valid(function->name) || !span_valid(function->span) ||
+      !span_valid(function->body_span) ||
+      !span_contains(function->span, function->body_span) ||
+      function->span.start_byte !=
+          candidate->parameter->predicate_function_span.start_byte ||
+      function->span.end_byte !=
+          candidate->parameter->predicate_function_span.end_byte ||
+      !function->is_const || function->parameter_count != 1u ||
+      function->return_type == W_SEED_FRONTEND_NONE ||
+      !type_index_valid(context, function->return_type) ||
+      context->frontend->types[function->return_type].kind !=
+          W_SEED_FRONTEND_TYPE_BOOL ||
+      !range_valid(function->first_parameter, function->parameter_count,
+                   context->frontend_result->written.parameters))
+    return false;
+  const w_seed_frontend_parameter *parameter =
+      &context->frontend->parameters[function->first_parameter];
+  return parameter->module_index == function->module_index &&
+         parameter->owner_function == candidate->predicate_function_index &&
+         text_valid(parameter->name) && text_valid(parameter->label) &&
+         span_contains(function->span, parameter->span) &&
+         predicate_parameter_type_compatible(context, parameter->type_index,
+                                              candidate->parameter->domain_type,
+                                              1u);
+}
+
+static bool set_rejection(
+    const validation_context *context,
+    const w_seed_frontend_generic_application *application,
+    const predicate_candidate *candidate,
+    w_seed_generic_validation_result *result) {
+  if (context == NULL || context->input == NULL ||
+      context->input->evidence_bytes == NULL ||
+      context->input->evidence_byte_capacity <
+          W_SEED_GENERIC_VALIDATION_FALLBACK_BYTES)
+    return false;
+  (void)memcpy(context->input->evidence_bytes, FALLBACK_BYTES,
+               W_SEED_GENERIC_VALIDATION_FALLBACK_BYTES);
+  const w_seed_frontend_text fallback = {
+      (const char *)context->input->evidence_bytes,
+      W_SEED_GENERIC_VALIDATION_FALLBACK_BYTES};
+  result->rejection.application_index = context->input->application_index;
+  result->rejection.head_struct_index = application->head_struct;
+  result->rejection.head_name = application->head_name;
+  result->rejection.generic_argument_index = candidate->argument_index;
+  result->rejection.argument_const_value_index =
+      candidate->argument_const_value_index;
+  result->rejection.argument_span = candidate->argument->span;
+  result->rejection.predicate_function_index =
+      candidate->predicate_function_index;
+  result->rejection.predicate_span = candidate->parameter->predicate_span;
+  result->rejection.predicate_function_span =
+      candidate->parameter->predicate_function_span;
+  result->rejection.failure = fallback;
+  result->rejection.rejection_trace[0] = fallback;
+  result->rejection.rejection_trace_count = 1u;
+  return true;
+}
+
+const char *w_seed_generic_validation_state_name(
+    w_seed_generic_validation_state state) {
+  switch (state) {
+    case W_SEED_GENERIC_VALIDATION_VERIFIED:
+      return "VERIFIED";
+    case W_SEED_GENERIC_VALIDATION_REJECTED:
+      return "REJECTED";
+    case W_SEED_GENERIC_VALIDATION_UNSUPPORTED:
+      return "UNSUPPORTED";
+    case W_SEED_GENERIC_VALIDATION_INVALID:
+      return "INVALID";
+    case W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED:
+      return "EVALUATION_FAILED";
+    case W_SEED_GENERIC_VALIDATION_CAPACITY:
+      return "CAPACITY";
+  }
+  return "UNKNOWN";
+}
+
+const char *w_seed_generic_validation_failure_name(
+    w_seed_generic_validation_failure failure) {
+  switch (failure) {
+    case W_SEED_GENERIC_VALIDATION_FAILURE_NONE:
+      return "none";
+    case W_SEED_GENERIC_VALIDATION_FAILURE_PREDICATE_FALSE:
+      return "predicate:false";
+    case W_SEED_GENERIC_VALIDATION_FAILURE_BINDING:
+      return "binding";
+    case W_SEED_GENERIC_VALIDATION_FAILURE_VALUE:
+      return "value";
+    case W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION:
+      return "function";
+    case W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY:
+      return "capacity";
+    case W_SEED_GENERIC_VALIDATION_FAILURE_EVALUATOR_DIAGNOSTIC:
+      return "evaluator-diagnostic";
+    case W_SEED_GENERIC_VALIDATION_FAILURE_RESULT_TYPE:
+      return "result-type";
+    case W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT:
+      return "invalid-input";
+  }
+  return "unknown";
+}
+
+w_seed_generic_validation_state w_seed_generic_validation_run(
+    const w_seed_generic_validation_input *input,
+    w_seed_generic_validation_result *result) {
+  if (result != NULL) (void)memset(result, 0, sizeof(*result));
+  if (result == NULL || input == NULL) {
+    if (result != NULL) {
+      result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+    }
+    return W_SEED_GENERIC_VALIDATION_INVALID;
+  }
+  result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+  result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+  result->application_index = input->application_index;
+  validation_context context = {
+      input, input->frontend_output, input->frontend_result,
+      input->constir_program, 0u};
+  if (!frontend_arrays_valid(&context) || context.program == NULL ||
+      context.program->frontend_output != context.frontend ||
+      context.program->frontend_result != context.frontend_result ||
+      !w_seed_constir_validate_program(context.program))
+    return result->state;
+  const w_seed_frontend_generic_application *application = NULL;
+  const w_seed_frontend_struct *head = NULL;
+  if (!application_relations_valid(&context, &application, &head))
+    return result->state;
+  result->head_struct_index = application->head_struct;
+  if (application->binding_status !=
+      W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE) {
+    if (application->binding_status ==
+        W_SEED_FRONTEND_GENERIC_BINDING_INVALID)
+      return result->state;
+    result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_BINDING;
+    return result->state;
+  }
+  for (uint32_t offset = 0u; offset < application->argument_count;
+       offset += 1u) {
+    const w_seed_frontend_generic_argument *argument =
+        &context.frontend->generic_arguments[(size_t)application->first_argument +
+                                             offset];
+    if (argument->binding_status ==
+        W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE)
+      continue;
+    if (argument->binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED ||
+        argument->binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST) {
+      result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_BINDING;
+      return result->state;
+    }
+    return result->state;
+  }
+  if (application->argument_count != head->generic_parameter_count) {
+    /* A BOUND_IMMEDIATE application must have one argument for every head
+     * parameter.  A mismatch is malformed input, not a feature gap. */
+    return result->state;
+  }
+  predicate_candidate candidates[W_SEED_GENERIC_VALIDATION_MAX_PREDICATES];
+  size_t candidate_count = 0u;
+  for (uint32_t offset = 0u; offset < application->argument_count; offset += 1u) {
+    const w_seed_frontend_generic_parameter *parameter = NULL;
+    (void)parameter_relation_valid(&context, application, offset, &parameter);
+    const w_seed_frontend_generic_argument *argument =
+        &context.frontend->generic_arguments[(size_t)application->first_argument +
+                                             offset];
+    if (parameter->refinement_kind !=
+        W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE)
+      continue;
+    if (candidate_count >= W_SEED_GENERIC_VALIDATION_MAX_PREDICATES) {
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
+      return result->state = W_SEED_GENERIC_VALIDATION_CAPACITY;
+    }
+    predicate_candidate *candidate = &candidates[candidate_count];
+    (void)memset(candidate, 0, sizeof(*candidate));
+    candidate->argument_index = application->first_argument + offset;
+    candidate->module_index = application->module_index;
+    candidate->argument_const_value_index = argument->const_value_index;
+    candidate->parameter_index = argument->parameter_index;
+    candidate->argument = argument;
+    candidate->parameter = parameter;
+    if (!frontend_function_index_valid(
+            &context, candidate->parameter->predicate_function_index)) {
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+      return result->state;
+    }
+    bool duplicate_mapping = false;
+    if (!predicate_candidate_function_valid(&context, candidate,
+                                            &duplicate_mapping)) {
+      result->failure = duplicate_mapping
+                            ? W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT
+                            : W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION;
+      return result->state = duplicate_mapping
+                                 ? W_SEED_GENERIC_VALIDATION_INVALID
+                                 : W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+    }
+    if (!predicate_frontend_signature_valid(&context, candidate)) {
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+      return result->state;
+    }
+    if (candidate->function == NULL || !candidate->function->lowerable) {
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION;
+      return result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+    }
+    if (candidate->function->parameter_count !=
+        context.frontend->functions[candidate->predicate_function_index]
+            .parameter_count) {
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+      return result->state;
+    }
+    candidate_count += 1u;
+  }
+  if (candidate_count != 0u &&
+      (input->evidence_bytes == NULL ||
+       input->evidence_byte_capacity <
+           W_SEED_GENERIC_VALIDATION_FALLBACK_BYTES)) {
+    result->state = W_SEED_GENERIC_VALIDATION_CAPACITY;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
+    return result->state;
+  }
+  if (candidate_count > input->receipt_capacity ||
+      (candidate_count != 0u && input->receipts == NULL)) {
+    context.arena_count = 0u;
+    result->state = W_SEED_GENERIC_VALIDATION_CAPACITY;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
+    return result->state;
+  }
+  size_t required_values = 0u;
+  for (size_t index = 0u; index < candidate_count; index += 1u) {
+    size_t value_count = 0u;
+    const conversion_status count_status = conversion_value_count(
+        &context, candidates[index].argument_const_value_index,
+        candidates[index].parameter->domain_type, &value_count);
+    if (count_status == CONVERSION_UNSUPPORTED) {
+      result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_VALUE;
+      return result->state;
+    }
+    if (count_status != CONVERSION_OK) {
+      result->state = count_status == CONVERSION_CAPACITY
+                          ? W_SEED_GENERIC_VALIDATION_CAPACITY
+                          : W_SEED_GENERIC_VALIDATION_INVALID;
+      result->failure = count_status == CONVERSION_CAPACITY
+                            ? W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY
+                            : W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+      return result->state;
+    }
+    if (value_count > SIZE_MAX - required_values ||
+        required_values > input->conversion_value_capacity ||
+        value_count > input->conversion_value_capacity - required_values) {
+      result->state = W_SEED_GENERIC_VALIDATION_CAPACITY;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
+      return result->state;
+    }
+    required_values += value_count;
+  }
+  if (candidate_count != 0u &&
+      (input->conversion_values == NULL ||
+       required_values > input->conversion_value_capacity)) {
+    result->state = W_SEED_GENERIC_VALIDATION_CAPACITY;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
+    return result->state;
+  }
+  for (size_t index = 0u; index < candidate_count; index += 1u) {
+    const conversion_status conversion = convert_const_value(
+        &context, candidates[index].argument_const_value_index,
+        candidates[index].parameter->domain_type, 1u,
+        &candidates[index].value_index);
+    if (conversion != CONVERSION_OK) {
+      context.arena_count = 0u;
+      result->state = conversion == CONVERSION_CAPACITY
+                          ? W_SEED_GENERIC_VALIDATION_CAPACITY
+                          : conversion == CONVERSION_UNSUPPORTED
+                                ? W_SEED_GENERIC_VALIDATION_UNSUPPORTED
+                                : W_SEED_GENERIC_VALIDATION_INVALID;
+      result->failure = conversion == CONVERSION_CAPACITY
+                            ? W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY
+                            : W_SEED_GENERIC_VALIDATION_FAILURE_VALUE;
+      return result->state;
+    }
+  }
+  w_seed_constir_invocation invocations[W_SEED_GENERIC_VALIDATION_MAX_PREDICATES];
+  for (size_t index = 0u; index < candidate_count; index += 1u) {
+    invocations[index] = (w_seed_constir_invocation){
+        candidates[index].predicate_constir_index,
+        &context.input->conversion_values[candidates[index].value_index], 1u};
+  }
+  if (!w_seed_constir_validate_invocations_in_validated_program(
+          context.program, invocations, candidate_count)) {
+    result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+    return result->state;
+  }
+  result->predicate_count = candidate_count;
+  for (size_t index = 0u; index < candidate_count; index += 1u) {
+    predicate_candidate *candidate = &candidates[index];
+    w_seed_constir_value predicate_value;
+    w_seed_constir_eval_result evaluation;
+    (void)memset(&predicate_value, 0, sizeof(predicate_value));
+    (void)memset(&evaluation, 0, sizeof(evaluation));
+    const w_seed_constir_status status = w_seed_constir_evaluate(
+        context.program, candidate->predicate_constir_index,
+        &context.input->conversion_values[candidate->value_index], 1u,
+        input->quota, input->eval_workspace, &predicate_value, &evaluation);
+    if (status != W_SEED_CONSTIR_OK) {
+      result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+      result->evaluation = evaluation;
+      result->diagnostic = evaluation.diagnostic;
+      result->diagnostic_span = evaluation.diagnostic_span;
+      return result->state;
+    }
+    if (evaluation.diagnostic != W_SEED_CONSTIR_DIAGNOSTIC_NONE) {
+      result->state = W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_EVALUATOR_DIAGNOSTIC;
+      result->evaluation = evaluation;
+      result->diagnostic = evaluation.diagnostic;
+      result->diagnostic_span = evaluation.diagnostic_span;
+      return result->state;
+    }
+    w_seed_generic_validation_receipt *receipt = &input->receipts[index];
+    (void)memset(receipt, 0, sizeof(*receipt));
+    receipt->generic_argument_index = candidate->argument_index;
+    receipt->argument_const_value_index = candidate->argument_const_value_index;
+    receipt->argument_span = candidate->argument->span;
+    receipt->predicate_parameter_index = candidate->parameter_index;
+    receipt->predicate_function_index = candidate->predicate_function_index;
+    receipt->predicate_span = candidate->parameter->predicate_span;
+    receipt->predicate_function_span = candidate->parameter->predicate_function_span;
+    receipt->evaluation = evaluation;
+    receipt->result_is_bool = predicate_value.kind == W_SEED_CONSTIR_VALUE_BOOL;
+    receipt->bool_value = predicate_value.bool_value;
+    result->receipts_written = index + 1u;
+    result->evaluation = evaluation;
+    if (!receipt->result_is_bool) {
+      result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_RESULT_TYPE;
+      return result->state;
+    }
+    if (!receipt->bool_value) {
+      result->state = W_SEED_GENERIC_VALIDATION_REJECTED;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_PREDICATE_FALSE;
+      result->diagnostic = W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0004;
+      result->diagnostic_span = candidate->parameter->predicate_span;
+      if (!set_rejection(&context, application, candidate, result)) {
+        result->state = W_SEED_GENERIC_VALIDATION_CAPACITY;
+        result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_CAPACITY;
+        return result->state;
+      }
+      return result->state;
+    }
+  }
+  result->state = W_SEED_GENERIC_VALIDATION_VERIFIED;
+  result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_NONE;
+  return result->state;
+}

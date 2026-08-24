@@ -7205,6 +7205,65 @@ recorrente. A falha de crescimento não é uma quota de wall clock.
 As inversões S0 e seus limites ficam em
 [`RATIONALE.md` §1.2](RATIONALE.md#12-baseline-estática-r0s).
 
+#### 8.7.11 Validação seed C de predicates genéricos
+
+A camada caller-owned `w_seed_generic_validation` é uma projeção pós-frontend.
+Ela recebe `w_seed_frontend_output`, `w_seed_frontend_result`, um
+`w_seed_constir_program`, o índice da aplicação e quotas/workspace fornecidos
+por quem chama. Ela não reparseia source, não chama ConstIR no frontend, não
+altera os records do frontend e não afirma type identity final ou
+monomorphization. A camada aceita somente aplicações com `BOUND_IMMEDIATE`.
+Para cada value argument cujo parâmetro possui `REFINEMENT_PREDICATE`, ela
+resolve a função ConstIR por `frontend_function == predicate_function_index`.
+O preflight read-only chama o validador canônico do programa ConstIR uma vez e
+valida todas as relações da aplicação antes da primeira avaliação. Assim uma
+relação posterior inválida não deixa execução parcial observável.
+
+O conjunto D1 de conversão é fechado:
+
+- `Bool`.
+- integer com width e signedness explícitos, convertido para os bytes
+  little-endian canônicos do ConstIR.
+- enum case payloadless, inclusive membro válido de enum subset.
+- `StaticList` de enum cases payloadless, com ordem e duplicatas preservadas.
+
+String, `TYPED_PENDING_CONST`, expressions calculadas, função ausente ou não
+lowerable e qualquer categoria fora deste conjunto são `UNSUPPORTED`. Uma
+relação malformada, índice fora do range, função frontend duplicada, arity ou
+tipo de retorno incompatível é `INVALID`. Cada lista D1 suporta até 4.096
+elementos. A travessia e a validação estrutural caller-owned têm depth máximo
+256. Listas aninhadas continuam `UNSUPPORTED`. A camada mede a conversão e a
+evidência antes de escrever em arenas caller-owned. Falta de espaço é
+`CAPACITY` e mantém os sentinels do caller.
+
+O resultado público possui estados distintos: `VERIFIED` quando todos os
+predicates retornam `Bool(true)`, `REJECTED` no primeiro `Bool(false)`,
+`UNSUPPORTED` para a ausência de capacidade D1, `INVALID` para input ou relação
+malformada, `EVALUATION_FAILED` para um diagnostic do evaluator, e `CAPACITY`
+para um orçamento de output insuficiente. `W-CONST-0003` e `W-CONST-0006`
+preservam o `w_seed_constir_eval_result`, counters e diagnostic originais. Não
+viram `W-CONST-0004`. Um result que não é Bool não é `VERIFIED`.
+
+`REJECTED` publica `W-CONST-0004` e os facts mínimos caller-owned: application
+e head, índice/span do argumento, índice/span da função predicate e
+`failure = "predicate:false"`. `rejectionTrace` é um array de strings
+caller-owned com um item `predicate:false`, não uma string que contém JSON.
+O contrato completo da evidência mantém 64 records e 4.096 bytes UTF-8. Esta
+projeção D1 armazena e publica exatamente um item de fallback. O item usa 15
+bytes UTF-8 compartilhados para `failure` e `rejectionTrace` na arena de bytes
+caller-owned. O evaluator seed atual não preserva execution dependencies
+suficientes para uma slice causal detalhada nesta camada. Por isso esta
+projeção D1 usa o fallback permitido inteiro. A capacidade desses bytes é
+medida antes da primeira avaliação.
+
+O gate source-backed lê [`reference/last-light/domain.w`](reference/last-light/domain.w)
+uma vez pelo pipeline seed e executa
+[`tooling/check-seed-generic-validation.mjs`](tooling/check-seed-generic-validation.mjs).
+
+Esta fronteira não promove o seed C a compiler W completo. Imported heads,
+computed argument evaluation, identity final, detailed causal slices, runtime e
+self-host continuam gaps de implementação.
+
 ### 8.8 Conversões
 
 **Exemplo:** `u8` pode converter para `u16`. A conversão de `u16` para `u8`

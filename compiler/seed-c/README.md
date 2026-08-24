@@ -409,6 +409,54 @@ bytes altos zero; nodes/values ConstIR usam little-endian canônico em
 two's-complement sign-extended para signed e zero-extended para unsigned,
 limitado a 128 bits. O encoding não usa `sizeof`, layout ou endianness do host.
 
+## Validação seed C de predicates genéricos
+
+`include/w_seed_generic_validation.h` e
+`src/w_seed_generic_validation.c` formam uma camada caller-owned separada do
+frontend. `w_seed_generic_validation_run` recebe o
+`w_seed_frontend_output`/`w_seed_frontend_result`, um `w_seed_constir_program`,
+o índice da aplicação, quotas, workspace e arenas caller-owned de receipts,
+conversão e bytes de evidência. O frontend não inclui nem chama ConstIR. A
+camada não reparseia source, não
+modifica os arrays do frontend e não publica type identity final ou
+monomorphization.
+
+Somente `BOUND_IMMEDIATE` é elegível. O predicate é localizado pela relação
+`frontend_function == predicate_function_index`. O preflight read-only chama
+`w_seed_constir_validate_program` uma vez e depois
+`w_seed_constir_validate_invocations_in_validated_program` para todas as
+relações. Ele verifica todos os predicates e relações
+antes da primeira avaliação. A conversão D1 fechada aceita `Bool`, integers com
+width/signedness, enum cases payloadless (inclusive enum subset) e
+`StaticList` destes enum cases. Bytes integer são little-endian canônicos.
+String, `TYPED_PENDING_CONST`, computed values, função ausente/não lowerable e
+categorias fora desta lista são `UNSUPPORTED`. Índices, spans, relations,
+signature, arity ou tipo de retorno malformados são `INVALID`. Cada lista D1
+limita 4.096 elementos. A travessia e a validação estrutural caller-owned têm
+depth máximo 256. Listas aninhadas continuam `UNSUPPORTED`.
+
+O estado público distingue `VERIFIED`, `REJECTED`, `UNSUPPORTED`, `INVALID`,
+`EVALUATION_FAILED` e `CAPACITY`. `EVALUATION_FAILED` conserva o
+`w_seed_constir_eval_result`, counters e o diagnostic W-CONST-0003/W-CONST-0006.
+Quota não vira W-CONST-0004. `CAPACITY` não é ausência de feature e preserva
+sentinels quando a arena caller-owned é pequena. `REJECTED` publica
+W-CONST-0004 e facts de application/head, argumento, predicate, além de
+`failure = "predicate:false"` e um array caller-owned
+`rejection_trace = ["predicate:false"]`. A evidência é limitada a 64 records e
+4.096 bytes UTF-8. Esta fatia D1 armazena e publica exatamente um item de
+fallback. O item usa 15 bytes UTF-8 compartilhados para `failure` e
+`rejection_trace` na arena caller-owned. O evaluator atual não guarda execution
+dependencies para uma slice detalhada. Esta fatia D1 usa, portanto, o fallback
+inteiro permitido. A capacidade da arena é medida antes da primeira avaliação.
+
+O probe/gate source-backed usa `ServiceStage`, `canMove`, `isValidStagePath` e
+`StagePath` de [domain.w](../../reference/last-light/domain.w). Ele prova o path
+canônico como `VERIFIED` e vazio, salto e duplicata como `REJECTED`, repete o
+probe para provar determinismo e verifica quota, relações inválidas, categorias
+unsupported, Bool/integer/enum/list conversion e capacity:
+
+    bun tooling/check-seed-generic-validation.mjs
+
 O probe source-backed e o gate dedicado executam o witness `ServiceStage`,
 `canMove` e `isValidStagePath` de [domain.w](../../reference/last-light/domain.w).
 Eles repetem o lowering e a avaliação para provar determinismo de receipt,

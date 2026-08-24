@@ -943,6 +943,16 @@ static bool test_recursion_and_invalid_inputs(void) {
   CHECK(fixture_lower(value, source));
   CHECK(value->constir_result.written.functions == 1u);
   const w_seed_constir_program program = fixture_program(value);
+  /* Downstream callers use the same canonical preflight as the evaluator;
+   * recursive call graphs remain valid until the runtime quota is reached. */
+  CHECK(w_seed_constir_validate_program(&program));
+  const w_seed_constir_invocation invocation = {0u, NULL, 0u};
+  CHECK(w_seed_constir_validate_invocations(&program, &invocation, 1u));
+  CHECK(w_seed_constir_validate_invocations_in_validated_program(
+      &program, &invocation, 1u));
+  const w_seed_constir_invocation malformed_invocation = {1u, NULL, 0u};
+  CHECK(!w_seed_constir_validate_invocations_in_validated_program(
+      &program, &malformed_invocation, 1u));
   w_seed_constir_value result_value;
   w_seed_constir_eval_result result;
   w_seed_constir_eval_frame frames[8];
@@ -1073,6 +1083,7 @@ static bool test_depth_and_caller_owned_validation(void) {
       &function_copy, 1u, value->constir_parameters, 0u, value->constir_nodes,
       first + chain_count, NULL, 0u, NULL, 0u, NULL, 0u,
       &value->frontend_output, &value->frontend_result, NULL, 0u, NULL, 0u};
+  CHECK(!w_seed_constir_validate_program(&deep_program));
   CHECK(w_seed_constir_evaluate(
             &deep_program, 0u, NULL, 0u,
             (w_seed_constir_quota){SIZE_MAX, 0u, SIZE_MAX, SIZE_MAX},
@@ -1143,6 +1154,7 @@ static bool test_depth_and_caller_owned_validation(void) {
       .function_count = 1u,
       .nodes = malformed_nodes,
       .node_count = 3u};
+  CHECK(!w_seed_constir_validate_program(&malformed_program));
   CHECK(w_seed_constir_evaluate(
             &malformed_program, 0u, NULL, 0u,
             (w_seed_constir_quota){32u, 0u, 1u, SIZE_MAX}, &workspace, &output,
