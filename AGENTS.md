@@ -23,6 +23,12 @@ no bundle corrente. Use um Luna novo para um bundle independente. Confirme o
 modelo nos metadados do filho. O nome da tarefa não comprova o modelo. Não
 substitua modelo ou effort silenciosamente.
 
+Uma pausa termina quando o usuário pede para continuar ou quando o objetivo
+ativo retoma a execução. Retome o bundle imediatamente nesse caso. Não repita
+mensagens de espera sem mudança. Um timeout não é progresso e não justifica uma
+mensagem ao usuário. Siga os limites de espera e checkpoint de
+`.codex/W-WORKFLOW.md`.
+
 ## Artefatos canônicos
 
 - `DESIGN.md` é a autoridade normativa para contratos correntes, estado,

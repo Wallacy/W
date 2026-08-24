@@ -82,9 +82,21 @@ Confirme nos metadados que o filho usa Luna Max. O nome do perfil ou da tarefa
 não comprova o modelo. Se o runtime selecionar outro modelo, interrompa o filho
 e informe o usuário. Não use fallback silencioso.
 
-Sol usa uma espera longa orientada a evento. Ele não faz polling, não lê o
-contexto privado do Luna e não duplica a execução. Uma atualização sem nova
-decisão não justifica interromper a espera.
+Sol usa espera orientada a evento. Ele não lê o contexto privado do Luna e não
+duplica a execução. Um timeout não é progresso, bloqueio ou informação para o
+usuário. Sol não publica mensagens que apenas dizem que o worker continua
+ativo.
+
+Use a maior espera prática que a interface permite. Não faça busy polling. Após
+dez minutos sem evento, consulte a liveness uma vez e peça um checkpoint curto
+ao Luna. Se cinco minutos adicionais terminarem sem evento ou checkpoint,
+interrompa o Luna e preserve o worktree. Informe um único checkpoint com HEAD,
+diff, staging e arquivos não rastreados. Não reinicie esse ciclo
+automaticamente.
+
+O pacote do Luna exige um checkpoint próprio após cada gate amplo ou após dez
+minutos sem handoff, o que ocorrer primeiro. O checkpoint contém somente estado,
+último check e próximo passo. Ele não repete o contrato do bundle.
 
 ### 3. Aplicar
 
@@ -137,6 +149,17 @@ Quando o usuário acrescentar informação, Sol incorpora o delta. Ele envia o
 delta ao Luna somente quando a informação preserva o contrato ativo. Se o delta
 mudar uma premissa, Sol interrompe o worker, decide novamente e só então retoma.
 
+Uma pausa solicitada pelo usuário interrompe o worker e preserva o worktree. Uma
+mensagem posterior para continuar, ou a retomada explícita do objetivo ativo,
+encerra a pausa. Sol retoma o bundle sem pedir confirmação e sem narrar a pausa
+anterior como bloqueio.
+
+Se uma interrupção remover o contexto do Luna, Sol faz no máximo uma recuperação
+com outro Luna do mesmo modelo e effort. O pacote de recuperação contém somente
+o contrato fechado, o estado Git e o delta necessário. Se essa recuperação não
+entregar checkpoint no limite acima, Sol interrompe o worker e devolve o estado
+ao usuário. Ele não cria uma sequência de recovery workers.
+
 Depois de uma compactação, retome o plano e o estado Git. Não repita descoberta
 sem evidência de mudança no workspace.
 
@@ -181,9 +204,10 @@ Use saídas curtas:
 - diff: estatística, lista de arquivos e hunks de contrato;
 - pesquisa: uma fonte primária por afirmação técnica.
 
-Não narre buscas, leituras ou checks rotineiros. Comunique somente escopo
-inicial, decisão material, bloqueio, operação remota e resultado. Não crie um
-plano visível quando uma lista interna curta for suficiente.
+Não narre buscas, leituras, checks ou waits rotineiros. Comunique somente escopo
+inicial, decisão material, bloqueio, operação remota, checkpoint solicitado e
+resultado. Não crie um plano visível quando uma lista interna curta for
+suficiente.
 
 Depois de editar, prefira o diff à releitura integral. Agrupe comandos de
 leitura independentes somente quando todas as saídas forem necessárias. Não
