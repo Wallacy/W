@@ -6706,6 +6706,21 @@ static bool output_type_index_for_simple(frontend_context *context,
       }
     }
   }
+  /* A simple String literal carries literal spelling in its expression
+   * record, while the canonical frontend type is the declaration spelling
+   * ``String``.  Resolve by the normalized kind/metadata tuple; downstream
+   * passes receive the arena slice and never reparse this spelling. */
+  if (type.kind == W_SEED_FRONTEND_TYPE_STRING) {
+    for (size_t item = 0; item < context->count.types; item += 1u) {
+      const w_seed_frontend_type *candidate = &context->output->types[item];
+      if (candidate->kind == W_SEED_FRONTEND_TYPE_STRING &&
+          !candidate->is_signed && candidate->bit_width == 0u) {
+        if (item >= (size_t)UINT32_MAX) return false;
+        *index = (uint32_t)item;
+        return true;
+      }
+    }
+  }
   return true;
 }
 
@@ -6815,6 +6830,8 @@ static bool expression_append(frontend_expression_parser *parser,
   record.bool_value = false;
   record.has_integer_value = false;
   (void)memset(record.integer_value, 0, sizeof(record.integer_value));
+  record.const_byte_offset = W_SEED_FRONTEND_NONE;
+  record.const_byte_count = 0u;
   record.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
   record.resolved_function_index = W_SEED_FRONTEND_NONE;
   record.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
@@ -6846,6 +6863,50 @@ static bool expression_append(frontend_expression_parser *parser,
     (void)has_suffix;
     (void)is_signed;
     (void)width;
+  }
+  if (kind == W_SEED_FRONTEND_EXPR_STRING && supported) {
+    /* Keep the same source-backed subset as ConstValue String.  The
+     * downstream ConstIR pass receives bytes and a range, not literal
+     * spelling. */
+    frontend_token tokens[W_SEED_FRONTEND_MAX_NESTING * 2u];
+    size_t token_count = 0u;
+    bool simple = const_tokens_for_span(parser->document, span, tokens,
+                                        sizeof(tokens) / sizeof(tokens[0]),
+                                        &token_count);
+    for (size_t token_index = 0u; simple && token_index < token_count;
+         token_index += 1u) {
+      if (tokens[token_index].kind != W_SEED_CST_LITERAL_EVENT) simple = false;
+    }
+    const w_seed_frontend_text text = text_from_span(parser->document, span);
+    if (simple &&
+        (text.length < 2u ||
+         (text.data[0] != '"' && text.data[0] != '\'') ||
+         text.data[text.length - 1u] != text.data[0])) {
+      simple = false;
+    }
+    if (simple) {
+      for (size_t byte = 1u; byte + 1u < text.length; byte += 1u) {
+        if (text.data[byte] == '\\') {
+          simple = false;
+          break;
+        }
+      }
+    }
+    if (simple) {
+      if (text.length - 2u > (size_t)UINT32_MAX) return false;
+      uint32_t offset = W_SEED_FRONTEND_NONE;
+      if (!context_append_const_bytes(
+              parser->context, (const uint8_t *)text.data + 1u,
+              text.length - 2u, &offset))
+        return false;
+      record.const_byte_offset = offset;
+      record.const_byte_count = (uint32_t)(text.length - 2u);
+    } else {
+      supported = false;
+      (void)context_append_fact(
+          parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, span,
+          text_from_span(parser->document, span));
+    }
   }
   if (kind == W_SEED_FRONTEND_EXPR_ENUM_MEMBERSHIP &&
       value->enum_index != W_SEED_FRONTEND_NONE) {

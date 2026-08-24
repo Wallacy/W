@@ -11,8 +11,8 @@
 extern "C" {
 #endif
 
-/* Internal seed-C ConstIR D1. This is not an importable W interface. */
-#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-2"
+/* Internal seed-C ConstIR D1/D2. This is not an importable W interface. */
+#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-3"
 #define W_SEED_CONSTIR_NONE UINT32_MAX
 #define W_SEED_CONSTIR_INTEGER_BYTES 16u
 #define W_SEED_CONSTIR_MAX_PARAMETERS 256u
@@ -23,6 +23,8 @@ extern "C" {
 /* D1 validates borrowed StaticList values before execution.  This ceiling
  * bounds that caller-owned scan independently of the step quota. */
 #define W_SEED_CONSTIR_MAX_STATIC_LIST_ELEMENTS 4096u
+/* D2 accepts only bounded source-backed String values. */
+#define W_SEED_CONSTIR_MAX_STRING_BYTES 4096u
 
 typedef enum {
   W_SEED_CONSTIR_OK = 0,
@@ -44,6 +46,8 @@ typedef enum {
   W_SEED_CONSTIR_NODE_LOCAL,
   W_SEED_CONSTIR_NODE_STATIC_LIST_COUNT,
   W_SEED_CONSTIR_NODE_STATIC_LIST_INDEX,
+  /* Append-only source-backed simple String literal node. */
+  W_SEED_CONSTIR_NODE_STRING,
 } w_seed_constir_node_kind;
 
 typedef enum {
@@ -94,6 +98,8 @@ typedef enum {
   W_SEED_CONSTIR_VALUE_INTEGER,
   W_SEED_CONSTIR_VALUE_ENUM,
   W_SEED_CONSTIR_VALUE_STATIC_LIST,
+  /* Append-only borrowed source-backed String value. */
+  W_SEED_CONSTIR_VALUE_STRING,
 } w_seed_constir_value_kind;
 
 typedef struct {
@@ -143,6 +149,9 @@ typedef struct {
   /* Canonical little-endian two's-complement sign extension for signed
    * integers and zero extension for unsigned integers, limited to 128 bits. */
   uint8_t integer_value[W_SEED_CONSTIR_INTEGER_BYTES];
+  /* Canonical offset/count into frontend_output.const_bytes for String. */
+  uint32_t const_byte_offset;
+  uint32_t const_byte_count;
 } w_seed_constir_node;
 
 typedef struct {
@@ -294,6 +303,9 @@ typedef struct w_seed_constir_value {
   /* Canonical little-endian two's-complement sign extension for signed
    * integers and zero extension for unsigned integers, limited to 128 bits. */
   uint8_t integer_value[W_SEED_CONSTIR_INTEGER_BYTES];
+  /* Borrowed bytes.  The caller owns the storage and no heap is allocated. */
+  const uint8_t *string_bytes;
+  size_t string_count;
 } w_seed_constir_value;
 
 typedef struct {
@@ -399,6 +411,8 @@ bool w_seed_constir_value_static_list(
     uint32_t type_index, uint32_t element_type_index,
     const w_seed_constir_value *elements, size_t element_count,
     w_seed_constir_value *out);
+bool w_seed_constir_value_string(uint32_t type_index, const uint8_t *bytes,
+                                 size_t count, w_seed_constir_value *out);
 
 #ifdef __cplusplus
 }

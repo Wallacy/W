@@ -47,21 +47,24 @@ function parseProbe(output) {
   if (!resultLine) fail("probe has no GENERIC_RESULT line")
   const resultMatch = /^GENERIC_RESULT applications=(\d+) frontend=(\d+) constir=(\d+)$/u.exec(resultLine)
   if (!resultMatch) fail(`invalid result line: ${resultLine}`)
-  const lines = output.split(/\r?\n/u).filter((line) => line.startsWith("GENERIC app="))
+  const lines = output.split(/\r?\n/u)
+    .filter((line) => line.startsWith("GENERIC app=") || line.startsWith("STRING app="))
   const records = lines.map((line) => {
-    const match = /^GENERIC app=(\d+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) predicates=(\d+) receipts=(\d+) steps=(\d+) module=([^\s]+) head=([^\s]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) predicate_body_digest=([0-9a-f]{64})$/u.exec(line)
+    const match = /^(GENERIC|STRING) app=(\d+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) predicates=(\d+) receipts=(\d+) steps=(\d+) module=([^\s]+) head=([^\s]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) predicate_body_digest=([0-9a-f]{64})$/u.exec(line)
     if (!match) fail(`invalid application line: ${line}`)
     return {
-      application: Number(match[1]), state: match[2], failure: match[3],
-      diagnostic: Number(match[4]), predicates: Number(match[5]),
-      receipts: Number(match[6]), steps: Number(match[7]), module: match[8],
-      head: match[9], fingerprintState: match[10],
-      fingerprintDigest: match[11], predicateBodyDigest: match[12],
+      kind: match[1], application: Number(match[2]), state: match[3], failure: match[4],
+      diagnostic: Number(match[5]), predicates: Number(match[6]),
+      receipts: Number(match[7]), steps: Number(match[8]), module: match[9],
+      head: match[10], fingerprintState: match[11],
+      fingerprintDigest: match[12], predicateBodyDigest: match[13],
     }
   })
   return {
     applications: Number(resultMatch[1]), frontend: Number(resultMatch[2]),
-    constir: Number(resultMatch[3]), records,
+    constir: Number(resultMatch[3]),
+    records: records.filter((record) => record.kind === "GENERIC"),
+    stringRecords: records.filter((record) => record.kind === "STRING"),
   }
 }
 
@@ -164,28 +167,109 @@ function stagePathPreimage(names, predicateBodyDigestHex) {
   )
 }
 
+function finalCallPreimage(value, predicateBodyDigestHex) {
+  const bodyDigest = Uint8Array.from(
+    predicateBodyDigestHex.match(/../gu).map((part) => Number.parseInt(part, 16)),
+  )
+  const type = canonicalScalarType(3)
+  const valueEncoding = canonicalScalarValue(3, type, text(value))
+  return bytes(
+    textEncoder.encode("w-seed-generic-fingerprint-1"),
+    u8(0x47), text("restaurant"), text("FinalCallValue"), u32(1),
+    u8(0x41), u32(0), u8(0x02), u8(0x56), type, valueEncoding,
+    u8(0x01), bodyDigest,
+  )
+}
+
 function sha256Hex(input) {
   const hasher = new Bun.CryptoHasher("sha256")
   hasher.update(input)
   return hasher.digest("hex")
 }
 
+const fingerprintCorpus = JSON.parse(
+  await Bun.file(resolve(root, "tooling/generic-fingerprint-cases.json")).text(),
+)
+if (fingerprintCorpus.$schema !== "w-generic-fingerprint-cases-1" ||
+    !Array.isArray(fingerprintCorpus.cases))
+  fail("generic fingerprint corpus has the wrong schema")
+
+function requireCorpusCase(id, decisions, sourcePath, sourceSymbol, witnessKeys = []) {
+  const matches = fingerprintCorpus.cases.filter((entry) => entry?.id === id)
+  if (matches.length !== 1) fail(`${id} case is missing or duplicated`)
+  const entry = matches[0]
+  if (JSON.stringify(entry.decisions) !== JSON.stringify(decisions) ||
+      entry.source?.path !== sourcePath || entry.source?.symbol !== sourceSymbol ||
+      entry.oracle?.runner !== "tooling/check-seed-generic-validation.mjs" ||
+      !Array.isArray(entry.oracle?.implementations) ||
+      !entry.oracle.implementations.includes("seed C") ||
+      !entry.oracle.implementations.some((implementation) =>
+        typeof implementation === "string" && implementation.startsWith("Bun ")))
+    fail(`${id} case has incomplete decision, source, or runner evidence`)
+  for (const key of witnessKeys) {
+    if (!(key in (entry.witnesses ?? {}))) fail(`${id} case lacks ${key} witness`)
+  }
+  return entry
+}
+
+const fingerprintD1Case = requireCorpusCase(
+  "GPF0-W-1460-current", ["W-1460"],
+  "reference/last-light/domain.w", "export struct StagePath<",
+)
+const fingerprintD2Case = requireCorpusCase(
+  "GPF0-W-1461-current", ["W-1461"],
+  "reference/last-light/generics.w", "export const fn isFinalCallLabel",
+  ["positive", "rejected", "overLimit", "corrupt"],
+)
+const d1Witnesses = fingerprintD1Case.witnesses
+const d2Witnesses = fingerprintD2Case.witnesses
+if (d1Witnesses?.module !== "restaurant" ||
+    typeof d1Witnesses?.standard !== "string" ||
+    typeof d1Witnesses?.standardAgain !== "string" ||
+    typeof d1Witnesses?.cancelled !== "string" ||
+    !Array.isArray(d1Witnesses?.rejected) || d1Witnesses.rejected.length !== 3 ||
+    d2Witnesses?.module !== "restaurant" ||
+    d2Witnesses.positive?.value !== "The final seating" ||
+    d2Witnesses.positive?.duplicateCount !== 3 ||
+    d2Witnesses.positive?.alias !== "VerifiedFinalCall" ||
+    d2Witnesses.rejected?.mostlyHarmless !== "Mostly harmless" ||
+    d2Witnesses.rejected?.empty !== "" ||
+    d2Witnesses.overLimit?.byteCount !== 4097 ||
+    d2Witnesses.overLimit?.state !== "UNSUPPORTED" ||
+    d2Witnesses.overLimit?.steps !== 0 ||
+    d2Witnesses.corrupt?.field !== "first_byte" ||
+    d2Witnesses.corrupt?.relation !== "outside const_bytes" ||
+    d2Witnesses.corrupt?.state !== "INVALID" ||
+    d2Witnesses.corrupt?.steps !== 0)
+  fail("generic fingerprint corpus witnesses do not match the executable contract")
+
 const domain = await Bun.file(resolve(root, "reference/last-light/domain.w")).text()
 const generics = await Bun.file(resolve(root, "reference/last-light/generics.w")).text()
 const staticValueMarker = uniqueMarker(
   generics, "export struct StaticValue<T, _ value: T> {", "StaticValue declaration")
 const staticValueBodyMarker = uniqueMarker(
-  generics, "export const expected = value", "StaticValue associated const body")
+  generics,
+  "export struct StaticValue<T, _ value: T> {\n  export const expected = value\n}",
+  "StaticValue associated const body")
 const enabledFeatureMarker = uniqueMarker(
   generics, "export alias EnabledFeature = StaticValue<Bool, true>", "EnabledFeature alias")
 const lastCallLabelMarker = uniqueMarker(
   generics, "export alias LastCallLabel = StaticValue<String, \"The final seating\">", "LastCallLabel alias")
+const finalCallPredicateMarker = uniqueMarker(
+  generics, "export const fn isFinalCallLabel(value: String): Bool {", "FinalCallValue predicate")
+const finalCallValueMarker = uniqueMarker(
+  generics, "export struct FinalCallValue<_ value: String<(isFinalCallLabel(.member))>> {", "FinalCallValue declaration")
+const verifiedFinalCallMarker = uniqueMarker(
+  generics, "export alias VerifiedFinalCall = FinalCallValue<\"The final seating\">", "VerifiedFinalCall alias")
 const staticValueSignature = staticValueMarker
   .replace(/^export /u, "")
   .replace(/\s*\{$/u, "")
 if (!generics.includes(staticValueBodyMarker) ||
     !generics.includes(enabledFeatureMarker) ||
-    !generics.includes(lastCallLabelMarker))
+    !generics.includes(lastCallLabelMarker) ||
+    !generics.includes(finalCallPredicateMarker) ||
+    !generics.includes(finalCallValueMarker) ||
+    !generics.includes(verifiedFinalCallMarker))
   fail("generics.w markers are not present in the extracted source")
 const orderId = fragment(domain, "export type OrderId = u64", "export type GuestCount", "OrderId")
 const serviceStage = fragment(domain, "export enum ServiceStage {", "export alias CancelledStage", "ServiceStage")
@@ -202,12 +286,24 @@ const useSource = `struct Use {
   empty: StagePath<[]>
   skipped: StagePath<[.accepted, .completed]>
   duplicate: StagePath<[.accepted, .reserving, .reserving]>
+  finalCall: FinalCallValue<"The final seating">
+  finalCallAgain: FinalCallValue<"The final seating">
+  mostlyHarmless: FinalCallValue<"Mostly harmless">
+  emptyCall: FinalCallValue<"">
 }
 `
 /* The real associated-const body is verified above. The seed witness uses an
  * empty body because that body is outside this projection's current gate. */
 const staticValueProjection = `${staticValueSignature} {}\n`
-const witness = `${orderId}\n${serviceStage}\n${canMove}\n${isValidStagePath}\n${stagePath}\n${staticValueProjection}${enabledFeatureMarker}\n${lastCallLabelMarker}\n${useSource}`
+const finalCallPredicate = fragment(
+  generics, finalCallPredicateMarker, finalCallValueMarker, "FinalCallValue predicate")
+const finalCallValue = fragment(
+  generics, finalCallValueMarker, "export struct StaticWindow<", "FinalCallValue")
+const finalCallValueSignature = finalCallValueMarker
+  .replace(/\s*\{$/u, "")
+if (!finalCallValue.includes("export const expected = value"))
+  fail("FinalCallValue associated const marker is not present in the extracted source")
+const witness = `${orderId}\n${serviceStage}\n${canMove}\n${isValidStagePath}\n${stagePath}\n${finalCallPredicate}\n${finalCallValueSignature} {}\n${staticValueProjection}${enabledFeatureMarker}\n${lastCallLabelMarker}\n${verifiedFinalCallMarker}\n${useSource}`
 
 const build = await mkdtemp(join(tmpdir(), "w-seed-generic-validation-check-"))
 const witnessPath = join(build, "domain-generic-witness.w")
@@ -221,9 +317,13 @@ try {
   const secondOutput = run(executable, ["--domain-witness", witnessPath])
   if (firstOutput !== secondOutput) fail("domain witness output is not deterministic")
   const parsed = parseProbe(firstOutput)
-  if (parsed.frontend !== 0 || parsed.constir !== 0 || parsed.records.length !== 6)
+  if (parsed.frontend !== 0 || parsed.constir !== 0 ||
+      parsed.records.length !== 3 + d1Witnesses.rejected.length)
     fail("domain witness did not produce six clean StagePath applications")
-  const expected = ["VERIFIED", "VERIFIED", "VERIFIED", "REJECTED", "REJECTED", "REJECTED"]
+  const expected = [
+    "VERIFIED", "VERIFIED", "VERIFIED",
+    ...Array(d1Witnesses.rejected.length).fill("REJECTED"),
+  ]
   for (const [index, record] of parsed.records.entries()) {
     if (record.module !== "restaurant" || record.head !== "StagePath" ||
         record.state !== expected[index] || record.predicates !== 1 || record.receipts !== 1 ||
@@ -246,6 +346,63 @@ try {
       parsed.records[0].predicateBodyDigest !== parsed.records[1].predicateBodyDigest ||
       parsed.records[0].predicateBodyDigest !== parsed.records[2].predicateBodyDigest)
     fail("standard and cancelled fingerprint evidence does not match the contract")
+  const stringValues = [
+    ...Array(d2Witnesses.positive.duplicateCount).fill(d2Witnesses.positive.value),
+    d2Witnesses.rejected.mostlyHarmless, d2Witnesses.rejected.empty,
+  ]
+  if (parsed.stringRecords.length !== stringValues.length)
+    fail("FinalCallValue witness did not produce five source-backed applications")
+  for (const [index, record] of parsed.stringRecords.entries()) {
+    const expectedState = index < 3 ? "VERIFIED" : "REJECTED"
+    if (record.module !== "restaurant" || record.head !== "FinalCallValue" ||
+        record.state !== expectedState || record.predicates !== 1 ||
+        record.receipts !== 1 || record.steps === 0 ||
+        record.state === "REJECTED" &&
+          (record.failure !== "predicate:false" || record.diagnostic !== 4 ||
+           record.fingerprintState !== "NOT_AVAILABLE" ||
+           record.fingerprintDigest !== "0".repeat(64)) ||
+        record.state === "VERIFIED" &&
+          (record.failure !== "none" || record.diagnostic !== 0 ||
+           record.fingerprintState !== "AVAILABLE" ||
+           record.fingerprintDigest !==
+             sha256Hex(finalCallPreimage(stringValues[index], record.predicateBodyDigest))))
+      fail(`FinalCallValue application ${index} has wrong state or fingerprint`)
+  }
+  if (parsed.stringRecords[0].fingerprintDigest !==
+        parsed.stringRecords[1].fingerprintDigest ||
+      parsed.stringRecords[1].fingerprintDigest !==
+        parsed.stringRecords[2].fingerprintDigest ||
+      parsed.stringRecords[0].predicateBodyDigest !==
+        parsed.stringRecords[1].predicateBodyDigest)
+    fail("duplicate positive String fingerprints do not match")
+
+  const overLimitWitness = `${finalCallPredicate}\n${finalCallValueSignature} {}\n` +
+    `struct Use { over: FinalCallValue<"${"x".repeat(d2Witnesses.overLimit.byteCount)}"> }\n`
+  const overLimitPath = join(build, "domain-generic-over-limit.w")
+  await Bun.write(overLimitPath, overLimitWitness)
+  const overLimitParsed = parseProbe(
+    run(executable, ["--domain-witness", overLimitPath]),
+  )
+  if (overLimitParsed.frontend !== 0 || overLimitParsed.constir !== 0 ||
+      overLimitParsed.stringRecords.length !== 1 ||
+      overLimitParsed.stringRecords[0].state !== d2Witnesses.overLimit.state ||
+      overLimitParsed.stringRecords[0].failure !== "value" ||
+      overLimitParsed.stringRecords[0].steps !== d2Witnesses.overLimit.steps ||
+      overLimitParsed.stringRecords[0].fingerprintState !== "NOT_AVAILABLE" ||
+      overLimitParsed.stringRecords[0].fingerprintDigest !== "0".repeat(64))
+    fail("over-limit String application did not stop before evaluation")
+
+  const corruptOutput = run(executable, ["--domain-witness-corrupt", witnessPath])
+  const corruptLine = corruptOutput.split(/\r?\n/u)
+    .find((line) => line.startsWith("STRING_CORRUPT "))
+  const corruptMatch = /^STRING_CORRUPT state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64})$/u
+    .exec(corruptLine ?? "")
+  if (!corruptMatch || corruptMatch[1] !== d2Witnesses.corrupt.state ||
+      corruptMatch[2] !== "invalid-input" || corruptMatch[3] !== "0" ||
+      corruptMatch[4] !== String(d2Witnesses.corrupt.steps) ||
+      corruptMatch[5] !== "NOT_AVAILABLE" ||
+      corruptMatch[6] !== "0".repeat(64))
+    fail("corrupt String arena relation was not rejected in preflight")
   const staticRecords = firstOutput.split(/\r?\n/u)
     .filter((line) => line.startsWith("STATIC "))
     .map((line) => {

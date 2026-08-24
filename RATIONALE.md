@@ -1123,8 +1123,10 @@ dependentes. `CONCRETE` usa o domínio declarado; `DEPENDENT` usa somente o
 status, índice e a igualdade de tipo do `ConstValue`. O tipo concreto resolvido
 é codificado no preimage, sem nome `T`, índice process-local ou spelling. Por
 isso `StaticValue<Bool, true>` e `StaticValue<String, "The final seating">`
-sem predicate são evidence verificável e fingerprintável. String ainda fica
-fora da conversão D1 quando precisa alimentar um predicate.
+sem predicate são evidence verificável e fingerprintável. W-1461 fecha uma
+extensão D2 separada para predicate `String` simples, bounded e borrowed; a
+conversão continua rejeitando escapes, interpolation, over-limit e outras
+features fora do subset.
 
 A evidence é reproduzível no witness real de
 `reference/last-light/domain.w`, com module id `restaurant`:
@@ -1134,12 +1136,13 @@ salto e duplicata continuam rejeitados e sem fingerprint. O gate Bun
 reconstrói os bytes e calcula SHA-256 de forma independente, além do teste C,
 para evitar que um golden emitido pelo C seja a única autoridade.
 
-O gate também lê `reference/last-light/generics.w`, verifica uma vez a
-assinatura de `StaticValue`, o body `export const expected = value` e os aliases
-`EnabledFeature`/`LastCallLabel`. Como o body de associated const ainda está
-fora da projeção seed, ele deriva um witness temporário com a assinatura real e
-body `{}`; o gate não afirma que `generics.w` inteiro compila. O reconstrutor
-Bun calcula, de forma independente, os preimages Bool e String desse witness.
+O gate também lê `reference/last-light/generics.w`, verifica uma vez as
+assinaturas de `StaticValue`, `isFinalCallLabel` e `FinalCallValue`, o body
+`export const expected = value` e os aliases `EnabledFeature`/`LastCallLabel`/
+`VerifiedFinalCall`. Como o body de associated const ainda está fora da
+projeção seed, ele deriva witnesses temporários com a assinatura real e body
+`{}`; o gate não afirma que `generics.w` inteiro compila. O reconstrutor Bun
+calcula, de forma independente, os preimages Bool e String desses witnesses.
 
 Alternativas rejeitadas:
 
@@ -1153,6 +1156,33 @@ Alternativas rejeitadas:
   quota, capacity, rejeição ou avaliação parcial não podem produzir evidence;
 - confiar somente no C, pois um segundo reconstrutor precisa conferir o
   preimage exato e preservar determinismo entre execuções.
+
+#### 1.3.21.1 String source-backed em predicates genéricos (W-1461)
+
+**Motivação:** DESIGN §3.6.7 já inclui `String` em CE0, mas a conversão D1 do
+seed não alcançava um predicate. W-1461 fecha somente essa lacuna executável
+source-backed no seed C. O Restaurante fornece um witness natural: a chamada
+final recebe `"The final seating"` e a função const compara o valor com `==`.
+
+A solução preserva a superfície W. Não cria keyword, operator ou API pública;
+usa somente declarations normais no `Last Light`. O frontend normaliza o
+literal fechado para bytes UTF-8 na arena `const_bytes`, com campos append-only
+e transação all-or-nothing. ConstIR guarda offset/count no node e bytes
+borrowed no value. O limite de 4.096 bytes torna quota, lifetime e digest
+bounded sem allocation ou heap quota. O body digest inclui tag, length e bytes
+canônicos, e o bump `w-seed-constir-3` versiona os digests de propósito.
+
+O subset é deliberadamente estreito: literal simples, parâmetro/local e
+`==`/`!=`; ordering, concatenação, member/index, String result,
+escapes/interpolation, Unicode APIs, Bytes, imported predicate/head, computed
+generic arguments, identity final, compiler, runtime e self-host permanecem
+fora. Over-limit e feature não lowerable retornam `UNSUPPORTED` antes de
+evaluation. Arena, pointer/count, relation ou type corruption retorna
+`INVALID` no preflight. Um resultado verdadeiro é `VERIFIED` com fingerprint;
+um falso é `REJECTED` com `W-CONST-0004` e fingerprint indisponível. As
+alternativas de implementar String completa, reparsear spelling ou fazer
+avaliação downstream sem o validator canônico foram rejeitadas por ampliar a
+superfície, quebrar determinismo ou ocultar corrupção.
 
 #### 1.3.22 Subject de refinement
 
@@ -6920,6 +6950,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1458 | crypto e secrets scoped | app crypto passa por package/provider capability ligada pelo deployment. Algorithm/profile são typed e pinned, sem string/fallback/downgrade. Secret/key handle é opaque, nonextractable por default, purpose/audience/generation scoped e move-only. Lifecycle tem dois caminhos: acquire→active→revoking→revoked→released para revoke/rotation, ou acquire→active→expired→released para expiry. Revoke fecha nova admission e drena operações admitidas. Host controla rotation/expiry/zeroization. Secret não entra em wire/storage/log/diagnostic/receipt | oracle-backed-current; AEG0-W-1458-current fecha lifecycle e rejeita plaintext/env lookup, secret wire e downgrade |
 | W-1459 | baseline portátil de `std.simd` | `Simd<Element, lanes: usize>` e `SimdMask<_ lanes: usize>`, lanes `1...64`, label required somente em Simd e optional em mask com aplicação `SimdMask<16>`, Element escalar fechado com `Bool` em mask, sequence target-independent, layout opaco, scalar fallback obrigatório, mask `splat(Bool) -> SimdMask<N>`/`fromArray([Bool; N]) -> SimdMask<N>`/`toArray() -> [Bool; N]` sem allocation, `all`/`any`/`none` retornam `Bool` e `countTrue` retorna `UInt`, load borrow source e store destination `inout` com partial tail total e preflight, arithmetic lane-wise condicionado ao scalar Element, floats sem bitwise/shift/overflow APIs, integer overflow mask por lane, masks com bitwise operators, reductions nomeadas em ordem/policy (`reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`, `reduceBitOr`, `reduceBitXor`) e float `ReductionMode` obrigatório (`strict` left fold, `reproducible` árvore balanceada v1, `fast` sem igualdade de bits cross-backend; omission/positional/wrong-label/wrong-arity de mode: usa W-LABEL-0005 e repetição usa W-LABEL-0006), static swizzle com count-first em `1...64`, duplicata e primeiro OOB em source order, e `w explain performance` com lowering facts | oracle-backed-current; SIMD1-W-1459-current fecha o contrato host-only e rejeita width/layout nativo, Bool lane, dynamic shuffle, alignment flag, write antes de bounds failure, short-circuit e performance universal |
 | W-1460 | fingerprint semântico pós-validação de generic D1 | evidence interna versionada `w-seed-generic-fingerprint-1`: preimage canônico independente de spans/indices/source spelling, validação/preflight antes da avaliação, `VERIFIED` + `AVAILABLE` somente após todos os predicates true, `VERIFIED` fora do subconjunto + `UNSUPPORTED`, demais estados + `NOT_AVAILABLE`/bytes zero; witness `restaurant` com standard duplicado, cancelled, vazio, salto e duplicata; C e Bun reconstrutores independentes | oracle-backed-current; `GPF0-W-1460-current` usa fragments reais de Last Light, seed C e oráculo Bun independente; usar spans/indices/source spelling, chamar digest de `TypeId`/cache key/identidade, emitir antes de `VERIFIED` ou confiar somente no C; digests diferentes implicam preimages diferentes, mas digest igual isolado sem preimage não prova igualdade nem identidade collision-safe; a identidade final ainda exige declaration digest, witnesses, target/profile/edition/compiler/bundle versions e dados canônicos |
+| W-1461 | evidência D2 String source-backed em generic predicates | D2 source-backed bounded de `String` em predicates genéricos: literal simples até 4.096 bytes, `==`/`!=`, preflight canônico, `VERIFIED`/`REJECTED`/`UNSUPPORTED`/`INVALID` e fingerprint Bun independente | oracle-backed-current; `GPF0-W-1461-current` liga diretamente os markers reais de `generics.w`, `isFinalCallLabel`, positivos duplicados, rejeitados, empty, over-limit, corrupção e digests Bun ao gate independente `tooling/check-seed-generic-validation.mjs`; o caso não afirma String completa, compiler, runtime ou self-host |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,

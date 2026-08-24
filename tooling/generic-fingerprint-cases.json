@@ -30,6 +30,47 @@
         "determinism": "standard e standardAgain são executados em duas passagens e comparados pelo oracle independente."
       },
       "scope": "Evidence local da projeção definida em DESIGN.md §8.7.12; não é compiler completo, runtime ou identidade final."
+    },
+    {
+      "id": "GPF0-W-1461-current",
+      "decisions": ["W-1461"],
+      "source": {
+        "path": "reference/last-light/generics.w",
+        "symbol": "export const fn isFinalCallLabel"
+      },
+      "description": "Corpus mínimo para a evidence D2 source-backed de predicates genéricos String bounded.",
+      "witnesses": {
+        "module": "restaurant",
+        "positive": {
+          "value": "The final seating",
+          "duplicateCount": 3,
+          "alias": "VerifiedFinalCall"
+        },
+        "rejected": {
+          "mostlyHarmless": "Mostly harmless",
+          "empty": ""
+        },
+        "overLimit": {
+          "byteCount": 4097,
+          "state": "UNSUPPORTED",
+          "steps": 0
+        },
+        "corrupt": {
+          "field": "first_byte",
+          "relation": "outside const_bytes",
+          "state": "INVALID",
+          "steps": 0
+        }
+      },
+      "oracle": {
+        "runner": "tooling/check-seed-generic-validation.mjs",
+        "implementations": [
+          "seed C",
+          "Bun com reconstrução independente dos bytes canônicos e SHA-256"
+        ],
+        "determinism": "positive duplicate fingerprints, rejected zero fingerprints, over-limit and corrupt zero-step outcomes are checked by the C and Bun gate."
+      },
+      "scope": "Evidence local D2 para literal String simples UTF-8 <= 4.096 bytes e ==/!=; não é String completa, compiler, runtime ou identidade final."
     }
   ]
 }

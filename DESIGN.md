@@ -3319,6 +3319,14 @@ ConstIR preserva type, span, call edge, numeric policy e target dependency.
 Valores finais viram attributes HIR. O adapter W/MLIR materializa constants
 adequados ao tipo.
 
+A projeção seed C D2 (W-1461) acrescenta uma fatia source-backed bounded para
+predicates sobre `String`. O frontend publica, em `w-seed-frontend-4`, o
+offset/count normalizado de uma literal simples na arena `const_bytes`; o
+ConstIR `w-seed-constir-3` carrega esse slice como bytes borrowed, sem
+allocation e com heap quota zero. O limite é 4.096 bytes. Essa fatia não é
+String completa, não cria operator ou API W e não altera o lowering geral de
+ConstIR.
+
 A interface de um `const fn` exportado inclui ConstIR normalizada e digest. Um
 importer não precisa do source original para avaliar uma call:
 
@@ -7219,8 +7227,8 @@ O preflight read-only chama o validador canônico do programa ConstIR uma vez e
 valida todas as relações da aplicação antes da primeira avaliação. Assim uma
 relação posterior inválida não deixa execução parcial observável.
 
-Quando um predicate precisa receber o value, o conjunto D1 de conversão é
-fechado:
+Quando um predicate precisa receber o value, a conversão D1 é fechada e a
+extensão D2 de `String` é limitada ao mesmo boundary caller-owned:
 
 - `Bool`.
 - integer com width e signedness explícitos, convertido para os bytes
@@ -7228,9 +7236,41 @@ fechado:
 - enum case payloadless, inclusive membro válido de enum subset.
 - `StaticList` de enum cases payloadless, com ordem e duplicatas preservadas.
 
-String, `TYPED_PENDING_CONST`, expressions calculadas e qualquer categoria fora
-deste conjunto que precise dessa conversão são `UNSUPPORTED`. Função ausente ou
-não lowerable também é `UNSUPPORTED`. Uma
+Para `String`, `w-seed-frontend-4` acrescenta somente campos append-only
+`const_byte_offset`/`const_byte_count` em `w_seed_frontend_expression`.
+Literais simples fechadas, formadas apenas por literal events, sem escape ou
+interpolation, referenciam bytes UTF-8 canônicos em `const_bytes`. O offset é
+`W_SEED_FRONTEND_NONE` para qualquer outro kind; a string vazia usa offset
+válido e count zero. Dry-run, capacity, run e receipt mantêm a transação
+all-or-nothing e não fazem reparse de spelling downstream.
+
+`w-seed-constir-3` adiciona node/value kind `String`. O node guarda somente o
+offset/count canônico da arena frontend e o value guarda bytes borrowed/count.
+O validator exige type `String`, relação de range/pointer válida e no máximo
+4.096 bytes; count zero pode usar pointer `NULL`. Esses valores não alocam e
+consomem heap quota zero. Literais e argumentos acima de 4.096 bytes, escapes,
+interpolation e features não lowerable são `UNSUPPORTED` antes de evaluation,
+sem truncamento. Offset/count fora da arena, pointer/count incoerentes e
+type mismatch são `INVALID` antes de evaluation.
+
+O lowering/evaluator aceita `String` somente como literal simples,
+parameter/local e operand de `==` ou `!=`. A comparação usa length seguido de
+`memcmp` dos bytes UTF-8. Ordering, concatenação, member/index, resultado
+`String`, `Bytes` e outras operações permanecem fora. O body digest inclui uma
+tag estável, `u32 length` e os bytes canônicos, mas exclui span, trivia e
+spelling. O bump `w-seed-constir-3` muda digests de body por versionamento
+intencional.
+
+Generic validation converte um `ConstValue String` type-correct e bounded para
+esse value borrowed, usa o validator canônico e então o evaluator normal.
+`VERIFIED` publica `FINGERPRINT_AVAILABLE`; `REJECTED` publica
+`W-CONST-0004` e `FINGERPRINT_NOT_AVAILABLE`; todos os resultados não-
+`VERIFIED` mantêm digest zero. Over-limit e feature não lowerable são
+`UNSUPPORTED`; corrupção de arena, type ou relação é `INVALID`, sempre antes
+de qualquer step.
+
+`TYPED_PENDING_CONST`, expressions calculadas e qualquer categoria fora deste
+conjunto continuam `UNSUPPORTED`. Função ausente ou não lowerable também é `UNSUPPORTED`. Uma
 relação malformada, índice fora do range, função frontend duplicada, arity ou
 tipo de retorno incompatível é `INVALID`. Cada lista D1 suporta até 4.096
 elementos. A travessia e a validação estrutural caller-owned têm depth máximo
@@ -7274,13 +7314,15 @@ canônico concreto resolvido; não codifica o nome `T`, o índice process-local 
 o spelling do domínio. O argumento `TYPE` anterior permanece em seu próprio
 slot e o argumento value conserva seu ordinal.
 
-`String` sem predicate pode ser validado e fingerprintado quando seu
-`ConstValue` é source-backed e imediato. `String` que precisa ser convertido
-para um predicate continua `UNSUPPORTED`, pois a conversão ConstIR D1 não
-inclui String.
+`String` sem predicate continua validável e fingerprintável quando seu
+`ConstValue` é source-backed e imediato. D2 fecha somente a lacuna de
+predicates genéricos simples; não implementa String completa em ConstIR,
+Unicode APIs, escapes/interpolation, imported predicate/head, computed generic
+arguments, identity final, compiler/runtime ou self-host.
 
 O gate source-backed lê [`reference/last-light/domain.w`](reference/last-light/domain.w)
-uma vez pelo pipeline seed e executa
+e os markers exatos de `reference/last-light/generics.w` uma vez pelo pipeline
+seed e executa
 [`tooling/check-seed-generic-validation.mjs`](tooling/check-seed-generic-validation.mjs).
 
 Esta fronteira não promove o seed C a compiler W completo. Imported heads,
@@ -7340,7 +7382,8 @@ efetivo concreto resolvido pelo argumento `TYPE` anterior da aplicação. O
 domínio declarado dependente e o spelling `T` não entram no preimage. Assim,
 `StaticValue<Bool, true>` e `StaticValue<String, "The final seating">` sem
 predicate podem ser `VERIFIED` com `FINGERPRINT_AVAILABLE`; a forma String com
-predicate permanece `UNSUPPORTED` pela fronteira de conversão D1 de §8.7.11.
+predicate simples usa a conversão D2 bounded de §8.7.11, enquanto escapes,
+interpolation, over-limit e outras features continuam fora do subset.
 
 Um canonical type começa com tag `0x74` e um kind estável: 1 UNIT,
 2 BOOL, 3 STRING, 4 BYTES, 5 INTEGER, 6 FLOAT, 7 OPTION, 8 NOMINAL,
@@ -30207,6 +30250,7 @@ evidência de design:
 | services, wire e recovery | B0 e SR0 fecham turn, gates, queue bounded, deduplication, recovery e faults; wWire tem baseline | fechar wire byte-exact, flow control e adapters reais com fault injection |
 | packages e releases | P0 fecha resolver, lock, CAS, recipe, mirror e rebuild | fechar prerelease, trust, archive safety e rebuild independente |
 | bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
+| seed C generic validation | §8.7.11/§8.7.12 fecham D1 e a projeção D2 source-backed de `String` simples, bounded e sem nova superfície W | manter gates C/Bun, receipts e digests versionados; compiler, runtime e self-host continuam implementation evidence gaps |
 | ergonomia comparativa | R0/R0S/R1 guardam substituições e variantes observáveis | ratificar formas que ainda mudam source ou registrar waiver motivado |
 
 #### 24.4.0 Fechamento PRC0 de gates de pesquisa
@@ -30809,7 +30853,8 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - schemas genéricos, aplicações de type e value e `ConstValue` normalizado no
   frontend tipado;
 - substituição pós-frontend no grafo const, avaliação de predicates por ConstIR
-  e projeção bounded de `ConstRejectionSlice`;
+  e projeção bounded de `ConstRejectionSlice`, incluindo a fatia D2
+  source-backed de `String` simples em `==`/`!=`;
 - rest signatures, call-shape intersection e `each` expansion;
 - synthesis core, `TypeId` e interfaces de reflection;
 - grafo const, ConstIR, quotas e ConstValue;
