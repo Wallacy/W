@@ -1794,6 +1794,11 @@ static bool test_generic_applications(void) {
         stage->const_elements[0].owner_value == 0u &&
         stage->const_elements[1].ordinal == 1u &&
         stage->const_elements[2].owner_value == 4u);
+  /* A StaticList generic argument points at its parent ConstValue.  This
+   * keeps empty and non-empty lists on the same normalized relation. */
+  CHECK(stage->generic_arguments[0].const_value_index == 0u &&
+        stage->generic_arguments[1].const_value_index == 3u &&
+        stage->generic_arguments[2].const_value_index == 4u);
   CHECK(stage->generic_arguments[0].label.length == 0u &&
         stage->generic_arguments[2].label.length == 6u &&
         stage->generic_applications[0].binding_status ==

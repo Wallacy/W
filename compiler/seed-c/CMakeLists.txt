@@ -18,6 +18,7 @@ add_library(w_seed_source STATIC
   src/w_seed_diagnostic.c
   src/w_seed_frontend.c
   src/w_seed_constir.c
+  src/w_seed_generic_validation.c
 )
 
 target_include_directories(w_seed_source
@@ -124,6 +125,11 @@ add_executable(w_seed_constir_tests
 )
 target_link_libraries(w_seed_constir_tests PRIVATE w_seed_source)
 
+add_executable(w_seed_generic_validation_tests
+  tests/test_generic_validation.c
+)
+target_link_libraries(w_seed_generic_validation_tests PRIVATE w_seed_source)
+
 add_executable(w_seed_frontend_tests
   tests/test_frontend.c
 )
@@ -148,6 +154,7 @@ if(MSVC)
   target_compile_options(w_seed_frontend_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_constir_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_constir_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_generic_validation_tests PRIVATE /W4 /WX)
 else()
   target_compile_options(w_seed_source_tests PRIVATE
     -Wall
@@ -311,6 +318,15 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_generic_validation_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
 endif()
 
 enable_testing()
@@ -323,3 +339,4 @@ add_test(NAME w_seed_diagnostic_unit COMMAND w_seed_diagnostic_tests)
 add_test(NAME w_seed_foreign_unit COMMAND w_seed_foreign_tests)
 add_test(NAME w_seed_frontend_unit COMMAND w_seed_frontend_tests)
 add_test(NAME w_seed_constir_unit COMMAND w_seed_constir_tests)
+add_test(NAME w_seed_generic_validation_unit COMMAND w_seed_generic_validation_tests)
