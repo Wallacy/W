@@ -70,6 +70,23 @@ Concluído quando: checks, diff, commit e estado Git esperados.
 Retorno: resultado, arquivos, checks, riscos e diff resumido.
 ```
 
+O pacote é finito. Ele não usa objetivos como “continue pesquisando” ou “melhore
+até ficar pronto”. Ele define milestones ordenados, condições observáveis de
+conclusão e uma cadência de status. A cadência padrão é dez minutos. Um bundle
+pode durar horas quando os checkpoints mostram avanço verificável.
+
+Cada checkpoint do Luna contém somente:
+
+- milestone atual e último milestone concluído;
+- último check executado e seu resultado;
+- próximo passo finito;
+- bloqueio ou nova premissa, quando existir.
+
+O Luna envia um checkpoint ao concluir cada milestone ou quando a cadência
+expira, o que ocorrer primeiro. Se o Sol pedir status, o Luna responde no próximo
+boundary de mensagem antes de executar mais trabalho. A resposta não repete o
+contrato do bundle.
+
 ### 2. Criar o worker
 
 Crie exatamente um `w_luna_worker` com contexto novo. Selecione o perfil quando
@@ -87,16 +104,19 @@ duplica a execução. Um timeout não é progresso, bloqueio ou informação par
 usuário. Sol não publica mensagens que apenas dizem que o worker continua
 ativo.
 
-Use a maior espera prática que a interface permite. Não faça busy polling. Após
-dez minutos sem evento, consulte a liveness uma vez e peça um checkpoint curto
-ao Luna. Se cinco minutos adicionais terminarem sem evento ou checkpoint,
-interrompa o Luna e preserve o worktree. Informe um único checkpoint com HEAD,
-diff, staging e arquivos não rastreados. Não reinicie esse ciclo
-automaticamente.
+Use a maior espera prática que a interface permite. Não faça busy polling. Sol
+fica silencioso entre eventos do Luna. Quando a cadência expira sem checkpoint,
+Sol envia um único pedido de status. O Luna responde antes de continuar.
 
-O pacote do Luna exige um checkpoint próprio após cada gate amplo ou após dez
-minutos sem handoff, o que ocorrer primeiro. O checkpoint contém somente estado,
-último check e próximo passo. Ele não repete o contrato do bundle.
+Se o pedido não receber resposta em cinco minutos, Sol consulta a liveness uma
+vez. Se o Luna ainda estiver executando, Sol o interrompe somente para obter o
+checkpoint e retoma o mesmo agente depois da resposta. Essa interrupção não
+abandona o bundle e não cria outro worker.
+
+Duração isolada não é motivo para parar. Três checkpoints consecutivos no mesmo
+milestone, sem novo diff, check ou fato, indicam ausência de progresso. Nesse
+caso, Sol interrompe o worker, preserva o worktree e decide a causa antes de
+retomar. Sol informa o usuário uma vez, com evidência concreta.
 
 ### 3. Aplicar
 

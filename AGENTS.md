@@ -29,6 +29,11 @@ mensagens de espera sem mudança. Um timeout não é progresso e não justifica 
 mensagem ao usuário. Siga os limites de espera e checkpoint de
 `.codex/W-WORKFLOW.md`.
 
+Toda tarefa de subagente deve ser finita. O pacote define milestones e uma
+cadência de status. O subagente responde a um pedido de status antes de continuar
+a execução. Um trabalho pode durar horas quando seus checkpoints mostram
+progresso verificável.
+
 ## Artefatos canônicos
 
 - `DESIGN.md` é a autoridade normativa para contratos correntes, estado,
