@@ -2766,8 +2766,14 @@ static bool validate_statement_structure(
 }
 
 static bool validate_program(const w_seed_constir_program *program) {
-  if (program == NULL || program->functions == NULL ||
-      program->function_count == 0) return false;
+  if (program == NULL) return false;
+  if (program->function_count == 0u)
+    return program->parameter_count == 0u && program->node_count == 0u &&
+           program->call_argument_count == 0u &&
+           program->switch_arm_count == 0u &&
+           program->membership_case_count == 0u &&
+           program->statement_count == 0u && program->local_count == 0u;
+  if (program->functions == NULL) return false;
   if ((program->parameter_count != 0 && program->parameters == NULL) ||
       (program->node_count != 0 && program->nodes == NULL)) return false;
   for (size_t index = 0; index < program->function_count; index += 1) {
@@ -3269,9 +3275,15 @@ bool w_seed_constir_validate_program(const w_seed_constir_program *program) {
 bool w_seed_constir_validate_invocations_in_validated_program(
     const w_seed_constir_program *program,
     const w_seed_constir_invocation *invocations, size_t invocation_count) {
-  if (program == NULL || program->functions == NULL ||
-      (invocation_count != 0u && invocations == NULL))
+  if (program == NULL || (invocation_count != 0u && invocations == NULL))
     return false;
+  if (program->function_count == 0u)
+    return invocation_count == 0u && program->parameter_count == 0u &&
+           program->node_count == 0u && program->call_argument_count == 0u &&
+           program->switch_arm_count == 0u &&
+           program->membership_case_count == 0u &&
+           program->statement_count == 0u && program->local_count == 0u;
+  if (program->functions == NULL) return false;
   for (size_t index = 0u; index < invocation_count; index += 1u) {
     const w_seed_constir_invocation *invocation = &invocations[index];
     if (invocation->function_index >= program->function_count ||

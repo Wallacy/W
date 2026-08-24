@@ -22,6 +22,7 @@ typedef struct {
   uint32_t argument_index;
   uint32_t argument_const_value_index;
   uint32_t parameter_index;
+  uint32_t effective_domain_type_index;
   uint32_t predicate_function_index;
   uint32_t predicate_constir_index;
   uint32_t value_index;
@@ -539,10 +540,19 @@ static bool parameter_relation_valid(const validation_context *context,
       !text_valid(parameter->internal_name))
     return false;
   if (parameter->kind == W_SEED_FRONTEND_GENERIC_KIND_VALUE) {
-    if (parameter->domain_type == W_SEED_FRONTEND_NONE ||
-        !type_index_valid(context, parameter->domain_type) ||
-        (parameter->domain_kind != W_SEED_FRONTEND_GENERIC_DOMAIN_CONCRETE &&
-         parameter->domain_kind != W_SEED_FRONTEND_GENERIC_DOMAIN_DEPENDENT))
+    if (parameter->domain_kind != W_SEED_FRONTEND_GENERIC_DOMAIN_CONCRETE &&
+        parameter->domain_kind != W_SEED_FRONTEND_GENERIC_DOMAIN_DEPENDENT)
+      return false;
+    if (parameter->domain_kind == W_SEED_FRONTEND_GENERIC_DOMAIN_CONCRETE &&
+        (parameter->domain_type == W_SEED_FRONTEND_NONE ||
+         !type_index_valid(context, parameter->domain_type) ||
+         parameter->dependent_type_parameter_ordinal !=
+             W_SEED_FRONTEND_NONE))
+      return false;
+    if (parameter->domain_kind == W_SEED_FRONTEND_GENERIC_DOMAIN_DEPENDENT &&
+        (parameter->domain_type != W_SEED_FRONTEND_NONE ||
+         parameter->dependent_type_parameter_ordinal ==
+             W_SEED_FRONTEND_NONE))
       return false;
     if (parameter->refinement_kind ==
         W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE) {
@@ -585,6 +595,74 @@ static bool parameter_relation_valid(const validation_context *context,
     return false;
   }
   if (out != NULL) *out = parameter;
+  return true;
+}
+
+/* Resolve the concrete domain consumed by a value slot without changing any
+ * frontend record.  A dependent domain is valid only when it names a prior
+ * TYPE argument in this exact application and that argument was bound
+ * immediately. */
+static bool effective_domain_type_index(
+    const validation_context *context,
+    const w_seed_frontend_generic_application *application, uint32_t offset,
+    uint32_t *out) {
+  if (out != NULL) *out = W_SEED_FRONTEND_NONE;
+  if (context == NULL || context->input == NULL || application == NULL ||
+      out == NULL ||
+      context->frontend == NULL || context->frontend_result == NULL ||
+      context->frontend->generic_arguments == NULL ||
+      context->frontend->generic_parameters == NULL ||
+      context->frontend->structs == NULL ||
+      application->head_struct >= context->frontend_result->written.structs ||
+      !range_valid(application->first_argument, application->argument_count,
+                   context->frontend_result->written.generic_arguments) ||
+      offset >= application->argument_count)
+    return false;
+  const w_seed_frontend_generic_parameter *parameter = NULL;
+  if (!parameter_relation_valid(context, application, offset, &parameter) ||
+      parameter == NULL ||
+      parameter->kind != W_SEED_FRONTEND_GENERIC_KIND_VALUE)
+    return false;
+  if (parameter->domain_kind == W_SEED_FRONTEND_GENERIC_DOMAIN_CONCRETE) {
+    if (parameter->dependent_type_parameter_ordinal !=
+            W_SEED_FRONTEND_NONE ||
+        parameter->domain_type == W_SEED_FRONTEND_NONE ||
+        !type_index_valid(context, parameter->domain_type))
+      return false;
+    *out = parameter->domain_type;
+    return true;
+  }
+  if (parameter->domain_kind != W_SEED_FRONTEND_GENERIC_DOMAIN_DEPENDENT ||
+      parameter->dependent_type_parameter_ordinal >= offset ||
+      parameter->dependent_type_parameter_ordinal >= application->argument_count)
+    return false;
+  const uint32_t dependent_offset =
+      parameter->dependent_type_parameter_ordinal;
+  const w_seed_frontend_struct *head =
+      &context->frontend->structs[application->head_struct];
+  const w_seed_frontend_generic_parameter *dependent_parameter = NULL;
+  if (!parameter_relation_valid(context, application, dependent_offset,
+                                &dependent_parameter) ||
+      dependent_parameter == NULL ||
+      dependent_parameter->kind != W_SEED_FRONTEND_GENERIC_KIND_TYPE)
+    return false;
+  const w_seed_frontend_generic_argument *dependent_argument =
+      &context->frontend->generic_arguments[(size_t)application->first_argument +
+                                             dependent_offset];
+  if (dependent_argument->owner_application !=
+          context->input->application_index ||
+      dependent_argument->source_ordinal != dependent_offset ||
+      dependent_argument->parameter_ordinal != dependent_offset ||
+      dependent_argument->parameter_index !=
+          head->first_generic_parameter + dependent_offset ||
+      dependent_argument->kind != W_SEED_FRONTEND_GENERIC_ARGUMENT_TYPE ||
+      dependent_argument->binding_status !=
+          W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE ||
+      dependent_argument->type_index == W_SEED_FRONTEND_NONE ||
+      !type_index_valid(context, dependent_argument->type_index) ||
+      dependent_argument->const_value_index != W_SEED_FRONTEND_NONE)
+    return false;
+  *out = dependent_argument->type_index;
   return true;
 }
 
@@ -648,9 +726,15 @@ static bool application_relations_valid(
         argument->binding_status > W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE)
       return false;
     if (value_kind) {
-      if (argument->const_value_index == W_SEED_FRONTEND_NONE ||
+      uint32_t effective_domain = W_SEED_FRONTEND_NONE;
+      if (argument->type_index != W_SEED_FRONTEND_NONE ||
+          !effective_domain_type_index(context, application, offset,
+                                       &effective_domain) ||
+          argument->const_value_index == W_SEED_FRONTEND_NONE ||
           !frontend_const_value_relation_valid(context,
                                                argument->const_value_index, 1u) ||
+          context->frontend->const_values[argument->const_value_index]
+                  .type_index != effective_domain ||
           !span_contains(argument->span,
                          context->frontend
                              ->const_values[argument->const_value_index]
@@ -836,7 +920,7 @@ static bool predicate_frontend_signature_valid(
          text_valid(parameter->name) && text_valid(parameter->label) &&
          span_contains(function->span, parameter->span) &&
          predicate_parameter_type_compatible(context, parameter->type_index,
-                                              candidate->parameter->domain_type,
+                                              candidate->effective_domain_type_index,
                                               1u);
 }
 
@@ -1383,19 +1467,20 @@ static fingerprint_encode_status fingerprint_application(
       if (status == FINGERPRINT_INVALID) return status;
       continue;
     }
-    if (parameter->kind != W_SEED_FRONTEND_GENERIC_KIND_VALUE ||
-        parameter->domain_type == W_SEED_FRONTEND_NONE)
+    if (parameter->kind != W_SEED_FRONTEND_GENERIC_KIND_VALUE)
       return FINGERPRINT_INVALID;
     fingerprint_u8(builder, 2u);
     fingerprint_u8(builder, 0x56u);
-    if (parameter->domain_kind == W_SEED_FRONTEND_GENERIC_DOMAIN_DEPENDENT)
-      fingerprint_mark_unsupported(builder);
+    uint32_t effective_domain_type = W_SEED_FRONTEND_NONE;
+    if (!effective_domain_type_index(context, application, offset,
+                                     &effective_domain_type))
+      return FINGERPRINT_INVALID;
     status = fingerprint_type(context, application->module_index,
-                              parameter->domain_type, builder, 1u);
+                              effective_domain_type, builder, 1u);
     if (status == FINGERPRINT_INVALID) return status;
     status = fingerprint_const_value(
         context, application->module_index, argument->const_value_index,
-        parameter->domain_type, builder, 1u);
+        effective_domain_type, builder, 1u);
     if (status == FINGERPRINT_INVALID) return status;
     if (parameter->refinement_kind == W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE) {
       fingerprint_u8(builder, 0u);
@@ -1557,6 +1642,11 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
     candidate->parameter_index = argument->parameter_index;
     candidate->argument = argument;
     candidate->parameter = parameter;
+    if (!effective_domain_type_index(&context, application, offset,
+                                     &candidate->effective_domain_type_index)) {
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+      return result->state;
+    }
     if (!frontend_function_index_valid(
             &context, candidate->parameter->predicate_function_index)) {
       result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
@@ -1618,7 +1708,7 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
     size_t value_count = 0u;
     const conversion_status count_status = conversion_value_count(
         &context, candidates[index].argument_const_value_index,
-        candidates[index].parameter->domain_type, &value_count);
+        candidates[index].effective_domain_type_index, &value_count);
     if (count_status == CONVERSION_UNSUPPORTED) {
       result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
       result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_VALUE;
@@ -1652,7 +1742,7 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
   for (size_t index = 0u; index < candidate_count; index += 1u) {
     const conversion_status conversion = convert_const_value(
         &context, candidates[index].argument_const_value_index,
-        candidates[index].parameter->domain_type, 1u,
+        candidates[index].effective_domain_type_index, 1u,
         &candidates[index].value_index);
     if (conversion != CONVERSION_OK) {
       context.arena_count = 0u;

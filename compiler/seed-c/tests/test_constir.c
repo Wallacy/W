@@ -973,6 +973,23 @@ static bool test_recursion_and_invalid_inputs(void) {
   return true;
 }
 
+static bool test_empty_program_validation(void) {
+  const w_seed_constir_program empty = {0};
+  CHECK(w_seed_constir_validate_program(&empty));
+  CHECK(w_seed_constir_validate_invocations_in_validated_program(
+      &empty, NULL, 0u));
+
+  const w_seed_constir_value argument = {0};
+  const w_seed_constir_invocation nonempty_invocation = {0u, &argument, 1u};
+  CHECK(!w_seed_constir_validate_invocations_in_validated_program(
+      &empty, &nonempty_invocation, 1u));
+
+  w_seed_constir_program orphan = empty;
+  orphan.node_count = 1u;
+  CHECK(!w_seed_constir_validate_program(&orphan));
+  return true;
+}
+
 static bool test_depth_and_caller_owned_validation(void) {
   static const char leaf_source[] =
       "const fn leaf(): Bool { return true }\n";
@@ -1443,6 +1460,7 @@ int main(void) {
   CHECK(test_labels_relations_and_parentheses());
   CHECK(test_typed_literal_projection());
   CHECK(test_recursion_and_invalid_inputs());
+  CHECK(test_empty_program_validation());
   CHECK(test_depth_and_caller_owned_validation());
   CHECK(test_direct_call_and_external_barrier());
   CHECK(test_capacity_and_barrier());
