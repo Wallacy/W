@@ -89,7 +89,11 @@ test "safe conversion is unique and value preserving" for addPortions {
 test "integer operators keep one policy in every profile" {
   expect -7 / 3 == -2
   expect -7 % 3 == -1
+  expect i32.euclideanDivide(-7, 3) == -3
+  expect i32.euclideanDivide(-7, -3) == 3
   expect i32.euclideanRemainder(-7, 3) == 2
+  expect i32.euclideanRemainder(-7, -3) == 2
+  expect i32.euclideanRemainder(i32.min, -1) == 0
   expect u8.wrappingAdd(u8.max, 1) == 0
   expect u8.saturatingAdd(u8.max, 1) == u8.max
 }

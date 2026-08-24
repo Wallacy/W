@@ -2,6 +2,13 @@
   "$schema": "w-std-api-contracts-1",
   "status": "design-oracle-input",
   "profiles": {
+    "simd-type": {
+      "capabilities": [],
+      "effects": [],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["element-domain", "lanes-1...64", "opaque-layout", "scalar-fallback", "logical-cost-bounded"],
+      "complexity": { "time": "operation-dependent-bounded-by-lanes", "space": "bounded-by-lanes" }
+    },
     "value-contract": {
       "capabilities": [],
       "effects": [],
@@ -3003,6 +3010,19 @@
       ]
     },
     {
+      "id": "std.simd",
+      "availability": "compiler-synthesis",
+      "source": "std/simd/contracts.w",
+      "designAnchors": ["18.5", "24.4.5"],
+      "consumer": {
+        "path": "reference/last-light/performance.w",
+        "symbols": ["ReductionMode", "Simd", "SimdMask"]
+      },
+      "apis": [
+        { "symbol": "ReductionMode", "kind": "enum", "profile": "value-contract" }
+      ]
+    },
+    {
       "id": "std.dlpack",
       "availability": "dlpack-interchange-provider",
       "source": "std/dlpack/contracts.w",
@@ -3350,6 +3370,36 @@
       "kind": "symbol",
       "consumer": "reference/last-light/device_execution_oracle.w",
       "profile": "accelerator-launch",
+      "status": "draft"
+    },
+    {
+      "id": "simd-compiler-head",
+      "module": "std.simd",
+      "surface": "Simd",
+      "kind": "compiler-synthesis",
+      "consumer": "reference/last-light/performance.w",
+      "consumerToken": "Simd<",
+      "designAnchor": "18.5",
+      "profile": "simd-type",
+      "oracle": {
+        "path": "tooling/simd-reference-cases.json",
+        "decisions": ["W-1459"]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "simd-mask-compiler-head",
+      "module": "std.simd",
+      "surface": "SimdMask",
+      "kind": "compiler-synthesis",
+      "consumer": "reference/last-light/performance.w",
+      "consumerToken": "SimdMask<",
+      "designAnchor": "18.5",
+      "profile": "simd-type",
+      "oracle": {
+        "path": "tooling/simd-reference-cases.json",
+        "decisions": ["W-1459"]
+      },
       "status": "draft"
     },
     {

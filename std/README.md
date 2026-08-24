@@ -57,6 +57,8 @@ std/
     contracts.w
   tensor/
     contracts.w
+  simd/
+    contracts.w
   dlpack/
     contracts.w
   net/
@@ -159,6 +161,10 @@ implícito. O módulo não fornece reflection ou registry runtime. O scope liga
 module, queue, device e provider generation e exige close assíncrono com drain.
 O provider `std.accelerator@1` continua missing. Transfer e device storage
 permanecem contratos explícitos de `std.tensor`.
+`simd/contracts.w` materializa somente o enum nominal `ReductionMode`.
+`Simd` e `SimdMask` são heads compiler-owned resolvidos pelo import e
+catalogados separadamente. Eles não são structs, exports de runtime ou calls
+de provider. O source é um draft e não alega compiler, runtime ou provider.
 `json/contracts.w` materializa o codec JSON bounded de host. `Encodable`,
 `Decodable` e `Codable` exigem conformance explícita. `Writer` e `Reader` são
 cursors opacos; object e array cursors vivem somente em closures scoped.

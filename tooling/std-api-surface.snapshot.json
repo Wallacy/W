@@ -1,15 +1,15 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "c83b2bc33cf9558f12965ef3afe24751b5b61e0ad069d511f1c3b72c0e3a2600",
+  "catalogDigest": "dfb819993e174c434675d99144c4ac4c8d13465ec274d808529a9edecc9af556",
   "summary": {
-    "modules": 31,
-    "catalogedApis": 424,
-    "draftCatalogedApis": 424,
+    "modules": 32,
+    "catalogedApis": 425,
+    "draftCatalogedApis": 425,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 90,
-    "referenceRequirements": 31,
-    "contractedReferenceRequirements": 31,
+    "referenceRequirements": 33,
+    "contractedReferenceRequirements": 33,
     "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 0,
@@ -7883,6 +7883,23 @@
       ]
     },
     {
+      "id": "std.simd",
+      "availability": "compiler-synthesis",
+      "source": "std/simd/contracts.w",
+      "catalogedDeclarationsDigest": "68ceb155d8faef5a5c634d9c294303e43d17f63d664054ce7418c509a018a028",
+      "apis": [
+        {
+          "symbol": "ReductionMode",
+          "kind": "enum",
+          "signature": "export enum ReductionMode: Copy & Equatable",
+          "declarationDigest": "f6b0249026a5c49ddc8ddb140f22243f2531534607b84987fe32ff8d1b60b9e3",
+          "line": 7,
+          "profile": "value-contract",
+          "status": "draft"
+        }
+      ]
+    },
+    {
       "id": "std.stream",
       "availability": "bundled-portable",
       "source": "std/stream/contracts.w",
@@ -10084,6 +10101,24 @@
       "status": "draft",
       "profile": "snapshot-byte-source",
       "consumer": "reference/last-light/data_formats.w"
+    },
+    {
+      "id": "simd-compiler-head",
+      "module": "std.simd",
+      "surface": "Simd",
+      "kind": "compiler-synthesis",
+      "status": "draft",
+      "profile": "simd-type",
+      "consumer": "reference/last-light/performance.w"
+    },
+    {
+      "id": "simd-mask-compiler-head",
+      "module": "std.simd",
+      "surface": "SimdMask",
+      "kind": "compiler-synthesis",
+      "status": "draft",
+      "profile": "simd-type",
+      "consumer": "reference/last-light/performance.w"
     },
     {
       "id": "sp0-snapshot-cell",

@@ -251,8 +251,8 @@ flag de overflow.
 | multiply | `checkedMultiply -> Result<T, ArithmeticError>` | `wrappingMultiply -> T` | `saturatingMultiply -> T` | `overflowingMultiply -> (T, Bool)` | — |
 | negate | `checkedNegate -> Result<T, ArithmeticError>` | `wrappingNegate -> T` | `saturatingNegate -> T` | `overflowingNegate -> (T, Bool)` | — |
 | power | `checkedPower -> Result<T, ArithmeticError>` | `wrappingPower -> T` | `saturatingPower -> T` | `overflowingPower -> (T, Bool)` | — |
-| divide | `checkedDivide -> Result<T, ArithmeticError>` | — | — | — | — |
-| remainder | `checkedRemainder -> Result<T, ArithmeticError>` | — | — | — | — |
+| divide | `checkedDivide -> Result<T, ArithmeticError>` | — | — | — | `euclideanDivide -> T` |
+| remainder | `checkedRemainder -> Result<T, ArithmeticError>` | — | — | — | `euclideanRemainder -> T` |
 | left shift | `checkedShiftLeft -> Result<T, ArithmeticError>` | `wrappingShiftLeft -> T` | — | — | `maskedShiftLeft -> T` |
 | right shift | `checkedShiftRight -> Result<T, ArithmeticError>` | — | — | — | `maskedShiftRight -> T`, `logicalShiftRight -> T` |
 | rotate left | — | — | — | — | `rotatedLeft -> T` |
@@ -265,6 +265,13 @@ resultado matemático, inclusive unsigned (`x > 0` produz zero). `checkedDivide`
 rejeita divisor zero e `signed.min / -1`; `checkedRemainder` rejeita somente
 divisor zero, e `signed.min % -1` produz `0`. W não publica
 wrapping, saturating ou overflowing divide/remainder.
+
+`euclideanDivide` e `euclideanRemainder` são associated functions integer que
+retornam `T`. Para `b != 0`, satisfazem `a == b * q + r` e
+`0 <= r < abs(b)`, com `abs(b)` matemático. Para signed integer, ambos aceitam
+divisor positivo ou negativo. Divide rejeita divisor zero e `signed.min / -1`; remainder rejeita
+somente divisor zero e retorna `0` em `signed.min % -1`. Em unsigned, coincidem
+com `/` e `%`.
 
 | Qual forma usar | Forma corrente | Limite |
 | --- | --- | --- |
@@ -1072,13 +1079,17 @@ provider/library, e sparse/graph mantém rota separada. `.strict`, `.fast` e
 
 ### SIMD portátil
 
-`std.simd` publica `Simd<Element, lanes: usize>` e
+`std.simd` publica os heads compiler-owned `Simd<Element, lanes: usize>` e
 `SimdMask<_ lanes: usize>`. `lanes` é compile-time em `1...64`, sem
-power-of-two requirement. O label de `Simd` é required porque há `Element` e
-value parameter; o label de `SimdMask` é optional porque a mask só tem a
-largura. A aplicação curta corrente é `SimdMask<16>`, sem uma segunda identity.
-Element aceita os integer fixos, `Int`, `UInt`, `isize`, `usize`, `f32` e `f64`.
-`Bool` usa mask. A sequência de lanes é fixa e igual em todo target. O backend
+power-of-two requirement. O label `lanes:` de `Simd` é required porque há
+`Element` e value parameter. O label de `SimdMask` é optional porque a mask só
+tem a largura. A aplicação curta corrente é `SimdMask<16>`, sem uma segunda
+identity. Omissão de `lanes:` é `W-GENERIC-0003`, lane fora de `1...64` é
+`W-CONST-0004`; Element fora de `i8`/`i16`/`i32`/`i64`/`i128`, `u8`/`u16`/
+`u32`/`u64`/`u128`, `Int`/`UInt`/`isize`/`usize`/`f32`/`f64` não está no
+domínio e produz `W-CONTRACT-0002`. Somente a lista fechada é Element:
+`Bool` como Element produz `W-CONTRACT-0002`; vetores de Bool usam
+`SimdMask`. A sequência de lanes é fixa e igual em todo target. O backend
 escolhe native, split ou scalarize. Layout, ABI, FFI, wire, persistência e
 `transmute` não são implícitos.
 
@@ -1092,17 +1103,24 @@ faz preflight de todas as lanes ativas e falha antes de qualquer write. Lanes
 inactive OOB são permitidas e não são acessadas. Arithmetic, bitwise, shifts,
 compound e policy só existem quando o scalar Element admite a operação; floats
 não ganham bitwise, shifts ou overflow APIs. Integer `overflowingX` retorna
-`(Simd<T, N>, SimdMask<N>)` com flag por lane. `==`/`!=` retornam `Bool`;
+`(Simd<T, lanes: N>, SimdMask<N>)` com flag por lane. `==`/`!=` retornam `Bool`;
 comparações nomeadas retornam mask. `SimdMask` usa `&`, `|`, `^`, `~`,
 `all() -> Bool`, `any() -> Bool`, `none() -> Bool` e `countTrue() -> UInt`, sem
-`&&`/`||`. `select(whenTrue: Simd<T, N>, otherwise: Simd<T, N>) -> Simd<T, N>`
-exige lanes iguais e não é short-circuit. Swizzle é static, aceita duplicatas e
-rejeita índice inválido. Integer reductions têm `reduceAdd`,
+`&&`/`||`. `select(whenTrue: Simd<T, lanes: N>, otherwise: Simd<T, lanes: N>)`
+`-> Simd<T, lanes: N>` exige lanes iguais e não é short-circuit. Swizzle é static, aceita duplicatas e
+rejeita índice inválido. Swizzle valida count em `1...64` antes dos elementos e
+reporta o primeiro OOB em source order. Count vazio, 65 ou índice OOB usa
+`W-CONST-0004`. Integer reductions têm `reduceAdd`,
 `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`,
 `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`,
 `reduceBitOr` e `reduceBitXor`, sempre em ordem de lanes. Float reductions usam
-`reduceAdd(mode:)`/`reduceMultiply(mode:)` com mode obrigatório `.strict`,
-`.fast` ou `.reproducible`.
+`reduceAdd(mode:)`/`reduceMultiply(mode:)` com `ReductionMode` nominal
+obrigatório `.strict`, `.fast` ou `.reproducible`. Omissão, forma posicional,
+label desconhecido ou aridade errada de `mode:` usa `W-LABEL-0005`; repetir o
+mesmo `mode:` usa `W-LABEL-0006`. Strict é left fold com identidade `0`/`1`; reproducible v1
+é árvore binária balanceada target-independent; fast segue o float contract e
+não exige igualdade de bits entre backends. A policy versionada faz parte da
+edition, não da identidade do tipo.
 
 O scalar fallback é requisito de disponibilidade. Native acceleration não é
 uma promessa de API ou de performance. `w explain performance` informa

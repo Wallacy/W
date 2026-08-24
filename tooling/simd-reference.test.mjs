@@ -13,6 +13,17 @@ function laneCount(lanes) {
   return lanes;
 }
 
+const SIMD_ELEMENTS = new Set([
+  "i8", "i16", "i32", "i64", "i128",
+  "u8", "u16", "u32", "u64", "u128",
+  "Int", "UInt", "isize", "usize", "f32", "f64",
+]);
+
+function elementDomain(element) {
+  if (!SIMD_ELEMENTS.has(element)) throw new TypeError("W-CONTRACT-0002: invalid SIMD Element domain");
+  return element;
+}
+
 function simd(lanes, values) {
   laneCount(lanes);
   if (values.length !== lanes) throw new RangeError("lane value count mismatch");
@@ -100,21 +111,65 @@ function loadPartial(source, at, lanes, fill) {
 function scanMenuReference(source, delimiter, backend) {
   if (!["scalar", "native", "split"].includes(backend)) throw new Error("unknown backend");
   if (source.length < 16 || source.length > 32) throw new RangeError("menu refinement");
-  const delimiterVector = simd(16, Array(16).fill(delimiter));
-  const lfVector = simd(16, Array(16).fill(10));
-  const full = checkedLoad(source, 0, 16);
-  const fullMatches = maskOr(equalLanes(full, delimiterVector), equalLanes(full, lfVector));
-  const tail = loadPartial(source, 16, 16, delimiter);
-  const tailMatches = maskAnd(
-    maskOr(equalLanes(tail.value, delimiterVector), equalLanes(tail.value, lfVector)),
-    tail.live,
-  );
+  const scan = backend === "scalar"
+    ? scanMenuScalar(source, delimiter)
+    : backend === "native"
+      ? scanMenuNative(source, delimiter)
+      : scanMenuSplit(source, delimiter);
   return {
     backend,
-    fullMatches: countTrue(fullMatches),
-    tailMatches: countTrue(tailMatches),
-    tailLive: [...tail.live.values],
+    fullMatches: scan.fullMatches,
+    tailMatches: scan.tailMatches,
+    tailLive: scan.tailLive,
   };
+}
+
+function scanMenuScalar(source, delimiter) {
+  let fullMatches = 0;
+  for (let index = 0; index < 16; index += 1) {
+    const byte = source[index];
+    if (byte === delimiter || byte === 10) fullMatches += 1;
+  }
+  let tailMatches = 0;
+  const tailLive = [];
+  for (let lane = 0; lane < 16; lane += 1) {
+    const index = 16 + lane;
+    const live = index < source.length;
+    tailLive.push(live);
+    if (live && (source[index] === delimiter || source[index] === 10)) tailMatches += 1;
+  }
+  return { fullMatches, tailMatches, tailLive };
+}
+
+function scanMenuNative(source, delimiter) {
+  const full = source.slice(0, 16);
+  const tail = source.slice(16, 32);
+  const fullMatches = full.reduce((count, byte) => count + (byte === delimiter || byte === 10 ? 1 : 0), 0);
+  const tailLive = Array.from({ length: 16 }, (_, lane) => lane < tail.length);
+  const tailMatches = tail.reduce((count, byte) => count + (byte === delimiter || byte === 10 ? 1 : 0), 0);
+  return { fullMatches, tailMatches, tailLive };
+}
+
+function scanMenuSplit(source, delimiter) {
+  const chunks = [source.slice(0, 8), source.slice(8, 16), source.slice(16, 24), source.slice(24, 32)];
+  let fullMatches = 0;
+  let tailMatches = 0;
+  const tailLive = [];
+  for (const [chunkIndex, chunk] of chunks.entries()) {
+    for (let lane = 0; lane < chunk.length; lane += 1) {
+      const byte = chunk[lane];
+      if (chunkIndex < 2) {
+        if (byte === delimiter || byte === 10) fullMatches += 1;
+      } else {
+        tailLive.push(true);
+        if (byte === delimiter || byte === 10) tailMatches += 1;
+      }
+    }
+    if (chunkIndex >= 2) {
+      for (let lane = chunk.length; lane < 8; lane += 1) tailLive.push(false);
+    }
+  }
+  return { fullMatches, tailMatches, tailLive: tailLive.slice(0, 16) };
 }
 
 function instrumentedSource(values) {
@@ -161,15 +216,67 @@ function checkedRemainder(left, right, bits, { signed = false } = {}) {
   return left % right;
 }
 
+function euclideanDivide(left, right, bits, { signed = false } = {}) {
+  if (right === 0) throw new RangeError("division by zero");
+  const a = BigInt(left);
+  const b = BigInt(right);
+  const signedMin = -(1n << BigInt(bits - 1));
+  if (signed && a === signedMin && b === -1n) throw new RangeError("division overflow");
+  let quotient = a / b;
+  let remainder = a % b;
+  if (remainder < 0n) {
+    const magnitude = b < 0n ? -b : b;
+    remainder += magnitude;
+    quotient += b < 0n ? 1n : -1n;
+  }
+  return Number(quotient);
+}
+
+function euclideanRemainder(left, right, bits, { signed = false } = {}) {
+  if (right === 0) throw new RangeError("division by zero");
+  const a = BigInt(left);
+  const b = BigInt(right);
+  const signedMin = -(1n << BigInt(bits - 1));
+  if (signed && a === signedMin && b === -1n) return 0;
+  const remainder = a % b;
+  const magnitude = b < 0n ? -b : b;
+  return Number(remainder < 0n ? remainder + magnitude : remainder);
+}
+
 function backendOverflow(values, bits, backend) {
   if (!["scalar", "native", "split"].includes(backend)) throw new Error("unknown backend");
-  const result = overflowingAdd(values.map((pair) => [...pair]), bits);
-  return { backend, ...result };
+  const limit = 1n << BigInt(bits);
+  const addLane = ([left, right]) => {
+    const sum = BigInt(left) + BigInt(right);
+    return {
+      value: Number(BigInt.asUintN(bits, sum)),
+      overflow: sum >= limit,
+    };
+  };
+  if (backend === "scalar") {
+    const result = values.map(addLane);
+    return { backend, value: result.map((lane) => lane.value), overflow: result.map((lane) => lane.overflow) };
+  }
+  if (backend === "native") {
+    const result = new Array(values.length);
+    for (let lane = 0; lane < values.length; lane += 1) result[lane] = addLane(values[lane]);
+    return { backend, value: result.map((lane) => lane.value), overflow: result.map((lane) => lane.overflow) };
+  }
+  const result = [];
+  for (let start = 0; start < values.length; start += 2) {
+    for (const pair of values.slice(start, start + 2)) result.push(addLane(pair));
+  }
+  return { backend, value: result.map((lane) => lane.value), overflow: result.map((lane) => lane.overflow) };
 }
 
 function swizzle(value, indices) {
-  for (const index of indices) {
-    if (!Number.isInteger(index) || index < 0 || index >= value.lanes) throw new RangeError("swizzle index");
+  if (!Array.isArray(indices) || indices.length < 1 || indices.length > 64) {
+    throw new RangeError("W-CONST-0004: swizzle count must be 1...64");
+  }
+  for (const [position, index] of indices.entries()) {
+    if (!Number.isInteger(index) || index < 0 || index >= value.lanes) {
+      throw new RangeError(`swizzle index=${index} position=${position}`);
+    }
   }
   return simd(indices.length, indices.map((index) => value.values[index]));
 }
@@ -187,9 +294,29 @@ function reduceInteger(values, operation, policy, bits = 8) {
   return Number(accumulator);
 }
 
-function reduceFloat(values, mode) {
-  if (!["strict", "fast", "reproducible"].includes(mode)) throw new Error("reduction mode required");
-  return values.reduce((sum, value) => sum + value, 0);
+function reduceFloat(values, mode, operation = "add", element = "f64") {
+  laneCount(values.length);
+  if (!["strict", "fast", "reproducible"].includes(mode)) throw new TypeError("W-LABEL-0005: reduction mode required");
+  if (!["add", "multiply"].includes(operation)) throw new Error("unknown float reduction");
+  elementDomain(element);
+  if (!element.startsWith("f")) throw new TypeError("float reduction requires f32 or f64");
+  const round = element === "f32" ? Math.fround : (value) => value;
+  const combine = operation === "add" ? (left, right) => round(left + right) : (left, right) => round(left * right);
+  const identity = operation === "add" ? 0 : 1;
+  const lanes = values.map(round);
+  if (mode === "strict" || mode === "fast") {
+    return lanes.reduce((accumulator, value) => combine(accumulator, value), round(identity));
+  }
+  let roundValues = lanes;
+  while (roundValues.length > 1) {
+    const next = [];
+    for (let index = 0; index < roundValues.length; index += 2) {
+      if (index + 1 < roundValues.length) next.push(combine(roundValues[index], roundValues[index + 1]));
+      else next.push(roundValues[index]);
+    }
+    roundValues = next;
+  }
+  return roundValues.length === 0 ? round(identity) : roundValues[0];
 }
 
 const sources = {
@@ -200,6 +327,7 @@ const sources = {
   lastLightReadme: read("reference/last-light/README.md"),
   operators: read("reference/syntax-atlas/operators.w"),
   atlasCheatsheet: read("reference/syntax-atlas/CHEATSHEET.md"),
+  stdSimd: read("std/simd/contracts.w"),
   corpus: JSON.parse(read("tooling/simd-reference-cases.json")),
 };
 
@@ -211,6 +339,7 @@ describe("SIMD1 host oracle", () => {
     expect(sources.corpus.cases.length).toBeGreaterThanOrEqual(3);
     for (const entry of sources.corpus.cases) {
       expect(entry.decisions).toContain("W-1459");
+      expect(["positive", "negative"]).toContain(entry.kind);
       expect(entry.source.path).toBe("reference/last-light/performance.w");
       expect(sources.performance).toContain(entry.source.symbol);
       expect(entry.expected).toBeUndefined();
@@ -226,7 +355,12 @@ describe("SIMD1 host oracle", () => {
     expect(() => scanMenuReference(current.input.bytes.slice(0, 15), current.input.delimiter, "scalar")).toThrow(RangeError);
     expect(() => scanMenuReference([...current.input.bytes, ...Array(13).fill(0)], current.input.delimiter, "scalar")).toThrow(RangeError);
     const rejected = sources.corpus.cases.find((entry) => entry.id === "SIMD1-W-1459-reject-lanes-65");
+    expect(rejected.kind).toBe("negative");
     expect(() => laneCount(rejected.input.lanes)).toThrow(RangeError);
+    const rejectedMask = sources.corpus.cases.find((entry) => entry.id === "SIMD1-W-1459-reject-mask-lanes-0");
+    expect(rejectedMask.kind).toBe("negative");
+    expect(rejectedMask.input.head).toBe("SimdMask");
+    expect(() => laneCount(rejectedMask.input.lanes)).toThrow(RangeError);
     const mutation = structuredClone(current);
     mutation.input.lanes = 65;
     expect(() => laneCount(mutation.input.lanes)).toThrow(RangeError);
@@ -245,6 +379,10 @@ describe("SIMD1 host oracle", () => {
       [sources.design, "W-1459"],
       [sources.design, "Simd<Element, lanes: usize>"],
       [sources.design, "SimdMask<_ lanes: usize>"],
+      [sources.design, "head compiler-owned"],
+      [sources.design, "W-GENERIC-0003"],
+      [sources.design, "W-CONST-0004"],
+      [sources.design, "W-CONTRACT-0002"],
       [sources.design, "SimdMask.splat(Bool)"],
       [sources.design, "SimdMask<N>"],
       [sources.design, "fromArray([Bool; N])"],
@@ -266,6 +404,12 @@ describe("SIMD1 host oracle", () => {
       [sources.design, "saturatingReduceMultiply"],
       [sources.design, "reduceAdd(mode:)"],
       [sources.design, "reduceMultiply(mode:)"],
+      [sources.design, "ReductionMode"],
+      [sources.design, "W-LABEL-0005"],
+      [sources.design, "W-LABEL-0006"],
+      [sources.design, "árvore binária balanceada"],
+      [sources.design, "source order"],
+      [sources.design, "count vazio"],
       [sources.design, "all() -> Bool"],
       [sources.design, "countTrue() -> UInt"],
       [sources.design, "signed.min % -1"],
@@ -283,6 +427,8 @@ describe("SIMD1 host oracle", () => {
       [sources.performance, "tailMatches"],
       [sources.performance, "overflowingAdd"],
       [sources.performance, "swizzled<indices: [3, 3, 0]>"],
+      [sources.performance, "ReductionMode"],
+      [sources.performance, "reduceAdd(mode: strictMode)"],
       [sources.operators, "let inverted = ~value"],
       [sources.operators, "let _ = inverted"],
       [sources.cheatsheet, "Matriz fechada de policies integer"],
@@ -293,6 +439,8 @@ describe("SIMD1 host oracle", () => {
       [sources.lastLightReadme, "scanMenuDelimiters"],
       [sources.atlasCheatsheet, "../../CHEATSHEET.md#operadores-bits-e-política-numérica"],
       [sources.atlasCheatsheet, "../../CHEATSHEET.md#performance-e-custo"],
+      [sources.stdSimd, "export enum ReductionMode: Copy & Equatable"],
+      [sources.stdSimd, "Simd and SimdMask are compiler-owned heads"],
     ];
     for (const [source, snippet] of required) expect(source).toContain(snippet);
   });
@@ -300,6 +448,12 @@ describe("SIMD1 host oracle", () => {
   test("lanes accept 1, odd values and 64, and reject 0 and 65", () => {
     for (const lanes of [1, 3, 17, 63, 64]) expect(() => laneCount(lanes)).not.toThrow();
     for (const lanes of [0, 65]) expect(() => laneCount(lanes)).toThrow(RangeError);
+  });
+
+  test("Element domain accepts scalar lanes and rejects Bool", () => {
+    for (const element of [...SIMD_ELEMENTS]) expect(() => elementDomain(element)).not.toThrow();
+    expect(() => elementDomain("Bool")).toThrow(/W-CONTRACT-0002/u);
+    expect(() => elementDomain("String")).toThrow(/W-CONTRACT-0002/u);
   });
 
   test("scalar, native and split lowerings are logically equivalent", () => {
@@ -377,6 +531,11 @@ describe("SIMD1 host oracle", () => {
     expect(swizzle(source, overflow.input.swizzleIndices).values).toEqual([40, 40, 10]);
     expect(() => swizzle(source, [4])).toThrow(RangeError);
     expect(() => swizzle(source, [-1])).toThrow(RangeError);
+    expect(() => swizzle(source, [])).toThrow(/W-CONST-0004.*count/u);
+    expect(() => swizzle(source, Array.from({ length: 65 }, () => 0))).toThrow(/W-CONST-0004.*count/u);
+    expect(() => swizzle(source, [4, 0])).toThrow(/index=4.*position=0/u);
+    expect(() => swizzle(source, [4, 5, 0])).toThrow(/index=4.*position=0/u);
+    expect(() => swizzle(source, Array.from({ length: 65 }, () => 99))).toThrow(/count/u);
   });
 
   test("mask reductions and bitwise operators are lane-wise", () => {
@@ -411,8 +570,29 @@ describe("SIMD1 host oracle", () => {
     expect(checkedRemainder(-(1 << 7), -1, 8, { signed: true })).toBe(0);
     expect(checkedRemainder(7, -3, 8, { signed: true })).toBe(1);
     expect(() => checkedRemainder(-(1 << 7), 0, 8, { signed: true })).toThrow(RangeError);
+    expect(euclideanDivide(-7, 3, 8, { signed: true })).toBe(-3);
+    expect(euclideanDivide(-7, -3, 8, { signed: true })).toBe(3);
+    expect(euclideanRemainder(-7, 3, 8, { signed: true })).toBe(2);
+    expect(euclideanRemainder(-7, -3, 8, { signed: true })).toBe(2);
+    for (const divisor of [3, -3]) {
+      const quotient = euclideanDivide(-7, divisor, 8, { signed: true });
+      const remainder = euclideanRemainder(-7, divisor, 8, { signed: true });
+      expect(-7).toBe(divisor * quotient + remainder);
+      expect(remainder).toBeGreaterThanOrEqual(0);
+      expect(remainder).toBeLessThan(Math.abs(divisor));
+    }
+    expect(euclideanRemainder(-(1 << 7), -1, 8, { signed: true })).toBe(0);
+    expect(() => euclideanDivide(-(1 << 7), -1, 8, { signed: true })).toThrow(RangeError);
+    expect(() => euclideanDivide(-7, 0, 8, { signed: true })).toThrow(RangeError);
+    expect(() => euclideanRemainder(-7, 0, 8, { signed: true })).toThrow(RangeError);
+    expect(euclideanDivide(250, 3, 8)).toBe(83);
+    expect(euclideanRemainder(250, 3, 8)).toBe(1);
     expect(sources.design).toContain("`signed.min / -1`");
     expect(sources.design).toContain("`signed.min % -1`");
+    expect(sources.design).toContain("euclideanDivide");
+    expect(sources.design).toContain("euclideanRemainder");
+    expect(sources.operators).toContain("euclideanDivide");
+    expect(sources.performance).toContain("ReductionMode");
   });
 
   test("reductions preserve lane order and scalar policies", () => {
@@ -424,9 +604,17 @@ describe("SIMD1 host oracle", () => {
     expect(() => reduceInteger(multiply, "multiply", "checked")).toThrow(RangeError);
     expect(reduceInteger(multiply, "multiply", "wrapping")).toBe(32);
     expect(reduceInteger(multiply, "multiply", "saturating")).toBe(255);
-    const strict = reduceFloat([0.1, 0.2, 0.3], "strict");
-    expect(reduceFloat([0.1, 0.2, 0.3], "reproducible")).toBe(strict);
-    expect(() => reduceFloat([0.1, 0.2], undefined)).toThrow();
+    const strict = reduceFloat([0.1, 0.2, 0.3], "strict", "add", "f64");
+    expect(reduceFloat([0.1, 0.2, 0.3], "reproducible", "add", "f64")).toBe(strict);
+    expect(reduceFloat([1, 2, 3], "strict", "multiply", "f32")).toBe(6);
+    expect(reduceFloat([1, 2, 3], "reproducible", "multiply", "f32")).toBe(6);
+    expect(() => reduceFloat([], "strict", "add", "f32")).toThrow(/lanes.*1\.\.\.64/u);
+    expect(() => reduceFloat(Array.from({ length: 65 }, () => 1), "strict", "add", "f32")).toThrow(/lanes.*1\.\.\.64/u);
+    expect(() => reduceFloat([0.1, 0.2], undefined)).toThrow(/W-LABEL-0005/u);
+    const sensitive = [1e20, 1, -1e20, 1];
+    expect(reduceFloat(sensitive, "strict", "add", "f32")).toBe(1);
+    expect(reduceFloat(sensitive, "reproducible", "add", "f32")).toBe(0);
+    expect(Number.isFinite(reduceFloat(sensitive, "fast", "add", "f32"))).toBe(true);
   });
 
   test("forbidden claims and forms are not promoted", () => {
