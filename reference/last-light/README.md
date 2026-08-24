@@ -2055,6 +2055,8 @@ Aceite:
   delimiter não conta quando a mask marca lane inactive;
 - `wrappingByteVectorOracle` deriva low wrapped bits e overflow mask por lane;
   `duplicateStaticSwizzle` aceita índice static duplicado;
+- `floatReductionWitness` usa `ReductionMode` nominal com `reduceAdd(mode:)` e
+  `reduceMultiply(mode:)`; o source não alega execução do backend;
 - desligar toda especialização produz os mesmos valores, errors e panic.
 
 O oracle diferencial executa `flavorScore` com lowering portátil, vector,
@@ -2079,7 +2081,10 @@ Aceite:
 - `u8 + u16` usa `u16`, mas `i8 + u8` exige uma escolha explícita;
 - debug, release, const evaluation e tensor usam o mesmo overflow;
 - divisão signed trunca em direção a zero;
-- Euclidean remainder exige uma API nomeada;
+- `euclideanDivide` e `euclideanRemainder` exigem APIs nomeadas e aceitam ambos
+  os sinais do divisor signed;
+- `euclideanDivide(i32.min, -1)` falha como `/`, enquanto
+  `euclideanRemainder(i32.min, -1)` retorna `0`;
 - shift inválido e left shift com perda de bits não viram comportamento
   indefinido;
 - serialization escolhe `.little` ou `.big`; `.native` nunca vira wire format;

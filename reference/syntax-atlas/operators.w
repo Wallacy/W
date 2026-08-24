@@ -47,6 +47,12 @@ fn operatorSurface() {
   let checkedNegate = u16.checkedNegate(value)
   let checkedDivide = u16.checkedDivide(value, other)
   let checkedRemainder = u16.checkedRemainder(value, other)
+  let euclideanDividePositive = i32.euclideanDivide(-7, 3)
+  let euclideanDivideNegative = i32.euclideanDivide(-7, -3)
+  // `euclideanDivide(i32.min, -1)` panics like `/`; the oracle covers this edge.
+  let euclideanRemainderPositive = i32.euclideanRemainder(-7, 3)
+  let euclideanRemainderNegative = i32.euclideanRemainder(-7, -3)
+  let euclideanRemainderEdge = i32.euclideanRemainder(i32.min, -1)
   let checkedPower = u16.checkedPower(value, other)
   let checkedShiftLeft = u16.checkedShiftLeft(value, other)
   let checkedShiftRight = u16.checkedShiftRight(value, other)
@@ -108,6 +114,11 @@ fn operatorSurface() {
   let _ = checkedNegate
   let _ = checkedDivide
   let _ = checkedRemainder
+  let _ = euclideanDividePositive
+  let _ = euclideanDivideNegative
+  let _ = euclideanRemainderPositive
+  let _ = euclideanRemainderNegative
+  let _ = euclideanRemainderEdge
   let _ = checkedPower
   let _ = checkedShiftLeft
   let _ = checkedShiftRight

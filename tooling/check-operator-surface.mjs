@@ -38,7 +38,7 @@ const groups = [
 ];
 
 const namedNumeric = [
-  "checkedAdd", "checkedSubtract", "checkedMultiply", "checkedNegate", "checkedDivide", "checkedRemainder", "checkedPower",
+  "checkedAdd", "checkedSubtract", "checkedMultiply", "checkedNegate", "checkedDivide", "checkedRemainder", "euclideanDivide", "euclideanRemainder", "checkedPower",
   "checkedShiftLeft", "checkedShiftRight", "wrappingAdd", "wrappingSubtract", "wrappingMultiply", "wrappingNegate", "wrappingPower", "wrappingShiftLeft",
   "saturatingAdd", "saturatingSubtract", "saturatingMultiply", "saturatingNegate", "saturatingPower",
   "overflowingAdd", "overflowingSubtract", "overflowingMultiply", "overflowingNegate", "overflowingPower",
@@ -62,7 +62,7 @@ const policySignatures = [
   ["checkedMultiply", "Result<T, ArithmeticError>"], ["wrappingMultiply", "T"], ["saturatingMultiply", "T"], ["overflowingMultiply", "(T, Bool)"],
   ["checkedNegate", "Result<T, ArithmeticError>"], ["wrappingNegate", "T"], ["saturatingNegate", "T"], ["overflowingNegate", "(T, Bool)"],
   ["checkedPower", "Result<T, ArithmeticError>"], ["wrappingPower", "T"], ["saturatingPower", "T"], ["overflowingPower", "(T, Bool)"],
-  ["checkedDivide", "Result<T, ArithmeticError>"], ["checkedRemainder", "Result<T, ArithmeticError>"],
+  ["checkedDivide", "Result<T, ArithmeticError>"], ["checkedRemainder", "Result<T, ArithmeticError>"], ["euclideanDivide", "T"], ["euclideanRemainder", "T"],
   ["checkedShiftLeft", "Result<T, ArithmeticError>"], ["wrappingShiftLeft", "T"],
   ["checkedShiftRight", "Result<T, ArithmeticError>"], ["maskedShiftLeft", "T"],
   ["maskedShiftRight", "T"], ["logicalShiftRight", "T"], ["rotatedLeft", "T"], ["rotatedRight", "T"],
@@ -187,6 +187,52 @@ function checkBitPrimitiveOracle(errors) {
     };
     for (const key of Object.keys(expected)) {
       if (actual[key] !== expected[key]) fail(errors, `bit primitive oracle mismatch for ${vector.label}: ${key}`);
+    }
+  }
+}
+
+function euclideanPair(left, right, bits, signed) {
+  if (right === 0n) throw new RangeError("division by zero");
+  const minimum = -(1n << BigInt(bits - 1));
+  if (signed && left === minimum && right === -1n) throw new RangeError("division overflow");
+  let quotient = left / right;
+  let remainder = left % right;
+  if (remainder < 0n) {
+    remainder += right < 0n ? -right : right;
+    quotient += right < 0n ? 1n : -1n;
+  }
+  return { quotient, remainder };
+}
+
+function euclideanRemainderOracle(left, right, bits, signed) {
+  if (right === 0n) throw new RangeError("division by zero");
+  const minimum = -(1n << BigInt(bits - 1));
+  if (signed && left === minimum && right === -1n) return 0n;
+  const remainder = left % right;
+  const magnitude = right < 0n ? -right : right;
+  return remainder < 0n ? remainder + magnitude : remainder;
+}
+
+function checkEuclideanOracle(errors) {
+  for (const [left, right] of [[-7n, 3n], [-7n, -3n], [7n, 3n], [7n, -3n]]) {
+    const pair = euclideanPair(left, right, 8, true);
+    if (left !== right * pair.quotient + pair.remainder || pair.remainder < 0n || pair.remainder >= (right < 0n ? -right : right)) {
+      fail(errors, `euclidean oracle invariant failed for ${left}/${right}`);
+    }
+  }
+  if (euclideanRemainderOracle(-128n, -1n, 8, true) !== 0n) fail(errors, "euclidean remainder min/-1 must be zero");
+  try {
+    euclideanPair(-128n, -1n, 8, true);
+    fail(errors, "euclidean divide min/-1 must reject");
+  } catch (error) {
+    if (!(error instanceof RangeError)) fail(errors, "euclidean divide min/-1 raised the wrong error");
+  }
+  for (const right of [0n]) {
+    try {
+      euclideanPair(1n, right, 8, true);
+      fail(errors, "euclidean divide zero must reject");
+    } catch (error) {
+      if (!(error instanceof RangeError)) fail(errors, "euclidean divide zero raised the wrong error");
     }
   }
 }
@@ -490,6 +536,7 @@ function check() {
   if (parserTable.get("=")?.rightAssociative !== true) fail(errors, "seed parser assignment associativity changed without a conformance decision");
   if (!design.includes("Assignment encadeada fica inválida") || !design.includes("Assignment produz `()`")) fail(errors, "DESIGN assignment chain rejection contract is missing");
   checkBitPrimitiveOracle(errors);
+  checkEuclideanOracle(errors);
   if (errors.length > 0) throw new Error(errors.join("\n"));
   console.log(`operator-surface: ok (${groups.length} groups, ${assignment.length} assignments, ${namedNumeric.length} named numeric APIs; probes parser/grammar-only; gaps: ${gaps.join(", ")})`);
 }

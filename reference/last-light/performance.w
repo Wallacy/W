@@ -1,7 +1,7 @@
 // Proof-driven performance cases for the Last Light restaurant.
 
 import { Tensor } from std.tensor
-import { Simd, SimdMask } from std.simd
+import { ReductionMode, Simd, SimdMask } from std.simd
 import { ServiceStage } from domain
 
 export type FlavorSignal = Int<(1...128)>
@@ -49,6 +49,16 @@ export fn wrappingByteVectorOracle(): (Simd<u8, lanes: 4>, SimdMask<4>) {
 export fn duplicateStaticSwizzle(): Simd<u8, lanes: 3> {
   let source = Simd<u8, lanes: 4>.fromArray([10, 20, 30, 40])
   return source.swizzled<indices: [3, 3, 0]>()
+}
+
+// Float reduction modes are nominal and required. This witness is design-only.
+export fn floatReductionWitness(): (f64, f64) {
+  let values = Simd<f64, lanes: 4>.fromArray([0.1, 0.2, 0.3, 0.4])
+  let strictMode: ReductionMode = .strict
+  return (
+    values.reduceAdd(mode: strictMode),
+    values.reduceMultiply(mode: .reproducible),
+  )
 }
 
 export struct BrigadeCount {
@@ -173,4 +183,10 @@ test "SIMD overflowing integer and duplicate swizzle are explicit" {
 
   let duplicate = duplicateStaticSwizzle()
   expect duplicate.toArray() == [40, 40, 10]
+}
+
+test "SIMD float reductions name their mode" for floatReductionWitness {
+  let (sum, product) = floatReductionWitness()
+  expect sum > 0.9_f64
+  expect product > 0.0_f64
 }

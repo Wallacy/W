@@ -5035,6 +5035,348 @@
           }
         ]
       }
+    },
+    {
+      "id": "S0-POS-simd-label-required",
+      "kind": "positive",
+      "rule": "W-1459",
+      "source": [
+        "fn simdLabel(): Simd<u8, lanes: 4> {",
+        "  return Simd<u8, lanes: 4>.splat(0)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "Simd<u8, lanes: 4>.splat(0)" },
+        "semanticResult": {
+          "resultType": "Simd<u8, lanes: 4>",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "type-head", "subject": "Simd" }],
+          "evaluationGraph": { "nodes": [{ "id": "simd", "operation": "resolve-compiler-head", "subject": "Simd" }], "edges": [] }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-simd-label-required",
+      "kind": "negative",
+      "rule": "W-1459",
+      "baseline": "S0-POS-simd-label-required",
+      "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:70270f42820f06be344da3856005748c9f0484c13f16e919f343ab6471f9ed2f" },
+      "source": [
+        "fn simdLabel(): Simd<u8, 4> {",
+        "  return Simd<u8, 4>.splat(0)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [{
+          "code": "W-GENERIC-0003",
+          "phase": "semantic.type",
+          "severity": "error",
+          "primary": { "text": "Simd<u8, 4>", "occurrence": 1 },
+          "labels": [{ "role": "generic-parameter", "selector": { "text": "4", "occurrence": 1 } }],
+          "facts": { "parameter": "lanes", "kind": "value", "externalLabel": "lanes", "position": 1, "reason": "required-label-omitted" },
+          "notes": [],
+          "fixes": []
+        }]
+      }
+    },
+    {
+      "id": "S0-POS-simd-lane-bound",
+      "kind": "positive",
+      "rule": "W-1459",
+      "source": [
+        "fn simdLaneBound(): Simd<u8, lanes: 64> {",
+        "  return Simd<u8, lanes: 64>.splat(0)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "Simd<u8, lanes: 64>.splat(0)" },
+        "semanticResult": {
+          "resultType": "Simd<u8, lanes: 64>",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "const-bound", "subject": "Simd.lanes", "value": "64" }],
+          "evaluationGraph": { "nodes": [{ "id": "simd", "operation": "validate-const-lanes", "subject": "64" }], "edges": [] }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-simd-lane-bound",
+      "kind": "negative",
+      "rule": "W-1459",
+      "baseline": "S0-POS-simd-lane-bound",
+      "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:56cd588c9b79f221b2d42406a71bbc2b582c88dbaf12cbd4474bc182a8e3a9a7" },
+      "source": [
+        "fn simdLaneBound(): Simd<u8, lanes: 65> {",
+        "  return Simd<u8, lanes: 65>.splat(0)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [{
+          "code": "W-CONST-0004",
+          "phase": "semantic.const",
+          "severity": "error",
+          "primary": { "text": "Simd<u8, lanes: 65>", "occurrence": 1 },
+          "labels": [{ "role": "contract-head", "selector": { "text": "Simd", "occurrence": 1 } }],
+          "facts": { "argument": "65", "failure": "outsideRange", "head": "Simd", "predicate": "lanes in 1...64", "rejectionTrace": ["lanes=65", "upper-bound=64"] },
+          "notes": [],
+          "fixes": []
+        }]
+      }
+    },
+    {
+      "id": "S0-POS-simd-element-domain",
+      "kind": "positive",
+      "rule": "W-1459",
+      "source": [
+        "fn simdElementDomain(): Simd<u8, lanes: 4> {",
+        "  return Simd<u8, lanes: 4>.splat(0)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "Simd<u8, lanes: 4>.splat(0)" },
+        "semanticResult": {
+          "resultType": "Simd<u8, lanes: 4>",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "element-domain", "subject": "u8", "value": "scalar" }],
+          "evaluationGraph": { "nodes": [{ "id": "simd", "operation": "validate-element-domain", "subject": "u8" }], "edges": [] }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-simd-element-domain-bool",
+      "kind": "negative",
+      "rule": "W-1459",
+      "baseline": "S0-POS-simd-element-domain",
+      "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:77a9771ea7ec87e859110a7b05699b551d3566390bb83685d7c630dfb6d528c0" },
+      "source": [
+        "fn simdElementDomain(): Simd<Bool, lanes: 4> {",
+        "  return Simd<Bool, lanes: 4>.splat(false)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [{
+          "code": "W-CONTRACT-0002",
+          "phase": "semantic.type",
+          "severity": "error",
+          "primary": { "text": "Simd<Bool, lanes: 4>", "occurrence": 1 },
+          "labels": [{ "role": "contract-head", "selector": { "text": "Simd", "occurrence": 1 } }],
+          "facts": { "actualKind": "type:Bool", "expectedKind": "type:SimdElement", "head": "Simd", "slot": "Element" },
+          "notes": [],
+          "fixes": []
+        }]
+      }
+    },
+    {
+      "id": "S0-POS-simd-swizzle-oob",
+      "kind": "positive",
+      "rule": "W-1459",
+      "source": [
+        "fn simdSwizzle(): Simd<u8, lanes: 3> {",
+        "  let source = Simd<u8, lanes: 4>.splat(0)",
+        "  return source.swizzled<indices: [3, 3, 0]>()",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "source.swizzled<indices: [3, 3, 0]>()" },
+        "semanticResult": {
+          "resultType": "Simd<u8, lanes: 3>",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "static-indices", "subject": "source", "value": "3,3,0" }],
+          "evaluationGraph": { "nodes": [{ "id": "swizzle", "operation": "validate-static-indices", "subject": "3,3,0" }], "edges": [] }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-simd-swizzle-oob",
+      "kind": "negative",
+      "rule": "W-1459",
+      "baseline": "S0-POS-simd-swizzle-oob",
+      "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:af85b22c9845d6d295d9a2a40bdbe23da477cbc9d94cd20b8d617781e04b9874" },
+      "source": [
+        "fn simdSwizzle(): Simd<u8, lanes: 1> {",
+        "  let source = Simd<u8, lanes: 4>.splat(0)",
+        "  return source.swizzled<indices: [4]>()",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [{
+          "code": "W-CONST-0004",
+          "phase": "semantic.const",
+          "severity": "error",
+          "primary": { "text": "[4]" },
+          "labels": [{ "role": "contract-head", "selector": { "text": "swizzled" } }],
+          "facts": { "argument": "4", "failure": "indexOutOfBounds", "head": "swizzled", "predicate": "index < source.lanes", "rejectionTrace": ["index=4", "source.lanes=4"] },
+          "notes": [],
+          "fixes": []
+        }]
+      }
+    },
+    {
+      "id": "S0-POS-simd-swizzle-empty-count",
+      "kind": "positive",
+      "rule": "W-1459",
+      "source": [
+        "fn simdSwizzleCount(): Simd<u8, lanes: 1> {",
+        "  let source = Simd<u8, lanes: 4>.splat(0)",
+        "  return source.swizzled<indices: [0]>()",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "source.swizzled<indices: [0]>()" },
+        "semanticResult": {
+          "resultType": "Simd<u8, lanes: 1>",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "swizzle-count", "subject": "indices.count", "value": "1" }],
+          "evaluationGraph": { "nodes": [{ "id": "swizzle", "operation": "validate-count-first", "subject": "1" }], "edges": [] }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-simd-swizzle-empty-count",
+      "kind": "negative",
+      "rule": "W-1459",
+      "baseline": "S0-POS-simd-swizzle-empty-count",
+      "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:ad70cc4e97b6721ef41c8851daba47d2385ebedf2035c9edd1cabcb520fc99b3" },
+      "source": [
+        "fn simdSwizzleCount(): Simd<u8, lanes: 1> {",
+        "  let source = Simd<u8, lanes: 4>.splat(0)",
+        "  return source.swizzled<indices: []>()",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [{
+          "code": "W-CONST-0004",
+          "phase": "semantic.const",
+          "severity": "error",
+          "primary": { "text": "indices: []" },
+          "labels": [{ "role": "contract-head", "selector": { "text": "swizzled" } }],
+          "facts": { "argument": "0", "failure": "outsideRange", "head": "swizzled", "predicate": "indices.count in 1...64", "rejectionTrace": ["indices.count=0", "lower-bound=1"] },
+          "notes": [],
+          "fixes": []
+        }]
+      }
+    },
+    {
+      "id": "S0-POS-simd-reduction-mode",
+      "kind": "positive",
+      "rule": "W-1459",
+      "source": [
+        "fn simdReduction(): f32 {",
+        "  let values = Simd<f32, lanes: 4>.splat(1.0)",
+        "  return values.reduceAdd(mode: .strict)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "values.reduceAdd(mode: .strict)" },
+        "semanticResult": {
+          "resultType": "f32",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "reduction-mode", "subject": "mode", "value": "strict" }],
+          "evaluationGraph": { "nodes": [{ "id": "reduction", "operation": "resolve-reduction-mode", "subject": "strict" }], "edges": [] }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-simd-reduction-mode",
+      "kind": "negative",
+      "rule": "W-1459",
+      "baseline": "S0-POS-simd-reduction-mode",
+      "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:7f53d640a4c8c1579d28f0a6c494a81cbeeebf3eed547f43b282fadddea5ce34" },
+      "source": [
+        "fn simdReduction(): f32 {",
+        "  let values = Simd<f32, lanes: 4>.splat(1.0)",
+        "  return values.reduceAdd()",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [{
+          "code": "W-LABEL-0005",
+          "phase": "semantic.type",
+          "severity": "error",
+          "primary": { "text": "reduceAdd()" },
+          "labels": [],
+          "facts": { "declaration": "Simd.reduceAdd", "label": "mode", "acceptedForms": ["mode:"] },
+          "notes": [],
+          "fixes": []
+        }]
+      }
+    },
+    {
+      "id": "S0-POS-simd-mask-lane-bound",
+      "kind": "positive",
+      "rule": "W-1459",
+      "source": [
+        "fn simdMaskLaneBound(): SimdMask<1> {",
+        "  return SimdMask<1>.splat(true)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "SimdMask<1>.splat(true)" },
+        "semanticResult": {
+          "resultType": "SimdMask<1>",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "mask-lane-bound", "subject": "SimdMask.lanes", "value": "1" }],
+          "evaluationGraph": { "nodes": [{ "id": "mask", "operation": "resolve-compiler-head", "subject": "SimdMask" }], "edges": [] }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-simd-mask-lane-bound",
+      "kind": "negative",
+      "rule": "W-1459",
+      "baseline": "S0-POS-simd-mask-lane-bound",
+      "failureField": "proofFacts",
+      "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:9f31f111cbcbe7e6c3ccdfec549813756c867f854101d5c2b5b01c38941fe856" },
+      "source": [
+        "fn simdMaskLaneBound(): SimdMask<0> {",
+        "  return SimdMask<0>.splat(false)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [{
+          "code": "W-CONST-0004",
+          "phase": "semantic.const",
+          "severity": "error",
+          "primary": { "text": "SimdMask<0>", "occurrence": 1 },
+          "labels": [{ "role": "contract-head", "selector": { "text": "SimdMask", "occurrence": 1 } }],
+          "facts": { "argument": "0", "failure": "outsideRange", "head": "SimdMask", "predicate": "lanes in 1...64", "rejectionTrace": ["lanes=0", "lower-bound=1"] },
+          "notes": [],
+          "fixes": []
+        }]
+      }
     }
   ]
 }

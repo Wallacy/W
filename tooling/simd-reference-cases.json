@@ -5,7 +5,7 @@
   "cases": [
     {
       "id": "SIMD1-W-1459-current",
-      "kind": "accepted",
+      "kind": "positive",
       "decisions": ["W-1459"],
       "source": {
         "path": "reference/last-light/performance.w",
@@ -26,7 +26,7 @@
     },
     {
       "id": "SIMD1-W-1459-overflow-swizzle",
-      "kind": "accepted",
+      "kind": "positive",
       "decisions": ["W-1459"],
       "source": {
         "path": "reference/last-light/performance.w",
@@ -49,7 +49,7 @@
     },
     {
       "id": "SIMD1-W-1459-reject-lanes-65",
-      "kind": "rejected",
+      "kind": "negative",
       "decisions": ["W-1459"],
       "source": {
         "path": "reference/last-light/performance.w",
@@ -59,6 +59,20 @@
         "lanes": 65
       },
       "contract": ["lane count is outside 1...64"]
+    },
+    {
+      "id": "SIMD1-W-1459-reject-mask-lanes-0",
+      "kind": "negative",
+      "decisions": ["W-1459"],
+      "source": {
+        "path": "reference/last-light/performance.w",
+        "symbol": "export fn scanMenuDelimiters("
+      },
+      "input": {
+        "head": "SimdMask",
+        "lanes": 0
+      },
+      "contract": ["SimdMask lane count is outside 1...64"]
     }
   ]
 }

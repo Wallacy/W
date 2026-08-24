@@ -5304,8 +5304,12 @@ allocation; `all()`, `any()` e `none()` retornam `Bool`, e `countTrue()` retorna
 nomes fechados `reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`,
 `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`,
 `reduceBitAnd`, `reduceBitOr` e `reduceBitXor`, sempre na ordem `0..N-1`.
-Float reductions usam `reduceAdd(mode:)` e `reduceMultiply(mode:)` com mode
-obrigatório. Arithmetic, bitwise, shifts e policies só existem quando o
+Float reductions usam `reduceAdd(mode:)` e `reduceMultiply(mode:)` com
+`ReductionMode` nominal obrigatório. Omissão, forma posicional, label desconhecido
+ou aridade errada de `mode:` usa `W-LABEL-0005`; repetição de `mode:` usa
+`W-LABEL-0006`. Strict é left fold, reproducible v1 usa árvore binária balanceada
+target-independent e fast segue o float contract sem exigir bit equality entre
+backends. Arithmetic, bitwise, shifts e policies só existem quando o
 scalar Element admite a operação; floats não ganham bitwise, shifts ou
 `overflowingX`.
 
@@ -5320,6 +5324,12 @@ wrapping/saturating/overflowing divide, remainder ou right shift. Rotations
 reduzem count módulo width, `saturatingNegate` clampa unsigned para zero e
 `overflowingX` devolve low wrapped bits mais flag. Isso substitui a frase aberta
 “nas quais a policy tem significado” sem alterar os tokens correntes.
+
+`euclideanDivide` e `euclideanRemainder` fecham a alternativa matemática sem
+alterar `/` ou `%`. A escolha de `T` como retorno mantém a API associada ao
+integer e evita criar uma tupla de quociente e remainder. A validação usa ambos
+os sinais do divisor, mantém a falha `min / -1` somente para divide e conserva
+`min % -1 == 0`.
 
 SIMD1 é `oracle-backed-current` e não é implementação. Compiler, runtime,
 provider, native acceleration, ABI, FFI, measurements e estudos humanos/modelos
@@ -6104,7 +6114,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-733 | assignment composta | arithmetic, power, shift e bitwise assignments avaliam place uma vez; sem logical, coalescing ou matrix assignment | increment/decrement; `&&=`; `??=`; `@=`; custom operator |
 | W-734 | identidade e assertions | `isSameInstance(as:)` compara object nominal; `assert` executa em todo profile; `expect` é test-only | `===`; address como identity; debug-only assertion; safe assume |
 | W-735 | catálogo da std | módulos por capability, target facts, provider e reachability; distribuição única | std monolítica no payload; package separado por tier; import implícito universal |
-| W-736 | ciência e data parallel | `Complex<T>` T2 e `Simd<T, lanes>` T1 preservam numeric policy; scalar fallback não muda resultado | complex literal novo; vector width dependente do target; fast mode implícito |
+| W-736 | ciência e data parallel | `Complex<T>` T2 e `Simd<T, lanes: N>` T1 preservam numeric policy; scalar fallback não muda resultado | complex literal novo; vector width dependente do target; fast mode implícito |
 | W-737 | contexto local (retired) | direção inicial separava task-local de TLS; W-1236 e W-1237 fecham inheritance, ownership, cleanup e limits | mapa task-local mutável; TLS como isolation; borrow TLS suspenso |
 | W-738 | volatile e MMIO (retired) | direção inicial usava capability; W-1234 fecha schema, accessors e ordering | `var volatile`; integer cria pointer; MMIO safe sem host authority |
 | W-739 | linker placement (retired) | direção inicial movia placement ao product; W-1238 fecha payload retention e recipe | annotation em source comum; import muda section; linker flag livre |
@@ -6827,7 +6837,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1456 | perfis de random | package/profile geral separa secure provider-backed de deterministic explicit-seed. Secure não aceita seed, fallback ou downgrade e exige bytes bounded, integer uniforme checked e erro tipado. Deterministic é replayable e não satisfaz secure. Draw order é owner-local, sem inheritance entre task/service/process. Context HTTP projeta o mesmo contrato. Somente seed/profile determinístico pode entrar em test receipt; secure seed/draw/bytes não entram em receipt/log/diagnostic. Handles não são WireValue | oracle-backed-current; AEG0-W-1456-current fecha secure/deterministic e rejeita seeded secure, fallback e inheritance implícita |
 | W-1457 | codecs e compression explícitos | packages específicos declaram ByteSource/Sink, profile+digest, streaming e quotas separadas para encoded, logical, allocation, depth e ratio. Offset/progress errors são tipados. Cancellation não desfaz bytes committed. Dictionary/state tem owner explícito. Codec/schema e compression transform têm identity/limits separados | oracle-backed-current; AEG0-W-1457-current fecha requisitos operacionais e rejeita `Codec<T>` universal, reflection, inference ambiental e quota colapsada |
 | W-1458 | crypto e secrets scoped | app crypto passa por package/provider capability ligada pelo deployment. Algorithm/profile são typed e pinned, sem string/fallback/downgrade. Secret/key handle é opaque, nonextractable por default, purpose/audience/generation scoped e move-only. Lifecycle tem dois caminhos: acquire→active→revoking→revoked→released para revoke/rotation, ou acquire→active→expired→released para expiry. Revoke fecha nova admission e drena operações admitidas. Host controla rotation/expiry/zeroization. Secret não entra em wire/storage/log/diagnostic/receipt | oracle-backed-current; AEG0-W-1458-current fecha lifecycle e rejeita plaintext/env lookup, secret wire e downgrade |
-| W-1459 | baseline portátil de `std.simd` | `Simd<Element, lanes: usize>` e `SimdMask<_ lanes: usize>`, lanes `1...64`, label required somente em Simd e optional em mask com aplicação `SimdMask<16>`, Element escalar fechado, sequence target-independent, layout opaco, scalar fallback obrigatório, mask `splat(Bool) -> SimdMask<N>`/`fromArray([Bool; N]) -> SimdMask<N>`/`toArray() -> [Bool; N]` sem allocation, `all`/`any`/`none` retornam `Bool` e `countTrue` retorna `UInt`, load borrow source e store destination `inout` com partial tail total e preflight, arithmetic lane-wise condicionado ao scalar Element, floats sem bitwise/shift/overflow APIs, integer overflow mask por lane, masks com bitwise operators, reductions nomeadas em ordem/policy (`reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`, `reduceBitOr`, `reduceBitXor`) e float mode obrigatório, static swizzle com duplicata e `w explain performance` com lowering facts | oracle-backed-current; SIMD1-W-1459-current fecha o contrato host-only e rejeita width/layout nativo, Bool lane, dynamic shuffle, alignment flag, write antes de bounds failure, short-circuit e performance universal |
+| W-1459 | baseline portátil de `std.simd` | `Simd<Element, lanes: usize>` e `SimdMask<_ lanes: usize>`, lanes `1...64`, label required somente em Simd e optional em mask com aplicação `SimdMask<16>`, Element escalar fechado com `Bool` em mask, sequence target-independent, layout opaco, scalar fallback obrigatório, mask `splat(Bool) -> SimdMask<N>`/`fromArray([Bool; N]) -> SimdMask<N>`/`toArray() -> [Bool; N]` sem allocation, `all`/`any`/`none` retornam `Bool` e `countTrue` retorna `UInt`, load borrow source e store destination `inout` com partial tail total e preflight, arithmetic lane-wise condicionado ao scalar Element, floats sem bitwise/shift/overflow APIs, integer overflow mask por lane, masks com bitwise operators, reductions nomeadas em ordem/policy (`reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`, `reduceBitOr`, `reduceBitXor`) e float `ReductionMode` obrigatório (`strict` left fold, `reproducible` árvore balanceada v1, `fast` sem igualdade de bits cross-backend; omission/positional/wrong-label/wrong-arity de mode: usa W-LABEL-0005 e repetição usa W-LABEL-0006), static swizzle com count-first em `1...64`, duplicata e primeiro OOB em source order, e `w explain performance` com lowering facts | oracle-backed-current; SIMD1-W-1459-current fecha o contrato host-only e rejeita width/layout nativo, Bool lane, dynamic shuffle, alignment flag, write antes de bounds failure, short-circuit e performance universal |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
