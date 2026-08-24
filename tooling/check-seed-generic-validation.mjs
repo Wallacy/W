@@ -35,6 +35,13 @@ function fragment(source, startMarker, endMarker, label) {
   return source.slice(start, end)
 }
 
+function uniqueMarker(source, marker, label) {
+  const first = source.indexOf(marker)
+  if (first < 0 || source.indexOf(marker, first + marker.length) >= 0)
+    fail(`${label} marker is missing or duplicated`)
+  return marker
+}
+
 function parseProbe(output) {
   const resultLine = output.split(/\r?\n/u).find((line) => line.startsWith("GENERIC_RESULT "))
   if (!resultLine) fail("probe has no GENERIC_RESULT line")
@@ -97,6 +104,27 @@ function canonicalEnumType() {
   return bytes(u8(0x74), u8(0x09), text("restaurant"), text("ServiceStage"))
 }
 
+function canonicalScalarType(kind) {
+  return bytes(u8(0x74), u8(kind))
+}
+
+function canonicalScalarValue(kind, type, payload) {
+  return bytes(u8(0x76), u8(kind), type, payload)
+}
+
+function staticValuePreimage(typeKind, valueKind, stringValue = "") {
+  const type = canonicalScalarType(typeKind)
+  const value = valueKind === 1
+    ? canonicalScalarValue(1, type, u8(1))
+    : canonicalScalarValue(3, type, text(stringValue))
+  return bytes(
+    textEncoder.encode("w-seed-generic-fingerprint-1"),
+    u8(0x47), text("restaurant"), text("StaticValue"), u32(2),
+    u8(0x41), u32(0), u8(0x01), u8(0x54), type,
+    u8(0x41), u32(1), u8(0x02), u8(0x56), type, value, u8(0x00),
+  )
+}
+
 function canonicalListType() {
   return bytes(u8(0x74), u8(0x0b), canonicalEnumType())
 }
@@ -143,6 +171,22 @@ function sha256Hex(input) {
 }
 
 const domain = await Bun.file(resolve(root, "reference/last-light/domain.w")).text()
+const generics = await Bun.file(resolve(root, "reference/last-light/generics.w")).text()
+const staticValueMarker = uniqueMarker(
+  generics, "export struct StaticValue<T, _ value: T> {", "StaticValue declaration")
+const staticValueBodyMarker = uniqueMarker(
+  generics, "export const expected = value", "StaticValue associated const body")
+const enabledFeatureMarker = uniqueMarker(
+  generics, "export alias EnabledFeature = StaticValue<Bool, true>", "EnabledFeature alias")
+const lastCallLabelMarker = uniqueMarker(
+  generics, "export alias LastCallLabel = StaticValue<String, \"The final seating\">", "LastCallLabel alias")
+const staticValueSignature = staticValueMarker
+  .replace(/^export /u, "")
+  .replace(/\s*\{$/u, "")
+if (!generics.includes(staticValueBodyMarker) ||
+    !generics.includes(enabledFeatureMarker) ||
+    !generics.includes(lastCallLabelMarker))
+  fail("generics.w markers are not present in the extracted source")
 const orderId = fragment(domain, "export type OrderId = u64", "export type GuestCount", "OrderId")
 const serviceStage = fragment(domain, "export enum ServiceStage {", "export alias CancelledStage", "ServiceStage")
 const canMove = fragment(domain, "export const fn canMove", "export const fn isValidStagePath", "canMove")
@@ -160,7 +204,10 @@ const useSource = `struct Use {
   duplicate: StagePath<[.accepted, .reserving, .reserving]>
 }
 `
-const witness = `${orderId}\n${serviceStage}\n${canMove}\n${isValidStagePath}\n${stagePath}\n${useSource}`
+/* The real associated-const body is verified above. The seed witness uses an
+ * empty body because that body is outside this projection's current gate. */
+const staticValueProjection = `${staticValueSignature} {}\n`
+const witness = `${orderId}\n${serviceStage}\n${canMove}\n${isValidStagePath}\n${stagePath}\n${staticValueProjection}${enabledFeatureMarker}\n${lastCallLabelMarker}\n${useSource}`
 
 const build = await mkdtemp(join(tmpdir(), "w-seed-generic-validation-check-"))
 const witnessPath = join(build, "domain-generic-witness.w")
@@ -199,6 +246,25 @@ try {
       parsed.records[0].predicateBodyDigest !== parsed.records[1].predicateBodyDigest ||
       parsed.records[0].predicateBodyDigest !== parsed.records[2].predicateBodyDigest)
     fail("standard and cancelled fingerprint evidence does not match the contract")
+  const staticRecords = firstOutput.split(/\r?\n/u)
+    .filter((line) => line.startsWith("STATIC "))
+    .map((line) => {
+      const match = /^STATIC app=(\d+) state=(\w+) failure=([a-z:-]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64})$/u.exec(line)
+      if (!match) fail(`invalid StaticValue line: ${line}`)
+      return { application: Number(match[1]), state: match[2], failure: match[3], fingerprintState: match[4], fingerprintDigest: match[5] }
+    })
+  if (staticRecords.length !== 2 ||
+      staticRecords.some((record) => record.state !== "VERIFIED" ||
+        record.failure !== "none" || record.fingerprintState !== "AVAILABLE"))
+    fail("StaticValue witness did not produce two verified fingerprints")
+  const expectedStatic = [
+    sha256Hex(staticValuePreimage(2, 1)),
+    sha256Hex(staticValuePreimage(3, 3, "The final seating")),
+  ]
+  for (const [index, record] of staticRecords.entries()) {
+    if (record.fingerprintDigest !== expectedStatic[index])
+      fail(`StaticValue application ${index} disagrees with independent preimage`)
+  }
 } finally {
   await rm(build, { recursive: true, force: true })
 }

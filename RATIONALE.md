@@ -1117,6 +1117,15 @@ Digests diferentes implicam preimages diferentes; um digest igual isolado não
 prova que os preimages são iguais nem constitui identidade collision-safe. O
 preimage canônico completo é a autoridade desta projeção.
 
+W-1460 também exige uma resolução pós-frontend read-only para domínios
+dependentes. `CONCRETE` usa o domínio declarado; `DEPENDENT` usa somente o
+`type_index` do argumento `TYPE` anterior, depois de validar ordem, kind,
+status, índice e a igualdade de tipo do `ConstValue`. O tipo concreto resolvido
+é codificado no preimage, sem nome `T`, índice process-local ou spelling. Por
+isso `StaticValue<Bool, true>` e `StaticValue<String, "The final seating">`
+sem predicate são evidence verificável e fingerprintável. String ainda fica
+fora da conversão D1 quando precisa alimentar um predicate.
+
 A evidence é reproduzível no witness real de
 `reference/last-light/domain.w`, com module id `restaurant`:
 duas aplicações standard têm o mesmo preimage e digest; a rota cancelled
@@ -1124,6 +1133,13 @@ duas aplicações standard têm o mesmo preimage e digest; a rota cancelled
 salto e duplicata continuam rejeitados e sem fingerprint. O gate Bun
 reconstrói os bytes e calcula SHA-256 de forma independente, além do teste C,
 para evitar que um golden emitido pelo C seja a única autoridade.
+
+O gate também lê `reference/last-light/generics.w`, verifica uma vez a
+assinatura de `StaticValue`, o body `export const expected = value` e os aliases
+`EnabledFeature`/`LastCallLabel`. Como o body de associated const ainda está
+fora da projeção seed, ele deriva um witness temporário com a assinatura real e
+body `{}`; o gate não afirma que `generics.w` inteiro compila. O reconstrutor
+Bun calcula, de forma independente, os preimages Bool e String desse witness.
 
 Alternativas rejeitadas:
 

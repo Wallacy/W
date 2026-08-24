@@ -426,17 +426,31 @@ Somente `BOUND_IMMEDIATE` é elegível. O predicate é localizado pela relação
 `w_seed_constir_validate_program` uma vez e depois
 `w_seed_constir_validate_invocations_in_validated_program` para todas as
 relações. Ele verifica todos os predicates e relações
-antes da primeira avaliação. A conversão D1 fechada aceita `Bool`, integers com
+antes da primeira avaliação. Quando um predicate precisa receber o value, a
+conversão D1 fechada aceita `Bool`, integers com
 width/signedness, enum cases payloadless (inclusive enum subset) e
 `StaticList` destes enum cases. Bytes integer são little-endian canônicos.
-String, `TYPED_PENDING_CONST`, computed values, função ausente/não lowerable e
-categorias fora desta lista são `UNSUPPORTED`. Índices, spans, relations,
+String, `TYPED_PENDING_CONST`, computed values e categorias fora desta lista que
+precisem dessa conversão são `UNSUPPORTED`; função ausente/não lowerable também
+é `UNSUPPORTED`. Índices, spans, relations,
 signature, arity ou tipo de retorno malformados são `INVALID`. Cada lista D1
 limita 4.096 elementos. A travessia e a validação estrutural caller-owned têm
-depth máximo 256. Listas aninhadas continuam `UNSUPPORTED`. O binder source
-atual ainda não produz `BOUND_IMMEDIATE` para literal String; o teste C usa um
-record caller-owned coerente, sem relação malformada, para cobrir a forma
-canônica String e documentar apenas esse gap do binder.
+depth máximo 256. Listas aninhadas continuam `UNSUPPORTED`.
+
+O validador ConstIR canônico também aceita um programa estruturalmente vazio:
+zero functions e zero em todos os outros counts. Counts órfãos continuam
+`INVALID`. A camada generic usa esse validador canônico uma vez; ela não tem
+um bypass local para o caso vazio.
+
+Para `CONCRETE`, o domínio efetivo é `parameter->domain_type`. Para
+`DEPENDENT`, o resolver read-only exige uma referência estritamente anterior a
+um parâmetro `TYPE`, cujo argumento na mesma aplicação seja `TYPE`,
+`BOUND_IMMEDIATE` e tenha `type_index` válido. Esse `type_index` é usado na
+assinatura, conversão e fingerprint; ordem, kind, status, índice incoerente ou
+`ConstValue.type_index` divergente retornam `INVALID` antes do evaluator. Um
+dependent válido não é `UNSUPPORTED` por si. String source-backed sem predicate
+é validável e fingerprintável; String que precisa de conversão para predicate
+continua `UNSUPPORTED` porque não pertence à conversão ConstIR D1.
 
 O estado público distingue `VERIFIED`, `REJECTED`, `UNSUPPORTED`, `INVALID`,
 `EVALUATION_FAILED` e `CAPACITY`. `EVALUATION_FAILED` conserva o
@@ -487,6 +501,13 @@ diferente; vazio, salto e duplicata permanecem `NOT_AVAILABLE` com
 bytes zero. O gate Bun reconstrói o preimage de forma independente e o probe
 imprime module/head, estado do fingerprint, digest e `body_digest` do
 predicate.
+
+O gate também lê `reference/last-light/generics.w`, verifica os marcadores
+únicos da assinatura de `StaticValue`, do body `export const expected = value`
+e dos aliases `EnabledFeature`/`LastCallLabel`. O body associado completo ainda
+está fora da projeção seed: o witness temporário usa a assinatura real com
+body `{}` e o gate documenta esse limite, sem alegar que `generics.w` inteiro
+compila.
 
     bun tooling/check-seed-generic-validation.mjs
 

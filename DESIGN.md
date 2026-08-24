@@ -7219,7 +7219,8 @@ O preflight read-only chama o validador canônico do programa ConstIR uma vez e
 valida todas as relações da aplicação antes da primeira avaliação. Assim uma
 relação posterior inválida não deixa execução parcial observável.
 
-O conjunto D1 de conversão é fechado:
+Quando um predicate precisa receber o value, o conjunto D1 de conversão é
+fechado:
 
 - `Bool`.
 - integer com width e signedness explícitos, convertido para os bytes
@@ -7227,8 +7228,9 @@ O conjunto D1 de conversão é fechado:
 - enum case payloadless, inclusive membro válido de enum subset.
 - `StaticList` de enum cases payloadless, com ordem e duplicatas preservadas.
 
-String, `TYPED_PENDING_CONST`, expressions calculadas, função ausente ou não
-lowerable e qualquer categoria fora deste conjunto são `UNSUPPORTED`. Uma
+String, `TYPED_PENDING_CONST`, expressions calculadas e qualquer categoria fora
+deste conjunto que precise dessa conversão são `UNSUPPORTED`. Função ausente ou
+não lowerable também é `UNSUPPORTED`. Uma
 relação malformada, índice fora do range, função frontend duplicada, arity ou
 tipo de retorno incompatível é `INVALID`. Cada lista D1 suporta até 4.096
 elementos. A travessia e a validação estrutural caller-owned têm depth máximo
@@ -7255,6 +7257,27 @@ caller-owned. O evaluator seed atual não preserva execution dependencies
 suficientes para uma slice causal detalhada nesta camada. Por isso esta
 projeção D1 usa o fallback permitido inteiro. A capacidade desses bytes é
 medida antes da primeira avaliação.
+
+Para um parâmetro value `CONCRETE`, o domínio efetivo é seu
+`parameter->domain_type`. Para `DEPENDENT`, o resolver read-only exige que
+`dependent_type_parameter_ordinal` seja estritamente anterior, que o parâmetro
+referenciado seja `TYPE` e que o argumento correspondente da mesma aplicação
+seja `TYPE`, `BOUND_IMMEDIATE` e tenha `type_index` válido. Esse `type_index` é
+o domínio efetivo usado pela assinatura do predicate, pela conversão e pelo
+fingerprint. Relações self, forward ou fora do range, referência a `VALUE`,
+status/kind/índice incoerentes e `ConstValue.type_index` diferente do domínio
+efetivo são `INVALID` no preflight, antes de qualquer avaliação. O resolver não
+muta os records do frontend.
+
+Um `DEPENDENT` válido não é `UNSUPPORTED` por si. O fingerprint codifica o tipo
+canônico concreto resolvido; não codifica o nome `T`, o índice process-local ou
+o spelling do domínio. O argumento `TYPE` anterior permanece em seu próprio
+slot e o argumento value conserva seu ordinal.
+
+`String` sem predicate pode ser validado e fingerprintado quando seu
+`ConstValue` é source-backed e imediato. `String` que precisa ser convertido
+para um predicate continua `UNSUPPORTED`, pois a conversão ConstIR D1 não
+inclui String.
 
 O gate source-backed lê [`reference/last-light/domain.w`](reference/last-light/domain.w)
 uma vez pelo pipeline seed e executa
@@ -7311,6 +7334,13 @@ aparecer nos lengths e counts):
 - value: tag `0x56`, o canonical parameter domain type, o canonical
   `ConstValue` e uma refinement flag (0, ou 1 seguida dos 32 bytes de
   `body_digest` da função ConstIR mapeada).
+
+Para `DEPENDENT`, o canonical parameter domain type nesta linha é o domínio
+efetivo concreto resolvido pelo argumento `TYPE` anterior da aplicação. O
+domínio declarado dependente e o spelling `T` não entram no preimage. Assim,
+`StaticValue<Bool, true>` e `StaticValue<String, "The final seating">` sem
+predicate podem ser `VERIFIED` com `FINGERPRINT_AVAILABLE`; a forma String com
+predicate permanece `UNSUPPORTED` pela fronteira de conversão D1 de §8.7.11.
 
 Um canonical type começa com tag `0x74` e um kind estável: 1 UNIT,
 2 BOOL, 3 STRING, 4 BYTES, 5 INTEGER, 6 FLOAT, 7 OPTION, 8 NOMINAL,
