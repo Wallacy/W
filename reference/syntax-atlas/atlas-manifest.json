@@ -2198,7 +2198,7 @@
         {
           "path": "reference/last-light/generics.w",
           "symbol": "export struct Matrix",
-          "digest": "sha256:76cccac6b23c47cb1b1e0c6f72f2bf4ed94d57069e06a3e54e093114e94b899b"
+          "digest": "sha256:66b8140a666505d803694a7383687afe46fa0e2dbe684ea3a485c7548d01e708"
         }
       ],
       "snippetDigest": "sha256:f584bf29c517ed997e4281cf6546a88c663e5889d69ad85ffe4867c0ac25eeb5",
@@ -2243,7 +2243,7 @@
         {
           "path": "reference/last-light/generics.w",
           "symbol": "export protocol Source<Item>",
-          "digest": "sha256:76cccac6b23c47cb1b1e0c6f72f2bf4ed94d57069e06a3e54e093114e94b899b"
+          "digest": "sha256:66b8140a666505d803694a7383687afe46fa0e2dbe684ea3a485c7548d01e708"
         }
       ],
       "snippetDigest": "sha256:3eae8820e575e4bd093a234837354689faebd86247a168bf32ee9c17d781782f",

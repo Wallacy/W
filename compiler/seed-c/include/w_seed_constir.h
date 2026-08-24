@@ -11,8 +11,8 @@
 extern "C" {
 #endif
 
-/* Internal seed-C ConstIR D1-D3. This is not an importable W interface. */
-#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-4"
+/* Internal seed-C ConstIR D1-D4. This is not an importable W interface. */
+#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-5"
 #define W_SEED_CONSTIR_NONE UINT32_MAX
 #define W_SEED_CONSTIR_INTEGER_BYTES 16u
 #define W_SEED_CONSTIR_MAX_PARAMETERS 256u
@@ -86,6 +86,7 @@ typedef enum {
 typedef enum {
   W_SEED_CONSTIR_DIAGNOSTIC_NONE = 0,
   W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0001,
+  W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002,
   W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0003,
   W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0006,
   /* Published by the caller-owned generic predicate boundary. */
@@ -136,6 +137,8 @@ typedef struct {
   uint32_t right;
   uint32_t parameter_ordinal;
   uint32_t call_target_function;
+  /* Append-only source dependency identity for module const calls. */
+  uint32_t call_target_const_declaration;
   uint32_t first_call_argument;
   uint32_t call_argument_count;
   uint32_t first_switch_arm;
@@ -231,6 +234,8 @@ typedef struct {
 typedef enum {
   W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION = 0,
   W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION,
+  /* Append-only synthetic zero-argument module const function. */
+  W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION,
 } w_seed_constir_function_origin;
 
 typedef struct {
@@ -252,6 +257,8 @@ typedef struct {
   uint32_t local_count;
   uint32_t diagnostic_index;
   uint8_t body_digest[32];
+  /* Append-only source identity for FRONTEND_CONST_DECLARATION. */
+  uint32_t frontend_const_declaration;
 } w_seed_constir_function;
 
 typedef struct {

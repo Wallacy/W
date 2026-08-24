@@ -3240,6 +3240,22 @@ const right = left + 1
 // error[W-CONST-0002]: left -> right -> left
 ```
 
+Na projeção seed C D4, o preflight caller-owned constrói o grafo de
+dependências dos module const locais antes de qualquer step, receipt de
+predicate ou teste de capacity. A relação de cada identifier é explícita e
+aponta para uma declaração do mesmo módulo; forward reference é válida e a
+resolução de local/parameter conserva a precedência existente. Relação,
+origem, tipo, aplicação ou target de dependency corrompidos produzem
+`INVALID` com zero step. Uma dependency bem formada fora do subconjunto D4
+produz `UNSUPPORTED` com zero step. Um ciclo alcançável produz
+`EVALUATION_FAILED`, `W-CONST-0002`, steps/heap/result zero e fingerprint
+indisponível. O caminho publica a ordem causal/source-order, cada membro uma
+vez e somente o primeiro repetido no fechamento (por exemplo,
+`left -> right -> left`). O limite é 256 dependencies alcançáveis; excedê-lo é
+`UNSUPPORTED` com a failure estável `dependency-limit`. Uma dependency bem
+formada fora do subset continua usando a failure `function`. Um ciclo
+inalcançável não bloqueia outra aplicação.
+
 A chave de cache contém:
 
 1. ConstIR e interface digests;
@@ -3326,15 +3342,16 @@ Valores finais viram attributes HIR. O adapter W/MLIR materializa constants
 adequados ao tipo.
 
 A projeção seed C D2 (W-1461) acrescenta uma fatia source-backed bounded para
-predicates sobre `String`. O frontend corrente `w-seed-frontend-5` publica o
-offset/count normalizado de uma literal simples na arena `const_bytes`; o
-ConstIR `w-seed-constir-4` carrega esse slice como bytes borrowed, sem
+predicates sobre `String`. O frontend corrente publica o offset/count
+normalizado de uma literal simples na arena `const_bytes`; o ConstIR corrente
+carrega esse slice como bytes borrowed, sem
 allocation e com heap quota zero. O limite é 4.096 bytes. Essa fatia não é
 String completa, não cria operator ou API W e não altera o lowering geral de
 ConstIR.
 
-A projeção seed C D3 (W-1462) acrescenta `w-seed-frontend-5` e
-`w-seed-constir-4` para uma `TypedConstExpr` parentetizada, fechada e escalar.
+A projeção seed C D3 (W-1462) usa os campos append-only de
+`w-seed-frontend-6` e `w-seed-constir-5` para uma `TypedConstExpr`
+parentetizada, fechada e escalar.
 O frontend caller-owned somente liga module, application, argument ordinal,
 expression, span e expected/effective type; ele não avalia e não muta ConstIR.
 ConstIR baixa cada record D3 como função sintética zero-arg com origem
@@ -3346,6 +3363,46 @@ width/signedness explícitos; heap quota é zero. Calls, identifiers/named const
 String result, nested generic, imported head/predicate e graph dependencies ou
 cycles permanecem fora. O fingerprint usa o valor normalizado do ConstIR no
 mesmo encoding do immediate; D3 não acrescenta identidade final.
+
+A projeção seed C D4 (W-1463) acrescenta module const source-backed sem nova
+sintaxe: `const name: Type = expression` e `export const` são records CST
+append-only. A annotation é preservada no CST; a forma lowerable exige type
+explícito. O frontend caller-owned publica, em `w-seed-frontend-6`, o record
+de módulo, nome, export, spans da declaração e initializer, declared type e
+initializer expression, além de counts, capacities, module ranges, output e
+receipt relacionados. O identifier tem uma relação append-only explícita para
+module const. Locals e parameters mantêm precedence, forward reference no
+mesmo módulo é válida, e imports, associated const e environment não são
+resolvidos. O frontend somente resolve e tipa; não avalia, não chama ConstIR e
+não materializa `ConstValue`. Uma aplicação válida permanece
+`TYPED_PENDING_CONST`.
+
+D4 baixa somente resultados `Bool` ou integer de width/signedness explícitos.
+Initializer e generic expression aceitam literal, grouping, unary, binary e
+referência a module const. Mismatch de type, unresolved ou relação corrompida
+segue `INVALID`; untyped const, `String`, enum/list/quantity/size, call,
+member/index, nested generic e imported const/head/predicate seguem
+`UNSUPPORTED`. Duplicata segue a barreira e o diagnostic frontend vigentes.
+
+O ConstIR `w-seed-constir-5` registra cada declaration com origem
+`FRONTEND_CONST_DECLARATION` e relação/sentinel explícitos. Cada record D4 é
+uma função sintética zero-arg; cada identifier vira dependency `CALL`. A ordem
+é functions frontend, module const declarations na ordem frontend/source e
+`TypedConstExpr`. O body digest exclui span, trivia e spelling e inclui a
+estrutura e identidade/digest suficiente das dependencies. O preflight do
+grafo ocorre antes de execution e de capacity; ciclos alcançáveis usam
+`W-CONST-0002` e o caminho causal fechado determinístico. O receipt
+`CONST_ARGUMENT` de uma falha de ciclo é publicado antes do retorno e nenhum
+predicate posterior executa. Quota é agregada entre calculated arguments e
+predicates; não há memoization invisível. Immediate `42`, D3 `6 * 7` e D4
+named/duplicate usam o mesmo fingerprint
+`w-seed-generic-fingerprint-1`.
+
+Esta é a projeção D4 bounded, não um compiler completo. Imports, associated
+const, initializer inference, cache/memoization, identity final, runtime e
+self-host permanecem fora do limite. Os schemas correntes são frontend-6,
+ConstIR-5 e generic-validation-3; programas sem module const preservam a
+projeção anterior.
 
 A interface de um `const fn` exportado inclui ConstIR normalizada e digest. Um
 importer não precisa do source original para avaliar uma call:
@@ -7376,8 +7433,26 @@ slot e o argumento value conserva seu ordinal.
 predicates genéricos simples; não implementa String completa em ConstIR,
 Unicode APIs, escapes/interpolation, imported predicate/head ou String
 computed result. D3 fecha somente a árvore escalar parentetizada de §2; não
-implementa identifiers/named const, graph dependencies/cycles, identity final,
-compiler/runtime ou self-host.
+implementa identifiers/named const ou graph dependencies/cycles. D4 fecha
+somente referências a module const locais, tipadas, explícitas e bounded;
+imports, associated const, initializer inference, cache/memoization, identity
+final, compiler/runtime e self-host continuam fora.
+
+A projeção D4 é validada depois do frontend pela mesma camada caller-owned. O
+preflight percorre dependencies em ordem de source, rejeita corrupção sem
+step, limita o grafo a 256 dependencies e publica o caminho de ciclo fechado.
+O validator não avalia initializer no frontend nem converte a relação em
+`ConstValue` até o ConstIR evaluator. A evidência corrente é o gate Bun/C
+[`tooling/check-seed-generic-validation.mjs`](tooling/check-seed-generic-validation.mjs)
+e o caso `GPF0-W-1463-current`.
+
+O limite de 256 dependencies é uma fronteira de grafo: 257 declarations bem
+formadas são `UNSUPPORTED` com failure `dependency-limit`, e com zero step,
+receipt e fingerprint. Uma dependency bem formada fora do subset usa a failure
+`function`. Isso é distinto de arithmetic overflow dentro de uma declaration
+lowerable: por exemplo, `const overflowValue: i8 = 127 + 1` produz
+`EVALUATION_FAILED` com `W-CONST-0006`, publica somente o receipt causal
+`CONST_ARGUMENT`, não executa predicates e mantém fingerprint indisponível.
 
 O gate source-backed lê [`reference/last-light/domain.w`](reference/last-light/domain.w)
 e os markers exatos de `reference/last-light/generics.w` uma vez pelo pipeline
@@ -7385,8 +7460,10 @@ seed e executa
 [`tooling/check-seed-generic-validation.mjs`](tooling/check-seed-generic-validation.mjs).
 
 Esta fronteira não promove o seed C a compiler W completo. Imported heads,
-String computed result, graph dependencies/cycles, identity final, detailed
-causal slices, runtime e self-host continuam gaps de implementação.
+String computed result, initializer inference, identity final, detailed causal
+slices, runtime e self-host continuam gaps de implementação; imports,
+associated const, cache/memoization e o runtime completo também permanecem
+fora da projeção D4.
 
 #### 8.7.12 Fingerprint semântico pós-validação (W-1460)
 
@@ -7427,6 +7504,21 @@ sintética. Portanto immediate `42` e computed `(6 * 7)` sob o mesmo
 module/head/predicate têm preimage e digest iguais; qualquer resultado não-
 `VERIFIED`, inclusive quota, overflow, unsupported e corrupção, mantém
 `FINGERPRINT_NOT_AVAILABLE` e bytes zero.
+
+W-1463 aplica a mesma regra a um module const local source-backed. O valor
+normalizado da declaração substitui o spelling do identifier, e nenhum span,
+trivia, nome local ou índice process-local entra no preimage. O body digest de
+ConstIR é usado para distinguir dependencies e detectar colisões estruturais,
+mas não substitui o valor normalizado no preimage público. Assim immediate
+`42`, D3 `6 * 7` e D4 `UltimateAnswer<(ultimateAnswer)>`, inclusive a
+aplicação D4 duplicada, publicam digest idêntico. Ciclo, mismatch, relação
+corrompida, unsupported, quota e qualquer outro estado não-`VERIFIED` mantêm
+fingerprint indisponível.
+O dependency graph ceiling de 257 declarations é `UNSUPPORTED` com failure
+`dependency-limit` antes de receipt/step; dependency fora do subset usa a
+failure `function`. Arithmetic overflow em declaration lowerable, como
+`const overflowValue: i8 = 127 + 1`, é `EVALUATION_FAILED` com
+`W-CONST-0006`, um receipt `CONST_ARGUMENT` e nenhum predicate executado.
 
 O preimage não usa terminador NUL e usa este encoding fechado (bytes zero podem
 aparecer nos lengths e counts):
@@ -30332,7 +30424,7 @@ evidência de design:
 | services, wire e recovery | B0 e SR0 fecham turn, gates, queue bounded, deduplication, recovery e faults; wWire tem baseline | fechar wire byte-exact, flow control e adapters reais com fault injection |
 | packages e releases | P0 fecha resolver, lock, CAS, recipe, mirror e rebuild | fechar prerelease, trust, archive safety e rebuild independente |
 | bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
-| seed C generic validation | §8.7.11/§8.7.12 fecham D1, D2 source-backed de `String` simples e D3 de expressions escalares parentetizadas, bounded e sem nova superfície W | manter gates C/Bun, receipts e digests versionados; compiler, runtime e self-host continuam implementation evidence gaps |
+| seed C generic validation | §8.7.11/§8.7.12 fecham D1, D2 source-backed de `String` simples, D3 de expressions escalares parentetizadas e D4 de named const local com grafo bounded, sem nova superfície W | manter gates C/Bun, receipts, caminhos de ciclo e digests versionados; compiler completo, imports, associated const, inference, cache/memoization, identity final, runtime e self-host continuam implementation evidence gaps |
 | ergonomia comparativa | R0/R0S/R1 guardam substituições e variantes observáveis | ratificar formas que ainda mudam source ou registrar waiver motivado |
 
 #### 24.4.0 Fechamento PRC0 de gates de pesquisa
@@ -30937,7 +31029,8 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - substituição pós-frontend no grafo const, avaliação de calculated generic
   arguments e predicates por ConstIR e projeção bounded de
   `ConstRejectionSlice`, incluindo as fatias D2 source-backed de `String`
-  simples em `==`/`!=` e D3 de expressions escalares parentetizadas;
+  simples em `==`/`!=`, D3 de expressions escalares parentetizadas e D4 de
+  named const local com dependency graph bounded;
 - rest signatures, call-shape intersection e `each` expansion;
 - synthesis core, `TypeId` e interfaces de reflection;
 - grafo const, ConstIR, quotas e ConstValue;

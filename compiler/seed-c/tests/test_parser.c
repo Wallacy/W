@@ -1028,6 +1028,30 @@ static bool test_async_function_shapes(void) {
     CHECK(check_tree_links(&value));
   }
 
+  static const char const_declaration_text[] =
+      "export const ultimateAnswer: i64 = (6 * 7)\n"
+      "const flag: Bool = !false\n"
+      "const inferred = 42\n";
+  fixture const_declarations;
+  CHECK(fixture_init(&const_declarations, const_declaration_text,
+                     sizeof(const_declarations.nodes) / sizeof(const_declarations.nodes[0]),
+                     sizeof(const_declarations.issues) / sizeof(const_declarations.issues[0])));
+  CHECK(const_declarations.result.status == W_SEED_PARSE_COMPLETE &&
+        const_declarations.result.issue_count == 0u &&
+        count_kind(&const_declarations, W_SEED_CST_CONST_DECLARATION) == 3u);
+  const w_seed_cst_index const_declaration =
+      first_kind(&const_declarations, W_SEED_CST_CONST_DECLARATION);
+  CHECK(const_declaration != W_SEED_CST_NONE &&
+        has_direct_text(&const_declarations, const_declaration, W_SEED_CST_WORD,
+                        "export") &&
+        has_direct_text(&const_declarations, const_declaration, W_SEED_CST_WORD, "const") &&
+        has_direct_text(&const_declarations, const_declaration, W_SEED_CST_WORD,
+                        "ultimateAnswer") &&
+        count_direct_kind(&const_declarations, const_declaration, W_SEED_CST_TYPE) == 1u &&
+        count_direct_kind(&const_declarations, const_declaration, W_SEED_CST_EXPRESSION) >= 1u);
+  CHECK(check_leaf_partition(&const_declarations));
+  CHECK(check_tree_links(&const_declarations));
+
   static const char trivia_text[] =
       "export /*a*/ async /*b*/ fn f(){}\n";
   fixture trivia;

@@ -17,6 +17,11 @@ typedef struct {
   bool failed;
   w_seed_span failure_span;
   uint32_t failure_expression;
+  /* Digest-only dependency stack.  It prevents a source cycle from making
+   * lowering fail while still incorporating each acyclic target body into its
+   * parent's structural digest. */
+  uint32_t digest_const_stack[W_SEED_FRONTEND_MAX_NESTING];
+  size_t digest_const_stack_count;
 } constir_lower_context;
 
 typedef struct {
@@ -28,7 +33,7 @@ typedef struct {
   bool valid;
 } constir_value_result;
 
-static const uint8_t CONSTIR_RECEIPT_SCHEMA[] = "w-seed-constir-4";
+static const uint8_t CONSTIR_RECEIPT_SCHEMA[] = "w-seed-constir-5";
 
 static bool add_size(size_t left, size_t right, size_t *out) {
   if (out == NULL || right > SIZE_MAX - left) return false;
@@ -66,6 +71,14 @@ static bool text_is(w_seed_frontend_text text, const char *literal) {
          memcmp(text.data, literal, length) == 0;
 }
 
+static bool frontend_text_equal(w_seed_frontend_text left,
+                                w_seed_frontend_text right) {
+  return left.length == right.length &&
+         (left.length == 0u ||
+          (left.data != NULL && right.data != NULL &&
+           memcmp(left.data, right.data, left.length) == 0));
+}
+
 static const w_seed_frontend_function *frontend_function_at(
     const constir_lower_context *context, uint32_t index) {
   if (context == NULL || context->frontend == NULL ||
@@ -74,6 +87,16 @@ static const w_seed_frontend_function *frontend_function_at(
     return NULL;
   }
   return &context->frontend->functions[index];
+}
+
+static const w_seed_frontend_const_declaration *frontend_const_declaration_at(
+    const constir_lower_context *context, uint32_t index) {
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || index == W_SEED_FRONTEND_NONE ||
+      (size_t)index >= context->frontend_result->written.const_declarations)
+    return NULL;
+  if (context->frontend->const_declarations == NULL) return NULL;
+  return &context->frontend->const_declarations[index];
 }
 
 static const w_seed_frontend_typed_const_expression *
@@ -1034,6 +1057,14 @@ static bool digest_expression(const constir_lower_context *context,
                               uint32_t function_index, uint32_t expression_index,
                               w_seed_sha256_state *state, size_t depth);
 
+static bool digest_const_stack_contains(const constir_lower_context *context,
+                                        uint32_t target_const) {
+  if (context == NULL) return false;
+  for (size_t index = 0u; index < context->digest_const_stack_count; index += 1u)
+    if (context->digest_const_stack[index] == target_const) return true;
+  return false;
+}
+
 static bool digest_call_target(const constir_lower_context *context,
                                uint32_t target_function,
                                w_seed_sha256_state *state) {
@@ -1046,6 +1077,50 @@ static bool digest_call_target(const constir_lower_context *context,
     return false;
   digest_text(state, context->frontend->modules[target->module_index].module_id);
   digest_text(state, target->name);
+  return true;
+}
+
+static bool digest_const_target(const constir_lower_context *context,
+                                uint32_t target_const,
+                                w_seed_sha256_state *state, size_t depth) {
+  const w_seed_frontend_const_declaration *target =
+      frontend_const_declaration_at(context, target_const);
+  if (context == NULL || state == NULL || target == NULL ||
+      context->frontend == NULL || context->frontend_result == NULL ||
+      context->frontend->modules == NULL ||
+      (size_t)target->module_index >= context->frontend_result->written.modules)
+    return false;
+  digest_u8(state, 0x6du);
+  digest_text(state, context->frontend->modules[target->module_index].module_id);
+  digest_text(state, target->name);
+  digest_u8(state, target->has_explicit_type ? 1u : 0u);
+  if (target->declared_type == W_SEED_FRONTEND_NONE) {
+    digest_u8(state, 0u);
+  } else if (!digest_type(context, target->declared_type, state)) {
+    return false;
+  }
+  if (target->initializer_expression == W_SEED_FRONTEND_NONE) return false;
+  if (digest_const_stack_contains(context, target_const)) {
+    /* The identity was already framed above.  This marker closes a cycle and
+     * keeps the declaration lowerable for generic graph preflight. */
+    digest_u8(state, 0xc1u);
+    return true;
+  }
+  if (depth > W_SEED_FRONTEND_MAX_NESTING ||
+      context->digest_const_stack_count >= W_SEED_FRONTEND_MAX_NESTING) {
+    /* A bounded identity marker preserves a deterministic digest at the
+     * source ceiling.  The generic validator owns the separate 256-edge
+     * dependency ceiling. */
+    digest_u8(state, 0xc2u);
+    return true;
+  }
+  constir_lower_context *mutable_context = (constir_lower_context *)context;
+  mutable_context->digest_const_stack[
+      mutable_context->digest_const_stack_count++] = target_const;
+  const bool digested = digest_expression(
+      context, W_SEED_FRONTEND_NONE, target->initializer_expression, state, depth);
+  mutable_context->digest_const_stack_count -= 1u;
+  if (!digested) return false;
   return true;
 }
 
@@ -1107,6 +1182,10 @@ static bool digest_expression(const constir_lower_context *context,
         digest_u8(state, 0x6cu);
         digest_u32(state, expression->resolved_local_ordinal);
         break;
+      }
+      if (expression->resolved_const_declaration != W_SEED_FRONTEND_NONE) {
+        const uint32_t target = expression->resolved_const_declaration;
+        return digest_const_target(context, target, state, depth);
       }
       const uint32_t ordinal = expression->resolved_parameter_ordinal;
       if (ordinal == W_SEED_FRONTEND_NONE) return false;
@@ -1353,8 +1432,8 @@ static bool digest_statement_chain(const constir_lower_context *context,
   return true;
 }
 
-static size_t receipt_node_bytes(void) { return 107u; }
-static size_t receipt_function_bytes(void) { return 90u; }
+static size_t receipt_node_bytes(void) { return 111u; }
+static size_t receipt_function_bytes(void) { return 94u; }
 static size_t receipt_parameter_bytes(void) { return 40u; }
 static size_t receipt_call_argument_bytes(void) { return 28u; }
 static size_t receipt_switch_arm_bytes(void) { return 49u; }
@@ -1440,6 +1519,35 @@ static bool typed_const_expression_closed(constir_lower_context *context,
              type_metadata(context, expression->inferred_type, &kind,
                            &is_signed, &width, &enum_base) &&
              kind == W_SEED_FRONTEND_TYPE_INTEGER && width != 0u;
+    }
+    case W_SEED_FRONTEND_EXPR_IDENTIFIER: {
+      if (expression->resolved_local_ordinal != W_SEED_FRONTEND_NONE ||
+          expression->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE ||
+          expression->resolved_const_declaration == W_SEED_FRONTEND_NONE)
+        return false;
+      const uint32_t target = expression->resolved_const_declaration;
+      const w_seed_frontend_const_declaration *declaration =
+          frontend_const_declaration_at(context, target);
+      w_seed_frontend_type_kind kind = W_SEED_FRONTEND_TYPE_UNKNOWN;
+      bool is_signed = false;
+      uint16_t width = 0u;
+      uint32_t enum_base = W_SEED_FRONTEND_NONE;
+      w_seed_frontend_type_kind target_kind = W_SEED_FRONTEND_TYPE_UNKNOWN;
+      bool target_signed = false;
+      uint16_t target_width = 0u;
+      uint32_t target_enum_base = W_SEED_FRONTEND_NONE;
+      if (declaration == NULL || !declaration->lowerable ||
+          !type_metadata(context, expression->inferred_type, &kind, &is_signed,
+                         &width, &enum_base) ||
+          !type_metadata(context, declaration->declared_type, &target_kind,
+                         &target_signed, &target_width, &target_enum_base) ||
+          (kind != W_SEED_FRONTEND_TYPE_BOOL &&
+           kind != W_SEED_FRONTEND_TYPE_INTEGER) ||
+          (kind == W_SEED_FRONTEND_TYPE_INTEGER && width == 0u) ||
+          target_kind != kind || target_signed != is_signed ||
+          target_width != width || target_enum_base != enum_base)
+        return false;
+      return true;
     }
     case W_SEED_FRONTEND_EXPR_PARENTHESIS:
       return expression->left != W_SEED_FRONTEND_NONE &&
@@ -1597,6 +1705,7 @@ static bool lower_all(constir_lower_context *context) {
         record.origin = W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION;
         record.frontend_function = function_index;
         record.typed_const_expression_index = W_SEED_CONSTIR_NONE;
+        record.frontend_const_declaration = W_SEED_CONSTIR_NONE;
         record.lowerable = false;
         record.source_span = function->span;
         record.body_span = function->body_span;
@@ -1645,6 +1754,7 @@ static bool lower_all(constir_lower_context *context) {
       record.origin = W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION;
       record.frontend_function = function_index;
       record.typed_const_expression_index = W_SEED_CONSTIR_NONE;
+      record.frontend_const_declaration = W_SEED_CONSTIR_NONE;
       record.lowerable = true;
       record.source_span = function->span;
       record.body_span = function->body_span;
@@ -1661,6 +1771,122 @@ static bool lower_all(constir_lower_context *context) {
       record.diagnostic_index = W_SEED_CONSTIR_NONE;
       (void)memcpy(record.body_digest, digest, sizeof(record.body_digest));
       if (function_output_index >= context->output->function_capacity) return false;
+      context->output->functions[function_output_index] = record;
+    }
+  }
+  /* Lower module const declarations after frontend functions and before
+   * calculated generic expressions.  Each declaration is a synthetic
+   * zero-argument function.  Identifier dependencies stay as explicit CALL
+   * nodes, so forward references and cycles remain visible to preflight. */
+  for (size_t const_index = 0u;
+       const_index < context->frontend_result->written.const_declarations;
+       const_index += 1u) {
+    if (const_index >= (size_t)UINT32_MAX) return false;
+    const uint32_t frontend_const_index = (uint32_t)const_index;
+    const w_seed_frontend_const_declaration *declaration =
+        frontend_const_declaration_at(context, frontend_const_index);
+    if (declaration == NULL) return false;
+    const size_t function_output_index = context->counts.functions;
+    if (!add_size(context->counts.functions, 1u, &context->counts.functions) ||
+        !count_fits_u32(context->counts.functions)) return false;
+    const size_t node_start = context->counts.nodes;
+    bool lowerable = declaration->lowerable &&
+                     declaration->initializer_expression != W_SEED_FRONTEND_NONE;
+    w_seed_frontend_type_kind result_kind = W_SEED_FRONTEND_TYPE_UNKNOWN;
+    bool result_signed = false;
+    uint16_t result_width = 0u;
+    uint32_t result_enum = W_SEED_FRONTEND_NONE;
+    if (!type_metadata(context, declaration->declared_type, &result_kind,
+                       &result_signed, &result_width, &result_enum) ||
+        (result_kind != W_SEED_FRONTEND_TYPE_BOOL &&
+         result_kind != W_SEED_FRONTEND_TYPE_INTEGER) ||
+        (result_kind == W_SEED_FRONTEND_TYPE_INTEGER && result_width == 0u))
+      lowerable = false;
+    uint32_t root = W_SEED_CONSTIR_NONE;
+    uint8_t digest[32];
+    (void)memset(digest, 0, sizeof(digest));
+    if (lowerable) {
+      w_seed_sha256_state digest_state;
+      w_seed_sha256_init(&digest_state);
+      w_seed_sha256_update(&digest_state, CONSTIR_RECEIPT_SCHEMA,
+                           sizeof(CONSTIR_RECEIPT_SCHEMA) - 1u);
+      digest_u8(&digest_state, 0xd2u);
+      if (!digest_expression(context, W_SEED_FRONTEND_NONE,
+                             declaration->initializer_expression,
+                             &digest_state, 0u)) {
+        lowerable = false;
+      } else {
+        w_seed_sha256_final(&digest_state, digest);
+      }
+    }
+    if (lowerable &&
+        !lower_expression(context, W_SEED_FRONTEND_NONE,
+                          declaration->initializer_expression, &root, 0u))
+      lowerable = false;
+    if (!lowerable) {
+      context->counts.nodes = node_start;
+      uint32_t diagnostic_index = W_SEED_CONSTIR_NONE;
+      if (!append_diagnostic(context, W_SEED_FRONTEND_NONE,
+                             declaration->initializer_expression,
+                             declaration->body_span, &diagnostic_index))
+        return false;
+      if (context->emit && context->output != NULL &&
+          context->output->functions != NULL) {
+        w_seed_constir_function record;
+        (void)memset(&record, 0, sizeof(record));
+        record.origin =
+            W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION;
+        record.frontend_function = W_SEED_CONSTIR_NONE;
+        record.typed_const_expression_index = W_SEED_CONSTIR_NONE;
+        record.frontend_const_declaration = frontend_const_index;
+        record.lowerable = false;
+        record.source_span = declaration->span;
+        record.body_span = declaration->body_span;
+        record.first_parameter = W_SEED_CONSTIR_NONE;
+        record.parameter_count = 0u;
+        record.first_node = W_SEED_CONSTIR_NONE;
+        record.node_count = 0u;
+        record.root_node = W_SEED_CONSTIR_NONE;
+        record.first_statement = W_SEED_CONSTIR_NONE;
+        record.statement_count = 0u;
+        record.root_statement = W_SEED_CONSTIR_NONE;
+        record.first_local = W_SEED_CONSTIR_NONE;
+        record.local_count = 0u;
+        record.diagnostic_index = diagnostic_index;
+        record.frontend_const_declaration = frontend_const_index;
+        (void)memcpy(record.body_digest, digest, sizeof(record.body_digest));
+        if (function_output_index >= context->output->function_capacity)
+          return false;
+        context->output->functions[function_output_index] = record;
+      }
+      continue;
+    }
+    if (context->emit && context->output != NULL &&
+        context->output->functions != NULL) {
+      w_seed_constir_function record;
+      (void)memset(&record, 0, sizeof(record));
+      record.origin = W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION;
+      record.frontend_function = W_SEED_CONSTIR_NONE;
+      record.typed_const_expression_index = W_SEED_CONSTIR_NONE;
+      record.frontend_const_declaration = frontend_const_index;
+      record.lowerable = true;
+      record.source_span = declaration->span;
+      record.body_span = declaration->body_span;
+      record.first_parameter = 0u;
+      record.parameter_count = 0u;
+      record.first_node = (uint32_t)node_start;
+      record.node_count = (uint32_t)(context->counts.nodes - node_start);
+      record.root_node = root;
+      record.first_statement = W_SEED_CONSTIR_NONE;
+      record.statement_count = 0u;
+      record.root_statement = W_SEED_CONSTIR_NONE;
+      record.first_local = W_SEED_CONSTIR_NONE;
+      record.local_count = 0u;
+      record.diagnostic_index = W_SEED_CONSTIR_NONE;
+      record.frontend_const_declaration = frontend_const_index;
+      (void)memcpy(record.body_digest, digest, sizeof(record.body_digest));
+      if (function_output_index >= context->output->function_capacity)
+        return false;
       context->output->functions[function_output_index] = record;
     }
   }
@@ -1744,6 +1970,7 @@ static bool lower_all(constir_lower_context *context) {
         record.origin = W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION;
         record.frontend_function = W_SEED_CONSTIR_NONE;
         record.typed_const_expression_index = typed_expression_index;
+        record.frontend_const_declaration = W_SEED_CONSTIR_NONE;
         record.lowerable = false;
         record.source_span = typed->span;
         record.body_span = typed->span;
@@ -1768,6 +1995,7 @@ static bool lower_all(constir_lower_context *context) {
       record.origin = W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION;
       record.frontend_function = W_SEED_CONSTIR_NONE;
       record.typed_const_expression_index = typed_expression_index;
+      record.frontend_const_declaration = W_SEED_CONSTIR_NONE;
       record.lowerable = true;
       record.source_span = typed->span;
       record.body_span = typed->span;
@@ -1831,6 +2059,8 @@ static bool write_receipt(const w_seed_constir_output *output,
     write_u32_be(output->receipt, &offset, function->frontend_function);
     write_u32_be(output->receipt, &offset,
                  function->typed_const_expression_index);
+    write_u32_be(output->receipt, &offset,
+                 function->frontend_const_declaration);
     output->receipt[offset] = function->lowerable ? 1u : 0u;
     offset += 1u;
     write_span(output->receipt, &offset, function->source_span);
@@ -1881,6 +2111,8 @@ static bool write_receipt(const w_seed_constir_output *output,
     write_u32_be(output->receipt, &offset, node->right);
     write_u32_be(output->receipt, &offset, node->parameter_ordinal);
     write_u32_be(output->receipt, &offset, node->call_target_function);
+    write_u32_be(output->receipt, &offset,
+                 node->call_target_const_declaration);
     write_u32_be(output->receipt, &offset, node->first_call_argument);
     write_u32_be(output->receipt, &offset, node->call_argument_count);
     write_u32_be(output->receipt, &offset, node->first_switch_arm);
@@ -2603,12 +2835,45 @@ static const w_seed_constir_function *program_function_for_frontend(
        candidate += 1) {
     const w_seed_constir_function *function =
         &context->program->functions[candidate];
-    if (function->frontend_function == frontend_function) {
+    if (function->origin ==
+            W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION &&
+        function->frontend_function == frontend_function) {
       if (index != NULL) *index = candidate;
       return function;
     }
   }
   return NULL;
+}
+
+static const w_seed_constir_function *program_function_for_const(
+    const constir_eval_context *context, uint32_t const_declaration,
+    size_t *index) {
+  if (context == NULL || context->program == NULL ||
+      context->program->functions == NULL ||
+      const_declaration == W_SEED_CONSTIR_NONE)
+    return NULL;
+  for (size_t candidate = 0; candidate < context->program->function_count;
+       candidate += 1) {
+    const w_seed_constir_function *function =
+        &context->program->functions[candidate];
+    if (function->origin ==
+            W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION &&
+        function->frontend_const_declaration == const_declaration) {
+      if (index != NULL) *index = candidate;
+      return function;
+    }
+  }
+  return NULL;
+}
+
+static const w_seed_frontend_const_declaration *program_const_declaration_at(
+    const w_seed_constir_program *program, uint32_t index) {
+  if (program == NULL || program->frontend_output == NULL ||
+      program->frontend_result == NULL || index == W_SEED_CONSTIR_NONE ||
+      (size_t)index >= program->frontend_result->written.const_declarations)
+    return NULL;
+  if (program->frontend_output->const_declarations == NULL) return NULL;
+  return &program->frontend_output->const_declarations[index];
 }
 
 static const w_seed_constir_parameter *function_parameter_for_ordinal(
@@ -2963,6 +3228,23 @@ static bool function_result_matches_node(const w_seed_constir_program *program,
                                           const w_seed_constir_function *function,
                                           const w_seed_constir_node *node) {
   if (program == NULL || function == NULL || node == NULL) return false;
+  if (function->origin ==
+      W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION) {
+    const w_seed_frontend_const_declaration *declaration =
+        program_const_declaration_at(program,
+                                     function->frontend_const_declaration);
+    if (declaration == NULL || program->frontend_output == NULL ||
+        program->frontend_result == NULL ||
+        program->frontend_output->types == NULL ||
+        (size_t)declaration->declared_type >=
+            program->frontend_result->written.types)
+      return false;
+    const w_seed_frontend_type *type =
+        &program->frontend_output->types[declaration->declared_type];
+    return constir_result_type_supported(type->kind) &&
+           node_matches_type(node, type->kind, type->is_signed,
+                             type->bit_width, type->enum_base_index);
+  }
   if (program->frontend_output != NULL && program->frontend_result != NULL &&
       program->frontend_output->functions != NULL &&
       program->frontend_output->types != NULL &&
@@ -3121,6 +3403,7 @@ static bool validate_function_origin(const w_seed_constir_program *program,
       W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION) {
     if (function->frontend_function == W_SEED_CONSTIR_NONE ||
         function->typed_const_expression_index != W_SEED_CONSTIR_NONE ||
+        function->frontend_const_declaration != W_SEED_CONSTIR_NONE ||
         program->frontend_result == NULL ||
         (size_t)function->frontend_function >=
             program->frontend_result->written.functions)
@@ -3134,9 +3417,125 @@ static bool validate_function_origin(const w_seed_constir_program *program,
     }
     return true;
   }
+  if (function->origin ==
+      W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION) {
+    if (function->frontend_function != W_SEED_CONSTIR_NONE ||
+        function->typed_const_expression_index != W_SEED_CONSTIR_NONE ||
+        function->frontend_const_declaration == W_SEED_CONSTIR_NONE ||
+        program->frontend_result == NULL || program->frontend_output == NULL)
+      return false;
+    const w_seed_frontend_const_declaration *declaration =
+        program_const_declaration_at(program,
+                                     function->frontend_const_declaration);
+    if (declaration == NULL ||
+        declaration->module_index >=
+            program->frontend_result->written.modules ||
+        declaration->name.data == NULL || declaration->name.length == 0u ||
+        !span_valid(declaration->span) ||
+        !span_contains(declaration->span, declaration->body_span) ||
+        declaration->initializer_expression == W_SEED_FRONTEND_NONE ||
+        program->frontend_output->expressions == NULL ||
+        (size_t)declaration->initializer_expression >=
+            program->frontend_result->written.expressions)
+      return false;
+    if (program->frontend_output->modules == NULL) return false;
+    const w_seed_frontend_module *module =
+        &program->frontend_output->modules[declaration->module_index];
+    if (!range_valid(module->first_const_declaration,
+                     module->const_declaration_count,
+                     program->frontend_result->written.const_declarations) ||
+        function->frontend_const_declaration <
+            module->first_const_declaration ||
+        (size_t)function->frontend_const_declaration -
+                module->first_const_declaration >=
+            module->const_declaration_count ||
+        declaration->symbol_index == W_SEED_FRONTEND_NONE ||
+        program->frontend_output->symbols == NULL ||
+        (size_t)declaration->symbol_index >=
+            program->frontend_result->written.symbols)
+      return false;
+    const w_seed_frontend_symbol *symbol =
+        &program->frontend_output->symbols[declaration->symbol_index];
+    if (symbol->kind != W_SEED_FRONTEND_SYMBOL_CONST ||
+        symbol->module_index != declaration->module_index ||
+        symbol->owner_index != function->frontend_const_declaration ||
+        symbol->exported != declaration->exported ||
+        symbol->type_index != declaration->declared_type ||
+        !frontend_text_equal(symbol->name, declaration->name) ||
+        symbol->span.start_byte != declaration->span.start_byte ||
+        symbol->span.end_byte != declaration->span.end_byte)
+      return false;
+    for (size_t index = 0u; index < function_index; index += 1u) {
+      const w_seed_constir_function *prior = &program->functions[index];
+      if (prior->origin ==
+              W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION &&
+          prior->frontend_const_declaration ==
+              function->frontend_const_declaration)
+        return false;
+    }
+    if (function->source_span.start_byte != declaration->span.start_byte ||
+        function->source_span.end_byte != declaration->span.end_byte ||
+        function->body_span.start_byte != declaration->body_span.start_byte ||
+        function->body_span.end_byte != declaration->body_span.end_byte ||
+        function->parameter_count != 0u ||
+        function->first_parameter !=
+            (function->lowerable ? 0u : W_SEED_CONSTIR_NONE) ||
+        function->first_statement != W_SEED_CONSTIR_NONE ||
+        function->statement_count != 0u || function->first_local !=
+            W_SEED_CONSTIR_NONE || function->local_count != 0u)
+      return false;
+    const w_seed_frontend_expression *expression =
+        &program->frontend_output
+             ->expressions[declaration->initializer_expression];
+    if (expression->owner_function != W_SEED_FRONTEND_NONE ||
+        !span_contains(declaration->body_span, expression->span) ||
+        (declaration->declared_type != W_SEED_FRONTEND_NONE &&
+         expression->inferred_type != declaration->declared_type))
+      return false;
+    /* An omitted type is a well-formed source declaration, but it is outside
+     * the D4 lowerable subset.  Keep its synthetic origin auditable so the
+     * generic validator can report UNSUPPORTED instead of INVALID. */
+    if (declaration->declared_type == W_SEED_FRONTEND_NONE) {
+      if (function->lowerable || function->node_count != 0u ||
+          function->root_node != W_SEED_CONSTIR_NONE)
+        return false;
+      return true;
+    }
+    const w_seed_frontend_type *type = NULL;
+    if (program->frontend_output->types == NULL ||
+        (size_t)declaration->declared_type >=
+            program->frontend_result->written.types)
+      return false;
+    type = &program->frontend_output->types[declaration->declared_type];
+    const bool scalar =
+        type->kind == W_SEED_FRONTEND_TYPE_BOOL ||
+        (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->bit_width != 0u);
+    if (function->lowerable != (declaration->lowerable && expression->supported &&
+                                scalar && declaration->has_explicit_type))
+      return false;
+    if (!function->lowerable) {
+      if (function->node_count != 0u ||
+          function->root_node != W_SEED_CONSTIR_NONE)
+        return false;
+      return true;
+    }
+    if (function->root_node == W_SEED_CONSTIR_NONE ||
+        function->node_count == 0u || program->nodes == NULL ||
+        (size_t)function->root_node >= program->node_count)
+      return false;
+    const w_seed_constir_node *node = &program->nodes[function->root_node];
+    return node->owner_function == W_SEED_CONSTIR_NONE &&
+           span_contains(declaration->body_span, node->source_span) &&
+           node->type_index == declaration->declared_type &&
+           node->type_kind == type->kind &&
+           node->type_is_signed == type->is_signed &&
+           node->type_bit_width == type->bit_width &&
+           node->enum_base_index == type->enum_base_index;
+  }
   if (function->origin !=
       W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION ||
       function->frontend_function != W_SEED_CONSTIR_NONE ||
+      function->frontend_const_declaration != W_SEED_CONSTIR_NONE ||
       function->typed_const_expression_index == W_SEED_CONSTIR_NONE ||
       program->frontend_result == NULL || program->frontend_output == NULL ||
       program->frontend_output->typed_const_expressions == NULL ||
@@ -3291,9 +3690,22 @@ static bool validate_program(const w_seed_constir_program *program) {
   if (program->functions == NULL) return false;
   if ((program->parameter_count != 0 && program->parameters == NULL) ||
       (program->node_count != 0 && program->nodes == NULL)) return false;
+  bool saw_const_declaration = false;
+  bool saw_typed_expression = false;
   for (size_t index = 0; index < program->function_count; index += 1) {
     const w_seed_constir_function *function = &program->functions[index];
     if (!validate_function_origin(program, function, index)) return false;
+    if (function->origin ==
+        W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION) {
+      if (saw_const_declaration || saw_typed_expression) return false;
+    } else if (function->origin ==
+               W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION) {
+      if (saw_typed_expression) return false;
+      saw_const_declaration = true;
+    } else if (function->origin ==
+               W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION) {
+      saw_typed_expression = true;
+    }
     if (!function->lowerable) continue;
     const bool statement_mode = function->root_statement != W_SEED_CONSTIR_NONE;
     if ((!statement_mode && (function->root_node == W_SEED_CONSTIR_NONE ||
@@ -3684,10 +4096,44 @@ static bool validate_program(const w_seed_constir_program *program) {
       }
       if (node->kind == W_SEED_CONSTIR_NODE_CALL) {
         constir_eval_context lookup = {.program = program};
-        const w_seed_constir_function *target = program_function_for_frontend(
-            &lookup, node->call_target_function, NULL);
-        if (node->call_target_function == W_SEED_CONSTIR_NONE ||
-            target == NULL || !target->lowerable ||
+        if (node->call_target_function != W_SEED_CONSTIR_NONE &&
+            node->call_target_const_declaration != W_SEED_CONSTIR_NONE)
+          return false;
+        if (node->call_target_const_declaration != W_SEED_CONSTIR_NONE) {
+          if (program->frontend_output == NULL ||
+              program->frontend_result == NULL ||
+              program->frontend_output->expressions == NULL ||
+              node->frontend_expression == W_SEED_CONSTIR_NONE ||
+              (size_t)node->frontend_expression >=
+                  program->frontend_result->written.expressions)
+            return false;
+          const w_seed_frontend_expression *frontend_expression =
+              &program->frontend_output->expressions[node->frontend_expression];
+          /* The append-only relation must match the lowered dependency.  A
+           * caller mutation of its identity invalidates the program before
+           * graph preflight can classify or execute it. */
+          if (frontend_expression->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+              frontend_expression->resolved_const_declaration !=
+                  node->call_target_const_declaration ||
+              frontend_expression->owner_function !=
+                  (function->origin ==
+                           W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION
+                       ? function->frontend_function
+                       : W_SEED_FRONTEND_NONE) ||
+              !span_contains(node->source_span, frontend_expression->span))
+            return false;
+        }
+        const w_seed_constir_function *target =
+            node->call_target_function != W_SEED_CONSTIR_NONE
+                ? program_function_for_frontend(&lookup,
+                                                node->call_target_function,
+                                                NULL)
+                : program_function_for_const(&lookup,
+                                             node->call_target_const_declaration,
+                                             NULL);
+        if (target == NULL || !target->lowerable ||
+            (node->call_target_function == W_SEED_CONSTIR_NONE &&
+             node->call_target_const_declaration == W_SEED_CONSTIR_NONE) ||
             target->parameter_count != node->call_argument_count ||
             node->call_argument_count > W_SEED_CONSTIR_MAX_PARAMETERS ||
             (node->call_argument_count != 0u &&
@@ -3790,6 +4236,25 @@ static bool validate_program(const w_seed_constir_program *program) {
     if (!statement_mode &&
         !node_eval_depth_valid(program, function, function->root_node, 1u))
       return false;
+  }
+  if (program->frontend_result != NULL && program->frontend_output != NULL &&
+      program->frontend_result->written.const_declarations != 0u) {
+    for (size_t declaration_index = 0u;
+         declaration_index <
+         program->frontend_result->written.const_declarations;
+         declaration_index += 1u) {
+      size_t matches = 0u;
+      for (size_t function_index = 0u;
+           function_index < program->function_count; function_index += 1u) {
+        const w_seed_constir_function *function =
+            &program->functions[function_index];
+        if (function->origin ==
+                W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION &&
+            function->frontend_const_declaration == declaration_index)
+          matches += 1u;
+      }
+      if (matches != 1u) return false;
+    }
   }
   return true;
 }
@@ -4128,9 +4593,20 @@ static bool eval_node_at(constir_eval_context *context,
     }
     case W_SEED_CONSTIR_NODE_CALL: {
       size_t target_index = 0;
-      const w_seed_constir_function *target = program_function_for_frontend(
-          context, node->call_target_function, &target_index);
+      if (node->call_target_function != W_SEED_CONSTIR_NONE &&
+          node->call_target_const_declaration != W_SEED_CONSTIR_NONE)
+        return false;
+      const w_seed_constir_function *target =
+          node->call_target_function != W_SEED_CONSTIR_NONE
+              ? program_function_for_frontend(context,
+                                              node->call_target_function,
+                                              &target_index)
+              : program_function_for_const(context,
+                                           node->call_target_const_declaration,
+                                           &target_index);
       if (target == NULL || !target->lowerable ||
+          (node->call_target_function == W_SEED_CONSTIR_NONE &&
+           node->call_target_const_declaration == W_SEED_CONSTIR_NONE) ||
           node->call_argument_count != target->parameter_count)
         return false;
       if (context->current_depth == 0u ||
@@ -4541,6 +5017,7 @@ static bool lower_expression(constir_lower_context *context,
   node.right = W_SEED_CONSTIR_NONE;
   node.parameter_ordinal = W_SEED_CONSTIR_NONE;
   node.call_target_function = W_SEED_CONSTIR_NONE;
+  node.call_target_const_declaration = W_SEED_CONSTIR_NONE;
   node.first_call_argument = W_SEED_CONSTIR_NONE;
   node.first_switch_arm = W_SEED_CONSTIR_NONE;
   node.first_membership_case = W_SEED_CONSTIR_NONE;
@@ -4601,6 +5078,18 @@ static bool lower_expression(constir_lower_context *context,
       if (expression->resolved_local_ordinal != W_SEED_FRONTEND_NONE) {
         node.kind = W_SEED_CONSTIR_NODE_LOCAL;
         node.local_ordinal = expression->resolved_local_ordinal;
+        break;
+      }
+      if (expression->resolved_const_declaration != W_SEED_FRONTEND_NONE) {
+        const uint32_t target = expression->resolved_const_declaration;
+        const w_seed_frontend_const_declaration *declaration =
+            frontend_const_declaration_at(context, target);
+        if (declaration == NULL || !declaration->lowerable) {
+          mark_failure(context, expression->span, expression_index);
+          return false;
+        }
+        node.kind = W_SEED_CONSTIR_NODE_CALL;
+        node.call_target_const_declaration = target;
         break;
       }
       const uint32_t ordinal = expression->resolved_parameter_ordinal;

@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-5"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-6"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -83,6 +83,8 @@ typedef enum {
   W_SEED_FRONTEND_DECL_ALIAS,
   W_SEED_FRONTEND_DECL_FUNCTION,
   W_SEED_FRONTEND_DECL_ENUM,
+  /* Append-only module-level named const declaration. */
+  W_SEED_FRONTEND_DECL_CONST,
 } w_seed_frontend_decl_kind;
 
 typedef enum {
@@ -214,6 +216,8 @@ typedef struct {
   size_t const_values;
   size_t const_elements;
   size_t const_bytes;
+  /* Append-only module const declaration records. */
+  size_t const_declarations;
 } w_seed_frontend_counts;
 
 typedef struct {
@@ -235,6 +239,9 @@ typedef struct {
   uint32_t entry_count;
   uint32_t first_enum;
   uint32_t enum_count;
+  /* Append-only module const declaration range. */
+  uint32_t first_const_declaration;
+  uint32_t const_declaration_count;
 } w_seed_frontend_module;
 
 typedef struct {
@@ -355,6 +362,21 @@ typedef struct {
   uint32_t type_index;
 } w_seed_frontend_enum_case_parameter;
 
+/* A caller-owned module const declaration.  The record contains source
+ * ownership and typed initializer relations only.  It never stores a value. */
+typedef struct {
+  uint32_t module_index;
+  w_seed_frontend_text name;
+  bool exported;
+  w_seed_span span;
+  w_seed_span body_span;
+  uint32_t declared_type;
+  uint32_t initializer_expression;
+  uint32_t symbol_index;
+  bool has_explicit_type;
+  bool lowerable;
+} w_seed_frontend_const_declaration;
+
 typedef struct {
   uint32_t module_index;
   w_seed_frontend_text name;
@@ -469,6 +491,8 @@ typedef enum {
   W_SEED_FRONTEND_SYMBOL_ENTRY,
   W_SEED_FRONTEND_SYMBOL_ENUM,
   W_SEED_FRONTEND_SYMBOL_ENUM_CASE,
+  /* Append-only module-level named const symbol. */
+  W_SEED_FRONTEND_SYMBOL_CONST,
 } w_seed_frontend_symbol_kind;
 
 typedef struct {
@@ -627,6 +651,8 @@ typedef struct {
   uint32_t resolved_function_index;
   uint32_t resolved_local_ordinal;
   w_seed_frontend_text member_name;
+  /* Append-only resolution relation for a module const dependency. */
+  uint32_t resolved_const_declaration;
   /* Append-only normalized simple String literal slice.  The offset is
    * W_SEED_FRONTEND_NONE for every other expression kind.  An empty String
    * uses a valid offset and a zero count. */
@@ -703,6 +729,9 @@ typedef struct {
   size_t enum_case_capacity;
   w_seed_frontend_enum_case_parameter *enum_case_parameters;
   size_t enum_case_parameter_capacity;
+  /* Append-only module const declaration output. */
+  w_seed_frontend_const_declaration *const_declarations;
+  size_t const_declaration_capacity;
   /* Append-only switch-arm output arrays. */
   w_seed_frontend_switch_arm *switch_arms;
   size_t switch_arm_capacity;

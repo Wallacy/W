@@ -92,6 +92,7 @@ typedef struct {
   size_t const_values;
   size_t const_elements;
   size_t const_bytes;
+  size_t const_declarations;
 } frontend_measure;
 
 typedef struct {
@@ -132,6 +133,7 @@ typedef struct {
   bool current_const_body_active;
   bool current_const_body_supported;
   bool current_const_root_emitted;
+  uint32_t current_module_const;
   uint32_t builtin_usize_type_index;
   bool normalizing_generic_domain;
   frontend_pending_application
@@ -143,10 +145,27 @@ typedef struct {
 } frontend_context;
 
 static bool normalize_document(frontend_context *context);
+static bool normalize_module_const(frontend_context *context,
+                                   uint32_t node_index,
+                                   uint32_t const_index);
 static bool detect_duplicate_declarations(frontend_context *context);
 static bool resolve_imports(frontend_context *context);
 static bool resolve_frontend_links(frontend_context *context);
 static bool resolve_pending_generic_applications(frontend_context *context);
+static bool module_const_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    uint32_t *const_index, frontend_simple_type *type,
+    const w_seed_frontend_document **owner_doc, uint32_t *owner_node);
+static bool imported_target_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    w_seed_frontend_text *module_name, w_seed_frontend_text *target_name);
+static bool unresolved_parenthesized_identifier(
+    const frontend_context *context, w_seed_span span,
+    w_seed_frontend_text *name_out);
+static bool module_const_name_is_duplicate(
+    const frontend_context *context, w_seed_frontend_text name);
+static bool module_const_name_is_untyped(
+    const frontend_context *context, w_seed_frontend_text name);
 static const char *fact_name(w_seed_frontend_fact_kind kind);
 static w_seed_frontend_text document_module_name(
     const w_seed_frontend_document *doc);
@@ -236,6 +255,12 @@ static bool context_append_record(frontend_context *context, size_t ordinal,
                                   const void *value, size_t value_size,
                                   void *array, size_t capacity,
                                   uint32_t *index);
+static bool next_child(const w_seed_frontend_document *doc, uint32_t *cursor,
+                       uint32_t *child);
+static bool receipt_size_const_declarations_from_input(
+    frontend_context *context);
+static bool span_has_keyword(const w_seed_frontend_document *doc,
+                             w_seed_span span, const char *keyword);
 static bool module_id_equal(w_seed_frontend_text left,
                             w_seed_frontend_text right);
 static bool normalize_struct_generic_parameters(
@@ -1557,6 +1582,39 @@ static bool resolve_one_pending_generic_application(
         context->function_node = saved_function_node;
         context->current_function_is_const = saved_const_function;
         context->current_const_body_active = saved_const_active;
+        w_seed_frontend_text imported_module = {NULL, 0};
+        w_seed_frontend_text imported_target = {NULL, 0};
+        w_seed_frontend_text unresolved_name = root.name;
+        bool unresolved_local =
+            context->count.const_declarations != 0u && normalized &&
+            root.kind == W_SEED_FRONTEND_EXPR_IDENTIFIER && root.has_name &&
+            !root.supported &&
+            !module_const_name_is_duplicate(context, root.name) &&
+            !module_const_name_is_untyped(context, root.name) &&
+            !imported_target_for_name(context, root.name, &imported_module,
+                                      &imported_target);
+        if (!unresolved_local && context->count.const_declarations != 0u &&
+            normalized && root.kind == W_SEED_FRONTEND_EXPR_PARENTHESIS &&
+            !root.supported) {
+          unresolved_local = unresolved_parenthesized_identifier(
+              context, shape->value_span, &unresolved_name);
+          if (unresolved_local &&
+              (module_const_name_is_duplicate(context, unresolved_name) ||
+               module_const_name_is_untyped(context, unresolved_name)))
+            unresolved_local = false;
+        }
+        if (unresolved_local) {
+          semantic_error = true;
+          valid = false;
+          (void)generic_application_diagnostic(
+              context, "W-SEM-0001", shape->value_span, unresolved_name,
+              expected.spelling);
+          argument->value.binding_status =
+              W_SEED_FRONTEND_GENERIC_BINDING_INVALID;
+          bound[slot] = true;
+          if (slot == next_slot) next_slot += 1u;
+          continue;
+        }
         if (!normalized || !root.supported ||
             !frontend_type_equal(context, actual, expected)) {
           (void)context_append_fact(
@@ -1858,6 +1916,7 @@ static bool receipt_size_source_records(frontend_context *context) {
       !receipt_size_literal(context, "\n")) {
     return false;
   }
+  if (!receipt_size_const_declarations_from_input(context)) return false;
   for (size_t index = 0; index < context->input.document_count; index += 1) {
     const w_seed_frontend_document *doc = &context->input.documents[index];
     if (!receipt_size_literal(context, "source=") ||
@@ -1929,6 +1988,52 @@ static bool receipt_size_module(frontend_context *context,
          receipt_size_literal(context, "|source=") &&
          receipt_size_text(context, module->source_id) &&
          receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_const_declaration(
+    frontend_context *context,
+    const w_seed_frontend_const_declaration *value) {
+  return receipt_size_literal(context, "const-declaration=") &&
+         receipt_size_size(context, value->module_index) &&
+         receipt_size_literal(context, "|") &&
+         receipt_size_text(context, value->name) &&
+         receipt_size_literal(context, "|exported=") &&
+         receipt_size_size(context, value->exported ? 1u : 0u) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_const_declarations_from_input(
+    frontend_context *context) {
+  if (context == NULL) return false;
+  for (size_t document_index = 0u;
+       document_index < context->input.document_count; document_index += 1u) {
+    const w_seed_frontend_document *doc =
+        &context->input.documents[document_index];
+    uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t guard = 0u;
+    while (next_child(doc, &cursor, &child) &&
+           guard < doc->parse.node_count) {
+      if (doc->nodes[child].kind == W_SEED_CST_CONST_DECLARATION) {
+        const w_seed_frontend_const_declaration value = {
+            (uint32_t)document_index,
+            name_after_keyword(doc, doc->nodes[child].raw_span, "const"),
+            span_has_keyword(doc, doc->nodes[child].raw_span, "export"),
+            doc->nodes[child].raw_span,
+            empty_span(doc->nodes[child].raw_span.end_byte),
+            W_SEED_FRONTEND_NONE,
+            W_SEED_FRONTEND_NONE,
+            W_SEED_FRONTEND_NONE,
+            false,
+            false};
+        if (!receipt_size_const_declaration(context, &value)) return false;
+      }
+      guard += 1u;
+    }
+  }
+  return true;
 }
 
 static bool receipt_size_import(frontend_context *context,
@@ -3125,6 +3230,8 @@ static bool measure_document(const w_seed_frontend_document *doc,
       count_root_children(doc, W_SEED_CST_TYPE_DECLARATION);
   measure->aliases += count_root_children(doc, W_SEED_CST_ALIAS_DECLARATION);
   measure->functions += count_root_children(doc, W_SEED_CST_FUNCTION);
+  measure->const_declarations +=
+      count_root_children(doc, W_SEED_CST_CONST_DECLARATION);
   measure->entries += count_root_children(doc, W_SEED_CST_ENTRY);
 
   for (size_t index = 0; index < doc->parse.node_count; index += 1) {
@@ -3147,6 +3254,7 @@ static bool measure_document(const w_seed_frontend_document *doc,
         kind == W_SEED_CST_ALIAS_DECLARATION || kind == W_SEED_CST_ENTRY) {
       measure->symbols += 1;
     }
+    if (kind == W_SEED_CST_CONST_DECLARATION) measure->symbols += 1;
     if (kind == W_SEED_CST_ENUM || kind == W_SEED_CST_ENUM_CASE)
       measure->symbols += 1;
     if (kind_is_unsupported_owner(kind)) measure->facts += 1;
@@ -3256,6 +3364,7 @@ static void counts_from_measure(const frontend_measure *measure,
   counts->const_values = measure->const_values;
   counts->const_elements = measure->const_elements;
   counts->const_bytes = measure->const_bytes;
+  counts->const_declarations = measure->const_declarations;
 }
 
 w_seed_frontend_status w_seed_frontend_measure(
@@ -3283,6 +3392,8 @@ w_seed_frontend_status w_seed_frontend_measure(
   dry.output = NULL;
   dry.result = result;
   dry.emit = false;
+  dry.function_index = W_SEED_FRONTEND_NONE;
+  dry.current_module_const = W_SEED_FRONTEND_NONE;
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
   (void)memset(dry.generic_domain_type_indices, 0xff,
                sizeof(dry.generic_domain_type_indices));
@@ -4034,6 +4145,22 @@ static bool append_module(frontend_context *context, w_seed_frontend_module valu
     }
     context->output->modules[ordinal] = value;
   }
+  return true;
+}
+
+static bool context_append_const_declaration(
+    frontend_context *context, w_seed_frontend_const_declaration value,
+    uint32_t *index) {
+  if (context == NULL || index == NULL) return false;
+  const size_t ordinal = context->count.const_declarations;
+  context->count.const_declarations += 1u;
+  if (!add_u32(ordinal, index)) return false;
+  if (!context->emit) return true;
+  if (context->output == NULL) return false;
+  if (context->output->const_declarations == NULL ||
+      ordinal >= context->output->const_declaration_capacity)
+    return false;
+  context->output->const_declarations[ordinal] = value;
   return true;
 }
 
@@ -6220,6 +6347,120 @@ static frontend_simple_type literal_simple_type(
   return type;
 }
 
+static frontend_simple_type simple_type_from_frontend_type(
+    const w_seed_frontend_type *source) {
+  frontend_simple_type type = simple_type_unknown();
+  if (source == NULL) return type;
+  type.kind = source->kind;
+  type.is_signed = source->is_signed;
+  type.bit_width = source->bit_width;
+  type.spelling = source->spelling;
+  type.enum_index = source->enum_base_index;
+  type.enum_name = source->nominal_name;
+  return type;
+}
+
+static bool module_const_index_for_node(const frontend_context *context,
+                                        size_t document_index,
+                                        uint32_t node_index,
+                                        uint32_t *index) {
+  if (context == NULL || index == NULL ||
+      document_index >= context->input.document_count) return false;
+  size_t ordinal = 0u;
+  for (size_t document = 0u; document < document_index; document += 1u) {
+    ordinal += count_root_children(&context->input.documents[document],
+                                   W_SEED_CST_CONST_DECLARATION);
+  }
+  const w_seed_frontend_document *doc = &context->input.documents[document_index];
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_CONST_DECLARATION) {
+      if (child == node_index) {
+        if (ordinal >= (size_t)UINT32_MAX) return false;
+        *index = (uint32_t)ordinal;
+        return true;
+      }
+      ordinal += 1u;
+    }
+    guard += 1u;
+  }
+  return false;
+}
+
+/* Resolve only module-level const declarations from the current module.
+ * This helper reads CST for forward references.  It never reads an import or
+ * an ambient symbol table. */
+static bool module_const_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    uint32_t *const_index, frontend_simple_type *type,
+    const w_seed_frontend_document **owner_doc, uint32_t *owner_node) {
+  if (const_index != NULL) *const_index = W_SEED_FRONTEND_NONE;
+  if (type != NULL) *type = simple_type_unknown();
+  if (owner_doc != NULL) *owner_doc = NULL;
+  if (owner_node != NULL) *owner_node = W_SEED_CST_NONE;
+  if (context == NULL || name.length == 0u ||
+      context->module_index >= context->input.document_count)
+    return false;
+  const w_seed_frontend_document *doc =
+      &context->input.documents[context->module_index];
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  bool found = false;
+  uint32_t found_index = W_SEED_FRONTEND_NONE;
+  frontend_simple_type found_type = simple_type_unknown();
+  const w_seed_frontend_document *found_doc = NULL;
+  uint32_t found_node = W_SEED_CST_NONE;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind != W_SEED_CST_CONST_DECLARATION) {
+      guard += 1u;
+      continue;
+    }
+    const w_seed_frontend_text candidate =
+        name_after_keyword(doc, doc->nodes[child].raw_span, "const");
+    if (!text_equal_text(candidate, name)) {
+      guard += 1u;
+      continue;
+    }
+    uint32_t index = W_SEED_FRONTEND_NONE;
+    if (!module_const_index_for_node(context, context->module_index, child,
+                                     &index))
+      return false;
+    const uint32_t type_node = direct_type_index(doc, child);
+    if (found) {
+      /* Keep the existing duplicate-symbol fact as the public barrier.  A
+       * resolver must not silently choose one of two same-module consts. */
+      return false;
+    }
+    found = true;
+    found_index = index;
+    found_doc = doc;
+    found_node = child;
+    found_type = type_node == W_SEED_CST_NONE
+                     ? simple_type_unknown()
+                     : contextual_type_from_span(
+                           context, doc, doc->nodes[type_node].raw_span);
+    if (context->emit && context->output != NULL &&
+        context->output->const_declarations != NULL &&
+        (size_t)index < context->count.const_declarations) {
+      const w_seed_frontend_const_declaration *record =
+          &context->output->const_declarations[index];
+      if (record->declared_type != W_SEED_FRONTEND_NONE &&
+          (size_t)record->declared_type < context->count.types)
+        found_type = simple_type_from_frontend_type(
+            &context->output->types[record->declared_type]);
+    }
+  }
+  if (!found) return false;
+  if (const_index != NULL) *const_index = found_index;
+  if (type != NULL) *type = found_type;
+  if (owner_doc != NULL) *owner_doc = found_doc;
+  if (owner_node != NULL) *owner_node = found_node;
+  return true;
+}
+
 static bool function_in_document(const w_seed_frontend_document *doc,
                                  w_seed_frontend_text name,
                                  bool require_export,
@@ -7011,6 +7252,7 @@ static bool expression_append(frontend_expression_parser *parser,
   record.resolved_function_index = W_SEED_FRONTEND_NONE;
   record.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
   record.member_name = (w_seed_frontend_text){NULL, 0};
+  record.resolved_const_declaration = W_SEED_FRONTEND_NONE;
   if (kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
     record.resolved_local_ordinal = loop_local_ordinal_for_span(
         parser->context, spelling, span);
@@ -7277,6 +7519,7 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
     frontend_simple_type type = binding_type_for_name(
         parser->context, spelling, token.span);
     bool resolved = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+    uint32_t resolved_module_const = W_SEED_FRONTEND_NONE;
     if (!resolved) {
       const w_seed_frontend_document *owner_doc = NULL;
       uint32_t function_node = W_SEED_CST_NONE;
@@ -7288,19 +7531,45 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
                                             &external);
       }
       if (!resolved) {
+        frontend_simple_type module_type = simple_type_unknown();
+        if (module_const_for_name(parser->context, spelling,
+                                  &resolved_module_const, &module_type, NULL,
+                                  NULL)) {
+          type = module_type;
+          /* Module const references use the enclosing explicit type when the
+           * source-backed target has the same scalar type.  The canonical
+           * type index can differ because each declaration owns its type
+           * record.  Keep a real mismatch visible to the lowerability check. */
+          if (parser->has_expected_type &&
+              ((type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+                parser->expected_type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+                type.is_signed == parser->expected_type.is_signed &&
+                type.bit_width == parser->expected_type.bit_width) ||
+               (type.kind == W_SEED_FRONTEND_TYPE_BOOL &&
+                parser->expected_type.kind == W_SEED_FRONTEND_TYPE_BOOL)))
+            type = parser->expected_type;
+          resolved = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+        }
+      }
+      if (!resolved) {
         (void)context_append_fact(
             parser->context, W_SEED_FRONTEND_FACT_UNRESOLVED_LOCAL_SYMBOL,
             token.span, spelling);
       }
     }
     const bool identifier_supported = resolved;
-    return expression_append(parser, W_SEED_FRONTEND_EXPR_IDENTIFIER,
-                             token.span, spelling,
-                             (w_seed_frontend_text){NULL, 0}, type,
-                             identifier_supported,
-                             (size_t)W_SEED_FRONTEND_NONE,
-                             (size_t)W_SEED_FRONTEND_NONE,
-                             W_SEED_FRONTEND_NONE, 0, value);
+    const bool appended = expression_append(
+        parser, W_SEED_FRONTEND_EXPR_IDENTIFIER, token.span, spelling,
+        (w_seed_frontend_text){NULL, 0}, type, identifier_supported,
+        (size_t)W_SEED_FRONTEND_NONE, (size_t)W_SEED_FRONTEND_NONE,
+        W_SEED_FRONTEND_NONE, 0, value);
+    if (appended && resolved_module_const != W_SEED_FRONTEND_NONE &&
+        parser->context->emit && parser->context->output != NULL &&
+        value->index < parser->context->output->expression_capacity) {
+      parser->context->output->expressions[value->index]
+          .resolved_const_declaration = resolved_module_const;
+    }
+    return appended;
   }
   if (token.kind == W_SEED_CST_NUMBER ||
       token.kind == W_SEED_CST_LITERAL_EVENT) {
@@ -8412,6 +8681,9 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.membership_case_count = 0;
     fallback.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
     fallback.resolved_function_index = W_SEED_FRONTEND_NONE;
+    fallback.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
+    fallback.resolved_const_declaration = W_SEED_FRONTEND_NONE;
+    fallback.member_name = (w_seed_frontend_text){NULL, 0};
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
     const bool appended =
@@ -8451,6 +8723,9 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.membership_case_count = 0;
     fallback.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
     fallback.resolved_function_index = W_SEED_FRONTEND_NONE;
+    fallback.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
+    fallback.resolved_const_declaration = W_SEED_FRONTEND_NONE;
+    fallback.member_name = (w_seed_frontend_text){NULL, 0};
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
     const bool appended =
@@ -9292,6 +9567,250 @@ static bool normalize_block_statements(frontend_context *context,
   return normalize_block_statements_depth(context, block_node, 0u, NULL, NULL);
 }
 
+static bool module_const_expression_kind_allowed(
+    w_seed_frontend_expr_kind kind) {
+  return kind == W_SEED_FRONTEND_EXPR_BOOL ||
+         kind == W_SEED_FRONTEND_EXPR_INTEGER ||
+         kind == W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+         kind == W_SEED_FRONTEND_EXPR_PARENTHESIS ||
+         kind == W_SEED_FRONTEND_EXPR_UNARY ||
+         kind == W_SEED_FRONTEND_EXPR_BINARY;
+}
+
+static bool unresolved_parenthesized_identifier(
+    const frontend_context *context, w_seed_span span,
+    w_seed_frontend_text *name_out) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (name_out != NULL) *name_out = (w_seed_frontend_text){NULL, 0};
+  if (context == NULL || doc == NULL) return false;
+  frontend_token tokens[W_SEED_FRONTEND_MAX_NESTING * 2u];
+  size_t token_count = 0u;
+  if (!const_tokens_for_span(doc, trim_span(doc, span), tokens,
+                             sizeof(tokens) / sizeof(tokens[0]), &token_count) ||
+      token_count < 3u) {
+    return false;
+  }
+  size_t open_count = 0u;
+  while (open_count < token_count &&
+         token_text(doc, &tokens[open_count], "("))
+    open_count += 1u;
+  if (open_count == 0u || open_count >= token_count ||
+      tokens[open_count].kind != W_SEED_CST_WORD)
+    return false;
+  size_t close_count = open_count + 1u;
+  while (close_count < token_count &&
+         token_text(doc, &tokens[close_count], ")"))
+    close_count += 1u;
+  if (close_count != token_count ||
+      token_count != open_count * 2u + 1u)
+    return false;
+  const w_seed_frontend_text name =
+      text_from_span(doc, tokens[open_count].span);
+  w_seed_frontend_text imported_module = {NULL, 0};
+  w_seed_frontend_text imported_target = {NULL, 0};
+  if (imported_target_for_name(context, name, &imported_module,
+                               &imported_target))
+    return false;
+  if (name_out != NULL) *name_out = name;
+  return true;
+}
+
+static bool module_const_name_is_duplicate(
+    const frontend_context *context, w_seed_frontend_text name) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL || name.length == 0u) return false;
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t matches = 0u;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_CONST_DECLARATION &&
+        text_equal_text(name_after_keyword(doc, doc->nodes[child].raw_span,
+                                           "const"),
+                        name)) {
+      matches += 1u;
+      if (matches > 1u) return true;
+    }
+    guard += 1u;
+  }
+  return false;
+}
+
+static bool module_const_name_is_untyped(
+    const frontend_context *context, w_seed_frontend_text name) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL || name.length == 0u) return false;
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_CONST_DECLARATION &&
+        text_equal_text(name_after_keyword(doc, doc->nodes[child].raw_span,
+                                           "const"),
+                        name)) {
+      return direct_type_index(doc, child) == W_SEED_CST_NONE;
+    }
+    guard += 1u;
+  }
+  return false;
+}
+
+static bool module_const_record_write(frontend_context *context,
+                                      uint32_t index,
+                                      const w_seed_frontend_const_declaration *value) {
+  if (context == NULL || value == NULL) return false;
+  if (!context->emit) return true;
+  if (context->output == NULL) return false;
+  if (context->output->const_declarations == NULL ||
+      (size_t)index >= context->output->const_declaration_capacity)
+    return false;
+  context->output->const_declarations[index] = *value;
+  return true;
+}
+
+static bool normalize_module_const(frontend_context *context,
+                                   uint32_t node_index,
+                                   uint32_t const_index) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (context == NULL || doc == NULL || node_index >= doc->parse.node_count)
+    return false;
+  const w_seed_cst_node *node = &doc->nodes[node_index];
+  const uint32_t type_node = direct_type_index(doc, node_index);
+  const bool explicit_type = type_node != W_SEED_CST_NONE;
+  uint32_t declared_type = W_SEED_FRONTEND_NONE;
+  const uint32_t expression_node = first_direct_expression(doc, node_index);
+  w_seed_frontend_const_declaration value;
+  (void)memset(&value, 0, sizeof(value));
+  value.module_index = (uint32_t)context->module_index;
+  value.name = name_after_keyword(doc, node->raw_span, "const");
+  value.exported = span_has_keyword(doc, node->raw_span, "export");
+  value.span = node->raw_span;
+  value.body_span = expression_node == W_SEED_CST_NONE
+                        ? empty_span(node->raw_span.end_byte)
+                        : doc->nodes[expression_node].raw_span;
+  value.declared_type = declared_type;
+  value.initializer_expression = W_SEED_FRONTEND_NONE;
+  value.symbol_index = W_SEED_FRONTEND_NONE;
+  value.has_explicit_type = explicit_type;
+  value.lowerable = false;
+  if (context->emit && context->output != NULL) {
+    w_seed_frontend_const_declaration *records =
+        context->output->const_declarations;
+    if (records == NULL || (size_t)const_index >= context->count.const_declarations)
+      return false;
+    value = records[const_index];
+    declared_type = value.declared_type;
+  }
+
+  const frontend_simple_type expected = explicit_type
+                                            ? contextual_type_from_span(
+                                                  context, doc,
+                                                  doc->nodes[type_node].raw_span)
+                                            : simple_type_unknown();
+  frontend_simple_type actual = simple_type_unknown();
+  frontend_expr_value expression_value;
+  (void)memset(&expression_value, 0, sizeof(expression_value));
+  expression_value.index = W_SEED_FRONTEND_NONE;
+  const uint32_t saved_function = context->function_index;
+  const w_seed_cst_node *saved_function_node = context->function_node;
+  const bool saved_const = context->current_function_is_const;
+  const bool saved_active = context->current_const_body_active;
+  const uint32_t saved_const_index = context->current_module_const;
+  context->function_index = W_SEED_FRONTEND_NONE;
+  context->function_node = NULL;
+  context->current_function_is_const = false;
+  context->current_const_body_active = false;
+  context->current_module_const = const_index;
+  bool normalized = expression_node != W_SEED_CST_NONE &&
+                    normalize_expression_node(
+                        context, expression_node, &value.initializer_expression,
+                        expected, &actual, &expression_value);
+  context->function_index = saved_function;
+  context->function_node = saved_function_node;
+  context->current_function_is_const = saved_const;
+  context->current_const_body_active = saved_active;
+  context->current_module_const = saved_const_index;
+  /* Preserve the declaration-owned scalar type index on the initializer root.
+   * The type arena interns equivalent scalar records, so expression parsing
+   * can otherwise retain an earlier const's index and break the source
+   * declaration relation. */
+  if (context->emit && context->output != NULL && explicit_type &&
+      value.initializer_expression != W_SEED_FRONTEND_NONE &&
+      (size_t)value.initializer_expression <
+          context->output->expression_capacity &&
+      declared_type != W_SEED_FRONTEND_NONE &&
+      (size_t)declared_type < context->count.types) {
+    context->output->expressions[value.initializer_expression].inferred_type =
+        declared_type;
+  }
+  if (!normalized || !explicit_type || expression_value.index == W_SEED_FRONTEND_NONE) {
+    (void)context_append_fact(
+        context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, value.body_span,
+        text_from_span(doc, value.body_span));
+  }
+  const bool scalar_type =
+      expected.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+      (expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+       expected.bit_width != 0u);
+  w_seed_frontend_text imported_module = {NULL, 0};
+  w_seed_frontend_text imported_target = {NULL, 0};
+  const bool unresolved_local =
+      explicit_type && normalized &&
+      expression_value.kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+      expression_value.has_name && !expression_value.supported &&
+      !module_const_name_is_duplicate(context, expression_value.name) &&
+      !imported_target_for_name(context, expression_value.name,
+                                &imported_module, &imported_target);
+  if (unresolved_local) {
+    (void)context_append_diagnostic(
+        context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-SEM-0001",
+        expression_value.name, expected.spelling, value.name,
+        (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
+        value.body_span);
+  }
+  if (explicit_type && scalar_type &&
+      normalized && expression_value.supported &&
+      module_const_expression_kind_allowed(expression_value.kind) &&
+      actual.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
+      expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
+      !unresolved_local && !frontend_widening_allowed(context, actual, expected)) {
+    const bool narrowing =
+        actual.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        actual.is_signed == expected.is_signed &&
+        actual.bit_width > expected.bit_width;
+    (void)context_append_diagnostic(
+        context, narrowing ? W_SEED_FRONTEND_DIAGNOSTIC_TYPE
+                           : W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
+        narrowing ? "W-TYPE-0122" : "W-SEM-0001", actual.spelling,
+        expected.spelling, value.name, (w_seed_frontend_text){NULL, 0},
+        (w_seed_frontend_text){NULL, 0}, value.body_span);
+  }
+  value.lowerable = explicit_type && scalar_type && normalized &&
+                    expression_value.supported &&
+                    module_const_expression_kind_allowed(expression_value.kind) &&
+                    actual.kind == expected.kind &&
+                    (expected.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+                     (actual.is_signed == expected.is_signed &&
+                      actual.bit_width == expected.bit_width));
+  if (explicit_type && !scalar_type) {
+    (void)context_append_fact(context, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE,
+                              doc->nodes[type_node].raw_span,
+                              text_from_span(doc, doc->nodes[type_node].raw_span));
+  } else if (normalized && !expression_value.supported) {
+    (void)context_append_fact(
+        context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, value.body_span,
+        text_from_span(doc, value.body_span));
+  } else if (normalized &&
+             !module_const_expression_kind_allowed(expression_value.kind)) {
+    (void)context_append_fact(
+        context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, value.body_span,
+        text_from_span(doc, value.body_span));
+  }
+  if (!module_const_record_write(context, const_index, &value)) return false;
+  return true;
+}
+
 static bool normalize_document(frontend_context *context) {
   const w_seed_frontend_document *doc = context_document(context);
   if (doc == NULL) return false;
@@ -9314,6 +9833,7 @@ static bool normalize_document(frontend_context *context) {
   module.first_function = (uint32_t)context->count.functions;
   module.first_entry = (uint32_t)context->count.entries;
   module.first_enum = (uint32_t)context->count.enums;
+  module.first_const_declaration = (uint32_t)context->count.const_declarations;
   module.import_count = 0;
   module.struct_count = 0;
   module.type_declaration_count = 0;
@@ -9321,6 +9841,7 @@ static bool normalize_document(frontend_context *context) {
   module.function_count = 0;
   module.entry_count = 0;
   module.enum_count = 0;
+  module.const_declaration_count = 0;
   uint32_t module_index = W_SEED_FRONTEND_NONE;
   if (!append_module(context, module, &module_index)) return false;
   context->count.modules += 1;
@@ -9329,6 +9850,58 @@ static bool normalize_document(frontend_context *context) {
                         module.module_id, true, module.span,
                         W_SEED_FRONTEND_NONE, &module_symbol)) {
     return false;
+  }
+
+  /* Publish all declaration records before lowering any initializer.  This
+   * gives every same-module initializer deterministic forward-reference
+   * targets while keeping the physical record order source-backed. */
+  uint32_t const_cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t const_node = W_SEED_CST_NONE;
+  size_t const_guard = 0u;
+  while (next_child(doc, &const_cursor, &const_node) &&
+         const_guard < doc->parse.node_count) {
+    if (doc->nodes[const_node].kind == W_SEED_CST_CONST_DECLARATION) {
+      const uint32_t type_node = direct_type_index(doc, const_node);
+      uint32_t declared_type = W_SEED_FRONTEND_NONE;
+      if (type_node != W_SEED_CST_NONE &&
+          !normalize_type_tree(context, type_node, &declared_type))
+        return false;
+      w_seed_frontend_const_declaration value;
+      (void)memset(&value, 0, sizeof(value));
+      value.module_index = module_index;
+      value.name = name_after_keyword(doc, doc->nodes[const_node].raw_span,
+                                      "const");
+      value.exported =
+          span_has_keyword(doc, doc->nodes[const_node].raw_span, "export");
+      value.span = doc->nodes[const_node].raw_span;
+      const uint32_t body_node = first_direct_expression(doc, const_node);
+      value.body_span = body_node == W_SEED_CST_NONE
+                            ? empty_span(value.span.end_byte)
+                            : doc->nodes[body_node].raw_span;
+      value.declared_type = declared_type;
+      value.initializer_expression = W_SEED_FRONTEND_NONE;
+      value.symbol_index = W_SEED_FRONTEND_NONE;
+      value.has_explicit_type = type_node != W_SEED_CST_NONE;
+      value.lowerable = false;
+      uint32_t const_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_const_declaration(context, value, &const_index))
+        return false;
+      uint32_t symbol_index = W_SEED_FRONTEND_NONE;
+      if (!normalize_symbol(context, W_SEED_FRONTEND_SYMBOL_CONST,
+                            const_index, value.name, value.exported, value.span,
+                            value.declared_type, &symbol_index))
+        return false;
+      value.symbol_index = symbol_index;
+      if (context->emit && context->output != NULL) {
+        w_seed_frontend_const_declaration *records =
+            context->output->const_declarations;
+        if (records == NULL || (size_t)const_index >= context->count.const_declarations)
+          return false;
+        records[const_index].symbol_index = symbol_index;
+      }
+      module.const_declaration_count += 1u;
+    }
+    const_guard += 1u;
   }
   uint32_t child_cursor = doc->nodes[doc->parse.root].first_child;
   uint32_t child = W_SEED_CST_NONE;
@@ -9366,6 +9939,14 @@ static bool normalize_document(frontend_context *context) {
         if (!normalize_function(context, child, &item_index)) return false;
         module.function_count += 1;
         break;
+      case W_SEED_CST_CONST_DECLARATION: {
+        uint32_t const_index = W_SEED_FRONTEND_NONE;
+        if (!module_const_index_for_node(context, context->module_index, child,
+                                         &const_index) ||
+            !normalize_module_const(context, child, const_index))
+          return false;
+        break;
+      }
       case W_SEED_CST_ENTRY:
         if (!normalize_entry(context, child, &item_index)) return false;
         module.entry_count += 1;
@@ -9546,9 +10127,12 @@ static bool local_module_has_symbol(const w_seed_frontend_input *input,
           doc, doc->nodes[child].raw_span, "alias");
       if (kind == W_SEED_CST_ENUM) name = name_after_keyword(
           doc, doc->nodes[child].raw_span, "enum");
+      if (kind == W_SEED_CST_CONST_DECLARATION) name = name_after_keyword(
+          doc, doc->nodes[child].raw_span, "const");
       if (kind == W_SEED_CST_FUNCTION || kind == W_SEED_CST_STRUCT ||
           kind == W_SEED_CST_TYPE_DECLARATION ||
-          kind == W_SEED_CST_ALIAS_DECLARATION || kind == W_SEED_CST_ENUM) {
+          kind == W_SEED_CST_ALIAS_DECLARATION || kind == W_SEED_CST_ENUM ||
+          kind == W_SEED_CST_CONST_DECLARATION) {
         exported = span_has_keyword(doc, doc->nodes[child].raw_span, "export");
       }
       if (exported && name.length != 0 && text_equal_text(name, symbol_name)) {
@@ -9590,6 +10174,8 @@ static const char *declaration_keyword(w_seed_cst_kind kind) {
       return "alias";
     case W_SEED_CST_ENUM:
       return "enum";
+    case W_SEED_CST_CONST_DECLARATION:
+      return "const";
     case W_SEED_CST_ENTRY:
       return "entry";
     default:
@@ -9608,6 +10194,7 @@ static bool detect_duplicate_declarations(frontend_context *context) {
     if (kind != W_SEED_CST_FUNCTION && kind != W_SEED_CST_STRUCT &&
         kind != W_SEED_CST_TYPE_DECLARATION &&
         kind != W_SEED_CST_ALIAS_DECLARATION && kind != W_SEED_CST_ENUM &&
+        kind != W_SEED_CST_CONST_DECLARATION &&
         kind != W_SEED_CST_ENTRY) {
       guard += 1;
       continue;
@@ -9627,7 +10214,8 @@ static bool detect_duplicate_declarations(frontend_context *context) {
             earlier_kind == W_SEED_CST_STRUCT ||
             earlier_kind == W_SEED_CST_TYPE_DECLARATION ||
             earlier_kind == W_SEED_CST_ALIAS_DECLARATION ||
-            earlier_kind == W_SEED_CST_ENUM))) {
+            earlier_kind == W_SEED_CST_ENUM ||
+            earlier_kind == W_SEED_CST_CONST_DECLARATION))) {
         const char *earlier_keyword = declaration_keyword(earlier_kind);
         if (text_equal_text(name_after_keyword(
                                 doc, doc->nodes[earlier].raw_span,
@@ -9921,6 +10509,20 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_literal(writer, "|source=");
       receipt_write_text(writer, module->source_id);
       receipt_write_literal(writer, "\n");
+    }
+    for (size_t index = 0; index < context->count.const_declarations;
+         index += 1u) {
+      const w_seed_frontend_const_declaration *value =
+          &output->const_declarations[index];
+      receipt_write_literal(writer, "const-declaration=");
+      receipt_write_size(writer, value->module_index);
+      receipt_write_literal(writer, "|");
+      receipt_write_text(writer, value->name);
+      receipt_write_literal(writer, "|exported=");
+       receipt_write_size(writer, value->exported ? 1u : 0u);
+       receipt_write_literal(writer, "|span=");
+       receipt_write_span(writer, value->span);
+       receipt_write_literal(writer, "\n");
     }
     for (size_t index = 0; index < context->count.imports; index += 1) {
       const w_seed_frontend_import *item = &output->imports[index];
@@ -10282,6 +10884,8 @@ static bool output_capacity_ok(const w_seed_frontend_output *output,
          capacity_ok(required->enum_case_parameters,
                      output->enum_case_parameters,
                      output->enum_case_parameter_capacity) &&
+         capacity_ok(required->const_declarations, output->const_declarations,
+                     output->const_declaration_capacity) &&
          capacity_ok(required->fields, output->fields, output->field_capacity) &&
          capacity_ok(required->type_declarations, output->type_declarations,
                      output->type_declaration_capacity) &&
@@ -10404,6 +11008,8 @@ w_seed_frontend_status w_seed_frontend_run(
   emit.output = output;
   emit.result = result;
   emit.emit = true;
+  emit.function_index = W_SEED_FRONTEND_NONE;
+  emit.current_module_const = W_SEED_FRONTEND_NONE;
   emit.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
   (void)memset(emit.generic_domain_type_indices, 0xff,
                sizeof(emit.generic_domain_type_indices));

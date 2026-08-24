@@ -87,6 +87,7 @@ typedef struct {
   w_seed_frontend_field fields[TEST_FIELDS];
   w_seed_frontend_type_declaration type_declarations[TEST_DECLARATIONS];
   w_seed_frontend_alias aliases[TEST_DECLARATIONS];
+  w_seed_frontend_const_declaration const_declarations[TEST_DECLARATIONS];
   w_seed_frontend_type types[TEST_TYPES];
   w_seed_frontend_function functions[TEST_FUNCTIONS];
   w_seed_frontend_parameter parameters[TEST_PARAMETERS];
@@ -166,6 +167,8 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
   (void)memset(fixture_value->type_declarations, value,
                sizeof(fixture_value->type_declarations));
   (void)memset(fixture_value->aliases, value, sizeof(fixture_value->aliases));
+  (void)memset(fixture_value->const_declarations, value,
+               sizeof(fixture_value->const_declarations));
   (void)memset(fixture_value->types, value, sizeof(fixture_value->types));
   (void)memset(fixture_value->functions, value,
                sizeof(fixture_value->functions));
@@ -224,8 +227,10 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                          value) &&
          all_bytes_equal(fixture_value->type_declarations,
                          sizeof(fixture_value->type_declarations), value) &&
-         all_bytes_equal(fixture_value->aliases, sizeof(fixture_value->aliases),
-                         value) &&
+          all_bytes_equal(fixture_value->aliases, sizeof(fixture_value->aliases),
+                          value) &&
+          all_bytes_equal(fixture_value->const_declarations,
+                          sizeof(fixture_value->const_declarations), value) &&
          all_bytes_equal(fixture_value->types, sizeof(fixture_value->types),
                          value) &&
          all_bytes_equal(fixture_value->functions,
@@ -317,6 +322,8 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .type_declaration_capacity = TEST_DECLARATIONS,
       .aliases = fixture_value->aliases,
       .alias_capacity = TEST_DECLARATIONS,
+      .const_declarations = fixture_value->const_declarations,
+      .const_declaration_capacity = TEST_DECLARATIONS,
       .types = fixture_value->types,
       .type_capacity = TEST_TYPES,
       .functions = fixture_value->functions,
@@ -372,6 +379,7 @@ static bool counts_equal(const w_seed_frontend_counts *left,
          left->enum_subset_members == right->enum_subset_members &&
          left->type_declarations == right->type_declarations &&
          left->aliases == right->aliases && left->types == right->types &&
+         left->const_declarations == right->const_declarations &&
          left->functions == right->functions &&
          left->parameters == right->parameters &&
          left->entries == right->entries &&
@@ -1280,6 +1288,125 @@ static bool test_const_and_membership(void) {
   CHECK(fixture_external.result.status == W_SEED_FRONTEND_OK);
   CHECK(fixture_external.functions[0].is_const &&
         fixture_external.functions[0].const_body_supported);
+  return true;
+}
+
+static bool test_module_named_consts(void) {
+  static const char named_source[] =
+      "export const ultimateAnswer: i64 = 6 * 7\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { named: Box<(ultimateAnswer)> }\n";
+  fixture *value = &fixture_const;
+  CHECK(fixture_run(value, named_source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.const_declarations == 1u &&
+        value->modules[0].first_const_declaration == 0u &&
+        value->modules[0].const_declaration_count == 1u);
+  const w_seed_frontend_const_declaration *declaration =
+      &value->const_declarations[0];
+  CHECK(declaration->module_index == 0u && declaration->exported &&
+        declaration->name.length == 14u &&
+        memcmp(declaration->name.data, "ultimateAnswer", 14u) == 0 &&
+        declaration->span.start_byte == 0u && declaration->body_span.start_byte >
+            declaration->span.start_byte &&
+        declaration->initializer_expression != W_SEED_FRONTEND_NONE &&
+        declaration->has_explicit_type && declaration->lowerable &&
+        declaration->symbol_index != W_SEED_FRONTEND_NONE);
+  CHECK(value->types[declaration->declared_type].kind ==
+        W_SEED_FRONTEND_TYPE_INTEGER &&
+        value->types[declaration->declared_type].bit_width == 64u);
+  bool saw_named_relation = false;
+  for (size_t index = 0u; index < value->result.written.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        expression->resolved_const_declaration == 0u) {
+      CHECK(expression->supported);
+      saw_named_relation = true;
+    }
+  }
+  CHECK(saw_named_relation);
+  CHECK(receipt_contains(value, "const-declaration=0|", 19u));
+  bool saw_const_symbol = false;
+  for (size_t index = 0u; index < value->result.written.symbols; index += 1u) {
+    const w_seed_frontend_symbol *symbol = &value->symbols[index];
+    if (symbol->kind == W_SEED_FRONTEND_SYMBOL_CONST) {
+      CHECK(symbol->owner_index == 0u && symbol->exported);
+      saw_const_symbol = true;
+    }
+  }
+  CHECK(saw_const_symbol);
+
+  CHECK(fixture_run(value,
+                    "const duplicate: i64 = 42\n"
+                    "const duplicate: i64 = 42\n"
+                    "struct Box<_ value: i64> {}\n"
+                    "struct Use { value: Box<(duplicate)> }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL));
+
+  CHECK(fixture_run(value,
+                    "const answer = 42\n"
+                    "struct Box<_ value: i64> {}\n"
+                    "struct Use { value: Box<(answer)> }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
+  CHECK(fixture_run(value,
+                    "const answer: i64 = true\n"
+                    "struct Box<_ value: i64> {}\n"
+                    "struct Use { value: Box<(answer)> }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(value, "W-SEM-0001"));
+
+  CHECK(fixture_run(value,
+                    "import { answer } from other\n"
+                    "struct Box<_ value: i64> {}\n"
+                    "struct Use { value: Box<(answer)> }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL));
+
+  CHECK(fixture_run(value,
+                    "const anchor: i64 = 42\n"
+                    "struct Box<_ value: i64> {}\n"
+                    "struct Use { value: Box<(missing)> }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(value, "W-SEM-0001") &&
+        value->generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_INVALID);
+
+  CHECK(fixture_run(value,
+                    "const missing: i64 = absent\n"
+                    "struct Box<_ value: i64> {}\n"
+                    "struct Use { value: Box<(missing)> }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(value, "W-SEM-0001"));
+
+  CHECK(fixture_run(value,
+                    "const duration: PhysicalDuration = 10<si.s>\n"
+                    "struct Use {}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        value->result.written.diagnostics == 0u &&
+        (has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE) ||
+         has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION)));
+
+  CHECK(fixture_run(value,
+                    "const size: usize = 1<iec.MiB>\n"
+                    "struct Use {}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        value->result.written.diagnostics == 0u &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
+  CHECK(fixture_parse(&fixture_capacity, named_source));
+  const uint8_t sentinel = 0xa5u;
+  fixture_fill_output(&fixture_capacity, sentinel);
+  fixture_capacity.output.const_declarations = NULL;
+  fixture_capacity.output.const_declaration_capacity = 0u;
+  (void)w_seed_frontend_run(&fixture_capacity.input, &fixture_capacity.output,
+                            &fixture_capacity.result);
+  CHECK(fixture_capacity.result.status == W_SEED_FRONTEND_CAPACITY &&
+        fixture_capacity.result.required.const_declarations == 1u &&
+        fixture_output_is(&fixture_capacity, sentinel, true));
   return true;
 }
 
@@ -2267,6 +2394,7 @@ int main(void) {
   if (!test_enum_subsets()) return 1;
   if (!test_enum_values_constructors_and_switches()) return 1;
   if (!test_const_and_membership()) return 1;
+  if (!test_module_named_consts()) return 1;
   if (!test_semantic_diagnostics()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;
   if (!test_receipt_encoding_and_long_fields()) return 1;

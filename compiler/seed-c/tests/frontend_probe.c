@@ -37,6 +37,7 @@ enum {
   PROBE_ENUM_SUBSET_MEMBERS = 65536,
   PROBE_FIELDS = 16384,
   PROBE_DECLARATIONS = 4096,
+  PROBE_CONST_DECLARATIONS = 4096,
   PROBE_TYPES = 32768,
   PROBE_FUNCTIONS = 4096,
   PROBE_PARAMETERS = 32768,
@@ -82,6 +83,8 @@ static w_seed_frontend_enum_subset_member
 static w_seed_frontend_field fields[PROBE_FIELDS];
 static w_seed_frontend_type_declaration type_declarations[PROBE_DECLARATIONS];
 static w_seed_frontend_alias aliases[PROBE_DECLARATIONS];
+static w_seed_frontend_const_declaration const_declarations[
+    PROBE_CONST_DECLARATIONS];
 static w_seed_frontend_type types[PROBE_TYPES];
 static w_seed_frontend_function functions[PROBE_FUNCTIONS];
 static w_seed_frontend_parameter parameters[PROBE_PARAMETERS];
@@ -218,6 +221,8 @@ int main(void) {
       .type_declaration_capacity = PROBE_DECLARATIONS,
       .aliases = aliases,
       .alias_capacity = PROBE_DECLARATIONS,
+      .const_declarations = const_declarations,
+      .const_declaration_capacity = PROBE_CONST_DECLARATIONS,
       .types = types,
       .type_capacity = PROBE_TYPES,
       .functions = functions,
@@ -257,6 +262,7 @@ int main(void) {
                " const_values=%" PRIuMAX
                " const_elements=%" PRIuMAX
                " const_bytes=%" PRIuMAX
+               " const_declarations=%" PRIuMAX
                " enums=%" PRIuMAX " enum_cases=%" PRIuMAX
                " enum_case_parameters=%" PRIuMAX
                " switch_arms=%" PRIuMAX
@@ -279,6 +285,7 @@ int main(void) {
                (uintmax_t)result.written.const_values,
                (uintmax_t)result.written.const_elements,
                (uintmax_t)result.written.const_bytes,
+               (uintmax_t)result.written.const_declarations,
                (uintmax_t)result.written.enums,
                (uintmax_t)result.written.enum_cases,
                (uintmax_t)result.written.enum_case_parameters,
@@ -296,6 +303,17 @@ int main(void) {
                (uintmax_t)result.written.facts,
                (uintmax_t)result.written.diagnostics,
                (uintmax_t)result.receipt_bytes);
+  (void)fprintf(stderr, "required const=%" PRIuMAX " expr=%" PRIuMAX
+                 " type=%" PRIuMAX " receipt=%" PRIuMAX
+                 " written receipt=%" PRIuMAX " barrier=%" PRIuMAX
+                 " primary=%" PRIuMAX "\n",
+                 (uintmax_t)result.required.const_declarations,
+                 (uintmax_t)result.required.expressions,
+                 (uintmax_t)result.required.types,
+                 (uintmax_t)result.required.receipt_bytes,
+                 (uintmax_t)result.written.receipt_bytes,
+                 (uintmax_t)result.barrier_document,
+                 (uintmax_t)result.primary_diagnostic);
   for (size_t index = 0; index < result.written.typed_const_expressions;
        index += 1u) {
     const w_seed_frontend_typed_const_expression *typed =

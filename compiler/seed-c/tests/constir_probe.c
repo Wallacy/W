@@ -35,6 +35,7 @@ enum {
   FRONTEND_SWITCH_ARMS = 65536,
   FRONTEND_MEMBERSHIP = 262144,
   FRONTEND_ARRAY = 262144,
+  FRONTEND_CONST_DECLARATIONS = 4096,
   FRONTEND_RECEIPT = 16 * 1024 * 1024,
   CONSTIR_FUNCTIONS = 8192,
   CONSTIR_PARAMETERS = 65536,
@@ -84,6 +85,8 @@ static w_seed_frontend_struct structs[FRONTEND_ARRAY];
 static w_seed_frontend_field fields[FRONTEND_ARRAY];
 static w_seed_frontend_type_declaration declarations[FRONTEND_ARRAY];
 static w_seed_frontend_alias aliases[FRONTEND_ARRAY];
+static w_seed_frontend_const_declaration const_declarations[
+    FRONTEND_CONST_DECLARATIONS];
 static w_seed_frontend_entry entries[FRONTEND_ARRAY];
 static w_seed_frontend_symbol symbols[FRONTEND_ARRAY];
 static w_seed_frontend_fact facts[FRONTEND_ARRAY];
@@ -166,6 +169,8 @@ int main(void) {
       .type_declaration_capacity = FRONTEND_ARRAY,
       .aliases = aliases,
       .alias_capacity = FRONTEND_ARRAY,
+      .const_declarations = const_declarations,
+      .const_declaration_capacity = FRONTEND_CONST_DECLARATIONS,
       .types = types,
       .type_capacity = FRONTEND_TYPES,
       .functions = functions,
