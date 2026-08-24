@@ -1101,6 +1101,43 @@ para uma slice causal detalhada, por isso a projeção D1 usa o fallback permiti
 inteiro. Imported heads, computed arguments, identity final, monomorphization,
 runtime e compiler W completo continuam gaps.
 
+W-1460 acrescenta uma evidence pós-validação, interna e versionada, sem
+ampliar essa fronteira. O preimage canônico começa com
+`w-seed-generic-fingerprint-1`, usa tags estáveis, lengths/counts big-endian,
+text UTF-8 length-prefixed e os tipos/ConstValues fechados de DESIGN
+§8.7.12. O módulo local e os nomes declarados vêm do frontend normalizado;
+spans, source spelling, labels, índices, allocation, receipts, quotas e
+versões ambientais ficam fora. O `body_digest` vem do lowering seed como
+evidence: a camada não o recomputa nem o chama de prova criptográfica do body.
+O digest só é finalizado depois de todos os predicates retornarem
+`Bool(true)`. Resultado não `VERIFIED` recebe estado
+`NOT_AVAILABLE` e bytes zero; `VERIFIED` fora do subconjunto
+encodable recebe `UNSUPPORTED` sem alterar o resultado principal.
+Digests diferentes implicam preimages diferentes; um digest igual isolado não
+prova que os preimages são iguais nem constitui identidade collision-safe. O
+preimage canônico completo é a autoridade desta projeção.
+
+A evidence é reproduzível no witness real de
+`reference/last-light/domain.w`, com module id `restaurant`:
+duas aplicações standard têm o mesmo preimage e digest; a rota cancelled
+`[.accepted, .cancelled]` é `VERIFIED` e diferente; vazio,
+salto e duplicata continuam rejeitados e sem fingerprint. O gate Bun
+reconstrói os bytes e calcula SHA-256 de forma independente, além do teste C,
+para evitar que um golden emitido pelo C seja a única autoridade.
+
+Alternativas rejeitadas:
+
+- usar spans, índices, source spelling ou labels como identidade, pois mudanças
+  de formatação, allocation ou frontend não mudam a projeção semântica;
+- chamar o digest de `TypeId`, `SemanticInterfaceKey`,
+  `WAbiKey`, wire/schema ID ou cache/instantiation key, pois faltam
+  declaration digest, witnesses, target/profile/edition/compiler/bundle
+  versions e os demais dados da identidade final;
+- emitir o fingerprint antes de `VERIFIED`, pois relações inválidas,
+  quota, capacity, rejeição ou avaliação parcial não podem produzir evidence;
+- confiar somente no C, pois um segundo reconstrutor precisa conferir o
+  preimage exato e preservar determinismo entre execuções.
+
 #### 1.3.22 Subject de refinement
 
 **Exemplo:** `String<(.scalars.count in 1...40)>` e
@@ -6866,6 +6903,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1457 | codecs e compression explícitos | packages específicos declaram ByteSource/Sink, profile+digest, streaming e quotas separadas para encoded, logical, allocation, depth e ratio. Offset/progress errors são tipados. Cancellation não desfaz bytes committed. Dictionary/state tem owner explícito. Codec/schema e compression transform têm identity/limits separados | oracle-backed-current; AEG0-W-1457-current fecha requisitos operacionais e rejeita `Codec<T>` universal, reflection, inference ambiental e quota colapsada |
 | W-1458 | crypto e secrets scoped | app crypto passa por package/provider capability ligada pelo deployment. Algorithm/profile são typed e pinned, sem string/fallback/downgrade. Secret/key handle é opaque, nonextractable por default, purpose/audience/generation scoped e move-only. Lifecycle tem dois caminhos: acquire→active→revoking→revoked→released para revoke/rotation, ou acquire→active→expired→released para expiry. Revoke fecha nova admission e drena operações admitidas. Host controla rotation/expiry/zeroization. Secret não entra em wire/storage/log/diagnostic/receipt | oracle-backed-current; AEG0-W-1458-current fecha lifecycle e rejeita plaintext/env lookup, secret wire e downgrade |
 | W-1459 | baseline portátil de `std.simd` | `Simd<Element, lanes: usize>` e `SimdMask<_ lanes: usize>`, lanes `1...64`, label required somente em Simd e optional em mask com aplicação `SimdMask<16>`, Element escalar fechado com `Bool` em mask, sequence target-independent, layout opaco, scalar fallback obrigatório, mask `splat(Bool) -> SimdMask<N>`/`fromArray([Bool; N]) -> SimdMask<N>`/`toArray() -> [Bool; N]` sem allocation, `all`/`any`/`none` retornam `Bool` e `countTrue` retorna `UInt`, load borrow source e store destination `inout` com partial tail total e preflight, arithmetic lane-wise condicionado ao scalar Element, floats sem bitwise/shift/overflow APIs, integer overflow mask por lane, masks com bitwise operators, reductions nomeadas em ordem/policy (`reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`, `reduceBitOr`, `reduceBitXor`) e float `ReductionMode` obrigatório (`strict` left fold, `reproducible` árvore balanceada v1, `fast` sem igualdade de bits cross-backend; omission/positional/wrong-label/wrong-arity de mode: usa W-LABEL-0005 e repetição usa W-LABEL-0006), static swizzle com count-first em `1...64`, duplicata e primeiro OOB em source order, e `w explain performance` com lowering facts | oracle-backed-current; SIMD1-W-1459-current fecha o contrato host-only e rejeita width/layout nativo, Bool lane, dynamic shuffle, alignment flag, write antes de bounds failure, short-circuit e performance universal |
+| W-1460 | fingerprint semântico pós-validação de generic D1 | evidence interna versionada `w-seed-generic-fingerprint-1`: preimage canônico independente de spans/indices/source spelling, validação/preflight antes da avaliação, `VERIFIED` + `AVAILABLE` somente após todos os predicates true, `VERIFIED` fora do subconjunto + `UNSUPPORTED`, demais estados + `NOT_AVAILABLE`/bytes zero; witness `restaurant` com standard duplicado, cancelled, vazio, salto e duplicata; C e Bun reconstrutores independentes | oracle-backed-current; `GPF0-W-1460-current` usa fragments reais de Last Light, seed C e oráculo Bun independente; usar spans/indices/source spelling, chamar digest de `TypeId`/cache key/identidade, emitir antes de `VERIFIED` ou confiar somente no C; digests diferentes implicam preimages diferentes, mas digest igual isolado sem preimage não prova igualdade nem identidade collision-safe; a identidade final ainda exige declaration digest, witnesses, target/profile/edition/compiler/bundle versions e dados canônicos |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,

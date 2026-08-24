@@ -14,6 +14,9 @@ extern "C" {
 /* Internal seed-C generic predicate validation.  This is not a W interface
  * and it does not create a final specialization or a type identity. */
 #define W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION "w-seed-generic-validation-1"
+#define W_SEED_GENERIC_VALIDATION_FINGERPRINT_SCHEMA_VERSION \
+  "w-seed-generic-fingerprint-1"
+#define W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES 32u
 #define W_SEED_GENERIC_VALIDATION_MAX_DEPTH 256u
 #define W_SEED_GENERIC_VALIDATION_MAX_PREDICATES \
   W_SEED_FRONTEND_MAX_GENERIC_SLOTS
@@ -45,6 +48,14 @@ typedef enum {
   W_SEED_GENERIC_VALIDATION_FAILURE_RESULT_TYPE,
   W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT,
 } w_seed_generic_validation_failure;
+
+/* A fingerprint is a local, versioned evidence projection.  It is not a
+ * TypeId, cache key, schema ID, ABI key, or authority for equality. */
+typedef enum {
+  W_SEED_GENERIC_VALIDATION_FINGERPRINT_NOT_AVAILABLE = 0,
+  W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE,
+  W_SEED_GENERIC_VALIDATION_FINGERPRINT_UNSUPPORTED,
+} w_seed_generic_validation_fingerprint_state;
 
 /* One causal evaluation record.  The record is written only after all input
  * relations and output capacities pass the preflight. */
@@ -109,6 +120,8 @@ typedef struct {
   /* For a runtime evaluator fault, this is the exact causal result. */
   w_seed_constir_eval_result evaluation;
   w_seed_generic_validation_rejection rejection;
+  w_seed_generic_validation_fingerprint_state fingerprint_state;
+  uint8_t fingerprint_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES];
 } w_seed_generic_validation_result;
 
 /* Validate one normalized local generic application.  The function performs
@@ -122,6 +135,8 @@ const char *w_seed_generic_validation_state_name(
     w_seed_generic_validation_state state);
 const char *w_seed_generic_validation_failure_name(
     w_seed_generic_validation_failure failure);
+const char *w_seed_generic_validation_fingerprint_state_name(
+    w_seed_generic_validation_fingerprint_state state);
 
 #ifdef __cplusplus
 }

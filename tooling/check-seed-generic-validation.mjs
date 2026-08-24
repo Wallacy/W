@@ -42,18 +42,104 @@ function parseProbe(output) {
   if (!resultMatch) fail(`invalid result line: ${resultLine}`)
   const lines = output.split(/\r?\n/u).filter((line) => line.startsWith("GENERIC app="))
   const records = lines.map((line) => {
-    const match = /^GENERIC app=(\d+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) predicates=(\d+) receipts=(\d+) steps=(\d+)$/u.exec(line)
+    const match = /^GENERIC app=(\d+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) predicates=(\d+) receipts=(\d+) steps=(\d+) module=([^\s]+) head=([^\s]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) predicate_body_digest=([0-9a-f]{64})$/u.exec(line)
     if (!match) fail(`invalid application line: ${line}`)
     return {
       application: Number(match[1]), state: match[2], failure: match[3],
       diagnostic: Number(match[4]), predicates: Number(match[5]),
-      receipts: Number(match[6]), steps: Number(match[7]),
+      receipts: Number(match[6]), steps: Number(match[7]), module: match[8],
+      head: match[9], fingerprintState: match[10],
+      fingerprintDigest: match[11], predicateBodyDigest: match[12],
     }
   })
   return {
     applications: Number(resultMatch[1]), frontend: Number(resultMatch[2]),
     constir: Number(resultMatch[3]), records,
   }
+}
+
+const textEncoder = new TextEncoder()
+
+function bytes(...parts) {
+  const length = parts.reduce((total, part) => total + part.length, 0)
+  const result = new Uint8Array(length)
+  let offset = 0
+  for (const part of parts) {
+    result.set(part, offset)
+    offset += part.length
+  }
+  return result
+}
+
+function u8(value) {
+  return Uint8Array.of(value)
+}
+
+function u16(value) {
+  return Uint8Array.of((value >>> 8) & 0xff, value & 0xff)
+}
+
+function u32(value) {
+  return Uint8Array.of(
+    (value >>> 24) & 0xff,
+    (value >>> 16) & 0xff,
+    (value >>> 8) & 0xff,
+    value & 0xff,
+  )
+}
+
+function text(value) {
+  const encoded = textEncoder.encode(value)
+  return bytes(u32(encoded.length), encoded)
+}
+
+function canonicalEnumType() {
+  return bytes(u8(0x74), u8(0x09), text("restaurant"), text("ServiceStage"))
+}
+
+function canonicalListType() {
+  return bytes(u8(0x74), u8(0x0b), canonicalEnumType())
+}
+
+function canonicalEnumValue(name) {
+  return bytes(u8(0x76), u8(0x04), canonicalEnumType(), text(name))
+}
+
+function canonicalListValue(names) {
+  return bytes(
+    u8(0x76),
+    u8(0x05),
+    canonicalListType(),
+    u32(names.length),
+    ...names.map(canonicalEnumValue),
+  )
+}
+
+function stagePathPreimage(names, predicateBodyDigestHex) {
+  const bodyDigest = Uint8Array.from(
+    predicateBodyDigestHex.match(/../gu).map((part) => Number.parseInt(part, 16)),
+  )
+  return bytes(
+    textEncoder.encode("w-seed-generic-fingerprint-1"),
+    u8(0x47),
+    text("restaurant"),
+    text("StagePath"),
+    u32(1),
+    u8(0x41),
+    u32(0),
+    u8(0x02),
+    u8(0x56),
+    canonicalListType(),
+    canonicalListValue(names),
+    u8(0x01),
+    bodyDigest,
+  )
+}
+
+function sha256Hex(input) {
+  const hasher = new Bun.CryptoHasher("sha256")
+  hasher.update(input)
+  return hasher.digest("hex")
 }
 
 const domain = await Bun.file(resolve(root, "reference/last-light/domain.w")).text()
@@ -67,6 +153,8 @@ const standardPath = /StagePath<(\[[^\]]+\])>/u.exec(standardStagePath)?.[1]
 if (!standardPath) fail("domain.w has no standard StagePath path")
 const useSource = `struct Use {
   standard: StagePath<${standardPath}>
+  standardAgain: StagePath<${standardPath}>
+  cancelled: StagePath<[.accepted, .cancelled]>
   empty: StagePath<[]>
   skipped: StagePath<[.accepted, .completed]>
   duplicate: StagePath<[.accepted, .reserving, .reserving]>
@@ -86,16 +174,31 @@ try {
   const secondOutput = run(executable, ["--domain-witness", witnessPath])
   if (firstOutput !== secondOutput) fail("domain witness output is not deterministic")
   const parsed = parseProbe(firstOutput)
-  if (parsed.frontend !== 0 || parsed.constir !== 0 || parsed.records.length !== 4)
-    fail("domain witness did not produce four clean StagePath applications")
-  const expected = ["VERIFIED", "REJECTED", "REJECTED", "REJECTED"]
+  if (parsed.frontend !== 0 || parsed.constir !== 0 || parsed.records.length !== 6)
+    fail("domain witness did not produce six clean StagePath applications")
+  const expected = ["VERIFIED", "VERIFIED", "VERIFIED", "REJECTED", "REJECTED", "REJECTED"]
   for (const [index, record] of parsed.records.entries()) {
-    if (record.state !== expected[index] || record.predicates !== 1 || record.receipts !== 1 ||
+    if (record.module !== "restaurant" || record.head !== "StagePath" ||
+        record.state !== expected[index] || record.predicates !== 1 || record.receipts !== 1 ||
         record.steps === 0 || (record.state === "REJECTED" &&
-          (record.failure !== "predicate:false" || record.diagnostic !== 4)) ||
-        (record.state === "VERIFIED" && (record.failure !== "none" || record.diagnostic !== 0)))
+          (record.failure !== "predicate:false" || record.diagnostic !== 4 ||
+           record.fingerprintState !== "NOT_AVAILABLE" ||
+           record.fingerprintDigest !== "0".repeat(64))) ||
+        (record.state === "VERIFIED" && (record.failure !== "none" || record.diagnostic !== 0 ||
+          record.fingerprintState !== "AVAILABLE" ||
+          record.fingerprintDigest !==
+            sha256Hex(stagePathPreimage(
+              index === 2 ? ["accepted", "cancelled"] :
+                ["accepted", "reserving", "preparing", "serving", "completed"],
+              record.predicateBodyDigest,
+            )))))
       fail(`domain witness application ${index} has wrong state, facts, or counters`)
   }
+  if (parsed.records[0].fingerprintDigest !== parsed.records[1].fingerprintDigest ||
+      parsed.records[0].fingerprintDigest === parsed.records[2].fingerprintDigest ||
+      parsed.records[0].predicateBodyDigest !== parsed.records[1].predicateBodyDigest ||
+      parsed.records[0].predicateBodyDigest !== parsed.records[2].predicateBodyDigest)
+    fail("standard and cancelled fingerprint evidence does not match the contract")
 } finally {
   await rm(build, { recursive: true, force: true })
 }

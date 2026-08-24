@@ -19,7 +19,7 @@ linguagem.
 uma entrada explícita para cada ID do ledger. O checker exige a união exata do
 ledger e rejeita IDs ausentes, novos, duplicados ou com digest stale. Cada
 registro carrega `selection: explicit-ledger-id`, `basisRef` para a linha do
-ledger e digest atual; o `archiveGapDistribution` registra por que os 919 IDs
+ledger e digest atual; o `archiveGapDistribution` registra por que os 920 IDs
 que faltavam no gate anterior não foram classificados por range ou default.
 
 As categorias têm estados diferentes:
@@ -30,9 +30,9 @@ As categorias têm estados diferentes:
 - `superseded` aponta para a decisão corrente que substitui a proveniência.
 - `rejected` aponta para a ausência corrente sem promover a forma recusada.
 
-O estado atual é `91 source-backed-current`, `490 oracle-backed-current`, `0
+O estado atual é `91 source-backed-current`, `491 oracle-backed-current`, `0
 research-gated`, `813 implementation-evidence-gap`, `57 superseded` e `8
-rejected` (1459/1459). A lacuna histórica de 920 fica distribuída em 72
+rejected` (1460/1460). A lacuna histórica de 920 fica distribuída em 72
 oracle, 0 Research, 806 gaps de implementação, 35 superseded e 7 rejected;
 nenhuma decisão é selecionada por faixa, época, regex ou default em massa.
 
@@ -97,7 +97,8 @@ compiler, runtime, provider ou execução W.
 | `kernel-module-cases.json` + máquina/checker/snapshot | KM0 cobre 32 casos/218 operações (6 aceitos + 26 rejeitados) para head de síntese, identities, call graph, famílias genéricas, artifacts source-backed/closed e ausência de JIT; nove testes host usam inputs independentes | oracle host de design; não executa W, compiler, kernel, linker, driver ou provider |
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
 | `simd-reference-cases.json` + `simd-reference.test.mjs` | SIMD1 deriva lanes, masks, scan de menu `16...32` bytes com full/tail e fill masked, bounds, overflow, swizzle e reductions para W-1459; o corpus guarda bytes/operandos e é `design-oracle-input`, sem outcomes caller-owned | oracle host-only; compara scalar/native/split e instrumenta read/write bounds, mas não alega compiler, runtime, provider, native acceleration ou measurement |
-| `design-freeze-classification.json` + `check-design-freeze-audit.mjs` | registro versionado e explícito dos 1459 IDs, com uma categoria fechada, claim do ledger, authority ref, digests, casos de fonte/oráculo e stop condition; preserva a cobertura legada 170 source, 413 oracle, 8 explícitas e 52 overlaps; PFU0 e AEG0 promovem W-1451–W-1458 a `oracle-backed-current`, SIMD1 promove W-1459 com oracle host-only, W-1354 é superseded por W-1437 e W-1448–W-1450 permanecem implementation-evidence-gap | auditoria de design; fonte/oráculo host não são compiler, runtime ou provider |
+| `generic-fingerprint-cases.json` + `check-seed-generic-validation.mjs` | GPF0-W-1460 fixa o witness file-backed `restaurant`/`StagePath<`, standard duplicado, cancelled e rejeitados vazio/skipped/duplicate; o gate combina seed C com reconstrução Bun independente do preimage e SHA-256 | evidence local pós-validação; não é compiler completo, runtime, provider ou identidade final |
+| `design-freeze-classification.json` + `check-design-freeze-audit.mjs` | registro versionado e explícito dos 1460 IDs, com uma categoria fechada, claim do ledger, authority ref, digests, casos de fonte/oráculo e stop condition; preserva a cobertura legada 170 source, 414 oracle, 8 explícitas e 52 overlaps; PFU0 e AEG0 promovem W-1451–W-1458 a `oracle-backed-current`, SIMD1 promove W-1459 com oracle host-only, GPF0 promove W-1460, W-1354 é superseded por W-1437 e W-1448–W-1450 permanecem implementation-evidence-gap | auditoria de design; fonte/oráculo host não são compiler, runtime ou provider |
 | `final-research-closure-cases.json` + máquina/checker/test + snapshot + `studies/final-research-closure` | FRC0 fecha somente o snapshot histórico W-001–W-1450: seis casos current/adversarial, manifest estrito, bundle R1 reuse-only e três disposições `oracle-backed-current`; W-707 é completude FZ0, W-731 é `Research=0` apenas na fronteira histórica e W-1408 é stop/no-auto com 0 human/0 model. A reabertura W-1451–W-1453 foi explicitamente PFU0 `research-gated`; PFU0 e AEG0 agora fecham essa sequência com `Research=0` global | oracle host design-only; não alega implementation, compiler, runtime, provider ou resultados humano/modelo |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 190 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
 | `studies/*/bundle.json` + checker | 57 bundles R1, 162 variantes e 228 tarefas; base R1 51/148/204/69/75, agregados R1C0 52/150/208/69/75, PRC0 reuse-only 53/152/212, ASIC0 reuse-only 54/154/216, FRC0 reuse-only 55/156/220, PFU0 56/159/224 e AEG0 57/162/228 | parse e oracle host não equivalem a compilar ou executar W |
