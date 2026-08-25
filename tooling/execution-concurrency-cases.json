@@ -159,7 +159,7 @@
     },
     {
       "id": "E0-unjoined-child-rejected",
-      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "async let batch" }],
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "let batch = async" }],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },

@@ -70,7 +70,7 @@ export async fn publishOnApologyDomain(
   state: inout SignEpochWord,
   named next: SignEpochWord,
 ): SignEpochWord {
-  spawn<.apology> let published = assignOnApologyDomain(
+  let published = spawn<.apology> assignOnApologyDomain(
     inout state,
     next: next,
   )

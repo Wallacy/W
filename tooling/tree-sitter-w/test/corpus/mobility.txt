@@ -5,14 +5,14 @@ Inferred and explicit mobility
 async fn inspectElsewhere<T: Inspectable>(
   value: ref T<(.shareable)>,
 ): u64 {
-  spawn<.compute> let code = value.inspectionCode()
+  let code = spawn<.compute> value.inspectionCode()
   return await code
 }
 
 async fn consumeElsewhere<T: Consumable>(
   value: take T<(.transferable)>,
 ): u64 {
-  spawn<.compute> let code = (take value).finish()
+  let code = spawn<.compute> (take value).finish()
   return await code
 }
 
@@ -43,16 +43,17 @@ async fn consumeElsewhere<T: Consumable>(
         (type_identifier)))
     (block
       (binding_declaration
-        (task_contract
-          (contextual_member_expression
-            (identifier)))
         (pattern
           (identifier))
-        (call_expression
-          (member_expression
-            (identifier)
-            (identifier))
-          (argument_list)))
+        (task_expression
+          (task_contract
+            (contextual_member_expression
+              (identifier)))
+          (call_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (argument_list))))
       (return_statement
         (unary_expression
           (identifier)))))
@@ -80,18 +81,19 @@ async fn consumeElsewhere<T: Consumable>(
         (type_identifier)))
     (block
       (binding_declaration
-        (task_contract
-          (contextual_member_expression
-            (identifier)))
         (pattern
           (identifier))
-        (call_expression
-          (member_expression
-            (parenthesized_expression
-              (unary_expression
-                (identifier)))
-            (identifier))
-          (argument_list)))
+        (task_expression
+          (task_contract
+            (contextual_member_expression
+              (identifier)))
+          (call_expression
+            (member_expression
+              (parenthesized_expression
+                (unary_expression
+                  (identifier)))
+              (identifier))
+            (argument_list))))
       (return_statement
         (unary_expression
           (identifier))))))

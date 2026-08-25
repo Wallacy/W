@@ -708,17 +708,33 @@ export async fn mixPair(
   left: take MixingJob,
   right: take MixingJob,
 ): (MixingResult, MixingResult) throws BrigadeError {
-  spawn<.compute> let leftResult = mixJob(take left)
-  spawn<.compute> let rightResult = mixJob(take right)
+  let leftResult = spawn<.compute> mixJob(take left)
+  let rightResult = spawn<.compute> mixJob(take right)
   return try await (leftResult, rightResult)
 }
 ```
 
-async let cria uma child task lexical. spawn<.compute> e
-spawn<domain: .compute> são duas formas correntes do mesmo slot de placement;
-ambas continuam exigindo join. await é um ponto de suspensão; o corpo de uma
-função pode inferir maySuspend quando a operação chamada o exige. Não há
+`let x = async ...` cria uma child task lexical. `let x = spawn<.compute> ...` e
+`let x = spawn<domain: .compute> ...` são duas formas correntes do mesmo slot
+de placement; ambas continuam exigindo join. `await` é um ponto de suspensão;
+o corpo de uma função pode inferir maySuspend quando a operação chamada o
+exige. Não há
 promessa de scheduler ou runtime disponível.
+
+| Intent | Current form | Note |
+| --- | --- | --- |
+| call suspending now | `let x = await func()` | task atual; não cria child |
+| blocking bridge | `let y = sync func()` | somente declaration `async fn` explícita; frontend/runtime missing |
+| bare may-suspend call | `let w = func()` | error, nunca warning |
+| direct non-suspending call | `let z = func1()` | task atual |
+| child initializer | `let q = async func1()` | child lexical no domain atual |
+
+`sync` só é válido para declaration `async fn` explícita
+(`sourceSpelling: explicit`). Callable may-suspend apenas por inferência não
+aceita `sync`, assim como `fn` sem async explícito e callable `neverSuspend`;
+todos são errors, não warnings ou no-ops. A bridge exige blocking authority,
+quota bounded, provider e checks de deadlock/fairness. Essa é a forma escolhida
+no design; frontend, lowering, runtime bridge e provider ainda estão missing.
 
 ### TaskGroup, cancellation e TaskLocal
 
@@ -739,7 +755,7 @@ o `spawn` da mistura, o pipeline, o cleanup e o `await` da mistura.
 
 ```w excerpt
 // excerpt-source: reference/last-light/restaurant.w::prepareDish
-  spawn<.compute> let mixture = mix(stock.ingredients, recipe: schedule.recipe)
+  let mixture = spawn<.compute> mix(stock.ingredients, recipe: schedule.recipe)
 
   let (lease, ready) = try await pipeline {
     let lease = ovens.acquire(schedule.recipe.target, duration: schedule.duration)
@@ -782,17 +798,17 @@ return dish
 A forma sequencial mantém a semântica de ownership e errors, mas pode pagar
 round trips adicionais. Ela não faz promise pipelining.
 
-`async let` expressa children independentes que o parent deve aguardar. Ele não
+Um initializer `async` expressa children independentes que o parent deve aguardar. Ele não
 expressa a dependência `lease → preheat` sem primeiro aguardar o lease:
 
 ```w excerpt
 // excerpt-kind: composed
-async let leaseTask = ovens.acquire(recipe.target, duration: recipe.duration)
+let leaseTask = async ovens.acquire(recipe.target, duration: recipe.duration)
 let lease = try await leaseTask
 let ready = try await lease.preheat()
 ```
 
-Use `async let` para siblings independentes. Use `pipeline` para dependências
+Use initializer `async` para siblings independentes. Use `pipeline` para dependências
 de service. Nenhuma forma implica runtime, rede ou provider disponível neste
 checkout.
 
@@ -833,7 +849,7 @@ stream <[...]> { yield take/copy ... } é uma forma vigente e estreita. Generic
 generator, yield from, buffer oculto, channel bidirecional implícito, MPMC sem
 domínio e buffer infinito estão fora da forma vigente.
 
-No corpus de referência, `TaskGroup` e `async let`/`spawn` mostram o lifecycle
+No corpus de referência, `TaskGroup` e os initializers `async`/`spawn` mostram o lifecycle
 lexical de tasks; `Stream` e `Channel` continuam tipos explícitos. O exemplo de
 channel abre capacidade e endpoints explícitos com `Channel<Order>.open(capacity: 1)`,
 envia/recebe, encerra o sender por drop e fecha ou drena o receiver conforme o
@@ -857,6 +873,32 @@ Contrato: [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação),
 | view T | Projeção de leitura/borrow | Não cria uma cópia nem uma lifetime annotation pública. |
 | lazy T | Materialização sob demanda com política definida | O oracle de lazy ainda é provider gap. |
 | var atomic x | Operações atômicas em estado permitido | Ordem (relaxed, acquire, release) deve ser indicada. |
+
+### `ref`, `view` e interface projection
+
+```w
+fn inspectOwner(values: ref Array<Order>) {
+  print(values.capacity) // owner completo e metadata
+}
+
+fn inspectWindow(values: view Array<Order>) {
+  print(values.count)    // janela lógica
+  // values.capacity       // Erro: view não possui capacity
+}
+
+fn inspectText(value: view String) { print(value) } // UTF-8 válido
+fn inspectTensor(value: view Tensor<f32, shape: [rows, cols]>) {
+  print(value.strides) // pode ser strided
+}
+```
+
+`ref Array<T>` observa o owner completo e sua metadata. `view Array<T>` observa
+uma janela lógica sem capacity. `view String` só representa substring UTF-8 com
+boundaries válidas. `view Tensor` pode ser strided. Um tipo nominal pode
+publicar uma view de uma família core por método. Um aggregate owned pode
+guardar fields `ref`/`view` e carregar origins, como `BorrowedMenu`. Properties
+suprimidas formam uma interface projection, não uma storage view. W não possui
+`Viewable`, protocol universal de view ou `view Object` automático.
 
 ### Atomic e locks
 
@@ -1128,6 +1170,26 @@ native/split/scalar, physical width, loads, tails, reduction mode e missed
 reason. Gather, scatter, raw pointer, alignment assertion, intrinsics e
 `nativeLanes` ficam fora do core portable.
 
+### Address e bitwise
+
+`Address` expõe os bits do mesmo address space. Faça alignment, tagging ou
+masking nos bits, não no pointer:
+
+```w
+unsafe fn maskedPointer<T>(
+  pointer: c.ptr<T>,
+  mask: Address.Bits,
+): c.ptr<T> {
+  let location = pointer.address
+  let alignment = location.bits & mask
+  let masked = location.withBits(location.bits & mask)
+  return unsafe { pointer.withAddress(masked) }
+}
+```
+
+O pointer original preserva provenance. `withAddress` não cria bounds,
+lifetime ou authority. Bitwise direto sobre pointer é rejeitado.
+
 ## FFI, foreign bodies e segurança
 
 Contrato: [DESIGN.md §19](DESIGN.md#19-ffi-unsafe-e-ilhas-de-linguagem).
@@ -1263,8 +1325,8 @@ funções diferentes; elas não formam uma sequência executável nova.
 // excerpt-kind: composed
 // entrada: dois valores Order -> channel bounded
 let (output, input) = Channel<Order>.open(capacity: 1)
-async let firstSend = submitOrder(copy output, take first)
-async let secondSend = submitOrder(copy output, take second)
+let firstSend = async submitOrder(copy output, take first)
+let secondSend = async submitOrder(copy output, take second)
 let _ = take output
 
 // resultado: envios do channel -> Array<Order> aceito
@@ -1275,7 +1337,7 @@ return accepted
 ```
 
 Este excerpt de [streams.w](reference/last-light/streams.w) transforma dois
-`Order` em um `Array<Order>`. `async let` cria siblings; os `await` finais
+`Order` em um `Array<Order>`. O initializer `async` cria siblings; os `await` finais
 consomem os outcomes de envio e mantêm o erro de channel explícito.
 
 ### Quantity e matriz
@@ -1357,7 +1419,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Escrever matriz | [[1, 2], [3, 4]] | Carrier shape-checked | [1 2; 3 4] como grammar separada | Array literal é familiar; shape estático exige type/contract | [DESIGN.md §17](DESIGN.md#17-matrizes-tensors-e-ml) · [numerics.w](reference/last-light/numerics.w) |
 | Controlar allocation | allocator scratch, .fixed, .root, .none | .bounded é Pesquisa descrita, não plano ASC0 | Arena API universal, propagação implícita ou using obrigatório | Budget explícito limita efeitos; annotations aumentam superfície | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [allocation.w](reference/last-light/allocation.w) |
 | Projetar borrow | ref T, view T, inout T | Projection física e borrow oracle | StringView/Slice públicos como segunda hierarquia | Menos tipos públicos, mas checker precisa acompanhar projection e liveness | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [views.w](reference/last-light/views.w) |
-| Executar async | direct call, await, async let, spawn<.compute>, spawn<domain: .compute>, TaskGroup.parallelMap/parallelCollect | limit e ordering declarados no group | Promise/Future, detached task e spawn sem domain | Structured join preserva ownership; domain explícito custa call-site | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [execution.w](reference/last-light/execution.w) |
+| Executar async | direct call, await, `let x = async ...`, `let x = spawn<.compute> ...`, `let x = spawn<domain: .compute> ...`, TaskGroup.parallelMap/parallelCollect | limit e ordering declarados no group | Promise/Future, detached task, launcher fora de `let` e spawn sem domain | Structured join preserva ownership; domain explícito custa call-site | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [execution.w](reference/last-light/execution.w) |
 | Consumir stream | for try await ref item in source ou stream <[take source]> { yield take/copy ... } | Stream pull e capacity declarados | Generator genérico, yield from e buffer oculto | Pull mantém backpressure e borrow; collect aloca e perde incrementalidade | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
 | Enviar por channel | Channel<T><.send> / <.receive> (MPSC) | Capacity e close explícitos | Channel bidirecional implícito, MPMC infinito | Endpoints expressam authority; bounded buffer pode suspender | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
 | Compartilhar estado | owner por domain, shared, atomic, channel | SnapshotCell e adapters especializados | Atomic<shared T>, mutex global ou RCU implícito | Serialização e snapshot reduzem races; cópia/sync têm custo visível | [DESIGN.md §12.10.7](DESIGN.md#12107-exclusão-mútua-como-último-recurso) · [synchronization.w](reference/last-light/synchronization.w) |

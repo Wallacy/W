@@ -15,25 +15,25 @@
     {
       "path": "../../../reference/last-light/build.w",
       "symbol": "package {",
-      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
+      "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
       "claim": "Current package root control."
     },
     {
       "path": "../../../reference/last-light/build.w",
       "symbol": "workspace {",
-      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
+      "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
       "claim": "Current workspace owner control."
     },
     {
       "path": "../../../reference/last-light/streams.w",
       "symbol": "serveOneByOne",
-      "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14",
+      "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b",
       "claim": "Current pull stream control."
     },
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "completionCount: u64 { get }",
-      "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed",
+      "digest": "sha256:cf1789d49a5f55c9634d21036399a89d97c8e05b720420100e1e7d473ad20d96",
       "claim": "Current property getter control."
     }
   ],

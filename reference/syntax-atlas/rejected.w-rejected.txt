@@ -2,7 +2,7 @@ W syntax atlas — Rejected witnesses
 
 This file is not W source. The checker must not parse it.
 
-- spawn on .compute let value = work()  [Rejeitado por enquanto]
+- spawn on .compute let value = work()  [Retirado antes do 1.0]
 - process.main = run                         [Rejeitado por enquanto]
 - [value] as an object literal               [Rejeitado por enquanto]
 - return await try operation()               [Rejeitado por enquanto]

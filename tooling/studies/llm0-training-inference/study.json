@@ -1,0 +1,27 @@
+{
+  "$schema": "w-llm0-training-inference-study-1",
+  "id": "LLM0",
+  "decision": "W-1475",
+  "status": "complete-design-study",
+  "title": "Training and inference readiness inventory",
+  "data": "cases.json",
+  "oracle": "oracle.mjs",
+  "checker": "check.mjs",
+  "classificationClasses": ["core language", "std/API", "typed IR/compiler", "runtime/provider", "tooling/evidence", "application framework"],
+  "defaultRecommendation": "avoid core inflation",
+  "evidenceBoundary": { "frameworkImplemented": false, "kernelsImplemented": false, "providerImplemented": false, "performanceMeasured": false, "apiPromotion": false, "researchClosed": true },
+  "sources": [
+    { "url": "https://arxiv.org/abs/2205.14135", "accessed": "2026-08-25", "scope": "FlashAttention IO-aware training kernel evidence" },
+    { "url": "https://arxiv.org/abs/2407.08608", "accessed": "2026-08-25", "scope": "FlashAttention-3 evidence" },
+    { "url": "https://arxiv.org/abs/2309.06180", "accessed": "2026-08-25", "scope": "PagedAttention and paged KV cache" },
+    { "url": "https://arxiv.org/abs/2211.17192", "accessed": "2026-08-25", "scope": "speculative decoding contract" },
+    { "url": "https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/parallelism-guide.html", "accessed": "2026-08-25", "scope": "training parallelism" },
+    { "url": "https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/dist_optimizer.html", "accessed": "2026-08-25", "scope": "distributed optimizer state" },
+    { "url": "https://nvidia.github.io/TensorRT-LLM/overview.html", "accessed": "2026-08-25", "scope": "inference runtime inventory" },
+    { "url": "https://nvidia.github.io/TensorRT-LLM/features/kvcache.html", "accessed": "2026-08-25", "scope": "KV cache ownership and reuse" },
+    { "url": "https://nvidia.github.io/TensorRT-LLM/latest/features/quantization.html", "accessed": "2026-08-25", "scope": "inference quantization" },
+    { "url": "https://nvidia.github.io/TensorRT-LLM/features/disagg-serving.html", "accessed": "2026-08-25", "scope": "prefill/decode disaggregation" },
+    { "url": "https://docs.pytorch.org/ao/stable/eager_tutorials/pretraining.html", "accessed": "2026-08-25", "scope": "float8 training evidence" }
+  ],
+  "stopCondition": "Stop when each listed training and inference gap has one owner class, one bounded workload relation, and an evidence boundary; do not add a core keyword or final API."
+}

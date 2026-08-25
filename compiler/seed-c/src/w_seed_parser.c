@@ -857,10 +857,6 @@ static bool parse_capture_expression(w_seed_parser *parser, bool value_context) 
 
 static bool parse_primary(w_seed_parser *parser, bool value_context) {
   if (!skip_trivia(parser) || current_is_eof(parser)) return false;
-  if (current_is_text(parser, "spawn")) {
-    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
-    return false;
-  }
   if (current_is_text(parser, "switch")) {
     return parse_switch_expression(parser);
   }
@@ -1102,6 +1098,19 @@ static bool parse_prefix(w_seed_parser *parser, bool value_context) {
         current_span(parser).start_byte == parser->last_token_end) {
       (void)consume_current(parser, NULL);
     }
+    return parse_prefix(parser, value_context);
+  }
+  if (current_is_text(parser, "async")) {
+    (void)consume_text(parser, "async", NULL);
+    return parse_prefix(parser, value_context);
+  }
+  if (current_is_text(parser, "spawn")) {
+    (void)consume_text(parser, "spawn", NULL);
+    if (!current_is_text(parser, "<")) {
+      stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+      return false;
+    }
+    if (!parse_contract_envelope(parser, parser->last_token_end, true)) return false;
     return parse_prefix(parser, value_context);
   }
   return parse_postfix(parser, value_context);
@@ -1604,31 +1613,8 @@ static bool parse_var_statement(w_seed_parser *parser) {
 }
 
 static bool parse_spawn_statement(w_seed_parser *parser) {
-  const size_t start = current_span(parser).start_byte;
-  if (push_node(parser, W_SEED_CST_SPAWN_STATEMENT, start) == W_SEED_CST_NONE)
-    return false;
-  (void)consume_text(parser, "spawn", NULL);
-  if (!current_is_text(parser, "<")) {
-    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
-    pop_node(parser, parser->lexer.bounds.end_byte);
-    return false;
-  }
-  if (!parse_contract_envelope(parser, parser->last_token_end, true)) {
-    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
-    return false;
-  }
-  if (!current_is_text(parser, "let")) {
-    append_missing(parser, current_span(parser).start_byte,
-                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
-    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
-    return false;
-  }
-  if (!parse_let_statement(parser)) {
-    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
-    return false;
-  }
-  pop_node(parser, parser->last_token_end);
-  return true;
+  stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+  return false;
 }
 
 static bool parse_return_statement(w_seed_parser *parser) {

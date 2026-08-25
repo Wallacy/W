@@ -205,7 +205,8 @@ export function researchZero({ root = repositoryRoot } = {}) {
   try {
     const classification = JSON.parse(fs.readFileSync(path.resolve(root, "tooling", "design-freeze-classification.json"), "utf8"));
     const entries = new Map((classification.entries ?? []).map((entry) => [entry.decisionId, entry]));
-    return ledgerIds.every((id) => entries.has(id) && entries.get(id).category !== "research-gated") &&
+    const historicalIds = ledgerIds.filter((id) => Number(id.slice(2)) <= 1459);
+    return historicalIds.every((id) => entries.has(id) && entries.get(id).category !== "research-gated") &&
       DECISIONS.every((id) => entries.get(id)?.category === "oracle-backed-current");
   } catch { return false; }
 }

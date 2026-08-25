@@ -29,7 +29,7 @@
     "domain": {
       "path": "reference/last-light/domain_oracle.w",
       "symbol": "deployment can reduce but cannot increase profile capacity",
-      "digest": "sha256:6f26c28d5cf2ff2249406660c4250c0577a1770a16924cb52d9cec445409ad51",
+      "digest": "sha256:37b229824ae9aa789a04f107c211f4c7acd5cf1d4eb2ea24accf245aecb94e3f",
       "claim": "deployment can reduce a profile budget but cannot increase its product minimum"
     },
     "abi": {

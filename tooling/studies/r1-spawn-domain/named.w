@@ -10,8 +10,8 @@ fn mix(value: Int): Int {
 }
 
 async fn planPair(left: Int, named right: Int): MixResult {
-  spawn<domain: .compute> let port = mix(left)
-  spawn<domain: .compute> let starboard = mix(right)
+  let port = spawn<domain: .compute> mix(left)
+  let starboard = spawn<domain: .compute> mix(right)
   let (portValue, starboardValue) = await (port, starboard)
   return MixResult(port: portValue, starboard: starboardValue)
 }

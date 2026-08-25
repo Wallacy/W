@@ -94,10 +94,10 @@ async fn prepareDish(
 ): Dish throws RestaurantError {
   let planning = planningRequest(order)
   let Order(guests, course, ...) = take order
-  async let stock = pantry.reserve(course, guests: guests)
-  async let telemetry = ovens.telemetry()
-  async let aromaSample = probe.sample()
-  async let schedule = oracle.plan(take planning)
+  let stock = async pantry.reserve(course, guests: guests)
+  let telemetry = async ovens.telemetry()
+  let aromaSample = async probe.sample()
+  let schedule = async oracle.plan(take planning)
 
   let (stock, telemetry, aromaSample, schedule) = try await (stock, telemetry, aromaSample, schedule)
   defer async {
@@ -117,7 +117,7 @@ async fn prepareDish(
     throw .kitchen(.energyBudgetExceeded(found: projectedEnergy, limit: schedule.energyBudget))
   }
 
-  spawn<.compute> let mixture = mix(stock.ingredients, recipe: schedule.recipe)
+  let mixture = spawn<.compute> mix(stock.ingredients, recipe: schedule.recipe)
 
   let (lease, ready) = try await pipeline {
     let lease = ovens.acquire(schedule.recipe.target, duration: schedule.duration)

@@ -193,7 +193,7 @@
     {
       "id": "FZ0-G4-expressions-and-execution",
       "family": "G4",
-      "construction": "direct call, await, async let, spawn, and explicit captures",
+      "construction": "direct call, await, async initializer, spawn initializer, and explicit captures",
       "decisions": [
         "W-006",
         "W-039",
@@ -206,8 +206,8 @@
       ],
       "sourceRef": {
         "path": "reference/last-light/execution.w",
-        "symbol": "async let childTask = mixJob",
-        "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed"
+        "symbol": "let childTask = async mixJob",
+        "digest": "sha256:cf1789d49a5f55c9634d21036399a89d97c8e05b720420100e1e7d473ad20d96"
       },
       "positive": {
         "formatterCases": [
@@ -217,7 +217,7 @@
         ],
         "semanticCase": "S0-POS-effect-prefix-order",
         "markers": [
-          "async let",
+          "let childTask = async",
           "spawn<.compute>",
           "try await",
           "<[take"
@@ -245,7 +245,7 @@
       "sourceRef": {
         "path": "reference/last-light/allocation.w",
         "symbol": "allocator .fixed<capacity: 2<iec.MiB>>",
-        "digest": "sha256:38abe8d35bd194aac2baf5c9a9c941e3b54777265dc348de9afad2462105698e"
+        "digest": "sha256:1d89db249dba566955aec8ef5023dfaa01eca9b48553d399f18590ac2486a93b"
       },
       "positive": {
         "formatterCases": [

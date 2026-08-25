@@ -1,0 +1,43 @@
+{
+  "$schema": "w-llm0-training-inference-cases-1",
+  "study": "LLM0",
+  "existingCoverage": [
+    "Tensor shape and value parameters",
+    "explicit broadcast/reduction/numeric mode",
+    "f16/bf16 and quantization direction",
+    "view and strides",
+    "Device/Queue/Launch",
+    "DLPack",
+    "ownership",
+    "streams/backpressure/services",
+    "deterministic RNG/profile",
+    "packages/receipts"
+  ],
+  "gaps": [
+    { "id": "core-surface-boundary", "track": "cross-cutting", "topic": "No new model keyword or implicit tensor execution semantics", "ownerClass": "core language", "default": "avoid core inflation", "evidence": "existing ownership and execution contracts are sufficient for this study boundary" },
+    { "id": "train-autodiff", "track": "training", "topic": "typed autodiff IR, JVP/VJP/custom gradient, mutation and alias rules", "ownerClass": "typed IR/compiler", "default": "avoid core inflation", "evidence": "typed differentiation and alias proof are missing" },
+    { "id": "train-shapes-layout", "track": "training", "topic": "dynamic/ragged/bounded shapes and layout transforms", "ownerClass": "typed IR/compiler", "default": "avoid core inflation", "evidence": "shape/layout lowering and bounds receipts are missing" },
+    { "id": "train-subbyte", "track": "training", "topic": "f8/fp8/fp4/int8/int4/subbyte, scaling metadata, and accumulators", "ownerClass": "runtime/provider", "default": "avoid core inflation", "evidence": "target formats and accumulation receipts are missing" },
+    { "id": "train-checkpoint", "track": "training", "topic": "activation checkpoint/recomputation/offload", "ownerClass": "runtime/provider", "default": "avoid core inflation", "evidence": "lifetime and transfer scheduler evidence is missing" },
+    { "id": "train-optimizer-state", "track": "training", "topic": "optimizer state ownership/sharding and distributed checkpoints", "ownerClass": "runtime/provider", "default": "avoid core inflation", "evidence": "state partition and recovery receipts are missing" },
+    { "id": "train-parallelism", "track": "training", "topic": "data/tensor/pipeline/context/expert/sequence parallelism", "ownerClass": "runtime/provider", "default": "avoid core inflation", "evidence": "collective and topology receipts are missing" },
+    { "id": "train-mesh", "track": "training", "topic": "device mesh, sharding, collectives, and topology-aware overlap", "ownerClass": "runtime/provider", "default": "avoid core inflation", "evidence": "mesh topology and overlap evidence is missing" },
+    { "id": "train-moe", "track": "training", "topic": "MoE routing and load balance", "ownerClass": "application framework", "default": "avoid core inflation", "evidence": "routing policy and capacity policy are workload-specific" },
+    { "id": "train-fused-capture", "track": "training", "topic": "fused kernels, graph capture, specialization, and autotuning evidence", "ownerClass": "tooling/evidence", "default": "avoid core inflation", "evidence": "compiler/provider performance receipts are missing" },
+    { "id": "train-data-recovery", "track": "training", "topic": "dataset streaming, reproducibility, and failure recovery", "ownerClass": "application framework", "default": "avoid core inflation", "evidence": "dataset and checkpoint policy is workload-specific" },
+    { "id": "infer-mapped-weights", "track": "inference", "topic": "mapped/streamed weights and valid zero-copy load", "ownerClass": "runtime/provider", "default": "avoid core inflation", "evidence": "mapping validity and device transfer receipts are missing" },
+    { "id": "infer-kv-cache", "track": "inference", "topic": "paged KV cache, block ownership, prefix reuse/COW/eviction/offload", "ownerClass": "runtime/provider", "default": "avoid core inflation", "evidence": "cache block lifecycle and provider receipts are missing" },
+    { "id": "infer-batching", "track": "inference", "topic": "continuous/in-flight batching, chunked prefill, admission, and backpressure", "ownerClass": "runtime/provider", "default": "avoid core inflation", "evidence": "scheduler fairness and queue receipts are missing" },
+    { "id": "infer-speculative", "track": "inference", "topic": "speculative decoding with exact distribution and verification contract", "ownerClass": "application framework", "default": "avoid core inflation", "evidence": "draft/verify model contract is workload-specific" },
+    { "id": "infer-quantization", "track": "inference", "topic": "quantized weights/activations/KV and calibration receipts", "ownerClass": "runtime/provider", "default": "avoid core inflation", "evidence": "scale and calibration receipts are missing" },
+    { "id": "infer-graph-capture", "track": "inference", "topic": "CUDA graph or equivalent captured execution", "ownerClass": "runtime/provider", "default": "avoid core inflation", "evidence": "capture validity and invalidation receipts are missing" },
+    { "id": "infer-disaggregation", "track": "inference", "topic": "prefill/decode disaggregation and KV transfer", "ownerClass": "runtime/provider", "default": "avoid core inflation", "evidence": "transport, ownership, and cancellation receipts are missing" },
+    { "id": "infer-parallelism", "track": "inference", "topic": "tensor/pipeline/expert parallel inference", "ownerClass": "runtime/provider", "default": "avoid core inflation", "evidence": "collective and topology evidence is missing" },
+    { "id": "infer-service-contract", "track": "inference", "topic": "latency SLO, fairness, cancellation, streaming, and observability", "ownerClass": "std/API", "default": "avoid core inflation", "evidence": "service policy and receipts need a separate study" }
+  ],
+  "workloads": [
+    { "id": "distributed-training-step", "kind": "training", "sourceShape": { "mesh": "4x2", "batch": "bounded", "forward": "tensor graph", "gradient": "typed-autodiff gap", "collective": "all-reduce", "optimizer": "sharded-state gap", "checkpoint": "distributed-recovery gap" }, "oracleChecks": ["ownership", "shape bounds", "collective receipt", "reproducibility", "gap mapping"] },
+    { "id": "inference-service-request", "kind": "inference", "sourceShape": { "request": "streaming tokens", "weights": "mapped-or-streamed gap", "kv": "paged-cache gap", "scheduler": "continuous-batching gap", "decode": "verification gap", "cancel": "explicit", "observability": "receipt gap" }, "oracleChecks": ["backpressure", "cancellation", "stream ownership", "provider boundary", "gap mapping"] }
+  ],
+  "adversarialCases": ["core-keyword-inflation", "performance-claim", "provider-claim"]
+}

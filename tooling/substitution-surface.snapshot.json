@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:eaff7ae87b532b055813a7db666d6dc7ba283aea36872387d06f35456dde4fec",
+  "corpusDigest": "sha256:da8e133ea88f2579b965678b13de51b57d2f97c2fbe7e4c5c0f7fac38fcb8996",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -568,7 +568,7 @@
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:4864211e7e87c69a9b5aa1ad8d65f05e892e35db98d500343cfbe291109299cd",
+        "sourceDigest": "sha256:33a20991e8d1f87d3f6dcdcbef34fbf8960a2dbd12553eda71834a6c3ce471eb",
         "metrics": {
           "utf8Bytes": 50,
           "codePoints": 50,
@@ -581,7 +581,7 @@
         {
           "name": "named-domain-label",
           "language": "w",
-          "sourceDigest": "sha256:f45e9b24796d7a999c45b630ce83d5063a721ad6656a1978af800fee6432e39a",
+          "sourceDigest": "sha256:b7c02530bb64e6c7b72b3befa00e1f6777985c1609d8a78f33c13e7227bbac8d",
           "metrics": {
             "utf8Bytes": 58,
             "codePoints": 58,
@@ -1696,7 +1696,7 @@
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:50927332f1bfc03533ed09ef3e64075406606934c8767b1e8c961831b49fce4d",
+        "sourceDigest": "sha256:c550f77f3546ec88df29e1bd4d5338911ce06ef548ec4cfd68c1580440f0bea4",
         "metrics": {
           "utf8Bytes": 101,
           "codePoints": 101,

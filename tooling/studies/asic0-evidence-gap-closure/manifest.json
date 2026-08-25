@@ -3,36 +3,184 @@
   "status": "design-oracle-input",
   "id": "ASIC0",
   "reuseOnly": true,
-  "decisions": ["W-1355", "W-1359", "W-1420", "W-1425", "W-1435"],
+  "decisions": [
+    "W-1355",
+    "W-1359",
+    "W-1420",
+    "W-1425",
+    "W-1435"
+  ],
   "artifacts": [
-    { "id": "corpus", "role": "corpus", "path": "tooling/asic0-evidence-gap-closure-cases.json", "digest": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4" },
-    { "id": "machine", "role": "machine", "path": "tooling/asic0-evidence-gap-closure-machine.mjs", "digest": "sha256:bd0a94469b698c2b4a4511c2e3148b043ff92bcb1e1f7f55e48d173b17ac806e" },
-    { "id": "root-checker", "role": "root-checker", "path": "tooling/check-asic0-evidence-gap-closure.mjs", "digest": "sha256:84271eda52147aca33eb258cf31e01ec398a83b8bc692d2d4f4b910dd23f6353" },
-    { "id": "nested-checker", "role": "nested-checker", "path": "tooling/tree-sitter-w/check-asic0.mjs", "digest": "sha256:d0819b6a65bf574d178cec5be0835be94338665eb336f02bc7c08e0b88f5f8dd" },
-    { "id": "snapshot", "role": "snapshot", "path": "tooling/asic0-evidence-gap-closure-results.snapshot.jsonl", "digest": "sha256:83f8e0b6579e15cd8cee0c7672b4ffbe95194e1c6500b7978e90581db0febead" },
-    { "id": "bundle", "role": "bundle", "path": "tooling/studies/asic0-evidence-gap-closure/bundle.json", "digest": "sha256:4e8e3a67874d820e1153dfd3afa7256d30764a1575e239d0882615ff0de18a2d" },
-    { "id": "study", "role": "study", "path": "tooling/studies/asic0-evidence-gap-closure/study.json", "digest": "sha256:5555d27c3b664bdf8cd604d0dbdea5412f91f4a71c77bf4e7a9e2b5699b02f5f" },
-    { "id": "oracle", "role": "oracle", "path": "tooling/studies/asic0-evidence-gap-closure/oracle.test.mjs", "digest": "sha256:427b4b5e2a5f2ba1cb5ff92925fc4a3c79fc27b56da73805824d19208057aae1" },
-    { "id": "readme", "role": "readme", "path": "tooling/studies/asic0-evidence-gap-closure/README.md", "digest": "sha256:0fd974d535985a3105c9a355cdc903d5123c31d5b212ccf096d313b528f91b4c" },
-    { "id": "index", "role": "index", "path": "tooling/studies/asic0-evidence-gap-closure/INDEX.md", "digest": "sha256:10b63ebb85ded4bdfd1cc941be6eca9f74d6d5e4c06d7a9098e54f2828b41f08" },
-    { "id": "current", "role": "current", "path": "tooling/studies/asic0-evidence-gap-closure/current.w", "digest": "sha256:432945d19409832590021cc5e37d33a9c79f7aac1bb1d2023cd1e7228f909204" },
-    { "id": "adversarial", "role": "adversarial", "path": "tooling/studies/asic0-evidence-gap-closure/adversarial.w", "digest": "sha256:bbebeb235204aa1ea5c97cd56f76de66378a51681a31675e67e65297f74cf195" },
-    { "id": "ipc-study", "role": "ipc-study", "path": "tooling/studies/ipc1-mapped-ipc/study.json", "digest": "sha256:b35c87ff6f106c96e762521540b6f876308ff26187e61f4bc7d648af3742f196" },
-    { "id": "ipc-corpus", "role": "ipc-corpus", "path": "tooling/ipc1-mapped-ipc-cases.json", "digest": "sha256:ca10f9c141ec6a94bb5adbac68b99d7e6d446ab76082b8e2d489c399a178e676" },
-    { "id": "ipc-machine", "role": "ipc-machine", "path": "tooling/ipc1-mapped-ipc-machine.mjs", "digest": "sha256:249e735effb262875644f19c55d068c35a226fb2027a307afae89fa308e303d7" },
-    { "id": "ipc-snapshot", "role": "ipc-snapshot", "path": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl", "digest": "sha256:70046fa16c138a04909835109d7e13cf1bd2fb8026794a68a80f079b957be3c3" },
-    { "id": "avf-study", "role": "avf-study", "path": "tooling/studies/avf0-availability-feature/study.json", "digest": "sha256:aac6c5baaf17e16b8cfa1bc0658b9fadf49b655bdf360ecace1632325e56173d" },
-    { "id": "avf-corpus", "role": "avf-corpus", "path": "tooling/avf0-availability-feature-cases.json", "digest": "sha256:3590d3ea3ab37021f9b9ca90fe238ca5007a85bf014b1705263d5512d414b730" },
-    { "id": "avf-machine", "role": "avf-machine", "path": "tooling/avf0-availability-feature-machine.mjs", "digest": "sha256:037906cc6c19a01d3b4b5a4421d60a80c26afc4c4da7c910b631410b4f1ef49e" },
-    { "id": "avf-snapshot", "role": "avf-snapshot", "path": "tooling/avf0-availability-feature-results.snapshot.jsonl", "digest": "sha256:710a960b1bd565281d345a68ee00e9fdcf535b2f3858fd73d3a8963ba549a6e7" },
-    { "id": "sec-study", "role": "sec-study", "path": "tooling/studies/sec0-security-model/study.json", "digest": "sha256:dbf3715a10356f804769fc1f6a033e63e1ae8a9a70c7313a3e2b7b1b43353c12" },
-    { "id": "sec-corpus", "role": "sec-corpus", "path": "tooling/sec0-security-model-cases.json", "digest": "sha256:fce56a5927e41eabd299621ddd531548fbf4f9ae90ed4c38897976ab71f128ad" },
-    { "id": "sec-machine", "role": "sec-machine", "path": "tooling/sec0-security-model-machine.mjs", "digest": "sha256:6abf39d2aaafb09586a4364d7459f9d246dca35bbc022b94f7b448f51b9a0b0b" },
-    { "id": "sec-snapshot", "role": "sec-snapshot", "path": "tooling/sec0-security-model-results.snapshot.jsonl", "digest": "sha256:4badd96f6b2d28e5a84539c5027cac5a9fea80e67c6519114a31d52ab9a817df" }
+    {
+      "id": "corpus",
+      "role": "corpus",
+      "path": "tooling/asic0-evidence-gap-closure-cases.json",
+      "digest": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4"
+    },
+    {
+      "id": "machine",
+      "role": "machine",
+      "path": "tooling/asic0-evidence-gap-closure-machine.mjs",
+      "digest": "sha256:bd0a94469b698c2b4a4511c2e3148b043ff92bcb1e1f7f55e48d173b17ac806e"
+    },
+    {
+      "id": "root-checker",
+      "role": "root-checker",
+      "path": "tooling/check-asic0-evidence-gap-closure.mjs",
+      "digest": "sha256:84271eda52147aca33eb258cf31e01ec398a83b8bc692d2d4f4b910dd23f6353"
+    },
+    {
+      "id": "nested-checker",
+      "role": "nested-checker",
+      "path": "tooling/tree-sitter-w/check-asic0.mjs",
+      "digest": "sha256:d0819b6a65bf574d178cec5be0835be94338665eb336f02bc7c08e0b88f5f8dd"
+    },
+    {
+      "id": "snapshot",
+      "role": "snapshot",
+      "path": "tooling/asic0-evidence-gap-closure-results.snapshot.jsonl",
+      "digest": "sha256:83f8e0b6579e15cd8cee0c7672b4ffbe95194e1c6500b7978e90581db0febead"
+    },
+    {
+      "id": "bundle",
+      "role": "bundle",
+      "path": "tooling/studies/asic0-evidence-gap-closure/bundle.json",
+      "digest": "sha256:ab99218bafed054dcb015977b71197c1f0f3b16cc379bdd604b5df3ad3b4b44b"
+    },
+    {
+      "id": "study",
+      "role": "study",
+      "path": "tooling/studies/asic0-evidence-gap-closure/study.json",
+      "digest": "sha256:5555d27c3b664bdf8cd604d0dbdea5412f91f4a71c77bf4e7a9e2b5699b02f5f"
+    },
+    {
+      "id": "oracle",
+      "role": "oracle",
+      "path": "tooling/studies/asic0-evidence-gap-closure/oracle.test.mjs",
+      "digest": "sha256:427b4b5e2a5f2ba1cb5ff92925fc4a3c79fc27b56da73805824d19208057aae1"
+    },
+    {
+      "id": "readme",
+      "role": "readme",
+      "path": "tooling/studies/asic0-evidence-gap-closure/README.md",
+      "digest": "sha256:0fd974d535985a3105c9a355cdc903d5123c31d5b212ccf096d313b528f91b4c"
+    },
+    {
+      "id": "index",
+      "role": "index",
+      "path": "tooling/studies/asic0-evidence-gap-closure/INDEX.md",
+      "digest": "sha256:10b63ebb85ded4bdfd1cc941be6eca9f74d6d5e4c06d7a9098e54f2828b41f08"
+    },
+    {
+      "id": "current",
+      "role": "current",
+      "path": "tooling/studies/asic0-evidence-gap-closure/current.w",
+      "digest": "sha256:432945d19409832590021cc5e37d33a9c79f7aac1bb1d2023cd1e7228f909204"
+    },
+    {
+      "id": "adversarial",
+      "role": "adversarial",
+      "path": "tooling/studies/asic0-evidence-gap-closure/adversarial.w",
+      "digest": "sha256:bbebeb235204aa1ea5c97cd56f76de66378a51681a31675e67e65297f74cf195"
+    },
+    {
+      "id": "ipc-study",
+      "role": "ipc-study",
+      "path": "tooling/studies/ipc1-mapped-ipc/study.json",
+      "digest": "sha256:8479430168f4769200a252d68f316fb7ee972d4d6b8f3bd34ad142c4062c307d"
+    },
+    {
+      "id": "ipc-corpus",
+      "role": "ipc-corpus",
+      "path": "tooling/ipc1-mapped-ipc-cases.json",
+      "digest": "sha256:c942ee85f4be29c0099b1dcea7e8bd89acd8935b451ff3910750101b1744f8f1"
+    },
+    {
+      "id": "ipc-machine",
+      "role": "ipc-machine",
+      "path": "tooling/ipc1-mapped-ipc-machine.mjs",
+      "digest": "sha256:249e735effb262875644f19c55d068c35a226fb2027a307afae89fa308e303d7"
+    },
+    {
+      "id": "ipc-snapshot",
+      "role": "ipc-snapshot",
+      "path": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl",
+      "digest": "sha256:caaee4ef1c02aaf7305de206b548d1355c7fb8fdb078a9a8bbd8583279f4f0ee"
+    },
+    {
+      "id": "avf-study",
+      "role": "avf-study",
+      "path": "tooling/studies/avf0-availability-feature/study.json",
+      "digest": "sha256:da6591a34ed3fb3639bc2342a5b14ff67115d30f33663e75e294e38aeb7fcaf7"
+    },
+    {
+      "id": "avf-corpus",
+      "role": "avf-corpus",
+      "path": "tooling/avf0-availability-feature-cases.json",
+      "digest": "sha256:6f95f91f32db4d12402ef8a36e8535abc6b65d2ddf94abda6471323f36246d3c"
+    },
+    {
+      "id": "avf-machine",
+      "role": "avf-machine",
+      "path": "tooling/avf0-availability-feature-machine.mjs",
+      "digest": "sha256:037906cc6c19a01d3b4b5a4421d60a80c26afc4c4da7c910b631410b4f1ef49e"
+    },
+    {
+      "id": "avf-snapshot",
+      "role": "avf-snapshot",
+      "path": "tooling/avf0-availability-feature-results.snapshot.jsonl",
+      "digest": "sha256:d802ff52013b6fda0afd7198e933acfb87f8e9f3e10f5e4fa93015ef29421977"
+    },
+    {
+      "id": "sec-study",
+      "role": "sec-study",
+      "path": "tooling/studies/sec0-security-model/study.json",
+      "digest": "sha256:c9f790882d51997653b1e6588ff31c0dd7e0922812056bbcbe2f2bf4252fbe1a"
+    },
+    {
+      "id": "sec-corpus",
+      "role": "sec-corpus",
+      "path": "tooling/sec0-security-model-cases.json",
+      "digest": "sha256:da4d44f261defcbb3df3014f7b32f3930de415433f548db851f819df48fb8316"
+    },
+    {
+      "id": "sec-machine",
+      "role": "sec-machine",
+      "path": "tooling/sec0-security-model-machine.mjs",
+      "digest": "sha256:6abf39d2aaafb09586a4364d7459f9d246dca35bbc022b94f7b448f51b9a0b0b"
+    },
+    {
+      "id": "sec-snapshot",
+      "role": "sec-snapshot",
+      "path": "tooling/sec0-security-model-results.snapshot.jsonl",
+      "digest": "sha256:a4db1c447bd17b954b99d92cf33163c7f959c321b3d3e89c08ad7f53dd280b8d"
+    }
   ],
   "evidence": {
-    "current": ["source-ref", "reused-corpus", "reused-machine", "host-oracle", "mutation-checks", "snapshot", "thin-parse"],
-    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "hardware", "sandbox", "attestation-verifier", "ffi", "fault-stress", "local-split", "human-study", "model-study"],
+    "current": [
+      "source-ref",
+      "reused-corpus",
+      "reused-machine",
+      "host-oracle",
+      "mutation-checks",
+      "snapshot",
+      "thin-parse"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "compiler",
+      "runtime",
+      "provider",
+      "hardware",
+      "sandbox",
+      "attestation-verifier",
+      "ffi",
+      "fault-stress",
+      "local-split",
+      "human-study",
+      "model-study"
+    ],
     "hostOnly": true
   },
   "stopCondition": "Stop on stale source, route, digest, expected assertion, gap category, decision link, bundle role, schema, provider claim, or evidence boundary. Wait for Sol review before canonical recascade."

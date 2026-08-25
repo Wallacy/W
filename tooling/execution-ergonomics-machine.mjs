@@ -416,8 +416,12 @@ function parseCalls(source) {
     const statement = source.slice(statementStart, closing + 1)
     let callForm = "direct"
     if (/\btry\s+await\b|\bawait\b/.test(statement)) callForm = "await"
-    else if (/\basync\s+let\b/.test(statement)) callForm = "async let"
-    else if (/\bspawn\s*</.test(statement)) callForm = "spawn"
+    else if (/\bsync\s*$/.test(source.slice(statementStart, start))) callForm = "sync"
+    else {
+      const launcher = statement.match(/^\s*let\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*(async|spawn\s*<[^>]+>)\s*/)
+      const launcherRoot = launcher ? statementStart + launcher[0].length : -1
+      if (launcher && start === launcherRoot) callForm = launcher[1].startsWith("spawn") ? "spawn" : "async"
+    }
 
     let memberCursor = start - 1
     while (/\s/.test(mask[memberCursor] ?? "")) memberCursor -= 1
@@ -760,7 +764,7 @@ function deriveSuspension(source, declarations, input = {}) {
   const edges = new Map(names.map((name) => [name, new Set()]))
   const may = new Set(input.functionTypes?.filter((item) => item.suspension === "may").map((item) => item.name) ?? [])
   for (const declaration of declarations) {
-    if (declaration.explicitAsync || /\bawait\b|\basync\s+let\b|\bspawn\s*</.test(declaration.body)) may.add(declaration.name)
+    if (declaration.explicitAsync || /\bawait\b|\blet\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*(?:async|spawn\s*<)/.test(declaration.body)) may.add(declaration.name)
     for (const callee of bodyCalls(declaration.body)) if (byName.has(callee)) edges.get(declaration.name).add(callee)
   }
   let changed = true
@@ -777,14 +781,33 @@ function deriveSuspension(source, declarations, input = {}) {
   const components = stronglyConnected(names, edges)
   const calls = parseCalls(source).map((call) => {
     const suspension = may.has(call.callee) ? "may" : "never"
+    const explicitAsync = byName.get(call.callee)?.explicitAsync === true
     const invalidBare = suspension === "may" && call.callForm === "direct"
-    return { ...call, suspension, invalidBare }
+    const syncEligible = call.callForm === "sync" && suspension === "may" && explicitAsync
+    return { ...call, suspension, sourceSpelling: explicitAsync ? "explicit" : suspension === "may" ? "inferred" : "none", invalidBare, syncEligible }
   })
   const diagnostics = calls.filter((call) => call.invalidBare).map((call) => ({ code: "W-SUSPEND-0001", callee: call.callee, callForm: call.callForm }))
+  for (const call of calls.filter((candidate) => candidate.callForm === "sync" && !candidate.syncEligible)) {
+    diagnostics.push({ code: "W-SUSPEND-0005", callee: call.callee, reason: "sync requires explicit async fn and maySuspend" })
+  }
   const removable = calls.filter((call) => call.suspension === "never" && call.callForm === "await")
   for (const call of removable) diagnostics.push({ code: "W-SUSPEND-0002", callee: call.callee, callForm: call.callForm })
   if (/\bblockingWait\s*\(/.test(source)) diagnostics.push({ code: "W-SUSPEND-0003", operation: "blockingWait" })
-  const children = calls.filter((call) => call.callForm === "async let" || call.callForm === "spawn").map((call) => ({
+  const placementDiagnostics = []
+  const oldSurface = /\basync\s+let\b|\bspawn\s*<[^>]+>\s*let\b|\bspawn\s+let\b/.exec(source)
+  if (oldSurface) placementDiagnostics.push({ code: "W-PLACEMENT-0004", reason: "child launcher must be in a let initializer", offset: oldSurface.index })
+  for (const match of source.matchAll(/(?:^|[;{}\n])\s*(let|var)\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*(async|spawn\s*(?:<[^>]+>)?)\s*([^;\n}]*)/g)) {
+    const bindingKind = match[1]
+    const operand = match[3].trim()
+    if (bindingKind !== "let") placementDiagnostics.push({ code: "W-PLACEMENT-0004", reason: "child launcher requires lexical let", bindingKind })
+    if (!/^[A-Za-z_][A-Za-z0-9_.]*\s*\(/.test(operand)) placementDiagnostics.push({ code: "W-PLACEMENT-0004", reason: "child launcher requires one callable root" })
+    if (/\b(?:async|spawn)\s*(?:<[^>]+>)?\b/.test(operand)) placementDiagnostics.push({ code: "W-PLACEMENT-0004", reason: "nested child launcher" })
+  }
+  for (const match of source.matchAll(/(?:^|[;{}\n])\s*(return\s+)?(?:async\s+(?!fn\b)|spawn\s*(?:<[^>]+>)?\s+[A-Za-z_])/g)) {
+    if (!match[1]) placementDiagnostics.push({ code: "W-PLACEMENT-0004", reason: "child launcher requires let binding" })
+    else placementDiagnostics.push({ code: "W-PLACEMENT-0004", reason: "child launcher cannot be returned" })
+  }
+  const children = calls.filter((call) => call.callForm === "async" || call.callForm === "spawn").map((call) => ({
     form: call.callForm,
     callee: call.callee,
     accepts: ["never", "may"],
@@ -805,7 +828,8 @@ function deriveSuspension(source, declarations, input = {}) {
     children,
     staging: children.length > 0 ? ["callee", "arguments", "captures", "reserve", "publish"] : [],
     scc: components.map((members) => ({ members, suspension: members.some((member) => may.has(member)) ? "may" : "never" })),
-    diagnostics,
+    diagnostics: [...diagnostics, ...placementDiagnostics],
+    syncBridges: calls.filter((call) => call.callForm === "sync").map((call) => ({ callee: call.callee, eligible: call.syncEligible, blocksThread: call.syncEligible, sourceSpelling: call.sourceSpelling })),
     public: publicResult,
     tryOrthogonal: /\btry\b/.test(source),
   }
@@ -843,9 +867,10 @@ function derivePlacement(source, input = {}, suspension = { declarations: [] }) 
     if (![".ordinary", ".barrier"].includes(mode)) {
       diagnostics.push({ code: "W-PLACEMENT-0003", reason: "unknown dispatch mode", mode })
     }
+    const lineStart = source.lastIndexOf("\n", offset) + 1
     const lineEnd = source.indexOf("\n", offset)
-    const statement = source.slice(offset, lineEnd < 0 ? source.length : lineEnd)
-    const call = statement.match(/(?:let|var)\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*([A-Za-z_][A-Za-z0-9_]*)\s*\((.*)\)/)
+    const statement = source.slice(lineStart, lineEnd < 0 ? source.length : lineEnd)
+    const call = statement.match(/(?:let|var)\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*spawn\s*<[^>]+>\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\((.*)\)/)
     const accesses = call
       ? [...call[2].matchAll(/\b(ref|inout)\s+([A-Za-z_][A-Za-z0-9_.]*)/g)].map((match) => ({
           access: match[1] === "ref" ? "read" : "write",
@@ -855,7 +880,10 @@ function derivePlacement(source, input = {}, suspension = { declarations: [] }) 
     return { raw, offset, domain, mode, callee: call?.[1] ?? null, accesses }
   })
   const normalizedSlots = parsedSlots.map((slot) => slot.domain).filter(Boolean)
-  const missingDomain = [...source.matchAll(/\bspawn\s+(?=(?:let|var)\b)/g)]
+  const missingDomain = [
+    ...source.matchAll(/\b(?:let|var)\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*spawn\s+(?=[A-Za-z_])/g),
+    ...source.matchAll(/\bspawn\s+(?=(?:let|var)\b)/g),
+  ]
   for (const match of missingDomain) {
     diagnostics.push({ code: "W-PLACEMENT-0002", reason: "missing explicit domain", offset: match.index ?? 0 })
   }
@@ -1162,7 +1190,7 @@ export function deriveExecutionErgonomics(source, input = {}) {
     forms: {
       direct: "same-task/neverSuspend",
       await: "same-task/maySuspend",
-      "async let": "structured-child/current-domain",
+      async: "structured-child/current-domain",
       spawn: "structured-child/explicit-domain",
     },
   }

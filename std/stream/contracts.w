@@ -202,8 +202,8 @@ extension<Failure: Error & Duplicable> ReadableStream<Bytes, Failure> {
 // let second = copy stream              // The cursor is not Duplicable.
 // let _ = stream.tee(items: 8)
 // // Rejected when Item or Failure does not conform to Duplicable.
-// async let first = stream.next()
-// async let second = stream.next()      // The two calls need the same inout owner.
+// let first = async stream.next()
+// let second = async stream.next()      // The two calls need the same inout owner.
 // do {
 //   try await (take stream).cancel()
 // } catch error {

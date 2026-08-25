@@ -66,7 +66,7 @@ export async fn forecastOnDevice<
     }
   }
 
-  async let prediction = lastLightKernels.forecast.launch(
+  let prediction = async lastLightKernels.forecast.launch(
     using: ref launch,
     features: ref features,
     weights: ref weights,

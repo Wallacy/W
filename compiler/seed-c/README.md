@@ -58,7 +58,7 @@ sintáticos `copy`/`take`/`pin`/`inout`/`ref`, a expressão estruturada
 expression opcional. O parser Pratt
 delimitado também reconhece tuple types e tuple expressions com dois ou mais
 itens, inclusive trailing comma, e o statement
-`spawn<.domain>` ou `spawn<domain: .domain> let name = expression`. O parser
+`spawn<.domain>` ou `let name = spawn<domain: .domain> expression`. O parser
 mantém `()` e `(expression)` como formas unitária e parenthesized. `(T)` e
 `(T,)` não são aceitos como tuple type, e `(expression,)` não é aceito como
 tuple expression. O parser Pratt é usado pelos vinte e sete casos F0

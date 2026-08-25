@@ -1,0 +1,31 @@
+{
+  "$schema": "w-mem0-virtual-memory-data-movement-study-1",
+  "id": "MEM0",
+  "decision": "W-1473",
+  "status": "complete-design-study",
+  "title": "Virtual memory and data movement performance contract",
+  "question": "Which memory and movement mechanisms can be described without making a universal target promise?",
+  "data": "cases.json",
+  "oracle": "oracle.mjs",
+  "checker": "check.mjs",
+  "evidenceBoundary": {
+    "current": ["portable ownership vocabulary", "host oracle", "target source pointers"],
+    "missing": ["W compiler", "W runtime", "provider receipts", "benchmark measurements", "cross-target performance evidence"],
+    "hostOnly": true,
+    "apiPromotion": false,
+    "researchClosed": true
+  },
+  "requiredFields": ["ownerMoveOnly", "boundedExtent", "permissions", "addressSpace", "provenance", "deterministicDrop", "liveViewExclusion", "externalInterference", "targetEvidence"],
+  "allowedClassifications": ["portable semantic owner/API candidate", "provider capability/receipt", "compiler optimization", "unsafe target adapter", "rejected universal promise"],
+  "sources": [
+    { "url": "https://man7.org/linux/man-pages/man2/mmap.2.html", "accessed": "2026-08-25", "scope": "POSIX mapping modes and protections" },
+    { "url": "https://man7.org/linux/man-pages/man2/madvise.2.html", "accessed": "2026-08-25", "scope": "access advice, prefault, and discard" },
+    { "url": "https://man7.org/linux/man-pages/man2/mbind.2.html", "accessed": "2026-08-25", "scope": "NUMA placement policy" },
+    { "url": "https://learn.microsoft.com/en-us/windows/win32/memory/creating-a-file-mapping-object", "accessed": "2026-08-25", "scope": "Windows file mapping" },
+    { "url": "https://learn.microsoft.com/en-us/windows/win32/memory/large-page-support", "accessed": "2026-08-25", "scope": "Windows large pages" },
+    { "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/unified-memory.html", "accessed": "2026-08-25", "scope": "device and unified memory" },
+    { "url": "https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html", "accessed": "2026-08-25", "scope": "transfers, alignment, and memory performance" },
+    { "url": "https://llvm.org/docs/LangRef.html", "accessed": "2026-08-25", "scope": "prefetch and masked-memory optimization vocabulary" }
+  ],
+  "stopCondition": "Stop when every required mechanism has one bounded classification and one explicit missing-evidence boundary; do not choose a final API in MEM0."
+}

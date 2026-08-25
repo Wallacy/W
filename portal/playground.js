@@ -20,11 +20,11 @@ fn label(id: UserId): String throws LoadError {
   tasks: {
     filename: "tasks.w",
     source: `async fn dashboard(id: UserId): Dashboard throws LoadError {
-  async on .network let user = loadUser(id)
-  async on .network let activity = loadActivity(id)
+  let user = async loadUser(id)
+  let activity = async loadActivity(id)
   let (user, activity) = try await (user, activity)
 
-  spawn on .compute let score = rank(take activity)
+  let score = spawn<.compute> rank(take activity)
   return Dashboard(user: user, score: await score)
 }`,
   },
@@ -66,8 +66,8 @@ let demand = (observations @ weights).softmax(axis: 1)`,
   var atomic completedOrders: u64 = 0
 
   mut async fn place(order: take Order): Receipt throws RestaurantError {
-    async on .network let stock = pantry.reserve(order.course)
-    spawn on .compute let plan = optimize(order)
+    let stock = async pantry.reserve(order.course)
+    let plan = spawn<.compute> optimize(order)
     let (stock, plan) = try await (stock, plan)
     defer async { await stock.release() }
     return try await cook(take order, stock: stock, plan: plan)
@@ -125,10 +125,8 @@ function scanWithNotes(source) {
   };
   const notes = [...lexical.notes];
   const patterns = [
-    [/\basync\s+let\b/u, "async let sugere um filho concorrente estruturado."],
-    [/\basync\s+on\b/u, "async on seleciona uma preferência de execução para trabalho suspensível."],
-    [/\bspawn\s+let\b/u, "spawn let sugere intenção de paralelismo."],
-    [/\bspawn\s+on\b/u, "spawn on combina paralelismo com uma preferência de execução."],
+    [/=\s*async\b/u, "O initializer async sugere um filho concorrente estruturado."],
+    [/=\s*spawn\s*</u, "O initializer spawn seleciona um domínio e sugere intenção de paralelismo."],
     [/\bforeign\s+c\b/u, "foreign c marca uma fronteira de ABI C."],
     [/\bentry\b/u, "entry liga funções comuns a slots tipados do host."],
     [/\bunit\b/u, "unit declara uma unidade verificada estaticamente."],

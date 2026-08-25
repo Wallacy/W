@@ -102,8 +102,8 @@ export fn fourOwnershipForms(
   let directCode = inspectDirect(ref direct)
   let awaitedCode = await inspectAfterYield(ref awaited)
 
-  async let localTask = finishCourse(take local)
-  spawn<.compute> let parallelTask = finishCourse(take parallel)
+  let localTask = async finishCourse(take local)
+  let parallelTask = spawn<.compute> finishCourse(take parallel)
   let (localResult, parallelResult) = await (localTask, parallelTask)
 
   return OwnershipBatch(
@@ -116,20 +116,20 @@ export fn fourOwnershipForms(
 }
 
 export fn updateWithChild(ledger: inout RevisionLedger): u64 {
-  async let update = incrementRevision(inout ledger)
+  let update = async incrementRevision(inout ledger)
   let childRevision = await update
   return childRevision + ledger.revision
 }
 
 export fn inspectInCompute(course: ref TrackedCourse): u64 {
-  spawn<.compute> let code = inspectDirect(ref course)
+  let code = spawn<.compute> inspectDirect(ref course)
   return await code
 }
 
 export fn cancelTrackedCourse(
   course: take TrackedCourse,
 ): TaskOutcome<TrackedCourse, Never> {
-  async let task = finishCourseAfterYield(take course)
+  let task = async finishCourseAfterYield(take course)
   task.cancel(reason: .shutdown)
   return await task.outcome()
 }
@@ -137,7 +137,7 @@ export fn cancelTrackedCourse(
 export fn cancelDiscardedCourse(
   course: take TrackedCourse,
 ): TaskOutcome<(), Never> {
-  async let task = discardCourseAfterYield(take course)
+  let task = async discardCourseAfterYield(take course)
   task.cancel(reason: .shutdown)
   return await task.outcome()
 }

@@ -82,7 +82,7 @@ export service diningRoom: DiningRoomApi {
     }
 
     let orderId = dish.orderId
-    async let measuredApplause = audience.measure(take dish)
+    let measuredApplause = async audience.measure(take dish)
     let applause = try await measuredApplause
     guard applause >= applauseThreshold else {
       throw .insufficientApplause(found: applause, required: applauseThreshold)

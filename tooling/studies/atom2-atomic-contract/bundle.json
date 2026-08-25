@@ -10,13 +10,13 @@
   "sourceBase": {
     "path": "../../../reference/last-light/synchronization.w",
     "symbol": "export object HorizonTelemetryEpoch",
-    "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6"
+    "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/synchronization.w",
       "symbol": "HorizonMenuPublication",
-      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6"
+      "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961"
     },
     {
       "path": "../../../reference/last-light/memory.w",

@@ -47,12 +47,12 @@
       "rule": "W-789",
       "source": [
         "async fn stage(order: take Order): Receipt throws KitchenError {",
-        "  async let dish = cook(take order)",
+        "  let dish = async cook(take order)",
         "  return try await dish",
         "}"
       ],
       "expect": {
-        "focus": { "text": "async let dish = cook(take order)" },
+        "focus": { "text": "let dish = async cook(take order)" },
         "semanticResult": {
           "resultType": null,
           "category": "declaration",
@@ -3468,7 +3468,7 @@
       "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:7f3e778794967e1bee7c36a47078ee210a717f7bb49e47e18391ffc0f3053c4f" },
       "source": [
         "fn invalidChild(source: ref Source) {",
-        "  async let total = loadLeft(source) + loadRight(source)",
+        "  let total = async loadLeft(source) + loadRight(source)",
         "}"
       ],
       "expect": {

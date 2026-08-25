@@ -16,7 +16,7 @@ describe("AEG0 App Essentials Gate host oracle", () => {
     expect(checked.results.find((result) => result.caseId === "AEG0-W-1458-expiry-current")?.status).toBe("accepted");
   });
 
-  test("keeps implementation and study boundaries explicit", () => {
+  test("keeps implementation and the historical W-1459 study boundary explicit", () => {
     const checked = validateCorpus(loadCorpus());
     for (const result of checked.results) {
       expect(result.evidenceState).toBe("design-oracle-input");

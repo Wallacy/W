@@ -506,7 +506,7 @@ do {
               <div>
                 <p class="section-kicker">Duas intenções, duas palavras</p>
                 <h2>Concorrência &amp; paralelismo</h2>
-                <p><code>async let</code> organiza trabalho concorrente; <code>spawn let</code> pede execução paralela.</p>
+                <p><code>let x = async call()</code> organiza trabalho concorrente; <code>let x = spawn&lt;domain&gt; call()</code> pede execução paralela.</p>
               </div>
             </div>
 
@@ -517,7 +517,7 @@ do {
                 </div>
                 <div>
                   <span class="badge proposal">Candidato</span>
-                  <h3><code>async let</code></h3>
+                  <h3><code>let x = async call()</code></h3>
                   <p>Sobrepor espera e I/O dentro de um escopo estruturado.</p>
                 </div>
                 <small>CONCORRÊNCIA</small>
@@ -528,7 +528,7 @@ do {
                 </div>
                 <div>
                   <span class="badge proposal">Candidato</span>
-                  <h3><code>spawn let</code></h3>
+                  <h3><code>let x = spawn&lt;domain&gt; call()</code></h3>
                   <p>Distribuir trabalho computacional com isolamento verificável.</p>
                 </div>
                 <small>PARALELISMO</small>
@@ -536,19 +536,19 @@ do {
             </div>
 
             <div class="card-grid">
-              <article class="cheat-card" data-topics="concurrency async let await concorrência structured cancellation io tarefas">
+              <article class="cheat-card" data-topics="concurrency async initializer await concorrência structured cancellation io tarefas">
                 <div class="card-topline">
                   <div>
                     <span class="badge proposal">Candidato</span>
                     <h3>Concorrência estruturada</h3>
                   </div>
-                  <span class="card-token">async let · await</span>
+                  <span class="card-token">let = async · await</span>
                 </div>
                 <p class="card-summary">Filhos não escapam do escopo: conclusão, erro e cancelamento voltam ao pai.</p>
                 <div class="code-shell">
                   <pre><code>async fn dashboard(for id: UserId): Dashboard throws ApiError {
-  async let profile = fetchProfile(id)
-  async let activity = fetchActivity(id)
+  let profile = async fetchProfile(id)
+  let activity = async fetchActivity(id)
 
   return Dashboard(
     profile: try await profile,
@@ -562,21 +562,21 @@ do {
                 </div>
               </article>
 
-              <article class="cheat-card" data-topics="concurrency spawn let await paralelismo cpu threads tarefas data race">
+              <article class="cheat-card" data-topics="concurrency spawn initializer await paralelismo cpu threads tarefas data race">
                 <div class="card-topline">
                   <div>
                     <span class="badge proposal">Candidato</span>
                     <h3>Paralelismo explícito</h3>
                   </div>
-                  <span class="card-token">spawn let · await</span>
+                  <span class="card-token">let = spawn · await</span>
                 </div>
                 <p class="card-summary">O programador pede capacidade paralela; o sistema escolhe workers, não o resultado.</p>
                 <div class="code-shell">
                   <pre><code>async fn sumBoth(values: [i64]): i64 {
   let middle = values.count / 2
 
-  spawn let left = sum(values[..middle])
-  spawn let right = sum(values[middle..])
+  let left = spawn&lt;.compute&gt; sum(values[..middle])
+  let right = spawn&lt;.compute&gt; sum(values[middle..])
 
   return await left + await right
 }</code></pre>
@@ -598,8 +598,8 @@ do {
                 <p class="card-summary">Timeout, limite e cancelamento podem ser estruturais em vez de opções espalhadas.</p>
                 <div class="code-shell compact-code">
                   <pre><code>with timeout(2.seconds) {
-  async let primary = query(primaryStore)
-  async let fallback = query(cache)
+  let primary = async query(primaryStore)
+  let fallback = async query(cache)
   return try await first(primary, fallback)
 }</code></pre>
                 </div>
@@ -1040,7 +1040,7 @@ let total = legacyTotal(items.raw, items.count)</code></pre>
                 <span>W-039 · Execução</span>
                 <h3>Como escolher um domínio sem prometer uma thread?</h3>
                 <p>Isolamento serial, preferência de executor, afinidade e task group são contratos diferentes.</p>
-                <small>O líder usa <code>async/spawn on</code>; descriptors e forma angular continuam alternativas.</small>
+                <small>O líder usa <code>let x = async call()</code> no domínio atual e <code>let x = spawn&lt;domain&gt; call()</code> para dispatch explícito.</small>
               </article>
               <article data-topics="systems module entry main fetch cli ui hid host profile event signal">
                 <span>W-049/050 · Hosts</span>

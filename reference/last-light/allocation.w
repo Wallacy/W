@@ -70,7 +70,7 @@ export async fn countStagedMenuInParallel(
   // The callee publishes the contextual slot. The compiler inserts
   // `allocator: ref processMemory` at this call.
   let snapshot = try stageMenu(ref title, dishes: ref dishes)
-  spawn<.compute> let count = snapshotBytes(take snapshot)
+  let count = spawn<.compute> snapshotBytes(take snapshot)
   return await count
 }
 
@@ -128,7 +128,7 @@ test "a staged menu leaves its temporary allocator scope" for stageMenu {
 
   // Compile-fail assay: local fixed storage cannot cross an execution domain.
   // let local = Array<String>()
-  // spawn<.compute> let invalid = consume(take local)
+  // let invalid = spawn<.compute> consume(take local)
 }
 
 // Compile-fail assays kept source-shaped for the design oracle:

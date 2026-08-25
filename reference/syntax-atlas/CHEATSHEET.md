@@ -49,7 +49,7 @@
 | `ownership-atomic` | `var atomic count` | `allocator-and-bindings` |
 | `execution-direct` | `fn directCall` | `execution-forms` |
 | `execution-await` | `try await direct` | `execution-forms` |
-| `execution-async-let` | `async let direct` | `execution-forms` |
+| `execution-async-initializer` | `let direct = async` | `execution-forms` |
 | `execution-spawn` | `spawn<.compute>` | `execution-forms` |
 | `callable-positional` | `order: String` | `callables-and-foreign` |
 | `callable-required-homonym` | `named audit: String` | `callables-and-foreign` |
@@ -438,7 +438,7 @@ fn walk(values: Array<i32>): i32 throws String {
 </details>
 
 <details>
-<summary>Direct, await, async let, spawn, and calls · execution · execution-forms</summary>
+<summary>Direct, await, async and spawn initializers, and calls · execution · execution-forms</summary>
 
 **current** · **tree-sitter-parse-only-provider-missing**
 
@@ -448,8 +448,8 @@ async fn fetch(city: String): String throws String {
 }
 
 async fn runTasks(): String throws String {
-  async let direct = fetch("north")
-  spawn<.compute> let parallel = fetch("south")
+  let direct = async fetch("north")
+  let parallel = spawn<.compute> fetch("south")
   let first = try await direct
   let second = try await parallel
   let optional = try? await fetch("west")

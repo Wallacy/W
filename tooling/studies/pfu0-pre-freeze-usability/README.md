@@ -2,6 +2,8 @@
 
 PFU0 fornece a evidência de encerramento para três decisões. Ele não afirma
 compilação, execução ou implementação. O oracle host deriva outcomes de facts e source refs.
+O fechamento é limitado a W-1451–W-1453. As gates Research posteriores não
+pertencem ao escopo de PFU0 e mantêm o design freeze global aberto.
 
 As três famílias são:
 

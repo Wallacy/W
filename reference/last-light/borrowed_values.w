@@ -121,7 +121,7 @@ export fn duplicatedTitleLength(menu: ref BorrowedMenu): usize {
 // task frame is stable before suspension.
 export async fn stableStructuredMenuUse(menu: ref BorrowedMenu): usize {
   let title = menuTitle(menu)
-  spawn<.compute> let count = countTitle(title)
+  let count = spawn<.compute> countTitle(title)
   return await count
 }
 

@@ -4,9 +4,9 @@ Structured tasks and ownership
 
 async fn makeCake(request: CakeRequest): Cake throws KitchenError {
   let plan = try validateCake(request)
-  async let ingredients = pantry.fetch(plan.ingredients)
+  let ingredients = async pantry.fetch(plan.ingredients)
   let ready = try await ingredients
-  spawn<.compute> let cook = bake(take ready)
+  let cook = spawn<.compute> bake(take ready)
   return try await cook
 }
 
@@ -40,15 +40,16 @@ async fn makeCake(request: CakeRequest): Cake throws KitchenError {
       (binding_declaration
         pattern: (pattern
           (identifier))
-        value: (call_expression
-          function: (member_expression
-            object: (identifier)
-            property: (identifier))
-          arguments: (argument_list
-            (argument
-              value: (member_expression
-                object: (identifier)
-                property: (identifier))))))
+        value: (task_expression
+          operand: (call_expression
+            function: (member_expression
+              object: (identifier)
+              property: (identifier))
+            arguments: (argument_list
+              (argument
+                value: (member_expression
+                  object: (identifier)
+                  property: (identifier)))))))
       (binding_declaration
         pattern: (pattern
           (identifier))
@@ -56,17 +57,18 @@ async fn makeCake(request: CakeRequest): Cake throws KitchenError {
           operand: (unary_expression
             operand: (identifier))))
       (binding_declaration
-        task_contract: (task_contract
-          primary: (contextual_member_expression
-            member: (identifier)))
         pattern: (pattern
           (identifier))
-        value: (call_expression
-          function: (identifier)
-          arguments: (argument_list
-            (argument
-              value: (unary_expression
-                operand: (identifier))))))
+        value: (task_expression
+          task_contract: (task_contract
+            primary: (contextual_member_expression
+              member: (identifier)))
+          operand: (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (argument
+                value: (unary_expression
+                  operand: (identifier)))))))
       (return_statement
         (unary_expression
           operand: (unary_expression

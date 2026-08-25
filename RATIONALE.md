@@ -500,8 +500,8 @@ oracle host compara somente a semântica hipotética das duas alternativas.
 **Exemplo:** o estudo compara a forma vigente com uma variante nomeada:
 
 ```w
-spawn<.compute> let port = mix(left)
-spawn<domain: .compute> let starboard = mix(right)
+let port = spawn<.compute> mix(left)
+let starboard = spawn<domain: .compute> mix(right)
 ```
 
 [`tooling/studies/r1-spawn-domain/bundle.json`](tooling/studies/r1-spawn-domain/bundle.json)
@@ -1812,7 +1812,7 @@ As fontes primárias usadas no gate W-1170 são:
 | Eixo | W | Swift | Go | Java Structured Concurrency | P2300 |
 |---|---|---|---|---|---|
 | call e `await` | suspende a task atual; não cria child | suspende a task atual | call comum é síncrona | `join` espera no caller | sender/receiver compõe completion |
-| criação de child | `async let` ou `spawn<domain> let`, estruturados | `async let` e task groups | `go f()` cria goroutine | `StructuredTaskScope.fork` | algorithms compõem operation states |
+| criação de child | initializer `async` ou `spawn<domain>` em `let`, estruturados | initializer `async` e task groups | `go f()` cria goroutine | `StructuredTaskScope.fork` | algorithms compõem operation states |
 | handle | `Task` linear; join produz value ou outcome | binding ou scope | `go` não devolve handle | `Subtask` | operation state |
 | lifetime | scope cancela, drena e faz join | scope espera children | goroutine pode sobreviver ao caller | scope faz join e shutdown | operation state vive até completion/stop |
 | erro e cancel | typed errors, outcome e cancel bounded | error/cancel de child | valores e APIs | scope policy | error/stopped completion channels |
@@ -1837,7 +1837,7 @@ libdill e libmill são referências de runtime para coroutines e channels
 [libmill](https://libmill.org/)). Nenhum deles define W ou é uma dependency.
 
 O gate W-1170 compara estrutura, placement, ordering, ownership, admission,
-cancellation e lowering. Ele passa somente quando `async let` preserva
+cancellation e lowering. Ele passa somente quando o initializer `async` preserva
 lifetime, um domain serial preserva FIFO, uma barrier preserva ticket subtrees
 e um domain paralelo só produz overlap quando seu profile permite. Lowerings
 diferentes precisam preservar outcome, cleanup e trace.
@@ -2744,7 +2744,7 @@ O índice gerado usa esta tabela somente como projeção.
 | mobilidade derivada da origem | **Provável** | M1 separa origem local/cross-domain; FFI e matriz de providers exigem protótipo |
 | allocator geral por build profile | **Possível agora** | profile gera runtime requirement e plan fixa provider exato |
 | `shared` + `weak` sem cycle collector | **Provável** | M1/S0 fecham lifecycle, captures e ciclos lógicos; provider e censo reais ficam pós-freeze |
-| `async let`/`spawn<domain> let` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
+| initializers `async`/`spawn<domain>` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
 | modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
 | UTF-8 owned e views | **Possível agora** | representação portátil com fallback |
 | String flat com owner único no W0 | **Possível agora** | pointer/count/reserva/origin e validação UTF-8 são conhecidos |
@@ -3765,7 +3765,7 @@ fallback. Ele não pode mudar arrays de `f64` nem tornar a otimização observá
 #### Domains, channels e scheduler
 
 O [`domain_oracle.w`](reference/last-light/domain_oracle.w) cobre herança de
-`async let`, domínio explícito de `spawn`, FIFO serial, gate `.parallel` e
+initializer `async`, domínio explícito de `spawn`, FIFO serial, gate `.parallel` e
 redução de capacity.
 
 Dispatch barrier e read/write lock resolvem problemas relacionados, mas não
@@ -5584,7 +5584,7 @@ resultado humano ou resultado de modelo.
 | Decisão | Current | Adversarial | Fact derivado |
 |---|---|---|---|
 | W-707 | completude G0–G5, source refs e snapshot | família FZ0 ausente | `FZ0-freeze-completeness` falha closed |
-| W-731 | uma disposition por decisão e `Research=0` global | decisão W-1408 removida | `freeze-research-close` falha closed |
+| W-731 | uma disposition por decisão, `Research=0` no snapshot até W-1453 e lista exata das gates posteriores | decisão W-1408 removida | `freeze-research-close` falha closed |
 | W-1408 | HUM0 com 8 slices, 32 tasks, 0 human, 0 model e stop-on-first | registros human/model e preference/score forjados | `HUM0-promotion` falha closed |
 
 O corpus `tooling/final-research-closure-cases.json` contém exatamente uma
@@ -5600,14 +5600,17 @@ O manifest fixa a cadeia de artefatos, digests, containment e roles. O bundle
 R1 fixa duas variantes W finas e parseáveis, ordem de apresentação, blinding e
 oracle host. O stop condition cobre stale digest, caller echo, manual count,
 registro human/model, preference/score, decisão/caso ausente ou duplicado,
-source escape, categoria errada e qualquer `Research` residual global. FRC0
-preserva os gaps de implementação e não promove compiler, runtime ou provider.
+source escape, categoria errada e qualquer `Research` residual. W-1471,
+W-1473, W-1474 e W-1475 reabriram gates depois do snapshot; DRC0 fechou suas
+stop conditions. FRC0 preserva os gaps de implementação e não promove compiler,
+runtime ou provider.
 
 ### 1.37 Gate SOTA de performance e matriz de responsabilidade
 
 Esta seção prepara a implementação de performance. Ela é evidência comparativa
-e não contrato normativo. A matriz não cria syntax, API ou W-ID. Ela também não
-reabre `Research=0`.
+e não contrato normativo. A matriz não cria syntax, API ou W-ID. No snapshot em
+que foi criada, ela não reabriu `Research=0`; W-1471, W-1473, W-1474 e W-1475
+foram abertas posteriormente e não pertencem a esse gate.
 
 O artigo de 2026 sobre o expoente de multiplicação ([arXiv:2608.16884](https://arxiv.org/abs/2608.16884))
 relata o limite teórico `omega < 2.371177`. Esse resultado pertence à
@@ -5671,9 +5674,10 @@ o target, o workload, o provider ou o oracle mudar.
 
 PFU0 fornece a evidência host-only para três decisões depois do snapshot
 histórico FRC0. W-1451, W-1452 e W-1453 são agora
-`oracle-backed-current`; FRC0 verifica `Research=0` global e o design freeze
-pode ser fechado. PFU0 não trata a máquina host como compiler, runtime, provider
-ou resultado humano.
+`oracle-backed-current`; FRC0 verifica `Research=0` nesse limite histórico.
+As gates W-1471, W-1473, W-1474 e W-1475 foram abertas depois e fechadas por
+DRC0. PFU0 não trata a máquina host como compiler, runtime, provider ou
+resultado humano.
 
 | Gate | Controle vigente | Alternativa avaliada | Rejeitado |
 |---|---|---|---|
@@ -5689,7 +5693,7 @@ aceitam `expected` ou resultado fornecido pelo caller; `bundle.inputs[].expected
 manifesto build.w, streaming de saída com canais explícitos e lifecycle de
 property. O manifest candidate é aceito como current-control; os candidates de
 `stream fn` e `willSet`/`didSet` são rejected-route. A evidência não afirma
-compiler/runtime/provider e mantém `Research=0` no ledger.
+compiler/runtime/provider e fecha Research somente no escopo W-1451–W-1453.
 
 Artefatos canônicos: `tooling/pfu0-pre-freeze-usability-cases.json`,
 `tooling/pfu0-pre-freeze-usability-machine.mjs`,
@@ -5714,7 +5718,7 @@ testemunhos finos. Ele não cria syntax, keyword, manifest field ou provider.
 | W-1457 | Packages específicos declaram ByteSource/Sink, profile+digest, streaming e quotas separadas para encoded, logical, allocation, depth e ratio. Offset/progress errors são tipados. Cancellation não desfaz bytes committed. Dictionary/state tem owner explícito. Codec/schema e compression transform têm identity e limits distintos | `Codec<T>` universal reflection-driven, primitive/syntax nova, filename/magic/locale/env inference, quota compartilhada ou rollback de bytes committed | codecs, compression providers, compiler, runtime, fuzz e estudos continuam missing |
 | W-1458 | Crypto passa por package/provider capability ligada pelo deployment. Algorithm/profile são typed e pinned. Secret/key handle é opaque, move-only e nonextractable por default, com purpose/audience/generation scope. Lifecycle tem dois caminhos: acquire→active→revoking→revoked→released para revoke/rotation, ou acquire→active→expired→released para expiry. Revoke fecha nova admission e drena operações admitidas. Host controla rotation/expiry/zeroization. Secret não entra em wire/storage/log/diagnostic/receipt | `std.crypto` universal, vault/global lookup, plaintext/env lookup, secret no wire, algorithm string, fallback ou downgrade | provider, compiler, runtime, HSM/keystore, rotation, zeroization, FFI e estudos continuam missing |
 
-AEG0 mantém `Research=0`. O oracle aceita os seis casos correntes (dois paths de
+AEG0 manteve `Research=0` no snapshot até W-1459. O oracle aceita os seis casos correntes (dois paths de
 crypto) e rejeita oito rotas contrafactuais. Mutation guards cobrem authority ambiental,
 fallback, plaintext/serialization, codec inference e source/digest stale. A
 máquina é host-only. Ela não afirma execução W nem readiness de provider.
@@ -5790,7 +5794,8 @@ os sinais do divisor, mantém a falha `min / -1` somente para divide e conserva
 
 SIMD1 é `oracle-backed-current` e não é implementação. Compiler, runtime,
 provider, native acceleration, ABI, FFI, measurements e estudos humanos/modelos
-continuam missing. `Research=0` permanece.
+continuam missing. No limite W-1459, `Research=0` permaneceu; as gates posteriores
+W-1471, W-1473, W-1474 e W-1475 não pertencem a SIMD1.
 
 ## 2. Proveniência
 
@@ -5872,8 +5877,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-034 | error widening | case único compatível | mapping sempre explícito; `From` livre |
 | W-035 | panic | encerra a fault boundary física mais próxima | unwind recuperável; tratar toda isolation como fault boundary |
 | W-036 | async cleanup | `defer async` | RAII sync only; `using`; cleanup solto |
-| W-037 | concorrência | `async let` | Future/Promise; task API somente |
-| W-038 | paralelismo (retired) | forma anterior `spawn let`; W-1161/W-1162/W-1172 fecham `spawn<domain> let` como dispatch explícito | mesma keyword de async; parallel loop apenas |
+| W-037 | concorrência | initializer `async` | Future/Promise; task API somente |
+| W-038 | paralelismo (retired) | forma anterior; W-1161/W-1162/W-1172 fecham `spawn<domain>` como dispatch explícito | mesma keyword de async; parallel loop apenas |
 | W-039 | execution domain (retired) | forma anterior `async/spawn<.domain>` sem label; W-1160/W-1162 aceitam também `<domain: .name>` no mesmo slot | alias duplo no mesmo slot; `on .name` (**Rejeitado por enquanto**); descriptor-only |
 | W-040 | Task | linear, lexical, one-await | Future clonável; detached default |
 | W-041 | grupos | lexical e bounded | queue ilimitada; thread pool exposto |
@@ -5953,7 +5958,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-115 | slots angulares | schema declara posição, labels e slot primário | inferir slot pelo nome do enum case |
 | W-116 | evolução self-host | gates SH0–SH7; cadeia seed C → A → B → C → D; oracle rejeita dependência de extended e drift fora de target metadata | marco único; compiler usa todo o design vigente; aceitar igualdade de payload sem comparar HIR |
 | W-117 | eixos de execução | lifetime, intent, preference, isolation e affinity separados | thread group único |
-| W-118 | início de child | `async let`/`spawn let` iniciam na declaração | lazy no primeiro await |
+| W-118 | início de child | initializers `async`/`spawn` iniciam no binding | lazy no primeiro await |
 | W-119 | task longa | owner runtime explícito; sem detached sem owner | drop destaca; task global |
 | W-120 | outcome de task | body settled, cleanup e só então success/error/canceled observável; panic encerra fault boundary | outcome antes do cleanup; cancel em `E`; panic como Result |
 | W-121 | seleção de error | ordem lexical declarada | primeira completion sempre vence |
@@ -6181,7 +6186,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-343 | boundary de layout | FFI, persistência, address exposure e ABI usam forma canônica ou schema | tag interna cruza a fronteira |
 | W-344 | fingerprint de representação | inclui somente validity, bytes, carrier e fatos ABI que mudam a entry; provider, options e patch ficam na recipe | fingerprint por target triple; allocator name sempre entra; compiler completo como proxy |
 | W-345 | pointer compression | handle de arena/heap isolado é classe própria com base e bounds | tratar índice como pointer tagged |
-| W-346 | início de async (retired) | forma anterior; W-1161 mantém `await` na task atual e children `async let`/`spawn<domain> let` após staging lexical | Promise implícita; body parcial no parent |
+| W-346 | início de async (retired) | forma anterior; W-1161 mantém `await` na task atual e children dos initializers `async`/`spawn<domain>` após staging lexical | Promise implícita; body parcial no parent |
 | W-347 | contexto de child | cancellation, deadline, trace, budget e preference; user data/capability são explícitos | task-local map mutável herdado |
 | W-348 | domains portáteis | somente `.main` é padrão; módulo e pacote declaram os outros IDs | lista global; enum manual; string |
 | W-349 | domain schema | capabilities, capacity, fallback, affinity e trace identity | thread/pool como identidade semântica |
@@ -6484,7 +6489,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-646 | arbitragem de join | application error causa fail-fast; drain precede seleção lexical/input entre errors settled; completion order só quando declarado | esperar child anterior antes de cancelar; primeiro erro do scheduler como default |
 | W-647 | snapshot de cancellation | reasons do caller, deadline, budgets, scope exit, sibling failure e ancestry formam valor fixed-size monotônico | um reason vencedor; lista alocada; budget como caller reason |
 | W-648 | deadline | `Deadline` é monotônico e local; `TaskTimeout` é refinado; ausência usa `none`; boundary distingue propagation strict e approximate | wall clock; serializar Instant local; infinity como ausência; afirmar clocks distribuídos iguais |
-| W-649 | admission de task | argumentos/captures avaliam uma vez em staging; reserva precede publish; falha limpa owners e produz handle canceled inline | pular efeitos sob carga; fila ilimitada; novo error effect em `async let` |
+| W-649 | admission de task | argumentos/captures avaliam uma vez em staging; reserva precede publish; falha limpa owners e produz handle canceled inline | pular efeitos sob carga; fila ilimitada; novo error effect em initializer `async` |
 | W-650 | capabilities de domain | `.main` é serial; outros domains declaram serial, concurrent, parallel e limits | lista global de finalidade; domain implica thread |
 | W-651 | execution profile | package fixa tasks, frames, timers, ready queues, pools, fallbacks e cleanup; product seleciona `executionProfile` | scheduler ambiental; limites somente no deployment; profile de build acumula runtime |
 | W-652 | envelope por unit | packing aplica profile a cada unit com tasks; artifact index grava máximos; deployment reduz por unit | budget global impossível entre hosts; deployment aumenta ou troca pool |
@@ -6624,7 +6629,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-786 | classes de effect | signature, control e operational effects permanecem distintos na HIR e no tooling | tudo em `throws`; annotations de custo em toda função; esconder capability no runtime |
 | W-787 | join semântico | caminhos normais exigem type único, owner disponível em todos, borrow equivalente e facts garantidos | talvez-movido acessível; lifetime annotation pública; branch order muda o join |
 | W-788 | análise de loop | entrada, continue e back edge formam fixed point seguro; breaks formam o estado posterior | análise de uma iteração; widening aceita move; loop tratado como call opaca |
-| W-789 | initializer de child | `async let` e `spawn let` exigem call root; parent prepara callable, argumentos e captures; child executa o body | mover expressão composta inteira implicitamente; lazy no await; avaliar argumentos no child |
+| W-789 | initializer de child | initializers `async` e `spawn` exigem call root; parent prepara callable, argumentos e captures; child executa o body | mover expressão composta inteira implicitamente; lazy no await; avaliar argumentos no child |
 | W-790 | disciplina de use | expression statement aceita Unit ou Never; outro value exige binding ou `let _` | `must_use` opt-in; descarte silencioso; warning sem erro |
 | W-791 | matriz como interface | S0 é a interface normativa AST→HIR; seções de domínio acrescentam facts sem mudar o schema | regras dispersas sem normalização; MLIR define semântica; schema diferente por backend |
 | W-792 | diagnostic D0 | record canônico separa code, phase, severity, primary, labels, facts, notes, fixes e root | texto livre como API; schema por renderer; LSP define semântica interna |
@@ -7007,7 +7012,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1169 | terminologia retirada | labels numéricos são históricos e não aparecem em catálogo, snapshot ou docs atuais | renomear tiers como levels, manter enforcement tier |
 | W-1170 | comparativos de execução | Swift, GCD, Go, Java, P2300, Koka, libdill, LLVM e MLIR formam gates comparativos sem definir W ou virar dependency | backend externo como autoridade, comparação sem diferença observável |
 | W-1171 | evidence de execution ergonomics | máquina, checker e snapshot derivam forms, suspension/SCC/call, placement, effects, FIFO/lifecycle/budgets e frame bytes; a direção é current host protocol, sem alegar compile/run/provider/human/model | checker que ecoa strings do JSON, snapshot manual, host test tautológico, alegar compiler/runtime |
-| W-1172 | dispatch para domain serial | `spawn<domain>` cria child estruturado no domain explícito; serial aceita dispatch, executa um segmento runnable por vez, preserva FIFO no primeiro start e libera o permit durante await/join; `.parallel` é capability do domain, não da keyword | rejeitar serial, tratar spawn como thread paralela, bare `spawn let`, wait síncrono no mesmo domain, `parallelDefault` oculto |
+| W-1172 | dispatch para domain serial | `spawn<domain>` cria child estruturado no domain explícito; serial aceita dispatch, executa um segmento runnable por vez, preserva FIFO no primeiro start e libera o permit durante await/join; `.parallel` é capability do domain, não da keyword | rejeitar serial, tratar spawn como thread paralela, launcher fora de binding `let`, wait síncrono no mesmo domain, `parallelDefault` oculto |
 | W-1173 | dispatch de barreira | `spawn<domain, .barrier>` cria um ticket estruturado; prior jobs drenam, a barreira `neverSuspend` executa sozinha e libera jobs posteriores depois do cleanup; o checker pode ordenar `ref`/`inout` somente para um grafo fechado no mesmo domain | shared ownership desnecessário, lock oculto, barrier que suspende, placement como isolation universal, `dispatch_barrier_async` sem queue privada, read/write por convenção não verificada |
 | W-1174 | leitura tolerante a staleness | `load<.relaxed>()` continua atômica; storage comum só participa quando happens-before ou barreira prova a ordem; o modifier `atomic` nunca expõe uma view comum dos mesmos bytes | read não atômica concorrente porque o valor pode ser antigo, relaxed como non-atomic, weakening silencioso, `volatile` como synchronization |
 | W-1175 | lane serial dinâmica | `ExecutionAuthority.openSerial` cria owner lexical bounded sobre pool existente; primeiro start é FIFO, só um segmento runnable usa o permit, suspension o libera, rejeição devolve o input em `TaskAdmissionError<Input>`, close drena e refs não estendem lifetime | copiar GCD inteiro, reter worker durante suspension, restaurar binding movido, perder input na admission, fila global, sync dispatch, QoS no call site, target queues, fire-and-forget, thread por lane, executor custom safe, usar lane local no lugar de service keyed |
@@ -7306,6 +7311,12 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1468 | origem nominal collision-safe e specialization-2 | D9 separa `NominalDeclarationOrigin`, `SemanticTypeConstructor`, contrato/interface agregados, recipe física e `TypeId`; receipt completo de authority/package/module path/kind/owner/name; builder caller-owned measure/write com schema `w-seed-nominal-origin-1`, SHA accelerator, full-byte equality e validação de digest/framing/relação; specialization sobe para `w-seed-generic-specialization-2` e validation para `w-seed-generic-validation-8`, preservando fingerprint-1 | oracle-backed-current; `GPF0-W-1468-current` liga markers reais de `build.w`, `domain.w` e `generics.w` ao package `last-light/restaurant`, consome o AuthorityOrigin completo de `AUL0-W-1469-current`, separa módulos `domain`/`generics`, compara bytes completos C e Bun independentes e cobre authorities/packages/modules/kinds/owners, aliases/version/revision/path/target/profile ausentes, missing origin, corrupção/truncated/trailing/digest/relation, capacidade e digest collision; o resolver completo de registry e a Git repository authority permanecem gaps, assim como NFC completo, `.local` build-local nonportable e nunca publicável, witness selection geral, recipe física, TypeId runtime e compiler completo |
 | W-1469 | authority origin e continuidade registry bounded | `AuthorityOrigin` usa bytes públicos completos da gênese sem assinaturas; `trustedGenesis` é o payload público completo fornecido out-of-band e define o origin; `trustedCheckpoint` é resolver-owned, persistido entre chamadas e não é um novo trust input out-of-band; ele ancora a root corrente; cada update N+1 satisfaz separadamente o threshold da root anterior e o threshold da root nova; lock separa origin, evidence e record; AUL0-W-1469-current liga o Last Light Restaurante | oracle-backed-current; AUL0-W-1469-current prova trusted anchor, rotação, checkpoint, alias, mirror, corrupção, rollback, gap, thresholds, key IDs, package identity e full-byte equality; persistence/CAS real, expiry/freshness/timestamp, targets/snapshot, Git authority, `.local` origin, NFC e compiler completo permanecem gaps |
 
+| W-1470 | posição do launcher de child no initializer | Forma vigente: `let x = async ...`, `let x = spawn<.compute> ...` e `let x = spawn<domain: .compute> ...`; `async` usa o domain atual e `spawn<domain>` usa o domain explícito; initializer produz `Task<T, E>`; staging de callee/args/captures ocorre uma vez no parent; somente raiz callable única de initializer de binding `let` é aceita; `var`, return, escape, launcher nested, expression statement e expressão composta são rejeitados; await direto permanece na task atual e await de task faz join | current; grammar, parser seed, formatter, semantic/tooling machine, corpus, atlas e Last Light migram para a posição do initializer sem shim. A posição anterior vinha do modelo declaration-like de Swift, mas W preserva o mesmo Task lexical. Sources: [Swift SE-0317](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0317-async-let.md), acessado em 2026-08-25 |
+| W-1471 | bridge blocking call-site `sync` | Forma vigente de design: bare `maySuspend` continua error. `sync f()` só é válido quando o callee escreve `async fn` (`sourceSpelling: explicit`), preserva scope estruturado, cancellation, deadline, cleanup, join e drain, não cria detached task, bloqueia a thread e acrescenta `blocksThread`; exige blocking authority, quota bounded, provider bridge e checks de target/deadlock/fairness/cancellation; rejeita cooperative/serial/signal/freestanding/nonblocking, progresso dependente do mesmo permit, callable inferida, callable `fn` sem async explícito e `neverSuspend` | oracle-backed-current por `DRC0-W-1471-current`; frontend grammar, lowering, runtime bridge, provider receipt e liveness/deadlock validation continuam missing. Kotlin [`runBlocking`](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/run-blocking.html), acessado em 2026-08-25, é precedente de bridge em main/tests/callbacks, não prova universal |
+| W-1472 | view, ref e interface projection | Forma vigente: `ref Array<T>` observa owner e metadata completos; `view Array<T>` observa janela lógica sem capacity; `view String` exige substring UTF-8 válida; `view Tensor` pode ser strided; tipos nominais podem expor views de famílias core por método e aggregates owned podem guardar `ref`/`view` com origins; properties suprimidas formam interface projection, não storage view; não há `Viewable`, protocol universal ou `view Object` automático | current; clarificação normativa em DESIGN §16.2 e examples no cheatsheet preservam a semântica existente de `ref`, `view` e `inout view` |
+| W-1473 | virtual memory e data movement performance | Direção vigente: MEM0 separa file-backed immutable mapping, anonymous reserve/commit/decommit, private COW, shared/MMIO boundary, protection, advice/prefault/discard, huge pages, NUMA, pinned host, device/unified transfer, vectored I/O, sendfile-style zero-copy, alignment/cache/prefetch/non-temporal operations e composição allocator/Arena/fixed/IPC1. Cada item exige owner move-only, extent bounded, permissions, address-space/provenance, drop determinístico, live-view exclusion, external interference e target evidence; `Mapped<T>` universal é rejeitado | oracle-backed-current por `DRC0-W-1473-current`; [`MEM0`](tooling/studies/mem0-virtual-memory-data-movement/) fecha a classificação, não uma API/provider/compiler/benchmark. Esses itens continuam implementation gaps. Fontes primárias registradas no estudo foram verificadas em 2026-08-25 |
+| W-1474 | efeitos simulados, aprovação posterior e test infrastructure | Direção vigente: state machine bounded `proposed -> simulated -> awaitingApproval -> revalidating -> committing -> committed|rejected|conflict|unknown`, proposals com effect/input/authority/provider+generation/result/dependencies/approval/limits/expiry, DAG causal, bulk approval topológica, revalidation externa e `unknownOutcome(effectId)` após dispatch; simulated e committed values ficam separados; não há rollback, compensation ou exactly-once | oracle-backed-current por `DRC0-W-1474-current`; [`SEA0`](tooling/studies/sea0-simulated-effects-approval/) fecha a máquina compartilhada e as quatro lanes de teste. Carrier, provider real, fault multi-process/hardware e performance continuam gaps. Fontes primárias registradas no estudo foram verificadas em 2026-08-25 |
+| W-1475 | readiness de training e inference | Direção vigente: LLM0 inventaria a cobertura existente de Tensor/shape/value parameters, broadcast/reduction/numeric mode, f16/bf16/quant direction, views/strides, Device/Queue/Launch, DLPack, ownership, streams/backpressure/services, deterministic RNG/profile e packages/receipts; gaps de training e inference são classificados como core, std/API, typed IR/compiler, runtime/provider, tooling/evidence ou application framework, com default de não inflar o core | oracle-backed-current por `DRC0-W-1475-current`; [`LLM0`](tooling/studies/llm0-training-inference/) fecha o ownership map e os dois workloads, não framework, kernel, provider ou performance. Fontes primárias registradas no estudo foram verificadas em 2026-08-25 |
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
@@ -7493,3 +7504,59 @@ Alternativas rejeitadas:
   esses fatos pertencem a recipe, contrato/interface ou evidence;
 - aceitar digest sozinho, pois uma colisão forçada ainda teria de comparar o
   preimage completo.
+
+#### 1.3.22 Bundle W-1470--W-1475: launchers, views e research gates
+
+W-1470 fecha uma migração de superfície antes do 1.0. A posição
+declaration-like de Swift explica a grafia anterior, mas não exige que W
+preserve essa posição: nas duas grafias o Task continua lexical, staged pelo
+parent e owned pelo scope. O initializer é a posição comum para call direta,
+`await`, `async` e `spawn`. A regra de uma raiz callable única evita esconder
+uma expression composta, e a forma corrente não fornece shim para código
+antigo.
+
+W-1471 fecha a pergunta sintática: a bridge `sync` não pode ser inferida de
+`maySuspend`; somente `async fn` explícito dá uma precondição source-visible
+estável. Uma callable may-suspend por inferência continua válida em `await`,
+`async` e `spawn`, mas `sync` nela é error. A bridge blocking exige authority,
+quota, provider, deadlock/fairness e cancellation evidence. Ela mantém o scope
+estruturado e bloqueia a thread. `runBlocking` de Kotlin é precedente de uso
+localizado, não evidência de uma policy portátil. DRC0 fecha o design; frontend
+e runtime continuam gaps.
+
+W-1472 não cria outro tipo de view. `ref` observa o place completo e
+`view` observa uma projeção da família do carrier. A diferença de metadata,
+capacity, UTF-8 e strides é normativa. Um protocol ou aggregate com properties
+suprimidas é interface projection e não storage view. A ausência de `Viewable`
+universal evita um protocolo que não teria como provar provenance.
+
+W-1473 fecha uma fronteira de performance, não uma API. File mapping,
+anonymous virtual memory e device memory possuem owners, permissions,
+provenance, receipts e interferências diferentes. O estudo MEM0 exige bounds,
+drop determinístico e live-view exclusion e inclui fallback de IPC1. Linux,
+Windows, CUDA e LLVM fornecem vocabulário primário de target, mas não um
+provider W. MEM0 atingiu sua stop condition; a classificação em camadas é a
+direção corrente e a implementação por target permanece separada.
+
+W-1474 separa uma proposta simulada de um efeito committed. A máquina bounded
+revalida generation/state antes de dispatch, invalida dependents causalmente e
+mantém `unknownOutcome(effectId)` após a boundary real. Não há rollback,
+compensation ou exactly-once. SEA0 cruza essa máquina com infraestrutura de
+teste determinística. Cloudflare OS fornece o precedente direto de simular o
+resultado e aprovar depois; FoundationDB e CHESS justificam explorar falhas e
+schedules previsíveis. Nenhuma dessas fontes transforma simulation em
+conformance de provider real.
+
+W-1475 fecha o inventário de training e inference em torno de gaps. W já tem
+Tensor, Device/Queue/Launch, DLPack, ownership, streams, deterministic RNG e
+receipts. Autodiff typed, layouts dinâmicos, formatos subbyte, sharding,
+checkpoint, KV cache, batching, verification e disaggregation exigem IR,
+runtime/provider, tooling ou application evidence antes de qualquer mudança no
+core. LLM0 usa workloads source-shaped e só valida contracts e gaps. O mapa de
+ownership é corrente; frameworks, kernels, providers e benchmarks não são.
+
+As três pastas de estudo têm dados estruturados, casos positivos e adversariais,
+oracles independentes e checkers no package root. DRC0 acrescenta um caso de
+fechamento independente para W-1471, W-1473, W-1474 e W-1475. Cada README marca
+o limite entre design-oracle-input e implementação. Somente W-1471 seleciona
+nova syntax; os outros estudos fecham direções sem promover uma API universal.

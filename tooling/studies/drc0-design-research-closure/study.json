@@ -1,0 +1,16 @@
+{
+  "$schema": "w-drc0-design-research-closure-study-1",
+  "id": "DRC0",
+  "status": "complete-design-study",
+  "decisions": ["W-1471", "W-1473", "W-1474", "W-1475"],
+  "corpus": "../../design-research-closure-cases.json",
+  "machine": "../../design-research-closure-machine.mjs",
+  "checker": "../../check-design-research-closure.mjs",
+  "evidenceBoundary": {
+    "researchClosed": true,
+    "implementationClaimed": false,
+    "performanceClaimed": false,
+    "providerConformanceClaimed": false
+  },
+  "stopCondition": "Stop when all four independent current cases re-derive their finite study condition and preserve a non-empty implementation evidence boundary."
+}

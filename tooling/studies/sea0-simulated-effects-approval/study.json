@@ -1,0 +1,22 @@
+{
+  "$schema": "w-sea0-simulated-effects-approval-study-1",
+  "id": "SEA0",
+  "decision": "W-1474",
+  "status": "complete-design-study",
+  "title": "Simulated effects, deferred approval, and deterministic test infrastructure",
+  "data": "cases.json",
+  "oracle": "oracle.mjs",
+  "checker": "check.mjs",
+  "states": ["proposed", "simulated", "awaitingApproval", "revalidating", "committing", "committed", "rejected", "conflict", "unknown"],
+  "productionAndTestMachine": "approval-machine-v1",
+  "proposalFields": ["effectId", "inputDigest", "authority", "capability", "provider", "providerGeneration", "simulatedResultDigest", "dependencies", "approvalGroup", "limits", "expiry"],
+  "testLanes": ["pure simulation", "real provider conformance", "multi-process/hardware fault", "performance"],
+  "evidenceBoundary": { "simulationIsProviderProof": false, "rollbackPromised": false, "exactlyOncePromised": false, "apiPromotion": false, "researchClosed": true },
+  "sources": [
+    { "url": "https://github.com/cloudflare/cloudflare-os", "accessed": "2026-08-25", "scope": "Gatekeeper simulation, deferred human approval, capability restriction, and audit logging" },
+    { "url": "https://apple.github.io/foundationdb/testing.html", "accessed": "2026-08-25", "scope": "deterministic and fault-oriented testing" },
+    { "url": "https://www.foundationdb.org/files/fdb-paper.pdf", "accessed": "2026-08-25", "scope": "simulation and failure model precedent" },
+    { "url": "https://www.microsoft.com/en-us/research/publication/predictable-and-progressive-testing-of-multithreaded-code/", "accessed": "2026-08-25", "scope": "bounded schedule exploration precedent" }
+  ],
+  "stopCondition": "Stop when the bounded state machine, causal dependency rules, revalidation boundary, and test lanes are explicit; do not promote a carrier type or syntax."
+}

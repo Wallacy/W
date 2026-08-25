@@ -25,7 +25,7 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - borrowed result types, optional bindings owned e iteration
   `ref`/`inout`/`copy`/`take`;
 - array repeat `[value; count]` e literals de Array/Map;
-- `try`/`await`, `for try await`, `async let`, `spawn<domain> let` e `Task.cancel()`;
+- `try`/`await`, `for try await`, initializers `async`/`spawn<domain>` e `Task.cancel()`;
 - `Stream<view T, E>` e contracts direcionais `Channel<T><.send/.receive>`;
 - units/sufixos candidatos, raw hash-delimited e testes co-localizados;
 - `entry { ... }`, descriptors nomeados, service declarations e `import service`;
