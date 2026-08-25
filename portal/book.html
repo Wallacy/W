@@ -159,14 +159,14 @@ fn reserve(for guest: GuestId, seats: GuestCount): Reservation throws BookingErr
         <article class="book-chapter" id="tasks" data-book-section>
           <p class="chapter-number">Capítulo 5</p>
           <h2>Concorrência, paralelismo e services</h2>
-          <div class="code-shell"><pre><code>async on .network let stock = pantry.reserve(order.course)
-async on .network let telemetry = ovens.telemetry()
-spawn on .compute let plan = oracle.plan(order)
+          <div class="code-shell"><pre><code>let stock = async pantry.reserve(order.course)
+let telemetry = async ovens.telemetry()
+let plan = spawn&lt;.compute&gt; oracle.plan(order)
 
 let (stock, telemetry, plan) = try await (stock, telemetry, plan)
 defer async { await stock.release() }</code></pre></div>
-          <p><code>async let</code> cria trabalho suspensível concorrente. <code>spawn let</code> pede
-            capacidade paralela. <code>on</code> seleciona uma preferência de execução, não uma thread física.
+          <p>O initializer <code>async</code> cria trabalho suspensível concorrente. O initializer
+            <code>spawn&lt;domain&gt;</code> pede capacidade paralela em um domínio explícito.
             Todo filho pertence a um scope; falha e cancelamento fecham a árvore.</p>
           <p>Um <code>service</code> é uma instância lógica endereçável com turn serial fechado, mailbox
             bounded e lifecycle observável. Uma <code>ServiceRef&lt;P&gt;</code> sempre exige <code>await</code>,
@@ -277,7 +277,7 @@ w verify artifact last-light.exe</code></pre></div>
             líder atual e as alternativas preservadas. Uma revisão pode citar somente os IDs que deseja
             mudar.</p>
           <div class="code-shell"><pre><code>W-014  refinement   T where (predicate)   | T(where:); T&lt;where(...)&gt;
-W-039  domain       spawn on .compute     | spawn&lt;.compute&gt;; descriptor
+W-039  domain       let x = spawn&lt;.compute&gt; call() | forma nomeada domain:
 W-051  unit         9.81&lt;m/s^2&gt;           | []; {}; whitespace SI
 W-064  matrix       nested arrays         | semicolon; constructor
 W-073  parser       recursive/Pratt       | generated; Tree-sitter</code></pre></div>

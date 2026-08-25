@@ -1100,7 +1100,7 @@ sem mudar a semântica.
 
 O oracle cobre chain, diamond, fan-out, forward reference, branch runtime,
 `await` interno, borrow e pipeline sem dependência. O último recebe warning em
-favor de `async let`. Se qualquer node possui outcome incerto, o resultado é
+favor de um initializer `async`. Se qualquer node possui outcome incerto, o resultado é
 `pipelineUnknown` com todos os effect IDs incertos. Um error da aplicação não
 pode esconder uma mutation que talvez tenha ocorrido.
 
@@ -1903,7 +1903,7 @@ Famílias: execution domain, capacity, paralelismo aninhado, fairness e liveness
 
 Aceite:
 
-- `async let` herda a preference do parent;
+- o initializer `async` herda a preference do parent;
 - `spawn` exige um domain explícito;
 - `spawn<.thermal>` é válido e entra na fila FIFO do domain serial;
 - `spawn<.main>` é válido e preserva a affinity do host;
@@ -1924,7 +1924,7 @@ Aceite:
 - declarar ou importar um domain não cria um executor;
 - um módulo importado não cria domain, queue ou thread;
 - cada unit recebe task, frame, timer e ready budgets bounded;
-- `async let` avalia captures e argumentos uma vez antes de publish;
+- o initializer `async` avalia captures e argumentos uma vez antes de publish;
 - budget exhaustion limpa o staging uma vez e não inicia o body;
 - um wakeup não aloca uma queue node;
 - os dois `mixBatch` de `mixAcrossTwoKitchens` compartilham o compute budget;
@@ -1947,7 +1947,7 @@ children, esgota cada budget e suspende um nested group quando a capacity está
 cheia. O programa deve terminar com o mesmo resultado, limpar cada owner uma
 vez e não criar um worker adicional.
 
-`domain_oracle.w` verifica inheritance de `async let` e o target explícito de
+`domain_oracle.w` verifica inheritance do initializer `async` e o target explícito de
 `spawn`. Ele aceita domains seriais, preserva FIFO, mantém `.compute` válido com
 capacity um e exige `.parallel` somente para `parallelMap`. Ele também modela
 tickets comuns e de barreira, capability `barrierDispatch`, exclusividade e a
@@ -2011,7 +2011,7 @@ O corpus host possui 46 casos, 274 operações e 14 testes independentes. Ele
 aceita:
 
 - call direta e `await` na task corrente sem inventar `share`;
-- `async let` e `spawn` com captures `take`, `copy`, `ref` e `inout` explícitos;
+- initializers `async` e `spawn` com captures `take`, `copy`, `ref` e `inout` explícitos;
 - owner em staging antes da publicação e no child depois dela;
 - rejection de admission sem body e com cleanup único;
 - cleanup antes de outcome committed e join;
@@ -2944,7 +2944,7 @@ Famílias: kernel descriptor, Launch owned, Queue, device memory, submission,
 completion receipt, cancellation, fault, limits e equivalência CPU/device.
 
 `device_execution_oracle.w` abre um `accelerator.Launch` para o descriptor
-fechado de `ai_harness.w`. `async let` continua sendo a forma estruturada; o
+fechado de `ai_harness.w`. O initializer `async` continua sendo a forma estruturada; o
 device não acrescenta uma quinta forma de execução. O resultado só chega ao
 host por `tensor.transfer` explícito.
 
@@ -2998,8 +2998,8 @@ O Book deve mostrar pares lado a lado:
 | export C | `export unsafe fn<abi: .c>` com body W | `fn<C>` ou mangling W |
 | plugin isolado | process ou component schema | dynamic library nativa como sandbox |
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
-| domain | `spawn<.compute> let x = ...` ou `spawn<domain: .compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
-| domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
+| domain | `let x = spawn<.compute> ...` ou `let x = spawn<domain: .compute> ...` | `spawn on .compute let x = ...` (**Retirado antes do 1.0**) |
+| domain relacional | `let x = spawn<.compute> ...` | `spawn on .compute let x = ...` (**Retirado antes do 1.0**) |
 | domain customizado | `module execution<domains: [...]>` e `spawn<.thermal>` | enum manual ou string |
 | execution profile | product escolhe `executionProfile`; deployment só reduz | import cria pool ou deployment troca domain |
 | QoS | descriptor/policy de group | `.background` como domain |

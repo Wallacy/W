@@ -4,8 +4,8 @@
   "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. CHEATSHEET.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:70bec9b176d7f4580aacdc345bba913d2154185ce0d142623d929f18c92d479f",
-    "publicRuleSetDigest": "sha256:587e99fbe114af19588ad4c925de8a8128d99f0c7cfc98d71709f0f386321522"
+    "digest": "sha256:ae269f1e0fa3210a8c614f339de4398854504f50deb6243ad622aecda787215b",
+    "publicRuleSetDigest": "sha256:f4df1c128932d4da3b8257c407eae3b88969db25da1419462e1f523d97d02233"
   },
   "sourceFiles": [
     "build.w",
@@ -1337,6 +1337,14 @@
       ]
     },
     {
+      "name": "task_expression",
+      "surface": "composed",
+      "reason": "Composed by the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
       "name": "test_declaration",
       "surface": "direct",
       "reason": "Direct source construction shown in the data-declarations atlas block.",
@@ -1800,12 +1808,12 @@
       "witness": "try await direct"
     },
     {
-      "id": "execution-async-let",
+      "id": "execution-async-initializer",
       "block": "execution-forms",
-      "construction": "async let binding",
+      "construction": "async initializer binding",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "async let direct"
+      "witness": "let direct = async"
     },
     {
       "id": "execution-spawn",
@@ -2386,7 +2394,7 @@
         {
           "path": "reference/last-light/execution.w",
           "symbol": "executionForms",
-          "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed"
+          "digest": "sha256:cf1789d49a5f55c9634d21036399a89d97c8e05b720420100e1e7d473ad20d96"
         }
       ],
       "snippetDigest": "sha256:30d0e60ebfb7fcf756948c087e8fb6bcd49f002cb8d057b0187f8887bc464f02",
@@ -2397,7 +2405,7 @@
       "file": "execution.w",
       "order": 9,
       "line": 69,
-      "title": "Direct, await, async let, spawn, and calls",
+      "title": "Direct, await, async and spawn initializers, and calls",
       "family": "execution",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only-provider-missing",
@@ -2414,6 +2422,7 @@
         "optional_member_expression",
         "optional_propagation_expression",
         "optional_try_expression",
+        "task_expression",
         "unary_expression"
       ],
       "designRefs": [
@@ -2424,10 +2433,10 @@
         {
           "path": "reference/last-light/execution.w",
           "symbol": "async fn mixCooperatively(",
-          "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed"
+          "digest": "sha256:cf1789d49a5f55c9634d21036399a89d97c8e05b720420100e1e7d473ad20d96"
         }
       ],
-      "snippetDigest": "sha256:c220f9544725a1e20c2eed2b33791c334393cf1d9127a3a11b8f462f719157cc",
+      "snippetDigest": "sha256:3e51c22f53c4da48a5508d2f2f2e8b0209735e6e796115b97563d339f8ff2bd9",
       "snippetBytes": 957
     },
     {
@@ -2514,7 +2523,7 @@
         {
           "path": "reference/last-light/streams.w",
           "symbol": "export async fn serveOneByOne",
-          "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
+          "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
         }
       ],
       "snippetDigest": "sha256:62c2c0992fd1b104a7765682023edd3dfb1cd6a3c3276ecc351ddadda8a8b64a",
@@ -2644,6 +2653,6 @@
   ],
   "generated": {
     "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:9d466dcabd9f65881de3c630fe683c72f449266d3fe6470919571e9fdc15d890"
+    "cheatsheetDigest": "sha256:6c2f0849519043839936df4f8437b7eadbc82905bbdad4def3ae96499f498ef6"
   }
 }

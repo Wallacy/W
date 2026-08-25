@@ -72,8 +72,8 @@ async fn fetch(city: String): String throws String {
 }
 
 async fn runTasks(): String throws String {
-  async let direct = fetch("north")
-  spawn<.compute> let parallel = fetch("south")
+  let direct = async fetch("north")
+  let parallel = spawn<.compute> fetch("south")
   let first = try await direct
   let second = try await parallel
   let optional = try? await fetch("west")

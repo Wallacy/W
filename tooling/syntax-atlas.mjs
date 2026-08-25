@@ -9,7 +9,7 @@ const GRAMMAR = path.join(ROOT, "tooling", "tree-sitter-w", "grammar.js");
 const MANIFEST = path.join(ATLAS, "atlas-manifest.json");
 const CHEATSHEET = path.join(ATLAS, "CHEATSHEET.md");
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
-const RULE_SET_DIGEST = "sha256:587e99fbe114af19588ad4c925de8a8128d99f0c7cfc98d71709f0f386321522";
+const RULE_SET_DIGEST = "sha256:f4df1c128932d4da3b8257c407eae3b88969db25da1419462e1f523d97d02233";
 const SCHEMA = "w-syntax-atlas-1";
 
 const ROOT_KINDS = new Set(["module", "package", "workspace"]);
@@ -24,7 +24,7 @@ const REQUIRED_VARIANT_IDS = [
   "import-ordinary", "import-domain", "import-service", "import-wildcard",
   "entry-explicit", "allocator-named", "allocator-anonymous", "allocator-root-plan", "allocator-none", "allocator-contextual-parameter", "allocator-contextual-call",
   "ownership-ref", "ownership-inout", "ownership-take", "ownership-shared", "ownership-weak", "ownership-view", "ownership-pin", "ownership-atomic",
-  "execution-direct", "execution-await", "execution-async-let", "execution-spawn",
+  "execution-direct", "execution-await", "execution-async-initializer", "execution-spawn",
   "callable-positional", "callable-required-homonym", "callable-optional-label", "callable-required-external", "callable-default", "callable-rest", "callable-some-fn", "callable-any-fn", "callable-static", "callable-generic",
   "closure-copy", "closure-ref", "closure-take", "closure-weak",
   "property-get", "property-set", "property-modify",
@@ -86,6 +86,7 @@ const MARKER_RULE_OVERRIDES = new Map([
   ["allocator_builtin_plan", "allocator-and-bindings"],
   ["binding_declaration", "allocator-and-bindings"],
   ["task_contract", "allocator-and-bindings"],
+  ["task_expression", "execution-forms"],
   ["optional_binding", "allocator-and-bindings"],
   ["pipeline_expression", "restricted-expressions"],
   ["lock_expression", "restricted-expressions"],

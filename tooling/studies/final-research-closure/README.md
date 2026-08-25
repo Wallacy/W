@@ -1,9 +1,10 @@
-# FRC0 — encerramento final das três gates de pesquisa
+# FRC0 — snapshot histórico das três gates de pesquisa
 
 FRC0 é um bundle R1 de design-oracle-input. Ele fecha o snapshot histórico de
 processo de W-707, W-731 e W-1408 até W-1450 e valida as decisões PFU0
-W-1451, W-1452 e W-1453 como `oracle-backed-current`. O resultado exige
-`Research=0` global e permite fechar o design freeze. FRC0 não compila,
+W-1451, W-1452 e W-1453 como `oracle-backed-current`. O snapshot mantém
+`Research=0` até esse limite. DRC0 fecha as gates posteriores W-1471, W-1473,
+W-1474 e W-1475; a classificação global volta a `Research=0`. FRC0 não compila,
 executa ou promove uma implementação W. Ele não cria registros humanos ou de
 modelos.
 
@@ -14,15 +15,15 @@ score, preferência ou resultado fornecido pelo caller para selecionar o
 outcome.
 
 W-707 fecha o protocolo de completude FZ0. W-731 confirma uma disposition
-explícita para cada decisão e `Research=0` em todo o ledger. W-1408 preserva stop-on-first-violation,
+explícita para cada decisão e a lista Research global vazia.
+W-1408 preserva stop-on-first-violation,
 no-automatic-promotion e zero registros humanos/modelos. A reabertura explícita
-posterior PFU0 deixa de ser residual: as três decisões são current/oracle-backed
-e o freeze pode ser fechado.
+posterior PFU0 deixa de ser residual: as três decisões são current/oracle-backed.
 
 Os gaps de `w-compile`, `w-run`, compiler, runtime, provider, human-study e
 model-study permanecem missing. O estudo usa somente source refs, máquinas,
 snapshots e oracles host existentes. O stop condition rejeita qualquer Research
-residual global e exige evidência PFU0 e revisão do freeze antes de recascade.
+residual e exige evidência PFU0 e fechamento DRC0 antes de recascade.
 
 Checks scoped:
 

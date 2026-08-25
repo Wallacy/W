@@ -154,7 +154,7 @@ export async fn recordOnApologyDomain(
   state: inout ApologyLedgerState,
   named message: take String,
 ): u64 {
-  spawn<.apology> let revision = recordApology(
+  let revision = spawn<.apology> recordApology(
     inout state,
     message: take message,
   )
@@ -220,7 +220,7 @@ test "a relay updates the published telemetry epoch" {
 test "an atomic wait observes a published telemetry generation" {
   let epoch = HorizonTelemetryEpoch()
   let observed = epoch.observe()
-  async let changed = epoch.waitForChange(after: observed)
+  let changed = async epoch.waitForChange(after: observed)
 
   epoch.publish(7)
   expect await changed == 7

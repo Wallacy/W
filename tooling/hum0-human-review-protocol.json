@@ -29,14 +29,14 @@
           "id": "restaurant-place",
           "path": "reference/last-light/restaurant.w",
           "symbol": "mut async fn place",
-          "digest": "sha256:6b934c27deeba2f94c1af4423dec7ca6f8a679338d4a6ea0f903c36c5cdb4a32",
+          "digest": "sha256:db7c06b5dcf9e55d9f44bfb64b5100c97d59a7a0840b37f1e02bd48883fcb0d3",
           "claim": "Restaurant order placement and consuming ownership"
         },
         {
           "id": "restaurant-status",
           "path": "reference/last-light/restaurant.w",
           "symbol": "async fn status(orderId: OrderId): ServiceStage throws RestaurantError {",
-          "digest": "sha256:6b934c27deeba2f94c1af4423dec7ca6f8a679338d4a6ea0f903c36c5cdb4a32",
+          "digest": "sha256:db7c06b5dcf9e55d9f44bfb64b5100c97d59a7a0840b37f1e02bd48883fcb0d3",
           "claim": "Restaurant observation after a failed or completed turn"
         }
       ],
@@ -357,7 +357,7 @@
           "id": "stage-menu",
           "path": "reference/last-light/allocation.w",
           "symbol": "export fn stageMenu",
-          "digest": "sha256:38abe8d35bd194aac2baf5c9a9c941e3b54777265dc348de9afad2462105698e",
+          "digest": "sha256:1d89db249dba566955aec8ef5023dfaa01eca9b48553d399f18590ac2486a93b",
           "claim": "Lexical and contextual staging allocator"
         }
       ],
@@ -514,7 +514,7 @@
           "id": "mix-pair",
           "path": "reference/last-light/execution.w",
           "symbol": "export async fn mixPair",
-          "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed",
+          "digest": "sha256:cf1789d49a5f55c9634d21036399a89d97c8e05b720420100e1e7d473ad20d96",
           "claim": "Async execution form and domain preference"
         }
       ],
@@ -522,13 +522,13 @@
         {
           "id": "execution-ergonomics-cases",
           "path": "tooling/execution-ergonomics-cases.json",
-          "digest": "sha256:68ccc55b5c260bd7f016e803ea467f626476fd407fc949ef95b71ff3350f17bc",
+      "digest": "sha256:1a8057f9277bcc05d212019b28cf2036fb91a0dd1439413b2ffc0ef4e795cfae",
           "claim": "Execution labels, ownership operations, suspension, and placement cases"
         },
         {
           "id": "execution-ergonomics-reference",
           "path": "tooling/execution-ergonomics-reference.test.mjs",
-          "digest": "sha256:8b910c8cfe48c6a3319745ab95dc2f263c68566db02c975d33630691cc7ba668",
+      "digest": "sha256:0de036069eef3a3e93b12e6f56a49d10f0ca1608716be0443aa8ec16539ee409",
           "claim": "Independent execution form assertions"
         }
       ],
@@ -544,7 +544,7 @@
             "beforeLines": 2,
             "afterLines": 16,
             "maxBytes": 700,
-            "derivedStimulusDigest": "sha256:0b24882af4596f0d371045e1e1e93528536df1686ba0d12757c68e697d97ba90"
+            "derivedStimulusDigest": "sha256:ce5259fc8c8d1111260da28d8ed433f7eb4c171a1ebb0ed8d68e764df0034d84"
           },
           "participantInput": {
             "scenario": "Two menu values are mixed by an asynchronous function with an explicit execution preference.",
@@ -562,7 +562,7 @@
             "beforeLines": 2,
             "afterLines": 16,
             "maxBytes": 700,
-            "derivedStimulusDigest": "sha256:58bef6da7090abc91caeb55951b97f8de058173152499e121bb7ee1cdaa5e9a2"
+            "derivedStimulusDigest": "sha256:f991e3048ae758d4f19331264f8f8768307ad51a51dbd635e4e0d0427dd9e4e1"
           },
           "observerOnly": {
             "baseInputId": "execution-primary",
@@ -671,7 +671,7 @@
           "id": "order-window",
           "path": "reference/last-light/streams.w",
           "symbol": "export async fn runBoundedOrderWindow",
-          "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14",
+          "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b",
           "claim": "Bounded order window and completion ordering"
         }
       ],
@@ -701,7 +701,7 @@
             "beforeLines": 2,
             "afterLines": 16,
             "maxBytes": 700,
-            "derivedStimulusDigest": "sha256:a38431f4cfe1945b6e97da17ead73b7a0eed2b6bf70ee6404a68ef84db0365f9"
+            "derivedStimulusDigest": "sha256:6deb46f298b21a43abe9324f5f061b4c89df2be19fb31a87322f47d50e7b1bd3"
           },
           "participantInput": {
             "scenario": "A bounded order window sends owned menu values through a channel and joins child work before cleanup.",
@@ -719,7 +719,7 @@
             "beforeLines": 2,
             "afterLines": 16,
             "maxBytes": 700,
-            "derivedStimulusDigest": "sha256:70b70b8d22cb130f5ecb64e37e4becdd46d58cb5e918008f5781d37999b32ee0"
+            "derivedStimulusDigest": "sha256:f0558d72a1ddfb323ca1895cded600ada93aa2434b0d9015e14f9254dfb675a1"
           },
           "observerOnly": {
             "baseInputId": "channel-primary",
@@ -992,14 +992,14 @@
           "id": "package-manifest",
           "path": "reference/last-light/build.w",
           "symbol": "package {",
-          "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
+          "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
           "claim": "Typed package manifest, roots, and declared actions"
         },
         {
           "id": "package-action",
           "path": "reference/last-light/build.w",
           "symbol": "name: \"compile-final-menu\"",
-          "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
+          "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
           "claim": "Menu build action and artifact closure"
         },
         {

@@ -46,7 +46,7 @@
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "completionCount: u64 { get }",
-      "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed",
+      "digest": "sha256:cf1789d49a5f55c9634d21036399a89d97c8e05b720420100e1e7d473ad20d96",
       "claim": "Property-safe getter."
     },
     {
@@ -82,5 +82,5 @@
     ],
     "hostOnly": true
   },
-  "stopCondition": "Stop on stale digest, caller echo, ID-derived outcome, residual Research, client-stream or bidi invention, hidden oldValue copy, or observer bypass ambiguity. Preserve implementation gaps and require independent closure evidence."
+  "stopCondition": "Stop on stale digest, caller echo, ID-derived outcome, residual Research in W-1451 through W-1453, client-stream or bidi invention, hidden oldValue copy, or observer bypass ambiguity. Preserve implementation gaps, keep later research gates out of scope, and require independent closure evidence."
 }

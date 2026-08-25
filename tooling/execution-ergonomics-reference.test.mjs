@@ -246,8 +246,8 @@ test("suspension is inferred monotonically and child accepts sync or may", () =>
     fn syncWorker(value) { return value }
     fn asyncWorker(value) { await Task.yield(); return value }
     fn caller(value) {
-      async let local = syncWorker(value)
-      spawn<.compute> let remote = asyncWorker(value)
+      let local = async syncWorker(value)
+      let remote = spawn<.compute> asyncWorker(value)
       return try await (local, remote)
     }
     fn even(n) { if n == 0 { return true }; return await odd(n - 1) }
@@ -256,7 +256,7 @@ test("suspension is inferred monotonically and child accepts sync or may", () =>
   assert.deepEqual(result.forms, {
     direct: "same-task/neverSuspend",
     await: "same-task/maySuspend",
-    "async let": "structured-child/current-domain",
+    async: "structured-child/current-domain",
     spawn: "structured-child/explicit-domain",
   })
   assert.equal(result.suspension.declarations.find((item) => item.name === "odd").suspension, "may")
@@ -278,21 +278,32 @@ test("bare maySuspend and blocking wait are errors; await never is removable", (
   assert.ok(diagnostics.includes("W-SUSPEND-0003"))
 })
 
+test("sync is the selected bridge only for explicit async declarations", () => {
+  const accepted = deriveExecutionErgonomics("async fn func() { await Task.yield(); return value }\nlet y = sync func()")
+  assert.deepEqual(accepted.suspension.syncBridges, [{ callee: "func", eligible: true, blocksThread: true, sourceSpelling: "explicit" }])
+  const inferred = deriveExecutionErgonomics("fn inferredMay() { await Task.yield(); return value }\nlet y = sync inferredMay()")
+  assert.ok(summarizeDiagnostics(inferred).includes("W-SUSPEND-0005"))
+  const ordinary = deriveExecutionErgonomics("fn ordinary() { return value }\nlet y = sync ordinary()")
+  assert.ok(summarizeDiagnostics(ordinary).includes("W-SUSPEND-0005"))
+  const bare = deriveExecutionErgonomics("async fn func() { await Task.yield(); return value }\nlet w = func()")
+  assert.ok(summarizeDiagnostics(bare).includes("W-SUSPEND-0001"))
+})
+
 test("spawn dispatches to serial or concurrent domains and requires a target", () => {
   const declaration = deriveExecutionErgonomics("spawn<.network> fn fetch(request) { return request }")
   assert.ok(summarizeDiagnostics(declaration).includes("W-PLACEMENT-0001"))
-  const serial = deriveExecutionErgonomics("module kitchen<domains: [.serial(.thermal)]>\nspawn<.thermal> let work = f()")
+  const serial = deriveExecutionErgonomics("module kitchen<domains: [.serial(.thermal)]>\nlet work = spawn<.thermal> f()")
   assert.deepEqual(summarizeDiagnostics(serial), [])
   assert.equal(serial.placement.dispatches[0].domain, ".thermal")
   assert.equal(serial.placement.dispatches[0].scheduling, "serial-fifo")
   assert.equal(serial.placement.dispatches[0].overlapWithinTarget, false)
-  const main = deriveExecutionErgonomics("spawn<.main> let work = f()")
+  const main = deriveExecutionErgonomics("let work = spawn<.main> f()")
   assert.equal(main.placement.dispatches[0].scheduling, "serial-fifo")
-  const missing = deriveExecutionErgonomics("spawn let work = f()")
+  const missing = deriveExecutionErgonomics("let work = spawn f()")
   assert.ok(summarizeDiagnostics(missing).includes("W-PLACEMENT-0002"))
-  const unknown = deriveExecutionErgonomics("spawn<.missing> let work = f()", { availableDomains: [".main", ".compute"] })
+  const unknown = deriveExecutionErgonomics("let work = spawn<.missing> f()", { availableDomains: [".main", ".compute"] })
   assert.ok(summarizeDiagnostics(unknown).includes("W-PLACEMENT-0002"))
-  const forms = deriveExecutionErgonomics("spawn<.compute> let a = f()\nspawn<domain: .compute> let b = f()")
+  const forms = deriveExecutionErgonomics("let a = spawn<.compute> f()\nlet b = spawn<domain: .compute> f()")
   assert.equal(forms.placement.sameOptionalDomainForm, true)
 })
 
@@ -300,9 +311,9 @@ test("barrier dispatch orders read epochs and requires a closed access graph", (
   const source = `
     fn read(state: ref Menu) { return state.revision }
     fn write(state: inout Menu) { state.revision += 1; return state.revision }
-    spawn<.catalog> let before = read(ref menu)
-    spawn<.catalog, .barrier> let update = write(inout menu)
-    spawn<domain: .catalog> let after = read(ref menu)
+    let before = spawn<.catalog> read(ref menu)
+    let update = spawn<.catalog, .barrier> write(inout menu)
+    let after = spawn<domain: .catalog> read(ref menu)
   `
   const accepted = deriveExecutionErgonomics(source, {
     domainCapabilities: { ".catalog": ["concurrent", "barrierDispatch"] },
@@ -331,14 +342,14 @@ test("barrier dispatch orders read epochs and requires a closed access graph", (
 test("barrier bodies cannot suspend and serial domains accept the marker", () => {
   const suspending = deriveExecutionErgonomics(`
     fn write(state: inout Menu) { await Task.yield(); return state.revision }
-    spawn<.catalog, .barrier> let update = write(inout menu)
+    let update = spawn<.catalog, .barrier> write(inout menu)
   `, { domainCapabilities: { ".catalog": ["concurrent", "barrierDispatch"] } })
   assert.ok(summarizeDiagnostics(suspending).includes("W-SUSPEND-0004"))
 
   const serial = deriveExecutionErgonomics(`
     module kitchen<domains: [.serial(.thermal)]>
     fn write(state: inout Menu) { return state.revision }
-    spawn<.thermal, .barrier> let update = write(inout menu)
+    let update = spawn<.thermal, .barrier> write(inout menu)
   `)
   assert.deepEqual(summarizeDiagnostics(serial), [])
   assert.equal(serial.placement.dispatches[0].barrierSupport, "serial")

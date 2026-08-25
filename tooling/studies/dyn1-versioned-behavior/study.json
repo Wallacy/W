@@ -39,7 +39,7 @@
     { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "claim": "effect and submission receipt facts" },
     { "path": "reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de", "claim": "service generation and drain state" },
     { "path": "reference/last-light/liveness_oracle.w", "symbol": "CommitGate", "digest": "sha256:447a3fc9252312c7403450a861a75324bb34e1a91df9a7a7981d0bc0b38b4119", "claim": "runtime closure and cleanup gate" },
-    { "path": "reference/last-light/build.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f", "claim": "package recipe and resolution identity" },
+    { "path": "reference/last-light/build.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038", "claim": "package recipe and resolution identity" },
     { "path": "reference/last-light/release_oracle.w", "symbol": "mirror", "digest": "sha256:fc7ac740c97011d7f6e88ba839b46da83d6617b505305c4e3e7f866ba092f08b", "claim": "artifact and receipt provenance" },
     { "path": "reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40", "claim": "WAbi and foreign callback boundary" },
     { "path": "reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "callback lease and unregister drain" }

@@ -32,6 +32,6 @@ export async fn observeTraversal<E: Error>(
 export async fn observeDelegation<E: Error>(
   source: take some Stream<view String, E>,
 ): usize throws E {
-  async let child = observeTraversal(take source)
+  let child = async observeTraversal(take source)
   return try await child
 }

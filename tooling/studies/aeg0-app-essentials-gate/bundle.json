@@ -34,6 +34,6 @@
   ],
   "presentationOrders": [["current", "candidate", "adversarial"], ["adversarial", "current", "candidate"], ["candidate", "adversarial", "current"]],
   "blinding": { "participantLabels": { "current": "A", "candidate": "B", "adversarial": "C" }, "hide": ["id", "role", "path", "changedConstructs", "expected"] },
-  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:a3828ccf9a0023536125c7631f695a70321d4a71b179b835b6963a330a4cd10a" },
+  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:dc0d39f0e4b3b9877700c755e67b0220dd007c8bee6b35dc8398a03f1e61f5e0" },
   "evidence": { "current": ["tree-sitter-parse", "source-ref", "host-oracle", "mutation-checks", "reserved-study"], "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "ffi", "stress", "fault", "human-study", "model-study"] }
 }

@@ -11,23 +11,23 @@
   "sourceBase": {
     "path": "../../../reference/last-light/streams.w",
     "symbol": "serveOneByOne",
-    "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
+    "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/streams.w",
       "symbol": "inspectMenuLines",
-      "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
+      "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
     },
     {
       "path": "../../../reference/last-light/streams.w",
       "symbol": "mixOrderStream",
-      "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
+      "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
     },
     {
       "path": "../../../reference/last-light/streams.w",
       "symbol": "runBoundedOrderWindow",
-      "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
+      "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
     },
     {
       "path": "../../../reference/last-light/command.w",

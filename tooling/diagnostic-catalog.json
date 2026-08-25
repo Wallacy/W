@@ -1075,6 +1075,21 @@
       "fixes": {}
     },
     {
+      "code": "W-SUSPEND-0005",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a sync bridge requires an explicitly declared async maySuspend callable",
+      "requiredFacts": {
+        "callee": "string",
+        "sourceSpelling": "string",
+        "suspension": "string",
+        "reason": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
       "code": "W-PLACEMENT-0001",
       "state": "active",
       "phase": "semantic.effect",
@@ -1109,6 +1124,18 @@
       "requiredFacts": {
         "domain": "string",
         "mode": "string",
+        "reason": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PLACEMENT-0004",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a child launcher must be the unique callable root of a lexical let initializer",
+      "requiredFacts": {
         "reason": "string"
       },
       "labelRoles": {},

@@ -1145,12 +1145,6 @@ module.exports = grammar({
 
     binding_declaration: ($) =>
       seq(
-        optional(
-          seq(
-            field("task_kind", choice("async", "spawn")),
-            optional(field("task_contract", $.task_contract)),
-          ),
-        ),
         field("kind", choice("let", "var")),
         optional(field("storage_modifier", choice("atomic", $.behavior_identifier))),
         optional(field("pattern_ownership", choice("ref", "inout"))),
@@ -1360,6 +1354,7 @@ module.exports = grammar({
     _expression: ($) =>
       choice(
         $.assignment_expression,
+        $.task_expression,
         $.bounded_range_expression,
         $.binary_expression,
         $.unary_expression,
@@ -1460,6 +1455,16 @@ module.exports = grammar({
         13,
         seq(
           field("operator", choice("!", "~", "-", "try", "await", "copy", "take", "pin", "inout", "ref")),
+          field("operand", $._expression),
+        ),
+      ),
+
+    task_expression: ($) =>
+      prec.right(
+        13,
+        seq(
+          field("task_kind", choice("async", "spawn")),
+          optional(field("task_contract", $.task_contract)),
           field("operand", $._expression),
         ),
       ),

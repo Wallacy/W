@@ -19,7 +19,7 @@ describe("cheatsheet snippet checker", () => {
   test("accepts the current extraction and inventory", () => {
     const result = validateCheatsheetText(cheatsheet, { repositoryRoot })
     expect(result.errors).toEqual([])
-    expect(result.counts.w).toBe(20)
+    expect(result.counts.w).toBe(22)
     expect(result.counts.source).toBe(4)
     expect(result.counts.composed).toBe(4)
     expect(result.counts.contrafactual).toBe(1)
@@ -75,8 +75,8 @@ describe("cheatsheet snippet checker", () => {
   test("rejects a source excerpt whose body is not LF-normalized exact content", () => {
     const candidate = mutate(
       cheatsheet,
-      "  spawn<.compute> let mixture = mix(stock.ingredients, recipe: schedule.recipe)",
-      "  spawn<.compute> let mixture = mix(stock.ingredients, recipe: schedule.otherRecipe)",
+      "  let mixture = spawn<.compute> mix(stock.ingredients, recipe: schedule.recipe)",
+      "  let mixture = spawn<.compute> mix(stock.ingredients, recipe: schedule.otherRecipe)",
     )
     expect(errorsFor(candidate).some((error) => error.includes("LF-normalized exact content"))).toBe(true)
   })

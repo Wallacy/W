@@ -283,9 +283,9 @@ export async fn scheduleCatalogRevision(
   state: inout CatalogState,
   revision: u64,
 ): (u64, u64, u64) {
-  spawn<.catalog> let before = observeCatalog(ref state)
-  spawn<.catalog, .barrier> let update = replaceCatalog(inout state, revision: revision)
-  spawn<.catalog> let after = observeCatalog(ref state)
+  let before = spawn<.catalog> observeCatalog(ref state)
+  let update = spawn<.catalog, .barrier> replaceCatalog(inout state, revision: revision)
+  let after = spawn<.catalog> observeCatalog(ref state)
   return await (before, update, after)
 }
 
@@ -547,5 +547,5 @@ test "a dynamic serial lane is bounded and closes after drain" for openDynamicSe
 }
 
 // Compile-fail assays:
-// spawn<.catalog, .barrier> let invalid = suspendingWrite(inout state)
-// spawn<.network, .barrier> let invalid = replaceCatalog(inout state, revision: 2)
+// let invalid = spawn<.catalog, .barrier> suspendingWrite(inout state)
+// let invalid = spawn<.network, .barrier> replaceCatalog(inout state, revision: 2)

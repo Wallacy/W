@@ -191,10 +191,10 @@ unsafe fn<Asm,
 }
 
 async fn prepare(): Dish {
-  async let stock = fetchStock()
-  spawn<.compute> let plan = calculatePlan()
-  spawn<.thermal> let heat = calculateHeat()
-  async let telemetry = sampleOven()
+  let stock = async fetchStock()
+  let plan = spawn<.compute> calculatePlan()
+  let heat = spawn<.thermal> calculateHeat()
+  let telemetry = async sampleOven()
   let (stock, plan, heat, telemetry) = try await (stock, plan, heat, telemetry)
   defer async { await stock.close() }
   return await cook(stock, plan: plan)
@@ -335,33 +335,37 @@ entry LastLight(run)
       (binding_declaration
         (pattern
           (identifier))
-        (call_expression
-          (identifier)
-          (argument_list)))
-      (binding_declaration
-        (task_contract
-          (contextual_member_expression
-            (identifier)))
-        (pattern
-          (identifier))
-        (call_expression
-          (identifier)
-          (argument_list)))
-      (binding_declaration
-        (task_contract
-          (contextual_member_expression
-            (identifier)))
-        (pattern
-          (identifier))
-        (call_expression
-          (identifier)
-          (argument_list)))
+        (task_expression
+          (call_expression
+            (identifier)
+            (argument_list))))
       (binding_declaration
         (pattern
           (identifier))
-        (call_expression
-          (identifier)
-          (argument_list)))
+        (task_expression
+          (task_contract
+            (contextual_member_expression
+              (identifier)))
+          (call_expression
+            (identifier)
+            (argument_list))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (task_expression
+          (task_contract
+            (contextual_member_expression
+              (identifier)))
+          (call_expression
+            (identifier)
+            (argument_list))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (task_expression
+          (call_expression
+            (identifier)
+            (argument_list))))
       (binding_declaration
         (pattern
           (tuple_pattern

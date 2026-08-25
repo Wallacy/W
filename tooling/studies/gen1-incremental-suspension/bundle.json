@@ -11,13 +11,13 @@
   "sourceBase": {
     "path": "../../../reference/last-light/streams.w",
     "symbol": "serveOneByOne",
-    "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14"
+    "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "executionForms",
-      "digest": "sha256:e0f92491b49c57d2165d419a53b623db31aa9a658ac8c56b1d5096782e9909ed"
+      "digest": "sha256:cf1789d49a5f55c9634d21036399a89d97c8e05b720420100e1e7d473ad20d96"
     },
     {
       "path": "../../../reference/last-light/state_transitions.w",
@@ -27,7 +27,7 @@
     {
       "path": "../../../reference/last-light/ownership_execution_oracle.w",
       "symbol": "fourOwnershipForms",
-      "digest": "sha256:a9ca613ffbca8c54e33fe67fb1ae1892ddf25f5b4a489aefb55e54eb3262ca13"
+      "digest": "sha256:fd790ae767b0de58f2240bb6e200423ba49441c38ed883cde10d14d6ac16cd3c"
     },
     {
       "path": "../../../reference/last-light/lifecycle_oracle.w",
@@ -47,7 +47,7 @@
     {
       "path": "../../../reference/last-light/restaurant.w",
       "symbol": "prepareDish",
-      "digest": "sha256:6b934c27deeba2f94c1af4423dec7ca6f8a679338d4a6ea0f903c36c5cdb4a32"
+      "digest": "sha256:db7c06b5dcf9e55d9f44bfb64b5100c97d59a7a0840b37f1e02bd48883fcb0d3"
     }
   ],
   "helpers": [
@@ -66,7 +66,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "stream-structured.w",
-      "digest": "sha256:12ebf5c6405c7dc8e00be3a3dfc512443165bf37238e7563ef0d1b2a8f718898",
+      "digest": "sha256:f8828c783b2da0c5cefb46093c9c85dfbdd76f21bdbca8084c5aa924b9bbc098",
       "changedConstructs": [
         "Stream pull",
         "for try await",
@@ -212,7 +212,7 @@
         {
           "variant": "stream-structured",
           "symbol": "observeDelegation",
-          "digest": "sha256:5cd6eff17e7d89c7c087009bad064261eb225ecb6158aad2c6c2345fbab99183",
+          "digest": "sha256:24d5334b8558ccd28d79f86712726655f82166a6c238aed6d8ccf2a55faf6fb2",
           "applicability": "structured Stream child"
         },
         {

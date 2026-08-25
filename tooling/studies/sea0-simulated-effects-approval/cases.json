@@ -1,0 +1,37 @@
+{
+  "$schema": "w-sea0-simulated-effects-approval-cases-1",
+  "study": "SEA0",
+  "maxDagNodes": 32,
+  "machine": {
+    "id": "approval-machine-v1",
+    "productionModel": "approval-machine-v1",
+    "testDoubleModel": "approval-machine-v1",
+    "deterministicScheduler": true,
+    "virtualClock": true,
+    "deterministicRng": true,
+    "virtualBoundaries": ["network", "storage", "provider"],
+    "faultInjection": { "unit": "semantic-boundary", "occurrenceBounded": true, "timingOrLineNumber": false },
+    "scheduleExploration": { "bounded": true, "systematic": true },
+    "coverage": ["transition", "effect", "owner", "fault"],
+    "reproduction": ["seed", "minimizedTrace", "recipe", "providerDigest", "targetDigest", "receipt"],
+    "independentOracle": true,
+    "snapshotsAndGoldens": "explicit"
+  },
+  "proposals": [
+    { "effectId": "fx-read-menu", "inputDigest": "sha256:input-menu", "authority": "menu.read", "capability": "fs.read", "provider": "fs-posix", "providerGeneration": 7, "simulatedResultDigest": "sha256:result-menu-7", "dependencies": [], "approvalGroup": "menu", "limits": { "bytes": 4096, "deadlineMs": 1000 }, "expiry": "2026-08-25T12:00:00Z", "simulatedValue": "menu:seven", "committedValue": "menu:seven" },
+    { "effectId": "fx-render-menu", "inputDigest": "sha256:input-render", "authority": "menu.render", "capability": "ui.write", "provider": "ui-test", "providerGeneration": 3, "simulatedResultDigest": "sha256:result-render-3", "dependencies": ["fx-read-menu"], "approvalGroup": "menu", "limits": { "bytes": 8192, "deadlineMs": 1000 }, "expiry": "2026-08-25T12:00:00Z", "simulatedValue": "render:seven", "committedValue": "render:seven" },
+    { "effectId": "fx-independent-metrics", "inputDigest": "sha256:input-metrics", "authority": "metrics.write", "capability": "metrics.emit", "provider": "metrics-test", "providerGeneration": 2, "simulatedResultDigest": "sha256:result-metrics-2", "dependencies": [], "approvalGroup": "metrics", "limits": { "bytes": 2048, "deadlineMs": 500 }, "expiry": "2026-08-25T12:00:00Z", "simulatedValue": "metric:one", "committedValue": "metric:one" }
+  ],
+  "cases": [
+    { "id": "SEA0-commit-linear", "kind": "positive", "effectId": "fx-read-menu", "trace": ["proposed", "simulated", "awaitingApproval", "revalidating", "committing", "committed"], "providerGeneration": 7, "approvedInputDigest": "sha256:input-menu", "dispatch": "committed" },
+    { "id": "SEA0-causal-deny", "kind": "positive", "effectIds": ["fx-read-menu", "fx-render-menu"], "dependency": ["fx-render-menu", "fx-read-menu"], "trace": ["proposed", "simulated", "awaitingApproval", "rejected"], "dependentTrace": ["rejected"], "dispatch": "not-dispatched" },
+    { "id": "SEA0-independent-eligible", "kind": "positive", "effectId": "fx-independent-metrics", "trace": ["proposed", "simulated", "awaitingApproval", "revalidating", "committing", "committed"], "providerGeneration": 2, "approvedInputDigest": "sha256:input-metrics", "dispatch": "committed" },
+    { "id": "SEA0-stale-conflict", "kind": "positive", "effectId": "fx-read-menu", "trace": ["proposed", "simulated", "awaitingApproval", "revalidating", "conflict"], "providerGeneration": 8, "approvedInputDigest": "sha256:input-menu", "dispatch": "not-dispatched" },
+    { "id": "SEA0-unknown-after-dispatch", "kind": "positive", "effectId": "fx-independent-metrics", "trace": ["proposed", "simulated", "awaitingApproval", "revalidating", "committing", "unknown"], "providerGeneration": 2, "approvedInputDigest": "sha256:input-metrics", "dispatch": "unknownOutcome(fx-independent-metrics)" },
+    { "id": "SEA0-bulk-topological-partial", "kind": "positive", "effectIds": ["fx-read-menu", "fx-render-menu", "fx-independent-metrics"], "approvalOrder": ["fx-read-menu", "fx-render-menu", "fx-independent-metrics"], "receiptBindsExactSet": true, "approved": ["fx-read-menu", "fx-independent-metrics"], "rejected": ["fx-render-menu"] },
+    { "id": "SEA0-different-input-reject", "kind": "adversarial", "effectId": "fx-read-menu", "trace": ["proposed", "simulated", "awaitingApproval", "revalidating", "rejected"], "providerGeneration": 7, "approvedInputDigest": "sha256:forged-input", "dispatch": "not-dispatched", "expectedOutcome": "rejected" },
+    { "id": "SEA0-unbounded-dag-reject", "kind": "adversarial", "effectId": "fx-read-menu", "trace": ["proposed", "simulated", "awaitingApproval", "rejected"], "dependencyCount": 33, "dispatch": "not-dispatched", "expectedOutcome": "rejected" }
+  ],
+  "faultCases": ["approval-rejection", "stale-simulation", "partial-bulk-approval", "crash-before-dispatch", "crash-after-dispatch", "response-mismatch", "causal-invalidation"],
+  "coverageCases": ["state-model", "property", "fuzz", "differential", "metamorphic"]
+}

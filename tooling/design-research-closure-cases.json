@@ -1,0 +1,40 @@
+{
+  "$schema": "w-design-research-closure-cases-1",
+  "status": "design-oracle-input",
+  "id": "DRC0",
+  "decisions": ["W-1471", "W-1473", "W-1474", "W-1475"],
+  "cases": [
+    {
+      "id": "DRC0-W-1471-current",
+      "kind": "current-contract",
+      "decisions": ["W-1471"],
+      "study": "SYNC0",
+      "stopCondition": "explicit async fn accepted; inferred maySuspend, ordinary fn, neverSuspend, and bare maySuspend rejected",
+      "missingEvidence": ["frontend grammar", "compiler lowering", "runtime bridge", "provider receipt", "liveness and deadlock validation"]
+    },
+    {
+      "id": "DRC0-W-1473-current",
+      "kind": "current-contract",
+      "decisions": ["W-1473"],
+      "study": "MEM0",
+      "stopCondition": "all required mechanisms have bounded classifications, workloads, adversarial coverage, and an explicit target evidence boundary",
+      "missingEvidence": ["W API implementation", "compiler lowering", "runtime and provider receipts", "cross-target benchmarks"]
+    },
+    {
+      "id": "DRC0-W-1474-current",
+      "kind": "current-contract",
+      "decisions": ["W-1474"],
+      "study": "SEA0",
+      "stopCondition": "bounded approval machine, causal invalidation, revalidation, unknown outcome, and four separate test lanes are explicit",
+      "missingEvidence": ["carrier API implementation", "production provider receipt", "multi-process fault evidence", "performance evidence"]
+    },
+    {
+      "id": "DRC0-W-1475-current",
+      "kind": "current-contract",
+      "decisions": ["W-1475"],
+      "study": "LLM0",
+      "stopCondition": "every readiness gap has one owner class, bounded workload relation, and explicit evidence boundary",
+      "missingEvidence": ["typed IR and compiler implementation", "kernels and runtime providers", "training framework", "inference framework", "measured performance"]
+    }
+  ]
+}

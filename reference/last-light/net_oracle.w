@@ -137,8 +137,8 @@ async fn udpOracle(
   // W-1252: the two unique halves progress independently without a shared
   // socket or lock in application source.
   let (receive, send) = (take socket).split()
-  async let inbound = receive.receive(maximumBytes: 1<iec.KiB>)
-  async let outbound = send.send(source: probe, to: peer)
+  let inbound = async receive.receive(maximumBytes: 1<iec.KiB>)
+  let outbound = async send.send(source: probe, to: peer)
   let (received, _) = try await (inbound, outbound)
   let datagram: net.Datagram = take received
   if datagram.truncated {

@@ -16,7 +16,7 @@ const requiredIds = new Set([
   "EE-POS-callable-external-internal-label",
   "EE-POS-label-shapes-disjoint",
   "EE-POS-await-may",
-  "EE-POS-async-let-sync",
+  "EE-POS-async-child-sync",
   "EE-POS-spawn-may",
   "EE-POS-scc-inference",
   "EE-INFO-public-widening",
@@ -142,6 +142,7 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
     if (!declaration) errors.push(`${item.id}: source spelling ${expected.sourceSpelling}`)
   }
   if (expected.callForm && !firstCall(result, expected.callForm, expected.callee)) errors.push(`${item.id}: call form ${expected.callForm}`)
+  if (expected.syncCurrent !== undefined && result.suspension.syncBridges.find((bridge) => bridge.callee === expected.callee)?.eligible !== expected.syncCurrent) errors.push(`${item.id}: sync current contract`)
   if (expected.childForm && !result.suspension.children.some((child) => child.form === expected.childForm)) errors.push(`${item.id}: child form ${expected.childForm}`)
   if (expected.childAccepts && JSON.stringify(result.suspension.children[0]?.accepts) !== JSON.stringify(expected.childAccepts)) errors.push(`${item.id}: child callable policy`)
   if (expected.sccSuspension) {

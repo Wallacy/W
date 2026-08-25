@@ -301,13 +301,13 @@
       "task": "Dispatch bounded planning to the product-selected compute domain.",
       "selected": {
         "language": "w",
-        "source": ["spawn<.compute> let plan = optimize(take snapshot)"]
+        "source": ["let plan = spawn<.compute> optimize(take snapshot)"]
       },
       "alternatives": [
         {
           "name": "named-domain-label",
           "language": "w",
-          "source": ["spawn<domain: .compute> let plan = optimize(take snapshot)"],
+          "source": ["let plan = spawn<domain: .compute> optimize(take snapshot)"],
           "expectedDifference": "This is the same optional-label slot in named source spelling; it normalizes to the same domain HIR while the formatter preserves the source spelling."
         },
         {
@@ -906,7 +906,7 @@
       "task": "Cancel sibling work on the first settled application error and select deterministically after drain.",
       "selected": {
         "language": "w",
-        "source": ["async let cooked = cook(order)", "async let billed = bill(order)", "let result = try await (cooked, billed)"]
+        "source": ["let cooked = async cook(order)", "let billed = async bill(order)", "let result = try await (cooked, billed)"]
       },
       "alternatives": [
         {

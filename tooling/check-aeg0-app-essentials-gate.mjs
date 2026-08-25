@@ -59,7 +59,7 @@ export function main(argv = process.argv.slice(2)) {
   if (corpus && JSON.stringify(corpus).includes('"expected"')) errors.push("AEG0 corpus must not contain expected echo.");
   const mutations = mutationChecks();
   for (const [name, passed] of Object.entries(mutations)) if (passed !== true) errors.push(`AEG0 mutation check failed: ${name}.`);
-  if (!researchZero()) errors.push("AEG0 requires global Research=0 and W-1454..W-1458 oracle-backed-current.");
+  if (!researchZero()) errors.push("AEG0 requires Research=0 through W-1459 and W-1454..W-1458 oracle-backed-current.");
   checkStudyArtifacts(errors);
   if (corpus) {
     const projected = snapshotText(checked.results, mutations);
@@ -69,7 +69,7 @@ export function main(argv = process.argv.slice(2)) {
   if (errors.length > 0) { process.stderr.write(`${errors.join("\n")}\n`); process.exitCode = 1; return false; }
   const accepted = checked.results.filter((result) => result.status === "accepted").length;
   const rejected = checked.results.filter((result) => result.status === "rejected").length;
-  process.stdout.write(`AEG0 app-essentials-gate: ${checked.results.length} cases, ${accepted} current accepted, ${rejected} rejected; Research=0 and mutation guards green.\n`);
+  process.stdout.write(`AEG0 app-essentials-gate: ${checked.results.length} cases, ${accepted} current accepted, ${rejected} rejected; historical Research=0 through W-1459 and mutation guards green.\n`);
   return true;
 }
 if (import.meta.main) main();

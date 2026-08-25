@@ -29,7 +29,7 @@ async fn mixGalleyPair(
   starboardDelay: u16,
   starboardFails: Bool,
 ): (u32, u32) throws MixingError {
-  async let port = mixPort(portDelay, fails: portFails)
-  async let starboard = mixStarboard(starboardDelay, fails: starboardFails)
+  let port = async mixPort(portDelay, fails: portFails)
+  let starboard = async mixStarboard(starboardDelay, fails: starboardFails)
   return try await (port, starboard)
 }

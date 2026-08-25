@@ -152,12 +152,12 @@ export async fn mirrorReadableBytes<
     maximumBufferedBytes: maximumBufferedBytes,
   )
 
-  async let leftPump = pumpReadableBytes(
+  let leftPump = async pumpReadableBytes(
     take left,
     destination: take leftDestination,
     maximumChunkBytes: maximumChunkBytes,
   )
-  async let rightPump = pumpReadableBytes(
+  let rightPump = async pumpReadableBytes(
     take right,
     destination: take rightDestination,
     maximumChunkBytes: maximumChunkBytes,
@@ -199,8 +199,8 @@ export async fn runBoundedOrderWindow(
 ): Array<Order> throws ChannelSendError<Order><[.closed]> {
   let (output, input) = Channel<Order>.open(capacity: 1)
 
-  async let firstSend = submitOrder(copy output, take first)
-  async let secondSend = submitOrder(copy output, take second)
+  let firstSend = async submitOrder(copy output, take first)
+  let secondSend = async submitOrder(copy output, take second)
   let _ = take output
 
   let accepted = await acceptOrders(take input)
@@ -214,7 +214,7 @@ export async fn handOffAtRendezvous(
 ): Order throws ChannelSendError<Order><[.closed]> {
   let (output, input) = Channel<Order>.open(capacity: 0)
 
-  async let received = (take input).receive()
+  let received = async (take input).receive()
   try await output.send(take order)
 
   guard let receivedOrder = await received else {
@@ -254,8 +254,8 @@ export async fn recoverAfterReceiverAbort(
 
 // Compile-fail assays:
 // let _ = Channel<view String>.open(capacity: 1) // A view is not transferable.
-// async let left = input.receive()          // The receiver is not shareable.
-// async let right = input.receive()
+// let left = async input.receive()          // The receiver is not shareable.
+// let right = async input.receive()
 // output.close()                             // Senders cannot close globally.
 // borrowedLines.append(line)                // The view would cross the next iteration.
 // let next = try await lines.next()         // Rejected when `line` is used again later.

@@ -48,13 +48,13 @@
     {
       "path": "../../../reference/last-light/synchronization.w",
       "symbol": "export object HorizonTelemetryEpoch",
-      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+      "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961",
       "claim": "current atomic order and extent witness"
     },
     {
       "path": "../../../reference/last-light/synchronization.w",
       "symbol": "export object HorizonMenuPublication",
-      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+      "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961",
       "claim": "snapshot publication witness"
     },
     {
@@ -123,7 +123,7 @@
   },
   "bundle": {
     "path": "bundle.json",
-    "digest": "sha256:cc88342d4b8d1b40ae958c38410a8011bf5e891e014dd3b65cca94fde0198837"
+    "digest": "sha256:7bb634251a6743840c41d84eed08044277c4d8a372de39287129fbb6422929e6"
   },
   "studyOracle": {
     "path": "oracle.test.mjs",

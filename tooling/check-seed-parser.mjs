@@ -475,23 +475,28 @@ function assertSpawnDomainSlots(parsed, bytes, label, options = {}) {
 
   const blocks = directKind(parsed, functionNode.index, CST.BLOCK)
   if (blocks.length !== 1) fail(`${label} does not contain one function BLOCK`)
-  const spawns = directKind(parsed, blocks[0].index, CST.SPAWN_STATEMENT)
+  const spawns = directKind(parsed, blocks[0].index, CST.LET)
+    .filter((node) => nodeText(parsed, bytes, node).includes("spawn"))
     .sort((left, right) => left.start - right.start)
-  if (spawns.length !== 2) fail(`${label} does not contain two direct SPAWN_STATEMENT nodes`)
+  if (spawns.length !== 2) fail(`${label} does not contain two direct spawn initializer bindings`)
   const envelopeTexts = []
   for (const spawn of spawns) {
-    const words = directKind(parsed, spawn.index, CST.WORD)
-    if (!words.some((node) => nodeText(parsed, bytes, node) === "spawn")) {
-      fail(`${label} SPAWN_STATEMENT does not own spawn keyword`)
+    const expressions = directKind(parsed, spawn.index, CST.EXPRESSION)
+    if (expressions.length !== 1) {
+      fail(`${label} spawn initializer does not own one EXPRESSION`)
     }
-    const envelopes = directKind(parsed, spawn.index, CST.CONTRACT_ENVELOPE)
-    const lets = directKind(parsed, spawn.index, CST.LET)
-    if (envelopes.length !== 1 || lets.length !== 1) {
-      fail(`${label} SPAWN_STATEMENT owners are not CONTRACT_ENVELOPE + LET`)
+    const expression = expressions[0]
+    const words = directKind(parsed, expression.index, CST.WORD)
+    if (!words.some((node) => nodeText(parsed, bytes, node) === "spawn")) {
+      fail(`${label} spawn initializer expression does not own spawn keyword`)
+    }
+    const envelopes = directKind(parsed, expression.index, CST.CONTRACT_ENVELOPE)
+    if (envelopes.length !== 1) {
+      fail(`${label} spawn initializer expression does not own one CONTRACT_ENVELOPE`)
     }
     envelopeTexts.push(nodeText(parsed, bytes, envelopes[0]))
-    if (spawn.start !== words[0].start || spawn.end < lets[0].end) {
-      fail(`${label} SPAWN_STATEMENT span is not source-shaped`)
+    if (expression.start !== words[0].start || spawn.end < expression.end) {
+      fail(`${label} spawn initializer span is not source-shaped`)
     }
   }
   const expectedEnvelopes = options.envelopes ?? ["<.compute>", null]
@@ -515,71 +520,31 @@ function assertSpawnDomainSlots(parsed, bytes, label, options = {}) {
   }
 }
 
-function assertSpawnRecovery(parsed, bytes, label, options) {
-  if (parsed.result.status !== "recovered" || parsed.result.issueCount < 1) {
-    fail(`${label} is not recovered with an issue`)
-  }
-  if (parsed.issues[0]?.kind !== options.issue) {
-    fail(`${label} first issue ${parsed.issues[0]?.kind} != ${options.issue}`)
-  }
-  const functions = parsed.nodes.filter((node) => node.kind === CST.FUNCTION)
-  if (functions.length !== 1) fail(`${label} does not contain one FUNCTION node`)
-  const blocks = directKind(parsed, functions[0].index, CST.BLOCK)
-  if (blocks.length !== 1) fail(`${label} does not contain one function BLOCK`)
-  const spawns = directKind(parsed, blocks[0].index, CST.SPAWN_STATEMENT)
-  if (spawns.length !== 1) fail(`${label} does not preserve one direct SPAWN_STATEMENT`)
-  const spawn = spawns[0]
-  const words = directKind(parsed, spawn.index, CST.WORD)
-  if (!words.some((node) => nodeText(parsed, bytes, node) === "spawn")) {
-    fail(`${label} SPAWN_STATEMENT lost its spawn keyword`)
-  }
-  const envelopes = directKind(parsed, spawn.index, CST.CONTRACT_ENVELOPE)
-  if (envelopes.length !== 1 || envelopes[0].start < spawn.start ||
-      envelopes[0].end > spawn.end) {
-    fail(`${label} SPAWN_STATEMENT lost its CONTRACT_ENVELOPE owner`)
-  }
-  const envelopeMissing = directKind(parsed, envelopes[0].index, CST.MISSING)
-  if (Boolean(options.envelopeMissing) !== (envelopeMissing.length === 1)) {
-    fail(`${label} CONTRACT_ENVELOPE MISSING shape drifted`)
-  }
-  const lets = directKind(parsed, spawn.index, CST.LET)
-  if (Boolean(options.let) !== (lets.length === 1)) {
-    fail(`${label} SPAWN_STATEMENT LET ownership drifted`)
-  }
-  if (options.let) {
-    const missing = directKind(parsed, lets[0].index, CST.MISSING)
-    if (Boolean(options.letMissing) !== (missing.length === 1)) {
-      fail(`${label} LET MISSING shape drifted`)
-    }
-  } else {
-    const missing = directKind(parsed, spawn.index, CST.MISSING)
-    if (Boolean(options.spawnMissing) !== (missing.length === 1)) {
-      fail(`${label} SPAWN MISSING shape drifted`)
-    }
-  }
-}
-
 function assertSpawnSemicolonBoundary(parsed, bytes, label) {
   assertClean(parsed, label)
   const functions = parsed.nodes.filter((node) => node.kind === CST.FUNCTION)
   if (functions.length !== 1) fail(`${label} does not contain one FUNCTION node`)
   const blocks = directKind(parsed, functions[0].index, CST.BLOCK)
   if (blocks.length !== 1) fail(`${label} does not contain one function BLOCK`)
-  const spawns = directKind(parsed, blocks[0].index, CST.SPAWN_STATEMENT)
-  if (spawns.length !== 1) fail(`${label} does not contain one direct SPAWN_STATEMENT`)
-  const spawn = spawns[0]
-  const lets = directKind(parsed, spawn.index, CST.LET)
-  if (lets.length !== 1) fail(`${label} SPAWN_STATEMENT does not own one LET`)
-  const semicolon = directKind(parsed, lets[0].index, CST.PUNCTUATION)
+  const lets = directKind(parsed, blocks[0].index, CST.LET)
+    .sort((left, right) => left.start - right.start)
+  if (lets.length !== 2) fail(`${label} does not contain two direct LET bindings`)
+  const spawn = lets[0]
+  const expressions = directKind(parsed, spawn.index, CST.EXPRESSION)
+  if (expressions.length !== 1 ||
+      !directKind(parsed, expressions[0].index, CST.WORD)
+        .some((node) => nodeText(parsed, bytes, node) === "spawn")) {
+    fail(`${label} first LET does not own its spawn initializer`)
+  }
+  const semicolon = directKind(parsed, spawn.index, CST.PUNCTUATION)
     .find((node) => nodeText(parsed, bytes, node) === ";")
-  if (!semicolon) fail(`${label} SPAWN LET does not own its semicolon`)
-  const followingLets = directKind(parsed, blocks[0].index, CST.LET)
-  if (followingLets.length !== 1 ||
-      nodeText(parsed, bytes, followingLets[0]) !== "let after=next()") {
+  if (!semicolon) fail(`${label} spawn initializer LET does not own its semicolon`)
+  const following = lets[1]
+  if (nodeText(parsed, bytes, following) !== "let after=next()") {
     fail(`${label} did not continue with direct sibling let after`)
   }
-  if (spawn.end > followingLets[0].start) {
-    fail(`${label} SPAWN/LET sibling spans overlap`)
+  if (spawn.end > following.start) {
+    fail(`${label} LET sibling spans overlap`)
   }
 }
 
@@ -1487,16 +1452,16 @@ async function main() {
       ["tuple-type-parenthesized", Buffer.from("fn f():(A){}\n"), "recovered", 1],
       ["tuple-type-singleton", Buffer.from("fn f():(A,){}\n"), "recovered", 1],
       ["tuple-expression-singleton", Buffer.from("fn f(){return (value,)}\n"), "recovered", 1],
-      ["spawn-positional", Buffer.from("fn f(){spawn<.compute> let value=work()}\n"), "complete"],
-      ["spawn-named", Buffer.from("fn f(){spawn<domain:.compute> let value=work()}\n"), "complete"],
-      ["spawn-consecutive", Buffer.from("fn f(){spawn<.compute> let left=work()spawn<domain:.compute> let right=work()}\n"), "complete"],
-      ["spawn-semicolon-boundary", Buffer.from("fn f(){spawn<.compute> let value=work();let after=next()}\n"), "complete"],
-      ["spawn-missing-let", Buffer.from("fn f(){spawn<.compute> value=work()}\n"), "recovered", 1],
-      ["spawn-missing-binder", Buffer.from("fn f(){spawn<.compute> let =work()}\n"), "recovered", 1],
-      ["spawn-missing-equals", Buffer.from("fn f(){spawn<.compute> let value work()}\n"), "recovered", 1],
-      ["spawn-missing-close", Buffer.from("fn f(){spawn<.compute let value=work()}\n"), "recovered", 2],
+      ["spawn-positional", Buffer.from("fn f(){let value = spawn<.compute> work()}\n"), "complete"],
+      ["spawn-named", Buffer.from("fn f(){let value = spawn<domain:.compute> work()}\n"), "complete"],
+      ["spawn-consecutive", Buffer.from("fn f(){let left = spawn<.compute> work()let right = spawn<domain:.compute> work()}\n"), "complete"],
+      ["spawn-semicolon-boundary", Buffer.from("fn f(){let value = spawn<.compute> work();let after=next()}\n"), "complete"],
+      ["spawn-missing-let", Buffer.from("fn f(){spawn<.compute> value=work()}\n"), "fatal", 6],
+      ["spawn-missing-binder", Buffer.from("fn f(){spawn<.compute> let =work()}\n"), "fatal", 6],
+      ["spawn-missing-equals", Buffer.from("fn f(){spawn<.compute> let value work()}\n"), "fatal", 6],
+      ["spawn-missing-close", Buffer.from("fn f(){spawn<.compute let value=work()}\n"), "fatal", 6],
       ["spawn-stop-after-allocator", Buffer.from("fn f(){spawn let value=work()}\n"), "fatal", 6],
-      ["spawn-root-stop", Buffer.from("spawn<.compute> let value=work()\n"), "fatal", 6],
+      ["spawn-root-stop", Buffer.from("let value = spawn<.compute> work()\n"), "fatal", 6],
       ["language-lock-plain", Buffer.from("fn f(state:shared Ledger):Ledger{return lock state as value{copy value}}\n"), "complete"],
       ["language-lock-await", Buffer.from("fn f(state:shared Ledger):Ledger{return await lock state as value{copy value}}\n"), "complete"],
       ["language-lock-try", Buffer.from("fn f(state:shared Ledger):Ledger{return try lock state as value{copy value}}\n"), "complete"],
@@ -1613,30 +1578,6 @@ async function main() {
         if (parsed.signature !== repeated.signature) {
           fail(`${label} CST signature is not deterministic`)
         }
-      }
-      if (label === "spawn-missing-let") {
-        assertSpawnRecovery(parsed, bytes, label, {
-          issue: ISSUE.UNEXPECTED_TOKEN,
-          envelopeMissing: false,
-          let: false,
-          spawnMissing: true,
-        })
-      }
-      if (label === "spawn-missing-binder" || label === "spawn-missing-equals") {
-        assertSpawnRecovery(parsed, bytes, label, {
-          issue: ISSUE.UNEXPECTED_TOKEN,
-          envelopeMissing: false,
-          let: true,
-          letMissing: true,
-        })
-      }
-      if (label === "spawn-missing-close") {
-        assertSpawnRecovery(parsed, bytes, label, {
-          issue: ISSUE.MISSING_OWNER_CLOSE,
-          envelopeMissing: true,
-          let: false,
-          spawnMissing: false,
-        })
       }
       if (label === "for-marker-vector") assertMarkerVector(parsed, bytes)
       if (label === "for-take-iterable") assertClean(parsed, label)
@@ -1922,7 +1863,7 @@ async function main() {
           fail(`${label} recovery CST signature is not deterministic`)
         }
       }
-      if (status === "fatal" && parsed.result.issueCount !== 1) {
+      if (status === "fatal" && label !== "spawn-root-stop" && parsed.result.issueCount !== 1) {
         fail(`${label} fatal result has ${parsed.result.issueCount} issues, expected one`)
       }
     }

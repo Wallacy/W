@@ -2,5 +2,5 @@
 module frc0_current
 
 fn finalResearchClosure(): String {
-  return "FRC0 closes W-001 through W-1450 and PFU0 W-1451 W-1452 W-1453; global Research=0"
+  return "FRC0 closes W-001 through W-1453; DRC0 closes W-1471 W-1473 W-1474 W-1475; Research is zero"
 }

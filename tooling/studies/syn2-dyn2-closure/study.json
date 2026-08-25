@@ -9,18 +9,18 @@
   "profileSurface": "absent",
   "productionDynamicMode": "rejected",
   "buildsOn": [
-    {"id": "SYN1", "role": "evidence-input", "path": "../syn1-typed-generation/study.json", "digest": "sha256:f9900bcd546773293f230bc3c84c5442beb2e8b337531a422386a2d44b99f2b1", "claim": "typed generation, content-addressed module sets, normal-unit reopen, target/source-map evidence"},
-    {"id": "DYN1", "role": "evidence-input", "path": "../dyn1-versioned-behavior/study.json", "digest": "sha256:b4b86c9046d783a3e9ece6157e43267120d07a3947bcf9a33e2686c217fc28f1", "claim": "versioned behavior, receipts, cleanup, and rejected dynamic mechanisms"},
-    {"id": "HRD0", "role": "evidence-input", "path": "../hrd0-hot-reload-dev/study.json", "digest": "sha256:51dc24cd1f821a90010f02f7af2fa64a104eca608f70b98e43434c0257fcf78d", "claim": "development-only runner, local/split cleanup, and mutation boundary"}
+    {"id": "SYN1", "role": "evidence-input", "path": "../syn1-typed-generation/study.json", "digest": "sha256:7bdf374d43358f8170f88627abc8abba91b292cdd85ef5fdcdbca9eae20647ac", "claim": "typed generation, content-addressed module sets, normal-unit reopen, target/source-map evidence"},
+    {"id": "DYN1", "role": "evidence-input", "path": "../dyn1-versioned-behavior/study.json", "digest": "sha256:d614d348490190c722dc89e6f7b7c690c1030a3f8a1609a01615705796e1514d", "claim": "versioned behavior, receipts, cleanup, and rejected dynamic mechanisms"},
+    {"id": "HRD0", "role": "evidence-input", "path": "../hrd0-hot-reload-dev/study.json", "digest": "sha256:4b357618f3305a39d5f7dea502828a697065261aa0dd787f8a7c8a0596d10a9e", "claim": "development-only runner, local/split cleanup, and mutation boundary"}
   ],
   "artifacts": {
     "corpus": {"path": "../../syn2-dyn2-closure-cases.json", "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84"},
     "machine": {"path": "../../syn2-dyn2-closure-machine.mjs", "digest": "sha256:d0af8a4a7dcc3a391c772cde48352b00fa9281c49a83838404a621a5c46f2c9e"},
     "checker": {"path": "../../check-syn2-dyn2-closure.mjs", "digest": "sha256:090d48fc3674ea9317e024082a1da688551abbb37cf987f86637ab3a719f784d"},
     "nestedChecker": {"path": "check.mjs", "digest": "sha256:9b6ef3f6967a7ed72fd104784b4aeff80d7be15dc9482e51768c3d1bed7a4687"},
-    "snapshot": {"path": "../../syn2-dyn2-closure-results.snapshot.jsonl", "digest": "sha256:fa9aeffb6eaefca95d952bcc6c6b1a04f632a5ba0ad8240e5e77b5dc62a2315e"},
+    "snapshot": {"path": "../../syn2-dyn2-closure-results.snapshot.jsonl", "digest": "sha256:10c3ee91e9a29b0cf59ca94dedbefc86830a4489edd3df37b5ac2832fce7fd48"},
     "studyOracle": {"path": "oracle.test.mjs", "digest": "sha256:2f66c1c2c6891c4c4209e127358c0b00d5aed82d5156ab4ab4db84021169a611"},
-    "bundle": {"path": "bundle.json", "digest": "sha256:d02832ca71f20416db36a2f5ee62a158e2675738b23552b41929a13dbed74033"}
+    "bundle": {"path": "bundle.json", "digest": "sha256:0605aa3a6c3e4f6a36e2d8db8b3886fac1b86fc1ac376c24256b8a2cd2b04b6d"}
   },
   "sourceRefs": [
     {"path": "reference/last-light/packages/menu-compiler/transform.w", "symbol": "maximumBytes", "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744", "role": "bounded-transform"},
@@ -28,7 +28,7 @@
     {"path": "reference/last-light/hot_reload_dev_contract.w", "symbol": "ReloadResult", "digest": "sha256:df68bb6bc675cae9e7a541cdbb17bc8ef84ddabdcc228c87c2f50eeb2bf7127e", "role": "event-outcome-contract"},
     {"path": "reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40", "role": "WAbi-callback-boundary"},
     {"path": "reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "role": "cleanup-drain"},
-    {"path": "reference/last-light/build.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f", "role": "package-identity"}
+    {"path": "reference/last-light/build.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038", "role": "package-identity"}
   ],
   "officialRefs": [
     {"url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf", "role": "C-lifetime-translation"},

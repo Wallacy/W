@@ -174,15 +174,16 @@
       "expect": { "callee": "load", "suspension": "may", "callForm": "await", "sourceSpelling": "inferred" }
     },
     {
-      "id": "EE-POS-async-let-sync",
+      "id": "EE-POS-async-child-sync",
       "kind": "positive",
-      "source": "fn sync(value): Value { return value }\nasync let child = sync(input)\nlet value = await child",
-      "expect": { "childForm": "async let", "childAccepts": ["never", "may"] }
+      "decisionIds": ["W-1470"],
+      "source": "fn sync(value): Value { return value }\nlet child = async sync(input)\nlet value = await child",
+      "expect": { "childForm": "async", "childAccepts": ["never", "may"] }
     },
     {
       "id": "EE-POS-spawn-may",
       "kind": "positive",
-      "source": "fn work(value): Value { await Task.yield(); return value }\nspawn<.compute> let child = work(input)\nlet value = await child",
+      "source": "fn work(value): Value { await Task.yield(); return value }\nlet child = spawn<.compute> work(input)\nlet value = await child",
       "expect": { "childForm": "spawn", "childAccepts": ["never", "may"] }
     },
     {
@@ -211,6 +212,31 @@
       "expect": { "callee": "load", "diagnostic": "W-SUSPEND-0001" }
     },
     {
+      "id": "EE-POS-sync-explicit-async-current",
+      "kind": "positive",
+      "decisionIds": ["W-1471"],
+      "source": "async fn func(): Value { await Task.yield(); return value }\nlet y = sync func()",
+      "expect": { "callee": "func", "callForm": "sync", "syncCurrent": true }
+    },
+    {
+      "id": "EE-NEG-sync-inferred-may",
+      "kind": "negative",
+      "source": "fn inferredMay(): Value { await Task.yield(); return value }\nlet y = sync inferredMay()",
+      "expect": { "callee": "inferredMay", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false }
+    },
+    {
+      "id": "EE-NEG-sync-ordinary-fn",
+      "kind": "negative",
+      "source": "fn ordinary(): Value { return value }\nlet y = sync ordinary()",
+      "expect": { "callee": "ordinary", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false }
+    },
+    {
+      "id": "EE-NEG-bare-explicit-async",
+      "kind": "negative",
+      "source": "async fn func(): Value { await Task.yield(); return value }\nlet w = func()",
+      "expect": { "callee": "func", "diagnostic": "W-SUSPEND-0001" }
+    },
+    {
       "id": "EE-INFO-await-never",
       "kind": "information",
       "source": "fn value(): Value { return 1 }\nfn caller(): Value { return await value() }",
@@ -225,37 +251,67 @@
     {
       "id": "EE-POS-child-staging",
       "kind": "positive",
-      "source": "async let child = work(prepare(input))\nspawn<domain: .compute> let parallel = work(capture)",
+      "source": "let child = async work(prepare(input))\nlet parallel = spawn<domain: .compute> work(capture)",
       "expect": { "evaluation": ["callee", "arguments", "captures", "reserve", "publish"], "child": "structured" }
+    },
+    {
+      "id": "EE-NEG-child-var-binding",
+      "kind": "negative",
+      "source": "var child = async work(input)",
+      "expect": { "diagnostic": "W-PLACEMENT-0004" }
+    },
+    {
+      "id": "EE-NEG-child-return",
+      "kind": "negative",
+      "source": "fn make() { return async work(input) }",
+      "expect": { "diagnostic": "W-PLACEMENT-0004" }
+    },
+    {
+      "id": "EE-NEG-child-expression-statement",
+      "kind": "negative",
+      "source": "fn run() { async work(input) }",
+      "expect": { "diagnostic": "W-PLACEMENT-0004" }
+    },
+    {
+      "id": "EE-NEG-child-nested-launcher",
+      "kind": "negative",
+      "source": "let child = async outer(async inner(input))",
+      "expect": { "diagnostic": "W-PLACEMENT-0004" }
+    },
+    {
+      "id": "EE-NEG-child-composed-expression",
+      "kind": "negative",
+      "source": "let child = async (work(input))",
+      "expect": { "diagnostic": "W-PLACEMENT-0004" }
     },
     {
       "id": "EE-POS-spawn-serial-domain",
       "kind": "positive",
-      "source": "module kitchen<domains: [.serial(.thermal)]>\nspawn<.thermal> let work = f()",
+      "source": "module kitchen<domains: [.serial(.thermal)]>\nlet work = spawn<.thermal> f()",
       "expect": { "domain": ".thermal", "scheduling": "serial-fifo", "overlapWithinTarget": false }
     },
     {
       "id": "EE-POS-spawn-main-domain",
       "kind": "positive",
-      "source": "spawn<.main> let update = render(plan)\nlet result = await update",
+      "source": "let update = spawn<.main> render(plan)\nlet result = await update",
       "expect": { "domain": ".main", "scheduling": "serial-fifo", "overlapWithinTarget": false }
     },
     {
       "id": "EE-POS-spawn-parallel-domain",
       "kind": "positive",
-      "source": "module kitchen<domains: [.serial(.thermal)]>\nspawn<.compute> let work = f()",
+      "source": "module kitchen<domains: [.serial(.thermal)]>\nlet work = spawn<.compute> f()",
       "expect": { "domain": ".compute", "scheduling": "domain-contract", "overlapWithinTarget": "capability-dependent" }
     },
     {
       "id": "EE-NEG-spawn-missing-domain",
       "kind": "negative",
-      "source": "spawn let work = f()",
+      "source": "let work = spawn f()",
       "expect": { "diagnostic": "W-PLACEMENT-0002" }
     },
     {
       "id": "EE-NEG-spawn-unknown-domain",
       "kind": "negative",
-      "source": "spawn<.missing> let work = f()",
+      "source": "let work = spawn<.missing> f()",
       "input": { "availableDomains": [".main", ".compute"] },
       "expect": { "diagnostic": "W-PLACEMENT-0002" }
     },
@@ -268,13 +324,13 @@
     {
       "id": "EE-POS-spawn-optional-domain",
       "kind": "positive",
-      "source": "spawn<.compute> let a = f()\nspawn<domain: .compute> let b = f()",
+      "source": "let a = spawn<.compute> f()\nlet b = spawn<domain: .compute> f()",
       "expect": { "sameOptionalDomainForm": true }
     },
     {
       "id": "EE-POS-barrier-read-write-read",
       "kind": "positive",
-      "source": "fn summarize(state: ref Menu): u64 { return state.revision }\nfn replace(state: inout Menu, revision value: u64): u64 { state.revision = value; return value }\nspawn<.catalog> let before = summarize(ref menu)\nspawn<.catalog, .barrier> let update = replace(inout menu, revision: next)\nspawn<.catalog> let after = summarize(ref menu)",
+      "source": "fn summarize(state: ref Menu): u64 { return state.revision }\nfn replace(state: inout Menu, revision value: u64): u64 { state.revision = value; return value }\nlet before = spawn<.catalog> summarize(ref menu)\nlet update = spawn<.catalog, .barrier> replace(inout menu, revision: next)\nlet after = spawn<.catalog> summarize(ref menu)",
       "input": { "domainCapabilities": { ".catalog": ["concurrent", "barrierDispatch"] } },
       "expect": {
         "domain": ".catalog",
@@ -289,7 +345,7 @@
     {
       "id": "EE-POS-barrier-serial-domain",
       "kind": "positive",
-      "source": "module kitchen<domains: [.serial(.thermal)]>\nfn replace(state: inout Menu): u64 { state.revision += 1; return state.revision }\nspawn<.thermal, .barrier> let update = replace(inout menu)",
+      "source": "module kitchen<domains: [.serial(.thermal)]>\nfn replace(state: inout Menu): u64 { state.revision += 1; return state.revision }\nlet update = spawn<.thermal, .barrier> replace(inout menu)",
       "expect": {
         "domain": ".thermal",
         "dispatchMode": ".barrier",
@@ -302,28 +358,28 @@
     {
       "id": "EE-NEG-barrier-capability-missing",
       "kind": "negative",
-      "source": "fn replace(state: inout Menu): u64 { return state.revision }\nspawn<.catalog, .barrier> let update = replace(inout menu)",
+      "source": "fn replace(state: inout Menu): u64 { return state.revision }\nlet update = spawn<.catalog, .barrier> replace(inout menu)",
       "input": { "domainCapabilities": { ".catalog": ["concurrent"] } },
       "expect": { "diagnostic": "W-PLACEMENT-0003" }
     },
     {
       "id": "EE-NEG-barrier-may-suspend",
       "kind": "negative",
-      "source": "fn replace(state: inout Menu): u64 { await Task.yield(); return state.revision }\nspawn<.catalog, .barrier> let update = replace(inout menu)",
+      "source": "fn replace(state: inout Menu): u64 { await Task.yield(); return state.revision }\nlet update = spawn<.catalog, .barrier> replace(inout menu)",
       "input": { "domainCapabilities": { ".catalog": ["concurrent", "barrierDispatch"] } },
       "expect": { "diagnostic": "W-SUSPEND-0004" }
     },
     {
       "id": "EE-NEG-ordinary-domain-write",
       "kind": "negative",
-      "source": "fn replace(state: inout Menu): u64 { return state.revision }\nspawn<.catalog> let update = replace(inout menu)",
+      "source": "fn replace(state: inout Menu): u64 { return state.revision }\nlet update = spawn<.catalog> replace(inout menu)",
       "input": { "domainCapabilities": { ".catalog": ["concurrent", "barrierDispatch"] } },
       "expect": { "diagnostic": "W-OWNERSHIP-0012" }
     },
     {
       "id": "EE-NEG-barrier-open-access-graph",
       "kind": "negative",
-      "source": "fn summarize(state: ref Menu): u64 { return state.revision }\nfn replace(state: inout Menu): u64 { return state.revision }\nspawn<.catalog> let before = summarize(ref menu)\nspawn<.catalog, .barrier> let update = replace(inout menu)",
+      "source": "fn summarize(state: ref Menu): u64 { return state.revision }\nfn replace(state: inout Menu): u64 { return state.revision }\nlet before = spawn<.catalog> summarize(ref menu)\nlet update = spawn<.catalog, .barrier> replace(inout menu)",
       "input": {
         "domainCapabilities": { ".catalog": ["concurrent", "barrierDispatch"] },
         "openPlaces": ["menu"]

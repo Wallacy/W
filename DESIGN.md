@@ -111,8 +111,8 @@ O caminho comum combina poucos marcadores no call site:
 ```w
 let digest = hash(data)
 let menu = try await fetchMenu()
-async let stock = pantry.reserve(order)
-spawn<.compute> let plan = optimize(take snapshot)
+let stock = async pantry.reserve(order)
+let plan = spawn<.compute> optimize(take snapshot)
 ```
 
 | Intenção | Forma corrente | Contrato principal |
@@ -125,8 +125,8 @@ spawn<.compute> let plan = optimize(take snapshot)
 | criar owners múltiplos reais | `let x: shared T = value`, binding local `shared` com `take` e `copy handle` | a declaração ou o move mostra allocation; cada retain continua explícito |
 | observar owner sem mantê-lo vivo | `weak T?` contextual e binding opcional | leitura em target normal adquire `shared T?`; weak não acessa payload |
 | suspender a task atual | `await` | mesma task, sem child; a retomada pode usar outro job |
-| criar child no domínio atual | `async let` | handle lexical, join e drain obrigatórios |
-| criar child em outro domínio | `spawn<domain> let` | placement explícito; serial ou paralelo conforme o domain |
+| criar child no domínio atual | `let x = async ...` | handle lexical, join e drain obrigatórios |
+| criar child em outro domínio | `let x = spawn<domain> ...` | placement explícito; serial ou paralelo conforme o domain |
 | executar kernel | as mesmas quatro formas + `accelerator.Launch` | Queue e transfer explícitas; owner, cancel e join não mudam |
 | reads concorrentes e write exclusivo | `spawn<domain>` + `.barrier` | tickets e loans verificados num grafo fechado |
 | proteger critical section curta | `lock`, `await lock` ou `try lock` sobre `shared T` | fallback da linguagem; sem guard, wrapper ou suspensão no body |
@@ -185,8 +185,9 @@ O design vigente não tenta:
 
 ### 0.4 Critérios de sucesso
 
-**Exemplo:** uma pessoa identifica por que `async let` usa o domínio atual e
-`spawn<domain> let` envia um child para outro domínio após ler um único exemplo.
+**Exemplo:** uma pessoa identifica por que `let x = async ...` usa o domínio
+atual e `let x = spawn<domain> ...` envia um child para outro domínio após ler
+um único exemplo.
 
 - Pessoas que conhecem C, Swift ou TypeScript entendem o Tour sem treinamento
   longo.
@@ -335,7 +336,7 @@ type BoundedString<_ bounds: Bounds> =
   String<(.scalars.count in bounds.min...bounds.max)>
 type Label = BoundedString<{min: 1, max: 40}>
 
-spawn<.compute> let plan = optimize(take snapshot)
+let plan = spawn<.compute> optimize(take snapshot)
 unsafe fn<C> checksum(data: c.ptr<c.uchar>): c.uint { ... }
 ```
 
@@ -480,7 +481,7 @@ O frontend normaliza a superfície para records tipados:
 u16<(1...65_535)>
   → TypeContract(base: u16, refinement: value in 1...65_535)
 
-spawn<.compute> let plan = optimize(order)
+let plan = spawn<.compute> optimize(order)
   → TaskContract(kind: .spawn, domain: .compute, mode: .ordinary)
 
 unsafe fn<Rust> checksum(...)
@@ -2669,7 +2670,7 @@ projeções antes de tentar o case seguinte.
 | Construção | Regra de type e effect | Regra de flow e ownership |
 |---|---|---|
 | `let` ou `var` | initializer precisa atender annotation ou inference única | binding nasce somente após success completo |
-| `async let` ou `spawn<domain> let` | initializer precisa ser child-compatible; result é `Task<T, E>` | staging avalia e transfere inputs antes de criar o child |
+| `let x = async ...` ou `let x = spawn<domain> ...` | initializer precisa ser child-compatible; result é `Task<T, E>` | staging avalia e transfere inputs antes de criar o child |
 | expression statement | exige `()` ou `Never` | um value comum exige binding ou `let _` |
 | `return value` | value atende o return type; errors internos já foram tratados | transfere result e sai da function ou closure owner |
 | `throw error` | error possui rota total ao `throws E` ativo | produz `Never` e executa cleanup até o error owner |
@@ -2698,9 +2699,9 @@ callable, argumentos e captures. O child executa o body do callable. Uma
 expressão composta precisa ficar numa função ou closure explícita.
 
 ```w
-async let total = loadTotal(source)
+let total = async loadTotal(source)
 
-async let invalid = loadLeft(source) + loadRight(source)
+let invalid = async loadLeft(source) + loadRight(source)
 // error: a soma não possui um único callable root
 ```
 
@@ -3710,8 +3711,8 @@ export service kitchen: KitchenApi {
   var completed: u64 = 0
 
   mut async fn prepare(order: take Order): Dish throws KitchenError {
-    async let stock = checkStock(order)
-    spawn<.compute> let plan = optimizePlan(order)
+    let stock = async checkStock(order)
+    let plan = spawn<.compute> optimizePlan(order)
 
     let (stock, plan) = try await (stock, plan)
     return try await execute(stock, plan: plan)
@@ -9924,10 +9925,10 @@ async fn stageForParallel(
 ): () throws AllocationError {
   allocator scratch: .fixed<capacity: 8<iec.MiB>> {
     let local = try Menu.parse(payload)
-    // spawn<.compute> let invalid = consume(take local)
+    // let invalid = spawn<.compute> consume(take local)
 
     let portable = try (take local).rehome(allocator: memory)
-    spawn<.compute> let valid = consume(take portable)
+    let valid = spawn<.compute> consume(take portable)
     try await valid
   }
 }
@@ -10035,6 +10036,19 @@ bounds ou metadata não fazem parte do endereço.
 formatação hexadecimal e `bits: Address<space: S>.Bits`. Ele não atende a
 `Numeric` ou `Comparable`. Operar em `bits` não cria um pointer, identidade ou
 provenance.
+
+Alignment, tagging e masking operam nos bits do `Address`, nunca diretamente
+no pointer:
+
+```w
+let location = pointer.address
+let alignment = location.bits & mask
+let masked = location.withBits(location.bits & mask)
+let rebound = unsafe { pointer.withAddress(masked) }
+```
+
+O pointer original preserva sua provenance. `withAddress` não fabrica bounds,
+lifetime ou authority. Bitwise direto sobre pointer é rejeitado.
 
 `address(of:)` termina seu borrow depois da avaliação. Ele cria uma barreira de
 placement durante essa avaliação, mas não fixa o valor para usos futuros. Move,
@@ -11095,27 +11109,27 @@ estrutura interna do scheduler.
 ```w
 let digest = hash(data)
 let menu = try await fetchMenu()
-async let stock = pantry.reserve(order)
-spawn<.compute> let plan = optimize(take snapshot)
+let stock = async pantry.reserve(order)
+let plan = spawn<.compute> optimize(take snapshot)
 ```
 
 | Forma | Início | Intenção | Resultado |
 |---|---|---|---|
 | call direta (`neverSuspend`) | agora | mesma task, sem suspensão | valor ou error |
 | `await` direto | agora | suspender o caller | valor ou error |
-| `async let` | na declaração | child estruturado no domain atual | `Task<T, E>` |
-| `spawn<domain> let` | na declaração | child estruturado no domínio explícito | `Task<T, E>` |
+| initializer `async` (`let x = async ...`) | no initializer | child estruturado no domain atual | `Task<T, E>` |
+| initializer `spawn<domain>` (`let x = spawn<domain> ...`) | no initializer | child estruturado no domínio explícito | `Task<T, E>` |
 
-Uma call que pode suspender precisa de `await`, `async let` ou `spawn<domain> let`.
+Uma call que pode suspender precisa de `await`, initializer `async` ou `spawn<domain>`.
 Uma call direta a `maySuspend` é erro. W não cria Promise ou Future silenciosa.
-`async let` não promete outro core. `spawn` não promete paralelismo. O contrato
+O initializer `async` não promete outro core. `spawn` não promete paralelismo. O contrato
 do domínio selecionado define serialização, concorrência e paralelismo.
 
 `await f()` executa `f` como parte da task atual. Ele não cria um child. A call
 começa na ordem lexical e herda cancellation, deadline e preference. Um
 suspension point pode devolver o executor ao runtime.
 
-`async let` e `spawn<domain> let` criam um child depois que o parent avalia
+`let x = async ...` e `let x = spawn<domain> ...` criam um child depois que o parent avalia
 callee, argumentos e captures lexicais. O body do callee executa no child. Ele
 não executa parcialmente no parent.
 
@@ -11137,7 +11151,7 @@ recebem os ingredientes por `Channel<Ingredient>` ou são children de um group.
 ### 12.2.1 Suspensão inferida e formas de call
 
 **W-1161 — suspensão inferida:** o compiler infere `maySuspend` do body e da HIR quando ela contém `await`,
-`async let`, `spawn` ou join implícito. A declaration não precisa repetir
+`async`, `spawn` ou join implícito. A declaration não precisa repetir
 `async`. W elimina a infecção **nominal** de `async`, não a propagação
 **semântica** de `maySuspend`: o efeito continua na HIR, no function type e na
 interface para preservar safety e calling convention. O suspension point
@@ -11158,12 +11172,12 @@ fixa `may` para todo o SCC. O widening semântico
 mudança source/API breaking; `async fn` explícito mantém `may` mesmo quando uma
 versão posterior deixa de suspender. O inverso só ocorre ao remover
 deliberadamente o contrato público. O checker rejeita o inverso implícito.
-`async let` e `spawn` aceitam callable sync ou suspending. A operação child
+Os launchers `async` e `spawn` aceitam callable sync ou suspending. A operação child
 trata a suspensão.
 
 `try` é ortogonal às quatro formas: aparece sempre que o callee ou o join tem
-`E != Never`, inclusive em `try await`, `async let` seguido de `try await` e
-`spawn` seguido de `try await`. Ele roteia somente a error edge; `await` trata a
+`E != Never`, inclusive em `try await`, um child `async` seguido de `try await`
+e `spawn` seguido de `try await`. Ele roteia somente a error edge; `await` trata a
 suspension edge.
 
 ```w
@@ -11174,8 +11188,8 @@ fn odd(n: usize): Bool {
 }
 
 // O SCC {even, odd} exporta maySuspend por causa de odd.
-async let local = syncWorker(input)       // callable neverSuspend é válido
-spawn<.compute> let remote = asyncWorker(input) // callable maySuspend também
+let local = async syncWorker(input)       // callable neverSuspend é válido
+let remote = spawn<.compute> asyncWorker(input) // callable maySuspend também
 let (a, b) = try await (local, remote)
 ```
 
@@ -11213,10 +11227,12 @@ Os diagnostics desta policy são:
 | `W-LABEL-0005` | call usa label desconhecido ou forma posicional/nomeada inválida |
 | `W-LABEL-0006` | call repete label ou fornece o mesmo slot normalizado duas vezes |
 | `W-LABEL-0007` | `named` redundante em initializer ou payload record-like |
-| `W-SUSPEND-0001` | call `maySuspend` sem `await`, `async let` ou `spawn` |
+| `W-SUSPEND-0001` | call `maySuspend` sem `await`, initializer `async` ou `spawn` |
 | `W-SUSPEND-0002` | `await` removível em callable `neverSuspend` |
 | `W-SUSPEND-0003` | blocking wait geral em execução estruturada |
 | `W-SUSPEND-0004` | job de dispatch `.barrier` pode suspender |
+| `W-SUSPEND-0005` | `sync` exige callable `maySuspend` com declaration `async fn` explícita |
+| `W-PLACEMENT-0004` | launcher child exige raiz callable única em initializer de binding lexical `let` |
 | `W-PLACEMENT-0001` | placement `spawn` aparece numa declaration em vez do call site |
 | `W-PLACEMENT-0002` | `spawn` não informa um domínio explícito ou informa um domínio inexistente |
 | `W-PLACEMENT-0003` | domínio concorrente não oferece `barrierDispatch` |
@@ -11230,6 +11246,65 @@ Os diagnostics desta policy são:
 | `W-DOC-0003` | example sem terminal único `result` ou `error` |
 | `W-DOC-0005` | example usa effect ambiental sem fixture explícito |
 | `W-STD-0001` | módulo std usa o field de tier retirado |
+
+### 12.2.2 W-1470: posição do launcher e W-1471: bridge `sync`
+
+**W-1470 — posição do launcher (Forma vigente):** a única forma corrente de
+criar child lexical por binding é:
+
+```w
+let stock = async pantry.reserve(order)
+let plan = spawn<.compute> optimize(take snapshot)
+let plan = spawn<domain: .compute> optimize(take snapshot)
+```
+
+`async` cria o child no domain atual. `spawn<domain>` cria o child no domain
+explícito. O initializer produz `Task<T, E>`, o handle continua cancelável e
+join, drain e cancelamento implícitos permanecem estruturados. Callee,
+arguments e captures são staged uma vez no parent antes do child existir.
+W-1470 remove sem shim as grafias declaration-like anteriores. A posição
+anterior vinha do modelo de declaration de Swift, mas W mantém o mesmo Task
+lexical nas duas grafias. O launcher no initializer alinha call direta, `await`,
+`async` e `spawn` e ajuda leitura humana e de máquina.
+
+O launcher exige a raiz callable única do initializer de um binding lexical
+`let`. `var`, `return`, armazenamento escapante, launcher aninhado e expression
+statement são rejeitados. Uma expressão composta também é rejeitada quando
+impede identificar uma única raiz callable. `await f()` continua na task atual
+e não cria child. `await task` faz join.
+
+**W-1471 — `sync` (Forma vigente de design; implementation-gap):** `sync` é a
+bridge blocking explícita para uma declaration cujo callee escreve `async fn`
+(`sourceSpelling: explicit`). Uma call bare de callable `maySuspend` continua
+error, nunca warning. O frontend e o runtime ainda não implementam a forma:
+
+```w
+let x = await func()
+let y = sync func()
+let w = func() // error para maySuspend
+let z = func1()
+let q = async func1()
+```
+
+`sync f()` executa a operação `maySuspend` até conclusão sem suspender o
+caller. A bridge preserva scope estruturado, cancellation, deadline, cleanup,
+join e drain e não cria detached task. Ela bloqueia a thread e acrescenta
+`blocksThread` ao effect summary. Só é admissível em entry/context/domain com
+blocking authority, quota bounded e provider de bridge. É rejeitada em
+cooperative, serial, signal, freestanding e nonblocking contexts, e quando o
+progresso depende do mesmo execution permit. `sync` sobre `neverSuspend` ou
+sobre `fn` sem `async` explícito é error, não warning ou no-op. Uma callable
+`maySuspend` apenas por inferência continua disponível para `await`, `async` e
+`spawn`, mas `sync inferredMay()` é error.
+
+O compiler só pode fazer lowering direto com prova. O fallback é uma runtime
+bridge, sem event loop reentrante oculto. Disponibilidade por target/provider,
+deadlock, fairness e cancellation continuam requisitos de implementação e
+conformance. Kotlin `runBlocking` é precedente para main, tests e callbacks,
+não prova universal. [`DRC0`](tooling/studies/drc0-design-research-closure/)
+fecha a escolha de design sem afirmar grammar, lowering, runtime bridge ou
+provider.
+
 
 ### 12.3 `Task` e ownership
 
@@ -11484,7 +11559,7 @@ cancelamento solicitado e completion do provider.
 
 ```w
 await fetchCatalog()
-spawn<.compute> let plan = optimize(take snapshot)
+let plan = spawn<.compute> optimize(take snapshot)
 ```
 
 **W-1162 — placement no call site:** `<.domain>` no call site seleciona uma preference estática do profile. Ele não
@@ -11500,7 +11575,7 @@ A resolução usa esta ordem:
 4. o callee isolado sempre executa em sua isolation boundary.
 
 Uma call por `ServiceRef` não muda o placement do callee. O contrato do child
-caller só muda seu trabalho não isolado. `async let` e groups concorrentes
+caller só muda seu trabalho não isolado. Initializers `async` e groups concorrentes
 herdam a preference. `spawn` seleciona um domínio explícito. Um future owner
 runtime precisa declarar sua preference de novo.
 
@@ -11515,14 +11590,14 @@ suspender, terminar ou fazer join. `await` e join implícito liberam o permit
 antes de aguardar; um wait síncrono para o mesmo domínio é rejeitado.
 
 Um child estruturado que seleciona o mesmo domínio entra no grupo de ticket do
-parent. Isso inclui `async let` herdado e `spawn<sameDomain>`. A barreira espera
+parent. Isso inclui initializer `async` herdado e `spawn<sameDomain>`. A barreira espera
 o subtree inteiro, mesmo quando o child nasce depois da admission da barreira.
 O child pode usar o permit enquanto o parent aguarda. Um child destinado a
 outro domínio recebe um ticket naquele destino. Essa regra evita o ciclo
 "barreira espera parent; parent espera child posterior à barreira".
 
 ```w
-spawn<.main> let update = renderer.show(plan)
+let update = spawn<.main> renderer.show(plan)
 let receipt = try await update
 ```
 
@@ -11532,8 +11607,8 @@ O placement não concede isolation. A call ainda precisa respeitar o contrato de
 `spawn<.compute>` e `spawn<domain: .compute>` ocupam o mesmo slot de domain
 com label opcional. `fn<C>` e `fn<lang: C>` seguem a mesma policy quando o
 schema declara esse slot. O formatter preserva a forma source. A HIR usa um
-domain normalizado. `spawn` sempre exige esse slot. A forma `spawn let` é erro
-semântico porque esconderia o placement. `spawn` é sempre uma decisão do call
+domain normalizado. `spawn` sempre exige esse slot. Um `spawn` sem binding `let`
+é erro semântico porque esconderia o placement. `spawn` é sempre uma decisão do call
 site. Declarations publicam somente requisitos de correctness, isolation,
 affinity, host ou device; cost pode gerar suggestion, nunca placement oculto.
 
@@ -11567,22 +11642,22 @@ fica visível em seus módulos. Outro módulo importa o nome explicitamente:
 ```w
 import domain { thermal as ovenThermal } from kitchen
 
-async let profile = sampleOven()
+let profile = async sampleOven()
 ```
 
 O alias continua um member enum-like no contexto de domain. O import não cria
 estado runtime. Ele importa uma requirement estática.
 
-`async let` herda o domínio atual. `spawn<domain>` exige o domínio explícito.
+O initializer `async` herda o domínio atual. `spawn<domain>` exige o domínio explícito.
 `concurrentMap` herda o domínio. `parallelMap<domain>` exige um domínio explícito
 com capability `.parallel`.
 
 **Exemplo:**
 
 ```w
-async let menu = loadMenu()      // herda a preference atual
-spawn<.compute> let plan = optimize(snapshot)
-spawn<.compute> let bill = price(order)
+let menu = async loadMenu()      // herda a preference atual
+let plan = spawn<.compute> optimize(snapshot)
+let bill = spawn<.compute> price(order)
 ```
 
 O compiler normaliza nomes de domain como um enum fechado por módulo. O usuário
@@ -11642,7 +11717,7 @@ pool, mas conserva sua strand serial. O deployment não pode torná-lo paralelo.
 Kernel selection e launch usam o descriptor e o scope de
 [12.7.2](#1272-device-scopes-e-kernels). Um adapter pode usar um domain com
 `.device` para seus jobs de host; o kernel continua outro artifact. `await`,
-`async let` e `spawn` controlam o launch como qualquer operação suspensiva.
+Os initializers `async` e `spawn` controlam o launch como qualquer operação suspensiva.
 
 Um módulo publica requirements, mas não escolhe um domínio oculto para `spawn`
 ou `parallelMap`. Importar um módulo nunca cria executor, queue ou thread.
@@ -11655,9 +11730,9 @@ O product seleciona o profile que fornece bindings e budgets.
 quando omitido. Os labels são opcionais pelo schema:
 
 ```w
-spawn<.catalog> let current = summarize(ref menu)
-spawn<.catalog, .barrier> let update = replace(inout menu, with: take nextMenu)
-spawn<.catalog> let revised = summarize(ref menu)
+let current = spawn<.catalog> summarize(ref menu)
+let update = spawn<.catalog, .barrier> replace(inout menu, with: take nextMenu)
+let revised = spawn<.catalog> summarize(ref menu)
 
 let (before, _, after) = await (current, update, revised)
 ```
@@ -11959,11 +12034,11 @@ mesmo clock.
 cheio, `cook` não inicia e o staged input recebe cleanup:
 
 ```w
-async let dish = cook(prepareInput(take order, audit: inout audit))
+let dish = async cook(prepareInput(take order, audit: inout audit))
 let outcome = await dish.outcome()
 ```
 
-Uma declaração `async let` ou `spawn<domain> let` usa esta ordem:
+Um initializer `async` ou `spawn<domain>` em binding `let` usa esta ordem:
 
 1. o parent avalia callee, argumentos e captures em ordem lexical e guarda
    owners num staging local;
@@ -12154,14 +12229,14 @@ protocol Consumable {
 async fn inspectElsewhere<T: Inspectable>(
   value: ref T<(.shareable)>,
 ): u64 {
-  spawn<.compute> let code = value.inspectionCode()
+  let code = spawn<.compute> value.inspectionCode()
   return await code
 }
 
 async fn consumeElsewhere<T: Consumable>(
   value: take T<(.transferable)>,
 ): u64 {
-  spawn<.compute> let code = (take value).finish()
+  let code = spawn<.compute> (take value).finish()
   return await code
 }
 ```
@@ -12183,12 +12258,12 @@ assertion no source da aplicação é rejeitada.
 os resultados somente depois que cleanup e join fecham os dois caminhos:
 
 ```w
-async let local = finishCourse(take localCourse)
-spawn<.compute> let parallel = finishCourse(take parallelCourse)
+let local = async finishCourse(take localCourse)
+let parallel = spawn<.compute> finishCourse(take parallelCourse)
 let (localResult, parallelResult) = await (local, parallel)
 ```
 
-**W-1185 — plano único de ownership:** call direta, `await`, `async let` e
+**W-1185 — plano único de ownership:** call direta, `await`, initializer `async` e
 `spawn` usam os mesmos `PlaceId`, `LoanId`, `OriginSet`, owner deltas e drop
 obligations. A forma de execução muda task e placement; ela não cria uma segunda
 semântica de memória. A HIR normaliza um único invocation plan com forma,
@@ -12199,7 +12274,7 @@ outcome. Storage e scheduler são lowerings posteriores desse record.
 |---|---|---|
 | call direta | permanece na activation atual | segue a assinatura durante a call |
 | `await` | permanece na task atual; values live podem ir para o resumable frame | loans que cruzam suspensão exigem referent estável |
-| `async let` | argumentos e captures passam por staging e depois pertencem ao child | depende de `take`, `copy`, `ref` ou `inout` até o join |
+| initializer `async` | argumentos e captures passam por staging e depois pertencem ao child | depende de `take`, `copy`, `ref` ou `inout` até o join |
 | `spawn<domain>` | usa o mesmo staging e acrescenta os facts do domínio destino | aplica também `transferable`, `shareable` e affinity |
 
 O compiler pode escolher register, stack, task frame ou heap para implementar o
@@ -12260,7 +12335,7 @@ defer async {
   }
 }
 
-async let prediction = lastLightKernels.forecast.launch(
+let prediction = async lastLightKernels.forecast.launch(
   using: ref launch,
   features: ref deviceFeatures,
   weights: ref deviceWeights,
@@ -12351,7 +12426,7 @@ staged → submitted → deviceRunning → bodySettled
        → providerDrained → cleanup → outcomeCommitted → joined
 ```
 
-`try await` mantém a wait na task atual. `async let` e `spawn` criam children
+`try await` mantém a wait na task atual. Initializers `async` e `spawn` criam children
 normais. Cancelamento antes de `submitted` impede o launch e limpa staging.
 Depois de `submitted`, W não presume preemption: o provider conclui ou drena o
 trabalho antes de cleanup e outcome. Completion que já fez `bodySettled` vence
@@ -12395,7 +12470,7 @@ Providers reais continuam sujeitos ao gate 24.3.2.
 
 ### 12.8 Task groups e backpressure
 
-Estrutura estática usa `async let` ou `spawn<domain> let`. Coleções dinâmicas usam
+Estrutura estática usa initializer `async` ou `spawn<domain>`. Coleções dinâmicas usam
 `TaskGroup`. O primeiro SDK oferece:
 
 ```w
@@ -13085,8 +13160,8 @@ existir.
 ```w
 var served: u64 = 0
 
-spawn<.compute> let left = countLeft(inout served)  // Erro: write concorrente.
-spawn<.compute> let right = countRight(inout served)
+let left = spawn<.compute> countLeft(inout served)  // Erro: write concorrente.
+let right = spawn<.compute> countRight(inout served)
 ```
 
 Para um `inout` concorrente, o diagnostic apresenta somente alternativas
@@ -13849,7 +13924,7 @@ adapter ou uma isolation boundary dedicada. Enviar a call para um blocking pool
 não torna o código cancel-safe.
 
 ```w
-spawn<.blocking> let packet = legacy.read(take buffer)
+let packet = spawn<.blocking> legacy.read(take buffer)
 ```
 
 O blocking pool e sua ready queue são bounded pelo execution profile.
@@ -13879,7 +13954,7 @@ um wrapper `unsafe` provar mobilidade e lifetime.
 
 ### 12.12 HIR, lowering e runtime mínimo
 
-**Exemplo:** `async let stock = reserve()` vira um child com parent, cancel edge,
+**Exemplo:** `let stock = async reserve()` vira um child com parent, cancel edge,
 join e drop registrados antes do lowering backend.
 
 A HIR preserva:
@@ -14085,7 +14160,7 @@ O bloco cria um control scope próprio. Cada caminho de sucesso deve terminar em
 um único `commit value` ou `commit` para `()`. `commit` fora desse scope é erro.
 `return`, `break` e `continue` não podem atravessar o limite. `throw` encerra o
 body com application error e solicita abort. Um `defer` síncrono termina antes
-do commit ou abort. `defer async`, `spawn` e `async let` permanecem rejeitados
+do commit ou abort. `defer async`, `spawn` e initializer `async` permanecem rejeitados
 na baseline.
 
 #### 12.13.1 Forma curta e ausência de transaction ambient
@@ -14258,7 +14333,7 @@ threads. Serial não significa affinity.
 Dentro do handler:
 
 - chamadas internas síncronas usam call normal;
-- `async let` cria children do handler;
+- initializer `async` cria children do handler;
 - `spawn` usa somente snapshots ou valores transferidos;
 - state mutável da instance não cruza `spawn`;
 - cleanup termina antes do próximo turn.
@@ -15099,8 +15174,8 @@ identity e o deployment digest. Ele não serializa `ServiceRef`.
 Ele não contém um mapa mutável task-local. Uma capability da aplicação precisa
 de binding ou input explícito.
 
-A operação supervisionada é root de uma nova árvore. Dentro dela, `async let`,
-`spawn<domain> let` e `TaskGroup` continuam estruturados. Esses children terminam antes
+A operação supervisionada é root de uma nova árvore. Dentro dela, initializers
+`async`, `spawn<domain>` e `TaskGroup` continuam estruturados. Esses children terminam antes
 do root.
 
 #### 13.7.3 Admission e transferência de ownership
@@ -16777,7 +16852,7 @@ separa `cancelRequested`, `cancelSubmitted`, `cancelConfirmed` e
 **Exemplo:** uma API foreign blocking entra num domain bounded explícito:
 
 ```w
-spawn<.blocking> let step = legacy.read(
+let step = spawn<.blocking> legacy.read(
   appendTo: inout payload,
   maximum: 4096,
 )
@@ -16978,8 +17053,8 @@ leituras concorrentes no mesmo cursor:
 ```w
 let (input, output) = (take connection).split()
 
-async let request = readRequest(take input)
-async let response = writeResponse(take output)
+let request = async readRequest(take input)
+let response = async writeResponse(take output)
 ```
 
 Os halves atendem a `ByteSource<NetworkError>` e
@@ -21442,6 +21517,18 @@ fn reprioritize(orders: inout view Array<Order>)
 identity ou authority para mudar o extent. `inout view T` permite mutation
 dentro do extent, mas não permite append, resize ou substituição do owner.
 
+**W-1472 — view versus ref e interface projection (Forma vigente):**
+`ref Array<T>` observa o owner completo, inclusive metadata como `capacity`.
+`view Array<T>` observa somente a janela lógica e não possui `capacity`.
+`view String` é uma subsequência UTF-8 válida, com boundaries verificadas.
+`view Tensor<T, ...>` carrega shape e strides e pode ser strided. Um tipo
+nominal pode expor uma view de uma família core por método. Um aggregate owned
+pode guardar fields `ref` ou `view` e carregar suas origins, como
+`BorrowedMenu`. Uma versão com properties suprimidas é uma interface
+projection, por exemplo um protocol menor, aggregate borrowed nominal ou DTO
+owned. Ela não é uma storage view. W não cria `Viewable`, protocol universal de
+view ou `view Object` automático.
+
 Esta separação evita dois erros. `view` não é um sinônimo menor para `ref`.
 Também não é um wrapper que torna qualquer grafo profundamente imutável.
 
@@ -23264,6 +23351,40 @@ Uma recipe idêntica produz os mesmos bytes do artifact. Outra versão do
 compiler ou outro target pode escolher instruções diferentes. A recipe inclui
 compiler, target, CPU features, profile, PGO input e semantic bundles.
 
+**W-1473 — virtual memory e data movement (Direção vigente):**
+[`MEM0`](tooling/studies/mem0-virtual-memory-data-movement/) fecha a pesquisa
+finita e seleciona uma arquitetura em camadas.
+O estudo separa file-backed mapping, virtual memory anonymous e device memory.
+Ele classifica mapping imutável, reserve/commit/decommit, COW, shared/MMIO,
+protection, advice/prefault/discard, huge pages, NUMA, pinned memory,
+unified/async transfer/prefetch, vectored I/O, sendfile-style transfer,
+alignment/cache/prefetch/non-temporal operations e composição com allocator,
+Arena, fixed storage e IPC1. Cada hipótese exige owner move-only, extent
+bounded, permissions, address-space/provenance, unmap/drop determinístico,
+exclusão de live view, outcome de interferência externa e evidence de target.
+As classificações são owner/API semântico portátil, capability/receipt de
+provider, optimization de compiler, adapter target unsafe ou promessa universal
+rejeitada. `Mapped<T>` universal não é escolhido. O contrato corrente é a
+classificação e seus invariants, não uma API única. Compiler, runtime,
+providers, receipts por target e benchmarks continuam implementation gaps.
+
+**W-1475 — training e inference (Direção vigente):**
+[`LLM0`](tooling/studies/llm0-training-inference/) fecha o inventário finito sem
+adicionar keyword. A primeira camada reutiliza
+Tensor, shape/value parameters, broadcast/reduction/numeric mode, f16/bf16,
+quant direction, views/strides, Device/Queue/Launch, DLPack, ownership,
+streams/backpressure/services, deterministic RNG/profile e packages/receipts.
+Depois vêm gaps de typed autodiff e layouts, formatos subbyte e scaling,
+checkpoint/offload, optimizer state e distributed checkpoint, parallelism/mesh/
+collectives/MoE, fused/captured execution e data recovery. A trilha de inference
+estuda weights mapped/streamed, paged KV, batching/admission/backpressure,
+speculative verification, quantization receipts, graph capture, disaggregated
+prefill/decode, parallel inference e service SLO/cancellation/observability.
+Cada gap escolhe core, std/API, typed IR/compiler, runtime/provider,
+tooling/evidence ou application framework. A recomendação padrão é não inflar o
+core. Esse mapa de ownership e a ordem dos dois workloads são correntes. Typed
+IR, kernels, runtime/provider, frameworks e desempenho medido continuam gaps.
+
 ### 18.2 Fatos de prova
 
 A HIR mantém `ProofFacts` separados do tipo lógico e do layout. O conjunto
@@ -23733,8 +23854,8 @@ mudar. Quando o problema permite redução, o source move partições para
 children e combina resultados no join:
 
 ```w
-async let port = countCompleted(take portOrders)
-async let starboard = countCompleted(take starboardOrders)
+let port = async countCompleted(take portOrders)
+let starboard = async countCompleted(take starboardOrders)
 let (portCount, starboardCount) = await (port, starboard)
 let completed = portCount + starboardCount
 ```
@@ -23816,8 +23937,9 @@ Workloads, topologias e fontes comparativas ficam em
 Antes de implementar uma otimização nova, a equipe deve preencher a matriz de
 domínios em [`RATIONALE.md` §1.37](RATIONALE.md#137-gate-sota-de-performance-e-matriz-de-responsabilidade).
 O gate registra problema, alternativas, fonte primária, owner, workload,
-oracle e stop condition. Ele não cria sintaxe, API ou W-ID. Ele não reabre
-`Research=0`.
+oracle e stop condition. Ele não cria sintaxe, API ou W-ID. No snapshot em que
+foi criado, ele não reabriu `Research=0`; as gates posteriores W-1471, W-1473,
+W-1474 e W-1475 são independentes.
 
 A matriz é um seed mínimo extensível, não um catálogo exaustivo. Ao abrir um
 bundle para um hotspot, a equipe atualiza as fontes primárias e as alternativas
@@ -24295,7 +24417,7 @@ task e invoca a operation uma vez na task corrente. O binding entra no task
 frame antes da call. `get()` devolve um `ref T` ligado ao binding corrente ou ao
 default quando não existe binding.
 
-Um child captura o binding corrente quando é criado por `async let`, task group
+Um child captura o binding corrente quando é criado por initializer `async`, task group
 ou `spawn<domain>`. O child não observa um rebind posterior do parent. O mesmo
 binding imutável pode cruzar o domain porque `T` é `shareable`; não existe copy,
 retain ou lookup ambiental. O scope drena esses children antes de remover o
@@ -28258,6 +28380,26 @@ filesystem, environment ou outro effect precisa declarar uma fixture explícita;
 sem ela o runner produz diagnostic. O runner baixa o exemplo para um teste
 hermético, mantém source mapping e remove o exemplo do release payload.
 
+**W-1474 — efeitos simulados e direção de teste (Direção vigente):** o estudo
+finito [`SEA0`](tooling/studies/sea0-simulated-effects-approval/) seleciona uma
+máquina bounded compartilhada por `production simulation` e test double. Ela
+usa scheduler determinístico, relógio virtual, RNG determinístico e network,
+storage e provider virtuais. Fault injection ocorre em boundaries semânticas e
+com occurrences bounded, nunca por timing ou line number. A infraestrutura
+explora schedules bounded e combina state/model-based, property, fuzz,
+differential e metamorphic tests. Coverage inclui transition, effect, owner e
+fault, além de seed, minimized trace, recipe, target/provider digests e
+receipts reproduzíveis.
+
+As lanes permanecem separadas: pure simulation, real-provider conformance,
+multi-process/hardware fault e performance. Snapshots/goldens são explícitos e
+os oracles são independentes. Simulation nunca é prova de provider real.
+Approval/rejection, stale simulation, partial bulk approval, crash antes e
+depois de dispatch, response mismatch e causal invalidation são cases mínimos.
+Esta é uma direção de arquitetura e infraestrutura, não uma nova test syntax.
+Carrier/API, production provider, multi-process/hardware faults e performance
+continuam implementation gaps. DRC0 fecha a pesquisa sem promover essas provas.
+
 ```w
 test "range preserva valor interno" for clampRatio {
   expect clampRatio(0.5) == 0.5
@@ -28572,7 +28714,7 @@ Applicability usa três valores:
 | `placeholder` | estrutura incompleta que exige input humano |
 
 Inserir `try await` é `review`. O programa também pode usar `try?`, `catch`,
-`async let` ou outro design. Inserir `copy` após um move também é `review`,
+initializer `async` ou outro design. Inserir `copy` após um move também é `review`,
 mesmo quando `Duplicable` existe. A cópia pode alterar custo ou identidade.
 
 Formatter e remoção de token redundante podem usar `machine` quando reparse e
@@ -29422,7 +29564,7 @@ Proto chama essa técnica de “Time Travel”; o nome técnico é promise pipel
 Ela não é apenas execução assíncrona.
 
 ```w
-spawn<.compute> let mixture = mix(stock.ingredients, recipe: recipe)
+let mixture = spawn<.compute> mix(stock.ingredients, recipe: recipe)
 
 let (lease, ready) = try await pipeline {
   let lease = ovens.acquire(recipe.target, duration: recipe.duration)
@@ -29504,7 +29646,7 @@ O pipeline não é transaction. Um node anterior pode confirmar seu efeito antes
 de um dependent falhar. Cada operation mantém `callId`, `effectId`, deadline,
 rights e quota próprios. Admission limita nodes, depth, payload bytes, retained
 bytes e capability slots. Um pipeline sem edge dependente recebe warning e
-deve usar `async let` ou tuple join para concorrência comum.
+deve usar initializer `async` ou tuple join para concorrência comum.
 
 Failure bloqueia dependents. Nodes independentes recebem cancelamento fail-fast
 e o pipeline aguarda o drain dos já admitidos. Sem incerteza, o primeiro error
@@ -30903,7 +31045,7 @@ estratégia universal.
 paralelo sem mudar owner, cancellation, cleanup, outcome ou ordem declarada.
 
 **W-1210 — claim de execução:** W só pode alegar que resolveu concorrência e
-paralelismo quando call direta, `await`, `async let` e `spawn<domain>` usarem o
+paralelismo quando call direta, `await`, initializer `async` e `spawn<domain>` usarem o
 mesmo grafo de ownership e lifetime; quando todo child terminar por join ou
 drain; e quando serialização, `.barrier`, atomics, locks, channels e services
 produzirem uma única relação de happens-before explicável.
@@ -31139,7 +31281,7 @@ provider.
 | Gate | Current | Adversarial | Contrato fechado |
 |---|---|---|---|
 | W-707 / `FZ0-freeze-completeness` | `FRC0-W-707-current` | `FRC0-W-707-adversarial` | completude G0–G5, refs e snapshot coerentes; não é `count=implementation` |
-| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão do ledger tem disposition e `Research=0` global; isso não significa implementação total |
+| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão do ledger tem disposition; DRC0 fecha W-1471/W-1473/W-1474/W-1475 e a classificação global tem `Research=0` |
 | W-1408 / `HUM0-promotion` | `FRC0-W-1408-current` | `FRC0-W-1408-adversarial` | stop-on-first-violation, no-automatic-promotion e 0 human/0 model preservados |
 
 O resultado de cada rota é `oracle-backed-current` para os contratos fechados.
@@ -31151,19 +31293,21 @@ preferência, score ou métrica manual é criado.
 
 O stop condition é stale digest, caller echo, métrica manual, registro humano
 ou de modelo forjado, preference/score, decisão ou caso ausente/duplicado,
-source escape, categoria errada ou qualquer `Research` residual global. A
-máquina exige W-1451–W-1453 como `oracle-backed-current` após PFU0. A cadeia
+source escape, categoria errada ou qualquer `Research` residual. A máquina
+exige W-1451–W-1453 como `oracle-backed-current` após PFU0 e os quatro casos
+DRC0 como fechamento independente. A cadeia
 estrita é manifest → artefatos → bundle/study
 → fixtures thin parseáveis → oracle e snapshot. O checker root e o checker
 aninhado devem permanecer verdes antes de qualquer recascade adicional. FRC0
-não reabre uma questão semântica e não autoriza alegação de implementação.
+preserva o fechamento histórico e DRC0 fecha as quatro gates posteriores. Isso
+não autoriza alegação de implementação.
 
 #### 24.4.3 PFU0 — fechamento de usabilidade pré-freeze
 
 O bundle [`PFU0`](tooling/studies/pfu0-pre-freeze-usability) fecha três gates
 verificáveis. Ele registra evidência host-only para as decisões vigentes e não
-afirma implementação. FRC0 valida a classificação final e exige Research=0;
-o design freeze fica fechado depois da revisão Sol.
+afirma implementação. FRC0 valida o fechamento histórico; DRC0 registra que
+W-1471, W-1473, W-1474 e W-1475 atingiram suas stop conditions.
 
 | ID | Controle vigente | Alternativa avaliada | Rejeitado |
 |---|---|---|---|
@@ -31685,7 +31829,7 @@ services, units, tensors e packages não ampliam a base de recovery.
 antes de sair do scope.
 
 - async state machine;
-- `async let`, `spawn<.domain> let` e inheritance de preference;
+- initializer `async`, `spawn<.domain>` e inheritance de preference;
 - lifetime e scheduler state separados;
 - linear Task, body settled, cleanup e `TaskOutcome`;
 - cancellation snapshot bounded e `Task.checkCancellation()`;

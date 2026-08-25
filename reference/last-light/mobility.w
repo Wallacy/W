@@ -40,14 +40,14 @@ export object SafeCounter: Inspectable {
 export async fn inspectElsewhere<T: Inspectable>(
   value: ref T<(.shareable)>,
 ): u64 {
-  spawn<.compute> let code = value.inspectionCode()
+  let code = spawn<.compute> value.inspectionCode()
   return await code
 }
 
 export async fn consumeElsewhere<T: Consumable>(
   value: take T<(.transferable)>,
 ): u64 {
-  spawn<.compute> let code = (take value).finish()
+  let code = spawn<.compute> (take value).finish()
   return await code
 }
 
@@ -60,7 +60,7 @@ export async fn commandWidth(command: ref String): usize {
   // Compile-fail assay: a detached task cannot retain this borrowed view.
   // Task.detached(() => print(word))
 
-  spawn<.compute> let count = word.bytes.count
+  let count = spawn<.compute> word.bytes.count
   return await count
 }
 
@@ -72,5 +72,5 @@ test "mobility facts do not change value behavior" {
   expect (take batch).finish() == 2
 
   // Compile-fail assay: raw pointers are local without a trusted binding fact.
-  // spawn<.compute> let invalid = usePointer(take rawPointer)
+  // let invalid = spawn<.compute> usePointer(take rawPointer)
 }

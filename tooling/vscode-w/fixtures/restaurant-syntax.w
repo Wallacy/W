@@ -147,8 +147,8 @@ export service lastLight: RestaurantApi {
 
   mut async fn place(order: take Order): Receipt throws RestaurantError {
     let ref Order(course, ...) = order
-    async let stock = pantry.reserve(course)
-    spawn<.compute> let plan = optimize(order)
+    let stock = async pantry.reserve(course)
+    let plan = spawn<.compute> optimize(order)
     plan.cancel(reason: .menuChanged)
     let (stock, plan) = try await (stock, plan)
 

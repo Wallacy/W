@@ -97,7 +97,7 @@ export function main(argv = process.argv.slice(2)) {
   }
   const accepted = checked.results.filter((result) => result.status === "accepted").length;
   const rejected = checked.results.filter((result) => result.status === "rejected").length;
-  process.stdout.write(`PFU0 closure evidence: ${checked.results.length} cases, ${accepted} accepted, ${rejected} rejected; Research=0 and freeze is closed.\n`);
+  process.stdout.write(`PFU0 closure evidence: ${checked.results.length} cases, ${accepted} accepted, ${rejected} rejected; W-1451 through W-1453 are closed, while later research gates remain out of scope.\n`);
   return true;
 }
 

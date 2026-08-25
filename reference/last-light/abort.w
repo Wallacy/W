@@ -56,7 +56,7 @@ export async fn supersedeBlackHoleTelemetry<Client: TelemetryClient>(
   endpoint: ref URL,
 ): TaskOutcome<http.Response, TelemetryFetchError> {
   let controller = webAbort.AbortController()
-  async let pending = client.fetch(
+  let pending = async client.fetch(
     endpoint: endpoint,
     signal: controller.signal,
   )

@@ -39,13 +39,13 @@
   ],
   "artifactRefs": [
     {"id": "readme", "role": "historical-research-note", "path": "tooling/studies/sec0-security-model/README.md", "digest": "sha256:7fcfbe1b199cf68c38e016442a3cf0eb787934e028e258d8a9ff28abdafe0fc4"},
-    {"id": "corpus", "role": "design-input", "path": "tooling/sec0-security-model-cases.json", "digest": "sha256:fce56a5927e41eabd299621ddd531548fbf4f9ae90ed4c38897976ab71f128ad"},
+    {"id": "corpus", "role": "design-input", "path": "tooling/sec0-security-model-cases.json", "digest": "sha256:da4d44f261defcbb3df3014f7b32f3930de415433f548db851f819df48fb8316"},
     {"id": "machine", "role": "host-oracle", "path": "tooling/sec0-security-model-machine.mjs", "digest": "sha256:6abf39d2aaafb09586a4364d7459f9d246dca35bbc022b94f7b448f51b9a0b0b"},
     {"id": "manifest", "role": "manifest-validator", "path": "tooling/sec0-security-model-manifest.mjs", "digest": "sha256:0c64381622ee3ee684d0ff45637b8456cf0eea0dea25d23b7a36181cd1dda9eb"},
     {"id": "checker", "role": "snapshot-checker", "path": "tooling/check-sec0-security-model.mjs", "digest": "sha256:080b9d6baa4ce29394d7d20cfa0c9144ca9146f1c04d302da4590fa244a7080e"},
     {"id": "reference-test", "role": "mutation-test", "path": "tooling/sec0-security-model-reference.test.mjs", "digest": "sha256:b836a28fdcdbb3dbe9cc2262070cdd8ecfb5b2c174799d7954026f598c0b7f7e"},
-    {"id": "snapshot", "role": "derived-output", "path": "tooling/sec0-security-model-results.snapshot.jsonl", "digest": "sha256:4badd96f6b2d28e5a84539c5027cac5a9fea80e67c6519114a31d52ab9a817df"},
-    {"id": "bundle", "role": "study-bundle", "path": "tooling/studies/sec0-security-model/bundle.json", "digest": "sha256:9ac61c7b891d4ea8c0f35222005099658a05dce4f992a678c5ab483ff3c02438"},
+    {"id": "snapshot", "role": "derived-output", "path": "tooling/sec0-security-model-results.snapshot.jsonl", "digest": "sha256:a4db1c447bd17b954b99d92cf33163c7f959c321b3d3e89c08ad7f53dd280b8d"},
+    {"id": "bundle", "role": "study-bundle", "path": "tooling/studies/sec0-security-model/bundle.json", "digest": "sha256:da173b5416ec8e649e60813bac748ec9898c186bb1108dc86c31b22afec0aaff"},
     {"id": "oracle", "role": "study-test", "path": "tooling/studies/sec0-security-model/oracle.test.mjs", "digest": "sha256:501d19acbac29bf003aeccec859c085b975e2226bd0bc3fb6bd5a35432d8440d"}
   ],
   "sourceRefs": [
@@ -53,7 +53,7 @@
     {"path": "reference/last-light/session_security_oracle.w", "symbol": "enum OracleChannelProfile", "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992", "claim": "channel identity and freshness gates"},
     {"path": "reference/last-light/fs_oracle.w", "symbol": "recipeArchiveRoot", "digest": "sha256:11fed22d22c0af56297676c5a8e63c789012676945afc8c192509bd8d99c8393", "claim": "filesystem capability scope and bounds"},
     {"path": "reference/last-light/app.w", "symbol": "const nativeServerLimits = http.ServerLimits(", "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29", "claim": "explicit HTTP and process resource limits"},
-    {"path": "reference/last-light/domain_oracle.w", "symbol": "deployment can reduce but cannot increase profile capacity", "digest": "sha256:6f26c28d5cf2ff2249406660c4250c0577a1770a16924cb52d9cec445409ad51", "claim": "deployment cannot increase product capacity"},
+    {"path": "reference/last-light/domain_oracle.w", "symbol": "deployment can reduce but cannot increase profile capacity", "digest": "sha256:37b229824ae9aa789a04f107c211f4c7acd5cf1d4eb2ea24accf245aecb94e3f", "claim": "deployment cannot increase product capacity"},
     {"path": "reference/last-light/hir_memory_oracle.w", "symbol": "struct HirAbiKey", "digest": "sha256:8837f23890bc651e3b7d5f0115457e2f35a2de6c3aeddef80bda37b2a84b3261", "claim": "physical ABI identity is separate from semantic facts"}
   ],
   "officialRefs": [

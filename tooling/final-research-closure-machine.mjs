@@ -19,6 +19,7 @@ export const HISTORICAL_SNAPSHOT_IDS = Object.freeze(
   ledgerIds.filter((decisionId) => Number(decisionId.slice(2)) <= Number(HISTORICAL_SNAPSHOT_LAST.slice(2))),
 );
 export const PFU0_DECISIONS = Object.freeze(["W-1451", "W-1452", "W-1453"]);
+export const ACTIVE_RESEARCH_GATES = Object.freeze([]);
 export const DISPOSITIONS = Object.freeze({
   "W-707": "oracle-backed-current",
   "W-731": "oracle-backed-current",
@@ -31,7 +32,7 @@ export const GATES = Object.freeze({
   }),
   "W-731": Object.freeze({
     id: "freeze-research-close",
-    meaning: "one explicit disposition for every ledger decision with no residual Research category",
+    meaning: "one explicit disposition for every ledger decision and an exact list of active post-snapshot research gates",
   }),
   "W-1408": Object.freeze({
     id: "HUM0-promotion",
@@ -279,7 +280,7 @@ function classificationFacts(state) {
   ]));
   const reopenedResearch = PFU0_DECISIONS.every((decisionId) => reopenedCategories[decisionId] === "oracle-backed-current");
   const globalResearch = entries.filter((entry) => entry?.category === "research-gated").map((entry) => entry.decisionId);
-  const globalResearchExact = same([...globalResearch].sort(), []);
+  const globalResearchExact = same([...globalResearch].sort(), [...ACTIVE_RESEARCH_GATES].sort());
   const targetCategories = Object.fromEntries(DECISIONS.map((decision) => [decision, entries.find((entry) => entry?.decisionId === decision)?.category ?? null]));
   const ledgerDigestValid = classification.ledger?.path === "RATIONALE.md" &&
     classification.ledger?.count === ledgerIds.length &&

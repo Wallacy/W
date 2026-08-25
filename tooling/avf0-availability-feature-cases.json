@@ -5,7 +5,7 @@
     "package": {
       "path": "../reference/last-light/build.w",
       "symbol": "targetVariants: [\"native-terminal::posix\"]",
-      "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f",
+      "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
       "claim": "Resolution records package feature selection independently from runtime policy."
     },
     "availability": {
@@ -17,7 +17,7 @@
     "runtime": {
       "path": "../reference/last-light/synchronization.w",
       "symbol": "SnapshotCell<PublishedMenu>",
-      "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+      "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961",
       "claim": "SnapshotCell is the current composition for atomic immutable configuration publication."
     },
     "composition": {

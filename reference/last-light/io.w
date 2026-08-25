@@ -109,7 +109,7 @@ export async fn countBorrowedChunks<E: Error>(
 
 // Compile-fail assays:
 // let _ = Channel<view Bytes>.open(capacity: 1) // A view cannot leave its owner.
-// async let pending = source.read(appendTo: inout scratch, maximum: 4096)
+// let pending = async source.read(appendTo: inout scratch, maximum: 4096)
 // scratch.reset()                              // `pending` still borrows `scratch`.
-// async let write = output.writeMany(prefix, payloadOwner, checksum)
+// let write = async output.writeMany(prefix, payloadOwner, checksum)
 // payloadOwner.reset()                         // `write` still borrows the payload.
