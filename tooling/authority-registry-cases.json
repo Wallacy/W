@@ -1,0 +1,246 @@
+{
+  "$schema": "w-authority-registry-cases-1",
+  "status": "design-oracle-input",
+  "limits": {
+    "maxUpdates": 8,
+    "maxKeys": 8,
+    "maxSignatures": 8,
+    "maxRootBytes": 8192,
+    "maxEvidenceBytes": 65536,
+    "maxCheckpointBytes": 32768,
+    "maxOriginBytes": 16384
+  },
+  "sourceRefs": [
+    {
+      "path": "reference/last-light/build.w",
+      "symbol": "origin: { object: \"sha256:1031dc23028d28379d8d168895ce528b833d3015fcfe87f9797119a9f7fff538\", length: 463 }"
+    }
+  ],
+  "fixtures": {
+    "registry": {
+      "manifest": {
+        "kind": "registry",
+        "locator": "w",
+        "display": "W registry"
+      },
+      "provider": "w.registry.tuf-lineage/1",
+      "lineage": "w-lineage-1",
+      "roots": [
+        {
+          "version": 1,
+          "lineage": "w-lineage-1",
+          "threshold": 2,
+          "keys": [
+            {
+              "id": "sha256:165e31fa928ced095e11eb66538ab97aff28bf1743a6035f20fd9666b170cef4",
+              "algorithm": "ed25519",
+              "publicKey": "dbf7fc577d78e70e7c09656c9f6a2267aa02542ceb70891ee53dbb24728f043f"
+            },
+            {
+              "id": "sha256:db1a13416875180612a8afa5f4c40c384bd47871934669c6acc74fa666c11ebb",
+              "algorithm": "ed25519",
+              "publicKey": "da93b851b89ea4126c5595efb64bea67a7fbb8ad1eb08c3bf4385c4649125400"
+            },
+            {
+              "id": "sha256:7b04ebab42995d912ca036a065eac0ceadc61e522854de55b20c5fd0412be13a",
+              "algorithm": "ed25519",
+              "publicKey": "89282890500d82ead2c949ff7d7336bfc88014a6221eabe8953b99cc025b64e1"
+            }
+          ],
+          "signatures": [
+            {
+              "signer": "sha256:165e31fa928ced095e11eb66538ab97aff28bf1743a6035f20fd9666b170cef4",
+              "algorithm": "ed25519",
+              "signature": "709f8409e4194dcd6f6766f073345b38a5c8884ecaefc32c1dac279d9fcf883db819f35a599f0533540b0c9c7ad00637b3906c190664feb75522ea201408b207"
+            },
+            {
+              "signer": "sha256:db1a13416875180612a8afa5f4c40c384bd47871934669c6acc74fa666c11ebb",
+              "algorithm": "ed25519",
+              "signature": "a48117430ebd02ce0a272ac6e1a6948497602fbfc457986cafab786a2001f79215e038b664fdb5fdf3b3bbfa7edd5acc634156e464284b01bc4068aa27e6350e"
+            },
+            {
+              "signer": "sha256:7b04ebab42995d912ca036a065eac0ceadc61e522854de55b20c5fd0412be13a",
+              "algorithm": "ed25519",
+              "signature": "68473c563e541bc6aa6ab47b40f0587edb098bd172bd2b33f9658dee1998b4a08a397e1612c198ba618ae2f429f71a7db63a5291c348d4d5c67123e710c6de02"
+            }
+          ]
+        },
+        {
+          "version": 2,
+          "lineage": "w-lineage-1",
+          "threshold": 2,
+          "keys": [
+            {
+              "id": "sha256:db1a13416875180612a8afa5f4c40c384bd47871934669c6acc74fa666c11ebb",
+              "algorithm": "ed25519",
+              "publicKey": "da93b851b89ea4126c5595efb64bea67a7fbb8ad1eb08c3bf4385c4649125400"
+            },
+            {
+              "id": "sha256:7b04ebab42995d912ca036a065eac0ceadc61e522854de55b20c5fd0412be13a",
+              "algorithm": "ed25519",
+              "publicKey": "89282890500d82ead2c949ff7d7336bfc88014a6221eabe8953b99cc025b64e1"
+            },
+            {
+              "id": "sha256:c95b7c4855bc85a02d0036ad71485d643ccbf673577505ea49c962af208af9f9",
+              "algorithm": "ed25519",
+              "publicKey": "afdd2a9c6464b4794c9efe28c7b5279fe127a04133d02ba9e349b91a3445d964"
+            }
+          ],
+          "signatures": [
+            {
+              "signer": "sha256:165e31fa928ced095e11eb66538ab97aff28bf1743a6035f20fd9666b170cef4",
+              "algorithm": "ed25519",
+              "signature": "606d38b7f3c3164338eafa31508075dfd6839b336bbded7a35ff17a985ce1d8749c06fce35755f80fff41b5472d5410ab1c8ab5438d0535db173ee4fabd7e001"
+            },
+            {
+              "signer": "sha256:db1a13416875180612a8afa5f4c40c384bd47871934669c6acc74fa666c11ebb",
+              "algorithm": "ed25519",
+              "signature": "465daed36dacec6a5919f15b1d555e95ae400abce1531e66bd56a46bb87dbeed7a0af96e665ba08db543080b6eb46ba9c45a42ba25bdadb736b484ae0a59e601"
+            },
+            {
+              "signer": "sha256:7b04ebab42995d912ca036a065eac0ceadc61e522854de55b20c5fd0412be13a",
+              "algorithm": "ed25519",
+              "signature": "64f228297f502314294a2b249019b3aa3d5bef08383dc6868970cf0cd33119db83a68de535f834ad602d1a60620333d7f9e3bbe9d4eb13248a55c965ee34d30c"
+            }
+          ]
+        }
+      ],
+      "trustedGenesis": {
+        "bytes": "772d617574686f726974792d726f6f742d7061796c6f61642d3150520000000b772d6c696e656167652d310000000102000000034b000000477368613235363a313635653331666139323863656430393565313165623636353338616239376166663238626631373433613630333566323066643936363662313730636566340100000020dbf7fc577d78e70e7c09656c9f6a2267aa02542ceb70891ee53dbb24728f043f4b000000477368613235363a37623034656261623432393935643931326361303336613036356561633063656164633631653532323835346465353562323063356664303431326265313361010000002089282890500d82ead2c949ff7d7336bfc88014a6221eabe8953b99cc025b64e14b000000477368613235363a646231613133343136383735313830363132613861666135663463343063333834626434373837313933343636396336616363373466613636366331316562620100000020da93b851b89ea4126c5595efb64bea67a7fbb8ad1eb08c3bf4385c4649125400",
+        "digest": "sha256:1adb05882ae5f63ab3419bc98c41d476bb5c926cd2b1bea5c15711117ea19e1f",
+        "length": 391
+      },
+      "continuity": {
+        "checkpointVersion": 1,
+        "checkpointDigest": "sha256:d89996def964430be494090d7c8a76f5a59b304679a3137440b0d3a43a3952c3",
+        "mirrors": [
+          {
+            "locator": "https://registry.example.test/w",
+            "rootDigest": "sha256:dbf7b98b02a9b4e666f9ae6d0b2d282e89e26a971a3528bdbc503da8a2520eed"
+          }
+        ],
+        "transport": "https://registry.example.test/w",
+        "alias": "w",
+        "metadata": {
+          "expiry": "2027-01-01",
+          "snapshot": "snapshot-v2"
+        },
+        "observedRootVersion": 2,
+        "observedRootDigest": "sha256:dbf7b98b02a9b4e666f9ae6d0b2d282e89e26a971a3528bdbc503da8a2520eed"
+      }
+    },
+    "registry-alt": {
+      "manifest": {
+        "kind": "registry",
+        "locator": "w-alt",
+        "display": "W alternate registry"
+      },
+      "provider": "w.registry.tuf-lineage/1",
+      "lineage": "w-lineage-alt-1",
+      "roots": [
+        {
+          "version": 1,
+          "lineage": "w-lineage-alt-1",
+          "threshold": 2,
+          "keys": [
+            {
+              "id": "sha256:165e31fa928ced095e11eb66538ab97aff28bf1743a6035f20fd9666b170cef4",
+              "algorithm": "ed25519",
+              "publicKey": "dbf7fc577d78e70e7c09656c9f6a2267aa02542ceb70891ee53dbb24728f043f"
+            },
+            {
+              "id": "sha256:db1a13416875180612a8afa5f4c40c384bd47871934669c6acc74fa666c11ebb",
+              "algorithm": "ed25519",
+              "publicKey": "da93b851b89ea4126c5595efb64bea67a7fbb8ad1eb08c3bf4385c4649125400"
+            },
+            {
+              "id": "sha256:7b04ebab42995d912ca036a065eac0ceadc61e522854de55b20c5fd0412be13a",
+              "algorithm": "ed25519",
+              "publicKey": "89282890500d82ead2c949ff7d7336bfc88014a6221eabe8953b99cc025b64e1"
+            }
+          ],
+          "signatures": [
+            {
+              "signer": "sha256:165e31fa928ced095e11eb66538ab97aff28bf1743a6035f20fd9666b170cef4",
+              "algorithm": "ed25519",
+              "signature": "b80bcaa45dd8ea474910e9d9cacb4be8657917ad8427b4215526900d7a856620b79e3334bccab29fcab05fd0231462e47399903c937f1d4e0d455e9dfc20770b"
+            },
+            {
+              "signer": "sha256:db1a13416875180612a8afa5f4c40c384bd47871934669c6acc74fa666c11ebb",
+              "algorithm": "ed25519",
+              "signature": "ec7b26e0e92d9db509e3f6d9634073cbfec7e83338787edb17f3799612ef56ed6a0e87a6a53a69a3acb1c736f05484a0de271609658101117eb6ced55486cc09"
+            }
+          ]
+        }
+      ],
+      "trustedGenesis": {
+        "bytes": "772d617574686f726974792d726f6f742d7061796c6f61642d3150520000000f772d6c696e656167652d616c742d310000000102000000034b000000477368613235363a313635653331666139323863656430393565313165623636353338616239376166663238626631373433613630333566323066643936363662313730636566340100000020dbf7fc577d78e70e7c09656c9f6a2267aa02542ceb70891ee53dbb24728f043f4b000000477368613235363a37623034656261623432393935643931326361303336613036356561633063656164633631653532323835346465353562323063356664303431326265313361010000002089282890500d82ead2c949ff7d7336bfc88014a6221eabe8953b99cc025b64e14b000000477368613235363a646231613133343136383735313830363132613861666135663463343063333834626434373837313933343636396336616363373466613636366331316562620100000020da93b851b89ea4126c5595efb64bea67a7fbb8ad1eb08c3bf4385c4649125400",
+        "digest": "sha256:11796b87222abf98d221bd2e28c210e32c090583340b2a1b114f57062755a76b",
+        "length": 395
+      },
+      "continuity": {
+        "checkpointVersion": 1,
+        "checkpointDigest": "sha256:087ea886cf156db94a7a764bc5b2a20d7042220daefcad7713257ad3e4724509",
+        "mirrors": [],
+        "transport": "https://alternate.example.test/w",
+        "alias": "w-alt",
+        "metadata": {
+          "expiry": "2027-01-01",
+          "snapshot": "snapshot-v1"
+        },
+        "observedRootVersion": 1,
+        "observedRootDigest": "sha256:8f1dadd25b1bf7c31e5e2f67e5ac4a4518152dd6ed9df50f7660f594691791e7"
+      }
+    }
+  },
+  "cases": [
+    { "id": "AUL0-W-1469-genesis-2-of-3", "fixture": "registry", "scenario": "genesis" },
+    { "id": "AUL0-W-1469-rotation-valid", "fixture": "registry", "scenario": "rotation-valid" },
+    { "id": "AUL0-W-1469-alias-evidence-only", "fixture": "registry", "scenario": "alias-change" },
+    { "id": "AUL0-W-1469-mirror-evidence-only", "fixture": "registry", "scenario": "mirror-change" },
+    { "id": "AUL0-W-1469-checkpoint-v2-stable", "fixture": "registry", "scenario": "checkpoint-v2-stable" },
+    { "id": "AUL0-W-1469-checkpoint-v2-replay-v1", "fixture": "registry", "scenario": "checkpoint-v2-replay-v1" },
+    { "id": "AUL0-W-1469-checkpoint-v2-replay-v2", "fixture": "registry", "scenario": "checkpoint-v2-replay-v2" },
+    { "id": "AUL0-W-1469-checkpoint-corrupt-bytes", "fixture": "registry", "scenario": "checkpoint-corrupt-bytes" },
+    { "id": "AUL0-W-1469-checkpoint-corrupt-digest", "fixture": "registry", "scenario": "checkpoint-corrupt-digest" },
+    { "id": "AUL0-W-1469-checkpoint-corrupt-length", "fixture": "registry", "scenario": "checkpoint-corrupt-length" },
+    { "id": "AUL0-W-1469-checkpoint-corrupt-origin", "fixture": "registry", "scenario": "checkpoint-corrupt-origin" },
+    { "id": "AUL0-W-1469-checkpoint-crosswire-root", "fixture": "registry", "scenario": "checkpoint-crosswire-root" },
+    { "id": "AUL0-W-1469-checkpoint-crosswire-origin", "fixture": "registry", "scenario": "checkpoint-crosswire-origin" },
+    { "id": "AUL0-W-1469-genesis-different", "fixture": "registry-alt", "scenario": "genesis" },
+    { "id": "AUL0-W-1469-genesis-fabricated-untrusted", "fixture": "registry-alt", "scenario": "genesis", "trustFixture": "registry" },
+    { "id": "AUL0-W-1469-genesis-same-public-fields-different-signatures", "fixture": "registry", "scenario": "genesis-signatures-different" },
+    { "id": "AUL0-W-1469-insufficient-old-threshold", "fixture": "registry", "scenario": "insufficient-old" },
+    { "id": "AUL0-W-1469-insufficient-new-threshold", "fixture": "registry", "scenario": "insufficient-new" },
+    { "id": "AUL0-W-1469-duplicate-signer", "fixture": "registry", "scenario": "duplicate-signer" },
+    { "id": "AUL0-W-1469-rollback", "fixture": "registry", "scenario": "rollback" },
+    { "id": "AUL0-W-1469-gap", "fixture": "registry", "scenario": "gap" },
+    { "id": "AUL0-W-1469-wrong-lineage", "fixture": "registry", "scenario": "wrong-lineage" },
+    { "id": "AUL0-W-1469-tamper", "fixture": "registry", "scenario": "tamper" },
+    { "id": "AUL0-W-1469-malformed-key", "fixture": "registry", "scenario": "malformed-key" },
+    { "id": "AUL0-W-1469-malformed-signature", "fixture": "registry", "scenario": "malformed-signature" },
+    { "id": "AUL0-W-1469-key-id-mismatch", "fixture": "registry", "scenario": "key-id-mismatch" },
+    { "id": "AUL0-W-1469-unsupported-algorithm", "fixture": "registry", "scenario": "unsupported-algorithm" },
+    { "id": "AUL0-W-1469-over-limit", "fixture": "registry", "scenario": "over-limit" },
+    { "id": "AUL0-W-1469-over-limit-keys", "fixture": "registry", "scenario": "over-limit-keys" },
+    { "id": "AUL0-W-1469-over-limit-signatures", "fixture": "registry", "scenario": "over-limit-signatures" },
+    { "id": "AUL0-W-1469-local-release-rejected", "fixture": "registry", "scenario": "local-release" },
+    { "id": "AUL0-W-1469-git-snapshot-not-authority", "fixture": "registry", "scenario": "git-snapshot" },
+    {
+      "id": "AUL0-W-1469-current",
+      "decisions": ["W-1469"],
+      "sourceRef": {
+        "path": "reference/last-light/build.w",
+        "symbol": "origin: { object: \"sha256:1031dc23028d28379d8d168895ce528b833d3015fcfe87f9797119a9f7fff538\", length: 463 }"
+      },
+      "fixture": "registry",
+      "scenario": "rotation-valid"
+    }
+  ],
+  "identityCases": [
+    { "id": "AUL0-W-1469-wrong-authority-lock-reference", "scenario": "wrong-lock-reference" },
+    { "id": "AUL0-W-1469-digest-only-substitution", "scenario": "digest-only-substitution" },
+    { "id": "AUL0-W-1469-forced-digest-collision-full-byte", "scenario": "forced-digest-collision-full-byte" },
+    { "id": "AUL0-W-1469-package-scoped-grammar", "scenario": "package-scoped-grammar" }
+  ]
+}

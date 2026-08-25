@@ -774,6 +774,7 @@ entry(runModuleRun)
 ```w
 package {
   schema: "w.package/1"
+  authority: .registry("w")
   name: "atlas/syntax"
   edition: "2026"
   dependencies: [

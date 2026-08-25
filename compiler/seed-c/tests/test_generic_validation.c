@@ -136,6 +136,8 @@ typedef struct {
 } fixture;
 
 static fixture value;
+static const uint8_t *nominal_test_source_authority = NULL;
+static size_t nominal_test_source_authority_length = 0u;
 
 static void fixture_init_outputs(fixture *fixture_value) {
   fixture_value->frontend_input =
@@ -306,9 +308,11 @@ static w_seed_constir_program fixture_program(const fixture *fixture_value) {
       .local_count = fixture_value->constir_result.written.locals};
 }
 
-static bool fixture_prepare_nominal_origin(fixture *fixture_value,
-                                           uint32_t application_index) {
+static bool fixture_prepare_nominal_origin_with_authority(
+    fixture *fixture_value, uint32_t application_index,
+    const uint8_t *authority, size_t authority_length) {
   CHECK(fixture_value != NULL);
+  CHECK(authority != NULL && authority_length != 0u);
   CHECK(application_index <
         fixture_value->frontend_result.written.generic_applications);
   const w_seed_frontend_generic_application *application =
@@ -322,8 +326,6 @@ static bool fixture_prepare_nominal_origin(fixture *fixture_value,
       &fixture_value->modules[application->module_index];
   const w_seed_frontend_struct *head =
       &fixture_value->structs[application->head_struct];
-  static const uint8_t authority[] =
-      "w-authority-fixture-1|registry=w";
   static const char package_name[] = "last-light/restaurant";
   w_seed_frontend_text module_segments[
       W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS];
@@ -345,7 +347,7 @@ static bool fixture_prepare_nominal_origin(fixture *fixture_value,
   }
   const w_seed_generic_nominal_origin origin = {
       authority,
-      sizeof(authority) - 1u,
+      authority_length,
       {package_name, sizeof(package_name) - 1u},
       module_segments,
       module_segment_count,
@@ -371,6 +373,19 @@ static bool fixture_prepare_nominal_origin(fixture *fixture_value,
   CHECK(w_seed_generic_nominal_origin_view_valid(
       &fixture_value->nominal_origin_view));
   return true;
+}
+
+static bool fixture_prepare_nominal_origin(fixture *fixture_value,
+                                           uint32_t application_index) {
+  static const uint8_t authority[] =
+      "w-authority-fixture-1|registry=w";
+  if (nominal_test_source_authority != NULL &&
+      nominal_test_source_authority_length != 0u)
+    return fixture_prepare_nominal_origin_with_authority(
+        fixture_value, application_index, nominal_test_source_authority,
+        nominal_test_source_authority_length);
+  return fixture_prepare_nominal_origin_with_authority(
+      fixture_value, application_index, authority, sizeof(authority) - 1u);
 }
 
 static w_seed_generic_validation_state validate_application_at_with_evidence(
@@ -4765,9 +4780,13 @@ static void print_nominal_validation_line(
   (void)putchar('\n');
 }
 
-static bool probe_nominal_origin_matrix(void) {
-  static const uint8_t authority_a[] = "w-authority-fixture-1|registry=a";
-  static const uint8_t authority_b[] = "w-authority-fixture-1|registry=b";
+static bool probe_nominal_origin_matrix(const uint8_t *authority_a,
+                                        size_t authority_a_length,
+                                        const uint8_t *authority_b,
+                                        size_t authority_b_length) {
+  if (authority_a == NULL || authority_a_length == 0u ||
+      authority_b == NULL || authority_b_length == 0u)
+    return false;
   static const char package_a[] = "last-light/restaurant";
   static const char package_b[] = "other/restaurant";
   static const char module_a[] = "domain";
@@ -4781,7 +4800,7 @@ static bool probe_nominal_origin_matrix(void) {
       {owner_name, sizeof(owner_name) - 1u}};
   const w_seed_generic_nominal_origin base = {
       authority_a,
-      sizeof(authority_a) - 1u,
+      authority_a_length,
       {package_a, sizeof(package_a) - 1u},
       &segment_a,
       1u,
@@ -4791,7 +4810,7 @@ static bool probe_nominal_origin_matrix(void) {
       {declaration_name, sizeof(declaration_name) - 1u}};
   const w_seed_generic_nominal_origin authority = {
       authority_b,
-      sizeof(authority_b) - 1u,
+      authority_b_length,
       {package_a, sizeof(package_a) - 1u},
       &segment_a,
       1u,
@@ -4801,7 +4820,7 @@ static bool probe_nominal_origin_matrix(void) {
       {declaration_name, sizeof(declaration_name) - 1u}};
   const w_seed_generic_nominal_origin package = {
       authority_a,
-      sizeof(authority_a) - 1u,
+      authority_a_length,
       {package_b, sizeof(package_b) - 1u},
       &segment_a,
       1u,
@@ -4811,7 +4830,7 @@ static bool probe_nominal_origin_matrix(void) {
       {declaration_name, sizeof(declaration_name) - 1u}};
   const w_seed_generic_nominal_origin module = {
       authority_a,
-      sizeof(authority_a) - 1u,
+      authority_a_length,
       {package_a, sizeof(package_a) - 1u},
       &segment_b,
       1u,
@@ -4821,7 +4840,7 @@ static bool probe_nominal_origin_matrix(void) {
       {declaration_name, sizeof(declaration_name) - 1u}};
   const w_seed_generic_nominal_origin kind = {
       authority_a,
-      sizeof(authority_a) - 1u,
+      authority_a_length,
       {package_a, sizeof(package_a) - 1u},
       &segment_a,
       1u,
@@ -4831,7 +4850,7 @@ static bool probe_nominal_origin_matrix(void) {
       {declaration_name, sizeof(declaration_name) - 1u}};
   const w_seed_generic_nominal_origin owner_origin = {
       authority_a,
-      sizeof(authority_a) - 1u,
+      authority_a_length,
       {package_a, sizeof(package_a) - 1u},
       &segment_a,
       1u,
@@ -4888,7 +4907,7 @@ static bool probe_nominal_origin_matrix(void) {
   const char unicode_name[] = "B\xc3\xb3x";
   const w_seed_generic_nominal_origin unicode = {
       authority_a,
-      sizeof(authority_a) - 1u,
+      authority_a_length,
       {package_a, sizeof(package_a) - 1u},
       &segment_a,
       1u,
@@ -4907,7 +4926,8 @@ static bool probe_nominal_origin_matrix(void) {
       "struct Box<_ value: i64<(always(.member))>> {}\n"
       "struct Use { item: Box<42> }\n";
   if (!fixture_lower_with_module(&value, validation_source, module_a) ||
-      !fixture_prepare_nominal_origin(&value, 0u))
+      !fixture_prepare_nominal_origin_with_authority(
+          &value, 0u, authority_a, authority_a_length))
     return false;
   w_seed_generic_validation_result valid_result;
   if (validate_application_at_with_origin_view(
@@ -4926,7 +4946,8 @@ static bool probe_nominal_origin_matrix(void) {
       "struct Use { item: Box<42> }\n";
   CHECK(fixture_lower_with_module(&value, predicate_body_variant_source,
                                   module_a) &&
-        fixture_prepare_nominal_origin(&value, 0u));
+        fixture_prepare_nominal_origin_with_authority(
+            &value, 0u, authority_a, authority_a_length));
   w_seed_generic_validation_result body_result;
   CHECK(validate_application_at_with_origin_view(
             &value, 0u, &value.nominal_origin_view, value.specialization_preimage,
@@ -4938,7 +4959,8 @@ static bool probe_nominal_origin_matrix(void) {
   print_nominal_validation_line("body", &value, &body_result,
                                 body_predicate_digest);
   CHECK(fixture_lower_with_module(&value, validation_source, module_a) &&
-        fixture_prepare_nominal_origin(&value, 0u));
+        fixture_prepare_nominal_origin_with_authority(
+            &value, 0u, authority_a, authority_a_length));
   w_seed_generic_validation_result missing_result;
   if (validate_application_at_with_origin_view(
           &value, 0u, NULL, value.specialization_preimage,
@@ -5036,19 +5058,19 @@ static bool probe_nominal_origin_matrix(void) {
       W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
       {wrong_owner_name, sizeof(wrong_owner_name) - 1u}};
   const w_seed_generic_nominal_origin relation_origins[] = {
-      {authority_a, sizeof(authority_a) - 1u,
+      {authority_a, authority_a_length,
        {package_a, sizeof(package_a) - 1u}, prefix_segments, 2u,
        W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT, NULL, 0u,
        {declaration_name, sizeof(declaration_name) - 1u}},
-      {authority_a, sizeof(authority_a) - 1u,
+      {authority_a, authority_a_length,
        {package_a, sizeof(package_a) - 1u}, domain_segments, 1u,
        W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT, NULL, 0u,
        {wrong_declared_name, sizeof(wrong_declared_name) - 1u}},
-      {authority_a, sizeof(authority_a) - 1u,
+      {authority_a, authority_a_length,
        {package_a, sizeof(package_a) - 1u}, domain_segments, 1u,
        W_SEED_GENERIC_NOMINAL_DECLARATION_TYPE, NULL, 0u,
        {declaration_name, sizeof(declaration_name) - 1u}},
-      {authority_a, sizeof(authority_a) - 1u,
+      {authority_a, authority_a_length,
        {package_a, sizeof(package_a) - 1u}, domain_segments, 1u,
        W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT, &wrong_owner, 1u,
        {declaration_name, sizeof(declaration_name) - 1u}},
@@ -5118,9 +5140,73 @@ static bool probe_nominal_origin_matrix(void) {
   return true;
 }
 
+static int nominal_test_hex_digit(char digit) {
+  if (digit >= '0' && digit <= '9') return digit - '0';
+  if (digit >= 'a' && digit <= 'f') return digit - 'a' + 10;
+  if (digit >= 'A' && digit <= 'F') return digit - 'A' + 10;
+  return -1;
+}
+
+static bool nominal_test_decode_hex(const char *text, uint8_t *output,
+                                    size_t output_capacity,
+                                    size_t *output_length) {
+  if (text == NULL || output == NULL || output_length == NULL) return false;
+  const size_t text_length = strlen(text);
+  if ((text_length & 1u) != 0u || text_length / 2u > output_capacity)
+    return false;
+  for (size_t index = 0u; index < text_length / 2u; index += 1u) {
+    const int high = nominal_test_hex_digit(text[index * 2u]);
+    const int low = nominal_test_hex_digit(text[index * 2u + 1u]);
+    if (high < 0 || low < 0) return false;
+    output[index] = (uint8_t)((high << 4) | low);
+  }
+  *output_length = text_length / 2u;
+  return *output_length != 0u;
+}
+
+static bool nominal_test_configure_source_authority(
+    const char *hex, uint8_t *storage, size_t storage_capacity) {
+  size_t length = 0u;
+  if (!nominal_test_decode_hex(hex, storage, storage_capacity, &length))
+    return false;
+  nominal_test_source_authority = storage;
+  nominal_test_source_authority_length = length;
+  return true;
+}
+
 int main(int argc, char **argv) {
-  if (argc == 2 && strcmp(argv[1], "--nominal-origin-matrix") == 0)
-    return probe_nominal_origin_matrix() ? 0 : 1;
+  if (argc == 4 && strcmp(argv[1], "--nominal-origin-matrix") == 0) {
+    uint8_t authority_a[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+    uint8_t authority_b[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+    size_t authority_a_length = 0u;
+    size_t authority_b_length = 0u;
+    if (!nominal_test_decode_hex(argv[2], authority_a, sizeof(authority_a),
+                                 &authority_a_length) ||
+        !nominal_test_decode_hex(argv[3], authority_b, sizeof(authority_b),
+                                 &authority_b_length))
+      return 1;
+    nominal_test_source_authority = authority_a;
+    nominal_test_source_authority_length = authority_a_length;
+    return probe_nominal_origin_matrix(
+               authority_a, authority_a_length, authority_b,
+               authority_b_length)
+               ? 0
+               : 1;
+  }
+  if (argc == 4 && strcmp(argv[1], "--domain-witness") == 0) {
+    uint8_t authority[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+    if (!nominal_test_configure_source_authority(
+            argv[3], authority, sizeof(authority)))
+      return 1;
+    return probe_domain_file(argv[2], "restaurant") ? 0 : 1;
+  }
+  if (argc == 5 && strcmp(argv[1], "--domain-witness-module") == 0) {
+    uint8_t authority[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+    if (!nominal_test_configure_source_authority(
+            argv[4], authority, sizeof(authority)))
+      return 1;
+    return probe_domain_file(argv[2], argv[3]) ? 0 : 1;
+  }
   if (argc == 3 && strcmp(argv[1], "--domain-witness") == 0)
     return probe_domain_file(argv[2], "restaurant") ? 0 : 1;
   if (argc == 4 && strcmp(argv[1], "--domain-witness-module") == 0)

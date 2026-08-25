@@ -2591,17 +2591,17 @@
         {
           "path": "reference/last-light/build.w",
           "symbol": "package {",
-          "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f"
+          "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038"
         }
       ],
-      "snippetDigest": "sha256:7e60ad5b7b3094ffc5b3bb8dc105bf5bce7301d41758ecf14585ba27696005ce",
-      "snippetBytes": 190
+      "snippetDigest": "sha256:44876160bc88c3baf20a592326d9cdb4fc40ef3804e3b7ef1d0c9d2251d2e325",
+      "snippetBytes": 218
     },
     {
       "id": "workspace-root",
       "file": "build.w",
       "order": 16,
-      "line": 16,
+      "line": 17,
       "title": "Workspace manifest root",
       "family": "manifest",
       "designStatus": "current",
@@ -2617,7 +2617,7 @@
         {
           "path": "reference/last-light/build.w",
           "symbol": "workspace {",
-          "digest": "sha256:22913afb283e62a2ea58e8bae7557b09d4cf9c249eacd927a482725e6e0ef59f"
+          "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038"
         }
       ],
       "snippetDigest": "sha256:538bc3384f73031187fc9f9ad2caec358951f8e584c075e9cf212ac0075db345",
@@ -2644,6 +2644,6 @@
   ],
   "generated": {
     "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:dddc0d225d3ea24722e23163318ea3e60a25f8e002f621cef470d34cf44a19c1"
+    "cheatsheetDigest": "sha256:9d466dcabd9f65881de3c630fe683c72f449266d3fe6470919571e9fdc15d890"
   }
 }

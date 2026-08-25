@@ -1028,6 +1028,19 @@ workspace {
     schema: "w.resolution/1"
     resolver: "w.resolver/1"
     ownerDigest: "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827"
+    authorities: [
+      {
+        kind: .registry
+        locator: "w"
+        origin: { object: "sha256:1031dc23028d28379d8d168895ce528b833d3015fcfe87f9797119a9f7fff538", length: 463 }
+        evidence: {
+          object: "sha256:b8ad0a1726c8b88bd1eaaf4f8259c1b4cf828f71bfe0309f5bdac4a0ddad6ae4"
+          length: 3014
+          observedRootVersion: 2
+        }
+        record: { object: "sha256:b03f34017556739702b2cf6546d3484b7f11cbadb5487d35b7519e6c7ccd7bd2", length: 3539 }
+      },
+    ]
     contexts: [
       {
         name: "last-light-native"
@@ -1062,7 +1075,7 @@ workspace {
     packages: [
       {
         id: "sha256:22d0414c0b18f89bb91f3e2ea5b5368b557664f8f910a41102a5e7f4f28f3c67"
-        authority: "w"
+        authority: { object: "sha256:1031dc23028d28379d8d168895ce528b833d3015fcfe87f9797119a9f7fff538", length: 463 }
         name: "last-light/restaurant"
         version: "0.1.0"
         source: .member(path: ".")
@@ -1073,7 +1086,7 @@ workspace {
       },
       {
         id: "sha256:3b51417f058a4a66d6166525d9fd588c97e79649db57d599fb7e559be24f8a44"
-        authority: "w"
+        authority: { object: "sha256:1031dc23028d28379d8d168895ce528b833d3015fcfe87f9797119a9f7fff538", length: 463 }
         name: "fiction/chart"
         version: "1.2.0"
         source: .registry("w")
@@ -1081,7 +1094,7 @@ workspace {
       },
       {
         id: "sha256:3e896724d6f6f896039de431e424309492cd2b2b30b47c0cf33e1f0f1b064de0"
-        authority: "w"
+        authority: { object: "sha256:1031dc23028d28379d8d168895ce528b833d3015fcfe87f9797119a9f7fff538", length: 463 }
         name: "last-light/menu-compiler"
         version: "0.1.0"
         source: .member(path: "packages/menu-compiler")

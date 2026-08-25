@@ -7727,13 +7727,57 @@ texto ASCII que viola a gramática são `INVALID`; UTF-8 válido não-ASCII é
 `UNSUPPORTED` até NFC. Um fact bem-formado que excede somente o ceiling de
 implementação também é `UNSUPPORTED`.
 
-A authority receipt é trust input do resolver. O seed verifica estrutura,
-integridade e relação da view recebida, mas não inventa nem simula autorização
-de registry/Git; `.registry("w")` cru não é uma authority preimage. `.local` e
-ephemeral exigem uma origem build-local nonportable; `.local` nunca é
-publicável e permanece gap explícito.
-O gate usa uma synthetic authority fixture oracle e não declara resolver de
-registry implementado.
+O bundle D10 define uma evidence registry bounded para o provider
+`w.registry.tuf-lineage/1`. Ele não implementa um resolver de registry completo
+nem conformidade TUF.
+
+`AuthorityOrigin` usa o schema `w-authority-origin-1`. Sua preimage inclui o
+provider, a lineage e o payload público canônico completo da raiz gênese. Ela
+exclui assinaturas. O payload inclui keys, threshold, version e lineage. Ed25519
+é o algoritmo vigente do provider v1. Key IDs são content-addressed pelo
+domínio `w-authority-key-1`. `AuthorityOrigin` retém as public keys completas
+da gênese no payload público canônico. `AuthorityEvidence` retém signatures,
+checkpoint e updates operacionais; esses facts não entram na origem. Comparação
+e admission exigem bytes completos. Digest e length são somente accelerators ou
+referências CAS.
+
+`trustedGenesis` é um trust input out-of-band do resolver. Ele deve carregar os
+bytes completos do payload público gênese e não pode ser criado pela metadata
+apresentada. Uma gênese autoassinada que não coincide com esse anchor não cria
+trust. A gênese diferente também muda a `AuthorityOrigin`.
+
+`AuthorityEvidence` registra o checkpoint, roots posteriores, signatures,
+mirrors, alias, locator, display e metadata operacional. Esses facts são
+evidence corrente. Uma mudança de alias, URL, mirror, signature set ou root
+current não muda a origem. `AuthorityRecord` combina kind, locator, display,
+origin e uma única evidence canônica. `PackageIdentity` combina os bytes
+completos da origem autenticada com o scoped package name.
+
+`AuthorityCheckpoint` usa o schema `w-authority-checkpoint-1`. Seu preimage
+atômico contém o schema, a versão, os bytes completos de `AuthorityOrigin` e o
+payload público completo da root corrente. Ele não contém assinaturas. O
+checkpoint é resolver-owned e persistido entre chamadas. A chamada verifica
+updates posteriores com versão exata `N+1`, satisfazendo separadamente o
+threshold da root anterior e o threshold da root nova; os valores numéricos
+dos dois thresholds não precisam ser diferentes. A chamada retorna o próximo
+checkpoint completo para persistência.
+
+O bootstrap exige checkpoint v1 igual ao `trustedGenesis` e self-threshold
+válido. `trustedGenesis` é o payload público completo fornecido out-of-band e
+define o origin; `trustedCheckpoint` é o checkpoint resolver-owned persistido
+que ancora a root corrente entre chamadas. Um checkpoint posterior pode iniciar
+a chamada sem replay desde a gênese, mas deve ligar seus bytes completos ao
+origin persistido. Os limites
+por chamada são 8 updates, 8 keys por root, 8 signatures por root, 8.192 bytes
+por root, 16.384 bytes por origin, 32.768 bytes por checkpoint e 65.536 bytes
+por evidence. Rollback, gap, lineage errada, assinatura duplicada ou threshold
+insuficiente falham antes da continuidade. O seed D9 consome os bytes completos
+do origin produzido por esse verifier e não resolve trust.
+
+`.local` e uma origem efêmera exigem uma origem build-local nonportable. `.local`
+nunca é publicável. Git commit, tree, URL e hash continuam source locator ou
+snapshot. Uma authority de repository Git exige um anchor assinado futuro e
+permanece gap explícito.
 
 O receipt usa o schema `w-seed-nominal-origin-1`, domain-separated, sem
 terminador NUL, com lengths/counts big-endian:
@@ -26577,28 +26621,31 @@ Para source local editável, a recipe grava o content tree digest.
 Package identity é:
 
 ```text
-PackageIdentity = declared authority + scoped package name
+PackageIdentity = full authenticated AuthorityOrigin bytes + scoped package name
 ```
 
 Todo record `package` em `build.w` declara um field `authority`:
 
 ```w
 authority: .registry("w")
-authority: .git("https://github.com/acme/telemetry.git")
 authority: .local
 ```
 
-Um registry authority usa um ID estável ancorado na linhagem de root metadata.
-URL, alias local `"w"` e chave atual não são a identidade. Uma rotação
-autorizada preserva a linhagem; trocar para uma root sem essa delegação cria
-outra authority. Uma Git authority usa a canonical repository identity. A
-revision identifica uma source tree, não uma package identity. Mudar registry
-authority ou repository cria outra identity, mesmo quando o texto `owner/name`
-coincide.
+`.registry("w")` é um locator/config key e declara o expected provider kind.
+Ele não cria trust e não entra na `PackageIdentity`. O resolver deve carregar e
+validar o `AuthorityOrigin` completo antes de comparar package identities.
+Uma rotação autorizada preserva a linhagem. Uma gênese diferente cria outro
+origin, mesmo quando o locator, alias ou nome do package coincide.
+
+Git URL, commit e tree são source locator e snapshot. Eles não são authority.
+Uma Git repository authority futura exige um anchor assinado próprio. Esta
+versão não implementa esse verifier. Um package Git compartilhável declara
+registry authority. `.local` é um root build-local nonportable e não é
+publicável.
 
 `.local` identifica somente um root não publicável. Ele não pode satisfazer uma
 dependency, receber patch ou entrar em release metadata. Um package que precisa
-ser compartilhado declara registry ou Git authority desde o início.
+ser compartilhado declara registry authority desde o início.
 
 O scoped name possui duas partes ASCII lowercase separadas por `/`. Cada parte
 começa por letra e contém letras, digits ou `-`, com 1 a 63 caracteres. Registry
@@ -26606,8 +26653,8 @@ metadata controla delegation, transfer e revocation do owner. Unicode fica no
 display name, não no identificador usado por filesystem, URL e type identity.
 
 - `.registry(name)` exige a mesma registry authority no package encontrado;
-- `.git(url, revision:)` exige a mesma Git authority e um commit completo na
-  dependency;
+- `.git(url, revision:)` localiza um snapshot de source. Ele não concede
+  authority e o package encontrado deve declarar registry authority;
 - dependency source `.path(path)` existe somente no record `workspace` de
   `build.w` e aponta para um diretório cujo `build.w` contém `package`;
 - um member compatível é uma source local implícita e registrada no lock;
@@ -26628,8 +26675,8 @@ rejeita patches. Para publicar a correção, o autor publica uma release da mesm
 identity ou usa uma identity nova.
 
 O registry público inicial aceita somente dependencies de release por registry.
-Git continua disponível para roots privados e experimentos. Essa policy pode
-evoluir sem mudar o formato do manifest.
+Git continua disponível como source locator para roots privados e experimentos.
+Essa policy pode evoluir sem mudar o formato do manifest.
 
 `--locked` rejeita uma configuração local que aponte o alias de registry para
 outra linhagem de authority. Mirrors podem mudar sem trocar a authority, porque
@@ -26654,11 +26701,33 @@ produzem artifact keys diferentes.
 `w.resolution/1`. O resolver grava esse record dentro do owner físico em UTF-8,
 LF e ordem canônica:
 
-```w
+Este bloco usa metavalores esquemáticos; não é um fragmento W compilável nem
+fixa os valores da fixture.
+
+```text
 resolution {
   schema: "w.resolution/1"
   resolver: "w.resolver/1"
   ownerDigest: "sha256:..."
+  authorities: [
+    {
+      kind: .registry
+      locator: "w"
+      origin: {
+        object: "sha256:<authority-origin-object>"
+        length: <authority-origin-length>
+      }
+      evidence: {
+        object: "sha256:<authority-evidence-object>"
+        length: <authority-evidence-length>
+        observedRootVersion: <observed-root-version>
+      }
+      record: {
+        object: "sha256:<authority-record-object>"
+        length: <authority-record-length>
+      }
+    },
+  ]
   contexts: [
     {
       root: .product("last-light-native")
@@ -26686,7 +26755,10 @@ resolution {
   packages: [
     {
       id: "sha256:package-node..."
-      authority: "w:sha256:..."
+      authority: {
+        object: "sha256:<authority-origin-object>"
+        length: <authority-origin-length>
+      }
       name: "last-light/menu-compiler"
       version: "0.1.0"
       source: .member(
@@ -26699,6 +26771,13 @@ resolution {
   ]
 }
 ```
+
+`authorities` separa kind e locator humano dos refs CAS de
+`AuthorityOrigin`, `AuthorityEvidence` e `AuthorityRecord`. O lock não é trust
+source. Um objeto CAS não é trust source. O resolver carrega os bytes completos
+e compara o origin com o trust store antes de usar o record. Evidence e record
+podem mudar sem mudar a type identity. O exemplo não prova os IDs dos package
+nodes. O encoder exato desses nodes e a persistência CAS real continuam gaps.
 
 O field `ownerDigest` da resolution prova o owner físico. O owner basis exclui
 `resolution` e `deployments`, portanto não existe ciclo de digest. O resolver
@@ -27869,18 +27948,24 @@ O portal mostra eixos separados:
 “Verificado” sempre informa qual eixo e qual policy. Uma estrela agregada não é
 evidência técnica.
 
-O transporte de registry segue um modelo TUF-like:
+O transporte de registry usa um modelo W-specific TUF-like bounded. A fatia
+current verifica somente continuidade de roots e admission da evidence:
 
-- `root` delega keys e thresholds dos outros papéis;
-- `targets` liga package, version e target aos envelopes por digest;
-- `snapshot` impede misturar metadata de épocas diferentes;
-- `timestamp` limita freeze e replay de metadata antiga;
-- `mirrors`, quando usado, publica somente endereços e conteúdos permitidos.
+- `trustedGenesis` é o payload público completo fornecido out-of-band e ancora
+  a origem inicial;
+- `trustedCheckpoint` é o checkpoint resolver-owned persistido entre chamadas e
+  ancora a root corrente; ele não é um novo trust input out-of-band;
+- cada update exige versão exata `N+1` e satisfaz separadamente o threshold da
+  root anterior e o threshold da root nova; os valores numéricos podem ser
+  iguais;
+- `mirrors`, alias, locator e display ficam fora da origem;
+- o resultado retorna o próximo checkpoint completo.
 
-O client verifica versão crescente, expiry, threshold, digest, tamanho e
-delegation antes de usar metadata. Um mirror não é uma authority. Bytes errados,
-metadata antiga, rollback, freeze ou package name ambíguo produzem failure. O
-client não troca para um mirror não listado para “tentar novamente”.
+Essa fatia não implementa `targets`, `snapshot`, `timestamp`, expiry,
+freshness, freeze, download, archive ou o registry completo. Um mirror não é
+uma authority. O client deve rejeitar bytes errados, rollback, gap, lineage
+errada e lock-origin mismatch. O client não troca para um mirror não listado
+para tentar novamente.
 
 Sigstore pode fornecer uma attestation de identidade efêmera e uma entrada de
 transparency log. A entrada comprova que um digest e sua assinatura foram
@@ -27936,6 +28021,7 @@ w run <path/file.w> [--offline] [--entry <name>] [--deployment <name>] -- <argum
 w repl
 w test [product] --locked
 w explain dependency <package>
+w explain authority <locator-or-origin>
 w explain feature <package>::<feature>
 w explain target-variant <package>::<variant> --target <target>
 w explain action <action>
@@ -27969,6 +28055,13 @@ w publish <package> --artifacts <index> --locked
 
 Saída humana é curta. `--json` fornece o grafo, diagnostics e evidências
 completos.
+
+`w explain authority <locator-or-origin>` mostra, no mínimo, kind, locator,
+lineage, origin digest e length, trusted checkpoint version e dimensões da
+evidence. O output nunca mostra private keys, secrets ou material equivalente.
+Diagnostics distinguem locator sem trust, genesis mismatch, rollback, gap,
+threshold old/new insuficiente, lock-origin mismatch, Git authority não
+suportada e release `.local`.
 
 `w add` e `w remove` alteram o owner package/workspace e atualizam somente a
 resolution em uma única transação. Falha de resolução não deixa o manifest
@@ -31038,8 +31131,10 @@ seis casos FRC0. Sua ligação corrente com a fronteira de freeze é
 `GPF0-W-1468-current` em [`tooling/generic-fingerprint-cases.json`](tooling/generic-fingerprint-cases.json)
 e a entrada `oracle-backed-current` de W-1468 em
 [`tooling/design-freeze-classification.json`](tooling/design-freeze-classification.json).
-Essa cadeia usa fragments source-backed e uma authority fixture sintética; não
-prova autorização de registry/Git, compiler, runtime ou provider.
+Essa cadeia usa fragments source-backed e consome o `AuthorityOrigin` completo
+e aceito de `AUL0-W-1469-current`; não
+prova o resolver completo de registry, Git authority, compiler, runtime ou
+provider.
 
 | Gate | Current | Adversarial | Contrato fechado |
 |---|---|---|---|

@@ -4206,14 +4206,69 @@ Target variants também foram comparadas com
 e [build constraints de Go](https://pkg.go.dev/cmd/go#hdr-Build_constraints).
 W mantém a seleção no manifest e não em comments, filenames ou statements.
 
-O modelo de distribuição compara
-[TUF](https://theupdateframework.github.io/specification/draft/),
+O modelo de distribuição compara a especificação
+[TUF 1.0.26](https://theupdateframework.github.io/specification/v1.0.26/),
 [Sigstore](https://docs.sigstore.dev/),
 [Rekor](https://docs.sigstore.dev/logging/overview/),
 [SLSA provenance](https://slsa.dev/spec/v1.2/provenance) e
 [Reproducible Builds](https://reproducible-builds.org/docs/plans/). Nenhuma
 dessas fontes transforma transporte, transparency log ou identidade efêmera em
 trust policy suficiente por si só.
+
+#### Authority origin e continuidade de registry W-1469
+
+As fontes primárias usadas para W-1469 são:
+
+- [TUF specification 1.0.26](https://theupdateframework.github.io/specification/v1.0.26/), §§5.2, 5.3 e 6.1.
+  A fonte exige trusted root out-of-band e roots sequenciais.
+  Durante a rotação, exige o threshold da root anterior e o threshold da root
+  nova. Ela também descreve persistência da root e verificações de rollback e
+  freeze.
+- [Git user manual](https://git-scm.com/docs/user-manual), seção “The Object Database”.
+  A fonte afirma que o mesmo conteúdo em dois repositories recebe o mesmo
+  object name. Ela separa blob, tree, commit e tag. Um commit aponta para uma
+  tree snapshot e para parents.
+- [Git hash-function transition](https://git-scm.com/docs/hash-function-transition.html).
+  A fonte define object names SHA-1 e SHA-256 e mostra que o formato e as
+  referências mudam durante a transição.
+- [Go Modules Reference](https://go.dev/ref/mod), seções “Modules, packages, and versions”
+  e “Module paths”. A fonte usa module path para naming e para localizar
+  repository, subdirectory e version.
+
+W usa essas fontes por inferência. TUF motivou `trustedGenesis` out-of-band,
+versions sequenciais e o dual-threshold old/new. `trustedCheckpoint` é um
+checkpoint resolver-owned persistido entre chamadas, não outro trust input
+out-of-band. W mantém somente a continuidade bounded de roots. W-1469 não é
+TUF conformant e não implementa targets, snapshot, timestamp, expiry,
+freshness, freeze ou registry completo.
+
+O Git user manual sustenta a separação entre snapshot e repository authority.
+Um commit, tree ou object hash pode identificar bytes ou uma snapshot sem
+identificar o repository que deve autorizar um package. A transição SHA-1/SHA-256
+reforça que o hash do Git não é uma authority W estável por si só. Go module path
+separa naming e localização. Ele não é um trust anchor W.
+
+W rejeita estas alternativas:
+
+- conceder authority por alias ou URL;
+- usar a chave current como identidade;
+- aceitar gênese autoassinada sem trusted anchor;
+- comparar digest sem carregar bytes completos;
+- fazer replay desde a gênese em toda chamada ou aplicar um limite vitalício;
+- tratar commit ou tree Git como repository authority;
+- tratar o lock como trust source.
+
+Síntese adversarial do Restaurante:
+
+- `last-light/restaurant`, `fiction/chart` e `last-light/menu-compiler`
+  compartilham os mesmos bytes completos de `AuthorityOrigin`, mas têm scoped
+  names distintos e, portanto, `PackageIdentity` distintas;
+- a rotação válida muda evidence e checkpoint, mas preserva os bytes de origin;
+- alias e mirror mudam evidence ou transporte, mas não mudam origin;
+- uma gênese alternativa muda origin, mesmo quando o alias e os demais campos
+  parecem iguais; e
+- o lock registra refs CAS e não cria trust: o resolver carrega os bytes
+  completos e os compara com o trust input.
 
 Para metadata W, Protobuf foi descartado porque sua
 [serialização não é canônica](https://protobuf.dev/programming-guides/serialization-not-canonical/).
@@ -7248,7 +7303,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1465 | sessão privada de avaliação por aplicação | D6 source-backed bounded para duas arguments `TYPED_PENDING_CONST` da mesma aplicação: sessão vazia por run, tabela fixa de 256 compartilhada somente durante o loop de argumentos, READY reutilizável entre irmãos, predicates com evaluation nova, counters/quotas/receipts/fingerprint preservados e sem API pública | oracle-backed-current; `GPF0-W-1465-current` liga `AnswerPair.agrees`, as aliases equivalentes e o teste `restaurantGenericContractHolds` do Restaurante, prova primeiro argument 7 steps/4 misses/1 hit, segundo irmão 1 step/0 misses/1 hit, quota total 8, quota 7 com falha antes do lookup no segundo, novo run 7/1, failure-first, cycle/corruption/dependency-limit preflight zero e preimage Bun independente de dois i64; cache compartilhável, outro run/application, imports, associated const, inference, identity final, compiler/runtime e self-host permanecem limites |
 | W-1466 | inferência scalar append-only de module const | D7 source-backed bounded para `const name = initializer` e `export const` local: solver de grafo acíclico independente de source order, forward references, `declared_type` source-only, `effective_type` append-only, default `Int`/`i64`, Bool, suffix e propagation por identifier; cycles causais e barreiras D4 preservados; ConstIR-6/fingerprint-1 estáveis | oracle-backed-current; `GPF0-W-1466-current` remove somente as quatro annotations do diamond Last Light, preserva `ultimateAnswer: i64`, prova quatro records explicit=false/declared=NONE/effective=i64, symbol exportado i64, integer default/Bool/suffix/propagation, graph forward/reordered, equivalência explicit/inferred, ciclos anchor/unanchored com zero evidence e negativos D4 completos via C e oracle Bun independente; imports, associated const, identity final, cache compartilhável, compiler/runtime e self-host permanecem limites |
 | W-1467 | identidade semântica collision-safe de specialization | D8 separa a identidade semântica da specialization, a recipe física de materialização/cache e `reflect.TypeId`; preimage completo com declaração nominal local struct, substitution normalizado, refinements e witness vector count zero; digest somente accelerator com full-byte compare; schema `w-seed-generic-specialization-1`; API caller-owned com measure/write, lifecycle explícito `NOT_AVAILABLE`/`AVAILABLE`/`UNSUPPORTED`/`CAPACITY`, bytes required/written e digest | oracle-backed-current; `GPF0-W-1467-current` liga fragments reais do Restaurante para immediate/computed/named/diamond/AnswerPair e `StaticValue<Bool,true>`/`StaticValue<String,"The final seating">`; head/module/refinement adversaries continuam fixtures C sintéticos; o gate Bun compara bytes C, length e SHA e cobre rejected/quota/overflow/cycle/invalid/corrupt/unsupported, capacity exact/zero/short-by-one, sentinels, NULL input e digest-forced collision; recipe física, receipts autoritativos package/interface, witness selection geral, TypeId runtime e compiler completo permanecem gaps |
-| W-1468 | origem nominal collision-safe e specialization-2 | D9 separa `NominalDeclarationOrigin`, `SemanticTypeConstructor`, contrato/interface agregados, recipe física e `TypeId`; receipt completo de authority/package/module path/kind/owner/name; builder caller-owned measure/write com schema `w-seed-nominal-origin-1`, SHA accelerator, full-byte equality e validação de digest/framing/relação; specialization sobe para `w-seed-generic-specialization-2` e validation para `w-seed-generic-validation-8`, preservando fingerprint-1 | oracle-backed-current; `GPF0-W-1468-current` liga markers reais de `build.w`, `domain.w` e `generics.w` ao package `last-light/restaurant`, usa authority preimage oracle explicitamente synthetic, separa módulos `domain`/`generics`, compara bytes completos C e Bun independentes e cobre authorities/packages/modules/kinds/owners, aliases/version/revision/path/target/profile ausentes, missing origin, corrupção/truncated/trailing/digest/relation, capacidade e digest collision; registry/Git resolver, NFC completo, `.local` build-local nonportable e nunca publicável, witness selection geral, recipe física, TypeId runtime e compiler completo permanecem gaps |
+| W-1468 | origem nominal collision-safe e specialization-2 | D9 separa `NominalDeclarationOrigin`, `SemanticTypeConstructor`, contrato/interface agregados, recipe física e `TypeId`; receipt completo de authority/package/module path/kind/owner/name; builder caller-owned measure/write com schema `w-seed-nominal-origin-1`, SHA accelerator, full-byte equality e validação de digest/framing/relação; specialization sobe para `w-seed-generic-specialization-2` e validation para `w-seed-generic-validation-8`, preservando fingerprint-1 | oracle-backed-current; `GPF0-W-1468-current` liga markers reais de `build.w`, `domain.w` e `generics.w` ao package `last-light/restaurant`, consome o AuthorityOrigin completo de `AUL0-W-1469-current`, separa módulos `domain`/`generics`, compara bytes completos C e Bun independentes e cobre authorities/packages/modules/kinds/owners, aliases/version/revision/path/target/profile ausentes, missing origin, corrupção/truncated/trailing/digest/relation, capacidade e digest collision; o resolver completo de registry e a Git repository authority permanecem gaps, assim como NFC completo, `.local` build-local nonportable e nunca publicável, witness selection geral, recipe física, TypeId runtime e compiler completo |
+| W-1469 | authority origin e continuidade registry bounded | `AuthorityOrigin` usa bytes públicos completos da gênese sem assinaturas; `trustedGenesis` é o payload público completo fornecido out-of-band e define o origin; `trustedCheckpoint` é resolver-owned, persistido entre chamadas e não é um novo trust input out-of-band; ele ancora a root corrente; cada update N+1 satisfaz separadamente o threshold da root anterior e o threshold da root nova; lock separa origin, evidence e record; AUL0-W-1469-current liga o Last Light Restaurante | oracle-backed-current; AUL0-W-1469-current prova trusted anchor, rotação, checkpoint, alias, mirror, corrupção, rollback, gap, thresholds, key IDs, package identity e full-byte equality; persistence/CAS real, expiry/freshness/timestamp, targets/snapshot, Git authority, `.local` origin, NFC e compiler completo permanecem gaps |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
@@ -7417,9 +7473,10 @@ namespaces e materialização. Não são autoridade para tags, receipts ou
 igualdade de W.
 
 O gate source-backed lê markers reais de `reference/last-light/build.w`,
-`domain.w` e `generics.w`. O package marker é `last-light/restaurant`; a
-authority usada é uma synthetic fixture declarada no corpus, pois o resolver
-real de registry não existe neste repositório. StagePath é ligado a `domain`;
+`domain.w` e `generics.w`. O package marker é `last-light/restaurant`; o gate
+consome o `AuthorityOrigin` completo e aceito de `AUL0-W-1469-current`. O
+verifier D10 recebe trust input out-of-band e não é um resolver completo.
+StagePath é ligado a `domain`;
 UltimateAnswer, AnswerPair, StaticValue e FinalCallValue são ligados a
 `generics`. A matriz Bun/C cobre same-origin equivalence, authorities/packages/
 modules/kinds/owners divergentes, body/refinement divergente, fatos físicos
