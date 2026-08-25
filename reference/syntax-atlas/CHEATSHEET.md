@@ -543,7 +543,7 @@ fn panicExample(message: String): String {
 ```w
 module atlas_operators
 
-fn operatorSurface() {
+fn operatorSurface(payload: any reflect.Reflectable) {
   var value = 8
   var other = 2
   var fallback = 1
@@ -570,7 +570,7 @@ fn operatorSurface() {
   let inverted = ~value
   let equal = value == other
   let related = value < other
-  let typed = value is Int
+  let typed = payload is ReservationKey
   let contained = value in 0..<other
   let ranges = 0...other
   // Bounded and one-sided forms include `...` and `..<`.

@@ -11,13 +11,13 @@ fn calculate(
   maximum: Int,
   primary: Int?,
   secondary: Int?,
-  payload: any Display,
+  payload: any reflect.Reflectable,
   stage: ServiceStage,
 ) {
   let power = -2.0 ** 2 ** -3
   let arithmetic = a + b * c << shift
   let ordered = minimum <= a && a < maximum
-  let typed = payload is Order
+  let typed = payload is ReservationKey
   let preparing = stage is .preparing
   let fallback = primary ?? secondary ?? computeFallback()
   registers[index()] <<= 1
@@ -73,6 +73,7 @@ fn calculate(
         (identifier)
         (type
           (type_name
+            (type_identifier)
             (type_identifier))))
       (parameter
         (identifier)
@@ -633,6 +634,7 @@ async fn execute(
             (argument
               (identifier)
               (identifier))))))))
+
 ==================
 Legacy capture syntax is rejected before W 1.0
 ==================
