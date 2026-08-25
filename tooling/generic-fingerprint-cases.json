@@ -246,6 +246,102 @@
         "determinism": "O gate compara named/duplicate/immediate, receipts CONST_ARGUMENT,PREDICATE, preflight de forward/cycles, caminhos fechados, quota cumulativa, dependency graph ceiling com failure dependency-limit, arithmetic overflow e corrupção em zero-step."
       },
       "scope": "Evidence local D4 para module const source-backed com tipo explícito Bool ou integer, dependências locais e limite de 256; arithmetic overflow usa W-CONST-0006; dependency graph ceiling mantém estado UNSUPPORTED e failure dependency-limit, enquanto dependency fora do subset mantém a failure function; não é compiler completo, imports, associated const, inference, cache/memoization, identidade final, runtime ou self-host."
+    },
+    {
+      "id": "GPF0-W-1464-current",
+      "decisions": ["W-1464"],
+      "source": {
+        "path": "reference/last-light/generics.w",
+        "symbol": "export alias UltimateAnswerShared = UltimateAnswer<(assembledUltimateAnswer)>"
+      },
+      "description": "Corpus source-backed para memoização local determinística de module-const D4 em uma árvore diamond.",
+      "witnesses": {
+        "module": "restaurant",
+        "diamond": {
+          "root": "assembledUltimateAnswer",
+          "sourceOrder": ["answerSeed", "firstAnswerHalf", "secondAnswerHalf", "assembledUltimateAnswer"],
+          "value": 42,
+          "misses": 4,
+          "hits": 1,
+          "steps": 7
+        },
+        "duplicate": {
+          "count": 2,
+          "misses": 4,
+          "hits": 1,
+          "steps": 7
+        },
+        "linear": {
+          "hits": 0
+        },
+        "quota": {
+          "allowed": 7,
+          "rejected": 6,
+          "diagnostic": "W-CONST-0003"
+        },
+        "failure": {
+          "diagnostic": "W-CONST-0006",
+          "cached": false
+        },
+        "fingerprint": "same as immediate 42, D3 (6 * 7), and D4 ultimateAnswer",
+        "repeated": {
+          "count": 2,
+          "table": "empty per invocation"
+        },
+        "preflight": {
+          "selfCycle": {
+            "hits": 0,
+            "misses": 0,
+            "steps": 0,
+            "receipts": 1,
+            "receiptHits": 0,
+            "receiptMisses": 0
+          },
+          "twoCycle": {
+            "hits": 0,
+            "misses": 0,
+            "steps": 0,
+            "receipts": 1,
+            "receiptHits": 0,
+            "receiptMisses": 0
+          },
+          "threeCycle": {
+            "hits": 0,
+            "misses": 0,
+            "steps": 0,
+            "receipts": 1,
+            "receiptHits": 0,
+            "receiptMisses": 0
+          },
+          "zeroCapacity": {
+            "hits": 0,
+            "misses": 0,
+            "steps": 0,
+            "receipts": 0
+          },
+          "dependencyLimit": {
+            "hits": 0,
+            "misses": 0,
+            "steps": 0,
+            "receipts": 0
+          },
+          "corruption": {
+            "hits": 0,
+            "misses": 0,
+            "steps": 0,
+            "receipts": 0
+          }
+        }
+      },
+      "oracle": {
+        "runner": "tooling/check-seed-generic-validation.mjs",
+        "implementations": [
+          "seed C",
+          "Bun com reconstrução independente do grafo diamond, source order, counters e steps"
+        ],
+        "determinism": "O gate reconstrói o grafo por nomes e source order, calcula misses/hits/steps sem copiar expected, compara receipts C e repete a avaliação com tabela vazia."
+      },
+      "scope": "Evidence local D5 para module const Bool/integer D4 com memoização allocation-free, bounded e por invocação; não fecha cache compartilhável, cross-argument/session, imports, associated const, inference, identidade final, runtime ou self-host."
     }
   ]
 }

@@ -33,7 +33,7 @@ typedef struct {
   bool valid;
 } constir_value_result;
 
-static const uint8_t CONSTIR_RECEIPT_SCHEMA[] = "w-seed-constir-5";
+static const uint8_t CONSTIR_RECEIPT_SCHEMA[] = "w-seed-constir-6";
 
 static bool add_size(size_t left, size_t right, size_t *out) {
   if (out == NULL || right > SIZE_MAX - left) return false;
@@ -2345,6 +2345,18 @@ w_seed_constir_status w_seed_constir_run(
 }
 
 typedef struct {
+  uint32_t declaration;
+  w_seed_constir_value value;
+  uint8_t state;
+} constir_const_memo_entry;
+
+enum {
+  CONSTIR_CONST_MEMO_EMPTY = 0,
+  CONSTIR_CONST_MEMO_ACTIVE,
+  CONSTIR_CONST_MEMO_READY,
+};
+
+typedef struct {
   const w_seed_constir_program *program;
   const w_seed_constir_value *arguments;
   size_t argument_count;
@@ -2356,6 +2368,9 @@ typedef struct {
   size_t peak_depth;
   bool runtime_failed;
   w_seed_constir_eval_frame *active_frame;
+  constir_const_memo_entry const_memo[
+      W_SEED_CONSTIR_MAX_CONST_MEMO_ENTRIES];
+  size_t const_memo_count;
 } constir_eval_context;
 
 static bool eval_function(constir_eval_context *context,
@@ -2864,6 +2879,39 @@ static const w_seed_constir_function *program_function_for_const(
     }
   }
   return NULL;
+}
+
+static constir_const_memo_entry *const_memo_find(
+    constir_eval_context *context, uint32_t const_declaration) {
+  if (context == NULL || const_declaration == W_SEED_CONSTIR_NONE)
+    return NULL;
+  for (size_t index = 0u; index < context->const_memo_count; index += 1u) {
+    constir_const_memo_entry *entry = &context->const_memo[index];
+    if (entry->state != CONSTIR_CONST_MEMO_EMPTY &&
+        entry->declaration == const_declaration)
+      return entry;
+  }
+  return NULL;
+}
+
+static constir_const_memo_entry *const_memo_add(
+    constir_eval_context *context, uint32_t const_declaration) {
+  if (context == NULL || const_declaration == W_SEED_CONSTIR_NONE ||
+      context->const_memo_count >= W_SEED_CONSTIR_MAX_CONST_MEMO_ENTRIES)
+    return NULL;
+  const size_t index = context->const_memo_count;
+  context->const_memo_count += 1u;
+  constir_const_memo_entry *entry = &context->const_memo[index];
+  (void)memset(entry, 0, sizeof(*entry));
+  entry->declaration = const_declaration;
+  entry->state = CONSTIR_CONST_MEMO_ACTIVE;
+  return entry;
+}
+
+static bool const_memo_counter_increment(size_t *counter) {
+  if (counter == NULL || *counter == SIZE_MAX) return false;
+  *counter += 1u;
+  return true;
 }
 
 static const w_seed_frontend_const_declaration *program_const_declaration_at(
@@ -4593,6 +4641,9 @@ static bool eval_node_at(constir_eval_context *context,
     }
     case W_SEED_CONSTIR_NODE_CALL: {
       size_t target_index = 0;
+      constir_const_memo_entry *memo_entry = NULL;
+      const bool memoized_const_call =
+          node->call_target_const_declaration != W_SEED_CONSTIR_NONE;
       if (node->call_target_function != W_SEED_CONSTIR_NONE &&
           node->call_target_const_declaration != W_SEED_CONSTIR_NONE)
         return false;
@@ -4609,6 +4660,35 @@ static bool eval_node_at(constir_eval_context *context,
            node->call_target_const_declaration == W_SEED_CONSTIR_NONE) ||
           node->call_argument_count != target->parameter_count)
         return false;
+      /* D5 keys only a zero-argument module-const declaration identity.  D4
+       * lowers every local module const to this shape; a different shape is
+       * invalid rather than silently using an unsound key. */
+      if (memoized_const_call &&
+          (target->parameter_count != 0u || node->call_argument_count != 0u))
+        return false;
+      if (memoized_const_call) {
+        memo_entry = const_memo_find(
+            context, node->call_target_const_declaration);
+        if (memo_entry != NULL &&
+            memo_entry->state == CONSTIR_CONST_MEMO_READY) {
+          if (!const_memo_counter_increment(&context->result->const_cache_hits))
+            return false;
+          *value = memo_entry->value;
+          return true;
+        }
+        if (memo_entry != NULL &&
+            memo_entry->state == CONSTIR_CONST_MEMO_ACTIVE)
+          return eval_fail(context, W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002,
+                           node->source_span, 0u);
+        memo_entry = const_memo_add(context,
+                                    node->call_target_const_declaration);
+        if (memo_entry == NULL ||
+            !const_memo_counter_increment(
+                &context->result->const_cache_misses)) {
+          if (memo_entry != NULL) memo_entry->state = CONSTIR_CONST_MEMO_EMPTY;
+          return false;
+        }
+      }
       if (context->current_depth == 0u ||
           context->current_depth >= W_SEED_CONSTIR_MAX_CALL_DEPTH ||
           (context->quota.call_depth != SIZE_MAX &&
@@ -4652,6 +4732,18 @@ static bool eval_node_at(constir_eval_context *context,
       context->argument_count = saved_argument_count;
       context->active_frame = saved_frame;
       context->current_depth -= 1u;
+      if (memo_entry != NULL) {
+        size_t encoded_bytes = 0u;
+        if (success && result_encoded_bytes(value, &encoded_bytes)) {
+          memo_entry->value = *value;
+          memo_entry->state = CONSTIR_CONST_MEMO_READY;
+        } else {
+          /* A failed, panicking, quota-limited, or invalid body is never
+           * reusable.  Keep the slot empty for the remainder of this failed
+           * invocation and start from an empty table on the next one. */
+          memo_entry->state = CONSTIR_CONST_MEMO_EMPTY;
+        }
+      }
       return success;
     }
     default:

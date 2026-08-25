@@ -353,7 +353,7 @@ switch preservam fato explícito unsupported. As formas sem código normativo
 continuam fatos/barreiras explícitos; o seed não apresenta esta fatia como
 implementação ampla da linguagem.
 
-## ConstIR D1-D4 seed
+## ConstIR D1-D5 seed
 
 `include/w_seed_constir.h` e `src/w_seed_constir.c` formam um executor interno
 caller-owned para uma projeção ConstIR D1. O componente recebe documentos CST,
@@ -406,18 +406,45 @@ referência a module const. Mismatch, unresolved ou relação corrompida é
 `INVALID`; untyped, `String`, enum/list/quantity/size, call, member/index,
 nested generic e imported const/head/predicate são `UNSUPPORTED`.
 
-`W_SEED_CONSTIR_SCHEMA_VERSION` é `w-seed-constir-5`. Cada declaration vira
+`W_SEED_CONSTIR_SCHEMA_VERSION` é `w-seed-constir-6`. Cada declaration vira
 função sintética zero-arg com origem `FRONTEND_CONST_DECLARATION`; cada
 identifier vira dependency `CALL`. A ordem é frontend functions, declarations
 de module const em source order e `TypedConstExpr`. O body digest exclui
 span/trivia/spelling e inclui estrutura e identity/digest de dependency. O
-grafo é validado antes de execution e capacity: corruption é `INVALID` zero-step,
-dependency fora do subset é `UNSUPPORTED` zero-step com failure `function` e
-ciclo alcançável é
-`EVALUATION_FAILED` com `W-CONST-0002`, counters zero e caminho causal fechado.
-O limite é 256 dependencies; excedê-lo mantém `UNSUPPORTED` com failure
-`dependency-limit`; receipts `CONST_ARGUMENT` de ciclo precedem o
-retorno e predicates posteriores não executam. Não existe memoization invisível.
+grafo é validado antes dos counters de cache e dos steps reais do evaluator:
+corruption é `INVALID` zero-step, dependency fora do subset é `UNSUPPORTED`
+zero-step com failure `function` e ciclo alcançável é `EVALUATION_FAILED` com
+`W-CONST-0002`, counters zero e caminho causal fechado. Com capacidade de
+receipt, o ciclo publica exatamente o `CONST_ARGUMENT` causal antes do retorno;
+com capacidade zero, não publica receipt. O limite é 256 dependencies;
+excedê-lo mantém `UNSUPPORTED` com failure `dependency-limit`; predicates
+posteriores não executam.
+
+D5 adiciona uma tabela de memoização local por invocação de
+`w_seed_constir_evaluate`. A tabela é vazia, fixa, allocation-free e limitada a
+256 declarations. A chave é a identity da declaration no programa fixo; o
+primeiro acesso é `ACTIVE`/miss, e somente um resultado `ConstValue` completo e
+válido vira `READY`. Um hit copia o valor e omite a avaliação do corpo, mas o
+node `CALL` mantém seu step. Falha, panic, quota, resultado inválido e
+`ACTIVE` nunca são cacheados; nova invocação começa vazia. Lookup linear tem
+overhead adicional `O(E*R)`, com `R <= 256`, e espaço `O(R)`; isso não é o
+custo total do evaluator, que também faz o lookup próprio de
+`program_function_for_const`. Cada dependency de module const alcançada por
+um `CALL` memoizado na avaliação generic D5 é avaliada no máximo uma vez. A
+função usada diretamente como entry de `w_seed_constir_evaluate` não é
+pré-semeada na tabela. Os
+counters append-only `const_cache_hits`/`const_cache_misses` aparecem no eval
+result e em cada receipt, não no fingerprint, body digest, type identity ou
+cache key compartilhável. O preflight genérico continua rejeitando ciclos,
+limite e corrupção antes dos counters de cache e dos steps reais; o ciclo
+publica o `CONST_ARGUMENT` causal quando há capacidade de receipt e nenhum
+receipt quando a capacidade é zero.
+
+O teste C de ConstIR chama o evaluator diretamente em um grafo cíclico, sem o
+preflight generic. `ACTIVE` retorna `W-CONST-0002` com 2 misses, 0 hits, 3
+steps e call depth 3; a segunda invocação repete os mesmos números. Essa é uma
+defesa local do evaluator e não altera a causalidade generic nem os receipts
+de ciclo.
 
 `w_seed_constir_measure` calcula todas as capacidades. `w_seed_constir_run`
 escreve somente quando cada array e o receipt possuem capacidade. Uma função
@@ -512,6 +539,16 @@ válidas, mas imports, associated const, inference, calls, member/index,
 untyped/String/enum/list/quantity/size e nested generic permanecem
 `UNSUPPORTED`.
 
+D5 adiciona memoização somente dentro de cada invocação de
+`w_seed_constir_evaluate`: a tabela é vazia, fixa e bounded a 256 declarations;
+um acesso novo é miss/`ACTIVE`, um resultado válido completo vira `READY`, e um
+hit copia o valor sem reavaliar o corpo. O `CALL` do hit ainda consome seu step.
+Falha, quota, panic, valor inválido e `ACTIVE` não são reutilizáveis. Os
+counters `const_cache_hits`/`const_cache_misses` são evidence por evaluation e
+receipt, fora do fingerprint; cache compartilhável, cross-argument/session,
+imports, associated const, inference, identity final, runtime e self-host
+continuam fora.
+
 Um `TypedConstExpr` retido em aplicação `INVALID` ou `UNSUPPORTED` é somente
 audit: sua função sintética permanece não lowerable e não pode executar.
 
@@ -573,7 +610,8 @@ imprime module/head, estado do fingerprint, digest e `body_digest` do
 predicate.
 
 O gate também lê `tooling/generic-fingerprint-cases.json` e exige os casos
-únicos GPF0-W-1460/W-1461/W-1462/GPF0-W-1463-current, suas decisões, sources e runner C+Bun. Ele verifica
+únicos GPF0-W-1460/W-1461/W-1462/GPF0-W-1463-current/GPF0-W-1464-current,
+suas decisões, sources e runner C+Bun. Ele verifica
 em `reference/last-light/generics.w` os marcadores únicos da assinatura de
 `StaticValue`, do body `export const expected = value`, dos aliases
 `EnabledFeature`/`LastCallLabel`/`VerifiedFinalCall`, da função
@@ -598,8 +636,16 @@ zero capacity, quota, dependency graph ceiling de 257 declarations com failure
 const arithmetic overflow `i8` com `W-CONST-0006`. Bun reconstrói o preimage i64 e
 verifica que immediate, D3 e D4 usam o schema
 `w-seed-generic-fingerprint-1`; compiler completo, imports, associated const,
-initializer inference, cache/memoization, identity final, runtime e self-host
-continuam fora.
+initializer inference, identity final, runtime e self-host continuam fora.
+
+Para W-1464, o gate lê `answerSeed`, `firstAnswerHalf`, `secondAnswerHalf`,
+`assembledUltimateAnswer` e `UltimateAnswerShared` reais. O probe C e Bun
+reconstroem independentemente o diamond em source order: quatro misses, um hit,
+sete steps, reset entre invocações e fingerprint igual a immediate, D3, D4 e a
+aplicação D5 duplicada. O witness também prova D3/D4 linear sem hits, quota 7/6,
+falha aritmética não cacheada e counters zero para ciclos, zero capacity,
+dependency-limit e corrupção. A fatia fecha somente memoização local por
+invocation; não é cache compartilhável, compiler, runtime ou self-host.
 
     bun tooling/check-seed-generic-validation.mjs
 

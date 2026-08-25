@@ -453,6 +453,18 @@ static void print_receipt_projection(const fixture *fixture_value,
     else
       (void)putchar('x');
   }
+  (void)printf(" receipt_cache_hits=");
+  for (size_t index = 0u; index < result->receipts_written; index += 1u) {
+    if (index != 0u) (void)putchar(',');
+    (void)printf("%llu", (unsigned long long)fixture_value->receipts[index]
+                                      .evaluation.const_cache_hits);
+  }
+  (void)printf(" receipt_cache_misses=");
+  for (size_t index = 0u; index < result->receipts_written; index += 1u) {
+    if (index != 0u) (void)putchar(',');
+    (void)printf("%llu", (unsigned long long)fixture_value->receipts[index]
+                                      .evaluation.const_cache_misses);
+  }
 }
 
 static bool predicate_body_digest_for_application(
@@ -538,7 +550,8 @@ static bool probe_domain_file_with_quota(const char *path, size_t step_quota) {
                               is_final_call ? "STRING" :
                               is_d4 ? "D4" : "D3";
     printf("%s app=%llu state=%s failure=%s diagnostic=%d predicates=%llu "
-           "computed=%llu receipts=%llu steps=%llu",
+           "computed=%llu receipts=%llu steps=%llu cache_hits=%llu "
+           "cache_misses=%llu",
            record_kind,
            (unsigned long long)application_index,
            w_seed_generic_validation_state_name(state),
@@ -547,7 +560,9 @@ static bool probe_domain_file_with_quota(const char *path, size_t step_quota) {
            (unsigned long long)result.predicate_count,
            (unsigned long long)result.computed_argument_count,
            (unsigned long long)result.receipts_written,
-           (unsigned long long)result.evaluation.consumed_steps);
+           (unsigned long long)result.evaluation.consumed_steps,
+           (unsigned long long)result.evaluation.const_cache_hits,
+           (unsigned long long)result.evaluation.const_cache_misses);
     print_receipt_projection(&value, &result);
     printf(" module=%.*s head=%.*s "
            "fingerprint_state=%s fingerprint_digest=",
@@ -854,18 +869,23 @@ static bool probe_module_const_corrupt(const char *path) {
         &value, application_index, CONVERSION_VALUES,
         (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result);
     printf("D4_CORRUPT case=%s state=%s failure=%s diagnostic=%d steps=%llu "
-           "receipts=%llu fingerprint_state=%s fingerprint_digest=",
+           "receipts=%llu cache_hits=%llu cache_misses=%llu "
+           "fingerprint_state=%s fingerprint_digest=",
            cases[case_index], w_seed_generic_validation_state_name(state),
            w_seed_generic_validation_failure_name(result.failure),
            (int)result.diagnostic,
            (unsigned long long)result.evaluation.consumed_steps,
            (unsigned long long)result.receipts_written,
+           (unsigned long long)result.evaluation.const_cache_hits,
+           (unsigned long long)result.evaluation.const_cache_misses,
            w_seed_generic_validation_fingerprint_state_name(
                result.fingerprint_state));
     for (size_t byte = 0u; byte < 32u; byte += 1u) (void)printf("00");
     (void)printf("\n");
     all_invalid = all_invalid && state == W_SEED_GENERIC_VALIDATION_INVALID &&
                   result.evaluation.consumed_steps == 0u &&
+                  result.evaluation.const_cache_hits == 0u &&
+                  result.evaluation.const_cache_misses == 0u &&
                   result.receipts_written == 0u && fingerprint_not_available(&result);
   }
   return all_invalid;
@@ -906,12 +926,15 @@ static bool probe_module_const_zero_capacity(const char *path) {
           W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_BYTES, 0u,
           (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result);
   printf("D4_ZERO state=%s failure=%s diagnostic=%d steps=%llu receipts=%llu "
-         "fingerprint_state=%s fingerprint_digest=",
+         "cache_hits=%llu cache_misses=%llu fingerprint_state=%s "
+         "fingerprint_digest=",
          w_seed_generic_validation_state_name(state),
          w_seed_generic_validation_failure_name(result.failure),
          (int)result.diagnostic,
          (unsigned long long)result.evaluation.consumed_steps,
          (unsigned long long)result.receipts_written,
+         (unsigned long long)result.evaluation.const_cache_hits,
+         (unsigned long long)result.evaluation.const_cache_misses,
          w_seed_generic_validation_fingerprint_state_name(
              result.fingerprint_state));
   for (size_t byte = 0u; byte < 32u; byte += 1u) (void)printf("00");
@@ -933,6 +956,8 @@ static bool probe_module_const_zero_capacity(const char *path) {
   return state == W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED &&
          result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
          result.evaluation.consumed_steps == 0u && result.receipts_written == 0u &&
+         result.evaluation.const_cache_hits == 0u &&
+         result.evaluation.const_cache_misses == 0u &&
          fingerprint_not_available(&result) && buffers_intact;
 }
 
@@ -2706,6 +2731,8 @@ static bool test_named_module_const_d4(void) {
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
             &corruption_result) == W_SEED_GENERIC_VALIDATION_INVALID &&
         corruption_result.evaluation.consumed_steps == 0u &&
+        corruption_result.evaluation.const_cache_hits == 0u &&
+        corruption_result.evaluation.const_cache_misses == 0u &&
         corruption_result.receipts_written == 0u &&
         fingerprint_not_available(&corruption_result));
   value.constir_nodes[named_root].call_target_const_declaration = named_target;
@@ -2718,6 +2745,8 @@ static bool test_named_module_const_d4(void) {
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
             &corruption_result) == W_SEED_GENERIC_VALIDATION_INVALID &&
         corruption_result.evaluation.consumed_steps == 0u &&
+        corruption_result.evaluation.const_cache_hits == 0u &&
+        corruption_result.evaluation.const_cache_misses == 0u &&
         fingerprint_not_available(&corruption_result));
   value.expressions[named_expression].resolved_const_declaration = named_relation;
   const w_seed_constir_function_origin named_origin = named_function->origin;
@@ -2727,6 +2756,8 @@ static bool test_named_module_const_d4(void) {
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
             &corruption_result) == W_SEED_GENERIC_VALIDATION_INVALID &&
         corruption_result.evaluation.consumed_steps == 0u &&
+        corruption_result.evaluation.const_cache_hits == 0u &&
+        corruption_result.evaluation.const_cache_misses == 0u &&
         fingerprint_not_available(&corruption_result));
   named_function->origin = named_origin;
   const uint32_t named_type = value.const_declarations[0].declared_type;
@@ -2736,6 +2767,8 @@ static bool test_named_module_const_d4(void) {
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
             &corruption_result) == W_SEED_GENERIC_VALIDATION_INVALID &&
         corruption_result.evaluation.consumed_steps == 0u &&
+        corruption_result.evaluation.const_cache_hits == 0u &&
+        corruption_result.evaluation.const_cache_misses == 0u &&
         fingerprint_not_available(&corruption_result));
   value.const_declarations[0].declared_type = named_type;
   const uint32_t named_head = value.generic_applications[2].head_struct;
@@ -2745,6 +2778,8 @@ static bool test_named_module_const_d4(void) {
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
             &corruption_result) == W_SEED_GENERIC_VALIDATION_INVALID &&
         corruption_result.evaluation.consumed_steps == 0u &&
+        corruption_result.evaluation.const_cache_hits == 0u &&
+        corruption_result.evaluation.const_cache_misses == 0u &&
         fingerprint_not_available(&corruption_result));
   value.generic_applications[2].head_struct = named_head;
 
@@ -2766,6 +2801,8 @@ static bool test_named_module_const_d4(void) {
         cycle_result.failure ==
             W_SEED_GENERIC_VALIDATION_FAILURE_EVALUATOR_DIAGNOSTIC &&
         cycle_result.evaluation.consumed_steps == 0u &&
+        cycle_result.evaluation.const_cache_hits == 0u &&
+        cycle_result.evaluation.const_cache_misses == 0u &&
         cycle_result.computed_argument_count == 1u &&
         cycle_result.receipts_written == 1u &&
         cycle_result.const_cycle_path_length == 3u &&
@@ -2775,7 +2812,32 @@ static bool test_named_module_const_d4(void) {
         value.receipts[0].kind ==
             W_SEED_GENERIC_VALIDATION_RECEIPT_CONST_ARGUMENT &&
         value.receipts[0].evaluation.diagnostic ==
-            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002);
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
+        value.receipts[0].evaluation.const_cache_hits == 0u &&
+        value.receipts[0].evaluation.const_cache_misses == 0u);
+  static const char self_cycle_source[] =
+      "const self: i64 = self\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { cycle: Box<(self)> independent: Box<(6 * 7)> }\n";
+  CHECK(fixture_lower(&value, self_cycle_source));
+  w_seed_generic_validation_result self_cycle_result;
+  CHECK(validate_application_at(
+            &value, 0u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &self_cycle_result) == W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED &&
+        self_cycle_result.diagnostic ==
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
+        self_cycle_result.evaluation.consumed_steps == 0u &&
+        self_cycle_result.evaluation.const_cache_hits == 0u &&
+        self_cycle_result.evaluation.const_cache_misses == 0u &&
+        self_cycle_result.receipts_written == 1u &&
+        self_cycle_result.const_cycle_path_length == 2u &&
+        self_cycle_result.const_cycle_path[0] == 0u &&
+        self_cycle_result.const_cycle_path[1] == 0u &&
+        value.receipts[0].kind ==
+            W_SEED_GENERIC_VALIDATION_RECEIPT_CONST_ARGUMENT &&
+        value.receipts[0].evaluation.const_cache_hits == 0u &&
+        value.receipts[0].evaluation.const_cache_misses == 0u);
   w_seed_generic_validation_result independent_result;
   CHECK(validate_application_at(
             &value, 1u, CONVERSION_VALUES,
@@ -2804,7 +2866,14 @@ static bool test_named_module_const_d4(void) {
         three_cycle_result.const_cycle_path[1] == 1u &&
         three_cycle_result.const_cycle_path[2] == 2u &&
         three_cycle_result.const_cycle_path[3] == 0u &&
-        three_cycle_result.evaluation.consumed_steps == 0u);
+        three_cycle_result.evaluation.consumed_steps == 0u &&
+        three_cycle_result.evaluation.const_cache_hits == 0u &&
+        three_cycle_result.evaluation.const_cache_misses == 0u &&
+        three_cycle_result.receipts_written == 1u &&
+        value.receipts[0].kind ==
+            W_SEED_GENERIC_VALIDATION_RECEIPT_CONST_ARGUMENT &&
+        value.receipts[0].evaluation.const_cache_hits == 0u &&
+        value.receipts[0].evaluation.const_cache_misses == 0u);
   CHECK(validate_application_at(
             &value, 1u, CONVERSION_VALUES,
             (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
@@ -2939,7 +3008,9 @@ static bool test_named_module_const_d4(void) {
         zero_capacity_cycle.diagnostic ==
             W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
         zero_capacity_cycle.receipts_written == 0u &&
-        zero_capacity_cycle.evaluation.consumed_steps == 0u);
+        zero_capacity_cycle.evaluation.consumed_steps == 0u &&
+        zero_capacity_cycle.evaluation.const_cache_hits == 0u &&
+        zero_capacity_cycle.evaluation.const_cache_misses == 0u);
   for (size_t byte = 0u; byte < sizeof(value.conversion_values); byte += 1u)
     CHECK(((const uint8_t *)value.conversion_values)[byte] == 0xa5u);
   for (size_t byte = 0u; byte < sizeof(value.receipts); byte += 1u)
@@ -3010,8 +3081,82 @@ static bool test_named_module_const_d4(void) {
         dependency_limit_result.failure ==
             W_SEED_GENERIC_VALIDATION_FAILURE_DEPENDENCY_LIMIT &&
         dependency_limit_result.evaluation.consumed_steps == 0u &&
+        dependency_limit_result.evaluation.const_cache_hits == 0u &&
+        dependency_limit_result.evaluation.const_cache_misses == 0u &&
         dependency_limit_result.receipts_written == 0u &&
         fingerprint_not_available(&dependency_limit_result));
+
+  /* D5 memoizes the shared seed in a local diamond.  The root CALL and every
+   * declaration body still consume their ordinary node steps. */
+  static const char diamond_source[] =
+      "const answerSeed: i64 = 21\n"
+      "const firstAnswerHalf: i64 = answerSeed\n"
+      "const secondAnswerHalf: i64 = answerSeed\n"
+      "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
+      "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n"
+      "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
+      "struct Use { shared: UltimateAnswer<(assembledUltimateAnswer)> }\n";
+  CHECK(fixture_lower(&value, diamond_source));
+  CHECK(value.frontend_result.written.const_declarations == 4u);
+  CHECK(value.frontend_result.written.generic_applications == 1u);
+  w_seed_generic_validation_result diamond_result;
+  CHECK(validate_application(
+            &value, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &diamond_result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        diamond_result.computed_argument_count == 1u &&
+        diamond_result.receipts_written == 2u &&
+        value.receipts[0].evaluation.consumed_steps == 7u &&
+        value.receipts[0].evaluation.const_cache_misses == 4u &&
+        value.receipts[0].evaluation.const_cache_hits == 1u &&
+        value.receipts[1].evaluation.const_cache_misses == 0u &&
+        value.receipts[1].evaluation.const_cache_hits == 0u &&
+        value.receipts[0].eval_value.kind ==
+            W_SEED_CONSTIR_VALUE_INTEGER &&
+        value.receipts[0].eval_value.integer_value[0] == 42u);
+  uint8_t diamond_fingerprint[
+      W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES] = {0};
+  (void)memcpy(diamond_fingerprint, diamond_result.fingerprint_digest,
+               sizeof(diamond_fingerprint));
+  w_seed_generic_validation_result diamond_repeat;
+  CHECK(validate_application(
+            &value, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &diamond_repeat) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        value.receipts[0].evaluation.consumed_steps == 7u &&
+        value.receipts[0].evaluation.const_cache_misses == 4u &&
+        value.receipts[0].evaluation.const_cache_hits == 1u &&
+        memcmp(diamond_fingerprint, diamond_repeat.fingerprint_digest,
+               sizeof(diamond_fingerprint)) == 0);
+
+  static const char diamond_without_predicate[] =
+      "const answerSeed: i64 = 21\n"
+      "const firstAnswerHalf: i64 = answerSeed\n"
+      "const secondAnswerHalf: i64 = answerSeed\n"
+      "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { shared: Box<(assembledUltimateAnswer)> }\n";
+  CHECK(fixture_lower(&value, diamond_without_predicate));
+  w_seed_generic_validation_result diamond_quota_ok;
+  CHECK(validate_application(
+            &value, CONVERSION_VALUES,
+            (w_seed_constir_quota){7u, 0u, 64u, SIZE_MAX},
+            &diamond_quota_ok) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        diamond_quota_ok.receipts_written == 1u &&
+        value.receipts[0].evaluation.consumed_steps == 7u &&
+        value.receipts[0].evaluation.const_cache_misses == 4u &&
+        value.receipts[0].evaluation.const_cache_hits == 1u);
+  w_seed_generic_validation_result diamond_quota_fail;
+  CHECK(validate_application(
+            &value, CONVERSION_VALUES,
+            (w_seed_constir_quota){6u, 0u, 64u, SIZE_MAX},
+            &diamond_quota_fail) ==
+            W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED &&
+        diamond_quota_fail.diagnostic ==
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0003 &&
+        value.receipts[0].evaluation.consumed_steps == 6u &&
+        value.receipts[0].evaluation.const_cache_misses == 4u &&
+        value.receipts[0].evaluation.const_cache_hits == 0u);
   return true;
 }
 

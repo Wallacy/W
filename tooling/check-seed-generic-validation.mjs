@@ -52,19 +52,21 @@ function parseProbe(output) {
       line.startsWith("STRING app=") || line.startsWith("D3 app=") ||
       line.startsWith("D4 app="))
   const records = lines.map((line) => {
-    const match = /^(GENERIC|STRING|D3|D4) app=(\d+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) predicates=(\d+) computed=(\d+) receipts=(\d+) steps=(\d+) receipt_kinds=([CP]*) receipt_steps=([0-9,]*) receipt_args=([0-9,]*) receipt_typed=([0-9,]*) receipt_values=([ibx0-9,]*) module=([^\s]+) head=([^\s]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) predicate_body_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u.exec(line)
+    const match = /^(GENERIC|STRING|D3|D4) app=(\d+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) predicates=(\d+) computed=(\d+) receipts=(\d+) steps=(\d+) cache_hits=(\d+) cache_misses=(\d+) receipt_kinds=([CP]*) receipt_steps=([0-9,]*) receipt_args=([0-9,]*) receipt_typed=([0-9,]*) receipt_values=([ibx0-9,]*) receipt_cache_hits=([0-9,]*) receipt_cache_misses=([0-9,]*) module=([^\s]+) head=([^\s]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) predicate_body_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u.exec(line)
     if (!match) fail(`invalid application line: ${line}`)
     const parseList = (value) => value === "" ? [] : value.split(",").map((item) => Number(item))
     return {
       kind: match[1], application: Number(match[2]), state: match[3], failure: match[4],
       diagnostic: Number(match[5]), predicates: Number(match[6]),
       computed: Number(match[7]), receipts: Number(match[8]), steps: Number(match[9]),
-      receiptKinds: match[10], receiptSteps: parseList(match[11]),
-      receiptArgs: parseList(match[12]), receiptTyped: parseList(match[13]),
-      receiptValues: match[14] === "" ? [] : match[14].split(","),
-      module: match[15], head: match[16], fingerprintState: match[17],
-      fingerprintDigest: match[18], predicateBodyDigest: match[19],
-      cyclePath: parseList(match[20]),
+      cacheHits: Number(match[10]), cacheMisses: Number(match[11]),
+      receiptKinds: match[12], receiptSteps: parseList(match[13]),
+      receiptArgs: parseList(match[14]), receiptTyped: parseList(match[15]),
+      receiptValues: match[16] === "" ? [] : match[16].split(","),
+      receiptCacheHits: parseList(match[17]), receiptCacheMisses: parseList(match[18]),
+      module: match[19], head: match[20], fingerprintState: match[21],
+      fingerprintDigest: match[22], predicateBodyDigest: match[23],
+      cyclePath: parseList(match[24]),
     }
   })
   return {
@@ -277,10 +279,18 @@ const fingerprintD4Case = requireCorpusCase(
     "imported", "quantity", "size", "corrupt", "zeroCapacity", "quota",
     "dependencyLimit", "arithmeticOverflow", "repeated"],
 )
+const fingerprintD5Case = requireCorpusCase(
+  "GPF0-W-1464-current", ["W-1464"],
+  "reference/last-light/generics.w",
+  "export alias UltimateAnswerShared = UltimateAnswer<(assembledUltimateAnswer)>",
+  ["diamond", "duplicate", "linear", "quota", "failure", "fingerprint", "repeated",
+    "preflight"],
+)
 const d1Witnesses = fingerprintD1Case.witnesses
 const d2Witnesses = fingerprintD2Case.witnesses
 const d3Witnesses = fingerprintD3Case.witnesses
 const d4Witnesses = fingerprintD4Case.witnesses
+const d5Witnesses = fingerprintD5Case.witnesses
 if (d1Witnesses?.module !== "restaurant" ||
     typeof d1Witnesses?.standard !== "string" ||
     typeof d1Witnesses?.standardAgain !== "string" ||
@@ -335,7 +345,50 @@ if (d1Witnesses?.module !== "restaurant" ||
     d4Witnesses.arithmeticOverflow?.receiptKinds !== "C" ||
     d4Witnesses.arithmeticOverflow?.receipts !== 1 ||
     d4Witnesses.arithmeticOverflow?.predicates !== 1 ||
-    d4Witnesses.repeated?.count !== 2)
+    d4Witnesses.repeated?.count !== 2 ||
+    d5Witnesses?.module !== "restaurant" ||
+    d5Witnesses.diamond?.root !== "assembledUltimateAnswer" ||
+    JSON.stringify(d5Witnesses.diamond?.sourceOrder) !==
+      JSON.stringify(["answerSeed", "firstAnswerHalf", "secondAnswerHalf", "assembledUltimateAnswer"]) ||
+    d5Witnesses.diamond?.value !== 42 ||
+    d5Witnesses.diamond?.misses !== 4 || d5Witnesses.diamond?.hits !== 1 ||
+    d5Witnesses.diamond?.steps !== 7 || d5Witnesses.duplicate?.count !== 2 ||
+    d5Witnesses.duplicate?.misses !== 4 || d5Witnesses.duplicate?.hits !== 1 ||
+    d5Witnesses.duplicate?.steps !== 7 || d5Witnesses.linear?.hits !== 0 ||
+    d5Witnesses.quota?.allowed !== 7 || d5Witnesses.quota?.rejected !== 6 ||
+    d5Witnesses.quota?.diagnostic !== "W-CONST-0003" ||
+    d5Witnesses.failure?.diagnostic !== "W-CONST-0006" ||
+    d5Witnesses.failure?.cached !== false || d5Witnesses.repeated?.count !== 2 ||
+    d5Witnesses.preflight?.selfCycle?.hits !== 0 ||
+    d5Witnesses.preflight?.selfCycle?.misses !== 0 ||
+    d5Witnesses.preflight?.selfCycle?.steps !== 0 ||
+    d5Witnesses.preflight?.selfCycle?.receipts !== 1 ||
+    d5Witnesses.preflight?.selfCycle?.receiptHits !== 0 ||
+    d5Witnesses.preflight?.selfCycle?.receiptMisses !== 0 ||
+    d5Witnesses.preflight?.twoCycle?.hits !== 0 ||
+    d5Witnesses.preflight?.twoCycle?.misses !== 0 ||
+    d5Witnesses.preflight?.twoCycle?.steps !== 0 ||
+    d5Witnesses.preflight?.twoCycle?.receipts !== 1 ||
+    d5Witnesses.preflight?.twoCycle?.receiptHits !== 0 ||
+    d5Witnesses.preflight?.twoCycle?.receiptMisses !== 0 ||
+    d5Witnesses.preflight?.threeCycle?.hits !== 0 ||
+    d5Witnesses.preflight?.threeCycle?.misses !== 0 ||
+    d5Witnesses.preflight?.threeCycle?.steps !== 0 ||
+    d5Witnesses.preflight?.threeCycle?.receipts !== 1 ||
+    d5Witnesses.preflight?.threeCycle?.receiptHits !== 0 ||
+    d5Witnesses.preflight?.threeCycle?.receiptMisses !== 0 ||
+    d5Witnesses.preflight?.zeroCapacity?.hits !== 0 ||
+    d5Witnesses.preflight?.zeroCapacity?.misses !== 0 ||
+    d5Witnesses.preflight?.zeroCapacity?.steps !== 0 ||
+    d5Witnesses.preflight?.zeroCapacity?.receipts !== 0 ||
+    d5Witnesses.preflight?.dependencyLimit?.hits !== 0 ||
+    d5Witnesses.preflight?.dependencyLimit?.misses !== 0 ||
+    d5Witnesses.preflight?.dependencyLimit?.steps !== 0 ||
+    d5Witnesses.preflight?.dependencyLimit?.receipts !== 0 ||
+    d5Witnesses.preflight?.corruption?.hits !== 0 ||
+    d5Witnesses.preflight?.corruption?.misses !== 0 ||
+    d5Witnesses.preflight?.corruption?.steps !== 0 ||
+    d5Witnesses.preflight?.corruption?.receipts !== 0)
   fail("generic fingerprint corpus witnesses do not match the executable contract")
 
 const domain = await Bun.file(resolve(root, "reference/last-light/domain.w")).text()
@@ -368,6 +421,24 @@ const ultimateAnswerComputedAliasMarker = uniqueMarker(
   generics, "export alias UltimateAnswerComputed = UltimateAnswer<(6 * 7)>", "UltimateAnswer computed alias")
 const ultimateAnswerNamedAliasMarker = uniqueMarker(
   generics, "export alias UltimateAnswerNamed = UltimateAnswer<(ultimateAnswer)>", "UltimateAnswer named alias")
+const answerSeedMarker = uniqueMarker(
+  generics, "const answerSeed: i64 = 21", "D5 answerSeed declaration")
+const firstAnswerHalfMarker = uniqueMarker(
+  generics, "const firstAnswerHalf: i64 = answerSeed", "D5 firstAnswerHalf declaration")
+const secondAnswerHalfMarker = uniqueMarker(
+  generics, "const secondAnswerHalf: i64 = answerSeed", "D5 secondAnswerHalf declaration")
+const assembledUltimateAnswerMarker = uniqueMarker(
+  generics,
+  "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf",
+  "D5 assembledUltimateAnswer declaration")
+const ultimateAnswerSharedAliasMarker = uniqueMarker(
+  generics,
+  "export alias UltimateAnswerShared = UltimateAnswer<(assembledUltimateAnswer)>",
+  "D5 shared alias")
+const ultimateAnswerSharedDuplicateAliasMarker = uniqueMarker(
+  generics,
+  "export alias UltimateAnswerSharedDuplicate = UltimateAnswer<(assembledUltimateAnswer)>",
+  "D5 duplicate shared alias")
 const staticValueSignature = staticValueMarker
   .replace(/^export /u, "")
   .replace(/\s*\{$/u, "")
@@ -381,7 +452,13 @@ if (!generics.includes(staticValueBodyMarker) ||
     !generics.includes(ultimateAnswerValueMarker) ||
     !generics.includes(ultimateAnswerImmediateAliasMarker) ||
     !generics.includes(ultimateAnswerComputedAliasMarker) ||
-    !generics.includes(ultimateAnswerNamedAliasMarker))
+    !generics.includes(ultimateAnswerNamedAliasMarker) ||
+    !generics.includes(answerSeedMarker) ||
+    !generics.includes(firstAnswerHalfMarker) ||
+    !generics.includes(secondAnswerHalfMarker) ||
+    !generics.includes(assembledUltimateAnswerMarker) ||
+    !generics.includes(ultimateAnswerSharedAliasMarker) ||
+    !generics.includes(ultimateAnswerSharedDuplicateAliasMarker))
   fail("generics.w markers are not present in the extracted source")
 const orderId = fragment(domain, "export type OrderId = u64", "export type GuestCount", "OrderId")
 const serviceStage = fragment(domain, "export enum ServiceStage {", "export alias CancelledStage", "ServiceStage")
@@ -445,6 +522,72 @@ const d4Witness = `${ultimateAnswerConstMarker}\n` +
   "const rejectedAnswer: i64 = 6 * 6\n" +
   `${ultimateAnswerPredicate}\n${ultimateAnswerValueSignature} {}\n` +
   ultimateAnswerNamedUse
+const d5Declarations = `${answerSeedMarker}\n${firstAnswerHalfMarker}\n` +
+  `${secondAnswerHalfMarker}\n${assembledUltimateAnswerMarker}\n`
+const d5Use = `struct UltimateAnswerSharedUse {
+  shared: UltimateAnswer<(assembledUltimateAnswer)>
+  sharedAgain: UltimateAnswer<(assembledUltimateAnswer)>
+}
+`
+const d5Witness = `${d5Declarations}${ultimateAnswerPredicate}\n` +
+  `${ultimateAnswerValueSignature} {}\n${d5Use}`
+
+/* Independent host reconstruction of the D5 diamond. This parser uses only
+ * the declaration source and counts the same ConstIR node classes. It does
+ * not read corpus expected values or the C memo counters. */
+function reconstructDiamond(source) {
+  const declarations = [...source.matchAll(
+    /^(?:export )?const ([A-Za-z_][A-Za-z0-9_]*): i64 = (.+)$/gmu,
+  )].map((match) => ({name: match[1], expression: match[2].trim()}))
+  const expectedOrder = [
+    "answerSeed", "firstAnswerHalf", "secondAnswerHalf", "assembledUltimateAnswer",
+  ]
+  const sourceOrder = declarations.map((declaration) => declaration.name)
+  if (JSON.stringify(sourceOrder) !== JSON.stringify(expectedOrder))
+    fail(`D5 source order changed: ${sourceOrder.join(",")}`)
+  const byName = new Map(declarations.map((declaration) => [declaration.name, declaration]))
+  const active = new Set()
+  const ready = new Map()
+  let hits = 0
+  let misses = 0
+  let steps = 1 // Typed generic expression root CALL.
+  function evaluateDeclaration(name) {
+    if (ready.has(name)) {
+      hits += 1
+      return ready.get(name)
+    }
+    if (active.has(name)) fail(`D5 reconstructed a cycle at ${name}`)
+    const declaration = byName.get(name)
+    if (!declaration) fail(`D5 has no declaration for ${name}`)
+    active.add(name)
+    misses += 1
+    const expression = declaration.expression
+    let value
+    const binary = /^([A-Za-z_][A-Za-z0-9_]*) \+ ([A-Za-z_][A-Za-z0-9_]*)$/u.exec(expression)
+    if (binary) {
+      steps += 1 // binary node
+      value = evaluateExpression(binary[1]) + evaluateExpression(binary[2])
+    } else {
+      value = evaluateExpression(expression)
+    }
+    active.delete(name)
+    ready.set(name, value)
+    return value
+  }
+  function evaluateExpression(expression) {
+    if (/^\d+$/u.test(expression)) {
+      steps += 1 // integer literal node
+      return Number(expression)
+    }
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/u.test(expression)) {
+      steps += 1 // CALL node
+      return evaluateDeclaration(expression)
+    }
+    fail(`D5 has an unsupported reconstructed expression: ${expression}`)
+  }
+  const value = evaluateDeclaration("assembledUltimateAnswer")
+  return {value, sourceOrder, misses, hits, steps}
+}
 
 const build = await mkdtemp(join(tmpdir(), "w-seed-generic-validation-check-"))
 const witnessPath = join(build, "domain-generic-witness.w")
@@ -468,6 +611,8 @@ try {
   for (const [index, record] of parsed.records.entries()) {
     if (record.module !== "restaurant" || record.head !== "StagePath" ||
         record.state !== expected[index] || record.predicates !== 1 || record.receipts !== 1 ||
+        record.cacheHits !== 0 || record.cacheMisses !== 0 ||
+        record.receiptCacheHits.join(",") !== "0" || record.receiptCacheMisses.join(",") !== "0" ||
         record.steps === 0 || (record.state === "REJECTED" &&
           (record.failure !== "predicate:false" || record.diagnostic !== 5 ||
            record.fingerprintState !== "NOT_AVAILABLE" ||
@@ -497,7 +642,9 @@ try {
     const expectedState = index < 3 ? "VERIFIED" : "REJECTED"
     if (record.module !== "restaurant" || record.head !== "FinalCallValue" ||
         record.state !== expectedState || record.predicates !== 1 ||
-        record.receipts !== 1 || record.steps === 0 ||
+        record.receipts !== 1 || record.cacheHits !== 0 || record.cacheMisses !== 0 ||
+        record.receiptCacheHits.join(",") !== "0" || record.receiptCacheMisses.join(",") !== "0" ||
+        record.steps === 0 ||
         record.state === "REJECTED" &&
           (record.failure !== "predicate:false" || record.diagnostic !== 5 ||
            record.fingerprintState !== "NOT_AVAILABLE" ||
@@ -531,6 +678,7 @@ try {
         record.state !== d3ExpectedStates[index] || record.predicates !== 1 ||
         record.computed !== (computed ? 1 : 0) ||
         record.receipts !== (computed ? 2 : 1) ||
+        record.cacheHits !== 0 || record.cacheMisses !== 0 ||
         record.steps === 0 ||
         record.receiptKinds !== (computed ? "CP" : "P") ||
         record.receiptSteps.length !== (computed ? 2 : 1) ||
@@ -540,6 +688,8 @@ try {
         record.receiptTyped.length !== record.receipts ||
         record.receiptValues.join(",") !==
           (computed ? `${index === 3 ? "i36" : "i42"},${index === 3 ? "b0" : "b1"}` : "b1") ||
+        record.receiptCacheHits.join(",") !== (computed ? "0,0" : "0") ||
+        record.receiptCacheMisses.join(",") !== (computed ? "0,0" : "0") ||
         (computed && record.receiptTyped.some((typed) => typed !== index - 1)) ||
         (!computed && record.receiptTyped.some((typed) => typed !== 4294967295)) ||
         (record.state === "REJECTED" &&
@@ -599,10 +749,13 @@ try {
     if (record.module !== d4Witnesses.module || record.head !== "UltimateAnswer" ||
         record.state !== d4ExpectedStates[index] || record.predicates !== 1 ||
         record.computed !== 1 || record.receipts !== 2 || record.steps === 0 ||
+        record.cacheHits !== 0 || record.cacheMisses !== 0 ||
         record.receiptKinds !== "CP" || record.receiptSteps.length !== 2 ||
         record.receiptSteps.some((steps) => steps === 0) ||
         record.receiptArgs.length !== 2 || record.receiptArgs.some((argument) => argument !== index) ||
         record.receiptTyped.length !== 2 || record.receiptTyped.some((typed) => typed !== index) ||
+        record.receiptCacheHits.join(",") !== "0,0" ||
+        record.receiptCacheMisses.join(",") !== (index === 0 ? "2,0" : "1,0") ||
         record.cyclePath.length !== 0 ||
         record.receiptValues.join(",") !==
           (index === 2 ? "i36,b0" : "i42,b1") ||
@@ -638,6 +791,85 @@ try {
       d4QuotaRecord.fingerprintDigest !== "0".repeat(64))
     fail("D4 cumulative quota did not preserve the const dependency receipt")
 
+  await Bun.write(join(build, "domain-generic-d5.w"), d5Witness)
+  const d5Path = join(build, "domain-generic-d5.w")
+  const d5FirstOutput = run(executable, ["--domain-witness", d5Path])
+  const d5SecondOutput = run(executable, ["--domain-witness", d5Path])
+  const d5Parsed = parseProbe(d5SecondOutput)
+  const reconstructedDiamond = reconstructDiamond(d5Declarations)
+  const reconstructedDiamondRepeat = reconstructDiamond(d5Declarations)
+  if (d5FirstOutput !== d5SecondOutput ||
+      d5Parsed.d4Records.length !== d5Witnesses.duplicate.count ||
+      reconstructedDiamond.value !== d5Witnesses.diamond.value ||
+      reconstructedDiamond.sourceOrder.join(",") !==
+        d5Witnesses.diamond.sourceOrder.join(",") ||
+      reconstructedDiamond.misses !== d5Witnesses.diamond.misses ||
+      reconstructedDiamond.hits !== d5Witnesses.diamond.hits ||
+      reconstructedDiamond.steps !== d5Witnesses.diamond.steps ||
+      JSON.stringify(reconstructedDiamond) !== JSON.stringify(reconstructedDiamondRepeat))
+    fail("D5 Bun reconstruction is not deterministic or disagrees with the diamond source")
+  for (const [index, record] of d5Parsed.d4Records.entries()) {
+    const expectedDigest = sha256Hex(
+      ultimateAnswerPreimage(reconstructedDiamond.value, record.predicateBodyDigest),
+    )
+    if (record.module !== d5Witnesses.module || record.head !== "UltimateAnswer" ||
+        record.state !== "VERIFIED" || record.failure !== "none" ||
+        record.diagnostic !== 0 || record.predicates !== 1 || record.computed !== 1 ||
+        record.receipts !== 2 || record.steps === 0 || record.cacheHits !== 0 ||
+        record.cacheMisses !== 0 || record.receiptKinds !== "CP" ||
+        record.receiptSteps.length !== 2 || record.receiptSteps[0] !== reconstructedDiamond.steps ||
+        record.receiptCacheHits.join(",") !== "1,0" ||
+        record.receiptCacheMisses.join(",") !== "4,0" || record.receiptValues.join(",") !== "i42,b1" ||
+        record.fingerprintState !== "AVAILABLE" || record.fingerprintDigest !== expectedDigest ||
+        record.fingerprintDigest !== parsed.d3Records[0].fingerprintDigest ||
+        record.cyclePath.length !== 0)
+      fail(`D5 diamond application ${index} has wrong memo receipt or fingerprint evidence`)
+  }
+  if (d5Parsed.d4Records[0].fingerprintDigest !== d5Parsed.d4Records[1].fingerprintDigest ||
+      d5Parsed.d4Records[0].predicateBodyDigest !== d5Parsed.d4Records[1].predicateBodyDigest)
+    fail("D5 duplicate application changed fingerprint or predicate digest")
+
+  const d5QuotaSource = `${d5Declarations}struct Box<_ value: i64> {}
+struct Use { shared: Box<(assembledUltimateAnswer)> }
+`
+  const d5QuotaPath = join(build, "domain-generic-d5-quota.w")
+  await Bun.write(d5QuotaPath, d5QuotaSource)
+  const d5QuotaParsed = parseProbe(run(executable, ["--domain-witness", d5QuotaPath]))
+  const d5QuotaRecord = d5QuotaParsed.d3Records.find((record) => record.head === "Box")
+  if (!d5QuotaRecord || d5QuotaRecord.state !== "VERIFIED" || d5QuotaRecord.predicates !== 0 ||
+      d5QuotaRecord.computed !== 1 || d5QuotaRecord.receipts !== 1 ||
+      d5QuotaRecord.receiptSteps.join(",") !== String(reconstructedDiamond.steps) ||
+      d5QuotaRecord.receiptCacheHits.join(",") !== "1" ||
+      d5QuotaRecord.receiptCacheMisses.join(",") !== "4")
+    fail("D5 quota witness did not expose the isolated diamond receipt")
+  const d5QuotaRejected = parseProbe(
+    run(executable, ["--domain-witness-quota", d5QuotaPath,
+      String(d5Witnesses.quota.rejected)]),
+  ).d3Records.find((record) => record.head === "Box")
+  if (!d5QuotaRejected || d5QuotaRejected.state !== "EVALUATION_FAILED" ||
+      d5QuotaRejected.failure !== "evaluator-diagnostic" ||
+      d5QuotaRejected.diagnostic !== 3 || d5QuotaRejected.receiptSteps.join(",") !== "6" ||
+      d5QuotaRejected.receiptCacheHits.join(",") !== "0" ||
+      d5QuotaRejected.receiptCacheMisses.join(",") !== "4")
+    fail("D5 quota six did not fail with the expected partial receipt and counters")
+
+  const d5FailureSource = `${d5Declarations}const broken: i8 = 127 + 1
+struct Narrow<_ value: i8> {}
+struct Use { broken: Narrow<(broken)> }
+`
+  const d5FailurePath = join(build, "domain-generic-d5-failure.w")
+  await Bun.write(d5FailurePath, d5FailureSource)
+  const d5FailureFirst = run(executable, ["--domain-witness", d5FailurePath])
+  const d5FailureSecond = run(executable, ["--domain-witness", d5FailurePath])
+  const d5FailureRecord = parseProbe(d5FailureSecond).d3Records.find(
+    (record) => record.head === "Narrow",
+  )
+  if (d5FailureFirst !== d5FailureSecond || !d5FailureRecord ||
+      d5FailureRecord.state !== "EVALUATION_FAILED" || d5FailureRecord.diagnostic !== 4 ||
+      d5FailureRecord.receiptCacheHits.join(",") !== "0" ||
+      d5FailureRecord.receiptCacheMisses.join(",") !== "1")
+    fail("D5 arithmetic failure was cached or changed on repetition")
+
   const runD4Case = async (name, source) => {
     const path = join(build, `domain-generic-d4-${name}.w`)
     await Bun.write(path, source)
@@ -662,25 +894,42 @@ try {
   if (selfCase.record.state !== d4Witnesses.selfCycle.state ||
       selfCase.record.failure !== "evaluator-diagnostic" || selfCase.record.diagnostic !== 2 ||
       selfCase.record.steps !== 0 || selfCase.record.receipts !== 1 ||
-      selfCase.record.receiptKinds !== "C" || selfCase.record.cyclePath.join(",") !== "1,1")
+      selfCase.record.cacheHits !== d5Witnesses.preflight.selfCycle.hits ||
+      selfCase.record.cacheMisses !== d5Witnesses.preflight.selfCycle.misses ||
+      selfCase.record.receiptKinds !== "C" ||
+      selfCase.record.receiptCacheHits.join(",") !==
+        String(d5Witnesses.preflight.selfCycle.receiptHits) ||
+      selfCase.record.receiptCacheMisses.join(",") !==
+        String(d5Witnesses.preflight.selfCycle.receiptMisses) ||
+      selfCase.record.cyclePath.join(",") !== "1,1")
     fail("self-cycle did not fail before evaluation with the closed path")
   const twoCycleCase = await runD4Case(
     "two-cycle", "const left: i64 = right\nconst right: i64 = left\n" +
       `${d4PredicateAndValue}struct Use { cycle: UltimateAnswer<(left)> }\n`)
   if (twoCycleCase.record.state !== d4Witnesses.twoCycle.state ||
       twoCycleCase.record.diagnostic !== 2 || twoCycleCase.record.steps !== 0 ||
+      twoCycleCase.record.receipts !== d5Witnesses.preflight.twoCycle.receipts ||
+      twoCycleCase.record.cacheHits !== d5Witnesses.preflight.twoCycle.hits ||
+      twoCycleCase.record.cacheMisses !== d5Witnesses.preflight.twoCycle.misses ||
+      twoCycleCase.record.receiptKinds !== "C" ||
+      twoCycleCase.record.receiptCacheHits.join(",") !==
+        String(d5Witnesses.preflight.twoCycle.receiptHits) ||
+      twoCycleCase.record.receiptCacheMisses.join(",") !==
+        String(d5Witnesses.preflight.twoCycle.receiptMisses) ||
       twoCycleCase.record.cyclePath.join(",") !== d4Witnesses.twoCycle.path)
     fail("two-member cycle path was not deterministic")
   const zeroCapacityOutput = run(
     executable, ["--domain-witness-d4-zero-capacity", twoCycleCase.path],
   )
-  const zeroCapacityMatch = /^D4_ZERO state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) receipts=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u
+  const zeroCapacityMatch = /^D4_ZERO state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) receipts=(\d+) cache_hits=(\d+) cache_misses=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u
     .exec(zeroCapacityOutput.trim())
   if (!zeroCapacityMatch || zeroCapacityMatch[1] !== d4Witnesses.zeroCapacity.state ||
       zeroCapacityMatch[2] !== "evaluator-diagnostic" || zeroCapacityMatch[3] !== "2" ||
       zeroCapacityMatch[4] !== "0" || zeroCapacityMatch[5] !== "0" ||
-      zeroCapacityMatch[6] !== "NOT_AVAILABLE" ||
-      zeroCapacityMatch[7] !== "0".repeat(64) || zeroCapacityMatch[8] !== "1,2,1")
+      zeroCapacityMatch[6] !== String(d5Witnesses.preflight.zeroCapacity.hits) ||
+      zeroCapacityMatch[7] !== String(d5Witnesses.preflight.zeroCapacity.misses) ||
+      zeroCapacityMatch[8] !== "NOT_AVAILABLE" ||
+      zeroCapacityMatch[9] !== "0".repeat(64) || zeroCapacityMatch[10] !== "1,2,1")
     fail("zero-capacity cycle preflight did not preserve buffers or the closed path")
   const threeCycleCase = await runD4Case(
     "three-cycle", "const first: i64 = second\nconst second: i64 = third\n" +
@@ -688,6 +937,14 @@ try {
       `${d4PredicateAndValue}struct Use { cycle: UltimateAnswer<(first)> }\n`)
   if (threeCycleCase.record.state !== d4Witnesses.threeCycle.state ||
       threeCycleCase.record.diagnostic !== 2 || threeCycleCase.record.steps !== 0 ||
+      threeCycleCase.record.receipts !== d5Witnesses.preflight.threeCycle.receipts ||
+      threeCycleCase.record.cacheHits !== d5Witnesses.preflight.threeCycle.hits ||
+      threeCycleCase.record.cacheMisses !== d5Witnesses.preflight.threeCycle.misses ||
+      threeCycleCase.record.receiptKinds !== "C" ||
+      threeCycleCase.record.receiptCacheHits.join(",") !==
+        String(d5Witnesses.preflight.threeCycle.receiptHits) ||
+      threeCycleCase.record.receiptCacheMisses.join(",") !==
+        String(d5Witnesses.preflight.threeCycle.receiptMisses) ||
       threeCycleCase.record.cyclePath.join(",") !== d4Witnesses.threeCycle.path)
     fail("three-member cycle path was not deterministic")
   const dependencyLimitSource = Array.from({ length: 257 }, (_, index) =>
@@ -698,6 +955,8 @@ try {
       dependencyLimitCase.record.failure !== "dependency-limit" ||
       dependencyLimitCase.record.computed !== 1 || dependencyLimitCase.record.steps !== 0 ||
       dependencyLimitCase.record.receipts !== 0 ||
+      dependencyLimitCase.record.cacheHits !== d5Witnesses.preflight.dependencyLimit.hits ||
+      dependencyLimitCase.record.cacheMisses !== d5Witnesses.preflight.dependencyLimit.misses ||
       dependencyLimitCase.record.fingerprintState !== "NOT_AVAILABLE")
     fail("D4 dependency ceiling did not stop before conversion or evaluation")
   const unreachableCase = await runD4Case(
@@ -838,19 +1097,22 @@ try {
   const d4CorruptRecords = d4CorruptOutput.split(/\r?\n/u)
     .filter((line) => line.startsWith("D4_CORRUPT "))
     .map((line) => {
-      const match = /^D4_CORRUPT case=([a-z]+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) receipts=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64})$/u.exec(line)
+      const match = /^D4_CORRUPT case=([a-z]+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) receipts=(\d+) cache_hits=(\d+) cache_misses=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64})$/u.exec(line)
       if (!match) fail(`invalid D4 corruption line: ${line}`)
       return {
         case: match[1], state: match[2], failure: match[3],
         diagnostic: Number(match[4]), steps: Number(match[5]),
-        receipts: Number(match[6]), fingerprintState: match[7], fingerprintDigest: match[8],
+        receipts: Number(match[6]), cacheHits: Number(match[7]), cacheMisses: Number(match[8]),
+        fingerprintState: match[9], fingerprintDigest: match[10],
       }
     })
   if (d4CorruptRecords.length !== d4Witnesses.corrupt.cases.length ||
       d4CorruptRecords.some((record, index) =>
         record.case !== d4Witnesses.corrupt.cases[index] ||
         record.state !== d4Witnesses.corrupt.state || record.steps !== 0 ||
-        record.receipts !== 0 || record.fingerprintState !== "NOT_AVAILABLE" ||
+        record.receipts !== 0 || record.cacheHits !== d5Witnesses.preflight.corruption.hits ||
+        record.cacheMisses !== d5Witnesses.preflight.corruption.misses ||
+        record.fingerprintState !== "NOT_AVAILABLE" ||
         record.fingerprintDigest !== "0".repeat(64)))
     fail("D4 origin/mapping/dependency/type/application corruption did not fail in zero steps")
 
