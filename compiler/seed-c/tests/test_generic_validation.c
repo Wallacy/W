@@ -1,4 +1,5 @@
 #include "w_seed_generic_validation.h"
+#include "w_seed_sha256.h"
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -124,9 +125,14 @@ typedef struct {
   uint8_t constir_receipt[CONSTIR_RECEIPT];
   w_seed_constir_value conversion_values[CONVERSION_VALUES];
   uint8_t evidence_bytes[W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_BYTES];
-  uint8_t specialization_preimage[65536];
+  uint8_t nominal_origin_preimage[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+  uint8_t nominal_origin_digest[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES];
+  w_seed_generic_nominal_origin_view nominal_origin_view;
   w_seed_generic_validation_receipt receipts[VALIDATION_RECEIPTS];
   w_seed_constir_eval_frame eval_frames[EVAL_FRAMES];
+  uint8_t specialization_preimage[65536];
 } fixture;
 
 static fixture value;
@@ -275,7 +281,7 @@ static bool fixture_lower_with_module(fixture *fixture_value,
 
 static bool fixture_lower(fixture *fixture_value, const char *source_text) {
   return fixture_lower_with_module(fixture_value, source_text,
-                                   "generic-test");
+                                   "generic_test");
 }
 
 static w_seed_constir_program fixture_program(const fixture *fixture_value) {
@@ -300,11 +306,79 @@ static w_seed_constir_program fixture_program(const fixture *fixture_value) {
       .local_count = fixture_value->constir_result.written.locals};
 }
 
+static bool fixture_prepare_nominal_origin(fixture *fixture_value,
+                                           uint32_t application_index) {
+  CHECK(fixture_value != NULL);
+  CHECK(application_index <
+        fixture_value->frontend_result.written.generic_applications);
+  const w_seed_frontend_generic_application *application =
+      &fixture_value->generic_applications[application_index];
+  if (application->module_index >= fixture_value->frontend_result.written.modules ||
+      application->head_struct >= fixture_value->frontend_result.written.structs) {
+    fixture_value->nominal_origin_view = (w_seed_generic_nominal_origin_view){0};
+    return true;
+  }
+  const w_seed_frontend_module *module =
+      &fixture_value->modules[application->module_index];
+  const w_seed_frontend_struct *head =
+      &fixture_value->structs[application->head_struct];
+  static const uint8_t authority[] =
+      "w-authority-fixture-1|registry=w";
+  static const char package_name[] = "last-light/restaurant";
+  w_seed_frontend_text module_segments[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS];
+  size_t module_segment_count = 0u;
+  size_t segment_start = 0u;
+  for (size_t index = 0u; index <= module->module_id.length; index += 1u) {
+    const bool at_end = index == module->module_id.length;
+    const bool at_separator =
+        !at_end && ((const uint8_t *)module->module_id.data)[index] ==
+                       (uint8_t)'.';
+    if (!at_end && !at_separator) continue;
+    CHECK(module_segment_count <
+          W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS);
+    CHECK(index > segment_start);
+    module_segments[module_segment_count++] = (w_seed_frontend_text){
+        module->module_id.data + segment_start,
+        index - segment_start};
+    segment_start = index + 1u;
+  }
+  const w_seed_generic_nominal_origin origin = {
+      authority,
+      sizeof(authority) - 1u,
+      {package_name, sizeof(package_name) - 1u},
+      module_segments,
+      module_segment_count,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      head->name};
+  w_seed_generic_nominal_origin_result origin_result;
+  const w_seed_generic_nominal_origin_state origin_state =
+      w_seed_generic_nominal_origin_write(
+          &origin, fixture_value->nominal_origin_preimage,
+          sizeof(fixture_value->nominal_origin_preimage), &origin_result);
+  CHECK(origin_state == W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE);
+  CHECK(origin_result.bytes_written == origin_result.bytes_required);
+  (void)memcpy(fixture_value->nominal_origin_digest, origin_result.digest,
+               sizeof(fixture_value->nominal_origin_digest));
+  fixture_value->nominal_origin_view = (w_seed_generic_nominal_origin_view){
+      fixture_value->nominal_origin_preimage,
+      origin_result.bytes_written,
+      fixture_value->nominal_origin_digest,
+      application->module_index,
+      application->head_struct};
+  CHECK(w_seed_generic_nominal_origin_view_valid(
+      &fixture_value->nominal_origin_view));
+  return true;
+}
+
 static w_seed_generic_validation_state validate_application_at_with_evidence(
     fixture *fixture_value, uint32_t application_index,
     size_t conversion_capacity, uint8_t *evidence_bytes,
     size_t evidence_byte_capacity, w_seed_constir_quota quota,
     w_seed_generic_validation_result *result) {
+  CHECK(fixture_prepare_nominal_origin(fixture_value, application_index));
   w_seed_constir_eval_workspace workspace = {
       fixture_value->eval_frames, EVAL_FRAMES};
   const w_seed_constir_program program = fixture_program(fixture_value);
@@ -321,6 +395,7 @@ static w_seed_generic_validation_state validate_application_at_with_evidence(
       .evidence_byte_capacity = evidence_byte_capacity,
       .receipts = fixture_value->receipts,
       .receipt_capacity = VALIDATION_RECEIPTS,
+      .nominal_origin = &fixture_value->nominal_origin_view,
       .specialization_preimage = fixture_value->specialization_preimage,
       .specialization_preimage_capacity =
           sizeof(fixture_value->specialization_preimage)};
@@ -332,6 +407,7 @@ static w_seed_generic_validation_state validate_application_at_with_capacities(
     size_t conversion_capacity, uint8_t *evidence_bytes,
     size_t evidence_byte_capacity, size_t receipt_capacity,
     w_seed_constir_quota quota, w_seed_generic_validation_result *result) {
+  CHECK(fixture_prepare_nominal_origin(fixture_value, application_index));
   w_seed_constir_eval_workspace workspace = {
       fixture_value->eval_frames, EVAL_FRAMES};
   const w_seed_constir_program program = fixture_program(fixture_value);
@@ -348,6 +424,7 @@ static w_seed_generic_validation_state validate_application_at_with_capacities(
       .evidence_byte_capacity = evidence_byte_capacity,
       .receipts = fixture_value->receipts,
       .receipt_capacity = receipt_capacity,
+      .nominal_origin = &fixture_value->nominal_origin_view,
       .specialization_preimage = fixture_value->specialization_preimage,
       .specialization_preimage_capacity =
           sizeof(fixture_value->specialization_preimage)};
@@ -375,6 +452,7 @@ static w_seed_generic_validation_state
 validate_application_at_with_specialization_capacity(
     fixture *fixture_value, uint32_t application_index, uint8_t *preimage,
     size_t preimage_capacity, w_seed_generic_validation_result *result) {
+  CHECK(fixture_prepare_nominal_origin(fixture_value, application_index));
   w_seed_constir_eval_workspace workspace = {
       fixture_value->eval_frames, EVAL_FRAMES};
   const w_seed_constir_program program = fixture_program(fixture_value);
@@ -391,6 +469,33 @@ validate_application_at_with_specialization_capacity(
       .evidence_byte_capacity = W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_BYTES,
       .receipts = fixture_value->receipts,
       .receipt_capacity = VALIDATION_RECEIPTS,
+      .nominal_origin = &fixture_value->nominal_origin_view,
+      .specialization_preimage = preimage,
+      .specialization_preimage_capacity = preimage_capacity};
+  return w_seed_generic_validation_run(&input, result);
+}
+
+static w_seed_generic_validation_state validate_application_at_with_origin_view(
+    fixture *fixture_value, uint32_t application_index,
+    const w_seed_generic_nominal_origin_view *origin_view, uint8_t *preimage,
+    size_t preimage_capacity, w_seed_generic_validation_result *result) {
+  w_seed_constir_eval_workspace workspace = {
+      fixture_value->eval_frames, EVAL_FRAMES};
+  const w_seed_constir_program program = fixture_program(fixture_value);
+  const w_seed_generic_validation_input input = {
+      .frontend_output = &fixture_value->frontend_output,
+      .frontend_result = &fixture_value->frontend_result,
+      .constir_program = &program,
+      .application_index = application_index,
+      .quota = {100000u, 0u, 64u, SIZE_MAX},
+      .eval_workspace = &workspace,
+      .conversion_values = fixture_value->conversion_values,
+      .conversion_value_capacity = CONVERSION_VALUES,
+      .evidence_bytes = fixture_value->evidence_bytes,
+      .evidence_byte_capacity = W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_BYTES,
+      .receipts = fixture_value->receipts,
+      .receipt_capacity = VALIDATION_RECEIPTS,
+      .nominal_origin = origin_view,
       .specialization_preimage = preimage,
       .specialization_preimage_capacity = preimage_capacity};
   return w_seed_generic_validation_run(&input, result);
@@ -564,8 +669,9 @@ static bool predicate_body_digest_for_application(
   return false;
 }
 
-static bool probe_domain_file_with_quota(const char *path, size_t step_quota) {
-  if (path == NULL) return false;
+static bool probe_domain_file_with_quota(const char *path, size_t step_quota,
+                                         const char *module_id) {
+  if (path == NULL || module_id == NULL || module_id[0] == '\0') return false;
   FILE *file = fopen(path, "rb");
   if (file == NULL) return false;
   char source[SOURCE_BYTES];
@@ -575,7 +681,7 @@ static bool probe_domain_file_with_quota(const char *path, size_t step_quota) {
   const bool read_ok = !read_error && close_status == 0;
   if (!read_ok || length == sizeof(source) - 1u) return false;
   source[length] = '\0';
-  if (!fixture_lower_with_module(&value, source, "restaurant")) return false;
+  if (!fixture_lower_with_module(&value, source, module_id)) return false;
 
   size_t stage_path_count = 0u;
   size_t final_call_count = 0u;
@@ -697,8 +803,8 @@ static bool probe_domain_file_with_quota(const char *path, size_t step_quota) {
          typed_const_count != 0u || static_value_count != 0u;
 }
 
-static bool probe_domain_file(const char *path) {
-  return probe_domain_file_with_quota(path, 100000u);
+static bool probe_domain_file(const char *path, const char *module_id) {
+  return probe_domain_file_with_quota(path, 100000u, module_id);
 }
 
 static bool probe_domain_file_corrupt(const char *path) {
@@ -2179,7 +2285,7 @@ static bool test_string_predicate_conversion_boundary(void) {
       "struct Use { item: StringBox<\"The final seating\"> }\n";
   w_seed_generic_validation_result result;
   w_seed_constir_status constir_status = W_SEED_CONSTIR_OK;
-  CHECK(fixture_lower_base(&value, source, "generic-test", &constir_status));
+  CHECK(fixture_lower_base(&value, source, "generic_test", &constir_status));
   CHECK(constir_status == W_SEED_CONSTIR_OK);
   CHECK(value.frontend_result.written.generic_applications == 1u);
   const w_seed_generic_validation_state string_state = validate_application(
@@ -3846,7 +3952,7 @@ static bool test_specialization_contract(void) {
         W_SEED_GENERIC_VALIDATION_VERIFIED &&
         memcmp(variant_result.specialization_digest, base_digest,
                sizeof(base_digest)) != 0);
-  CHECK(fixture_lower_with_module(&value, base_source, "other-module"));
+  CHECK(fixture_lower_with_module(&value, base_source, "other_module"));
   CHECK(validate_application_at_with_specialization_capacity(
             &value, 0u, value.specialization_preimage,
             sizeof(value.specialization_preimage), &variant_result) ==
@@ -3876,14 +3982,1161 @@ static bool test_specialization_contract(void) {
   return true;
 }
 
+static bool nominal_test_append_bytes(uint8_t *buffer, size_t capacity,
+                                      size_t *length, const uint8_t *bytes,
+                                      size_t count) {
+  if (buffer == NULL || length == NULL || bytes == NULL || *length > capacity ||
+      count > capacity - *length)
+    return false;
+  (void)memcpy(buffer + *length, bytes, count);
+  *length += count;
+  return true;
+}
+
+static bool nominal_test_append_u8(uint8_t *buffer, size_t capacity,
+                                   size_t *length, uint8_t byte_value) {
+  return nominal_test_append_bytes(buffer, capacity, length, &byte_value, 1u);
+}
+
+static bool nominal_test_append_u32(uint8_t *buffer, size_t capacity,
+                                    size_t *length, uint32_t integer_value) {
+  const uint8_t bytes[] = {(uint8_t)(integer_value >> 24),
+                           (uint8_t)(integer_value >> 16),
+                           (uint8_t)(integer_value >> 8),
+                           (uint8_t)integer_value};
+  return nominal_test_append_bytes(buffer, capacity, length, bytes,
+                                   sizeof(bytes));
+}
+
+static bool nominal_test_append_text(uint8_t *buffer, size_t capacity,
+                                     size_t *length, const char *text) {
+  if (text == NULL) return false;
+  const size_t text_length = strlen(text);
+  return nominal_test_append_u32(buffer, capacity, length,
+                                 (uint32_t)text_length) &&
+         nominal_test_append_bytes(buffer, capacity, length,
+                                   (const uint8_t *)text, text_length);
+}
+
+static void nominal_test_digest(const uint8_t *bytes, size_t length,
+                                uint8_t digest[
+                                    W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES]) {
+  w_seed_sha256_state sha;
+  w_seed_sha256_init(&sha);
+  w_seed_sha256_update(&sha, bytes, length);
+  w_seed_sha256_final(&sha, digest);
+}
+
+static size_t nominal_test_over_ceiling_receipt(uint8_t *buffer,
+                                                size_t capacity,
+                                                uint32_t segment_count,
+                                                uint32_t owner_count) {
+  static const uint8_t prefix[] = "w-seed-nominal-origin-1";
+  static const uint8_t authority[] = "w-authority-fixture-1|registry=a";
+  static const char package_name[] = "last-light/restaurant";
+  static const char segment_name[] = "domain";
+  static const char owner_name[] = "Outer";
+  static const char declared_name[] = "Box";
+  size_t length = 0u;
+  if (!nominal_test_append_bytes(buffer, capacity, &length, prefix,
+                                 sizeof(prefix) - 1u) ||
+      !nominal_test_append_u8(buffer, capacity, &length, 0x4fu) ||
+      !nominal_test_append_u8(buffer, capacity, &length, 0x41u) ||
+      !nominal_test_append_u32(buffer, capacity, &length,
+                               (uint32_t)(sizeof(authority) - 1u)) ||
+      !nominal_test_append_bytes(buffer, capacity, &length, authority,
+                                 sizeof(authority) - 1u) ||
+      !nominal_test_append_u8(buffer, capacity, &length, 0x50u) ||
+      !nominal_test_append_text(buffer, capacity, &length, package_name) ||
+      !nominal_test_append_u8(buffer, capacity, &length, 0x4du) ||
+      !nominal_test_append_u32(buffer, capacity, &length, segment_count))
+    return 0u;
+  for (uint32_t index = 0u; index < segment_count; index += 1u) {
+    if (!nominal_test_append_u8(buffer, capacity, &length, 0x49u) ||
+        !nominal_test_append_text(buffer, capacity, &length, segment_name))
+      return 0u;
+  }
+  if (!nominal_test_append_u8(buffer, capacity, &length, 0x44u) ||
+      !nominal_test_append_u8(buffer, capacity, &length, 0x01u) ||
+      !nominal_test_append_u32(buffer, capacity, &length, owner_count))
+    return 0u;
+  for (uint32_t index = 0u; index < owner_count; index += 1u) {
+    if (!nominal_test_append_u8(buffer, capacity, &length, 0x01u) ||
+        !nominal_test_append_text(buffer, capacity, &length, owner_name))
+      return 0u;
+  }
+  if (!nominal_test_append_text(buffer, capacity, &length, declared_name))
+    return 0u;
+  return length;
+}
+
+static bool test_nominal_origin_contract(void) {
+  static const uint8_t authority_a[] = "w-authority-fixture-1|registry=a";
+  static const uint8_t authority_b[] = "w-authority-fixture-1|registry=b";
+  static const char package_a[] = "last-light/restaurant";
+  static const char package_b[] = "other/restaurant";
+  static const char module_a[] = "domain";
+  static const char module_b[] = "generics";
+  static const char name[] = "Box";
+  static const char owner_name[] = "Outer";
+  const w_seed_frontend_text module_segment = {module_a, sizeof(module_a) - 1u};
+  const w_seed_generic_nominal_origin origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &module_segment,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {name, sizeof(name) - 1u}};
+  w_seed_generic_nominal_origin_result measured;
+  CHECK(w_seed_generic_nominal_origin_measure(&origin, &measured) ==
+            W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE &&
+        measured.bytes_required != 0u && measured.bytes_written == 0u);
+  uint8_t preimage[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+  (void)memset(preimage, 0xa5, sizeof(preimage));
+  w_seed_generic_nominal_origin_result written;
+  CHECK(w_seed_generic_nominal_origin_write(
+            &origin, preimage, measured.bytes_required, &written) ==
+            W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE &&
+        written.bytes_written == measured.bytes_required &&
+        written.bytes_required == measured.bytes_required &&
+        memcmp(written.digest, measured.digest, sizeof(written.digest)) == 0 &&
+        preimage[written.bytes_written] == 0xa5u);
+  const w_seed_generic_nominal_origin_view base_view = {
+      preimage, written.bytes_written, written.digest, 0u, 0u};
+  CHECK(w_seed_generic_nominal_origin_view_valid(&base_view));
+
+  uint8_t short_preimage[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+  (void)memset(short_preimage, 0xa5, sizeof(short_preimage));
+  w_seed_generic_nominal_origin_result short_result;
+  CHECK(w_seed_generic_nominal_origin_write(
+            &origin, short_preimage, measured.bytes_required - 1u,
+            &short_result) == W_SEED_GENERIC_NOMINAL_ORIGIN_CAPACITY &&
+        short_result.bytes_required == measured.bytes_required &&
+        short_result.bytes_written == 0u &&
+        short_preimage[0] == 0xa5u &&
+        short_preimage[sizeof(short_preimage) - 1u] == 0xa5u);
+  w_seed_generic_nominal_origin_result zero_result;
+  CHECK(w_seed_generic_nominal_origin_write(&origin, preimage, 0u,
+                                             &zero_result) ==
+            W_SEED_GENERIC_NOMINAL_ORIGIN_CAPACITY &&
+        zero_result.bytes_required == measured.bytes_required &&
+        zero_result.bytes_written == 0u);
+  w_seed_generic_nominal_origin_result null_result;
+  CHECK(w_seed_generic_nominal_origin_write(&origin, NULL, 1u, &null_result) ==
+        W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID);
+
+  const w_seed_frontend_text module_segment_b = {module_b, sizeof(module_b) - 1u};
+  const w_seed_generic_nominal_origin authority_origin = {
+      authority_b,
+      sizeof(authority_b) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &module_segment,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {name, sizeof(name) - 1u}};
+  const w_seed_generic_nominal_origin package_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_b, sizeof(package_b) - 1u},
+      &module_segment,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {name, sizeof(name) - 1u}};
+  const w_seed_generic_nominal_origin module_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &module_segment_b,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {name, sizeof(name) - 1u}};
+  const w_seed_generic_nominal_owner owner = {
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      {owner_name, sizeof(owner_name) - 1u}};
+  const w_seed_generic_nominal_origin owner_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &module_segment,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      &owner,
+      1u,
+      {name, sizeof(name) - 1u}};
+  const w_seed_generic_nominal_origin kind_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &module_segment,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_TYPE,
+      NULL,
+      0u,
+      {name, sizeof(name) - 1u}};
+  const w_seed_generic_nominal_origin *variants[] = {
+      &authority_origin, &package_origin, &module_origin, &owner_origin,
+      &kind_origin};
+  uint8_t variant_preimages[5][
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+  w_seed_generic_nominal_origin_view variant_views[5];
+  for (size_t index = 0u; index < 5u; index += 1u) {
+    w_seed_generic_nominal_origin_result variant_result;
+    (void)memset(variant_preimages[index], 0xa5,
+                 sizeof(variant_preimages[index]));
+    w_seed_generic_nominal_origin_result variant_measure;
+    CHECK(w_seed_generic_nominal_origin_measure(variants[index],
+                                                &variant_measure) ==
+          W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE);
+    CHECK(w_seed_generic_nominal_origin_write(
+               variants[index], variant_preimages[index],
+               variant_measure.bytes_required, &variant_result) ==
+              W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE);
+    variant_views[index] = (w_seed_generic_nominal_origin_view){
+        variant_preimages[index], variant_result.bytes_written,
+        variant_result.digest, 0u, 0u};
+    CHECK(w_seed_generic_nominal_origin_view_valid(&variant_views[index]) &&
+          !w_seed_generic_nominal_origin_equal(&base_view, &variant_views[index]));
+  }
+  uint8_t forced_digest[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES];
+  (void)memcpy(forced_digest, written.digest, sizeof(forced_digest));
+  variant_views[0].digest = forced_digest;
+  CHECK(!w_seed_generic_nominal_origin_equal(&base_view, &variant_views[0]));
+  uint8_t corrupt_digest[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES];
+  (void)memcpy(corrupt_digest, written.digest, sizeof(corrupt_digest));
+  corrupt_digest[0] ^= 0x01u;
+  const w_seed_generic_nominal_origin_view corrupt_view = {
+      preimage, written.bytes_written, corrupt_digest, 0u, 0u};
+  CHECK(!w_seed_generic_nominal_origin_view_valid(&corrupt_view));
+  uint8_t trailing_preimage[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+  (void)memcpy(trailing_preimage, preimage, written.bytes_written);
+  trailing_preimage[written.bytes_written] = 0xa5u;
+  const w_seed_generic_nominal_origin_view trailing_view = {
+      trailing_preimage, written.bytes_written + 1u, written.digest, 0u, 0u};
+  CHECK(!w_seed_generic_nominal_origin_view_valid(&trailing_view));
+  const char unicode_name[] = "B\xc3\xb3x";
+  const w_seed_generic_nominal_origin unicode_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &module_segment,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {unicode_name, sizeof(unicode_name) - 1u}};
+  w_seed_generic_nominal_origin_result unicode_result;
+  CHECK(w_seed_generic_nominal_origin_measure(&unicode_origin,
+                                               &unicode_result) ==
+        W_SEED_GENERIC_NOMINAL_ORIGIN_UNSUPPORTED);
+  static const char invalid_package_name[] = "Last-light/restaurant";
+  static const char invalid_identifier_name[] = "bad-name";
+  static const uint8_t malformed_utf8_name[] = {'B', 0xc3u, 0x28u, 'x'};
+  static const char non_ascii_package[] = "last-lÃ¡ght/restaurant";
+  char ceiling_name[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_NAME_BYTES +
+                    1u];
+  (void)memset(ceiling_name, 'A', sizeof(ceiling_name));
+  const w_seed_generic_nominal_origin invalid_package_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {invalid_package_name, sizeof(invalid_package_name) - 1u},
+      &module_segment,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {name, sizeof(name) - 1u}};
+  const w_seed_generic_nominal_origin invalid_identifier_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &module_segment,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {invalid_identifier_name, sizeof(invalid_identifier_name) - 1u}};
+  const w_seed_generic_nominal_origin malformed_utf8_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &module_segment,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {(const char *)malformed_utf8_name, sizeof(malformed_utf8_name)}};
+  const w_seed_generic_nominal_origin non_ascii_package_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {non_ascii_package, sizeof(non_ascii_package) - 1u},
+      &module_segment,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {name, sizeof(name) - 1u}};
+  const w_seed_generic_nominal_origin ceiling_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &module_segment,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {ceiling_name, sizeof(ceiling_name)}};
+  w_seed_generic_nominal_origin_result canonical_result;
+  CHECK(w_seed_generic_nominal_origin_measure(&invalid_package_origin,
+                                               &canonical_result) ==
+            W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID &&
+        w_seed_generic_nominal_origin_measure(&invalid_identifier_origin,
+                                               &canonical_result) ==
+            W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID &&
+        w_seed_generic_nominal_origin_measure(&malformed_utf8_origin,
+                                               &canonical_result) ==
+            W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID &&
+        w_seed_generic_nominal_origin_measure(&non_ascii_package_origin,
+                                               &canonical_result) ==
+            W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID &&
+        w_seed_generic_nominal_origin_measure(&ceiling_origin,
+                                               &canonical_result) ==
+            W_SEED_GENERIC_NOMINAL_ORIGIN_UNSUPPORTED);
+
+  /* Caller count/length ceilings are UNSUPPORTED.  These probes use valid
+   * pointers with deliberately huge metadata, so overlap preflight must not
+   * multiply or walk beyond the supported arrays. */
+  static uint8_t authority_ceiling[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_AUTHORITY_BYTES + 1u];
+  (void)memset(authority_ceiling, 'a', sizeof(authority_ceiling));
+  const w_seed_generic_nominal_origin authority_ceiling_origin = {
+      authority_ceiling,
+      sizeof(authority_ceiling),
+      origin.scoped_package_name,
+      origin.module_path_segments,
+      origin.module_path_segment_count,
+      origin.declaration_kind,
+      origin.owner_chain,
+      origin.owner_chain_count,
+      origin.declared_name};
+  static const w_seed_frontend_text one_module_segment = {
+      module_a, sizeof(module_a) - 1u};
+  const w_seed_generic_nominal_origin huge_module_count_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      origin.scoped_package_name,
+      &one_module_segment,
+      SIZE_MAX,
+      origin.declaration_kind,
+      origin.owner_chain,
+      origin.owner_chain_count,
+      origin.declared_name};
+  const w_seed_generic_nominal_owner one_owner = {
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      {owner_name, sizeof(owner_name) - 1u}};
+  const w_seed_generic_nominal_origin huge_owner_count_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      origin.scoped_package_name,
+      origin.module_path_segments,
+      origin.module_path_segment_count,
+      origin.declaration_kind,
+      &one_owner,
+      SIZE_MAX,
+      origin.declared_name};
+  static uint8_t huge_total_authority[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_AUTHORITY_BYTES];
+  static char huge_total_segment[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_SEGMENT_BYTES];
+  static char huge_total_name[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_NAME_BYTES];
+  static w_seed_frontend_text huge_total_segments[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS];
+  static w_seed_generic_nominal_owner huge_total_owners[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_OWNER_CHAIN];
+  (void)memset(huge_total_authority, 'a', sizeof(huge_total_authority));
+  (void)memset(huge_total_segment, 'A', sizeof(huge_total_segment));
+  (void)memset(huge_total_name, 'A', sizeof(huge_total_name));
+  for (size_t index = 0u;
+       index < W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS;
+       index += 1u)
+    huge_total_segments[index] =
+        (w_seed_frontend_text){huge_total_segment, sizeof(huge_total_segment)};
+  for (size_t index = 0u;
+       index < W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_OWNER_CHAIN;
+       index += 1u)
+    huge_total_owners[index] = (w_seed_generic_nominal_owner){
+        W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+        {huge_total_name, sizeof(huge_total_name)}};
+  const w_seed_generic_nominal_origin huge_total_origin = {
+      huge_total_authority,
+      sizeof(huge_total_authority),
+      origin.scoped_package_name,
+      huge_total_segments,
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS,
+      origin.declaration_kind,
+      huge_total_owners,
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_OWNER_CHAIN,
+      {huge_total_name, sizeof(huge_total_name)}};
+  const w_seed_generic_nominal_origin *ceiling_origins[] = {
+      &authority_ceiling_origin, &huge_module_count_origin,
+      &huge_owner_count_origin, &huge_total_origin};
+  for (size_t index = 0u;
+       index < sizeof(ceiling_origins) / sizeof(ceiling_origins[0]);
+       index += 1u) {
+    w_seed_generic_nominal_origin_result ceiling_measure;
+    CHECK(w_seed_generic_nominal_origin_measure(ceiling_origins[index],
+                                                 &ceiling_measure) ==
+              W_SEED_GENERIC_NOMINAL_ORIGIN_UNSUPPORTED &&
+          ceiling_measure.bytes_written == 0u &&
+          ceiling_measure.bytes_required == 0u &&
+          memcmp(ceiling_measure.digest,
+                 (uint8_t[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES]){0},
+                 W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES) == 0);
+    uint8_t ceiling_output[64];
+    (void)memset(ceiling_output, 0xa5, sizeof(ceiling_output));
+    w_seed_generic_nominal_origin_result ceiling_write;
+    CHECK(w_seed_generic_nominal_origin_write(
+              ceiling_origins[index], ceiling_output, sizeof(ceiling_output),
+              &ceiling_write) == W_SEED_GENERIC_NOMINAL_ORIGIN_UNSUPPORTED &&
+          ceiling_write.bytes_written == 0u &&
+          ceiling_write.bytes_required == 0u &&
+          memcmp(ceiling_write.digest,
+                 (uint8_t[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES]){0},
+                 W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES) == 0);
+    for (size_t byte = 0u; byte < sizeof(ceiling_output); byte += 1u)
+      CHECK(ceiling_output[byte] == 0xa5u);
+  }
+  /* An unsupported count must not make the result or output alias an
+   * unbounded caller array.  The implementation may reject the alias before
+   * publishing the UNSUPPORTED state, but it must not mutate either storage. */
+  union {
+    w_seed_generic_nominal_origin_result result;
+    w_seed_frontend_text module;
+  } huge_count_result_storage;
+  huge_count_result_storage.module = one_module_segment;
+  uint8_t huge_count_result_snapshot[sizeof(huge_count_result_storage)];
+  (void)memcpy(huge_count_result_snapshot, &huge_count_result_storage,
+               sizeof(huge_count_result_snapshot));
+  const w_seed_generic_nominal_origin huge_count_result_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      origin.scoped_package_name,
+      &huge_count_result_storage.module,
+      SIZE_MAX,
+      origin.declaration_kind,
+      origin.owner_chain,
+      origin.owner_chain_count,
+      origin.declared_name};
+  CHECK(w_seed_generic_nominal_origin_measure(
+            &huge_count_result_origin, &huge_count_result_storage.result) ==
+            W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID &&
+        memcmp(huge_count_result_snapshot, &huge_count_result_storage,
+               sizeof(huge_count_result_snapshot)) == 0);
+  union {
+    w_seed_frontend_text module;
+    uint8_t output[64];
+  } huge_count_output_storage;
+  huge_count_output_storage.module = one_module_segment;
+  uint8_t huge_count_output_snapshot[sizeof(huge_count_output_storage)];
+  (void)memcpy(huge_count_output_snapshot, &huge_count_output_storage,
+               sizeof(huge_count_output_snapshot));
+  const w_seed_generic_nominal_origin huge_count_output_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      origin.scoped_package_name,
+      &huge_count_output_storage.module,
+      SIZE_MAX,
+      origin.declaration_kind,
+      origin.owner_chain,
+      origin.owner_chain_count,
+      origin.declared_name};
+  w_seed_generic_nominal_origin_result huge_count_output_result;
+  CHECK(w_seed_generic_nominal_origin_write(
+            &huge_count_output_origin, huge_count_output_storage.output,
+            sizeof(huge_count_output_storage.output),
+            &huge_count_output_result) ==
+            W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID &&
+        memcmp(huge_count_output_snapshot, &huge_count_output_storage,
+               sizeof(huge_count_output_snapshot)) == 0);
+
+  static const char validation_source[] =
+      "const fn always(value: i64): Bool { return true }\n"
+      "struct Box<_ value: i64<(always(.member))>> {}\n"
+      "struct Use { item: Box<42> }\n";
+  CHECK(fixture_lower(&value, validation_source));
+  CHECK(fixture_prepare_nominal_origin(&value, 0u));
+  static uint8_t over_segment_receipt[4096];
+  static uint8_t over_owner_receipt[4096];
+  const size_t over_segment_length = nominal_test_over_ceiling_receipt(
+      over_segment_receipt, sizeof(over_segment_receipt),
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS + 1u, 0u);
+  const size_t over_owner_length = nominal_test_over_ceiling_receipt(
+      over_owner_receipt, sizeof(over_owner_receipt), 1u,
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_OWNER_CHAIN + 1u);
+  CHECK(over_segment_length > 0u && over_segment_length <
+            W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PARSE_PREIMAGE_BYTES &&
+        over_owner_length != 0u);
+  const uint8_t *over_receipts[] = {over_segment_receipt, over_owner_receipt};
+  const size_t over_lengths[] = {over_segment_length, over_owner_length};
+  uint8_t over_digests[2][
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES];
+  for (size_t index = 0u; index < sizeof(over_lengths) / sizeof(over_lengths[0]);
+       index += 1u)
+    nominal_test_digest(over_receipts[index], over_lengths[index],
+                        over_digests[index]);
+  for (size_t index = 0u; index < sizeof(over_lengths) / sizeof(over_lengths[0]);
+       index += 1u) {
+    const w_seed_generic_nominal_origin_view over_view = {
+        over_receipts[index], over_lengths[index],
+        over_digests[index], 0u, 0u};
+    CHECK(!w_seed_generic_nominal_origin_view_valid(&over_view));
+    (void)memset(value.specialization_preimage, 0xa5,
+                 sizeof(value.specialization_preimage));
+    (void)memset(value.receipts, 0xa5, sizeof(value.receipts));
+    w_seed_generic_validation_result over_result;
+    CHECK(validate_application_at_with_origin_view(
+              &value, 0u, &over_view, value.specialization_preimage,
+              sizeof(value.specialization_preimage), &over_result) ==
+              W_SEED_GENERIC_VALIDATION_VERIFIED &&
+          over_result.specialization_state ==
+              W_SEED_GENERIC_VALIDATION_SPECIALIZATION_UNSUPPORTED &&
+          over_result.evaluation.consumed_steps != 0u &&
+          over_result.receipts_written != 0u &&
+          over_result.specialization_bytes_written == 0u &&
+          over_result.specialization_bytes_required == 0u);
+    for (size_t byte = 0u; byte < sizeof(value.specialization_preimage);
+         byte += 1u)
+      CHECK(value.specialization_preimage[byte] == 0xa5u);
+    uint8_t corrupt_over_digest[
+        W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES];
+    (void)memcpy(corrupt_over_digest, over_digests[index],
+                 sizeof(corrupt_over_digest));
+    corrupt_over_digest[0] ^= 0x01u;
+    const w_seed_generic_nominal_origin_view corrupt_over_view = {
+        over_receipts[index], over_lengths[index], corrupt_over_digest, 0u, 0u};
+    (void)memset(value.specialization_preimage, 0xa5,
+                 sizeof(value.specialization_preimage));
+    (void)memset(value.receipts, 0xa5, sizeof(value.receipts));
+    w_seed_generic_validation_result corrupt_over_result;
+    CHECK(validate_application_at_with_origin_view(
+              &value, 0u, &corrupt_over_view, value.specialization_preimage,
+              sizeof(value.specialization_preimage), &corrupt_over_result) ==
+              W_SEED_GENERIC_VALIDATION_INVALID &&
+          corrupt_over_result.evaluation.consumed_steps == 0u &&
+          corrupt_over_result.receipts_written == 0u &&
+          corrupt_over_result.specialization_bytes_written == 0u &&
+          corrupt_over_result.specialization_bytes_required == 0u);
+    for (size_t byte = 0u; byte < sizeof(value.receipts); byte += 1u)
+      CHECK(((const uint8_t *)value.receipts)[byte] == 0xa5u);
+    for (size_t byte = 0u; byte < sizeof(value.specialization_preimage);
+         byte += 1u)
+      CHECK(value.specialization_preimage[byte] == 0xa5u);
+    const w_seed_generic_nominal_origin_view truncated_over_view = {
+        over_receipts[index], over_lengths[index] - 1u,
+        over_digests[index], 0u, 0u};
+    (void)memset(value.specialization_preimage, 0xa5,
+                 sizeof(value.specialization_preimage));
+    (void)memset(value.receipts, 0xa5, sizeof(value.receipts));
+    w_seed_generic_validation_result truncated_over_result;
+    CHECK(validate_application_at_with_origin_view(
+              &value, 0u, &truncated_over_view, value.specialization_preimage,
+              sizeof(value.specialization_preimage), &truncated_over_result) ==
+              W_SEED_GENERIC_VALIDATION_INVALID &&
+          truncated_over_result.evaluation.consumed_steps == 0u &&
+          truncated_over_result.receipts_written == 0u &&
+          truncated_over_result.specialization_bytes_written == 0u &&
+          truncated_over_result.specialization_bytes_required == 0u);
+    for (size_t byte = 0u; byte < sizeof(value.receipts); byte += 1u)
+      CHECK(((const uint8_t *)value.receipts)[byte] == 0xa5u);
+    for (size_t byte = 0u; byte < sizeof(value.specialization_preimage);
+         byte += 1u)
+      CHECK(value.specialization_preimage[byte] == 0xa5u);
+  }
+  (void)memset(value.conversion_values, 0xa5, sizeof(value.conversion_values));
+  (void)memset(value.receipts, 0xa5, sizeof(value.receipts));
+  w_seed_generic_validation_result missing_result;
+  CHECK(validate_application_at_with_origin_view(
+            &value, 0u, NULL, value.specialization_preimage,
+            sizeof(value.specialization_preimage), &missing_result) ==
+            W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        missing_result.specialization_state ==
+            W_SEED_GENERIC_VALIDATION_SPECIALIZATION_IDENTITY_REQUIRED &&
+        missing_result.specialization_bytes_written == 0u &&
+        missing_result.specialization_bytes_required == 0u &&
+        missing_result.receipts_written == 1u);
+  /* Rebuild the receipt after the semantic run, then check malformed views
+   * stop before the evaluator and leave caller-owned arrays untouched. */
+  CHECK(fixture_prepare_nominal_origin(&value, 0u));
+  (void)memcpy(trailing_preimage, value.nominal_origin_view.preimage,
+               value.nominal_origin_view.preimage_length);
+  trailing_preimage[value.nominal_origin_view.preimage_length] = 0xa5u;
+  const w_seed_generic_nominal_origin_view malformed_view = {
+      trailing_preimage, value.nominal_origin_view.preimage_length + 1u,
+      value.nominal_origin_view.digest, value.nominal_origin_view.frontend_module_index,
+      value.nominal_origin_view.frontend_head_struct_index};
+  (void)memset(value.conversion_values, 0xa5, sizeof(value.conversion_values));
+  (void)memset(value.receipts, 0xa5, sizeof(value.receipts));
+  w_seed_generic_validation_result malformed_result;
+  CHECK(validate_application_at_with_origin_view(
+            &value, 0u, &malformed_view, value.specialization_preimage,
+            sizeof(value.specialization_preimage), &malformed_result) ==
+            W_SEED_GENERIC_VALIDATION_INVALID &&
+        malformed_result.receipts_written == 0u &&
+        malformed_result.evaluation.consumed_steps == 0u);
+  for (size_t byte = 0u; byte < sizeof(value.receipts); byte += 1u)
+    CHECK(((const uint8_t *)value.receipts)[byte] == 0xa5u);
+  w_seed_generic_nominal_origin_view wrong_relation = value.nominal_origin_view;
+  wrong_relation.frontend_module_index += 1u;
+  w_seed_generic_validation_result wrong_relation_result;
+  CHECK(validate_application_at_with_origin_view(
+             &value, 0u, &wrong_relation, value.specialization_preimage,
+             sizeof(value.specialization_preimage), &wrong_relation_result) ==
+            W_SEED_GENERIC_VALIDATION_INVALID &&
+         wrong_relation_result.evaluation.consumed_steps == 0u &&
+         wrong_relation_result.receipts_written == 0u);
+  CHECK(fixture_lower_with_module(&value, validation_source,
+                                  "platform.native"));
+  CHECK(fixture_prepare_nominal_origin(&value, 0u));
+  w_seed_generic_validation_result multi_segment_result;
+  CHECK(validate_application_at_with_origin_view(
+            &value, 0u, &value.nominal_origin_view,
+            value.specialization_preimage,
+            sizeof(value.specialization_preimage), &multi_segment_result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED);
+  CHECK(fixture_lower_with_module(&value, validation_source, "domain"));
+  CHECK(fixture_prepare_nominal_origin(&value, 0u));
+  static const char prefix_segment[] = "evil";
+  static const char prefix_domain_segment[] = "domain";
+  const w_seed_frontend_text prefix_segments[] = {
+      {prefix_segment, sizeof(prefix_segment) - 1u},
+      {prefix_domain_segment, sizeof(prefix_domain_segment) - 1u}};
+  const w_seed_generic_nominal_origin prefix_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      prefix_segments,
+      2u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      value.structs[0].name};
+  uint8_t prefix_preimage[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+  w_seed_generic_nominal_origin_result prefix_measure;
+  CHECK(w_seed_generic_nominal_origin_measure(&prefix_origin,
+                                               &prefix_measure) ==
+        W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE);
+  w_seed_generic_nominal_origin_result prefix_written;
+  CHECK(w_seed_generic_nominal_origin_write(
+            &prefix_origin, prefix_preimage, prefix_measure.bytes_required,
+            &prefix_written) == W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE);
+  const w_seed_generic_nominal_origin_view prefix_view = {
+      prefix_preimage, prefix_written.bytes_written, prefix_written.digest,
+      value.nominal_origin_view.frontend_module_index,
+      value.nominal_origin_view.frontend_head_struct_index};
+  (void)memset(value.receipts, 0xa5, sizeof(value.receipts));
+  w_seed_generic_validation_result prefix_result;
+  CHECK(validate_application_at_with_origin_view(
+            &value, 0u, &prefix_view, value.specialization_preimage,
+            sizeof(value.specialization_preimage), &prefix_result) ==
+            W_SEED_GENERIC_VALIDATION_INVALID &&
+        prefix_result.evaluation.consumed_steps == 0u &&
+        prefix_result.receipts_written == 0u);
+  for (size_t byte = 0u; byte < sizeof(value.receipts); byte += 1u)
+    CHECK(((const uint8_t *)value.receipts)[byte] == 0xa5u);
+  uint8_t alias_authority[sizeof(authority_a)];
+  (void)memcpy(alias_authority, authority_a, sizeof(alias_authority));
+  const w_seed_generic_nominal_origin alias_origin = {
+      alias_authority,
+      sizeof(alias_authority) - 1u,
+      origin.scoped_package_name,
+      origin.module_path_segments,
+      origin.module_path_segment_count,
+      origin.declaration_kind,
+      origin.owner_chain,
+      origin.owner_chain_count,
+      origin.declared_name};
+  w_seed_generic_nominal_origin_result alias_origin_result;
+  CHECK(w_seed_generic_nominal_origin_write(
+            &alias_origin, alias_authority, sizeof(alias_authority),
+            &alias_origin_result) == W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID &&
+        memcmp(alias_authority, authority_a, sizeof(alias_authority)) == 0);
+  uint8_t origin_preimage_snapshot[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+  (void)memcpy(origin_preimage_snapshot, value.nominal_origin_view.preimage,
+               value.nominal_origin_view.preimage_length);
+  w_seed_generic_validation_result alias_validation_result;
+  CHECK(validate_application_at_with_origin_view(
+            &value, 0u, &value.nominal_origin_view,
+            (uint8_t *)value.nominal_origin_view.preimage,
+            value.nominal_origin_view.preimage_length,
+            &alias_validation_result) == W_SEED_GENERIC_VALIDATION_INVALID &&
+        memcmp(origin_preimage_snapshot, value.nominal_origin_view.preimage,
+               value.nominal_origin_view.preimage_length) == 0);
+  uint8_t digest_snapshot[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES];
+  (void)memcpy(digest_snapshot, value.nominal_origin_view.digest,
+               sizeof(digest_snapshot));
+  CHECK(validate_application_at_with_origin_view(
+            &value, 0u, &value.nominal_origin_view,
+            (uint8_t *)value.nominal_origin_view.digest,
+            sizeof(digest_snapshot), &alias_validation_result) ==
+            W_SEED_GENERIC_VALIDATION_INVALID &&
+        memcmp(digest_snapshot, value.nominal_origin_view.digest,
+               sizeof(digest_snapshot)) == 0);
+  return true;
+}
+
+static const char *nominal_origin_state_name_local(
+    w_seed_generic_nominal_origin_state state) {
+  switch (state) {
+    case W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID:
+      return "INVALID";
+    case W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE:
+      return "AVAILABLE";
+    case W_SEED_GENERIC_NOMINAL_ORIGIN_UNSUPPORTED:
+      return "UNSUPPORTED";
+    case W_SEED_GENERIC_NOMINAL_ORIGIN_CAPACITY:
+      return "CAPACITY";
+  }
+  return "UNKNOWN";
+}
+
+static void print_nominal_origin_result_line(
+    const char *case_name, const w_seed_generic_nominal_origin_result *result,
+    const uint8_t *preimage) {
+  if (case_name == NULL || result == NULL) return;
+  (void)printf("ORIGIN case=%s state=%s written=%llu required=%llu digest=",
+               case_name, nominal_origin_state_name_local(result->state),
+               (unsigned long long)result->bytes_written,
+               (unsigned long long)result->bytes_required);
+  print_digest(result->digest);
+  if (result->state == W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE &&
+      preimage != NULL) {
+    (void)printf(" preimage=");
+    print_bytes_hex(preimage, result->bytes_written);
+  }
+  (void)putchar('\n');
+}
+
+static void print_nominal_validation_line(
+    const char *case_name, const fixture *fixture_value,
+    const w_seed_generic_validation_result *result,
+    const uint8_t predicate_digest[32]) {
+  if (case_name == NULL || fixture_value == NULL || result == NULL) return;
+  (void)printf("NOMINAL_VALIDATION case=%s state=%s specialization_state=%s "
+               "specialization_written=%llu specialization_required=%llu "
+               "specialization_digest=",
+               case_name, w_seed_generic_validation_state_name(result->state),
+               w_seed_generic_validation_specialization_state_name(
+                   result->specialization_state),
+               (unsigned long long)result->specialization_bytes_written,
+               (unsigned long long)result->specialization_bytes_required);
+  if (result->specialization_state ==
+      W_SEED_GENERIC_VALIDATION_SPECIALIZATION_AVAILABLE)
+    print_digest(result->specialization_digest);
+  else
+    for (size_t index = 0u; index < 32u; index += 1u) (void)printf("00");
+  if (result->specialization_state ==
+      W_SEED_GENERIC_VALIDATION_SPECIALIZATION_AVAILABLE) {
+    (void)printf(" specialization_preimage=");
+    print_bytes_hex(fixture_value->specialization_preimage,
+                    result->specialization_bytes_written);
+  }
+  (void)printf(" steps=%llu receipts=%llu predicate_body_digest=",
+               (unsigned long long)result->evaluation.consumed_steps,
+               (unsigned long long)result->receipts_written);
+  if (predicate_digest != NULL)
+    print_digest(predicate_digest);
+  else
+    for (size_t index = 0u; index < 32u; index += 1u) (void)printf("00");
+  (void)putchar('\n');
+}
+
+static bool probe_nominal_origin_matrix(void) {
+  static const uint8_t authority_a[] = "w-authority-fixture-1|registry=a";
+  static const uint8_t authority_b[] = "w-authority-fixture-1|registry=b";
+  static const char package_a[] = "last-light/restaurant";
+  static const char package_b[] = "other/restaurant";
+  static const char module_a[] = "domain";
+  static const char module_b[] = "generics";
+  static const char declaration_name[] = "Box";
+  static const char owner_name[] = "Outer";
+  const w_seed_frontend_text segment_a = {module_a, sizeof(module_a) - 1u};
+  const w_seed_frontend_text segment_b = {module_b, sizeof(module_b) - 1u};
+  const w_seed_generic_nominal_owner owner = {
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      {owner_name, sizeof(owner_name) - 1u}};
+  const w_seed_generic_nominal_origin base = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &segment_a,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {declaration_name, sizeof(declaration_name) - 1u}};
+  const w_seed_generic_nominal_origin authority = {
+      authority_b,
+      sizeof(authority_b) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &segment_a,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {declaration_name, sizeof(declaration_name) - 1u}};
+  const w_seed_generic_nominal_origin package = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_b, sizeof(package_b) - 1u},
+      &segment_a,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {declaration_name, sizeof(declaration_name) - 1u}};
+  const w_seed_generic_nominal_origin module = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &segment_b,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {declaration_name, sizeof(declaration_name) - 1u}};
+  const w_seed_generic_nominal_origin kind = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &segment_a,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_TYPE,
+      NULL,
+      0u,
+      {declaration_name, sizeof(declaration_name) - 1u}};
+  const w_seed_generic_nominal_origin owner_origin = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &segment_a,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      &owner,
+      1u,
+      {declaration_name, sizeof(declaration_name) - 1u}};
+  const w_seed_generic_nominal_origin *origins[] = {
+      &base, &authority, &package, &module, &kind, &owner_origin};
+  const char *origin_names[] = {
+      "base", "authority", "package", "module", "kind", "owner"};
+  uint8_t origin_preimages[6][
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+  w_seed_generic_nominal_origin_result origin_results[6];
+  for (size_t index = 0u; index < 6u; index += 1u) {
+    w_seed_generic_nominal_origin_result origin_measure;
+    if (w_seed_generic_nominal_origin_measure(origins[index],
+                                              &origin_measure) !=
+        W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE)
+      return false;
+    (void)memset(origin_preimages[index], 0xa5,
+                 sizeof(origin_preimages[index]));
+    if (w_seed_generic_nominal_origin_write(
+            origins[index], origin_preimages[index],
+            origin_measure.bytes_required, &origin_results[index]) !=
+        W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE)
+      return false;
+    if (origin_results[index].bytes_written != origin_measure.bytes_required ||
+        origin_preimages[index][origin_results[index].bytes_written] != 0xa5u)
+      return false;
+    print_nominal_origin_result_line(origin_names[index], &origin_results[index],
+                                     origin_preimages[index]);
+  }
+  uint8_t short_origin[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+  (void)memset(short_origin, 0xa5, sizeof(short_origin));
+  w_seed_generic_nominal_origin_result short_result;
+  if (w_seed_generic_nominal_origin_write(
+          &base, short_origin, origin_results[0].bytes_required - 1u,
+          &short_result) != W_SEED_GENERIC_NOMINAL_ORIGIN_CAPACITY)
+    return false;
+  print_nominal_origin_result_line("short", &short_result, NULL);
+  w_seed_generic_nominal_origin_result zero_result;
+  if (w_seed_generic_nominal_origin_write(&base, short_origin, 0u,
+                                          &zero_result) !=
+      W_SEED_GENERIC_NOMINAL_ORIGIN_CAPACITY)
+    return false;
+  print_nominal_origin_result_line("zero", &zero_result, NULL);
+  w_seed_generic_nominal_origin_result null_result;
+  if (w_seed_generic_nominal_origin_write(&base, NULL, 1u, &null_result) !=
+      W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID)
+    return false;
+  print_nominal_origin_result_line("null", &null_result, NULL);
+  const char unicode_name[] = "B\xc3\xb3x";
+  const w_seed_generic_nominal_origin unicode = {
+      authority_a,
+      sizeof(authority_a) - 1u,
+      {package_a, sizeof(package_a) - 1u},
+      &segment_a,
+      1u,
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      NULL,
+      0u,
+      {unicode_name, sizeof(unicode_name) - 1u}};
+  w_seed_generic_nominal_origin_result unicode_result;
+  if (w_seed_generic_nominal_origin_measure(&unicode, &unicode_result) !=
+      W_SEED_GENERIC_NOMINAL_ORIGIN_UNSUPPORTED)
+    return false;
+  print_nominal_origin_result_line("unicode", &unicode_result, NULL);
+
+  static const char validation_source[] =
+      "const fn always(value: i64): Bool { return true }\n"
+      "struct Box<_ value: i64<(always(.member))>> {}\n"
+      "struct Use { item: Box<42> }\n";
+  if (!fixture_lower_with_module(&value, validation_source, module_a) ||
+      !fixture_prepare_nominal_origin(&value, 0u))
+    return false;
+  w_seed_generic_validation_result valid_result;
+  if (validate_application_at_with_origin_view(
+          &value, 0u, &value.nominal_origin_view, value.specialization_preimage,
+          sizeof(value.specialization_preimage), &valid_result) !=
+      W_SEED_GENERIC_VALIDATION_VERIFIED)
+    return false;
+  uint8_t predicate_digest[32] = {0u};
+  (void)predicate_body_digest_for_application(
+      &value, &value.generic_applications[0], predicate_digest);
+  print_nominal_validation_line("available", &value, &valid_result,
+                                predicate_digest);
+  static const char predicate_body_variant_source[] =
+      "const fn always(value: i64): Bool { return value == value }\n"
+      "struct Box<_ value: i64<(always(.member))>> {}\n"
+      "struct Use { item: Box<42> }\n";
+  CHECK(fixture_lower_with_module(&value, predicate_body_variant_source,
+                                  module_a) &&
+        fixture_prepare_nominal_origin(&value, 0u));
+  w_seed_generic_validation_result body_result;
+  CHECK(validate_application_at_with_origin_view(
+            &value, 0u, &value.nominal_origin_view, value.specialization_preimage,
+            sizeof(value.specialization_preimage), &body_result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED);
+  uint8_t body_predicate_digest[32] = {0u};
+  CHECK(predicate_body_digest_for_application(
+      &value, &value.generic_applications[0], body_predicate_digest));
+  print_nominal_validation_line("body", &value, &body_result,
+                                body_predicate_digest);
+  CHECK(fixture_lower_with_module(&value, validation_source, module_a) &&
+        fixture_prepare_nominal_origin(&value, 0u));
+  w_seed_generic_validation_result missing_result;
+  if (validate_application_at_with_origin_view(
+          &value, 0u, NULL, value.specialization_preimage,
+          sizeof(value.specialization_preimage), &missing_result) !=
+      W_SEED_GENERIC_VALIDATION_VERIFIED)
+    return false;
+  print_nominal_validation_line("missing", &value, &missing_result,
+                                predicate_digest);
+  uint8_t malformed_origin[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+  (void)memcpy(malformed_origin, value.nominal_origin_view.preimage,
+               value.nominal_origin_view.preimage_length);
+  malformed_origin[value.nominal_origin_view.preimage_length] = 0xa5u;
+  const w_seed_generic_nominal_origin_view malformed_view = {
+      malformed_origin, value.nominal_origin_view.preimage_length + 1u,
+      value.nominal_origin_view.digest,
+      value.nominal_origin_view.frontend_module_index,
+      value.nominal_origin_view.frontend_head_struct_index};
+  uint8_t truncated_origin[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+  (void)memcpy(truncated_origin, value.nominal_origin_view.preimage,
+               value.nominal_origin_view.preimage_length);
+  const w_seed_generic_nominal_origin_view truncated_view = {
+      truncated_origin, value.nominal_origin_view.preimage_length - 1u,
+      value.nominal_origin_view.digest,
+      value.nominal_origin_view.frontend_module_index,
+      value.nominal_origin_view.frontend_head_struct_index};
+  (void)memset(value.specialization_preimage, 0xa5,
+               sizeof(value.specialization_preimage));
+  w_seed_generic_validation_result malformed_result;
+  if (validate_application_at_with_origin_view(
+          &value, 0u, &malformed_view, value.specialization_preimage,
+          sizeof(value.specialization_preimage), &malformed_result) !=
+      W_SEED_GENERIC_VALIDATION_INVALID)
+    return false;
+  if (malformed_result.receipts_written != 0u ||
+      malformed_result.evaluation.consumed_steps != 0u ||
+      value.specialization_preimage[0] != 0xa5u ||
+      value.specialization_preimage[sizeof(value.specialization_preimage) - 1u] !=
+          0xa5u)
+    return false;
+  print_nominal_validation_line("trailing", &value, &malformed_result,
+                                predicate_digest);
+  uint8_t corrupt_digest[32];
+  (void)memcpy(corrupt_digest, value.nominal_origin_view.digest,
+               sizeof(corrupt_digest));
+  corrupt_digest[0] ^= 0x01u;
+  const w_seed_generic_nominal_origin_view digest_view = {
+      value.nominal_origin_view.preimage, value.nominal_origin_view.preimage_length,
+      corrupt_digest, value.nominal_origin_view.frontend_module_index,
+      value.nominal_origin_view.frontend_head_struct_index};
+  w_seed_generic_validation_result digest_result;
+  if (validate_application_at_with_origin_view(
+          &value, 0u, &digest_view, value.specialization_preimage,
+          sizeof(value.specialization_preimage), &digest_result) !=
+      W_SEED_GENERIC_VALIDATION_INVALID)
+    return false;
+  print_nominal_validation_line("digest", &value, &digest_result,
+                                predicate_digest);
+  (void)memset(value.specialization_preimage, 0xa5,
+               sizeof(value.specialization_preimage));
+  w_seed_generic_validation_result truncated_result;
+  if (validate_application_at_with_origin_view(
+          &value, 0u, &truncated_view, value.specialization_preimage,
+          sizeof(value.specialization_preimage), &truncated_result) !=
+          W_SEED_GENERIC_VALIDATION_INVALID ||
+      truncated_result.receipts_written != 0u ||
+      truncated_result.evaluation.consumed_steps != 0u ||
+      value.specialization_preimage[0] != 0xa5u ||
+      value.specialization_preimage[sizeof(value.specialization_preimage) - 1u] !=
+          0xa5u)
+    return false;
+  print_nominal_validation_line("truncated", &value, &truncated_result,
+                                predicate_digest);
+  w_seed_generic_nominal_origin_view relation_view = value.nominal_origin_view;
+  relation_view.frontend_module_index += 1u;
+  w_seed_generic_validation_result relation_result;
+  if (validate_application_at_with_origin_view(
+          &value, 0u, &relation_view, value.specialization_preimage,
+          sizeof(value.specialization_preimage), &relation_result) !=
+      W_SEED_GENERIC_VALIDATION_INVALID)
+    return false;
+  print_nominal_validation_line("process", &value, &relation_result,
+                                predicate_digest);
+  static const char evil_segment[] = "evil";
+  static const char domain_segment[] = "domain";
+  static const char wrong_declared_name[] = "Other";
+  static const char wrong_owner_name[] = "Outer";
+  const w_seed_frontend_text prefix_segments[] = {
+      {evil_segment, sizeof(evil_segment) - 1u},
+      {domain_segment, sizeof(domain_segment) - 1u}};
+  const w_seed_frontend_text domain_segments[] = {
+      {domain_segment, sizeof(domain_segment) - 1u}};
+  const w_seed_generic_nominal_owner wrong_owner = {
+      W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT,
+      {wrong_owner_name, sizeof(wrong_owner_name) - 1u}};
+  const w_seed_generic_nominal_origin relation_origins[] = {
+      {authority_a, sizeof(authority_a) - 1u,
+       {package_a, sizeof(package_a) - 1u}, prefix_segments, 2u,
+       W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT, NULL, 0u,
+       {declaration_name, sizeof(declaration_name) - 1u}},
+      {authority_a, sizeof(authority_a) - 1u,
+       {package_a, sizeof(package_a) - 1u}, domain_segments, 1u,
+       W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT, NULL, 0u,
+       {wrong_declared_name, sizeof(wrong_declared_name) - 1u}},
+      {authority_a, sizeof(authority_a) - 1u,
+       {package_a, sizeof(package_a) - 1u}, domain_segments, 1u,
+       W_SEED_GENERIC_NOMINAL_DECLARATION_TYPE, NULL, 0u,
+       {declaration_name, sizeof(declaration_name) - 1u}},
+      {authority_a, sizeof(authority_a) - 1u,
+       {package_a, sizeof(package_a) - 1u}, domain_segments, 1u,
+       W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT, &wrong_owner, 1u,
+       {declaration_name, sizeof(declaration_name) - 1u}},
+  };
+  const char *relation_origin_names[] = {"module", "head", "kind", "owner"};
+  uint8_t relation_preimage[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+  for (size_t index = 0u; index < 4u; index += 1u) {
+    w_seed_generic_nominal_origin_result relation_measure;
+    w_seed_generic_nominal_origin_result relation_written;
+    if (w_seed_generic_nominal_origin_measure(&relation_origins[index],
+                                              &relation_measure) !=
+            W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE ||
+        w_seed_generic_nominal_origin_write(
+            &relation_origins[index], relation_preimage,
+            relation_measure.bytes_required, &relation_written) !=
+            W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE)
+      return false;
+    const w_seed_generic_nominal_origin_view relation_origin_view = {
+        relation_preimage, relation_written.bytes_written, relation_written.digest,
+        value.nominal_origin_view.frontend_module_index,
+        value.nominal_origin_view.frontend_head_struct_index};
+    (void)memset(value.specialization_preimage, 0xa5,
+                 sizeof(value.specialization_preimage));
+    w_seed_generic_validation_result relation_origin_result;
+    if (validate_application_at_with_origin_view(
+            &value, 0u, &relation_origin_view, value.specialization_preimage,
+            sizeof(value.specialization_preimage), &relation_origin_result) !=
+            W_SEED_GENERIC_VALIDATION_INVALID ||
+        relation_origin_result.receipts_written != 0u ||
+        relation_origin_result.evaluation.consumed_steps != 0u ||
+        value.specialization_preimage[0] != 0xa5u ||
+        value.specialization_preimage[sizeof(value.specialization_preimage) - 1u] !=
+            0xa5u)
+      return false;
+    print_nominal_validation_line(relation_origin_names[index], &value,
+                                  &relation_origin_result, predicate_digest);
+  }
+  w_seed_generic_validation_result short_validation_result;
+  if (validate_application_at_with_origin_view(
+          &value, 0u, &value.nominal_origin_view, value.specialization_preimage,
+          valid_result.specialization_bytes_required - 1u,
+          &short_validation_result) != W_SEED_GENERIC_VALIDATION_VERIFIED)
+    return false;
+  print_nominal_validation_line("short", &value, &short_validation_result,
+                                predicate_digest);
+  w_seed_generic_validation_result zero_validation_result;
+  if (validate_application_at_with_origin_view(
+          &value, 0u, &value.nominal_origin_view, value.specialization_preimage,
+          0u, &zero_validation_result) != W_SEED_GENERIC_VALIDATION_VERIFIED)
+    return false;
+  print_nominal_validation_line("zero", &value, &zero_validation_result,
+                                predicate_digest);
+  uint8_t collision_preimage[65536];
+  (void)memcpy(collision_preimage, value.specialization_preimage,
+               valid_result.specialization_bytes_written);
+  collision_preimage[valid_result.specialization_bytes_written - 1u] ^= 0x01u;
+  const w_seed_generic_specialization_view collision_left = {
+      value.specialization_preimage, valid_result.specialization_bytes_written,
+      valid_result.specialization_digest};
+  const w_seed_generic_specialization_view collision_right = {
+      collision_preimage, valid_result.specialization_bytes_written,
+      valid_result.specialization_digest};
+  (void)printf("SPECIALIZATION_COLLISION equal=%d\n",
+               w_seed_generic_specialization_equal(&collision_left,
+                                                    &collision_right) ? 1 : 0);
+  return true;
+}
+
 int main(int argc, char **argv) {
+  if (argc == 2 && strcmp(argv[1], "--nominal-origin-matrix") == 0)
+    return probe_nominal_origin_matrix() ? 0 : 1;
   if (argc == 3 && strcmp(argv[1], "--domain-witness") == 0)
-    return probe_domain_file(argv[2]) ? 0 : 1;
+    return probe_domain_file(argv[2], "restaurant") ? 0 : 1;
+  if (argc == 4 && strcmp(argv[1], "--domain-witness-module") == 0)
+    return probe_domain_file(argv[2], argv[3]) ? 0 : 1;
   if (argc == 4 && strcmp(argv[1], "--domain-witness-quota") == 0) {
     char *end = NULL;
     const unsigned long long parsed = strtoull(argv[3], &end, 10);
     if (end == argv[3] || *end != '\0' || parsed > SIZE_MAX) return 1;
-    return probe_domain_file_with_quota(argv[2], (size_t)parsed) ? 0 : 1;
+    return probe_domain_file_with_quota(argv[2], (size_t)parsed,
+                                        "restaurant") ? 0 : 1;
+  }
+  if (argc == 5 && strcmp(argv[1], "--domain-witness-quota-module") == 0) {
+    char *end = NULL;
+    const unsigned long long parsed = strtoull(argv[3], &end, 10);
+    if (end == argv[3] || *end != '\0' || parsed > SIZE_MAX) return 1;
+    return probe_domain_file_with_quota(argv[2], (size_t)parsed, argv[4]) ? 0 : 1;
   }
   if (argc == 3 && strcmp(argv[1], "--domain-witness-corrupt") == 0)
     return probe_domain_file_corrupt(argv[2]) ? 0 : 1;
@@ -3904,7 +5157,8 @@ int main(int argc, char **argv) {
       !test_string_predicate_conversion_boundary() ||
       !test_fingerprint_adversarial_inputs() ||
       !test_named_module_const_d4() ||
-      !test_specialization_contract())
+      !test_specialization_contract() ||
+      !test_nominal_origin_contract())
     return 1;
   return 0;
 }

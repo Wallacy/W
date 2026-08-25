@@ -7248,6 +7248,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1465 | sessão privada de avaliação por aplicação | D6 source-backed bounded para duas arguments `TYPED_PENDING_CONST` da mesma aplicação: sessão vazia por run, tabela fixa de 256 compartilhada somente durante o loop de argumentos, READY reutilizável entre irmãos, predicates com evaluation nova, counters/quotas/receipts/fingerprint preservados e sem API pública | oracle-backed-current; `GPF0-W-1465-current` liga `AnswerPair.agrees`, as aliases equivalentes e o teste `restaurantGenericContractHolds` do Restaurante, prova primeiro argument 7 steps/4 misses/1 hit, segundo irmão 1 step/0 misses/1 hit, quota total 8, quota 7 com falha antes do lookup no segundo, novo run 7/1, failure-first, cycle/corruption/dependency-limit preflight zero e preimage Bun independente de dois i64; cache compartilhável, outro run/application, imports, associated const, inference, identity final, compiler/runtime e self-host permanecem limites |
 | W-1466 | inferência scalar append-only de module const | D7 source-backed bounded para `const name = initializer` e `export const` local: solver de grafo acíclico independente de source order, forward references, `declared_type` source-only, `effective_type` append-only, default `Int`/`i64`, Bool, suffix e propagation por identifier; cycles causais e barreiras D4 preservados; ConstIR-6/fingerprint-1 estáveis | oracle-backed-current; `GPF0-W-1466-current` remove somente as quatro annotations do diamond Last Light, preserva `ultimateAnswer: i64`, prova quatro records explicit=false/declared=NONE/effective=i64, symbol exportado i64, integer default/Bool/suffix/propagation, graph forward/reordered, equivalência explicit/inferred, ciclos anchor/unanchored com zero evidence e negativos D4 completos via C e oracle Bun independente; imports, associated const, identity final, cache compartilhável, compiler/runtime e self-host permanecem limites |
 | W-1467 | identidade semântica collision-safe de specialization | D8 separa a identidade semântica da specialization, a recipe física de materialização/cache e `reflect.TypeId`; preimage completo com declaração nominal local struct, substitution normalizado, refinements e witness vector count zero; digest somente accelerator com full-byte compare; schema `w-seed-generic-specialization-1`; API caller-owned com measure/write, lifecycle explícito `NOT_AVAILABLE`/`AVAILABLE`/`UNSUPPORTED`/`CAPACITY`, bytes required/written e digest | oracle-backed-current; `GPF0-W-1467-current` liga fragments reais do Restaurante para immediate/computed/named/diamond/AnswerPair e `StaticValue<Bool,true>`/`StaticValue<String,"The final seating">`; head/module/refinement adversaries continuam fixtures C sintéticos; o gate Bun compara bytes C, length e SHA e cobre rejected/quota/overflow/cycle/invalid/corrupt/unsupported, capacity exact/zero/short-by-one, sentinels, NULL input e digest-forced collision; recipe física, receipts autoritativos package/interface, witness selection geral, TypeId runtime e compiler completo permanecem gaps |
+| W-1468 | origem nominal collision-safe e specialization-2 | D9 separa `NominalDeclarationOrigin`, `SemanticTypeConstructor`, contrato/interface agregados, recipe física e `TypeId`; receipt completo de authority/package/module path/kind/owner/name; builder caller-owned measure/write com schema `w-seed-nominal-origin-1`, SHA accelerator, full-byte equality e validação de digest/framing/relação; specialization sobe para `w-seed-generic-specialization-2` e validation para `w-seed-generic-validation-8`, preservando fingerprint-1 | oracle-backed-current; `GPF0-W-1468-current` liga markers reais de `build.w`, `domain.w` e `generics.w` ao package `last-light/restaurant`, usa authority preimage oracle explicitamente synthetic, separa módulos `domain`/`generics`, compara bytes completos C e Bun independentes e cobre authorities/packages/modules/kinds/owners, aliases/version/revision/path/target/profile ausentes, missing origin, corrupção/truncated/trailing/digest/relation, capacidade e digest collision; registry/Git resolver, NFC completo, `.local` build-local nonportable e nunca publicável, witness selection geral, recipe física, TypeId runtime e compiler completo permanecem gaps |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
@@ -7338,3 +7339,100 @@ Alternativas rejeitadas:
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
+
+#### 1.3.21.8 Origem nominal e specialization-2 (W-1468)
+
+**Motivação:** D8 ainda colocava `module_id` e o nome do head na raiz local da
+specialization. Esse texto não identifica uma declaração collision-safe quando
+dois authorities, packages ou módulos usam os mesmos nomes, e não distingue a
+origem de um contrato público que muda por interface. D9 fecha esse boundary
+sem fingir que o seed é um resolver.
+
+`NominalDeclarationOrigin` é a preimage de uma declaração: authority canônica
+com domínio próprio, scoped package name, caminho de módulo canônico, kind,
+owner chain semântica e declared name. O `SemanticTypeConstructor` acrescenta
+somente o schema identity-defining do head. A specialization acrescenta
+substitutions normalizadas e semantic witness identities. `DeclarationContractKey`
+e `SemanticInterfaceKey` continuam camadas de contrato/interface; recipe física
+inclui bodies, ABI, target, toolchain e implementação; `TypeId` continua local.
+Docs, spans, source spelling, file/checkout path, version/revision, aliases de
+dependência, workspace, features, target, profile e interface digest ficam fora
+da origem nominal.
+
+`DeclarationContractKey` é keyed pela origin e inclui os facts públicos da
+declaration e de seus children; exclui docs, source maps, private bodies e
+declarations não relacionadas. `SemanticInterfaceKey` agrega a lista ordenada
+desses contratos e os imports, reexports e facts do módulo. Field/member drift
+muda o contrato, não origin/construtor; docs mudam `DocumentationKey`, private
+body muda body/artifact, e outra declaration pode mudar somente a interface
+agregada. Version fica fora da origin; `SemanticInterfaceKey`/`WAbiKey`
+impedem misturar contrato ou ABI incompatível.
+
+Os kinds D9 são somente `STRUCT=1`, `TYPE=2`, `OBJECT=3`, `ENUM=4`,
+`PROTOCOL=5` e `SERVICE=6`; `alias` preserva a origem reexportada. Callable
+origin, function overload e const declaration permanecem fora desta fatia de
+type constructors e formam gap separado.
+
+Package usa exatamente duas partes ASCII de 1--63 bytes, iniciadas por
+`[a-z]`, continuadas por `[a-z0-9-]` e limitadas a 127 bytes no total.
+Module segments, owners e declared name usam
+`[A-Za-z_][A-Za-z0-9_]*`, sem NUL. UTF-8 inválido ou ASCII fora da gramática é
+`INVALID`; UTF-8 válido não-ASCII e facts que excedem somente ceiling são
+`UNSUPPORTED` até NFC.
+
+O receipt usa bytes com tags explícitas, lengths/counts big-endian e sem NUL
+terminator. A authority é uma preimage inteira autenticada antes do seed. O
+builder não cria autorização; ele valida framing, limites e digest, mede e
+escreve sem publicação parcial. Input/output/result, arrays de texto/authority
+e origin view são disjuntos e imutáveis entre measure/write. A view liga receipt,
+module e declaration head.
+Malformed, digest divergente, truncação, trailing bytes e relação module/head/
+kind/owner inválida falham antes de avaliação. Unicode/NFC não é inventado no
+seed: a entrada ASCII canônica é encodable, UTF-8 inválido é `INVALID` e
+Unicode válido fora do subset é `UNSUPPORTED` até o resolver fornecer a
+normalização executável. O builder publica no máximo 16.384 bytes de preimage;
+o parser impõe um envelope hard de framing de 65.536 bytes. Uma view acima
+desse envelope é `INVALID`; dentro dele, framing completo acima de um ceiling
+de feature pode ser `UNSUPPORTED`, mas framing parseado como `AVAILABLE` ou
+`UNSUPPORTED` exige SHA-256 correspondente. Somente framing `INVALID` evita o
+hash.
+
+`w-seed-generic-validation-8` e `w-seed-generic-specialization-2` são versões
+novas. `fingerprint-1` permanece byte-for-byte e não recebe autoridade nova.
+Sem receipt, a validação ainda pode ser `VERIFIED`, mas a identidade publica
+`IDENTITY_REQUIRED` com `0/0` e digest zero. A specialization-2 escreve o
+preimage nominal uma vez, seguido pelo schema D8; não duplica module/head.
+
+O digest do predicate body ConstIR é somente um proxy bounded do lowering
+observado pelo seed. Ele não é receipt semântico autoritativo universal do
+predicate/construtor; o receipt do compiler completo continua gap. `.local`
+nunca é publicável: sua origem é build-local nonportable.
+
+As fontes comparativas primárias são [Rust incremental compilation in detail](https://rustc-dev-guide.rust-lang.org/queries/incremental-compilation-in-detail.html),
+[rustc HIR definitions](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_hir/definitions/index.html),
+[Swift ABI Mangling](https://github.com/swiftlang/swift/blob/main/docs/ABI/Mangling.rst)
+e [Swift Modules](https://github.com/swiftlang/swift/blob/main/docs/Modules.md).
+Elas sustentam somente a separação comparativa entre origem nominal, argumentos,
+namespaces e materialização. Não são autoridade para tags, receipts ou
+igualdade de W.
+
+O gate source-backed lê markers reais de `reference/last-light/build.w`,
+`domain.w` e `generics.w`. O package marker é `last-light/restaurant`; a
+authority usada é uma synthetic fixture declarada no corpus, pois o resolver
+real de registry não existe neste repositório. StagePath é ligado a `domain`;
+UltimateAnswer, AnswerPair, StaticValue e FinalCallValue são ligados a
+`generics`. A matriz Bun/C cobre same-origin equivalence, authorities/packages/
+modules/kinds/owners divergentes, body/refinement divergente, fatos físicos
+ausentes, missing/corrupt/trailing receipt, sentinels e forced digest collision.
+
+Alternativas rejeitadas:
+
+- continuar usando `module_id` textual, pois alias, package e authority não
+  ficam ligados à declaração;
+- usar `SemanticInterfaceKey` como origem, pois qualquer mudança pública do
+  módulo alteraria todas as declarações mesmo quando a origem não mudou;
+- derivar authority de alias `.registry("w")`, pois alias não é autorização;
+- incluir version, checkout, target, profile, feature, body ou counters, pois
+  esses fatos pertencem a recipe, contrato/interface ou evidence;
+- aceitar digest sozinho, pois uma colisão forçada ainda teria de comparar o
+  preimage completo.

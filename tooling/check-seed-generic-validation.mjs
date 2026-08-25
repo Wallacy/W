@@ -87,6 +87,47 @@ function parseProbe(output) {
   }
 }
 
+function parseNominalOriginMatrix(output) {
+  const originRecords = new Map()
+  const validationRecords = new Map()
+  for (const line of output.split(/\r?\n/u)) {
+    if (line.startsWith("ORIGIN ")) {
+      const match = /^ORIGIN case=([a-z-]+) state=(\w+) written=(\d+) required=(\d+) digest=([0-9a-f]{64})(?: preimage=([0-9a-f]+))?$/u.exec(line)
+      if (!match) fail(`invalid nominal-origin line: ${line}`)
+      originRecords.set(match[1], {
+        state: match[2], written: Number(match[3]), required: Number(match[4]),
+        digest: match[5], preimageHex: match[6] ?? null,
+      })
+    } else if (line.startsWith("NOMINAL_VALIDATION ")) {
+      const match = /^NOMINAL_VALIDATION case=([a-z-]+) state=(\w+) specialization_state=(\w+) specialization_written=(\d+) specialization_required=(\d+) specialization_digest=([0-9a-f]{64})(?: specialization_preimage=([0-9a-f]+))? steps=(\d+) receipts=(\d+) predicate_body_digest=([0-9a-f]{64})$/u.exec(line)
+      if (!match) fail(`invalid nominal-validation line: ${line}`)
+      validationRecords.set(match[1], {
+        state: match[2], specializationState: match[3],
+        specializationWritten: Number(match[4]), specializationRequired: Number(match[5]),
+        specializationDigest: match[6], specializationPreimageHex: match[7] ?? null,
+        steps: Number(match[8]), receipts: Number(match[9]), predicateBodyDigest: match[10],
+      })
+    }
+  }
+  const collisionLine = output.split(/\r?\n/u).find((line) => line.startsWith("SPECIALIZATION_COLLISION "))
+  const collisionMatch = /^SPECIALIZATION_COLLISION equal=(0|1)$/u.exec(collisionLine ?? "")
+  if (!collisionMatch) fail("nominal-origin matrix has no valid forced-collision line")
+  return {origins: originRecords, validations: validationRecords, collision: Number(collisionMatch[1])}
+}
+
+function combineProbeRecords(...parsed) {
+  return {
+    applications: parsed.reduce((total, item) => total + item.applications, 0),
+    frontend: parsed.every((item) => item.frontend === 0) ? 0 : 1,
+    constir: parsed.every((item) => item.constir === 0) ? 0 : 1,
+    records: parsed.flatMap((item) => item.records),
+    stringRecords: parsed.flatMap((item) => item.stringRecords),
+    d3Records: parsed.flatMap((item) => item.d3Records),
+    d4Records: parsed.flatMap((item) => item.d4Records),
+    d6Records: parsed.flatMap((item) => item.d6Records),
+  }
+}
+
 function assertCycleRecord(record, witness, label) {
   const diagnosticCodes = {"W-CONST-0002": 2}
   const expectedDiagnostic = diagnosticCodes[witness?.diagnostic]
@@ -138,8 +179,8 @@ function text(value) {
   return bytes(u32(encoded.length), encoded)
 }
 
-function canonicalEnumType() {
-  return bytes(u8(0x74), u8(0x09), text("restaurant"), text("ServiceStage"))
+function canonicalEnumType(module = "restaurant") {
+  return bytes(u8(0x74), u8(0x09), text(module), text("ServiceStage"))
 }
 
 function canonicalScalarType(kind) {
@@ -163,33 +204,33 @@ function staticValuePreimage(typeKind, valueKind, stringValue = "") {
   )
 }
 
-function staticValueSpecializationPreimage(typeKind, valueKind, stringValue = "") {
+function staticValueSpecializationPreimage(typeKind, valueKind, stringValue = "", module = "restaurant") {
   const type = canonicalScalarType(typeKind)
   const value = valueKind === 1
     ? canonicalScalarValue(1, type, u8(1))
     : canonicalScalarValue(3, type, text(stringValue))
   return specializationPreimage(
-    "restaurant", "StaticValue",
+    module, "StaticValue",
     [specializationType(), specializationDependentParameter()],
     [specializationType(type), specializationValue(type, value)],
   )
 }
 
-function canonicalListType() {
-  return bytes(u8(0x74), u8(0x0b), canonicalEnumType())
+function canonicalListType(module = "restaurant") {
+  return bytes(u8(0x74), u8(0x0b), canonicalEnumType(module))
 }
 
-function canonicalEnumValue(name) {
-  return bytes(u8(0x76), u8(0x04), canonicalEnumType(), text(name))
+function canonicalEnumValue(name, module = "restaurant") {
+  return bytes(u8(0x76), u8(0x04), canonicalEnumType(module), text(name))
 }
 
-function canonicalListValue(names) {
+function canonicalListValue(names, module = "restaurant") {
   return bytes(
     u8(0x76),
     u8(0x05),
-    canonicalListType(),
+    canonicalListType(module),
     u32(names.length),
-    ...names.map(canonicalEnumValue),
+    ...names.map((name) => canonicalEnumValue(name, module)),
   )
 }
 
@@ -273,9 +314,34 @@ function answerPairPreimage(left, right) {
   )
 }
 
-function specializationPreimage(module, head, parameters, substitutions) {
+function nominalOriginPreimage(
+  authorityValue, packageName, moduleSegments, declarationKind, owners, declaredName,
+) {
+  const authority = textEncoder.encode(authorityValue)
+  return bytes(
+    textEncoder.encode("w-seed-nominal-origin-1"),
+    u8(0x4f),
+    u8(0x41), u32(authority.length), authority,
+    u8(0x50), text(packageName),
+    u8(0x4d), u32(moduleSegments.length),
+    ...moduleSegments.map((segment) => bytes(u8(0x49), text(segment))),
+    u8(0x44), u8(declarationKind), u32(owners.length),
+    ...owners.map((owner) => bytes(u8(owner.kind), text(owner.name))),
+    text(declaredName),
+  )
+}
+
+function specializationPreimage(module, head, parameters, substitutions, originOptions = {}) {
+  const origin = nominalOriginPreimage(
+    originOptions.authority ?? "w-authority-fixture-1|registry=w",
+    originOptions.packageName ?? "last-light/restaurant",
+    originOptions.moduleSegments ?? [module],
+    originOptions.declarationKind ?? 1,
+    originOptions.owners ?? [],
+    originOptions.declaredName ?? head,
+  )
   const declaration = bytes(
-    u8(0x44), u8(0x01), text(module), text(head), u32(parameters.length),
+    u8(0x44), u32(parameters.length),
     ...parameters.map((parameter, ordinal) => bytes(
       u8(0x50), u32(ordinal), u8(parameter.kind), u8(parameter.domainKind),
       parameter.domainKind === 0
@@ -299,8 +365,9 @@ function specializationPreimage(module, head, parameters, substitutions) {
     )),
   )
   return bytes(
-    textEncoder.encode("w-seed-generic-specialization-1"),
-    u8(0x48), declaration, substitution, u8(0x57), u32(0),
+    textEncoder.encode("w-seed-generic-specialization-2"),
+    u8(0x49), u8(0x4f), u32(origin.length), origin,
+    declaration, substitution, u8(0x57), u32(0),
   )
 }
 
@@ -426,6 +493,13 @@ const specializationD8Case = requireCorpusCase(
   ["equivalent", "differentHead", "differentModule", "differentRefinement",
     "rejected", "capacity", "ignored", "collision"],
 )
+const nominalOriginD9Case = requireCorpusCase(
+  "GPF0-W-1468-current", ["W-1468"],
+  "reference/last-light/build.w", "authority: .registry(\"w\")",
+  ["package", "authorityFixture", "modules", "equivalent", "differentAuthority",
+    "differentPackage", "differentModule", "differentKind", "differentOwner",
+    "differentBody", "excluded", "missing", "corrupt", "capacity", "collision"],
+)
 const d1Witnesses = fingerprintD1Case.witnesses
 const d2Witnesses = fingerprintD2Case.witnesses
 const d3Witnesses = fingerprintD3Case.witnesses
@@ -434,6 +508,7 @@ const d5Witnesses = fingerprintD5Case.witnesses
 const d6Witnesses = fingerprintD6Case.witnesses
 const d7Witnesses = fingerprintD7Case.witnesses
 const d8Witnesses = specializationD8Case.witnesses
+const d9Witnesses = nominalOriginD9Case.witnesses
 if (d1Witnesses?.module !== "restaurant" ||
     typeof d1Witnesses?.standard !== "string" ||
     typeof d1Witnesses?.standardAgain !== "string" ||
@@ -605,11 +680,46 @@ if (d1Witnesses?.module !== "restaurant" ||
       JSON.stringify(["StagePath", "FinalCallValue", "UltimateAnswer", "AnswerPair", "StaticValue"]) ||
     JSON.stringify(d8Witnesses.staticValues) !==
       JSON.stringify(["StaticValue<Bool,true>", "StaticValue<String,\"The final seating\">"]) ||
-    d8Witnesses.collision !== "digest igual forçado com preimages diferentes não compara como igual")
+    d8Witnesses.collision !== "digest igual forçado com preimages diferentes não compara como igual" ||
+     d9Witnesses?.authority !== "w-authority-fixture-1|registry=w" ||
+     d9Witnesses?.package !== "last-light/restaurant" ||
+    d9Witnesses?.authorityFixture !==
+      "synthetic authority fixture; não é autorização de registry" ||
+    d9Witnesses.modules?.domain !== "reference/last-light/domain.w" ||
+    d9Witnesses.modules?.generics !== "reference/last-light/generics.w" ||
+    JSON.stringify(d9Witnesses.domainHeads) !== JSON.stringify(["StagePath"]) ||
+     JSON.stringify(d9Witnesses.genericHeads) !==
+       JSON.stringify(["FinalCallValue", "UltimateAnswer", "AnswerPair", "StaticValue"]) ||
+     JSON.stringify(d9Witnesses.equivalent) !==
+       JSON.stringify(["immediate", "computed", "named", "diamond", "duplicate"]) ||
+     JSON.stringify(d9Witnesses.excluded) !==
+       JSON.stringify(["alias", "version", "revision", "workspace", "checkout/file path",
+         "source spelling", "target", "feature", "profile"]) ||
+     JSON.stringify(d9Witnesses.corrupt) !==
+       JSON.stringify(["truncated", "trailing", "digest", "module", "head", "kind", "owner", "process"]) ||
+     JSON.stringify(d9Witnesses.capacity) !==
+       JSON.stringify(["zero", "exact", "short-by-one"]) ||
+     d9Witnesses.missing !== "VERIFIED + IDENTITY_REQUIRED + 0/0 + digest zero" ||
+    !Array.isArray(d9Witnesses.corrupt) ||
+    d9Witnesses.collision !== "forced digest collision não iguala preimages distintos")
   fail("generic fingerprint corpus witnesses do not match the executable contract")
 
 const domain = await Bun.file(resolve(root, "reference/last-light/domain.w")).text()
 const generics = await Bun.file(resolve(root, "reference/last-light/generics.w")).text()
+const buildManifest = await Bun.file(resolve(root, "reference/last-light/build.w")).text()
+const buildAuthorityMarker = uniqueMarker(
+  buildManifest, 'authority: .registry("w")', "Last Light registry authority marker")
+const buildPackageMarker = uniqueMarker(
+  buildManifest,
+  'package {\n  schema: "w.package/1"\n  authority: .registry("w")\n  name: "last-light/restaurant"',
+  "Last Light package identity marker")
+const buildModuleSetMarker = uniqueMarker(
+  buildManifest,
+  'name: "restaurant-modules"\n      activation: .always\n      root: "."\n      include: ["*.w"]\n      exclude: ["build.w"]\n      layout: .fileStem',
+  "Last Light root moduleSet marker")
+if (!buildAuthorityMarker || !buildPackageMarker || !buildModuleSetMarker ||
+    !buildManifest.includes('name: "last-light/restaurant"'))
+  fail("build.w D9 authority/package/moduleSet markers are not source-backed")
 const staticValueMarker = uniqueMarker(
   generics, "export struct StaticValue<T, _ value: T> {", "StaticValue declaration")
 const staticValueBodyMarker = uniqueMarker(
@@ -705,13 +815,16 @@ const stagePath = fragment(domain, "export struct StagePath", "export fn standar
 const standardStagePath = fragment(domain, "export fn standardStagePath", "export struct Guest", "standardStagePath")
 const standardPath = /StagePath<(\[[^\]]+\])>/u.exec(standardStagePath)?.[1]
 if (!standardPath) fail("domain.w has no standard StagePath path")
-const useSource = `struct Use {
+const stageUseSource = `struct Use {
   standard: StagePath<${standardPath}>
   standardAgain: StagePath<${standardPath}>
   cancelled: StagePath<[.accepted, .cancelled]>
   empty: StagePath<[]>
   skipped: StagePath<[.accepted, .completed]>
   duplicate: StagePath<[.accepted, .reserving, .reserving]>
+}
+`
+const genericUseSource = `struct GenericUse {
   finalCall: FinalCallValue<"The final seating">
   finalCallAgain: FinalCallValue<"The final seating">
   mostlyHarmless: FinalCallValue<"Mostly harmless">
@@ -752,7 +865,9 @@ const ultimateAnswerNamedUse = `struct UltimateAnswerNamedUse {
   rejected: UltimateAnswer<(rejectedAnswer)>
 }
 `
-const witness = `${orderId}\n${serviceStage}\n${canMove}\n${isValidStagePath}\n${stagePath}\n${finalCallPredicate}\n${finalCallValueSignature} {}\n${ultimateAnswerPredicate}\n${ultimateAnswerValueSignature} {}\n${staticValueProjection}${enabledFeatureMarker}\n${lastCallLabelMarker}\n${verifiedFinalCallMarker}\n${useSource}\n${ultimateAnswerUse}`
+const domainWitness = `${orderId}\n${serviceStage}\n${canMove}\n${isValidStagePath}\n${stagePath}\n${stageUseSource}`
+const genericsWitness = `${finalCallPredicate}\n${finalCallValueSignature} {}\n${ultimateAnswerPredicate}\n${ultimateAnswerValueSignature} {}\n${staticValueProjection}${enabledFeatureMarker}\n${lastCallLabelMarker}\n${verifiedFinalCallMarker}\n${genericUseSource}\n${ultimateAnswerUse}`
+const witness = `${domainWitness}\n${genericsWitness}`
 const d4Witness = `${ultimateAnswerConstMarker}\n` +
   "const forwardAnswer: i64 = laterAnswer\n" +
   "const laterAnswer: i64 = 42\n" +
@@ -786,6 +901,12 @@ const d6Use = `struct ConsistentUltimateAnswerUse {
 const d6Witness = `${d5Declarations}${answerPairSeedDeclaration}\n` +
   `${consistentUltimateAnswerAliasMarker}\n` +
   `${consistentUltimateAnswerDuplicateAliasMarker}\n${d6Use}`
+const d9AnswerPairSource = `${answerPairSeedDeclaration}\n` +
+  "struct D9AnswerPairUse {\n" +
+  "  first: AnswerPair<42, 42>\n" +
+  "  second: AnswerPair<42, 42>\n" +
+  "}\n"
+const genericsSourceWitness = `${genericsWitness}\n${d9AnswerPairSource}`
 
 /* Independent host reconstruction of the D5/D7 diamond. This parser uses only
  * declaration source, accepts an optional annotation, infers effective types,
@@ -1063,16 +1184,238 @@ if (d7IntegerDefault.effectiveType !== d7Witnesses.integerDefault.effectiveType 
 
 const build = await mkdtemp(join(tmpdir(), "w-seed-generic-validation-check-"))
 const witnessPath = join(build, "domain-generic-witness.w")
+const domainWitnessPath = join(build, "domain-witness.w")
+const genericsWitnessPath = join(build, "generics-witness.w")
 try {
   await Bun.write(witnessPath, witness)
+  await Bun.write(domainWitnessPath, domainWitness)
+  await Bun.write(genericsWitnessPath, genericsSourceWitness)
   run("cmake", ["-S", seedDirectory, "-B", build, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug"])
   run("cmake", ["--build", build, "--target", "w_seed_generic_validation_tests", "--", "-j", "2"])
   run(join(build, `w_seed_generic_validation_tests${executableSuffix}`), [])
   const executable = join(build, `w_seed_generic_validation_tests${executableSuffix}`)
+  const nominalMatrix = parseNominalOriginMatrix(
+    run(executable, ["--nominal-origin-matrix"]),
+  )
+  const expectedOriginCases = {
+    base: ["w-authority-fixture-1|registry=a", "last-light/restaurant", ["domain"], 1, [], "Box"],
+    authority: ["w-authority-fixture-1|registry=b", "last-light/restaurant", ["domain"], 1, [], "Box"],
+    package: ["w-authority-fixture-1|registry=a", "other/restaurant", ["domain"], 1, [], "Box"],
+    module: ["w-authority-fixture-1|registry=a", "last-light/restaurant", ["generics"], 1, [], "Box"],
+    kind: ["w-authority-fixture-1|registry=a", "last-light/restaurant", ["domain"], 2, [], "Box"],
+    owner: ["w-authority-fixture-1|registry=a", "last-light/restaurant", ["domain"], 1, [{kind: 1, name: "Outer"}], "Box"],
+  }
+  const expectedOriginLengths = new Map()
+  for (const [caseName, fields] of Object.entries(expectedOriginCases)) {
+    const expected = nominalOriginPreimage(...fields)
+    expectedOriginLengths.set(caseName, expected.length)
+    const record = nominalMatrix.origins.get(caseName)
+    if (!record || record.state !== "AVAILABLE" || record.written !== expected.length ||
+        record.required !== expected.length || record.digest !== sha256Hex(expected) ||
+        record.preimageHex !== bytesHex(expected))
+      fail(`nominal-origin ${caseName} C bytes disagree with independent Bun preimage`)
+  }
+  const baseOriginLength = expectedOriginLengths.get("base")
+  for (const caseName of ["short", "zero"]) {
+    const record = nominalMatrix.origins.get(caseName)
+    if (!record || record.state !== "CAPACITY" || record.written !== 0 ||
+        record.required !== baseOriginLength || record.digest !== "0".repeat(64) ||
+        record.preimageHex !== null)
+      fail(`nominal-origin ${caseName} did not preserve the no-partial-write contract`)
+  }
+  for (const [caseName, state] of [["null", "INVALID"], ["unicode", "UNSUPPORTED"]]) {
+    const record = nominalMatrix.origins.get(caseName)
+    if (!record || record.state !== state || record.written !== 0 || record.required !== 0 ||
+        record.digest !== "0".repeat(64) || record.preimageHex !== null)
+      fail(`nominal-origin ${caseName} did not preserve its lifecycle state`)
+  }
+  if (nominalMatrix.collision !== 0)
+    fail("forced SHA-256 collision incorrectly made distinct specializations equal")
+
+  const availableValidation = nominalMatrix.validations.get("available")
+  const expectedAvailableSpecialization = specializationPreimage(
+    "domain", "Box",
+    [specializationParameter(
+      canonicalIntegerType(true, 64), availableValidation?.predicateBodyDigest,
+    )],
+    [specializationValue(
+      canonicalIntegerType(true, 64),
+      canonicalIntegerValue(42, canonicalIntegerType(true, 64), true, 64),
+    )],
+  )
+  if (!availableValidation || availableValidation.state !== "VERIFIED" ||
+      availableValidation.steps !== 1 || availableValidation.receipts !== 1)
+    fail("nominal-origin available validation did not verify its source-backed application")
+  assertSpecializationAvailable(
+    {
+      specializationState: availableValidation.specializationState,
+      specializationWritten: availableValidation.specializationWritten,
+      specializationRequired: availableValidation.specializationRequired,
+      specializationDigest: availableValidation.specializationDigest,
+      specializationPreimageHex: availableValidation.specializationPreimageHex,
+    },
+    expectedAvailableSpecialization,
+    "nominal-origin available",
+  )
+  const bodyValidation = nominalMatrix.validations.get("body")
+  const expectedBodySpecialization = specializationPreimage(
+    "domain", "Box",
+    [specializationParameter(
+      canonicalIntegerType(true, 64), bodyValidation?.predicateBodyDigest,
+    )],
+    [specializationValue(
+      canonicalIntegerType(true, 64),
+      canonicalIntegerValue(42, canonicalIntegerType(true, 64), true, 64),
+    )],
+  )
+  if (!bodyValidation || bodyValidation.state !== "VERIFIED" ||
+      bodyValidation.steps === 0 || bodyValidation.receipts !== 1 ||
+      bodyValidation.predicateBodyDigest === availableValidation.predicateBodyDigest)
+    fail("predicate/refinement body variant did not preserve origin and change specialization")
+  assertSpecializationAvailable(
+    {
+      specializationState: bodyValidation.specializationState,
+      specializationWritten: bodyValidation.specializationWritten,
+      specializationRequired: bodyValidation.specializationRequired,
+      specializationDigest: bodyValidation.specializationDigest,
+      specializationPreimageHex: bodyValidation.specializationPreimageHex,
+    },
+    expectedBodySpecialization,
+    "nominal-origin predicate body variant",
+  )
+  const specializationOriginPrefixLength =
+    textEncoder.encode("w-seed-generic-specialization-2").length + 2 + 4
+  const expectedOriginBytes = nominalOriginPreimage(
+    "w-authority-fixture-1|registry=w", "last-light/restaurant", ["domain"],
+    1, [], "Box",
+  )
+  if (bytesHex(expectedAvailableSpecialization.slice(
+        specializationOriginPrefixLength,
+        specializationOriginPrefixLength + expectedOriginBytes.length,
+      )) !== bytesHex(expectedBodySpecialization.slice(
+        specializationOriginPrefixLength,
+        specializationOriginPrefixLength + expectedOriginBytes.length,
+      )))
+    fail("predicate body variant changed nominal origin bytes")
+  const missingValidation = nominalMatrix.validations.get("missing")
+  if (!missingValidation || missingValidation.state !== "VERIFIED" ||
+      missingValidation.specializationState !== "IDENTITY_REQUIRED" ||
+      missingValidation.specializationWritten !== 0 || missingValidation.specializationRequired !== 0 ||
+      missingValidation.specializationDigest !== "0".repeat(64) ||
+      missingValidation.specializationPreimageHex !== null ||
+      missingValidation.steps !== 1 || missingValidation.receipts !== 1)
+    fail("missing nominal origin did not publish VERIFIED + IDENTITY_REQUIRED with zero bytes")
+  for (const caseName of [
+    "truncated", "trailing", "digest", "module", "head", "kind", "owner", "process",
+  ]) {
+    const record = nominalMatrix.validations.get(caseName)
+    if (!record || record.state !== "INVALID" || record.steps !== 0 || record.receipts !== 0)
+      fail(`malformed nominal-origin ${caseName} was evaluated before rejection`)
+    assertSpecializationNotAvailable({
+      specializationState: record.specializationState,
+      specializationWritten: record.specializationWritten,
+      specializationRequired: record.specializationRequired,
+      specializationDigest: record.specializationDigest,
+      specializationPreimageHex: record.specializationPreimageHex,
+    }, `nominal-origin ${caseName}`)
+  }
+  for (const caseName of ["short", "zero"]) {
+    const record = nominalMatrix.validations.get(caseName)
+    if (!record || record.state !== "VERIFIED" || record.steps !== 1 || record.receipts !== 1 ||
+        record.specializationState !== "CAPACITY" || record.specializationWritten !== 0 ||
+        record.specializationRequired !== expectedAvailableSpecialization.length ||
+        record.specializationDigest !== "0".repeat(64) || record.specializationPreimageHex !== null)
+      fail(`specialization capacity ${caseName} did not preserve buffers or counters`)
+  }
   const firstOutput = run(executable, ["--domain-witness", witnessPath])
   const secondOutput = run(executable, ["--domain-witness", witnessPath])
   if (firstOutput !== secondOutput) fail("domain witness output is not deterministic")
   const parsed = parseProbe(firstOutput)
+  const firstDomainOutput = run(executable, ["--domain-witness-module", domainWitnessPath, "domain"])
+  const secondDomainOutput = run(executable, ["--domain-witness-module", domainWitnessPath, "domain"])
+  const firstGenericsOutput = run(executable, ["--domain-witness-module", genericsWitnessPath, "generics"])
+  const secondGenericsOutput = run(executable, ["--domain-witness-module", genericsWitnessPath, "generics"])
+  if (firstDomainOutput !== secondDomainOutput ||
+      firstGenericsOutput !== secondGenericsOutput)
+    fail("domain/generics witness output is not deterministic")
+  const domainParsed = parseProbe(firstDomainOutput)
+  const genericsParsed = parseProbe(firstGenericsOutput)
+  if (domainParsed.records.some((record) => record.module !== "domain") ||
+      genericsParsed.stringRecords.some((record) => record.module !== "generics") ||
+      genericsParsed.d3Records.some((record) => record.module !== "generics"))
+    fail("D9 source-backed witnesses did not bind to domain/generics module origins")
+  const d9StringValues = [
+    ...Array(d2Witnesses.positive.duplicateCount).fill(d2Witnesses.positive.value),
+    d2Witnesses.rejected.mostlyHarmless, d2Witnesses.rejected.empty,
+  ]
+  if (domainParsed.records.length !== 3 + d1Witnesses.rejected.length ||
+      genericsParsed.stringRecords.length !== d9StringValues.length ||
+      genericsParsed.d3Records.length !== 4 || genericsParsed.d6Records.length !== 2)
+    fail(`D9 source-backed domain/generics witness split changed application coverage: domain=${domainParsed.records.length}, strings=${genericsParsed.stringRecords.length}, d3=${genericsParsed.d3Records.length}, d6=${genericsParsed.d6Records.length}`)
+  for (const [index, record] of domainParsed.records.entries()) {
+    if (record.state !== "VERIFIED") continue
+    const stageNames = index === 2
+      ? ["accepted", "cancelled"]
+      : ["accepted", "reserving", "preparing", "serving", "completed"]
+    const expected = specializationPreimage(
+      "domain", "StagePath",
+      [specializationParameter(canonicalListType("domain"), record.predicateBodyDigest)],
+      [specializationValue(canonicalListType("domain"), canonicalListValue(stageNames, "domain"))],
+    )
+    assertSpecializationAvailable(record, expected, `D9 domain StagePath ${index}`)
+  }
+  for (const [index, record] of genericsParsed.stringRecords.entries()) {
+    if (record.state !== "VERIFIED") continue
+    const type = canonicalScalarType(3)
+    const expected = specializationPreimage(
+      "generics", "FinalCallValue",
+      [specializationParameter(type, record.predicateBodyDigest)],
+      [specializationValue(type, canonicalScalarValue(3, type, text(d9StringValues[index])))],
+    )
+    assertSpecializationAvailable(record, expected, `D9 generics FinalCallValue ${index}`)
+  }
+  const sourceD3Values = [d3Witnesses.immediate.value, 42, 42, d3Witnesses.rejected.value]
+  for (const [index, record] of genericsParsed.d3Records.entries()) {
+    if (record.state !== "VERIFIED") continue
+    const type = canonicalIntegerType(true, 64)
+    const expected = specializationPreimage(
+      "generics", "UltimateAnswer",
+      [specializationParameter(type, record.predicateBodyDigest)],
+      [specializationValue(type, canonicalIntegerValue(sourceD3Values[index], type, true, 64))],
+    )
+    assertSpecializationAvailable(record, expected, `D9 generics UltimateAnswer ${index}`)
+  }
+  const sourcePairType = canonicalIntegerType(true, 64)
+  const sourcePairExpected = specializationPreimage(
+    "generics", "AnswerPair",
+    [specializationParameter(sourcePairType), specializationParameter(sourcePairType)],
+    [specializationValue(sourcePairType, canonicalIntegerValue(42, sourcePairType, true, 64)),
+      specializationValue(sourcePairType, canonicalIntegerValue(42, sourcePairType, true, 64))],
+  )
+  for (const record of genericsParsed.d6Records) {
+    assertSpecializationAvailable(record, sourcePairExpected, "D9 generics AnswerPair")
+  }
+  const sourceStaticLines = firstGenericsOutput.split(/\r?\n/u)
+    .filter((line) => line.startsWith("STATIC "))
+  if (sourceStaticLines.length !== 2)
+    fail("D9 generics witness did not produce both StaticValue applications")
+  for (const [index, line] of sourceStaticLines.entries()) {
+    const match = /^STATIC app=(\d+) state=(\w+) failure=([a-z:-]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) specialization_state=(\w+) specialization_written=(\d+) specialization_required=(\d+) specialization_digest=([0-9a-f]{64})(?: specialization_preimage=([0-9a-f]+))?$/.exec(line)
+    if (!match) fail(`invalid D9 StaticValue line: ${line}`)
+    const record = {
+      specializationState: match[6], specializationWritten: Number(match[7]),
+      specializationRequired: Number(match[8]), specializationDigest: match[9],
+      specializationPreimageHex: match[10] ?? null,
+    }
+    assertSpecializationAvailable(
+      record,
+      staticValueSpecializationPreimage(
+        index === 0 ? 2 : 3, index === 0 ? 1 : 3,
+        index === 0 ? "" : "The final seating", "generics",
+      ),
+      `D9 generics StaticValue ${index}`,
+    )
+  }
   if (parsed.frontend !== 0 || parsed.constir !== 0 ||
       parsed.records.length !== 3 + d1Witnesses.rejected.length)
     fail("domain witness did not produce six clean StagePath applications")
@@ -1267,7 +1610,8 @@ try {
     fail("UltimateAnswer witness did not expose positive computed and predicate steps")
   const cumulativeQuota = computedSteps + predicateSteps - 1
   const cumulativeQuotaParsed = parseProbe(
-    run(executable, ["--domain-witness-quota", witnessPath, String(cumulativeQuota)]),
+    run(executable, ["--domain-witness-quota", witnessPath,
+      String(cumulativeQuota)]),
   )
   const cumulativeQuotaRecord = cumulativeQuotaParsed.d3Records.find(
     (record) => record.application === parsed.d3Records[1].application,
@@ -1826,7 +2170,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
       unsupportedRecord.fingerprintDigest !== "0".repeat(64))
     fail("unsupported call witness did not stop at the synthetic function boundary")
 
-  const corruptOutput = run(executable, ["--domain-witness-d3-corrupt", witnessPath])
+  const corruptOutput = run(executable, ["--domain-witness-d3-corrupt", genericsWitnessPath])
   const corruptRecords = corruptOutput.split(/\r?\n/u)
     .filter((line) => line.startsWith("D3_CORRUPT "))
     .map((line) => {
@@ -1893,7 +2237,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
       overLimitParsed.stringRecords[0].fingerprintDigest !== "0".repeat(64))
     fail("over-limit String application did not stop before evaluation")
 
-  const stringCorruptOutput = run(executable, ["--domain-witness-corrupt", witnessPath])
+  const stringCorruptOutput = run(executable, ["--domain-witness-corrupt", genericsWitnessPath])
   const corruptLine = stringCorruptOutput.split(/\r?\n/u)
     .find((line) => line.startsWith("STRING_CORRUPT "))
   const corruptMatch = /^STRING_CORRUPT state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) specialization_state=(\w+) specialization_written=(\d+) specialization_required=(\d+) specialization_digest=([0-9a-f]{64})$/u

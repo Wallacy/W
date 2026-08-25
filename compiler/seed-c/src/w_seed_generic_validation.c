@@ -53,7 +53,20 @@ static const char FALLBACK_BYTES[] = "predicate:false";
 static const uint8_t FINGERPRINT_PREFIX[] =
     "w-seed-generic-fingerprint-1";
 static const uint8_t SPECIALIZATION_PREFIX[] =
-    "w-seed-generic-specialization-1";
+    "w-seed-generic-specialization-2";
+static const uint8_t NOMINAL_ORIGIN_PREFIX[] =
+    "w-seed-nominal-origin-1";
+
+enum {
+  NOMINAL_ORIGIN_ROOT_TAG = 0x4fu,
+  NOMINAL_ORIGIN_AUTHORITY_TAG = 0x41u,
+  NOMINAL_ORIGIN_PACKAGE_TAG = 0x50u,
+  NOMINAL_ORIGIN_MODULE_TAG = 0x4du,
+  NOMINAL_ORIGIN_SEGMENT_TAG = 0x49u,
+  NOMINAL_ORIGIN_DECLARATION_TAG = 0x44u,
+  SPECIALIZATION_ROOT_TAG = 0x49u,
+  SPECIALIZATION_ORIGIN_TAG = 0x4fu,
+};
 
 _Static_assert(W_SEED_GENERIC_VALIDATION_MAX_PREDICATES <=
                    W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_RECORDS,
@@ -1909,6 +1922,746 @@ static fingerprint_encode_status fingerprint_text(
   return FINGERPRINT_ENCODED;
 }
 
+typedef enum {
+  NOMINAL_ORIGIN_PARSE_INVALID = 0,
+  NOMINAL_ORIGIN_PARSE_AVAILABLE,
+  NOMINAL_ORIGIN_PARSE_UNSUPPORTED,
+} nominal_origin_parse_status;
+
+typedef struct {
+  const uint8_t *bytes;
+  size_t length;
+  size_t offset;
+} nominal_origin_reader;
+
+typedef struct {
+  const uint8_t *authority;
+  size_t authority_length;
+  const uint8_t *package_name;
+  size_t package_length;
+  const uint8_t *module_segments[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS];
+  size_t module_segment_lengths[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS];
+  size_t module_segment_count;
+  uint8_t declaration_kind;
+  uint8_t owner_kinds[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_OWNER_CHAIN];
+  const uint8_t *owner_names[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_OWNER_CHAIN];
+  size_t owner_name_lengths[
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_OWNER_CHAIN];
+  size_t owner_count;
+  const uint8_t *declared_name;
+  size_t declared_name_length;
+  bool non_ascii;
+} nominal_origin_decoded;
+
+static void fingerprint_mark_unsupported(fingerprint_builder *builder);
+
+static bool nominal_origin_kind_valid(uint8_t kind) {
+  switch (kind) {
+    case (uint8_t)W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT:
+    case (uint8_t)W_SEED_GENERIC_NOMINAL_DECLARATION_TYPE:
+    case (uint8_t)W_SEED_GENERIC_NOMINAL_DECLARATION_OBJECT:
+    case (uint8_t)W_SEED_GENERIC_NOMINAL_DECLARATION_ENUM:
+    case (uint8_t)W_SEED_GENERIC_NOMINAL_DECLARATION_PROTOCOL:
+    case (uint8_t)W_SEED_GENERIC_NOMINAL_DECLARATION_SERVICE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+typedef enum {
+  NOMINAL_ORIGIN_TEXT_INVALID = 0,
+  NOMINAL_ORIGIN_TEXT_ASCII,
+  NOMINAL_ORIGIN_TEXT_UNSUPPORTED,
+} nominal_origin_text_status;
+
+typedef enum {
+  NOMINAL_ORIGIN_TEXT_PACKAGE = 0,
+  NOMINAL_ORIGIN_TEXT_IDENTIFIER,
+} nominal_origin_text_kind;
+
+typedef enum {
+  NOMINAL_ORIGIN_INPUT_INVALID = 0,
+  NOMINAL_ORIGIN_INPUT_AVAILABLE,
+  NOMINAL_ORIGIN_INPUT_UNSUPPORTED,
+} nominal_origin_input_status;
+
+static bool nominal_origin_utf8_valid(const uint8_t *bytes, size_t length,
+                                      bool *non_ascii) {
+  if (non_ascii != NULL) *non_ascii = false;
+  if (bytes == NULL || length == 0u) return false;
+  size_t index = 0u;
+  while (index < length) {
+    const uint8_t first = bytes[index];
+    if (first == 0u) return false;
+    if (first < 0x80u) {
+      index += 1u;
+      continue;
+    }
+    size_t sequence_length = 0u;
+    uint8_t second_min = 0x80u;
+    uint8_t second_max = 0xbfu;
+    if (first >= 0xc2u && first <= 0xdfu) {
+      sequence_length = 2u;
+    } else if (first >= 0xe0u && first <= 0xefu) {
+      sequence_length = 3u;
+      if (first == 0xe0u) second_min = 0xa0u;
+      if (first == 0xedu) second_max = 0x9fu;
+    } else if (first >= 0xf0u && first <= 0xf4u) {
+      sequence_length = 4u;
+      if (first == 0xf0u) second_min = 0x90u;
+      if (first == 0xf4u) second_max = 0x8fu;
+    } else {
+      return false;
+    }
+    if (sequence_length > length - index) return false;
+    const uint8_t second = bytes[index + 1u];
+    if (second < second_min || second > second_max) return false;
+    for (size_t offset = 2u; offset < sequence_length; offset += 1u) {
+      const uint8_t continuation = bytes[index + offset];
+      if (continuation < 0x80u || continuation > 0xbfu) return false;
+    }
+    if (non_ascii != NULL) *non_ascii = true;
+    index += sequence_length;
+  }
+  return true;
+}
+
+static bool nominal_origin_identifier_ascii_valid(const uint8_t *bytes,
+                                                  size_t length) {
+  if (bytes == NULL || length == 0u) return false;
+  const uint8_t first = bytes[0];
+  if (!((first >= (uint8_t)'A' && first <= (uint8_t)'Z') ||
+        (first >= (uint8_t)'a' && first <= (uint8_t)'z') ||
+        first == (uint8_t)'_'))
+    return false;
+  for (size_t index = 1u; index < length; index += 1u) {
+    const uint8_t current = bytes[index];
+    if (!((current >= (uint8_t)'A' && current <= (uint8_t)'Z') ||
+          (current >= (uint8_t)'a' && current <= (uint8_t)'z') ||
+          (current >= (uint8_t)'0' && current <= (uint8_t)'9') ||
+          current == (uint8_t)'_'))
+      return false;
+  }
+  return true;
+}
+
+static bool nominal_origin_package_ascii_valid(const uint8_t *bytes,
+                                               size_t length) {
+  if (bytes == NULL || length == 0u ||
+      length > W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PACKAGE_BYTES)
+    return false;
+  size_t separator = SIZE_MAX;
+  for (size_t index = 0u; index < length; index += 1u) {
+    if (bytes[index] == (uint8_t)'/') {
+      if (separator != SIZE_MAX) return false;
+      separator = index;
+    }
+  }
+  if (separator == SIZE_MAX || separator == 0u || separator + 1u >= length ||
+      separator > W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PACKAGE_COMPONENT_BYTES ||
+      length - separator - 1u >
+          W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PACKAGE_COMPONENT_BYTES)
+    return false;
+  for (size_t part = 0u; part < 2u; part += 1u) {
+    const size_t start = part == 0u ? 0u : separator + 1u;
+    const size_t end = part == 0u ? separator : length;
+    if (bytes[start] < (uint8_t)'a' || bytes[start] > (uint8_t)'z')
+      return false;
+    for (size_t index = start + 1u; index < end; index += 1u) {
+      const uint8_t current = bytes[index];
+      if (!((current >= (uint8_t)'a' && current <= (uint8_t)'z') ||
+            (current >= (uint8_t)'0' && current <= (uint8_t)'9') ||
+            current == (uint8_t)'-'))
+        return false;
+    }
+  }
+  return true;
+}
+
+static nominal_origin_text_status nominal_origin_text_validate(
+    const uint8_t *bytes, size_t length, size_t maximum,
+    nominal_origin_text_kind kind) {
+  bool non_ascii = false;
+  if (!nominal_origin_utf8_valid(bytes, length, &non_ascii))
+    return NOMINAL_ORIGIN_TEXT_INVALID;
+  if (non_ascii) {
+    /* PackageIdentity is an ASCII scoped name in this seed.  Other names are
+     * valid Unicode facts, but NFC resolution is deliberately not here. */
+    return kind == NOMINAL_ORIGIN_TEXT_PACKAGE
+               ? NOMINAL_ORIGIN_TEXT_INVALID
+               : NOMINAL_ORIGIN_TEXT_UNSUPPORTED;
+  }
+  if (kind == NOMINAL_ORIGIN_TEXT_PACKAGE) {
+    return nominal_origin_package_ascii_valid(bytes, length)
+               ? NOMINAL_ORIGIN_TEXT_ASCII
+               : NOMINAL_ORIGIN_TEXT_INVALID;
+  }
+  if (!nominal_origin_identifier_ascii_valid(bytes, length))
+    return NOMINAL_ORIGIN_TEXT_INVALID;
+  return length <= maximum ? NOMINAL_ORIGIN_TEXT_ASCII
+                           : NOMINAL_ORIGIN_TEXT_UNSUPPORTED;
+}
+
+static nominal_origin_text_status nominal_origin_text_input_status(
+    w_seed_frontend_text text, size_t maximum,
+    nominal_origin_text_kind kind) {
+  if (text.data == NULL || text.length == 0u) return NOMINAL_ORIGIN_TEXT_INVALID;
+  return nominal_origin_text_validate((const uint8_t *)text.data, text.length,
+                                      maximum, kind);
+}
+
+static nominal_origin_input_status nominal_origin_input_validate(
+    const w_seed_generic_nominal_origin *origin) {
+  if (origin == NULL || origin->authority_preimage_length == 0u ||
+      origin->authority_preimage == NULL ||
+      origin->module_path_segment_count == 0u ||
+      origin->module_path_segments == NULL ||
+      (origin->owner_chain_count != 0u && origin->owner_chain == NULL) ||
+      !nominal_origin_kind_valid((uint8_t)origin->declaration_kind))
+    return NOMINAL_ORIGIN_INPUT_INVALID;
+  const bool authority_over_ceiling =
+      origin->authority_preimage_length >
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_AUTHORITY_BYTES;
+  const bool module_count_over_ceiling =
+      origin->module_path_segment_count >
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS;
+  const bool owner_count_over_ceiling =
+      origin->owner_chain_count > W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_OWNER_CHAIN;
+  bool unsupported = false;
+  nominal_origin_text_status text_status = nominal_origin_text_input_status(
+      origin->scoped_package_name,
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PACKAGE_BYTES,
+      NOMINAL_ORIGIN_TEXT_PACKAGE);
+  if (text_status == NOMINAL_ORIGIN_TEXT_INVALID)
+    return NOMINAL_ORIGIN_INPUT_INVALID;
+  unsupported = unsupported || text_status == NOMINAL_ORIGIN_TEXT_UNSUPPORTED;
+  text_status = nominal_origin_text_input_status(
+      origin->declared_name, W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_NAME_BYTES,
+      NOMINAL_ORIGIN_TEXT_IDENTIFIER);
+  if (text_status == NOMINAL_ORIGIN_TEXT_INVALID)
+    return NOMINAL_ORIGIN_INPUT_INVALID;
+  unsupported = unsupported || text_status == NOMINAL_ORIGIN_TEXT_UNSUPPORTED;
+  unsupported = unsupported || authority_over_ceiling;
+  /* Counts above the supported array sizes are reported without walking the
+   * caller-owned arrays.  The package and declaration name were already
+   * checked, so malformed scalar facts still take precedence. */
+  if (module_count_over_ceiling || owner_count_over_ceiling)
+    return NOMINAL_ORIGIN_INPUT_UNSUPPORTED;
+  for (size_t index = 0u; index < origin->module_path_segment_count;
+       index += 1u) {
+    text_status = nominal_origin_text_input_status(
+        origin->module_path_segments[index],
+        W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_SEGMENT_BYTES,
+        NOMINAL_ORIGIN_TEXT_IDENTIFIER);
+    if (text_status == NOMINAL_ORIGIN_TEXT_INVALID)
+      return NOMINAL_ORIGIN_INPUT_INVALID;
+    unsupported = unsupported || text_status == NOMINAL_ORIGIN_TEXT_UNSUPPORTED;
+  }
+  for (size_t index = 0u; index < origin->owner_chain_count; index += 1u) {
+    const w_seed_generic_nominal_owner *owner = &origin->owner_chain[index];
+    if (!nominal_origin_kind_valid(owner->kind))
+      return NOMINAL_ORIGIN_INPUT_INVALID;
+    text_status = nominal_origin_text_input_status(
+        owner->name, W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_NAME_BYTES,
+        NOMINAL_ORIGIN_TEXT_IDENTIFIER);
+    if (text_status == NOMINAL_ORIGIN_TEXT_INVALID)
+      return NOMINAL_ORIGIN_INPUT_INVALID;
+    unsupported = unsupported || text_status == NOMINAL_ORIGIN_TEXT_UNSUPPORTED;
+  }
+  return unsupported ? NOMINAL_ORIGIN_INPUT_UNSUPPORTED
+                     : NOMINAL_ORIGIN_INPUT_AVAILABLE;
+}
+
+static bool nominal_origin_size_add(size_t *total, size_t amount) {
+  if (total == NULL || amount > SIZE_MAX - *total) return false;
+  *total += amount;
+  return true;
+}
+
+static nominal_origin_input_status nominal_origin_encoded_size_status(
+    const w_seed_generic_nominal_origin *origin) {
+  const nominal_origin_input_status input_status =
+      nominal_origin_input_validate(origin);
+  if (input_status != NOMINAL_ORIGIN_INPUT_AVAILABLE) return input_status;
+  size_t total = sizeof(NOMINAL_ORIGIN_PREFIX) - 1u;
+  if (!nominal_origin_size_add(&total, 1u + 1u + sizeof(uint32_t) +
+                                        origin->authority_preimage_length) ||
+      !nominal_origin_size_add(&total, 1u + sizeof(uint32_t) +
+                                        origin->scoped_package_name.length) ||
+      !nominal_origin_size_add(&total, 1u + sizeof(uint32_t)))
+    return NOMINAL_ORIGIN_INPUT_UNSUPPORTED;
+  for (size_t index = 0u; index < origin->module_path_segment_count;
+       index += 1u) {
+    const w_seed_frontend_text segment = origin->module_path_segments[index];
+    if (!nominal_origin_size_add(&total, 1u + sizeof(uint32_t) + segment.length))
+      return NOMINAL_ORIGIN_INPUT_UNSUPPORTED;
+  }
+  if (!nominal_origin_size_add(&total, 1u + 1u + sizeof(uint32_t)))
+    return NOMINAL_ORIGIN_INPUT_UNSUPPORTED;
+  for (size_t index = 0u; index < origin->owner_chain_count;
+       index += 1u) {
+    const w_seed_generic_nominal_owner owner = origin->owner_chain[index];
+    if (!nominal_origin_size_add(&total, 1u + sizeof(uint32_t) +
+                                          owner.name.length))
+      return NOMINAL_ORIGIN_INPUT_UNSUPPORTED;
+  }
+  if (!nominal_origin_size_add(&total, sizeof(uint32_t) +
+                                        origin->declared_name.length))
+    return NOMINAL_ORIGIN_INPUT_UNSUPPORTED;
+  return total > W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES
+             ? NOMINAL_ORIGIN_INPUT_UNSUPPORTED
+             : NOMINAL_ORIGIN_INPUT_AVAILABLE;
+}
+
+static bool nominal_origin_reader_bytes(nominal_origin_reader *reader,
+                                        size_t count,
+                                        const uint8_t **bytes_out) {
+  if (bytes_out != NULL) *bytes_out = NULL;
+  if (reader == NULL || reader->offset > reader->length ||
+      count > reader->length - reader->offset)
+    return false;
+  if (bytes_out != NULL) *bytes_out = reader->bytes + reader->offset;
+  reader->offset += count;
+  return true;
+}
+
+static bool nominal_origin_reader_u8(nominal_origin_reader *reader,
+                                     uint8_t *value_out) {
+  const uint8_t *bytes = NULL;
+  if (!nominal_origin_reader_bytes(reader, 1u, &bytes)) return false;
+  if (value_out != NULL) *value_out = bytes[0];
+  return true;
+}
+
+static bool nominal_origin_reader_u32(nominal_origin_reader *reader,
+                                      uint32_t *value_out) {
+  const uint8_t *bytes = NULL;
+  if (!nominal_origin_reader_bytes(reader, 4u, &bytes)) return false;
+  if (value_out != NULL)
+    *value_out = ((uint32_t)bytes[0] << 24) | ((uint32_t)bytes[1] << 16) |
+                 ((uint32_t)bytes[2] << 8) | (uint32_t)bytes[3];
+  return true;
+}
+
+static nominal_origin_text_status nominal_origin_reader_text(
+    nominal_origin_reader *reader, const uint8_t **bytes_out,
+    size_t *length_out, size_t maximum, nominal_origin_text_kind kind) {
+  if (bytes_out != NULL) *bytes_out = NULL;
+  if (length_out != NULL) *length_out = 0u;
+  uint32_t encoded_length = 0u;
+  if (!nominal_origin_reader_u32(reader, &encoded_length) || encoded_length == 0u)
+    return NOMINAL_ORIGIN_TEXT_INVALID;
+  const uint8_t *bytes = NULL;
+  if (!nominal_origin_reader_bytes(reader, encoded_length, &bytes) ||
+      bytes == NULL)
+    return NOMINAL_ORIGIN_TEXT_INVALID;
+  if (bytes_out != NULL) *bytes_out = bytes;
+  if (length_out != NULL) *length_out = encoded_length;
+  return nominal_origin_text_validate(bytes, encoded_length, maximum, kind);
+}
+
+static nominal_origin_parse_status nominal_origin_parse(
+    const uint8_t *preimage, size_t preimage_length,
+    nominal_origin_decoded *decoded) {
+  if (decoded != NULL) (void)memset(decoded, 0, sizeof(*decoded));
+  if (preimage == NULL || preimage_length == 0u)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  if (preimage_length >
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PARSE_PREIMAGE_BYTES)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  bool unsupported =
+      preimage_length > W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES;
+  nominal_origin_reader reader = {preimage, preimage_length, 0u};
+  const uint8_t *prefix = NULL;
+  if (!nominal_origin_reader_bytes(&reader, sizeof(NOMINAL_ORIGIN_PREFIX) - 1u,
+                                   &prefix) ||
+      memcmp(prefix, NOMINAL_ORIGIN_PREFIX,
+             sizeof(NOMINAL_ORIGIN_PREFIX) - 1u) != 0)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  uint8_t tag = 0u;
+  if (!nominal_origin_reader_u8(&reader, &tag) || tag != NOMINAL_ORIGIN_ROOT_TAG)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  if (!nominal_origin_reader_u8(&reader, &tag) ||
+      tag != NOMINAL_ORIGIN_AUTHORITY_TAG)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  uint32_t authority_length = 0u;
+  if (!nominal_origin_reader_u32(&reader, &authority_length) ||
+      authority_length == 0u)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  if (!nominal_origin_reader_bytes(&reader, authority_length,
+                                   decoded == NULL ? NULL : &decoded->authority))
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  if (decoded != NULL) decoded->authority_length = authority_length;
+  unsupported = unsupported ||
+                authority_length >
+                    W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_AUTHORITY_BYTES;
+  if (!nominal_origin_reader_u8(&reader, &tag) || tag != NOMINAL_ORIGIN_PACKAGE_TAG)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  nominal_origin_text_status text_status = nominal_origin_reader_text(
+      &reader, decoded == NULL ? NULL : &decoded->package_name,
+      decoded == NULL ? NULL : &decoded->package_length,
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PACKAGE_BYTES,
+      NOMINAL_ORIGIN_TEXT_PACKAGE);
+  if (text_status == NOMINAL_ORIGIN_TEXT_INVALID)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  unsupported = unsupported || text_status == NOMINAL_ORIGIN_TEXT_UNSUPPORTED;
+  if (!nominal_origin_reader_u8(&reader, &tag) || tag != NOMINAL_ORIGIN_MODULE_TAG)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  uint32_t segment_count = 0u;
+  if (!nominal_origin_reader_u32(&reader, &segment_count) || segment_count == 0u)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  const bool module_count_over_ceiling =
+      segment_count > W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS;
+  unsupported = unsupported || module_count_over_ceiling;
+  if (decoded != NULL && !module_count_over_ceiling)
+    decoded->module_segment_count = segment_count;
+  for (uint32_t index = 0u; index < segment_count; index += 1u) {
+    if (!nominal_origin_reader_u8(&reader, &tag) ||
+        tag != NOMINAL_ORIGIN_SEGMENT_TAG)
+      return NOMINAL_ORIGIN_PARSE_INVALID;
+    const bool keep_segment =
+        decoded != NULL &&
+        index < W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS;
+    const uint8_t **segment_out =
+        keep_segment ? &decoded->module_segments[index] : NULL;
+    size_t *segment_length_out =
+        keep_segment ? &decoded->module_segment_lengths[index] : NULL;
+    text_status = nominal_origin_reader_text(
+        &reader, segment_out, segment_length_out,
+        W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_SEGMENT_BYTES,
+        NOMINAL_ORIGIN_TEXT_IDENTIFIER);
+    if (text_status == NOMINAL_ORIGIN_TEXT_INVALID)
+      return NOMINAL_ORIGIN_PARSE_INVALID;
+    unsupported = unsupported || text_status == NOMINAL_ORIGIN_TEXT_UNSUPPORTED;
+  }
+  if (!nominal_origin_reader_u8(&reader, &tag) ||
+      tag != NOMINAL_ORIGIN_DECLARATION_TAG)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  if (!nominal_origin_reader_u8(&reader, &tag) || !nominal_origin_kind_valid(tag))
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  if (decoded != NULL) decoded->declaration_kind = tag;
+  uint32_t owner_count = 0u;
+  if (!nominal_origin_reader_u32(&reader, &owner_count))
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  const bool owner_count_over_ceiling =
+      owner_count > W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_OWNER_CHAIN;
+  unsupported = unsupported || owner_count_over_ceiling;
+  if (decoded != NULL && !owner_count_over_ceiling)
+    decoded->owner_count = owner_count;
+  for (uint32_t index = 0u; index < owner_count; index += 1u) {
+    if (!nominal_origin_reader_u8(&reader, &tag) || !nominal_origin_kind_valid(tag))
+      return NOMINAL_ORIGIN_PARSE_INVALID;
+    const bool keep_owner =
+        decoded != NULL &&
+        index < W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_OWNER_CHAIN;
+    if (keep_owner) decoded->owner_kinds[index] = tag;
+    const uint8_t **owner_name_out =
+        keep_owner ? &decoded->owner_names[index] : NULL;
+    size_t *owner_length_out =
+        keep_owner ? &decoded->owner_name_lengths[index] : NULL;
+    text_status = nominal_origin_reader_text(
+        &reader, owner_name_out, owner_length_out,
+        W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_NAME_BYTES,
+        NOMINAL_ORIGIN_TEXT_IDENTIFIER);
+    if (text_status == NOMINAL_ORIGIN_TEXT_INVALID)
+      return NOMINAL_ORIGIN_PARSE_INVALID;
+    unsupported = unsupported || text_status == NOMINAL_ORIGIN_TEXT_UNSUPPORTED;
+  }
+  text_status = nominal_origin_reader_text(
+      &reader, decoded == NULL ? NULL : &decoded->declared_name,
+      decoded == NULL ? NULL : &decoded->declared_name_length,
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_NAME_BYTES,
+      NOMINAL_ORIGIN_TEXT_IDENTIFIER);
+  if (text_status == NOMINAL_ORIGIN_TEXT_INVALID)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  unsupported = unsupported || text_status == NOMINAL_ORIGIN_TEXT_UNSUPPORTED;
+  if (reader.offset != reader.length) return NOMINAL_ORIGIN_PARSE_INVALID;
+  return unsupported ? NOMINAL_ORIGIN_PARSE_UNSUPPORTED
+                     : NOMINAL_ORIGIN_PARSE_AVAILABLE;
+}
+
+static fingerprint_encode_status nominal_origin_encode(
+    const w_seed_generic_nominal_origin *origin, fingerprint_builder *builder) {
+  const nominal_origin_input_status input_status =
+      nominal_origin_encoded_size_status(origin);
+  if (input_status == NOMINAL_ORIGIN_INPUT_INVALID)
+    return FINGERPRINT_INVALID;
+  if (input_status == NOMINAL_ORIGIN_INPUT_UNSUPPORTED) {
+    fingerprint_mark_unsupported(builder);
+    return FINGERPRINT_UNSUPPORTED;
+  }
+  fingerprint_bytes(builder, NOMINAL_ORIGIN_PREFIX,
+                    sizeof(NOMINAL_ORIGIN_PREFIX) - 1u);
+  fingerprint_u8(builder, NOMINAL_ORIGIN_ROOT_TAG);
+  fingerprint_u8(builder, NOMINAL_ORIGIN_AUTHORITY_TAG);
+  fingerprint_u32(builder, (uint32_t)origin->authority_preimage_length);
+  fingerprint_bytes(builder, origin->authority_preimage,
+                    origin->authority_preimage_length);
+  fingerprint_u8(builder, NOMINAL_ORIGIN_PACKAGE_TAG);
+  (void)fingerprint_text(builder, origin->scoped_package_name);
+  fingerprint_u8(builder, NOMINAL_ORIGIN_MODULE_TAG);
+  fingerprint_u32(builder, (uint32_t)origin->module_path_segment_count);
+  for (size_t index = 0u; index < origin->module_path_segment_count; index += 1u) {
+    fingerprint_u8(builder, NOMINAL_ORIGIN_SEGMENT_TAG);
+    (void)fingerprint_text(builder, origin->module_path_segments[index]);
+  }
+  fingerprint_u8(builder, NOMINAL_ORIGIN_DECLARATION_TAG);
+  fingerprint_u8(builder, (uint8_t)origin->declaration_kind);
+  fingerprint_u32(builder, (uint32_t)origin->owner_chain_count);
+  for (size_t index = 0u; index < origin->owner_chain_count; index += 1u) {
+    fingerprint_u8(builder, origin->owner_chain[index].kind);
+    (void)fingerprint_text(builder, origin->owner_chain[index].name);
+  }
+  (void)fingerprint_text(builder, origin->declared_name);
+  if (builder->invalid) return FINGERPRINT_INVALID;
+  if (builder->output_length >
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES)
+    return FINGERPRINT_INVALID;
+  return FINGERPRINT_ENCODED;
+}
+
+static void nominal_origin_result_zero(
+    w_seed_generic_nominal_origin_result *result) {
+  if (result == NULL) return;
+  (void)memset(result, 0, sizeof(*result));
+  result->state = W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID;
+}
+
+/* Pointer arithmetic on unrelated caller-owned objects is not valid C.  Use
+ * integer intervals for the preflight and conservatively reject an interval
+ * whose endpoint would overflow. */
+static bool byte_ranges_overlap(const void *left, size_t left_length,
+                                const void *right, size_t right_length) {
+  if (left == NULL || right == NULL || left_length == 0u ||
+      right_length == 0u)
+    return false;
+  const uintptr_t left_start = (uintptr_t)left;
+  const uintptr_t right_start = (uintptr_t)right;
+  if (left_start > UINTPTR_MAX - left_length ||
+      right_start > UINTPTR_MAX - right_length)
+    return true;
+  const uintptr_t left_end = left_start + left_length;
+  const uintptr_t right_end = right_start + right_length;
+  return left_start < right_end && right_start < left_end;
+}
+
+static bool nominal_origin_storage_overlaps(
+    const w_seed_generic_nominal_origin *origin, const void *storage,
+    size_t storage_length) {
+  if (origin == NULL || storage == NULL || storage_length == 0u) return false;
+  if (byte_ranges_overlap(storage, storage_length, origin, sizeof(*origin)))
+    return true;
+  /* Overlap preflight can run before the input status is published.  Never
+   * multiply or iterate an untrusted caller count here. */
+  const bool module_span_overflow =
+      origin->module_path_segment_count >
+      SIZE_MAX / sizeof(origin->module_path_segments[0]);
+  const bool owner_span_overflow =
+      origin->owner_chain_count > SIZE_MAX / sizeof(origin->owner_chain[0]);
+  if (origin->module_path_segments == NULL ||
+      (origin->owner_chain_count != 0u && origin->owner_chain == NULL))
+    return true;
+  if (byte_ranges_overlap(storage, storage_length, origin->authority_preimage,
+                          origin->authority_preimage_length) ||
+      byte_ranges_overlap(storage, storage_length,
+                          origin->scoped_package_name.data,
+                          origin->scoped_package_name.length) ||
+      byte_ranges_overlap(storage, storage_length, origin->declared_name.data,
+                          origin->declared_name.length))
+    return true;
+  if ((!module_span_overflow &&
+       byte_ranges_overlap(
+           storage, storage_length, origin->module_path_segments,
+           origin->module_path_segment_count *
+               sizeof(origin->module_path_segments[0]))) ||
+      (module_span_overflow &&
+       byte_ranges_overlap(storage, storage_length,
+                           origin->module_path_segments,
+                           sizeof(origin->module_path_segments[0]))) ||
+      (!owner_span_overflow &&
+       byte_ranges_overlap(storage, storage_length, origin->owner_chain,
+                           origin->owner_chain_count *
+                               sizeof(origin->owner_chain[0]))) ||
+      (owner_span_overflow && origin->owner_chain != NULL &&
+       byte_ranges_overlap(storage, storage_length, origin->owner_chain,
+                           sizeof(origin->owner_chain[0]))))
+    return true;
+  /* The element ranges above are enough for framing safety.  Only supported
+   * counts may be dereferenced for the finer text-level overlap checks. */
+  if (origin->module_path_segment_count <=
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_MODULE_SEGMENTS)
+    for (size_t index = 0u; index < origin->module_path_segment_count;
+         index += 1u) {
+      if (byte_ranges_overlap(storage, storage_length,
+                              origin->module_path_segments[index].data,
+                              origin->module_path_segments[index].length))
+        return true;
+    }
+  if (origin->owner_chain_count <=
+      W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_OWNER_CHAIN)
+    for (size_t index = 0u; index < origin->owner_chain_count; index += 1u) {
+      if (byte_ranges_overlap(storage, storage_length,
+                              origin->owner_chain[index].name.data,
+                              origin->owner_chain[index].name.length))
+        return true;
+    }
+  return false;
+}
+
+static bool nominal_origin_output_preflight(
+    const w_seed_generic_nominal_origin *origin, uint8_t *output,
+    size_t output_capacity,
+    const w_seed_generic_nominal_origin_result *result) {
+  if (output == NULL || output_capacity == 0u) return false;
+  return byte_ranges_overlap(output, output_capacity, result, sizeof(*result)) ||
+         nominal_origin_storage_overlaps(origin, output, output_capacity);
+}
+
+w_seed_generic_nominal_origin_state w_seed_generic_nominal_origin_measure(
+    const w_seed_generic_nominal_origin *origin,
+    w_seed_generic_nominal_origin_result *result) {
+  if (result == NULL) return W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID;
+  const nominal_origin_input_status input_status =
+      nominal_origin_encoded_size_status(origin);
+  if (nominal_origin_storage_overlaps(origin, result, sizeof(*result)))
+    return W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID;
+  nominal_origin_result_zero(result);
+  if (input_status == NOMINAL_ORIGIN_INPUT_INVALID)
+    return W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID;
+  if (input_status == NOMINAL_ORIGIN_INPUT_UNSUPPORTED) {
+    result->state = W_SEED_GENERIC_NOMINAL_ORIGIN_UNSUPPORTED;
+    return result->state;
+  }
+  fingerprint_builder builder;
+  (void)memset(&builder, 0, sizeof(builder));
+  w_seed_sha256_init(&builder.sha);
+  const fingerprint_encode_status status = nominal_origin_encode(origin, &builder);
+  if (status == FINGERPRINT_UNSUPPORTED || builder.unsupported) {
+    result->state = W_SEED_GENERIC_NOMINAL_ORIGIN_UNSUPPORTED;
+    return result->state;
+  }
+  if (status != FINGERPRINT_ENCODED || builder.invalid || builder.output_overflow) {
+    result->state = W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID;
+    return result->state;
+  }
+  result->bytes_required = builder.output_length;
+  w_seed_sha256_final(&builder.sha, result->digest);
+  result->state = W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE;
+  return result->state;
+}
+
+w_seed_generic_nominal_origin_state w_seed_generic_nominal_origin_write(
+    const w_seed_generic_nominal_origin *origin, uint8_t *output,
+    size_t output_capacity, w_seed_generic_nominal_origin_result *result) {
+  if (result == NULL) return W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID;
+  const nominal_origin_input_status input_status =
+      nominal_origin_encoded_size_status(origin);
+  if (nominal_origin_storage_overlaps(origin, result, sizeof(*result)))
+    return W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID;
+  if ((output == NULL && output_capacity != 0u) ||
+      nominal_origin_output_preflight(origin, output, output_capacity, result))
+    return W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID;
+  nominal_origin_result_zero(result);
+  if (input_status == NOMINAL_ORIGIN_INPUT_INVALID)
+    return W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID;
+  if (input_status == NOMINAL_ORIGIN_INPUT_UNSUPPORTED) {
+    result->state = W_SEED_GENERIC_NOMINAL_ORIGIN_UNSUPPORTED;
+    return result->state;
+  }
+  w_seed_generic_nominal_origin_result measured;
+  const w_seed_generic_nominal_origin_state measured_state =
+      w_seed_generic_nominal_origin_measure(origin, &measured);
+  if (measured_state != W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE) {
+    *result = measured;
+    return result->state;
+  }
+  *result = measured;
+  if (output_capacity < measured.bytes_required) {
+    result->state = W_SEED_GENERIC_NOMINAL_ORIGIN_CAPACITY;
+    (void)memset(result->digest, 0, sizeof(result->digest));
+    return result->state;
+  }
+  fingerprint_builder builder;
+  (void)memset(&builder, 0, sizeof(builder));
+  builder.output = output;
+  builder.output_capacity = output_capacity;
+  w_seed_sha256_init(&builder.sha);
+  const fingerprint_encode_status status = nominal_origin_encode(origin, &builder);
+  if (status != FINGERPRINT_ENCODED || builder.invalid || builder.unsupported ||
+      builder.output_overflow || builder.output_length != measured.bytes_required) {
+    /* The output is not exposed as a receipt.  A correct measurement keeps
+     * this branch unreachable; callers still receive an explicit invalid
+     * state rather than a partial publication. */
+    result->state = W_SEED_GENERIC_NOMINAL_ORIGIN_INVALID;
+    result->bytes_written = 0u;
+    result->bytes_required = 0u;
+    (void)memset(result->digest, 0, sizeof(result->digest));
+    return result->state;
+  }
+  w_seed_sha256_final(&builder.sha, result->digest);
+  result->bytes_written = builder.output_length;
+  result->state = W_SEED_GENERIC_NOMINAL_ORIGIN_AVAILABLE;
+  return result->state;
+}
+
+static nominal_origin_parse_status nominal_origin_view_decode_and_digest(
+    const w_seed_generic_nominal_origin_view *view,
+    nominal_origin_decoded *decoded, bool verify_digest) {
+  if (view == NULL || view->preimage == NULL || view->digest == NULL ||
+      view->preimage_length == 0u)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  const nominal_origin_parse_status status = nominal_origin_parse(
+      view->preimage, view->preimage_length, decoded);
+  /* A structurally complete receipt may be feature-UNSUPPORTED, but its
+   * supplied digest is still mandatory.  Only malformed framing skips the
+   * hash because there is no parsed receipt to authenticate. */
+  if (status == NOMINAL_ORIGIN_PARSE_INVALID || !verify_digest)
+    return status;
+  uint8_t digest[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES];
+  w_seed_sha256_state sha;
+  w_seed_sha256_init(&sha);
+  w_seed_sha256_update(&sha, view->preimage, view->preimage_length);
+  w_seed_sha256_final(&sha, digest);
+  if (memcmp(digest, view->digest,
+             W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES) != 0)
+    return NOMINAL_ORIGIN_PARSE_INVALID;
+  return status;
+}
+
+bool w_seed_generic_nominal_origin_view_valid(
+    const w_seed_generic_nominal_origin_view *view) {
+  return nominal_origin_view_decode_and_digest(view, NULL, true) ==
+         NOMINAL_ORIGIN_PARSE_AVAILABLE;
+}
+
+bool w_seed_generic_nominal_origin_equal(
+    const w_seed_generic_nominal_origin_view *left,
+    const w_seed_generic_nominal_origin_view *right) {
+  /* Equality is collision-safe but does not use view_valid as a shortcut:
+   * two valid preimages with a forced equal digest must still compare bytes. */
+  if (left == NULL || right == NULL || left->preimage == NULL ||
+      right->preimage == NULL || left->digest == NULL || right->digest == NULL ||
+      left->preimage_length == 0u || right->preimage_length == 0u ||
+      left->preimage_length >
+          W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES ||
+      right->preimage_length >
+          W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES ||
+      left->preimage_length != right->preimage_length ||
+      memcmp(left->digest, right->digest,
+             W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES) != 0)
+    return false;
+  if (nominal_origin_parse(left->preimage, left->preimage_length, NULL) !=
+          NOMINAL_ORIGIN_PARSE_AVAILABLE ||
+      nominal_origin_parse(right->preimage, right->preimage_length, NULL) !=
+          NOMINAL_ORIGIN_PARSE_AVAILABLE)
+    return false;
+  return memcmp(left->preimage, right->preimage, left->preimage_length) == 0;
+}
+
 static void fingerprint_mark_unsupported(fingerprint_builder *builder) {
   if (builder != NULL && !builder->invalid) builder->unsupported = true;
 }
@@ -2413,15 +3166,23 @@ static fingerprint_encode_status specialization_application(
     return FINGERPRINT_INVALID;
   fingerprint_bytes(builder, SPECIALIZATION_PREFIX,
                     sizeof(SPECIALIZATION_PREFIX) - 1u);
-  fingerprint_u8(builder, 0x48u);
+  fingerprint_u8(builder, SPECIALIZATION_ROOT_TAG);
+  const w_seed_generic_nominal_origin_view *origin =
+      context->input == NULL ? NULL : context->input->nominal_origin;
+  if (origin == NULL || origin->preimage == NULL ||
+      origin->preimage_length == 0u || origin->preimage_length > UINT32_MAX)
+    return FINGERPRINT_INVALID;
+  fingerprint_u8(builder, SPECIALIZATION_ORIGIN_TAG);
+  fingerprint_u32(builder, (uint32_t)origin->preimage_length);
+  fingerprint_bytes(builder, origin->preimage, origin->preimage_length);
+  /* The origin receipt already carries declaration kind, module path, owners,
+   * and declared name.  The specialization schema therefore starts its D8
+   * parameter/refinement portion with a count only; it never repeats module
+   * or head text outside the receipt. */
   fingerprint_u8(builder, 0x44u);
-  fingerprint_u8(builder, 0x01u);
-  fingerprint_encode_status status =
-      fingerprint_module_text(context, application->module_index, builder);
-  if (status != FINGERPRINT_ENCODED) return status;
-  status = fingerprint_text(builder, head->name);
-  if (status != FINGERPRINT_ENCODED) return status;
   fingerprint_u32(builder, head->generic_parameter_count);
+
+  fingerprint_encode_status status = FINGERPRINT_ENCODED;
 
   for (uint32_t offset = 0u; offset < head->generic_parameter_count;
        offset += 1u) {
@@ -2601,6 +3362,8 @@ const char *w_seed_generic_validation_specialization_state_name(
       return "UNSUPPORTED";
     case W_SEED_GENERIC_VALIDATION_SPECIALIZATION_CAPACITY:
       return "CAPACITY";
+    case W_SEED_GENERIC_VALIDATION_SPECIALIZATION_IDENTITY_REQUIRED:
+      return "IDENTITY_REQUIRED";
   }
   return "UNKNOWN";
 }
@@ -2620,6 +3383,132 @@ bool w_seed_generic_specialization_equal(
              W_SEED_GENERIC_VALIDATION_SPECIALIZATION_DIGEST_BYTES) != 0)
     return false;
   return memcmp(left->preimage, right->preimage, left->preimage_length) == 0;
+}
+
+typedef enum {
+  NOMINAL_ORIGIN_RELATION_MISSING = 0,
+  NOMINAL_ORIGIN_RELATION_VALID,
+  NOMINAL_ORIGIN_RELATION_UNSUPPORTED,
+  NOMINAL_ORIGIN_RELATION_INVALID,
+} nominal_origin_relation_status;
+
+static bool nominal_origin_decoded_text_equal(const uint8_t *bytes,
+                                              size_t length,
+                                              w_seed_frontend_text text) {
+  return text.length == length && text.data != NULL && bytes != NULL &&
+         memcmp(bytes, text.data, length) == 0;
+}
+
+static bool nominal_origin_decoded_module_path_equal(
+    const nominal_origin_decoded *decoded, w_seed_frontend_text module_id) {
+  if (decoded == NULL || module_id.data == NULL || module_id.length == 0u)
+    return false;
+  size_t offset = 0u;
+  for (size_t index = 0u; index < decoded->module_segment_count; index += 1u) {
+    if (index != 0u) {
+      if (offset >= module_id.length ||
+          ((const uint8_t *)module_id.data)[offset] != (uint8_t)'.')
+        return false;
+      offset += 1u;
+    }
+    const size_t segment_length = decoded->module_segment_lengths[index];
+    if (segment_length > module_id.length - offset ||
+        memcmp(decoded->module_segments[index],
+               (const uint8_t *)module_id.data + offset, segment_length) != 0)
+      return false;
+    offset += segment_length;
+  }
+  return decoded->module_segment_count != 0u && offset == module_id.length;
+}
+
+/* Bind a resolver receipt to the exact frontend module/head selected by the
+ * application.  The module path is canonical data and is compared in full;
+ * no allocation or last-segment shortcut is permitted. */
+static nominal_origin_relation_status nominal_origin_relation_for_head(
+    const validation_context *context,
+    const w_seed_frontend_generic_application *application,
+    const w_seed_frontend_struct *head) {
+  if (context == NULL || context->input == NULL || application == NULL ||
+      head == NULL)
+    return NOMINAL_ORIGIN_RELATION_INVALID;
+  const w_seed_generic_nominal_origin_view *view =
+      context->input->nominal_origin;
+  if (view == NULL) return NOMINAL_ORIGIN_RELATION_MISSING;
+  if (view->preimage == NULL || view->digest == NULL ||
+      view->preimage_length == 0u ||
+      view->frontend_module_index != application->module_index ||
+      view->frontend_head_struct_index != application->head_struct)
+    return NOMINAL_ORIGIN_RELATION_INVALID;
+  nominal_origin_decoded decoded;
+  const nominal_origin_parse_status parse_status =
+      nominal_origin_view_decode_and_digest(view, &decoded, true);
+  if (parse_status == NOMINAL_ORIGIN_PARSE_INVALID)
+    return NOMINAL_ORIGIN_RELATION_INVALID;
+  if (parse_status == NOMINAL_ORIGIN_PARSE_UNSUPPORTED)
+    return NOMINAL_ORIGIN_RELATION_UNSUPPORTED;
+  if (context->frontend == NULL || context->frontend->modules == NULL ||
+      context->frontend_result == NULL ||
+      (size_t)application->module_index >= context->frontend_result->written.modules)
+    return NOMINAL_ORIGIN_RELATION_INVALID;
+  const w_seed_frontend_module *module =
+      &context->frontend->modules[application->module_index];
+  if (decoded.declaration_kind !=
+          (uint8_t)W_SEED_GENERIC_NOMINAL_DECLARATION_STRUCT ||
+      !nominal_origin_decoded_text_equal(decoded.declared_name,
+                                         decoded.declared_name_length,
+                                         head->name) ||
+      decoded.module_segment_count == 0u ||
+      !nominal_origin_decoded_module_path_equal(&decoded, module->module_id) ||
+      decoded.owner_count != 0u)
+    return NOMINAL_ORIGIN_RELATION_INVALID;
+  return NOMINAL_ORIGIN_RELATION_VALID;
+}
+
+static bool validation_specialization_output_overlaps_input(
+    const w_seed_generic_validation_input *input,
+    const w_seed_generic_validation_result *result) {
+  if (input == NULL || input->specialization_preimage == NULL ||
+      input->specialization_preimage_capacity == 0u)
+    return false;
+  const uint8_t *output = input->specialization_preimage;
+  const size_t capacity = input->specialization_preimage_capacity;
+  if (byte_ranges_overlap(output, capacity, input, sizeof(*input)) ||
+      byte_ranges_overlap(output, capacity, result, sizeof(*result)) ||
+      byte_ranges_overlap(output, capacity, input->frontend_output,
+                          sizeof(*input->frontend_output)) ||
+      byte_ranges_overlap(output, capacity, input->frontend_result,
+                          sizeof(*input->frontend_result)) ||
+      byte_ranges_overlap(output, capacity, input->constir_program,
+                          sizeof(*input->constir_program)) ||
+      byte_ranges_overlap(output, capacity, input->nominal_origin,
+                          sizeof(*input->nominal_origin)))
+    return true;
+  if (input->nominal_origin != NULL &&
+      (byte_ranges_overlap(output, capacity,
+                           input->nominal_origin->preimage,
+                           input->nominal_origin->preimage_length) ||
+       byte_ranges_overlap(
+           output, capacity, input->nominal_origin->digest,
+           W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_DIGEST_BYTES)))
+    return true;
+  if (input->conversion_values != NULL &&
+      input->conversion_value_capacity <=
+          SIZE_MAX / sizeof(input->conversion_values[0]) &&
+      byte_ranges_overlap(
+          output, capacity, input->conversion_values,
+          input->conversion_value_capacity *
+              sizeof(input->conversion_values[0])))
+    return true;
+  if (input->evidence_bytes != NULL &&
+      byte_ranges_overlap(output, capacity, input->evidence_bytes,
+                          input->evidence_byte_capacity))
+    return true;
+  if (input->receipts != NULL &&
+      input->receipt_capacity <= SIZE_MAX / sizeof(input->receipts[0]) &&
+      byte_ranges_overlap(output, capacity, input->receipts,
+                          input->receipt_capacity * sizeof(input->receipts[0])))
+    return true;
+  return false;
 }
 
 static void quota_consume(w_seed_constir_quota *remaining,
@@ -2710,12 +3599,14 @@ static void publish_const_cycle_failure(
 w_seed_generic_validation_state w_seed_generic_validation_run(
     const w_seed_generic_validation_input *input,
     w_seed_generic_validation_result *result) {
-  if (result != NULL) (void)memset(result, 0, sizeof(*result));
-  if (result == NULL || input == NULL) {
-    if (result != NULL) {
-      result->state = W_SEED_GENERIC_VALIDATION_INVALID;
-      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
-    }
+  if (result == NULL) return W_SEED_GENERIC_VALIDATION_INVALID;
+  if (input != NULL &&
+      validation_specialization_output_overlaps_input(input, result))
+    return W_SEED_GENERIC_VALIDATION_INVALID;
+  (void)memset(result, 0, sizeof(*result));
+  if (input == NULL) {
+    result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
     return W_SEED_GENERIC_VALIDATION_INVALID;
   }
   result->state = W_SEED_GENERIC_VALIDATION_INVALID;
@@ -2744,6 +3635,22 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
     return result->state;
   result->head_struct_index = application->head_struct;
   if (invalid_argument) return result->state;
+
+  /* The resolver receipt is an integrity/relation gate, not a registry
+   * lookup.  It must fail before graph, conversion, evaluator, or receipt
+   * writes.  Missing origin is intentionally allowed for semantic validation
+   * and becomes IDENTITY_REQUIRED only after VERIFIED. */
+  const nominal_origin_relation_status origin_relation =
+      nominal_origin_relation_for_head(&context, application, head);
+  if (origin_relation == NOMINAL_ORIGIN_RELATION_INVALID) {
+    result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+    return result->state;
+  }
+  const bool origin_missing =
+      origin_relation == NOMINAL_ORIGIN_RELATION_MISSING;
+  const bool origin_unsupported =
+      origin_relation == NOMINAL_ORIGIN_RELATION_UNSUPPORTED;
 
   /* A frontend UNSUPPORTED application can still contain a normalized D7
    * expression graph.  Check that graph after the complete application
@@ -3276,6 +4183,21 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
     w_seed_sha256_final(&fingerprint.sha, result->fingerprint_digest);
     result->fingerprint_state =
         W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE;
+  }
+
+  if (origin_missing) {
+    result->specialization_state =
+        W_SEED_GENERIC_VALIDATION_SPECIALIZATION_IDENTITY_REQUIRED;
+    result->specialization_bytes_written = 0u;
+    result->specialization_bytes_required = 0u;
+    (void)memset(result->specialization_digest, 0,
+                 sizeof(result->specialization_digest));
+    return result->state;
+  }
+  if (origin_unsupported) {
+    result->specialization_state =
+        W_SEED_GENERIC_VALIDATION_SPECIALIZATION_UNSUPPORTED;
+    return result->state;
   }
 
   /* The specialization preimage has a separate schema and output contract.

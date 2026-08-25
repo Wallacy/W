@@ -510,9 +510,10 @@ modifica os arrays do frontend e não publica type identity final ou
 monomorphization.
 
 `W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION` é
-`w-seed-generic-validation-7`. O fingerprint legado continua em
-`w-seed-generic-fingerprint-1`. A identidade semântica D8 usa o schema
-`w-seed-generic-specialization-1`.
+`w-seed-generic-validation-8`. O fingerprint legado continua em
+`w-seed-generic-fingerprint-1`. A identidade semântica D9 usa o schema
+`w-seed-generic-specialization-2` e recebe um receipt opcional de origem
+nominal.
 
 `BOUND_IMMEDIATE` e `TYPED_PENDING_CONST` são elegíveis. O predicate é
 localizado pela relação `frontend_function == predicate_function_index`; uma
@@ -644,15 +645,64 @@ não-zero é `INVALID` antes de evaluation e mantém a projeção `NOT_AVAILABLE
 `{nonnull,0}` é o caso `CAPACITY`. O buffer não pode aliasar frontend, ConstIR,
 conversion values, evidence, receipts ou result, e esses inputs devem ficar
 imutáveis entre measure/write. O measure pass ocorre antes do write/hash pass.
+No D9, output/result também devem ser disjuntos da origin view, preimage,
+digest, authority bytes e text arrays; o preflight rejeita esses aliases antes
+de evaluation.
 
-O preimage D8 começa com `w-seed-generic-specialization-1` e root tag `0x48`.
-Ele codifica a declaração local struct, seu schema de parâmetros em ordinal
-order, a substitution vector normalizada e witness count zero. Domain type,
-ConstValue e predicate body digest usam a codificação canônica compartilhada
-com o fingerprint. Labels, spans, source indices, annotation presence,
-counters, quota, session e source spelling ficam fora. Target, profile,
-compiler, lowering plan e runtime facts pertencem à recipe física futura e não
-são inputs deste encoder.
+`NominalDeclarationOrigin` é caller-owned e contém a preimage completa da
+authority autenticada pelo resolver, scoped package name, caminho canônico de
+módulo (segmentos NFC), nominal kind, owner chain semântica e declared name.
+Version, revision, mirror/source, dependency alias, workspace, checkout/file
+path, source-set, feature, target, profile, edition, spans, docs, interface
+digest e body ficam fora. Alias humano é apresentação. O seed não implementa
+resolver de registry/Git; a authority receipt é trust input e `.registry("w")`
+não é preimage suficiente. O builder aceita ASCII nesta fatia e publica
+`UNSUPPORTED` para Unicode/NFC ainda não resolvido.
+
+O package é exatamente `[a-z][a-z0-9-]{0,62}/[a-z][a-z0-9-]{0,62}`,
+com no máximo 127 bytes. Segments de módulo, owners e declared name usam
+`[A-Za-z_][A-Za-z0-9_]*`, sem NUL. Package não-ASCII, UTF-8 inválido e
+identifier ASCII inválido são `INVALID`; UTF-8 válido não-ASCII e identifier
+que excede somente o ceiling são `UNSUPPORTED` até NFC/ceiling resolver.
+Os kinds são `STRUCT=1`, `TYPE=2`, `OBJECT=3`, `ENUM=4`,
+`PROTOCOL=5`, `SERVICE=6`; `alias`, callable/function overload e const
+não são type constructors D9.
+
+O receipt `w-seed-nominal-origin-1` usa prefixo ASCII, root `0x4f`, tags
+`0x41` authority, `0x50` package, `0x4d` module, `0x49` segment e `0x44`
+declaration, com lengths/counts `u32` big-endian e sem terminador NUL:
+
+```text
+prefix, 0x4f,
+0x41 u32(authority-length) authority-preimage,
+0x50 text(package),
+0x4d u32(segment-count) (0x49 text(segment))* ,
+0x44 u8(kind) u32(owner-count) (u8(owner-kind) text(owner))* text(name)
+```
+
+O builder caller-owned possui measure/write, limites, overflow checks, exact
+required/written, SHA-256 accelerator e não escreve parcialmente. Ele publica
+no máximo 16.384 bytes de preimage. O parser aceita somente um envelope hard de
+framing de 65.536 bytes: acima dele a view é `INVALID`; dentro dele, framing
+completo acima do ceiling do feature pode ser `UNSUPPORTED`, mas framing
+parseado como `AVAILABLE` ou `UNSUPPORTED` sempre exige SHA-256 correspondente.
+Somente framing `INVALID` evita o hash. A view valida framing, digest e relação
+frontend module/head/kind/owner antes da evaluation. Equality compara digest,
+length e bytes completos. Receipt ausente permite `VERIFIED`, mas publica
+`IDENTITY_REQUIRED` com `0/0` e digest zero.
+
+O preimage D9 começa com `w-seed-generic-specialization-2` e root `0x49`.
+Ele codifica uma vez `0x4f u32(origin-length) origin-preimage`, seguido de
+`0x44 u32(parameter-count)`, os records de parâmetros/refinements D8, a
+substitution vector normalizada e witness count zero (`0x57 u32(0)`). Module e
+head não aparecem fora do receipt. Domain type, ConstValue e predicate body
+digest usam a codificação canônica compartilhada com o fingerprint. Labels,
+spans, source indices, annotation presence, counters, quota, session e source
+spelling ficam fora. Target, profile, compiler, lowering plan e runtime facts
+pertencem à recipe física futura e não são inputs deste encoder.
+O predicate body digest ConstIR é somente um proxy bounded do lowering do seed,
+não um receipt semântico autoritativo universal do predicate/construtor; esse
+receipt do compiler completo continua gap.
 
 `w_seed_generic_specialization_equal` rejeita views vazios ou com ponteiros
 NULL e compara length, digest e os bytes completos do preimage. Digest igual
@@ -665,7 +715,7 @@ O probe/gate source-backed usa `ServiceStage`, `canMove`, `isValidStagePath` e
 canônico como `VERIFIED` e vazio, salto e duplicata como `REJECTED`, repete o
 probe para provar determinismo e verifica quota, relações inválidas, categorias
 unsupported, Bool/integer/enum/list conversion e capacity. O witness usa o
-module id `restaurant`: duas aplicações idênticas do standard path
+package `last-light/restaurant` e o módulo `domain`: duas aplicações idênticas do standard path
 publicam `AVAILABLE` com digest igual; a rota
 `[.accepted, .cancelled]` também é `VERIFIED`, mas tem digest
 diferente; vazio, salto e duplicata permanecem `NOT_AVAILABLE` com
@@ -675,7 +725,8 @@ specialization e `body_digest` do predicate.
 
 O gate também lê `tooling/generic-fingerprint-cases.json` e exige os casos
 únicos GPF0-W-1460/W-1461/W-1462/GPF0-W-1463-current/GPF0-W-1464-current/
-GPF0-W-1465-current/GPF0-W-1466-current/GPF0-W-1467-current,
+GPF0-W-1465-current/GPF0-W-1466-current/GPF0-W-1467-current/
+GPF0-W-1468-current,
 suas decisões, sources e runner C+Bun. Ele verifica
 em `reference/last-light/generics.w` os marcadores únicos da assinatura de
 `StaticValue`, do body `export const expected = value`, dos aliases
@@ -750,6 +801,19 @@ vazios/NULL, digest corrompido e digest forçado com preimages diferentes. A
 receita física,
 receipts autoritativos de package/interface, witness selection geral e
 `TypeId` continuam gaps.
+
+Para W-1468, o receipt nominal usa authority preimage, package, path de módulo,
+kind, owners e name. A view precisa de digest íntegro e relação com module/head;
+trailing, truncation, digest corrupto, module/head/kind/owner/process mismatch e
+relação divergente falham antes de evaluation. O schema
+`w-seed-generic-specialization-2` codifica o receipt uma
+vez e não repete `module_id`/head. Sem receipt, o principal pode ser `VERIFIED`,
+mas a identidade é `IDENTITY_REQUIRED`. O gate separa os witnesses de
+`domain.w` e `generics.w`, usa a authority fixture synthetic declarada no
+corpus e não afirma autorização de registry. Ele exige os markers literais
+`authority: .registry("w")`, `name: "last-light/restaurant"` e o
+moduleSet root/include/layout do `build.w`, e compara os bytes completos
+escritos pelo C com a reconstrução Bun.
 
     bun tooling/check-seed-generic-validation.mjs
 
