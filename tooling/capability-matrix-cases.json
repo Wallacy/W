@@ -277,7 +277,7 @@
         "studyRefs": [
           {
             "path": "tooling/studies/brx3-borrow-relations/bundle.json",
-            "digest": "sha256:830c2434e0c0fe6ba8a477f09574e364f7850bae4467dddd579381a7a579ca67",
+            "digest": "sha256:5327bc727291d1fd5421d2a334077cb06b34bc0521f56c2c17365568bdd16e00",
             "claim": "BRX3 promotes the requirement/interface-owned source clause while preserving implementation evidence gaps."
           },
           {
@@ -1028,7 +1028,7 @@
         "studyRefs": [
           {
             "path": "tooling/studies/gen2-stream-yield/bundle.json",
-            "digest": "sha256:347530ce6e0e2d4c7a2c88182a3d6401d83d1e87a0482e801118a8956ed942fa",
+            "digest": "sha256:c9fa7f5f5624b200c451f458c33ea041ceed65d0dd27ebae9605278d9b917a18",
             "claim": "GEN2 closes GEN0-R1 for the narrow explicit-capture stream expression with mandatory `yield take value` or `yield copy value` (copy requires Duplicable), owned pull yield, capacity zero, two independent lowerings, and explicit rejection of public frame/send/throw/resume; compiler, runtime, provider, debug/ABI, and human/model evidence remain missing."
           }
         ]
@@ -1386,12 +1386,12 @@
           },
           {
             "path": "tooling/syn1-typed-generation-cases.json",
-            "digest": "sha256:ffe05de984fd70c3ade9bb311f70730d46f7b814889b191ddf020a6732f7d6a6",
+            "digest": "sha256:9eaf722cd4b8da7410901b175ca735adb9035b12dc5fe1de649836f9395c821f",
             "claim": "SYN1 schema-3 65-case A/B/C/D corpus with module sets, strict events, action graphs, exact dependencies, maps, baseline refs, and target variants."
           },
           {
             "path": "tooling/syn1-typed-generation-machine.mjs",
-            "digest": "sha256:28e1dacdd443659863267e2e2cb79dd281712d314bc54b687ef9a3e660e1cf8c",
+            "digest": "sha256:b456241a569fd00a30306c030b49a3a1fe0f8cc078d8102d68c709bb9b2d1bd8",
             "claim": "SYN1 host machine for W parsing and bounded source shape; semantic phase trace, interface publication, compiler cache, and provider remain candidate or missing evidence."
           },
           {
@@ -1773,7 +1773,7 @@
           },
           {
             "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/bundle.json",
-            "digest": "sha256:dfe29c912770993e1c822c00f1c3e0d58e8787cc64b9b95d5b65bb4ab31fccf3",
+            "digest": "sha256:b28fcaa00a67aa399edaabdf61a4214f0d2e211dd75ca2c25e40b3056f27d190",
             "claim": "CYC1 explicit-cycle study bundle and reserved witnesses"
           },
           {
