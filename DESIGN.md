@@ -3436,8 +3436,8 @@ de `W_SEED_FRONTEND_MAX_CONST_DECLARATIONS` (32768); exceder o teto é uma
 barreira antes de publicar output, nunca truncamento ou `INVALID` silencioso.
 
 O schema de frontend sobe para `w-seed-frontend-7` e o de generic validation
-para `w-seed-generic-validation-7`; a identidade de specialization usa
-`w-seed-generic-specialization-1`. `w-seed-constir-6` e
+para `w-seed-generic-validation-8`; a identidade de specialization usa
+`w-seed-generic-specialization-2`. `w-seed-constir-6` e
 `w-seed-generic-fingerprint-1` permanecem. Annotation presence, source order,
 spans/trivia, trabalho de inferência e índices process-local não entram no
 ConstIR body digest nem no fingerprint. Explicit e inferred semanticamente
@@ -7651,7 +7651,7 @@ O validator não avalia initializer no frontend nem converte a relação em
 `ConstValue` até o ConstIR evaluator. A evidência corrente é o gate Bun/C
 [`tooling/check-seed-generic-validation.mjs`](tooling/check-seed-generic-validation.mjs)
 e os casos `GPF0-W-1463-current`, `GPF0-W-1464-current`,
-`GPF0-W-1465-current` e `GPF0-W-1466-current`.
+`GPF0-W-1465-current`, `GPF0-W-1466-current` e `GPF0-W-1468-current`.
 
 O limite de 256 dependencies é uma fronteira de grafo: 257 declarations bem
 formadas são `UNSUPPORTED` com failure `dependency-limit`, e com zero step,
@@ -7675,6 +7675,136 @@ estado persistente.
 
 #### 8.7.12 Identidade semântica de specialization e fingerprint-1
 
+##### 8.7.12.0 Origem nominal, contrato e specialization-2 (W-1468)
+
+W-1468 separa três camadas que não podem ser fundidas. `NominalDeclarationOrigin`
+é a origem estável da declaração. `SemanticTypeConstructor` é essa origem mais o
+schema semântico identity-defining do head (no seed, o schema de parâmetros e
+refinements de D8). A identidade semântica de uma specialization é o construtor,
+as substitutions normalizadas e as identidades de witnesses. `DeclarationContractKey`
+é o contrato público da declaração; `SemanticInterfaceKey` agrega contratos e
+fatos públicos do módulo. `DeclarationContractKey` inclui os facts públicos da
+declaração e de seus children, keyed pela `NominalDeclarationOrigin`, mas
+exclui documentação, source maps, private bodies e declarations não relacionadas.
+`SemanticInterfaceKey` agrega a lista ordenada desses contratos e os imports,
+reexports e facts do módulo. Bodies, contratos e ABI entram na recipe física com
+target, toolchain e limites; `TypeId` continua um handle internado local. A
+mudança do predicate/refinement do próprio head muda o construtor. A mudança de
+field/member muda `DeclarationContractKey`, não origin nem construtor; docs
+mudam `DocumentationKey`; private body muda body ou artifact. Outra declaration
+não muda origin/construtor, embora possa mudar a `SemanticInterfaceKey` agregada.
+
+`NominalDeclarationOrigin` é um receipt caller-owned composto por:
+
+- a preimage canônica completa da authority já autenticada pelo resolver, com
+  domínio próprio (não um alias ou digest isolado);
+- o scoped package name;
+- o caminho canônico do módulo como vetor de segmentos NFC semanticamente
+  resolvidos;
+- o nominal declaration kind;
+- a cadeia de owners semânticos; e
+- o declared name.
+
+No seed D9, os kinds nominais são somente `STRUCT=1`, `TYPE=2`,
+`OBJECT=3`, `ENUM=4`, `PROTOCOL=5` e `SERVICE=6`; zero é `INVALID`.
+`alias` preserva a origem da declaração que ele reexporta. Callable origin,
+function overload e const declaration não são type constructors nesta fatia e
+continuam um gap separado.
+
+Version, revision, source/mirror, dependency alias, workspace, checkout/file
+path, source-set, feature, target, profile, edition, spans, docs, interface
+digest e body são excluídos. `ModuleIdentity` é `PackageIdentity` mais o caminho
+canônico. O caminho vem de `modules`/`moduleSets`, não do filename físico depois
+da resolução. Alias humano é apresentação; reexport e `alias` preservam a
+origem. Mover o arquivo sem mudar o módulo preserva a origem. Renomear/mover o
+módulo, trocar package/authority ou kind muda.
+
+O scoped package name é exatamente duas partes ASCII separadas por `/`, cada
+uma com 1--63 bytes, iniciada por `[a-z]` e continuada por `[a-z0-9-]`, com
+no máximo 127 bytes no total. Cada segmento de módulo, owner e declaration name
+usa o identificador ASCII `[A-Za-z_][A-Za-z0-9_]*`, sem NUL. UTF-8 inválido e
+texto ASCII que viola a gramática são `INVALID`; UTF-8 válido não-ASCII é
+`UNSUPPORTED` até NFC. Um fact bem-formado que excede somente o ceiling de
+implementação também é `UNSUPPORTED`.
+
+A authority receipt é trust input do resolver. O seed verifica estrutura,
+integridade e relação da view recebida, mas não inventa nem simula autorização
+de registry/Git; `.registry("w")` cru não é uma authority preimage. `.local` e
+ephemeral exigem uma origem build-local nonportable; `.local` nunca é
+publicável e permanece gap explícito.
+O gate usa uma synthetic authority fixture oracle e não declara resolver de
+registry implementado.
+
+O receipt usa o schema `w-seed-nominal-origin-1`, domain-separated, sem
+terminador NUL, com lengths/counts big-endian:
+
+```text
+ASCII "w-seed-nominal-origin-1"
+0x4f
+0x41 u32(authority-byte-length) authority-preimage
+0x50 text(scoped-package-name)
+0x4d u32(module-segment-count)
+  repeated: 0x49 text(segment)
+0x44 u8(nominal-kind) u32(owner-count)
+  repeated: u8(owner-kind) text(owner-name)
+text(declared-name)
+```
+
+No vínculo frontend bounded, o builder aceita somente facts ASCII e marca
+Unicode/NFC como `UNSUPPORTED`; o resolver continua owner da normalização. O
+builder mede e escreve em buffer caller-owned, publica required/written exatos e
+SHA-256 accelerator, verifica overflow/capacity e nunca publica escrita parcial.
+Input, output, result, authority/text arrays e origin views devem ser disjuntos;
+os facts permanecem imutáveis entre measure e write.
+View inválida, digest divergente, framing truncado ou trailing bytes são
+`INVALID` antes da evaluation. Equality exige comprimento, digest e bytes
+completos; digest é só accelerator. O builder publica no máximo 16.384 bytes
+de preimage. O parser usa um envelope hard de framing de 65.536 bytes: uma
+view acima desse envelope é `INVALID` sem leitura ilimitada; dentro dele, o
+framing completo que excede somente o ceiling do feature pode ser
+`UNSUPPORTED`, enquanto truncação ou outra falha de framing é `INVALID`. SHA é
+obrigatório para todo framing parseado como `AVAILABLE` ou `UNSUPPORTED`; só
+framing `INVALID` evita a verificação SHA.
+
+`w_seed_generic_validation_input` recebe uma view opcional. Ausência permite
+`VERIFIED` sem identidade publicável e produz `specialization_state =
+IDENTITY_REQUIRED`, `0/0` e digest zero. Uma view válida precisa relacionar
+module e head, kind e owner chain. O seed não adiciona sintaxe W.
+
+O schema de specialization sobe para `w-seed-generic-specialization-2` e o
+validation sobe para `w-seed-generic-validation-8`. `fingerprint-1` permanece
+byte-for-byte estável. A specialization-2 codifica uma vez o preimage nominal
+completo e, depois, o schema de parâmetros/refinements D8, substitutions e o
+vector de witnesses. Ela não repete module/head fora do receipt. A codificação
+exata é:
+
+```text
+ASCII "w-seed-generic-specialization-2"
+0x49
+0x4f u32(origin-preimage-byte-length) origin-preimage
+0x44 u32(parameter-count)
+  D8 parameter/refinement records
+0x53 u32(substitution-count) D8 substitutions
+0x57 u32(witness-count)
+```
+
+O seed D9 emite `witness-count = 0`, porque ainda não há receipts autoritativos
+de witness. Immediate/computed/named/diamond com o mesmo resultado normalizado
+continuam iguais; predicate/refinement body diferente continua produzindo specialization
+diferente. A camada não é recipe física, `TypeId`, `SemanticInterfaceKey` ou
+resolver.
+
+O digest do predicate body ConstIR é um proxy bounded do seed para distinguir
+lowerings observados. Ele não é um receipt semântico autoritativo universal do
+predicate ou do construtor; esse receipt no compiler completo continua gap. A
+version fica fora da origin, enquanto `SemanticInterfaceKey` e `WAbiKey`
+impedem misturar contratos ou ABIs incompatíveis.
+
+A matriz obrigatória cobre receipt truncated, trailing, digest-corrupt,
+full-module, head, kind, owner e process-index mismatch. Cada caso é
+`INVALID` pre-evaluation com counters/receipts/output intactos; capacity
+zero/exact/short-by-one e aliases de origin também são exercitados.
+
 Uma specialization semântica possui uma identidade collision-safe. A
 identidade é a igualdade dos bytes do preimage canônico completo. O digest
 SHA-256 é somente um accelerator. Um comparador pode rejeitar por comprimento
@@ -7682,14 +7812,14 @@ ou digest diferente, mas deve comparar o preimage completo quando ambos
 coincidem. Digest corrompido ou forçado nunca produz igualdade sem bytes
 iguais.
 
-O schema do preimage seed é `w-seed-generic-specialization-1`. A codificação é
+O schema histórico do preimage D8 foi substituído pela
+`w-seed-generic-specialization-2` acima. A codificação D9 é
 domain-separated, não usa terminador NUL e usa integers, lengths e counts
 big-endian. Text é `u32 length` seguido dos bytes UTF-8. O encoding D8 é:
 
-- prefixo ASCII `w-seed-generic-specialization-1`;
-- root tag `0x48`;
-- declaration tag `0x44`, declaration kind `0x01` para local struct, module id,
-  head name e `u32 parameter_count`;
+- o prefixo/root/origin e o declaration framing de D9 descritos em §8.7.12.0;
+- os records de parâmetro/refinement, substitutions e witness vector mantêm a
+  codificação D8 abaixo, sem repetir module/head;
 - cada parâmetro, em ordinal order, usa tag `0x50`, `u32 ordinal`, `u8 kind`
   (`1` para type, `2` para value), `u8 domain kind` (`0` para type, `1` para
   concrete, `2` para dependent), o canonical domain type quando concrete ou
@@ -30902,6 +31032,14 @@ W-1451–W-1453 como `oracle-backed-current`. Ele é `design-oracle-input` e
 rota `adversarial` para cada gate. A máquina deriva o outcome de facts em
 cópias do FZ0, da classificação do ledger e do protocolo HUM0. Ela não usa
 `expected`, ID, score, preference ou resultado fornecido pelo caller.
+
+W-1468 é posterior ao snapshot histórico e não é inserido retroativamente nos
+seis casos FRC0. Sua ligação corrente com a fronteira de freeze é
+`GPF0-W-1468-current` em [`tooling/generic-fingerprint-cases.json`](tooling/generic-fingerprint-cases.json)
+e a entrada `oracle-backed-current` de W-1468 em
+[`tooling/design-freeze-classification.json`](tooling/design-freeze-classification.json).
+Essa cadeia usa fragments source-backed e uma authority fixture sintética; não
+prova autorização de registry/Git, compiler, runtime ou provider.
 
 | Gate | Current | Adversarial | Contrato fechado |
 |---|---|---|---|

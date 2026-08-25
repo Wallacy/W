@@ -526,6 +526,47 @@
         "determinism": "O gate reconstrói declaration schema, substitution vector e witness count zero em duas execuções e compara os bytes escritos pelo C, digest, length e estados; TYPE/dependent domain é exercitado por StaticValue Bool/String."
       },
       "scope": "Evidence local D8 para specialization em local struct, type/value arguments, TYPE/dependent domains e refinements ConstIR do subset. Fragments Last Light sustentam os witnesses principais; head/module/refinement adversaries são fixtures C sintéticos. Receipts autoritativos de package/interface, witness selection geral, recipe física, TypeId runtime, compiler completo e cache persistente continuam gaps."
+    },
+    {
+      "id": "GPF0-W-1468-current",
+      "decisions": ["W-1468"],
+      "source": {
+        "path": "reference/last-light/build.w",
+        "symbol": "authority: .registry(\"w\")"
+      },
+      "description": "Corpus source-backed para origem nominal collision-safe e specialization-2, com boundary explícita do resolver.",
+      "witnesses": {
+        "package": "last-light/restaurant",
+        "authority": "w-authority-fixture-1|registry=w",
+        "authorityFixture": "synthetic authority fixture; não é autorização de registry",
+        "modules": {
+          "domain": "reference/last-light/domain.w",
+          "generics": "reference/last-light/generics.w"
+        },
+        "domainHeads": ["StagePath"],
+        "genericHeads": ["FinalCallValue", "UltimateAnswer", "AnswerPair", "StaticValue"],
+        "equivalent": ["immediate", "computed", "named", "diamond", "duplicate"],
+        "differentAuthority": "authority A/B com package/module/head iguais",
+        "differentPackage": "package A/B com authority/module/head iguais",
+        "differentModule": "domain/generics com head igual",
+        "differentKind": "kind nominal divergente ou relation inválida",
+        "differentOwner": "owner chain divergente ou relation inválida",
+        "differentBody": "predicate body/refinement diferente com origin igual",
+        "excluded": ["alias", "version", "revision", "workspace", "checkout/file path", "source spelling", "target", "feature", "profile"],
+        "missing": "VERIFIED + IDENTITY_REQUIRED + 0/0 + digest zero",
+        "corrupt": ["truncated", "trailing", "digest", "module", "head", "kind", "owner", "process"],
+        "capacity": ["zero", "exact", "short-by-one"],
+        "collision": "forced digest collision não iguala preimages distintos"
+      },
+      "oracle": {
+        "runner": "tooling/check-seed-generic-validation.mjs",
+        "implementations": [
+          "seed C",
+          "Bun com reconstrutor independente de origin receipt e specialization-2"
+        ],
+        "determinism": "O gate extrai markers reais dos três arquivos Last Light, executa witnesses domain/generics em módulos separados, compara bytes/length/SHA C+Bun e repete a matriz sem alegar resolver de registry."
+      },
+      "scope": "Evidence local D9 bounded; NFC/resolver completo, authority registry/Git, .local build-local nonportable e nunca publicável, witness selection geral, recipe física, TypeId runtime, compiler completo e self-host continuam gaps."
     }
   ]
 }
