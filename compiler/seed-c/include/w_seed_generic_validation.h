@@ -13,7 +13,7 @@ extern "C" {
 
 /* Internal seed-C generic predicate validation.  This is not a W interface
  * and it does not create a final specialization or a type identity. */
-#define W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION "w-seed-generic-validation-4"
+#define W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION "w-seed-generic-validation-5"
 #define W_SEED_GENERIC_VALIDATION_FINGERPRINT_SCHEMA_VERSION \
   "w-seed-generic-fingerprint-1"
 #define W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES 32u

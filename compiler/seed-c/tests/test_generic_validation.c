@@ -531,10 +531,15 @@ static bool probe_domain_file_with_quota(const char *path, size_t step_quota) {
     const bool is_ultimate_answer =
         application->head_name.length == 14u &&
         memcmp(application->head_name.data, "UltimateAnswer", 14u) == 0;
+    const bool is_d6 =
+        (application->head_name.length == 10u &&
+         memcmp(application->head_name.data, "AnswerPair", 10u) == 0) ||
+        (application->head_name.length == 11u &&
+         memcmp(application->head_name.data, "FailurePair", 11u) == 0);
     const bool is_typed_pending =
         application->binding_status ==
         W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST;
-    if (!is_stage_path && !is_final_call && !is_ultimate_answer &&
+    if (!is_stage_path && !is_final_call && !is_ultimate_answer && !is_d6 &&
         !is_typed_pending)
       continue;
     w_seed_generic_validation_result result;
@@ -548,6 +553,7 @@ static bool probe_domain_file_with_quota(const char *path, size_t step_quota) {
                        value.frontend_result.written.const_declarations != 0u;
     const char *record_kind = is_stage_path ? "GENERIC" :
                               is_final_call ? "STRING" :
+                              is_d6 ? "D6" :
                               is_d4 ? "D4" : "D3";
     printf("%s app=%llu state=%s failure=%s diagnostic=%d predicates=%llu "
            "computed=%llu receipts=%llu steps=%llu cache_hits=%llu "
@@ -2658,6 +2664,37 @@ static bool test_fingerprint_adversarial_inputs(void) {
   return true;
 }
 
+static bool test_predicate_session_isolation(void) {
+  static const char source[] =
+      "const answerSeed: i64 = 21\n"
+      "const firstAnswerHalf: i64 = answerSeed\n"
+      "const secondAnswerHalf: i64 = answerSeed\n"
+      "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
+      "const fn isUltimateAnswer(value: i64): Bool { return value == assembledUltimateAnswer }\n"
+      "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
+      "struct Use { computed: UltimateAnswer<(assembledUltimateAnswer)> }\n";
+  CHECK(fixture_lower(&value, source));
+  CHECK(value.frontend_result.written.generic_applications == 1u);
+  w_seed_generic_validation_result result;
+  CHECK(validate_application(
+            &value, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &result) == W_SEED_GENERIC_VALIDATION_VERIFIED);
+  CHECK(result.computed_argument_count == 1u && result.predicate_count == 1u &&
+        result.receipts_written == 2u);
+  CHECK(value.receipts[0].kind ==
+            W_SEED_GENERIC_VALIDATION_RECEIPT_CONST_ARGUMENT &&
+        value.receipts[0].evaluation.consumed_steps == 7u &&
+        value.receipts[0].evaluation.const_cache_misses == 4u &&
+        value.receipts[0].evaluation.const_cache_hits == 1u &&
+        value.receipts[1].kind == W_SEED_GENERIC_VALIDATION_RECEIPT_PREDICATE &&
+        value.receipts[1].evaluation.consumed_steps == 9u &&
+        value.receipts[1].evaluation.const_cache_misses == 4u &&
+        value.receipts[1].evaluation.const_cache_hits == 1u &&
+        value.receipts[1].result_is_bool && value.receipts[1].bool_value);
+  return true;
+}
+
 static bool test_named_module_const_d4(void) {
   static const char named_source[] =
       "export const ultimateAnswer: i64 = 6 * 7\n"
@@ -3157,6 +3194,111 @@ static bool test_named_module_const_d4(void) {
         value.receipts[0].evaluation.consumed_steps == 6u &&
         value.receipts[0].evaluation.const_cache_misses == 4u &&
         value.receipts[0].evaluation.const_cache_hits == 0u);
+
+  /* D6 keeps one private session for the calculated arguments of one
+   * application.  The second sibling reuses the ready root declaration while
+   * its own CALL node still consumes one step. */
+  static const char sibling_source[] =
+      "const answerSeed: i64 = 21\n"
+      "const firstAnswerHalf: i64 = answerSeed\n"
+      "const secondAnswerHalf: i64 = answerSeed\n"
+      "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
+      "struct AnswerPair<_ left: i64, _ right: i64> {}\n"
+      "struct Use { pair: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> }\n";
+  CHECK(fixture_lower(&value, sibling_source));
+  CHECK(value.frontend_result.written.generic_applications == 1u);
+  w_seed_generic_validation_result sibling_result;
+  CHECK(validate_application(
+            &value, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &sibling_result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        sibling_result.computed_argument_count == 2u &&
+        sibling_result.predicate_count == 0u &&
+        sibling_result.receipts_written == 2u &&
+        value.receipts[0].evaluation.consumed_steps == 7u &&
+        value.receipts[0].evaluation.const_cache_misses == 4u &&
+        value.receipts[0].evaluation.const_cache_hits == 1u &&
+        value.receipts[1].evaluation.consumed_steps == 1u &&
+        value.receipts[1].evaluation.const_cache_misses == 0u &&
+        value.receipts[1].evaluation.const_cache_hits == 1u &&
+        value.receipts[0].eval_value.kind == W_SEED_CONSTIR_VALUE_INTEGER &&
+        value.receipts[1].eval_value.kind == W_SEED_CONSTIR_VALUE_INTEGER &&
+        value.receipts[0].eval_value.integer_value[0] == 42u &&
+        value.receipts[1].eval_value.integer_value[0] == 42u);
+
+  /* Quota consumption remains aggregate, but a zero remaining quota fails at
+   * the second expression root before its session lookup. */
+  w_seed_generic_validation_result sibling_quota_result;
+  CHECK(validate_application(
+            &value, CONVERSION_VALUES,
+            (w_seed_constir_quota){7u, 0u, 64u, SIZE_MAX},
+            &sibling_quota_result) ==
+            W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED &&
+        sibling_quota_result.diagnostic ==
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0003 &&
+        sibling_quota_result.receipts_written == 2u &&
+        value.receipts[0].evaluation.consumed_steps == 7u &&
+        value.receipts[0].evaluation.const_cache_misses == 4u &&
+        value.receipts[0].evaluation.const_cache_hits == 1u &&
+        value.receipts[1].evaluation.consumed_steps == 0u &&
+        value.receipts[1].evaluation.const_cache_misses == 0u &&
+        value.receipts[1].evaluation.const_cache_hits == 0u);
+
+  /* A second application receives a new session, so its first argument is a
+   * fresh diamond evaluation. */
+  static const char two_application_source[] =
+      "const answerSeed: i64 = 21\n"
+      "const firstAnswerHalf: i64 = answerSeed\n"
+      "const secondAnswerHalf: i64 = answerSeed\n"
+      "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
+      "struct AnswerPair<_ left: i64, _ right: i64> {}\n"
+      "struct Use { first: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> second: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> }\n";
+  CHECK(fixture_lower(&value, two_application_source));
+  CHECK(value.frontend_result.written.generic_applications == 2u);
+  w_seed_generic_validation_result first_application_result;
+  w_seed_generic_validation_result second_application_result;
+  CHECK(validate_application_at(
+            &value, 0u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &first_application_result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        value.receipts[0].evaluation.consumed_steps == 7u &&
+        value.receipts[0].evaluation.const_cache_misses == 4u &&
+        value.receipts[0].evaluation.const_cache_hits == 1u &&
+        value.receipts[1].evaluation.consumed_steps == 1u &&
+        value.receipts[1].evaluation.const_cache_misses == 0u &&
+        value.receipts[1].evaluation.const_cache_hits == 1u);
+  CHECK(validate_application_at(
+            &value, 1u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &second_application_result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        value.receipts[0].evaluation.consumed_steps == 7u &&
+        value.receipts[0].evaluation.const_cache_misses == 4u &&
+        value.receipts[0].evaluation.const_cache_hits == 1u &&
+        value.receipts[1].evaluation.consumed_steps == 1u &&
+        value.receipts[1].evaluation.const_cache_misses == 0u &&
+        value.receipts[1].evaluation.const_cache_hits == 1u);
+
+  static const char failure_first_source[] =
+      "const broken: i8 = 127 + 1\n"
+      "const answerSeed: i64 = 21\n"
+      "const firstAnswerHalf: i64 = answerSeed\n"
+      "const secondAnswerHalf: i64 = answerSeed\n"
+      "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
+      "struct AnswerPair<_ left: i8, _ right: i64> {}\n"
+      "struct Use { pair: AnswerPair<(broken), (assembledUltimateAnswer)> }\n";
+  CHECK(fixture_lower(&value, failure_first_source));
+  CHECK(value.frontend_result.written.generic_applications == 1u);
+  w_seed_generic_validation_result failure_first_result;
+  CHECK(validate_application(
+            &value, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &failure_first_result) ==
+            W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED &&
+        failure_first_result.diagnostic ==
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0006 &&
+        failure_first_result.receipts_written == 1u &&
+        value.receipts[0].evaluation.const_cache_misses == 1u &&
+        value.receipts[0].evaluation.const_cache_hits == 0u);
   return true;
 }
 
@@ -3182,6 +3324,7 @@ int main(int argc, char **argv) {
       !test_quota_unsupported_and_invalid() ||
       !test_direct_scalar_predicates() ||
       !test_typed_const_expression_predicates() ||
+      !test_predicate_session_isolation() ||
       !test_preflight_capacity_precedence() ||
       !test_dependent_effective_domains() ||
       !test_string_predicate_conversion_boundary() ||

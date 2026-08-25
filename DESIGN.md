@@ -3442,8 +3442,52 @@ fingerprint `w-seed-generic-fingerprint-1`.
 Esta é a projeção D5 bounded, não um compiler ou runtime completo. O cache
 compartilhável de §3.6.5, cache cross-argument/session, imports, associated
 const, initializer inference, identity final, runtime e self-host permanecem
+fora do limite. A base D5 usava frontend-6, ConstIR-6, generic-validation-4
+e fingerprint-1; programas sem module const preservam a projeção anterior.
+
+W-1465 (D6) acrescenta uma sessão de avaliação privada e local ao
+`w_seed_generic_validation_run`. A sessão começa vazia imediatamente antes do
+loop de argumentos e termina quando a fase de argumentos termina ou falha.
+Somente os argumentos `TYPED_PENDING_CONST` são avaliados pela variante interna
+`evaluate_in_session`; argumentos imediatos continuam convertidos na mesma
+posição. A chamada pública `w_seed_constir_evaluate` mantém uma sessão nova por
+chamada. Predicates continuam usando essa chamada pública e não compartilham a
+sessão dos argumentos.
+
+A sessão possui uma tabela fixa, allocation-free, com 256 entradas. Esse teto é
+o mesmo de `W_SEED_GENERIC_VALIDATION_MAX_CONST_DEPENDENCIES`; uma asserção
+estática mantém os dois limites iguais. A chave continua sendo a identidade da
+declaration no programa fixo. Entradas `ACTIVE` detectam ciclo. Somente um
+resultado completo, válido e bem-sucedido vira `READY`. Falha, panic, quota,
+resultado inválido e `ACTIVE` não são reutilizáveis. Uma entrada `READY` pode
+ser usada por argumentos calculados irmãos na mesma aplicação. Não existe
+eviction, heap, persistência, estado entre runs, threads, programas ou
+processos, nem API pública para a sessão.
+
+Os counters permanecem por evaluation e receipt. A quota de steps, heap e
+result bytes continua agregada por `quota_consume`; call-depth continua sendo
+limitado por evaluation. O primeiro argumento do witness diamond conserva 7
+steps, 4 misses e 1 hit. O segundo argumento irmão consome 1 step, 0 misses e
+1 hit. Quota total 8 aceita os dois argumentos. Quota 7 aceita o primeiro e
+falha o segundo antes do lookup quando a quota restante é zero, com 0 steps,
+0 hits e 0 misses nessa segunda evaluation. Nova aplicação ou novo run reinicia
+a sessão. O fingerprint e seu preimage não incluem sessão, counters ou trabalho
+omitido.
+
+O witness Last Light usa `AnswerPair<_ left: i64, _ right: i64>` com o membro
+estático `agrees = left == right`, duas aliases textualmente equivalentes que
+passam `assembledUltimateAnswer` nos dois value slots e o teste
+`restaurantGenericContractHolds`. O oráculo Bun reconstrói independentemente a
+preimage dos dois i64.
+D5 de argumento único permanece observável com 7 steps, 4 misses e 1 hit.
+Ciclos, corrupção e dependency-limit permanecem preflight-causais com zero
+counters. Falha no primeiro argumento calculado impede o segundo.
+
+Esta é a projeção D6 bounded, não um compiler ou runtime completo. O cache
+compartilhável de §3.6.5, predicates, outra aplicação, imports, associated
+const, initializer inference, identidade final, runtime e self-host permanecem
 fora do limite. Os schemas correntes são frontend-6, ConstIR-6,
-generic-validation-4 e fingerprint-1; programas sem module const preservam a
+generic-validation-5 e fingerprint-1; programas sem module const preservam a
 projeção anterior.
 
 A interface de um `const fn` exportado inclui ConstIR normalizada e digest. Um
@@ -7479,17 +7523,22 @@ implementa identifiers/named const ou graph dependencies/cycles. D4 fecha
 somente referências a module const locais, tipadas, explícitas e bounded. D5
 fecha memoização local por invocação para esse subset: tabela vazia e bounded,
 quatro misses/um hit/sete steps no diamond, counters em evaluation result e
-receipts, e quota pelo trabalho executado. Imports, associated const,
-initializer inference, cache compartilhável/cross-argument/session, identity
-final, compiler/runtime e self-host continuam fora.
+receipts, e quota pelo trabalho executado. D6 acrescenta uma sessão privada ao
+loop de argumentos calculados de uma aplicação: o primeiro argumento diamond
+mantém quatro misses/um hit/sete steps e o segundo irmão consome zero misses/um
+hit/um step. A sessão termina com a fase de argumentos, não alcança predicates,
+outra aplicação ou outro run, e não altera o fingerprint. Imports, associated
+const, initializer inference, cache compartilhável, identity final,
+compiler/runtime e self-host continuam fora.
 
-A projeção D4/D5 é validada depois do frontend pela mesma camada caller-owned. O
+A projeção D4/D5/D6 é validada depois do frontend pela mesma camada caller-owned. O
 preflight percorre dependencies em ordem de source, rejeita corrupção sem
 step, limita o grafo a 256 dependencies e publica o caminho de ciclo fechado.
 O validator não avalia initializer no frontend nem converte a relação em
 `ConstValue` até o ConstIR evaluator. A evidência corrente é o gate Bun/C
 [`tooling/check-seed-generic-validation.mjs`](tooling/check-seed-generic-validation.mjs)
-e os casos `GPF0-W-1463-current` e `GPF0-W-1464-current`.
+e os casos `GPF0-W-1463-current`, `GPF0-W-1464-current` e
+`GPF0-W-1465-current`.
 
 O limite de 256 dependencies é uma fronteira de grafo: 257 declarations bem
 formadas são `UNSUPPORTED` com failure `dependency-limit`, e com zero step,
@@ -7507,8 +7556,9 @@ seed e executa
 Esta fronteira não promove o seed C a compiler W completo. Imported heads,
 String computed result, initializer inference, identity final, detailed causal
 slices, runtime e self-host continuam gaps de implementação; imports,
-associated const, cache compartilhável de §3.6.5, cache cross-argument/session
-e o runtime completo também permanecem fora da projeção D5.
+associated const, cache compartilhável de §3.6.5 e o runtime completo também
+permanecem fora da projeção D6. A sessão privada não é uma API pública nem um
+estado persistente.
 
 #### 8.7.12 Fingerprint semântico pós-validação (W-1460)
 
@@ -7564,6 +7614,11 @@ tabela, ordem local de lookup e trabalho omitido não entram no fingerprint.
 Assim `UltimateAnswerShared` e sua aplicação duplicada têm o mesmo digest de
 immediate `42`, D3 `(6 * 7)` e D4 `UltimateAnswer<(ultimateAnswer)>`, enquanto a
 invocação repetida somente repete a evaluation local.
+D6 mantém o mesmo preimage para os dois argumentos irmãos de
+`AnswerPair`: cada slot usa o valor normalizado de `assembledUltimateAnswer`,
+sem incluir o estado da sessão, counters, ordem de lookup ou trabalho omitido.
+Uma aplicação duplicada mantém o mesmo digest. A reconstrução Bun escreve os
+dois i64 diretamente e não usa os counters do C.
 O dependency graph ceiling de 257 declarations é `UNSUPPORTED` com failure
 `dependency-limit` antes de receipt/step; dependency fora do subset usa a
 failure `function`. Arithmetic overflow em declaration lowerable, como
@@ -30474,7 +30529,7 @@ evidência de design:
 | services, wire e recovery | B0 e SR0 fecham turn, gates, queue bounded, deduplication, recovery e faults; wWire tem baseline | fechar wire byte-exact, flow control e adapters reais com fault injection |
 | packages e releases | P0 fecha resolver, lock, CAS, recipe, mirror e rebuild | fechar prerelease, trust, archive safety e rebuild independente |
 | bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
-| seed C generic validation | §8.7.11/§8.7.12 fecham D1, D2 source-backed de `String` simples, D3 de expressions escalares parentetizadas, D4 de named const local com grafo bounded e D5 de memoização local por invocação, sem nova superfície W | manter gates C/Bun, receipts, counters, caminhos de ciclo e digests versionados; compiler completo, imports, associated const, inference, cache compartilhável/cross-argument/session, identity final, runtime e self-host continuam implementation evidence gaps |
+| seed C generic validation | §8.7.11/§8.7.12 fecham D1, D2 source-backed de `String` simples, D3 de expressions escalares parentetizadas, D4 de named const local com grafo bounded, D5 de memoização local por avaliação e D6 de sessão privada por aplicação, sem nova superfície W | manter gates C/Bun, receipts, counters, caminhos de ciclo e digests versionados; compiler completo, imports, associated const, inference, cache compartilhável, identity final, runtime e self-host continuam implementation evidence gaps |
 | ergonomia comparativa | R0/R0S/R1 guardam substituições e variantes observáveis | ratificar formas que ainda mudam source ou registrar waiver motivado |
 
 #### 24.4.0 Fechamento PRC0 de gates de pesquisa
@@ -31080,8 +31135,8 @@ Saída: parse/format/parse estável e diagnostics preparados.
   arguments e predicates por ConstIR e projeção bounded de
   `ConstRejectionSlice`, incluindo as fatias D2 source-backed de `String`
   simples em `==`/`!=`, D3 de expressions escalares parentetizadas, D4 de
-  named const local com dependency graph bounded e D5 de memoização local por
-  invocação;
+  named const local com dependency graph bounded, D5 de memoização local por
+  invocação e D6 de sessão privada por aplicação;
 - rest signatures, call-shape intersection e `each` expansion;
 - synthesis core, `TypeId` e interfaces de reflection;
 - grafo const, ConstIR, quotas e ConstValue;

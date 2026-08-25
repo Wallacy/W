@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-/* Internal seed-C ConstIR D1-D5. This is not an importable W interface. */
+/* Internal seed-C ConstIR D1-D6. This is not an importable W interface. */
 #define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-6"
 #define W_SEED_CONSTIR_NONE UINT32_MAX
 #define W_SEED_CONSTIR_INTEGER_BYTES 16u

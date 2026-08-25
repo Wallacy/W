@@ -1325,6 +1325,67 @@ cross-argument/session, imports, associated const, initializer inference,
 identity final, runtime e self-host. Também não há sintaxe nova, estado global,
 cross-thread, cross-program ou persistência.
 
+#### 1.3.21.5 Sessão de avaliação por aplicação (W-1465)
+
+**Motivação:** D5 evitava a reavaliação de uma declaration dentro de uma
+evaluation, mas duas arguments irmãos da mesma aplicação ainda começavam com
+uma tabela vazia. O Restaurante precisa fatorar naturalmente o mesmo
+`assembledUltimateAnswer` em dois value slots sem introduzir syntax nova ou
+estado compartilhado entre aplicações.
+
+A forma corrente mantém `w_seed_constir_evaluate` público e inicia uma sessão
+privada, vazia e allocation-free para cada chamada direta. O generic validator
+cria uma sessão privada imediatamente antes do loop de argumentos calculados.
+Ele passa os argumentos `TYPED_PENDING_CONST` em ordem para
+`evaluate_in_session`; immediate arguments continuam convertidos na mesma
+posição. A sessão termina quando a fase de argumentos termina ou falha.
+Predicates continuam chamando a entry pública e, portanto, recebem uma sessão
+nova. Nenhum estado de sessão chega ao caller, ao fingerprint ou à próxima
+aplicação.
+
+A sessão reutiliza a tabela fixa de 256 declarations do D5. O limite coincide
+com `W_SEED_GENERIC_VALIDATION_MAX_CONST_DEPENDENCIES`, porque o preflight D4 já
+prova a união alcançável dos DAGs calculados da aplicação dentro desse teto.
+Uma asserção estática documenta a igualdade. A chave continua sendo a
+identidade de declaration do programa fixo. `ACTIVE` conserva a defesa de ciclo
+do evaluator. Somente um resultado completo, válido e bem-sucedido vira
+`READY`; falha, panic, quota, valor inválido e `ACTIVE` ficam inutilizáveis.
+Não há eviction, heap, persistência, estado entre runs ou API pública.
+
+Os counters continuam append-only por evaluation e receipt. A quota continua
+agregada pela mesma sequência de `quota_consume`, e call-depth continua sendo
+um teto por evaluation. O witness de dois slots demonstra 7 steps, 4 misses e
+1 hit no primeiro argument. O segundo irmão demonstra 1 step, 0 misses e 1 hit.
+Quota total 8 aceita os dois. Quota 7 aceita o primeiro e falha o segundo antes
+do lookup, com 0 steps, 0 misses e 0 hits na segunda evaluation. Uma nova
+aplicação ou run repete 7/1 e reinicia a sessão. Falha no primeiro calculated
+argument impede o segundo. Ciclo, corrupção e dependency-limit continuam sendo
+decisões de preflight com counters zero.
+
+O Last Light acrescenta `AnswerPair<_ left: i64, _ right: i64>` com o membro
+estático `agrees = left == right` e as aliases `ConsistentUltimateAnswer` e
+`ConsistentUltimateAnswerDuplicate`, textualmente equivalentes, com
+`assembledUltimateAnswer` nos dois slots. O witness
+`GPF0-W-1465-current` cruza as duas aplicações, uma quota compartilhada, um novo
+run e uma reconstrução Bun independente da preimage de dois i64. O caso mantém
+o witness D5 de argumento único e seus 7 steps, 4 misses e 1 hit.
+
+Alternativas rejeitadas:
+
+- expor a sessão ao caller, pois isso cria estado mutável fora do seed compiler;
+- usar tabela global, persistente ou compartilhada, pois mistura aplicações,
+  runs, programas ou threads e torna quotas e receipts imprevisíveis;
+- compartilhar a sessão com predicates, pois a causalidade de predicates
+  deixaria de ser uma evaluation independente;
+- incluir counters ou sessão no fingerprint, pois factoring equivalente mudaria
+  a preimage sem mudar os dois valores semânticos;
+- ampliar o teto, usar eviction ou alocar no heap, pois o preflight já prova o
+  limite de 256 e a sessão deve morrer com a aplicação.
+
+O caso é `oracle-backed-current`, não compiler, runtime ou self-host completo.
+Cache compartilhável de §3.6.5, imports, associated const, initializer
+inference, identidade final e sintaxe W nova permanecem fora do bundle.
+
 #### 1.3.22 Subject de refinement
 
 **Exemplo:** `String<(.scalars.count in 1...40)>` e
@@ -7095,6 +7156,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1462 | expressão const tipada escalar em generic value | D3 source-backed bounded de expressão parentetizada com literais, grouping, unary e binary operators escalares, resultado `Bool` ou integer explícito, função ConstIR sintética com origem explícita, receipts `CONST_ARGUMENT`/`PREDICATE` ordenados e fingerprint normalizado | oracle-backed-current; `GPF0-W-1462-current` liga os markers reais de `generics.w`, prova immediate `42`, computed `(6 * 7)`, duplicate, rejected `(6 * 6)`, quota cumulativa, overflow, unsupported call e corrupção com seed C e reconstrução Bun independente; identifiers/named const, graph dependencies/cycles, imported heads/predicates, String computed result, identity final, compiler/runtime e self-host permanecem limites |
 | W-1463 | module named const no generic value | D4 source-backed bounded de `const name: Type = expression` local, relation explícita, forward reference, lowering ConstIR sintético com dependency `CALL`, preflight causal de graph/cycles, receipts e fingerprint normalizado igual ao immediate/D3 | oracle-backed-current; `GPF0-W-1463-current` liga markers reais de `generics.w`, prova named/duplicate `42`, forward chain, rejected, cycles self/2/3 com paths fechados, ciclo inalcançável, type mismatch, unresolved, unsupported, corruption, zero capacity, quota, `dependencyLimit` (257 declarations, `UNSUPPORTED` + failure `dependency-limit`) e `arithmeticOverflow` (`W-CONST-0006`, receipt `CONST_ARGUMENT` sem predicate) com seed C e oráculo Bun independente; dependency fora do subset mantém failure `function`; imports, associated const, initializer inference, cache compartilhável/cross-argument/session, identity final, compiler/runtime e self-host permanecem limites |
 | W-1464 | memoização local determinística de DAG de module const | D5 source-backed bounded para module const local `Bool`/integer já lowerable por D4: tabela fixa por invocation, chave por declaration identity, estados `ACTIVE`/`READY`, counters append-only em evaluation result/receipts, hits que omitem body work e preservam o step do `CALL`, reset e quota observáveis, sem alterar preflight causal ou fingerprint | oracle-backed-current; `GPF0-W-1464-current` liga os markers reais de `generics.w`, prova diamond 4 misses/1 hit/7 steps, reconstrução Bun independente de source order, repeated invocation, D3/D4 linear com zero hits, quota 7/6, arithmetic failure não cacheada, cycles/zero capacity/dependency-limit/corruption com counters zero e receipt causal de ciclo somente quando há capacidade e fingerprint idêntico ao immediate/D3/D4; cache compartilhável de §3.6.5, cross-argument/session, imports, associated const, inference, identity final, compiler/runtime e self-host permanecem limites |
+| W-1465 | sessão privada de avaliação por aplicação | D6 source-backed bounded para duas arguments `TYPED_PENDING_CONST` da mesma aplicação: sessão vazia por run, tabela fixa de 256 compartilhada somente durante o loop de argumentos, READY reutilizável entre irmãos, predicates com evaluation nova, counters/quotas/receipts/fingerprint preservados e sem API pública | oracle-backed-current; `GPF0-W-1465-current` liga `AnswerPair.agrees`, as aliases equivalentes e o teste `restaurantGenericContractHolds` do Restaurante, prova primeiro argument 7 steps/4 misses/1 hit, segundo irmão 1 step/0 misses/1 hit, quota total 8, quota 7 com falha antes do lookup no segundo, novo run 7/1, failure-first, cycle/corruption/dependency-limit preflight zero e preimage Bun independente de dois i64; cache compartilhável, outro run/application, imports, associated const, inference, identity final, compiler/runtime e self-host permanecem limites |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,

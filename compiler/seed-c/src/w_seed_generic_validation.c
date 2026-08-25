@@ -1,4 +1,5 @@
 #include "w_seed_generic_validation.h"
+#include "w_seed_constir_session.h"
 
 #include <string.h>
 
@@ -51,6 +52,9 @@ static const uint8_t FINGERPRINT_PREFIX[] =
 _Static_assert(W_SEED_GENERIC_VALIDATION_MAX_PREDICATES <=
                    W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_RECORDS,
                "generic evidence record ceiling must cover predicates");
+_Static_assert(W_SEED_GENERIC_VALIDATION_MAX_CONST_DEPENDENCIES ==
+                   W_SEED_CONSTIR_MAX_CONST_MEMO_ENTRIES,
+               "generic dependency and private session ceilings must match");
 _Static_assert(sizeof("predicate:false") - 1u <=
                    W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_BYTES,
                "generic rejection evidence exceeds byte ceiling");
@@ -2262,9 +2266,11 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
   w_seed_constir_quota remaining = input->quota;
   size_t const_receipt_index = 0u;
   bool evaluation_started = false;
+  w_seed_constir_session session;
+  w_seed_constir_session_init(&session);
   /* Evaluate calculated values in argument order.  Immediate values are
    * converted into the same bounded arena and receive the same normalized
-   * value representation. */
+   * value representation.  The private session is alive only for this loop. */
   for (uint32_t offset = 0u; offset < application->argument_count;
        offset += 1u) {
     const w_seed_frontend_generic_parameter *parameter = NULL;
@@ -2284,9 +2290,9 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
         W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST) {
       const size_t function_index = typed_function_indices[offset];
       evaluation_started = true;
-      const w_seed_constir_status status = w_seed_constir_evaluate(
+      const w_seed_constir_status status = w_seed_constir_evaluate_in_session(
           context.program, (uint32_t)function_index, NULL, 0u,
-          remaining, input->eval_workspace, &value, &evaluation);
+          remaining, input->eval_workspace, &session, &value, &evaluation);
       quota_consume(&remaining, &evaluation);
       result->evaluation = evaluation;
       result->diagnostic = evaluation.diagnostic;

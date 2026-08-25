@@ -342,6 +342,95 @@
         "determinism": "O gate reconstrói o grafo por nomes e source order, calcula misses/hits/steps sem copiar expected, compara receipts C e repete a avaliação com tabela vazia."
       },
       "scope": "Evidence local D5 para module const Bool/integer D4 com memoização allocation-free, bounded e por invocação; não fecha cache compartilhável, cross-argument/session, imports, associated const, inference, identidade final, runtime ou self-host."
+    },
+    {
+      "id": "GPF0-W-1465-current",
+      "decisions": ["W-1465"],
+      "source": {
+        "path": "reference/last-light/generics.w",
+        "symbol": "export alias ConsistentUltimateAnswer = AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)>"
+      },
+      "description": "Corpus source-backed para uma sessão privada de avaliação entre dois argumentos irmãos da mesma aplicação.",
+      "witnesses": {
+        "module": "restaurant",
+        "head": "AnswerPair",
+        "member": "agrees",
+        "root": "assembledUltimateAnswer",
+        "sourceOrder": ["answerSeed", "firstAnswerHalf", "secondAnswerHalf", "assembledUltimateAnswer"],
+        "value": 42,
+        "first": {
+          "steps": 7,
+          "misses": 4,
+          "hits": 1
+        },
+        "second": {
+          "steps": 1,
+          "misses": 0,
+          "hits": 1
+        },
+        "application": {
+          "arguments": 2,
+          "quota": 8
+        },
+        "duplicate": {
+          "aliases": 2,
+          "arguments": 2,
+          "firstSteps": 7,
+          "secondSteps": 1,
+          "firstMisses": 4,
+          "secondMisses": 0,
+          "firstHits": 1,
+          "secondHits": 1
+        },
+        "quota": {
+          "accepted": 8,
+          "secondRejected": 7,
+          "diagnostic": "W-CONST-0003",
+          "secondSteps": 0,
+          "secondMisses": 0,
+          "secondHits": 0
+        },
+        "newRun": {
+          "firstSteps": 7,
+          "secondSteps": 1,
+          "firstMisses": 4,
+          "secondMisses": 0,
+          "firstHits": 1,
+          "secondHits": 1
+        },
+        "failureFirst": {
+          "diagnostic": "W-CONST-0006",
+          "receipts": 1,
+          "secondEvaluated": false
+        },
+        "fingerprint": "same preimage for both i64 slots and the textually equivalent aliases",
+        "preflight": {
+          "cycles": {
+            "hits": 0,
+            "misses": 0,
+            "steps": 0
+          },
+          "dependencyLimit": {
+            "hits": 0,
+            "misses": 0,
+            "steps": 0
+          },
+          "corruption": {
+            "hits": 0,
+            "misses": 0,
+            "steps": 0
+          }
+        }
+      },
+      "oracle": {
+        "runner": "tooling/check-seed-generic-validation.mjs",
+        "implementations": [
+          "seed C",
+          "Bun com reconstrução independente da preimage dos dois i64"
+        ],
+        "determinism": "O gate compara os dois receipts da aplicação, a reinicialização entre aplicações e runs, quota, falha no primeiro argumento e preflight sem counters."
+      },
+      "scope": "Evidence local D6 para module const Bool/integer D4 com sessão allocation-free e bounded somente durante uma aplicação; predicates, outra aplicação, outro run, imports, associated const, inference, cache compartilhável, identidade final, runtime e self-host permanecem fora."
     }
   ]
 }
