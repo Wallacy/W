@@ -510,8 +510,9 @@ modifica os arrays do frontend e não publica type identity final ou
 monomorphization.
 
 `W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION` é
-`w-seed-generic-validation-6`; o fingerprint continua em
-`w-seed-generic-fingerprint-1`.
+`w-seed-generic-validation-7`. O fingerprint legado continua em
+`w-seed-generic-fingerprint-1`. A identidade semântica D8 usa o schema
+`w-seed-generic-specialization-1`.
 
 `BOUND_IMMEDIATE` e `TYPED_PENDING_CONST` são elegíveis. O predicate é
 localizado pela relação `frontend_function == predicate_function_index`; uma
@@ -625,8 +626,39 @@ ConstIR, não uma recomputação criptográfica nesta camada. O fingerprint é
 evidence interna de comparação, não `TypeId`, `SemanticInterfaceKey`,
 `WAbiKey`, wire/schema ID ou cache/instantiation key. Digests diferentes implicam
 preimages diferentes; um digest igual isolado não prova preimages iguais nem
-identidade collision-safe sem o preimage completo. A identity final
-continua exigindo os dados canônicos e receipts definidos em DESIGN §8.7.8.
+identidade collision-safe sem o preimage completo. O fingerprint-1 sozinho ainda
+não contém o preimage completo de declaration/substitution/witness definido para
+W-1467 e não é a identidade semântica. Target, profile, edition, toolchain,
+compiler, bundle e ABI pertencem à recipe física; a identidade final depende da
+declaração/interface e dos receipts canônicos definidos em DESIGN §8.7.8.
+
+O result também expõe `specialization_state`, `specialization_bytes_written`,
+`specialization_bytes_required` e `specialization_digest`. O input recebe um
+buffer caller-owned de preimage e sua capacidade. Estados não `VERIFIED`
+publicam `NOT_AVAILABLE`, `0/0` e digest zero. Um `VERIFIED` fora do encoder
+publica `UNSUPPORTED` e zeros sem alterar o estado principal. Um buffer curto,
+inclusive zero, publica `CAPACITY`, o tamanho exato em `bytes_required`, `0` em
+`bytes_written`, digest zero e não toca o buffer. Capacidade suficiente publica
+`AVAILABLE`, os bytes exatos e SHA-256 do preimage. `NULL` com capacidade
+não-zero é `INVALID` antes de evaluation e mantém a projeção `NOT_AVAILABLE`;
+`{nonnull,0}` é o caso `CAPACITY`. O buffer não pode aliasar frontend, ConstIR,
+conversion values, evidence, receipts ou result, e esses inputs devem ficar
+imutáveis entre measure/write. O measure pass ocorre antes do write/hash pass.
+
+O preimage D8 começa com `w-seed-generic-specialization-1` e root tag `0x48`.
+Ele codifica a declaração local struct, seu schema de parâmetros em ordinal
+order, a substitution vector normalizada e witness count zero. Domain type,
+ConstValue e predicate body digest usam a codificação canônica compartilhada
+com o fingerprint. Labels, spans, source indices, annotation presence,
+counters, quota, session e source spelling ficam fora. Target, profile,
+compiler, lowering plan e runtime facts pertencem à recipe física futura e não
+são inputs deste encoder.
+
+`w_seed_generic_specialization_equal` rejeita views vazios ou com ponteiros
+NULL e compara length, digest e os bytes completos do preimage. Digest igual
+forçado com bytes diferentes, digest corrompido ou dois views indisponíveis não
+produzem falso positivo. O digest não é `TypeId`, cache key ou identidade
+persistente. `TypeId` runtime permanece fora deste seed.
 
 O probe/gate source-backed usa `ServiceStage`, `canMove`, `isValidStagePath` e
 `StagePath` de [domain.w](../../reference/last-light/domain.w). Ele prova o path
@@ -638,12 +670,12 @@ publicam `AVAILABLE` com digest igual; a rota
 `[.accepted, .cancelled]` também é `VERIFIED`, mas tem digest
 diferente; vazio, salto e duplicata permanecem `NOT_AVAILABLE` com
 bytes zero. O gate Bun reconstrói o preimage de forma independente e o probe
-imprime module/head, estado do fingerprint, digest e `body_digest` do
-predicate.
+imprime module/head, estado do fingerprint, digest, estado/tamanho/digest da
+specialization e `body_digest` do predicate.
 
 O gate também lê `tooling/generic-fingerprint-cases.json` e exige os casos
 únicos GPF0-W-1460/W-1461/W-1462/GPF0-W-1463-current/GPF0-W-1464-current/
-GPF0-W-1465-current/GPF0-W-1466-current,
+GPF0-W-1465-current/GPF0-W-1466-current/GPF0-W-1467-current,
 suas decisões, sources e runner C+Bun. Ele verifica
 em `reference/last-light/generics.w` os marcadores únicos da assinatura de
 `StaticValue`, do body `export const expected = value`, dos aliases
@@ -700,6 +732,24 @@ count, receipt causal, counters zero e fingerprint indisponível; o witness
 multi-slot prova count 2 com um receipt e count 2 com zero receipts quando a
 capacidade é zero. A fatia não é compiler completo, identity final, imports,
 associated const, cache compartilhável, runtime ou self-host.
+
+Para W-1467, o gate reconstrói o preimage D8 de `StagePath`, `FinalCallValue`,
+`UltimateAnswer` e `AnswerPair` usando os fragments reais do Restaurante e
+também de `StaticValue<Bool,true>`/`StaticValue<String,"The final seating">`.
+O probe publica o preimage AVAILABLE em hex e o gate compara esses bytes
+escritos pelo C, length e SHA com a reconstrução Bun; não há bytes publicados
+em estados não-AVAILABLE. Os casos immediate `42`, computed `6 * 7`, named
+const, diamond e aliases equivalentes compartilham a mesma identity quando
+head, module e refinement são iguais. Head, module ou predicate body diferentes
+mudam a identity. Rejected, quota, overflow, cycle, invalid, corrupt e
+unsupported não publicam identity. Os adversários head/module/refinement são
+fixtures C sintéticos; os fragments reais sustentam somente os witnesses
+source-backed e o gate não afirma que `generics.w` inteiro compila. C cobre
+capacidade exata, zero e short-by-one com sentinels. O comparador cobre views
+vazios/NULL, digest corrompido e digest forçado com preimages diferentes. A
+receita física,
+receipts autoritativos de package/interface, witness selection geral e
+`TypeId` continuam gaps.
 
     bun tooling/check-seed-generic-validation.mjs
 

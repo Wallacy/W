@@ -3436,7 +3436,8 @@ de `W_SEED_FRONTEND_MAX_CONST_DECLARATIONS` (32768); exceder o teto é uma
 barreira antes de publicar output, nunca truncamento ou `INVALID` silencioso.
 
 O schema de frontend sobe para `w-seed-frontend-7` e o de generic validation
-para `w-seed-generic-validation-6`. `w-seed-constir-6` e
+para `w-seed-generic-validation-7`; a identidade de specialization usa
+`w-seed-generic-specialization-1`. `w-seed-constir-6` e
 `w-seed-generic-fingerprint-1` permanecem. Annotation presence, source order,
 spans/trivia, trabalho de inferência e índices process-local não entram no
 ConstIR body digest nem no fingerprint. Explicit e inferred semanticamente
@@ -3548,7 +3549,8 @@ compartilhável de §3.6.5, predicates, outra aplicação, imports, associated
 const e initializer inference fora da fronteira D6 isolada, identidade final,
 runtime e self-host permanecem fora do limite. Os schemas correntes da
 projeção D6 são frontend-6, ConstIR-6, generic-validation-5 e fingerprint-1;
-o D7 corrente usa frontend-7 e generic-validation-6. Programas sem module
+D7 introduziu generic-validation-6, e D8 eleva append-only a validação para
+generic-validation-7. Programas sem module
 const preservam a projeção anterior.
 
 A interface de um `const fn` exportado inclui ConstIR normalizada e digest. Um
@@ -7351,13 +7353,48 @@ Array.
 
 #### 8.7.8 Instantiation, termination e cache
 
-Uma instantiation é identificada por:
+W separa a identidade semântica de uma specialization da receita física que
+materializa ou reutiliza essa specialization. A separação vale mesmo quando o
+compiler escolhe monomorphization ou shared body.
 
-- declaration digest;
-- type e value arguments normalizados;
-- conformance e witness IDs;
-- target, profile e edition;
-- compiler e bundle versions.
+A identidade semântica é o preimage canônico completo destes dados:
+
+- declaração nominal semântica;
+- substitution environment normalizado, na ordem ordinal da declaração;
+- conformance e witness semantic identities, na ordem de requirements.
+
+O digest SHA-256 desse preimage é somente um accelerator. Igualdade deve
+comparar os bytes completos do preimage quando o digest e o comprimento
+coincidem. Um digest, mesmo quando igual, nunca é autoridade de igualdade.
+
+A recipe de materialização e cache inclui a specialization semântica completa
+e também os dados físicos necessários para produzir um artefato:
+
+- HIR e body implementation closure;
+- witness implementations e artifacts;
+- target registry facts, `WAbiKey` e `RepresentationMap`;
+- profile, edition, compiler, bundle e runtime versions;
+- lowering/codegen plan;
+- limites determinísticos relevantes.
+
+Essa recipe não define igualdade de tipo W. Monomorphization, shared body,
+target, profile e compiler podem mudar a recipe sem mudar a identidade
+semântica. Counters, quota de avaliação, session, spans, source spelling,
+labels e índices process-local são observações operacionais: ficam fora da
+identidade e também fora da recipe/cache. Somente limites declarados,
+determinísticos e relevantes para a materialização entram na recipe. Uma quota
+de avaliação não é um limite de instance, depth ou code-size; estes últimos só
+entram quando forem declarados como limites físicos da recipe.
+
+Edition não é um salt arbitrário da igualdade semântica. Seus efeitos
+semânticos entram na declaração/interface e na normalização que formam a
+identidade; a edition também é registrada na recipe física para reproduzir o
+lowering e o artefato.
+
+O seed D8 implementa somente a preimage semântica para o subset local já
+normalizado. Receipts autoritativos de package, interface, target, profile,
+toolchain, ABI, materialization e witness selection geral ainda não existem.
+Portanto a recipe física continua um implementation-evidence gap neste seed.
 
 Recursive calls com a mesma instantiation são normais:
 
@@ -7389,9 +7426,9 @@ build: {
 }
 ```
 
-Os limites entram na chave de cache. Um budget de code size nunca muda a
-semântica. Quando possível, o compiler escolhe um shared body em vez de falhar.
-Uma expansão de tipos que não converge continua erro.
+Os limites entram na recipe de materialização. Um budget de code size nunca
+muda a semântica. Quando possível, o compiler escolhe um shared body em vez de
+falhar. Uma expansão de tipos que não converge continua erro.
 
 #### 8.7.9 Variance e fechamento W0
 
@@ -7636,7 +7673,74 @@ associated const, cache compartilhável de §3.6.5 e o runtime completo também
 permanecem fora da projeção D6/D7. A sessão privada não é uma API pública nem um
 estado persistente.
 
-#### 8.7.12 Fingerprint semântico pós-validação (W-1460)
+#### 8.7.12 Identidade semântica de specialization e fingerprint-1
+
+Uma specialization semântica possui uma identidade collision-safe. A
+identidade é a igualdade dos bytes do preimage canônico completo. O digest
+SHA-256 é somente um accelerator. Um comparador pode rejeitar por comprimento
+ou digest diferente, mas deve comparar o preimage completo quando ambos
+coincidem. Digest corrompido ou forçado nunca produz igualdade sem bytes
+iguais.
+
+O schema do preimage seed é `w-seed-generic-specialization-1`. A codificação é
+domain-separated, não usa terminador NUL e usa integers, lengths e counts
+big-endian. Text é `u32 length` seguido dos bytes UTF-8. O encoding D8 é:
+
+- prefixo ASCII `w-seed-generic-specialization-1`;
+- root tag `0x48`;
+- declaration tag `0x44`, declaration kind `0x01` para local struct, module id,
+  head name e `u32 parameter_count`;
+- cada parâmetro, em ordinal order, usa tag `0x50`, `u32 ordinal`, `u8 kind`
+  (`1` para type, `2` para value), `u8 domain kind` (`0` para type, `1` para
+  concrete, `2` para dependent), o canonical domain type quando concrete ou
+  `u32 dependent_type_parameter_ordinal` quando dependent, `u8 refinement kind`
+  (`0` sem refinement, `1` predicate) e os 32 bytes do predicate body digest
+  quando predicate;
+- substitution tag `0x53`, `u32 argument_count` e os argumentos normalizados
+  em ordinal order. Cada argumento usa tag `0x41`, `u32 ordinal`, `u8 kind`,
+  `0x54` e canonical type para type, ou `0x56`, canonical domain type e
+  canonical ConstValue para value;
+- witness tag `0x57` e `u32 witness_count`. D8 publica somente count zero,
+  pois o subset não possui receipts autoritativos de witness.
+
+O ciclo de publicação é normativo. Se o resultado principal não for
+`VERIFIED`, a projeção é `NOT_AVAILABLE`, com `bytes_written = 0`,
+`bytes_required = 0`, digest de 32 bytes zero e sem preimage publicado. Se o
+resultado for `VERIFIED`, mas a declaração, argumento, refinement ou witness
+estiver fora do encoder, a projeção é `UNSUPPORTED` com os mesmos zeros; o
+estado principal permanece `VERIFIED`. Se o encoder for representável, a
+medição publica o `bytes_required` exato. Capacidade menor, inclusive zero,
+produz `CAPACITY`, `bytes_written = 0`, digest zero e deixa o buffer intacto;
+o estado principal continua `VERIFIED`. Somente com capacidade suficiente a
+projeção é `AVAILABLE`, com `bytes_written = bytes_required`, preimage completo
+e SHA-256 desse preimage. `CAPACITY` e `UNSUPPORTED` da projeção nunca alteram
+o estado principal.
+
+`specialization_preimage == NULL` com capacidade não-zero é input inválido:
+falha antes de evaluation, com estado principal `INVALID` e projeção
+`NOT_AVAILABLE`. O caso `{nonnull, 0}` é capacidade zero e segue `CAPACITY`
+depois de `VERIFIED`. O buffer é caller-owned, não pode aliasar frontend,
+ConstIR, conversion values, evidence, receipts ou result; esses inputs também
+não podem mudar entre a medida e a escrita. Assim a garantia de não publicar
+output parcial é determinística sem exigir heap ou uma cópia física.
+
+O canonical type e o canonical ConstValue usam exatamente a codificação
+fechada de `w-seed-generic-fingerprint-1` descrita abaixo. O declaration
+schema é parte da identidade. Não se deve derivar a identidade somente de um
+hash, de um field body ou do valor de um argumento. A futura identidade de
+módulo/package/interface usa um `SemanticInterfaceKey` ou um module-package
+declaration receipt autoritativo; ela substituirá ou ampliará o boundary local
+quando esse receipt existir.
+
+No seed D8, qualquer conformance, witness selection ou constraint fora desse
+subset é `UNSUPPORTED`. D8 não implementa a recipe física de materialização ou
+cache. Essa recipe inclui a identidade semântica, HIR/body implementation
+closure, witness implementations/artifacts, target registry facts, `WAbiKey`,
+`RepresentationMap`, profile, edition, compiler/bundle/runtime versions,
+lowering/codegen plan e limites determinísticos relevantes. Esses dados não
+entram no preimage semântico seed.
+
+##### 8.7.12.1 Fingerprint semântico pós-validação (W-1460)
 
 A camada pós-frontend pode publicar um fingerprint semântico somente depois
 que a aplicação genérica foi validada. O schema é
@@ -7657,10 +7761,8 @@ monomorphization ou autoridade de igualdade. Ele é local à versão do schema e
 não é persistível entre versões de schema. Digests diferentes implicam preimages
 diferentes; um digest igual isolado não prova que os preimages são iguais nem
 constitui identidade collision-safe. O preimage canônico completo é a autoridade
-desta projeção. A chave de instância
-final de §8.7.8 ainda precisa declaration digest, witnesses,
-target/profile/edition/compiler/bundle versions e dados canônicos
-collision-safe.
+desta projeção. `fingerprint-1` não é a identidade semântica de
+specialization, a recipe física ou `TypeId`.
 
 O preflight constrói o SHA em estado local, antes da primeira avaliação. Ele
 valida toda relação que será consumida e não publica output parcial. Somente
@@ -7889,17 +7991,24 @@ let anotherId = reflect.TypeId.of<MenuCard>()
 expect menuCardId == anotherId
 ```
 
-A identidade inclui o tipo nominal e argumentos normalizados. Ela também inclui
-refinements e subsets de enum:
+A identidade semântica completa do tipo inclui a declaração nominal, os
+argumentos normalizados e as conformance/witness semantic identities resolvidas
+na ordem de requirements. Ela também inclui refinements e subsets de enum:
 
 ```w
 expect reflect.TypeId.of<ServiceStage>() !=
   reflect.TypeId.of<WorkStage>()
 ```
 
-`TypeId` atende a `Copy`, `Equatable` e `Hashable`. Seu valor e hash podem mudar
-entre builds, toolchains e processos. O programa não deve persistir, serializar
-ou transmitir esse valor.
+`TypeId` é um handle opaco internado no build a partir dessa identidade
+semântica completa. A tabela do build resolve colisões por comparação dos bytes
+do preimage. O handle nunca é truncamento do digest e não pode ser persistido,
+serializado ou transmitido. Seu valor e hash podem mudar entre builds,
+toolchains e processos.
+
+`TypeId` atende a `Copy`, `Equatable` e `Hashable`. Esses operations usam o
+handle local. O digest da identidade semântica continua somente um accelerator
+e não é o valor de `TypeId`.
 
 Um schema ID possui outro contrato. Ele usa nome, versão e codificação
 canônicos. Um package digest também não usa `TypeId`.
@@ -30615,7 +30724,7 @@ evidência de design:
 | services, wire e recovery | B0 e SR0 fecham turn, gates, queue bounded, deduplication, recovery e faults; wWire tem baseline | fechar wire byte-exact, flow control e adapters reais com fault injection |
 | packages e releases | P0 fecha resolver, lock, CAS, recipe, mirror e rebuild | fechar prerelease, trust, archive safety e rebuild independente |
 | bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
-| seed C generic validation | §8.7.11/§8.7.12 fecham D1, D2 source-backed de `String` simples, D3 de expressions escalares parentetizadas, D4 de named const local com grafo bounded, D5 de memoização local por avaliação, D6 de sessão privada por aplicação e D7 de inferência scalar append-only, sem nova superfície W | manter gates C/Bun, receipts, counters, caminhos de ciclo e digests versionados; compiler completo, imports, associated const, cache compartilhável, identity final, runtime e self-host continuam implementation evidence gaps |
+| seed C generic validation | §8.7.11/§8.7.12 fecham D1, D2 source-backed de `String` simples, D3 de expressions escalares parentetizadas, D4 de named const local com grafo bounded, D5 de memoização local por avaliação, D6 de sessão privada por aplicação, D7 de inferência scalar append-only e D8 de specialization local collision-safe, sem nova superfície W | manter gates C/Bun, receipts, counters, caminhos de ciclo e digests versionados; full module/package declaration receipt, witness selection geral, recipe física, `TypeId` runtime, compiler, imports, associated const, cache persistente e self-host continuam gaps de implementação |
 | ergonomia comparativa | R0/R0S/R1 guardam substituições e variantes observáveis | ratificar formas que ainda mudam source ou registrar waiver motivado |
 
 #### 24.4.0 Fechamento PRC0 de gates de pesquisa

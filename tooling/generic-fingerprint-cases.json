@@ -495,6 +495,37 @@
         "determinism": "O gate compara o output C dos ciclos incompatíveis, incluindo path, count, receipt e zero-capacity, com a reconstrução independente; verifica os quatro records sem annotation, o tipo efetivo i64, ultimateAnswer explicitamente anotado, equivalência explicit/inferred, grafos forward/reordered, tipos Bool/suffix/default/propagation e repete o seed C."
       },
       "scope": "Evidence local D7 para module const scalar Bool/integer bounded; não é compiler completo, identidade final, imports, associated const, cache compartilhável, runtime ou self-host."
+    },
+    {
+      "id": "GPF0-W-1467-current",
+      "decisions": ["W-1467"],
+      "source": {
+        "path": "reference/last-light/generics.w",
+        "symbol": "export alias UltimateAnswerImmediate = UltimateAnswer<42>"
+      },
+      "description": "Corpus source-backed para identidade semântica collision-safe de specialization, separada de fingerprint-1, recipe física e TypeId.",
+      "witnesses": {
+        "module": "restaurant",
+        "heads": ["StagePath", "FinalCallValue", "UltimateAnswer", "AnswerPair", "StaticValue"],
+        "staticValues": ["StaticValue<Bool,true>", "StaticValue<String,\"The final seating\">"],
+        "equivalent": ["UltimateAnswerImmediate", "UltimateAnswerComputed", "UltimateAnswerNamed", "UltimateAnswerShared", "UltimateAnswerSharedDuplicate", "ConsistentUltimateAnswer", "ConsistentUltimateAnswerDuplicate"],
+        "differentHead": "head nominal diferente com o mesmo valor",
+        "differentModule": "module id diferente com a mesma declaração e argumento",
+        "differentRefinement": "predicate body digest diferente",
+        "rejected": ["41", "quota", "overflow", "cycle", "invalid", "corrupt", "unsupported"],
+        "capacity": ["exact", "zero", "short-by-one"],
+        "ignored": ["labels", "spans", "source indices", "annotation presence", "counters", "session"],
+        "collision": "digest igual forçado com preimages diferentes não compara como igual"
+      },
+      "oracle": {
+        "runner": "tooling/check-seed-generic-validation.mjs",
+        "implementations": [
+          "seed C",
+          "Bun com reconstrução independente do preimage completo e SHA-256"
+        ],
+        "determinism": "O gate reconstrói declaration schema, substitution vector e witness count zero em duas execuções e compara os bytes escritos pelo C, digest, length e estados; TYPE/dependent domain é exercitado por StaticValue Bool/String."
+      },
+      "scope": "Evidence local D8 para specialization em local struct, type/value arguments, TYPE/dependent domains e refinements ConstIR do subset. Fragments Last Light sustentam os witnesses principais; head/module/refinement adversaries são fixtures C sintéticos. Receipts autoritativos de package/interface, witness selection geral, recipe física, TypeId runtime, compiler completo e cache persistente continuam gaps."
     }
   ]
 }

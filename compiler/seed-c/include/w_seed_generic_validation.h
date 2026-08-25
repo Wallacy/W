@@ -13,10 +13,13 @@ extern "C" {
 
 /* Internal seed-C generic predicate validation.  This is not a W interface
  * and it does not create a final specialization or a type identity. */
-#define W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION "w-seed-generic-validation-6"
+#define W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION "w-seed-generic-validation-7"
 #define W_SEED_GENERIC_VALIDATION_FINGERPRINT_SCHEMA_VERSION \
   "w-seed-generic-fingerprint-1"
+#define W_SEED_GENERIC_VALIDATION_SPECIALIZATION_SCHEMA_VERSION \
+  "w-seed-generic-specialization-1"
 #define W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES 32u
+#define W_SEED_GENERIC_VALIDATION_SPECIALIZATION_DIGEST_BYTES 32u
 #define W_SEED_GENERIC_VALIDATION_MAX_DEPTH 256u
 #define W_SEED_GENERIC_VALIDATION_MAX_PREDICATES \
   W_SEED_FRONTEND_MAX_GENERIC_SLOTS
@@ -61,6 +64,21 @@ typedef enum {
   W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE,
   W_SEED_GENERIC_VALIDATION_FINGERPRINT_UNSUPPORTED,
 } w_seed_generic_validation_fingerprint_state;
+
+/* The semantic specialization preimage is caller-owned evidence.  It is not
+ * a cache recipe, TypeId, or persistent identifier. */
+typedef enum {
+  W_SEED_GENERIC_VALIDATION_SPECIALIZATION_NOT_AVAILABLE = 0,
+  W_SEED_GENERIC_VALIDATION_SPECIALIZATION_AVAILABLE,
+  W_SEED_GENERIC_VALIDATION_SPECIALIZATION_UNSUPPORTED,
+  W_SEED_GENERIC_VALIDATION_SPECIALIZATION_CAPACITY,
+} w_seed_generic_validation_specialization_state;
+
+typedef struct {
+  const uint8_t *preimage;
+  size_t preimage_length;
+  const uint8_t *digest;
+} w_seed_generic_specialization_view;
 
 typedef enum {
   W_SEED_GENERIC_VALIDATION_RECEIPT_CONST_ARGUMENT = 0,
@@ -128,6 +146,13 @@ typedef struct {
   size_t evidence_byte_capacity;
   w_seed_generic_validation_receipt *receipts;
   size_t receipt_capacity;
+  /* Caller-owned semantic specialization preimage output.  A NULL pointer
+   * with non-zero capacity is invalid input.  The buffer must be disjoint
+   * from frontend, ConstIR, conversion, evidence, receipt, and result
+   * storage, and all input storage must remain unchanged between the measure
+   * and write passes. */
+  uint8_t *specialization_preimage;
+  size_t specialization_preimage_capacity;
 } w_seed_generic_validation_input;
 
 typedef struct {
@@ -145,6 +170,11 @@ typedef struct {
   w_seed_generic_validation_rejection rejection;
   w_seed_generic_validation_fingerprint_state fingerprint_state;
   uint8_t fingerprint_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES];
+  w_seed_generic_validation_specialization_state specialization_state;
+  size_t specialization_bytes_written;
+  size_t specialization_bytes_required;
+  uint8_t specialization_digest[
+      W_SEED_GENERIC_VALIDATION_SPECIALIZATION_DIGEST_BYTES];
   /* Closed causal path for W-CONST-0002.  Entries use ConstIR function
    * indices.  The first entry is repeated at the end. */
   uint32_t const_cycle_path[W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH];
@@ -164,6 +194,14 @@ const char *w_seed_generic_validation_failure_name(
     w_seed_generic_validation_failure failure);
 const char *w_seed_generic_validation_fingerprint_state_name(
     w_seed_generic_validation_fingerprint_state state);
+const char *w_seed_generic_validation_specialization_state_name(
+    w_seed_generic_validation_specialization_state state);
+
+/* Compare semantic specialization views with collision-safe full-byte
+ * equality.  A matching digest never replaces the preimage comparison. */
+bool w_seed_generic_specialization_equal(
+    const w_seed_generic_specialization_view *left,
+    const w_seed_generic_specialization_view *right);
 
 #ifdef __cplusplus
 }
