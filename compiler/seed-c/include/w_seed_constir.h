@@ -11,8 +11,8 @@
 extern "C" {
 #endif
 
-/* Internal seed-C ConstIR D1-D4. This is not an importable W interface. */
-#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-5"
+/* Internal seed-C ConstIR D1-D5. This is not an importable W interface. */
+#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-6"
 #define W_SEED_CONSTIR_NONE UINT32_MAX
 #define W_SEED_CONSTIR_INTEGER_BYTES 16u
 #define W_SEED_CONSTIR_MAX_PARAMETERS 256u
@@ -20,6 +20,10 @@ extern "C" {
  * same bounded policy; it does not remove these limits. */
 #define W_SEED_CONSTIR_MAX_CALL_DEPTH 256u
 #define W_SEED_CONSTIR_MAX_EVAL_DEPTH 1024u
+/* D5 memoizes only local module-const declarations during one evaluator
+ * invocation. Generic D4 preflight keeps the reachable declaration set at or
+ * below this bound. */
+#define W_SEED_CONSTIR_MAX_CONST_MEMO_ENTRIES 256u
 /* D1 validates borrowed StaticList values before execution.  This ceiling
  * bounds that caller-owned scan independently of the step quota. */
 #define W_SEED_CONSTIR_MAX_STATIC_LIST_ELEMENTS 4096u
@@ -351,6 +355,10 @@ typedef struct {
   size_t consumed_call_depth;
   size_t consumed_result_bytes;
   size_t quota_limit;
+  /* D5 evidence for the invocation-local module-const memo table. These
+   * counters do not participate in fingerprints, body digests, or keys. */
+  size_t const_cache_hits;
+  size_t const_cache_misses;
 } w_seed_constir_eval_result;
 
 typedef struct {

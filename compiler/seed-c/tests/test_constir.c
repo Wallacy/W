@@ -1735,7 +1735,7 @@ static bool test_typed_const_expression_synthetic(void) {
   CHECK(computed_node->type_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
         computed_node->type_bit_width == 64u &&
         computed_node->type_is_signed);
-  const size_t receipt_prefix = strlen("w-seed-constir-5");
+  const size_t receipt_prefix = strlen("w-seed-constir-6");
   const size_t receipt_function_bytes = 94u;
   CHECK(first_fixture.constir_receipt[receipt_prefix] ==
             (uint8_t)W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION &&
@@ -1854,6 +1854,48 @@ static bool test_module_const_synthetic_d4(void) {
   return true;
 }
 
+static bool test_module_const_active_cycle_defense(void) {
+  static const char source[] =
+      "const left: i64 = right\n"
+      "const right: i64 = left\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { cycle: Box<(left)> }\n";
+  fixture *value = &first_fixture;
+  CHECK(fixture_lower(value, source));
+  CHECK(value->frontend_result.written.const_declarations == 2u &&
+        value->constir_result.written.functions == 3u &&
+        fixture_constir_valid(value));
+  const w_seed_constir_program program = fixture_program(value);
+  w_seed_constir_eval_frame frames[8];
+  w_seed_constir_eval_workspace workspace = {frames, 8u};
+  w_seed_constir_value output;
+  w_seed_constir_eval_result first;
+  /* The direct entry is not pre-seeded.  Only its two memoized CALL targets
+   * contribute misses before the ACTIVE defense closes the cycle. */
+  CHECK(w_seed_constir_evaluate(
+            &program, 0u, NULL, 0u,
+            (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX}, &workspace,
+            &output, &first) == W_SEED_CONSTIR_OK &&
+        first.status == W_SEED_CONSTIR_OK &&
+        first.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
+        output.kind == W_SEED_CONSTIR_VALUE_INVALID &&
+        first.consumed_steps == 3u && first.consumed_call_depth == 3u &&
+        first.const_cache_hits == 0u && first.const_cache_misses == 2u);
+  w_seed_constir_eval_result second;
+  CHECK(w_seed_constir_evaluate(
+            &program, 0u, NULL, 0u,
+            (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX}, &workspace,
+            &output, &second) == W_SEED_CONSTIR_OK &&
+        second.status == W_SEED_CONSTIR_OK &&
+        second.diagnostic == first.diagnostic &&
+        output.kind == W_SEED_CONSTIR_VALUE_INVALID &&
+        second.consumed_steps == first.consumed_steps &&
+        second.consumed_call_depth == first.consumed_call_depth &&
+        second.const_cache_hits == first.const_cache_hits &&
+        second.const_cache_misses == first.const_cache_misses);
+  return true;
+}
+
 int main(void) {
   CHECK(test_can_move_and_digest());
   CHECK(test_static_list_stage_path());
@@ -1868,6 +1910,7 @@ int main(void) {
   CHECK(test_capacity_and_barrier());
   CHECK(test_typed_const_expression_synthetic());
   CHECK(test_module_const_synthetic_d4());
+  CHECK(test_module_const_active_cycle_defense());
   (void)puts("constir tests passed");
   return 0;
 }

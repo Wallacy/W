@@ -1238,14 +1238,16 @@ como função sintética zero-arg e baixa cada referência como dependency `CALL
 O body digest omite spans, trivia e spelling e inclui a identidade/digest das
 dependencies para evitar colisões estruturais.
 
-O preflight do grafo é anterior a steps, execution e capacity. Relações
-corrompidas produzem `INVALID` sem step; uma dependency bem formada fora do
-subset produz `UNSUPPORTED` sem step; ciclo alcançável produz
-`EVALUATION_FAILED` com `W-CONST-0002`, counters zero e caminho determinístico
-fechado na ordem causal. O limite é 256 dependencies alcançáveis: um grafo
+O preflight do grafo é anterior aos counters de cache e aos steps reais do
+evaluator. Relações corrompidas produzem `INVALID` sem step; uma dependency
+bem formada fora do subset produz `UNSUPPORTED` sem step; ciclo alcançável
+produz `EVALUATION_FAILED` com `W-CONST-0002`, counters zero e caminho
+determinístico fechado na ordem causal. Com capacidade de receipt, o ciclo
+publica exatamente o `CONST_ARGUMENT` causal antes do retorno; com capacidade
+zero, não publica receipt. O limite é 256 dependencies alcançáveis: um grafo
 bem formado com 257 declarations é `UNSUPPORTED` com failure
-`dependency-limit`, o caso `dependencyLimit`, antes de conversion, receipt ou
-step. Uma dependency bem formada fora do subset mantém a failure `function`.
+`dependency-limit`, o caso `dependencyLimit`, antes de conversion ou step.
+Uma dependency bem formada fora do subset mantém a failure `function`.
 Esse limite de grafo não é arithmetic overflow. Uma declaration lowerable como
 `const overflowValue: i8 = 127 + 1`
 falha durante evaluation com `EVALUATION_FAILED`/`W-CONST-0006`, publica um
@@ -1263,9 +1265,65 @@ Alternativas de resolver durante a execução, materializar initializers no
 frontend, aceitar imports/associated const ou usar memoization global foram
 rejeitadas. Elas ocultam ownership, alteram ordem de receipts, ampliam o
 ambiente de resolução ou introduzem estado sem contrato. Inferência de
-initializer, compiler completo, imports, associated const, cache/memoization,
-identity final, runtime e self-host permanecem limites explícitos. O caso é
+initializer, compiler completo, imports, associated const,
+cache compartilhável/cross-argument/session, identity final, runtime e self-host
+permanecem limites explícitos. A memoização local por invocação é fechada em
+W-1464; o caso D4 é
 `oracle-backed-current`, não compiler conformance.
+
+#### 1.3.21.4 Memoização local de DAG de module const (W-1464)
+
+**Motivação:** D4 reavaliava o corpo de cada `CALL` de module const. Em uma
+árvore compartilhada, essa regra podia repetir o mesmo subgrafo e ocultar o
+custo real do argumento, embora o preflight já limitasse o grafo a 256
+dependencies. W-1464 fecha somente uma tabela de memoização por invocação de
+`w_seed_constir_evaluate`; não fecha o cache compartilhável completo de
+§3.6.5.
+
+A tabela é fixa, allocation-free, local e vazia no início de cada evaluation.
+A chave é a identidade da declaration no programa fixo da invocação. O
+primeiro acesso marca `ACTIVE`, conta um miss e avalia o corpo. Somente sucesso
+completo com `ConstValue` válido vira `READY`; o acesso pronto conta um hit,
+copia o valor e não reavalia o corpo. O `CALL` do hit ainda cobra seu próprio
+step, mas não cria frame nem aumenta call depth. Falha, panic, quota, valor
+inválido e estado `ACTIVE` não são reutilizáveis. A próxima invocação não vê
+estado anterior. Lookup linear é deliberado: o overhead adicional da tabela é
+`O(E*R)`, `R <= 256`, com espaço `O(R)`; esse limite não descreve o custo total
+do evaluator, que também faz o lookup próprio de `program_function_for_const`.
+Cada dependency de module const alcançada por um `CALL` memoizado na avaliação
+generic D5 é avaliada no máximo uma vez. A função usada diretamente como entry
+de `w_seed_constir_evaluate` não é pré-semeada na tabela.
+
+O preflight genérico permanece a autoridade causal. Ciclos, zero capacity,
+limite de dependencies e corrupção rejeitam antes dos counters de cache e dos
+steps reais; ciclos preservam o receipt `CONST_ARGUMENT` causal quando há
+capacidade, e zero capacity não publica receipt. `ACTIVE` é somente uma defesa
+do evaluator e não altera `W-CONST-0002`, paths ou precedence. Os counters append-only `const_cache_hits` e
+`const_cache_misses` ficam em cada eval result e em cada evaluation receipt.
+Eles são evidence, não parte do fingerprint, body digest, type identity ou
+cache key compartilhável. A quota cobra o trabalho executado: o diamond de
+Last Light (`answerSeed`, `firstAnswerHalf`, `secondAnswerHalf`,
+`assembledUltimateAnswer`) tem quatro misses, um hit e sete steps; quota 7
+permite o argumento isolado e quota 6 falha com `W-CONST-0003`. D3 e D4 linear
+mantêm zero hits.
+
+O teste C direto bypassa o preflight generic apenas para exercitar a defesa
+`ACTIVE`: o ciclo retorna `W-CONST-0002` com 2 misses, 0 hits, 3 steps e call
+depth 3, e a invocação seguinte repete os números. Isso não promove o
+evaluator a autoridade causal nem altera o receipt de ciclo do validator.
+
+O witness `GPF0-W-1464-current` liga o marker source-backed real em
+`reference/last-light/generics.w` ao probe C e à reconstrução Bun independente
+do grafo, source order, counters, steps, reset entre invocações, quota e
+falha aritmética não cacheada. Immediate `42`, D3 `(6 * 7)`, D4
+`UltimateAnswer<(ultimateAnswer)>` e D5 `UltimateAnswerShared`, inclusive a
+aplicação duplicada, publicam o mesmo fingerprint. O caso é
+`oracle-backed-current`, não compiler, runtime ou self-host completo.
+
+O limite deliberado inclui cache compartilhável de §3.6.5, cache
+cross-argument/session, imports, associated const, initializer inference,
+identity final, runtime e self-host. Também não há sintaxe nova, estado global,
+cross-thread, cross-program ou persistência.
 
 #### 1.3.22 Subject de refinement
 
@@ -7035,7 +7093,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1460 | fingerprint semântico pós-validação de generic D1 | evidence interna versionada `w-seed-generic-fingerprint-1`: preimage canônico independente de spans/indices/source spelling, validação/preflight antes da avaliação, `VERIFIED` + `AVAILABLE` somente após todos os predicates true, `VERIFIED` fora do subconjunto + `UNSUPPORTED`, demais estados + `NOT_AVAILABLE`/bytes zero; witness `restaurant` com standard duplicado, cancelled, vazio, salto e duplicata; C e Bun reconstrutores independentes | oracle-backed-current; `GPF0-W-1460-current` usa fragments reais de Last Light, seed C e oráculo Bun independente; usar spans/indices/source spelling, chamar digest de `TypeId`/cache key/identidade, emitir antes de `VERIFIED` ou confiar somente no C; digests diferentes implicam preimages diferentes, mas digest igual isolado sem preimage não prova igualdade nem identidade collision-safe; a identidade final ainda exige declaration digest, witnesses, target/profile/edition/compiler/bundle versions e dados canônicos |
 | W-1461 | evidência D2 String source-backed em generic predicates | D2 source-backed bounded de `String` em predicates genéricos: literal simples até 4.096 bytes, `==`/`!=`, preflight canônico, `VERIFIED`/`REJECTED`/`UNSUPPORTED`/`INVALID` e fingerprint Bun independente | oracle-backed-current; `GPF0-W-1461-current` liga diretamente os markers reais de `generics.w`, `isFinalCallLabel`, positivos duplicados, rejeitados, empty, over-limit, corrupção e digests Bun ao gate independente `tooling/check-seed-generic-validation.mjs`; o caso não afirma String completa, compiler, runtime ou self-host |
 | W-1462 | expressão const tipada escalar em generic value | D3 source-backed bounded de expressão parentetizada com literais, grouping, unary e binary operators escalares, resultado `Bool` ou integer explícito, função ConstIR sintética com origem explícita, receipts `CONST_ARGUMENT`/`PREDICATE` ordenados e fingerprint normalizado | oracle-backed-current; `GPF0-W-1462-current` liga os markers reais de `generics.w`, prova immediate `42`, computed `(6 * 7)`, duplicate, rejected `(6 * 6)`, quota cumulativa, overflow, unsupported call e corrupção com seed C e reconstrução Bun independente; identifiers/named const, graph dependencies/cycles, imported heads/predicates, String computed result, identity final, compiler/runtime e self-host permanecem limites |
-| W-1463 | module named const no generic value | D4 source-backed bounded de `const name: Type = expression` local, relation explícita, forward reference, lowering ConstIR sintético com dependency `CALL`, preflight causal de graph/cycles, receipts e fingerprint normalizado igual ao immediate/D3 | oracle-backed-current; `GPF0-W-1463-current` liga markers reais de `generics.w`, prova named/duplicate `42`, forward chain, rejected, cycles self/2/3 com paths fechados, ciclo inalcançável, type mismatch, unresolved, unsupported, corruption, zero capacity, quota, `dependencyLimit` (257 declarations, `UNSUPPORTED` + failure `dependency-limit`) e `arithmeticOverflow` (`W-CONST-0006`, receipt `CONST_ARGUMENT` sem predicate) com seed C e oráculo Bun independente; dependency fora do subset mantém failure `function`; imports, associated const, initializer inference, cache/memoization, identity final, compiler/runtime e self-host permanecem limites |
+| W-1463 | module named const no generic value | D4 source-backed bounded de `const name: Type = expression` local, relation explícita, forward reference, lowering ConstIR sintético com dependency `CALL`, preflight causal de graph/cycles, receipts e fingerprint normalizado igual ao immediate/D3 | oracle-backed-current; `GPF0-W-1463-current` liga markers reais de `generics.w`, prova named/duplicate `42`, forward chain, rejected, cycles self/2/3 com paths fechados, ciclo inalcançável, type mismatch, unresolved, unsupported, corruption, zero capacity, quota, `dependencyLimit` (257 declarations, `UNSUPPORTED` + failure `dependency-limit`) e `arithmeticOverflow` (`W-CONST-0006`, receipt `CONST_ARGUMENT` sem predicate) com seed C e oráculo Bun independente; dependency fora do subset mantém failure `function`; imports, associated const, initializer inference, cache compartilhável/cross-argument/session, identity final, compiler/runtime e self-host permanecem limites |
+| W-1464 | memoização local determinística de DAG de module const | D5 source-backed bounded para module const local `Bool`/integer já lowerable por D4: tabela fixa por invocation, chave por declaration identity, estados `ACTIVE`/`READY`, counters append-only em evaluation result/receipts, hits que omitem body work e preservam o step do `CALL`, reset e quota observáveis, sem alterar preflight causal ou fingerprint | oracle-backed-current; `GPF0-W-1464-current` liga os markers reais de `generics.w`, prova diamond 4 misses/1 hit/7 steps, reconstrução Bun independente de source order, repeated invocation, D3/D4 linear com zero hits, quota 7/6, arithmetic failure não cacheada, cycles/zero capacity/dependency-limit/corruption com counters zero e receipt causal de ciclo somente quando há capacidade e fingerprint idêntico ao immediate/D3/D4; cache compartilhável de §3.6.5, cross-argument/session, imports, associated const, inference, identity final, compiler/runtime e self-host permanecem limites |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
