@@ -1,6 +1,10 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import {
+  registryFixtureInput,
+  verifyRegistry,
+} from "./authority-registry-machine.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
@@ -179,6 +183,11 @@ function text(value) {
   return bytes(u32(encoded.length), encoded)
 }
 
+function authorityBytes(value) {
+  if (value instanceof Uint8Array) return value
+  return textEncoder.encode(value)
+}
+
 function canonicalEnumType(module = "restaurant") {
   return bytes(u8(0x74), u8(0x09), text(module), text("ServiceStage"))
 }
@@ -204,7 +213,9 @@ function staticValuePreimage(typeKind, valueKind, stringValue = "") {
   )
 }
 
-function staticValueSpecializationPreimage(typeKind, valueKind, stringValue = "", module = "restaurant") {
+function staticValueSpecializationPreimage(
+  typeKind, valueKind, stringValue = "", module = "restaurant", authorityValue,
+) {
   const type = canonicalScalarType(typeKind)
   const value = valueKind === 1
     ? canonicalScalarValue(1, type, u8(1))
@@ -213,6 +224,7 @@ function staticValueSpecializationPreimage(typeKind, valueKind, stringValue = ""
     module, "StaticValue",
     [specializationType(), specializationDependentParameter()],
     [specializationType(type), specializationValue(type, value)],
+    authorityValue === undefined ? {} : { authority: authorityValue },
   )
 }
 
@@ -317,7 +329,7 @@ function answerPairPreimage(left, right) {
 function nominalOriginPreimage(
   authorityValue, packageName, moduleSegments, declarationKind, owners, declaredName,
 ) {
-  const authority = textEncoder.encode(authorityValue)
+  const authority = authorityBytes(authorityValue)
   return bytes(
     textEncoder.encode("w-seed-nominal-origin-1"),
     u8(0x4f),
@@ -493,10 +505,41 @@ const specializationD8Case = requireCorpusCase(
   ["equivalent", "differentHead", "differentModule", "differentRefinement",
     "rejected", "capacity", "ignored", "collision"],
 )
+const authorityCorpus = JSON.parse(
+  await Bun.file(resolve(root, "tooling/authority-registry-cases.json")).text(),
+)
+const authorityCurrentCase = authorityCorpus.cases.find(
+  (entry) => entry?.id === "AUL0-W-1469-current",
+)
+if (!authorityCurrentCase || JSON.stringify(authorityCurrentCase.decisions) !==
+      JSON.stringify(["W-1469"]) ||
+    authorityCurrentCase.sourceRef?.path !== "reference/last-light/build.w")
+  fail("AUL0 current case is not source-backed by the Last Light origin marker")
+const authorityResult = verifyRegistry(
+  registryFixtureInput(authorityCorpus.fixtures.registry),
+)
+const differentAuthorityResult = verifyRegistry(
+  registryFixtureInput(authorityCorpus.fixtures["registry-alt"]),
+)
+const authorityOriginMarker =
+  `origin: { object: "${authorityResult.originDigest}", length: ${authorityResult.origin.length} }`
+if (authorityCurrentCase.sourceRef?.symbol !== authorityOriginMarker)
+  fail("AUL0 current case does not name the full AuthorityOrigin lock marker")
+if (authorityResult.status !== "accepted" ||
+    authorityResult.code !== "authorityLineageVerified" ||
+    authorityResult.continuity.observedRootVersion !== 2 ||
+    differentAuthorityResult.status !== "accepted" ||
+    differentAuthorityResult.code !== "authorityLineageVerified")
+  fail("AUL0 source-backed authority fixtures did not verify")
+const sourceAuthorityBytes = new Uint8Array(authorityResult.origin)
+const differentAuthorityBytes = new Uint8Array(differentAuthorityResult.origin)
+if (bytesHex(sourceAuthorityBytes) === bytesHex(differentAuthorityBytes) ||
+    authorityResult.originDigest === differentAuthorityResult.originDigest)
+  fail("AUL0 different authority collapsed to the same full-byte origin")
 const nominalOriginD9Case = requireCorpusCase(
   "GPF0-W-1468-current", ["W-1468"],
-  "reference/last-light/build.w", "authority: .registry(\"w\")",
-  ["package", "authorityFixture", "modules", "equivalent", "differentAuthority",
+  "reference/last-light/build.w", authorityOriginMarker,
+  ["package", "authorityBinding", "modules", "equivalent", "differentAuthority",
     "differentPackage", "differentModule", "differentKind", "differentOwner",
     "differentBody", "excluded", "missing", "corrupt", "capacity", "collision"],
 )
@@ -681,10 +724,14 @@ if (d1Witnesses?.module !== "restaurant" ||
     JSON.stringify(d8Witnesses.staticValues) !==
       JSON.stringify(["StaticValue<Bool,true>", "StaticValue<String,\"The final seating\">"]) ||
     d8Witnesses.collision !== "digest igual forçado com preimages diferentes não compara como igual" ||
-     d9Witnesses?.authority !== "w-authority-fixture-1|registry=w" ||
+     d9Witnesses?.authority !== "AUL0-W-1469-current" ||
      d9Witnesses?.package !== "last-light/restaurant" ||
-    d9Witnesses?.authorityFixture !==
-      "synthetic authority fixture; não é autorização de registry" ||
+    d9Witnesses.authorityOrigin?.object !== authorityResult.originDigest ||
+    d9Witnesses.authorityOrigin?.length !== authorityResult.origin.length ||
+    d9Witnesses?.authorityBinding !==
+      "AUL0-W-1469-current accepted source-backed AuthorityOrigin" ||
+    d9Witnesses?.differentAuthority !==
+      "AUL0-W-1469-genesis-different registry-alt full-byte origin" ||
     d9Witnesses.modules?.domain !== "reference/last-light/domain.w" ||
     d9Witnesses.modules?.generics !== "reference/last-light/generics.w" ||
     JSON.stringify(d9Witnesses.domainHeads) !== JSON.stringify(["StagePath"]) ||
@@ -709,6 +756,8 @@ const generics = await Bun.file(resolve(root, "reference/last-light/generics.w")
 const buildManifest = await Bun.file(resolve(root, "reference/last-light/build.w")).text()
 const buildAuthorityMarker = uniqueMarker(
   buildManifest, 'authority: .registry("w")', "Last Light registry authority marker")
+const buildAuthorityOriginMarker = uniqueMarker(
+  buildManifest, authorityOriginMarker, "Last Light AuthorityOrigin lock marker")
 const buildPackageMarker = uniqueMarker(
   buildManifest,
   'package {\n  schema: "w.package/1"\n  authority: .registry("w")\n  name: "last-light/restaurant"',
@@ -717,7 +766,7 @@ const buildModuleSetMarker = uniqueMarker(
   buildManifest,
   'name: "restaurant-modules"\n      activation: .always\n      root: "."\n      include: ["*.w"]\n      exclude: ["build.w"]\n      layout: .fileStem',
   "Last Light root moduleSet marker")
-if (!buildAuthorityMarker || !buildPackageMarker || !buildModuleSetMarker ||
+if (!buildAuthorityMarker || !buildAuthorityOriginMarker || !buildPackageMarker || !buildModuleSetMarker ||
     !buildManifest.includes('name: "last-light/restaurant"'))
   fail("build.w D9 authority/package/moduleSet markers are not source-backed")
 const staticValueMarker = uniqueMarker(
@@ -1195,15 +1244,16 @@ try {
   run(join(build, `w_seed_generic_validation_tests${executableSuffix}`), [])
   const executable = join(build, `w_seed_generic_validation_tests${executableSuffix}`)
   const nominalMatrix = parseNominalOriginMatrix(
-    run(executable, ["--nominal-origin-matrix"]),
+    run(executable, ["--nominal-origin-matrix", bytesHex(sourceAuthorityBytes),
+      bytesHex(differentAuthorityBytes)]),
   )
   const expectedOriginCases = {
-    base: ["w-authority-fixture-1|registry=a", "last-light/restaurant", ["domain"], 1, [], "Box"],
-    authority: ["w-authority-fixture-1|registry=b", "last-light/restaurant", ["domain"], 1, [], "Box"],
-    package: ["w-authority-fixture-1|registry=a", "other/restaurant", ["domain"], 1, [], "Box"],
-    module: ["w-authority-fixture-1|registry=a", "last-light/restaurant", ["generics"], 1, [], "Box"],
-    kind: ["w-authority-fixture-1|registry=a", "last-light/restaurant", ["domain"], 2, [], "Box"],
-    owner: ["w-authority-fixture-1|registry=a", "last-light/restaurant", ["domain"], 1, [{kind: 1, name: "Outer"}], "Box"],
+    base: [sourceAuthorityBytes, "last-light/restaurant", ["domain"], 1, [], "Box"],
+    authority: [differentAuthorityBytes, "last-light/restaurant", ["domain"], 1, [], "Box"],
+    package: [sourceAuthorityBytes, "other/restaurant", ["domain"], 1, [], "Box"],
+    module: [sourceAuthorityBytes, "last-light/restaurant", ["generics"], 1, [], "Box"],
+    kind: [sourceAuthorityBytes, "last-light/restaurant", ["domain"], 2, [], "Box"],
+    owner: [sourceAuthorityBytes, "last-light/restaurant", ["domain"], 1, [{kind: 1, name: "Outer"}], "Box"],
   }
   const expectedOriginLengths = new Map()
   for (const [caseName, fields] of Object.entries(expectedOriginCases)) {
@@ -1242,6 +1292,7 @@ try {
       canonicalIntegerType(true, 64),
       canonicalIntegerValue(42, canonicalIntegerType(true, 64), true, 64),
     )],
+    { authority: sourceAuthorityBytes },
   )
   if (!availableValidation || availableValidation.state !== "VERIFIED" ||
       availableValidation.steps !== 1 || availableValidation.receipts !== 1)
@@ -1267,6 +1318,7 @@ try {
       canonicalIntegerType(true, 64),
       canonicalIntegerValue(42, canonicalIntegerType(true, 64), true, 64),
     )],
+    { authority: sourceAuthorityBytes },
   )
   if (!bodyValidation || bodyValidation.state !== "VERIFIED" ||
       bodyValidation.steps === 0 || bodyValidation.receipts !== 1 ||
@@ -1286,7 +1338,7 @@ try {
   const specializationOriginPrefixLength =
     textEncoder.encode("w-seed-generic-specialization-2").length + 2 + 4
   const expectedOriginBytes = nominalOriginPreimage(
-    "w-authority-fixture-1|registry=w", "last-light/restaurant", ["domain"],
+    sourceAuthorityBytes, "last-light/restaurant", ["domain"],
     1, [], "Box",
   )
   if (bytesHex(expectedAvailableSpecialization.slice(
@@ -1327,14 +1379,21 @@ try {
         record.specializationDigest !== "0".repeat(64) || record.specializationPreimageHex !== null)
       fail(`specialization capacity ${caseName} did not preserve buffers or counters`)
   }
-  const firstOutput = run(executable, ["--domain-witness", witnessPath])
-  const secondOutput = run(executable, ["--domain-witness", witnessPath])
+  const sourceAuthorityHex = bytesHex(sourceAuthorityBytes)
+  const firstOutput = run(executable, ["--domain-witness", witnessPath,
+    sourceAuthorityHex])
+  const secondOutput = run(executable, ["--domain-witness", witnessPath,
+    sourceAuthorityHex])
   if (firstOutput !== secondOutput) fail("domain witness output is not deterministic")
   const parsed = parseProbe(firstOutput)
-  const firstDomainOutput = run(executable, ["--domain-witness-module", domainWitnessPath, "domain"])
-  const secondDomainOutput = run(executable, ["--domain-witness-module", domainWitnessPath, "domain"])
-  const firstGenericsOutput = run(executable, ["--domain-witness-module", genericsWitnessPath, "generics"])
-  const secondGenericsOutput = run(executable, ["--domain-witness-module", genericsWitnessPath, "generics"])
+  const firstDomainOutput = run(executable, ["--domain-witness-module", domainWitnessPath,
+    "domain", sourceAuthorityHex])
+  const secondDomainOutput = run(executable, ["--domain-witness-module", domainWitnessPath,
+    "domain", sourceAuthorityHex])
+  const firstGenericsOutput = run(executable, ["--domain-witness-module", genericsWitnessPath,
+    "generics", sourceAuthorityHex])
+  const secondGenericsOutput = run(executable, ["--domain-witness-module", genericsWitnessPath,
+    "generics", sourceAuthorityHex])
   if (firstDomainOutput !== secondDomainOutput ||
       firstGenericsOutput !== secondGenericsOutput)
     fail("domain/generics witness output is not deterministic")
@@ -1361,6 +1420,7 @@ try {
       "domain", "StagePath",
       [specializationParameter(canonicalListType("domain"), record.predicateBodyDigest)],
       [specializationValue(canonicalListType("domain"), canonicalListValue(stageNames, "domain"))],
+      { authority: sourceAuthorityBytes },
     )
     assertSpecializationAvailable(record, expected, `D9 domain StagePath ${index}`)
   }
@@ -1371,6 +1431,7 @@ try {
       "generics", "FinalCallValue",
       [specializationParameter(type, record.predicateBodyDigest)],
       [specializationValue(type, canonicalScalarValue(3, type, text(d9StringValues[index])))],
+      { authority: sourceAuthorityBytes },
     )
     assertSpecializationAvailable(record, expected, `D9 generics FinalCallValue ${index}`)
   }
@@ -1382,6 +1443,7 @@ try {
       "generics", "UltimateAnswer",
       [specializationParameter(type, record.predicateBodyDigest)],
       [specializationValue(type, canonicalIntegerValue(sourceD3Values[index], type, true, 64))],
+      { authority: sourceAuthorityBytes },
     )
     assertSpecializationAvailable(record, expected, `D9 generics UltimateAnswer ${index}`)
   }
@@ -1391,6 +1453,7 @@ try {
     [specializationParameter(sourcePairType), specializationParameter(sourcePairType)],
     [specializationValue(sourcePairType, canonicalIntegerValue(42, sourcePairType, true, 64)),
       specializationValue(sourcePairType, canonicalIntegerValue(42, sourcePairType, true, 64))],
+    { authority: sourceAuthorityBytes },
   )
   for (const record of genericsParsed.d6Records) {
     assertSpecializationAvailable(record, sourcePairExpected, "D9 generics AnswerPair")
@@ -1411,7 +1474,7 @@ try {
       record,
       staticValueSpecializationPreimage(
         index === 0 ? 2 : 3, index === 0 ? 1 : 3,
-        index === 0 ? "" : "The final seating", "generics",
+        index === 0 ? "" : "The final seating", "generics", sourceAuthorityBytes,
       ),
       `D9 generics StaticValue ${index}`,
     )
@@ -1431,6 +1494,7 @@ try {
       "restaurant", "StagePath",
       [specializationParameter(canonicalListType(), record.predicateBodyDigest)],
       [specializationValue(canonicalListType(), canonicalListValue(stageNames))],
+      { authority: sourceAuthorityBytes },
     )
     if (record.module !== "restaurant" || record.head !== "StagePath" ||
         record.state !== expected[index] || record.predicates !== 1 || record.receipts !== 1 ||
@@ -1484,6 +1548,7 @@ try {
         canonicalScalarType(3),
         canonicalScalarValue(3, canonicalScalarType(3), text(stringValues[index])),
       )],
+      { authority: sourceAuthorityBytes },
     )
     if (record.module !== "restaurant" || record.head !== "FinalCallValue" ||
         record.state !== expectedState || record.predicates !== 1 ||
@@ -1546,6 +1611,7 @@ try {
         ultimateType,
         canonicalIntegerValue(d3Values[index], ultimateType, true, 64),
       )],
+      { authority: sourceAuthorityBytes },
     )
     const expectedDigest = record.state === "VERIFIED"
       ? sha256Hex(ultimateAnswerPreimage(d3Values[index], record.predicateBodyDigest))
@@ -2274,7 +2340,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
   for (const [index, record] of staticRecords.entries()) {
     const expectedSpecialization = staticValueSpecializationPreimage(
       index === 0 ? 2 : 3, index === 0 ? 1 : 3,
-      index === 0 ? "" : "The final seating",
+      index === 0 ? "" : "The final seating", "restaurant", sourceAuthorityBytes,
     )
     if (record.fingerprintDigest !== expectedStatic[index])
       fail(`StaticValue application ${index} disagrees with independent preimage`)

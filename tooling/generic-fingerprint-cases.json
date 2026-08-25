@@ -532,13 +532,17 @@
       "decisions": ["W-1468"],
       "source": {
         "path": "reference/last-light/build.w",
-        "symbol": "authority: .registry(\"w\")"
+        "symbol": "origin: { object: \"sha256:1031dc23028d28379d8d168895ce528b833d3015fcfe87f9797119a9f7fff538\", length: 463 }"
       },
       "description": "Corpus source-backed para origem nominal collision-safe e specialization-2, com boundary explícita do resolver.",
       "witnesses": {
         "package": "last-light/restaurant",
-        "authority": "w-authority-fixture-1|registry=w",
-        "authorityFixture": "synthetic authority fixture; não é autorização de registry",
+        "authority": "AUL0-W-1469-current",
+        "authorityOrigin": {
+          "object": "sha256:1031dc23028d28379d8d168895ce528b833d3015fcfe87f9797119a9f7fff538",
+          "length": 463
+        },
+        "authorityBinding": "AUL0-W-1469-current accepted source-backed AuthorityOrigin",
         "modules": {
           "domain": "reference/last-light/domain.w",
           "generics": "reference/last-light/generics.w"
@@ -546,7 +550,7 @@
         "domainHeads": ["StagePath"],
         "genericHeads": ["FinalCallValue", "UltimateAnswer", "AnswerPair", "StaticValue"],
         "equivalent": ["immediate", "computed", "named", "diamond", "duplicate"],
-        "differentAuthority": "authority A/B com package/module/head iguais",
+        "differentAuthority": "AUL0-W-1469-genesis-different registry-alt full-byte origin",
         "differentPackage": "package A/B com authority/module/head iguais",
         "differentModule": "domain/generics com head igual",
         "differentKind": "kind nominal divergente ou relation inválida",
@@ -564,9 +568,9 @@
           "seed C",
           "Bun com reconstrutor independente de origin receipt e specialization-2"
         ],
-        "determinism": "O gate extrai markers reais dos três arquivos Last Light, executa witnesses domain/generics em módulos separados, compara bytes/length/SHA C+Bun e repete a matriz sem alegar resolver de registry."
+        "determinism": "O gate deriva o AuthorityOrigin completo do caso AUL0-W-1469-current, verifica o marker CAS do lock, extrai markers reais dos três arquivos Last Light, executa witnesses domain/generics em módulos separados, compara bytes/length/SHA C+Bun e repete a matriz sem alegar resolver de registry/TUF completo."
       },
-      "scope": "Evidence local D9 bounded; NFC/resolver completo, authority registry/Git, .local build-local nonportable e nunca publicável, witness selection geral, recipe física, TypeId runtime, compiler completo e self-host continuam gaps."
+      "scope": "Evidence local D9 bounded que consome o AuthorityOrigin completo autenticado pela evidence assinada de AUL0; persistence/CAS real, expiry/freshness/timestamp, targets/snapshot, Git repository authority, .local origin build-local nonportable e nunca publicável, NFC, witness selection geral, recipe física, TypeId runtime, compiler completo e self-host continuam gaps."
     }
   ]
 }
