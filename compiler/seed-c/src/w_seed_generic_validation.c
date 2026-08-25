@@ -498,7 +498,8 @@ static const_graph_status const_graph_visit_function(
     return CONST_GRAPH_INVALID;
   const w_seed_constir_function *function =
       &graph->context->program->functions[function_index];
-  if (!function->lowerable || function->root_node == W_SEED_CONSTIR_NONE)
+  if (!function->lowerable) return CONST_GRAPH_OK;
+  if (function->root_node == W_SEED_CONSTIR_NONE)
     return CONST_GRAPH_UNSUPPORTED;
   /* A dependency edge starts a fresh expression-depth budget.  The graph
    * itself is bounded by MAX_CONST_DEPENDENCIES; charging each edge to the
@@ -643,7 +644,497 @@ static const_graph_status const_graph_preflight(
     if (function->origin !=
         W_SEED_CONSTIR_FUNCTION_ORIGIN_TYPED_CONST_EXPRESSION)
       return CONST_GRAPH_INVALID;
+    if (!function->lowerable) continue;
+    if (function->root_node == W_SEED_CONSTIR_NONE)
+      return CONST_GRAPH_UNSUPPORTED;
     status = const_graph_visit_node(&graph, function_index, function->root_node, 1u);
+    if (status != CONST_GRAPH_OK) {
+      if (status == CONST_GRAPH_CYCLE && cycle_path != NULL &&
+          cycle_path_length != NULL) {
+        *cycle_path_length = graph.cycle_length;
+        (void)memcpy(cycle_path, graph.cycle,
+                     graph.cycle_length * sizeof(graph.cycle[0]));
+        if (cycle_argument_offset != NULL) *cycle_argument_offset = offset;
+      }
+      return status;
+    }
+  }
+  return CONST_GRAPH_OK;
+}
+
+/* Frontend graph-first preflight.  ConstIR has no nodes for a well-formed
+ * unsupported initializer, but its normalized expression still preserves
+ * module-const identifier edges.  Walk those edges before lowerability or
+ * evaluator checks so every D7-shaped reachable cycle keeps W-CONST-0002
+ * precedence. */
+typedef struct {
+  const validation_context *context;
+  uint32_t module_index;
+  uint32_t path[W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH];
+  size_t path_length;
+  uint32_t seen[W_SEED_GENERIC_VALIDATION_MAX_CONST_DEPENDENCIES];
+  size_t seen_count;
+  uint32_t cycle[W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH];
+  size_t cycle_length;
+} frontend_const_graph_context;
+
+static bool frontend_const_graph_on_path(
+    const frontend_const_graph_context *graph, uint32_t function_index,
+    size_t *position) {
+  if (position != NULL) *position = SIZE_MAX;
+  if (graph == NULL) return false;
+  for (size_t offset = 0u; offset < graph->path_length; offset += 1u) {
+    if (graph->path[offset] == function_index) {
+      if (position != NULL) *position = offset;
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool frontend_const_graph_seen(
+    const frontend_const_graph_context *graph, uint32_t function_index) {
+  if (graph == NULL) return false;
+  for (size_t offset = 0u; offset < graph->seen_count; offset += 1u)
+    if (graph->seen[offset] == function_index) return true;
+  return false;
+}
+
+static const_graph_status frontend_const_graph_visit_expression(
+    frontend_const_graph_context *graph, uint32_t expression_index,
+    size_t depth, w_seed_span enclosing_span);
+
+static unsigned int frontend_const_graph_binary_operator_arity(
+    w_seed_frontend_text operator_text) {
+  if (text_equal(operator_text, (w_seed_frontend_text){"+", 1}) ||
+      text_equal(operator_text, (w_seed_frontend_text){"-", 1}) ||
+      text_equal(operator_text, (w_seed_frontend_text){"*", 1}) ||
+      text_equal(operator_text, (w_seed_frontend_text){"/", 1}) ||
+      text_equal(operator_text, (w_seed_frontend_text){"%", 1}) ||
+      text_equal(operator_text, (w_seed_frontend_text){"==", 2}) ||
+      text_equal(operator_text, (w_seed_frontend_text){"!=", 2}) ||
+      text_equal(operator_text, (w_seed_frontend_text){"<", 1}) ||
+      text_equal(operator_text, (w_seed_frontend_text){"<=", 2}) ||
+      text_equal(operator_text, (w_seed_frontend_text){">", 1}) ||
+      text_equal(operator_text, (w_seed_frontend_text){">=", 2}) ||
+      text_equal(operator_text, (w_seed_frontend_text){"&&", 2}) ||
+      text_equal(operator_text, (w_seed_frontend_text){"||", 2}))
+    return 2u;
+  return 0u;
+}
+
+static bool frontend_const_graph_expression_shape_allowed(
+    const w_seed_frontend_expression *expression) {
+  if (expression == NULL) return false;
+  const w_seed_frontend_expr_kind kind = expression->kind;
+  switch (kind) {
+    case W_SEED_FRONTEND_EXPR_IDENTIFIER:
+    case W_SEED_FRONTEND_EXPR_INTEGER:
+    case W_SEED_FRONTEND_EXPR_BOOL:
+    case W_SEED_FRONTEND_EXPR_UNARY:
+    case W_SEED_FRONTEND_EXPR_BINARY:
+    case W_SEED_FRONTEND_EXPR_PARENTHESIS:
+      return true;
+    case W_SEED_FRONTEND_EXPR_UNSUPPORTED:
+      /* Type-incompatible D7 operators retain their child edges while the
+       * frontend marks the root unsupported.  Calls/member/index forms do
+       * not use one of these closed operator spellings and stay barriers. */
+      return text_equal(expression->operator_text,
+                        (w_seed_frontend_text){"!", 1}) ||
+             text_equal(expression->operator_text,
+                        (w_seed_frontend_text){"-", 1}) ||
+             frontend_const_graph_binary_operator_arity(
+                 expression->operator_text) != 0u;
+    default:
+      return false;
+  }
+}
+
+static bool frontend_const_graph_no_children(
+    const w_seed_frontend_expression *expression) {
+  return expression != NULL && expression->left == W_SEED_FRONTEND_NONE &&
+         expression->right == W_SEED_FRONTEND_NONE &&
+         expression->first_argument == W_SEED_FRONTEND_NONE &&
+         expression->argument_count == 0u &&
+         expression->first_switch_arm == W_SEED_FRONTEND_NONE &&
+         expression->switch_arm_count == 0u &&
+         expression->first_membership_case == W_SEED_FRONTEND_NONE &&
+         expression->membership_case_count == 0u;
+}
+
+static bool frontend_const_graph_target_mapping_valid(
+    const frontend_const_graph_context *graph,
+    const w_seed_frontend_expression *expression) {
+  if (graph == NULL || expression == NULL ||
+      expression->resolved_const_declaration == W_SEED_FRONTEND_NONE)
+    return true;
+  if (expression->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+      expression->spelling.length == 0u || !text_valid(expression->spelling) ||
+      graph->context == NULL || graph->context->frontend == NULL ||
+      graph->context->frontend_result == NULL ||
+      graph->context->frontend->const_declarations == NULL ||
+      (size_t)expression->resolved_const_declaration >=
+          graph->context->frontend_result->written.const_declarations)
+    return false;
+  const uint32_t target_index = expression->resolved_const_declaration;
+  const w_seed_frontend_const_declaration *target =
+      &graph->context->frontend
+           ->const_declarations[target_index];
+  if (target->module_index != graph->module_index ||
+      !text_valid(target->name) || target->name.length == 0u ||
+      !text_equal(target->name, expression->spelling) ||
+      !span_valid(target->span) || !span_valid(target->body_span) ||
+      !span_contains(target->span, target->body_span) ||
+      target->initializer_expression == W_SEED_FRONTEND_NONE)
+    return false;
+  size_t matches = 0u;
+  uint32_t matched_index = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u;
+       index < graph->context->frontend_result->written.const_declarations;
+       index += 1u) {
+    const w_seed_frontend_const_declaration *candidate =
+        &graph->context->frontend->const_declarations[index];
+    if (candidate->module_index == graph->module_index &&
+        text_equal(candidate->name, expression->spelling)) {
+      matches += 1u;
+      matched_index = (uint32_t)index;
+    }
+  }
+  return matches == 1u && matched_index == target_index;
+}
+
+static bool frontend_const_graph_expression_relation_valid(
+    const frontend_const_graph_context *graph,
+    const w_seed_frontend_expression *expression,
+    w_seed_span enclosing_span) {
+  if (graph == NULL || expression == NULL ||
+      !span_valid(enclosing_span) || !span_valid(expression->span) ||
+      !span_contains(enclosing_span, expression->span) ||
+      expression->module_index != graph->module_index ||
+      expression->owner_function != W_SEED_FRONTEND_NONE ||
+      !text_valid(expression->spelling) ||
+      !text_valid(expression->operator_text) ||
+      !text_valid(expression->member_name) ||
+      (expression->inferred_type != W_SEED_FRONTEND_NONE &&
+       (graph->context == NULL || graph->context->frontend_result == NULL ||
+        (size_t)expression->inferred_type >=
+            graph->context->frontend_result->written.types)) ||
+      expression->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE ||
+      expression->resolved_function_index != W_SEED_FRONTEND_NONE ||
+      expression->resolved_local_ordinal != W_SEED_FRONTEND_NONE ||
+      expression->const_byte_offset != W_SEED_FRONTEND_NONE ||
+      expression->const_byte_count != 0u ||
+      !frontend_const_graph_target_mapping_valid(graph, expression))
+    return false;
+  switch (expression->kind) {
+    case W_SEED_FRONTEND_EXPR_IDENTIFIER:
+      return frontend_const_graph_no_children(expression);
+    case W_SEED_FRONTEND_EXPR_INTEGER:
+    case W_SEED_FRONTEND_EXPR_BOOL:
+      return frontend_const_graph_no_children(expression) &&
+             expression->resolved_const_declaration == W_SEED_FRONTEND_NONE;
+    case W_SEED_FRONTEND_EXPR_UNARY:
+      return (text_equal(expression->operator_text,
+                         (w_seed_frontend_text){"!", 1}) ||
+              text_equal(expression->operator_text,
+                         (w_seed_frontend_text){"-", 1})) &&
+             expression->left != W_SEED_FRONTEND_NONE &&
+             expression->right == W_SEED_FRONTEND_NONE &&
+             expression->first_argument == W_SEED_FRONTEND_NONE &&
+             expression->argument_count == 0u;
+    case W_SEED_FRONTEND_EXPR_BINARY:
+      return frontend_const_graph_binary_operator_arity(
+                 expression->operator_text) != 0u &&
+             expression->left != W_SEED_FRONTEND_NONE &&
+             expression->right != W_SEED_FRONTEND_NONE &&
+             expression->first_argument == W_SEED_FRONTEND_NONE &&
+             expression->argument_count == 0u;
+    case W_SEED_FRONTEND_EXPR_PARENTHESIS:
+      return expression->left != W_SEED_FRONTEND_NONE &&
+             expression->right == W_SEED_FRONTEND_NONE &&
+             expression->first_argument == W_SEED_FRONTEND_NONE &&
+             expression->argument_count == 0u &&
+             expression->resolved_const_declaration == W_SEED_FRONTEND_NONE;
+    case W_SEED_FRONTEND_EXPR_UNSUPPORTED: {
+      if (!frontend_const_graph_expression_shape_allowed(expression)) return false;
+      const bool unary =
+          text_equal(expression->operator_text,
+                     (w_seed_frontend_text){"!", 1}) ||
+          (text_equal(expression->operator_text,
+                      (w_seed_frontend_text){"-", 1}) &&
+           expression->right == W_SEED_FRONTEND_NONE);
+      const bool binary =
+          frontend_const_graph_binary_operator_arity(expression->operator_text) !=
+          0u;
+      return ((unary && expression->left != W_SEED_FRONTEND_NONE &&
+               expression->right == W_SEED_FRONTEND_NONE) ||
+              (binary && expression->left != W_SEED_FRONTEND_NONE &&
+               expression->right != W_SEED_FRONTEND_NONE)) &&
+             expression->first_argument == W_SEED_FRONTEND_NONE &&
+             expression->argument_count == 0u &&
+             expression->resolved_const_declaration == W_SEED_FRONTEND_NONE;
+    }
+    default:
+      return false;
+  }
+}
+
+/* An unsupported generic value can lack a typed-ConstExpr relation.  The
+ * frontend still owns its normalized expression record, so recover that root
+ * from the caller-owned argument span for graph-first cycle detection.  This
+ * is an audit lookup only; it does not make the argument executable. */
+static bool frontend_const_graph_expression_for_argument(
+    const validation_context *context,
+    const w_seed_frontend_generic_application *application,
+    uint32_t argument_offset, uint32_t *expression_index,
+    bool *typed_relation) {
+  if (expression_index != NULL) *expression_index = W_SEED_FRONTEND_NONE;
+  if (typed_relation != NULL) *typed_relation = false;
+  if (context == NULL || application == NULL ||
+      context->frontend == NULL || context->frontend_result == NULL ||
+      context->frontend->generic_arguments == NULL ||
+      context->frontend->expressions == NULL ||
+      argument_offset >= application->argument_count ||
+      !range_valid(application->first_argument, application->argument_count,
+                   context->frontend_result->written.generic_arguments))
+    return false;
+  const w_seed_frontend_generic_argument *argument =
+      &context->frontend->generic_arguments[(size_t)application->first_argument +
+                                            argument_offset];
+  if (argument->typed_const_expression_index != W_SEED_FRONTEND_NONE) {
+    if (context->frontend->typed_const_expressions == NULL ||
+        (size_t)argument->typed_const_expression_index >=
+            context->frontend_result->written.typed_const_expressions)
+      return false;
+    const w_seed_frontend_typed_const_expression *typed =
+        &context->frontend->typed_const_expressions[
+            argument->typed_const_expression_index];
+    if (typed->expression_index == W_SEED_FRONTEND_NONE ||
+        (size_t)typed->expression_index >=
+            context->frontend_result->written.expressions)
+      return false;
+    if (expression_index != NULL) *expression_index = typed->expression_index;
+    if (typed_relation != NULL) *typed_relation = true;
+    return true;
+  }
+
+  /* Prefer an exact span.  A labeled argument has a wider argument span than
+   * its value, so the fallback also chooses the widest expression contained
+   * by that span.  The latest record wins equal spans because normalization
+   * appends a root after its children. */
+  const w_seed_span argument_span = argument->span;
+  size_t best_width = 0u;
+  uint32_t best = W_SEED_FRONTEND_NONE;
+  bool found_exact = false;
+  for (size_t index = 0u;
+       index < context->frontend_result->written.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &context->frontend->expressions[index];
+    if (expression->module_index != application->module_index ||
+        expression->owner_function != W_SEED_FRONTEND_NONE ||
+        !span_contains(argument_span, expression->span))
+      continue;
+    const bool exact = expression->span.start_byte == argument_span.start_byte &&
+                       expression->span.end_byte == argument_span.end_byte;
+    if (found_exact && !exact) continue;
+    const size_t width = expression->span.end_byte -
+                         expression->span.start_byte;
+    if (exact ||
+        (!found_exact && (best == W_SEED_FRONTEND_NONE ||
+                          width >= best_width))) {
+      if (exact && !found_exact) {
+        found_exact = true;
+        best = W_SEED_FRONTEND_NONE;
+      }
+      best = (uint32_t)index;
+      best_width = width;
+    }
+  }
+  if (best == W_SEED_FRONTEND_NONE) return false;
+  if (expression_index != NULL) *expression_index = best;
+  return true;
+}
+
+static const_graph_status frontend_const_graph_visit_declaration(
+    frontend_const_graph_context *graph, uint32_t declaration_index) {
+  if (graph == NULL || graph->context == NULL ||
+      graph->context->frontend == NULL || graph->context->frontend_result == NULL ||
+      graph->context->program == NULL ||
+      declaration_index == W_SEED_FRONTEND_NONE ||
+      (size_t)declaration_index >=
+          graph->context->frontend_result->written.const_declarations ||
+      graph->context->frontend->const_declarations == NULL)
+    return CONST_GRAPH_INVALID;
+  const w_seed_frontend_const_declaration *declaration =
+      &graph->context->frontend->const_declarations[declaration_index];
+  if (declaration->module_index != graph->module_index ||
+      !text_valid(declaration->name) || declaration->name.length == 0u ||
+      !span_valid(declaration->span) || !span_valid(declaration->body_span) ||
+      !span_contains(declaration->span, declaration->body_span) ||
+      declaration->initializer_expression == W_SEED_FRONTEND_NONE ||
+      (size_t)declaration->initializer_expression >=
+          graph->context->frontend_result->written.expressions)
+    return CONST_GRAPH_INVALID;
+  bool duplicate = false;
+  size_t function_index = SIZE_MAX;
+  const w_seed_constir_function *function =
+      constir_function_for_const_declaration(
+          graph->context->program, declaration_index, &function_index,
+          &duplicate);
+  if (duplicate || function == NULL || function_index == SIZE_MAX ||
+      function_index > (size_t)UINT32_MAX)
+    return CONST_GRAPH_INVALID;
+  size_t cycle_start = SIZE_MAX;
+  if (frontend_const_graph_on_path(graph, (uint32_t)function_index,
+                                   &cycle_start)) {
+    const size_t cycle_members = graph->path_length - cycle_start;
+    if (cycle_members == 0u ||
+        cycle_members > W_SEED_GENERIC_VALIDATION_MAX_CONST_DEPENDENCIES ||
+        cycle_members + 1u >
+            W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH)
+      return CONST_GRAPH_LIMIT;
+    graph->cycle_length = cycle_members + 1u;
+    for (size_t offset = 0u; offset < cycle_members; offset += 1u)
+      graph->cycle[offset] = graph->path[cycle_start + offset];
+    graph->cycle[cycle_members] = (uint32_t)function_index;
+    return CONST_GRAPH_CYCLE;
+  }
+  if (frontend_const_graph_seen(graph, (uint32_t)function_index))
+    return CONST_GRAPH_OK;
+  if (graph->seen_count >= W_SEED_GENERIC_VALIDATION_MAX_CONST_DEPENDENCIES ||
+      graph->path_length >= W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH)
+    return CONST_GRAPH_LIMIT;
+  if (declaration->effective_type != W_SEED_FRONTEND_NONE) {
+    if (graph->context->frontend->types == NULL ||
+        (size_t)declaration->effective_type >=
+            graph->context->frontend_result->written.types)
+      return CONST_GRAPH_INVALID;
+    const w_seed_frontend_type *type =
+        &graph->context->frontend->types[declaration->effective_type];
+    if (type->kind != W_SEED_FRONTEND_TYPE_BOOL &&
+        (type->kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+         type->bit_width == 0u))
+      return CONST_GRAPH_OK;
+  }
+  graph->seen[graph->seen_count++] = (uint32_t)function_index;
+  graph->path[graph->path_length++] = (uint32_t)function_index;
+  const_graph_status status = frontend_const_graph_visit_expression(
+      graph, declaration->initializer_expression, 1u, declaration->body_span);
+  graph->path_length -= 1u;
+  return status;
+}
+
+static const_graph_status frontend_const_graph_visit_expression(
+    frontend_const_graph_context *graph, uint32_t expression_index,
+    size_t depth, w_seed_span enclosing_span) {
+  if (graph == NULL || graph->context == NULL ||
+      graph->context->frontend == NULL || graph->context->frontend_result == NULL ||
+      graph->context->frontend->expressions == NULL || depth == 0u ||
+      depth > W_SEED_GENERIC_VALIDATION_MAX_DEPTH ||
+      expression_index == W_SEED_FRONTEND_NONE ||
+      (size_t)expression_index >=
+          graph->context->frontend_result->written.expressions)
+    return CONST_GRAPH_INVALID;
+  const w_seed_frontend_expression *expression =
+      &graph->context->frontend->expressions[expression_index];
+  if (!frontend_const_graph_expression_shape_allowed(expression))
+    return CONST_GRAPH_OK;
+  if (!frontend_const_graph_expression_relation_valid(graph, expression,
+                                                      enclosing_span))
+    return CONST_GRAPH_INVALID;
+  if (expression->resolved_const_declaration != W_SEED_FRONTEND_NONE) {
+    const_graph_status status = frontend_const_graph_visit_declaration(
+        graph, expression->resolved_const_declaration);
+    if (status != CONST_GRAPH_OK) return status;
+  }
+  if (expression->left != W_SEED_FRONTEND_NONE) {
+    const_graph_status status = frontend_const_graph_visit_expression(
+        graph, expression->left, depth + 1u, expression->span);
+    if (status != CONST_GRAPH_OK) return status;
+  }
+  if (expression->right != W_SEED_FRONTEND_NONE) {
+    const_graph_status status = frontend_const_graph_visit_expression(
+        graph, expression->right, depth + 1u, expression->span);
+    if (status != CONST_GRAPH_OK) return status;
+  }
+  return CONST_GRAPH_OK;
+}
+
+static const_graph_status frontend_const_graph_preflight(
+    const validation_context *context,
+    const w_seed_frontend_generic_application *application,
+    const uint32_t typed_function_indices[W_SEED_FRONTEND_MAX_GENERIC_SLOTS],
+    bool include_unbound,
+    uint32_t cycle_path[W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH],
+    size_t *cycle_path_length, uint32_t *cycle_argument_offset,
+    size_t *calculated_argument_count) {
+  if (cycle_path_length != NULL) *cycle_path_length = 0u;
+  if (cycle_argument_offset != NULL) *cycle_argument_offset = W_SEED_FRONTEND_NONE;
+  if (calculated_argument_count != NULL) *calculated_argument_count = 0u;
+  if (context == NULL || application == NULL ||
+      context->frontend == NULL || context->frontend_result == NULL ||
+      context->program == NULL)
+    return CONST_GRAPH_INVALID;
+  frontend_const_graph_context graph;
+  (void)memset(&graph, 0, sizeof(graph));
+  graph.context = context;
+  graph.module_index = application->module_index;
+  uint32_t root_expressions[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
+  bool recovered_roots[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
+  for (size_t index = 0u; index < W_SEED_FRONTEND_MAX_GENERIC_SLOTS;
+       index += 1u) {
+    root_expressions[index] = W_SEED_FRONTEND_NONE;
+    recovered_roots[index] = false;
+  }
+
+  /* First recover every source-backed D7 root.  This pass is read-only and
+   * completes the calculated count before graph traversal can return a cycle. */
+  for (uint32_t offset = 0u; offset < application->argument_count; offset += 1u) {
+    const bool typed_pending = typed_function_indices != NULL &&
+                               typed_function_indices[offset] !=
+                               W_SEED_CONSTIR_NONE;
+    const w_seed_frontend_generic_argument *argument =
+        context->frontend->generic_arguments == NULL ||
+                !range_valid(application->first_argument,
+                             application->argument_count,
+                             context->frontend_result->written.generic_arguments)
+            ? NULL
+            : &context->frontend->generic_arguments[
+                  (size_t)application->first_argument + offset];
+    const bool unbound = include_unbound && argument != NULL &&
+                         argument->binding_status ==
+                             W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED;
+    if (!typed_pending && !unbound) continue;
+    uint32_t expression_index = W_SEED_FRONTEND_NONE;
+    if (!frontend_const_graph_expression_for_argument(
+            context, application, offset, &expression_index, NULL)) {
+      return CONST_GRAPH_INVALID;
+    }
+    if (expression_index == W_SEED_FRONTEND_NONE ||
+        (size_t)expression_index >= context->frontend_result->written.expressions)
+      return CONST_GRAPH_INVALID;
+    const w_seed_frontend_expression *expression =
+        &context->frontend->expressions[expression_index];
+    if (include_unbound && unbound &&
+        !frontend_const_graph_expression_shape_allowed(expression))
+      continue;
+    if (offset >= W_SEED_FRONTEND_MAX_GENERIC_SLOTS)
+      return CONST_GRAPH_LIMIT;
+    root_expressions[offset] = expression_index;
+    recovered_roots[offset] = true;
+    if (include_unbound && unbound && calculated_argument_count != NULL) {
+      if (*calculated_argument_count == SIZE_MAX) return CONST_GRAPH_LIMIT;
+      *calculated_argument_count += 1u;
+    }
+  }
+
+  for (uint32_t offset = 0u; offset < application->argument_count; offset += 1u) {
+    if (!recovered_roots[offset]) continue;
+    const_graph_status status = frontend_const_graph_visit_expression(
+        &graph, root_expressions[offset], 1u,
+        context->frontend->generic_arguments[
+            (size_t)application->first_argument + offset]
+             .span);
     if (status != CONST_GRAPH_OK) {
       if (status == CONST_GRAPH_CYCLE && cycle_path != NULL &&
           cycle_path_length != NULL) {
@@ -1012,9 +1503,11 @@ static bool typed_const_expression_relation_valid(
 static bool application_relations_valid(
     const validation_context *context,
     const w_seed_frontend_generic_application **application_out,
-    const w_seed_frontend_struct **head_out) {
+    const w_seed_frontend_struct **head_out,
+    bool *invalid_argument_out) {
   if (application_out != NULL) *application_out = NULL;
   if (head_out != NULL) *head_out = NULL;
+  if (invalid_argument_out != NULL) *invalid_argument_out = false;
   if (context == NULL || context->frontend == NULL ||
       context->frontend_result == NULL || context->frontend->generic_applications == NULL ||
       context->frontend->structs == NULL ||
@@ -1052,6 +1545,7 @@ static bool application_relations_valid(
     return false;
   bool saw_typed_pending = false;
   bool declared_const_evaluation = false;
+  bool invalid_argument = false;
   for (uint32_t offset = 0u; offset < application->argument_count; offset += 1u) {
     const w_seed_frontend_generic_argument *argument =
         &context->frontend->generic_arguments[(size_t)application->first_argument + offset];
@@ -1073,6 +1567,9 @@ static bool application_relations_valid(
         argument->binding_status < W_SEED_FRONTEND_GENERIC_BINDING_INVALID ||
         argument->binding_status > W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE)
       return false;
+    if (argument->binding_status ==
+        W_SEED_FRONTEND_GENERIC_BINDING_INVALID)
+      invalid_argument = true;
     if (value_kind) {
       if (argument->binding_status ==
           W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED) {
@@ -1128,6 +1625,7 @@ static bool application_relations_valid(
     return false;
   if (application_out != NULL) *application_out = application;
   if (head_out != NULL) *head_out = head;
+  if (invalid_argument_out != NULL) *invalid_argument_out = invalid_argument;
   return true;
 }
 
@@ -1960,9 +2458,11 @@ static void receipt_init(w_seed_generic_validation_receipt *receipt) {
   receipt->typed_const_expression_index = W_SEED_FRONTEND_NONE;
   receipt->predicate_parameter_index = W_SEED_FRONTEND_NONE;
   receipt->predicate_function_index = W_SEED_FRONTEND_NONE;
+  receipt->effective_type = W_SEED_FRONTEND_NONE;
 }
 
 static void publish_const_cycle_failure(
+    const validation_context *context,
     const w_seed_generic_validation_input *input,
     const w_seed_frontend_generic_application *application,
     uint32_t argument_offset, const uint32_t *cycle_path,
@@ -1984,6 +2484,17 @@ static void publish_const_cycle_failure(
   receipt->typed_const_expression_index =
       argument->typed_const_expression_index;
   receipt->argument_span = argument->span;
+  if (argument->typed_const_expression_index != W_SEED_FRONTEND_NONE &&
+      input->frontend_output->typed_const_expressions != NULL &&
+      (size_t)argument->typed_const_expression_index <
+          input->frontend_result->written.typed_const_expressions)
+    receipt->effective_type =
+        input->frontend_output
+            ->typed_const_expressions[argument->typed_const_expression_index]
+            .effective_type;
+  if (receipt->effective_type == W_SEED_FRONTEND_NONE && context != NULL)
+    (void)effective_domain_type_index(context, application, argument_offset,
+                                       &receipt->effective_type);
   receipt->evaluation.status = W_SEED_CONSTIR_OK;
   receipt->evaluation.diagnostic =
       W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002;
@@ -2024,9 +2535,57 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
     return result->state;
   const w_seed_frontend_generic_application *application = NULL;
   const w_seed_frontend_struct *head = NULL;
-  if (!application_relations_valid(&context, &application, &head))
+  bool invalid_argument = false;
+  if (!application_relations_valid(&context, &application, &head,
+                                   &invalid_argument))
     return result->state;
   result->head_struct_index = application->head_struct;
+  if (invalid_argument) return result->state;
+
+  /* A frontend UNSUPPORTED application can still contain a normalized D7
+   * expression graph.  Check that graph after the complete application
+   * relation, but before the binding barrier.  INVALID applications and
+   * arguments keep their invalid-input barrier. */
+  if (application->binding_status ==
+      W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED) {
+    uint32_t early_cycle_path[W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH];
+    size_t early_cycle_path_length = 0u;
+    uint32_t early_cycle_argument_offset = W_SEED_FRONTEND_NONE;
+    size_t early_calculated_argument_count = 0u;
+    const const_graph_status early_graph_status =
+        frontend_const_graph_preflight(
+            &context, application, NULL, true, early_cycle_path,
+            &early_cycle_path_length, &early_cycle_argument_offset,
+            &early_calculated_argument_count);
+    if (early_graph_status == CONST_GRAPH_INVALID) {
+      result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+      return result->state;
+    }
+    if (early_graph_status == CONST_GRAPH_CYCLE) {
+      /* Publish every recovered D7 argument before the capacity-dependent
+       * causal receipt write. */
+      result->computed_argument_count = early_calculated_argument_count;
+      result->state = W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED;
+      result->failure =
+          W_SEED_GENERIC_VALIDATION_FAILURE_EVALUATOR_DIAGNOSTIC;
+      result->const_cycle_path_length = early_cycle_path_length;
+      if (early_cycle_path_length != 0u)
+        (void)memcpy(result->const_cycle_path, early_cycle_path,
+                     early_cycle_path_length * sizeof(early_cycle_path[0]));
+      result->diagnostic = W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002;
+      result->diagnostic_span = application->span;
+      publish_const_cycle_failure(
+          &context, input, application, early_cycle_argument_offset,
+          early_cycle_path, early_cycle_path_length, result);
+      return result->state;
+    }
+    if (early_graph_status == CONST_GRAPH_LIMIT) {
+      result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_DEPENDENCY_LIMIT;
+      return result->state;
+    }
+  }
   if (application->binding_status ==
       W_SEED_FRONTEND_GENERIC_BINDING_INVALID)
     return result->state;
@@ -2095,11 +2654,6 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
       if (duplicate || function == NULL) {
         result->state = W_SEED_GENERIC_VALIDATION_INVALID;
         result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
-        return result->state;
-      }
-      if (!function->lowerable) {
-        result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
-        result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION;
         return result->state;
       }
       if (function->parameter_count != 0u ||
@@ -2185,10 +2739,6 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
       result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
       return result->state = W_SEED_GENERIC_VALIDATION_INVALID;
     }
-    if (!candidate->function->lowerable) {
-      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION;
-      return result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
-    }
     candidate_count += 1u;
   }
   result->predicate_count = candidate_count;
@@ -2198,6 +2748,56 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
   uint32_t cycle_path[W_SEED_GENERIC_VALIDATION_MAX_CONST_CYCLE_PATH];
   size_t cycle_path_length = 0u;
   uint32_t cycle_argument_offset = W_SEED_FRONTEND_NONE;
+  const const_graph_status frontend_graph_status =
+      frontend_const_graph_preflight(
+          &context, application, typed_function_indices, false, cycle_path,
+          &cycle_path_length, &cycle_argument_offset, NULL);
+  if (frontend_graph_status == CONST_GRAPH_INVALID) {
+    result->state = W_SEED_GENERIC_VALIDATION_INVALID;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
+    return result->state;
+  }
+  if (frontend_graph_status == CONST_GRAPH_UNSUPPORTED) {
+    result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION;
+    return result->state;
+  }
+  if (frontend_graph_status == CONST_GRAPH_LIMIT) {
+    result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_DEPENDENCY_LIMIT;
+    return result->state;
+  }
+  if (frontend_graph_status == CONST_GRAPH_CYCLE) {
+    result->state = W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED;
+    result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_EVALUATOR_DIAGNOSTIC;
+    result->const_cycle_path_length = cycle_path_length;
+    if (cycle_path_length != 0u)
+      (void)memcpy(result->const_cycle_path, cycle_path,
+                   cycle_path_length * sizeof(cycle_path[0]));
+    result->diagnostic = W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002;
+    result->diagnostic_span = application->span;
+    publish_const_cycle_failure(&context, input, application,
+                                cycle_argument_offset, cycle_path,
+                                cycle_path_length, result);
+    return result->state;
+  }
+  for (uint32_t offset = 0u; offset < application->argument_count; offset += 1u) {
+    const uint32_t function_index = typed_function_indices[offset];
+    if (function_index == W_SEED_CONSTIR_NONE) continue;
+    if ((size_t)function_index >= context.program->function_count ||
+        !context.program->functions[function_index].lowerable) {
+      result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION;
+      return result->state;
+    }
+  }
+  for (size_t index = 0u; index < candidate_count; index += 1u) {
+    if (!candidates[index].function->lowerable) {
+      result->state = W_SEED_GENERIC_VALIDATION_UNSUPPORTED;
+      result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_FUNCTION;
+      return result->state;
+    }
+  }
   const const_graph_status graph_status = const_graph_preflight(
       &context, application, typed_function_indices, cycle_path,
       &cycle_path_length, &cycle_argument_offset);
@@ -2224,8 +2824,9 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
       (void)memcpy(result->const_cycle_path, cycle_path,
                    cycle_path_length * sizeof(cycle_path[0]));
     result->diagnostic = W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002;
-    publish_const_cycle_failure(input, application, cycle_argument_offset,
-                                cycle_path, cycle_path_length, result);
+    publish_const_cycle_failure(&context, input, application,
+                                cycle_argument_offset, cycle_path,
+                                cycle_path_length, result);
     return result->state;
   }
   /* Publish the complete computed count from read-only preflight.  No
@@ -2308,6 +2909,7 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
       receipt->argument_span = argument->span;
       receipt->evaluation = evaluation;
       receipt->eval_value = value;
+      receipt->effective_type = value.type_index;
       result->receipts_written = const_receipt_index;
       if (status != W_SEED_CONSTIR_OK ||
           evaluation.diagnostic != W_SEED_CONSTIR_DIAGNOSTIC_NONE) {
@@ -2363,6 +2965,7 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
       w_seed_generic_validation_receipt *receipt =
           &input->receipts[const_receipt_index - 1u];
       receipt->eval_value = context.input->conversion_values[value_index];
+      receipt->effective_type = receipt->eval_value.type_index;
     }
     value_indices[offset] = value_index;
   }
@@ -2415,6 +3018,7 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
     receipt->predicate_function_span = candidate->parameter->predicate_function_span;
     receipt->evaluation = evaluation;
     receipt->eval_value = predicate_value;
+    receipt->effective_type = candidate->effective_domain_type_index;
     receipt->result_is_bool = predicate_value.kind == W_SEED_CONSTIR_VALUE_BOOL;
     receipt->bool_value = predicate_value.bool_value;
     result->receipts_written = computed_argument_count + index + 1u;

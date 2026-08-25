@@ -1094,10 +1094,12 @@ static bool digest_const_target(const constir_lower_context *context,
   digest_u8(state, 0x6du);
   digest_text(state, context->frontend->modules[target->module_index].module_id);
   digest_text(state, target->name);
-  digest_u8(state, target->has_explicit_type ? 1u : 0u);
-  if (target->declared_type == W_SEED_FRONTEND_NONE) {
-    digest_u8(state, 0u);
-  } else if (!digest_type(context, target->declared_type, state)) {
+  /* ConstIR-6 used a constant target tag in this position.  It is semantic
+   * type framing, not annotation presence: retain it for D4-D6 body-digest
+   * compatibility and use it for D7 inferred declarations as well. */
+  digest_u8(state, 1u);
+  if (target->effective_type == W_SEED_FRONTEND_NONE ||
+      !digest_type(context, target->effective_type, state)) {
     return false;
   }
   if (target->initializer_expression == W_SEED_FRONTEND_NONE) return false;
@@ -1540,7 +1542,7 @@ static bool typed_const_expression_closed(constir_lower_context *context,
       if (declaration == NULL || !declaration->lowerable ||
           !type_metadata(context, expression->inferred_type, &kind, &is_signed,
                          &width, &enum_base) ||
-          !type_metadata(context, declaration->declared_type, &target_kind,
+          !type_metadata(context, declaration->effective_type, &target_kind,
                          &target_signed, &target_width, &target_enum_base) ||
           (kind != W_SEED_FRONTEND_TYPE_BOOL &&
            kind != W_SEED_FRONTEND_TYPE_INTEGER) ||
@@ -1797,7 +1799,7 @@ static bool lower_all(constir_lower_context *context) {
     bool result_signed = false;
     uint16_t result_width = 0u;
     uint32_t result_enum = W_SEED_FRONTEND_NONE;
-    if (!type_metadata(context, declaration->declared_type, &result_kind,
+    if (!type_metadata(context, declaration->effective_type, &result_kind,
                        &result_signed, &result_width, &result_enum) ||
         (result_kind != W_SEED_FRONTEND_TYPE_BOOL &&
          result_kind != W_SEED_FRONTEND_TYPE_INTEGER) ||
@@ -3281,11 +3283,11 @@ static bool function_result_matches_node(const w_seed_constir_program *program,
     if (declaration == NULL || program->frontend_output == NULL ||
         program->frontend_result == NULL ||
         program->frontend_output->types == NULL ||
-        (size_t)declaration->declared_type >=
-            program->frontend_result->written.types)
+        (size_t)declaration->effective_type >=
+             program->frontend_result->written.types)
       return false;
     const w_seed_frontend_type *type =
-        &program->frontend_output->types[declaration->declared_type];
+        &program->frontend_output->types[declaration->effective_type];
     return constir_result_type_supported(type->kind) &&
            node_matches_type(node, type->kind, type->is_signed,
                              type->bit_width, type->enum_base_index);
@@ -3505,7 +3507,7 @@ static bool validate_function_origin(const w_seed_constir_program *program,
         symbol->module_index != declaration->module_index ||
         symbol->owner_index != function->frontend_const_declaration ||
         symbol->exported != declaration->exported ||
-        symbol->type_index != declaration->declared_type ||
+        symbol->type_index != declaration->effective_type ||
         !frontend_text_equal(symbol->name, declaration->name) ||
         symbol->span.start_byte != declaration->span.start_byte ||
         symbol->span.end_byte != declaration->span.end_byte)
@@ -3534,29 +3536,35 @@ static bool validate_function_origin(const w_seed_constir_program *program,
              ->expressions[declaration->initializer_expression];
     if (expression->owner_function != W_SEED_FRONTEND_NONE ||
         !span_contains(declaration->body_span, expression->span) ||
-        (declaration->declared_type != W_SEED_FRONTEND_NONE &&
-         expression->inferred_type != declaration->declared_type))
+        (declaration->has_explicit_type
+             ? declaration->declared_type != declaration->effective_type
+             : declaration->declared_type != W_SEED_FRONTEND_NONE))
       return false;
-    /* An omitted type is a well-formed source declaration, but it is outside
-     * the D4 lowerable subset.  Keep its synthetic origin auditable so the
-     * generic validator can report UNSUPPORTED instead of INVALID. */
-    if (declaration->declared_type == W_SEED_FRONTEND_NONE) {
-      if (function->lowerable || function->node_count != 0u ||
-          function->root_node != W_SEED_CONSTIR_NONE)
+    /* A well-formed but non-lowerable D7 initializer remains auditable as a
+     * frontend expression.  It has no synthetic UNKNOWN type and therefore
+     * no ConstIR body. */
+    if (declaration->effective_type == W_SEED_FRONTEND_NONE) {
+      if (declaration->has_explicit_type || function->lowerable ||
+          function->node_count != 0u ||
+          function->root_node != W_SEED_CONSTIR_NONE ||
+          (expression->inferred_type != W_SEED_FRONTEND_NONE &&
+           (size_t)expression->inferred_type >=
+               program->frontend_result->written.types))
         return false;
       return true;
     }
+    if (expression->inferred_type != declaration->effective_type) return false;
     const w_seed_frontend_type *type = NULL;
     if (program->frontend_output->types == NULL ||
-        (size_t)declaration->declared_type >=
+        (size_t)declaration->effective_type >=
             program->frontend_result->written.types)
       return false;
-    type = &program->frontend_output->types[declaration->declared_type];
+    type = &program->frontend_output->types[declaration->effective_type];
     const bool scalar =
         type->kind == W_SEED_FRONTEND_TYPE_BOOL ||
         (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->bit_width != 0u);
-    if (function->lowerable != (declaration->lowerable && expression->supported &&
-                                scalar && declaration->has_explicit_type))
+    if (function->lowerable !=
+        (declaration->lowerable && expression->supported && scalar))
       return false;
     if (!function->lowerable) {
       if (function->node_count != 0u ||
@@ -3571,7 +3579,7 @@ static bool validate_function_origin(const w_seed_constir_program *program,
     const w_seed_constir_node *node = &program->nodes[function->root_node];
     return node->owner_function == W_SEED_CONSTIR_NONE &&
            span_contains(declaration->body_span, node->source_span) &&
-           node->type_index == declaration->declared_type &&
+           node->type_index == declaration->effective_type &&
            node->type_kind == type->kind &&
            node->type_is_signed == type->is_signed &&
            node->type_bit_width == type->bit_width &&

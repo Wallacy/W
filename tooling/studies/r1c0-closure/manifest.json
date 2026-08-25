@@ -331,12 +331,12 @@
     {
       "id": "R1-static-contract-slots",
       "path": "tooling/studies/r1-static-contract-slots/bundle.json",
-      "digest": "sha256:3c64c65452fa194b96dbb2cda696a34d45714917c7a20d536a38d7e98cc03d49"
+      "digest": "sha256:5d368bc136f12898e5d7dd13a4b00fb45c9bfdfb67d2834b4863c946ffa59ae3"
     },
     {
       "id": "R1-static-contract-syntax",
       "path": "tooling/studies/r1-static-contract-syntax/bundle.json",
-      "digest": "sha256:eff682cde9cb1d54857aff0b4d57e90d6dd4f0910e32c6d6114958e9e770b868"
+      "digest": "sha256:eba941ab2b33d104debddee70745ef77b478c146a75c5510c182a429fc80e696"
     },
     {
       "id": "R1-suspend-accounting-names",

@@ -13,10 +13,14 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-6"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-7"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
+/* The const-inference scratch is indexed by the global declaration ordinal.
+ * This is an explicit input ceiling, not a per-document promise. */
+#define W_SEED_FRONTEND_MAX_CONST_DECLARATIONS \
+  W_SEED_FRONTEND_MAX_CST_NODES
 #define W_SEED_FRONTEND_MAX_NESTING 256u
 /* Generic schema/application scratch is deliberately bounded below the CST
  * budget so the two dry/emit contexts remain safe on the seed's Windows
@@ -375,6 +379,10 @@ typedef struct {
   uint32_t symbol_index;
   bool has_explicit_type;
   bool lowerable;
+  /* Append-only inferred or constrained semantic type.  NONE means that the
+   * initializer did not produce a type record.  declared_type remains the
+   * source annotation index and is never populated by inference. */
+  uint32_t effective_type;
 } w_seed_frontend_const_declaration;
 
 typedef struct {

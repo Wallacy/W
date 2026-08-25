@@ -13,7 +13,7 @@ extern "C" {
 
 /* Internal seed-C generic predicate validation.  This is not a W interface
  * and it does not create a final specialization or a type identity. */
-#define W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION "w-seed-generic-validation-5"
+#define W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION "w-seed-generic-validation-6"
 #define W_SEED_GENERIC_VALIDATION_FINGERPRINT_SCHEMA_VERSION \
   "w-seed-generic-fingerprint-1"
 #define W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES 32u
@@ -86,6 +86,11 @@ typedef struct {
   w_seed_constir_value eval_value;
   bool result_is_bool;
   bool bool_value;
+  /* Effective type of the generic argument represented by this receipt:
+   * CONST_ARGUMENT uses the value type; PREDICATE uses the input/domain type.
+   * The predicate eval_value remains Bool.  A cycle receipt uses the typed
+   * argument effective type even though no value was evaluated. */
+  uint32_t effective_type;
 } w_seed_generic_validation_receipt;
 
 /* Minimum caller-owned facts for W-CONST-0004.  D1 uses the exact fallback

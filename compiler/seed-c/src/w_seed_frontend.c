@@ -118,6 +118,22 @@ typedef struct {
   w_seed_span span;
 } frontend_enum_subset_item;
 
+/* The D7 solver keeps only the compact scalar metadata that is needed while
+ * the dry and emit passes normalize the same source.  Type indices are
+ * process-local and are assigned after inference. */
+typedef struct {
+  w_seed_frontend_type_kind kind;
+  bool is_signed;
+  uint16_t bit_width;
+  bool known;
+} frontend_const_inferred_type;
+
+enum {
+  FRONTEND_CONST_INFERENCE_UNSEEN = 0u,
+  FRONTEND_CONST_INFERENCE_ACTIVE = 1u,
+  FRONTEND_CONST_INFERENCE_DONE = 2u,
+};
+
 typedef struct {
   w_seed_frontend_input input;
   w_seed_frontend_output *output;
@@ -142,12 +158,33 @@ typedef struct {
   uint32_t generic_domain_type_indices[FRONTEND_MAX_GENERIC_METADATA];
   w_seed_frontend_generic_refinement_kind
       generic_refinement_kinds[FRONTEND_MAX_GENERIC_METADATA];
+  frontend_const_inferred_type *const_inferred_types;
+  uint32_t *const_declared_type_indices;
+  uint32_t *const_inferred_type_indices;
+  uint8_t *const_inference_states;
+  size_t const_document_bases[W_SEED_FRONTEND_MAX_DOCUMENTS];
+  size_t const_total_count;
+  bool const_inference_complete;
 } frontend_context;
+
+/* These arrays are temporary per-thread inference workspace.  Each measure or
+ * run resets them before use; they are not persistent compiler state and are
+ * never part of the caller-owned frontend output. */
+static _Thread_local frontend_const_inferred_type
+    frontend_const_inferred_types_scratch
+        [W_SEED_FRONTEND_MAX_CONST_DECLARATIONS];
+static _Thread_local uint32_t frontend_const_declared_type_indices_scratch
+    [W_SEED_FRONTEND_MAX_CONST_DECLARATIONS];
+static _Thread_local uint32_t frontend_const_inferred_type_indices_scratch
+    [W_SEED_FRONTEND_MAX_CONST_DECLARATIONS];
+static _Thread_local uint8_t frontend_const_inference_states_scratch
+    [W_SEED_FRONTEND_MAX_CONST_DECLARATIONS];
 
 static bool normalize_document(frontend_context *context);
 static bool normalize_module_const(frontend_context *context,
                                    uint32_t node_index,
                                    uint32_t const_index);
+static bool infer_module_const_types(frontend_context *context);
 static bool detect_duplicate_declarations(frontend_context *context);
 static bool resolve_imports(frontend_context *context);
 static bool resolve_frontend_links(frontend_context *context);
@@ -252,13 +289,14 @@ static bool context_append_fact(frontend_context *context,
 static bool const_record_failure(frontend_context *context, w_seed_span span,
                                  w_seed_frontend_text detail);
 static bool context_append_record(frontend_context *context, size_t ordinal,
-                                  const void *value, size_t value_size,
-                                  void *array, size_t capacity,
-                                  uint32_t *index);
+                                   const void *value, size_t value_size,
+                                   void *array, size_t capacity,
+                                   uint32_t *index);
+static bool context_append_type(frontend_context *context,
+                                 w_seed_frontend_type value,
+                                 uint32_t *index);
 static bool next_child(const w_seed_frontend_document *doc, uint32_t *cursor,
                        uint32_t *child);
-static bool receipt_size_const_declarations_from_input(
-    frontend_context *context);
 static bool span_has_keyword(const w_seed_frontend_document *doc,
                              w_seed_span span, const char *keyword);
 static bool module_id_equal(w_seed_frontend_text left,
@@ -275,6 +313,14 @@ static w_seed_span trim_span(const w_seed_frontend_document *doc,
 static frontend_token_cursor token_cursor_for(
     const w_seed_frontend_document *doc, w_seed_span span);
 static bool cursor_take(frontend_token_cursor *cursor, frontend_token *token);
+static bool cursor_peek(const frontend_token_cursor *cursor,
+                        frontend_token *token);
+static bool cursor_take_text(frontend_token_cursor *cursor, const char *text,
+                             frontend_token *taken);
+static bool cursor_peek_text(const frontend_token_cursor *cursor,
+                             const char *text);
+static bool token_text(const w_seed_frontend_document *doc,
+                       const frontend_token *token, const char *text);
 static bool text_equal(w_seed_frontend_text text, const char *literal);
 static bool text_equal_text(w_seed_frontend_text left,
                             w_seed_frontend_text right);
@@ -350,7 +396,19 @@ static bool integer_literal_parts(w_seed_frontend_text text,
                                   size_t *digits_start, bool *is_signed,
                                   bool *negative, uint16_t *bit_width);
 static bool integer_literal_value(w_seed_frontend_text text,
-                                  size_t digits_start, uint64_t *value);
+                                   size_t digits_start, uint64_t *value);
+static bool unsuffixed_integer_fits(w_seed_frontend_text spelling,
+                                    frontend_simple_type expected);
+static bool is_binary_operator(w_seed_frontend_text text);
+static int operator_precedence(w_seed_frontend_text text);
+static bool module_const_index_for_node(const frontend_context *context,
+                                        size_t document_index,
+                                        uint32_t node_index, uint32_t *index);
+static bool initialize_const_document_bases(frontend_context *context);
+static uint32_t direct_type_index(const w_seed_frontend_document *doc,
+                                  uint32_t node_index);
+static uint32_t first_direct_expression(const w_seed_frontend_document *doc,
+                                         uint32_t node_index);
 
 static w_seed_span empty_span(size_t offset) {
   const w_seed_span span = {offset, offset};
@@ -360,6 +418,538 @@ static w_seed_span empty_span(size_t offset) {
 static bool add_size(size_t left, size_t right, size_t *result) {
   if (right > SIZE_MAX - left) return false;
   *result = left + right;
+  return true;
+}
+
+typedef struct {
+  frontend_simple_type type;
+  w_seed_frontend_text spelling;
+  bool valid;
+  bool unsupported;
+  bool unsuffixed_integer;
+} frontend_const_infer_value;
+
+typedef struct {
+  frontend_context *context;
+  const w_seed_frontend_document *document;
+  frontend_token_cursor cursor;
+  frontend_simple_type expected_type;
+  bool has_expected_type;
+  size_t depth;
+} frontend_const_type_parser;
+
+static frontend_simple_type const_default_integer_type(void) {
+  frontend_simple_type type = simple_type_unknown();
+  type.kind = W_SEED_FRONTEND_TYPE_INTEGER;
+  type.is_signed = true;
+  type.bit_width = 64u;
+  type.spelling = (w_seed_frontend_text){"i64", 3};
+  return type;
+}
+
+static w_seed_frontend_text const_integer_type_spelling(bool is_signed,
+                                                        uint16_t bit_width) {
+  if (is_signed) {
+    switch (bit_width) {
+      case 8u:
+        return (w_seed_frontend_text){"i8", 2};
+      case 16u:
+        return (w_seed_frontend_text){"i16", 3};
+      case 32u:
+        return (w_seed_frontend_text){"i32", 3};
+      case 64u:
+        return (w_seed_frontend_text){"i64", 3};
+      default:
+        break;
+    }
+  } else {
+    switch (bit_width) {
+      case 8u:
+        return (w_seed_frontend_text){"u8", 2};
+      case 16u:
+        return (w_seed_frontend_text){"u16", 3};
+      case 32u:
+        return (w_seed_frontend_text){"u32", 3};
+      case 64u:
+        return (w_seed_frontend_text){"u64", 3};
+      default:
+        break;
+    }
+  }
+  return (w_seed_frontend_text){NULL, 0};
+}
+
+static frontend_simple_type const_inferred_simple_type(
+    const frontend_const_inferred_type *inferred) {
+  frontend_simple_type type = simple_type_unknown();
+  if (inferred == NULL || !inferred->known) return type;
+  type.kind = inferred->kind;
+  type.is_signed = inferred->is_signed;
+  type.bit_width = inferred->bit_width;
+  type.spelling = inferred->kind == W_SEED_FRONTEND_TYPE_BOOL
+                      ? (w_seed_frontend_text){"Bool", 4}
+                      : const_integer_type_spelling(inferred->is_signed,
+                                                     inferred->bit_width);
+  return type;
+}
+
+static bool const_inferred_type_is_scalar(frontend_simple_type type) {
+  return type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+         (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.bit_width != 0u);
+}
+
+static frontend_const_infer_value const_infer_value_invalid(bool unsupported) {
+  frontend_const_infer_value value;
+  (void)memset(&value, 0, sizeof(value));
+  value.type = simple_type_unknown();
+  value.valid = false;
+  value.unsupported = unsupported;
+  return value;
+}
+
+static frontend_const_infer_value const_infer_value_type(
+    frontend_simple_type type) {
+  frontend_const_infer_value value;
+  (void)memset(&value, 0, sizeof(value));
+  value.type = type;
+  value.spelling = type.spelling;
+  value.valid = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+  value.unsuffixed_integer = type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+                             type.bit_width == 0u;
+  return value;
+}
+
+static bool module_const_node_for_index(const frontend_context *context,
+                                        uint32_t const_index,
+                                        uint32_t *node_index) {
+  if (node_index != NULL) *node_index = W_SEED_CST_NONE;
+  if (context == NULL || context->module_index >= context->input.document_count)
+    return false;
+  const w_seed_frontend_document *doc =
+      &context->input.documents[context->module_index];
+  const size_t base = context->const_document_bases[context->module_index];
+  if ((size_t)const_index < base ||
+      (size_t)const_index >= context->const_total_count)
+    return false;
+  const size_t wanted_ordinal = (size_t)const_index - base;
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t ordinal = 0u;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_CONST_DECLARATION) {
+      if (ordinal == wanted_ordinal) {
+        if (node_index != NULL) *node_index = child;
+        return true;
+      }
+      ordinal += 1u;
+    }
+    guard += 1u;
+  }
+  return false;
+}
+
+static bool const_declaration_explicit_type(
+    const frontend_context *context, uint32_t const_index,
+    frontend_simple_type *type, bool *explicit_type) {
+  if (type != NULL) *type = simple_type_unknown();
+  if (explicit_type != NULL) *explicit_type = false;
+  uint32_t node_index = W_SEED_CST_NONE;
+  if (!module_const_node_for_index(context, const_index, &node_index)) return false;
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL) return false;
+  const uint32_t type_node = direct_type_index(doc, node_index);
+  const bool present = type_node != W_SEED_CST_NONE;
+  if (explicit_type != NULL) *explicit_type = present;
+  if (present && type != NULL)
+    *type = contextual_type_from_span(context, doc, doc->nodes[type_node].raw_span);
+  return true;
+}
+
+static bool const_infer_declaration(frontend_context *context,
+                                    uint32_t const_index,
+                                    frontend_simple_type *type);
+
+static frontend_const_infer_value const_infer_bp(
+    frontend_const_type_parser *parser, int minimum_precedence);
+
+static frontend_const_infer_value const_infer_primary(
+    frontend_const_type_parser *parser) {
+  if (parser == NULL || parser->document == NULL)
+    return const_infer_value_invalid(true);
+  frontend_token token;
+  if (!cursor_take(&parser->cursor, &token))
+    return const_infer_value_invalid(true);
+  const w_seed_frontend_text spelling = text_from_span(parser->document,
+                                                       token.span);
+  if (token.kind == W_SEED_CST_WORD) {
+    if (text_equal(spelling, "true") || text_equal(spelling, "false"))
+      return const_infer_value_type(
+          simple_type_from_view((w_seed_frontend_text){"Bool", 4}));
+    uint32_t const_index = W_SEED_FRONTEND_NONE;
+    frontend_simple_type target_type = simple_type_unknown();
+    if (!module_const_for_name(parser->context, spelling, &const_index,
+                               &target_type, NULL, NULL))
+      return const_infer_value_invalid(true);
+    if (const_index == W_SEED_FRONTEND_NONE ||
+        !const_infer_declaration(parser->context, const_index, &target_type))
+      return const_infer_value_invalid(false);
+    frontend_const_infer_value value = const_infer_value_type(target_type);
+    /* An active unanchored cycle has a provisional unknown type.  Keep the
+     * relation valid so its enclosing arithmetic/comparison can materialize
+     * the deterministic i64 default after the graph closes. */
+    if (target_type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN) value.valid = true;
+    return value;
+  }
+  if (token.kind == W_SEED_CST_NUMBER ||
+      token.kind == W_SEED_CST_LITERAL_EVENT) {
+    frontend_simple_type type = literal_simple_type(parser->document, token.span,
+                                                    token.kind);
+    frontend_const_infer_value value = const_infer_value_type(type);
+    value.spelling = spelling;
+    if (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.bit_width == 0u &&
+        parser->has_expected_type &&
+        parser->expected_type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        unsuffixed_integer_fits(spelling, parser->expected_type)) {
+      value.type = parser->expected_type;
+      value.valid = true;
+      value.unsuffixed_integer = false;
+    }
+    if (type.kind == W_SEED_FRONTEND_TYPE_STRING ||
+        type.kind == W_SEED_FRONTEND_TYPE_BYTES ||
+        type.kind == W_SEED_FRONTEND_TYPE_FLOAT)
+      value.unsupported = true;
+    return value;
+  }
+  if (token_text(parser->document, &token, "(")) {
+    frontend_const_infer_value nested;
+    if (!cursor_peek_text(&parser->cursor, ")")) {
+      nested = const_infer_bp(parser, 0);
+    } else {
+      nested = const_infer_value_invalid(true);
+    }
+    if (!cursor_take_text(&parser->cursor, ")", NULL))
+      return const_infer_value_invalid(true);
+    return nested;
+  }
+  return const_infer_value_invalid(true);
+}
+
+static frontend_const_infer_value const_infer_prefix(
+    frontend_const_type_parser *parser) {
+  if (parser == NULL || parser->document == NULL)
+    return const_infer_value_invalid(true);
+  frontend_token token;
+  if (cursor_peek(&parser->cursor, &token) &&
+      (token_text(parser->document, &token, "!") ||
+       token_text(parser->document, &token, "-"))) {
+    (void)cursor_take(&parser->cursor, &token);
+    frontend_const_infer_value nested = const_infer_prefix(parser);
+    if (!nested.valid) return nested;
+    const bool logical = token_text(parser->document, &token, "!");
+    if (logical) {
+      if (nested.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
+          nested.type.kind != W_SEED_FRONTEND_TYPE_BOOL)
+        return const_infer_value_invalid(false);
+      return const_infer_value_type(
+          simple_type_from_view((w_seed_frontend_text){"Bool", 4}));
+    }
+    if (nested.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
+        nested.type.kind != W_SEED_FRONTEND_TYPE_INTEGER)
+      return const_infer_value_invalid(false);
+    if (nested.type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN ||
+        nested.type.bit_width == 0u)
+      nested.type = const_default_integer_type();
+    nested.unsuffixed_integer = false;
+    nested.spelling = nested.type.spelling;
+    return nested;
+  }
+  return const_infer_primary(parser);
+}
+
+static bool const_infer_integer_join(frontend_context *context,
+                                     frontend_const_infer_value *left,
+                                     frontend_const_infer_value *right,
+                                     frontend_simple_type *joined) {
+  if (left == NULL || right == NULL || joined == NULL || !left->valid ||
+      !right->valid)
+    return false;
+  frontend_simple_type left_type = left->type;
+  frontend_simple_type right_type = right->type;
+  if (left_type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN)
+    left_type = const_default_integer_type();
+  if (right_type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN)
+    right_type = const_default_integer_type();
+  if (left_type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+      right_type.kind != W_SEED_FRONTEND_TYPE_INTEGER)
+    return false;
+  if (left->unsuffixed_integer && right_type.bit_width != 0u &&
+      unsuffixed_integer_fits(left->spelling, right_type)) {
+    left->type = left_type = right_type;
+    left->unsuffixed_integer = false;
+  } else if (right->unsuffixed_integer && left_type.bit_width != 0u &&
+             unsuffixed_integer_fits(right->spelling, left_type)) {
+    right->type = right_type = left_type;
+    right->unsuffixed_integer = false;
+  }
+  if (frontend_type_equal(context, left_type, right_type)) {
+    *joined = left_type;
+    return true;
+  }
+  if (frontend_widening_allowed(context, left_type, right_type)) {
+    *joined = right_type;
+    return true;
+  }
+  if (frontend_widening_allowed(context, right_type, left_type)) {
+    *joined = left_type;
+    return true;
+  }
+  return false;
+}
+
+static frontend_const_infer_value const_infer_bp(
+    frontend_const_type_parser *parser, int minimum_precedence) {
+  if (parser == NULL || parser->depth >= W_SEED_FRONTEND_MAX_NESTING)
+    return const_infer_value_invalid(true);
+  parser->depth += 1u;
+  frontend_const_infer_value value = const_infer_prefix(parser);
+  parser->depth -= 1u;
+  if (!value.valid) return value;
+  while (true) {
+    frontend_token operator_token;
+    if (!cursor_peek(&parser->cursor, &operator_token)) break;
+    const w_seed_frontend_text operator_text =
+        text_from_span(parser->document, operator_token.span);
+    const int precedence = operator_precedence(operator_text);
+    if (precedence < minimum_precedence || !is_binary_operator(operator_text))
+      break;
+    (void)cursor_take(&parser->cursor, &operator_token);
+    frontend_const_infer_value right =
+        const_infer_bp(parser, precedence + 1);
+    if (!right.valid) return right;
+    const bool logical = text_equal(operator_text, "&&") ||
+                         text_equal(operator_text, "||");
+    const bool comparison = text_equal(operator_text, "==") ||
+                            text_equal(operator_text, "!=") ||
+                            text_equal(operator_text, "<") ||
+                            text_equal(operator_text, "<=") ||
+                            text_equal(operator_text, ">") ||
+                            text_equal(operator_text, ">=");
+    const bool arithmetic = text_equal(operator_text, "+") ||
+                            text_equal(operator_text, "-") ||
+                            text_equal(operator_text, "*") ||
+                            text_equal(operator_text, "/") ||
+                            text_equal(operator_text, "%");
+    frontend_simple_type result_type = simple_type_unknown();
+    if (logical) {
+      if ((value.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
+           value.type.kind != W_SEED_FRONTEND_TYPE_BOOL) ||
+          (right.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
+           right.type.kind != W_SEED_FRONTEND_TYPE_BOOL))
+        return const_infer_value_invalid(false);
+      result_type = simple_type_from_view((w_seed_frontend_text){"Bool", 4});
+    } else if (comparison) {
+      const bool value_bool_or_unknown =
+          value.type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+          value.type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN;
+      const bool right_bool_or_unknown =
+          right.type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+          right.type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN;
+      const bool value_integer_or_unknown =
+          value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
+          value.type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN;
+      const bool right_integer_or_unknown =
+          right.type.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
+          right.type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN;
+      if (value_bool_or_unknown && right_bool_or_unknown) {
+        /* An active declaration is an unresolved constraint, not an integer
+         * default.  A Bool neighbor must therefore anchor the comparison
+         * before the cycle is lowered. */
+        result_type = simple_type_from_view((w_seed_frontend_text){"Bool", 4});
+      } else if (value_integer_or_unknown && right_integer_or_unknown) {
+        frontend_simple_type joined = simple_type_unknown();
+        if (!const_infer_integer_join(parser->context, &value, &right,
+                                      &joined))
+          return const_infer_value_invalid(false);
+        result_type = simple_type_from_view((w_seed_frontend_text){"Bool", 4});
+      } else {
+        return const_infer_value_invalid(false);
+      }
+    } else if (arithmetic) {
+      if (!const_infer_integer_join(parser->context, &value, &right,
+                                    &result_type))
+        return const_infer_value_invalid(false);
+    } else {
+      return const_infer_value_invalid(true);
+    }
+    value = const_infer_value_type(result_type);
+  }
+  return value;
+}
+
+static bool const_infer_declaration(frontend_context *context,
+                                    uint32_t const_index,
+                                    frontend_simple_type *type) {
+  if (type != NULL) *type = simple_type_unknown();
+  if (context == NULL ||
+      const_index >= W_SEED_FRONTEND_MAX_CONST_DECLARATIONS)
+    return false;
+  frontend_simple_type explicit_simple = simple_type_unknown();
+  bool explicit_type = false;
+  if (!const_declaration_explicit_type(context, const_index, &explicit_simple,
+                                       &explicit_type))
+    return false;
+  if (context->const_inference_states[const_index] ==
+      FRONTEND_CONST_INFERENCE_DONE) {
+    if (context->const_inferred_types[const_index].known)
+      explicit_simple = const_inferred_simple_type(
+          &context->const_inferred_types[const_index]);
+    if (type != NULL) *type = explicit_type && !context->const_inferred_types[const_index].known
+                                  ? explicit_simple
+                                  : (context->const_inferred_types[const_index].known
+                                         ? explicit_simple
+                                         : simple_type_unknown());
+    return true;
+  }
+  if (context->const_inference_states[const_index] ==
+      FRONTEND_CONST_INFERENCE_ACTIVE) {
+    if (type != NULL)
+      *type = const_inferred_type_is_scalar(explicit_simple)
+                  ? explicit_simple
+                  : simple_type_unknown();
+    return true;
+  }
+  context->const_inference_states[const_index] =
+      FRONTEND_CONST_INFERENCE_ACTIVE;
+  uint32_t node_index = W_SEED_CST_NONE;
+  const w_seed_frontend_document *doc = context_document(context);
+  if (!module_const_node_for_index(context, const_index, &node_index) ||
+      doc == NULL) {
+    context->const_inference_states[const_index] =
+        FRONTEND_CONST_INFERENCE_DONE;
+    return false;
+  }
+  const uint32_t expression_node = first_direct_expression(doc, node_index);
+  frontend_simple_type inferred = simple_type_unknown();
+  bool valid = false;
+  if (expression_node != W_SEED_CST_NONE) {
+    frontend_const_type_parser parser;
+    (void)memset(&parser, 0, sizeof(parser));
+    parser.context = context;
+    parser.document = doc;
+    parser.cursor = token_cursor_for(doc, doc->nodes[expression_node].raw_span);
+    parser.expected_type = explicit_type ? explicit_simple : simple_type_unknown();
+    parser.has_expected_type = explicit_type;
+    frontend_const_infer_value value = const_infer_bp(&parser, 0);
+    frontend_token trailing;
+    valid = value.valid && !value.unsupported &&
+            !cursor_peek(&parser.cursor, &trailing);
+    inferred = value.type;
+    if (valid && inferred.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        inferred.bit_width == 0u)
+      inferred = const_default_integer_type();
+    /* A closed identifier component with no explicit or suffix anchor is an
+     * integer component with no remaining context.  Materialize the D4
+     * default here so a later ConstIR pass can report a reachable cycle with
+     * its causal precedence instead of turning the relation into an
+     * unresolved frontend symbol. */
+    if (valid && inferred.kind == W_SEED_FRONTEND_TYPE_UNKNOWN)
+      inferred = const_default_integer_type();
+  }
+  if (explicit_type) inferred = explicit_simple;
+  frontend_const_inferred_type compact;
+  (void)memset(&compact, 0, sizeof(compact));
+  compact.kind = inferred.kind;
+  compact.is_signed = inferred.is_signed;
+  compact.bit_width = inferred.bit_width;
+  compact.known = valid && const_inferred_type_is_scalar(inferred);
+  if (explicit_type && const_inferred_type_is_scalar(explicit_simple))
+    compact.known = true;
+  context->const_inferred_types[const_index] = compact;
+  context->const_inference_states[const_index] =
+      FRONTEND_CONST_INFERENCE_DONE;
+  if (type != NULL) *type = compact.known ? inferred : simple_type_unknown();
+  return true;
+}
+
+static w_seed_frontend_type const_synthetic_type(frontend_simple_type simple) {
+  w_seed_frontend_type type;
+  (void)memset(&type, 0, sizeof(type));
+  type.kind = simple.kind;
+  type.spelling = simple.kind == W_SEED_FRONTEND_TYPE_BOOL
+                      ? (w_seed_frontend_text){"Bool", 4}
+                      : (simple.kind == W_SEED_FRONTEND_TYPE_INTEGER
+                             ? const_integer_type_spelling(simple.is_signed,
+                                                            simple.bit_width)
+                             : (w_seed_frontend_text){NULL, 0});
+  type.nominal_name = type.spelling;
+  type.span = empty_span(0);
+  type.is_signed = simple.is_signed;
+  type.bit_width = simple.bit_width;
+  type.element_type = W_SEED_FRONTEND_NONE;
+  type.return_type = W_SEED_FRONTEND_NONE;
+  type.first_parameter = W_SEED_FRONTEND_NONE;
+  type.parameter_count = 0u;
+  type.enum_base_index = W_SEED_FRONTEND_NONE;
+  type.first_subset_member = W_SEED_FRONTEND_NONE;
+  type.subset_member_count = 0u;
+  type.generic_application_index = W_SEED_FRONTEND_NONE;
+  return type;
+}
+
+static bool infer_module_const_types(frontend_context *context) {
+  if (context == NULL || context->module_index >= context->input.document_count)
+    return false;
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL) return false;
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_CONST_DECLARATION) {
+      uint32_t const_index = W_SEED_FRONTEND_NONE;
+      if (!module_const_index_for_node(context, context->module_index, child,
+                                       &const_index) ||
+          !const_infer_declaration(context, const_index, NULL))
+        return false;
+    }
+    guard += 1u;
+  }
+  context->const_inference_complete = true;
+  cursor = doc->nodes[doc->parse.root].first_child;
+  guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_CONST_DECLARATION) {
+      uint32_t const_index = W_SEED_FRONTEND_NONE;
+      if (!module_const_index_for_node(context, context->module_index, child,
+                                       &const_index))
+        return false;
+      const uint32_t type_node = direct_type_index(doc, child);
+      if (type_node == W_SEED_CST_NONE) {
+        frontend_simple_type simple = const_inferred_simple_type(
+            &context->const_inferred_types[const_index]);
+        if (const_inferred_type_is_scalar(simple)) {
+          const w_seed_frontend_type synthetic = const_synthetic_type(simple);
+          uint32_t type_index = W_SEED_FRONTEND_NONE;
+          if (!context_append_type(context, synthetic, &type_index)) return false;
+          context->const_inferred_type_indices[const_index] = type_index;
+          if (context->emit && context->output != NULL &&
+              context->output->const_declarations != NULL &&
+              (size_t)const_index < context->count.const_declarations) {
+            w_seed_frontend_const_declaration *record =
+                &context->output->const_declarations[const_index];
+            record->effective_type = type_index;
+            if (record->symbol_index != W_SEED_FRONTEND_NONE &&
+                context->output->symbols != NULL &&
+                (size_t)record->symbol_index < context->count.symbols)
+              context->output->symbols[record->symbol_index].type_index =
+                  type_index;
+          }
+        }
+      }
+    }
+    guard += 1u;
+  }
   return true;
 }
 
@@ -1916,7 +2506,6 @@ static bool receipt_size_source_records(frontend_context *context) {
       !receipt_size_literal(context, "\n")) {
     return false;
   }
-  if (!receipt_size_const_declarations_from_input(context)) return false;
   for (size_t index = 0; index < context->input.document_count; index += 1) {
     const w_seed_frontend_document *doc = &context->input.documents[index];
     if (!receipt_size_literal(context, "source=") ||
@@ -1993,7 +2582,7 @@ static bool receipt_size_module(frontend_context *context,
 static bool receipt_size_const_declaration(
     frontend_context *context,
     const w_seed_frontend_const_declaration *value) {
-  return receipt_size_literal(context, "const-declaration=") &&
+  const bool sized = receipt_size_literal(context, "const-declaration=") &&
          receipt_size_size(context, value->module_index) &&
          receipt_size_literal(context, "|") &&
          receipt_size_text(context, value->name) &&
@@ -2001,39 +2590,14 @@ static bool receipt_size_const_declaration(
          receipt_size_size(context, value->exported ? 1u : 0u) &&
          receipt_size_literal(context, "|span=") &&
          receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "|declared=") &&
+         receipt_size_size(context, value->declared_type) &&
+         receipt_size_literal(context, "|effective=") &&
+         receipt_size_size(context, value->effective_type) &&
+         receipt_size_literal(context, "|explicit=") &&
+         receipt_size_size(context, value->has_explicit_type ? 1u : 0u) &&
          receipt_size_literal(context, "\n");
-}
-
-static bool receipt_size_const_declarations_from_input(
-    frontend_context *context) {
-  if (context == NULL) return false;
-  for (size_t document_index = 0u;
-       document_index < context->input.document_count; document_index += 1u) {
-    const w_seed_frontend_document *doc =
-        &context->input.documents[document_index];
-    uint32_t cursor = doc->nodes[doc->parse.root].first_child;
-    uint32_t child = W_SEED_CST_NONE;
-    size_t guard = 0u;
-    while (next_child(doc, &cursor, &child) &&
-           guard < doc->parse.node_count) {
-      if (doc->nodes[child].kind == W_SEED_CST_CONST_DECLARATION) {
-        const w_seed_frontend_const_declaration value = {
-            (uint32_t)document_index,
-            name_after_keyword(doc, doc->nodes[child].raw_span, "const"),
-            span_has_keyword(doc, doc->nodes[child].raw_span, "export"),
-            doc->nodes[child].raw_span,
-            empty_span(doc->nodes[child].raw_span.end_byte),
-            W_SEED_FRONTEND_NONE,
-            W_SEED_FRONTEND_NONE,
-            W_SEED_FRONTEND_NONE,
-            false,
-            false};
-        if (!receipt_size_const_declaration(context, &value)) return false;
-      }
-      guard += 1u;
-    }
-  }
-  return true;
+  return sized;
 }
 
 static bool receipt_size_import(frontend_context *context,
@@ -3164,6 +3728,24 @@ static size_t count_root_children(const w_seed_frontend_document *doc,
   return count_direct_kind(doc, doc->parse.root, kind);
 }
 
+static bool initialize_const_document_bases(frontend_context *context) {
+  if (context == NULL ||
+      context->input.document_count > W_SEED_FRONTEND_MAX_DOCUMENTS)
+    return false;
+  size_t base = 0u;
+  for (size_t document = 0u; document < context->input.document_count;
+       document += 1u) {
+    context->const_document_bases[document] = base;
+    const size_t count = count_root_children(
+        &context->input.documents[document], W_SEED_CST_CONST_DECLARATION);
+    if (!add_size(base, count, &base) ||
+        base > (size_t)W_SEED_FRONTEND_MAX_CONST_DECLARATIONS)
+      return false;
+  }
+  context->const_total_count = base;
+  return true;
+}
+
 static size_t count_struct_generic_parameters(
     const w_seed_frontend_document *doc) {
   if (doc == NULL || doc->parse.root >= doc->parse.node_count) return 0;
@@ -3232,6 +3814,20 @@ static bool measure_document(const w_seed_frontend_document *doc,
   measure->functions += count_root_children(doc, W_SEED_CST_FUNCTION);
   measure->const_declarations +=
       count_root_children(doc, W_SEED_CST_CONST_DECLARATION);
+  /* D7 gives every unannotated module const one source-free effective type
+   * record.  Reserve those records in the same caller-owned capacity model as
+   * CST type nodes; explicit annotations continue to count only once. */
+  uint32_t root_cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t root_child = W_SEED_CST_NONE;
+  size_t root_guard = 0u;
+  while (next_child(doc, &root_cursor, &root_child) &&
+         root_guard < doc->parse.node_count) {
+    if (doc->nodes[root_child].kind == W_SEED_CST_CONST_DECLARATION &&
+        direct_type_index(doc, root_child) == W_SEED_CST_NONE) {
+      measure->types += 1u;
+    }
+    root_guard += 1u;
+  }
   measure->entries += count_root_children(doc, W_SEED_CST_ENTRY);
 
   for (size_t index = 0; index < doc->parse.node_count; index += 1) {
@@ -3287,6 +3883,7 @@ static bool measure_input(const w_seed_frontend_input *input,
       !external_input_ready(input)) {
     return false;
   }
+  size_t total_const_declarations = 0u;
   for (size_t index = 0; index < input->document_count; index += 1) {
     if (input->documents[index].node_count > (size_t)UINT32_MAX ||
         input->documents[index].parse.node_count >
@@ -3304,6 +3901,17 @@ static bool measure_input(const w_seed_frontend_input *input,
       return false;
     }
     if (!measure_document(&input->documents[index], measure)) return false;
+    const size_t document_consts = count_root_children(
+        &input->documents[index], W_SEED_CST_CONST_DECLARATION);
+    if (!add_size(total_const_declarations, document_consts,
+                 &total_const_declarations) ||
+        total_const_declarations >
+            (size_t)W_SEED_FRONTEND_MAX_CONST_DECLARATIONS) {
+      *barrier_document = index;
+      *barrier_span = owner_span(&input->documents[index],
+                                 input->documents[index].parse.root);
+      return false;
+    }
   }
   /* This seed exposes one logical module record per document. Do not silently
    * merge multiple documents with the same resolved module identity. */
@@ -3395,6 +4003,25 @@ w_seed_frontend_status w_seed_frontend_measure(
   dry.function_index = W_SEED_FRONTEND_NONE;
   dry.current_module_const = W_SEED_FRONTEND_NONE;
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
+  dry.const_inferred_types = frontend_const_inferred_types_scratch;
+  dry.const_declared_type_indices =
+      frontend_const_declared_type_indices_scratch;
+  dry.const_inferred_type_indices =
+      frontend_const_inferred_type_indices_scratch;
+  dry.const_inference_states = frontend_const_inference_states_scratch;
+  if (!initialize_const_document_bases(&dry)) {
+    result->status = W_SEED_FRONTEND_BARRIER;
+    result->barrier_document = W_SEED_FRONTEND_NONE_SIZE;
+    return result->status;
+  }
+  (void)memset(dry.const_inferred_types, 0,
+               sizeof(frontend_const_inferred_types_scratch));
+  (void)memset(dry.const_declared_type_indices, 0xff,
+               sizeof(frontend_const_declared_type_indices_scratch));
+  (void)memset(dry.const_inferred_type_indices, 0xff,
+               sizeof(frontend_const_inferred_type_indices_scratch));
+  (void)memset(dry.const_inference_states, 0,
+               sizeof(frontend_const_inference_states_scratch));
   (void)memset(dry.generic_domain_type_indices, 0xff,
                sizeof(dry.generic_domain_type_indices));
   if (!receipt_size_source_records(&dry)) {
@@ -6366,11 +6993,7 @@ static bool module_const_index_for_node(const frontend_context *context,
                                         uint32_t *index) {
   if (context == NULL || index == NULL ||
       document_index >= context->input.document_count) return false;
-  size_t ordinal = 0u;
-  for (size_t document = 0u; document < document_index; document += 1u) {
-    ordinal += count_root_children(&context->input.documents[document],
-                                   W_SEED_CST_CONST_DECLARATION);
-  }
+  size_t ordinal = context->const_document_bases[document_index];
   const w_seed_frontend_document *doc = &context->input.documents[document_index];
   uint32_t cursor = doc->nodes[doc->parse.root].first_child;
   uint32_t child = W_SEED_CST_NONE;
@@ -6378,7 +7001,9 @@ static bool module_const_index_for_node(const frontend_context *context,
   while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
     if (doc->nodes[child].kind == W_SEED_CST_CONST_DECLARATION) {
       if (child == node_index) {
-        if (ordinal >= (size_t)UINT32_MAX) return false;
+        if (ordinal >=
+            (size_t)W_SEED_FRONTEND_MAX_CONST_DECLARATIONS)
+          return false;
         *index = (uint32_t)ordinal;
         return true;
       }
@@ -6447,10 +7072,17 @@ static bool module_const_for_name(
         (size_t)index < context->count.const_declarations) {
       const w_seed_frontend_const_declaration *record =
           &context->output->const_declarations[index];
-      if (record->declared_type != W_SEED_FRONTEND_NONE &&
-          (size_t)record->declared_type < context->count.types)
+      if (record->effective_type != W_SEED_FRONTEND_NONE &&
+          (size_t)record->effective_type < context->count.types) {
         found_type = simple_type_from_frontend_type(
-            &context->output->types[record->declared_type]);
+            &context->output->types[record->effective_type]);
+      }
+    }
+    if (found_type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN &&
+        index < W_SEED_FRONTEND_MAX_CONST_DECLARATIONS &&
+        context->const_inferred_types[index].known) {
+      found_type = const_inferred_simple_type(
+          &context->const_inferred_types[index]);
     }
   }
   if (!found) return false;
@@ -9693,6 +10325,16 @@ static bool normalize_module_const(frontend_context *context,
   value.symbol_index = W_SEED_FRONTEND_NONE;
   value.has_explicit_type = explicit_type;
   value.lowerable = false;
+  value.effective_type = explicit_type ? declared_type : W_SEED_FRONTEND_NONE;
+  if (const_index < W_SEED_FRONTEND_MAX_CONST_DECLARATIONS) {
+    value.declared_type = context->const_declared_type_indices[const_index];
+    declared_type = value.declared_type;
+    if (context->const_inferred_type_indices[const_index] !=
+        W_SEED_FRONTEND_NONE)
+      value.effective_type =
+          context->const_inferred_type_indices[const_index];
+    if (explicit_type) value.effective_type = value.declared_type;
+  }
   if (context->emit && context->output != NULL) {
     w_seed_frontend_const_declaration *records =
         context->output->const_declarations;
@@ -9702,11 +10344,24 @@ static bool normalize_module_const(frontend_context *context,
     declared_type = value.declared_type;
   }
 
-  const frontend_simple_type expected = explicit_type
-                                            ? contextual_type_from_span(
-                                                  context, doc,
-                                                  doc->nodes[type_node].raw_span)
-                                            : simple_type_unknown();
+  frontend_simple_type expected = explicit_type
+                                      ? contextual_type_from_span(
+                                            context, doc,
+                                            doc->nodes[type_node].raw_span)
+                                      : simple_type_unknown();
+  if (!explicit_type && context->const_inference_complete &&
+      const_index < W_SEED_FRONTEND_MAX_CONST_DECLARATIONS)
+    expected = const_inferred_simple_type(
+        &context->const_inferred_types[const_index]);
+  if (!explicit_type && context->emit && context->output != NULL &&
+      context->output->const_declarations != NULL &&
+      (size_t)const_index < context->count.const_declarations) {
+    const uint32_t effective =
+        context->output->const_declarations[const_index].effective_type;
+    if (effective != W_SEED_FRONTEND_NONE &&
+        (size_t)effective < context->count.types)
+      expected = simple_type_from_frontend_type(&context->output->types[effective]);
+  }
   frontend_simple_type actual = simple_type_unknown();
   frontend_expr_value expression_value;
   (void)memset(&expression_value, 0, sizeof(expression_value));
@@ -9734,16 +10389,16 @@ static bool normalize_module_const(frontend_context *context,
    * The type arena interns equivalent scalar records, so expression parsing
    * can otherwise retain an earlier const's index and break the source
    * declaration relation. */
-  if (context->emit && context->output != NULL && explicit_type &&
+  if (context->emit && context->output != NULL &&
       value.initializer_expression != W_SEED_FRONTEND_NONE &&
       (size_t)value.initializer_expression <
           context->output->expression_capacity &&
-      declared_type != W_SEED_FRONTEND_NONE &&
-      (size_t)declared_type < context->count.types) {
+      value.effective_type != W_SEED_FRONTEND_NONE &&
+      (size_t)value.effective_type < context->count.types) {
     context->output->expressions[value.initializer_expression].inferred_type =
-        declared_type;
+        value.effective_type;
   }
-  if (!normalized || !explicit_type || expression_value.index == W_SEED_FRONTEND_NONE) {
+  if (!normalized || expression_value.index == W_SEED_FRONTEND_NONE) {
     (void)context_append_fact(
         context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, value.body_span,
         text_from_span(doc, value.body_span));
@@ -9755,7 +10410,7 @@ static bool normalize_module_const(frontend_context *context,
   w_seed_frontend_text imported_module = {NULL, 0};
   w_seed_frontend_text imported_target = {NULL, 0};
   const bool unresolved_local =
-      explicit_type && normalized &&
+      normalized &&
       expression_value.kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
       expression_value.has_name && !expression_value.supported &&
       !module_const_name_is_duplicate(context, expression_value.name) &&
@@ -9768,7 +10423,7 @@ static bool normalize_module_const(frontend_context *context,
         (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
         value.body_span);
   }
-  if (explicit_type && scalar_type &&
+  if (scalar_type &&
       normalized && expression_value.supported &&
       module_const_expression_kind_allowed(expression_value.kind) &&
       actual.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
@@ -9786,7 +10441,7 @@ static bool normalize_module_const(frontend_context *context,
         expected.spelling, value.name, (w_seed_frontend_text){NULL, 0},
         (w_seed_frontend_text){NULL, 0}, value.body_span);
   }
-  value.lowerable = explicit_type && scalar_type && normalized &&
+  value.lowerable = scalar_type && normalized &&
                     expression_value.supported &&
                     module_const_expression_kind_allowed(expression_value.kind) &&
                     actual.kind == expected.kind &&
@@ -9808,6 +10463,11 @@ static bool normalize_module_const(frontend_context *context,
         text_from_span(doc, value.body_span));
   }
   if (!module_const_record_write(context, const_index, &value)) return false;
+  /* Const records are emitted after normalization has assigned the exact
+   * declared/effective indices.  Size the dry receipt from that same value so
+   * NONE placeholders cannot change the decimal width of the preflight. */
+  if (!context->emit && !receipt_size_const_declaration(context, &value))
+    return false;
   return true;
 }
 
@@ -9883,9 +10543,16 @@ static bool normalize_document(frontend_context *context) {
       value.symbol_index = W_SEED_FRONTEND_NONE;
       value.has_explicit_type = type_node != W_SEED_CST_NONE;
       value.lowerable = false;
+      value.effective_type = value.has_explicit_type
+                                 ? declared_type
+                                 : W_SEED_FRONTEND_NONE;
       uint32_t const_index = W_SEED_FRONTEND_NONE;
       if (!context_append_const_declaration(context, value, &const_index))
         return false;
+      if (const_index < W_SEED_FRONTEND_MAX_CONST_DECLARATIONS) {
+        context->const_declared_type_indices[const_index] = declared_type;
+        context->const_inferred_type_indices[const_index] = declared_type;
+      }
       uint32_t symbol_index = W_SEED_FRONTEND_NONE;
       if (!normalize_symbol(context, W_SEED_FRONTEND_SYMBOL_CONST,
                             const_index, value.name, value.exported, value.span,
@@ -9903,6 +10570,10 @@ static bool normalize_document(frontend_context *context) {
     }
     const_guard += 1u;
   }
+  /* D7 solves the local const graph only after every declaration and symbol is
+   * published.  Initializers are normalized below with the resulting scalar
+   * context; no ConstIR or value evaluation occurs in this phase. */
+  if (!infer_module_const_types(context)) return false;
   uint32_t child_cursor = doc->nodes[doc->parse.root].first_child;
   uint32_t child = W_SEED_CST_NONE;
   size_t guard = 0;
@@ -10519,9 +11190,15 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_literal(writer, "|");
       receipt_write_text(writer, value->name);
       receipt_write_literal(writer, "|exported=");
-       receipt_write_size(writer, value->exported ? 1u : 0u);
+      receipt_write_size(writer, value->exported ? 1u : 0u);
        receipt_write_literal(writer, "|span=");
        receipt_write_span(writer, value->span);
+       receipt_write_literal(writer, "|declared=");
+       receipt_write_size(writer, value->declared_type);
+       receipt_write_literal(writer, "|effective=");
+       receipt_write_size(writer, value->effective_type);
+       receipt_write_literal(writer, "|explicit=");
+       receipt_write_size(writer, value->has_explicit_type ? 1u : 0u);
        receipt_write_literal(writer, "\n");
     }
     for (size_t index = 0; index < context->count.imports; index += 1) {
@@ -10967,6 +11644,25 @@ w_seed_frontend_status w_seed_frontend_run(
   dry.result = result;
   dry.emit = false;
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
+  dry.const_inferred_types = frontend_const_inferred_types_scratch;
+  dry.const_declared_type_indices =
+      frontend_const_declared_type_indices_scratch;
+  dry.const_inferred_type_indices =
+      frontend_const_inferred_type_indices_scratch;
+  dry.const_inference_states = frontend_const_inference_states_scratch;
+  if (!initialize_const_document_bases(&dry)) {
+    result->status = W_SEED_FRONTEND_BARRIER;
+    result->barrier_document = W_SEED_FRONTEND_NONE_SIZE;
+    return result->status;
+  }
+  (void)memset(dry.const_inferred_types, 0,
+               sizeof(frontend_const_inferred_types_scratch));
+  (void)memset(dry.const_declared_type_indices, 0xff,
+               sizeof(frontend_const_declared_type_indices_scratch));
+  (void)memset(dry.const_inferred_type_indices, 0xff,
+               sizeof(frontend_const_inferred_type_indices_scratch));
+  (void)memset(dry.const_inference_states, 0,
+               sizeof(frontend_const_inference_states_scratch));
   (void)memset(dry.generic_domain_type_indices, 0xff,
                sizeof(dry.generic_domain_type_indices));
   if (!receipt_size_source_records(&dry)) {
@@ -11011,6 +11707,25 @@ w_seed_frontend_status w_seed_frontend_run(
   emit.function_index = W_SEED_FRONTEND_NONE;
   emit.current_module_const = W_SEED_FRONTEND_NONE;
   emit.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
+  emit.const_inferred_types = frontend_const_inferred_types_scratch;
+  emit.const_declared_type_indices =
+      frontend_const_declared_type_indices_scratch;
+  emit.const_inferred_type_indices =
+      frontend_const_inferred_type_indices_scratch;
+  emit.const_inference_states = frontend_const_inference_states_scratch;
+  if (!initialize_const_document_bases(&emit)) {
+    result->status = W_SEED_FRONTEND_BARRIER;
+    result->barrier_document = W_SEED_FRONTEND_NONE_SIZE;
+    return result->status;
+  }
+  (void)memset(emit.const_inferred_types, 0,
+               sizeof(frontend_const_inferred_types_scratch));
+  (void)memset(emit.const_declared_type_indices, 0xff,
+               sizeof(frontend_const_declared_type_indices_scratch));
+  (void)memset(emit.const_inferred_type_indices, 0xff,
+               sizeof(frontend_const_inferred_type_indices_scratch));
+  (void)memset(emit.const_inference_states, 0,
+               sizeof(frontend_const_inference_states_scratch));
   (void)memset(emit.generic_domain_type_indices, 0xff,
                sizeof(emit.generic_domain_type_indices));
   for (size_t index = 0; index < input->document_count; index += 1) {

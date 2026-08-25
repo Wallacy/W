@@ -931,12 +931,13 @@ static bool probe_module_const_zero_capacity(const char *path) {
           &value, application_index, 0u, value.evidence_bytes,
           W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_BYTES, 0u,
           (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &result);
-  printf("D4_ZERO state=%s failure=%s diagnostic=%d steps=%llu receipts=%llu "
+  printf("D4_ZERO state=%s failure=%s diagnostic=%d computed=%llu steps=%llu receipts=%llu "
          "cache_hits=%llu cache_misses=%llu fingerprint_state=%s "
          "fingerprint_digest=",
          w_seed_generic_validation_state_name(state),
          w_seed_generic_validation_failure_name(result.failure),
          (int)result.diagnostic,
+         (unsigned long long)result.computed_argument_count,
          (unsigned long long)result.evaluation.consumed_steps,
          (unsigned long long)result.receipts_written,
          (unsigned long long)result.evaluation.const_cache_hits,
@@ -2666,10 +2667,10 @@ static bool test_fingerprint_adversarial_inputs(void) {
 
 static bool test_predicate_session_isolation(void) {
   static const char source[] =
-      "const answerSeed: i64 = 21\n"
-      "const firstAnswerHalf: i64 = answerSeed\n"
-      "const secondAnswerHalf: i64 = answerSeed\n"
-      "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
+      "const answerSeed = 21\n"
+      "const firstAnswerHalf = answerSeed\n"
+      "const secondAnswerHalf = answerSeed\n"
+      "export const assembledUltimateAnswer = firstAnswerHalf + secondAnswerHalf\n"
       "const fn isUltimateAnswer(value: i64): Bool { return value == assembledUltimateAnswer }\n"
       "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
       "struct Use { computed: UltimateAnswer<(assembledUltimateAnswer)> }\n";
@@ -2691,6 +2692,13 @@ static bool test_predicate_session_isolation(void) {
         value.receipts[1].evaluation.consumed_steps == 9u &&
         value.receipts[1].evaluation.const_cache_misses == 4u &&
         value.receipts[1].evaluation.const_cache_hits == 1u &&
+        value.receipts[0].effective_type ==
+            value.receipts[0].eval_value.type_index &&
+        value.types[value.receipts[1].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        value.types[value.receipts[1].effective_type].bit_width == 64u &&
+        value.receipts[1].effective_type !=
+            value.receipts[1].eval_value.type_index &&
         value.receipts[1].result_is_bool && value.receipts[1].bool_value);
   return true;
 }
@@ -2745,6 +2753,314 @@ static bool test_named_module_const_d4(void) {
   }
   CHECK(memcmp(fingerprints[0], fingerprints[1], sizeof(fingerprints[0])) == 0 &&
         memcmp(fingerprints[1], fingerprints[2], sizeof(fingerprints[1])) == 0);
+  static const char inferred_source[] =
+      "export const ultimateAnswer = 6 * 7\n"
+      "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n"
+      "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
+      "struct Use {\n"
+      "  immediate: UltimateAnswer<42>\n"
+      "  computed: UltimateAnswer<(6 * 7)>\n"
+      "  named: UltimateAnswer<(ultimateAnswer)>\n"
+      "}\n";
+  CHECK(fixture_lower(&value, inferred_source));
+  CHECK(value.frontend_result.status == W_SEED_FRONTEND_OK &&
+        value.frontend_result.written.const_declarations == 1u &&
+        !value.const_declarations[0].has_explicit_type &&
+        value.const_declarations[0].declared_type == W_SEED_FRONTEND_NONE &&
+        value.const_declarations[0].effective_type != W_SEED_FRONTEND_NONE);
+  w_seed_generic_validation_result inferred_result;
+  CHECK(validate_application_at(
+            &value, 2u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &inferred_result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        inferred_result.computed_argument_count == 1u &&
+        inferred_result.receipts_written == 2u &&
+        memcmp(fingerprints[2], inferred_result.fingerprint_digest,
+               sizeof(fingerprints[2])) == 0 &&
+        value.receipts[0].effective_type ==
+            value.receipts[0].eval_value.type_index);
+  static const char forward_source[] =
+      "const answer = target + 1\n"
+      "const target = 41\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { value: Box<(answer)> }\n";
+  static const char ordered_source[] =
+      "const target = 41\n"
+      "const answer = target + 1\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { value: Box<(answer)> }\n";
+  uint8_t forward_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES];
+  CHECK(fixture_lower(&value, forward_source));
+  CHECK(value.frontend_result.status == W_SEED_FRONTEND_OK &&
+        value.const_declarations[0].effective_type != W_SEED_FRONTEND_NONE &&
+        value.const_declarations[1].effective_type != W_SEED_FRONTEND_NONE);
+  w_seed_generic_validation_result forward_result;
+  const w_seed_generic_validation_state forward_state = validate_application_at(
+      &value, 0u, CONVERSION_VALUES,
+      (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX}, &forward_result);
+  CHECK(forward_state == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        forward_result.computed_argument_count == 1u &&
+        forward_result.receipts_written == 1u &&
+        forward_result.evaluation.const_cache_misses == 2u &&
+        forward_result.evaluation.const_cache_hits == 0u &&
+        value.receipts[0].eval_value.integer_value[0] == 42u);
+  (void)memcpy(forward_digest, forward_result.fingerprint_digest,
+               sizeof(forward_digest));
+  CHECK(fixture_lower(&value, ordered_source));
+  w_seed_generic_validation_result ordered_result;
+  CHECK(validate_application_at(
+            &value, 0u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &ordered_result) == W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        ordered_result.computed_argument_count == 1u &&
+        ordered_result.receipts_written == 1u &&
+        memcmp(forward_digest, ordered_result.fingerprint_digest,
+               sizeof(forward_digest)) == 0 &&
+        value.receipts[0].eval_value.integer_value[0] == 42u);
+
+  static const char bool_cycle_source[] =
+      "const left = right\n"
+      "const right = left == true\n"
+      "struct Box<_ value: Bool> {}\n"
+      "struct Use { cycle: Box<(left)> independent: Box<(true)> }\n";
+  CHECK(fixture_lower(&value, bool_cycle_source));
+  CHECK(value.const_declarations[0].declared_type == W_SEED_FRONTEND_NONE &&
+        value.const_declarations[1].declared_type == W_SEED_FRONTEND_NONE &&
+        value.const_declarations[0].effective_type != W_SEED_FRONTEND_NONE &&
+        value.types[value.const_declarations[0].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_BOOL &&
+        value.types[value.const_declarations[1].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_BOOL);
+  w_seed_generic_validation_result bool_cycle_result;
+  CHECK(validate_application_at(
+            &value, 0u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &bool_cycle_result) ==
+            W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED &&
+        bool_cycle_result.diagnostic ==
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
+        bool_cycle_result.evaluation.consumed_steps == 0u &&
+        bool_cycle_result.evaluation.const_cache_hits == 0u &&
+        bool_cycle_result.evaluation.const_cache_misses == 0u &&
+        bool_cycle_result.computed_argument_count == 1u &&
+        bool_cycle_result.receipts_written == 1u &&
+        bool_cycle_result.const_cycle_path_length == 3u &&
+        bool_cycle_result.const_cycle_path[0] == 0u &&
+        bool_cycle_result.const_cycle_path[1] == 1u &&
+        bool_cycle_result.const_cycle_path[2] == 0u &&
+        value.receipts[0].kind ==
+            W_SEED_GENERIC_VALIDATION_RECEIPT_CONST_ARGUMENT &&
+        value.types[value.receipts[0].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_BOOL &&
+        fingerprint_not_available(&bool_cycle_result));
+
+  static const char integer_cycle_source[] =
+      "const left = right\n"
+      "const right = left + 1\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { cycle: Box<(left)> independent: Box<(6 * 7)> }\n";
+  CHECK(fixture_lower(&value, integer_cycle_source));
+  CHECK(value.const_declarations[0].effective_type != W_SEED_FRONTEND_NONE &&
+        value.types[value.const_declarations[0].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        value.types[value.const_declarations[0].effective_type].bit_width ==
+            64u &&
+        value.types[value.const_declarations[1].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        value.types[value.const_declarations[1].effective_type].bit_width ==
+            64u);
+  w_seed_generic_validation_result integer_cycle_result;
+  CHECK(validate_application_at(
+            &value, 0u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &integer_cycle_result) ==
+            W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED &&
+        integer_cycle_result.diagnostic ==
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
+        integer_cycle_result.evaluation.consumed_steps == 0u &&
+        integer_cycle_result.evaluation.const_cache_hits == 0u &&
+        integer_cycle_result.evaluation.const_cache_misses == 0u &&
+        integer_cycle_result.computed_argument_count == 1u &&
+        integer_cycle_result.receipts_written == 1u &&
+        integer_cycle_result.const_cycle_path_length == 3u &&
+        integer_cycle_result.const_cycle_path[0] == 0u &&
+        integer_cycle_result.const_cycle_path[1] == 1u &&
+        integer_cycle_result.const_cycle_path[2] == 0u &&
+        value.types[value.receipts[0].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        value.types[value.receipts[0].effective_type].bit_width == 64u &&
+        fingerprint_not_available(&integer_cycle_result));
+
+  /* Graph-first precedence also covers a cycle whose two operators impose
+   * incompatible scalar constraints.  Frontend inference leaves the logical
+   * declaration untyped, but the reachable cycle still owns W-CONST-0002. */
+  static const char incompatible_cycle_source[] =
+      "const left = right && true\n"
+      "const right = left + 1\n"
+      "struct Box<_ value: Bool> {}\n"
+      "struct Use { cycle: Box<(left)> }\n";
+  CHECK(fixture_lower(&value, incompatible_cycle_source));
+  CHECK(value.frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        value.const_declarations[0].effective_type == W_SEED_FRONTEND_NONE &&
+        value.const_declarations[1].effective_type != W_SEED_FRONTEND_NONE &&
+        value.types[value.const_declarations[1].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        value.types[value.const_declarations[1].effective_type].bit_width ==
+            64u);
+  w_seed_generic_validation_result incompatible_cycle_result;
+  CHECK(validate_application_at(
+            &value, 0u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &incompatible_cycle_result) ==
+            W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED &&
+        incompatible_cycle_result.diagnostic ==
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
+        incompatible_cycle_result.evaluation.consumed_steps == 0u &&
+        incompatible_cycle_result.evaluation.const_cache_hits == 0u &&
+        incompatible_cycle_result.evaluation.const_cache_misses == 0u &&
+        incompatible_cycle_result.computed_argument_count == 1u &&
+        incompatible_cycle_result.receipts_written == 1u &&
+        incompatible_cycle_result.const_cycle_path_length == 3u &&
+        incompatible_cycle_result.const_cycle_path[0] == 0u &&
+        incompatible_cycle_result.const_cycle_path[1] == 1u &&
+        incompatible_cycle_result.const_cycle_path[2] == 0u &&
+        value.receipts[0].kind ==
+            W_SEED_GENERIC_VALIDATION_RECEIPT_CONST_ARGUMENT &&
+        value.types[value.receipts[0].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_BOOL &&
+        fingerprint_not_available(&incompatible_cycle_result));
+
+  /* The causal graph does not outrank a malformed application relation. */
+  w_seed_frontend_generic_argument *incompatible_argument =
+      &value.generic_arguments[value.generic_applications[0].first_argument];
+  const uint32_t saved_argument_owner = incompatible_argument->owner_application;
+  incompatible_argument->owner_application = W_SEED_FRONTEND_NONE;
+  w_seed_generic_validation_result incompatible_application_corruption;
+  CHECK(validate_application_at(
+            &value, 0u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &incompatible_application_corruption) ==
+            W_SEED_GENERIC_VALIDATION_INVALID &&
+        incompatible_application_corruption.computed_argument_count == 0u &&
+        incompatible_application_corruption.receipts_written == 0u &&
+        incompatible_application_corruption.evaluation.consumed_steps == 0u &&
+        incompatible_application_corruption.evaluation.const_cache_hits == 0u &&
+        incompatible_application_corruption.evaluation.const_cache_misses == 0u &&
+        fingerprint_not_available(&incompatible_application_corruption));
+  incompatible_argument->owner_application = saved_argument_owner;
+
+  /* A broken child edge is invalid before the cycle diagnostic can be
+   * manufactured from the remaining source-backed records. */
+  const uint32_t incompatible_root = value.const_declarations[0].initializer_expression;
+  CHECK(incompatible_root != W_SEED_FRONTEND_NONE);
+  w_seed_frontend_expression *incompatible_expression =
+      &value.expressions[incompatible_root];
+  const uint32_t saved_incompatible_left = incompatible_expression->left;
+  incompatible_expression->left = W_SEED_FRONTEND_NONE;
+  w_seed_generic_validation_result incompatible_dependency_corruption;
+  CHECK(validate_application_at(
+            &value, 0u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &incompatible_dependency_corruption) ==
+            W_SEED_GENERIC_VALIDATION_INVALID &&
+        incompatible_dependency_corruption.computed_argument_count == 0u &&
+        incompatible_dependency_corruption.receipts_written == 0u &&
+        incompatible_dependency_corruption.evaluation.consumed_steps == 0u &&
+        incompatible_dependency_corruption.evaluation.const_cache_hits == 0u &&
+        incompatible_dependency_corruption.evaluation.const_cache_misses == 0u &&
+        fingerprint_not_available(&incompatible_dependency_corruption));
+  incompatible_expression->left = saved_incompatible_left;
+
+  /* Count every recovered calculated slot before the first causal cycle.
+   * Receipt publication remains one causal record, even when two slots point
+   * at the same source-backed cycle. */
+  static const char incompatible_multi_slot_source[] =
+      "const left = right && true\n"
+      "const right = left + 1\n"
+      "struct Box<_ first: Bool, _ second: Bool> {}\n"
+      "struct Use { cycle: Box<(left), (left)> }\n";
+  CHECK(fixture_lower(&value, incompatible_multi_slot_source));
+  CHECK(value.frontend_result.written.generic_applications == 1u &&
+        value.generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED &&
+        value.generic_arguments[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED &&
+        value.generic_arguments[1].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED);
+  w_seed_generic_validation_result incompatible_multi_slot_result;
+  CHECK(validate_application_at(
+            &value, 0u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &incompatible_multi_slot_result) ==
+            W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED &&
+        incompatible_multi_slot_result.computed_argument_count == 2u &&
+        incompatible_multi_slot_result.receipts_written == 1u &&
+        incompatible_multi_slot_result.diagnostic ==
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
+        incompatible_multi_slot_result.const_cycle_path_length == 3u &&
+        incompatible_multi_slot_result.const_cycle_path[0] == 0u &&
+        incompatible_multi_slot_result.const_cycle_path[1] == 1u &&
+        incompatible_multi_slot_result.const_cycle_path[2] == 0u &&
+        incompatible_multi_slot_result.evaluation.consumed_steps == 0u &&
+        incompatible_multi_slot_result.evaluation.const_cache_hits == 0u &&
+        incompatible_multi_slot_result.evaluation.const_cache_misses == 0u &&
+        value.receipts[0].generic_argument_index == 0u &&
+        value.types[value.receipts[0].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_BOOL &&
+        fingerprint_not_available(&incompatible_multi_slot_result));
+  w_seed_generic_validation_result incompatible_multi_slot_zero_receipts;
+  CHECK(validate_application_at_with_capacities(
+            &value, 0u, CONVERSION_VALUES, value.evidence_bytes,
+            W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_BYTES, 0u,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &incompatible_multi_slot_zero_receipts) ==
+            W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED &&
+        incompatible_multi_slot_zero_receipts.computed_argument_count == 2u &&
+        incompatible_multi_slot_zero_receipts.receipts_written == 0u &&
+        incompatible_multi_slot_zero_receipts.diagnostic ==
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
+        incompatible_multi_slot_zero_receipts.const_cycle_path_length == 3u &&
+        incompatible_multi_slot_zero_receipts.const_cycle_path[0] == 0u &&
+        incompatible_multi_slot_zero_receipts.const_cycle_path[1] == 1u &&
+        incompatible_multi_slot_zero_receipts.const_cycle_path[2] == 0u &&
+        incompatible_multi_slot_zero_receipts.evaluation.consumed_steps == 0u &&
+        incompatible_multi_slot_zero_receipts.evaluation.const_cache_hits == 0u &&
+        incompatible_multi_slot_zero_receipts.evaluation.const_cache_misses == 0u &&
+        fingerprint_not_available(&incompatible_multi_slot_zero_receipts));
+
+  /* Invalid application or argument barriers never manufacture W-CONST-0002. */
+  CHECK(fixture_lower(&value, incompatible_multi_slot_source));
+  value.generic_applications[0].binding_status =
+      W_SEED_FRONTEND_GENERIC_BINDING_INVALID;
+  w_seed_generic_validation_result incompatible_invalid_application;
+  CHECK(validate_application_at(
+            &value, 0u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &incompatible_invalid_application) ==
+            W_SEED_GENERIC_VALIDATION_INVALID &&
+        incompatible_invalid_application.computed_argument_count == 0u &&
+        incompatible_invalid_application.receipts_written == 0u &&
+        incompatible_invalid_application.evaluation.consumed_steps == 0u &&
+        incompatible_invalid_application.evaluation.const_cache_hits == 0u &&
+        incompatible_invalid_application.evaluation.const_cache_misses == 0u &&
+        fingerprint_not_available(&incompatible_invalid_application));
+  CHECK(fixture_lower(&value, incompatible_multi_slot_source));
+  value.generic_arguments[0].binding_status =
+      W_SEED_FRONTEND_GENERIC_BINDING_INVALID;
+  w_seed_generic_validation_result incompatible_invalid_argument;
+  CHECK(validate_application_at(
+            &value, 0u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &incompatible_invalid_argument) ==
+            W_SEED_GENERIC_VALIDATION_INVALID &&
+        incompatible_invalid_argument.computed_argument_count == 0u &&
+        incompatible_invalid_argument.receipts_written == 0u &&
+        incompatible_invalid_argument.evaluation.consumed_steps == 0u &&
+        incompatible_invalid_argument.evaluation.const_cache_hits == 0u &&
+        incompatible_invalid_argument.evaluation.const_cache_misses == 0u &&
+        fingerprint_not_available(&incompatible_invalid_argument));
+
+  CHECK(fixture_lower(&value, named_source));
   const w_seed_frontend_generic_argument *named_argument =
       &value.generic_arguments[value.generic_applications[2].first_argument];
   CHECK(named_argument->typed_const_expression_index == 1u);
@@ -2821,8 +3137,8 @@ static bool test_named_module_const_d4(void) {
   value.generic_applications[2].head_struct = named_head;
 
   static const char cycle_source[] =
-      "const left: i64 = right\n"
-      "const right: i64 = left\n"
+      "const left = right\n"
+      "const right = left\n"
       "struct Box<_ value: i64> {}\n"
       "struct Use { cycle: Box<(left)> independent: Box<(6 * 7)> }\n";
   CHECK(fixture_lower(&value, cycle_source));
@@ -2852,8 +3168,27 @@ static bool test_named_module_const_d4(void) {
             W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
         value.receipts[0].evaluation.const_cache_hits == 0u &&
         value.receipts[0].evaluation.const_cache_misses == 0u);
+  static const char anchored_cycle_source[] =
+      "const left: i64 = right\n"
+      "const right: i64 = left\n"
+      "struct Box<_ value: i64> {}\n"
+      "struct Use { cycle: Box<(left)> independent: Box<(6 * 7)> }\n";
+  CHECK(fixture_lower(&value, anchored_cycle_source));
+  w_seed_generic_validation_result anchored_cycle_result;
+  CHECK(validate_application_at(
+            &value, 0u, CONVERSION_VALUES,
+            (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
+            &anchored_cycle_result) ==
+            W_SEED_GENERIC_VALIDATION_EVALUATION_FAILED &&
+        anchored_cycle_result.diagnostic ==
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
+        anchored_cycle_result.evaluation.consumed_steps == 0u &&
+        anchored_cycle_result.evaluation.const_cache_hits == 0u &&
+        anchored_cycle_result.evaluation.const_cache_misses == 0u &&
+        anchored_cycle_result.receipts_written == 1u &&
+        fingerprint_not_available(&anchored_cycle_result));
   static const char self_cycle_source[] =
-      "const self: i64 = self\n"
+      "const self = self\n"
       "struct Box<_ value: i64> {}\n"
       "struct Use { cycle: Box<(self)> independent: Box<(6 * 7)> }\n";
   CHECK(fixture_lower(&value, self_cycle_source));
@@ -2885,9 +3220,9 @@ static bool test_named_module_const_d4(void) {
             W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE);
 
   static const char three_cycle_source[] =
-      "const first: i64 = second\n"
-      "const second: i64 = third\n"
-      "const third: i64 = first\n"
+      "const first = second\n"
+      "const second = third\n"
+      "const third = first\n"
       "struct Box<_ value: i64> {}\n"
       "struct Use { cycle: Box<(first)> independent: Box<(6 * 7)> }\n";
   CHECK(fixture_lower(&value, three_cycle_source));
@@ -3126,10 +3461,10 @@ static bool test_named_module_const_d4(void) {
   /* D5 memoizes the shared seed in a local diamond.  The root CALL and every
    * declaration body still consume their ordinary node steps. */
   static const char diamond_source[] =
-      "const answerSeed: i64 = 21\n"
-      "const firstAnswerHalf: i64 = answerSeed\n"
-      "const secondAnswerHalf: i64 = answerSeed\n"
-      "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
+      "const answerSeed = 21\n"
+      "const firstAnswerHalf = answerSeed\n"
+      "const secondAnswerHalf = answerSeed\n"
+      "export const assembledUltimateAnswer = firstAnswerHalf + secondAnswerHalf\n"
       "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n"
       "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
       "struct Use { shared: UltimateAnswer<(assembledUltimateAnswer)> }\n";
@@ -3167,10 +3502,10 @@ static bool test_named_module_const_d4(void) {
                sizeof(diamond_fingerprint)) == 0);
 
   static const char diamond_without_predicate[] =
-      "const answerSeed: i64 = 21\n"
-      "const firstAnswerHalf: i64 = answerSeed\n"
-      "const secondAnswerHalf: i64 = answerSeed\n"
-      "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
+      "const answerSeed = 21\n"
+      "const firstAnswerHalf = answerSeed\n"
+      "const secondAnswerHalf = answerSeed\n"
+      "export const assembledUltimateAnswer = firstAnswerHalf + secondAnswerHalf\n"
       "struct Box<_ value: i64> {}\n"
       "struct Use { shared: Box<(assembledUltimateAnswer)> }\n";
   CHECK(fixture_lower(&value, diamond_without_predicate));
@@ -3199,10 +3534,10 @@ static bool test_named_module_const_d4(void) {
    * application.  The second sibling reuses the ready root declaration while
    * its own CALL node still consumes one step. */
   static const char sibling_source[] =
-      "const answerSeed: i64 = 21\n"
-      "const firstAnswerHalf: i64 = answerSeed\n"
-      "const secondAnswerHalf: i64 = answerSeed\n"
-      "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
+      "const answerSeed = 21\n"
+      "const firstAnswerHalf = answerSeed\n"
+      "const secondAnswerHalf = answerSeed\n"
+      "export const assembledUltimateAnswer = firstAnswerHalf + secondAnswerHalf\n"
       "struct AnswerPair<_ left: i64, _ right: i64> {}\n"
       "struct Use { pair: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> }\n";
   CHECK(fixture_lower(&value, sibling_source));
@@ -3247,10 +3582,10 @@ static bool test_named_module_const_d4(void) {
   /* A second application receives a new session, so its first argument is a
    * fresh diamond evaluation. */
   static const char two_application_source[] =
-      "const answerSeed: i64 = 21\n"
-      "const firstAnswerHalf: i64 = answerSeed\n"
-      "const secondAnswerHalf: i64 = answerSeed\n"
-      "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
+      "const answerSeed = 21\n"
+      "const firstAnswerHalf = answerSeed\n"
+      "const secondAnswerHalf = answerSeed\n"
+      "export const assembledUltimateAnswer = firstAnswerHalf + secondAnswerHalf\n"
       "struct AnswerPair<_ left: i64, _ right: i64> {}\n"
       "struct Use { first: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> second: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> }\n";
   CHECK(fixture_lower(&value, two_application_source));

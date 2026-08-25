@@ -1273,8 +1273,8 @@ async function main() {
       probe, genericsWitness, "generics.w:static-aliases", "complete",
     )
     assertClean(genericsParsed, "generics.w:static-aliases")
-    if (genericsParsed.nodes.filter((node) => node.kind === CST.ALIAS_DECLARATION).length !== 10 ||
-        genericsParsed.nodes.filter((node) => node.kind === CST.CONTRACT_ENVELOPE).length !== 10) {
+    if (genericsParsed.nodes.filter((node) => node.kind === CST.ALIAS_DECLARATION).length !== 12 ||
+        genericsParsed.nodes.filter((node) => node.kind === CST.CONTRACT_ENVELOPE).length !== 12) {
       fail("generics.w static-alias witness owner counts are incomplete")
     }
     const genericsRepeat = invoke(

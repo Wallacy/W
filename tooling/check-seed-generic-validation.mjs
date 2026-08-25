@@ -80,6 +80,22 @@ function parseProbe(output) {
   }
 }
 
+function assertCycleRecord(record, witness, label) {
+  const diagnosticCodes = {"W-CONST-0002": 2}
+  const expectedDiagnostic = diagnosticCodes[witness?.diagnostic]
+  if (!record || expectedDiagnostic === undefined ||
+      record.state !== witness.state || record.failure !== witness.failure ||
+      record.diagnostic !== expectedDiagnostic || record.computed !== witness.computed ||
+      record.receipts !== witness.receipts || record.steps !== witness.steps ||
+      record.cacheHits !== witness.hits || record.cacheMisses !== witness.misses ||
+      (witness.receiptKinds !== undefined &&
+       record.receiptKinds !== witness.receiptKinds) ||
+      record.fingerprintState !== witness.fingerprintState ||
+      record.fingerprintDigest !== "0".repeat(64) ||
+      record.cyclePath.join(",") !== witness.path)
+    fail(`${label} C witness disagrees with GPF0-W-1466-current`)
+}
+
 const textEncoder = new TextEncoder()
 
 function bytes(...parts) {
@@ -307,12 +323,19 @@ const fingerprintD6Case = requireCorpusCase(
   ["head", "root", "sourceOrder", "first", "second", "application", "duplicate",
     "quota", "newRun", "failureFirst", "preflight"],
 )
+const fingerprintD7Case = requireCorpusCase(
+  "GPF0-W-1466-current", ["W-1466"],
+  "reference/last-light/generics.w", "const answerSeed = 21",
+  ["diamond", "integerDefault", "boolean", "suffix", "propagation", "forward",
+    "reordered", "equivalent", "cycles", "negative"],
+)
 const d1Witnesses = fingerprintD1Case.witnesses
 const d2Witnesses = fingerprintD2Case.witnesses
 const d3Witnesses = fingerprintD3Case.witnesses
 const d4Witnesses = fingerprintD4Case.witnesses
 const d5Witnesses = fingerprintD5Case.witnesses
 const d6Witnesses = fingerprintD6Case.witnesses
+const d7Witnesses = fingerprintD7Case.witnesses
 if (d1Witnesses?.module !== "restaurant" ||
     typeof d1Witnesses?.standard !== "string" ||
     typeof d1Witnesses?.standardAgain !== "string" ||
@@ -429,6 +452,44 @@ if (d1Witnesses?.module !== "restaurant" ||
     d6Witnesses.newRun?.secondSteps !== 1 || d6Witnesses.newRun?.firstMisses !== 4 ||
     d6Witnesses.newRun?.secondMisses !== 0 || d6Witnesses.newRun?.firstHits !== 1 ||
     d6Witnesses.newRun?.secondHits !== 1 ||
+    d7Witnesses?.module !== "restaurant" ||
+    d7Witnesses.diamond?.root !== "assembledUltimateAnswer" ||
+    d7Witnesses.diamond?.effectiveType !== "i64" ||
+    d7Witnesses.diamond?.declaredType !== null ||
+    d7Witnesses.diamond?.explicit !== false ||
+    JSON.stringify(d7Witnesses.diamond?.sourceOrder) !==
+      JSON.stringify(["answerSeed", "firstAnswerHalf", "secondAnswerHalf", "assembledUltimateAnswer"]) ||
+    d7Witnesses.integerDefault?.effectiveType !== "i64" ||
+    d7Witnesses.boolean?.effectiveType !== "Bool" ||
+    d7Witnesses.suffix?.effectiveType !== "u16" ||
+    d7Witnesses.propagation?.effectiveType !== "u16" ||
+    d7Witnesses.forward?.value !== d7Witnesses.reordered?.value ||
+    d7Witnesses.forward?.effectiveType !== d7Witnesses.reordered?.effectiveType ||
+    d7Witnesses.equivalent?.fingerprint !== "same" ||
+    d7Witnesses.cycles?.anchored?.diagnostic !== "W-CONST-0002" ||
+    d7Witnesses.cycles?.unanchored?.diagnostic !== "W-CONST-0002" ||
+    d7Witnesses.cycles?.anchored?.steps !== 0 || d7Witnesses.cycles?.unanchored?.steps !== 0 ||
+    d7Witnesses.cycles?.incompatible?.diagnostic !== "W-CONST-0002" ||
+    d7Witnesses.cycles?.incompatible?.failure !== "evaluator-diagnostic" ||
+    d7Witnesses.cycles?.incompatible?.path !== "0,1,0" ||
+    d7Witnesses.cycles?.incompatible?.names !== "left,right,left" ||
+    JSON.stringify(d7Witnesses.cycles?.incompatible?.constraints) !==
+      JSON.stringify(["Bool", "integer"]) ||
+    d7Witnesses.cycles?.incompatible?.computed !== 1 ||
+    d7Witnesses.cycles?.incompatible?.receipts !== 1 ||
+    d7Witnesses.cycles?.incompatible?.receiptKinds !== "C" ||
+    d7Witnesses.cycles?.incompatible?.steps !== 0 ||
+    d7Witnesses.cycles?.incompatible?.hits !== 0 ||
+    d7Witnesses.cycles?.incompatible?.misses !== 0 ||
+    d7Witnesses.cycles?.incompatible?.fingerprintState !== "NOT_AVAILABLE" ||
+    d7Witnesses.cycles?.incompatible?.fingerprint !== "zero" ||
+    d7Witnesses.cycles?.incompatibleMultiSlot?.computed !== 2 ||
+    d7Witnesses.cycles?.incompatibleMultiSlot?.receipts !== 1 ||
+    d7Witnesses.cycles?.incompatibleMultiSlotZeroCapacity?.computed !== 2 ||
+    d7Witnesses.cycles?.incompatibleMultiSlotZeroCapacity?.receipts !== 0 ||
+    d7Witnesses.negative?.unsupported?.state !== "UNSUPPORTED" ||
+    d7Witnesses.negative?.mismatch?.state !== "INVALID" ||
+    d7Witnesses.negative?.unresolved?.state !== "INVALID" ||
     d6Witnesses.failureFirst?.diagnostic !== "W-CONST-0006" ||
     d6Witnesses.failureFirst?.receipts !== 1 ||
     d6Witnesses.failureFirst?.secondEvaluated !== false ||
@@ -474,15 +535,15 @@ const ultimateAnswerComputedAliasMarker = uniqueMarker(
 const ultimateAnswerNamedAliasMarker = uniqueMarker(
   generics, "export alias UltimateAnswerNamed = UltimateAnswer<(ultimateAnswer)>", "UltimateAnswer named alias")
 const answerSeedMarker = uniqueMarker(
-  generics, "const answerSeed: i64 = 21", "D5 answerSeed declaration")
+  generics, "const answerSeed = 21", "D7 answerSeed declaration")
 const firstAnswerHalfMarker = uniqueMarker(
-  generics, "const firstAnswerHalf: i64 = answerSeed", "D5 firstAnswerHalf declaration")
+  generics, "const firstAnswerHalf = answerSeed", "D7 firstAnswerHalf declaration")
 const secondAnswerHalfMarker = uniqueMarker(
-  generics, "const secondAnswerHalf: i64 = answerSeed", "D5 secondAnswerHalf declaration")
+  generics, "const secondAnswerHalf = answerSeed", "D7 secondAnswerHalf declaration")
 const assembledUltimateAnswerMarker = uniqueMarker(
   generics,
-  "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf",
-  "D5 assembledUltimateAnswer declaration")
+  "export const assembledUltimateAnswer = firstAnswerHalf + secondAnswerHalf",
+  "D7 assembledUltimateAnswer declaration")
 const ultimateAnswerSharedAliasMarker = uniqueMarker(
   generics,
   "export alias UltimateAnswerShared = UltimateAnswer<(assembledUltimateAnswer)>",
@@ -596,6 +657,11 @@ const d4Witness = `${ultimateAnswerConstMarker}\n` +
   ultimateAnswerNamedUse
 const d5Declarations = `${answerSeedMarker}\n${firstAnswerHalfMarker}\n` +
   `${secondAnswerHalfMarker}\n${assembledUltimateAnswerMarker}\n`
+const explicitD5Declarations =
+  "const answerSeed: i64 = 21\n" +
+  "const firstAnswerHalf: i64 = answerSeed\n" +
+  "const secondAnswerHalf: i64 = answerSeed\n" +
+  "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
 const d5Use = `struct UltimateAnswerSharedUse {
   shared: UltimateAnswer<(assembledUltimateAnswer)>
   sharedAgain: UltimateAnswer<(assembledUltimateAnswer)>
@@ -617,19 +683,24 @@ const d6Witness = `${d5Declarations}${answerPairSeedDeclaration}\n` +
   `${consistentUltimateAnswerAliasMarker}\n` +
   `${consistentUltimateAnswerDuplicateAliasMarker}\n${d6Use}`
 
-/* Independent host reconstruction of the D5 diamond. This parser uses only
- * the declaration source and counts the same ConstIR node classes. It does
- * not read corpus expected values or the C memo counters. */
+/* Independent host reconstruction of the D5/D7 diamond. This parser uses only
+ * declaration source, accepts an optional annotation, infers effective types,
+ * and counts the same ConstIR node classes. It does not read corpus expected
+ * values or the C memo counters. */
 function reconstructDiamond(source) {
   const declarations = [...source.matchAll(
-    /^(?:export )?const ([A-Za-z_][A-Za-z0-9_]*): i64 = (.+)$/gmu,
-  )].map((match) => ({name: match[1], expression: match[2].trim()}))
+    /^(?:export )?const ([A-Za-z_][A-Za-z0-9_]*)(?:\s*:\s*([A-Za-z_][A-Za-z0-9_]*))?\s*=\s*(.+)$/gmu,
+  )].map((match) => ({
+    name: match[1], declaredType: match[2] ?? null, expression: match[3].trim(),
+  }))
   const expectedOrder = [
     "answerSeed", "firstAnswerHalf", "secondAnswerHalf", "assembledUltimateAnswer",
   ]
   const sourceOrder = declarations.map((declaration) => declaration.name)
   if (JSON.stringify(sourceOrder) !== JSON.stringify(expectedOrder))
     fail(`D5 source order changed: ${sourceOrder.join(",")}`)
+  if (declarations.length !== expectedOrder.length)
+    fail(`D7 diamond declaration count changed: ${declarations.length}`)
   const byName = new Map(declarations.map((declaration) => [declaration.name, declaration]))
   const active = new Set()
   const ready = new Map()
@@ -647,22 +718,42 @@ function reconstructDiamond(source) {
     active.add(name)
     misses += 1
     const expression = declaration.expression
-    let value
-    const binary = /^([A-Za-z_][A-Za-z0-9_]*) \+ ([A-Za-z_][A-Za-z0-9_]*)$/u.exec(expression)
+    let result
+    const binary = /^([A-Za-z_][A-Za-z0-9_]*)\s*\+\s*([A-Za-z_][A-Za-z0-9_]*)$/u.exec(expression)
     if (binary) {
       steps += 1 // binary node
-      value = evaluateExpression(binary[1]) + evaluateExpression(binary[2])
+      const left = evaluateExpression(binary[1])
+      const right = evaluateExpression(binary[2])
+      if (left.effectiveType !== right.effectiveType || left.effectiveType === "Bool")
+        fail(`D7 reconstructed binary has no unique type: ${expression}`)
+      result = {value: left.value + right.value, effectiveType: left.effectiveType}
     } else {
-      value = evaluateExpression(expression)
+      result = evaluateExpression(expression)
     }
+    const effectiveType = declaration.declaredType ?? result.effectiveType
+    if (declaration.declaredType !== null && declaration.declaredType !== result.effectiveType)
+      fail(`D7 annotation disagrees with inferred type for ${name}`)
+    if (effectiveType !== "i64")
+      fail(`D7 diamond declaration ${name} did not resolve to i64`)
     active.delete(name)
+    const value = {
+      value: result.value, effectiveType, declaredType: declaration.declaredType,
+    }
+    declaration.effectiveType = effectiveType
     ready.set(name, value)
     return value
   }
   function evaluateExpression(expression) {
-    if (/^\d+$/u.test(expression)) {
+    const integer = /^(\d+)(?:_([iu]\d+))?$/u.exec(expression)
+    if (integer) {
       steps += 1 // integer literal node
-      return Number(expression)
+      return {
+        value: Number(integer[1]), effectiveType: integer[2] ?? "i64",
+      }
+    }
+    if (expression === "true" || expression === "false") {
+      steps += 1 // boolean literal node
+      return {value: expression === "true", effectiveType: "Bool"}
     }
     if (/^[A-Za-z_][A-Za-z0-9_]*$/u.test(expression)) {
       steps += 1 // CALL node
@@ -670,8 +761,13 @@ function reconstructDiamond(source) {
     }
     fail(`D5 has an unsupported reconstructed expression: ${expression}`)
   }
-  const value = evaluateDeclaration("assembledUltimateAnswer")
-  return {value, sourceOrder, misses, hits, steps}
+  const result = evaluateDeclaration("assembledUltimateAnswer")
+  return {
+    value: result.value, effectiveType: result.effectiveType, sourceOrder,
+    declarations: declarations.map(({name, declaredType, effectiveType, expression}) =>
+      ({name, declaredType, effectiveType, expression})),
+    misses, hits, steps,
+  }
 }
 
 function reconstructSiblingPair(source) {
@@ -689,6 +785,177 @@ function reconstructSiblingPair(source) {
     second: {steps: 1, misses: 0, hits: 1},
   }
 }
+
+/* Small independent D7 solver used for the adversarial scalar witnesses. It
+ * deliberately owns its source parser and never consumes C records, receipts,
+ * or corpus values. */
+function reconstructScalarGraph(source, root) {
+  const declarations = [...source.matchAll(
+    /^(?:export )?const ([A-Za-z_][A-Za-z0-9_]*)(?:\s*:\s*([A-Za-z_][A-Za-z0-9_]*))?\s*=\s*(.+)$/gmu,
+  )].map((match) => ({
+    name: match[1], declaredType: match[2] ?? null, expression: match[3].trim(),
+  }))
+  const byName = new Map(declarations.map((declaration) => [declaration.name, declaration]))
+  const active = new Set()
+  const ready = new Map()
+  function evaluate(name) {
+    if (ready.has(name)) return ready.get(name)
+    if (active.has(name)) fail(`D7 scalar reconstruction found a cycle at ${name}`)
+    const declaration = byName.get(name)
+    if (!declaration) fail(`D7 scalar reconstruction has no declaration for ${name}`)
+    active.add(name)
+    const inferred = evaluateExpression(declaration.expression)
+    const effectiveType = declaration.declaredType ?? inferred.effectiveType
+    if (declaration.declaredType !== null && declaration.declaredType !== inferred.effectiveType)
+      fail(`D7 scalar annotation disagrees for ${name}`)
+    const result = {value: inferred.value, effectiveType, declaredType: declaration.declaredType}
+    declaration.effectiveType = effectiveType
+    active.delete(name)
+    ready.set(name, result)
+    return result
+  }
+  function evaluateExpression(expression) {
+    const integer = /^(\d+)(?:_([iu]\d+))?$/u.exec(expression)
+    if (integer) return {value: Number(integer[1]), effectiveType: integer[2] ?? "i64"}
+    if (expression === "true" || expression === "false")
+      return {value: expression === "true", effectiveType: "Bool"}
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/u.test(expression)) return evaluate(expression)
+    const comparison = /^(.+?)\s*(==|!=|<=|>=|<|>)\s*(.+)$/u.exec(expression)
+    if (comparison) {
+      const left = evaluateExpression(comparison[1].trim())
+      const right = evaluateExpression(comparison[3].trim())
+      if (left.effectiveType !== right.effectiveType)
+        fail(`D7 comparison has no unique type: ${expression}`)
+      const values = {
+        "==": left.value === right.value, "!=": left.value !== right.value,
+        "<": left.value < right.value, "<=": left.value <= right.value,
+        ">": left.value > right.value, ">=": left.value >= right.value,
+      }
+      return {value: values[comparison[2]], effectiveType: "Bool"}
+    }
+    const binary = /^(.+?)\s*([+\-*/%])\s*(.+)$/u.exec(expression)
+    if (binary) {
+      const left = evaluateExpression(binary[1].trim())
+      const right = evaluateExpression(binary[3].trim())
+      if (left.effectiveType !== right.effectiveType || left.effectiveType === "Bool")
+        fail(`D7 binary has no unique type: ${expression}`)
+      const operations = {
+        "+": (a, b) => a + b, "-": (a, b) => a - b, "*": (a, b) => a * b,
+        "/": (a, b) => a / b, "%": (a, b) => a % b,
+      }
+      return {value: operations[binary[2]](left.value, right.value), effectiveType: left.effectiveType}
+    }
+    fail(`D7 scalar reconstruction has an unsupported expression: ${expression}`)
+  }
+  const result = evaluate(root)
+  return {
+    value: result.value,
+    effectiveType: result.effectiveType,
+    declarations: declarations.map(({name, declaredType, effectiveType, expression}) =>
+      ({name, declaredType, effectiveType, expression})),
+  }
+}
+
+/* Reconstruct only the dependency/constraint witness for a reachable cycle.
+ * This parser is intentionally separate from reconstructScalarGraph: an
+ * incompatible cycle must remain observable even though no scalar value can
+ * be evaluated. */
+function reconstructReachableCycle(source, root) {
+  const declarations = [...source.matchAll(
+    /^(?:export )?const ([A-Za-z_][A-Za-z0-9_]*)(?:\s*:\s*([A-Za-z_][A-Za-z0-9_]*))?\s*=\s*(.+)$/gmu,
+  )].map((match) => ({name: match[1], expression: match[3].trim()}))
+  const byName = new Map(declarations.map((declaration) => [declaration.name, declaration]))
+  const active = []
+  const constraints = []
+  let cycle = null
+  const balancedOuter = (expression) => {
+    if (!expression.startsWith("(") || !expression.endsWith(")")) return false
+    let depth = 0
+    for (let index = 0; index < expression.length; index += 1) {
+      if (expression[index] === "(") depth += 1
+      if (expression[index] === ")") depth -= 1
+      if (depth === 0 && index !== expression.length - 1) return false
+    }
+    return depth === 0
+  }
+  const visitExpression = (rawExpression) => {
+    if (cycle) return
+    let expression = rawExpression.trim()
+    while (balancedOuter(expression)) expression = expression.slice(1, -1).trim()
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/u.test(expression)) {
+      visitDeclaration(expression)
+      return
+    }
+    if (/^(?:true|false|\d+(?:_[iu]\d+)?)$/u.test(expression)) return
+    const binary = /^(.+?)\s*(&&|\|\||==|!=|<=|>=|<|>|[+\-*/%])\s*(.+)$/u.exec(expression)
+    if (!binary) fail(`D7 cycle reconstruction has an unsupported expression: ${expression}`)
+    constraints.push(binary[2] === "&&" || binary[2] === "||" ? "Bool" :
+      binary[2] === "==" || binary[2] === "!=" || binary[2] === "<" ||
+      binary[2] === "<=" || binary[2] === ">" || binary[2] === ">=" ? "comparison" : "integer")
+    visitExpression(binary[1])
+    visitExpression(binary[3])
+  }
+  function visitDeclaration(name) {
+    if (cycle) return
+    const activeIndex = active.indexOf(name)
+    if (activeIndex >= 0) {
+      cycle = [...active.slice(activeIndex), name]
+      return
+    }
+    const declaration = byName.get(name)
+    if (!declaration) fail(`D7 cycle reconstruction has no declaration for ${name}`)
+    active.push(name)
+    visitExpression(declaration.expression)
+    active.pop()
+  }
+  visitDeclaration(root)
+  return {cycle: cycle ?? [], constraints}
+}
+
+const reconstructedDiamond = reconstructDiamond(d5Declarations)
+const reconstructedExplicitDiamond = reconstructDiamond(explicitD5Declarations)
+if (reconstructedDiamond.value !== d7Witnesses.diamond.value ||
+    reconstructedDiamond.effectiveType !== d7Witnesses.diamond.effectiveType ||
+    reconstructedDiamond.declarations.some((declaration) =>
+      declaration.declaredType !== null || declaration.effectiveType !== "i64") ||
+    reconstructedExplicitDiamond.value !== reconstructedDiamond.value ||
+    reconstructedExplicitDiamond.effectiveType !== reconstructedDiamond.effectiveType ||
+    reconstructedExplicitDiamond.declarations.some((declaration) =>
+      declaration.declaredType !== "i64" || declaration.effectiveType !== "i64"))
+  fail("D7 diamond annotations or effective types do not reconstruct independently")
+
+const d7IntegerDefault = reconstructScalarGraph(
+  "const integerDefault = 4096\n", "integerDefault")
+const d7Boolean = reconstructScalarGraph(
+  "const booleanValue = true == true\n", "booleanValue")
+const d7Suffix = reconstructScalarGraph(
+  "const suffixValue = 7_u16\n", "suffixValue")
+const d7Propagation = reconstructScalarGraph(
+  "const suffixValue = 7_u16\nconst propagatedValue = suffixValue\n", "propagatedValue")
+const d7Forward = reconstructScalarGraph(
+  "const forwardValue = laterValue\nconst laterValue = 42\n", "forwardValue")
+const d7Reordered = reconstructScalarGraph(
+  "const laterValue = 42\nconst forwardValue = laterValue\n", "forwardValue")
+const d7Inferred = reconstructScalarGraph("const equivalentValue = 42\n", "equivalentValue")
+const d7Explicit = reconstructScalarGraph(
+  "const equivalentValue: i64 = 42\n", "equivalentValue")
+const d7IncompatibleCycle = reconstructReachableCycle(
+  "const left = right && true\nconst right = left + 1\n", "left")
+if (d7IntegerDefault.effectiveType !== d7Witnesses.integerDefault.effectiveType ||
+    d7Boolean.effectiveType !== d7Witnesses.boolean.effectiveType ||
+    d7Suffix.effectiveType !== d7Witnesses.suffix.effectiveType ||
+    d7Propagation.effectiveType !== d7Witnesses.propagation.effectiveType ||
+    d7Forward.value !== d7Reordered.value ||
+    d7Forward.effectiveType !== d7Reordered.effectiveType ||
+    d7Forward.effectiveType !== d7Witnesses.forward.effectiveType ||
+    d7Inferred.value !== d7Explicit.value ||
+    d7Inferred.effectiveType !== d7Explicit.effectiveType ||
+    d7Inferred.declarations[0].declaredType !== null ||
+    d7Explicit.declarations[0].declaredType !== "i64" ||
+    d7IncompatibleCycle.cycle.join(",") !== d7Witnesses.cycles.incompatible.names ||
+    JSON.stringify(d7IncompatibleCycle.constraints) !==
+      JSON.stringify(d7Witnesses.cycles.incompatible.constraints))
+  fail("D7 scalar inference witnesses disagree with the independent Bun solver")
 
 const build = await mkdtemp(join(tmpdir(), "w-seed-generic-validation-check-"))
 const witnessPath = join(build, "domain-generic-witness.w")
@@ -897,7 +1164,16 @@ try {
   const d5FirstOutput = run(executable, ["--domain-witness", d5Path])
   const d5SecondOutput = run(executable, ["--domain-witness", d5Path])
   const d5Parsed = parseProbe(d5SecondOutput)
-  const reconstructedDiamond = reconstructDiamond(d5Declarations)
+  const d5ExplicitPath = join(build, "domain-generic-d5-explicit.w")
+  await Bun.write(d5ExplicitPath, `${explicitD5Declarations}${ultimateAnswerPredicate}\n` +
+    `${ultimateAnswerValueSignature} {}\n${d5Use}`)
+  const d5ExplicitParsed = parseProbe(run(executable, ["--domain-witness", d5ExplicitPath]))
+  if (d5ExplicitParsed.d4Records.length !== d5Parsed.d4Records.length ||
+      d5ExplicitParsed.d4Records.some((record, index) =>
+        record.state !== d5Parsed.d4Records[index].state ||
+        record.receiptValues.join(",") !== d5Parsed.d4Records[index].receiptValues.join(",") ||
+        record.fingerprintDigest !== d5Parsed.d4Records[index].fingerprintDigest))
+    fail("explicit and inferred D7 diamonds did not preserve value or fingerprint")
   const reconstructedDiamondRepeat = reconstructDiamond(d5Declarations)
   if (d5FirstOutput !== d5SecondOutput ||
       d5Parsed.d4Records.length !== d5Witnesses.duplicate.count ||
@@ -1103,15 +1379,16 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
   const zeroCapacityOutput = run(
     executable, ["--domain-witness-d4-zero-capacity", twoCycleCase.path],
   )
-  const zeroCapacityMatch = /^D4_ZERO state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) receipts=(\d+) cache_hits=(\d+) cache_misses=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u
+  const zeroCapacityMatch = /^D4_ZERO state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) computed=(\d+) steps=(\d+) receipts=(\d+) cache_hits=(\d+) cache_misses=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u
     .exec(zeroCapacityOutput.trim())
   if (!zeroCapacityMatch || zeroCapacityMatch[1] !== d4Witnesses.zeroCapacity.state ||
       zeroCapacityMatch[2] !== "evaluator-diagnostic" || zeroCapacityMatch[3] !== "2" ||
-      zeroCapacityMatch[4] !== "0" || zeroCapacityMatch[5] !== "0" ||
-      zeroCapacityMatch[6] !== String(d5Witnesses.preflight.zeroCapacity.hits) ||
-      zeroCapacityMatch[7] !== String(d5Witnesses.preflight.zeroCapacity.misses) ||
-      zeroCapacityMatch[8] !== "NOT_AVAILABLE" ||
-      zeroCapacityMatch[9] !== "0".repeat(64) || zeroCapacityMatch[10] !== "1,2,1")
+      zeroCapacityMatch[4] !== "1" || zeroCapacityMatch[5] !== "0" ||
+      zeroCapacityMatch[6] !== "0" ||
+      zeroCapacityMatch[7] !== String(d5Witnesses.preflight.zeroCapacity.hits) ||
+      zeroCapacityMatch[8] !== String(d5Witnesses.preflight.zeroCapacity.misses) ||
+      zeroCapacityMatch[9] !== "NOT_AVAILABLE" ||
+      zeroCapacityMatch[10] !== "0".repeat(64) || zeroCapacityMatch[11] !== "1,2,1")
     fail("zero-capacity cycle preflight did not preserve buffers or the closed path")
   const threeCycleCase = await runD4Case(
     "three-cycle", "const first: i64 = second\nconst second: i64 = third\n" +
@@ -1129,6 +1406,46 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
         String(d5Witnesses.preflight.threeCycle.receiptMisses) ||
       threeCycleCase.record.cyclePath.join(",") !== d4Witnesses.threeCycle.path)
     fail("three-member cycle path was not deterministic")
+  const incompatibleCycleCase = await runD4Case(
+    "incompatible-cycle",
+    "const left = right && true\nconst right = left + 1\n" +
+      "struct UltimateAnswer<_ value: Bool> {}\n" +
+      "struct Use { cycle: UltimateAnswer<(left)> }\n",
+  )
+  assertCycleRecord(
+    incompatibleCycleCase.record, d7Witnesses.cycles.incompatible,
+    "incompatible reachable cycle",
+  )
+  const incompatibleMultiSlotCase = await runD4Case(
+    "incompatible-multi-slot",
+    "const left = right && true\nconst right = left + 1\n" +
+      "struct UltimateAnswer<_ first: Bool, _ second: Bool> {}\n" +
+      "struct Use { cycle: UltimateAnswer<(left), (left)> }\n",
+  )
+  assertCycleRecord(
+    incompatibleMultiSlotCase.record, d7Witnesses.cycles.incompatibleMultiSlot,
+    "incompatible multi-slot cycle",
+  )
+  const incompatibleMultiSlotZeroOutput = run(
+    executable, ["--domain-witness-d4-zero-capacity", incompatibleMultiSlotCase.path],
+  )
+  const incompatibleMultiSlotZeroMatch = /^D4_ZERO state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) computed=(\d+) steps=(\d+) receipts=(\d+) cache_hits=(\d+) cache_misses=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u
+    .exec(incompatibleMultiSlotZeroOutput.trim())
+  assertCycleRecord({
+    state: incompatibleMultiSlotZeroMatch?.[1],
+    failure: incompatibleMultiSlotZeroMatch?.[2],
+    diagnostic: Number(incompatibleMultiSlotZeroMatch?.[3]),
+    computed: Number(incompatibleMultiSlotZeroMatch?.[4]),
+    steps: Number(incompatibleMultiSlotZeroMatch?.[5]),
+    receipts: Number(incompatibleMultiSlotZeroMatch?.[6]),
+    cacheHits: Number(incompatibleMultiSlotZeroMatch?.[7]),
+    cacheMisses: Number(incompatibleMultiSlotZeroMatch?.[8]),
+    receiptKinds: "",
+    fingerprintState: incompatibleMultiSlotZeroMatch?.[9],
+    fingerprintDigest: incompatibleMultiSlotZeroMatch?.[10],
+    cyclePath: incompatibleMultiSlotZeroMatch?.[11]?.split(",").filter(Boolean).map(Number) ?? [],
+  }, d7Witnesses.cycles.incompatibleMultiSlotZeroCapacity,
+  "incompatible multi-slot zero-capacity cycle")
   const dependencyLimitSource = Array.from({ length: 257 }, (_, index) =>
     `const c${index}: i64 = ${index + 1 < 257 ? `c${index + 1}` : "42"}\n`).join("") +
     `${d4PredicateAndValue}struct Use { dependencyLimit: UltimateAnswer<(c0)> }\n`
@@ -1180,11 +1497,11 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
       stringCase.record.receipts !== 0)
     fail("unsupported String named const was not stopped before execution")
   const untypedCase = await runD4Case(
-    "untyped", "const untyped = 42\n" +
+    "untyped", "const untyped = \"42\"\n" +
       `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(untyped)> }\n`)
   if (untypedCase.record.state !== d4Witnesses.untyped.state || untypedCase.record.steps !== 0 ||
       untypedCase.record.receipts !== 0)
-    fail("untyped named const was not rejected as outside D4")
+    fail("unsupported untyped named const escaped the D4 boundary")
   const importedCase = await runD4Case(
     "imported", "import { answer } from other\n" +
       `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(answer)> }\n`)
