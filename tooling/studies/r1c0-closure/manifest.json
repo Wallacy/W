@@ -123,79 +123,378 @@
     ]
   },
   "bundles": [
-    {"id":"R1-allocator-runtime-slot","path":"tooling/studies/r1-allocator-runtime-slot/bundle.json","digest":"sha256:6adfaa82276ccf2e03cbe6738d118e8e6c17aa72a24d6fb5d706c3b036255aa2"},
-    {"id":"R1-arena-scope","path":"tooling/studies/r1-arena-scope/bundle.json","digest":"sha256:353f4c3927b371f8e982b2debcfd81d6a05b2c52c343e01843e519f514c415fc"},
-    {"id":"R1-assignment-unit","path":"tooling/studies/r1-assignment-unit/bundle.json","digest":"sha256:c36150c2bd10e62bfb903f9f9b9ea4835d50b1ae7f5a9f083bb54a68ffd2e7e7"},
-    {"id":"R1-associated-members","path":"tooling/studies/r1-associated-members/bundle.json","digest":"sha256:982caf6b2840f73613b9bf86330f42a06c3550cfb8cdfeb31d56c48ff6429af6"},
-    {"id":"R1-atom2-atomic-contract","path":"tooling/studies/atom2-atomic-contract/bundle.json","digest":"sha256:cc88342d4b8d1b40ae958c38410a8011bf5e891e014dd3b65cca94fde0198837"},
-    {"id":"R1-avf0-availability-feature","path":"tooling/studies/avf0-availability-feature/bundle.json","digest":"sha256:86f74c8907ac15b2de3c1c45f0fb99542f0bc9fe87fe0e57209e5dec3cb925bb"},
-    {"id":"R1-borrow-expressivity","path":"tooling/studies/r1-borrow-expressivity/bundle.json","digest":"sha256:57bf798e3423d229acce9e2932a3cc6dc2f0e388c08bebf3bd75ff1d37521e8a"},
-    {"id":"R1-brx2-borrow-relations","path":"tooling/studies/brx2-borrow-relations/bundle.json","digest":"sha256:2725b3a37498256ac2e1d6544d81c13ca161f35a08c8ec8cc93cc831d7ba028e"},
-    {"id":"R1-brx3-borrow-relations","path":"tooling/studies/brx3-borrow-relations/bundle.json","digest":"sha256:5327bc727291d1fd5421d2a334077cb06b34bc0521f56c2c17365568bdd16e00"},
-    {"id":"R1-call-label-order","path":"tooling/studies/r1-call-label-order/bundle.json","digest":"sha256:300caeeff3f08ff6c5ee1d9204c0229264ad5ebc027416b2291f556a7dcb8b2c"},
-    {"id":"R1-callable-model-last-light","path":"tooling/studies/r1-callable-model/bundle.json","digest":"sha256:25f4f36977e6a5e2ae459385d562e8aee0a1aa754890a3068b3ddf0cf7690b65"},
-    {"id":"R1-callable-property-surface","path":"tooling/studies/r1-callable-property-surface/bundle.json","digest":"sha256:818717319726754143e1d694e4565a74dd54ea5e22bda0b7c0c804bc023bdc23"},
-    {"id":"R1-conditional-value-block","path":"tooling/studies/r1-conditional-value-block/bundle.json","digest":"sha256:134b2ad4be82a2368272422d30ed9f9e25e65f85d441ed53699bec85d67c76de"},
-    {"id":"R1-consuming-receiver-last-light","path":"tooling/studies/r1-consuming-receiver/bundle.json","digest":"sha256:284185ba8e937871b51575c83bf816b8605b06aa182192994238d46d4ff5a1e4"},
-    {"id":"R1-contract-envelopes-last-light","path":"tooling/studies/r1-contract-envelopes/bundle.json","digest":"sha256:57f7bf4e9a33eb8c64f313a5ea79896ebd504666bc2f29aabd3c4f6c7b8cc495"},
-    {"id":"R1-control-flow-last-light","path":"tooling/studies/r1-control-flow/bundle.json","digest":"sha256:b85f078009aea22fd40c1fc1a36489a3abc7c0aab8139e3b1a37ddaaf01f4426"},
-    {"id":"R1-cyc1-explicit-cycle-lifecycle","path":"tooling/studies/cyc1-explicit-cycle-lifecycle/bundle.json","digest":"sha256:b28fcaa00a67aa399edaabdf61a4214f0d2e211dd75ca2c25e40b3056f27d190"},
-    {"id":"R1-cyc2-conditional-liveness","path":"tooling/studies/cyc2-conditional-liveness/bundle.json","digest":"sha256:f02e02b70c2328b30d8e9505238f0fc17679ec72d4073303c9bc2f5774147304"},
-    {"id":"R1-data-declaration-surface","path":"tooling/studies/r1-data-declaration-surface/bundle.json","digest":"sha256:1716e2a0f44623646b044762b2ffce7e01a072415da877662c040b28446b1e16"},
-    {"id":"R1-delimited-value-surface","path":"tooling/studies/r1-delimited-value-surface/bundle.json","digest":"sha256:e696c864d5d41a18229b2ff9774accfb613e2cc9b1d51171b74b715e8c58e12b"},
-    {"id":"R1-dyn1-versioned-behavior","path":"tooling/studies/dyn1-versioned-behavior/bundle.json","digest":"sha256:afaf605b92e67ebd4e944906230d52a0db8783a33b0336a8e05bdbd7c5c869f4"},
-    {"id":"R1-end-relative-access","path":"tooling/studies/r1-end-relative-access/bundle.json","digest":"sha256:c1ba27d88da6991425ed527d39167145a4ce33e16372fc383dee544073598212"},
-    {"id":"R1-fail-fast-last-light","path":"tooling/studies/r1-fail-fast/bundle.json","digest":"sha256:93260df60937a1f788822f2cd3178d8af61dffec1bd036fec76ba29993516e51"},
-    {"id":"R1-fluent-self","path":"tooling/studies/r1-fluent-self/bundle.json","digest":"sha256:5b81aa43964066248d1e63af5ab4ef607ae3b363b60a7e0c8eb948e968c0d3b6"},
-    {"id":"R1-gen1-incremental-suspension","path":"tooling/studies/gen1-incremental-suspension/bundle.json","digest":"sha256:14653fbd7c9b6cfbe48536d46d91ba6b0af290b5390cffe8d6d834eb91f5d26c"},
-    {"id":"R1-gen2-stream-yield","path":"tooling/studies/gen2-stream-yield/bundle.json","digest":"sha256:c9fa7f5f5624b200c451f458c33ea041ceed65d0dd27ebae9605278d9b917a18"},
-    {"id":"R1-hrd0-hot-reload-dev","path":"tooling/studies/hrd0-hot-reload-dev/bundle.json","digest":"sha256:68978965ebf9918c06e0fd406d612c5d4f721659af23b28dc2f09b1d7fed894e"},
-    {"id":"R1-imports-last-light","path":"tooling/studies/r1-imports/bundle.json","digest":"sha256:2e7adf3d65193763b16de05401b003f8e115441b334345d62869ec1633c4e624"},
-    {"id":"R1-manifest-surface","path":"tooling/studies/r1-manifest-surface/bundle.json","digest":"sha256:9ceb351fceb91b93766163215f7d031a2a3c010d4bee90323b548a19a8ae27d6"},
-    {"id":"R1-multiple-initializers","path":"tooling/studies/r1-multiple-initializers/bundle.json","digest":"sha256:dd035498c8eee7c2dc595967ecf2792e5f2e12319bb35b81aa6c18025407e532"},
-    {"id":"R1-pattern-surface","path":"tooling/studies/r1-pattern-surface/bundle.json","digest":"sha256:85df2ee27cb540a1ab8e385a4a79cb13402c1a479198b9a263ecacdd8a3c8676"},
-    {"id":"R1-pkg1-project-transaction","path":"tooling/studies/pkg1-project-transaction/bundle.json","digest":"sha256:73d43fb3b168001d7f52a0ab91806db6dd7ab1cf3eb0038d0627b53abf083cd2"},
-    {"id":"R1-post-test-loop","path":"tooling/studies/r1-post-test-loop/bundle.json","digest":"sha256:e0d230182f20cab0f2144e78e2fd34f27f26fec67af2ebb0a65b72fe8813ab4d"},
-    {"id":"R1-power-precedence","path":"tooling/studies/r1-power-precedence/bundle.json","digest":"sha256:0a8b10044b0ef61b24fb808fe391d5058b83a9ba307fd673b3f92070284a9c73"},
-    {"id":"R1-python-transform","path":"tooling/studies/r1-python-transform/bundle.json","digest":"sha256:bfaaea6686593f243aeede8a8a8c7486af090ecec9dda586cec16b98ed8b6281"},
-    {"id":"R1-refinement-subject","path":"tooling/studies/r1-refinement-subject/bundle.json","digest":"sha256:8cb007102fd06e8d5edd9ed0f0829b3e021baf43b86faae9de83a337d69ee0ec"},
-    {"id":"R1-sec0-security-model","path":"tooling/studies/sec0-security-model/bundle.json","digest":"sha256:9ac61c7b891d4ea8c0f35222005099658a05dce4f992a678c5ab483ff3c02438"},
-    {"id":"R1-shared-construction","path":"tooling/studies/r1-shared-construction/bundle.json","digest":"sha256:8ea930d746955efc1c45e19be3cc9bf5e584882c33d1533279cad45a30835ae9"},
-    {"id":"R1-source-boundaries","path":"tooling/studies/r1-source-boundaries/bundle.json","digest":"sha256:51d6363e9b8ba2e4efb1bcd21e37ec56edd005d0484ac3b9c7be0eb0845e472b"},
-    {"id":"R1-source-phase-surface","path":"tooling/studies/r1-source-phase-surface/bundle.json","digest":"sha256:9808185c0f4f82a701c42d2c25c07fc6cbba4f0c15f302e4dddb602d464c01d2"},
-    {"id":"R1-spawn-domain-last-light","path":"tooling/studies/r1-spawn-domain/bundle.json","digest":"sha256:675cc140e007099f90c3c0adafc38dcb8e62df32e453e1123f9a1adb8749fa07"},
-    {"id":"R1-static-contract-slots","path":"tooling/studies/r1-static-contract-slots/bundle.json","digest":"sha256:d7d398ec167a9676b06a78510ad887d0e7436a2868e6320c458ef8b466c86540"},
-    {"id":"R1-static-contract-syntax","path":"tooling/studies/r1-static-contract-syntax/bundle.json","digest":"sha256:7b98dc0e4595f3097f915241b30e942c7a5777459c7a2af6bb663fde18627d0f"},
-    {"id":"R1-suspend-accounting-names","path":"tooling/studies/r1-suspend-accounting-names/bundle.json","digest":"sha256:7e04dfda2d2d2dfbc054ec47580a31f0114baa871f357a170335bfde456c3f9f"},
-    {"id":"R1-syn2-dyn2-closure","path":"tooling/studies/syn2-dyn2-closure/bundle.json","digest":"sha256:d02832ca71f20416db36a2f5ee62a158e2675738b23552b41929a13dbed74033"},
-    {"id":"R1-tabular-adapters","path":"tooling/studies/r1-tabular-adapters/bundle.json","digest":"sha256:d0a15dfe4a4ed867bf42144c32c09f1af9eb11d789f37906faba0728121ade60"},
-    {"id":"R1-tabular-carrier","path":"tooling/studies/r1-tabular-carrier/bundle.json","digest":"sha256:86880216b9cc7400027098d49cdea930b5295cdf8f70e52502bc598ac9269f91"},
-    {"id":"R1-tensor-broadcast","path":"tooling/studies/r1-tensor-broadcast/bundle.json","digest":"sha256:120bc440eb547c6eee499987a642aca2684860602958bd8ac93a8dcf09ea2cdb"},
-    {"id":"R1-tuple-unpacking","path":"tooling/studies/r1-tuple-unpacking/bundle.json","digest":"sha256:2c37c60165f6233c2beca30c9dee25eb1eefeb707abe988b53f0500ba175909e"},
-    {"id":"R1-units-last-light","path":"tooling/studies/r1-units/bundle.json","digest":"sha256:f233711d368de488f5ce4ef787a7e5c4e3ef2c2e0896a88f1d47a31ca3d141b8"},
-    {"id":"R1-weak-owner-acquisition","path":"tooling/studies/r1-weak-owner-acquisition/bundle.json","digest":"sha256:647315dbd5a3fd80805e077519c775a6c5c0c1e38dec9cb3ee8df851318417c0"}
+    {
+      "id": "R1-allocator-runtime-slot",
+      "path": "tooling/studies/r1-allocator-runtime-slot/bundle.json",
+      "digest": "sha256:6adfaa82276ccf2e03cbe6738d118e8e6c17aa72a24d6fb5d706c3b036255aa2"
+    },
+    {
+      "id": "R1-arena-scope",
+      "path": "tooling/studies/r1-arena-scope/bundle.json",
+      "digest": "sha256:353f4c3927b371f8e982b2debcfd81d6a05b2c52c343e01843e519f514c415fc"
+    },
+    {
+      "id": "R1-assignment-unit",
+      "path": "tooling/studies/r1-assignment-unit/bundle.json",
+      "digest": "sha256:c36150c2bd10e62bfb903f9f9b9ea4835d50b1ae7f5a9f083bb54a68ffd2e7e7"
+    },
+    {
+      "id": "R1-associated-members",
+      "path": "tooling/studies/r1-associated-members/bundle.json",
+      "digest": "sha256:982caf6b2840f73613b9bf86330f42a06c3550cfb8cdfeb31d56c48ff6429af6"
+    },
+    {
+      "id": "R1-atom2-atomic-contract",
+      "path": "tooling/studies/atom2-atomic-contract/bundle.json",
+      "digest": "sha256:cc88342d4b8d1b40ae958c38410a8011bf5e891e014dd3b65cca94fde0198837"
+    },
+    {
+      "id": "R1-avf0-availability-feature",
+      "path": "tooling/studies/avf0-availability-feature/bundle.json",
+      "digest": "sha256:86f74c8907ac15b2de3c1c45f0fb99542f0bc9fe87fe0e57209e5dec3cb925bb"
+    },
+    {
+      "id": "R1-borrow-expressivity",
+      "path": "tooling/studies/r1-borrow-expressivity/bundle.json",
+      "digest": "sha256:57bf798e3423d229acce9e2932a3cc6dc2f0e388c08bebf3bd75ff1d37521e8a"
+    },
+    {
+      "id": "R1-brx2-borrow-relations",
+      "path": "tooling/studies/brx2-borrow-relations/bundle.json",
+      "digest": "sha256:2725b3a37498256ac2e1d6544d81c13ca161f35a08c8ec8cc93cc831d7ba028e"
+    },
+    {
+      "id": "R1-brx3-borrow-relations",
+      "path": "tooling/studies/brx3-borrow-relations/bundle.json",
+      "digest": "sha256:5327bc727291d1fd5421d2a334077cb06b34bc0521f56c2c17365568bdd16e00"
+    },
+    {
+      "id": "R1-call-label-order",
+      "path": "tooling/studies/r1-call-label-order/bundle.json",
+      "digest": "sha256:300caeeff3f08ff6c5ee1d9204c0229264ad5ebc027416b2291f556a7dcb8b2c"
+    },
+    {
+      "id": "R1-callable-model-last-light",
+      "path": "tooling/studies/r1-callable-model/bundle.json",
+      "digest": "sha256:25f4f36977e6a5e2ae459385d562e8aee0a1aa754890a3068b3ddf0cf7690b65"
+    },
+    {
+      "id": "R1-callable-property-surface",
+      "path": "tooling/studies/r1-callable-property-surface/bundle.json",
+      "digest": "sha256:818717319726754143e1d694e4565a74dd54ea5e22bda0b7c0c804bc023bdc23"
+    },
+    {
+      "id": "R1-conditional-value-block",
+      "path": "tooling/studies/r1-conditional-value-block/bundle.json",
+      "digest": "sha256:134b2ad4be82a2368272422d30ed9f9e25e65f85d441ed53699bec85d67c76de"
+    },
+    {
+      "id": "R1-consuming-receiver-last-light",
+      "path": "tooling/studies/r1-consuming-receiver/bundle.json",
+      "digest": "sha256:284185ba8e937871b51575c83bf816b8605b06aa182192994238d46d4ff5a1e4"
+    },
+    {
+      "id": "R1-contract-envelopes-last-light",
+      "path": "tooling/studies/r1-contract-envelopes/bundle.json",
+      "digest": "sha256:57f7bf4e9a33eb8c64f313a5ea79896ebd504666bc2f29aabd3c4f6c7b8cc495"
+    },
+    {
+      "id": "R1-control-flow-last-light",
+      "path": "tooling/studies/r1-control-flow/bundle.json",
+      "digest": "sha256:b85f078009aea22fd40c1fc1a36489a3abc7c0aab8139e3b1a37ddaaf01f4426"
+    },
+    {
+      "id": "R1-cyc1-explicit-cycle-lifecycle",
+      "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/bundle.json",
+      "digest": "sha256:b28fcaa00a67aa399edaabdf61a4214f0d2e211dd75ca2c25e40b3056f27d190"
+    },
+    {
+      "id": "R1-cyc2-conditional-liveness",
+      "path": "tooling/studies/cyc2-conditional-liveness/bundle.json",
+      "digest": "sha256:f02e02b70c2328b30d8e9505238f0fc17679ec72d4073303c9bc2f5774147304"
+    },
+    {
+      "id": "R1-data-declaration-surface",
+      "path": "tooling/studies/r1-data-declaration-surface/bundle.json",
+      "digest": "sha256:1716e2a0f44623646b044762b2ffce7e01a072415da877662c040b28446b1e16"
+    },
+    {
+      "id": "R1-delimited-value-surface",
+      "path": "tooling/studies/r1-delimited-value-surface/bundle.json",
+      "digest": "sha256:e696c864d5d41a18229b2ff9774accfb613e2cc9b1d51171b74b715e8c58e12b"
+    },
+    {
+      "id": "R1-dyn1-versioned-behavior",
+      "path": "tooling/studies/dyn1-versioned-behavior/bundle.json",
+      "digest": "sha256:afaf605b92e67ebd4e944906230d52a0db8783a33b0336a8e05bdbd7c5c869f4"
+    },
+    {
+      "id": "R1-end-relative-access",
+      "path": "tooling/studies/r1-end-relative-access/bundle.json",
+      "digest": "sha256:c1ba27d88da6991425ed527d39167145a4ce33e16372fc383dee544073598212"
+    },
+    {
+      "id": "R1-fail-fast-last-light",
+      "path": "tooling/studies/r1-fail-fast/bundle.json",
+      "digest": "sha256:93260df60937a1f788822f2cd3178d8af61dffec1bd036fec76ba29993516e51"
+    },
+    {
+      "id": "R1-fluent-self",
+      "path": "tooling/studies/r1-fluent-self/bundle.json",
+      "digest": "sha256:5b81aa43964066248d1e63af5ab4ef607ae3b363b60a7e0c8eb948e968c0d3b6"
+    },
+    {
+      "id": "R1-gen1-incremental-suspension",
+      "path": "tooling/studies/gen1-incremental-suspension/bundle.json",
+      "digest": "sha256:14653fbd7c9b6cfbe48536d46d91ba6b0af290b5390cffe8d6d834eb91f5d26c"
+    },
+    {
+      "id": "R1-gen2-stream-yield",
+      "path": "tooling/studies/gen2-stream-yield/bundle.json",
+      "digest": "sha256:c9fa7f5f5624b200c451f458c33ea041ceed65d0dd27ebae9605278d9b917a18"
+    },
+    {
+      "id": "R1-hrd0-hot-reload-dev",
+      "path": "tooling/studies/hrd0-hot-reload-dev/bundle.json",
+      "digest": "sha256:68978965ebf9918c06e0fd406d612c5d4f721659af23b28dc2f09b1d7fed894e"
+    },
+    {
+      "id": "R1-imports-last-light",
+      "path": "tooling/studies/r1-imports/bundle.json",
+      "digest": "sha256:2e7adf3d65193763b16de05401b003f8e115441b334345d62869ec1633c4e624"
+    },
+    {
+      "id": "R1-manifest-surface",
+      "path": "tooling/studies/r1-manifest-surface/bundle.json",
+      "digest": "sha256:9ceb351fceb91b93766163215f7d031a2a3c010d4bee90323b548a19a8ae27d6"
+    },
+    {
+      "id": "R1-multiple-initializers",
+      "path": "tooling/studies/r1-multiple-initializers/bundle.json",
+      "digest": "sha256:dd035498c8eee7c2dc595967ecf2792e5f2e12319bb35b81aa6c18025407e532"
+    },
+    {
+      "id": "R1-pattern-surface",
+      "path": "tooling/studies/r1-pattern-surface/bundle.json",
+      "digest": "sha256:85df2ee27cb540a1ab8e385a4a79cb13402c1a479198b9a263ecacdd8a3c8676"
+    },
+    {
+      "id": "R1-pkg1-project-transaction",
+      "path": "tooling/studies/pkg1-project-transaction/bundle.json",
+      "digest": "sha256:73d43fb3b168001d7f52a0ab91806db6dd7ab1cf3eb0038d0627b53abf083cd2"
+    },
+    {
+      "id": "R1-post-test-loop",
+      "path": "tooling/studies/r1-post-test-loop/bundle.json",
+      "digest": "sha256:e0d230182f20cab0f2144e78e2fd34f27f26fec67af2ebb0a65b72fe8813ab4d"
+    },
+    {
+      "id": "R1-power-precedence",
+      "path": "tooling/studies/r1-power-precedence/bundle.json",
+      "digest": "sha256:0a8b10044b0ef61b24fb808fe391d5058b83a9ba307fd673b3f92070284a9c73"
+    },
+    {
+      "id": "R1-python-transform",
+      "path": "tooling/studies/r1-python-transform/bundle.json",
+      "digest": "sha256:bfaaea6686593f243aeede8a8a8c7486af090ecec9dda586cec16b98ed8b6281"
+    },
+    {
+      "id": "R1-refinement-subject",
+      "path": "tooling/studies/r1-refinement-subject/bundle.json",
+      "digest": "sha256:8cb007102fd06e8d5edd9ed0f0829b3e021baf43b86faae9de83a337d69ee0ec"
+    },
+    {
+      "id": "R1-sec0-security-model",
+      "path": "tooling/studies/sec0-security-model/bundle.json",
+      "digest": "sha256:9ac61c7b891d4ea8c0f35222005099658a05dce4f992a678c5ab483ff3c02438"
+    },
+    {
+      "id": "R1-shared-construction",
+      "path": "tooling/studies/r1-shared-construction/bundle.json",
+      "digest": "sha256:8ea930d746955efc1c45e19be3cc9bf5e584882c33d1533279cad45a30835ae9"
+    },
+    {
+      "id": "R1-source-boundaries",
+      "path": "tooling/studies/r1-source-boundaries/bundle.json",
+      "digest": "sha256:51d6363e9b8ba2e4efb1bcd21e37ec56edd005d0484ac3b9c7be0eb0845e472b"
+    },
+    {
+      "id": "R1-source-phase-surface",
+      "path": "tooling/studies/r1-source-phase-surface/bundle.json",
+      "digest": "sha256:9808185c0f4f82a701c42d2c25c07fc6cbba4f0c15f302e4dddb602d464c01d2"
+    },
+    {
+      "id": "R1-spawn-domain-last-light",
+      "path": "tooling/studies/r1-spawn-domain/bundle.json",
+      "digest": "sha256:675cc140e007099f90c3c0adafc38dcb8e62df32e453e1123f9a1adb8749fa07"
+    },
+    {
+      "id": "R1-static-contract-slots",
+      "path": "tooling/studies/r1-static-contract-slots/bundle.json",
+      "digest": "sha256:3c64c65452fa194b96dbb2cda696a34d45714917c7a20d536a38d7e98cc03d49"
+    },
+    {
+      "id": "R1-static-contract-syntax",
+      "path": "tooling/studies/r1-static-contract-syntax/bundle.json",
+      "digest": "sha256:eff682cde9cb1d54857aff0b4d57e90d6dd4f0910e32c6d6114958e9e770b868"
+    },
+    {
+      "id": "R1-suspend-accounting-names",
+      "path": "tooling/studies/r1-suspend-accounting-names/bundle.json",
+      "digest": "sha256:7e04dfda2d2d2dfbc054ec47580a31f0114baa871f357a170335bfde456c3f9f"
+    },
+    {
+      "id": "R1-syn2-dyn2-closure",
+      "path": "tooling/studies/syn2-dyn2-closure/bundle.json",
+      "digest": "sha256:d02832ca71f20416db36a2f5ee62a158e2675738b23552b41929a13dbed74033"
+    },
+    {
+      "id": "R1-tabular-adapters",
+      "path": "tooling/studies/r1-tabular-adapters/bundle.json",
+      "digest": "sha256:d0a15dfe4a4ed867bf42144c32c09f1af9eb11d789f37906faba0728121ade60"
+    },
+    {
+      "id": "R1-tabular-carrier",
+      "path": "tooling/studies/r1-tabular-carrier/bundle.json",
+      "digest": "sha256:86880216b9cc7400027098d49cdea930b5295cdf8f70e52502bc598ac9269f91"
+    },
+    {
+      "id": "R1-tensor-broadcast",
+      "path": "tooling/studies/r1-tensor-broadcast/bundle.json",
+      "digest": "sha256:120bc440eb547c6eee499987a642aca2684860602958bd8ac93a8dcf09ea2cdb"
+    },
+    {
+      "id": "R1-tuple-unpacking",
+      "path": "tooling/studies/r1-tuple-unpacking/bundle.json",
+      "digest": "sha256:2c37c60165f6233c2beca30c9dee25eb1eefeb707abe988b53f0500ba175909e"
+    },
+    {
+      "id": "R1-units-last-light",
+      "path": "tooling/studies/r1-units/bundle.json",
+      "digest": "sha256:f233711d368de488f5ce4ef787a7e5c4e3ef2c2e0896a88f1d47a31ca3d141b8"
+    },
+    {
+      "id": "R1-weak-owner-acquisition",
+      "path": "tooling/studies/r1-weak-owner-acquisition/bundle.json",
+      "digest": "sha256:647315dbd5a3fd80805e077519c775a6c5c0c1e38dec9cb3ee8df851318417c0"
+    }
   ],
   "reusedArtifacts": [
-    {"id":"tabular-carrier","role":"TAB0","path":"tooling/tabular-carrier-cases.json","digest":"sha256:fbd3455d567585f04a6122a74592e38640ce4920ddef0169b8c926fd8be3d546"},
-    {"id":"tabular-carrier-machine","role":"TAB0","path":"tooling/tabular-carrier-machine.mjs","digest":"sha256:cc223561235412fbcadb541b0a42f84a3d254520498b4198df7049d268d5f944"},
-    {"id":"tabular-carrier-checker","role":"TAB0","path":"tooling/check-tabular-carrier-cases.mjs","digest":"sha256:a2f971021c0f6d146317bcb448a6610768e714106c5da0076570b7ddfba756a7"},
-    {"id":"tabular-carrier-snapshot","role":"TAB0","path":"tooling/tabular-carrier-results.snapshot.jsonl","digest":"sha256:e15fe9b3b39b8a603882c5a5bed87cb258612a43604d122df0276641808f0f48"},
-    {"id":"tabular-adapters","role":"TAB1","path":"tooling/tabular-adapter-cases.json","digest":"sha256:4c6ed29c97ec000dd5546ba15e9ef6649a46110e6b3854358fbd89db6b65de33"},
-    {"id":"tabular-adapters-machine","role":"TAB1","path":"tooling/tabular-adapter-machine.mjs","digest":"sha256:d16b2e26c2768bcf62492eeb44645591bd6880e982210b01ef0c515a059ec7b0"},
-    {"id":"tabular-adapters-checker","role":"TAB1","path":"tooling/check-tabular-adapter-cases.mjs","digest":"sha256:3498f3ba843068f471437ecd4d09707ad6d4bab47c30eb9ccd13dbcc935ee692"},
-    {"id":"tabular-adapters-snapshot","role":"TAB1","path":"tooling/tabular-adapter-results.snapshot.jsonl","digest":"sha256:36b5fd2fc506a4241a10c544fb958d352ad21d88bc10e945f8ec9c074d5d2cd7"},
-    {"id":"foreign-body","role":"FB0","path":"tooling/foreign-body-cases.json","digest":"sha256:0a165ee9e9b6ba20c41a64212c0b786f5c76ed5603edf5e8b3f60fe08efce87d"},
-    {"id":"foreign-body-machine","role":"FB0","path":"tooling/foreign-body-machine.mjs","digest":"sha256:cf928a6c0019572a5fb46f368e36d75e1c4c32621222186b68993af695bdf7a8"},
-    {"id":"foreign-body-checker","role":"FB0","path":"tooling/check-foreign-body-cases.mjs","digest":"sha256:96570f7e14c3c388096a9247fa4cdaac573fc3fc33a124c391494eb07f91ce25"},
-    {"id":"foreign-body-snapshot","role":"FB0","path":"tooling/foreign-body-results.snapshot.jsonl","digest":"sha256:d2193bdda616153b3246a13950190459410ccc0667e6595c6044bbf03a36fe9c"},
-    {"id":"execution-ergonomics","role":"execution","path":"tooling/execution-ergonomics-cases.json","digest":"sha256:68ccc55b5c260bd7f016e803ea467f626476fd407fc949ef95b71ff3350f17bc"},
-    {"id":"execution-ergonomics-machine","role":"execution","path":"tooling/execution-ergonomics-machine.mjs","digest":"sha256:f7595aa301d0dc0342294e859f6b81a65a742a1b74dd61bd79da03a97493b53e"},
-    {"id":"execution-ergonomics-checker","role":"execution","path":"tooling/check-execution-ergonomics-cases.mjs","digest":"sha256:5b7c7c3ec529cbaf7c051ae6ada38b60bc72868e6eae79d7ac2bd861165d4c41"},
-    {"id":"execution-ergonomics-snapshot","role":"execution","path":"tooling/execution-ergonomics-results.snapshot.jsonl","digest":"sha256:394d11e0d6a82273a846a20278f29034d51bb0f6dd2d55f5663b1aa68d6e167c"}
+    {
+      "id": "tabular-carrier",
+      "role": "TAB0",
+      "path": "tooling/tabular-carrier-cases.json",
+      "digest": "sha256:fbd3455d567585f04a6122a74592e38640ce4920ddef0169b8c926fd8be3d546"
+    },
+    {
+      "id": "tabular-carrier-machine",
+      "role": "TAB0",
+      "path": "tooling/tabular-carrier-machine.mjs",
+      "digest": "sha256:cc223561235412fbcadb541b0a42f84a3d254520498b4198df7049d268d5f944"
+    },
+    {
+      "id": "tabular-carrier-checker",
+      "role": "TAB0",
+      "path": "tooling/check-tabular-carrier-cases.mjs",
+      "digest": "sha256:a2f971021c0f6d146317bcb448a6610768e714106c5da0076570b7ddfba756a7"
+    },
+    {
+      "id": "tabular-carrier-snapshot",
+      "role": "TAB0",
+      "path": "tooling/tabular-carrier-results.snapshot.jsonl",
+      "digest": "sha256:e15fe9b3b39b8a603882c5a5bed87cb258612a43604d122df0276641808f0f48"
+    },
+    {
+      "id": "tabular-adapters",
+      "role": "TAB1",
+      "path": "tooling/tabular-adapter-cases.json",
+      "digest": "sha256:4c6ed29c97ec000dd5546ba15e9ef6649a46110e6b3854358fbd89db6b65de33"
+    },
+    {
+      "id": "tabular-adapters-machine",
+      "role": "TAB1",
+      "path": "tooling/tabular-adapter-machine.mjs",
+      "digest": "sha256:d16b2e26c2768bcf62492eeb44645591bd6880e982210b01ef0c515a059ec7b0"
+    },
+    {
+      "id": "tabular-adapters-checker",
+      "role": "TAB1",
+      "path": "tooling/check-tabular-adapter-cases.mjs",
+      "digest": "sha256:3498f3ba843068f471437ecd4d09707ad6d4bab47c30eb9ccd13dbcc935ee692"
+    },
+    {
+      "id": "tabular-adapters-snapshot",
+      "role": "TAB1",
+      "path": "tooling/tabular-adapter-results.snapshot.jsonl",
+      "digest": "sha256:36b5fd2fc506a4241a10c544fb958d352ad21d88bc10e945f8ec9c074d5d2cd7"
+    },
+    {
+      "id": "foreign-body",
+      "role": "FB0",
+      "path": "tooling/foreign-body-cases.json",
+      "digest": "sha256:0a165ee9e9b6ba20c41a64212c0b786f5c76ed5603edf5e8b3f60fe08efce87d"
+    },
+    {
+      "id": "foreign-body-machine",
+      "role": "FB0",
+      "path": "tooling/foreign-body-machine.mjs",
+      "digest": "sha256:cf928a6c0019572a5fb46f368e36d75e1c4c32621222186b68993af695bdf7a8"
+    },
+    {
+      "id": "foreign-body-checker",
+      "role": "FB0",
+      "path": "tooling/check-foreign-body-cases.mjs",
+      "digest": "sha256:96570f7e14c3c388096a9247fa4cdaac573fc3fc33a124c391494eb07f91ce25"
+    },
+    {
+      "id": "foreign-body-snapshot",
+      "role": "FB0",
+      "path": "tooling/foreign-body-results.snapshot.jsonl",
+      "digest": "sha256:d2193bdda616153b3246a13950190459410ccc0667e6595c6044bbf03a36fe9c"
+    },
+    {
+      "id": "execution-ergonomics",
+      "role": "execution",
+      "path": "tooling/execution-ergonomics-cases.json",
+      "digest": "sha256:68ccc55b5c260bd7f016e803ea467f626476fd407fc949ef95b71ff3350f17bc"
+    },
+    {
+      "id": "execution-ergonomics-machine",
+      "role": "execution",
+      "path": "tooling/execution-ergonomics-machine.mjs",
+      "digest": "sha256:f7595aa301d0dc0342294e859f6b81a65a742a1b74dd61bd79da03a97493b53e"
+    },
+    {
+      "id": "execution-ergonomics-checker",
+      "role": "execution",
+      "path": "tooling/check-execution-ergonomics-cases.mjs",
+      "digest": "sha256:5b7c7c3ec529cbaf7c051ae6ada38b60bc72868e6eae79d7ac2bd861165d4c41"
+    },
+    {
+      "id": "execution-ergonomics-snapshot",
+      "role": "execution",
+      "path": "tooling/execution-ergonomics-results.snapshot.jsonl",
+      "digest": "sha256:394d11e0d6a82273a846a20278f29034d51bb0f6dd2d55f5663b1aa68d6e167c"
+    }
   ],
   "evidence": {
-    "current": ["source-ref", "bundle-digests", "scope-derived-counts", "host-oracle-reuse", "mutation-checkers", "snapshot"],
-    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
+    "current": [
+      "source-ref",
+      "bundle-digests",
+      "scope-derived-counts",
+      "host-oracle-reuse",
+      "mutation-checkers",
+      "snapshot"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "compiler",
+      "runtime",
+      "provider",
+      "human-study",
+      "model-study"
+    ],
     "hostOnly": true
   },
   "stopCondition": "Stop on stale digest, scope drift, duplicate local case, missing adversarial input/task, implementation-gap disappearance, or any compiler/runtime/provider/human/model claim."

@@ -1,4 +1,5 @@
 #include "w_seed_constir.h"
+#include "w_seed_constir_session.h"
 
 #include <limits.h>
 #include <string.h>
@@ -2344,11 +2345,7 @@ w_seed_constir_status w_seed_constir_run(
   return lower_measure_or_run(input, output, true, &measured, result);
 }
 
-typedef struct {
-  uint32_t declaration;
-  w_seed_constir_value value;
-  uint8_t state;
-} constir_const_memo_entry;
+typedef w_seed_constir_session_entry constir_const_memo_entry;
 
 enum {
   CONSTIR_CONST_MEMO_EMPTY = 0,
@@ -2368,9 +2365,7 @@ typedef struct {
   size_t peak_depth;
   bool runtime_failed;
   w_seed_constir_eval_frame *active_frame;
-  constir_const_memo_entry const_memo[
-      W_SEED_CONSTIR_MAX_CONST_MEMO_ENTRIES];
-  size_t const_memo_count;
+  w_seed_constir_session *session;
 } constir_eval_context;
 
 static bool eval_function(constir_eval_context *context,
@@ -2883,10 +2878,11 @@ static const w_seed_constir_function *program_function_for_const(
 
 static constir_const_memo_entry *const_memo_find(
     constir_eval_context *context, uint32_t const_declaration) {
-  if (context == NULL || const_declaration == W_SEED_CONSTIR_NONE)
+  if (context == NULL || context->session == NULL ||
+      const_declaration == W_SEED_CONSTIR_NONE)
     return NULL;
-  for (size_t index = 0u; index < context->const_memo_count; index += 1u) {
-    constir_const_memo_entry *entry = &context->const_memo[index];
+  for (size_t index = 0u; index < context->session->count; index += 1u) {
+    constir_const_memo_entry *entry = &context->session->entries[index];
     if (entry->state != CONSTIR_CONST_MEMO_EMPTY &&
         entry->declaration == const_declaration)
       return entry;
@@ -2896,12 +2892,13 @@ static constir_const_memo_entry *const_memo_find(
 
 static constir_const_memo_entry *const_memo_add(
     constir_eval_context *context, uint32_t const_declaration) {
-  if (context == NULL || const_declaration == W_SEED_CONSTIR_NONE ||
-      context->const_memo_count >= W_SEED_CONSTIR_MAX_CONST_MEMO_ENTRIES)
+  if (context == NULL || context->session == NULL ||
+      const_declaration == W_SEED_CONSTIR_NONE ||
+      context->session->count >= W_SEED_CONSTIR_MAX_CONST_MEMO_ENTRIES)
     return NULL;
-  const size_t index = context->const_memo_count;
-  context->const_memo_count += 1u;
-  constir_const_memo_entry *entry = &context->const_memo[index];
+  const size_t index = context->session->count;
+  context->session->count += 1u;
+  constir_const_memo_entry *entry = &context->session->entries[index];
   (void)memset(entry, 0, sizeof(*entry));
   entry->declaration = const_declaration;
   entry->state = CONSTIR_CONST_MEMO_ACTIVE;
@@ -4904,14 +4901,20 @@ static bool eval_function(constir_eval_context *context,
   return eval_node_at(context, function, function->root_node, depth, value);
 }
 
-w_seed_constir_status w_seed_constir_evaluate(
+void w_seed_constir_session_init(w_seed_constir_session *session) {
+  if (session != NULL) (void)memset(session, 0, sizeof(*session));
+}
+
+w_seed_constir_status w_seed_constir_evaluate_in_session(
     const w_seed_constir_program *program, uint32_t function_index,
     const w_seed_constir_value *arguments, size_t argument_count,
     w_seed_constir_quota quota, w_seed_constir_eval_workspace *workspace,
-    w_seed_constir_value *value, w_seed_constir_eval_result *result) {
+    w_seed_constir_session *session, w_seed_constir_value *value,
+    w_seed_constir_eval_result *result) {
   if (result != NULL) (void)memset(result, 0, sizeof(*result));
   if (value != NULL) (void)memset(value, 0, sizeof(*value));
-  if (result == NULL || value == NULL || !validate_program(program) ||
+  if (result == NULL || value == NULL || session == NULL ||
+      !validate_program(program) ||
       function_index >= program->function_count ||
       (argument_count != 0u && arguments == NULL)) {
     if (result != NULL) result->status = W_SEED_CONSTIR_INVALID;
@@ -4942,6 +4945,7 @@ w_seed_constir_status w_seed_constir_evaluate(
   context.quota = quota;
   context.workspace = workspace;
   context.result = result;
+  context.session = session;
   if (workspace != NULL && workspace->frames != NULL &&
       workspace->frame_capacity != 0u) {
     context.active_frame = &workspace->frames[0];
@@ -4995,6 +4999,18 @@ w_seed_constir_status w_seed_constir_evaluate(
   result->consumed_call_depth = context.peak_depth;
   result->consumed_result_bytes = encoded_bytes;
   return W_SEED_CONSTIR_OK;
+}
+
+w_seed_constir_status w_seed_constir_evaluate(
+    const w_seed_constir_program *program, uint32_t function_index,
+    const w_seed_constir_value *arguments, size_t argument_count,
+    w_seed_constir_quota quota, w_seed_constir_eval_workspace *workspace,
+    w_seed_constir_value *value, w_seed_constir_eval_result *result) {
+  w_seed_constir_session session;
+  w_seed_constir_session_init(&session);
+  return w_seed_constir_evaluate_in_session(
+      program, function_index, arguments, argument_count, quota, workspace,
+      &session, value, result);
 }
 
 bool w_seed_constir_value_bool(uint32_t type_index, bool value,

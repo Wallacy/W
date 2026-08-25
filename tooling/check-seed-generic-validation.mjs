@@ -50,9 +50,9 @@ function parseProbe(output) {
   const lines = output.split(/\r?\n/u)
     .filter((line) => line.startsWith("GENERIC app=") ||
       line.startsWith("STRING app=") || line.startsWith("D3 app=") ||
-      line.startsWith("D4 app="))
+      line.startsWith("D4 app=") || line.startsWith("D6 app="))
   const records = lines.map((line) => {
-    const match = /^(GENERIC|STRING|D3|D4) app=(\d+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) predicates=(\d+) computed=(\d+) receipts=(\d+) steps=(\d+) cache_hits=(\d+) cache_misses=(\d+) receipt_kinds=([CP]*) receipt_steps=([0-9,]*) receipt_args=([0-9,]*) receipt_typed=([0-9,]*) receipt_values=([ibx0-9,]*) receipt_cache_hits=([0-9,]*) receipt_cache_misses=([0-9,]*) module=([^\s]+) head=([^\s]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) predicate_body_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u.exec(line)
+    const match = /^(GENERIC|STRING|D3|D4|D6) app=(\d+) state=(\w+) failure=([a-z:-]+) diagnostic=([0-9]+) predicates=(\d+) computed=(\d+) receipts=(\d+) steps=(\d+) cache_hits=(\d+) cache_misses=(\d+) receipt_kinds=([CP]*) receipt_steps=([0-9,]*) receipt_args=([0-9,]*) receipt_typed=([0-9,]*) receipt_values=([ibx0-9,]*) receipt_cache_hits=([0-9,]*) receipt_cache_misses=([0-9,]*) module=([^\s]+) head=([^\s]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) predicate_body_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u.exec(line)
     if (!match) fail(`invalid application line: ${line}`)
     const parseList = (value) => value === "" ? [] : value.split(",").map((item) => Number(item))
     return {
@@ -76,6 +76,7 @@ function parseProbe(output) {
     stringRecords: records.filter((record) => record.kind === "STRING"),
     d3Records: records.filter((record) => record.kind === "D3"),
     d4Records: records.filter((record) => record.kind === "D4"),
+    d6Records: records.filter((record) => record.kind === "D6"),
   }
 }
 
@@ -224,6 +225,19 @@ function ultimateAnswerPreimage(value, predicateBodyDigestHex) {
   )
 }
 
+function answerPairPreimage(left, right) {
+  const type = canonicalIntegerType(true, 64)
+  const argument = (ordinal, value) => bytes(
+    u8(0x41), u32(ordinal), u8(0x02), u8(0x56), type,
+    canonicalIntegerValue(value, type, true, 64), u8(0x00),
+  )
+  return bytes(
+    textEncoder.encode("w-seed-generic-fingerprint-1"),
+    u8(0x47), text("restaurant"), text("AnswerPair"), u32(2),
+    argument(0, left), argument(1, right),
+  )
+}
+
 function sha256Hex(input) {
   const hasher = new Bun.CryptoHasher("sha256")
   hasher.update(input)
@@ -286,11 +300,19 @@ const fingerprintD5Case = requireCorpusCase(
   ["diamond", "duplicate", "linear", "quota", "failure", "fingerprint", "repeated",
     "preflight"],
 )
+const fingerprintD6Case = requireCorpusCase(
+  "GPF0-W-1465-current", ["W-1465"],
+  "reference/last-light/generics.w",
+  "export alias ConsistentUltimateAnswer = AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)>",
+  ["head", "root", "sourceOrder", "first", "second", "application", "duplicate",
+    "quota", "newRun", "failureFirst", "preflight"],
+)
 const d1Witnesses = fingerprintD1Case.witnesses
 const d2Witnesses = fingerprintD2Case.witnesses
 const d3Witnesses = fingerprintD3Case.witnesses
 const d4Witnesses = fingerprintD4Case.witnesses
 const d5Witnesses = fingerprintD5Case.witnesses
+const d6Witnesses = fingerprintD6Case.witnesses
 if (d1Witnesses?.module !== "restaurant" ||
     typeof d1Witnesses?.standard !== "string" ||
     typeof d1Witnesses?.standardAgain !== "string" ||
@@ -388,7 +410,37 @@ if (d1Witnesses?.module !== "restaurant" ||
     d5Witnesses.preflight?.corruption?.hits !== 0 ||
     d5Witnesses.preflight?.corruption?.misses !== 0 ||
     d5Witnesses.preflight?.corruption?.steps !== 0 ||
-    d5Witnesses.preflight?.corruption?.receipts !== 0)
+    d5Witnesses.preflight?.corruption?.receipts !== 0 ||
+    d6Witnesses?.module !== "restaurant" || d6Witnesses.head !== "AnswerPair" ||
+    d6Witnesses.member !== "agrees" ||
+    d6Witnesses.root !== "assembledUltimateAnswer" ||
+    JSON.stringify(d6Witnesses.sourceOrder) !==
+      JSON.stringify(["answerSeed", "firstAnswerHalf", "secondAnswerHalf", "assembledUltimateAnswer"]) ||
+    d6Witnesses.value !== 42 || d6Witnesses.first?.steps !== 7 ||
+    d6Witnesses.first?.misses !== 4 || d6Witnesses.first?.hits !== 1 ||
+    d6Witnesses.second?.steps !== 1 || d6Witnesses.second?.misses !== 0 ||
+    d6Witnesses.second?.hits !== 1 || d6Witnesses.application?.arguments !== 2 ||
+    d6Witnesses.application?.quota !== 8 || d6Witnesses.duplicate?.aliases !== 2 ||
+    d6Witnesses.duplicate?.arguments !== 2 || d6Witnesses.quota?.accepted !== 8 ||
+    d6Witnesses.quota?.secondRejected !== 7 ||
+    d6Witnesses.quota?.diagnostic !== "W-CONST-0003" ||
+    d6Witnesses.quota?.secondSteps !== 0 || d6Witnesses.quota?.secondMisses !== 0 ||
+    d6Witnesses.quota?.secondHits !== 0 || d6Witnesses.newRun?.firstSteps !== 7 ||
+    d6Witnesses.newRun?.secondSteps !== 1 || d6Witnesses.newRun?.firstMisses !== 4 ||
+    d6Witnesses.newRun?.secondMisses !== 0 || d6Witnesses.newRun?.firstHits !== 1 ||
+    d6Witnesses.newRun?.secondHits !== 1 ||
+    d6Witnesses.failureFirst?.diagnostic !== "W-CONST-0006" ||
+    d6Witnesses.failureFirst?.receipts !== 1 ||
+    d6Witnesses.failureFirst?.secondEvaluated !== false ||
+    d6Witnesses.preflight?.cycles?.hits !== 0 ||
+    d6Witnesses.preflight?.cycles?.misses !== 0 ||
+    d6Witnesses.preflight?.cycles?.steps !== 0 ||
+    d6Witnesses.preflight?.dependencyLimit?.hits !== 0 ||
+    d6Witnesses.preflight?.dependencyLimit?.misses !== 0 ||
+    d6Witnesses.preflight?.dependencyLimit?.steps !== 0 ||
+    d6Witnesses.preflight?.corruption?.hits !== 0 ||
+    d6Witnesses.preflight?.corruption?.misses !== 0 ||
+    d6Witnesses.preflight?.corruption?.steps !== 0)
   fail("generic fingerprint corpus witnesses do not match the executable contract")
 
 const domain = await Bun.file(resolve(root, "reference/last-light/domain.w")).text()
@@ -439,6 +491,21 @@ const ultimateAnswerSharedDuplicateAliasMarker = uniqueMarker(
   generics,
   "export alias UltimateAnswerSharedDuplicate = UltimateAnswer<(assembledUltimateAnswer)>",
   "D5 duplicate shared alias")
+const answerPairMarker = uniqueMarker(
+  generics, "export struct AnswerPair<_ left: i64, _ right: i64> {",
+  "D6 AnswerPair declaration")
+const answerPairAgreesMarker = uniqueMarker(
+  generics, "  export const agrees = left == right", "D6 AnswerPair agrees member")
+const restaurantGenericContractMarker = uniqueMarker(
+  generics, "test \"restaurantGenericContractHolds\"", "D6 restaurant contract witness")
+const consistentUltimateAnswerAliasMarker = uniqueMarker(
+  generics,
+  "export alias ConsistentUltimateAnswer = AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)>",
+  "D6 shared alias")
+const consistentUltimateAnswerDuplicateAliasMarker = uniqueMarker(
+  generics,
+  "export alias ConsistentUltimateAnswerDuplicate = AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)>",
+  "D6 duplicate shared alias")
 const staticValueSignature = staticValueMarker
   .replace(/^export /u, "")
   .replace(/\s*\{$/u, "")
@@ -458,7 +525,12 @@ if (!generics.includes(staticValueBodyMarker) ||
     !generics.includes(secondAnswerHalfMarker) ||
     !generics.includes(assembledUltimateAnswerMarker) ||
     !generics.includes(ultimateAnswerSharedAliasMarker) ||
-    !generics.includes(ultimateAnswerSharedDuplicateAliasMarker))
+    !generics.includes(ultimateAnswerSharedDuplicateAliasMarker) ||
+    !generics.includes(answerPairMarker) ||
+    !generics.includes(answerPairAgreesMarker) ||
+    !generics.includes(restaurantGenericContractMarker) ||
+    !generics.includes(consistentUltimateAnswerAliasMarker) ||
+    !generics.includes(consistentUltimateAnswerDuplicateAliasMarker))
   fail("generics.w markers are not present in the extracted source")
 const orderId = fragment(domain, "export type OrderId = u64", "export type GuestCount", "OrderId")
 const serviceStage = fragment(domain, "export enum ServiceStage {", "export alias CancelledStage", "ServiceStage")
@@ -531,6 +603,19 @@ const d5Use = `struct UltimateAnswerSharedUse {
 `
 const d5Witness = `${d5Declarations}${ultimateAnswerPredicate}\n` +
   `${ultimateAnswerValueSignature} {}\n${d5Use}`
+/* The Last Light associated member is marker-checked above.  The seed
+ * witness keeps the body empty because this frontend subset does not lower
+ * associated members in this generic evidence fixture. */
+const answerPairSeedDeclaration = answerPairMarker.replace(/\s*\{$/u, "{}")
+const answerPairSignature = answerPairSeedDeclaration.replace(/^export /u, "")
+const d6Use = `struct ConsistentUltimateAnswerUse {
+  first: ConsistentUltimateAnswer
+  second: ConsistentUltimateAnswerDuplicate
+}
+`
+const d6Witness = `${d5Declarations}${answerPairSeedDeclaration}\n` +
+  `${consistentUltimateAnswerAliasMarker}\n` +
+  `${consistentUltimateAnswerDuplicateAliasMarker}\n${d6Use}`
 
 /* Independent host reconstruction of the D5 diamond. This parser uses only
  * the declaration source and counts the same ConstIR node classes. It does
@@ -587,6 +672,22 @@ function reconstructDiamond(source) {
   }
   const value = evaluateDeclaration("assembledUltimateAnswer")
   return {value, sourceOrder, misses, hits, steps}
+}
+
+function reconstructSiblingPair(source) {
+  const first = reconstructDiamond(source)
+  /* The second typed expression has one root CALL. The root declaration is
+   * READY from the first expression, so its CALL is the only new node step. */
+  return {
+    value: first.value,
+    sourceOrder: first.sourceOrder,
+    first: {
+      steps: first.steps,
+      misses: first.misses,
+      hits: first.hits,
+    },
+    second: {steps: 1, misses: 0, hits: 1},
+  }
 }
 
 const build = await mkdtemp(join(tmpdir(), "w-seed-generic-validation-check-"))
@@ -869,6 +970,87 @@ struct Use { broken: Narrow<(broken)> }
       d5FailureRecord.receiptCacheHits.join(",") !== "0" ||
       d5FailureRecord.receiptCacheMisses.join(",") !== "1")
     fail("D5 arithmetic failure was cached or changed on repetition")
+
+  await Bun.write(join(build, "domain-generic-d6.w"), d6Witness)
+  const d6Path = join(build, "domain-generic-d6.w")
+  const d6FirstOutput = run(executable, ["--domain-witness", d6Path])
+  const d6SecondOutput = run(executable, ["--domain-witness", d6Path])
+  const d6Parsed = parseProbe(d6SecondOutput)
+  const reconstructedPair = reconstructSiblingPair(d5Declarations)
+  const reconstructedPairRepeat = reconstructSiblingPair(d5Declarations)
+  const d6Digest = sha256Hex(answerPairPreimage(
+    reconstructedPair.value, reconstructedPair.value,
+  ))
+  if (d6FirstOutput !== d6SecondOutput ||
+      d6Parsed.d6Records.length !== d6Witnesses.duplicate.aliases ||
+      reconstructedPair.value !== d6Witnesses.value ||
+      reconstructedPair.sourceOrder.join(",") !== d6Witnesses.sourceOrder.join(",") ||
+      JSON.stringify(reconstructedPair) !== JSON.stringify(reconstructedPairRepeat))
+    fail("D6 Bun reconstruction is not deterministic or disagrees with the sibling source")
+  for (const record of d6Parsed.d6Records) {
+    if (record.module !== d6Witnesses.module || record.head !== d6Witnesses.head ||
+        record.state !== "VERIFIED" || record.failure !== "none" ||
+        record.diagnostic !== 0 || record.predicates !== 0 || record.computed !== 2 ||
+        record.receipts !== 2 || record.steps !== d6Witnesses.second.steps ||
+        record.cacheHits !== d6Witnesses.second.hits ||
+        record.cacheMisses !== d6Witnesses.second.misses ||
+        record.receiptKinds !== "CC" || record.receiptSteps.join(",") !== "7,1" ||
+        record.receiptCacheHits.join(",") !== "1,1" ||
+        record.receiptCacheMisses.join(",") !== "4,0" ||
+        record.receiptValues.join(",") !== "i42,i42" ||
+        record.fingerprintState !== "AVAILABLE" ||
+        record.fingerprintDigest !== d6Digest || record.cyclePath.length !== 0)
+      fail("D6 sibling application has wrong session, receipt, or fingerprint evidence")
+  }
+
+  const d6QuotaSource = `${d5Declarations}${answerPairSignature}
+struct Use { pair: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> }
+`
+  const d6QuotaPath = join(build, "domain-generic-d6-quota.w")
+  await Bun.write(d6QuotaPath, d6QuotaSource)
+  const d6QuotaParsed = parseProbe(
+    run(executable, ["--domain-witness-quota", d6QuotaPath,
+      String(d6Witnesses.application.quota)]),
+  )
+  const d6QuotaRecord = d6QuotaParsed.d6Records.find(
+    (record) => record.head === d6Witnesses.head,
+  )
+  if (!d6QuotaRecord || d6QuotaRecord.state !== "VERIFIED" ||
+      d6QuotaRecord.computed !== 2 || d6QuotaRecord.receipts !== 2 ||
+      d6QuotaRecord.receiptSteps.join(",") !== "7,1" ||
+      d6QuotaRecord.receiptCacheHits.join(",") !== "1,1" ||
+      d6QuotaRecord.receiptCacheMisses.join(",") !== "4,0")
+    fail("D6 quota-8 witness did not expose both sibling evaluations")
+  const d6QuotaRejected = parseProbe(
+    run(executable, ["--domain-witness-quota", d6QuotaPath,
+      String(d6Witnesses.quota.secondRejected)]),
+  ).d6Records.find((record) => record.head === d6Witnesses.head)
+  if (!d6QuotaRejected || d6QuotaRejected.state !== "EVALUATION_FAILED" ||
+      d6QuotaRejected.failure !== "evaluator-diagnostic" ||
+      d6QuotaRejected.diagnostic !== 3 || d6QuotaRejected.computed !== 2 ||
+      d6QuotaRejected.receipts !== 2 || d6QuotaRejected.receiptSteps.join(",") !== "7,0" ||
+      d6QuotaRejected.receiptCacheHits.join(",") !== "1,0" ||
+      d6QuotaRejected.receiptCacheMisses.join(",") !== "4,0")
+    fail("D6 quota-7 witness did not fail before the second session lookup")
+
+  const d6FailureSource = `${d5Declarations}const broken: i8 = 127 + 1
+struct FailurePair<_ left: i8, _ right: i64> {}
+struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
+`
+  const d6FailurePath = join(build, "domain-generic-d6-failure.w")
+  await Bun.write(d6FailurePath, d6FailureSource)
+  const d6FailureFirst = run(executable, ["--domain-witness", d6FailurePath])
+  const d6FailureSecond = run(executable, ["--domain-witness", d6FailurePath])
+  const d6FailureRecord = parseProbe(d6FailureSecond).d6Records.find(
+    (record) => record.head === "FailurePair",
+  )
+  if (d6FailureFirst !== d6FailureSecond || !d6FailureRecord ||
+      d6FailureRecord.state !== "EVALUATION_FAILED" ||
+      d6FailureRecord.diagnostic !== 4 || d6FailureRecord.computed !== 2 ||
+      d6FailureRecord.receipts !== d6Witnesses.failureFirst.receipts ||
+      d6FailureRecord.receiptCacheHits.join(",") !== "0" ||
+      d6FailureRecord.receiptCacheMisses.join(",") !== "1")
+    fail("D6 first-argument failure allowed a sibling evaluation or changed on repetition")
 
   const runD4Case = async (name, source) => {
     const path = join(build, `domain-generic-d4-${name}.w`)

@@ -353,7 +353,7 @@ switch preservam fato explícito unsupported. As formas sem código normativo
 continuam fatos/barreiras explícitos; o seed não apresenta esta fatia como
 implementação ampla da linguagem.
 
-## ConstIR D1-D5 seed
+## ConstIR D1-D6 seed
 
 `include/w_seed_constir.h` e `src/w_seed_constir.c` formam um executor interno
 caller-owned para uma projeção ConstIR D1. O componente recebe documentos CST,
@@ -440,6 +440,23 @@ limite e corrupção antes dos counters de cache e dos steps reais; o ciclo
 publica o `CONST_ARGUMENT` causal quando há capacidade de receipt e nenhum
 receipt quando a capacidade é zero.
 
+D6 mantém a tabela no evaluator público como uma sessão nova por chamada.
+`src/w_seed_constir_session.h` define a sessão privada do seed compiler.
+`w_seed_generic_validation_run` inicializa uma sessão imediatamente antes do
+loop de argumentos e usa `w_seed_constir_evaluate_in_session` somente para
+`TYPED_PENDING_CONST`. Immediate arguments continuam convertidos na mesma
+posição. Predicates continuam usando `w_seed_constir_evaluate` e não partilham
+a sessão. A sessão morre ao terminar ou falhar a fase de argumentos.
+
+A tabela tem 256 entradas, sem heap e sem eviction. O limite é igual ao limite
+de dependencies do preflight generic. Um `READY` bem-sucedido persiste entre
+arguments irmãos da mesma aplicação. Falha, quota, panic, valor inválido e
+`ACTIVE` não são reutilizáveis. Counters continuam por evaluation e receipt.
+Steps, heap e result bytes continuam agregados por `quota_consume`, e
+call-depth continua limitado por evaluation. A sessão não é pública, não cruza
+applications, runs, threads, programs ou processes e não participa do
+fingerprint.
+
 O teste C de ConstIR chama o evaluator diretamente em um grafo cíclico, sem o
 preflight generic. `ACTIVE` retorna `W-CONST-0002` com 2 misses, 0 hits, 3
 steps e call depth 3; a segunda invocação repete os mesmos números. Essa é uma
@@ -489,6 +506,10 @@ conversão e bytes de evidência. O frontend não inclui nem chama ConstIR. A
 camada não reparseia source, não
 modifica os arrays do frontend e não publica type identity final ou
 monomorphization.
+
+`W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION` é
+`w-seed-generic-validation-5`; o fingerprint continua em
+`w-seed-generic-fingerprint-1`.
 
 `BOUND_IMMEDIATE` e `TYPED_PENDING_CONST` são elegíveis. O predicate é
 localizado pela relação `frontend_function == predicate_function_index`; uma
@@ -548,6 +569,15 @@ counters `const_cache_hits`/`const_cache_misses` são evidence por evaluation e
 receipt, fora do fingerprint; cache compartilhável, cross-argument/session,
 imports, associated const, inference, identity final, runtime e self-host
 continuam fora.
+
+D6 adiciona uma sessão somente dentro do loop de argumentos de uma aplicação.
+No witness `AnswerPair`, o membro estático `agrees = left == right` demonstra a
+intenção do contrato; o primeiro calculated argument tem 7 steps, 4 misses
+e 1 hit. O segundo irmão tem 1 step, 0 misses e 1 hit. Quota total 8 aceita os
+dois. Quota 7 aceita o primeiro e falha o segundo antes do lookup, com 0 steps,
+0 misses e 0 hits nessa segunda evaluation. Uma nova aplicação ou run reinicia
+a sessão. Falha no primeiro calculated argument impede o segundo. O preflight
+mantém ciclos, corrupção e dependency-limit antes de counters e steps.
 
 Um `TypedConstExpr` retido em aplicação `INVALID` ou `UNSUPPORTED` é somente
 audit: sua função sintética permanece não lowerable e não pode executar.
@@ -610,7 +640,8 @@ imprime module/head, estado do fingerprint, digest e `body_digest` do
 predicate.
 
 O gate também lê `tooling/generic-fingerprint-cases.json` e exige os casos
-únicos GPF0-W-1460/W-1461/W-1462/GPF0-W-1463-current/GPF0-W-1464-current,
+únicos GPF0-W-1460/W-1461/W-1462/GPF0-W-1463-current/GPF0-W-1464-current/
+GPF0-W-1465-current,
 suas decisões, sources e runner C+Bun. Ele verifica
 em `reference/last-light/generics.w` os marcadores únicos da assinatura de
 `StaticValue`, do body `export const expected = value`, dos aliases
@@ -646,6 +677,15 @@ aplicação D5 duplicada. O witness também prova D3/D4 linear sem hits, quota 7
 falha aritmética não cacheada e counters zero para ciclos, zero capacity,
 dependency-limit e corrupção. A fatia fecha somente memoização local por
 invocation; não é cache compartilhável, compiler, runtime ou self-host.
+
+Para W-1465, o gate lê `AnswerPair`, seu membro `agrees` e as duas aliases
+equivalentes do Restaurante. Cada aplicação possui dois calculated arguments com
+`assembledUltimateAnswer` nos dois slots. O primeiro receipt prova 7 steps,
+4 misses e 1 hit. O segundo prova 1 step, 0 misses e 1 hit. Quota total 8
+aceita os dois. Quota 7 falha o segundo antes do lookup. Novo run e nova
+aplicação repetem 7/1. Bun reconstrói a preimage dos dois i64 sem usar os
+counters C. A sessão é privada ao seed compiler e não alcança predicates ou
+outra aplicação.
 
     bun tooling/check-seed-generic-validation.mjs
 

@@ -55,6 +55,10 @@ export struct Matrix<Element, rows: usize, columns: usize> {
   export const area = rows * columns
 }
 
+export struct AnswerPair<_ left: i64, _ right: i64> {
+  export const agrees = left == right
+}
+
 export alias EnabledFeature = StaticValue<Bool, true>
 export alias LastCallLabel = StaticValue<String, "The final seating">
 export alias VerifiedFinalCall = FinalCallValue<"The final seating">
@@ -63,6 +67,8 @@ export alias UltimateAnswerComputed = UltimateAnswer<(6 * 7)>
 export alias UltimateAnswerNamed = UltimateAnswer<(ultimateAnswer)>
 export alias UltimateAnswerShared = UltimateAnswer<(assembledUltimateAnswer)>
 export alias UltimateAnswerSharedDuplicate = UltimateAnswer<(assembledUltimateAnswer)>
+export alias ConsistentUltimateAnswer = AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)>
+export alias ConsistentUltimateAnswerDuplicate = AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)>
 export alias LastCallDeadline = StaticValue<PhysicalDuration, 10<si.s>>
 export alias HorizonWindow = StaticWindow<0, 60, unit: 1<si.s>>
 
@@ -112,4 +118,9 @@ test "contract atoms preserve their compile-time kind" {
   expect HorizonWindow.span == 60
   expect Matrix<f32, rows: 3, columns: 4>.rows == 3
   expect Matrix<f32, rows: 3, columns: 4>.area == 12
+}
+
+test "restaurantGenericContractHolds" {
+  expect ConsistentUltimateAnswer.agrees
+  expect ConsistentUltimateAnswerDuplicate.agrees
 }

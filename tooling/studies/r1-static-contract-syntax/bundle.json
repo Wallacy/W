@@ -11,7 +11,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/generics.w",
     "symbol": "Matrix<Element, rows: usize, columns: usize>",
-    "digest": "sha256:e9dcadbedfebfdb36b875bb4f7be84b5856ccb4bd8c155f6e28133127c85e4e3"
+    "digest": "sha256:16865cf528fbeba615d87d103943d14163957285a99f4eb74316d6949a9c8f2f"
   },
   "sourceRefs": [
     {
