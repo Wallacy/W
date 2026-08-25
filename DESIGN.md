@@ -1947,8 +1947,10 @@ Essa regra evita importar a semântica de comparação encadeada de Python ou a
 associação Boolean-integer de C. Parentheses não tornam um chain válido.
 
 `is` testa um runtime type permitido ou um enum case esperado. Ele não testa
-identity. `in` aceita Range ou tuple finito intrínseco na baseline. Collections
-usam `contains` e flags usam `hasAny` ou `hasAll`.
+identity, não cria binding e não muda o tipo estático do operand. A recuperação
+borrowed de um tipo concreto usa `reflect.downcast<T>` conforme §8.8.1. `in`
+aceita Range ou tuple finito intrínseco na baseline. Collections usam
+`contains` e flags usam `hasAny` ou `hasAll`.
 
 ##### Primary expressions
 
@@ -8126,6 +8128,70 @@ seat(70_000_u32) // error[W-TYPE-0122]: narrowing não é implícito
 | Code | Condição |
 |---|---|
 | `W-TYPE-0122` | não existe uma conversão implícita total, exata e única |
+
+#### 8.8.1 Teste de tipo runtime e recuperação borrowed
+
+**W-1476 — teste não é cast (Forma vigente):** `is` possui duas operações
+fechadas. `value is .case` testa somente a tag de um enum e não captura seu
+payload. `value is Concrete` testa o tipo nominal concreto de um existential
+cuja composição inclui `reflect.Reflectable`. O teste avalia `value` uma vez,
+não aloca, não executa código do programa e produz `Bool`.
+
+O teste de tipo é exato. Generic specializations, refinements e subsets de enum
+mantêm identidades distintas. W não possui herança de classes nem procura um
+“tipo base mais próximo”. O target concreto deve atender a toda a composição
+de protocols do existential. A conformance `Reflectable` torna o teste runtime
+uma escolha visível e não publica fields privados ou um registry global.
+
+`is` não faz narrowing implícito. O binding original conserva seu tipo
+existential no ramo verdadeiro. Para usar a interface concreta, o programa faz
+uma recuperação borrowed e trata a ausência:
+
+```w
+fn inspectReservation(
+  value: ref any Hashable & reflect.Reflectable,
+) {
+  if value is ReservationKey {
+    if let ref key = reflect.downcast<ReservationKey>(value) {
+      inspect(key.orderId)
+    }
+  }
+}
+```
+
+`reflect.downcast<T>(value)` aceita um `ref` para um existential cuja composição
+inclui `reflect.Reflectable` e retorna `ref T?`. O checker exige que `T` atenda a
+toda a composição do source. O resultado aponta para o payload dentro do
+existential e herda a origem e o lifetime do argumento. A operação não copia,
+move, retém nem reempacota o payload. Uma incompatibilidade runtime produz
+`.none`.
+
+O operador `is` é útil quando somente o Boolean interessa. Quando o ramo vai
+usar `T`, chame `downcast` diretamente; repetir primeiro `is` não é necessário.
+O exemplo acima mostra que as operações concordam, não a forma mais curta:
+
+```w
+if let ref key = reflect.downcast<ReservationKey>(value) {
+  inspect(key.orderId)
+}
+```
+
+A baseline não oferece downcast owned. Recuperar um payload move-only de uma
+caixa existential exigiria definir a recuperação do owner também no caminho de
+falha. Use enum fechado ou um método consuming no protocol quando essa operação
+faz parte do domínio. Um payload `Duplicable` pode ser copiado explicitamente a
+partir do resultado borrowed.
+
+`as`, `as?`, `as!`, cast por string, type pattern e smart cast flow-sensitive
+ficam rejeitados. `as` continua somente nas formas contextuais de import,
+reexport e `lock ... as binding`. Conversão numérica, parsing, FFI e
+reinterpretation continuam com constructors ou APIs nomeadas; não passam por
+`reflect.downcast`.
+
+| Code | Condição |
+|---|---|
+| `W-TYPE-0123` | `is` recebe um teste de tipo statically conhecido, target não nominal ou source existential sem `Reflectable` |
+| `W-TYPE-0124` | `reflect.downcast<T>` recebe source não existential, source sem `Reflectable` ou `T` incompatível com a composição |
 
 ### 8.9 Reflection, síntese e parâmetros rest
 
@@ -31246,11 +31312,11 @@ critérios de [§9.4.1.1](#9411-cyc2-fechamento-de-liveness-condicional).
 Runtime/provider/stress/OOM/FFI evidence fica em implementação. Os oracles não
 alegam execução desses componentes.
 
-Os itens Research restantes mantêm seus gates próprios e não reabrem o
-baseline BRX0. Eles não autorizam produção do compiler ou runtime. Provas sobre
-componentes reais continuam nos gates da seção 26. Um contrato pode fechar
-antes de existir backend, mas não pode declarar comportamento que seus modelos
-ou oracles contradizem.
+Uma futura Research gate mantém seu próprio critério e não reabre o baseline
+BRX0 por associação. Ela não autoriza produção do compiler ou runtime. Provas
+sobre componentes reais continuam nos gates da seção 26. Um contrato pode
+fechar antes de existir backend, mas não pode declarar comportamento que seus
+modelos ou oracles contradizem.
 
 TAB0 fecha o carrier lógico em [14.4.1](#1441-carrier-tabular). TAB1 fecha
 declarations, profiles, errors, limits, workflows e o corpus adversarial em

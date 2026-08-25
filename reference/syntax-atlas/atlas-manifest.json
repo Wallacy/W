@@ -2498,8 +2498,8 @@
         "18"
       ],
       "sourceRefs": [],
-      "snippetDigest": "sha256:bc4e2ecd036e801cc73740e432ee1d287abb28d0739dca1584e015c5dba64889",
-      "snippetBytes": 5256
+      "snippetDigest": "sha256:c5f97d32f196774179b9a772d307b2b5fc462c26f80db98d3ebfd5547d61f38a",
+      "snippetBytes": 5301
     },
     {
       "id": "stream-and-channel",
@@ -2653,6 +2653,6 @@
   ],
   "generated": {
     "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:6c2f0849519043839936df4f8437b7eadbc82905bbdad4def3ae96499f498ef6"
+    "cheatsheetDigest": "sha256:3025a9df4ef3740cb70da896698019ae76433bd0615918f28e85d6edfbc474df"
   }
 }

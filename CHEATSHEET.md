@@ -205,7 +205,7 @@ A tabela usa a ordem da menor para a maior força.
 | bitwise XOR | `^` | esquerda | Opera nos bits do mesmo tipo integer. |
 | bitwise AND | `&` | esquerda | Opera nos bits do mesmo tipo integer. |
 | equality | `==`, `!=` | não encadeável | Compara valores conforme o contrato de tipo. |
-| relation | `<`, `<=`, `>`, `>=`, `is`, `in` | não encadeável | Compara, testa tipo/case ou testa membership em Range ou tuple finita. |
+| relation | `<`, `<=`, `>`, `>=`, `is`, `in` | não encadeável | Compara, testa tipo/case sem narrowing ou testa membership em Range ou tuple finita. |
 | range | `...`, `..<`, `>..`, `>..<` | não encadeável | Cria um range com limites inclusivos ou exclusivos. |
 | shift | `<<`, `>>` | esquerda | Move bits com contagem `UInt`. |
 | additive | `+`, `-` | esquerda | Soma ou subtrai conforme a policy numérica. |
@@ -409,6 +409,67 @@ Use Type(field: value) e init(...) com labels. Propriedades podem ter get,
 set e modify, mas o acesso ainda obedece ownership. Um deinit não substitui
 defer nem uma política de cleanup de async.
 
+```w
+object Cursor {
+  var storedIndex: usize
+
+  var index: usize {
+    get => storedIndex
+    set(value) => storedIndex = value
+    modify { return inout storedIndex }
+  }
+}
+```
+
+| Operação | Caminho da property |
+| --- | --- |
+| Inicialização do storage | Escreve o storage e não chama `set` ou `modify`. |
+| Leitura | Chama `get`; um getter borrowed não move field move-only. |
+| `property = value` | Chama `set` ou substitui o storage; nunca chama `modify`. |
+| `property += value` ou call `mutating` | Abre `modify` exatamente uma vez; não usa get-copy-set oculto. |
+| Fim do `return inout` | Retoma `defer` do accessor depois do borrow e antes do retorno. |
+| Substituição/drop | Destrói o valor antigo e o backing storage uma vez. |
+
+Accessors são síncronos, não lançam error e não fazem I/O, service call,
+blocking, task creation ou allocation geral oculta. Use método nomeado quando
+o custo precisa de `try`, `await` ou outro efeito visível. `willSet`, `didSet`,
+observer implícito e property `async`/`throws` não pertencem à baseline.
+
+### Conversões, `is` e recuperação de tipo
+
+W faz conversão implícita somente quando ela é total, exata e possui uma rota
+única. Narrowing e parsing usam constructors ou APIs nomeadas:
+
+```w
+fn conversionExamples() {
+  let wide: u16 = 120_u8
+  let narrow = try u8(exactly: wide)
+  let parsed = try i32.parse("42")
+}
+```
+
+O checker não procura um terceiro tipo numérico comum. `u8 + i16` pode produzir
+`i16`; `i8 + u8` exige que o source escolha o tipo.
+
+`is` retorna somente `Bool`. Ele testa tag de enum ou o tipo nominal exato de
+um existential que inclui `reflect.Reflectable`; não cria binding nem faz smart
+cast. Para usar o valor concreto, recupere um borrow:
+
+```w
+fn inspectReservation(
+  value: ref any Hashable & reflect.Reflectable,
+) {
+  if let ref key = reflect.downcast<ReservationKey>(value) {
+    inspect(key.orderId)
+  }
+}
+```
+
+`reflect.downcast<T>` retorna `ref T?`, herda a origem do existential e não
+copia, move, retém ou aloca. A baseline não possui downcast owned, `as`, `as?`,
+`as!`, cast por string, type pattern ou narrowing flow-sensitive. `as` aparece
+somente em import/reexport e `lock ... as binding`.
+
 ## Bindings, callables e ownership
 
 Contrato: [DESIGN.md §7](DESIGN.md#7-bindings-funções-e-closures) e
@@ -581,7 +642,7 @@ exhaustividade estão em
 | Associated type | protocol P { type Item: Hashable } | [enum_contracts.w](reference/last-light/enum_contracts.w) |
 | Refinement | GuestCount = u16<(1...4096)> | [domain.w](reference/last-light/domain.w) |
 | Static list/record | Signal<[.quiet, .alert]>, Config<{mode: .strict}> | [reflection.w](reference/last-light/reflection.w) |
-| Reflection | reflect.Reflectable, TypeId.of<T>() | [reflection.w](reference/last-light/reflection.w) |
+| Reflection | reflect.Reflectable, TypeId.of<T>(), reflect.downcast<T>() | [reflection.w](reference/last-light/reflection.w) |
 | Rest | T... e each values | [rest_arguments.w](reference/last-light/rest_arguments.w) |
 
 Reflection e synthesis são contratos fechados. Não os trate como macros
@@ -1414,7 +1475,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Passar ownership | ref, inout, take, copy, pin | view e projection borrow | Lifetimes públicas, partial move implícito e copy automático | Call site mostra autoridade; anotação custa caracteres e evita retenção oculta | [DESIGN.md §7](DESIGN.md#7-bindings-funções-e-closures) · [borrow_expressivity.w](reference/last-light/borrow_expressivity.w) |
 | Capturar closure | <[copy x]>, <[ref x]>, <[take x]>, <[weak x]> | some fn/any fn conforme erase | Fn/FnMut/FnOnce ou capture inferido sem diagnóstico | Capture explícito reduz ciclos e custo de liveness; existential pode alocar | [DESIGN.md §9.4.1](DESIGN.md#941-captures-e-ciclos-fortes) · [callables.w](reference/last-light/callables.w) |
 | Declarar contrato estático | type, refinement, enum subset, T: P & Q | Associated types e conformances condicionais | where textual, protocol list aberta ou guard runtime para invariantes estáticas | Schema fecha HIR e ABI; composição exige mais símbolos | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [generics.w](reference/last-light/generics.w) |
-| Refletir/sintetizar | Reflectable, TypeId.of<T>(), conformance head | Metadata limitada e declarada | Type<T> universal, derive mágico, metadata livre | Reflection tipada preserva custo e authority; synthesis universal seria difícil de auditar | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [reflection.w](reference/last-light/reflection.w) |
+| Refletir/sintetizar | Reflectable, TypeId.of<T>(), downcast borrowed e conformance head | Metadata limitada e declarada | Type<T> universal, downcast owned, derive mágico, metadata livre | Reflection tipada preserva custo e authority; synthesis universal seria difícil de auditar | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [reflection.w](reference/last-light/reflection.w) |
 | Aceitar rest arguments | T... + each values | Rest homogêneo com bound explícito | Pack heterogêneo obrigatório ou Array<Any> | Pack homogêneo preserva schema e ownership; materialização só ocorre quando pedida | [DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos) · [rest_arguments.w](reference/last-light/rest_arguments.w) |
 | Escrever matriz | [[1, 2], [3, 4]] | Carrier shape-checked | [1 2; 3 4] como grammar separada | Array literal é familiar; shape estático exige type/contract | [DESIGN.md §17](DESIGN.md#17-matrizes-tensors-e-ml) · [numerics.w](reference/last-light/numerics.w) |
 | Controlar allocation | allocator scratch, .fixed, .root, .none | .bounded é Pesquisa descrita, não plano ASC0 | Arena API universal, propagação implícita ou using obrigatório | Budget explícito limita efeitos; annotations aumentam superfície | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [allocation.w](reference/last-light/allocation.w) |
