@@ -37,7 +37,7 @@
       "id": "FRC0-snapshot",
       "role": "snapshot",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
-      "digest": "sha256:311dc616c26a499b15c5d6706b478e65ccebe4fd413cb3cd17a241c6cec49163"
+      "digest": "sha256:b934a8375b47aef9251a9de837c795814ea4a8116dae752b2f6336f083373b07"
     },
     {
       "id": "FRC0-oracle",
@@ -49,7 +49,7 @@
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:0faa27fa4fc6233a472b8f741906358a060d41fc6f76bd9c97c803d6745cb41d"
+      "digest": "sha256:15f55e748732c70a56096f6f931edb9fa6eb2b828ca94118026118137bcf8022"
     },
     {
       "id": "FRC0-study",
@@ -85,7 +85,7 @@
       "id": "FRC0-fz0-corpus",
       "role": "fz0-corpus",
       "path": "tooling/frontend-freeze-cases.json",
-      "digest": "sha256:8ce615271840ed2386ee0646c45f8325baa2370b7d34f0ecd8f5a11b93441189"
+      "digest": "sha256:a036e1c441de3c0ca7e93524bf88f46d79dffa62f64b979d49080e5759cd1969"
     },
     {
       "id": "FRC0-fz0-checker",
@@ -97,7 +97,7 @@
       "id": "FRC0-fz0-snapshot",
       "role": "fz0-snapshot",
       "path": "tooling/frontend-freeze.snapshot.jsonl",
-      "digest": "sha256:c51476d9f2e48f0673aeaeba134f367859734ce718497692b453cb35c236f69b"
+      "digest": "sha256:9fedfc76b3287cfbd9be20ec544ca2b430ede11a1e8c9bcb8f66eb1cae346590"
     },
     {
       "id": "FRC0-fz0-formatter",
@@ -109,7 +109,7 @@
       "id": "FRC0-fz0-semantic",
       "role": "fz0-semantic",
       "path": "tooling/semantic-cases.json",
-      "digest": "sha256:ec19f3fc290547f25da70ff3f7b3e977be1eee456d23a936bcb01473dd468a1b"
+      "digest": "sha256:86159a0109b8dd7e6897d21e97da3c40b3ff90669399cb9b9cd68d991df27749"
     },
     {
       "id": "FRC0-fz0-module-run",
@@ -121,7 +121,7 @@
       "id": "FRC0-fz0-diagnostics",
       "role": "fz0-diagnostics",
       "path": "tooling/diagnostic-catalog.json",
-      "digest": "sha256:00cd010910556b11b49cf91b4341553cddf8229fa4004af98235250d9028ddb5"
+      "digest": "sha256:7f444cf1142910804c3e031ca7cc996c1836505142822669fed8f6ae64fbf1e2"
     },
     {
       "id": "FRC0-hum0-protocol",
@@ -175,25 +175,25 @@
       "id": "FRC0-classification",
       "role": "classification",
       "path": "tooling/design-freeze-classification.json",
-      "digest": "sha256:8cc69ca27b49bcb363f708c2fb1701642b1815f37923700c68a6974cc8f4adaf"
+      "digest": "sha256:a7d4b5f6dc949885ed701a1165bb6c89331b04a3facd58f3c3b778731f2fad84"
     },
     {
       "id": "FRC0-ledger",
       "role": "ledger",
       "path": "RATIONALE.md",
-      "digest": "sha256:b6589930970c9bf9e58af732637bb29fe7432b672e5658b71a27ab0cb95c3e91"
+      "digest": "sha256:6f68ff5cfa5803e52a583b8ed1a4a54c8d27c06ceada6099e7ac60501d666bc0"
     },
     {
       "id": "FRC0-design",
       "role": "design",
       "path": "DESIGN.md",
-      "digest": "sha256:052c1cf7da9b6602b2c05c8f4c24eea6b2916d3346f3b2d7bd32515e46520d63"
+      "digest": "sha256:ad2589d45b5a7e86591576f70b06937f2a200c9ba5d9b096ca1694645433d41b"
     },
     {
       "id": "FRC0-index",
       "role": "index",
       "path": "DESIGN-INDEX.md",
-      "digest": "sha256:3813e20808a0a0e458ce8fee5e2ee17b873ce241321c3786265200c2c53686d1"
+      "digest": "sha256:a13e5b0ff4f6aac5e81f72dd6cfcd1a2576798f86cc387768c53f8be586646d3"
     }
   ],
   "evidence": {
