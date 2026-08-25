@@ -1821,6 +1821,11 @@ static bool test_module_const_synthetic_d4(void) {
         forward_node->call_target_function == W_SEED_CONSTIR_NONE &&
         forward_node->call_target_const_declaration == 0u);
   CHECK(fixture_constir_valid(&first_fixture));
+  uint8_t explicit_body_digests[2][32];
+  (void)memcpy(explicit_body_digests[0],
+               first_fixture.constir_functions[0].body_digest, 32u);
+  (void)memcpy(explicit_body_digests[1],
+               first_fixture.constir_functions[1].body_digest, 32u);
 
   static const char changed_source[] =
       "export const ultimateAnswer: i64 = 6 * 8\n"
@@ -1842,14 +1847,53 @@ static bool test_module_const_synthetic_d4(void) {
         first_fixture.constir_functions[1].lowerable &&
         fixture_constir_valid(&first_fixture));
 
-  static const char untyped_source[] =
-      "const answer = 42\n"
+  static const char inferred_source[] =
+      "export const ultimateAnswer = 6 * 7\n"
+      "const forward = ultimateAnswer\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { value: Box<(answer)> }\n";
-  CHECK(fixture_lower(&first_fixture, untyped_source));
-  CHECK(first_fixture.frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED);
-  CHECK(first_fixture.constir_result.written.functions == 1u);
-  CHECK(!first_fixture.constir_functions[0].lowerable);
+      "struct Use { named: Box<(forward)> direct: Box<(ultimateAnswer)> }\n";
+  CHECK(fixture_lower(&first_fixture, inferred_source));
+  CHECK(first_fixture.frontend_result.status == W_SEED_FRONTEND_OK &&
+        first_fixture.frontend_result.written.const_declarations == 2u &&
+        first_fixture.constir_result.written.functions == 4u &&
+        !first_fixture.const_declarations[0].has_explicit_type &&
+        !first_fixture.const_declarations[1].has_explicit_type &&
+        first_fixture.const_declarations[0].declared_type ==
+            W_SEED_FRONTEND_NONE &&
+        first_fixture.const_declarations[1].declared_type ==
+            W_SEED_FRONTEND_NONE && first_fixture.constir_functions[0].lowerable &&
+        first_fixture.constir_functions[1].lowerable &&
+        memcmp(explicit_body_digests[0],
+               first_fixture.constir_functions[0].body_digest, 32u) == 0 &&
+        memcmp(explicit_body_digests[1],
+               first_fixture.constir_functions[1].body_digest, 32u) == 0);
+  CHECK(fixture_constir_valid(&first_fixture));
+
+  static const char nonlowerable_module_consts[] =
+      "const callValue = helper(6)\n"
+      "const stringValue = \"42\"\n"
+      "const listValue = [1, 2]\n"
+      "const unresolvedValue = missing\n"
+      "const fn helper(value: i64): i64 { return value }\n"
+      "struct Use {}\n";
+  CHECK(fixture_lower(&first_fixture, nonlowerable_module_consts));
+  CHECK(first_fixture.frontend_result.written.const_declarations == 4u);
+  for (size_t index = 0u; index < 4u; index += 1u)
+    CHECK(first_fixture.const_declarations[index].declared_type ==
+              W_SEED_FRONTEND_NONE &&
+          first_fixture.const_declarations[index].effective_type ==
+              W_SEED_FRONTEND_NONE);
+  for (size_t index = 0u; index < first_fixture.constir_result.written.functions;
+       index += 1u) {
+    const w_seed_constir_function *function =
+        &first_fixture.constir_functions[index];
+    if (function->origin ==
+        W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION) {
+      CHECK(function->frontend_const_declaration < 4u &&
+            !function->lowerable && function->root_node == W_SEED_CONSTIR_NONE &&
+            function->node_count == 0u);
+    }
+  }
   CHECK(fixture_constir_valid(&first_fixture));
   return true;
 }

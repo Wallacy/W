@@ -30,10 +30,10 @@ export struct FinalCallValue<_ value: String<(isFinalCallLabel(.member))>> {
 
 export const ultimateAnswer: i64 = 6 * 7
 
-const answerSeed: i64 = 21
-const firstAnswerHalf: i64 = answerSeed
-const secondAnswerHalf: i64 = answerSeed
-export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf
+const answerSeed = 21
+const firstAnswerHalf = answerSeed
+const secondAnswerHalf = answerSeed
+export const assembledUltimateAnswer = firstAnswerHalf + secondAnswerHalf
 
 export const fn isUltimateAnswer(value: i64): Bool {
   return value == 42

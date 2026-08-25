@@ -431,6 +431,70 @@
         "determinism": "O gate compara os dois receipts da aplicação, a reinicialização entre aplicações e runs, quota, falha no primeiro argumento e preflight sem counters."
       },
       "scope": "Evidence local D6 para module const Bool/integer D4 com sessão allocation-free e bounded somente durante uma aplicação; predicates, outra aplicação, outro run, imports, associated const, inference, cache compartilhável, identidade final, runtime e self-host permanecem fora."
+    },
+    {
+      "id": "GPF0-W-1466-current",
+      "decisions": ["W-1466"],
+      "source": {
+        "path": "reference/last-light/generics.w",
+        "symbol": "const answerSeed = 21"
+      },
+      "description": "Corpus source-backed para inferência scalar append-only de module const local, com annotations opcionais, grafo acíclico, ciclos causais e preimage estável.",
+      "witnesses": {
+        "module": "restaurant",
+        "diamond": {
+          "root": "assembledUltimateAnswer",
+          "sourceOrder": ["answerSeed", "firstAnswerHalf", "secondAnswerHalf", "assembledUltimateAnswer"],
+          "value": 42,
+          "explicit": false,
+          "declaredType": null,
+          "effectiveType": "i64",
+          "records": [
+            {"name": "answerSeed", "explicit": false, "declaredType": null, "effectiveType": "i64"},
+            {"name": "firstAnswerHalf", "explicit": false, "declaredType": null, "effectiveType": "i64"},
+            {"name": "secondAnswerHalf", "explicit": false, "declaredType": null, "effectiveType": "i64"},
+            {"name": "assembledUltimateAnswer", "explicit": false, "declaredType": null, "effectiveType": "i64"}
+          ],
+          "exportedSymbolType": "i64",
+          "steps": 7,
+          "misses": 4,
+          "hits": 1
+        },
+        "integerDefault": {"value": 4096, "effectiveType": "i64"},
+        "boolean": {"value": true, "effectiveType": "Bool"},
+        "suffix": {"value": 7, "effectiveType": "u16"},
+        "propagation": {"value": 7, "effectiveType": "u16"},
+        "forward": {"value": 42, "effectiveType": "i64"},
+        "reordered": {"value": 42, "effectiveType": "i64"},
+        "equivalent": {"value": 42, "effectiveType": "i64", "fingerprint": "same"},
+        "cycles": {
+          "anchored": {"diagnostic": "W-CONST-0002", "state": "EVALUATION_FAILED", "steps": 0, "hits": 0, "misses": 0, "fingerprint": "zero"},
+          "unanchored": {"diagnostic": "W-CONST-0002", "state": "EVALUATION_FAILED", "steps": 0, "hits": 0, "misses": 0, "fingerprint": "zero"},
+          "incompatible": {"diagnostic": "W-CONST-0002", "failure": "evaluator-diagnostic", "state": "EVALUATION_FAILED", "path": "0,1,0", "names": "left,right,left", "constraints": ["Bool", "integer"], "computed": 1, "receipts": 1, "receiptKinds": "C", "steps": 0, "hits": 0, "misses": 0, "fingerprintState": "NOT_AVAILABLE", "fingerprint": "zero"},
+          "incompatibleMultiSlot": {"diagnostic": "W-CONST-0002", "failure": "evaluator-diagnostic", "state": "EVALUATION_FAILED", "path": "0,1,0", "computed": 2, "receipts": 1, "receiptKinds": "C", "steps": 0, "hits": 0, "misses": 0, "fingerprintState": "NOT_AVAILABLE", "fingerprint": "zero"},
+          "incompatibleMultiSlotZeroCapacity": {"diagnostic": "W-CONST-0002", "failure": "evaluator-diagnostic", "state": "EVALUATION_FAILED", "path": "0,1,0", "computed": 2, "receipts": 0, "steps": 0, "hits": 0, "misses": 0, "fingerprintState": "NOT_AVAILABLE", "fingerprint": "zero"}
+        },
+        "negative": {
+          "unsupported": {"state": "UNSUPPORTED"},
+          "mismatch": {"state": "INVALID"},
+          "unresolved": {"state": "INVALID"},
+          "duplicate": {"state": "INVALID"},
+          "corruption": {"state": "INVALID"},
+          "zeroCapacity": {"steps": 0, "receipts": 0, "fingerprint": "zero"},
+          "dependencyLimit": {"state": "UNSUPPORTED", "failure": "dependency-limit"},
+          "quota": {"state": "EVALUATION_FAILED"},
+          "overflow": {"state": "EVALUATION_FAILED", "diagnostic": "W-CONST-0006"}
+        }
+      },
+      "oracle": {
+        "runner": "tooling/check-seed-generic-validation.mjs",
+        "implementations": [
+          "seed C",
+          "Bun com parser independente de annotations opcionais, inferência do diamond e preimage SHA-256"
+        ],
+        "determinism": "O gate compara o output C dos ciclos incompatíveis, incluindo path, count, receipt e zero-capacity, com a reconstrução independente; verifica os quatro records sem annotation, o tipo efetivo i64, ultimateAnswer explicitamente anotado, equivalência explicit/inferred, grafos forward/reordered, tipos Bool/suffix/default/propagation e repete o seed C."
+      },
+      "scope": "Evidence local D7 para module const scalar Bool/integer bounded; não é compiler completo, identidade final, imports, associated const, cache compartilhável, runtime ou self-host."
     }
   ]
 }

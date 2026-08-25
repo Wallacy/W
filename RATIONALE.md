@@ -1386,6 +1386,95 @@ O caso é `oracle-backed-current`, não compiler, runtime ou self-host completo.
 Cache compartilhável de §3.6.5, imports, associated const, initializer
 inference, identidade final e sintaxe W nova permanecem fora do bundle.
 
+#### 1.3.21.6 Inferência scalar append-only de module const (W-1466)
+
+**Motivação:** D4/D5/D6 já baixavam declarations locais, mas exigiam uma
+annotation redundante em cada node do diamond do Restaurante. O design vigente
+já mostra `const pageSize = 4096`, e §15.1.1 fixa `Int` como a identidade pública
+de `i64`. W-1466 fecha somente a inferência bounded desse subset, sem criar
+sintaxe, sem avaliar ConstIR no frontend e sem prometer um compiler completo.
+
+O frontend publica primeiro todos os nomes e relações de module const locais.
+Depois resolve o grafo acíclico independentemente da ordem source e normaliza
+os initializers. Uma annotation é constraint fixa. Sem annotation, Bool literal,
+expressão booleana ou comparison resolve `Bool`; suffix integer resolve o tipo
+exato; identifier propaga o `effective_type` do alvo; e operators usam as
+regras de §15.1.2 e precisam de uma solução única. Um componente integer sem
+contexto materializa `Int`, isto é, `i64`. Forward references tipadas ou não
+tipadas são válidas. O subset continua limitado a literal, grouping, unary,
+binary e identifier de module const local, com resultado Bool ou integer de
+width/signedness explícitos. Calls, member/index, imports, associated const,
+String/Bytes, enum/list/quantity/size, nested generic, runtime e self-host
+continuam fora e retornam `UNSUPPORTED` quando a forma é bem formada.
+
+A API é append-only: `declared_type` mantém o índice da annotation source ou
+`NONE`; `effective_type` é publicado no record de const e nos receipts/digests
+necessários; `has_explicit_type` continua indicando somente presença source.
+Symbols, ConstIR e generic validation usam o tipo efetivo. Dry sizing e emit
+derivam os mesmos dois campos antes de criar records, portanto a inferência não
+depende da existência de records emitidos. A validação preserva mismatch,
+unresolved, duplicate e corrupção. Ciclo alcançável, inclusive sem anchor de
+tipo, tem precedência causal `W-CONST-0002` e path determinístico; falha antes
+de evaluation, receipt posterior, counters e fingerprint, com os limites D4.
+
+O scratch de inferência é `_Thread_local`, temporário por thread e reset por
+cada chamada `measure`/`run`; ele não é estado persistente nem parte da
+semântica pública. Bases por documento traduzem ordinais locais para o índice
+global. O teto explícito é `W_SEED_FRONTEND_MAX_CONST_DECLARATIONS` (32768)
+declarations totais; o excesso falha antes de publicar output. A tradução usa
+scans locais bounded, com custo máximo O(N²) no total de declarations, sem
+alocação heap ou lookup O(N³) evitável.
+
+O schema sobe para `w-seed-frontend-7` e `w-seed-generic-validation-6`.
+ConstIR-6 e generic-fingerprint-1 ficam estáveis porque a estrutura lowerada e
+o preimage público não mudam. O tag constante de type framing antes do tipo
+efetivo preserva o body digest ConstIR-6 das declarations D4 explícitas e dá à
+forma D7 inferida o mesmo preimage quando a semântica é igual. Annotation
+presence, source order, spans/trivia, trabalho de inferência e índices
+process-local não entram no ConstIR body digest nem no fingerprint. A autoridade
+do fingerprint continua sendo o domain type canônico e o valor normalizado;
+`effective_type` é verificado contra essa relação. Assim declarations
+explicitamente anotadas e inferidas com o mesmo tipo efetivo e valor têm o
+mesmo fingerprint.
+
+Receipts usam `effective_type` de forma uniforme: `CONST_ARGUMENT` usa o tipo
+do value; `PREDICATE` usa o tipo efetivo do argumento de entrada/domínio, não o
+`Bool` de `eval_value`; e o receipt de ciclo usa o tipo efetivo do argumento
+tipado. A forma bem formada que permanece fora do lowering preserva
+`effective_type=NONE` e usa o container ConstIR non-lowerable para auditoria.
+
+O Last Light preserva `export const ultimateAnswer: i64 = 6 * 7` como regressão
+explícita e remove annotation somente de `answerSeed`, `firstAnswerHalf`,
+`secondAnswerHalf` e `assembledUltimateAnswer`. O oracle Bun reconstrói as
+annotations opcionais, resolve o diamond de forma independente e calcula o
+preimage sem ler counters do C. Os quatro records têm
+`explicit=false`, `declared=NONE` e `effective=i64`; o symbol exportado usa
+`i64`. O witness `GPF0-W-1466-current` mantém os counters D6 `7/4/1` e
+`1/0/1`, além de integer default, Bool, suffix, propagation, forward/reordered
+graph, equivalência explicit/inferred e ciclos ancorado/não ancorado. O caso
+incompatível compara path `0,1,0`, `W-CONST-0002`, count, receipt causal,
+counters zero e fingerprint indisponível entre o output C e a reconstrução Bun;
+o caso multi-slot prova count 2 com um receipt e count 2 com zero receipts em
+capacity zero. Mismatch, unresolved, duplicate, unsupported, corruption,
+zero capacities, dependency-limit, quota e overflow continuam cobertos pelos
+gates existentes.
+
+Alternativas rejeitadas:
+
+- escrever o tipo inferido em `declared_type`, pois isso apaga a distinção entre
+  source e solução e torna receipts dry/emit dependentes da ordem de emissão;
+- inferir durante evaluation ou deixar ConstIR resolver names, pois isso muda
+  ownership, causalidade de ciclos e o limite do frontend;
+- incluir annotation, source order ou trabalho do solver no digest, pois formas
+  semânticas equivalentes deixariam de compartilhar fingerprint;
+- aceitar imports, associated const ou inference contextual além do grafo
+  local, pois isso amplia o ambiente e exige identity/cache/runtime não
+  fechados.
+
+O caso é `oracle-backed-current`, não compiler, runtime ou self-host completo.
+Identity final, imports, associated const, cache compartilhável, runtime e
+self-host permanecem gaps explícitos.
+
 #### 1.3.22 Subject de refinement
 
 **Exemplo:** `String<(.scalars.count in 1...40)>` e
@@ -7157,6 +7246,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1463 | module named const no generic value | D4 source-backed bounded de `const name: Type = expression` local, relation explícita, forward reference, lowering ConstIR sintético com dependency `CALL`, preflight causal de graph/cycles, receipts e fingerprint normalizado igual ao immediate/D3 | oracle-backed-current; `GPF0-W-1463-current` liga markers reais de `generics.w`, prova named/duplicate `42`, forward chain, rejected, cycles self/2/3 com paths fechados, ciclo inalcançável, type mismatch, unresolved, unsupported, corruption, zero capacity, quota, `dependencyLimit` (257 declarations, `UNSUPPORTED` + failure `dependency-limit`) e `arithmeticOverflow` (`W-CONST-0006`, receipt `CONST_ARGUMENT` sem predicate) com seed C e oráculo Bun independente; dependency fora do subset mantém failure `function`; imports, associated const, initializer inference, cache compartilhável/cross-argument/session, identity final, compiler/runtime e self-host permanecem limites |
 | W-1464 | memoização local determinística de DAG de module const | D5 source-backed bounded para module const local `Bool`/integer já lowerable por D4: tabela fixa por invocation, chave por declaration identity, estados `ACTIVE`/`READY`, counters append-only em evaluation result/receipts, hits que omitem body work e preservam o step do `CALL`, reset e quota observáveis, sem alterar preflight causal ou fingerprint | oracle-backed-current; `GPF0-W-1464-current` liga os markers reais de `generics.w`, prova diamond 4 misses/1 hit/7 steps, reconstrução Bun independente de source order, repeated invocation, D3/D4 linear com zero hits, quota 7/6, arithmetic failure não cacheada, cycles/zero capacity/dependency-limit/corruption com counters zero e receipt causal de ciclo somente quando há capacidade e fingerprint idêntico ao immediate/D3/D4; cache compartilhável de §3.6.5, cross-argument/session, imports, associated const, inference, identity final, compiler/runtime e self-host permanecem limites |
 | W-1465 | sessão privada de avaliação por aplicação | D6 source-backed bounded para duas arguments `TYPED_PENDING_CONST` da mesma aplicação: sessão vazia por run, tabela fixa de 256 compartilhada somente durante o loop de argumentos, READY reutilizável entre irmãos, predicates com evaluation nova, counters/quotas/receipts/fingerprint preservados e sem API pública | oracle-backed-current; `GPF0-W-1465-current` liga `AnswerPair.agrees`, as aliases equivalentes e o teste `restaurantGenericContractHolds` do Restaurante, prova primeiro argument 7 steps/4 misses/1 hit, segundo irmão 1 step/0 misses/1 hit, quota total 8, quota 7 com falha antes do lookup no segundo, novo run 7/1, failure-first, cycle/corruption/dependency-limit preflight zero e preimage Bun independente de dois i64; cache compartilhável, outro run/application, imports, associated const, inference, identity final, compiler/runtime e self-host permanecem limites |
+| W-1466 | inferência scalar append-only de module const | D7 source-backed bounded para `const name = initializer` e `export const` local: solver de grafo acíclico independente de source order, forward references, `declared_type` source-only, `effective_type` append-only, default `Int`/`i64`, Bool, suffix e propagation por identifier; cycles causais e barreiras D4 preservados; ConstIR-6/fingerprint-1 estáveis | oracle-backed-current; `GPF0-W-1466-current` remove somente as quatro annotations do diamond Last Light, preserva `ultimateAnswer: i64`, prova quatro records explicit=false/declared=NONE/effective=i64, symbol exportado i64, integer default/Bool/suffix/propagation, graph forward/reordered, equivalência explicit/inferred, ciclos anchor/unanchored com zero evidence e negativos D4 completos via C e oracle Bun independente; imports, associated const, identity final, cache compartilhável, compiler/runtime e self-host permanecem limites |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,

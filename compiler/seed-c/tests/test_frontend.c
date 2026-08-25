@@ -1312,6 +1312,7 @@ static bool test_module_named_consts(void) {
             declaration->span.start_byte &&
         declaration->initializer_expression != W_SEED_FRONTEND_NONE &&
         declaration->has_explicit_type && declaration->lowerable &&
+        declaration->effective_type == declaration->declared_type &&
         declaration->symbol_index != W_SEED_FRONTEND_NONE);
   CHECK(value->types[declaration->declared_type].kind ==
         W_SEED_FRONTEND_TYPE_INTEGER &&
@@ -1349,8 +1350,60 @@ static bool test_module_named_consts(void) {
                     "const answer = 42\n"
                     "struct Box<_ value: i64> {}\n"
                     "struct Use { value: Box<(answer)> }\n"));
-  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
-        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(value->const_declarations[0].declared_type ==
+        W_SEED_FRONTEND_NONE &&
+        value->const_declarations[0].effective_type != W_SEED_FRONTEND_NONE &&
+        value->types[value->const_declarations[0].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        value->types[value->const_declarations[0].effective_type].bit_width ==
+            64u);
+
+  CHECK(fixture_run(value,
+                    "const boolLiteral = true\n"
+                    "const boolExpression = boolLiteral == true\n"
+                    "const fixed = 7_u16\n"
+                    "const propagated = fixed\n"
+                    "const forward = target + 1\n"
+                    "const target = 1_u32\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.const_declarations == 6u);
+  CHECK(!value->const_declarations[0].has_explicit_type &&
+        value->const_declarations[0].declared_type == W_SEED_FRONTEND_NONE &&
+        value->types[value->const_declarations[0].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_BOOL);
+  CHECK(!value->const_declarations[1].has_explicit_type &&
+        value->const_declarations[1].declared_type == W_SEED_FRONTEND_NONE &&
+        value->types[value->const_declarations[1].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_BOOL);
+  CHECK(!value->const_declarations[2].has_explicit_type &&
+        value->const_declarations[2].declared_type == W_SEED_FRONTEND_NONE &&
+        value->types[value->const_declarations[2].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        !value->types[value->const_declarations[2].effective_type].is_signed &&
+        value->types[value->const_declarations[2].effective_type].bit_width ==
+            16u);
+  CHECK(!value->const_declarations[3].has_explicit_type &&
+        value->const_declarations[3].declared_type == W_SEED_FRONTEND_NONE &&
+        value->types[value->const_declarations[3].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        !value->types[value->const_declarations[3].effective_type].is_signed &&
+        value->types[value->const_declarations[3].effective_type].bit_width ==
+            16u);
+  CHECK(!value->const_declarations[4].has_explicit_type &&
+        value->const_declarations[4].declared_type == W_SEED_FRONTEND_NONE &&
+        value->types[value->const_declarations[4].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        !value->types[value->const_declarations[4].effective_type].is_signed &&
+        value->types[value->const_declarations[4].effective_type].bit_width ==
+            32u);
+  CHECK(!value->const_declarations[5].has_explicit_type &&
+        value->const_declarations[5].declared_type == W_SEED_FRONTEND_NONE &&
+        value->types[value->const_declarations[5].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        !value->types[value->const_declarations[5].effective_type].is_signed &&
+        value->types[value->const_declarations[5].effective_type].bit_width ==
+            32u);
 
   CHECK(fixture_run(value,
                     "const answer: i64 = true\n"
@@ -1407,6 +1460,55 @@ static bool test_module_named_consts(void) {
   CHECK(fixture_capacity.result.status == W_SEED_FRONTEND_CAPACITY &&
         fixture_capacity.result.required.const_declarations == 1u &&
         fixture_output_is(&fixture_capacity, sentinel, true));
+  return true;
+}
+
+static bool test_multidocument_const_ordinals(void) {
+  static fixture first;
+  static fixture second;
+  static const char first_source[] =
+      "const first = 1\n"
+      "struct First {}\n";
+  static const char second_source[] =
+      "const second = 2\n"
+      "struct Second {}\n";
+  static const char first_module[] = "first-module";
+  static const char second_module[] = "second-module";
+  CHECK(fixture_parse(&first, first_source));
+  CHECK(fixture_parse(&second, second_source));
+  first.document.logical_source_id =
+      (w_seed_frontend_text){first_module, sizeof(first_module) - 1u};
+  first.document.module_id = first.document.logical_source_id;
+  second.document.logical_source_id =
+      (w_seed_frontend_text){second_module, sizeof(second_module) - 1u};
+  second.document.module_id = second.document.logical_source_id;
+  w_seed_frontend_document documents[2] = {first.document, second.document};
+  first.input.documents = documents;
+  first.input.document_count = 2u;
+  first.input.external_modules = NULL;
+  first.input.external_module_count = 0u;
+  CHECK(w_seed_frontend_run(&first.input, &first.output, &first.result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(first.result.written.const_declarations == 2u &&
+        first.result.written.modules == 2u &&
+        first.modules[0].first_const_declaration == 0u &&
+        first.modules[0].const_declaration_count == 1u &&
+        first.modules[1].first_const_declaration == 1u &&
+        first.modules[1].const_declaration_count == 1u &&
+        first.const_declarations[0].module_index == 0u &&
+        first.const_declarations[1].module_index == 1u &&
+        first.const_declarations[0].declared_type ==
+            W_SEED_FRONTEND_NONE &&
+        first.const_declarations[1].declared_type ==
+            W_SEED_FRONTEND_NONE &&
+        first.const_declarations[0].effective_type !=
+            W_SEED_FRONTEND_NONE &&
+        first.const_declarations[1].effective_type !=
+            W_SEED_FRONTEND_NONE &&
+        first.types[first.const_declarations[0].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        first.types[first.const_declarations[1].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER);
   return true;
 }
 
@@ -2395,6 +2497,7 @@ int main(void) {
   if (!test_enum_values_constructors_and_switches()) return 1;
   if (!test_const_and_membership()) return 1;
   if (!test_module_named_consts()) return 1;
+  if (!test_multidocument_const_ordinals()) return 1;
   if (!test_semantic_diagnostics()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;
   if (!test_receipt_encoding_and_long_fields()) return 1;

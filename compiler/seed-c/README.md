@@ -94,9 +94,11 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` é `w-seed-frontend-6`. Os campos D2/D3
+`W_SEED_FRONTEND_SCHEMA_VERSION` é `w-seed-frontend-7`. Os campos D2/D3
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
-counts/capacities e relações de module const.
+counts/capacities e relações de module const; a versão 7 acrescenta
+`effective_type` e preserva `declared_type` como annotation source-only para
+inferência scalar D7.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
@@ -508,7 +510,7 @@ modifica os arrays do frontend e não publica type identity final ou
 monomorphization.
 
 `W_SEED_GENERIC_VALIDATION_SCHEMA_VERSION` é
-`w-seed-generic-validation-5`; o fingerprint continua em
+`w-seed-generic-validation-6`; o fingerprint continua em
 `w-seed-generic-fingerprint-1`.
 
 `BOUND_IMMEDIATE` e `TYPED_PENDING_CONST` são elegíveis. O predicate é
@@ -641,7 +643,7 @@ predicate.
 
 O gate também lê `tooling/generic-fingerprint-cases.json` e exige os casos
 únicos GPF0-W-1460/W-1461/W-1462/GPF0-W-1463-current/GPF0-W-1464-current/
-GPF0-W-1465-current,
+GPF0-W-1465-current/GPF0-W-1466-current,
 suas decisões, sources e runner C+Bun. Ele verifica
 em `reference/last-light/generics.w` os marcadores únicos da assinatura de
 `StaticValue`, do body `export const expected = value`, dos aliases
@@ -686,6 +688,18 @@ aceita os dois. Quota 7 falha o segundo antes do lookup. Novo run e nova
 aplicação repetem 7/1. Bun reconstrói a preimage dos dois i64 sem usar os
 counters C. A sessão é privada ao seed compiler e não alcança predicates ou
 outra aplicação.
+
+Para W-1466, o gate mantém `ultimateAnswer: i64` explícito e verifica que
+somente as quatro declarations do diamond são inferidas. Bun reconstrói os
+records `declared_type=NONE`/`effective_type=i64`, a propagação de integer,
+Bool, suffix e forward/reordered graph, além do preimage e da equivalência
+entre source explícito e inferido. Ciclos anchored/unanchored e as barreiras
+negativas continuam preflight evidence. O witness incompatível compara com a
+reconstrução Bun o estado `EVALUATION_FAILED`, `W-CONST-0002`, path `0,1,0`,
+count, receipt causal, counters zero e fingerprint indisponível; o witness
+multi-slot prova count 2 com um receipt e count 2 com zero receipts quando a
+capacidade é zero. A fatia não é compiler completo, identity final, imports,
+associated const, cache compartilhável, runtime ou self-host.
 
     bun tooling/check-seed-generic-validation.mjs
 
