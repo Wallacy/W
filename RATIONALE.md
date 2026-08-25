@@ -1425,7 +1425,7 @@ declarations totais; o excesso falha antes de publicar output. A tradução usa
 scans locais bounded, com custo máximo O(N²) no total de declarations, sem
 alocação heap ou lookup O(N³) evitável.
 
-O schema sobe para `w-seed-frontend-7` e `w-seed-generic-validation-6`.
+O schema sobe para `w-seed-frontend-7` e `w-seed-generic-validation-7`.
 ConstIR-6 e generic-fingerprint-1 ficam estáveis porque a estrutura lowerada e
 o preimage público não mudam. O tag constante de type framing antes do tipo
 efetivo preserva o body digest ConstIR-6 das declarations D4 explícitas e dá à
@@ -7240,13 +7240,14 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1457 | codecs e compression explícitos | packages específicos declaram ByteSource/Sink, profile+digest, streaming e quotas separadas para encoded, logical, allocation, depth e ratio. Offset/progress errors são tipados. Cancellation não desfaz bytes committed. Dictionary/state tem owner explícito. Codec/schema e compression transform têm identity/limits separados | oracle-backed-current; AEG0-W-1457-current fecha requisitos operacionais e rejeita `Codec<T>` universal, reflection, inference ambiental e quota colapsada |
 | W-1458 | crypto e secrets scoped | app crypto passa por package/provider capability ligada pelo deployment. Algorithm/profile são typed e pinned, sem string/fallback/downgrade. Secret/key handle é opaque, nonextractable por default, purpose/audience/generation scoped e move-only. Lifecycle tem dois caminhos: acquire→active→revoking→revoked→released para revoke/rotation, ou acquire→active→expired→released para expiry. Revoke fecha nova admission e drena operações admitidas. Host controla rotation/expiry/zeroization. Secret não entra em wire/storage/log/diagnostic/receipt | oracle-backed-current; AEG0-W-1458-current fecha lifecycle e rejeita plaintext/env lookup, secret wire e downgrade |
 | W-1459 | baseline portátil de `std.simd` | `Simd<Element, lanes: usize>` e `SimdMask<_ lanes: usize>`, lanes `1...64`, label required somente em Simd e optional em mask com aplicação `SimdMask<16>`, Element escalar fechado com `Bool` em mask, sequence target-independent, layout opaco, scalar fallback obrigatório, mask `splat(Bool) -> SimdMask<N>`/`fromArray([Bool; N]) -> SimdMask<N>`/`toArray() -> [Bool; N]` sem allocation, `all`/`any`/`none` retornam `Bool` e `countTrue` retorna `UInt`, load borrow source e store destination `inout` com partial tail total e preflight, arithmetic lane-wise condicionado ao scalar Element, floats sem bitwise/shift/overflow APIs, integer overflow mask por lane, masks com bitwise operators, reductions nomeadas em ordem/policy (`reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`, `reduceBitOr`, `reduceBitXor`) e float `ReductionMode` obrigatório (`strict` left fold, `reproducible` árvore balanceada v1, `fast` sem igualdade de bits cross-backend; omission/positional/wrong-label/wrong-arity de mode: usa W-LABEL-0005 e repetição usa W-LABEL-0006), static swizzle com count-first em `1...64`, duplicata e primeiro OOB em source order, e `w explain performance` com lowering facts | oracle-backed-current; SIMD1-W-1459-current fecha o contrato host-only e rejeita width/layout nativo, Bool lane, dynamic shuffle, alignment flag, write antes de bounds failure, short-circuit e performance universal |
-| W-1460 | fingerprint semântico pós-validação de generic D1 | evidence interna versionada `w-seed-generic-fingerprint-1`: preimage canônico independente de spans/indices/source spelling, validação/preflight antes da avaliação, `VERIFIED` + `AVAILABLE` somente após todos os predicates true, `VERIFIED` fora do subconjunto + `UNSUPPORTED`, demais estados + `NOT_AVAILABLE`/bytes zero; witness `restaurant` com standard duplicado, cancelled, vazio, salto e duplicata; C e Bun reconstrutores independentes | oracle-backed-current; `GPF0-W-1460-current` usa fragments reais de Last Light, seed C e oráculo Bun independente; usar spans/indices/source spelling, chamar digest de `TypeId`/cache key/identidade, emitir antes de `VERIFIED` ou confiar somente no C; digests diferentes implicam preimages diferentes, mas digest igual isolado sem preimage não prova igualdade nem identidade collision-safe; a identidade final ainda exige declaration digest, witnesses, target/profile/edition/compiler/bundle versions e dados canônicos |
+| W-1460 | fingerprint semântico pós-validação de generic D1 | evidence interna versionada `w-seed-generic-fingerprint-1`: preimage canônico independente de spans/indices/source spelling, validação/preflight antes da avaliação, `VERIFIED` + `AVAILABLE` somente após todos os predicates true, `VERIFIED` fora do subconjunto + `UNSUPPORTED`, demais estados + `NOT_AVAILABLE`/bytes zero; witness `restaurant` com standard duplicado, cancelled, vazio, salto e duplicata; C e Bun reconstrutores independentes | oracle-backed-current; `GPF0-W-1460-current` usa fragments reais de Last Light, seed C e oráculo Bun independente; usar spans/indices/source spelling, chamar digest de `TypeId`/cache key/identidade, emitir antes de `VERIFIED` ou confiar somente no C; fingerprint-1 sozinho ainda não contém o preimage completo de declaration/substitution/witness de W-1467 e não é a identidade semântica; target, profile, edition, toolchain, compiler, bundle e ABI pertencem à recipe física; digests diferentes implicam preimages diferentes, mas digest igual isolado sem preimage não prova igualdade nem identidade collision-safe; a proveniência source-backed de W-1460 e seu gate permanecem preservados |
 | W-1461 | evidência D2 String source-backed em generic predicates | D2 source-backed bounded de `String` em predicates genéricos: literal simples até 4.096 bytes, `==`/`!=`, preflight canônico, `VERIFIED`/`REJECTED`/`UNSUPPORTED`/`INVALID` e fingerprint Bun independente | oracle-backed-current; `GPF0-W-1461-current` liga diretamente os markers reais de `generics.w`, `isFinalCallLabel`, positivos duplicados, rejeitados, empty, over-limit, corrupção e digests Bun ao gate independente `tooling/check-seed-generic-validation.mjs`; o caso não afirma String completa, compiler, runtime ou self-host |
 | W-1462 | expressão const tipada escalar em generic value | D3 source-backed bounded de expressão parentetizada com literais, grouping, unary e binary operators escalares, resultado `Bool` ou integer explícito, função ConstIR sintética com origem explícita, receipts `CONST_ARGUMENT`/`PREDICATE` ordenados e fingerprint normalizado | oracle-backed-current; `GPF0-W-1462-current` liga os markers reais de `generics.w`, prova immediate `42`, computed `(6 * 7)`, duplicate, rejected `(6 * 6)`, quota cumulativa, overflow, unsupported call e corrupção com seed C e reconstrução Bun independente; identifiers/named const, graph dependencies/cycles, imported heads/predicates, String computed result, identity final, compiler/runtime e self-host permanecem limites |
 | W-1463 | module named const no generic value | D4 source-backed bounded de `const name: Type = expression` local, relation explícita, forward reference, lowering ConstIR sintético com dependency `CALL`, preflight causal de graph/cycles, receipts e fingerprint normalizado igual ao immediate/D3 | oracle-backed-current; `GPF0-W-1463-current` liga markers reais de `generics.w`, prova named/duplicate `42`, forward chain, rejected, cycles self/2/3 com paths fechados, ciclo inalcançável, type mismatch, unresolved, unsupported, corruption, zero capacity, quota, `dependencyLimit` (257 declarations, `UNSUPPORTED` + failure `dependency-limit`) e `arithmeticOverflow` (`W-CONST-0006`, receipt `CONST_ARGUMENT` sem predicate) com seed C e oráculo Bun independente; dependency fora do subset mantém failure `function`; imports, associated const, initializer inference, cache compartilhável/cross-argument/session, identity final, compiler/runtime e self-host permanecem limites |
 | W-1464 | memoização local determinística de DAG de module const | D5 source-backed bounded para module const local `Bool`/integer já lowerable por D4: tabela fixa por invocation, chave por declaration identity, estados `ACTIVE`/`READY`, counters append-only em evaluation result/receipts, hits que omitem body work e preservam o step do `CALL`, reset e quota observáveis, sem alterar preflight causal ou fingerprint | oracle-backed-current; `GPF0-W-1464-current` liga os markers reais de `generics.w`, prova diamond 4 misses/1 hit/7 steps, reconstrução Bun independente de source order, repeated invocation, D3/D4 linear com zero hits, quota 7/6, arithmetic failure não cacheada, cycles/zero capacity/dependency-limit/corruption com counters zero e receipt causal de ciclo somente quando há capacidade e fingerprint idêntico ao immediate/D3/D4; cache compartilhável de §3.6.5, cross-argument/session, imports, associated const, inference, identity final, compiler/runtime e self-host permanecem limites |
 | W-1465 | sessão privada de avaliação por aplicação | D6 source-backed bounded para duas arguments `TYPED_PENDING_CONST` da mesma aplicação: sessão vazia por run, tabela fixa de 256 compartilhada somente durante o loop de argumentos, READY reutilizável entre irmãos, predicates com evaluation nova, counters/quotas/receipts/fingerprint preservados e sem API pública | oracle-backed-current; `GPF0-W-1465-current` liga `AnswerPair.agrees`, as aliases equivalentes e o teste `restaurantGenericContractHolds` do Restaurante, prova primeiro argument 7 steps/4 misses/1 hit, segundo irmão 1 step/0 misses/1 hit, quota total 8, quota 7 com falha antes do lookup no segundo, novo run 7/1, failure-first, cycle/corruption/dependency-limit preflight zero e preimage Bun independente de dois i64; cache compartilhável, outro run/application, imports, associated const, inference, identity final, compiler/runtime e self-host permanecem limites |
 | W-1466 | inferência scalar append-only de module const | D7 source-backed bounded para `const name = initializer` e `export const` local: solver de grafo acíclico independente de source order, forward references, `declared_type` source-only, `effective_type` append-only, default `Int`/`i64`, Bool, suffix e propagation por identifier; cycles causais e barreiras D4 preservados; ConstIR-6/fingerprint-1 estáveis | oracle-backed-current; `GPF0-W-1466-current` remove somente as quatro annotations do diamond Last Light, preserva `ultimateAnswer: i64`, prova quatro records explicit=false/declared=NONE/effective=i64, symbol exportado i64, integer default/Bool/suffix/propagation, graph forward/reordered, equivalência explicit/inferred, ciclos anchor/unanchored com zero evidence e negativos D4 completos via C e oracle Bun independente; imports, associated const, identity final, cache compartilhável, compiler/runtime e self-host permanecem limites |
+| W-1467 | identidade semântica collision-safe de specialization | D8 separa a identidade semântica da specialization, a recipe física de materialização/cache e `reflect.TypeId`; preimage completo com declaração nominal local struct, substitution normalizado, refinements e witness vector count zero; digest somente accelerator com full-byte compare; schema `w-seed-generic-specialization-1`; API caller-owned com measure/write, lifecycle explícito `NOT_AVAILABLE`/`AVAILABLE`/`UNSUPPORTED`/`CAPACITY`, bytes required/written e digest | oracle-backed-current; `GPF0-W-1467-current` liga fragments reais do Restaurante para immediate/computed/named/diamond/AnswerPair e `StaticValue<Bool,true>`/`StaticValue<String,"The final seating">`; head/module/refinement adversaries continuam fixtures C sintéticos; o gate Bun compara bytes C, length e SHA e cobre rejected/quota/overflow/cycle/invalid/corrupt/unsupported, capacity exact/zero/short-by-one, sentinels, NULL input e digest-forced collision; recipe física, receipts autoritativos package/interface, witness selection geral, TypeId runtime e compiler completo permanecem gaps |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
@@ -7254,6 +7255,86 @@ W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
 classificação de módulo e root. Os IDs permanecem no ledger como proveniência.
 A regra corrente não preserva header, body implícito, lock/deployment root ou
 `export import` por compatibilidade pré-1.0.
+
+#### 1.3.21.7 Identidade semântica collision-safe de specialization (W-1467)
+
+**Motivação:** W-1460–W-1466 provaram um fingerprint pós-validação. Eles não
+fecharam a igualdade collision-safe de uma specialization. A decisão D8 separa
+essa igualdade semântica da recipe física de materialização/cache e de
+`reflect.TypeId`.
+
+A identidade semântica é o preimage canônico completo da declaração nominal,
+do substitution environment normalizado e das conformance/witness semantic
+identities em requirement order. O digest SHA-256 é apenas um accelerator.
+Igualdade exige length, digest e full-byte compare. A camada seed não possui
+receipts autoritativos de package/interface, target/profile/toolchain/ABI,
+materialization ou witness selection geral. O witness vector D8 tem count zero
+e qualquer constraint fora do subset é `UNSUPPORTED`.
+
+O schema append-only `w-seed-generic-specialization-1` usa prefixo domain-
+separated, root tag distinto, declaration schema explícito, substitution vector
+ordinal e witness count. O declaration schema codifica local struct, module id,
+head name, parameter kind, domain concrete/dependent, refinement kind e
+predicate body digest. Type/value canonical encoding compartilha a projeção
+`fingerprint-1`. Labels, spans, source indices, annotation presence, counters,
+quota e session ficam fora. Target, profile, compiler, lowering plan e runtime
+facts pertencem à recipe física futura, não ao encoder semântico seed. `WAbiKey`,
+`RepresentationMap` e a futura `SemanticInterfaceKey`/module-package
+declaration receipt são nomes da camada física/interface, não salts da
+igualdade semântica. Edition não é salt arbitrário: seus efeitos semânticos
+entram na declaração/interface e normalização; a recipe registra a edition.
+
+A API C é append-only. O caller fornece buffer e capacidade. O resultado separa
+`NOT_AVAILABLE`, `AVAILABLE`, `UNSUPPORTED` e `CAPACITY`, além de bytes written,
+bytes required e digest. Não-`VERIFIED` publica `NOT_AVAILABLE` e zeros;
+`VERIFIED` não encodable publica `UNSUPPORTED` e zeros sem alterar o estado
+principal; buffer curto, inclusive zero, publica `CAPACITY`, required exato,
+written zero, digest zero e não toca o buffer; somente capacidade suficiente
+publica `AVAILABLE` com bytes e digest. `NULL` com capacidade não-zero é
+`INVALID` antes de evaluation; `{nonnull,0}` é o caso `CAPACITY`. O caller
+mantém buffer e inputs disjuntos e imutáveis entre measure/write. A função de
+comparação testa views vazios/NULL, corrupção e um adversário que força digest
+igual com preimages diferentes.
+
+As fontes primárias usadas como evidência comparativa, sem copiar a semântica
+de W, são [rustc `Instance`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_middle/ty/struct.Instance.html),
+que expõe `def` e `args` e descreve instanciação sob demanda em codegen/const
+eval; [Swift ABI Mangling](https://github.com/swiftlang/swift/blob/main/docs/ABI/Mangling.rst)
+e [Swift ABI TypeMetadata](https://github.com/swiftlang/swift/blob/main/docs/ABI/TypeMetadata.rst),
+que distinguem nomes/metadata e vetores de argumentos/witnesses dos caminhos
+físicos de instanciação; e [Rust `TypeId`](https://doc.rust-lang.org/std/any/struct.TypeId.html),
+que é um handle opaco cujo hash/ordenação não é estável entre releases. A
+inferência limitada é apenas que uma identidade semântica deve ser separável
+da materialização/cache e de um handle local; estas fontes não são autoridade
+para a codificação ou igualdade de W.
+
+O gate usa fragments reais de `domain.w` e `generics.w` para os witnesses
+source-backed. Immediate `42`,
+computed `6 * 7`, named const, diamond e aliases equivalentes publicam a mesma
+identity quando declaration, module e refinement são iguais. Head, module e
+predicate body diferentes publicam identities diferentes por fixtures C
+sintéticos; eles não são alegados como fragments compiláveis do Restaurante.
+`StaticValue<Bool,true>` e `StaticValue<String,"The final seating">` exercitam
+TYPE/dependent domain e permanecem diferentes. Rejected `41`, quota,
+overflow, cycle, invalid, corruption e unsupported não publicam identity.
+Capacity exact, zero e short-by-one preservam sentinels. Bun reconstrói o
+preimage independentemente, compara os bytes escritos pelo C e repete o gate
+duas vezes. O caso permanece
+oracle-backed-current. Recipe física, TypeId runtime, compiler completo e
+cache persistente continuam implementation-evidence gaps.
+
+Alternativas rejeitadas:
+
+- chamar `fingerprint-1` de identidade, pois ele não contém declaration schema
+  completo nem witness vector e o contrato antigo deve permanecer estável;
+- usar somente digest ou TypeId truncado, pois colisões e corrupção poderiam
+  produzir falso positivo;
+- incluir target, profile, compiler, lowering ou counters no preimage, pois
+  esses fatos pertencem à recipe física ou à evidence de execução;
+- inventar witness IDs sem receipt autoritativo, pois o subset D8 não possui
+  seleção geral de witnesses;
+- implementar cache físico ou TypeId runtime no seed, pois isso ampliaria a
+  superfície além da prova semântica caller-owned.
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

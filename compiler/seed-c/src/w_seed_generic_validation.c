@@ -43,11 +43,17 @@ typedef struct {
   w_seed_sha256_state sha;
   bool unsupported;
   bool invalid;
+  uint8_t *output;
+  size_t output_capacity;
+  size_t output_length;
+  bool output_overflow;
 } fingerprint_builder;
 
 static const char FALLBACK_BYTES[] = "predicate:false";
 static const uint8_t FINGERPRINT_PREFIX[] =
     "w-seed-generic-fingerprint-1";
+static const uint8_t SPECIALIZATION_PREFIX[] =
+    "w-seed-generic-specialization-1";
 
 _Static_assert(W_SEED_GENERIC_VALIDATION_MAX_PREDICATES <=
                    W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_RECORDS,
@@ -1878,6 +1884,19 @@ static void fingerprint_bytes(fingerprint_builder *builder,
       builder->invalid = true;
     return;
   }
+  if (length > SIZE_MAX - builder->output_length) {
+    builder->invalid = true;
+    return;
+  }
+  if (builder->output != NULL) {
+    if (builder->output_length > builder->output_capacity ||
+        length > builder->output_capacity - builder->output_length) {
+      builder->output_overflow = true;
+    } else if (length != 0u) {
+      (void)memcpy(builder->output + builder->output_length, bytes, length);
+    }
+  }
+  builder->output_length += length;
   w_seed_sha256_update(&builder->sha, bytes, length);
 }
 
@@ -2367,6 +2386,151 @@ static fingerprint_encode_status fingerprint_application(
                               : FINGERPRINT_ENCODED;
 }
 
+/* Encode the collision-safe semantic specialization identity.  The builder
+ * can run once for measurement and once for caller-owned output. */
+static fingerprint_encode_status specialization_application(
+    const validation_context *context,
+    const w_seed_frontend_generic_application *application,
+    const w_seed_frontend_struct *head, const predicate_candidate *candidates,
+    size_t candidate_count, const uint32_t *value_indices,
+    fingerprint_builder *builder) {
+  if (context == NULL || application == NULL || head == NULL ||
+      builder == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL ||
+      context->frontend->generic_arguments == NULL ||
+      context->frontend->generic_parameters == NULL ||
+      application->module_index >= context->frontend_result->written.modules ||
+      application->argument_count != head->generic_parameter_count ||
+      !range_valid(head->first_generic_parameter,
+                   head->generic_parameter_count,
+                   context->frontend_result->written.generic_parameters))
+    return FINGERPRINT_INVALID;
+
+  const w_seed_frontend_module *module =
+      &context->frontend->modules[application->module_index];
+  if (module->module_id.length == 0u || !text_valid(module->module_id) ||
+      head->name.length == 0u || !text_valid(head->name))
+    return FINGERPRINT_INVALID;
+  fingerprint_bytes(builder, SPECIALIZATION_PREFIX,
+                    sizeof(SPECIALIZATION_PREFIX) - 1u);
+  fingerprint_u8(builder, 0x48u);
+  fingerprint_u8(builder, 0x44u);
+  fingerprint_u8(builder, 0x01u);
+  fingerprint_encode_status status =
+      fingerprint_module_text(context, application->module_index, builder);
+  if (status != FINGERPRINT_ENCODED) return status;
+  status = fingerprint_text(builder, head->name);
+  if (status != FINGERPRINT_ENCODED) return status;
+  fingerprint_u32(builder, head->generic_parameter_count);
+
+  for (uint32_t offset = 0u; offset < head->generic_parameter_count;
+       offset += 1u) {
+    const w_seed_frontend_generic_parameter *parameter = NULL;
+    if (!parameter_relation_valid(context, application, offset, &parameter) ||
+        parameter == NULL) {
+      fingerprint_mark_unsupported(builder);
+      return FINGERPRINT_UNSUPPORTED;
+    }
+    fingerprint_u8(builder, 0x50u);
+    fingerprint_u32(builder, parameter->ordinal);
+    if (parameter->kind == W_SEED_FRONTEND_GENERIC_KIND_TYPE) {
+      fingerprint_u8(builder, 1u);
+      fingerprint_u8(builder, 0u);
+    } else if (parameter->kind == W_SEED_FRONTEND_GENERIC_KIND_VALUE) {
+      fingerprint_u8(builder, 2u);
+      if (parameter->domain_kind ==
+          W_SEED_FRONTEND_GENERIC_DOMAIN_CONCRETE) {
+        fingerprint_u8(builder, 1u);
+        status = fingerprint_type(context, application->module_index,
+                                  parameter->domain_type, builder, 1u);
+        if (status != FINGERPRINT_ENCODED) return status;
+      } else if (parameter->domain_kind ==
+                 W_SEED_FRONTEND_GENERIC_DOMAIN_DEPENDENT) {
+        fingerprint_u8(builder, 2u);
+        fingerprint_u32(builder,
+                        parameter->dependent_type_parameter_ordinal);
+      } else {
+        fingerprint_mark_unsupported(builder);
+        return FINGERPRINT_UNSUPPORTED;
+      }
+    } else {
+      fingerprint_mark_unsupported(builder);
+      return FINGERPRINT_UNSUPPORTED;
+    }
+    if (parameter->refinement_kind ==
+        W_SEED_FRONTEND_GENERIC_REFINEMENT_NONE) {
+      fingerprint_u8(builder, 0u);
+    } else if (parameter->refinement_kind ==
+               W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE) {
+      const predicate_candidate *candidate = fingerprint_candidate_for_argument(
+          candidates, candidate_count,
+          application->first_argument + offset);
+      if (candidate == NULL || candidate->function == NULL) {
+        fingerprint_mark_unsupported(builder);
+        return FINGERPRINT_UNSUPPORTED;
+      }
+      fingerprint_u8(builder, 1u);
+      fingerprint_bytes(builder, candidate->function->body_digest,
+                        sizeof(candidate->function->body_digest));
+    } else {
+      fingerprint_mark_unsupported(builder);
+      return FINGERPRINT_UNSUPPORTED;
+    }
+  }
+
+  fingerprint_u8(builder, 0x53u);
+  fingerprint_u32(builder, application->argument_count);
+  for (uint32_t offset = 0u; offset < application->argument_count; offset += 1u) {
+    const w_seed_frontend_generic_argument *argument =
+        &context->frontend->generic_arguments[
+            (size_t)application->first_argument + offset];
+    const w_seed_frontend_generic_parameter *parameter = NULL;
+    if (!parameter_relation_valid(context, application, offset, &parameter) ||
+        parameter == NULL || argument->parameter_ordinal != offset)
+      return FINGERPRINT_INVALID;
+    fingerprint_u8(builder, 0x41u);
+    fingerprint_u32(builder, offset);
+    if (parameter->kind == W_SEED_FRONTEND_GENERIC_KIND_TYPE) {
+      if (argument->kind != W_SEED_FRONTEND_GENERIC_ARGUMENT_TYPE ||
+          argument->type_index == W_SEED_FRONTEND_NONE) {
+        fingerprint_mark_unsupported(builder);
+        return FINGERPRINT_UNSUPPORTED;
+      }
+      fingerprint_u8(builder, 1u);
+      fingerprint_u8(builder, 0x54u);
+      status = fingerprint_type(context, application->module_index,
+                                argument->type_index, builder, 1u);
+      if (status != FINGERPRINT_ENCODED) return status;
+      continue;
+    }
+    if (parameter->kind != W_SEED_FRONTEND_GENERIC_KIND_VALUE) {
+      fingerprint_mark_unsupported(builder);
+      return FINGERPRINT_UNSUPPORTED;
+    }
+    fingerprint_u8(builder, 2u);
+    fingerprint_u8(builder, 0x56u);
+    uint32_t effective_domain_type = W_SEED_FRONTEND_NONE;
+    if (!effective_domain_type_index(context, application, offset,
+                                     &effective_domain_type) ||
+        value_indices == NULL || value_indices[offset] == W_SEED_FRONTEND_NONE ||
+        (size_t)value_indices[offset] >= context->arena_count)
+      return FINGERPRINT_INVALID;
+    status = fingerprint_type(context, application->module_index,
+                              effective_domain_type, builder, 1u);
+    if (status != FINGERPRINT_ENCODED) return status;
+    status = fingerprint_constir_value(
+        context, application->module_index,
+        &context->input->conversion_values[value_indices[offset]],
+        effective_domain_type, builder, 1u);
+    if (status != FINGERPRINT_ENCODED) return status;
+  }
+  fingerprint_u8(builder, 0x57u);
+  fingerprint_u32(builder, 0u);
+  if (builder->invalid) return FINGERPRINT_INVALID;
+  return builder->unsupported ? FINGERPRINT_UNSUPPORTED
+                              : FINGERPRINT_ENCODED;
+}
+
 const char *w_seed_generic_validation_state_name(
     w_seed_generic_validation_state state) {
   switch (state) {
@@ -2424,6 +2588,38 @@ const char *w_seed_generic_validation_fingerprint_state_name(
       return "UNSUPPORTED";
   }
   return "UNKNOWN";
+}
+
+const char *w_seed_generic_validation_specialization_state_name(
+    w_seed_generic_validation_specialization_state state) {
+  switch (state) {
+    case W_SEED_GENERIC_VALIDATION_SPECIALIZATION_NOT_AVAILABLE:
+      return "NOT_AVAILABLE";
+    case W_SEED_GENERIC_VALIDATION_SPECIALIZATION_AVAILABLE:
+      return "AVAILABLE";
+    case W_SEED_GENERIC_VALIDATION_SPECIALIZATION_UNSUPPORTED:
+      return "UNSUPPORTED";
+    case W_SEED_GENERIC_VALIDATION_SPECIALIZATION_CAPACITY:
+      return "CAPACITY";
+  }
+  return "UNKNOWN";
+}
+
+bool w_seed_generic_specialization_equal(
+    const w_seed_generic_specialization_view *left,
+    const w_seed_generic_specialization_view *right) {
+  /* D8 canonical preimages are non-empty.  A zero/unavailable projection is
+   * never an identity view and must not compare equal to another sentinel. */
+  if (left == NULL || right == NULL || left->digest == NULL ||
+      right->digest == NULL || left->preimage == NULL ||
+      right->preimage == NULL || left->preimage_length == 0u ||
+      right->preimage_length == 0u)
+    return false;
+  if (left->preimage_length != right->preimage_length ||
+      memcmp(left->digest, right->digest,
+             W_SEED_GENERIC_VALIDATION_SPECIALIZATION_DIGEST_BYTES) != 0)
+    return false;
+  return memcmp(left->preimage, right->preimage, left->preimage_length) == 0;
 }
 
 static void quota_consume(w_seed_constir_quota *remaining,
@@ -2525,6 +2721,13 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
   result->state = W_SEED_GENERIC_VALIDATION_INVALID;
   result->failure = W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT;
   result->application_index = input->application_index;
+  /* A non-zero capacity with no output storage is an invalid caller input.
+   * Reject it before any frontend, ConstIR, evaluator, or receipt work.  The
+   * zero-capacity/non-null case remains the normal specialization CAPACITY
+   * projection after VERIFIED evaluation. */
+  if (input->specialization_preimage == NULL &&
+      input->specialization_preimage_capacity != 0u)
+    return result->state;
   validation_context context = {
       input, input->frontend_output, input->frontend_result,
       input->constir_program, 0u};
@@ -3074,5 +3277,66 @@ w_seed_generic_validation_state w_seed_generic_validation_run(
     result->fingerprint_state =
         W_SEED_GENERIC_VALIDATION_FINGERPRINT_AVAILABLE;
   }
+
+  /* The specialization preimage has a separate schema and output contract.
+   * Measure before writing so a short caller buffer stays untouched. */
+  fingerprint_builder specialization_measure;
+  (void)memset(&specialization_measure, 0, sizeof(specialization_measure));
+  w_seed_sha256_init(&specialization_measure.sha);
+  const fingerprint_encode_status specialization_status =
+      specialization_application(&context, application, head, candidates,
+                                 candidate_count, value_indices,
+                                 &specialization_measure);
+  if (specialization_status != FINGERPRINT_ENCODED ||
+      specialization_measure.invalid || specialization_measure.unsupported) {
+    result->specialization_state =
+        W_SEED_GENERIC_VALIDATION_SPECIALIZATION_UNSUPPORTED;
+    return result->state;
+  }
+  result->specialization_bytes_required =
+      specialization_measure.output_length;
+  if (result->specialization_bytes_required == 0u) {
+    result->specialization_state =
+        W_SEED_GENERIC_VALIDATION_SPECIALIZATION_UNSUPPORTED;
+    result->specialization_bytes_required = 0u;
+    (void)memset(result->specialization_digest, 0,
+                 sizeof(result->specialization_digest));
+    return result->state;
+  }
+  if (input->specialization_preimage_capacity <
+      result->specialization_bytes_required) {
+    result->specialization_state =
+        W_SEED_GENERIC_VALIDATION_SPECIALIZATION_CAPACITY;
+    result->specialization_bytes_written = 0u;
+    (void)memset(result->specialization_digest, 0,
+                 sizeof(result->specialization_digest));
+    return result->state;
+  }
+  fingerprint_builder specialization_write;
+  (void)memset(&specialization_write, 0, sizeof(specialization_write));
+  specialization_write.output = input->specialization_preimage;
+  specialization_write.output_capacity =
+      input->specialization_preimage_capacity;
+  w_seed_sha256_init(&specialization_write.sha);
+  const fingerprint_encode_status write_status = specialization_application(
+      &context, application, head, candidates, candidate_count, value_indices,
+      &specialization_write);
+  if (write_status != FINGERPRINT_ENCODED || specialization_write.invalid ||
+      specialization_write.unsupported || specialization_write.output_overflow ||
+      specialization_write.output_length !=
+          result->specialization_bytes_required) {
+    result->specialization_state =
+        W_SEED_GENERIC_VALIDATION_SPECIALIZATION_UNSUPPORTED;
+    result->specialization_bytes_written = 0u;
+    result->specialization_bytes_required = 0u;
+    (void)memset(result->specialization_digest, 0,
+                 sizeof(result->specialization_digest));
+    return result->state;
+  }
+  w_seed_sha256_final(&specialization_write.sha,
+                      result->specialization_digest);
+  result->specialization_bytes_written = specialization_write.output_length;
+  result->specialization_state =
+      W_SEED_GENERIC_VALIDATION_SPECIALIZATION_AVAILABLE;
   return result->state;
 }

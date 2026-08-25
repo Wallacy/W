@@ -52,7 +52,7 @@ function parseProbe(output) {
       line.startsWith("STRING app=") || line.startsWith("D3 app=") ||
       line.startsWith("D4 app=") || line.startsWith("D6 app="))
   const records = lines.map((line) => {
-    const match = /^(GENERIC|STRING|D3|D4|D6) app=(\d+) state=(\w+) failure=([a-z:-]+) diagnostic=([0-9]+) predicates=(\d+) computed=(\d+) receipts=(\d+) steps=(\d+) cache_hits=(\d+) cache_misses=(\d+) receipt_kinds=([CP]*) receipt_steps=([0-9,]*) receipt_args=([0-9,]*) receipt_typed=([0-9,]*) receipt_values=([ibx0-9,]*) receipt_cache_hits=([0-9,]*) receipt_cache_misses=([0-9,]*) module=([^\s]+) head=([^\s]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) predicate_body_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u.exec(line)
+    const match = /^(GENERIC|STRING|D3|D4|D6) app=(\d+) state=(\w+) failure=([a-z:-]+) diagnostic=([0-9]+) predicates=(\d+) computed=(\d+) receipts=(\d+) steps=(\d+) cache_hits=(\d+) cache_misses=(\d+) receipt_kinds=([CP]*) receipt_steps=([0-9,]*) receipt_args=([0-9,]*) receipt_typed=([0-9,]*) receipt_values=([ibx0-9,]*) receipt_cache_hits=([0-9,]*) receipt_cache_misses=([0-9,]*) module=([^\s]+) head=([^\s]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) specialization_state=(\w+) specialization_written=(\d+) specialization_required=(\d+) specialization_digest=([0-9a-f]{64})(?: specialization_preimage=([0-9a-f]+))? predicate_body_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u.exec(line)
     if (!match) fail(`invalid application line: ${line}`)
     const parseList = (value) => value === "" ? [] : value.split(",").map((item) => Number(item))
     return {
@@ -65,10 +65,17 @@ function parseProbe(output) {
       receiptValues: match[16] === "" ? [] : match[16].split(","),
       receiptCacheHits: parseList(match[17]), receiptCacheMisses: parseList(match[18]),
       module: match[19], head: match[20], fingerprintState: match[21],
-      fingerprintDigest: match[22], predicateBodyDigest: match[23],
-      cyclePath: parseList(match[24]),
+      fingerprintDigest: match[22], specializationState: match[23],
+      specializationWritten: Number(match[24]),
+      specializationRequired: Number(match[25]),
+      specializationDigest: match[26], specializationPreimageHex: match[27] ?? null,
+      predicateBodyDigest: match[28], cyclePath: parseList(match[29]),
     }
   })
+  for (const record of records) {
+    if (record.state !== "VERIFIED")
+      assertSpecializationNotAvailable(record, `${record.kind} app ${record.application}`)
+  }
   return {
     applications: Number(resultMatch[1]), frontend: Number(resultMatch[2]),
     constir: Number(resultMatch[3]),
@@ -153,6 +160,18 @@ function staticValuePreimage(typeKind, valueKind, stringValue = "") {
     u8(0x47), text("restaurant"), text("StaticValue"), u32(2),
     u8(0x41), u32(0), u8(0x01), u8(0x54), type,
     u8(0x41), u32(1), u8(0x02), u8(0x56), type, value, u8(0x00),
+  )
+}
+
+function staticValueSpecializationPreimage(typeKind, valueKind, stringValue = "") {
+  const type = canonicalScalarType(typeKind)
+  const value = valueKind === 1
+    ? canonicalScalarValue(1, type, u8(1))
+    : canonicalScalarValue(3, type, text(stringValue))
+  return specializationPreimage(
+    "restaurant", "StaticValue",
+    [specializationType(), specializationDependentParameter()],
+    [specializationType(type), specializationValue(type, value)],
   )
 }
 
@@ -254,10 +273,81 @@ function answerPairPreimage(left, right) {
   )
 }
 
+function specializationPreimage(module, head, parameters, substitutions) {
+  const declaration = bytes(
+    u8(0x44), u8(0x01), text(module), text(head), u32(parameters.length),
+    ...parameters.map((parameter, ordinal) => bytes(
+      u8(0x50), u32(ordinal), u8(parameter.kind), u8(parameter.domainKind),
+      parameter.domainKind === 0
+        ? new Uint8Array(0)
+        : parameter.domainKind === 1
+          ? parameter.domain
+          : u32(parameter.dependentOrdinal ?? 0),
+      u8(parameter.refinement ? 1 : 0),
+      ...(parameter.refinement ? [Uint8Array.from(
+        parameter.refinement.match(/../gu).map((part) => Number.parseInt(part, 16)),
+      )] : []),
+    )),
+  )
+  const substitution = bytes(
+    u8(0x53), u32(substitutions.length),
+    ...substitutions.map((argument, ordinal) => bytes(
+      u8(0x41), u32(ordinal), u8(argument.kind),
+      argument.kind === 1
+        ? bytes(u8(0x54), argument.type)
+        : bytes(u8(0x56), argument.domain, argument.value),
+    )),
+  )
+  return bytes(
+    textEncoder.encode("w-seed-generic-specialization-1"),
+    u8(0x48), declaration, substitution, u8(0x57), u32(0),
+  )
+}
+
+function specializationParameter(domain, refinement = null) {
+  return {kind: 2, domainKind: 1, domain, refinement}
+}
+
+function specializationDependentParameter(refinement = null, dependentOrdinal = 0) {
+  return {kind: 2, domainKind: 2, dependentOrdinal, refinement}
+}
+
+function specializationValue(domain, value) {
+  return {kind: 2, domain, value}
+}
+
+function specializationType(type = null) {
+  return type === null ? {kind: 1, domainKind: 0} : {kind: 1, type}
+}
+
 function sha256Hex(input) {
   const hasher = new Bun.CryptoHasher("sha256")
   hasher.update(input)
   return hasher.digest("hex")
+}
+
+function bytesHex(input) {
+  return Array.from(input, (value) => value.toString(16).padStart(2, "0")).join("")
+}
+
+function assertSpecializationAvailable(record, expected, label) {
+  const expectedHex = bytesHex(expected)
+  if (!record || record.specializationState !== "AVAILABLE" ||
+      record.specializationWritten !== expected.length ||
+      record.specializationRequired !== expected.length ||
+      record.specializationDigest !== sha256Hex(expected) ||
+      record.specializationPreimageHex === null ||
+      record.specializationPreimageHex.length !== expected.length * 2 ||
+      record.specializationPreimageHex !== expectedHex)
+    fail(`${label} C specialization bytes/digest disagree with independent preimage`)
+}
+
+function assertSpecializationNotAvailable(record, label) {
+  if (!record || record.specializationState !== "NOT_AVAILABLE" ||
+      record.specializationWritten !== 0 || record.specializationRequired !== 0 ||
+      record.specializationDigest !== "0".repeat(64) ||
+      record.specializationPreimageHex !== null)
+    fail(`${label} published an invalid specialization projection`)
 }
 
 const fingerprintCorpus = JSON.parse(
@@ -329,6 +419,13 @@ const fingerprintD7Case = requireCorpusCase(
   ["diamond", "integerDefault", "boolean", "suffix", "propagation", "forward",
     "reordered", "equivalent", "cycles", "negative"],
 )
+const specializationD8Case = requireCorpusCase(
+  "GPF0-W-1467-current", ["W-1467"],
+  "reference/last-light/generics.w",
+  "export alias UltimateAnswerImmediate = UltimateAnswer<42>",
+  ["equivalent", "differentHead", "differentModule", "differentRefinement",
+    "rejected", "capacity", "ignored", "collision"],
+)
 const d1Witnesses = fingerprintD1Case.witnesses
 const d2Witnesses = fingerprintD2Case.witnesses
 const d3Witnesses = fingerprintD3Case.witnesses
@@ -336,6 +433,7 @@ const d4Witnesses = fingerprintD4Case.witnesses
 const d5Witnesses = fingerprintD5Case.witnesses
 const d6Witnesses = fingerprintD6Case.witnesses
 const d7Witnesses = fingerprintD7Case.witnesses
+const d8Witnesses = specializationD8Case.witnesses
 if (d1Witnesses?.module !== "restaurant" ||
     typeof d1Witnesses?.standard !== "string" ||
     typeof d1Witnesses?.standardAgain !== "string" ||
@@ -501,7 +599,13 @@ if (d1Witnesses?.module !== "restaurant" ||
     d6Witnesses.preflight?.dependencyLimit?.steps !== 0 ||
     d6Witnesses.preflight?.corruption?.hits !== 0 ||
     d6Witnesses.preflight?.corruption?.misses !== 0 ||
-    d6Witnesses.preflight?.corruption?.steps !== 0)
+    d6Witnesses.preflight?.corruption?.steps !== 0 ||
+    d8Witnesses?.module !== "restaurant" ||
+    JSON.stringify(d8Witnesses.heads) !==
+      JSON.stringify(["StagePath", "FinalCallValue", "UltimateAnswer", "AnswerPair", "StaticValue"]) ||
+    JSON.stringify(d8Witnesses.staticValues) !==
+      JSON.stringify(["StaticValue<Bool,true>", "StaticValue<String,\"The final seating\">"]) ||
+    d8Witnesses.collision !== "digest igual forçado com preimages diferentes não compara como igual")
   fail("generic fingerprint corpus witnesses do not match the executable contract")
 
 const domain = await Bun.file(resolve(root, "reference/last-light/domain.w")).text()
@@ -977,6 +1081,14 @@ try {
     ...Array(d1Witnesses.rejected.length).fill("REJECTED"),
   ]
   for (const [index, record] of parsed.records.entries()) {
+    const stageNames = index === 2
+      ? ["accepted", "cancelled"]
+      : ["accepted", "reserving", "preparing", "serving", "completed"]
+    const expectedSpecialization = specializationPreimage(
+      "restaurant", "StagePath",
+      [specializationParameter(canonicalListType(), record.predicateBodyDigest)],
+      [specializationValue(canonicalListType(), canonicalListValue(stageNames))],
+    )
     if (record.module !== "restaurant" || record.head !== "StagePath" ||
         record.state !== expected[index] || record.predicates !== 1 || record.receipts !== 1 ||
         record.cacheHits !== 0 || record.cacheMisses !== 0 ||
@@ -989,14 +1101,28 @@ try {
           record.fingerprintState !== "AVAILABLE" ||
           record.fingerprintDigest !==
             sha256Hex(stagePathPreimage(
-              index === 2 ? ["accepted", "cancelled"] :
-                ["accepted", "reserving", "preparing", "serving", "completed"],
+              stageNames,
               record.predicateBodyDigest,
-            )))))
+            )) || record.specializationState !== "AVAILABLE" ||
+          record.specializationWritten !== expectedSpecialization.length ||
+          record.specializationRequired !== expectedSpecialization.length ||
+          record.specializationDigest !== sha256Hex(expectedSpecialization))) ||
+        (record.state !== "VERIFIED" &&
+          (record.specializationState !== "NOT_AVAILABLE" ||
+           record.specializationWritten !== 0 || record.specializationRequired !== 0 ||
+           record.specializationDigest !== "0".repeat(64))))
       fail(`domain witness application ${index} has wrong state, facts, or counters`)
+    if (record.state === "VERIFIED")
+      assertSpecializationAvailable(record, expectedSpecialization, `StagePath ${index}`)
+    else
+      assertSpecializationNotAvailable(record, `StagePath ${index}`)
   }
   if (parsed.records[0].fingerprintDigest !== parsed.records[1].fingerprintDigest ||
       parsed.records[0].fingerprintDigest === parsed.records[2].fingerprintDigest ||
+      parsed.records[0].specializationDigest !== parsed.records[1].specializationDigest ||
+      parsed.records[0].specializationDigest === parsed.records[2].specializationDigest ||
+      parsed.records[0].specializationPreimageHex !== parsed.records[1].specializationPreimageHex ||
+      parsed.records[0].specializationPreimageHex === parsed.records[2].specializationPreimageHex ||
       parsed.records[0].predicateBodyDigest !== parsed.records[1].predicateBodyDigest ||
       parsed.records[0].predicateBodyDigest !== parsed.records[2].predicateBodyDigest)
     fail("standard and cancelled fingerprint evidence does not match the contract")
@@ -1008,6 +1134,14 @@ try {
     fail("FinalCallValue witness did not produce five source-backed applications")
   for (const [index, record] of parsed.stringRecords.entries()) {
     const expectedState = index < 3 ? "VERIFIED" : "REJECTED"
+    const expectedSpecialization = specializationPreimage(
+      "restaurant", "FinalCallValue",
+      [specializationParameter(canonicalScalarType(3), record.predicateBodyDigest)],
+      [specializationValue(
+        canonicalScalarType(3),
+        canonicalScalarValue(3, canonicalScalarType(3), text(stringValues[index])),
+      )],
+    )
     if (record.module !== "restaurant" || record.head !== "FinalCallValue" ||
         record.state !== expectedState || record.predicates !== 1 ||
         record.receipts !== 1 || record.cacheHits !== 0 || record.cacheMisses !== 0 ||
@@ -1021,13 +1155,33 @@ try {
           (record.failure !== "none" || record.diagnostic !== 0 ||
            record.fingerprintState !== "AVAILABLE" ||
            record.fingerprintDigest !==
-             sha256Hex(finalCallPreimage(stringValues[index], record.predicateBodyDigest))))
+             sha256Hex(finalCallPreimage(stringValues[index], record.predicateBodyDigest)) ||
+           record.specializationState !== "AVAILABLE" ||
+           record.specializationWritten !== expectedSpecialization.length ||
+           record.specializationRequired !== expectedSpecialization.length ||
+           record.specializationDigest !== sha256Hex(expectedSpecialization)) ||
+        record.state !== "VERIFIED" &&
+          (record.specializationState !== "NOT_AVAILABLE" ||
+           record.specializationWritten !== 0 || record.specializationRequired !== 0 ||
+           record.specializationDigest !== "0".repeat(64)))
       fail(`FinalCallValue application ${index} has wrong state or fingerprint`)
+    if (record.state === "VERIFIED")
+      assertSpecializationAvailable(record, expectedSpecialization, `FinalCallValue ${index}`)
+    else
+      assertSpecializationNotAvailable(record, `FinalCallValue ${index}`)
   }
   if (parsed.stringRecords[0].fingerprintDigest !==
         parsed.stringRecords[1].fingerprintDigest ||
       parsed.stringRecords[1].fingerprintDigest !==
         parsed.stringRecords[2].fingerprintDigest ||
+      parsed.stringRecords[0].specializationDigest !==
+        parsed.stringRecords[1].specializationDigest ||
+      parsed.stringRecords[1].specializationDigest !==
+        parsed.stringRecords[2].specializationDigest ||
+      parsed.stringRecords[0].specializationPreimageHex !==
+        parsed.stringRecords[1].specializationPreimageHex ||
+      parsed.stringRecords[1].specializationPreimageHex !==
+        parsed.stringRecords[2].specializationPreimageHex ||
       parsed.stringRecords[0].predicateBodyDigest !==
         parsed.stringRecords[1].predicateBodyDigest)
     fail("duplicate positive String fingerprints do not match")
@@ -1037,8 +1191,19 @@ try {
   const d3Values = [d3Witnesses.immediate.value, 42, 42, d3Witnesses.rejected.value]
   const d3ExpectedStates = ["VERIFIED", "VERIFIED", "VERIFIED", "REJECTED"]
   const d3Digests = []
+  const d3SpecializationDigests = []
+  const d3SpecializationPreimages = []
   for (const [index, record] of parsed.d3Records.entries()) {
     const computed = index !== 0
+    const ultimateType = canonicalIntegerType(true, 64)
+    const expectedSpecialization = specializationPreimage(
+      "restaurant", "UltimateAnswer",
+      [specializationParameter(ultimateType, record.predicateBodyDigest)],
+      [specializationValue(
+        ultimateType,
+        canonicalIntegerValue(d3Values[index], ultimateType, true, 64),
+      )],
+    )
     const expectedDigest = record.state === "VERIFIED"
       ? sha256Hex(ultimateAnswerPreimage(d3Values[index], record.predicateBodyDigest))
       : null
@@ -1063,16 +1228,35 @@ try {
         (record.state === "REJECTED" &&
           (record.failure !== "predicate:false" || record.diagnostic !== 5 ||
            record.fingerprintState !== "NOT_AVAILABLE" ||
-           record.fingerprintDigest !== "0".repeat(64))) ||
+           record.fingerprintDigest !== "0".repeat(64) ||
+           record.specializationState !== "NOT_AVAILABLE" ||
+           record.specializationWritten !== 0 || record.specializationRequired !== 0 ||
+           record.specializationDigest !== "0".repeat(64))) ||
         (record.state === "VERIFIED" &&
           (record.failure !== "none" || record.diagnostic !== 0 ||
            record.fingerprintState !== "AVAILABLE" ||
-           record.fingerprintDigest !== expectedDigest)))
+           record.fingerprintDigest !== expectedDigest ||
+           record.specializationState !== "AVAILABLE" ||
+           record.specializationWritten !== expectedSpecialization.length ||
+           record.specializationRequired !== expectedSpecialization.length ||
+           record.specializationDigest !== sha256Hex(expectedSpecialization))) )
       fail(`UltimateAnswer application ${index} has wrong state, order, receipt, or fingerprint evidence`)
-    if (record.state === "VERIFIED") d3Digests.push(record.fingerprintDigest)
+    if (record.state === "VERIFIED") {
+      assertSpecializationAvailable(record, expectedSpecialization, `UltimateAnswer ${index}`)
+      d3Digests.push(record.fingerprintDigest)
+      d3SpecializationDigests.push(record.specializationDigest)
+      d3SpecializationPreimages.push(record.specializationPreimageHex)
+    } else {
+      assertSpecializationNotAvailable(record, `UltimateAnswer ${index}`)
+    }
   }
   if (d3Digests.length !== 3 || d3Digests[0] !== d3Digests[1] ||
       d3Digests[1] !== d3Digests[2] ||
+      d3SpecializationDigests.length !== 3 ||
+      d3SpecializationDigests[0] !== d3SpecializationDigests[1] ||
+      d3SpecializationDigests[1] !== d3SpecializationDigests[2] ||
+      d3SpecializationPreimages[0] !== d3SpecializationPreimages[1] ||
+      d3SpecializationPreimages[1] !== d3SpecializationPreimages[2] ||
       parsed.d3Records[0].predicateBodyDigest !== parsed.d3Records[1].predicateBodyDigest ||
       parsed.d3Records[1].predicateBodyDigest !== parsed.d3Records[2].predicateBodyDigest)
     fail("immediate, computed, and duplicate UltimateAnswer fingerprints do not match")
@@ -1098,6 +1282,7 @@ try {
        cumulativeQuotaRecord.fingerprintState !== "NOT_AVAILABLE" ||
        cumulativeQuotaRecord.fingerprintDigest !== "0".repeat(64))
      fail("cumulative quota did not preserve computed receipt before predicate failure")
+  assertSpecializationNotAvailable(cumulativeQuotaRecord, "cumulative quota")
 
   await Bun.write(join(build, "domain-generic-d4.w"), d4Witness)
   const d4Path = join(build, "domain-generic-d4.w")
@@ -1110,7 +1295,18 @@ try {
     d4Witnesses.rejected.value]
   const d4ExpectedStates = ["VERIFIED", "VERIFIED", "REJECTED"]
   const d4Digests = []
+  const d4SpecializationDigests = []
+  const d4SpecializationPreimages = []
   for (const [index, record] of d4Parsed.d4Records.entries()) {
+    const ultimateType = canonicalIntegerType(true, 64)
+    const expectedSpecialization = specializationPreimage(
+      "restaurant", "UltimateAnswer",
+      [specializationParameter(ultimateType, record.predicateBodyDigest)],
+      [specializationValue(
+        ultimateType,
+        canonicalIntegerValue(d4Values[index], ultimateType, true, 64),
+      )],
+    )
     const expectedDigest = record.state === "VERIFIED"
       ? sha256Hex(ultimateAnswerPreimage(d4Values[index], record.predicateBodyDigest))
       : null
@@ -1130,15 +1326,32 @@ try {
         (record.state === "REJECTED" &&
           (record.failure !== "predicate:false" || record.diagnostic !== 5 ||
            record.fingerprintState !== "NOT_AVAILABLE" ||
-           record.fingerprintDigest !== "0".repeat(64))) ||
+           record.fingerprintDigest !== "0".repeat(64) ||
+           record.specializationState !== "NOT_AVAILABLE" ||
+           record.specializationWritten !== 0 || record.specializationRequired !== 0 ||
+           record.specializationDigest !== "0".repeat(64))) ||
         (record.state === "VERIFIED" &&
           (record.failure !== "none" || record.diagnostic !== 0 ||
            record.fingerprintState !== "AVAILABLE" ||
-           record.fingerprintDigest !== expectedDigest)))
+           record.fingerprintDigest !== expectedDigest ||
+           record.specializationState !== "AVAILABLE" ||
+           record.specializationWritten !== expectedSpecialization.length ||
+           record.specializationRequired !== expectedSpecialization.length ||
+           record.specializationDigest !== sha256Hex(expectedSpecialization))) )
       fail(`D4 application ${index} has wrong source dependency, receipt, or fingerprint evidence`)
-    if (record.state === "VERIFIED") d4Digests.push(record.fingerprintDigest)
+    if (record.state === "VERIFIED") {
+      assertSpecializationAvailable(record, expectedSpecialization, `D4 UltimateAnswer ${index}`)
+      d4Digests.push(record.fingerprintDigest)
+      d4SpecializationDigests.push(record.specializationDigest)
+      d4SpecializationPreimages.push(record.specializationPreimageHex)
+    } else {
+      assertSpecializationNotAvailable(record, `D4 UltimateAnswer ${index}`)
+    }
   }
   if (d4Digests.length !== 2 || d4Digests[0] !== d4Digests[1] ||
+      d4SpecializationDigests.length !== 2 ||
+      d4SpecializationDigests[0] !== d4SpecializationDigests[1] ||
+      d4SpecializationPreimages[0] !== d4SpecializationPreimages[1] ||
       d4Digests[0] !== parsed.d3Records[1].fingerprintDigest ||
       d4Parsed.d4Records[0].predicateBodyDigest !== d4Parsed.d4Records[1].predicateBodyDigest ||
       d4Parsed.d4Records[1].predicateBodyDigest !== d4Parsed.d4Records[2].predicateBodyDigest ||
@@ -1172,7 +1385,9 @@ try {
       d5ExplicitParsed.d4Records.some((record, index) =>
         record.state !== d5Parsed.d4Records[index].state ||
         record.receiptValues.join(",") !== d5Parsed.d4Records[index].receiptValues.join(",") ||
-        record.fingerprintDigest !== d5Parsed.d4Records[index].fingerprintDigest))
+        record.fingerprintDigest !== d5Parsed.d4Records[index].fingerprintDigest ||
+        record.specializationDigest !== d5Parsed.d4Records[index].specializationDigest ||
+        record.specializationPreimageHex !== d5Parsed.d4Records[index].specializationPreimageHex))
     fail("explicit and inferred D7 diamonds did not preserve value or fingerprint")
   const reconstructedDiamondRepeat = reconstructDiamond(d5Declarations)
   if (d5FirstOutput !== d5SecondOutput ||
@@ -1189,6 +1404,15 @@ try {
     const expectedDigest = sha256Hex(
       ultimateAnswerPreimage(reconstructedDiamond.value, record.predicateBodyDigest),
     )
+    const ultimateType = canonicalIntegerType(true, 64)
+    const expectedSpecialization = specializationPreimage(
+      "restaurant", "UltimateAnswer",
+      [specializationParameter(ultimateType, record.predicateBodyDigest)],
+      [specializationValue(
+        ultimateType,
+        canonicalIntegerValue(reconstructedDiamond.value, ultimateType, true, 64),
+      )],
+    )
     if (record.module !== d5Witnesses.module || record.head !== "UltimateAnswer" ||
         record.state !== "VERIFIED" || record.failure !== "none" ||
         record.diagnostic !== 0 || record.predicates !== 1 || record.computed !== 1 ||
@@ -1198,11 +1422,18 @@ try {
         record.receiptCacheHits.join(",") !== "1,0" ||
         record.receiptCacheMisses.join(",") !== "4,0" || record.receiptValues.join(",") !== "i42,b1" ||
         record.fingerprintState !== "AVAILABLE" || record.fingerprintDigest !== expectedDigest ||
+        record.specializationState !== "AVAILABLE" ||
+        record.specializationWritten !== expectedSpecialization.length ||
+        record.specializationRequired !== expectedSpecialization.length ||
+        record.specializationDigest !== sha256Hex(expectedSpecialization) ||
         record.fingerprintDigest !== parsed.d3Records[0].fingerprintDigest ||
         record.cyclePath.length !== 0)
       fail(`D5 diamond application ${index} has wrong memo receipt or fingerprint evidence`)
+    assertSpecializationAvailable(record, expectedSpecialization, `D5 UltimateAnswer ${index}`)
   }
   if (d5Parsed.d4Records[0].fingerprintDigest !== d5Parsed.d4Records[1].fingerprintDigest ||
+      d5Parsed.d4Records[0].specializationDigest !== d5Parsed.d4Records[1].specializationDigest ||
+      d5Parsed.d4Records[0].specializationPreimageHex !== d5Parsed.d4Records[1].specializationPreimageHex ||
       d5Parsed.d4Records[0].predicateBodyDigest !== d5Parsed.d4Records[1].predicateBodyDigest)
     fail("D5 duplicate application changed fingerprint or predicate digest")
 
@@ -1257,6 +1488,15 @@ struct Use { broken: Narrow<(broken)> }
   const d6Digest = sha256Hex(answerPairPreimage(
     reconstructedPair.value, reconstructedPair.value,
   ))
+  const d6Specialization = specializationPreimage(
+    "restaurant", "AnswerPair",
+    [specializationParameter(canonicalIntegerType(true, 64)),
+      specializationParameter(canonicalIntegerType(true, 64))],
+    [specializationValue(canonicalIntegerType(true, 64),
+      canonicalIntegerValue(reconstructedPair.value, canonicalIntegerType(true, 64), true, 64)),
+      specializationValue(canonicalIntegerType(true, 64),
+        canonicalIntegerValue(reconstructedPair.value, canonicalIntegerType(true, 64), true, 64))],
+  )
   if (d6FirstOutput !== d6SecondOutput ||
       d6Parsed.d6Records.length !== d6Witnesses.duplicate.aliases ||
       reconstructedPair.value !== d6Witnesses.value ||
@@ -1275,8 +1515,14 @@ struct Use { broken: Narrow<(broken)> }
         record.receiptCacheMisses.join(",") !== "4,0" ||
         record.receiptValues.join(",") !== "i42,i42" ||
         record.fingerprintState !== "AVAILABLE" ||
-        record.fingerprintDigest !== d6Digest || record.cyclePath.length !== 0)
+        record.fingerprintDigest !== d6Digest ||
+        record.specializationState !== "AVAILABLE" ||
+        record.specializationWritten !== d6Specialization.length ||
+        record.specializationRequired !== d6Specialization.length ||
+        record.specializationDigest !== sha256Hex(d6Specialization) ||
+        record.cyclePath.length !== 0)
       fail("D6 sibling application has wrong session, receipt, or fingerprint evidence")
+    assertSpecializationAvailable(record, d6Specialization, "D6 AnswerPair")
   }
 
   const d6QuotaSource = `${d5Declarations}${answerPairSignature}
@@ -1379,7 +1625,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
   const zeroCapacityOutput = run(
     executable, ["--domain-witness-d4-zero-capacity", twoCycleCase.path],
   )
-  const zeroCapacityMatch = /^D4_ZERO state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) computed=(\d+) steps=(\d+) receipts=(\d+) cache_hits=(\d+) cache_misses=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u
+  const zeroCapacityMatch = /^D4_ZERO state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) computed=(\d+) steps=(\d+) receipts=(\d+) cache_hits=(\d+) cache_misses=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) specialization_state=(\w+) specialization_written=(\d+) specialization_required=(\d+) specialization_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u
     .exec(zeroCapacityOutput.trim())
   if (!zeroCapacityMatch || zeroCapacityMatch[1] !== d4Witnesses.zeroCapacity.state ||
       zeroCapacityMatch[2] !== "evaluator-diagnostic" || zeroCapacityMatch[3] !== "2" ||
@@ -1388,7 +1634,10 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
       zeroCapacityMatch[7] !== String(d5Witnesses.preflight.zeroCapacity.hits) ||
       zeroCapacityMatch[8] !== String(d5Witnesses.preflight.zeroCapacity.misses) ||
       zeroCapacityMatch[9] !== "NOT_AVAILABLE" ||
-      zeroCapacityMatch[10] !== "0".repeat(64) || zeroCapacityMatch[11] !== "1,2,1")
+      zeroCapacityMatch[10] !== "0".repeat(64) ||
+      zeroCapacityMatch[11] !== "NOT_AVAILABLE" || zeroCapacityMatch[12] !== "0" ||
+      zeroCapacityMatch[13] !== "0" || zeroCapacityMatch[14] !== "0".repeat(64) ||
+      zeroCapacityMatch[15] !== "1,2,1")
     fail("zero-capacity cycle preflight did not preserve buffers or the closed path")
   const threeCycleCase = await runD4Case(
     "three-cycle", "const first: i64 = second\nconst second: i64 = third\n" +
@@ -1429,7 +1678,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
   const incompatibleMultiSlotZeroOutput = run(
     executable, ["--domain-witness-d4-zero-capacity", incompatibleMultiSlotCase.path],
   )
-  const incompatibleMultiSlotZeroMatch = /^D4_ZERO state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) computed=(\d+) steps=(\d+) receipts=(\d+) cache_hits=(\d+) cache_misses=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u
+  const incompatibleMultiSlotZeroMatch = /^D4_ZERO state=(\w+) failure=([a-z:-]+) diagnostic=([0-9]+) computed=(\d+) steps=(\d+) receipts=(\d+) cache_hits=(\d+) cache_misses=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) specialization_state=(\w+) specialization_written=(\d+) specialization_required=(\d+) specialization_digest=([0-9a-f]{64}) cycle_path=([0-9,]*)$/u
     .exec(incompatibleMultiSlotZeroOutput.trim())
   assertCycleRecord({
     state: incompatibleMultiSlotZeroMatch?.[1],
@@ -1443,9 +1692,14 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
     receiptKinds: "",
     fingerprintState: incompatibleMultiSlotZeroMatch?.[9],
     fingerprintDigest: incompatibleMultiSlotZeroMatch?.[10],
-    cyclePath: incompatibleMultiSlotZeroMatch?.[11]?.split(",").filter(Boolean).map(Number) ?? [],
+    cyclePath: incompatibleMultiSlotZeroMatch?.[15]?.split(",").filter(Boolean).map(Number) ?? [],
   }, d7Witnesses.cycles.incompatibleMultiSlotZeroCapacity,
   "incompatible multi-slot zero-capacity cycle")
+  if (!incompatibleMultiSlotZeroMatch ||
+      incompatibleMultiSlotZeroMatch[11] !== "NOT_AVAILABLE" ||
+      incompatibleMultiSlotZeroMatch[12] !== "0" || incompatibleMultiSlotZeroMatch[13] !== "0" ||
+      incompatibleMultiSlotZeroMatch[14] !== "0".repeat(64))
+    fail("incompatible multi-slot zero-capacity cycle published specialization metadata")
   const dependencyLimitSource = Array.from({ length: 257 }, (_, index) =>
     `const c${index}: i64 = ${index + 1 < 257 ? `c${index + 1}` : "42"}\n`).join("") +
     `${d4PredicateAndValue}struct Use { dependencyLimit: UltimateAnswer<(c0)> }\n`
@@ -1576,12 +1830,14 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
   const corruptRecords = corruptOutput.split(/\r?\n/u)
     .filter((line) => line.startsWith("D3_CORRUPT "))
     .map((line) => {
-      const match = /^D3_CORRUPT case=([a-z]+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) receipts=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64})$/u.exec(line)
+      const match = /^D3_CORRUPT case=([a-z]+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) receipts=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) specialization_state=(\w+) specialization_written=(\d+) specialization_required=(\d+) specialization_digest=([0-9a-f]{64})$/u.exec(line)
       if (!match) fail(`invalid D3 corruption line: ${line}`)
       return {
         case: match[1], state: match[2], failure: match[3],
         diagnostic: Number(match[4]), steps: Number(match[5]),
         receipts: Number(match[6]), fingerprintState: match[7], fingerprintDigest: match[8],
+        specializationState: match[9], specializationWritten: Number(match[10]),
+        specializationRequired: Number(match[11]), specializationDigest: match[12],
       }
     })
   if (corruptRecords.length !== d3Witnesses.corrupt.cases.length ||
@@ -1589,20 +1845,24 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
         record.case !== d3Witnesses.corrupt.cases[index] ||
         record.state !== d3Witnesses.corrupt.state || record.steps !== 0 ||
         record.receipts !== 0 || record.fingerprintState !== "NOT_AVAILABLE" ||
-        record.fingerprintDigest !== "0".repeat(64)))
+        record.fingerprintDigest !== "0".repeat(64) ||
+        record.specializationState !== "NOT_AVAILABLE" || record.specializationWritten !== 0 ||
+        record.specializationRequired !== 0 || record.specializationDigest !== "0".repeat(64)))
     fail("D3 origin/relation/type/application corruption did not fail in zero steps")
 
   const d4CorruptOutput = run(executable, ["--domain-witness-d4-corrupt", d4Path])
   const d4CorruptRecords = d4CorruptOutput.split(/\r?\n/u)
     .filter((line) => line.startsWith("D4_CORRUPT "))
     .map((line) => {
-      const match = /^D4_CORRUPT case=([a-z]+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) receipts=(\d+) cache_hits=(\d+) cache_misses=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64})$/u.exec(line)
+      const match = /^D4_CORRUPT case=([a-z]+) state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) receipts=(\d+) cache_hits=(\d+) cache_misses=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) specialization_state=(\w+) specialization_written=(\d+) specialization_required=(\d+) specialization_digest=([0-9a-f]{64})$/u.exec(line)
       if (!match) fail(`invalid D4 corruption line: ${line}`)
       return {
         case: match[1], state: match[2], failure: match[3],
         diagnostic: Number(match[4]), steps: Number(match[5]),
         receipts: Number(match[6]), cacheHits: Number(match[7]), cacheMisses: Number(match[8]),
         fingerprintState: match[9], fingerprintDigest: match[10],
+        specializationState: match[11], specializationWritten: Number(match[12]),
+        specializationRequired: Number(match[13]), specializationDigest: match[14],
       }
     })
   if (d4CorruptRecords.length !== d4Witnesses.corrupt.cases.length ||
@@ -1612,7 +1872,9 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
         record.receipts !== 0 || record.cacheHits !== d5Witnesses.preflight.corruption.hits ||
         record.cacheMisses !== d5Witnesses.preflight.corruption.misses ||
         record.fingerprintState !== "NOT_AVAILABLE" ||
-        record.fingerprintDigest !== "0".repeat(64)))
+        record.fingerprintDigest !== "0".repeat(64) ||
+        record.specializationState !== "NOT_AVAILABLE" || record.specializationWritten !== 0 ||
+        record.specializationRequired !== 0 || record.specializationDigest !== "0".repeat(64)))
     fail("D4 origin/mapping/dependency/type/application corruption did not fail in zero steps")
 
   const overLimitWitness = `${finalCallPredicate}\n${finalCallValueSignature} {}\n` +
@@ -1634,20 +1896,28 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
   const stringCorruptOutput = run(executable, ["--domain-witness-corrupt", witnessPath])
   const corruptLine = stringCorruptOutput.split(/\r?\n/u)
     .find((line) => line.startsWith("STRING_CORRUPT "))
-  const corruptMatch = /^STRING_CORRUPT state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64})$/u
+  const corruptMatch = /^STRING_CORRUPT state=(\w+) failure=([a-z:-]+) diagnostic=(\d+) steps=(\d+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) specialization_state=(\w+) specialization_written=(\d+) specialization_required=(\d+) specialization_digest=([0-9a-f]{64})$/u
     .exec(corruptLine ?? "")
   if (!corruptMatch || corruptMatch[1] !== d2Witnesses.corrupt.state ||
       corruptMatch[2] !== "invalid-input" || corruptMatch[3] !== "0" ||
       corruptMatch[4] !== String(d2Witnesses.corrupt.steps) ||
       corruptMatch[5] !== "NOT_AVAILABLE" ||
-      corruptMatch[6] !== "0".repeat(64))
+      corruptMatch[6] !== "0".repeat(64) || corruptMatch[7] !== "NOT_AVAILABLE" ||
+      corruptMatch[8] !== "0" || corruptMatch[9] !== "0" ||
+      corruptMatch[10] !== "0".repeat(64))
     fail("corrupt String arena relation was not rejected in preflight")
   const staticRecords = firstOutput.split(/\r?\n/u)
     .filter((line) => line.startsWith("STATIC "))
     .map((line) => {
-      const match = /^STATIC app=(\d+) state=(\w+) failure=([a-z:-]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64})$/u.exec(line)
+      const match = /^STATIC app=(\d+) state=(\w+) failure=([a-z:-]+) fingerprint_state=(\w+) fingerprint_digest=([0-9a-f]{64}) specialization_state=(\w+) specialization_written=(\d+) specialization_required=(\d+) specialization_digest=([0-9a-f]{64})(?: specialization_preimage=([0-9a-f]+))?$/u.exec(line)
       if (!match) fail(`invalid StaticValue line: ${line}`)
-      return { application: Number(match[1]), state: match[2], failure: match[3], fingerprintState: match[4], fingerprintDigest: match[5] }
+      return {
+        application: Number(match[1]), state: match[2], failure: match[3],
+        fingerprintState: match[4], fingerprintDigest: match[5],
+        specializationState: match[6], specializationWritten: Number(match[7]),
+        specializationRequired: Number(match[8]), specializationDigest: match[9],
+        specializationPreimageHex: match[10] ?? null,
+      }
     })
   if (staticRecords.length !== 2 ||
       staticRecords.some((record) => record.state !== "VERIFIED" ||
@@ -1658,9 +1928,17 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
     sha256Hex(staticValuePreimage(3, 3, "The final seating")),
   ]
   for (const [index, record] of staticRecords.entries()) {
+    const expectedSpecialization = staticValueSpecializationPreimage(
+      index === 0 ? 2 : 3, index === 0 ? 1 : 3,
+      index === 0 ? "" : "The final seating",
+    )
     if (record.fingerprintDigest !== expectedStatic[index])
       fail(`StaticValue application ${index} disagrees with independent preimage`)
+    assertSpecializationAvailable(record, expectedSpecialization, `StaticValue ${index}`)
   }
+  if (staticRecords[0].specializationDigest === staticRecords[1].specializationDigest ||
+      staticRecords[0].specializationPreimageHex === staticRecords[1].specializationPreimageHex)
+    fail("Bool and String StaticValue witnesses collapsed to one specialization identity")
 } finally {
   await rm(build, { recursive: true, force: true })
 }

@@ -124,6 +124,7 @@ typedef struct {
   uint8_t constir_receipt[CONSTIR_RECEIPT];
   w_seed_constir_value conversion_values[CONVERSION_VALUES];
   uint8_t evidence_bytes[W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_BYTES];
+  uint8_t specialization_preimage[65536];
   w_seed_generic_validation_receipt receipts[VALIDATION_RECEIPTS];
   w_seed_constir_eval_frame eval_frames[EVAL_FRAMES];
 } fixture;
@@ -319,7 +320,10 @@ static w_seed_generic_validation_state validate_application_at_with_evidence(
       .evidence_bytes = evidence_bytes,
       .evidence_byte_capacity = evidence_byte_capacity,
       .receipts = fixture_value->receipts,
-      .receipt_capacity = VALIDATION_RECEIPTS};
+      .receipt_capacity = VALIDATION_RECEIPTS,
+      .specialization_preimage = fixture_value->specialization_preimage,
+      .specialization_preimage_capacity =
+          sizeof(fixture_value->specialization_preimage)};
   return w_seed_generic_validation_run(&input, result);
 }
 
@@ -343,7 +347,10 @@ static w_seed_generic_validation_state validate_application_at_with_capacities(
       .evidence_bytes = evidence_bytes,
       .evidence_byte_capacity = evidence_byte_capacity,
       .receipts = fixture_value->receipts,
-      .receipt_capacity = receipt_capacity};
+      .receipt_capacity = receipt_capacity,
+      .specialization_preimage = fixture_value->specialization_preimage,
+      .specialization_preimage_capacity =
+          sizeof(fixture_value->specialization_preimage)};
   return w_seed_generic_validation_run(&input, result);
 }
 
@@ -364,13 +371,45 @@ static w_seed_generic_validation_state validate_application(
                                  result);
 }
 
+static w_seed_generic_validation_state
+validate_application_at_with_specialization_capacity(
+    fixture *fixture_value, uint32_t application_index, uint8_t *preimage,
+    size_t preimage_capacity, w_seed_generic_validation_result *result) {
+  w_seed_constir_eval_workspace workspace = {
+      fixture_value->eval_frames, EVAL_FRAMES};
+  const w_seed_constir_program program = fixture_program(fixture_value);
+  const w_seed_generic_validation_input input = {
+      .frontend_output = &fixture_value->frontend_output,
+      .frontend_result = &fixture_value->frontend_result,
+      .constir_program = &program,
+      .application_index = application_index,
+      .quota = {100000u, 0u, 64u, SIZE_MAX},
+      .eval_workspace = &workspace,
+      .conversion_values = fixture_value->conversion_values,
+      .conversion_value_capacity = CONVERSION_VALUES,
+      .evidence_bytes = fixture_value->evidence_bytes,
+      .evidence_byte_capacity = W_SEED_GENERIC_VALIDATION_MAX_EVIDENCE_BYTES,
+      .receipts = fixture_value->receipts,
+      .receipt_capacity = VALIDATION_RECEIPTS,
+      .specialization_preimage = preimage,
+      .specialization_preimage_capacity = preimage_capacity};
+  return w_seed_generic_validation_run(&input, result);
+}
+
 static bool fingerprint_not_available(const w_seed_generic_validation_result *result) {
   return result != NULL &&
          result->fingerprint_state ==
              W_SEED_GENERIC_VALIDATION_FINGERPRINT_NOT_AVAILABLE &&
          memcmp(result->fingerprint_digest,
                 (uint8_t[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES]){0},
-                W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES) == 0;
+                W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES) == 0 &&
+         result->specialization_state ==
+             W_SEED_GENERIC_VALIDATION_SPECIALIZATION_NOT_AVAILABLE &&
+         result->specialization_bytes_written == 0u &&
+         result->specialization_bytes_required == 0u &&
+         memcmp(result->specialization_digest,
+                (uint8_t[W_SEED_GENERIC_VALIDATION_SPECIALIZATION_DIGEST_BYTES]){0},
+                W_SEED_GENERIC_VALIDATION_SPECIALIZATION_DIGEST_BYTES) == 0;
 }
 
 static bool fingerprint_unsupported(const w_seed_generic_validation_result *result) {
@@ -412,6 +451,33 @@ static bool fixture_lower_stage(fixture *fixture_value, const char *suffix) {
 static void print_digest(const uint8_t digest[32]) {
   for (size_t index = 0u; index < 32u; index += 1u)
     (void)printf("%02x", (unsigned int)digest[index]);
+}
+
+static void print_bytes_hex(const uint8_t *bytes, size_t length) {
+  if (bytes == NULL) return;
+  for (size_t index = 0u; index < length; index += 1u)
+    (void)printf("%02x", (unsigned int)bytes[index]);
+}
+
+static void print_specialization_projection(
+    const fixture *fixture_value,
+    const w_seed_generic_validation_result *result) {
+  if (fixture_value == NULL || result == NULL) return;
+  (void)printf(" specialization_state=%s specialization_written=%llu "
+               "specialization_required=%llu specialization_digest=",
+               w_seed_generic_validation_specialization_state_name(
+                   result->specialization_state),
+               (unsigned long long)result->specialization_bytes_written,
+               (unsigned long long)result->specialization_bytes_required);
+  if (result->specialization_state ==
+      W_SEED_GENERIC_VALIDATION_SPECIALIZATION_AVAILABLE) {
+    print_digest(result->specialization_digest);
+    (void)printf(" specialization_preimage=");
+    print_bytes_hex(fixture_value->specialization_preimage,
+                    result->specialization_bytes_written);
+  } else {
+    for (size_t byte = 0u; byte < 32u; byte += 1u) (void)printf("00");
+  }
 }
 
 static void print_receipt_projection(const fixture *fixture_value,
@@ -582,6 +648,7 @@ static bool probe_domain_file_with_quota(const char *path, size_t step_quota) {
       print_digest(result.fingerprint_digest);
     else
       for (size_t byte = 0u; byte < 32u; byte += 1u) (void)printf("00");
+    print_specialization_projection(&value, &result);
     (void)printf(" predicate_body_digest=");
     print_digest(predicate_digest);
     (void)printf(" cycle_path=");
@@ -622,6 +689,7 @@ static bool probe_domain_file_with_quota(const char *path, size_t step_quota) {
       print_digest(result.fingerprint_digest);
     else
       for (size_t byte = 0u; byte < 32u; byte += 1u) (void)printf("00");
+    print_specialization_projection(&value, &result);
     (void)printf("\n");
     static_value_count += 1u;
   }
@@ -668,9 +736,10 @@ static bool probe_domain_file_corrupt(const char *path) {
            w_seed_generic_validation_failure_name(result.failure),
            (int)result.diagnostic,
            (unsigned long long)result.evaluation.consumed_steps,
-           w_seed_generic_validation_fingerprint_state_name(
-               result.fingerprint_state));
+               w_seed_generic_validation_fingerprint_state_name(
+                   result.fingerprint_state));
     for (size_t byte = 0u; byte < 32u; byte += 1u) (void)printf("00");
+    print_specialization_projection(&value, &result);
     (void)printf("\n");
     return state == W_SEED_GENERIC_VALIDATION_INVALID &&
            result.evaluation.consumed_steps == 0u;
@@ -770,9 +839,10 @@ static bool probe_typed_const_corrupt(const char *path) {
            (int)result.diagnostic,
            (unsigned long long)result.evaluation.consumed_steps,
            (unsigned long long)result.receipts_written,
-           w_seed_generic_validation_fingerprint_state_name(
-               result.fingerprint_state));
+               w_seed_generic_validation_fingerprint_state_name(
+                   result.fingerprint_state));
     for (size_t byte = 0u; byte < 32u; byte += 1u) (void)printf("00");
+    print_specialization_projection(&value, &result);
     (void)printf("\n");
     all_invalid = all_invalid && state == W_SEED_GENERIC_VALIDATION_INVALID &&
                   result.evaluation.consumed_steps == 0u &&
@@ -884,9 +954,10 @@ static bool probe_module_const_corrupt(const char *path) {
            (unsigned long long)result.receipts_written,
            (unsigned long long)result.evaluation.const_cache_hits,
            (unsigned long long)result.evaluation.const_cache_misses,
-           w_seed_generic_validation_fingerprint_state_name(
-               result.fingerprint_state));
+               w_seed_generic_validation_fingerprint_state_name(
+                   result.fingerprint_state));
     for (size_t byte = 0u; byte < 32u; byte += 1u) (void)printf("00");
+    print_specialization_projection(&value, &result);
     (void)printf("\n");
     all_invalid = all_invalid && state == W_SEED_GENERIC_VALIDATION_INVALID &&
                   result.evaluation.consumed_steps == 0u &&
@@ -945,6 +1016,7 @@ static bool probe_module_const_zero_capacity(const char *path) {
          w_seed_generic_validation_fingerprint_state_name(
              result.fingerprint_state));
   for (size_t byte = 0u; byte < 32u; byte += 1u) (void)printf("00");
+  print_specialization_projection(&value, &result);
   (void)printf(" cycle_path=");
   for (size_t path_index = 0u;
        path_index < result.const_cycle_path_length; path_index += 1u)
@@ -3637,6 +3709,173 @@ static bool test_named_module_const_d4(void) {
   return true;
 }
 
+static bool test_specialization_contract(void) {
+  static const char base_source[] =
+      "const fn always(value: i64): Bool { return true }\n"
+      "struct Box<_ value: i64<(always(.member))>> {}\n"
+      "struct Use { item: Box<42> }\n";
+  static const char label_source[] =
+      "const fn always(value: i64): Bool { return true }\n"
+      "struct Box<_ value: i64<(always(.member))>> {}\n"
+      "struct Use { item: Box<value: 42> }\n";
+  static const char other_head_source[] =
+      "const fn always(value: i64): Bool { return true }\n"
+      "struct OtherBox<_ value: i64<(always(.member))>> {}\n"
+      "struct Use { item: OtherBox<42> }\n";
+  static const char other_body_source[] =
+      "const fn always(value: i64): Bool { return value == value }\n"
+      "struct Box<_ value: i64<(always(.member))>> {}\n"
+      "struct Use { item: Box<42> }\n";
+  static const char rejected_source[] =
+      "const fn never(value: i64): Bool { return false }\n"
+      "struct Box<_ value: i64<(never(.member))>> {}\n"
+      "struct Use { item: Box<42> }\n";
+  uint8_t base_preimage[65536];
+  w_seed_generic_validation_result base_result;
+  CHECK(fixture_lower(&value, base_source));
+  CHECK(validate_application_at_with_specialization_capacity(
+            &value, 0u, base_preimage, sizeof(base_preimage), &base_result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED);
+  CHECK(base_result.specialization_state ==
+            W_SEED_GENERIC_VALIDATION_SPECIALIZATION_AVAILABLE &&
+        base_result.specialization_bytes_written ==
+            base_result.specialization_bytes_required &&
+        base_result.specialization_bytes_required != 0u);
+  const size_t required = base_result.specialization_bytes_required;
+  uint8_t base_digest[W_SEED_GENERIC_VALIDATION_SPECIALIZATION_DIGEST_BYTES];
+  (void)memcpy(base_digest, base_result.specialization_digest,
+               sizeof(base_digest));
+
+  uint8_t exact_preimage[65536];
+  (void)memset(exact_preimage, 0xa5, sizeof(exact_preimage));
+  w_seed_generic_validation_result exact_result;
+  CHECK(fixture_lower(&value, base_source));
+  CHECK(validate_application_at_with_specialization_capacity(
+            &value, 0u, exact_preimage, required, &exact_result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        exact_result.specialization_state ==
+            W_SEED_GENERIC_VALIDATION_SPECIALIZATION_AVAILABLE &&
+        exact_result.specialization_bytes_written == required &&
+        exact_result.specialization_bytes_required == required &&
+        memcmp(exact_preimage, base_preimage, required) == 0 &&
+        memcmp(exact_result.specialization_digest, base_digest,
+               sizeof(base_digest)) == 0);
+
+  uint8_t short_preimage[65536];
+  (void)memset(short_preimage, 0xa5, sizeof(short_preimage));
+  w_seed_generic_validation_result short_result;
+  CHECK(fixture_lower(&value, base_source));
+  CHECK(validate_application_at_with_specialization_capacity(
+            &value, 0u, short_preimage, required - 1u, &short_result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        short_result.specialization_state ==
+            W_SEED_GENERIC_VALIDATION_SPECIALIZATION_CAPACITY &&
+        short_result.specialization_bytes_written == 0u &&
+        short_result.specialization_bytes_required == required);
+  for (size_t byte = 0u; byte < sizeof(short_preimage); byte += 1u)
+    CHECK(short_preimage[byte] == 0xa5u);
+
+  uint8_t zero_preimage[65536];
+  (void)memset(zero_preimage, 0xa5, sizeof(zero_preimage));
+  w_seed_generic_validation_result zero_result;
+  CHECK(fixture_lower(&value, base_source));
+  CHECK(validate_application_at_with_specialization_capacity(
+            &value, 0u, zero_preimage, 0u, &zero_result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        zero_result.specialization_state ==
+            W_SEED_GENERIC_VALIDATION_SPECIALIZATION_CAPACITY &&
+        zero_result.specialization_bytes_written == 0u &&
+        zero_result.specialization_bytes_required == required &&
+        zero_preimage[0] == 0xa5u && zero_preimage[sizeof(zero_preimage) - 1u] ==
+                                        0xa5u);
+
+  w_seed_generic_validation_result null_storage_result;
+  CHECK(fixture_lower(&value, base_source));
+  CHECK(validate_application_at_with_specialization_capacity(
+            &value, 0u, NULL, sizeof(base_preimage), &null_storage_result) ==
+        W_SEED_GENERIC_VALIDATION_INVALID &&
+        null_storage_result.failure ==
+            W_SEED_GENERIC_VALIDATION_FAILURE_INVALID_INPUT &&
+        null_storage_result.evaluation.consumed_steps == 0u &&
+        null_storage_result.receipts_written == 0u &&
+        fingerprint_not_available(&null_storage_result));
+
+  w_seed_generic_specialization_view base_view = {
+      base_preimage, required, base_digest};
+  w_seed_generic_specialization_view exact_view = {
+      exact_preimage, required, exact_result.specialization_digest};
+  CHECK(w_seed_generic_specialization_equal(&base_view, &exact_view));
+  const uint8_t zero_digest[
+      W_SEED_GENERIC_VALIDATION_SPECIALIZATION_DIGEST_BYTES] = {0u};
+  const w_seed_generic_specialization_view zero_view = {NULL, 0u, zero_digest};
+  const w_seed_generic_specialization_view zero_view_two = {
+      base_preimage, 0u, zero_digest};
+  CHECK(!w_seed_generic_specialization_equal(&zero_view, &zero_view) &&
+        !w_seed_generic_specialization_equal(&zero_view, &zero_view_two));
+  w_seed_generic_specialization_view null_preimage_view = {
+      NULL, required, base_digest};
+  CHECK(!w_seed_generic_specialization_equal(&base_view, &null_preimage_view));
+  w_seed_generic_specialization_view null_digest_view = {
+      base_preimage, required, NULL};
+  CHECK(!w_seed_generic_specialization_equal(&base_view, &null_digest_view));
+  uint8_t forced_digest[W_SEED_GENERIC_VALIDATION_SPECIALIZATION_DIGEST_BYTES];
+  (void)memcpy(forced_digest, base_digest, sizeof(forced_digest));
+  exact_preimage[required - 1u] ^= 0x01u;
+  exact_view.preimage = exact_preimage;
+  exact_view.digest = forced_digest;
+  CHECK(!w_seed_generic_specialization_equal(&base_view, &exact_view));
+  forced_digest[0] ^= 0x01u;
+  exact_preimage[required - 1u] = base_preimage[required - 1u];
+  CHECK(!w_seed_generic_specialization_equal(&base_view, &exact_view));
+
+  w_seed_generic_validation_result variant_result;
+  CHECK(fixture_lower(&value, label_source));
+  CHECK(validate_application_at_with_specialization_capacity(
+            &value, 0u, value.specialization_preimage,
+            sizeof(value.specialization_preimage), &variant_result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        variant_result.specialization_state ==
+            W_SEED_GENERIC_VALIDATION_SPECIALIZATION_AVAILABLE &&
+        variant_result.specialization_bytes_required == required &&
+        memcmp(value.specialization_preimage, base_preimage, required) == 0);
+
+  CHECK(fixture_lower(&value, other_head_source));
+  CHECK(validate_application_at_with_specialization_capacity(
+            &value, 0u, value.specialization_preimage,
+            sizeof(value.specialization_preimage), &variant_result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(variant_result.specialization_digest, base_digest,
+               sizeof(base_digest)) != 0);
+  CHECK(fixture_lower_with_module(&value, base_source, "other-module"));
+  CHECK(validate_application_at_with_specialization_capacity(
+            &value, 0u, value.specialization_preimage,
+            sizeof(value.specialization_preimage), &variant_result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(variant_result.specialization_digest, base_digest,
+               sizeof(base_digest)) != 0);
+  CHECK(fixture_lower(&value, other_body_source));
+  CHECK(validate_application_at_with_specialization_capacity(
+            &value, 0u, value.specialization_preimage,
+            sizeof(value.specialization_preimage), &variant_result) ==
+        W_SEED_GENERIC_VALIDATION_VERIFIED &&
+        memcmp(variant_result.specialization_digest, base_digest,
+               sizeof(base_digest)) != 0);
+
+  CHECK(fixture_lower(&value, rejected_source));
+  CHECK(validate_application_at_with_specialization_capacity(
+            &value, 0u, value.specialization_preimage,
+            sizeof(value.specialization_preimage), &variant_result) ==
+        W_SEED_GENERIC_VALIDATION_REJECTED &&
+        variant_result.specialization_state ==
+            W_SEED_GENERIC_VALIDATION_SPECIALIZATION_NOT_AVAILABLE &&
+        variant_result.specialization_bytes_written == 0u &&
+        variant_result.specialization_bytes_required == 0u &&
+        memcmp(variant_result.specialization_digest,
+               (uint8_t[W_SEED_GENERIC_VALIDATION_SPECIALIZATION_DIGEST_BYTES]){0},
+               W_SEED_GENERIC_VALIDATION_SPECIALIZATION_DIGEST_BYTES) == 0);
+  return true;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "--domain-witness") == 0)
     return probe_domain_file(argv[2]) ? 0 : 1;
@@ -3664,7 +3903,8 @@ int main(int argc, char **argv) {
       !test_dependent_effective_domains() ||
       !test_string_predicate_conversion_boundary() ||
       !test_fingerprint_adversarial_inputs() ||
-      !test_named_module_const_d4())
+      !test_named_module_const_d4() ||
+      !test_specialization_contract())
     return 1;
   return 0;
 }
