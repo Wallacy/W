@@ -421,13 +421,49 @@ object Cursor {
 }
 ```
 
+Um behavior reutiliza o mesmo lifecycle. `modify` permite um hook local depois
+do borrow sem copiar o valor anterior:
+
+```w excerpt
+// excerpt-source: reference/last-light/billing.w::export behavior Versioned
+export behavior Versioned<Value> for Value {
+  storage var current: Value
+  storage var mutationEpoch: u64 = 0
+  input initialValue: fn(): Value
+
+  init {
+    current = initialValue()
+  }
+
+  get {
+    return current
+  }
+
+  mut set(newValue) {
+    current = newValue
+    mutationEpoch += 1
+  }
+
+  mut modify {
+    defer { mutationEpoch += 1 }
+    return inout current
+  }
+}
+```
+
+A baseline aceita somente `input initialValue: fn(): Value`. Todos os generic
+parameters do behavior são inferidos pelo tipo depois de `for`. Configuração
+estática pertence ao tipo lógico. Dependência runtime usa owner, método, service
+ou channel nomeado. `Behavior(...)`, `Behavior<...>`, múltiplos inputs e acesso
+ao backing não pertencem à baseline.
+
 | Operação | Caminho da property |
 | --- | --- |
 | Inicialização do storage | Escreve o storage e não chama `set` ou `modify`. |
 | Leitura | Chama `get`; um getter borrowed não move field move-only. |
 | `property = value` | Chama `set` ou substitui o storage; nunca chama `modify`. |
 | `property += value` ou call `mutating` | Abre `modify` exatamente uma vez; não usa get-copy-set oculto. |
-| Fim do `return inout` | Retoma `defer` do accessor depois do borrow e antes do retorno. |
+| Fim do `return inout` | Retoma `defer` uma vez depois do borrow, inclusive quando a operação termina com error. |
 | Substituição/drop | Destrói o valor antigo e o backing storage uma vez. |
 
 Accessors são síncronos, não lançam error e não fazem I/O, service call,

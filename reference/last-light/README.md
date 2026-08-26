@@ -1279,6 +1279,8 @@ Aceite:
 - rounding policy é parte da operação;
 - overflow não usa binary float;
 - `Versioned` não concede atomicidade fora do serial turn;
+- `Versioned.modify` incrementa `mutationEpoch` uma vez depois do borrow;
+- um behavior aceita somente o thunk `initialValue`, sem configuração runtime;
 - `priceTable` usa lowering isolado no service serial e não cria lock;
 - um owner concorrente seleciona um winner e publica um valor completo;
 - um contender em domain non-blocking falha sem prova de isolamento;

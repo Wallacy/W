@@ -3333,6 +3333,19 @@ falha tipada.
 properties. Esses recursos precisam superar o corpus de previsibilidade antes
 de entrar.
 
+W-1478 encerra a alternativa de argumentos por aplicação de behavior. O
+[Swift SE-0258](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0258-property-wrappers.md)
+permite argumentos de initializer, backing sintetizado e uma projection
+adicional. Essa combinação atende wrappers com configuração runtime. Ela também
+cria outro caminho de initialization, storage e API da property.
+
+O Restaurante separa os casos. `Versioned.modify` usa `defer` para atualizar um
+mutation epoch depois do borrow. Um limite estático do forno pertence ao tipo
+lógico. Um auditor runtime pertence ao service ou método que possui a
+authority. Essa divisão evita capture ambiental e mantém `try` e `await` no
+call site. Por isso, W aceita somente `initialValue` e não expõe argumentos,
+projection ou backing na aplicação do behavior.
+
 **Origem: 12.7 Mobilidade e captures**
 
 **Alternativas:** `T<mobility: .transferable>` usa um static slot nomeado.
@@ -7333,6 +7346,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1475 | readiness de training e inference | Direção vigente: LLM0 inventaria a cobertura existente de Tensor/shape/value parameters, broadcast/reduction/numeric mode, f16/bf16/quant direction, views/strides, Device/Queue/Launch, DLPack, ownership, streams/backpressure/services, deterministic RNG/profile e packages/receipts; gaps de training e inference são classificados como core, std/API, typed IR/compiler, runtime/provider, tooling/evidence ou application framework, com default de não inflar o core | oracle-backed-current por `DRC0-W-1475-current`; [`LLM0`](tooling/studies/llm0-training-inference/) fecha o ownership map e os dois workloads, não framework, kernel, provider ou performance. Fontes primárias registradas no estudo foram verificadas em 2026-08-25 |
 | W-1476 | teste de tipo e recuperação borrowed | `is` testa somente enum tag ou tipo nominal exato de existential com `reflect.Reflectable`, retorna Bool e não faz narrowing; `reflect.downcast<T>(ref existential)` retorna `ref T?`, exige `T` compatível com toda a composição, herda origin/lifetime e não copia, move, retém ou aloca; downcast owned, `as`/`as?`/`as!`, cast por string, type pattern e smart cast ficam fora | current design contract em DESIGN §8.8.1; compiler typing, existential runtime identity, borrow lowering, diagnostics e execução continuam implementation-evidence gaps |
 | W-1477 | scatter read e transferência posicional | `io.ReadBatch` é owner move-only de segments com capacity fixa e initialized counts privados; `io.readMany` preenche a concatenação em ordem e retorna `data`, `end` ou `full`, com fallback de uma leitura. `io.TransferPlan` possui intervalo, progresso e scratch reservado; `io.transfer` liga `SnapshotByteSource` a `ByteSink`, diferencia source end de limit, preserva sufixo não committed e pode selecionar operação nativa somente por capability interna. `IoSliceMut`, `inout view Bytes...`, probe `isVectored`, syscall pública e promessa universal de zero-copy ficam fora | current design contract em DESIGN §14.2.11, std.io draft e Última Luz; compiler/runtime, provider SPI, cross-target fault tests, receipts de estratégia e benchmarks continuam implementation-evidence gaps. Fontes primárias de `readv`, `WSARecv`, `sendfile`, `TransmitFile` e Rust vectored I/O foram verificadas em 2026-08-25 |
+| W-1478 | aplicação fechada e hook pós-borrow de behavior | behavior aceita zero ou um input, exatamente `initialValue: fn(): Value`; cada parâmetro generic deve ser inferido unicamente pelo tipo lógico depois de `for`; a aplicação usa somente o nome nominal, sem argumentos, generic arguments, composição ou backing access. `modify` pode usar `defer` uma vez após o borrow e observa mutation admission, inclusive término com error, sem copiar `oldValue`. Policy estática pertence ao tipo; dependência runtime usa owner, método, service ou channel nomeado | current design contract em DESIGN §10 e witness `Versioned` no Última Luz; parser aceita a declaration existente, mas checker/HIR, diagnostics e execução do lifecycle continuam implementation-evidence gaps. Swift SE-0258 foi verificado como alternativa de argumentos, backing e projection em 2026-08-25 |
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
