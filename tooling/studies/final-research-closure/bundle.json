@@ -30,7 +30,7 @@
     {
       "path": "../../../tooling/design-freeze-classification.json",
       "symbol": "w-design-freeze-classification-1",
-      "digest": "sha256:46621b0835b779c61b617b6a63d41f51344213457f230d7944487c0733aaa612"
+      "digest": "sha256:5455c20cd603c374293d99bfee0f75fbc1aa7d9e54c49ebb6c6b1ff0019f8f5a"
     },
     {
       "path": "../../../RATIONALE.md",
@@ -40,7 +40,7 @@
     {
       "path": "../../../DESIGN.md",
       "symbol": "#### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa",
-      "digest": "sha256:cdb6622730d75bcd96dc05b9b848bced8c66b017d23335ed6297b9436d1d54a9"
+      "digest": "sha256:3aea6c2102884150cedfc40bc7257771fff7d5441fa462af5abdfd07c1506eea"
     }
   ],
   "variants": [

@@ -1,9 +1,10 @@
 # Source reader, lexer, parser, formatter, frontend seed e D0/D1 do seed C
 
-**Status:** componente real e interno do w-seed-c. O parser seed abaixo é uma
-fatia incremental de CST/recovery. O formatter, o adapter D0 e o frontend seed
-semântico são fatias fechadas caller-owned; o frontend é interno e não é um
-compiler driver normativo.
+**Status:** componente real do w-seed-c. O parser seed abaixo é uma fatia
+incremental de CST/recovery. O formatter, o adapter D0 e o frontend seed
+semântico são fatias fechadas caller-owned. O target bootstrap `w` usa o núcleo
+privado para o perfil fechado de source único (closed-single-source). O target
+bootstrap não é um compiler driver completo.
 
 Este componente fornece uma view de bytes sem cópia. Ele valida UTF-8 estrito,
 detecta o BOM inicial, conta linhas por LF, valida spans half-open e converte
@@ -310,15 +311,20 @@ initializers/dependencies, cache e materialização, generic calls completas,
 heads importados e aplicações de enum/object/type/alias/function, tensor,
 runtime, MLIR e WInterface permanecem fora desta fatia.
 
-`tests/check_driver.c` é uma evidência interna bounded de source → parser →
-frontend → D0. O executável `w_seed_check_driver` aceita um path explícito de
-até 16 MiB, sem package graph, workspace context ou external-module stubs.
+`cli/check.c` é o núcleo privado bounded de source → parser → frontend → D0.
+`tests/check_driver.c` fornece o wrapper da evidência interna
+`w_seed_check_driver`. O target bootstrap `w` fornece a rota pública `w check` e
+as três formas de help. O núcleo e o driver aceitam um path explícito de até
+16 MiB. O perfil closed-single-source não usa package graph, workspace context
+ou external-module stubs. Owner detection, resolution, imports/module graph e
+o frontend normativo completo continuam gaps nesta fatia.
+
 Exit `0` significa frontend síncrono completo sem diagnostics. Exit `1`
 significa que todos os diagnostics são `W-SEM-0001` mapeáveis. Exit `2`
 representa invocation, source, parse, unsupported, barrier, capacity ou
 resultado incompleto. Exit `3` representa falha interna. `--json` faz o
-preflight de todos os diagnostics antes de emitir JSONL. Esta evidência não
-promove o executável a compiler ou a CLI `w check`.
+preflight de todos os diagnostics antes de emitir JSONL. O gate público é
+`tooling/check-w-check-cli.mjs`.
 
 Funções `const` no D0 conservam a normalização runtime. Literals, parâmetros,
 bindings, valores/construtores de enum, operadores já suportados, `switch` e
@@ -871,12 +877,12 @@ bytes de entrada. O probe de lexer é somente ferramenta de teste.
 
 O source probe lê uma entrada limitada de stdin e devolve os bytes sem
 alteração. O lexer probe devolve somente itens e spans; o parser probe devolve
-CST, folhas e issues internos para o checker. O limite
-de 16 MiB pertence somente aos probes de teste; não é contrato da linguagem
-nem limite do source reader. NFC, resolver completo e build publication continuam gaps
-intencionais desta fatia; o scanner C acima é somente source validation. O
-formatter e o adapter D0 são fatias fechadas internas, não frontend normativo. Os
-checkers Bun usam os probes sobre os casos
+CST, folhas e issues internos para o checker. O limite de 16 MiB pertence aos
+probes de teste e ao perfil do target bootstrap. Esse limite não é contrato da
+linguagem nem limite do source reader. NFC, resolver completo e build publication
+continuam gaps intencionais desta fatia. O scanner C acima é somente source
+validation. O formatter e o adapter D0 são fatias fechadas internas, não
+frontend normativo. Os checkers Bun usam os probes sobre os casos
 F0 e os witnesses FZ0 quando aplicável. Esses casos continuam oracles de design
 e não são output de um compiler. A proveniência é mantida em
 [formatter-cases.json (F0)](../../tooling/formatter-cases.json),

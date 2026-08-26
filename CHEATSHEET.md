@@ -2,9 +2,10 @@
 
 > **Rascunho de design · agosto de 2026**
 >
-> W ainda não tem compiler, runtime, SDK, package manager ou providers de
-> standard library. Este arquivo é um mapa de leitura para a superfície
-> proposta. Ele não promete que um snippet execute.
+> W ainda não tem compiler W completo, runtime, SDK, package manager ou
+> providers de standard library. O target bootstrap `w` executa somente o
+> perfil fechado de source único (closed-single-source). Este arquivo é um mapa
+> de leitura para a superfície proposta. Ele não promete que um snippet execute.
 
 Este cheatsheet usa a forma integrada de DESIGN.md e os casos do produto de
 referência [Última Luz](reference/last-light/README.md). A edição segue a
@@ -113,14 +114,15 @@ não módulos W comuns.
 
 ### Comandos planejados
 
-Os nomes abaixo são uma interface prevista, não uma CLI disponível:
+O target bootstrap `w` executa somente `w check` no perfil closed-single-source.
+As demais rotas abaixo são uma interface prevista, não uma CLI disponível:
 
 | Objetivo | Forma prevista | Estado |
 | --- | --- | --- |
 | Rodar arquivo único | `w run path/file.w` | Direção + implementation-gap |
 | Construir package | `w build` | Direção + provider missing |
 | Abrir sessão | `w repl` | Direção + implementation-gap |
-| Verificar um source | `w check path/file.w [--json]` | Direção + frontend missing |
+| Verificar um source | `w check path/file.w [--json]` | Forma vigente executável no perfil CHK1 |
 | Verificar um package | `w package check [package]` | Direção + implementation-gap |
 | Verificar um workspace | `w workspace check` | Direção + implementation-gap |
 | Exportar notebook | `w notebook export` | Direção + provider/implementation-gap |
@@ -138,15 +140,16 @@ graph. `w workspace check` verifica os members selecionados e sua resolution
 compartilhada. Os três scopes são distintos.
 
 Com `--json`, stdout contém somente JSONL D0. O renderer humano escreve em
-stderr. A forma é uma direção de CLI, não uma implementação disponível neste
-checkout. O seed frontend e o gate `check:seed-frontend` não satisfazem esse
-contrato.
+stderr. O target bootstrap `w` executa somente um source fechado de até 16 MiB.
+Owner detection, resolution, imports/module graph, package/workspace e o
+frontend normativo completo continuam gaps. O comando não executa build,
+backend, link ou runtime e não gera artifact.
 
 O driver interno `w_seed_check_driver` fornece evidência bounded de um path
 source → parser → frontend → D0. Ele aceita até 16 MiB e mapeia somente
 `W-SEM-0001`. O gate cobre `platform.w`, sua inversão negativa e as barreiras
-de source, parse e frontend. Esse executável não disponibiliza `w check` e não
-resolve package ou workspace.
+de source, parse e frontend. O target bootstrap `w` reutiliza o mesmo núcleo
+privado. O driver não resolve package ou workspace.
 
 O [gate da Última Luz](reference/last-light/BUILD.md) separa parser,
 checker, HIR, lowering, runtime, toolchain e provider. Não use um comando
@@ -1594,10 +1597,13 @@ owner de `resolution` e `deployments` de forma única. Não copie campos de
 
 ### CLI e tooling
 
-`w check path/file.w [--json]`, `w package check [package]`, `w workspace check`,
-`w build`, `w run`, `w repl`, `w test` e comandos de export são direções de
-interface. A implementação de CLI e package manager é um gap. O tooling
-existente neste checkout é Tree-sitter, atlas e checks de design, não o CLI W.
+`w package check [package]`, `w workspace check`, `w build`, `w run`, `w repl`,
+`w test` e comandos de export são direções de interface. O target bootstrap `w`
+implementa `w check path/file.w [--json]` somente para o perfil
+closed-single-source. Owner detection, resolution, imports/module graph,
+package/workspace, package manager e as demais rotas da CLI continuam gaps. O
+tooling existente neste checkout inclui o target bootstrap, Tree-sitter, atlas e
+checks de design.
 
 ### REPL, module run e Jupyter
 
@@ -1711,7 +1717,7 @@ O primeiro excerpt vem do product em
 [app.w](reference/last-light/app.w). O package resolve o product para o module
 e entry declarados; o module fornece o symbol callable.
 O comando é a forma planejada em [BUILD.md](reference/last-light/BUILD.md),
-mas a CLI e o package manager ainda não estão implementados neste checkout.
+mas `w run` e o package manager ainda não estão implementados neste checkout.
 O resultado é uma seleção de product, não uma invocação disponível.
 
 ## Mesmo objetivo, várias formas
@@ -1826,7 +1832,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Formatter/frontend/HIR/MLIR | Planejados; implementation gap |
 | Runtime/scheduler/allocator | Planejados; implementation gap |
 | std/providers | Contratos e oracles; provider missing |
-| CLI/package manager | Direção; implementation gap |
+| CLI além de `w check` / package manager | Direção; implementation gap |
 | Portal | Protótipo visual congelado; não autoridade |
 
 ## Evidência, limites e validação

@@ -28695,6 +28695,14 @@ Outra capacity ou interrupção incompleta emite o root D0 aplicável quando ain
 é possível serializá-lo. Um internal fault pode usar uma mensagem de emergência
 em stderr.
 
+**Estado de implementação CHK1:** o target bootstrap `w` executa a sintaxe
+pública `w check <path/file.w> [--json]`, `w --help`, `w help` e `w check --help`.
+O perfil executável é o perfil fechado de source único (closed-single-source),
+com source de até 16 MiB e o pipeline source → parser → frontend seed → D0.
+Owner detection, resolution, imports/module graph, package/workspace e o
+frontend normativo completo continuam gaps. O perfil não executa build,
+backend, link ou runtime e não gera artifact.
+
 `w explain authority <locator-or-origin>` mostra, no mínimo, kind, locator,
 lineage, origin digest e length, trusted checkpoint version e dimensões da
 evidence. O output nunca mostra private keys, secrets ou material equivalente.
@@ -32290,26 +32298,34 @@ backend.
 
 A aceitação do primeiro checker é fechada por estes casos:
 
-- `w check <path/file.w>` aceita um source síncrono real da Última Luz sem
-  diagnostics efetivos;
-- uma inversão negativa do mesmo fixture, executada com `--json`, produz exit
-  `1`, o código D0 exato, seu span e o mesmo JSONL em duas execuções;
-- o resultado agregado não retorna sucesso parcial;
-- o frontend probe atual de `compiler/seed-c` não satisfaz este gate, porque
-  fixa um contexto de harness e não fornece driver público, contexto de
-  package/workspace ou CLI.
+- `checker_bootstrap.w` passa por `w check` com path relativo, exit `0` e
+  stdout/stderr vazios;
+- o mesmo fixture passa com `--json`, exit `0` e stdout/stderr vazios;
+- uma inversão negativa de `checker_bootstrap.w` produz exit `1`, o código D0
+  exato, seu span e o mesmo JSONL em duas execuções;
+- a inversão negativa produz o diagnostic humano esperado em stderr e stdout
+  vazio;
+- invocation inválida, source inválido, parse incompleto, import/module graph,
+  frontend unsupported e capacity produzem exit `2` e stdout vazio;
+- o resultado agregado não retorna sucesso parcial.
+
+O contrato de contexto e module graph da rota completa continua gap. O frontend
+probe atual de `compiler/seed-c` fixa um contexto de harness e não fornece esse
+contexto nem um driver público.
 
 O executável interno `w_seed_check_driver` fornece uma primeira evidência
 bounded deste corte. Ele lê um path explícito de até 16 MiB, usa o source
 reader, lexer, parser e frontend seed e emite somente o mapping D0 de
 `W-SEM-0001`. O gate prova um source síncrono real de Última Luz, a inversão
 negativa, o renderer humano e as barreiras de source, parse, unsupported e
-capacity. O executável não é `w check`, não resolve package ou workspace e não
-reduz o implementation gap da CLI.
+capacity. O driver sozinho não implementa a rota pública e não resolve package
+ou workspace. O target bootstrap `w` reutiliza o núcleo privado do driver.
 
 Saída: `w check <path/file.w> [--json]` verifica o subset síncrono do
-restaurante. O comando continua implementation gap até que esses casos sejam
-executáveis pela CLI.
+restaurante. O target bootstrap `w` executa essa rota no perfil
+closed-single-source. Owner detection, resolution, imports/module graph,
+package/workspace e o frontend normativo completo continuam gaps. O comando
+continua sem build, backend, link, runtime ou artifact.
 
 ### 26.4 Fase 2 — HIR, MLIR e executável nativo
 

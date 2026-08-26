@@ -43,6 +43,7 @@
     "check:seed-formatter": "bun tooling/check-seed-formatter.mjs",
     "check:seed-diagnostic": "bun tooling/check-seed-diagnostic.mjs",
     "check:seed-check-driver": "bun tooling/check-seed-check-driver.mjs",
+    "check:w-cli": "bun tooling/check-w-check-cli.mjs",
     "check:seed-foreign": "bun tooling/check-seed-foreign.mjs",
     "check:seed-frontend": "bun tooling/check-seed-frontend.mjs",
     "check:seed-constir": "bun tooling/check-seed-constir.mjs",
