@@ -605,6 +605,7 @@ static void write_frontend_record(
 w_seed_diagnostic_status w_seed_diagnostic_frontend_record(
     const char *instance, size_t instance_length, const char *source_id,
     size_t source_id_length, const w_seed_source *source,
+    size_t expected_document_index,
     const w_seed_frontend_diagnostic *diagnostic, uint8_t *output,
     size_t output_capacity, w_seed_diagnostic_result *result) {
   clear_result(result, W_SEED_DIAGNOSTIC_INVALID);
@@ -618,7 +619,7 @@ w_seed_diagnostic_status w_seed_diagnostic_frontend_record(
     result->status = W_SEED_DIAGNOSTIC_UNSUPPORTED;
     return result->status;
   }
-  if (diagnostic->document_index != 0u) {
+  if (diagnostic->document_index != expected_document_index) {
     result->status = W_SEED_DIAGNOSTIC_UNSUPPORTED;
     return result->status;
   }

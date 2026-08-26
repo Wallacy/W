@@ -57,6 +57,8 @@ typedef struct {
   w_seed_frontend_input frontend_input;
   w_seed_frontend_output frontend_output;
   w_seed_frontend_result frontend_result;
+  w_seed_frontend_resolved_import resolved_imports[ARRAY];
+  w_seed_module_origin module_origins[ARRAY];
   w_seed_frontend_module modules[ARRAY];
   w_seed_frontend_import imports[ARRAY];
   w_seed_frontend_import_item import_items[ARRAY];
@@ -110,7 +112,12 @@ static fixture first_fixture;
 static fixture second_fixture;
 
 static void fixture_init_output(fixture *value) {
-  value->frontend_input = (w_seed_frontend_input){&value->document, 1u, NULL, 0u};
+  value->frontend_input = (w_seed_frontend_input){
+      .documents = &value->document,
+      .document_count = 1u,
+      .external_modules = NULL,
+      .external_module_count = 0u,
+  };
   value->frontend_output = (w_seed_frontend_output){
       .modules = value->modules,
       .module_capacity = ARRAY,
@@ -216,13 +223,60 @@ static bool fixture_parse(fixture *value, const char *text) {
       value->issues, ISSUES, &value->parser, &lex_error));
   CHECK(w_seed_parser_parse(&value->parser, &value->parse));
   value->document = (w_seed_frontend_document){
-      {"test", 4}, {"test", 4}, &value->source, value->cst_nodes,
-      value->parse.node_count, value->parse};
+      .logical_source_id = {"test", 4},
+      .module_id = {"test", 4},
+      .local_module_name = {"test", 4},
+      .source = &value->source,
+      .nodes = value->cst_nodes,
+      .node_count = value->parse.node_count,
+      .parse = value->parse,
+  };
   fixture_init_output(value);
   CHECK(w_seed_frontend_run(&value->frontend_input, &value->frontend_output,
                             &value->frontend_result) == W_SEED_FRONTEND_OK ||
         value->frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED ||
         value->frontend_result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  return true;
+}
+
+static bool fixture_resolve_external_imports(fixture *value) {
+  if (value == NULL || value->frontend_input.document_count != 1u)
+    return false;
+  w_seed_module_scan_result scan_result;
+  if (w_seed_module_scan(&value->source, value->cst_nodes,
+                         value->parse.node_count, &value->parse,
+                         value->module_origins, ARRAY, &scan_result) !=
+      W_SEED_MODULE_SCAN_OK) {
+    return false;
+  }
+  for (size_t index = 0u; index < scan_result.written; index += 1u) {
+    const w_seed_span path = value->module_origins[index].module_path_span;
+    const w_seed_frontend_text path_text = {
+        value->source_bytes + path.start_byte,
+        path.end_byte - path.start_byte};
+    size_t target = SIZE_MAX;
+    for (size_t module = 0u;
+         module < value->frontend_input.external_module_count; module += 1u) {
+      const w_seed_frontend_text candidate =
+          value->external_modules[module].module_id;
+      if (candidate.length == path_text.length &&
+          memcmp(candidate.data, path_text.data, path_text.length) == 0) {
+        target = module;
+        break;
+      }
+    }
+    if (target == SIZE_MAX) return false;
+    value->resolved_imports[index] = (w_seed_frontend_resolved_import){
+        .source_document_index = 0u,
+        .direct_import_ordinal =
+            value->module_origins[index].direct_import_ordinal,
+        .import_declaration_span = value->module_origins[index].declaration_span,
+        .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE,
+        .target_index = (uint32_t)target};
+  }
+  value->frontend_input.import_resolution_complete = true;
+  value->frontend_input.resolved_imports = value->resolved_imports;
+  value->frontend_input.resolved_import_count = scan_result.written;
   return true;
 }
 
@@ -1539,6 +1593,7 @@ static bool test_direct_call_and_external_barrier(void) {
                                         value->external_symbols, 1u};
   value->frontend_input.external_modules = value->external_modules;
   value->frontend_input.external_module_count = 1u;
+  CHECK(fixture_resolve_external_imports(value));
   CHECK(w_seed_frontend_run(&value->frontend_input, &value->frontend_output,
                             &value->frontend_result) == W_SEED_FRONTEND_OK);
   const w_seed_constir_input external_input = {

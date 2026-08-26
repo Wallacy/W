@@ -151,6 +151,15 @@ source → parser → frontend → D0. Ele aceita até 16 MiB e mapeia somente
 de source, parse e frontend. O target bootstrap `w` reutiliza o mesmo núcleo
 privado. O driver não resolve package ou workspace.
 
+CHK3 também fornece evidência interna caller-owned para origins e edges. O
+scanner preserva spans exatos de `module` e imports diretos; o frontend separa
+`logical_source_id`, `module_id` completo e `local_module_name`. Em modo de
+resolution completa, cada import recebe exatamente um edge local ou external
+fornecido pelo resolver, e lookup, receipt e output usam esse target exato.
+Header não substitui a identidade completa, e o adapter D0 recebe o índice de
+documento esperado. Isso não implementa provider, owner discovery, loader de
+filesystem, package/workspace, reexport/service-import ou multi-file `w check`.
+
 O [gate da Última Luz](reference/last-light/BUILD.md) separa parser,
 checker, HIR, lowering, runtime, toolchain e provider. Não use um comando
 planejado como evidência de que uma camada existe.
@@ -376,7 +385,9 @@ import std.io
 
 O exemplo é oracle-backed e não uma promessa de execução. O bootstrap
 `w check` ainda é fechado no perfil `closed-single-source`; provider real,
-owner detection e loader completo do graph continuam gaps.
+owner detection, loader completo do graph e resolução pública continuam gaps.
+O frontend seed CHK3 aceita somente edges explícitos caller-owned; não faz
+discovery pelo raw import path.
 
 ## Declarações, tipos e contratos
 

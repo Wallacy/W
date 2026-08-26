@@ -58,13 +58,15 @@ w_seed_diagnostic_status w_seed_diagnostic_parse_record(
     w_seed_diagnostic_result *result);
 
 /* Map only the complete W-SEM-0001 frontend diagnostic to the D0
- * semantic.type record. The source view is authoritative for primary-span
- * order, range, and UTF-8 code-point boundaries. This bounded adapter accepts
- * only document index zero. Other frontend diagnostics or document identities
- * return UNSUPPORTED and never produce a partial record. */
+ * semantic.type record. The caller supplies the document identity expected for
+ * the source view. The source view is authoritative for primary-span order,
+ * range, and UTF-8 code-point boundaries. Other frontend diagnostics or a
+ * document/source mismatch return UNSUPPORTED and never produce a partial
+ * record. */
 w_seed_diagnostic_status w_seed_diagnostic_frontend_record(
     const char *instance, size_t instance_length, const char *source_id,
     size_t source_id_length, const w_seed_source *source,
+    size_t expected_document_index,
     const w_seed_frontend_diagnostic *diagnostic, uint8_t *output,
     size_t output_capacity, w_seed_diagnostic_result *result);
 

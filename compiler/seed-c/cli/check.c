@@ -97,6 +97,7 @@ static w_seed_frontend_enum_membership_case
 static w_seed_frontend_symbol symbols[CHECK_SYMBOLS];
 static w_seed_frontend_fact facts[CHECK_FACTS];
 static w_seed_frontend_diagnostic diagnostics[CHECK_DIAGNOSTICS];
+static w_seed_module_origin module_origins[CHECK_IMPORTS];
 static uint8_t receipt[CHECK_RECEIPT];
 static uint8_t d0_output[CHECK_D0_OUTPUT_CAPACITY];
 
@@ -215,6 +216,23 @@ static void report_failure(const char *path, const char *reason) {
   }
 }
 
+static bool local_module_name_from_path(const char *path, size_t path_length,
+                                        w_seed_frontend_text *name) {
+  if (path == NULL || name == NULL || path_length == 0u) return false;
+  size_t end = path_length;
+  if (end >= 2u && path[end - 2u] == '.' && path[end - 1u] == 'w') {
+    end -= 2u;
+  }
+  size_t start = end;
+  while (start > 0u && path[start - 1u] != '/' &&
+         path[start - 1u] != '\\') {
+    start -= 1u;
+  }
+  if (start == end) return false;
+  *name = (w_seed_frontend_text){path + start, end - start};
+  return true;
+}
+
 static int emit_json_diagnostics(const char *path, const w_seed_source *source,
                                  size_t count) {
   size_t total = 0u;
@@ -227,7 +245,7 @@ static int emit_json_diagnostics(const char *path, const w_seed_source *source,
     const w_seed_diagnostic_status status =
         w_seed_diagnostic_frontend_record(
             instance, sizeof(instance) - 1u, path, strlen(path), source,
-            &diagnostics[index], NULL, 0u, &measured);
+            0u, &diagnostics[index], NULL, 0u, &measured);
     if (status != W_SEED_DIAGNOSTIC_CAPACITY ||
         measured.required_bytes > CHECK_D0_OUTPUT_CAPACITY - total ||
         CHECK_D0_OUTPUT_CAPACITY - total - measured.required_bytes < 1u) {
@@ -245,7 +263,7 @@ static int emit_json_diagnostics(const char *path, const w_seed_source *source,
     const w_seed_diagnostic_status status =
         w_seed_diagnostic_frontend_record(
             instance, sizeof(instance) - 1u, path, strlen(path), source,
-            &diagnostics[index], d0_output + offset,
+            0u, &diagnostics[index], d0_output + offset,
             CHECK_D0_OUTPUT_CAPACITY - offset, &emitted);
     if (status != W_SEED_DIAGNOSTIC_OK || emitted.written_bytes == 0u ||
         emitted.written_bytes + 1u > CHECK_D0_OUTPUT_CAPACITY - offset) {
@@ -302,10 +320,36 @@ int w_seed_check_run(const char *path, bool json) {
     }
   }
 
+  w_seed_module_scan_result module_scan;
+  if (w_seed_module_scan(&source, nodes, parse.node_count, &parse,
+                         module_origins, CHECK_IMPORTS, &module_scan) !=
+      W_SEED_MODULE_SCAN_OK) {
+    report_failure(path, "module origin scan failed");
+    return 2;
+  }
+
   const size_t path_length = strlen(path);
+  w_seed_frontend_text local_module_name;
+  if (module_scan.has_module_header_name) {
+    const w_seed_span header = module_scan.module_header_name_span;
+    local_module_name = (w_seed_frontend_text){
+        (const char *)source.bytes.data + header.start_byte,
+        header.end_byte - header.start_byte,
+    };
+  } else if (!local_module_name_from_path(path, path_length,
+                                          &local_module_name)) {
+    report_failure(path, "logical module name is empty");
+    return 2;
+  }
   const w_seed_frontend_document document = {
-      {path, path_length}, {path, path_length}, &source, nodes,
-      parse.node_count, parse};
+      .logical_source_id = {path, path_length},
+      .module_id = {path, path_length},
+      .local_module_name = local_module_name,
+      .source = &source,
+      .nodes = nodes,
+      .node_count = parse.node_count,
+      .parse = parse,
+  };
   const w_seed_frontend_input input = {
       .documents = &document,
       .document_count = 1u,
@@ -397,7 +441,7 @@ int w_seed_check_run(const char *path, bool json) {
     if (written != 7 ||
         w_seed_diagnostic_frontend_record(
             instance, sizeof(instance) - 1u, path, path_length, &source,
-            &diagnostics[index], NULL, 0u, &measured) !=
+            0u, &diagnostics[index], NULL, 0u, &measured) !=
             W_SEED_DIAGNOSTIC_CAPACITY) {
       report_failure(path, "frontend diagnostic is outside the bounded D0 mapping");
       return 2;

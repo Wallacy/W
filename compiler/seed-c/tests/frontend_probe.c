@@ -98,6 +98,8 @@ static w_seed_frontend_enum_membership_case
 static w_seed_frontend_symbol symbols[PROBE_SYMBOLS];
 static w_seed_frontend_fact facts[PROBE_FACTS];
 static w_seed_frontend_diagnostic diagnostics[PROBE_DIAGNOSTICS];
+static w_seed_frontend_resolved_import resolved_imports[PROBE_IMPORTS];
+static w_seed_module_origin module_origins[PROBE_IMPORTS];
 static uint8_t receipt[PROBE_RECEIPT];
 static const w_seed_frontend_external_parameter probe_external_parameters[] = {
     {.name = {"value", 5},
@@ -176,13 +178,58 @@ int main(void) {
   }
   w_seed_parse_result parse;
   if (!w_seed_parser_parse(&parser, &parse)) return 2;
+  w_seed_module_scan_result scan_result;
+  bool module_scan_complete = false;
+  w_seed_frontend_text local_module_name = {"probe", 5};
+  if (parse.status == W_SEED_PARSE_COMPLETE && parse.issue_count == 0u) {
+    if (w_seed_module_scan(&source, nodes, parse.node_count, &parse,
+                           module_origins, PROBE_IMPORTS, &scan_result) !=
+        W_SEED_MODULE_SCAN_OK) {
+      return 2;
+    }
+    module_scan_complete = true;
+    if (scan_result.has_module_header_name) {
+      const w_seed_span header = scan_result.module_header_name_span;
+      local_module_name.data = (const char *)input_bytes + header.start_byte;
+      local_module_name.length = header.end_byte - header.start_byte;
+    }
+  }
+  size_t resolved_import_count = 0u;
+  if (external_witness) {
+    if (!module_scan_complete) return 2;
+    for (size_t index = 0u; index < scan_result.written; index += 1u) {
+      const w_seed_span path = module_origins[index].module_path_span;
+      const size_t path_length = path.end_byte - path.start_byte;
+      if (path_length != 6u ||
+          memcmp(input_bytes + path.start_byte, "extdep", 6u) != 0) {
+        return 2;
+      }
+      resolved_imports[index] = (w_seed_frontend_resolved_import){
+          .source_document_index = 0u,
+          .direct_import_ordinal = module_origins[index].direct_import_ordinal,
+          .import_declaration_span = module_origins[index].declaration_span,
+          .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE,
+          .target_index = 0u};
+    }
+    resolved_import_count = scan_result.written;
+  }
   const w_seed_frontend_document document = {
-      {"probe", 5}, {"probe", 5}, &source, nodes, parse.node_count, parse};
+      .logical_source_id = {"probe", 5},
+      .module_id = {"probe", 5},
+      .local_module_name = local_module_name,
+      .source = &source,
+      .nodes = nodes,
+      .node_count = parse.node_count,
+      .parse = parse,
+  };
   const w_seed_frontend_input input = {
       .documents = &document,
       .document_count = 1,
       .external_modules = external_witness ? probe_external_modules : NULL,
       .external_module_count = external_witness ? 1u : 0u,
+      .import_resolution_complete = external_witness,
+      .resolved_imports = external_witness ? resolved_imports : NULL,
+      .resolved_import_count = resolved_import_count,
   };
   w_seed_frontend_output output = {
       .modules = modules,

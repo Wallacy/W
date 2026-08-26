@@ -143,9 +143,20 @@ int main(void) {
   w_seed_parse_result parse;
   if (!w_seed_parser_parse(&parser, &parse)) return 2;
   const w_seed_frontend_document document = {
-      {"constir-probe", 14}, {"constir-probe", 14}, &source, nodes,
-      parse.node_count, parse};
-  const w_seed_frontend_input frontend_input = {&document, 1u, NULL, 0u};
+      .logical_source_id = {"constir-probe", 14},
+      .module_id = {"constir-probe", 14},
+      .local_module_name = {"constir-probe", 14},
+      .source = &source,
+      .nodes = nodes,
+      .node_count = parse.node_count,
+      .parse = parse,
+  };
+  const w_seed_frontend_input frontend_input = {
+      .documents = &document,
+      .document_count = 1u,
+      .external_modules = NULL,
+      .external_module_count = 0u,
+  };
   w_seed_frontend_output frontend_output = {
       .modules = modules,
       .module_capacity = FRONTEND_MODULES,
