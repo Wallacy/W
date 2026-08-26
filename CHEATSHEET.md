@@ -795,6 +795,7 @@ Destrutor detached e errdefer ficam fora da forma corrente.
 
 Contrato: [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução).
 Consulte [execution.w](reference/last-light/execution.w),
+[task_settlement.w](reference/last-light/task_settlement.w),
 [streams.w](reference/last-light/streams.w) e
 [synchronization.w](reference/last-light/synchronization.w).
 
@@ -841,6 +842,33 @@ oracle-backed-current / provider missing; veja
 [execution.w](reference/last-light/execution.w). A regra é estrutural:
 children pertencem ao parent, joins são observáveis e cancellation atravessa os
 pontos definidos pelo contrato.
+
+`Task.firstSettled` faz uma escolha one-shot por completion order. Ele consome
+handles já criados e não escolhe um domain:
+
+```w excerpt
+// excerpt-source: reference/last-light/task_settlement.w::export async fn firstMenuMirror
+export async fn firstMenuMirror(
+  primaryRequest: take MenuMirrorRequest,
+  fallbackRequest: take MenuMirrorRequest,
+): TaskSettlement<MirroredMenu, MenuMirrorError> {
+  let primary = async readMenuMirror(take primaryRequest)
+  let fallback = spawn<.network> readMenuMirror(take fallbackRequest)
+  let settlement = await Task.firstSettled(take [primary, fallback])
+
+  return switch take settlement {
+    case .some(let winner): take winner
+    case .none: panic("two menu mirrors cannot form an empty selection")
+  }
+}
+```
+
+O retorno é `TaskSettlement<Value, Failure>?`, com `index` e `outcome`. Array
+vazio devolve `none`. O winner pode ser success, application error ou child
+cancellation. A operação cancela e drena todos os losers antes de devolver.
+Parent cancellation observada antes da publicação suprime o settlement, drena
+todos e continua control outcome. Effects já committed não sofrem rollback. Não
+há statement `select`, first-success implícito ou task escondida.
 
 ### Pipeline de service e promise pipelining
 
@@ -1666,6 +1694,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Preservar ordem de call labels | Ordem de declaration: `Money(majorUnits: 42, currency: .cr)` (Forma vigente) | Defaults e overloads criam sequências ordenadas distintas | Labels unordered ou reordered (Rejeitado por enquanto) | A ordem torna resolver e diagnostics determinísticos; labels custam source, mas evitam ranking e effects ocultos | [DESIGN.md §7.2.2](DESIGN.md#722-overloads-por-forma-de-call) · [billing.w](reference/last-light/billing.w) |
 | Escolher ownership de callable | `fn`, `some fn`, `any fn`, `mut fn` e `take fn` separados (Forma vigente) | Capture `<[copy ...]>`, `<[ref ...]>`, `<[take ...]>` ou `<[weak ...]>`; erase só quando pedido | `fn` unificado que apaga modo e custo (Rejeitado por enquanto) | Modos mantêm ownership, mutação, erasure e allocation observáveis; a separação aumenta a assinatura e reduz inferência oculta | [DESIGN.md §7.5](DESIGN.md#75-valores-callable-e-closures) · [callables.w](reference/last-light/callables.w) |
 | Esperar siblings com fail-fast | Tuple `try await (left, right)` em join lexical (Forma vigente) | `try await left` e depois `try await right` (Forma vigente, mas não equivalente) | Gather detached, fire-and-forget ou task sem owner (Rejeitado) | Tuple cancela siblings no primeiro erro settled e drena cleanup; awaits sequenciais mudam observação, timing e cancel; escolha altera effects e custo | [DESIGN.md §12.4](DESIGN.md#124-join-erro-e-outcome) · [execution.w](reference/last-light/execution.w) |
+| Escolher primeiro settlement | `await Task.firstSettled(take tasks)` com `TaskSettlement?` (Forma vigente) | Tuple join ou `Task.withTimeout` quando a intenção é fail-fast ou timeout | `select` statement, first-success implícito, drop de future ou retorno antes do drain (Rejeitado) | Completion order vira resultado; losers cancelam e drenam, mas effects committed permanecem | [DESIGN.md §12.4.1](DESIGN.md#1241-first-settled-estruturado) · [task_settlement.w](reference/last-light/task_settlement.w) |
 | Encerrar receiver consuming | `(take cursor).finish()` explicita a transferência antes do lookup (Forma vigente) | `take fn finish()` declara o member consuming e torna o contrato visível | `cursor.finish()` com inferência de receiver (Rejeitado; `W-OWNERSHIP-0011`) | O prefixo preserva a fronteira de ownership e o erro de uso; inferência esconderia move, cleanup e indisponibilidade posterior | [DESIGN.md §7.3](DESIGN.md#73-parâmetros-e-ownership) · [command.w](reference/last-light/command.w) · [state_transitions.w](reference/last-light/state_transitions.w) |
 | Encadear envelopes de contrato | `StaticList<ServiceStage><(isValidStagePath(.member))>` sequencial (Forma vigente) | Typestate `StagePath` e transitions fechadas no mesmo domínio | `StaticList<[ServiceStage, (isValidStagePath(.member))]>` fused (`W-CONTRACT-0002`, Rejeitado) | Envelopes sequenciais preservam o kind de cada slot e a ordem de validação; fused economizaria tokens, mas perde schema e diagnóstico | [DESIGN.md §3.5.4](DESIGN.md#354-grammar-normativa-g2-tipos-e-contratos-angulares) · [domain.w](reference/last-light/domain.w) · [state_transitions.w](reference/last-light/state_transitions.w) |
 

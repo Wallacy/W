@@ -1,0 +1,41 @@
+{
+  "$schema": "w-fst0-first-settled-task-study-1",
+  "id": "FST0",
+  "decision": "W-1481",
+  "status": "complete-design-study",
+  "title": "First-settled selection of existing structured tasks",
+  "question": "Can W expose one-shot completion-order selection without hidden tasks, future drop, implicit placement, or early return before loser drain?",
+  "data": "cases.json",
+  "oracle": "oracle.mjs",
+  "checker": "check.mjs",
+  "evidenceBoundary": {
+    "current": ["source contract", "Last Light witness", "host oracle", "adversarial routes"],
+    "missing": ["semantic checker", "task runtime", "cross-domain wake", "provider conformance", "fault tests", "performance evidence", "human study", "model study"],
+    "hostOnly": true,
+    "apiPromotion": true,
+    "researchClosed": true
+  },
+  "sources": [
+    {
+      "url": "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0304-structured-concurrency.md",
+      "accessed": "2026-08-25",
+      "scope": "task-group completion order, cooperative cancellation, scope-bounded child lifetime, and mandatory join"
+    },
+    {
+      "url": "https://docs.rs/tokio/latest/tokio/macro.select.html",
+      "accessed": "2026-08-25",
+      "scope": "first-ready selection, fairness choices, and cancellation-safety hazards when losing futures are dropped"
+    },
+    {
+      "url": "https://go.dev/ref/spec#Select_statements",
+      "accessed": "2026-08-25",
+      "scope": "statement-level communication selection, eager operand evaluation, default branch, and pseudo-random ready-case choice"
+    },
+    {
+      "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.selects/select.html",
+      "accessed": "2026-08-25",
+      "scope": "clause-biased select as an alternative fairness and syntax model"
+    }
+  ],
+  "stopCondition": "Stop when the selected form names ownership, winner order, empty input, child outcomes, parent cancellation, loser cancellation, drain, committed effects, and rejected select/first-success semantics without adding syntax."
+}

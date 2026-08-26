@@ -7354,6 +7354,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1478 | aplicação fechada e hook pós-borrow de behavior | behavior aceita zero ou um input, exatamente `initialValue: fn(): Value`; cada parâmetro generic deve ser inferido unicamente pelo tipo lógico depois de `for`; a aplicação usa somente o nome nominal, sem argumentos, generic arguments, composição ou backing access. `modify` pode usar `defer` uma vez após o borrow e observa mutation admission, inclusive término com error, sem copiar `oldValue`. Policy estática pertence ao tipo; dependência runtime usa owner, método, service ou channel nomeado | current design contract em DESIGN §10 e witness `Versioned` no Última Luz; parser aceita a declaration existente, mas checker/HIR, diagnostics e execução do lifecycle continuam implementation-evidence gaps. Swift SE-0258 foi verificado como alternativa de argumentos, backing e projection em 2026-08-25 |
 | W-1479 | projeção nominal borrowed de aggregate | Uma API que suprime properties declara um aggregate nominal lifetime-dependent: `ref Field` para place completo, `view Carrier` para extent verificável e valor owned para snapshot/cópia; constructor ou método nomeado escolhe fields e o HIR preserva origins por field. Protocol menor limita methods, aggregate borrowed expõe dados sem copiar e DTO owned permite escape. `view Object`, `view Nominal`, field mask, derivação estrutural, `Viewable` universal e recuperação de authority omitida ficam fora | current design contract em DESIGN §16.2 e witness `PublicCourse` em `views.w`; parser de aggregates e borrows existe como seed, mas checker de origins por field, diagnostics e execução do borrow continuam implementation-evidence gaps |
 | W-1480 | direções de service stream sem Channel implícito | Service operation usa o mesmo carrier em posições diretas: `take some Stream<Item, Failure>` no parâmetro forma client-streaming, `some Stream<Item, Failure>` no resultado forma server-streaming, ambos formam bidirectional e nenhum forma unary; input transfere o readable owner, output permanece opaque, items são owned/transferable/WireValue, Failure admite ServiceFailure e cada edge preserva créditos, ordem, terminal, cancellation e drain. Channel.receive pode fornecer input após Channel.open com capacity explícita. Stream nested, input sem take, item borrowed/non-wire, any Stream publicado, stream fn, Channel/capacity implícito e open sem await ficam fora; W-1480 substitui somente a rejeição client/bidi de W-1452 | current design contract em DESIGN §23.1.5, estudo host SVC0 e witness `service_streaming.w`; semantic checker, ServiceIR lowering, runtime pumps, providers, cross-route faults, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de gRPC, WebAssembly Component Model e Cloudflare RPC foram verificadas em 2026-08-25 |
+| W-1481 | first-settled de tasks estruturadas | `Task.firstSettled` consome `Array<Task<Value, Failure>>` já criada, não cria child nem escolhe domain e devolve `TaskSettlement<Value, Failure>?` com index e `TaskOutcome`; vazio devolve none; o arm registra todos os handles, candidates já settled usam menor index e o primeiro settlement posterior usa completion order sem desempate por índice; winner fica fixo, losers recebem cancellation e a call aguarda body/cleanup/outcome/drop antes de publicar; parent cancellation observada antes da publicação suprime o settlement, drena todos e permanece control outcome; effects committed não sofrem rollback. Handles heterogêneos/duplicados, statement select, branch/default/fairness implícitos, first-success, future drop e multiplexing persistente ficam fora | current design contract em DESIGN §12.4.1, estudo host FST0, `TaskSettlement` em std.runtime e witness `task_settlement.w`; semantic checker, runtime wake/CAS, provider conformance, cross-domain fault/liveness tests, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de Swift structured concurrency, Tokio select, Go select e Kotlin select foram verificadas em 2026-08-25 |
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
@@ -7600,6 +7601,34 @@ mantém o sender e transfere o receiver, que já atende a `Stream`. Assim, human
 veem `take`, `await` e a direção na assinatura; compiler e runtime obtêm uma
 edge canônica com owner, failure, créditos e drain, sem inferir buffer ou
 transport.
+
+W-1481 fecha outra frase sem contrato. A seção de join dizia que APIs `race`
+aceitavam completion order, mas não definia input, vazio, outcome, winner,
+cancellation ou drain. `Task.firstSettled` nomeia a semântica e trabalha sobre
+handles existentes. Assim, `async` e `spawn<domain>` continuam os únicos pontos
+que criam child e escolhem placement.
+
+O [Swift structured concurrency](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0304-structured-concurrency.md)
+mostra completion-order em task groups e exige que children terminem antes do
+scope sair. O [Tokio `select!`](https://docs.rs/tokio/latest/tokio/macro.select.html)
+mostra o risco de descartar futures perdedores e depender da cancellation safety
+de cada operação. O [Go `select`](https://go.dev/ref/spec#Select_statements)
+avalia operands antes da escolha e usa seleção pseudoaleatória entre cases
+prontos. O [Kotlin `select`](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.selects/select.html)
+usa prioridade por ordem de clause. W não escolhe uma dessas policies ocultas.
+
+No Restaurante, os mirrors são tasks explícitas e homogêneas. O index identifica
+o mirror, enquanto `TaskOutcome` preserva success, application error e child
+cancellation. A call só publica depois do drain. Uma leitura ou request já
+committed pelo loser continua real; effect ID ou deduplication pertence à
+operação quando hedging causa efeitos externos.
+
+A fronteira de publicação também fecha a corrida com cancellation do parent.
+Cancellation observada até essa fronteira suprime o settlement e só se propaga
+depois do drain. Depois da publicação, ela pertence à continuação do caller. O
+índice desempata somente candidates que já estavam settled no arm; commits
+posteriores chegam ao runtime em uma ordem linearizada e não recebem uma segunda
+policy lexical.
 
 W-1473 fecha uma fronteira de performance, não uma API. File mapping,
 anonymous virtual memory e device memory possuem owners, permissions,

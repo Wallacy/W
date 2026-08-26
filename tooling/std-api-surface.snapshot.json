@@ -1,15 +1,15 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "3bd4fda16718029a744cb8ff5571c7a09b14ebefa92d2b097a217d4ee0536510",
+  "catalogDigest": "688d4ab7a2e8808d85d4490902fe08332545142cd95c9b257b77df5aae76ac61",
   "summary": {
     "modules": 32,
-    "catalogedApis": 434,
-    "draftCatalogedApis": 434,
+    "catalogedApis": 435,
+    "draftCatalogedApis": 435,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 90,
-    "referenceRequirements": 33,
-    "contractedReferenceRequirements": 33,
+    "referenceRequirements": 34,
+    "contractedReferenceRequirements": 34,
     "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 0,
@@ -7414,7 +7414,7 @@
           "shareable-binding"
         ]
       },
-      "catalogedDeclarationsDigest": "54899b76cd34119a14ec5e86e608b51a8571d6cedfe2b123a807233f8f3ad436",
+      "catalogedDeclarationsDigest": "047a136264ac52f6c7c785e14324b389c888e4220fdd14e9303c48fdc6bc5f60",
       "apis": [
         {
           "symbol": "CancellationReason",
@@ -7439,7 +7439,7 @@
           "kind": "struct",
           "signature": "export struct TaskLocal<Value>",
           "declarationDigest": "3365109c82e8efc0c416464046674d5ab494579945164bd8fdd289d2c3174bf4",
-          "line": 47,
+          "line": 55,
           "profile": "task-local-descriptor",
           "members": [
             {
@@ -7447,7 +7447,7 @@
               "overloads": [
                 {
                   "signature": "export static const fn key( default: Value<(.shareable)>, ): TaskLocal<Value>",
-                  "line": 54
+                  "line": 62
                 }
               ],
               "profile": "task-local-descriptor"
@@ -7457,7 +7457,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(): ref Value",
-                  "line": 61
+                  "line": 69
                 }
               ],
               "profile": "task-local-read"
@@ -7467,7 +7467,7 @@
               "overloads": [
                 {
                   "signature": "export fn withValue<Result, Failure: Error>( _ value: Value<(.shareable)>, named operation: some fn(): Result throws Failure, ): Result throws Failure",
-                  "line": 67
+                  "line": 75
                 }
               ],
               "profile": "task-local-scope"
@@ -7485,11 +7485,20 @@
           "status": "draft"
         },
         {
+          "symbol": "TaskSettlement",
+          "kind": "struct",
+          "signature": "export struct TaskSettlement<Value, Failure: Error>",
+          "declarationDigest": "fe32af03fb04a999ec4d416f842f2f62c9923997812dd7d69c0e059e263e345d",
+          "line": 27,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
           "symbol": "TaskTimeout",
           "kind": "alias",
           "signature": "export alias TaskTimeout = Duration<(0...)>",
           "declarationDigest": "8897786340b1e7b793a52be96359d2f1072209c811ff2d6bb513092dfa8c9cb7",
-          "line": 24,
+          "line": 32,
           "profile": "value-contract",
           "status": "draft"
         }
@@ -10125,6 +10134,14 @@
       "status": "draft",
       "profile": "fs-root",
       "consumer": "reference/last-light/fs_oracle.w"
+    },
+    {
+      "id": "fst0-task-settlement",
+      "module": "std.runtime.task",
+      "surface": "TaskSettlement",
+      "status": "draft",
+      "profile": "value-contract",
+      "consumer": "reference/last-light/task_settlement.w"
     },
     {
       "id": "ioe0-portable-error",

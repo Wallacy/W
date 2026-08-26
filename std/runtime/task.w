@@ -21,6 +21,14 @@ export enum TaskOutcome<Value, Failure: Error> {
   canceled(Cancellation)
 }
 
+// Task.firstSettled returns this value only after every losing child drains.
+// The index refers to the consumed input array. The outcome keeps application
+// failure separate from structured cancellation.
+export struct TaskSettlement<Value, Failure: Error> {
+  export index: usize
+  export outcome: TaskOutcome<Value, Failure>
+}
+
 export alias TaskTimeout = Duration<(0...)>
 
 // TaskLocal is an immutable binding descriptor. The runtime stores bindings in
@@ -94,6 +102,20 @@ test "task outcome keeps cancellation outside the application error" {
   let outcome: TaskOutcome<u8, Never> = .success(42)
 
   expect switch outcome {
+    case .success(let value): value == 42
+    case .error(_): false
+    case .canceled(_): false
+  }
+}
+
+test "task settlement preserves candidate position and outcome" {
+  let settlement: TaskSettlement<u8, Never> = TaskSettlement(
+    index: 1,
+    outcome: .success(42),
+  )
+
+  expect settlement.index == 1
+  expect switch settlement.outcome {
     case .success(let value): value == 42
     case .error(_): false
     case .canceled(_): false
