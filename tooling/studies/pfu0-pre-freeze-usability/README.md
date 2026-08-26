@@ -35,6 +35,11 @@ the call remains `try await` for admission/open and consumption remains
 The study is host-only. It does not provide compiler, runtime, provider,
 human-study, or model-study evidence.
 
+This is a historical closure record. W-1480 later supersedes only the PFU0
+rejection of client-streaming and bidirectional-streaming. It preserves the
+rejection of `stream fn`, implicit Channel/capacity, and collapsed failure
+phases. SVC0 is the current directional-stream study.
+
 `bundle.json.inputs[].expected` is R1 rubric metadata. It is hidden by the
 bundle blinding policy and is not shown to participants. The no-echo rule
 applies to the PFU0 corpus and machine: `expected` or `result` is not accepted

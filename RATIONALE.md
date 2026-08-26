@@ -5722,6 +5722,11 @@ property. O manifest candidate é aceito como current-control; os candidates de
 `stream fn` e `willSet`/`didSet` são rejected-route. A evidência não afirma
 compiler/runtime/provider e fecha Research somente no escopo W-1451–W-1453.
 
+W-1480 substitui posteriormente somente a rejeição PFU0 de client-stream e
+bidirectional-stream. A rejeição de `stream fn`, Channel implícito, capacity
+implícita e colapso das fases de failure continua vigente. SVC0 é a autoridade
+de estudo para as quatro direções atuais.
+
 Artefatos canônicos: `tooling/pfu0-pre-freeze-usability-cases.json`,
 `tooling/pfu0-pre-freeze-usability-machine.mjs`,
 `tooling/check-pfu0-pre-freeze-usability.mjs` e
@@ -7348,6 +7353,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1477 | scatter read e transferência posicional | `io.ReadBatch` é owner move-only de segments com capacity fixa e initialized counts privados; `io.readMany` preenche a concatenação em ordem e retorna `data`, `end` ou `full`, com fallback de uma leitura. `io.TransferPlan` possui intervalo, progresso e scratch reservado; `io.transfer` liga `SnapshotByteSource` a `ByteSink`, diferencia source end de limit, preserva sufixo não committed e pode selecionar operação nativa somente por capability interna. `IoSliceMut`, `inout view Bytes...`, probe `isVectored`, syscall pública e promessa universal de zero-copy ficam fora | current design contract em DESIGN §14.2.11, std.io draft e Última Luz; compiler/runtime, provider SPI, cross-target fault tests, receipts de estratégia e benchmarks continuam implementation-evidence gaps. Fontes primárias de `readv`, `WSARecv`, `sendfile`, `TransmitFile` e Rust vectored I/O foram verificadas em 2026-08-25 |
 | W-1478 | aplicação fechada e hook pós-borrow de behavior | behavior aceita zero ou um input, exatamente `initialValue: fn(): Value`; cada parâmetro generic deve ser inferido unicamente pelo tipo lógico depois de `for`; a aplicação usa somente o nome nominal, sem argumentos, generic arguments, composição ou backing access. `modify` pode usar `defer` uma vez após o borrow e observa mutation admission, inclusive término com error, sem copiar `oldValue`. Policy estática pertence ao tipo; dependência runtime usa owner, método, service ou channel nomeado | current design contract em DESIGN §10 e witness `Versioned` no Última Luz; parser aceita a declaration existente, mas checker/HIR, diagnostics e execução do lifecycle continuam implementation-evidence gaps. Swift SE-0258 foi verificado como alternativa de argumentos, backing e projection em 2026-08-25 |
 | W-1479 | projeção nominal borrowed de aggregate | Uma API que suprime properties declara um aggregate nominal lifetime-dependent: `ref Field` para place completo, `view Carrier` para extent verificável e valor owned para snapshot/cópia; constructor ou método nomeado escolhe fields e o HIR preserva origins por field. Protocol menor limita methods, aggregate borrowed expõe dados sem copiar e DTO owned permite escape. `view Object`, `view Nominal`, field mask, derivação estrutural, `Viewable` universal e recuperação de authority omitida ficam fora | current design contract em DESIGN §16.2 e witness `PublicCourse` em `views.w`; parser de aggregates e borrows existe como seed, mas checker de origins por field, diagnostics e execução do borrow continuam implementation-evidence gaps |
+| W-1480 | direções de service stream sem Channel implícito | Service operation usa o mesmo carrier em posições diretas: `take some Stream<Item, Failure>` no parâmetro forma client-streaming, `some Stream<Item, Failure>` no resultado forma server-streaming, ambos formam bidirectional e nenhum forma unary; input transfere o readable owner, output permanece opaque, items são owned/transferable/WireValue, Failure admite ServiceFailure e cada edge preserva créditos, ordem, terminal, cancellation e drain. Channel.receive pode fornecer input após Channel.open com capacity explícita. Stream nested, input sem take, item borrowed/non-wire, any Stream publicado, stream fn, Channel/capacity implícito e open sem await ficam fora; W-1480 substitui somente a rejeição client/bidi de W-1452 | current design contract em DESIGN §23.1.5, estudo host SVC0 e witness `service_streaming.w`; semantic checker, ServiceIR lowering, runtime pumps, providers, cross-route faults, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de gRPC, WebAssembly Component Model e Cloudflare RPC foram verificadas em 2026-08-25 |
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
@@ -7570,6 +7576,30 @@ mutation incompatível e não mantêm o owner vivo. Um protocol menor continua a
 forma para reduzir methods; um DTO owned continua a forma para obter snapshot e
 escape. Uma derivação universal seria curta, mas teria de inventar descriptor,
 origins e regras de authority para qualquer layout nominal.
+
+W-1480 resolve uma contradição interna encontrada pela leitura adversarial. A
+introdução de 23.1.5 rejeitava input e bidirectional streams, mas o lifecycle
+normativo já definia input pump e duas direções, o pipeline já movia um feed
+para `archive.ingest`, e o corpus de performance já exigia client, server e
+bidirectional streaming. SVC0 preserva essa semântica com uma superfície menor:
+posição de parâmetro ou resultado decide a direção do mesmo `Stream`.
+
+O modelo é familiar sem copiar a taxonomia RPC para o core. A documentação
+oficial do [gRPC](https://grpc.io/docs/what-is-grpc/core-concepts/) confirma as
+quatro topologias e a independência das duas direções. O
+[WebAssembly Component Model](https://github.com/WebAssembly/component-model/blob/main/design/mvp/Concurrency.md)
+modela stream em parâmetro e resultado com ownership único do readable end. A
+[Cloudflare RPC](https://developers.cloudflare.com/workers/runtime-apis/rpc/)
+confirma que transferir streams com flow control deve retirar o uso do sender.
+Essas fontes sustentam o problema e a interoperabilidade, não provam um runtime
+W.
+
+No Restaurante, `summarize` consome sinais incrementais e `exchange` move o
+input para o producer de output. Um caller push usa `Channel.open(capacity:)`,
+mantém o sender e transfere o receiver, que já atende a `Stream`. Assim, humanos
+veem `take`, `await` e a direção na assinatura; compiler e runtime obtêm uma
+edge canônica com owner, failure, créditos e drain, sem inferir buffer ou
+transport.
 
 W-1473 fecha uma fronteira de performance, não uma API. File mapping,
 anonymous virtual memory e device memory possuem owners, permissions,

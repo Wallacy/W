@@ -20,7 +20,7 @@ describe("cheatsheet snippet checker", () => {
     const result = validateCheatsheetText(cheatsheet, { repositoryRoot })
     expect(result.errors).toEqual([])
     expect(result.counts.w).toBe(27)
-    expect(result.counts.source).toBe(6)
+    expect(result.counts.source).toBe(7)
     expect(result.counts.composed).toBe(4)
     expect(result.counts.contrafactual).toBe(1)
     expect(result.counts["manifest-fragment"]).toBe(1)

@@ -950,10 +950,30 @@ No corpus de referência, `TaskGroup` e os initializers `async`/`spawn` mostram 
 lexical de tasks; `Stream` e `Channel` continuam tipos explícitos. O exemplo de
 channel abre capacidade e endpoints explícitos com `Channel<Order>.open(capacity: 1)`,
 envia/recebe, encerra o sender por drop e fecha ou drena o receiver conforme o
-contrato. A API de service mantém o retorno
-explícito `some Stream<Item, Failure>`; não há `stream fn` aceita. Não há um
-snippet source-backed separado para esse retorno de service, portanto esta
-nota não cria sintaxe nova.
+contrato.
+
+Service streaming usa o mesmo `Stream`, com direção definida pela posição:
+
+```w excerpt
+// excerpt-source: reference/last-light/service_streaming.w::export protocol MenuExchangeApi
+export protocol MenuExchangeApi {
+  async fn summarize(
+    signals: take some Stream<MenuSignal, MenuStreamError>,
+  ): MenuSignalSummary throws MenuStreamError
+
+  async fn exchange(
+    signals: take some Stream<MenuSignal, MenuStreamError>,
+  ): some Stream<MenuSignal, MenuStreamError>
+}
+```
+
+`take some Stream` em parâmetro é client-streaming. `some Stream` no resultado
+é server-streaming. As duas posições juntas são bidirectional. A call ainda usa
+`try await` para admission/open, e cada stream mantém terminal, backpressure e
+drain próprios. `Channel<T><.receive>` atende a `Stream<T, Never>`; portanto um
+producer push pode abrir um channel com capacity explícita e transferir somente
+o receiver. A service não cria Channel, fila ou capacity implicitamente. Não há
+`stream fn`, `RpcStream` ou `any Stream` em interface publicada.
 
 ## Shared, weak, lazy, atomic, locks e SnapshotCell
 
@@ -1092,6 +1112,7 @@ deduplication pertencem ao contrato de recovery. Eles não significam que um
 process supervisor ou rede esteja funcionando neste checkout.
 
 Fontes de leitura: [service_oracle.w](reference/last-light/service_oracle.w),
+[service_streaming.w](reference/last-light/service_streaming.w),
 [service_recovery_oracle.w](reference/last-light/service_recovery_oracle.w),
 [supervision.w](reference/last-light/supervision.w) e
 [workflow.w](reference/last-light/workflow.w).
@@ -1106,6 +1127,21 @@ Fontes de leitura: [service_oracle.w](reference/last-light/service_oracle.w),
 | ServiceFailure | Falha tipada com causa e policy de retry explícitas. |
 | effectId | Identidade para deduplicação; não autoriza repetir efeitos arbitrários. |
 | Supervisor | Policy declarativa de restart, backoff e limite. |
+
+### Direções de service stream
+
+| Forma da operation | Direção |
+| --- | --- |
+| sem `Stream` | unary |
+| resultado `some Stream<Item, Failure>` | server-streaming |
+| parâmetro `take some Stream<Item, Failure>` | client-streaming |
+| parâmetro e resultado | bidirectional |
+
+Items são owned, transferable e `WireValue`. `Failure` inclui
+`ServiceFailure`. Stream nested em outro carrier, item borrowed, input sem
+`take`, Channel implícito e abertura sem `await` são errors. Retorno antecipado,
+failure e cancellation resetam e drenam as edges ainda abertas antes de liberar
+owners.
 
 Reentrada livre, retry implícito, detached Promise e transação distribuída
 genérica estão fora da forma vigente nesta baseline. Veja as trocas e a

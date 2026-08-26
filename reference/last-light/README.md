@@ -229,6 +229,7 @@ alvo de execução independente.
 | `http_oracle.w` | constructors, limits, consuming reads, bounded clone, JSON, copied-headers override e net serve signature |
 | `web_bodies.w` | Blob imutável, FormData ordered, upload multipart bounded e Response binária |
 | `service_oracle.w` | seleção de link, camadas de boundary, commit gate, pipeline e evolução de schema |
+| `service_streaming.w` | client, server e bidirectional streaming com um `Stream` explícito por edge |
 | `session_security_oracle.w` | channel, transcript, 0-RTT e replay de session wRPC |
 | `capability_security_oracle.w` | root grants, attenuation, delegation e revocation |
 | `release_oracle.w` | digest, evidência de recipe, threshold de reprodução, mirrors e revogação |
@@ -301,7 +302,7 @@ persistente usam carriers explícitos.
 | texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
-| service links e evolução | `service_oracle.w`, `session_security_oracle.w`, `capability_security_oracle.w`, `remote_stream_oracle.w`, `transaction_oracle.w`, `build.w` | placement, authority, streams, transaction e compatibility mantêm o mesmo contrato |
+| service links e evolução | `service_oracle.w`, `service_streaming.w`, `session_security_oracle.w`, `capability_security_oracle.w`, `remote_stream_oracle.w`, `transaction_oracle.w`, `build.w` | placement, authority, streams, transaction e compatibility mantêm o mesmo contrato |
 | wire portátil | `wire_oracle.w`, `orbit.w`, `kitchen.w` | codec rejeita tempo local, borrows e representações alternativas |
 | supervisão e workflow | `supervision.w`, `workflow.w`, `build.w` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |

@@ -1,0 +1,159 @@
+{
+  "$schema": "w-svc0-service-stream-directions-cases-1",
+  "cases": [
+    {
+      "id": "SVC0-unary-current",
+      "input": null,
+      "output": null,
+      "awaitOpen": true,
+      "implicitChannel": false,
+      "streamFn": false,
+      "nestedStream": false,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-server-stream-current",
+      "input": null,
+      "output": { "direct": true, "opaque": true, "ownedItem": true, "wireItem": true, "boundaryFailure": true },
+      "awaitOpen": true,
+      "implicitChannel": false,
+      "streamFn": false,
+      "nestedStream": false,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-client-stream-current",
+      "input": { "direct": true, "taken": true, "ownedItem": true, "wireItem": true, "boundaryFailure": true },
+      "output": null,
+      "awaitOpen": true,
+      "implicitChannel": false,
+      "streamFn": false,
+      "nestedStream": false,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-bidirectional-current",
+      "input": { "direct": true, "taken": true, "ownedItem": true, "wireItem": true, "boundaryFailure": true },
+      "output": { "direct": true, "opaque": true, "ownedItem": true, "wireItem": true, "boundaryFailure": true },
+      "awaitOpen": true,
+      "implicitChannel": false,
+      "streamFn": false,
+      "nestedStream": false,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-input-not-taken",
+      "input": { "direct": true, "taken": false, "ownedItem": true, "wireItem": true, "boundaryFailure": true },
+      "output": null,
+      "awaitOpen": true,
+      "implicitChannel": false,
+      "streamFn": false,
+      "nestedStream": false,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-borrowed-item",
+      "input": { "direct": true, "taken": true, "ownedItem": false, "wireItem": true, "boundaryFailure": true },
+      "output": null,
+      "awaitOpen": true,
+      "implicitChannel": false,
+      "streamFn": false,
+      "nestedStream": false,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-non-wire-item",
+      "input": null,
+      "output": { "direct": true, "opaque": true, "ownedItem": true, "wireItem": false, "boundaryFailure": true },
+      "awaitOpen": true,
+      "implicitChannel": false,
+      "streamFn": false,
+      "nestedStream": false,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-missing-boundary-failure",
+      "input": { "direct": true, "taken": true, "ownedItem": true, "wireItem": true, "boundaryFailure": false },
+      "output": null,
+      "awaitOpen": true,
+      "implicitChannel": false,
+      "streamFn": false,
+      "nestedStream": false,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-nested-stream",
+      "input": null,
+      "output": { "direct": false, "opaque": true, "ownedItem": true, "wireItem": true, "boundaryFailure": true },
+      "awaitOpen": true,
+      "implicitChannel": false,
+      "streamFn": false,
+      "nestedStream": true,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-published-any-stream",
+      "input": { "direct": true, "taken": true, "ownedItem": true, "wireItem": true, "boundaryFailure": true },
+      "output": null,
+      "awaitOpen": true,
+      "implicitChannel": false,
+      "streamFn": false,
+      "nestedStream": false,
+      "publishedAnyStream": true,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-implicit-channel",
+      "input": { "direct": true, "taken": true, "ownedItem": true, "wireItem": true, "boundaryFailure": true },
+      "output": null,
+      "awaitOpen": true,
+      "implicitChannel": true,
+      "streamFn": false,
+      "nestedStream": false,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-stream-fn",
+      "input": null,
+      "output": { "direct": true, "opaque": true, "ownedItem": true, "wireItem": true, "boundaryFailure": true },
+      "awaitOpen": true,
+      "implicitChannel": false,
+      "streamFn": true,
+      "nestedStream": false,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-open-without-await",
+      "input": null,
+      "output": { "direct": true, "opaque": true, "ownedItem": true, "wireItem": true, "boundaryFailure": true },
+      "awaitOpen": false,
+      "implicitChannel": false,
+      "streamFn": false,
+      "nestedStream": false,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": true
+    },
+    {
+      "id": "SVC0-undrained-early-settlement",
+      "input": { "direct": true, "taken": true, "ownedItem": true, "wireItem": true, "boundaryFailure": true },
+      "output": { "direct": true, "opaque": true, "ownedItem": true, "wireItem": true, "boundaryFailure": true },
+      "awaitOpen": true,
+      "implicitChannel": false,
+      "streamFn": false,
+      "nestedStream": false,
+      "publishedAnyStream": false,
+      "drainsOnSettlement": false
+    }
+  ]
+}
