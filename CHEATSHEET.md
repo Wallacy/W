@@ -997,6 +997,37 @@ guardar fields `ref`/`view` e carregar origins, como `BorrowedMenu`. Properties
 suprimidas formam uma interface projection, não uma storage view. W não possui
 `Viewable`, protocol universal de view ou `view Object` automático.
 
+Para suprimir properties sem copiar o conteúdo, declare uma projeção nominal
+borrowed. Use `ref` para um field completo e `view` somente para uma janela de
+um carrier que define view:
+
+```w excerpt
+// excerpt-source: reference/last-light/views.w::export struct MenuCourse
+export struct MenuCourse {
+  title: String
+  allergens: Array<String>
+  supplierContract: String
+}
+
+// A nominal borrowed projection selects data. It is not `view MenuCourse`.
+export struct PublicCourse {
+  title: ref String
+  allergens: view Array<String>
+}
+
+export fn publicCourse(course: ref MenuCourse): PublicCourse {
+  return PublicCourse(
+    title: ref course.title,
+    allergens: course.allergens[0..<course.allergens.count],
+  )
+}
+```
+
+`PublicCourse` não possui `supplierContract` e carrega as origins de `course`.
+Ele não mantém o owner vivo. Use `ref any Protocol` para limitar methods, esse
+aggregate nominal para dados borrowed e um DTO owned para um snapshot que pode
+escapar. Não há `view MenuCourse`, field mask ou derivação automática.
+
 ### Atomic e locks
 
 Esta unidade completa é source-backed de

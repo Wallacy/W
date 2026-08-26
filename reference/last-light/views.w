@@ -13,6 +13,25 @@ export enum TelemetryError: Error {
   writeFailed(status: c.int)
 }
 
+export struct MenuCourse {
+  title: String
+  allergens: Array<String>
+  supplierContract: String
+}
+
+// A nominal borrowed projection selects data. It is not `view MenuCourse`.
+export struct PublicCourse {
+  title: ref String
+  allergens: view Array<String>
+}
+
+export fn publicCourse(course: ref MenuCourse): PublicCourse {
+  return PublicCourse(
+    title: ref course.title,
+    allergens: course.allergens[0..<course.allergens.count],
+  )
+}
+
 export fn serviceTemperatures(
   values: ref Array<f64>,
 ): view Array<f64> {
@@ -64,6 +83,25 @@ test "a read-only view does not expose owner capacity" for serviceTemperatures {
   // Compile-fail assay: append can move storage borrowed by service.
   // readings.append(1.0)
   print(service[0])
+}
+
+test "a nominal borrowed projection omits private course data" for publicCourse {
+  var course = MenuCourse(
+    title: "Pan-Galactic broth",
+    allergens: ["celery", "nebula dust"],
+    supplierContract: "Megadodo confidential",
+  )
+  let card = publicCourse(course)
+
+  expect card.title == "Pan-Galactic broth"
+  expect card.allergens == ["celery", "nebula dust"]
+
+  // Compile-fail assay: the omitted field is not part of PublicCourse.
+  // print(card.supplierContract)
+
+  // Compile-fail assay: card fields keep their source places borrowed.
+  // course.title.append(" encore")
+  print(card.title)
 }
 
 test "an exclusive view mutates elements but not its extent" for correctTemperatures {
