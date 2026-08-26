@@ -14942,6 +14942,11 @@ Uma interface de service não aceita `ref` ou `inout` para state do caller.
 Payloads usam value, `take` ou capability handles. Results também precisam ser
 `transferable`. O fast path não enfraquece essa regra.
 
+Um `Stream` direto em parâmetro ou resultado não é payload serializado. Ele é
+uma edge incremental do `ServiceIR`, com ownership, créditos, terminal e drain
+próprios. O parâmetro transfere seu readable owner com `take`; o resultado
+transfere o readable owner ao caller. As regras completas ficam em 23.1.5.
+
 Um method `throws E` chamado por `ServiceRef` possui dois error effects:
 
 1. `E`, para error da aplicação;
@@ -29390,15 +29395,22 @@ As referências de TLS, QUIC, channel binding e workload identity ficam em
 
 #### 23.1.5 Streaming e flow control
 
-**Forma vigente:** um service API de saída retorna explicitamente
-`some Stream<Item, Failure>`. A chamada via `ServiceRef` sempre acrescenta
+**Forma vigente:** uma service API usa `Stream` diretamente em posições de
+parâmetro e resultado. A posição define a direção sem criar tipos RPC ou
+keywords adicionais. A chamada via `ServiceRef` sempre acrescenta
 `ServiceFailure` na fase de abertura/admission e continua `try await`; o
-consumo continua `for try await`. O erro declarado pela função chamadora deve
+consumo continua `for try await`. O error declarado pela função chamadora deve
 ser `ServiceFailure` ou ter exatamente uma conversão total de `ServiceFailure`.
-Separadamente, o parâmetro `Failure` de `Stream` cobre o terminal e deve admitir
-`ServiceFailure` conforme a regra abaixo. A forma `stream fn` não é
-promovida: capturas, lifecycle do producer e ownership do erro ficam ambíguos,
-por isso `stream fn` é rejeitada como spelling de API geral.
+Separadamente, o parâmetro `Failure` de cada `Stream` cobre seu terminal e deve
+admitir `ServiceFailure` conforme a regra abaixo.
+
+**W-1480 — direções de service stream (Forma vigente):** uma posição direta de
+input usa `take some Stream<Item, Failure>` e forma client-streaming. Uma
+posição direta de output usa `some Stream<Item, Failure>` e forma
+server-streaming. Uma operation com as duas posições é bidirectional. Sem
+stream, ela continua unary. Essa decisão substitui somente a rejeição de
+input-stream e bidirectional-stream em W-1452; preserva `Stream` explícito,
+`await`, `ServiceFailure`, `Channel` explícito e closed turn.
 
 ```w
 export protocol TelemetryApi {
@@ -29406,22 +29418,48 @@ export protocol TelemetryApi {
     after sequence: u64,
   ): some Stream<Telemetry, TelemetryError>
 }
+
+export protocol MenuExchangeApi {
+  async fn summarize(
+    signals: take some Stream<MenuSignal, MenuStreamError>,
+  ): MenuSignalSummary throws MenuStreamError
+
+  async fn exchange(
+    signals: take some Stream<MenuSignal, MenuStreamError>,
+  ): some Stream<MenuSignal, MenuStreamError>
+}
 ```
 
-Uma posição de output exige `some Stream<Item, Failure>`. Input-stream e
-bidirectional-stream em service permanecem rejeitados nesta baseline; `any
-Stream` também não aparece numa interface publicada. Erasure continua
-disponível dentro de uma implementação, mas não altera o contrato.
+Em callable comum, `some P` no parâmetro continua o generic anônimo da seção
+8.7. Em uma interface de service, o adapter gerado especializa esse parâmetro
+para um source link-owned e grava uma input edge canônica no `ServiceIR`. O
+tipo físico do producer do caller não entra em `WInterface`, ABI ou wire
+schema. Isso não transforma a operation publicada numa call generic remota.
+
+Uma stream edge deve ocupar um parâmetro direto ou um result path direto. Ela
+não pode ficar escondida em `Array`, `Map`, struct ou outro `WireValue`. Input
+exige `take`; output exige `some`. `any Stream` não aparece numa interface
+publicada. Erasure continua disponível dentro de uma implementação, mas não
+altera o contrato.
+
+A forma `stream fn` não é promovida. Captures, lifecycle do producer e
+ownership do error ficam ambíguos quando o spelling tenta esconder o carrier.
+O bloco `stream <[...]> { ... }` continua a expressão explícita para construir
+um producer.
 
 `Channel` nunca é criado implicitamente por uma service. A declaração de um
 channel deve nomear capacidade, endpoints `send`/`receive`, ownership,
 backpressure e `close`; mailbox e `Stream` permanecem canais distintos com
 open/close/send/receive visíveis. `ServiceRef` preserva `await` e o closed turn.
+Como `Channel<T><.receive>` atende a `Stream<T, Never>`, um caller que precisa
+de producer push abre o channel com capacity explícita, mantém o endpoint send
+e transfere o endpoint receive como input stream. O adapter alarga o failure
+local para o failure remoto; a service não inventa fila ou capacity.
 
-No output, a identidade opaque pertence ao result path da operation. O tipo
-concreto do producer não entra em `WInterface`, ABI ou wire schema. O
-`ServiceLink` fornece o concrete adapter observado pelo caller. Um local fast
-path pode especializar esse adapter sem alterar a identidade source.
+No output, a identidade opaque pertence ao result path da operation. No input,
+a identidade opaque pertence ao parameter slot. O `ServiceLink` fornece os
+adapters concretos observados por cada lado. Um local fast path pode
+especializar esses adapters sem alterar a identidade source.
 
 Cada stream é uma edge própria no `ServiceIR` e recebe um `streamId`. Uma
 operation pode declarar mais de uma edge direta. Um stream não pode ficar
@@ -29572,6 +29610,12 @@ Para um input stream, o envelope commit move o source para um pump runtime-owned
 no caller. O pump só chama `next()` quando recebe crédito. `.none` envia o
 half-close normal. Se o callee parar antes, ele envia reset; o pump cancela e
 drena o source. O owner não volta ao caller.
+
+O resultado final da operation não fica observável antes de reset e drain das
+input edges que o callee não consumiu. Isso permite retorno antecipado sem
+deixar um producer órfão. Falha ou cancellation da call também reseta e drena
+todas as edges ainda abertas; nenhum terminal implica rollback de item ou
+effect já committed.
 
 Cada direção de uma call bidirectional possui créditos e terminal próprios. O
 runtime inicia o input pump junto com a admission; ele não espera a call
@@ -30465,7 +30509,10 @@ cursor exclusivo, capacity zero, captures avaliadas na construção, cleanup e
 cancelamento explícitos. A forma reduz a cerimônia de producers lineares sem
 publicar frame, resume token, scheduler, lifetime, runtime metadata ou ABI.
 
-Diálogo bidirecional continua sendo `Channel` bounded. Frame público,
+Diálogo bidirecional local entre producer e consumer continua sendo `Channel`
+bounded. Uma call de service com input e output streams usa as duas edges
+direcionais de W-1480; ela não transforma o bloco `stream` em generator
+bidirecional. Frame público,
 `send`/`throw`/`close` de generator, `yield-from`, scheduler yield e FFI resume
 são rejeitados; eles não são uma nova subcapability Research deste gate. GEN1
 permanece evidência histórica do problema e das alternativas, e W-1354 foi
@@ -31535,6 +31582,11 @@ antigo, drop do backing, reentry, panic/OOM e fronteiras de concurrency/service.
 O manifest candidate é aceito como current-control; os candidates de `stream fn`
 e `willSet`/`didSet` são rejected-route. O oracle host deriva os resultados de
 facts e source refs, não executa W e não afirma compiler/runtime/provider.
+
+W-1480 substitui posteriormente somente a rejeição de client-stream e bidi em
+W-1452. O controle PFU0 continua histórico para `stream fn`, Channel implícito,
+as duas fases de failure e o manifest/property lifecycle. SVC0 fecha as quatro
+direções com `Stream` explícito e sem alterar o closed turn.
 
 #### 24.4.4 AEG0 — App Essentials Gate
 

@@ -19,6 +19,12 @@ export const HISTORICAL_SNAPSHOT_IDS = Object.freeze(
   ledgerIds.filter((decisionId) => Number(decisionId.slice(2)) <= Number(HISTORICAL_SNAPSHOT_LAST.slice(2))),
 );
 export const PFU0_DECISIONS = Object.freeze(["W-1451", "W-1452", "W-1453"]);
+export const PFU0_DISPOSITIONS = Object.freeze({
+  "W-1451": "oracle-backed-current",
+  "W-1452": "superseded",
+  "W-1453": "oracle-backed-current",
+});
+export const PFU0_SUPERSESSIONS = Object.freeze({ "W-1452": "W-1480" });
 export const ACTIVE_RESEARCH_GATES = Object.freeze([]);
 export const DISPOSITIONS = Object.freeze({
   "W-707": "oracle-backed-current",
@@ -278,7 +284,13 @@ function classificationFacts(state) {
     decisionId,
     entries.find((entry) => entry?.decisionId === decisionId)?.category ?? null,
   ]));
-  const reopenedResearch = PFU0_DECISIONS.every((decisionId) => reopenedCategories[decisionId] === "oracle-backed-current");
+  const reopenedResearch = same(reopenedCategories, PFU0_DISPOSITIONS);
+  const supersessionEntry = entries.find((entry) => entry?.decisionId === "W-1452");
+  const successorEntry = entries.find((entry) => entry?.decisionId === PFU0_SUPERSESSIONS["W-1452"]);
+  const pfuSupersessionValid = supersessionEntry?.authorityRef?.kind === "superseding-decision" &&
+    supersessionEntry.authorityRef.decisionId === PFU0_SUPERSESSIONS["W-1452"] &&
+    supersessionEntry.supersessionClaim?.decisionId === PFU0_SUPERSESSIONS["W-1452"] &&
+    successorEntry?.category === "implementation-evidence-gap";
   const globalResearch = entries.filter((entry) => entry?.category === "research-gated").map((entry) => entry.decisionId);
   const globalResearchExact = same([...globalResearch].sort(), [...ACTIVE_RESEARCH_GATES].sort());
   const targetCategories = Object.fromEntries(DECISIONS.map((decision) => [decision, entries.find((entry) => entry?.decisionId === decision)?.category ?? null]));
@@ -287,7 +299,7 @@ function classificationFacts(state) {
     classification.ledger?.first === ledgerIds[0] &&
     classification.ledger?.last === ledgerIds.at(-1) &&
     classification.ledger?.sha256 === digestFile(path.join(repositoryRoot, "RATIONALE.md"));
-  const valid = complete && historicalComplete && dispositions && researchResidual.length === 0 && reopenedResearch && globalResearchExact && ledgerDigestValid &&
+  const valid = complete && historicalComplete && dispositions && researchResidual.length === 0 && reopenedResearch && pfuSupersessionValid && globalResearchExact && ledgerDigestValid &&
     DECISIONS.every((decision) => targetCategories[decision] === DISPOSITIONS[decision]);
   return {
     valid,
@@ -305,6 +317,7 @@ function classificationFacts(state) {
     researchResidual,
     reopenedCategories,
     reopenedResearch,
+    pfuSupersessionValid,
     globalResearch,
     globalResearchExact,
     targetCategories,
@@ -461,11 +474,11 @@ export function validateCorpus(input = readJson("tooling/final-research-closure-
       input.historicalSnapshot.researchZero !== true) {
     errors.push("FRC0 historical snapshot must close only W-001 through W-1450 with Research=0.");
   }
-  if (!exactKeys(input.reopenedResearch, ["decisions", "category", "gate"]) ||
+  if (!exactKeys(input.reopenedResearch, ["decisions", "dispositions", "gate"]) ||
       !same(input.reopenedResearch.decisions, PFU0_DECISIONS) ||
-      input.reopenedResearch.category !== "oracle-backed-current" ||
+      !same(input.reopenedResearch.dispositions, PFU0_DISPOSITIONS) ||
       input.reopenedResearch.gate !== "PFU0-pre-freeze-usability") {
-    errors.push("FRC0 reopenedResearch must name W-1451..W-1453 as PFU0 oracle-backed-current.");
+    errors.push("FRC0 reopenedResearch must preserve the exact PFU0 dispositions and W-1452 supersession.");
   }
   if (!exactKeys(input.reuse, DECISIONS)) errors.push("FRC0 reuse map must cover each decision exactly once.");
   for (const decision of DECISIONS) {

@@ -1,0 +1,36 @@
+{
+  "$schema": "w-svc0-service-stream-directions-study-1",
+  "id": "SVC0",
+  "decision": "W-1480",
+  "status": "complete-design-study",
+  "title": "Directional service streams without implicit channels",
+  "question": "Can one explicit Stream carrier cover unary, server-streaming, client-streaming, and bidirectional service calls without another RPC type family?",
+  "data": "cases.json",
+  "oracle": "oracle.mjs",
+  "checker": "check.mjs",
+  "evidenceBoundary": {
+    "current": ["direct Stream input and output positions", "ownership transfer", "boundary failure and drain rules", "host oracle"],
+    "missing": ["W semantic checker", "ServiceIR lowering", "runtime pumps", "provider conformance", "cross-route fault tests", "performance evidence", "human study", "model study"],
+    "hostOnly": true,
+    "apiPromotion": true,
+    "researchClosed": true
+  },
+  "sources": [
+    {
+      "url": "https://grpc.io/docs/what-is-grpc/core-concepts/",
+      "accessed": "2026-08-25",
+      "scope": "four RPC streaming directions, per-direction order, deadlines, cancellation, and non-rollback"
+    },
+    {
+      "url": "https://github.com/WebAssembly/component-model/blob/main/design/mvp/Concurrency.md",
+      "accessed": "2026-08-25",
+      "scope": "stream parameters/results, unique readable-end ownership, incremental transfer, and backpressure-oriented ABI"
+    },
+    {
+      "url": "https://developers.cloudflare.com/workers/runtime-apis/rpc/",
+      "accessed": "2026-08-25",
+      "scope": "RPC transfer of readable/writable byte streams, ownership loss at sender, and flow control"
+    }
+  ],
+  "stopCondition": "Stop when all four direction topologies share one explicit Stream source form and ownership, failure, backpressure, cancellation, and drain remain observable; do not create an implicit Channel or a stream fn spelling."
+}
