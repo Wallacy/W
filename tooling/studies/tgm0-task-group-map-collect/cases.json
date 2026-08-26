@@ -1,0 +1,209 @@
+{
+  "$schema": "w-tgm0-task-group-map-collect-cases-1",
+  "defaults": {
+    "family": "concurrent",
+    "operation": "map",
+    "callLabels": ["limit", "ordering", "using"],
+    "inputCount": 0,
+    "limit": 1,
+    "ordering": "input",
+    "domainExplicit": false,
+    "parallelCapability": false,
+    "stagesInputOnce": true,
+    "stagesCallableOnce": true,
+    "callableMode": "some",
+    "admittedItemsMoveOnce": true,
+    "remainingInputsDropOnce": true,
+    "resultStorageReservedBeforeChildren": true,
+    "returnAfterDrain": true,
+    "maxActiveChildren": 0,
+    "collectCancelsOnApplicationError": false,
+    "collectKeepsInputIndex": true,
+    "implicitUnbounded": false,
+    "parentCanceled": false,
+    "faulted": false,
+    "items": []
+  },
+  "cases": [
+    {
+      "id": "TGM0-map-input-current",
+      "inputCount": 3,
+      "limit": 2,
+      "maxActiveChildren": 2,
+      "items": [
+        { "index": 0, "bodySettlementStep": 3, "cleanupCompleteStep": 4, "outcome": "success", "value": "A", "effectCommitted": false },
+        { "index": 1, "bodySettlementStep": 1, "cleanupCompleteStep": 2, "outcome": "success", "value": "B", "effectCommitted": true },
+        { "index": 2, "bodySettlementStep": 2, "cleanupCompleteStep": 3, "outcome": "success", "value": "C", "effectCommitted": false }
+      ]
+    },
+    {
+      "id": "TGM0-map-completion-current",
+      "family": "parallel",
+      "inputCount": 3,
+      "limit": 2,
+      "ordering": "completion",
+      "domainExplicit": true,
+      "parallelCapability": true,
+      "maxActiveChildren": 2,
+      "items": [
+        { "index": 0, "bodySettlementStep": 3, "cleanupCompleteStep": 4, "outcome": "success", "value": "A", "effectCommitted": false },
+        { "index": 1, "bodySettlementStep": 1, "cleanupCompleteStep": 2, "outcome": "success", "value": "B", "effectCommitted": false },
+        { "index": 2, "bodySettlementStep": 2, "cleanupCompleteStep": 3, "outcome": "success", "value": "C", "effectCommitted": false }
+      ]
+    },
+    {
+      "id": "TGM0-map-input-error-current",
+      "inputCount": 3,
+      "limit": 3,
+      "maxActiveChildren": 3,
+      "items": [
+        { "index": 0, "bodySettlementStep": 4, "cleanupCompleteStep": 7, "outcome": "error", "effectCommitted": true },
+        { "index": 1, "bodySettlementStep": 2, "cleanupCompleteStep": 3, "outcome": "error", "effectCommitted": false },
+        { "index": 2, "bodySettlementStep": 3, "cleanupCompleteStep": 5, "outcome": "canceled", "effectCommitted": false }
+      ]
+    },
+    {
+      "id": "TGM0-map-completion-error-current",
+      "inputCount": 3,
+      "limit": 3,
+      "ordering": "completion",
+      "maxActiveChildren": 3,
+      "items": [
+        { "index": 0, "bodySettlementStep": 4, "cleanupCompleteStep": 7, "outcome": "error", "effectCommitted": true },
+        { "index": 1, "bodySettlementStep": 2, "cleanupCompleteStep": 3, "outcome": "error", "effectCommitted": false },
+        { "index": 2, "bodySettlementStep": 3, "cleanupCompleteStep": 5, "outcome": "canceled", "effectCommitted": false }
+      ]
+    },
+    {
+      "id": "TGM0-collect-input-current",
+      "operation": "collect",
+      "inputCount": 3,
+      "limit": 2,
+      "maxActiveChildren": 2,
+      "items": [
+        { "index": 0, "bodySettlementStep": 4, "cleanupCompleteStep": 5, "outcome": "success", "value": "A", "effectCommitted": false },
+        { "index": 1, "bodySettlementStep": 1, "cleanupCompleteStep": 2, "outcome": "error", "effectCommitted": true },
+        { "index": 2, "bodySettlementStep": 3, "cleanupCompleteStep": 4, "outcome": "canceled", "effectCommitted": false }
+      ]
+    },
+    {
+      "id": "TGM0-collect-completion-current",
+      "operation": "collect",
+      "inputCount": 3,
+      "limit": 2,
+      "ordering": "completion",
+      "maxActiveChildren": 2,
+      "items": [
+        { "index": 0, "bodySettlementStep": 4, "cleanupCompleteStep": 5, "outcome": "success", "value": "A", "effectCommitted": false },
+        { "index": 1, "bodySettlementStep": 1, "cleanupCompleteStep": 2, "outcome": "error", "effectCommitted": true },
+        { "index": 2, "bodySettlementStep": 3, "cleanupCompleteStep": 4, "outcome": "canceled", "effectCommitted": false }
+      ]
+    },
+    {
+      "id": "TGM0-empty-current",
+      "operation": "collect"
+    },
+    {
+      "id": "TGM0-parent-cancel-current",
+      "inputCount": 3,
+      "limit": 2,
+      "maxActiveChildren": 2,
+      "parentCanceled": true,
+      "items": [
+        { "index": 0, "bodySettlementStep": 2, "cleanupCompleteStep": 6, "outcome": "canceled", "effectCommitted": true },
+        { "index": 1, "bodySettlementStep": 3, "cleanupCompleteStep": 5, "outcome": "canceled", "effectCommitted": false }
+      ]
+    },
+    {
+      "id": "TGM0-fault-current",
+      "family": "parallel",
+      "inputCount": 2,
+      "limit": 2,
+      "domainExplicit": true,
+      "parallelCapability": true,
+      "maxActiveChildren": 2,
+      "faulted": true,
+      "items": [
+        { "index": 0, "bodySettlementStep": 1, "cleanupCompleteStep": 5, "outcome": "canceled", "effectCommitted": false }
+      ]
+    },
+    {
+      "id": "TGM0-legacy-labels",
+      "callLabels": ["maxParallelism", "order", "operation"]
+    },
+    {
+      "id": "TGM0-zero-limit",
+      "limit": 0
+    },
+    {
+      "id": "TGM0-implicit-unbounded",
+      "implicitUnbounded": true
+    },
+    {
+      "id": "TGM0-parallel-no-domain",
+      "family": "parallel",
+      "parallelCapability": true
+    },
+    {
+      "id": "TGM0-parallel-no-capability",
+      "family": "parallel",
+      "domainExplicit": true
+    },
+    {
+      "id": "TGM0-concurrent-domain-slot",
+      "domainExplicit": true
+    },
+    {
+      "id": "TGM0-input-restaged",
+      "stagesInputOnce": false
+    },
+    {
+      "id": "TGM0-callable-restaged",
+      "stagesCallableOnce": false
+    },
+    {
+      "id": "TGM0-mutable-callable",
+      "callableMode": "mut"
+    },
+    {
+      "id": "TGM0-consuming-callable",
+      "callableMode": "take"
+    },
+    {
+      "id": "TGM0-admitted-item-moved-twice",
+      "admittedItemsMoveOnce": false
+    },
+    {
+      "id": "TGM0-remaining-input-leak",
+      "remainingInputsDropOnce": false
+    },
+    {
+      "id": "TGM0-late-result-reservation",
+      "resultStorageReservedBeforeChildren": false
+    },
+    {
+      "id": "TGM0-return-before-drain",
+      "returnAfterDrain": false
+    },
+    {
+      "id": "TGM0-collect-cancels-error",
+      "operation": "collect",
+      "collectCancelsOnApplicationError": true
+    },
+    {
+      "id": "TGM0-collect-loses-index",
+      "operation": "collect",
+      "collectKeepsInputIndex": false
+    },
+    {
+      "id": "TGM0-active-limit-exceeded",
+      "inputCount": 2,
+      "limit": 1,
+      "maxActiveChildren": 2,
+      "items": [
+        { "index": 0, "bodySettlementStep": 1, "cleanupCompleteStep": 2, "outcome": "success", "value": "A", "effectCommitted": false },
+        { "index": 1, "bodySettlementStep": 3, "cleanupCompleteStep": 4, "outcome": "success", "value": "B", "effectCommitted": false }
+      ]
+    }
+  ]
+}

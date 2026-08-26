@@ -89,7 +89,8 @@ staging. O host publica um action-result/manifest atômico após success, output
 obrigatórios e budgets válidos. O arquivo descreve a interface e não alega
 execução.
 `runtime/task.w` materializa reasons, budget kinds, outcomes,
-`TaskSettlement`, timeout e `TaskLocal`. O binding task-local é imutável.
+`TaskGroupOrdering`, `TaskSettlement`, timeout e `TaskLocal`. O binding
+task-local é imutável.
 Ele acompanha somente children estruturados e drena antes do pop. O provider
 `std.runtime.task-local@1` continua missing. `runtime/thread.w` materializa o
 `ThreadLocal` restrito a `Copy` sem drop. Ele usa TLS nativo e nunca emula uma

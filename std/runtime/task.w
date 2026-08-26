@@ -21,8 +21,13 @@ export enum TaskOutcome<Value, Failure: Error> {
   canceled(Cancellation)
 }
 
-// Task.firstSettled returns this value only after every losing child drains.
-// The index refers to the consumed input array. The outcome keeps application
+export enum TaskGroupOrdering {
+  input
+  completion
+}
+
+// Task.firstSettled and TaskGroup collect operations use this record. The
+// index refers to the consumed input array. The outcome keeps application
 // failure separate from structured cancellation.
 export struct TaskSettlement<Value, Failure: Error> {
   export index: usize
@@ -120,6 +125,14 @@ test "task settlement preserves candidate position and outcome" {
     case .error(_): false
     case .canceled(_): false
   }
+}
+
+test "task group ordering keeps input and completion policies distinct" {
+  let stable: TaskGroupOrdering = .input
+  let scheduled: TaskGroupOrdering = .completion
+
+  expect stable == .input
+  expect scheduled == .completion
 }
 
 test "task-local descriptors keep nominal identity" {
