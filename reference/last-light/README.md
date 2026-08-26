@@ -1554,16 +1554,18 @@ Famílias: task group, backpressure, ordering, cancellation e atomic metrics.
 Aceite:
 
 - `parallelMap` mantém no máximo `limit` children ativos;
-- o buffer de admissão também usa `limit`;
+- a admissão mantém no máximo `limit` items staged ou em children ativos;
 - `.input` devolve resultados na ordem dos jobs;
-- `parallelCollect` preserva todos os outcomes;
+- `parallelCollect` preserva um settlement por job;
 - cancelar o batch fecha producer e children;
 - `batch.cancel(reason: .shutdown)` preserva o handle para o join;
 - `cancel` não existe como statement ou keyword;
 - cada job move ownership para um child;
 - `shared BrigadeMetrics` cruza a boundary porque usa storage atomic;
 - um pointer C ou state mutável de service não pode ocupar o mesmo lugar;
-- `TaskOutcome` distingue success, application error e cancellation.
+- `TaskOutcome` distingue success, application error e cancellation;
+- `TaskGroup.*Collect` preserva o índice do input em cada `TaskSettlement`,
+  inclusive quando a ordem é `.completion`;
 - `Task.firstSettled` consome handles existentes e publica somente após o drain
   dos losers.
 

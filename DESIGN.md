@@ -11499,7 +11499,7 @@ Essa regra não espera um child lexicalmente anterior antes de cancelar os
 demais. Portanto, um child suspenso não impede fail-fast. A ordem lexical torna
 a arbitragem explícita; ela não promete que um child cancelado produziria o
 mesmo error se tivesse continuado. Código que precisa de todos os fatos usa
-`outcome()` ou uma API `collect`.
+`outcome()` ou uma variante `TaskGroup.*Collect`.
 
 `TaskGroup` aplica a mesma regra com a ordem indicada por `ordering`. Em
 `.input`, o error primário é o primeiro input entre os application errors que
@@ -12642,14 +12642,80 @@ let mixtures = try await TaskGroup.parallelMap<.compute>(
 paralela e as provas de mobilidade. As duas APIs cancelam trabalho restante no
 primeiro error selecionado pela ordem declarada.
 
-As variantes `concurrentCollect` e `parallelCollect` retornam
-`Array<TaskOutcome<T, E>>`. Elas não cancelam por error da aplicação.
+**W-1482 — famílias fechadas de map/collect (Forma vigente):** a ordem é um
+valor nominal e não possui default:
 
-Defaults:
+```w
+export enum TaskGroupOrdering {
+  input
+  completion
+}
+```
+
+As assinaturas lógicas da família concorrente são:
+
+```w
+async fn TaskGroup.concurrentMap<Input, Output, Failure: Error>(
+  _ inputs: take Array<Input>,
+  limit: usize<(1...)>,
+  ordering: TaskGroupOrdering,
+  using operation: some async fn(take Input): Output throws Failure,
+): Array<Output> throws Failure
+
+async fn TaskGroup.concurrentCollect<Input, Output, Failure: Error>(
+  _ inputs: take Array<Input>,
+  limit: usize<(1...)>,
+  ordering: TaskGroupOrdering,
+  using operation: some async fn(take Input): Output throws Failure,
+): Array<TaskSettlement<Output, Failure>>
+```
+
+`parallelMap<domain>` e `parallelCollect<domain>` possuem os mesmos slots e
+resultados, mas exigem o domain estático explícito e capability `.parallel`.
+`concurrent...` herda o domain atual. Uma callable `neverSuspend` satisfaz o
+slot `some async fn`; callable mutável ou consuming não satisfaz uma operação
+que pode ser chamada por vários children.
+
+Os labels canônicos são somente `limit`, `ordering` e `using`.
+`maxParallelism`, `order` e `operation` não são aliases. `limit` é obrigatório,
+positivo e limita children vivos. Zero, valor negativo e sentinel unbounded não
+entram na API. O runtime pode executar menos children por causa de domain
+capacity, product quota ou host quota, mas nunca mais que `limit`.
+
+A call avalia e move o array uma vez e mantém um único owner de admissão. Ela
+stages a callable uma vez. Cada item é movido para exatamente um child somente
+depois de obter um slot. Cancellation antes da admissão descarta o item no
+owner do group sem chamar a operação. Antes do primeiro child, a call valida o
+count e reserva a estrutura do resultado; overflow ou falha física seguem as
+regras de allocation/OOM sem publicar trabalho parcial.
+
+`map` usa fail-fast. O primeiro application error que fica body-settled solicita
+cancellation do trabalho restante. Depois do drain, `.input` seleciona o menor
+índice entre os application errors body-settled; `.completion` seleciona o
+primeiro settlement commit. Successes parciais são descartados e nenhum array
+parcial escapa. Child cancellation sem application error permanece control
+outcome. Panic ou fault encerra a fault boundary; nenhum deles vira `Failure`.
+
+`collect` não cancela siblings por application error ou child cancellation.
+Ele devolve um `TaskSettlement` para cada input. Em `.input`, o array fica em
+ordem de índice. Em `.completion`, o array segue os commits body-settled, mas
+cada record mantém o índice original; assim, `.error` e `.canceled` não perdem
+a identidade do input. Panic ou fault ainda encerra a fault boundary.
+
+Cancellation do parent observada antes da publicação cancela a admissão e os
+children, drena tudo e repropaga o control outcome sem array. Toda publicação
+ocorre depois de body, cleanup, outcome e drop dos children. Cancellation não é
+rollback; effects já committed permanecem observáveis.
+
+O array de input e o array final custam O(count). `limit` limita frames e
+trabalho admitido, não esses dois valores materializados nem o tamanho
+transitivo de cada item. Um source incremental usa os adapters de `Stream` da
+seção 12.9 e declara a própria capacity.
+
+Invariantes de execução:
 
 - `limit` controla children ativos;
-- o buffer de admissão também usa `limit`;
-- producer suspende quando o buffer está cheio;
+- a admissão mantém no máximo `limit` items entre staging e child ativo;
 - `.input` preserva a ordem do input;
 - `.completion` declara resultado dependente do scheduler;
 - o profile pode reduzir `limit`, mas não criar uma fila ilimitada;
@@ -22911,9 +22977,9 @@ declara bound e ordem:
 ```w
 let results = try await TaskGroup.parallelMap<.compute>(
   take jobs,
-  maxParallelism: cooks,
-  order: .input,
-  operation: cook,
+  limit: cooks,
+  ordering: .input,
+  using: cook,
 )
 ```
 

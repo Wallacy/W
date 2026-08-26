@@ -236,7 +236,7 @@
     {
       "id": "R1-fail-fast-last-light",
       "path": "tooling/studies/r1-fail-fast/bundle.json",
-      "digest": "sha256:78145d02186ce4d62ec691cf0ef45d9ad376f9d0c1216d4018139cbb4370b808"
+      "digest": "sha256:9abdfdf863195a3b30c36229dee9b5adf70836cffe72d9ce56d924e0c20acbaf"
     },
     {
       "id": "R1-fluent-self",
@@ -246,7 +246,7 @@
     {
       "id": "R1-gen1-incremental-suspension",
       "path": "tooling/studies/gen1-incremental-suspension/bundle.json",
-      "digest": "sha256:d83dacbf515c6286fe5ab7a3acc9b8ca25becc7756fc5f2aa4b94c6c979150af"
+      "digest": "sha256:0eeb8ce7de1fc7b2363b5f4944a464725d6a8857e2673a6addacf9afed6baf90"
     },
     {
       "id": "R1-gen2-stream-yield",
@@ -326,7 +326,7 @@
     {
       "id": "R1-spawn-domain-last-light",
       "path": "tooling/studies/r1-spawn-domain/bundle.json",
-      "digest": "sha256:5f1c243ece57e62f645329bdbea9f5072f6109676e6d8e6d268acbbc16f9dd52"
+      "digest": "sha256:7e5dc2a02a73043c08f3fd726ac3b102e88971a6c4777299191ae8ee690a8adc"
     },
     {
       "id": "R1-static-contract-slots",

@@ -46,7 +46,7 @@
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "completionCount: u64 { get }",
-      "digest": "sha256:cf1789d49a5f55c9634d21036399a89d97c8e05b720420100e1e7d473ad20d96",
+      "digest": "sha256:f4a131a67e415c3f3bc8e24b92e309a9ab4aff565391bd80e4feff3634906e0b",
       "claim": "Property-safe getter."
     },
     {

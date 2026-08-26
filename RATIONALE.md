@@ -7355,6 +7355,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1479 | projeção nominal borrowed de aggregate | Uma API que suprime properties declara um aggregate nominal lifetime-dependent: `ref Field` para place completo, `view Carrier` para extent verificável e valor owned para snapshot/cópia; constructor ou método nomeado escolhe fields e o HIR preserva origins por field. Protocol menor limita methods, aggregate borrowed expõe dados sem copiar e DTO owned permite escape. `view Object`, `view Nominal`, field mask, derivação estrutural, `Viewable` universal e recuperação de authority omitida ficam fora | current design contract em DESIGN §16.2 e witness `PublicCourse` em `views.w`; parser de aggregates e borrows existe como seed, mas checker de origins por field, diagnostics e execução do borrow continuam implementation-evidence gaps |
 | W-1480 | direções de service stream sem Channel implícito | Service operation usa o mesmo carrier em posições diretas: `take some Stream<Item, Failure>` no parâmetro forma client-streaming, `some Stream<Item, Failure>` no resultado forma server-streaming, ambos formam bidirectional e nenhum forma unary; input transfere o readable owner, output permanece opaque, items são owned/transferable/WireValue, Failure admite ServiceFailure e cada edge preserva créditos, ordem, terminal, cancellation e drain. Channel.receive pode fornecer input após Channel.open com capacity explícita. Stream nested, input sem take, item borrowed/non-wire, any Stream publicado, stream fn, Channel/capacity implícito e open sem await ficam fora; W-1480 substitui somente a rejeição client/bidi de W-1452 | current design contract em DESIGN §23.1.5, estudo host SVC0 e witness `service_streaming.w`; semantic checker, ServiceIR lowering, runtime pumps, providers, cross-route faults, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de gRPC, WebAssembly Component Model e Cloudflare RPC foram verificadas em 2026-08-25 |
 | W-1481 | first-settled de tasks estruturadas | `Task.firstSettled` consome `Array<Task<Value, Failure>>` já criada, não cria child nem escolhe domain e devolve `TaskSettlement<Value, Failure>?` com index e `TaskOutcome`; vazio devolve none; o arm registra todos os handles, candidates já settled usam menor index e o primeiro settlement posterior usa completion order sem desempate por índice; winner fica fixo, losers recebem cancellation e a call aguarda body/cleanup/outcome/drop antes de publicar; parent cancellation observada antes da publicação suprime o settlement, drena todos e permanece control outcome; effects committed não sofrem rollback. Handles heterogêneos/duplicados, statement select, branch/default/fairness implícitos, first-success, future drop e multiplexing persistente ficam fora | current design contract em DESIGN §12.4.1, estudo host FST0, `TaskSettlement` em std.runtime e witness `task_settlement.w`; semantic checker, runtime wake/CAS, provider conformance, cross-domain fault/liveness tests, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de Swift structured concurrency, Tokio select, Go select e Kotlin select foram verificadas em 2026-08-25 |
+| W-1482 | famílias TaskGroup map/collect fechadas | `TaskGroup.concurrentMap`/`parallelMap<domain>` e `concurrentCollect`/`parallelCollect<domain>` usam somente labels `limit`, `ordering`, `using`; limit é `usize<(1...)>` explícito e limita children vivos, enquanto domain/product/host podem reduzir execução física; input e callable são staged uma vez, cada item move uma vez após admission, e result storage é reservado antes do primeiro child. Map usa fail-fast e publica só success total; collect não cancela por application error/child cancellation e retorna um `TaskSettlement` por input, preservando index em `.completion`. Parent cancellation/fault suprime o array e todo caminho drena; array input/output continua O(count). Labels alternativos, zero/unbounded, callable mutável/consuming, parallel sem domain/capability, collect sem index ou retorno parcial ficam fora | current design contract em DESIGN §12.8, estudo host TGM0, `TaskGroupOrdering`/`TaskSettlement` em std.runtime e witness `inspectEveryFailure` no Restaurante; semantic checker, intrinsic lowering, runtime admission, cross-domain provider, fault/liveness tests, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de Swift TaskGroup, Rust futures, Go errgroup e Kotlin coroutines foram verificadas em 2026-08-26 |
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
@@ -7629,6 +7630,30 @@ depois do drain. Depois da publicação, ela pertence à continuação do caller
 índice desempata somente candidates que já estavam settled no arm; commits
 posteriores chegam ao runtime em uma ordem linearizada e não recebem uma segunda
 policy lexical.
+
+W-1482 fecha a superfície dinâmica que W-1481 tornou mais fácil auditar. A
+seção 12.8 usava `limit`/`ordering`/`using`, mas a seção de collections ainda
+mostrava `maxParallelism`/`order`/`operation`. Além disso, collect por completion
+order devolvia somente `TaskOutcome`; um error ou cancelamento não carregava o
+input correspondente. A forma corrente remove a segunda grafia e reutiliza
+`TaskSettlement` para preservar essa identidade.
+
+O [Swift TaskGroup](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0304-structured-concurrency.md)
+fornece scope fechado e resultados em completion order. Os adapters
+[`buffered` e `buffer_unordered` de Rust](https://docs.rs/futures/latest/futures/stream/trait.StreamExt.html#method.buffer_unordered)
+separam input order de completion order e limitam futures pendentes. O
+[Go `errgroup`](https://pkg.go.dev/golang.org/x/sync/errgroup) limita goroutines
+ativas, mas admite zero e um estado sem limite que W rejeita nessa API. O
+[Kotlin `limitedParallelism`](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-dispatcher/limited-parallelism.html)
+explicita que limitar execução física não limita coroutines concorrentes. W
+separa `limit` lógico de domain capacity pelo mesmo motivo, sem herdar as outras
+policies dessas bibliotecas.
+
+No Restaurante, `inspectEveryFailure` agora recebe `TaskGroupOrdering` e devolve
+`Array<TaskSettlement<...>>`. Em `.completion`, um forno que falha cedo ainda é
+identificável por `index`; em `.input`, o mesmo record permite reconstrução
+estável. O estudo TGM0 também exige preflight do array de resultado antes dos
+effects e distingue fail-fast de collection sem transformar panic em error.
 
 W-1473 fecha uma fronteira de performance, não uma API. File mapping,
 anonymous virtual memory e device memory possuem owners, permissions,

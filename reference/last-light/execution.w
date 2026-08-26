@@ -8,7 +8,13 @@ module execution<
 
 import { OrderId } from domain
 import { Ingredient, KitchenError, Mixture, Recipe } from kitchen
-import { TaskLocal, TaskTimeout } from std.runtime.task
+import {
+  TaskGroupOrdering,
+  TaskLocal,
+  TaskOutcome,
+  TaskSettlement,
+  TaskTimeout,
+} from std.runtime.task
 
 export type BatchIndex = usize
 export alias ClosingTimeout = TaskTimeout
@@ -164,7 +170,8 @@ export async fn mixAcrossTwoKitchens(
 export async fn inspectEveryFailure(
   jobs: take Array<MixingJob>,
   parallelism: usize,
-): Array<TaskOutcome<MixingResult, BrigadeError>> throws BrigadeError {
+  ordering: TaskGroupOrdering,
+): Array<TaskSettlement<MixingResult, BrigadeError>> throws BrigadeError {
   guard parallelism > 0 && parallelism <= maximumParallelCooks else {
     throw .invalidParallelism(found: parallelism, maximum: maximumParallelCooks)
   }
@@ -172,7 +179,7 @@ export async fn inspectEveryFailure(
   return await TaskGroup.parallelCollect<.compute>(
     take jobs,
     limit: parallelism,
-    ordering: .input,
+    ordering: ordering,
     using: mixJob,
   )
 }

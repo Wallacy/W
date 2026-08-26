@@ -843,6 +843,35 @@ oracle-backed-current / provider missing; veja
 children pertencem ao parent, joins são observáveis e cancellation atravessa os
 pontos definidos pelo contrato.
 
+`TaskGroup` usa somente os labels `limit`, `ordering` e `using`. O limit é
+positivo e obrigatório. `map` usa fail-fast; `collect` observa todos os
+application errors e child cancellations sem perder o índice do input:
+
+```w excerpt
+// excerpt-source: reference/last-light/execution.w::export async fn inspectEveryFailure
+export async fn inspectEveryFailure(
+  jobs: take Array<MixingJob>,
+  parallelism: usize,
+  ordering: TaskGroupOrdering,
+): Array<TaskSettlement<MixingResult, BrigadeError>> throws BrigadeError {
+  guard parallelism > 0 && parallelism <= maximumParallelCooks else {
+    throw .invalidParallelism(found: parallelism, maximum: maximumParallelCooks)
+  }
+
+  return await TaskGroup.parallelCollect<.compute>(
+    take jobs,
+    limit: parallelism,
+    ordering: ordering,
+    using: mixJob,
+  )
+}
+```
+
+Em `.input`, os settlements seguem o índice. Em `.completion`, seguem body
+settlement, mas cada record ainda contém o índice original. `limit` limita
+children vivos; não torna os arrays de input ou output sublineares. Parent
+cancellation e fault não retornam array parcial e todo caminho drena.
+
 `Task.firstSettled` faz uma escolha one-shot por completion order. Ele consome
 handles já criados e não escolhe um domain:
 
@@ -1675,7 +1704,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Escrever matriz | [[1, 2], [3, 4]] | Carrier shape-checked | [1 2; 3 4] como grammar separada | Array literal é familiar; shape estático exige type/contract | [DESIGN.md §17](DESIGN.md#17-matrizes-tensors-e-ml) · [numerics.w](reference/last-light/numerics.w) |
 | Controlar allocation | allocator scratch, .fixed, .root, .none | .bounded é Pesquisa descrita, não plano ASC0 | Arena API universal, propagação implícita ou using obrigatório | Budget explícito limita efeitos; annotations aumentam superfície | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [allocation.w](reference/last-light/allocation.w) |
 | Projetar borrow | ref T, view T, inout T | Projection física e borrow oracle | StringView/Slice públicos como segunda hierarquia | Menos tipos públicos, mas checker precisa acompanhar projection e liveness | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [views.w](reference/last-light/views.w) |
-| Executar async | direct call, await, `let x = async ...`, `let x = spawn<.compute> ...`, `let x = spawn<domain: .compute> ...`, TaskGroup.parallelMap/parallelCollect | limit e ordering declarados no group | Promise/Future, detached task, launcher fora de `let` e spawn sem domain | Structured join preserva ownership; domain explícito custa call-site | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [execution.w](reference/last-light/execution.w) |
+| Executar async | direct call, await, `let x = async ...`, `let x = spawn<.compute> ...`, `let x = spawn<domain: .compute> ...`, TaskGroup map/collect | `limit`, `ordering` e `using` explícitos; collect devolve `TaskSettlement` | Promise/Future, detached task, launcher fora de `let`, spawn sem domain e collect que perde o input | Structured join preserva ownership; domain e bounds explícitos custam call-site | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [execution.w](reference/last-light/execution.w) |
 | Consumir stream | for try await ref item in source ou stream <[take source]> { yield take/copy ... } | Stream pull e capacity declarados | Generator genérico, yield from e buffer oculto | Pull mantém backpressure e borrow; collect aloca e perde incrementalidade | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
 | Enviar por channel | Channel<T><.send> / <.receive> (MPSC) | Capacity e close explícitos | Channel bidirecional implícito, MPMC infinito | Endpoints expressam authority; bounded buffer pode suspender | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
 | Compartilhar estado | owner por domain, shared, atomic, channel | SnapshotCell e adapters especializados | Atomic<shared T>, mutex global ou RCU implícito | Serialização e snapshot reduzem races; cópia/sync têm custo visível | [DESIGN.md §12.10.7](DESIGN.md#12107-exclusão-mútua-como-último-recurso) · [synchronization.w](reference/last-light/synchronization.w) |

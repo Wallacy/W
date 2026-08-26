@@ -1029,7 +1029,7 @@
       "id": "std.runtime.task",
       "availability": "runtime-profile",
       "source": "std/runtime/task.w",
-      "designAnchors": ["12.3", "12.4", "12.4.1", "12.5", "14.2", "19.3.4"],
+      "designAnchors": ["12.3", "12.4", "12.4.1", "12.5", "12.8", "14.2", "19.3.4"],
       "implementationProvider": {
         "kind": "std-intrinsic",
         "id": "std.runtime.task-local@1",
@@ -1046,12 +1046,13 @@
       },
       "consumer": {
         "path": "reference/last-light/execution.w",
-        "symbols": ["TaskOutcome", "TaskTimeout", "TaskLocal"]
+        "symbols": ["TaskOutcome", "TaskGroupOrdering", "TaskSettlement", "TaskTimeout", "TaskLocal"]
       },
       "apis": [
         { "symbol": "CancellationReason", "kind": "enum", "profile": "value-contract" },
         { "symbol": "TaskBudgetKind", "kind": "enum", "profile": "value-contract" },
         { "symbol": "TaskOutcome", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "TaskGroupOrdering", "kind": "enum", "profile": "value-contract" },
         { "symbol": "TaskSettlement", "kind": "struct", "profile": "value-contract" },
         { "symbol": "TaskTimeout", "kind": "alias", "profile": "value-contract" },
         {
@@ -3521,6 +3522,15 @@
       "surface": "TaskSettlement",
       "kind": "symbol",
       "consumer": "reference/last-light/task_settlement.w",
+      "profile": "value-contract",
+      "status": "draft"
+    },
+    {
+      "id": "tgm0-task-group-ordering",
+      "module": "std.runtime.task",
+      "surface": "TaskGroupOrdering",
+      "kind": "symbol",
+      "consumer": "reference/last-light/execution.w",
       "profile": "value-contract",
       "status": "draft"
     },
