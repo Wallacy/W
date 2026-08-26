@@ -822,17 +822,27 @@ promessa de scheduler ou runtime disponível.
 | Intent | Current form | Note |
 | --- | --- | --- |
 | call suspending now | `let x = await func()` | task atual; não cria child |
-| blocking bridge | `let y = sync func()` | somente declaration `async fn` explícita; frontend/runtime missing |
+| direct entry sem potential suspension | `let y = sync func()` | `async fn` explícita com `directEntry: available`; compiler/lowering missing |
 | bare may-suspend call | `let w = func()` | error, nunca warning |
 | direct non-suspending call | `let z = func1()` | task atual |
 | child initializer | `let q = async func1()` | child lexical no domain atual |
 
-`sync` só é válido para declaration `async fn` explícita
-(`sourceSpelling: explicit`). Callable may-suspend apenas por inferência não
-aceita `sync`, assim como `fn` sem async explícito e callable `neverSuspend`;
-todos são errors, não warnings ou no-ops. A bridge exige blocking authority,
-quota bounded, provider e checks de deadlock/fairness. Essa é a forma escolhida
-no design; frontend, lowering, runtime bridge e provider ainda estão missing.
+`sync` só é válido para declaration `async fn` explícita cujo body inteiro
+prova `neverSuspend` e cujo function type preserva
+`directEntry: available`. A call executa diretamente na mesma task, context e
+domain; não cria child, não suspende, não bloqueia thread, não reentra o event
+loop e não exige authority, quota ou provider. `try` continua tratando somente
+a error edge. Qualquer caminho que alcança `await`, `Task.yield`, child/join,
+service ou I/O suspending, `defer async`, call bare/`await` para `maySuspend` ou
+`sync` para facet absent remove o facet, mesmo quando um cache hit parece
+provável. `sync` pode chamar outra direct entry available: a async entry publica
+`may`, mas a entry selecionada é `neverSuspend`. A prova compõe por ponto fixo
+em SCCs sem executar recursão ou provar termination; perda de facet propaga aos
+callers. Function ordinary, callable may-suspend apenas por inferência,
+interface sem body e erasure sem o facet são errors, não warnings ou no-ops.
+Uma forma `sync` inválida não vira call ordinary na prova do caller. Frontend
+semântico, function type/HIR/interface, dual-entry lowering/ABI, diagnostics e
+cross-module/erasure ainda estão missing.
 
 ### TaskGroup, cancellation e TaskLocal
 
@@ -1705,6 +1715,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Controlar allocation | allocator scratch, .fixed, .root, .none | .bounded é Pesquisa descrita, não plano ASC0 | Arena API universal, propagação implícita ou using obrigatório | Budget explícito limita efeitos; annotations aumentam superfície | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [allocation.w](reference/last-light/allocation.w) |
 | Projetar borrow | ref T, view T, inout T | Projection física e borrow oracle | StringView/Slice públicos como segunda hierarquia | Menos tipos públicos, mas checker precisa acompanhar projection e liveness | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [views.w](reference/last-light/views.w) |
 | Executar async | direct call, await, `let x = async ...`, `let x = spawn<.compute> ...`, `let x = spawn<domain: .compute> ...`, TaskGroup map/collect | `limit`, `ordering` e `using` explícitos; collect devolve `TaskSettlement` | Promise/Future, detached task, launcher fora de `let`, spawn sem domain e collect que perde o input | Structured join preserva ownership; domain e bounds explícitos custam call-site | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [execution.w](reference/last-light/execution.w) |
+| Expressar urgência | deadline + service isolada + admission/reserva/budget; domain só para placement | política física aparece somente em `w explain execution` e provider receipt | `priority`/`qos`, domain como safety, `.background`, `.userInteractive`, `Task.currentPriority` ou `Task.withPriority` | Ordem garantida pelo contrato não muda; ordem unspecified e deadline/admission/winner podem variar entre traces permitidos | [DESIGN.md §12.6.2](DESIGN.md#1262-domain-placement-e-política-física-de-scheduling) · [BUILD.md](reference/last-light/BUILD.md#32-execution-profiles) |
 | Consumir stream | for try await ref item in source ou stream <[take source]> { yield take/copy ... } | Stream pull e capacity declarados | Generator genérico, yield from e buffer oculto | Pull mantém backpressure e borrow; collect aloca e perde incrementalidade | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
 | Enviar por channel | Channel<T><.send> / <.receive> (MPSC) | Capacity e close explícitos | Channel bidirecional implícito, MPMC infinito | Endpoints expressam authority; bounded buffer pode suspender | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
 | Compartilhar estado | owner por domain, shared, atomic, channel | SnapshotCell e adapters especializados | Atomic<shared T>, mutex global ou RCU implícito | Serialização e snapshot reduzem races; cópia/sync têm custo visível | [DESIGN.md §12.10.7](DESIGN.md#12107-exclusão-mútua-como-último-recurso) · [synchronization.w](reference/last-light/synchronization.w) |

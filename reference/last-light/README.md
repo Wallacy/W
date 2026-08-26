@@ -1924,7 +1924,7 @@ Famílias: execution domain, capacity, paralelismo aninhado, fairness e liveness
 
 Aceite:
 
-- o initializer `async` herda a preference do parent;
+- o initializer `async` herda o domain placement do parent;
 - `spawn` exige um domain explícito;
 - `spawn<.thermal>` é válido e entra na fila FIFO do domain serial;
 - `spawn<.main>` é válido e preserva a affinity do host;
@@ -1961,12 +1961,34 @@ Aceite:
 - `TaskTimeout` usa nanoseconds exatos; ausência de timeout não usa infinity;
 - body settled vence cancellation posterior e só fica visível após cleanup;
 - fail-fast cancela cedo e escolhe o error primário pela ordem declarada;
-- priority não substitui deadline nem isolation.
+- nenhum launcher, task, group, service ou entry possui `priority` ou `qos`;
+- a std não possui `.background`, `.userInteractive`, `Task.currentPriority` ou
+  `Task.withPriority`;
+- política física do provider só muda latência e ordem que o contrato aplicável
+  deixa unspecified; ela preserva cada order/arbitration realmente garantida;
+- `w explain execution` e o provider receipt mostram a política física, o
+  suporte do target e `sourcePriority: absent` como evidência não branchable;
+- política física não substitui deadline, admission, domain ou isolation;
+- para o mesmo trace lógico, outcome, owner/drop e decisões derivadas são
+  iguais; outro trace permitido pode mudar deadline, admission, winner ou outro
+  outcome permitido.
 
-O scheduler adversarial usa uma única CPU lógica, inverte a ordem de todos os
-children, esgota cada budget e suspende um nested group quando a capacity está
-cheia. O programa deve terminar com o mesmo resultado, limpar cada owner uma
-vez e não criar um worker adicional.
+O scheduler adversarial usa uma única CPU lógica, escolhe somente entre jobs ou
+events cuja ordem o contrato aplicável deixa unspecified, esgota cada budget e suspende um nested group quando a
+capacity está cheia. Ele não pode fabricar outcome, ignorar cancellation ou
+deadline, violar order/arbitration garantida, burlar admission, capacity,
+budget ou drain, nem perder owner/drop. Isso não cria FIFO global de channel ou
+service. Replay fixa as decisões lógicas de schedule,
+timer/deadline e eventos externos; detalhes de worker e queue ficam no sidecar
+físico.
+
+O caso QOS0 usa um pedido com alergia. A service instance dedicada isola state;
+admission, reserva e budget protegem overload; deadline produz cancellation. O
+product pode usar o domain atual, compartilhado ou dedicado por placement,
+performance ou liveness. Domain não protege correctness. Success só ocorre
+depois da validação segura. Deadline vencida produz cancellation/rejection sem
+unsafe fulfillment ou partial commit, seguida de terminal drain. Progress
+continua condicional às premissas do profile.
 
 `domain_oracle.w` verifica inheritance do initializer `async` e o target explícito de
 `spawn`. Ele aceita domains seriais, preserva FIFO, mantém `.compute` válido com
@@ -2047,6 +2069,36 @@ altera siblings quando o drain não pode começar.
 
 MX0 não executa W. Ele compõe M1, E0 e E1 e não substitui o checker, allocator,
 scheduler, runtime ou provider.
+
+### 3.30.3 Direct entry de `async fn` SYNC1
+
+O spelling `try sync` do Atlas chama a ordinary entry de uma declaration
+`async fn` concreta cujo body visível prova `neverSuspend`. `fetch` permanece
+aceito porque seu body apenas retorna `city`. Se qualquer caminho ganhar
+`await`, `Task.yield`, initializer child, join, service ou I/O suspending,
+`defer async`, call bare/`await` para `maySuspend` ou `sync` para facet absent,
+`directEntry` passa a `absent` e o mesmo call site deixa de compilar.
+
+Uma direct entry pode chamar outra com `sync`. A async entry continua
+publicando `may`, mas a entry selecionada é `neverSuspend`. O proof compõe por
+ponto fixo, inclusive num SCC de calls `sync`, sem executar a recursão ou provar
+termination. Perda de facet propaga aos callers. Uma forma `sync` inválida para
+function ordinary ou callee sem summary/facet torna o caller `absent`; ela não
+vira call ordinary por ter `suspension: never`.
+
+O caso adversarial do Restaurante compara dois bodies explícitos. Um body sem
+suspensão aceita `try sync`; outro que pode executar `await catalog`, mesmo com
+cache hit provável, é rejeitado antes de qualquer effect. Não existe
+`WouldSuspend`, partial execution, readiness dinâmica ou fallback runtime.
+`sync` preserva a mesma task, context e domain e mantém `blocksThread: false`.
+Trabalho CPU longo ainda pode pedir `spawn<domain>` por custo, mas placement não
+muda a elegibilidade estática.
+
+SYNC1 também rejeita function ordinary, callable async inferida, protocol ou
+foreign bodyless e function value sem o facet. Uma export concrete que perde
+`directEntry: available` muda `SemanticInterfaceKey`. O corpus host não é
+semantic checker, compiler, dual-entry ABI, runtime W, provider ou estudo
+humano/modelo.
 
 ### 3.31 Balcão dos Oito Bits e das Sessenta e Quatro Colheres
 
@@ -3023,7 +3075,7 @@ O Book deve mostrar pares lado a lado:
 | domain relacional | `let x = spawn<.compute> ...` | `spawn on .compute let x = ...` (**Retirado antes do 1.0**) |
 | domain customizado | `module execution<domains: [...]>` e `spawn<.thermal>` | enum manual ou string |
 | execution profile | product escolhe `executionProfile`; deployment só reduz | import cria pool ou deployment troca domain |
-| QoS | descriptor/policy de group | `.background` como domain |
+| urgência de execução | deadline + service isolada + admission/reserva/budget; domain conforme placement | `priority`, `qos`, domain como safety, `.background` ou `Task.withPriority` |
 | trabalho longo | `fulfillment.tryStart(input:)` por `WorkKeyRef` | `spawn<owner:>` ou Promise solta |
 | binding singular | `lastLight.menu()` pela service importada | lookup runtime por string |
 | binding keyed | `orderCoordinators.at(orderId)` | singleton global ou key inferida |

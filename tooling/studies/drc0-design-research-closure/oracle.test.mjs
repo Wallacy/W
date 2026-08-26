@@ -7,6 +7,28 @@ describe("DRC0 design research closure", () => {
     expect(result.errors).toEqual([]);
     expect(result.researchGates).toEqual([]);
     expect(Object.values(result.studyFacts).every((study) => study.valid)).toBe(true);
+    expect(result.studyFacts.SYNC1.facts).toMatchObject({
+      explicitNeverSuspendAccepted: true,
+      explicitAwaitRejected: true,
+      dynamicPathRejected: true,
+      blocksThread: false,
+      createsTask: false,
+      suspendsTask: false,
+      sameExecutionContext: true,
+      runtimeFallback: false,
+      asyncEntryPublishesMay: true,
+      selectedDirectEntryNeverSuspend: true,
+      indirectFacetAccepted: true,
+      composedDirectEntryAccepted: true,
+      transitiveFacetLossRejected: true,
+      invalidSyncPoisonsCaller: true,
+      syncSccEligible: true,
+      syncSccTerminationUnproven: true,
+      syncSccNotExecuted: true,
+      erasedFacetRejected: true,
+      facetRemovalSourceBreaking: true,
+      semanticInterfaceKeyChanged: true,
+    });
   });
 
   test("rejects a missing evidence boundary and caller-owned result", () => {

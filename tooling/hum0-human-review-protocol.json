@@ -522,13 +522,13 @@
         {
           "id": "execution-ergonomics-cases",
           "path": "tooling/execution-ergonomics-cases.json",
-      "digest": "sha256:1a8057f9277bcc05d212019b28cf2036fb91a0dd1439413b2ffc0ef4e795cfae",
+          "digest": "sha256:777e0c2a30432c37039de2685a55bc6f82d2be745a987e218fb69e89b92fd30d",
           "claim": "Execution labels, ownership operations, suspension, and placement cases"
         },
         {
           "id": "execution-ergonomics-reference",
           "path": "tooling/execution-ergonomics-reference.test.mjs",
-      "digest": "sha256:0de036069eef3a3e93b12e6f56a49d10f0ca1608716be0443aa8ec16539ee409",
+          "digest": "sha256:7d26dc0fad853c40e71e8a1e8b28df070fde4919ba545080c98b6691ab018ea7",
           "claim": "Independent execution form assertions"
         }
       ],

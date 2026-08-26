@@ -2,15 +2,15 @@
   "$schema": "w-design-research-closure-cases-1",
   "status": "design-oracle-input",
   "id": "DRC0",
-  "decisions": ["W-1471", "W-1473", "W-1474", "W-1475"],
+  "decisions": ["W-1484", "W-1473", "W-1474", "W-1475"],
   "cases": [
     {
-      "id": "DRC0-W-1471-current",
+      "id": "DRC0-W-1484-current",
       "kind": "current-contract",
-      "decisions": ["W-1471"],
-      "study": "SYNC0",
-      "stopCondition": "explicit async fn accepted; inferred maySuspend, ordinary fn, neverSuspend, and bare maySuspend rejected",
-      "missingEvidence": ["frontend grammar", "compiler lowering", "runtime bridge", "provider receipt", "liveness and deadlock validation"]
+      "decisions": ["W-1484"],
+      "study": "SYNC1",
+      "stopCondition": "declaration-wide directEntry proof accepts explicit async direct entries, composes sync dependencies and SCCs by fixed point without proving termination, propagates facet loss or invalid sync calls, preserves the facet through function types and public identity, and rejects every dynamic or erased path without execution",
+      "missingEvidence": ["semantic checker", "function type, HIR, and interface facet", "dual-entry lowering and ABI", "cross-module and erasure validation", "diagnostics", "human and model studies"]
     },
     {
       "id": "DRC0-W-1473-current",

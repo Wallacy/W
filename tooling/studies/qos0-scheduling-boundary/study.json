@@ -1,0 +1,42 @@
+{
+  "$schema": "w-qos0-scheduling-boundary-study-1",
+  "id": "QOS0",
+  "decision": "W-1483",
+  "status": "complete-design-study",
+  "classification": "implementation-evidence-gap",
+  "title": "Domain placement without portable task priority or QoS",
+  "question": "Can physical scheduling policy vary without creating a source priority surface or changing W semantic contracts?",
+  "data": "cases.json",
+  "oracle": "oracle.mjs",
+  "checker": "check.mjs",
+  "evidenceBoundary": {
+    "current": ["design contract", "Last Light narrative", "host oracle", "adversarial routes", "primary sources"],
+    "missing": ["semantic checker", "lowering", "runtime provider", "cross-target receipts", "fault liveness tests", "performance evidence", "human study", "model study"],
+    "hostOnly": true,
+    "apiPromotion": false,
+    "researchClosed": true
+  },
+  "sources": [
+    {
+      "url": "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0304-structured-concurrency.md",
+      "accessed": "2026-08-26",
+      "scope": "task priority inheritance and escalation require structured semantics"
+    },
+    {
+      "url": "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0417-task-executor-preference.md",
+      "accessed": "2026-08-26",
+      "scope": "task executor selection is distinct from serial actor isolation"
+    },
+    {
+      "url": "https://docs.rs/tokio/latest/tokio/runtime/index.html",
+      "accessed": "2026-08-26",
+      "scope": "conditional fairness does not specify ready-task order"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Thread.html",
+      "accessed": "2026-08-26",
+      "scope": "virtual threads ignore setPriority and retain normal priority"
+    }
+  ],
+  "stopCondition": "Stop when source absence, receipt visibility, fixed-logical-trace derivation, preservation of contract-guaranteed order with variation only where order is unspecified, safe allergy terminals, conditional single-CPU progress, and the complete reopen gate are derived without simulating a W runtime."
+}

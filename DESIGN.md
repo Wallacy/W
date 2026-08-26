@@ -11173,7 +11173,7 @@ protocol linear.
 | paralelismo | trabalhos podem executar ao mesmo tempo em recursos distintos |
 | suspension point | ponto onde a task pode ceder o executor |
 | executor | runtime que agenda jobs em threads, loops, queues ou devices |
-| preference | placement herdável; não protege estado |
+| domain placement | seleção herdável de domain; não protege estado |
 | isolation | exclusão lógica que protege estado |
 | affinity | exigência física do host, como uma UI thread |
 | join | consumo estruturado do resultado e do cleanup de um child |
@@ -11182,7 +11182,7 @@ W separa quatro eixos:
 
 1. a árvore de lifetime define ownership, join e cancelamento;
 2. `async` e `spawn` definem intenção de execução;
-3. o contrato `<.domain>` define preference de placement;
+3. o contrato `<.domain>` define domain placement;
 4. service, entry e profile definem isolation ou affinity.
 
 Um executor não cria isolation por existir. Um executor serial pode atender mais
@@ -11215,7 +11215,7 @@ O initializer `async` não promete outro core. `spawn` não promete paralelismo.
 do domínio selecionado define serialização, concorrência e paralelismo.
 
 `await f()` executa `f` como parte da task atual. Ele não cria um child. A call
-começa na ordem lexical e herda cancellation, deadline e preference. Um
+começa na ordem lexical e herda cancellation, deadline e domain placement. Um
 suspension point pode devolver o executor ao runtime.
 
 `let x = async ...` e `let x = spawn<domain> ...` criam um child depois que o parent avalia
@@ -11249,11 +11249,17 @@ continua visível no source e no explain output.
 `async fn` é um modifier opcional. Ele fixa e publica `maySuspend` para
 evolução de API. A declaration exige `async fn` quando não há body analisável e
 a operação pode suspender, como em protocol, foreign ou interface declaration.
-Um body marcado `async` sem suspension é válido. Um body não marcado que
-suspende exporta `maySuspend` inferido.
+Um body marcado `async` sem suspension é válido. Ele continua publicando
+`maySuspend`, mas um body visível que satisfaz a prova de W-1484 também recebe
+`directEntry: available`. Um body não marcado que suspende exporta
+`maySuspend` inferido e nunca oferece essa direct entry.
 
 Function type e HIR registram `suspension: never|may`,
-`sourceSpelling: explicit|inferred` e `stabilityAssertion`. A inferência é
+`sourceSpelling: explicit|inferred`, `stabilityAssertion` e
+`directEntry: available|absent`. Para uma declaration `async fn` explícita,
+`suspension: may` descreve a async entry publicada; quando o facet está
+`available`, a direct entry selecionada por `sync` é `neverSuspend`. A
+inferência de suspensão é
 monotônica em calls indiretas e em SCCs recursivos: a análise propaga o resumo
 do function type até um ponto fixo, e um `await` em qualquer member alcançável
 fixa `may` para todo o SCC. O widening semântico
@@ -11284,7 +11290,12 @@ let (a, b) = try await (local, remote)
 
 Uma call por function value segue o mesmo resumo: se `worker` tem type
 `fn(A): B` com `suspension: may`, `worker(value)` exige uma das quatro formas.
-O resumo não desaparece quando o nome concreto é indireto.
+`sync worker(value)` também exige que o function type preserve
+`sourceSpelling: explicit` e `directEntry: available`. Erasure sem esse facet
+produz `directEntry: absent`; o resumo não reaparece porque o nome concreto era
+elegível antes da conversão. Uma direct entry pode chamar outra somente com a
+forma `sync` e o facet preservado. Calls bare ou `await` para a async entry
+`maySuspend` continuam potenciais suspension points.
 
 Uma operação genérica scoped pode publicar
 `suspension: forwards(operation)` quando o verifier prova que a callable não
@@ -11301,8 +11312,12 @@ assíncrona. O call site continua distinguindo call direta de `await`, e uma
 mudança do resumo público continua sujeita à regra breaking desta subseção.
 
 `await` em callable `neverSuspend` pode produzir uma informação removível. Ele
-não altera o resultado. Não existe call-site `sync` genérico. A espera blocking
-geral é rejeitada, pois pode deadlockar um domain serial ou causar reentrância.
+não altera o resultado. `await` de callable `maySuspend` permanece na task
+corrente e não bloqueia a thread; a operação pode terminar sem suspender num
+trace concreto. `sync` não é uma espera geral nem um adapter blocking: W-1484
+autoriza somente a direct entry provada de uma declaration `async fn`
+explícita. A espera blocking geral continua rejeitada, pois pode deadlockar um
+domain serial ou causar reentrância.
 **W-1204 — boundary blocking:** uma call foreign marcada `blocking` usa
 `spawn<.blocking>` ou uma fault boundary física, conforme a seção 12.11. Essa
 adaptação não é um fix-it automático: ela muda placement, cancellation,
@@ -11320,7 +11335,7 @@ Os diagnostics desta policy são:
 | `W-SUSPEND-0002` | `await` removível em callable `neverSuspend` |
 | `W-SUSPEND-0003` | blocking wait geral em execução estruturada |
 | `W-SUSPEND-0004` | job de dispatch `.barrier` pode suspender |
-| `W-SUSPEND-0005` | `sync` exige callable `maySuspend` com declaration `async fn` explícita |
+| `W-SUSPEND-0005` | `sync` exige declaration `async fn` explícita e function type com `directEntry: available` |
 | `W-PLACEMENT-0004` | launcher child exige raiz callable única em initializer de binding lexical `let` |
 | `W-PLACEMENT-0001` | placement `spawn` aparece numa declaration em vez do call site |
 | `W-PLACEMENT-0002` | `spawn` não informa um domínio explícito ou informa um domínio inexistente |
@@ -11336,7 +11351,7 @@ Os diagnostics desta policy são:
 | `W-DOC-0005` | example usa effect ambiental sem fixture explícito |
 | `W-STD-0001` | módulo std usa o field de tier retirado |
 
-### 12.2.2 W-1470: posição do launcher e W-1471: bridge `sync`
+### 12.2.2 W-1470: posição do launcher e W-1484: direct entry `sync`
 
 **W-1470 — posição do launcher (Forma vigente):** a única forma corrente de
 criar child lexical por binding é:
@@ -11362,37 +11377,69 @@ statement são rejeitados. Uma expressão composta também é rejeitada quando
 impede identificar uma única raiz callable. `await f()` continua na task atual
 e não cria child. `await task` faz join.
 
-**W-1471 — `sync` (Forma vigente de design; implementation-gap):** `sync` é a
-bridge blocking explícita para uma declaration cujo callee escreve `async fn`
-(`sourceSpelling: explicit`). Uma call bare de callable `maySuspend` continua
-error, nunca warning. O frontend e o runtime ainda não implementam a forma:
+**W-1484 — `sync` (Forma vigente de design; implementation-gap):** `sync f()` é
+uma call direta pela ordinary entry da mesma declaration. Ela executa na mesma
+task, context e domain, não cria `Task` ou child, não suspende a task, não
+bloqueia thread e não reentra o event loop. Ela não exige blocking authority,
+quota, provider ou fallback runtime e não acrescenta `blocksThread`. Uma call
+bare de callable `maySuspend` continua error, nunca warning. O compiler ainda
+não implementa o facet e o lowering:
 
 ```w
 let x = await func()
-let y = sync func()
+let y = sync func() // somente com directEntry: available
 let w = func() // error para maySuspend
 let z = func1()
 let q = async func1()
 ```
 
-`sync f()` executa a operação `maySuspend` até conclusão sem suspender o
-caller. A bridge preserva scope estruturado, cancellation, deadline, cleanup,
-join e drain e não cria detached task. Ela bloqueia a thread e acrescenta
-`blocksThread` ao effect summary. Só é admissível em entry/context/domain com
-blocking authority, quota bounded e provider de bridge. É rejeitada em
-cooperative, serial, signal, freestanding e nonblocking contexts, e quando o
-progresso depende do mesmo execution permit. `sync` sobre `neverSuspend` ou
-sobre `fn` sem `async` explícito é error, não warning ou no-op. Uma callable
-`maySuspend` apenas por inferência continua disponível para `await`, `async` e
-`spawn`, mas `sync inferredMay()` é error.
+`sync` só é válido quando a declaration tem spelling explícito `async fn` e o
+function type preserva `directEntry: available`. Para um body W visível, o
+compiler deriva esse facet por uma prova `neverSuspend` sobre a declaration
+inteira, antes de specialization estática ou path-sensitive. Nenhum caminho
+pode alcançar `await`, `Task.yield`, initializer `async` ou `spawn`, join,
+service ou I/O suspending, `defer async`, call bare ou `await` para callable
+`maySuspend`, ou `sync` para um type com `directEntry: absent`. Uma call `sync`
+para outra declaration ou function type com `directEntry: available` é aceita:
+a async entry do callee continua publicando `suspension: may`, mas a entry
+selecionada é `neverSuspend`.
 
-O compiler só pode fazer lowering direto com prova. O fallback é uma runtime
-bridge, sem event loop reentrante oculto. Disponibilidade por target/provider,
-deadlock, fairness e cancellation continuam requisitos de implementação e
-conformance. Kotlin `runBlocking` é precedente para main, tests e callbacks,
-não prova universal. [`DRC0`](tooling/studies/drc0-design-research-closure/)
-fecha a escolha de design sem afirmar grammar, lowering, runtime bridge ou
-provider.
+A prova compõe essas dependências até um ponto fixo. Um SCC formado somente por
+calls `sync` entre direct entries localmente elegíveis pode publicar o facet;
+essa análise não executa a recursão e não prova termination. Se qualquer member
+perde o facet, a perda propaga pelo SCC e pelos callers transitivos. Uma call
+`sync` inválida, inclusive para uma função ordinary `neverSuspend`, invalida o
+HIR e não pode ser tratada como call ordinary ao provar o caller. Um cache
+hit, readiness dinâmica ou ramo conhecido no call site não muda a prova. O
+compiler não executa até o primeiro pending, não converte `await`
+recursivamente em `sync` e não publica um fast path que pode falhar em runtime.
+
+Protocol requirement, declaration foreign e interface sem body possuem
+`directEntry: absent` em W 1.0. Uma function value só aceita `sync` quando seu
+type preserva explicitamente `sourceSpelling: explicit` e
+`directEntry: available`. Overload resolution escolhe primeiro declaration e
+call shape; disponibilidade de direct entry é verificada depois e não ranqueia
+overloads. `sync` sobre `fn` ordinary, callable `maySuspend` apenas por
+inferência ou type apagado é error, nunca warning ou no-op. `try` continua
+ortogonal e trata somente a error edge.
+
+Uma export concrete com `directEntry: available` publica o facet em
+`WInterface`. Removê-lo é source/API breaking e muda
+`SemanticInterfaceKey`, mesmo quando a async entry permanece. A ordinary entry
+usa a ABI de W-1163 e pode coexistir com a async entry. Não existe fallback,
+trap `WouldSuspend`, requisito de provider ou decisão do optimizer que altere a
+validade do source. Trabalho CPU longo ainda pode ocupar um worker; o caller
+usa `spawn<domain>` quando o custo pede outro placement. Esse custo não é o
+effect `blocksThread`.
+
+W-1484 substitui somente a interpretação blocking de W-1471. W-1471 permanece
+como proveniência histórica. As alternativas rejeitadas são uma bridge como
+Kotlin `runBlocking`, alias de `await`, execução até first-pending, event loop
+reentrante oculto, lowering recursivo de `await`, elegibilidade por fast path
+dinâmico e `sync` como no-op sobre função ordinary.
+[`DRC0`](tooling/studies/drc0-design-research-closure/) fecha a escolha de
+design como SYNC1 sem afirmar semantic checker, interface/type/HIR, dual-entry
+lowering/ABI, diagnostics ou evidência cross-module/erasure.
 
 
 ### 12.3 `Task` e ownership
@@ -11457,7 +11504,7 @@ Children herdam somente contexto operacional:
 - cancellation ancestry e menor deadline;
 - causal trace e logical stack;
 - budgets descendentes;
-- executor preference conforme a seção 12.6.
+- domain placement conforme a seção 12.6.
 
 Dados da aplicação, capabilities e contexto mutável usam argumentos ou captures
 explícitos. W não copia um mapa task-local invisível.
@@ -11696,12 +11743,12 @@ O refinement de completion, reclamation e shutdown está em
 [12.12.1](#12121-runtime-closure-e-liveness). Esse contrato não altera a distinção entre
 cancelamento solicitado e completion do provider.
 
-### 12.6 Isolation, preference, paralelismo e affinity
+### 12.6 Isolation, domain placement, paralelismo e affinity
 
 | Contrato | Owner | Pode ser remapeado? | Protege estado? |
 |---|---|---:|---:|
 | required isolation | service/entry | não pode ser removido | sim |
-| executor preference | task subtree | sim | não |
+| domain placement | task subtree | sim | não |
 | domain dispatch | child criado por `spawn` | somente por fallback compatível | não |
 | parallel capability | domain/parallel group | limitado pelo host | não |
 | host affinity | profile/adapter | somente por target compatível | pode compor |
@@ -11711,7 +11758,8 @@ await fetchCatalog()
 let plan = spawn<.compute> optimize(take snapshot)
 ```
 
-**W-1162 — placement no call site:** `<.domain>` no call site seleciona uma preference estática do profile. Ele não
+**W-1162 — placement no call site:** `<.domain>` no call site seleciona um
+domain placement estático do profile. Ele não
 promete thread, affinity ou isolation. O profile define domains, capacity e
 fallback. Network I/O usa `await` no domain atual. Ele não exige worker ou
 domain dedicado.
@@ -11719,14 +11767,14 @@ domain dedicado.
 A resolução usa esta ordem:
 
 1. required isolation e host affinity precisam ser compatíveis;
-2. a preference explícita substitui a herdada;
-3. a preference herdada substitui o default do profile;
+2. o domain placement explícito substitui o herdado;
+3. o domain placement herdado substitui o default do profile;
 4. o callee isolado sempre executa em sua isolation boundary.
 
 Uma call por `ServiceRef` não muda o placement do callee. O contrato do child
-caller só muda seu trabalho não isolado. Initializers `async` e groups concorrentes
-herdam a preference. `spawn` seleciona um domínio explícito. Um future owner
-runtime precisa declarar sua preference de novo.
+caller só muda seu trabalho não isolado. Initializers `async` e groups
+concorrentes herdam o domain placement. `spawn` seleciona um domínio explícito.
+Um future owner runtime precisa declarar seu domain placement de novo.
 
 **W-1172 — `spawn` em domínio serial:** `spawn<domain>` faz dispatch assíncrono
 e estruturado. Ele não declara paralelismo. Um domínio serial aceita `spawn`,
@@ -11804,7 +11852,7 @@ com capability `.parallel`.
 **Exemplo:**
 
 ```w
-let menu = async loadMenu()      // herda a preference atual
+let menu = async loadMenu()      // herda o domain placement atual
 let plan = spawn<.compute> optimize(snapshot)
 let bill = spawn<.compute> price(order)
 ```
@@ -11835,8 +11883,8 @@ instrumentation identity
 normaliza como set. Ele não dá ao enum uma semântica OR oculta. `serial`,
 `parallel`, `concurrent`, `barrierDispatch`, `nonBlockingIo`, `blocking`,
 `affine` e `device` são capabilities distintas. `.serial(name)` inclui capacity
-lógica um e primeiro start FIFO. Uma policy que reordena por priority precisa
-de outro contrato explícito.
+lógica um e primeiro start FIFO. Nenhuma política física pode reordenar esse
+FIFO. Ela só escolhe entre jobs que o source deixa sem ordem contratual.
 
 **Exemplo normalizado:**
 
@@ -11870,7 +11918,8 @@ Os initializers `async` e `spawn` controlam o launch como qualquer operação su
 
 Um módulo publica requirements, mas não escolhe um domínio oculto para `spawn`
 ou `parallelMap`. Importar um módulo nunca cria executor, queue ou thread.
-Service e entry podem declarar preference porque possuem instance e lifecycle.
+Service e entry podem declarar domain placement porque possuem instance e
+lifecycle.
 O product seleciona o profile que fornece bindings e budgets.
 
 ##### 12.6.1.1 Dispatch comum e de barreira
@@ -11912,21 +11961,86 @@ domain ou alias não classificado invalidam a prova. `.barrier` não torna um
 object `shareable` nem concede `inout`; `w explain execution` mostra o blocker e
 sugere service, lock, atomic ou snapshot.
 
-#### 12.6.2 Priority, deadline e seleção dinâmica
+#### 12.6.2 Domain placement e política física de scheduling
 
-Priority e domain são contratos diferentes. `.background` não é um domain
-standard no design vigente. Um profile pode oferecer QoS como policy, mas priority não muda
-ownership, ordering, isolation ou resultado.
+**W-1483 — ausência de priority e QoS portáveis (Forma vigente):** W 1.0
+possui domain placement. W 1.0 não possui task priority ou QoS portável no
+source.
 
-Deadline cria cancellation com causa. Priority continua uma preferência de
-scheduling. Uma task urgente sem deadline não ganha uma garantia temporal.
+Os seguintes contratos não possuem slot `priority` ou `qos`:
 
-**Exemplo:** `.compute` informa o tipo de trabalho. Uma policy
-`.userInteractive` pode alterar sua precedência, mas não autoriza acessar state
-UI.
+- initializer `async` e `spawn`;
+- `TaskGroup`, inclusive as famílias fechadas de W-1482;
+- função e `Task`;
+- service call;
+- entry, service e seus descriptors.
 
-QoS pertence ao entry, service descriptor, execution profile ou task group; não
-ocupa o contrato `spawn<...>`.
+A standard library não publica `.background`, `.userInteractive`,
+`Task.currentPriority` ou `Task.withPriority`. Task priority não possui
+inheritance, escalation ou donation em W 1.0.
+
+Um host ou provider pode usar uma política física de scheduling. Essa política
+escolhe somente latência e interleavings que o source e o contrato aplicável de
+domain, barrier, channel ou service deixam sem ordem. Ela não pode violar uma
+ordem ou regra de arbitration que esse contrato realmente garante, como FIFO de
+primeiro start num domain serial ou dependências de tickets de barrier. Channel
+e service preservam somente suas garantias declaradas; W-1483 não cria FIFO
+global para eles. Ordem deixada unspecified pode variar entre traces permitidos.
+A política também não pode:
+
+- fabricar ou substituir um outcome;
+- ignorar cancellation ou deadline;
+- burlar arbitration, admission, capacity, budget, ordering ou drain;
+- mudar ownership, authority, isolation, affinity ou capability;
+- enfraquecer liveness ou fairness exigidas pelo profile.
+
+O trace lógico inclui decisões lógicas de schedule, observações de
+timer/deadline e eventos externos conforme W-716 e W-134. Para o mesmo trace
+lógico, somente latência e detalhes físicos não observáveis podem variar;
+outcome, ledger de owner/drop e decisões derivadas são iguais. Dois traces
+permitidos podem escolher outra ordem unspecified, observar a deadline em
+pontos diferentes, obter outro resultado de admission, escolher outro winner de
+first-settled ou produzir outro outcome permitido. Essa diferença vem da
+semântica já não determinística, não de uma semântica QoS.
+
+A política física não substitui deadline e não garante entrega. Um provider não
+pode transformar metadata física em branch, value, capability ou authority
+observável no programa. Um scheduler determinístico ou replay fixa o trace
+lógico; worker, queue e policy permanecem no sidecar físico.
+
+`w explain execution <product>` e o provider receipt mostram o identificador da
+política física, o suporte do target e `sourcePriority: absent`. Essa evidência
+é informativa e não branchable. Ela não entra no source, no HIR semântico ou
+nas decisões do trace lógico.
+
+**Exemplo:** um pedido com alergia usa uma service instance dedicada para isolar
+state. Admission, reserva e budget bounded protegem overload. A deadline produz
+cancellation e limite temporal. O product pode escolher o domain atual, um
+domain compartilhado ou um domain dedicado por placement, performance ou
+liveness. Domain não concede segurança e não é necessário para correctness.
+
+Num scheduler adversarial com uma CPU, success só ocorre depois da validação
+segura. Se a deadline vence, cancellation ou rejection é segura, não publica
+unsafe fulfillment nem partial commit e faz terminal drain. Progress permanece
+condicional às premissas do profile. Traces temporais diferentes não prometem o
+mesmo success ou outcome.
+
+Priority portátil só volta à pesquisa com um workload bounded do Última Luz que
+mostre perda material. O workload precisa mostrar que domain, service,
+admission, capacity, budget e deadline não expressam o requisito. A evidência
+deve cobrir vários targets e fechar estes contratos:
+
+- inversion e donation;
+- starvation e fairness;
+- cancellation e deadline;
+- admission e fault;
+- liveness;
+- estudos humano e de modelos.
+
+**Rejeitado:** `priority` ou `qos` em `spawn`, initializer `async`, function,
+`TaskGroup`, service, entry ou descriptor. `Task.withPriority`,
+`Task.currentPriority`, QoS portável de source/profile e priority como
+correctness, deadline ou authority também ficam fora.
 
 O caminho comum usa um domain estático. Quando o conjunto de lanes depende de
 dados runtime, o código usa `ExecutionDomainRef`; valores runtime nunca ocupam
@@ -12239,6 +12353,12 @@ Um execution profile é um record data-only do package. Ele fixa este envelope:
 | `domains.dynamicSerial` | pool, owners vivos, budget agregado e máximo por lane |
 | `cleanup` | grace bounds de cleanup assíncrono e blocking drain |
 
+O execution profile não declara priority ou QoS portável. O provider pode
+escolher uma política física dentro desse envelope. O provider receipt registra
+a política e seu suporte sem criar um valor branchable no source. Replay e o
+scheduler determinístico fixam o trace lógico; detalhes físicos ficam no
+sidecar.
+
 **Exemplo:** o product seleciona o profile pelo nome; a forma completa fica no
 [`build.w` do Última Luz](reference/last-light/build.w) e no schema de
 [manifest](#211-manifest-e-resolução):
@@ -12270,8 +12390,8 @@ capability, pool, fallback ou affinity. A redução entra no deployment digest e
 não exige recompilar o artifact.
 
 `w explain execution <product>` mostra requirements, bindings, shared pools,
-limites e reduções. Declarar ou importar domain não cria queue, thread ou
-executor.
+limites, reduções, política física do provider e `sourcePriority: absent`.
+Declarar ou importar domain não cria queue, thread ou executor.
 
 ### 12.7 Mobilidade e captures
 
@@ -14177,8 +14297,14 @@ A HIR preserva:
 - task scope, parent, kind, start e join;
 - outcome, error edges, cancellation e cleanup;
 - captures, borrows e mobilidade;
-- isolation, preference, domain dispatch, parallel capability e affinity;
+- suspension summary da async entry, source spelling,
+  `directEntry: available|absent` e a garantia `neverSuspend` da direct entry
+  de cada callable;
+- isolation, domain placement, domain dispatch, parallel capability e affinity;
 - deadline, budget e causal trace.
+
+A HIR semântica não possui task priority ou QoS. Metadata física privada do
+provider não cria um fato HIR, não entra em branch e não muda nenhum edge acima.
 
 Um `await` com loans preserva também owner válido, storage estável, ausência de
 conflict e cleanup e cancel drain. O verifier resolve cada edge dinâmica do
@@ -14192,10 +14318,15 @@ Somente depois dos verifiers o lowering escolhe MLIR Async, LLVM coroutines ou
 outro backend compatível. O backend modela tokens, groups e frames; ele não
 define lifetime, cancelamento ou error primário de W.
 
-**W-1163 — lowering resumable:** uma função `neverSuspend` usa ABI ordinary. Uma função `maySuspend` usa frame
-resumable somente quando possui values live across suspension. O compiler pode
-usar MLIR Async, LLVM coroutines ou CPS customizado por target. W HIR e runtime
-continuam a autoridade.
+**W-1163 — lowering resumable:** uma função `neverSuspend` usa ABI ordinary. Uma
+função `maySuspend` usa frame resumable somente quando possui values live
+across suspension. Por W-1484, uma declaration `async fn` com
+`directEntry: available` também expõe a ordinary entry e pode conservar sua
+async entry `maySuspend`. `sync` chama a ordinary entry `neverSuspend` sem
+frame, provider, trap ou fallback runtime. Calls `sync` entre ordinary entries
+não reescrevem a async entry nem provam termination. O compiler pode usar MLIR
+Async, LLVM coroutines ou CPS
+customizado por target. W HIR e runtime continuam a autoridade.
 
 Frame e child allocation podem ser elided ou fused quando lifecycle, cancel,
 cleanup e trace permanecem observáveis. O runtime usa ready, timer e I/O queues
@@ -14931,11 +15062,14 @@ Um descriptor registra:
 - implementação e protocol exportado;
 - scope de identity: process, key, request ou deployment;
 - required isolation;
-- executor preference;
+- domain placement;
 - execution domain e capabilities permitidos;
 - host affinity;
 - mailbox, capabilities e resource budgets;
 - durable adapter, restart policy e observabilidade.
+
+O descriptor não possui slot `priority` ou `qos`. A política física pertence ao
+provider receipt. Ela não participa de service identity, interface ou ABI.
 
 Um módulo estático não possui esses campos. Importar não cria instance, thread,
 queue ou authority.
@@ -24284,8 +24418,8 @@ Antes de implementar uma otimização nova, a equipe deve preencher a matriz de
 domínios em [`RATIONALE.md` §1.37](RATIONALE.md#137-gate-sota-de-performance-e-matriz-de-responsabilidade).
 O gate registra problema, alternativas, fonte primária, owner, workload,
 oracle e stop condition. Ele não cria sintaxe, API ou W-ID. No snapshot em que
-foi criado, ele não reabriu `Research=0`; as gates posteriores W-1471, W-1473,
-W-1474 e W-1475 são independentes.
+foi criado, ele não reabriu `Research=0`; as gates posteriores W-1471, depois
+substituída por W-1484, W-1473, W-1474 e W-1475 são independentes.
 
 A matriz é um seed mínimo extensível, não um catálogo exaustivo. Ao abrir um
 bundle para um hotspot, a equipe atualiza as fontes primárias e as alternativas
@@ -24945,10 +25079,13 @@ detalhes puramente sintáticos. HIR registra:
 - initialization, ownership, borrow e drop edges;
 - pointer provenance, address capture, pin e allocation origin;
 - errors, cancellation, panic e cleanup scopes;
-- task parent/child, mobilidade e execution preference;
+- task parent/child, mobilidade e domain placement;
 - effects/capabilities;
 - layout/ABI boundaries;
 - source map, diagnostic origin e expansion de sugars.
+
+O semantic checker rejeita task priority, QoS e APIs de priority antes do
+lowering. O compiler não cria um campo HIR implícito para esses conceitos.
 
 #### 20.2.1 Kernel mínimo de memória e ABI
 
@@ -31669,7 +31806,7 @@ provider.
 | Gate | Current | Adversarial | Contrato fechado |
 |---|---|---|---|
 | W-707 / `FZ0-freeze-completeness` | `FRC0-W-707-current` | `FRC0-W-707-adversarial` | completude G0–G5, refs e snapshot coerentes; não é `count=implementation` |
-| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão do ledger tem disposition; DRC0 fecha W-1471/W-1473/W-1474/W-1475 e a classificação global tem `Research=0` |
+| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão do ledger tem disposition; DRC0 fecha W-1484/W-1473/W-1474/W-1475, preserva W-1471 como superseded e a classificação global tem `Research=0` |
 | W-1408 / `HUM0-promotion` | `FRC0-W-1408-current` | `FRC0-W-1408-adversarial` | stop-on-first-violation, no-automatic-promotion e 0 human/0 model preservados |
 
 O resultado de cada rota é `oracle-backed-current` para os contratos fechados.
@@ -31695,7 +31832,8 @@ não autoriza alegação de implementação.
 O bundle [`PFU0`](tooling/studies/pfu0-pre-freeze-usability) fecha três gates
 verificáveis. Ele registra evidência host-only para as decisões vigentes e não
 afirma implementação. FRC0 valida o fechamento histórico; DRC0 registra que
-W-1471, W-1473, W-1474 e W-1475 atingiram suas stop conditions.
+W-1484, W-1473, W-1474 e W-1475 atingiram suas stop conditions. W-1471
+permanece somente como decisão histórica superseded por W-1484.
 
 | ID | Controle vigente | Alternativa avaliada | Rejeitado |
 |---|---|---|---|
@@ -32222,7 +32360,10 @@ services, units, tensors e packages não ampliam a base de recovery.
 antes de sair do scope.
 
 - async state machine;
-- initializer `async`, `spawn<.domain>` e inheritance de preference;
+- facet `directEntry` no function type/HIR/interface, ordinary e async entries
+  coexistentes e `sync` sem runtime fallback;
+- initializer `async`, `spawn<.domain>` e inheritance de domain placement;
+- semantic checker para rejeitar slots `priority`/`qos` e APIs de task priority;
 - lifetime e scheduler state separados;
 - linear Task, body settled, cleanup e `TaskOutcome`;
 - cancellation snapshot bounded e `Task.checkCancellation()`;
@@ -32241,6 +32382,13 @@ antes de sair do scope.
 - validation de `executionProfile` por product e budgets por unit;
 - budget compartilhado para groups paralelos aninhados;
 - deterministic test executor;
+- `w explain execution` e provider receipt com política física, suporte do
+  target e `sourcePriority: absent` não branchable;
+- testes com uma CPU e scheduling adversarial que preservam regras de
+  arbitration, ordering, drain e progress sob as premissas do profile;
+- replay de trace lógico fixo com outcome, owner/drop e decisões derivadas
+  iguais, separado de traces permitidos com deadline, admission ou winner
+  diferentes;
 - expressão `transaction`, scope não escapante, commit staging e abort.
 
 Saída: restaurante executa I/O concorrente e lotes paralelos com ordering,

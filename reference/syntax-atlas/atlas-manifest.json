@@ -1805,7 +1805,15 @@
       "construction": "await call",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "try await direct"
+      "witness": "try await concurrent"
+    },
+    {
+      "id": "execution-sync",
+      "block": "execution-forms",
+      "construction": "direct neverSuspend entry; requires explicit async fn and a declaration-wide static proof",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-compiler-runtime-missing",
+      "witness": "try sync fetch"
     },
     {
       "id": "execution-async-initializer",
@@ -1813,7 +1821,7 @@
       "construction": "async initializer binding",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "let direct = async"
+      "witness": "let concurrent = async"
     },
     {
       "id": "execution-spawn",
@@ -2405,10 +2413,10 @@
       "file": "execution.w",
       "order": 9,
       "line": 69,
-      "title": "Direct, await, async and spawn initializers, and calls",
+      "title": "Direct sync entry, await, async and spawn initializers, and calls",
       "family": "execution",
       "designStatus": "current",
-      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "evidenceStatus": "tree-sitter-parse-only-compiler-runtime-missing",
       "root": "module",
       "grammarRefs": [
         "argument",
@@ -2427,7 +2435,8 @@
       ],
       "designRefs": [
         "3.5.2",
-        "3.5.6"
+        "3.5.6",
+        "12.2.2"
       ],
       "sourceRefs": [
         {
@@ -2436,14 +2445,14 @@
           "digest": "sha256:f4a131a67e415c3f3bc8e24b92e309a9ab4aff565391bd80e4feff3634906e0b"
         }
       ],
-      "snippetDigest": "sha256:3e51c22f53c4da48a5508d2f2f2e8b0209735e6e796115b97563d339f8ff2bd9",
-      "snippetBytes": 957
+      "snippetDigest": "sha256:2efe84b02240ced2050463d2ccd60a57ae65b9b2ac59f6781a07fd4496787062",
+      "snippetBytes": 1012
     },
     {
       "id": "restricted-expressions",
       "file": "execution.w",
       "order": 10,
-      "line": 105,
+      "line": 106,
       "title": "Pipelines, locks, transactions, unsafe, and closures",
       "family": "effects",
       "designStatus": "current",
@@ -2505,7 +2514,7 @@
       "id": "stream-and-channel",
       "file": "execution.w",
       "order": 12,
-      "line": 153,
+      "line": 154,
       "title": "Streams, channels, and directional contracts",
       "family": "streams",
       "designStatus": "current",
@@ -2559,7 +2568,7 @@
       "id": "module-run-entry",
       "file": "execution.w",
       "order": 14,
-      "line": 182,
+      "line": 183,
       "title": "Explicit module-run entry",
       "family": "entry",
       "designStatus": "current",
@@ -2653,6 +2662,6 @@
   ],
   "generated": {
     "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:3025a9df4ef3740cb70da896698019ae76433bd0615918f28e85d6edfbc474df"
+    "cheatsheetDigest": "sha256:685b49c5f6878bb25ec234aebcfcdbaa491d391d8d627edb1e42d4eb3ca536c6"
   }
 }

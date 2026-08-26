@@ -212,11 +212,100 @@
       "expect": { "callee": "load", "diagnostic": "W-SUSPEND-0001" }
     },
     {
-      "id": "EE-POS-sync-explicit-async-current",
+      "id": "EE-POS-sync-direct-entry",
       "kind": "positive",
-      "decisionIds": ["W-1471"],
+      "decisionIds": ["W-1484"],
+      "source": "async fn func(): Value throws String { return value }\nlet y = try sync func()",
+      "expect": { "callee": "func", "callForm": "sync", "syncCurrent": true, "directEntry": "available", "publishedSuspension": "may", "selectedEntrySuspension": "never", "blocksThread": false, "createsTask": false, "suspendsTask": false, "sameExecutionContext": true, "runtimeFallback": false, "tryOrthogonal": true }
+    },
+    {
+      "id": "EE-POS-sync-composition",
+      "kind": "positive",
+      "decisionIds": ["W-1484"],
+      "source": "async fn leaf(): Value { return value }\nasync fn wrapper(): Value { return sync leaf() }\nlet result = sync wrapper()",
+      "expect": { "callee": "wrapper", "callForm": "sync", "syncCurrent": true, "directEntry": "available", "publishedSuspension": "may", "selectedEntrySuspension": "never" }
+    },
+    {
+      "id": "EE-NEG-sync-transitive-facet-loss",
+      "kind": "negative",
+      "decisionIds": ["W-1484"],
+      "source": "async fn leaf(): Value { return await catalog() }\nasync fn middle(): Value { return sync leaf() }\nasync fn top(): Value { return sync middle() }\nlet result = sync top()",
+      "input": { "functionTypes": [{ "name": "catalog", "suspension": "may", "sourceSpelling": "explicit", "directEntry": "absent" }] },
+      "expect": { "callee": "top", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false, "directEntry": "absent" }
+    },
+    {
+      "id": "EE-NEG-sync-invalid-call-poisons-caller",
+      "kind": "negative",
+      "decisionIds": ["W-1484"],
+      "source": "fn ordinary(): Value { return value }\nasync fn wrapper(): Value { return sync ordinary() }\nlet result = sync wrapper()",
+      "expect": { "callee": "wrapper", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false, "directEntry": "absent" }
+    },
+    {
+      "id": "EE-NEG-sync-unknown-uppercase-poisons-caller",
+      "kind": "negative",
+      "decisionIds": ["W-1484"],
+      "source": "async fn wrapper(): Value { return sync Foo() }\nlet result = sync wrapper()",
+      "expect": { "callee": "wrapper", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false, "directEntry": "absent" }
+    },
+    {
+      "id": "EE-POS-sync-scc-direct-entry",
+      "kind": "positive",
+      "decisionIds": ["W-1484"],
+      "source": "async fn even(n: usize): Bool { return if n == 0 { true } else { sync odd(n - 1) } }\nasync fn odd(n: usize): Bool { return if n == 0 { false } else { sync even(n - 1) } }\nlet result = sync even(2)",
+      "expect": { "callee": "even", "callForm": "sync", "syncCurrent": true, "directEntry": "available", "members": ["even", "odd"], "sccDirectEntry": "available", "terminationProven": false, "evaluationPerformed": false }
+    },
+    {
+      "id": "EE-NEG-sync-explicit-await",
+      "kind": "negative",
+      "decisionIds": ["W-1484"],
       "source": "async fn func(): Value { await Task.yield(); return value }\nlet y = sync func()",
-      "expect": { "callee": "func", "callForm": "sync", "syncCurrent": true }
+      "expect": { "callee": "func", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false, "directEntry": "absent", "blocksThread": false }
+    },
+    {
+      "id": "EE-NEG-sync-dynamic-path",
+      "kind": "negative",
+      "decisionIds": ["W-1484"],
+      "source": "async fn cached(hit: Bool): Value { if hit { return value }; return await catalog() }\nlet y = sync cached(true)",
+      "input": { "functionTypes": [{ "name": "catalog", "suspension": "may", "sourceSpelling": "explicit", "directEntry": "absent" }] },
+      "expect": { "callee": "cached", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false, "directEntry": "absent" }
+    },
+    {
+      "id": "EE-INFO-direct-entry-breaking",
+      "kind": "information",
+      "decisionIds": ["W-1484"],
+      "source": "export async fn published(): Value { return value }",
+      "input": { "publicContract": { "previous": "may", "current": "may", "previousDirectEntry": "available", "currentDirectEntry": "absent", "exported": true } },
+      "expect": { "sourceBreaking": true, "semanticInterfaceKeyChanged": true }
+    },
+    {
+      "id": "EE-NEG-sync-protocol-bodyless",
+      "kind": "negative",
+      "decisionIds": ["W-1484"],
+      "source": "protocol Loader { async fn load(): Value }\nlet y = sync load()",
+      "expect": { "callee": "load", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false, "directEntry": "absent" }
+    },
+    {
+      "id": "EE-NEG-sync-foreign-bodyless",
+      "kind": "negative",
+      "decisionIds": ["W-1484"],
+      "source": "foreign c { async fn load(): Value }\nlet y = sync load()",
+      "expect": { "callee": "load", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false, "directEntry": "absent" }
+    },
+    {
+      "id": "EE-POS-sync-indirect-facet",
+      "kind": "positive",
+      "decisionIds": ["W-1484"],
+      "source": "let y = sync worker()",
+      "input": { "functionTypes": [{ "name": "worker", "suspension": "may", "sourceSpelling": "explicit", "directEntry": "available" }] },
+      "expect": { "callee": "worker", "callForm": "sync", "syncCurrent": true, "blocksThread": false, "sameExecutionContext": true }
+    },
+    {
+      "id": "EE-NEG-sync-erased-facet",
+      "kind": "negative",
+      "decisionIds": ["W-1484"],
+      "source": "let y = sync worker()",
+      "input": { "functionTypes": [{ "name": "worker", "suspension": "may", "sourceSpelling": "explicit", "directEntry": "absent" }] },
+      "expect": { "callee": "worker", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false }
     },
     {
       "id": "EE-NEG-sync-inferred-may",
