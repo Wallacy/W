@@ -117,8 +117,15 @@ target_link_libraries(w_seed_frontend_probe PRIVATE w_seed_source)
 
 add_executable(w_seed_check_driver
   tests/check_driver.c
+  cli/check.c
 )
 target_link_libraries(w_seed_check_driver PRIVATE w_seed_source)
+
+add_executable(w
+  cli/w.c
+  cli/check.c
+)
+target_link_libraries(w PRIVATE w_seed_source)
 
 add_executable(w_seed_constir_probe
   tests/constir_probe.c
@@ -157,6 +164,7 @@ if(MSVC)
   target_compile_options(w_seed_foreign_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_frontend_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_check_driver PRIVATE /W4 /WX)
+  target_compile_options(w PRIVATE /W4 /WX)
   target_compile_options(w_seed_frontend_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_constir_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_constir_tests PRIVATE /W4 /WX)
@@ -298,6 +306,15 @@ else()
     -Werror
   )
   target_compile_options(w_seed_check_driver PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w PRIVATE
     -Wall
     -Wextra
     -Wpedantic

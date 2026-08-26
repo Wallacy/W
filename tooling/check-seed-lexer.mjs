@@ -5,9 +5,10 @@ import { join, relative, resolve } from "node:path"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
-const expectedMaintainedCorpusCount = 296
+const expectedMaintainedCorpusCount = 297
 const expectedMaintainedCorpusAdditions = [
   "reference/last-light/build.w",
+  "reference/last-light/checker_bootstrap.w",
   "tooling/studies/aeg0-app-essentials-gate/adversarial.w",
   "tooling/studies/aeg0-app-essentials-gate/current.w",
   "tooling/studies/pfu0-pre-freeze-usability/adversarial.w",
