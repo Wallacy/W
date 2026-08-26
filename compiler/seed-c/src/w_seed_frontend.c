@@ -13,6 +13,7 @@ _Static_assert(sizeof(size_t) * CHAR_BIT >= W_SEED_FRONTEND_TARGET_USIZE_BITS,
 #define FRONTEND_MAX_PENDING_APPLICATIONS 4096u
 #define FRONTEND_MAX_GENERIC_METADATA 4096u
 #define FRONTEND_MAX_MEMBERSHIP_ITEMS 4096u
+#define FRONTEND_MAX_IMPORTS 4096u
 
 typedef struct {
   const w_seed_frontend_document *document;
@@ -179,6 +180,8 @@ static _Thread_local uint32_t frontend_const_inferred_type_indices_scratch
     [W_SEED_FRONTEND_MAX_CONST_DECLARATIONS];
 static _Thread_local uint8_t frontend_const_inference_states_scratch
     [W_SEED_FRONTEND_MAX_CONST_DECLARATIONS];
+static _Thread_local w_seed_module_origin frontend_module_origins_scratch
+    [FRONTEND_MAX_IMPORTS];
 
 static bool normalize_document(frontend_context *context);
 static bool normalize_module_const(frontend_context *context,
@@ -195,7 +198,8 @@ static bool module_const_for_name(
     const w_seed_frontend_document **owner_doc, uint32_t *owner_node);
 static bool imported_target_for_name(
     const frontend_context *context, w_seed_frontend_text name,
-    w_seed_frontend_text *module_name, w_seed_frontend_text *target_name);
+    w_seed_frontend_import_target_kind *target_kind, uint32_t *target_index,
+    w_seed_frontend_text *target_name);
 static bool unresolved_parenthesized_identifier(
     const frontend_context *context, w_seed_span span,
     w_seed_frontend_text *name_out);
@@ -206,6 +210,28 @@ static bool module_const_name_is_untyped(
 static const char *fact_name(w_seed_frontend_fact_kind kind);
 static w_seed_frontend_text document_module_name(
     const w_seed_frontend_document *doc);
+static w_seed_frontend_text document_local_module_name(
+    const w_seed_frontend_document *doc);
+static bool validate_import_resolution(const w_seed_frontend_input *input,
+                                       size_t *bad_document,
+                                       w_seed_span *bad_span);
+static const w_seed_frontend_resolved_import *resolved_import_at(
+    const frontend_context *context, size_t import_index);
+static bool resolved_import_index_for(const frontend_context *context,
+                                      size_t document_index,
+                                      uint32_t direct_import_ordinal,
+                                      size_t *import_index);
+static bool exported_symbol_in_document(
+    const w_seed_frontend_document *doc, w_seed_frontend_text name);
+static bool exported_symbol_in_external(
+    const w_seed_frontend_external_module *module,
+    w_seed_frontend_text name);
+static bool import_has_from(const w_seed_frontend_document *doc,
+                            w_seed_span span);
+static bool direct_import_ordinal_for(const w_seed_frontend_document *doc,
+                                      uint32_t node_index,
+                                      uint32_t *ordinal);
+static const char *declaration_keyword(w_seed_cst_kind kind);
 static w_seed_frontend_text binding_name_after_keyword(
     const w_seed_frontend_document *doc, w_seed_span span, const char *keyword);
 static w_seed_frontend_text import_item_local_name(
@@ -2172,7 +2198,9 @@ static bool resolve_one_pending_generic_application(
         context->function_node = saved_function_node;
         context->current_function_is_const = saved_const_function;
         context->current_const_body_active = saved_const_active;
-        w_seed_frontend_text imported_module = {NULL, 0};
+        w_seed_frontend_import_target_kind imported_kind =
+            W_SEED_FRONTEND_IMPORT_UNRESOLVED;
+        uint32_t imported_index = W_SEED_FRONTEND_NONE;
         w_seed_frontend_text imported_target = {NULL, 0};
         w_seed_frontend_text unresolved_name = root.name;
         bool unresolved_local =
@@ -2181,8 +2209,8 @@ static bool resolve_one_pending_generic_application(
             !root.supported &&
             !module_const_name_is_duplicate(context, root.name) &&
             !module_const_name_is_untyped(context, root.name) &&
-            !imported_target_for_name(context, root.name, &imported_module,
-                                      &imported_target);
+            !imported_target_for_name(context, root.name, &imported_kind,
+                                      &imported_index, &imported_target);
         if (!unresolved_local && context->count.const_declarations != 0u &&
             normalized && root.kind == W_SEED_FRONTEND_EXPR_PARENTHESIS &&
             !root.supported) {
@@ -2514,6 +2542,8 @@ static bool receipt_size_source_records(frontend_context *context) {
         !receipt_size_text(context, doc->logical_source_id) ||
         !receipt_size_literal(context, "|") ||
         !receipt_size_text(context, document_module_name(doc)) ||
+        !receipt_size_literal(context, "|local=") ||
+        !receipt_size_text(context, document_local_module_name(doc)) ||
         !receipt_size_literal(context, "|sha256:") ||
         !receipt_size_add(context, 64u) ||
         !receipt_size_literal(context, "\n")) {
@@ -2574,6 +2604,8 @@ static bool receipt_size_module(frontend_context *context,
                                const w_seed_frontend_module *module) {
   return receipt_size_literal(context, "module=") &&
          receipt_size_text(context, module->module_id) &&
+         receipt_size_literal(context, "|local=") &&
+         receipt_size_text(context, module->local_module_name) &&
          receipt_size_literal(context, "|source=") &&
          receipt_size_text(context, module->source_id) &&
          receipt_size_literal(context, "\n");
@@ -2606,6 +2638,12 @@ static bool receipt_size_import(frontend_context *context,
          receipt_size_size(context, import_value->module_index) &&
          receipt_size_literal(context, "|") &&
          receipt_size_text(context, import_value->path) &&
+         receipt_size_literal(context, "|ordinal=") &&
+         receipt_size_size(context, import_value->direct_import_ordinal) &&
+         receipt_size_literal(context, "|target-kind=") &&
+         receipt_size_size(context, (size_t)import_value->target_kind) &&
+         receipt_size_literal(context, "|target-index=") &&
+         receipt_size_size(context, import_value->target_index) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -3020,6 +3058,8 @@ static bool document_ready(const w_seed_frontend_document *doc,
       (doc->source->bytes.length != 0 && doc->source->bytes.data == NULL) ||
       doc->logical_source_id.length == 0 || doc->logical_source_id.data == NULL ||
       doc->module_id.length == 0 || doc->module_id.data == NULL ||
+      doc->local_module_name.length == 0 ||
+      doc->local_module_name.data == NULL ||
       doc->nodes == NULL || doc->node_count == 0 ||
       doc->parse.status != W_SEED_PARSE_COMPLETE ||
       doc->parse.issue_count != 0 || doc->parse.root >= doc->node_count ||
@@ -3865,6 +3905,143 @@ static bool measure_document(const w_seed_frontend_document *doc,
   return true;
 }
 
+static bool import_edge_cycle_dfs(
+    const w_seed_frontend_input *input, size_t document_index,
+    uint8_t *states) {
+  if (input == NULL || states == NULL ||
+      document_index >= input->document_count) {
+    return false;
+  }
+  if (states[document_index] == 1u) return true;
+  if (states[document_index] == 2u) return false;
+  states[document_index] = 1u;
+  for (size_t edge_index = 0u; edge_index < input->resolved_import_count;
+       edge_index += 1u) {
+    const w_seed_frontend_resolved_import *edge =
+        &input->resolved_imports[edge_index];
+    if (edge->source_document_index != (uint32_t)document_index ||
+        edge->target_kind != W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT) {
+      continue;
+    }
+    if (import_edge_cycle_dfs(input, (size_t)edge->target_index, states)) {
+      return true;
+    }
+  }
+  states[document_index] = 2u;
+  return false;
+}
+
+static bool validate_import_resolution(const w_seed_frontend_input *input,
+                                       size_t *bad_document,
+                                       w_seed_span *bad_span) {
+  if (bad_document != NULL) *bad_document = W_SEED_FRONTEND_NONE_SIZE;
+  if (bad_span != NULL) *bad_span = empty_span(0u);
+  if (input == NULL || input->documents == NULL || input->document_count == 0u ||
+      input->document_count > (size_t)W_SEED_FRONTEND_MAX_DOCUMENTS ||
+      input->resolved_import_count > (size_t)UINT32_MAX ||
+      input->resolved_import_count > (size_t)FRONTEND_MAX_IMPORTS ||
+      (input->resolved_import_count != 0u && input->resolved_imports == NULL)) {
+    return false;
+  }
+  if (!input->import_resolution_complete && input->resolved_import_count != 0u)
+    return false;
+  size_t expected_edges = 0u;
+  for (size_t document_index = 0u; document_index < input->document_count;
+       document_index += 1u) {
+    const w_seed_frontend_document *doc = &input->documents[document_index];
+    w_seed_module_scan_result scan_result;
+    const w_seed_module_scan_status scan_status = w_seed_module_scan(
+        doc->source, doc->nodes, doc->parse.node_count, &doc->parse,
+        frontend_module_origins_scratch, FRONTEND_MAX_IMPORTS, &scan_result);
+    if (scan_status != W_SEED_MODULE_SCAN_OK ||
+        scan_result.required > (size_t)FRONTEND_MAX_IMPORTS) {
+      if (bad_document != NULL) *bad_document = document_index;
+      if (bad_span != NULL) *bad_span = owner_span(doc, doc->parse.root);
+      return false;
+    }
+    const w_seed_frontend_text local_name = document_local_module_name(doc);
+    if (local_name.length == 0u || local_name.data == NULL) {
+      if (bad_document != NULL) *bad_document = document_index;
+      if (bad_span != NULL) *bad_span = owner_span(doc, doc->parse.root);
+      return false;
+    }
+    if (scan_result.has_module_header_name &&
+        !text_equal_text(text_from_span(doc, scan_result.module_header_name_span),
+                         local_name)) {
+      if (bad_document != NULL) *bad_document = document_index;
+      if (bad_span != NULL)
+        *bad_span = scan_result.module_header_name_span;
+      return false;
+    }
+    if (!input->import_resolution_complete) {
+      continue;
+    }
+    for (size_t ordinal = 0u; ordinal < scan_result.required; ordinal += 1u) {
+      if (expected_edges >= input->resolved_import_count) {
+        if (bad_document != NULL) *bad_document = document_index;
+        if (bad_span != NULL)
+          *bad_span = frontend_module_origins_scratch[ordinal].declaration_span;
+        return false;
+      }
+      const w_seed_frontend_resolved_import *edge =
+          &input->resolved_imports[expected_edges];
+      const w_seed_module_origin *origin = &frontend_module_origins_scratch[ordinal];
+      if (edge->source_document_index != (uint32_t)document_index ||
+          edge->direct_import_ordinal != (uint32_t)ordinal ||
+          edge->import_declaration_span.start_byte !=
+              origin->declaration_span.start_byte ||
+          edge->import_declaration_span.end_byte !=
+              origin->declaration_span.end_byte ||
+          !w_seed_source_validate_span(doc->source,
+                                        edge->import_declaration_span, NULL) ||
+          (edge->target_kind !=
+               W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT &&
+           edge->target_kind !=
+               W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE)) {
+        if (bad_document != NULL) *bad_document = document_index;
+        if (bad_span != NULL) *bad_span = origin->declaration_span;
+        return false;
+      }
+      if (edge->target_kind ==
+          W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT) {
+        if ((size_t)edge->target_index >= input->document_count ||
+            edge->target_index == (uint32_t)document_index) {
+          if (bad_document != NULL) *bad_document = document_index;
+          if (bad_span != NULL) *bad_span = origin->declaration_span;
+          return false;
+        }
+      } else if ((size_t)edge->target_index >= input->external_module_count) {
+        if (bad_document != NULL) *bad_document = document_index;
+        if (bad_span != NULL) *bad_span = origin->declaration_span;
+        return false;
+      }
+      expected_edges += 1u;
+    }
+  }
+  if (!input->import_resolution_complete) return true;
+  if (expected_edges != input->resolved_import_count) {
+    if (bad_document != NULL) *bad_document = input->document_count - 1u;
+    if (bad_span != NULL) {
+      const w_seed_frontend_document *last =
+          &input->documents[input->document_count - 1u];
+      *bad_span = owner_span(last, last->parse.root);
+    }
+    return false;
+  }
+  uint8_t states[W_SEED_FRONTEND_MAX_DOCUMENTS] = {0u};
+  for (size_t document_index = 0u; document_index < input->document_count;
+       document_index += 1u) {
+    if (import_edge_cycle_dfs(input, document_index, states)) {
+      if (bad_document != NULL) *bad_document = document_index;
+      if (bad_span != NULL) *bad_span = owner_span(
+          &input->documents[document_index],
+          input->documents[document_index].parse.root);
+      return false;
+    }
+  }
+  return true;
+}
+
 static bool measure_input(const w_seed_frontend_input *input,
                           frontend_measure *measure, size_t *barrier_document,
                           w_seed_span *barrier_span) {
@@ -3913,6 +4090,7 @@ static bool measure_input(const w_seed_frontend_input *input,
       return false;
     }
   }
+  if (!validate_import_resolution(input, NULL, NULL)) return false;
   /* This seed exposes one logical module record per document. Do not silently
    * merge multiple documents with the same resolved module identity. */
   for (size_t left = 0; left < input->document_count; left += 1) {
@@ -5379,41 +5557,28 @@ static bool function_prefix_has_keyword(const w_seed_frontend_document *doc,
   return false;
 }
 
-static w_seed_span import_path_span(const w_seed_frontend_document *doc,
-                                    w_seed_span span) {
-  frontend_token_cursor cursor = token_cursor_for(doc, span);
-  frontend_token token;
-  w_seed_span first = empty_span(span.start_byte);
-  w_seed_span last = first;
-  bool after_from = false;
-  bool saw_import = false;
-  bool found_path = false;
-  while (cursor_take(&cursor, &token)) {
-    if (!saw_import) {
-      if (token_text(doc, &token, "import")) saw_import = true;
-      continue;
-    }
-    if (token_text(doc, &token, "from")) {
-      after_from = true;
-      first = empty_span(token.span.end_byte);
-      last = first;
-      continue;
-    }
-    if (!after_from && (token_text(doc, &token, "{") ||
-                        token_text(doc, &token, "}") ||
-                        token_text(doc, &token, ","))) {
-      continue;
-    }
-    if (!found_path) {
-      first = token.span;
-      found_path = true;
-    }
-    last = token.span;
+static bool direct_import_ordinal_for(const w_seed_frontend_document *doc,
+                                      uint32_t node_index,
+                                      uint32_t *ordinal) {
+  if (ordinal != NULL) *ordinal = W_SEED_FRONTEND_NONE;
+  if (doc == NULL || ordinal == NULL || node_index >= doc->parse.node_count ||
+      doc->parse.root >= doc->parse.node_count) {
+    return false;
   }
-  if (!found_path) {
-    return empty_span(span.start_byte);
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  uint32_t current = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (child == node_index) {
+      if (doc->nodes[child].kind != W_SEED_CST_IMPORT) return false;
+      *ordinal = current;
+      return true;
+    }
+    if (doc->nodes[child].kind == W_SEED_CST_IMPORT) current += 1u;
+    guard += 1u;
   }
-  return trim_span(doc, (w_seed_span){first.start_byte, last.end_byte});
+  return false;
 }
 
 static w_seed_frontend_type type_record_from_span(
@@ -5644,7 +5809,8 @@ static bool normalize_symbol(frontend_context *context,
 static bool normalize_import(frontend_context *context, uint32_t node_index,
                              uint32_t *import_index) {
   const w_seed_frontend_document *doc = context_document(context);
-  if (doc == NULL || import_index == NULL) return false;
+  if (doc == NULL || import_index == NULL ||
+      node_index >= doc->parse.node_count) return false;
   const w_seed_cst_node *node = &doc->nodes[node_index];
   frontend_token_cursor cursor = token_cursor_for(doc, node->raw_span);
   frontend_token token;
@@ -5670,15 +5836,40 @@ static bool normalize_import(frontend_context *context, uint32_t node_index,
       alias = text_from_span(doc, token.span);
     }
   }
+  uint32_t direct_ordinal = W_SEED_FRONTEND_NONE;
+  if (!direct_import_ordinal_for(doc, node_index, &direct_ordinal)) return false;
+  w_seed_span path_span = empty_span(node->raw_span.start_byte);
+  if (!w_seed_module_scan_import_path_span(
+          doc->source, doc->nodes, doc->parse.node_count, node->raw_span,
+          &path_span)) {
+    return false;
+  }
   w_seed_frontend_import value;
   (void)memset(&value, 0, sizeof(value));
   value.module_index = (uint32_t)context->module_index;
-  value.path = text_from_span(doc, import_path_span(doc, node->raw_span));
+  value.path = text_from_span(doc, path_span);
   value.alias = alias;
   value.span = node->raw_span;
   value.first_item = (uint32_t)context->count.import_items;
   value.item_count = (uint32_t)count_direct_kind(doc, node_index,
                                                   W_SEED_CST_IMPORT_ITEM);
+  value.direct_import_ordinal = direct_ordinal;
+  value.target_kind = W_SEED_FRONTEND_IMPORT_UNRESOLVED;
+  value.target_index = W_SEED_FRONTEND_NONE;
+  if (context->input.import_resolution_complete) {
+    size_t edge_index = SIZE_MAX;
+    const w_seed_frontend_resolved_import *edge = NULL;
+    if (!resolved_import_index_for(context, context->module_index,
+                                   direct_ordinal, &edge_index) ||
+        (edge = resolved_import_at(context, edge_index)) == NULL) {
+      return false;
+    }
+    value.target_kind = edge->target_kind ==
+                                W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT
+                            ? W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT
+                            : W_SEED_FRONTEND_IMPORT_EXTERNAL_MODULE;
+    value.target_index = edge->target_index;
+  }
   if (!context_append_import(context, value, import_index)) return false;
   uint32_t child_cursor = node->first_child;
   uint32_t child = W_SEED_CST_NONE;
@@ -7246,47 +7437,112 @@ static w_seed_frontend_text enum_case_parameter_label(
   return (w_seed_frontend_text){NULL, 0};
 }
 
-static bool imported_target_for_name(
-    const frontend_context *context, w_seed_frontend_text name,
-    w_seed_frontend_text *module_name, w_seed_frontend_text *target_name) {
-  const w_seed_frontend_document *doc = context_document(context);
-  if (doc == NULL || module_name == NULL || target_name == NULL) return false;
-  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
-  uint32_t child = W_SEED_CST_NONE;
-  size_t guard = 0;
-  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
-    if (doc->nodes[child].kind != W_SEED_CST_IMPORT) {
-      guard += 1;
+static bool resolved_import_index_for(const frontend_context *context,
+                                      size_t document_index,
+                                      uint32_t direct_import_ordinal,
+                                      size_t *import_index) {
+  if (import_index != NULL) *import_index = SIZE_MAX;
+  if (context == NULL || import_index == NULL ||
+      document_index >= context->input.document_count ||
+      !context->input.import_resolution_complete) {
+    return false;
+  }
+  size_t base = 0u;
+  for (size_t index = 0u; index < document_index; index += 1u) {
+    const size_t imports = count_root_children(
+        &context->input.documents[index], W_SEED_CST_IMPORT);
+    if (!add_size(base, imports, &base)) return false;
+  }
+  const size_t current = count_root_children(
+      &context->input.documents[document_index], W_SEED_CST_IMPORT);
+  if ((size_t)direct_import_ordinal >= current ||
+      !add_size(base, (size_t)direct_import_ordinal, import_index)) {
+    return false;
+  }
+  return *import_index < context->input.resolved_import_count;
+}
+
+static const w_seed_frontend_resolved_import *resolved_import_at(
+    const frontend_context *context, size_t import_index) {
+  if (context == NULL || !context->input.import_resolution_complete ||
+      context->input.resolved_imports == NULL ||
+      import_index >= context->input.resolved_import_count) {
+    return NULL;
+  }
+  return &context->input.resolved_imports[import_index];
+}
+
+static bool import_has_from(const w_seed_frontend_document *doc,
+                            w_seed_span span) {
+  if (doc == NULL) return false;
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token token;
+  bool saw_import = false;
+  while (cursor_take(&cursor, &token)) {
+    if (!saw_import) {
+      if (token_text(doc, &token, "import")) saw_import = true;
       continue;
     }
-    const w_seed_frontend_text path =
-        text_from_span(doc, import_path_span(doc, doc->nodes[child].raw_span));
+    if (token_text(doc, &token, "from")) return true;
+  }
+  return false;
+}
+
+static bool imported_target_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    w_seed_frontend_import_target_kind *target_kind, uint32_t *target_index,
+    w_seed_frontend_text *target_name) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL || target_kind == NULL || target_index == NULL ||
+      target_name == NULL || !context->input.import_resolution_complete) {
+    return false;
+  }
+  *target_kind = W_SEED_FRONTEND_IMPORT_UNRESOLVED;
+  *target_index = W_SEED_FRONTEND_NONE;
+  *target_name = (w_seed_frontend_text){NULL, 0};
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  uint32_t direct_ordinal = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind != W_SEED_CST_IMPORT) {
+      guard += 1u;
+      continue;
+    }
+    size_t edge_index = SIZE_MAX;
+    if (!import_has_from(doc, doc->nodes[child].raw_span) ||
+        !resolved_import_index_for(context, context->module_index,
+                                   direct_ordinal, &edge_index)) {
+      direct_ordinal += 1u;
+      guard += 1u;
+      continue;
+    }
+    const w_seed_frontend_resolved_import *edge =
+        resolved_import_at(context, edge_index);
+    if (edge == NULL) return false;
     uint32_t item_cursor = doc->nodes[child].first_child;
     uint32_t item = W_SEED_CST_NONE;
-    size_t item_guard = 0;
-    bool matched = false;
+    size_t item_guard = 0u;
     while (next_child(doc, &item_cursor, &item) &&
            item_guard < doc->parse.node_count) {
       if (doc->nodes[item].kind == W_SEED_CST_IMPORT_ITEM) {
         w_seed_frontend_text imported = {NULL, 0};
         const w_seed_frontend_text local = import_item_local_name(
             doc, doc->nodes[item].raw_span, &imported);
-        if (text_equal_text(local, name)) {
-          *module_name = path;
+        if (imported.length != 0u && text_equal_text(local, name)) {
+          *target_kind = edge->target_kind ==
+                                 W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT
+                             ? W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT
+                             : W_SEED_FRONTEND_IMPORT_EXTERNAL_MODULE;
+          *target_index = edge->target_index;
           *target_name = imported;
-          matched = true;
-          break;
+          return true;
         }
       }
-      item_guard += 1;
+      item_guard += 1u;
     }
-    /* A bare `import dep` names a module, not a value.  It does not create a
-     * callable/value alias in this bounded slice.  Only explicit import items
-     * (`import { value as local } from dep`) may enter value lookup.  Keeping
-     * this distinction prevents a module path from accidentally resolving as
-     * a local function. */
-    if (matched) return true;
-    guard += 1;
+    direct_ordinal += 1u;
+    guard += 1u;
   }
   return false;
 }
@@ -7295,22 +7551,23 @@ static bool external_symbol_for_name(const frontend_context *context,
                                      w_seed_frontend_text name,
                                      const w_seed_frontend_external_symbol **symbol) {
   if (context == NULL || symbol == NULL) return false;
-  w_seed_frontend_text module_name = {NULL, 0};
+  w_seed_frontend_import_target_kind target_kind =
+      W_SEED_FRONTEND_IMPORT_UNRESOLVED;
+  uint32_t target_index = W_SEED_FRONTEND_NONE;
   w_seed_frontend_text target_name = {NULL, 0};
-  if (!imported_target_for_name(context, name, &module_name, &target_name)) {
+  if (!imported_target_for_name(context, name, &target_kind, &target_index,
+                                &target_name) ||
+      target_kind != W_SEED_FRONTEND_IMPORT_EXTERNAL_MODULE ||
+      (size_t)target_index >= context->input.external_module_count) {
     return false;
   }
-  for (size_t module_index = 0;
-       module_index < context->input.external_module_count; module_index += 1) {
-    const w_seed_frontend_external_module *module =
-        &context->input.external_modules[module_index];
-    if (!text_equal_text(module->module_id, module_name)) continue;
-    for (size_t index = 0; index < module->symbol_count; index += 1) {
-      const w_seed_frontend_external_symbol *candidate = &module->symbols[index];
-      if (candidate->exported && text_equal_text(candidate->name, target_name)) {
-        *symbol = candidate;
-        return true;
-      }
+  const w_seed_frontend_external_module *module =
+      &context->input.external_modules[target_index];
+  for (size_t index = 0u; index < module->symbol_count; index += 1u) {
+    const w_seed_frontend_external_symbol *candidate = &module->symbols[index];
+    if (candidate->exported && text_equal_text(candidate->name, target_name)) {
+      *symbol = candidate;
+      return true;
     }
   }
   return false;
@@ -7440,20 +7697,21 @@ static bool function_signature_for_name(
     *owner_doc = local;
     return true;
   }
-  w_seed_frontend_text module_name = {NULL, 0};
+  w_seed_frontend_import_target_kind target_kind =
+      W_SEED_FRONTEND_IMPORT_UNRESOLVED;
+  uint32_t target_index = W_SEED_FRONTEND_NONE;
   w_seed_frontend_text target_name = {NULL, 0};
-  if (!imported_target_for_name(context, name, &module_name, &target_name)) {
+  if (!imported_target_for_name(context, name, &target_kind, &target_index,
+                                &target_name) ||
+      target_kind != W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT ||
+      (size_t)target_index >= context->input.document_count) {
     return false;
   }
-  for (size_t document_index = 0; document_index < context->input.document_count;
-       document_index += 1) {
-    const w_seed_frontend_document *doc =
-        &context->input.documents[document_index];
-    if (!text_equal_text(document_module_name(doc), module_name)) continue;
-    if (function_in_document(doc, target_name, true, function_node)) {
-      *owner_doc = doc;
-      return true;
-    }
+  const w_seed_frontend_document *doc =
+      &context->input.documents[target_index];
+  if (function_in_document(doc, target_name, true, function_node)) {
+    *owner_doc = doc;
+    return true;
   }
   return false;
 }
@@ -10238,9 +10496,11 @@ static bool unresolved_parenthesized_identifier(
     return false;
   const w_seed_frontend_text name =
       text_from_span(doc, tokens[open_count].span);
-  w_seed_frontend_text imported_module = {NULL, 0};
+  w_seed_frontend_import_target_kind imported_kind =
+      W_SEED_FRONTEND_IMPORT_UNRESOLVED;
+  uint32_t imported_index = W_SEED_FRONTEND_NONE;
   w_seed_frontend_text imported_target = {NULL, 0};
-  if (imported_target_for_name(context, name, &imported_module,
+  if (imported_target_for_name(context, name, &imported_kind, &imported_index,
                                &imported_target))
     return false;
   if (name_out != NULL) *name_out = name;
@@ -10407,15 +10667,17 @@ static bool normalize_module_const(frontend_context *context,
       expected.kind == W_SEED_FRONTEND_TYPE_BOOL ||
       (expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
        expected.bit_width != 0u);
-  w_seed_frontend_text imported_module = {NULL, 0};
+  w_seed_frontend_import_target_kind imported_kind =
+      W_SEED_FRONTEND_IMPORT_UNRESOLVED;
+  uint32_t imported_index = W_SEED_FRONTEND_NONE;
   w_seed_frontend_text imported_target = {NULL, 0};
   const bool unresolved_local =
       normalized &&
       expression_value.kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
       expression_value.has_name && !expression_value.supported &&
       !module_const_name_is_duplicate(context, expression_value.name) &&
-      !imported_target_for_name(context, expression_value.name,
-                                &imported_module, &imported_target);
+       !imported_target_for_name(context, expression_value.name, &imported_kind,
+                                 &imported_index, &imported_target);
   if (unresolved_local) {
     (void)context_append_diagnostic(
         context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-SEM-0001",
@@ -10478,13 +10740,7 @@ static bool normalize_document(frontend_context *context) {
   (void)memset(&module, 0, sizeof(module));
   module.source_id = doc->logical_source_id;
   module.module_id = doc->module_id;
-  const uint32_t header = first_direct_kind(doc, doc->parse.root,
-                                            W_SEED_CST_MODULE_HEADER);
-  if (header != W_SEED_CST_NONE) {
-    const w_seed_frontend_text header_name =
-        name_after_keyword(doc, doc->nodes[header].raw_span, "module");
-    if (header_name.length != 0) module.module_id = header_name;
-  }
+  module.local_module_name = document_local_module_name(doc);
   module.span = doc->nodes[doc->parse.root].raw_span;
   module.first_import = (uint32_t)context->count.imports;
   module.first_struct = (uint32_t)context->count.structs;
@@ -10667,6 +10923,9 @@ static bool resolve_frontend_links(frontend_context *context) {
        expression_index < context->count.expressions; expression_index += 1u) {
     w_seed_frontend_expression *expression =
         &context->output->expressions[expression_index];
+    if ((size_t)expression->module_index >= context->input.document_count)
+      return false;
+    context->module_index = expression->module_index;
     if (expression->owner_function == W_SEED_FRONTEND_NONE) continue;
     if ((size_t)expression->owner_function >= context->count.functions)
       return false;
@@ -10703,6 +10962,28 @@ static bool resolve_frontend_links(frontend_context *context) {
           text_equal_text(candidate->name, callee->spelling)) {
         if (target != W_SEED_FRONTEND_NONE) duplicate = true;
         target = (uint32_t)function_index;
+      }
+    }
+    if (target == W_SEED_FRONTEND_NONE) {
+      w_seed_frontend_import_target_kind imported_kind =
+          W_SEED_FRONTEND_IMPORT_UNRESOLVED;
+      uint32_t imported_module_index = W_SEED_FRONTEND_NONE;
+      w_seed_frontend_text imported_name = {NULL, 0};
+      if (imported_target_for_name(context, callee->spelling, &imported_kind,
+                                   &imported_module_index, &imported_name) &&
+          imported_kind == W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT &&
+          (size_t)imported_module_index < context->input.document_count) {
+        for (size_t function_index = 0;
+             function_index < context->count.functions; function_index += 1u) {
+          const w_seed_frontend_function *candidate =
+              &context->output->functions[function_index];
+          if (candidate->module_index == imported_module_index &&
+              candidate->exported &&
+              text_equal_text(candidate->name, imported_name)) {
+            if (target != W_SEED_FRONTEND_NONE) duplicate = true;
+            target = (uint32_t)function_index;
+          }
+        }
       }
     }
     if (duplicate) target = W_SEED_FRONTEND_NONE;
@@ -10758,14 +11039,13 @@ static bool resolve_frontend_links(frontend_context *context) {
 static w_seed_frontend_text document_module_name(
     const w_seed_frontend_document *doc) {
   if (doc == NULL) return (w_seed_frontend_text){NULL, 0};
-  const uint32_t header = first_direct_kind(doc, doc->parse.root,
-                                            W_SEED_CST_MODULE_HEADER);
-  if (header != W_SEED_CST_NONE) {
-    const w_seed_frontend_text name =
-        name_after_keyword(doc, doc->nodes[header].raw_span, "module");
-    if (name.length != 0) return name;
-  }
   return doc->module_id;
+}
+
+static w_seed_frontend_text document_local_module_name(
+    const w_seed_frontend_document *doc) {
+  if (doc == NULL) return (w_seed_frontend_text){NULL, 0};
+  return doc->local_module_name;
 }
 
 static bool module_id_equal(w_seed_frontend_text left,
@@ -10773,62 +11053,35 @@ static bool module_id_equal(w_seed_frontend_text left,
   return left.length != 0 && right.length != 0 && text_equal_text(left, right);
 }
 
-static bool local_module_has_symbol(const w_seed_frontend_input *input,
-                                    w_seed_frontend_text module_name,
-                                    w_seed_frontend_text symbol_name) {
-  if (input == NULL) return false;
-  for (size_t document_index = 0; document_index < input->document_count;
-       document_index += 1) {
-    const w_seed_frontend_document *doc = &input->documents[document_index];
-    if (!module_id_equal(document_module_name(doc), module_name)) continue;
-    uint32_t cursor = doc->nodes[doc->parse.root].first_child;
-    uint32_t child = W_SEED_CST_NONE;
-    size_t guard = 0;
-    while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
-      const w_seed_cst_kind kind = doc->nodes[child].kind;
-      w_seed_frontend_text name = {NULL, 0};
-      bool exported = false;
-      if (kind == W_SEED_CST_FUNCTION) name = name_after_keyword(
-          doc, doc->nodes[child].raw_span, "fn");
-      if (kind == W_SEED_CST_STRUCT) name = name_after_keyword(
-          doc, doc->nodes[child].raw_span, "struct");
-      if (kind == W_SEED_CST_TYPE_DECLARATION) name = name_after_keyword(
-          doc, doc->nodes[child].raw_span, "type");
-      if (kind == W_SEED_CST_ALIAS_DECLARATION) name = name_after_keyword(
-          doc, doc->nodes[child].raw_span, "alias");
-      if (kind == W_SEED_CST_ENUM) name = name_after_keyword(
-          doc, doc->nodes[child].raw_span, "enum");
-      if (kind == W_SEED_CST_CONST_DECLARATION) name = name_after_keyword(
-          doc, doc->nodes[child].raw_span, "const");
-      if (kind == W_SEED_CST_FUNCTION || kind == W_SEED_CST_STRUCT ||
-          kind == W_SEED_CST_TYPE_DECLARATION ||
-          kind == W_SEED_CST_ALIAS_DECLARATION || kind == W_SEED_CST_ENUM ||
-          kind == W_SEED_CST_CONST_DECLARATION) {
-        exported = span_has_keyword(doc, doc->nodes[child].raw_span, "export");
-      }
-      if (exported && name.length != 0 && text_equal_text(name, symbol_name)) {
-        return true;
-      }
-      guard += 1;
+static bool exported_symbol_in_document(const w_seed_frontend_document *doc,
+                                        w_seed_frontend_text symbol_name) {
+  if (doc == NULL || symbol_name.length == 0u) return false;
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    const w_seed_cst_kind kind = doc->nodes[child].kind;
+    const char *keyword = declaration_keyword(kind);
+    if (keyword[0] != '\0' &&
+        span_has_keyword(doc, doc->nodes[child].raw_span, "export") &&
+        text_equal_text(name_after_keyword(doc, doc->nodes[child].raw_span,
+                                           keyword),
+                        symbol_name)) {
+      return true;
     }
+    guard += 1u;
   }
   return false;
 }
 
-static bool external_module_has_symbol(const w_seed_frontend_input *input,
-                                       w_seed_frontend_text module_name,
-                                       w_seed_frontend_text symbol_name) {
-  if (input == NULL) return false;
-  for (size_t index = 0; index < input->external_module_count; index += 1) {
-    const w_seed_frontend_external_module *module = &input->external_modules[index];
-    if (!text_equal_text(module->module_id, module_name)) continue;
-    for (size_t symbol = 0; symbol < module->symbol_count; symbol += 1) {
-      if (text_equal_text(module->symbols[symbol].name, symbol_name) &&
-          module->symbols[symbol].exported) {
-        return true;
-      }
-    }
-    return false;
+static bool exported_symbol_in_external(
+    const w_seed_frontend_external_module *module,
+    w_seed_frontend_text symbol_name) {
+  if (module == NULL || symbol_name.length == 0u) return false;
+  for (size_t index = 0u; index < module->symbol_count; index += 1u) {
+    const w_seed_frontend_external_symbol *symbol = &module->symbols[index];
+    if (symbol->exported && text_equal_text(symbol->name, symbol_name))
+      return true;
   }
   return false;
 }
@@ -10941,28 +11194,38 @@ static bool resolve_imports(frontend_context *context) {
   uint32_t cursor = doc->nodes[doc->parse.root].first_child;
   uint32_t child = W_SEED_CST_NONE;
   size_t guard = 0;
+  uint32_t direct_ordinal = 0u;
   while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
     if (doc->nodes[child].kind == W_SEED_CST_IMPORT) {
-      const w_seed_frontend_text path = text_from_span(
-          doc, import_path_span(doc, doc->nodes[child].raw_span));
-      bool has_module = false;
-      for (size_t index = 0; index < context->input.document_count; index += 1) {
-        if (module_id_equal(document_module_name(&context->input.documents[index]),
-                            path)) {
-          has_module = true;
-          break;
-        }
+      const w_seed_span declaration_span = doc->nodes[child].raw_span;
+      w_seed_span path_span = empty_span(declaration_span.start_byte);
+      if (!w_seed_module_scan_import_path_span(
+              doc->source, doc->nodes, doc->parse.node_count,
+              declaration_span, &path_span)) {
+        return false;
       }
-      for (size_t index = 0; index < context->input.external_module_count; index += 1) {
-        if (text_equal_text(context->input.external_modules[index].module_id, path)) {
-          has_module = true;
-          break;
+      const w_seed_frontend_text path = text_from_span(doc, path_span);
+      w_seed_frontend_import_target_kind target_kind =
+          W_SEED_FRONTEND_IMPORT_UNRESOLVED;
+      uint32_t target_index = W_SEED_FRONTEND_NONE;
+      if (context->input.import_resolution_complete) {
+        size_t edge_index = SIZE_MAX;
+        const w_seed_frontend_resolved_import *edge = NULL;
+        if (!resolved_import_index_for(context, context->module_index,
+                                       direct_ordinal, &edge_index) ||
+            (edge = resolved_import_at(context, edge_index)) == NULL) {
+          return false;
         }
+        target_kind = edge->target_kind ==
+                              W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT
+                          ? W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT
+                          : W_SEED_FRONTEND_IMPORT_EXTERNAL_MODULE;
+        target_index = edge->target_index;
       }
-      if (!has_module) {
+      if (!context->input.import_resolution_complete) {
         (void)context_append_fact(
             context, W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL,
-            doc->nodes[child].raw_span, path);
+            declaration_span, path);
       }
       uint32_t item_cursor = doc->nodes[child].first_child;
       uint32_t item = W_SEED_CST_NONE;
@@ -10970,17 +11233,39 @@ static bool resolve_imports(frontend_context *context) {
       while (next_child(doc, &item_cursor, &item) &&
              item_guard < doc->parse.node_count) {
         if (doc->nodes[item].kind == W_SEED_CST_IMPORT_ITEM) {
-          const w_seed_frontend_text name =
-              first_word_in_span(doc, doc->nodes[item].raw_span);
-          if (!local_module_has_symbol(&context->input, path, name) &&
-              !external_module_has_symbol(&context->input, path, name)) {
+          w_seed_frontend_text imported_name = {NULL, 0};
+          const w_seed_frontend_text local_name = import_item_local_name(
+              doc, doc->nodes[item].raw_span, &imported_name);
+          bool exported = true;
+          if (!context->input.import_resolution_complete) {
+            exported = false;
+          } else if (imported_name.length != 0u) {
+            if (target_kind == W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT) {
+              exported = (size_t)target_index < context->input.document_count &&
+                         exported_symbol_in_document(
+                             &context->input.documents[target_index],
+                             imported_name);
+            } else if (target_kind ==
+                       W_SEED_FRONTEND_IMPORT_EXTERNAL_MODULE) {
+              exported = (size_t)target_index <
+                             context->input.external_module_count &&
+                         exported_symbol_in_external(
+                             &context->input.external_modules[target_index],
+                             imported_name);
+            } else {
+              exported = false;
+            }
+          }
+          if (!exported) {
             (void)context_append_fact(
                 context, W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL,
-                doc->nodes[item].raw_span, name);
+                doc->nodes[item].raw_span,
+                imported_name.length != 0u ? imported_name : local_name);
           }
         }
         item_guard += 1;
       }
+      direct_ordinal += 1u;
     }
     guard += 1;
   }
@@ -11167,6 +11452,8 @@ static void receipt_write_records(frontend_receipt_writer *writer,
     receipt_write_text(writer, doc->logical_source_id);
     receipt_write_literal(writer, "|");
     receipt_write_text(writer, document_module_name(doc));
+    receipt_write_literal(writer, "|local=");
+    receipt_write_text(writer, document_local_module_name(doc));
     receipt_write_literal(writer, "|sha256:");
     receipt_write_digest(writer, digest);
     receipt_write_literal(writer, "\n");
@@ -11177,6 +11464,8 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       const w_seed_frontend_module *module = &output->modules[index];
       receipt_write_literal(writer, "module=");
       receipt_write_text(writer, module->module_id);
+      receipt_write_literal(writer, "|local=");
+      receipt_write_text(writer, module->local_module_name);
       receipt_write_literal(writer, "|source=");
       receipt_write_text(writer, module->source_id);
       receipt_write_literal(writer, "\n");
@@ -11207,6 +11496,12 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, item->module_index);
       receipt_write_literal(writer, "|");
       receipt_write_text(writer, item->path);
+      receipt_write_literal(writer, "|ordinal=");
+      receipt_write_size(writer, item->direct_import_ordinal);
+      receipt_write_literal(writer, "|target-kind=");
+      receipt_write_size(writer, (size_t)item->target_kind);
+      receipt_write_literal(writer, "|target-index=");
+      receipt_write_size(writer, item->target_index);
       receipt_write_literal(writer, "\n");
     }
     for (size_t index = 0; index < context->count.enums; index += 1) {

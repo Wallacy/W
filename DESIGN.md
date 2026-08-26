@@ -32383,6 +32383,24 @@ negativa, o renderer humano e as barreiras de source, parse, unsupported e
 capacity. O driver sozinho não implementa a rota pública e não resolve package
 ou workspace. O target bootstrap `w` reutiliza o núcleo privado do driver.
 
+CHK3 acrescenta evidência bounded caller-owned para a fronteira entre CST,
+resolver e frontend. O scanner de origins preserva o span de `module` e os
+imports diretos em ordem de source e é compartilhado pelo frontend para evitar
+heurísticas divergentes. O frontend seed separa `logical_source_id`, a
+identidade completa `module_id` fornecida pelo resolver e `local_module_name`;
+quando a resolução está completa, o caller fornece exatamente um edge por
+import com target local ou external explícito. O teste multi-documento prova
+um import nomeado para um módulo `kitchen.menu` cujo header local é `menu`,
+lookup no target exato, redirect determinístico e rejeições de edge inválido.
+O adapter D0 recebe também o índice esperado do documento; a rota CHK1 passa
+`0` e mantém os bytes existentes.
+
+Esta evidência não implementa provider real, owner discovery, filesystem
+loader, std provider, package/workspace, reexport ou service-import origin,
+multi-file package ou a resolução pública de `w check`. Reexport e
+service-import ainda não possuem CST seed; NFC continua responsabilidade do
+resolver.
+
 Saída: `w check <path/file.w> [--json]` verifica o subset síncrono do
 restaurante. O target bootstrap `w` executa essa rota no perfil
 closed-single-source. Owner detection, resolution, imports/module graph,

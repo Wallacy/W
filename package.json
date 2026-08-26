@@ -40,6 +40,7 @@
     "check:seed-source-reader": "bun tooling/check-seed-source-reader.mjs",
     "check:seed-lexer": "bun tooling/check-seed-lexer.mjs",
     "check:seed-parser": "bun tooling/check-seed-parser.mjs",
+    "check:seed-module-scan": "bun tooling/check-seed-module-scan.mjs",
     "check:seed-formatter": "bun tooling/check-seed-formatter.mjs",
     "check:seed-diagnostic": "bun tooling/check-seed-diagnostic.mjs",
     "check:seed-check-driver": "bun tooling/check-seed-check-driver.mjs",

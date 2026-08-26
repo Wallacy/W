@@ -338,9 +338,10 @@ int main(void) {
       "\"fixes\":[],\"root\":null}";
   w_seed_diagnostic_result semantic_measured;
   if (w_seed_diagnostic_frontend_record(
-          instance, sizeof(instance) - 1u, semantic_source_id,
-          sizeof(semantic_source_id) - 1u, &semantic_source,
-          &semantic_diagnostic,
+           instance, sizeof(instance) - 1u, semantic_source_id,
+           sizeof(semantic_source_id) - 1u, &semantic_source,
+           0u,
+           &semantic_diagnostic,
           NULL, 0u, &semantic_measured) != W_SEED_DIAGNOSTIC_CAPACITY ||
       semantic_measured.required_bytes != sizeof(expected_semantic) - 1u ||
       semantic_measured.primary_byte != 2u) {
@@ -349,9 +350,10 @@ int main(void) {
   (void)memset(output, 0xA5, sizeof(output));
   w_seed_diagnostic_result semantic_short;
   if (w_seed_diagnostic_frontend_record(
-          instance, sizeof(instance) - 1u, semantic_source_id,
-          sizeof(semantic_source_id) - 1u, &semantic_source,
-          &semantic_diagnostic,
+           instance, sizeof(instance) - 1u, semantic_source_id,
+           sizeof(semantic_source_id) - 1u, &semantic_source,
+           0u,
+           &semantic_diagnostic,
           output, semantic_measured.required_bytes - 1u, &semantic_short) !=
           W_SEED_DIAGNOSTIC_CAPACITY ||
       semantic_short.written_bytes != 0u ||
@@ -360,9 +362,10 @@ int main(void) {
   }
   w_seed_diagnostic_result semantic_written;
   if (w_seed_diagnostic_frontend_record(
-          instance, sizeof(instance) - 1u, semantic_source_id,
-          sizeof(semantic_source_id) - 1u, &semantic_source,
-          &semantic_diagnostic,
+           instance, sizeof(instance) - 1u, semantic_source_id,
+           sizeof(semantic_source_id) - 1u, &semantic_source,
+           0u,
+           &semantic_diagnostic,
           output, sizeof(output), &semantic_written) != W_SEED_DIAGNOSTIC_OK ||
       semantic_written.written_bytes != semantic_measured.required_bytes ||
       memcmp(output, expected_semantic, sizeof(expected_semantic) - 1u) != 0) {
@@ -373,16 +376,18 @@ int main(void) {
   if (w_seed_diagnostic_frontend_record(
           (const char *)invalid_instance_bytes,
           sizeof(invalid_instance_bytes), lex_source_id,
-          sizeof(lex_source_id) - 1u, &semantic_source, &semantic_diagnostic,
-          NULL, 0u, &semantic_written) != W_SEED_DIAGNOSTIC_INVALID) {
+           sizeof(lex_source_id) - 1u, &semantic_source, 0u,
+           &semantic_diagnostic,
+           NULL, 0u, &semantic_written) != W_SEED_DIAGNOSTIC_INVALID) {
     return 34;
   }
   static const uint8_t invalid_semantic_source_id[] = {'s', 0xC3u};
   if (w_seed_diagnostic_frontend_record(
           instance, sizeof(instance) - 1u,
           (const char *)invalid_semantic_source_id,
-          sizeof(invalid_semantic_source_id), &semantic_source,
-          &semantic_diagnostic, NULL, 0u, &semantic_written) !=
+           sizeof(invalid_semantic_source_id), &semantic_source,
+           0u,
+           &semantic_diagnostic, NULL, 0u, &semantic_written) !=
       W_SEED_DIAGNOSTIC_INVALID) {
     return 35;
   }
@@ -390,8 +395,9 @@ int main(void) {
   semantic_unsupported.code = (w_seed_frontend_text){"W-TYPE-0122", 11u};
   if (w_seed_diagnostic_frontend_record(
           instance, sizeof(instance) - 1u, semantic_source_id,
-          sizeof(semantic_source_id) - 1u, &semantic_source,
-          &semantic_unsupported,
+           sizeof(semantic_source_id) - 1u, &semantic_source,
+           0u,
+           &semantic_unsupported,
           NULL, 0u, &semantic_written) != W_SEED_DIAGNOSTIC_UNSUPPORTED) {
     return 36;
   }
@@ -399,8 +405,9 @@ int main(void) {
   semantic_unsupported.kind = W_SEED_FRONTEND_DIAGNOSTIC_TYPE;
   if (w_seed_diagnostic_frontend_record(
           instance, sizeof(instance) - 1u, semantic_source_id,
-          sizeof(semantic_source_id) - 1u, &semantic_source,
-          &semantic_unsupported,
+           sizeof(semantic_source_id) - 1u, &semantic_source,
+           0u,
+           &semantic_unsupported,
           NULL, 0u, &semantic_written) != W_SEED_DIAGNOSTIC_UNSUPPORTED) {
     return 37;
   }
@@ -409,8 +416,9 @@ int main(void) {
   (void)memset(output, 0xA5, sizeof(output));
   if (w_seed_diagnostic_frontend_record(
           instance, sizeof(instance) - 1u, semantic_source_id,
-          sizeof(semantic_source_id) - 1u, &semantic_source,
-          &semantic_unsupported, output, sizeof(output), &semantic_written) !=
+           sizeof(semantic_source_id) - 1u, &semantic_source,
+           0u,
+           &semantic_unsupported, output, sizeof(output), &semantic_written) !=
           W_SEED_DIAGNOSTIC_UNSUPPORTED ||
       semantic_written.written_bytes != 0u ||
       !all_bytes_equal(output, sizeof(output), 0xA5)) {
@@ -420,8 +428,9 @@ int main(void) {
   semantic_unsupported.primary = (w_seed_span){3u, 2u};
   if (w_seed_diagnostic_frontend_record(
           instance, sizeof(instance) - 1u, semantic_source_id,
-          sizeof(semantic_source_id) - 1u, &semantic_source,
-          &semantic_unsupported,
+           sizeof(semantic_source_id) - 1u, &semantic_source,
+           0u,
+           &semantic_unsupported,
           NULL, 0u, &semantic_written) != W_SEED_DIAGNOSTIC_UNSUPPORTED) {
     return 38;
   }
@@ -429,8 +438,9 @@ int main(void) {
   semantic_unsupported.primary = (w_seed_span){2u, 5u};
   if (w_seed_diagnostic_frontend_record(
           instance, sizeof(instance) - 1u, semantic_source_id,
-          sizeof(semantic_source_id) - 1u, &semantic_source,
-          &semantic_unsupported,
+           sizeof(semantic_source_id) - 1u, &semantic_source,
+           0u,
+           &semantic_unsupported,
           NULL, 0u, &semantic_written) != W_SEED_DIAGNOSTIC_UNSUPPORTED) {
     return 39;
   }
@@ -447,10 +457,59 @@ int main(void) {
   semantic_unsupported.primary = (w_seed_span){2u, 3u};
   if (w_seed_diagnostic_frontend_record(
           instance, sizeof(instance) - 1u, semantic_source_id,
-          sizeof(semantic_source_id) - 1u, &utf8_semantic_source,
-          &semantic_unsupported, NULL, 0u, &semantic_written) !=
+           sizeof(semantic_source_id) - 1u, &utf8_semantic_source,
+           0u,
+           &semantic_unsupported, NULL, 0u, &semantic_written) !=
       W_SEED_DIAGNOSTIC_UNSUPPORTED) {
     return 41;
+  }
+
+  static const char document_one_source_id[] = "semantic/doc-one";
+  static const w_seed_frontend_diagnostic document_one_diagnostic = {
+      W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
+      {(const char *)"W-SEM-0001", sizeof("W-SEM-0001") - 1u},
+      {(const char *)"1", 1u},
+      {(const char *)"Bool", sizeof("Bool") - 1u},
+      {NULL, 0u},
+      {NULL, 0u},
+      {NULL, 0u},
+      {1u, 3u},
+      1u,
+  };
+  w_seed_diagnostic_result document_one_measured;
+  if (w_seed_diagnostic_frontend_record(
+          instance, sizeof(instance) - 1u, document_one_source_id,
+          sizeof(document_one_source_id) - 1u, &utf8_semantic_source, 1u,
+          &document_one_diagnostic, NULL, 0u, &document_one_measured) !=
+          W_SEED_DIAGNOSTIC_CAPACITY ||
+      document_one_measured.primary_byte != 1u ||
+      document_one_measured.required_bytes == 0u) {
+    return 43;
+  }
+  (void)memset(output, 0xA5, sizeof(output));
+  if (w_seed_diagnostic_frontend_record(
+          instance, sizeof(instance) - 1u, document_one_source_id,
+          sizeof(document_one_source_id) - 1u, &utf8_semantic_source, 1u,
+          &document_one_diagnostic, output, sizeof(output),
+          &semantic_written) != W_SEED_DIAGNOSTIC_OK ||
+      semantic_written.written_bytes != document_one_measured.required_bytes ||
+      !contains_text(output, semantic_written.written_bytes,
+                     "semantic/doc-one") ||
+      !contains_text(output, semantic_written.written_bytes,
+                     "\"startByte\":1,\"endByte\":3")) {
+    return 44;
+  }
+  w_seed_frontend_diagnostic document_mismatch = document_one_diagnostic;
+  document_mismatch.document_index = 0u;
+  (void)memset(output, 0xA5, sizeof(output));
+  if (w_seed_diagnostic_frontend_record(
+          instance, sizeof(instance) - 1u, document_one_source_id,
+          sizeof(document_one_source_id) - 1u, &utf8_semantic_source, 1u,
+          &document_mismatch, output, sizeof(output), &semantic_written) !=
+          W_SEED_DIAGNOSTIC_UNSUPPORTED ||
+      semantic_written.written_bytes != 0u ||
+      !all_bytes_equal(output, sizeof(output), 0xA5)) {
+    return 45;
   }
   return 0;
 }

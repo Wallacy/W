@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { basename, join, resolve } from "node:path"
 
@@ -73,6 +73,13 @@ function expectBarrier(executable, args, label, expectedMessage) {
   }
 }
 
+function expectClean(result, label) {
+  if (result.exitCode !== 0 || result.stdout.length !== 0 ||
+      result.stderr.length !== 0) {
+    fail(`${label} was not clean: ${JSON.stringify(result)}`)
+  }
+}
+
 function expectDiagnostic(result, source, label) {
   if (result.exitCode !== 1 || result.stderr.length !== 0) {
     fail(`${label} has the wrong exit or stderr: ${JSON.stringify({
@@ -120,6 +127,10 @@ const unsupportedSource = join(buildDirectory, "unsupported.w")
 const oversizedSource = join(buildDirectory, "oversized.w")
 const missingSource = join(buildDirectory, "missing.w")
 const mutationSource = join(buildDirectory, "checker-bootstrap-negative.w")
+const nestedDirectory = join(buildDirectory, "nested", "logical")
+const headerlessNestedSource = join(nestedDirectory, "headerless.w")
+const headerOverrideNestedSource = join(nestedDirectory, "header-override.w")
+const emptyStemSource = join(nestedDirectory, ".w")
 try {
   run("cmake", ["-S", seedDirectory, "-B", buildDirectory, "-G", "Ninja",
     "-DCMAKE_BUILD_TYPE=Debug"])
@@ -130,18 +141,29 @@ try {
     fail(`target/executable is not named w${extension}`)
   }
 
+  await mkdir(nestedDirectory, { recursive: true })
+  await writeFile(headerlessNestedSource,
+    Buffer.from("export enum State { open }\n", "utf8"))
+  await writeFile(headerOverrideNestedSource,
+    Buffer.from("module explicit_header\nexport enum State { open }\n", "utf8"))
+  await writeFile(emptyStemSource,
+    Buffer.from("export enum State { open }\n", "utf8"))
+
   expectHelp(executable, ["--help"], "w --help")
   expectHelp(executable, ["help"], "w help")
   expectHelp(executable, ["check", "--help"], "w check --help")
 
   const clean = invoke(executable, ["check", "reference/last-light/checker_bootstrap.w"])
-  if (clean.exitCode !== 0 || clean.stdout.length !== 0 || clean.stderr.length !== 0) {
-    fail(`relative Restaurant fixture was not clean: ${JSON.stringify(clean)}`)
-  }
+  expectClean(clean, "relative Restaurant fixture")
   const cleanJson = invoke(executable, ["check", "reference/last-light/checker_bootstrap.w", "--json"])
-  if (cleanJson.exitCode !== 0 || cleanJson.stdout.length !== 0 || cleanJson.stderr.length !== 0) {
-    fail(`relative Restaurant fixture JSON was not clean: ${JSON.stringify(cleanJson)}`)
-  }
+  expectClean(cleanJson, "relative Restaurant fixture JSON")
+  expectClean(invoke(executable, ["check", headerlessNestedSource]),
+              "nested headerless fixture")
+  const headerOverridePath = headerOverrideNestedSource.replaceAll("\\", "/")
+  expectClean(invoke(executable, ["check", headerOverridePath]),
+              "nested header override fixture")
+  expectBarrier(executable, ["check", emptyStemSource, "--json"],
+                "empty logical module stem", "logical module name is empty")
   expectBarrier(executable, ["check", missingSource, "--json"], "missing source file")
 
   const fixtureBytes = Buffer.from(await Bun.file(fixture).arrayBuffer())

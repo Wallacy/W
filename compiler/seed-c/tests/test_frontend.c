@@ -64,6 +64,7 @@ typedef struct {
   w_seed_parse_result parse;
   w_seed_frontend_document document;
   w_seed_frontend_input input;
+  w_seed_frontend_resolved_import resolved_imports[TEST_IMPORTS];
   w_seed_frontend_module modules[TEST_MODULES];
   w_seed_frontend_import imports[TEST_IMPORTS];
   w_seed_frontend_import_item import_items[TEST_IMPORT_ITEMS];
@@ -276,6 +277,22 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
   CHECK(w_seed_parser_parse(&fixture_value->parser, &fixture_value->parse));
   fixture_value->document.logical_source_id = (w_seed_frontend_text){"test", 4};
   fixture_value->document.module_id = (w_seed_frontend_text){"test", 4};
+  fixture_value->document.local_module_name =
+      fixture_value->document.module_id;
+  w_seed_module_scan_result scan_result;
+  const w_seed_module_scan_status scan_status = w_seed_module_scan(
+      &fixture_value->source, fixture_value->nodes,
+      fixture_value->parse.node_count, &fixture_value->parse, NULL, 0u,
+      &scan_result);
+  if ((scan_status == W_SEED_MODULE_SCAN_OK ||
+       scan_status == W_SEED_MODULE_SCAN_CAPACITY) &&
+      scan_result.has_module_header_name) {
+    fixture_value->document.local_module_name = (w_seed_frontend_text){
+        (const char *)fixture_value->source.bytes.data +
+            scan_result.module_header_name_span.start_byte,
+        scan_result.module_header_name_span.end_byte -
+            scan_result.module_header_name_span.start_byte};
+  }
   fixture_value->document.source = &fixture_value->source;
   fixture_value->document.nodes = fixture_value->nodes;
   fixture_value->document.node_count = fixture_value->parse.node_count;
@@ -284,6 +301,9 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
   fixture_value->input.document_count = 1;
   fixture_value->input.external_modules = NULL;
   fixture_value->input.external_module_count = 0;
+  fixture_value->input.import_resolution_complete = false;
+  fixture_value->input.resolved_imports = NULL;
+  fixture_value->input.resolved_import_count = 0u;
   fixture_fill_output(fixture_value, 0);
   fixture_value->output = (w_seed_frontend_output){
       .modules = fixture_value->modules,
@@ -358,6 +378,50 @@ static bool fixture_run(fixture *fixture_value, const char *text) {
   CHECK(fixture_parse(fixture_value, text));
   (void)w_seed_frontend_run(&fixture_value->input, &fixture_value->output,
                             &fixture_value->result);
+  return true;
+}
+
+static bool fixture_resolve_external_imports(fixture *fixture_value) {
+  if (fixture_value == NULL || fixture_value->input.document_count != 1u)
+    return false;
+  w_seed_module_origin origins[TEST_IMPORTS];
+  w_seed_module_scan_result scan_result;
+  if (w_seed_module_scan(&fixture_value->source, fixture_value->nodes,
+                         fixture_value->parse.node_count,
+                         &fixture_value->parse, origins, TEST_IMPORTS,
+                         &scan_result) != W_SEED_MODULE_SCAN_OK) {
+    return false;
+  }
+  for (size_t origin_index = 0u; origin_index < scan_result.written;
+       origin_index += 1u) {
+    const w_seed_span path_span = origins[origin_index].module_path_span;
+    const w_seed_frontend_text path = {
+        (const char *)fixture_value->source.bytes.data + path_span.start_byte,
+        path_span.end_byte - path_span.start_byte};
+    size_t target_index = SIZE_MAX;
+    for (size_t module_index = 0u;
+         module_index < fixture_value->input.external_module_count;
+         module_index += 1u) {
+      const w_seed_frontend_text candidate =
+          fixture_value->input.external_modules[module_index].module_id;
+      if (candidate.length == path.length &&
+          memcmp(candidate.data, path.data, path.length) == 0) {
+        target_index = module_index;
+        break;
+      }
+    }
+    if (target_index == SIZE_MAX) return false;
+    fixture_value->resolved_imports[origin_index] =
+        (w_seed_frontend_resolved_import){
+            .source_document_index = 0u,
+            .direct_import_ordinal = origins[origin_index].direct_import_ordinal,
+            .import_declaration_span = origins[origin_index].declaration_span,
+            .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE,
+            .target_index = (uint32_t)target_index};
+  }
+  fixture_value->input.import_resolution_complete = true;
+  fixture_value->input.resolved_imports = fixture_value->resolved_imports;
+  fixture_value->input.resolved_import_count = scan_result.written;
   return true;
 }
 
@@ -1277,6 +1341,7 @@ static bool test_const_and_membership(void) {
   };
   fixture_external.input.external_modules = fixture_external.external_modules;
   fixture_external.input.external_module_count = 1;
+  CHECK(fixture_resolve_external_imports(&fixture_external));
   (void)w_seed_frontend_run(&fixture_external.input, &fixture_external.output,
                             &fixture_external.result);
   CHECK(fixture_external.result.status == W_SEED_FRONTEND_DIAGNOSTICS);
@@ -1479,9 +1544,11 @@ static bool test_multidocument_const_ordinals(void) {
   first.document.logical_source_id =
       (w_seed_frontend_text){first_module, sizeof(first_module) - 1u};
   first.document.module_id = first.document.logical_source_id;
+  first.document.local_module_name = first.document.module_id;
   second.document.logical_source_id =
       (w_seed_frontend_text){second_module, sizeof(second_module) - 1u};
   second.document.module_id = second.document.logical_source_id;
+  second.document.local_module_name = second.document.module_id;
   w_seed_frontend_document documents[2] = {first.document, second.document};
   first.input.documents = documents;
   first.input.document_count = 2u;
@@ -1509,6 +1576,293 @@ static bool test_multidocument_const_ordinals(void) {
             W_SEED_FRONTEND_TYPE_INTEGER &&
         first.types[first.const_declarations[1].effective_type].kind ==
             W_SEED_FRONTEND_TYPE_INTEGER);
+  return true;
+}
+
+static bool test_resolved_import_edges_and_identity(void) {
+  static fixture root;
+  static fixture child;
+  static fixture redirected;
+  static const char root_source[] =
+      "import { value } from kitchen.menu\n"
+      "fn use(): i64 { return value() }\n";
+  static const char child_source[] =
+      "module menu\n"
+      "export fn value(): i64 { return 42 }\n";
+  static const char redirected_source[] =
+      "export fn value(): i64 { return 7 }\n";
+  CHECK(fixture_parse(&root, root_source));
+  CHECK(fixture_parse(&child, child_source));
+  CHECK(fixture_parse(&redirected, redirected_source));
+  root.document.logical_source_id = (w_seed_frontend_text){"root", 4};
+  root.document.module_id = (w_seed_frontend_text){"kitchen.root", 12};
+  root.document.local_module_name = (w_seed_frontend_text){"root", 4};
+  child.document.logical_source_id = (w_seed_frontend_text){"menu", 4};
+  child.document.module_id = (w_seed_frontend_text){"kitchen.menu", 12};
+  child.document.local_module_name = (w_seed_frontend_text){"menu", 4};
+  redirected.document.logical_source_id =
+      (w_seed_frontend_text){"redirected", 10};
+  redirected.document.module_id = (w_seed_frontend_text){"other.menu", 10};
+  redirected.document.local_module_name =
+      (w_seed_frontend_text){"menu", 4};
+  w_seed_module_origin origins[1];
+  w_seed_module_scan_result scan_result;
+  CHECK(w_seed_module_scan(&root.source, root.nodes, root.parse.node_count,
+                           &root.parse, origins, 1u, &scan_result) ==
+        W_SEED_MODULE_SCAN_OK &&
+        scan_result.written == 1u);
+  root.resolved_imports[0] = (w_seed_frontend_resolved_import){
+      .source_document_index = 0u,
+      .direct_import_ordinal = 0u,
+      .import_declaration_span = origins[0].declaration_span,
+      .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT,
+      .target_index = 1u};
+  w_seed_frontend_document documents[3] = {
+      root.document, child.document, redirected.document};
+  root.input.documents = documents;
+  root.input.document_count = 3u;
+  root.input.external_modules = NULL;
+  root.input.external_module_count = 0u;
+  root.input.import_resolution_complete = true;
+  root.input.resolved_imports = root.resolved_imports;
+  root.input.resolved_import_count = 1u;
+  fixture_fill_output(&root, 0u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(root.result.written.modules == 3u && root.result.written.imports == 1u &&
+        root.modules[0].module_id.length == 12u &&
+        memcmp(root.modules[0].module_id.data, "kitchen.root", 12u) == 0 &&
+        root.modules[1].module_id.length == 12u &&
+        memcmp(root.modules[1].module_id.data, "kitchen.menu", 12u) == 0 &&
+        root.modules[1].local_module_name.length == 4u &&
+        memcmp(root.modules[1].local_module_name.data, "menu", 4u) == 0);
+  CHECK(root.imports[0].target_kind ==
+            W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT &&
+        root.imports[0].target_index == 1u &&
+        root.imports[0].direct_import_ordinal == 0u);
+  CHECK(receipt_contains(&root, "module=12:6b69746368656e2e6d656e75|local=4:6d656e75",
+                         strlen("module=12:6b69746368656e2e6d656e75|local=4:6d656e75")));
+  bool saw_redirectable_call = false;
+  for (size_t index = 0u; index < root.result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &root.expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        expression->resolved_function_index != W_SEED_FRONTEND_NONE) {
+      const w_seed_frontend_function *function =
+          &root.functions[expression->resolved_function_index];
+      if (function->module_index == 1u && function->name.length == 5u &&
+          memcmp(function->name.data, "value", 5u) == 0) {
+        saw_redirectable_call = true;
+      }
+    }
+  }
+  CHECK(saw_redirectable_call);
+  const size_t first_receipt_bytes = root.result.receipt_bytes;
+  uint8_t first_receipt[TEST_RECEIPT];
+  (void)memcpy(first_receipt, root.receipt, first_receipt_bytes);
+  root.resolved_imports[0].target_index = 2u;
+  fixture_fill_output(&root, 0u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(root.imports[0].target_index == 2u &&
+        (root.result.receipt_bytes != first_receipt_bytes ||
+         memcmp(first_receipt, root.receipt, first_receipt_bytes) != 0));
+
+  /* Resolution is an explicit all-or-nothing input transaction. */
+  root.input.import_resolution_complete = false;
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+        W_SEED_FRONTEND_INVALID);
+  root.input.import_resolution_complete = true;
+  root.input.resolved_import_count = 0u;
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+        W_SEED_FRONTEND_INVALID);
+  root.input.resolved_import_count = 1u;
+  root.resolved_imports[0].source_document_index = 1u;
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+        W_SEED_FRONTEND_INVALID);
+  root.resolved_imports[0].source_document_index = 0u;
+  root.resolved_imports[0].direct_import_ordinal = 1u;
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+        W_SEED_FRONTEND_INVALID);
+  root.resolved_imports[0].direct_import_ordinal = 0u;
+  root.resolved_imports[0].import_declaration_span.start_byte += 1u;
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+        W_SEED_FRONTEND_INVALID);
+  root.resolved_imports[0].import_declaration_span = origins[0].declaration_span;
+  root.resolved_imports[0].target_index = 3u;
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+        W_SEED_FRONTEND_INVALID);
+  root.resolved_imports[0].target_index = 0u;
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+        W_SEED_FRONTEND_INVALID);
+  root.resolved_imports[0].target_index = 1u;
+  documents[1].local_module_name = (w_seed_frontend_text){"wrong", 5};
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+        W_SEED_FRONTEND_INVALID);
+  documents[1].local_module_name = (w_seed_frontend_text){"menu", 4};
+  documents[1].local_module_name = (w_seed_frontend_text){NULL, 0u};
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+        W_SEED_FRONTEND_INVALID && fixture_output_is(&root, 0xa5u, true));
+  documents[1].local_module_name = (w_seed_frontend_text){"menu", 4};
+
+  static fixture cycle_first;
+  static fixture cycle_second;
+  static const char cycle_first_source[] =
+      "import { value } from cycle.second\n";
+  static const char cycle_second_source[] =
+      "import { value } from cycle.first\n";
+  CHECK(fixture_parse(&cycle_first, cycle_first_source));
+  CHECK(fixture_parse(&cycle_second, cycle_second_source));
+  cycle_first.document.module_id = (w_seed_frontend_text){"cycle.first", 11};
+  cycle_first.document.local_module_name =
+      (w_seed_frontend_text){"first", 5};
+  cycle_second.document.module_id =
+      (w_seed_frontend_text){"cycle.second", 12};
+  cycle_second.document.local_module_name =
+      (w_seed_frontend_text){"second", 6};
+  w_seed_module_origin cycle_origins[2];
+  w_seed_module_scan_result cycle_scan;
+  CHECK(w_seed_module_scan(&cycle_first.source, cycle_first.nodes,
+                           cycle_first.parse.node_count, &cycle_first.parse,
+                           &cycle_origins[0], 1u, &cycle_scan) ==
+        W_SEED_MODULE_SCAN_OK);
+  CHECK(w_seed_module_scan(&cycle_second.source, cycle_second.nodes,
+                           cycle_second.parse.node_count, &cycle_second.parse,
+                           &cycle_origins[1], 1u, &cycle_scan) ==
+        W_SEED_MODULE_SCAN_OK);
+  w_seed_frontend_document cycle_documents[2] = {cycle_first.document,
+                                                  cycle_second.document};
+  cycle_first.resolved_imports[0] = (w_seed_frontend_resolved_import){
+      .source_document_index = 0u,
+      .direct_import_ordinal = 0u,
+      .import_declaration_span = cycle_origins[0].declaration_span,
+      .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT,
+      .target_index = 1u};
+  cycle_first.resolved_imports[1] = (w_seed_frontend_resolved_import){
+      .source_document_index = 1u,
+      .direct_import_ordinal = 0u,
+      .import_declaration_span = cycle_origins[1].declaration_span,
+      .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT,
+      .target_index = 0u};
+  cycle_first.input.documents = cycle_documents;
+  cycle_first.input.document_count = 2u;
+  cycle_first.input.import_resolution_complete = true;
+  cycle_first.input.resolved_imports = cycle_first.resolved_imports;
+  cycle_first.input.resolved_import_count = 2u;
+  fixture_fill_output(&cycle_first, 0xa5u);
+  CHECK(w_seed_frontend_run(&cycle_first.input, &cycle_first.output,
+                            &cycle_first.result) == W_SEED_FRONTEND_INVALID);
+  return true;
+}
+
+static bool test_resolved_import_edge_validation(void) {
+  static fixture root;
+  static fixture first;
+  static fixture second;
+  static const char root_source[] =
+      "import { value } from first\n"
+      "import { other } from second\n";
+  static const char first_source[] =
+      "export fn value(): i64 { return 1 }\n";
+  static const char second_source[] =
+      "export fn other(): i64 { return 2 }\n";
+  CHECK(fixture_parse(&root, root_source));
+  CHECK(fixture_parse(&first, first_source));
+  CHECK(fixture_parse(&second, second_source));
+  root.document.logical_source_id = (w_seed_frontend_text){"root", 4};
+  root.document.module_id = (w_seed_frontend_text){"pkg.root", 8};
+  root.document.local_module_name = (w_seed_frontend_text){"root", 4};
+  first.document.logical_source_id = (w_seed_frontend_text){"first", 5};
+  first.document.module_id = (w_seed_frontend_text){"pkg.first", 9};
+  first.document.local_module_name = (w_seed_frontend_text){"first", 5};
+  second.document.logical_source_id = (w_seed_frontend_text){"second", 6};
+  second.document.module_id = (w_seed_frontend_text){"pkg.second", 10};
+  second.document.local_module_name = (w_seed_frontend_text){"second", 6};
+  w_seed_module_origin origins[2];
+  w_seed_module_scan_result scan_result;
+  CHECK(w_seed_module_scan(&root.source, root.nodes, root.parse.node_count,
+                           &root.parse, origins, 2u, &scan_result) ==
+        W_SEED_MODULE_SCAN_OK &&
+        scan_result.written == 2u);
+  root.resolved_imports[0] = (w_seed_frontend_resolved_import){
+      .source_document_index = 0u,
+      .direct_import_ordinal = 0u,
+      .import_declaration_span = origins[0].declaration_span,
+      .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT,
+      .target_index = 1u};
+  root.resolved_imports[1] = (w_seed_frontend_resolved_import){
+      .source_document_index = 0u,
+      .direct_import_ordinal = 1u,
+      .import_declaration_span = origins[1].declaration_span,
+      .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT,
+      .target_index = 2u};
+  w_seed_frontend_document documents[3] = {root.document, first.document,
+                                           second.document};
+  root.input.documents = documents;
+  root.input.document_count = 3u;
+  root.input.external_modules = NULL;
+  root.input.external_module_count = 0u;
+  root.input.import_resolution_complete = true;
+  root.input.resolved_imports = root.resolved_imports;
+  root.input.resolved_import_count = 2u;
+  fixture_fill_output(&root, 0u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+            W_SEED_FRONTEND_OK &&
+        root.result.written.imports == 2u);
+
+  root.input.resolved_import_count = 3u;
+  root.resolved_imports[2] = root.resolved_imports[1];
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+            W_SEED_FRONTEND_INVALID &&
+        fixture_output_is(&root, 0xa5u, true));
+  root.input.resolved_import_count = 2u;
+  root.resolved_imports[1] = root.resolved_imports[0];
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+            W_SEED_FRONTEND_INVALID &&
+        fixture_output_is(&root, 0xa5u, true));
+  root.resolved_imports[1] = (w_seed_frontend_resolved_import){
+      .source_document_index = 0u,
+      .direct_import_ordinal = 1u,
+      .import_declaration_span = origins[1].declaration_span,
+      .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT,
+      .target_index = 2u};
+  w_seed_frontend_resolved_import swapped = root.resolved_imports[0];
+  root.resolved_imports[0] = root.resolved_imports[1];
+  root.resolved_imports[1] = swapped;
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+            W_SEED_FRONTEND_INVALID &&
+        fixture_output_is(&root, 0xa5u, true));
+  swapped = root.resolved_imports[0];
+  root.resolved_imports[0] = root.resolved_imports[1];
+  root.resolved_imports[1] = swapped;
+  root.resolved_imports[0].target_kind =
+      (w_seed_frontend_resolved_import_kind)99;
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+            W_SEED_FRONTEND_INVALID &&
+        fixture_output_is(&root, 0xa5u, true));
+  root.resolved_imports[0].target_kind =
+      W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT;
+  root.resolved_imports[0].target_index = 1u;
+  root.resolved_imports[0].target_kind =
+      W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE;
+  root.resolved_imports[0].target_index = 0u;
+  fixture_fill_output(&root, 0xa5u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+            W_SEED_FRONTEND_INVALID &&
+        fixture_output_is(&root, 0xa5u, true));
   return true;
 }
 
@@ -1552,6 +1906,7 @@ static bool test_graph_facts_and_external_stub(void) {
   };
   external->input.external_modules = external->external_modules;
   external->input.external_module_count = 1;
+  CHECK(fixture_resolve_external_imports(external));
   (void)w_seed_frontend_run(&external->input, &external->output,
                             &external->result);
   CHECK(external->result.status == W_SEED_FRONTEND_OK);
@@ -1623,6 +1978,7 @@ static bool test_graph_facts_and_external_stub(void) {
   };
   external->input.external_modules = external->external_modules;
   external->input.external_module_count = 1;
+  CHECK(fixture_resolve_external_imports(external));
   (void)w_seed_frontend_run(&external->input, &external->output,
                             &external->result);
   CHECK(external->result.status == W_SEED_FRONTEND_OK);
@@ -1659,6 +2015,7 @@ static bool test_graph_facts_and_external_stub(void) {
   };
   external->input.external_modules = external->external_modules;
   external->input.external_module_count = 1;
+  CHECK(fixture_resolve_external_imports(external));
   (void)w_seed_frontend_run(&external->input, &external->output,
                             &external->result);
   CHECK(external->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
@@ -2498,6 +2855,8 @@ int main(void) {
   if (!test_const_and_membership()) return 1;
   if (!test_module_named_consts()) return 1;
   if (!test_multidocument_const_ordinals()) return 1;
+  if (!test_resolved_import_edges_and_identity()) return 1;
+  if (!test_resolved_import_edge_validation()) return 1;
   if (!test_semantic_diagnostics()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;
   if (!test_receipt_encoding_and_long_fields()) return 1;

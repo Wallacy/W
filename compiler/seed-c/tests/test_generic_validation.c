@@ -140,8 +140,12 @@ static const uint8_t *nominal_test_source_authority = NULL;
 static size_t nominal_test_source_authority_length = 0u;
 
 static void fixture_init_outputs(fixture *fixture_value) {
-  fixture_value->frontend_input =
-      (w_seed_frontend_input){&fixture_value->document, 1u, NULL, 0u};
+  fixture_value->frontend_input = (w_seed_frontend_input){
+      .documents = &fixture_value->document,
+      .document_count = 1u,
+      .external_modules = NULL,
+      .external_module_count = 0u,
+  };
   fixture_value->frontend_output = (w_seed_frontend_output){
       .modules = fixture_value->modules,
       .module_capacity = MODULES,
@@ -250,10 +254,14 @@ static bool fixture_lower_base(fixture *fixture_value, const char *source_text,
       fixture_value->issues, ISSUES, &fixture_value->parser, &lex_error));
   CHECK(w_seed_parser_parse(&fixture_value->parser, &fixture_value->parse));
   fixture_value->document = (w_seed_frontend_document){
-      {module_id, strlen(module_id)}, {module_id, strlen(module_id)},
-      &fixture_value->source,
-      fixture_value->cst_nodes, fixture_value->parse.node_count,
-      fixture_value->parse};
+      .logical_source_id = {module_id, strlen(module_id)},
+      .module_id = {module_id, strlen(module_id)},
+      .local_module_name = {module_id, strlen(module_id)},
+      .source = &fixture_value->source,
+      .nodes = fixture_value->cst_nodes,
+      .node_count = fixture_value->parse.node_count,
+      .parse = fixture_value->parse,
+  };
   fixture_init_outputs(fixture_value);
   const w_seed_frontend_status frontend_status = w_seed_frontend_run(
       &fixture_value->frontend_input, &fixture_value->frontend_output,

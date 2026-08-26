@@ -95,11 +95,12 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` é `w-seed-frontend-7`. Os campos D2/D3
+`W_SEED_FRONTEND_SCHEMA_VERSION` é `w-seed-frontend-8`. Os campos D2/D3
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
 counts/capacities e relações de module const; a versão 7 acrescenta
 `effective_type` e preserva `declared_type` como annotation source-only para
-inferência scalar D7.
+inferência scalar D7; a versão 8 separa `logical_source_id`, `module_id` e
+`local_module_name` e acrescenta edges de import resolvidos caller-owned.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
@@ -229,9 +230,12 @@ facts semânticos estáveis; os mappings atuais de `W-PARSE-*` preservam
 spans e capacity são validados. Lex facts não mapeados e parser internos sem
 catalog truth retornam `UNSUPPORTED`; não há claim semântico. O mapping
 frontend adicional aceita somente `W-SEM-0001` com phase `semantic.type` e
-facts `actual`/`expected`. Ele valida o primary span contra a source view e
-aceita somente o document index zero nesta fatia. Ele retorna `UNSUPPORTED`
-para outros diagnostics ou identidades de documento.
+facts `actual`/`expected`. Ele recebe o `document_index` esperado junto da
+source, valida a igualdade com o diagnostic e valida o primary span contra
+aquela source view. O perfil CHK1 passa explicitamente o índice `0`; o teste
+bounded também prova um diagnostic do documento `1`, mismatch de identidade e
+boundary UTF-8 sem alterar os bytes D0 existentes. Ele retorna `UNSUPPORTED`
+para outros diagnostics ou identidades de documento incompatíveis.
 
 ## Build local
 
@@ -273,23 +277,54 @@ O gate dedicado do scanner C constrói o probe em diretório temporário e compa
 
     bun tooling/check-seed-foreign.mjs
 
+## Scanner de origins de módulo (CHK3)
+
+`include/w_seed_module_scan.h` e `src/w_seed_module_scan.c` formam o scanner
+interno de origins usado pelo frontend. A API C11 é caller-owned, não aloca e
+não possui estado global mutável. Ela recebe a source, o CST e o parse completo
+e mede/escreve, em ordem de bytes, o span opcional do nome de `module` e os
+records de imports diretos. Cada record preserva o ordinal do import, índice do
+node, span da declaração e span exato do module path. Os estados
+`OK`/`CAPACITY`/`INVALID`/`UNSUPPORTED`, capacidade exata, short-by-one e
+all-or-nothing são parte do gate.
+
+O scanner cobre `import dep`, paths pontuados, alias `import x from dep.path`,
+wildcard e named braces. O frontend reutiliza o helper de span do scanner; não
+há uma segunda heurística de token scanning. Parse incompleto, node/link/span
+inválido, ordem inválida, boundary UTF-8 ou forma não suportada falham fechado.
+Reexport e service-import ainda não possuem CST seed e permanecem gaps; NFC é
+responsabilidade futura do resolver.
+
+O gate dedicado é executado com:
+
+    bun tooling/check-seed-module-scan.mjs
+
 ## Frontend seed interno (fatia semântica)
 
 `include/w_seed_frontend.h` e `src/w_seed_frontend.c` formam a primeira fatia
 caller-owned do frontend. A API C11 mede antes de emitir e não usa heap,
 filesystem, locale, environment ou clock. Ela aceita somente documentos CST
 `COMPLETE`; CST `RECOVERED`/fatal cruza uma barreira sem alterar nenhum buffer.
-Logical source ID e module ID são entradas explícitas. Imports externos usam
-somente stubs estruturados fornecidos pelo caller (símbolos exportados,
-parâmetros, política de labels e retorno).
+`logical_source_id`, o `module_id` completo pertencente ao resolver e o
+`local_module_name` são entradas separadas; o header CST nunca substitui o
+`module_id`. Header presente deve coincidir com o nome local, e header ausente
+aceita o nome fornecido pelo builder/resolver. Imports externos usam somente
+stubs estruturados fornecidos pelo caller (símbolos exportados, parâmetros,
+política de labels e retorno).
 
 A normalização preserva módulo, imports e aliases de itens, structs/fields,
 enums/cases/payloads, declarações de tipo/alias, funções, parâmetros, entry,
 bindings, argumentos e expressions suportadas. Enum declarations produzem um
 tipo nominal `ENUM`; conformance é uma superfície de tipo, e generics de enum
-geram fato explícito `UNSUPPORTED_TYPE`. A projeção bounded de módulos/imports na ordem de input
-detecta duplicate local, unresolved import/local e entry inválido, e registra
-fatos explícitos para nodes, types e expressions fora do subset. O checker cobre
+geram fato explícito `UNSUPPORTED_TYPE`. A projeção bounded de módulos/imports na
+ordem de input detecta duplicate de identidade completa, header/local mismatch,
+unresolved import/local e entry inválido, e registra fatos explícitos para
+nodes, types e expressions fora do subset. Com
+`import_resolution_complete=false`, imports ficam unresolved e preservam os
+facts bounded atuais. Com `true`, o caller deve fornecer exatamente um edge por
+import direto, em ordem estrita, com target local ou external explícito; o
+frontend valida bounds, spans, self-edge, ciclos e exports no target exato. Ele
+não compara raw path com module IDs nem encontra stubs externos por path. O checker cobre
 Unit, Bool, String, bytes, inteiros e floats fixos, Option, nominais/opaque e
 assinaturas de função. Literals,
 bindings, returns, calls, condição Bool, aritmética/comparação e widenings
@@ -302,10 +337,13 @@ records ordenados por documento/ordem de input. Campos textuais usam
 comprimento e bytes hex; assim, `|`, newline e identificadores longos não mudam
 a separação. `measure` e `run`
 produzem a mesma contagem exata; capacidades insuficientes têm comportamento
-all-or-nothing. Esta fatia aceita um documento por module ID; contribuições de
-vários documentos para o mesmo módulo são rejeitadas como `INVALID` em vez de
-serem mescladas silenciosamente. Formas de import que o parser ainda recupera
-(por exemplo, alias de item não reconhecido pelo CST) continuam unsupported.
+all-or-nothing. Esta fatia aceita um documento por identidade completa;
+contribuições de vários documentos para a mesma identidade são rejeitadas como
+`INVALID` em vez de serem mescladas silenciosamente. Formas de import que o
+parser ainda recupera (por exemplo, alias de item não reconhecido pelo CST)
+continuam unsupported. O teste CHK3 cobre dois documentos, header local
+diferente da identidade completa, redirect de um mesmo raw import para targets
+distintos e as barreiras de edges incompletos, mal ordenados ou fora de bounds.
 Ownership/HIR completo, async/services/providers, avaliação de
 initializers/dependencies, cache e materialização, generic calls completas,
 heads importados e aplicações de enum/object/type/alias/function, tensor,
@@ -316,8 +354,10 @@ runtime, MLIR e WInterface permanecem fora desta fatia.
 `w_seed_check_driver`. O target bootstrap `w` fornece a rota pública `w check` e
 as três formas de help. O núcleo e o driver aceitam um path explícito de até
 16 MiB. O perfil closed-single-source não usa package graph, workspace context
-ou external-module stubs. Owner detection, resolution, imports/module graph e
-o frontend normativo completo continuam gaps nesta fatia.
+ou descoberta de owner/provider/filesystem. A resolução completa continua
+caller-owned no frontend seed; owner discovery, provider real, filesystem
+loader, std provider, package/workspace, multi-file package e o frontend
+normativo completo continuam gaps nesta fatia.
 
 Exit `0` significa frontend síncrono completo sem diagnostics. Exit `1`
 significa que todos os diagnostics são `W-SEM-0001` mapeáveis. Exit `2`
@@ -891,6 +931,7 @@ e não são output de um compiler. A proveniência é mantida em
 [check-seed-source-reader.mjs](../../tooling/check-seed-source-reader.mjs),
 [check-seed-formatter.mjs](../../tooling/check-seed-formatter.mjs) e
 [check-seed-diagnostic.mjs](../../tooling/check-seed-diagnostic.mjs),
+[check-seed-module-scan.mjs](../../tooling/check-seed-module-scan.mjs),
 [check-seed-check-driver.mjs](../../tooling/check-seed-check-driver.mjs) e
 [check-seed-frontend.mjs](../../tooling/check-seed-frontend.mjs); os
 checker lê essas fontes e não copia seus payloads. O checker do parser também

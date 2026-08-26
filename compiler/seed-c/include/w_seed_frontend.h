@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "w_seed_parser.h"
+#include "w_seed_module_scan.h"
 #include "w_seed_sha256.h"
 
 #ifdef __cplusplus
@@ -13,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-7"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-8"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -136,6 +137,8 @@ typedef enum {
 typedef struct {
   w_seed_frontend_text logical_source_id;
   w_seed_frontend_text module_id;
+  /* Resolver-owned local component. This field is required and explicit. */
+  w_seed_frontend_text local_module_name;
   const w_seed_source *source;
   const w_seed_cst_node *nodes;
   size_t node_count;
@@ -177,11 +180,29 @@ typedef struct {
   size_t symbol_count;
 } w_seed_frontend_external_module;
 
+typedef enum {
+  W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT = 0,
+  W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE,
+} w_seed_frontend_resolved_import_kind;
+
+/* A resolver-owned edge binds one direct import to one exact target. The
+ * frontend validates source order, spans, target bounds, and local cycles. */
+typedef struct {
+  uint32_t source_document_index;
+  uint32_t direct_import_ordinal;
+  w_seed_span import_declaration_span;
+  w_seed_frontend_resolved_import_kind target_kind;
+  uint32_t target_index;
+} w_seed_frontend_resolved_import;
+
 typedef struct {
   const w_seed_frontend_document *documents;
   size_t document_count;
   const w_seed_frontend_external_module *external_modules;
   size_t external_module_count;
+  bool import_resolution_complete;
+  const w_seed_frontend_resolved_import *resolved_imports;
+  size_t resolved_import_count;
 } w_seed_frontend_input;
 
 typedef struct {
@@ -227,6 +248,7 @@ typedef struct {
 typedef struct {
   w_seed_frontend_text source_id;
   w_seed_frontend_text module_id;
+  w_seed_frontend_text local_module_name;
   w_seed_span span;
   size_t document_index;
   uint32_t first_import;
@@ -248,13 +270,24 @@ typedef struct {
   uint32_t const_declaration_count;
 } w_seed_frontend_module;
 
+typedef enum {
+  W_SEED_FRONTEND_IMPORT_UNRESOLVED = 0,
+  W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT,
+  W_SEED_FRONTEND_IMPORT_EXTERNAL_MODULE,
+} w_seed_frontend_import_target_kind;
+
 typedef struct {
+  /* The import path is source evidence. target_kind/index is the only
+   * resolved identity used by frontend consumers. */
   uint32_t module_index;
   w_seed_frontend_text path;
   w_seed_frontend_text alias;
   w_seed_span span;
   uint32_t first_item;
   uint32_t item_count;
+  uint32_t direct_import_ordinal;
+  w_seed_frontend_import_target_kind target_kind;
+  uint32_t target_index;
 } w_seed_frontend_import;
 
 typedef struct {
