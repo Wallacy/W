@@ -120,8 +120,27 @@ Os nomes abaixo são uma interface prevista, não uma CLI disponível:
 | Rodar arquivo único | `w run path/file.w` | Direção + implementation-gap |
 | Construir package | `w build` | Direção + provider missing |
 | Abrir sessão | `w repl` | Direção + implementation-gap |
-| Verificar source | `w check` | Direção + frontend missing |
+| Verificar um source | `w check path/file.w [--json]` | Direção + frontend missing |
+| Verificar um package | `w package check [package]` | Direção + implementation-gap |
+| Verificar um workspace | `w workspace check` | Direção + implementation-gap |
 | Exportar notebook | `w notebook export` | Direção + provider/implementation-gap |
+
+`w check path/file.w` usa o source indicado como root da verificação e carrega
+o module graph alcançável já definido pela resolution vigente. Ele não
+transforma os outros products do owner em roots implícitos. O comando usa o
+contexto de module-run do package, workspace ou contexto efêmero. Ele não exige
+nem seleciona `entry`.
+
+O comando lê a resolution vigente, mas não busca, resolve, atualiza ou instala
+dependencies. Ele não executa build action, backend, link ou runtime. Ele não
+gera artifact. `w package check [package]` verifica o package e seu module
+graph. `w workspace check` verifica os members selecionados e sua resolution
+compartilhada. Os três scopes são distintos.
+
+Com `--json`, stdout contém somente JSONL D0. O renderer humano escreve em
+stderr. A forma é uma direção de CLI, não uma implementação disponível neste
+checkout. O seed frontend e o gate `check:seed-frontend` não satisfazem esse
+contrato.
 
 O [gate da Última Luz](reference/last-light/BUILD.md) separa parser,
 checker, HIR, lowering, runtime, toolchain e provider. Não use um comando
@@ -1569,8 +1588,9 @@ owner de `resolution` e `deployments` de forma única. Não copie campos de
 
 ### CLI e tooling
 
-`w check`, `w build`, `w run`, `w repl`, `w test` e comandos de export são
-direções de interface. A implementação de CLI e package manager é um gap. O tooling
+`w check path/file.w [--json]`, `w package check [package]`, `w workspace check`,
+`w build`, `w run`, `w repl`, `w test` e comandos de export são direções de
+interface. A implementação de CLI e package manager é um gap. O tooling
 existente neste checkout é Tree-sitter, atlas e checks de design, não o CLI W.
 
 ### REPL, module run e Jupyter

@@ -26888,7 +26888,7 @@ uma simples busca de ancestor. `w context` mostra manifest, workspace,
 resolution e roots antes de qualquer mutation. CI e release usam
 `--workspace <path>` ou `--standalone`; eles não dependem de discovery ambiental.
 
-`defaultMembers` afeta somente comandos sem seleção, como `w check --workspace`.
+`defaultMembers` afeta somente comandos sem seleção, como `w workspace check`.
 Ele não muda dependências ou artifacts. `w publish check` resolve cada member
 como package externo, sem substituição automática por workspace. Assim, um
 workspace verde não esconde uma dependência que ainda não pode ser publicada.
@@ -28606,6 +28606,7 @@ dependencies aparecem como relações distintas na provenance e no SBOM.
 
 ```text
 w context [<path/file.w>]
+w check <path/file.w> [--json]
 w workspace check
 w resolve
 w add <package>@<constraint> --as <alias> --use <use>
@@ -28660,6 +28661,39 @@ w publish <package> --artifacts <index> --locked
 
 Saída humana é curta. `--json` fornece o grafo, diagnostics e evidências
 completos.
+
+`w check <path/file.w>` usa o source indicado como root da verificação. Ele
+carrega e verifica o module graph alcançável já definido pela resolution
+vigente, mas não transforma os demais products do owner em roots implícitos. O
+comando usa o mesmo contexto de module-run de `w run <path/file.w>`: o package
+ou workspace owner fornece a resolution vigente, e um contexto efêmero aceita somente std e
+imports locais explícitos. O comando não exige nem seleciona `entry`.
+
+`w check <path/file.w>` consome o contexto existente, mas não busca, resolve,
+atualiza ou instala dependencies. Ele não executa build action, backend, link
+ou runtime. Ele não gera artifact. `w package check [package]` verifica o
+package selecionado e seu module graph no realm de package. `w workspace check`
+verifica os members selecionados no realm de workspace e aplica sua resolution
+compartilhada. Nenhum desses comandos é um alias implícito para os outros.
+
+O resultado de `w check` é agregado. A precedência é `3 > 2 > 1 > 0`, e o
+comando nunca retorna sucesso parcial:
+
+- `0` indica verificação completa e nenhum diagnostic com severity efetiva
+  `error`;
+- `1` indica frontend completo com pelo menos um diagnostic com severity
+  efetiva `error`;
+- `2` indica invocation, context ou resolution inválido, unsupported profile,
+  barrier, capacity ou verificação incompleta, mesmo quando existe D0;
+- `3` indica internal compiler fault.
+
+Warnings não mudam o status, salvo quando a policy vigente os promove a
+errors. Com `--json`, stdout contém somente JSONL D0 canônico, sem prosa. O
+renderer humano escreve em stderr. Se o limite de diagnostics for atingido, o
+último root é `W-DIAGNOSTIC-0001`, conforme [22.5.6](#2256-causalidade-poison-e-ordem).
+Outra capacity ou interrupção incompleta emite o root D0 aplicável quando ainda
+é possível serializá-lo. Um internal fault pode usar uma mensagem de emergência
+em stderr.
 
 `w explain authority <locator-or-origin>` mostra, no mínimo, kind, locator,
 lineage, origin digest e length, trusted checkpoint version e dimensões da
@@ -28778,7 +28812,7 @@ do lançamento público. Slogans não são promessa técnica.
 ### 22.1 Tooling humano
 
 - `w fmt` produz a forma canônica de 120 colunas;
-- `w check` não gera artefato final;
+- `w check <path/file.w> [--json]` verifica um source sem gerar artifact final;
 - `w interface` mostra a interface normalizada em texto ou JSON;
 - `w interface diff` classifica compatibilidade de source e casos para revisão;
 - `w test` reúne unit, doc, compile-fail, property e fuzz;
@@ -32216,7 +32250,8 @@ Saída: parse/format/parse estável e diagnostics preparados.
 
 ### 26.3 Fase 1 — AST, nomes e tipos
 
-**Exemplo:** `w check` rejeita um overload por tipo antes de existir backend.
+**Exemplo:** `w check path/file.w` rejeita um overload por tipo antes de existir
+backend.
 
 - AST e module graph;
 - imports, visibilidade efetiva e interface normalizada;
@@ -32253,7 +32288,20 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - `WInterface` canônica e cache interno separado;
 - `w interface show` e diff source inicial.
 
-Saída: `w check` verifica o subset síncrono do restaurante.
+A aceitação do primeiro checker é fechada por estes casos:
+
+- `w check <path/file.w>` aceita um source síncrono real da Última Luz sem
+  diagnostics efetivos;
+- uma inversão negativa do mesmo fixture, executada com `--json`, produz exit
+  `1`, o código D0 exato, seu span e o mesmo JSONL em duas execuções;
+- o resultado agregado não retorna sucesso parcial;
+- o frontend probe atual de `compiler/seed-c` não satisfaz este gate, porque
+  fixa um contexto de harness e não fornece driver público, contexto de
+  package/workspace ou CLI.
+
+Saída: `w check <path/file.w> [--json]` verifica o subset síncrono do
+restaurante. O comando continua implementation gap até que esses casos sejam
+executáveis pela CLI.
 
 ### 26.4 Fase 2 — HIR, MLIR e executável nativo
 
