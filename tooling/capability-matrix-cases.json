@@ -403,7 +403,7 @@
           {
             "path": "reference/last-light/synchronization.w",
             "symbol": "HorizonTelemetryEpoch",
-            "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+            "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961",
             "claim": "atomic publication and wait"
           },
           {
@@ -420,7 +420,7 @@
         "canonicalSource": {
           "path": "reference/last-light/synchronization.w",
           "symbol": "releaseTelemetryFence",
-          "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+          "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961",
           "claim": "typed publication and explicit fence"
         }
       },
@@ -669,7 +669,7 @@
           },
           {
             "path": "tooling/studies/atom2-atomic-contract/bundle.json",
-            "digest": "sha256:cc88342d4b8d1b40ae958c38410a8011bf5e891e014dd3b65cca94fde0198837",
+            "digest": "sha256:7bb634251a6743840c41d84eed08044277c4d8a372de39287129fbb6422929e6",
             "claim": "ATOM2 study bundle and implementation gap receipt"
           }
         ],
@@ -685,7 +685,7 @@
             {
               "path": "reference/last-light/synchronization.w",
               "symbol": "releaseTelemetryFence",
-              "digest": "sha256:ab5c99955cba95cbde22c824bba1d1dcb0879faf443ed3051e0800ec327691d6",
+              "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961",
               "claim": "The telemetry route uses an explicit release fence."
             }
           ]
@@ -788,7 +788,7 @@
         "canonicalSource": {
           "path": "reference/last-light/streams.w",
           "symbol": "inspectMenuLines",
-          "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14",
+          "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b",
           "claim": "bounded stream production"
         }
       },
@@ -1028,7 +1028,7 @@
         "studyRefs": [
           {
             "path": "tooling/studies/gen2-stream-yield/bundle.json",
-            "digest": "sha256:c9fa7f5f5624b200c451f458c33ea041ceed65d0dd27ebae9605278d9b917a18",
+            "digest": "sha256:e22dba676b9aff7339800f95ff64ff6a935c7f85f2f9d750ac476ccae3434ae6",
             "claim": "GEN2 closes GEN0-R1 for the narrow explicit-capture stream expression with mandatory `yield take value` or `yield copy value` (copy requires Duplicable), owned pull yield, capacity zero, two independent lowerings, and explicit rejection of public frame/send/throw/resume; compiler, runtime, provider, debug/ABI, and human/model evidence remain missing."
           }
         ]
@@ -1043,7 +1043,7 @@
             {
               "path": "reference/last-light/streams.w",
               "symbol": "mixOrderStream",
-              "digest": "sha256:fd25f6bb7d018783566012d336a823be0d536b0565fafd3c295aefb90ae0cc14",
+              "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b",
               "claim": "The kitchen uses bounded Stream pull and parallelMap with explicit cancellation and cleanup."
             }
           ]
@@ -1385,8 +1385,8 @@
             "claim": "SYN1 problem-first scope, two publication boundaries, real Tree-sitter/source-shape evidence, target registry fixture, navigation requirement, C2 comparison, and D rejection."
           },
           {
-            "path": "tooling/syn1-typed-generation-cases.json",
-            "digest": "sha256:9eaf722cd4b8da7410901b175ca735adb9035b12dc5fe1de649836f9395c821f",
+      "path": "tooling/syn1-typed-generation-cases.json",
+      "digest": "sha256:0b8731c67e9f77b9c3668ec62e9c64c0a4d9ac7ed8b1195dc3edbb89e4d39eac",
             "claim": "SYN1 schema-3 65-case A/B/C/D corpus with module sets, strict events, action graphs, exact dependencies, maps, baseline refs, and target variants."
           },
           {
@@ -1400,8 +1400,8 @@
             "claim": "SYN2/DYN2 closure promotes the bounded generated module-set design and records implementation-evidence gaps."
           },
           {
-            "path": "tooling/syn2-dyn2-closure-cases.json",
-            "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84",
+      "path": "tooling/syn2-dyn2-closure-cases.json",
+      "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84",
             "claim": "SYN2/DYN2 exact 17-case corpus binds current, rejected, and implementation-boundary decisions."
           }
         ]
@@ -2178,12 +2178,12 @@
           },
           {
             "path": "tooling/studies/ipc1-mapped-ipc/study.json",
-            "digest": "sha256:b35c87ff6f106c96e762521540b6f876308ff26187e61f4bc7d648af3742f196",
+            "digest": "sha256:8479430168f4769200a252d68f316fb7ee972d4d6b8f3bd34ad142c4062c307d",
             "claim": "IPC1 study manifest binds current, Research, and rejected witnesses."
           },
           {
             "path": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl",
-            "digest": "sha256:70046fa16c138a04909835109d7e13cf1bd2fb8026794a68a80f079b957be3c3",
+            "digest": "sha256:caaee4ef1c02aaf7305de206b548d1355c7fb8fdb078a9a8bbd8583279f4f0ee",
             "claim": "IPC1 host oracle snapshot with POSIX and Windows projections."
           }
         ]
@@ -2949,8 +2949,8 @@
             "claim": "DYN2 closes typed A/B routes and the bounded read-only GenerationReference design while preserving implementation gaps."
           },
           {
-            "path": "tooling/syn2-dyn2-closure-cases.json",
-            "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84",
+      "path": "tooling/syn2-dyn2-closure-cases.json",
+      "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84",
             "claim": "DYN2 exact cases bind generation identity, cleanup/fault, and rejected dynamic boundaries."
           }
         ]

@@ -94,6 +94,45 @@ export async fn readRecipeBlock(
   return payload
 }
 
+export async fn readRecipeEnvelope<
+  Failure: Error,
+  Source: ByteSource<Failure>,
+>(
+  source: inout Source,
+  batch: inout ReadBatch,
+): ScatterReadStep throws Failure {
+  return try await readMany(
+    from: inout source,
+    scatterInto: inout batch,
+  )
+}
+
+export fn recipeTransferPlan(
+  offset: FileOffset,
+  byteCount: u64,
+): TransferPlan throws TransferPlanError {
+  return try TransferPlan(
+    at: offset,
+    maximumBytes: byteCount,
+    chunkBytes: 64 * 1_024,
+  )
+}
+
+export async fn transferRecipeArchiveStep<
+  Failure: Error,
+  Destination: ByteSink<Failure>,
+>(
+  archive: ref FileSnapshot,
+  destination: inout Destination,
+  plan: inout TransferPlan,
+): TransferStep throws TransferError<IoError, Failure> {
+  return try await transfer(
+    from: ref archive,
+    to: inout destination,
+    using: inout plan,
+  )
+}
+
 export async fn countBorrowedChunks<E: Error>(
   source: take some Stream<view Bytes, E>,
 ): usize throws E {
@@ -113,3 +152,11 @@ export async fn countBorrowedChunks<E: Error>(
 // scratch.reset()                              // `pending` still borrows `scratch`.
 // let write = async output.writeMany(prefix, payloadOwner, checksum)
 // payloadOwner.reset()                         // `write` still borrows the payload.
+// let scatter = async readMany(from: inout source, scatterInto: inout batch)
+// batch.reset()                                // `scatter` still borrows the batch.
+// let direct = async transfer(
+//   from: ref archive,
+//   to: inout output,
+//   using: inout plan,
+// )
+// plan.pendingBytes                            // `direct` still borrows the plan.

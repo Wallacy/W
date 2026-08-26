@@ -1075,6 +1075,70 @@ append de Bytes; leitura posicional recebe offset e tamanho. Os oracles
 [http_documents.w](reference/last-light/http_documents.w) registram o contrato.
 Os providers std.fs, std.net e std.http ainda são gaps.
 
+Scatter read usa um único owner para que memória ainda não inicializada nunca
+vaze como `view`:
+
+```w
+fn makeEnvelopeBatch(): io.ReadBatch throws memory.AllocationError {
+  return try io.ReadBatch(64, 4_096, 32)
+}
+
+async fn readEnvelope<E: Error, Source: io.ByteSource<E>>(
+  input: inout Source,
+  envelope: inout io.ReadBatch,
+): io.ScatterReadStep throws E {
+  return try await io.readMany(
+    from: inout input,
+    scatterInto: inout envelope,
+  )
+}
+```
+
+Os segments são preenchidos em ordem. `segment(at:)` devolve somente o prefixo
+inicializado como `view Bytes`; `reset()` retém as reservas. O fallback usa uma
+única leitura no primeiro segment incompleto. Não existe `IoSliceMut`,
+`inout view Bytes...` ou probe `isReadVectored`.
+
+Transferência de um snapshot posicional usa um plan bounded. A mesma chamada
+pode baixar para `sendfile`/`TransmitFile` ou usar o scratch reservado; isso não
+muda o resultado:
+
+```w
+fn makeTransferPlan(
+  fileOffset: u64,
+  byteCount: u64,
+): io.TransferPlan throws io.TransferPlanError {
+  return try io.TransferPlan(
+    at: fileOffset,
+    maximumBytes: byteCount,
+    chunkBytes: 64 * 1_024,
+  )
+}
+
+async fn transferStep<
+  ReadFailure: Error,
+  WriteFailure: Error,
+  Source: io.SnapshotByteSource<ReadFailure>,
+  Sink: io.ByteSink<WriteFailure>,
+>(
+  archive: ref Source,
+  response: inout Sink,
+  plan: inout io.TransferPlan,
+): io.TransferStep throws io.TransferError<ReadFailure, WriteFailure> {
+  return try await io.transfer(
+    from: ref archive,
+    to: inout response,
+    using: inout plan,
+  )
+}
+```
+
+`TransferStep.data(count)` confirma bytes no sink; `.sourceEnd` e
+`.limitReached` são distintos. `TransferError.committed` registra progresso e o
+plan conserva o sufixo pendente. Zero-copy não é promessa portátil; consulte
+`w explain io` para estratégia, fallback, scratch e motivo de perda do fast
+path.
+
 ### HTTP, web e processo
 
 HTTP, web bodies, process, time e filesystem aparecem como interfaces tipadas e
@@ -1484,7 +1548,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Consumir stream | for try await ref item in source ou stream <[take source]> { yield take/copy ... } | Stream pull e capacity declarados | Generator genérico, yield from e buffer oculto | Pull mantém backpressure e borrow; collect aloca e perde incrementalidade | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
 | Enviar por channel | Channel<T><.send> / <.receive> (MPSC) | Capacity e close explícitos | Channel bidirecional implícito, MPMC infinito | Endpoints expressam authority; bounded buffer pode suspender | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
 | Compartilhar estado | owner por domain, shared, atomic, channel | SnapshotCell e adapters especializados | Atomic<shared T>, mutex global ou RCU implícito | Serialização e snapshot reduzem races; cópia/sync têm custo visível | [DESIGN.md §12.10.7](DESIGN.md#12107-exclusão-mútua-como-último-recurso) · [synchronization.w](reference/last-light/synchronization.w) |
-| Fazer I/O | ByteSource/ByteSink, ReadStep.data/end | Adapters async-first e leitura posicional conforme capability | Scatter read/file-to-sink/zero-copy fora da superfície vigente; Reader/Writer síncronos e EOF sentinel | Async-first preserva backpressure; carrier explícito aumenta ceremony | [DESIGN.md §14](DESIGN.md#14-prelude-e-standard-library) · [io.w](reference/last-light/io.w) |
+| Fazer I/O | ByteSource/ByteSink, ReadBatch/readMany e TransferPlan/transfer | Adapters async-first, leitura posicional, scatter e file-to-sink com estratégia explicável | IoSlice/IoSliceMut públicos, `inout view Bytes...`, syscall/probe no source, zero-copy universal, Reader/Writer síncronos e EOF sentinel | Owners escondem memória não inicializada e preservam retry; plans tornam reserva/progresso visíveis | [DESIGN.md §14.2.11](DESIGN.md#14211-backend-io-vetorizado-e-transferências-especializadas) · [io.w](reference/last-light/io.w) |
 | Modelar service | closed turn + SupervisorRef + WorkKeyRef | Recovery com snapshot/dedup | Reentrant service, detached Promise e retry implícito | Effect identity permite replay seguro; metadata e storage têm custo | [DESIGN.md §13.9.3](DESIGN.md#1393-recovery-de-service-e-deduplicação) · [service_recovery_oracle.w](reference/last-light/service_recovery_oracle.w) |
 | Selecionar build | package/workspace records em build.w + target spec + digest | Provider por capability e CAS | PATH/SDK ambiente, target string e config invisível | Reprodutibilidade exige manifest e receipts; setup fica mais explícito | [DESIGN.md §21](DESIGN.md#21-packages-builds-e-releases) · [build.w](reference/last-light/build.w) |
 | Cruzar FFI | foreign c, carrier typed, unsafe fn<abi: .c> com nome | ABI adapters gerados sob prova; fn<C> é body inline C vigente | Tratar fn<C> como generic/sandbox, W object por C, foreign module W ou lib dinâmica sem capability | Unsafe ilha limita blast radius; marshaling custa cópia/validations | [DESIGN.md §19](DESIGN.md#19-ffi-unsafe-e-ilhas-de-linguagem) · [abi.w](reference/last-light/abi.w) |

@@ -1,11 +1,11 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "dfb819993e174c434675d99144c4ac4c8d13465ec274d808529a9edecc9af556",
+  "catalogDigest": "3bd4fda16718029a744cb8ff5571c7a09b14ebefa92d2b097a217d4ee0536510",
   "summary": {
     "modules": 32,
-    "catalogedApis": 425,
-    "draftCatalogedApis": 425,
+    "catalogedApis": 434,
+    "draftCatalogedApis": 434,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 90,
     "referenceRequirements": 33,
@@ -3968,19 +3968,22 @@
           "control-outcome-separation",
           "limits",
           "logical-operation",
+          "native-transfer-fallback-equivalence",
           "parallel-short-read",
           "portable-error-mapping",
+          "positional-transfer-plan",
+          "scatter-read-owner",
           "snapshot-positional-read"
         ]
       },
-      "catalogedDeclarationsDigest": "343717aae633528a70447ba854b7b96e55237b7648288f4786e767a7570eaa56",
+      "catalogedDeclarationsDigest": "4c48bc292f00222c4d82712eaeb2179e8a7a29e4c8c81146e34e7961e9481e02",
       "apis": [
         {
           "symbol": "ByteSink",
           "kind": "protocol",
           "signature": "export protocol ByteSink<Failure: Error>",
           "declarationDigest": "0373baab80e7f773cb5f5b2254560c02887028c9c0d96af066205e7ffcec301f",
-          "line": 154,
+          "line": 301,
           "profile": "byte-sink",
           "status": "draft"
         },
@@ -3989,7 +3992,7 @@
           "kind": "protocol",
           "signature": "export protocol ByteSource<Failure: Error>",
           "declarationDigest": "dd686b24fef81c93a9e404708537440d465b2d3c2f9f39ca13ddc67ddb4e2d26",
-          "line": 132,
+          "line": 279,
           "profile": "byte-source",
           "status": "draft"
         },
@@ -3998,7 +4001,7 @@
           "kind": "struct",
           "signature": "export struct IoCause: Duplicable",
           "declarationDigest": "8df5ebcb61d6c54ea38e8b11097aec17acbbe0806c34c2d76b574eb2ab873329",
-          "line": 57,
+          "line": 106,
           "profile": "io-error",
           "members": [
             {
@@ -4006,7 +4009,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): IoCause",
-                  "line": 64
+                  "line": 113
                 }
               ],
               "profile": "io-error"
@@ -4019,7 +4022,7 @@
           "kind": "struct",
           "signature": "export struct IoError: Error & Duplicable",
           "declarationDigest": "23744070db3dc9b055e3843d3983a9cac285359db42f7676873a7a781293ba94",
-          "line": 74,
+          "line": 123,
           "profile": "io-error",
           "members": [
             {
@@ -4028,7 +4031,7 @@
               "overloads": [
                 {
                   "signature": "export kind: IoErrorKind",
-                  "line": 89
+                  "line": 138
                 }
               ],
               "profile": "value-contract"
@@ -4039,7 +4042,7 @@
               "overloads": [
                 {
                   "signature": "export operation: IoOperation",
-                  "line": 93
+                  "line": 142
                 }
               ],
               "profile": "value-contract"
@@ -4050,7 +4053,7 @@
               "overloads": [
                 {
                   "signature": "export cause: ref IoCause?",
-                  "line": 97
+                  "line": 146
                 }
               ],
               "profile": "value-contract"
@@ -4060,7 +4063,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): IoError",
-                  "line": 101
+                  "line": 150
                 }
               ],
               "profile": "io-error"
@@ -4073,7 +4076,7 @@
           "kind": "enum",
           "signature": "export enum IoErrorKind: Copy & Equatable & Hashable",
           "declarationDigest": "9b1e3bebbfcd4e5ce403d925296857228ea8cc39eaa6fb2bcc58f41be07fed37",
-          "line": 26,
+          "line": 28,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -4082,8 +4085,101 @@
           "kind": "enum",
           "signature": "export enum IoOperation: Copy & Equatable & Hashable",
           "declarationDigest": "83d0c15eb928ba36df60cbee5e1132f8f0396ee25390baee8402a39005e9953d",
-          "line": 3,
+          "line": 5,
           "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "ReadBatch",
+          "kind": "struct",
+          "signature": "export struct ReadBatch",
+          "declarationDigest": "e375db7a0be7bcc279e448ec2aa2ba6a6bd8295deebd3e7b55b177b5bb717464",
+          "line": 205,
+          "profile": "scatter-read-owner",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init(_ capacities: usize<(1...)>...) throws AllocationError",
+                  "line": 208
+                }
+              ],
+              "profile": "scatter-read-owner"
+            },
+            {
+              "symbol": "segmentCount",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export segmentCount: usize",
+                  "line": 212
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "filledBytes",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export filledBytes: usize",
+                  "line": 216
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "isFull",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export isFull: Bool",
+                  "line": 220
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "segment",
+              "overloads": [
+                {
+                  "signature": "export fn segment(at index: usize): view Bytes",
+                  "line": 224
+                }
+              ],
+              "profile": "scatter-read-owner"
+            },
+            {
+              "symbol": "reset",
+              "overloads": [
+                {
+                  "signature": "export mut fn reset()",
+                  "line": 228
+                }
+              ],
+              "profile": "scatter-read-owner"
+            },
+            {
+              "symbol": "intoSegments",
+              "overloads": [
+                {
+                  "signature": "export take fn intoSegments(): Array<Bytes>",
+                  "line": 232
+                }
+              ],
+              "profile": "scatter-read-owner"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "readMany",
+          "kind": "fn",
+          "signature": "export async fn readMany<Failure: Error, Source: ByteSource<Failure>,>( from source: inout Source, scatterInto destination: inout ReadBatch, ): ScatterReadStep throws Failure",
+          "declarationDigest": "5b5c4907289026a7f41499308d238c4cdaa9a7522a0a40038e5044db5f2fd790",
+          "line": 358,
+          "profile": "scatter-read-owner",
           "status": "draft"
         },
         {
@@ -4091,8 +4187,17 @@
           "kind": "enum",
           "signature": "export enum ReadStep",
           "declarationDigest": "1469f25e49cd86766027741ed01c789834e8a34ba2508107a083cac8e51e281b",
-          "line": 110,
+          "line": 159,
           "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "ScatterReadStep",
+          "kind": "enum",
+          "signature": "export enum ScatterReadStep",
+          "declarationDigest": "0283d7b78c47ba1c2be9914b6c71b0f36a43df700d2667a4efbe7c4acfe5da92",
+          "line": 176,
+          "profile": "byte-source",
           "status": "draft"
         },
         {
@@ -4100,7 +4205,7 @@
           "kind": "protocol",
           "signature": "export protocol SnapshotByteSource<Failure: Error>",
           "declarationDigest": "77741f256e869de0271593f23dbbc42033e6c1d9f5d372fbd8848e5b18487f4d",
-          "line": 144,
+          "line": 291,
           "profile": "snapshot-byte-source",
           "status": "draft"
         },
@@ -4109,8 +4214,107 @@
           "kind": "enum",
           "signature": "export enum SnapshotReadStep",
           "declarationDigest": "e7eaf14d8acb23095c6f86c79a9a615d2b87480cb4b8c4ff9100d78bd8fcb25c",
-          "line": 117,
+          "line": 166,
           "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "transfer",
+          "kind": "fn",
+          "signature": "export async fn transfer<ReadFailure: Error, WriteFailure: Error, Source: SnapshotByteSource<ReadFailure>, Destination: ByteSink<WriteFailure>,>( from source: ref Source, to destination: inout Destination, using plan: inout TransferPlan, ): TransferStep throws TransferError<ReadFailure, WriteFailure>",
+          "declarationDigest": "1abb9607c8db375765424433b617ad94a676e6dc75c4617797f8bf9bb128626d",
+          "line": 372,
+          "profile": "byte-transfer",
+          "status": "draft"
+        },
+        {
+          "symbol": "TransferCause",
+          "kind": "enum",
+          "signature": "export enum TransferCause<ReadFailure: Error, WriteFailure: Error>: Error",
+          "declarationDigest": "e9f415a107e053bd00bf116e69d143f7dede9e31de0234e114937062e6ca86f4",
+          "line": 193,
+          "profile": "byte-transfer",
+          "status": "draft"
+        },
+        {
+          "symbol": "TransferError",
+          "kind": "struct",
+          "signature": "export struct TransferError<ReadFailure: Error, WriteFailure: Error>: Error",
+          "declarationDigest": "ad0b98edc2a38226316cb3cbd793aebb32f331010e6cffb1c9ea441aa7c88fc3",
+          "line": 198,
+          "profile": "byte-transfer",
+          "status": "draft"
+        },
+        {
+          "symbol": "TransferPlan",
+          "kind": "struct",
+          "signature": "export struct TransferPlan",
+          "declarationDigest": "3eaf4ab0e9a7e96d630b8b2af93ee92c9a325cba77229dbbdb19f417d9e49d44",
+          "line": 244,
+          "profile": "byte-transfer",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init( at offset: u64, maximumBytes: u64, chunkBytes: usize<(1...)>, ) throws TransferPlanError",
+                  "line": 247
+                }
+              ],
+              "profile": "byte-transfer"
+            },
+            {
+              "symbol": "transferred",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export transferred: u64",
+                  "line": 257
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "remaining",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export remaining: u64",
+                  "line": 261
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "pendingBytes",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export pendingBytes: usize",
+                  "line": 265
+                }
+              ],
+              "profile": "value-contract"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "TransferPlanError",
+          "kind": "enum",
+          "signature": "export enum TransferPlanError: Error",
+          "declarationDigest": "cebad52c10160d107253bcfd9892f5c97314c6859843910af79fc997b3caacd1",
+          "line": 188,
+          "profile": "byte-transfer",
+          "status": "draft"
+        },
+        {
+          "symbol": "TransferStep",
+          "kind": "enum",
+          "signature": "export enum TransferStep",
+          "declarationDigest": "cbad791e183b603c2a1253e976618a2bdcad94d3bd96f496ea072c9cea73a6d2",
+          "line": 182,
+          "profile": "byte-transfer",
           "status": "draft"
         },
         {
@@ -4118,7 +4322,7 @@
           "kind": "struct",
           "signature": "export struct WriteAllError<Cause: Error>: Error",
           "declarationDigest": "2abf0702f643c0d371db42009f5b5733ce18ef1a57750b0dda111a2487e73394",
-          "line": 127,
+          "line": 274,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -4127,7 +4331,7 @@
           "kind": "enum",
           "signature": "export enum WriteStep",
           "declarationDigest": "d566289714bc5cf2aa28cdef36f3606fc74d3c30558e65587a8a92304f2a3e3d",
-          "line": 122,
+          "line": 171,
           "profile": "value-contract",
           "status": "draft"
         }
