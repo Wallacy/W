@@ -230,6 +230,7 @@ alvo de execução independente.
 | `web_bodies.w` | Blob imutável, FormData ordered, upload multipart bounded e Response binária |
 | `service_oracle.w` | seleção de link, camadas de boundary, commit gate, pipeline e evolução de schema |
 | `service_streaming.w` | client, server e bidirectional streaming com um `Stream` explícito por edge |
+| `task_settlement.w` | escolha first-settled de tasks já criadas, com winner, cancellation e drain explícitos |
 | `session_security_oracle.w` | channel, transcript, 0-RTT e replay de session wRPC |
 | `capability_security_oracle.w` | root grants, attenuation, delegation e revocation |
 | `release_oracle.w` | digest, evidência de recipe, threshold de reprodução, mirrors e revogação |
@@ -1563,6 +1564,8 @@ Aceite:
 - `shared BrigadeMetrics` cruza a boundary porque usa storage atomic;
 - um pointer C ou state mutável de service não pode ocupar o mesmo lugar;
 - `TaskOutcome` distingue success, application error e cancellation.
+- `Task.firstSettled` consome handles existentes e publica somente após o drain
+  dos losers.
 
 Timeline mínima:
 

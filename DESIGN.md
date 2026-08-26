@@ -11504,11 +11504,71 @@ mesmo error se tivesse continuado. Código que precisa de todos os fatos usa
 `TaskGroup` aplica a mesma regra com a ordem indicada por `ordering`. Em
 `.input`, o error primário é o primeiro input entre os application errors que
 ficaram settled. Em `.completion`, o programa aceita que a escolha depende do
-scheduler. As variantes `collect` não cancelam por application error. APIs
-`race` também declaram que completion order faz parte do resultado.
+scheduler. As variantes `collect` não cancelam por application error.
 
 Cleanup errors tratados conforme a seção 11.6 e faults de siblings aparecem no
 trace. Eles não entram em `E` sem uma conversão explícita da aplicação.
+
+#### 12.4.1 First-settled estruturado
+
+**W-1481 — `Task.firstSettled` (Forma vigente):** uma escolha one-shot por
+completion order consome handles de children já criados:
+
+```w
+let primary = async readMenuMirror(take primaryRequest)
+let fallback = spawn<.network> readMenuMirror(take fallbackRequest)
+let settlement = await Task.firstSettled(take [primary, fallback])
+```
+
+A assinatura lógica é:
+
+```w
+async fn Task.firstSettled<Value, Failure: Error>(
+  _ tasks: take Array<Task<Value, Failure>>,
+): TaskSettlement<Value, Failure>?
+```
+
+`TaskSettlement` contém `index` e `outcome: TaskOutcome<Value, Failure>`. O
+índice preserva a posição do handle no array consumido. O array vazio devolve
+`.none`. A call não usa `try`, porque application error e cancellation do child
+permanecem casos de `TaskOutcome`. Cancellation do parent continua um control
+outcome e não materializa `TaskSettlement`.
+
+Cancellation do parent já solicitada no arm tem precedência sobre candidates
+já settled. Se ela for observada antes da publicação do resultado, inclusive
+durante o drain, a operação suprime o `TaskSettlement`, solicita cancellation de
+todos os candidates ainda ativos, drena todos e então repropaga o control
+outcome. Cancellation observada depois da publicação pertence à continuação do
+caller e não altera o settlement já devolvido.
+
+A operação não cria task, não escolhe domain e não avalia uma branch callable.
+Cada handle já foi criado por `async` ou `spawn<domain>`, com staging, placement
+e ownership próprios. Todos os handles devem ter o mesmo `Value` e `Failure` e
+pertencer ao scope atual. A linearidade rejeita handle repetido ou uso posterior.
+
+O arm lógico registra todos os handles antes de observar um winner. Se um único
+candidate já está settled, ele vence. Se vários já estão settled no arm, o menor
+índice vence. Depois do arm, o primeiro settlement commit observado vence;
+completion order faz parte do resultado. O runtime pode usar um CAS ou uma fila,
+mas não pode usar o índice para desempatar commits posteriores nem trocar o
+winner depois da seleção.
+
+Depois da seleção, a operação solicita cancellation dos tasks restantes. Ela
+aguarda body, cleanup, outcome e drop de todos antes de devolver o winner. Um
+loser já settled não é reclassificado. Seus errors e faults ficam como evidence
+secundária no trace. Se um loser não coopera com cancellation, a call não pode
+retornar antes do drain; deadline, cleanup grace e fault boundary seguem 12.12.
+
+Cancellation não é rollback. Bytes enviados, effects committed e state externo
+alterado por qualquer candidate permanecem observáveis. Portanto,
+`Task.firstSettled` é adequado para observação, cálculo ou operações idempotentes.
+Effectful hedging exige effect ID, deduplication ou compensation da aplicação.
+
+W não adiciona statement `select`, clauses condicionais, branch default,
+random fairness ou drop de future. A API também não significa first-success.
+Esse comportamento precisaria definir agregação de errors e effects dos attempts.
+`Task.withTimeout` continua a forma para timeout. Multiplexing persistente de
+channels ou streams usa um owner/service que publica numa edge explícita.
 
 ### 12.5 Cancelamento
 

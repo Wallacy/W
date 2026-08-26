@@ -1,0 +1,246 @@
+{
+  "$schema": "w-fst0-first-settled-task-cases-1",
+  "cases": [
+    {
+      "id": "FST0-empty-current",
+      "tasks": [],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-success-current",
+      "tasks": [
+        { "index": 0, "handle": "primary", "stateAtArm": "pending", "settlementStep": 3, "outcome": "success", "cleanupCompleteStep": 4, "effectCommitted": false },
+        { "index": 1, "handle": "fallback", "stateAtArm": "pending", "settlementStep": 6, "outcome": "success", "cleanupCompleteStep": 7, "effectCommitted": true }
+      ],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-error-current",
+      "tasks": [
+        { "index": 0, "handle": "primary", "stateAtArm": "pending", "settlementStep": 5, "outcome": "success", "cleanupCompleteStep": 7, "effectCommitted": false },
+        { "index": 1, "handle": "fallback", "stateAtArm": "pending", "settlementStep": 2, "outcome": "error", "cleanupCompleteStep": 3, "effectCommitted": false }
+      ],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-pre-settled-current",
+      "tasks": [
+        { "index": 0, "handle": "primary", "stateAtArm": "settled", "settlementStep": 1, "outcome": "success", "cleanupCompleteStep": 1, "effectCommitted": false },
+        { "index": 1, "handle": "fallback", "stateAtArm": "settled", "settlementStep": 0, "outcome": "error", "cleanupCompleteStep": 1, "effectCommitted": false }
+      ],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-canceled-child-current",
+      "tasks": [
+        { "index": 0, "handle": "primary", "stateAtArm": "pending", "settlementStep": 4, "outcome": "canceled", "cleanupCompleteStep": 5, "effectCommitted": false },
+        { "index": 1, "handle": "fallback", "stateAtArm": "pending", "settlementStep": 8, "outcome": "success", "cleanupCompleteStep": 9, "effectCommitted": false }
+      ],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-parent-cancel-current",
+      "tasks": [
+        { "index": 0, "handle": "primary", "stateAtArm": "pending", "settlementStep": 4, "outcome": "success", "cleanupCompleteStep": 6, "effectCommitted": true }
+      ],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": true,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-borrowed-handles",
+      "tasks": [],
+      "consumesHandles": false,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-hidden-branches",
+      "tasks": [],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": true,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-lexical-selection",
+      "tasks": [],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "input-order",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-return-before-drain",
+      "tasks": [],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": false,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-first-success",
+      "tasks": [],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": true,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-rollback-claim",
+      "tasks": [],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": true,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-heterogeneous-task",
+      "tasks": [],
+      "consumesHandles": true,
+      "commonTaskType": false,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-persistent-multiplex",
+      "tasks": [],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": true,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    },
+    {
+      "id": "FST0-parent-cancel-value",
+      "tasks": [],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": true,
+      "returnsSettlementOnParentCancel": true
+    },
+    {
+      "id": "FST0-duplicate-handle",
+      "tasks": [
+        { "index": 0, "handle": "same-task", "stateAtArm": "pending", "settlementStep": 2, "outcome": "success", "cleanupCompleteStep": 3, "effectCommitted": false },
+        { "index": 1, "handle": "same-task", "stateAtArm": "pending", "settlementStep": 4, "outcome": "success", "cleanupCompleteStep": 5, "effectCommitted": false }
+      ],
+      "consumesHandles": true,
+      "commonTaskType": true,
+      "createsHiddenTask": false,
+      "selectionPolicy": "first-settled",
+      "returnAfterDrain": true,
+      "firstSuccess": false,
+      "rollbackClaim": false,
+      "persistentMultiplex": false,
+      "parentCanceled": false,
+      "returnsSettlementOnParentCancel": false
+    }
+  ]
+}
