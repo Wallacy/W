@@ -7409,6 +7409,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1482 | famílias TaskGroup map/collect fechadas | `TaskGroup.concurrentMap`/`parallelMap<domain>` e `concurrentCollect`/`parallelCollect<domain>` usam somente labels `limit`, `ordering`, `using`; limit é `usize<(1...)>` explícito e limita children vivos, enquanto domain/product/host podem reduzir execução física; input e callable são staged uma vez, cada item move uma vez após admission, e result storage é reservado antes do primeiro child. Map usa fail-fast e publica só success total; collect não cancela por application error/child cancellation e retorna um `TaskSettlement` por input, preservando index em `.completion`. Parent cancellation/fault suprime o array e todo caminho drena; array input/output continua O(count). Labels alternativos, zero/unbounded, callable mutável/consuming, parallel sem domain/capability, collect sem index ou retorno parcial ficam fora | current design contract em DESIGN §12.8, estudo host TGM0, `TaskGroupOrdering`/`TaskSettlement` em std.runtime e witness `inspectEveryFailure` no Restaurante; semantic checker, intrinsic lowering, runtime admission, cross-domain provider, fault/liveness tests, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de Swift TaskGroup, Rust futures, Go errgroup e Kotlin coroutines foram verificadas em 2026-08-26 |
 | W-1483 | domain placement sem priority/QoS portável | W 1.0 usa domain placement e não possui `priority`/`qos` em initializer `async`, `spawn`, `TaskGroup`, função, `Task`, service call, entry, service ou descriptor. A std não possui `.background`, `.userInteractive`, `Task.currentPriority` ou `Task.withPriority`, nem inheritance, escalation ou donation. Política física escolhe somente latência e interleavings sem ordem no source; ela não viola a ordem ou arbitration que o contrato aplicável de domain, barrier, channel ou service garante, não fabrica/substitui outcome, não ignora cancellation/deadline e não burla admission/budget/drain. Ordem deixada unspecified pode variar entre traces permitidos. Para o mesmo trace lógico de schedule, timer/deadline e eventos externos, outcome, ledger owner/drop e decisões derivadas são iguais; traces permitidos diferentes podem mudar observação de deadline, resultado de admission, winner de first-settled ou outro outcome permitido sem criar semântica QoS. `w explain execution` e provider receipt mostram política, suporte e `sourcePriority: absent` como evidência não branchable. No pedido com alergia, service/instance isola state, admission/reserva/budget protegem overload e deadline produz cancellation; domain é somente placement e pode ser atual, compartilhado ou dedicado | current design contract em DESIGN §12.6.2, estudo host QOS0 e narrativa do Restaurante; semantic checker, lowering, runtime/provider, receipts cross-target, testes de fault/liveness, performance e estudos humano/modelo continuam implementation-evidence gaps. Reabrir exige workload bounded do Última Luz, perda material não expressável pelos mecanismos vigentes e contrato cross-target completo de inversion/donation/starvation/cancel/deadline/admission/fault/liveness. Fontes primárias de Swift structured concurrency, Swift executor preference, Tokio fairness e Java SE 25 Thread foram verificadas em 2026-08-26 |
 | W-1484 | direct entry `sync` com prova `neverSuspend` | `sync f()` é uma call direta na mesma task/context/domain, sem Task, suspensão, thread blocking, event-loop reentry, authority, quota, provider, fallback ou `blocksThread`; exige spelling explícito `async fn` e `directEntry: available`, derivado sobre todo o body antes de specialization. A async entry continua publicando `suspension: may`, enquanto `sync` seleciona a direct entry `neverSuspend`. A prova aceita `sync` para outro facet available e compõe essas dependências por ponto fixo, inclusive SCCs sem provar termination; await/bare maySuspend, sync para facet absent e sync inválido para ordinary tornam o caller absent. Function type/HIR/WInterface preservam o facet; export concrete que o remove quebra source/API e muda `SemanticInterfaceKey`; protocol/foreign/interface bodyless e erasure sem facet não aceitam sync; overload resolve antes do facet; ordinary e async entries podem coexistir pela ABI W-1163 | oracle-backed-current por `DRC0-W-1484-current` e SYNC1; W-1484 substitui somente a semântica blocking de W-1471. Semantic checker, type/HIR/interface, dual-entry lowering/ABI, cross-module/erasure, diagnostics e estudos humano/modelo continuam missing. Swift SE-0296, Kotlin coroutines basics e Rust `Future` foram verificados em 2026-08-26; são precedentes de potential suspension e da separação entre suspension, polling e thread blocking, não execução W |
+| W-1485 | inventário de módulos locais no contexto efêmero | Fora de package ou workspace, o parent lógico do source root explícito forma uma root efêmera por invocation. O provider abre e confirma a root e cada source alcançado. Um import não-std parser-validado normaliza sua spelling completa para NFC e mapeia, a partir da root e nunca do importer, `a.b` para `a/b.w`; `std` e `std.*` pertencem somente ao provider std, e um source local nunca os sombreia. Um import não-std ausente falha como dependency externa indisponível e orienta package ou workspace, sem fallback, scan ou fetch. A root usa module path do header ou stem lógico, aceita header diferente do stem e resolve um import desse path para a própria root. Source descoberto usa o import como module path, recebe o último componente sem header e exige esse componente com header; outro nome e multi-file exigem package ou workspace. `SourceId` é `PackagePath` root-relative e module path é separado; canonical token e physical display são provenance. Cada source exige facts do mesmo provider, root e source/provider owner token (não package/workspace owner), containment `inside`, canonical token único e snapshot estável de bytes e digest. Escape, symlink escape, fact ausente, alias, colisão NFC e mutation falham. Somente imports, reexports e service-import origins explícitos expandem. O grafo é acíclico. Inventory tem root ordinal 0 e depois ordena `SourceId` por bytes UTF-8 NFC. Edges ordenam source ordinal, origin e target ordinal. Limits são do profile/provider. A recipe usa apenas `{SourceId,modulePath,digest}` e edges lógicos ordenados. | oracle-backed-current por RU0 host-only em `tooling/ephemeral-module-graph-machine.mjs`, com casos positivos e adversariais em `tooling/module-run-cases.json` e `tooling/module-run-reference.test.mjs`; provider real, owner detection, C graph loader, std provider, frontend resolved-edge API, diagnostics completos, compiler e runtime continuam implementation-evidence gaps |
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
@@ -7773,3 +7774,42 @@ fechamento independente para W-1484, W-1473, W-1474 e W-1475 e preserva W-1471
 como superseded. Cada README marca o limite entre design-oracle-input e
 implementação. Somente W-1484 seleciona a semântica vigente da syntax `sync`;
 os outros estudos fecham direções sem promover uma API universal.
+
+### 1.41 RU0 — evidência do inventário efêmero (W-1485)
+
+W-1485 fecha a origin de módulos locais para uma invocation fora de package ou
+workspace. A máquina bounded em `tooling/ephemeral-module-graph-machine.mjs`
+recebe somente evidence explícita de parser, provider e source. Ela não lê
+filesystem, não faz scan, não consulta registry, não executa compiler e não
+representa um provider real. A API deriva a root, o mapping root-relative, a
+ordem do inventory, os edges, ciclos, colisões, limits e a projeção lógica da
+recipe. O digest e o byte count são calculados dos bytes do source. O
+`sourceText` dos snippets é evidence do oracle, e a aquisição exige facts
+estáveis do mesmo provider, root e source/provider owner token.
+
+O witness ancora paths, imports e símbolos existentes do Last Light para
+`app.w`, `command.w`, `domain.w` e `platform/native.w`, com imports transitive
+e `std.*` separado. Os `sourceText` e digests dos snippets RU0 são evidence
+sintética do oracle, não os bytes reais desses arquivos.
+`tooling/module-run-cases.json` registra o caso positivo
+`RU0-ephemeral-graph-local-transitive` e o caso adversarial
+`RU0-ephemeral-graph-missing-local`. `tooling/module-run-reference.test.mjs`
+também cobre root header divergente, header imported mismatch, ordem UTF-8 do
+SourceId, candidate não alcançado, provenance físico e canonical variável,
+provider facts ausentes ou divergentes, containment, symlink escape, alias,
+colisão NFC, snapshot instável, digest divergente, self-cycle, SCC e os quatro
+limits finitos. A ordem de candidate e de imports duplicados não muda a recipe.
+
+Alternativas rejeitadas são inferir source pelo diretório do importer, fazer
+recursive ou cwd discovery, buscar dependency externa, deixar arquivo local
+sombrear `std`, usar path físico ou canonical token como identity, ou aceitar
+um grafo cyclic. Essas formas ocultam a fronteira da invocation ou tornam a
+recipe dependente do host. A forma corrente mantém as bindings de §6.1 e
+resolve somente origin e inventory.
+
+O resultado é `oracle-backed-current`, não implementação de compiler. O owner
+fact é um source/provider owner token, não um package/workspace owner. Provider
+real, owner detection, C graph loader, std provider, frontend resolved-edge
+API, diagnostics completos, compiler, runtime e conformance cross-target
+continuam gaps. CHK1 ainda expõe `w check` somente no perfil
+closed-single-source.
