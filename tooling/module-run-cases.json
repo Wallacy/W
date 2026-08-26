@@ -2,7 +2,7 @@
   "$schema": "w-module-run-cases-1",
   "status": "design-oracle-input",
   "machine": "module-run-machine-ru0",
-  "decisions": ["W-973", "W-1050", "W-1412", "W-1415"],
+  "decisions": ["W-973", "W-1050", "W-1412", "W-1415", "W-1485"],
   "fixtures": {
     "package-ready": {
       "operations": [
@@ -39,6 +39,125 @@
         {"op": "selectContext", "mode": "ephemeral"},
         {"op": "resolveRoots", "localRoot": "examples"},
         {"op": "validateImports", "imports": []},
+        {"op": "validateResolution"}
+      ]
+    },
+    "ephemeral-graph-ready": {
+      "operations": [
+        {
+          "op": "parseModule",
+          "path": "reference/last-light/app.w",
+          "sourceText": "module app\nimport command\nimport platform.native\nimport std.io\n",
+          "entry": "default",
+          "imports": [{"path": "command"}, {"path": "platform.native"}, {"path": "std.io"}]
+        },
+        {"op": "selectContext", "mode": "ephemeral"},
+        {"op": "resolveRoots", "localRoot": "reference/last-light"},
+        {
+          "op": "validateImports",
+          "imports": [{"path": "command"}, {"path": "platform.native"}, {"path": "std.io"}],
+          "localGraph": {
+            "rootSourceId": "app.w",
+            "root": {
+              "sourceId": "app.w",
+              "sourceText": "module app\nimport command\nimport platform.native\nimport std.io\n",
+              "imports": [{"path": "command"}, {"path": "platform.native"}, {"path": "std.io"}],
+              "provider": {
+                "providerId": "ru0-provider",
+                "rootToken": "ru0-root",
+                "owner": "ru0-owner",
+                "canonicalToken": "root-token",
+                "opened": true,
+                "containment": "inside",
+                "snapshot": {"stable": true, "bytes": 63, "digest": "sha256:1c25ff754d2d3cb72ce8a772b9f83a845d75a64e604a8018d87dda839d955367"}
+              }
+            },
+            "sources": [
+              {
+                "sourceId": "platform/native.w",
+                "sourceText": "module native\n",
+                "imports": [],
+                "moduleHeader": "native",
+                "provider": {
+                  "providerId": "ru0-provider",
+                  "rootToken": "ru0-root",
+                  "owner": "ru0-owner",
+                  "canonicalToken": "native-token",
+                  "opened": true,
+                  "containment": "inside",
+                  "snapshot": {"stable": true, "bytes": 14, "digest": "sha256:8ef433a3413abbd05387fb108217eff275bccc8532e59b17fd97569b4721eb7b"}
+                }
+              },
+              {
+                "sourceId": "domain.w",
+                "sourceText": "module domain\n",
+                "imports": [],
+                "moduleHeader": "domain",
+                "provider": {
+                  "providerId": "ru0-provider",
+                  "rootToken": "ru0-root",
+                  "owner": "ru0-owner",
+                  "canonicalToken": "domain-token",
+                  "opened": true,
+                  "containment": "inside",
+                  "snapshot": {"stable": true, "bytes": 14, "digest": "sha256:37494cf36667ef8de4fc3f07b725ca13506e5a64d1fa5f0be338ae15dace7b34"}
+                }
+              },
+              {
+                "sourceId": "command.w",
+                "sourceText": "module command\nimport domain\n",
+                "imports": [{"path": "domain"}],
+                "moduleHeader": "command",
+                "provider": {
+                  "providerId": "ru0-provider",
+                  "rootToken": "ru0-root",
+                  "owner": "ru0-owner",
+                  "canonicalToken": "command-token",
+                  "opened": true,
+                  "containment": "inside",
+                  "snapshot": {"stable": true, "bytes": 29, "digest": "sha256:254546f95a75fc3701b7e24d2350f720460085a1b7605df0c424b81d11be7caf"}
+                }
+              },
+              {"sourceId": "unused.w", "sourceText": "module unused\n", "imports": []}
+            ]
+          }
+        },
+        {"op": "validateResolution"}
+      ]
+    },
+    "ephemeral-graph-root-only": {
+      "operations": [
+        {
+          "op": "parseModule",
+          "path": "reference/last-light/app.w",
+          "sourceText": "module app\n",
+          "entry": "default",
+          "imports": []
+        },
+        {"op": "selectContext", "mode": "ephemeral"},
+        {"op": "resolveRoots", "localRoot": "reference/last-light"},
+        {
+          "op": "validateImports",
+          "imports": [],
+          "localGraph": {
+            "rootSourceId": "app.w",
+            "root": {
+              "sourceId": "app.w",
+              "sourceText": "module app\n",
+              "imports": [],
+              "provider": {
+                "providerId": "ru0-provider",
+                "rootToken": "ru0-root",
+                "owner": "ru0-owner",
+                "canonicalToken": "root-token",
+                "opened": true,
+                "containment": "inside",
+                "snapshot": {"stable": true, "bytes": 11, "digest": "sha256:93a71ded86eabed66c359aa0d8df9342702860267e3325d4ed789836b3b73291"}
+              }
+            },
+            "sources": []
+          }
+        },
         {"op": "validateResolution"}
       ]
     }
@@ -141,7 +260,7 @@
         {"op": "resolveRoots", "localRoot": "examples"},
         {"op": "validateImports", "imports": [{"path": "chart.science", "external": true}]}
       ],
-      "expected": {"status": "rejected", "code": "externalDependencyInEphemeral", "at": "last"}
+      "expected": {"status": "rejected", "code": "localGraphEvidenceRequired", "at": "last"}
     },
     {
       "id": "RU0-ambient-scan-rejected",
@@ -170,6 +289,65 @@
       "fixtures": ["ephemeral-ready"],
       "operations": [{"op": "buildModule"}, {"op": "runEntry", "entry": "default"}, {"op": "cleanup", "hiddenState": true}],
       "expected": {"status": "rejected", "code": "cleanupIncomplete", "at": "last"}
+    },
+    {
+      "id": "RU0-ephemeral-graph-local-transitive",
+      "decisions": ["W-1050", "W-1485"],
+      "references": [
+        {"path": "../reference/last-light/app.w", "symbol": "decodeCommand"},
+        {"path": "../reference/last-light/command.w", "symbol": "import std.text"},
+        {"path": "../reference/last-light/platform/posix/native.w", "symbol": "NativeTerminalBackend"}
+      ],
+      "fixtures": ["ephemeral-graph-ready"],
+      "operations": [{"op": "buildModule"}],
+      "expected": {"status": "accepted"}
+    },
+    {
+      "id": "RU0-ephemeral-graph-root-only",
+      "decisions": ["W-1485"],
+      "references": [{"path": "../reference/last-light/app.w", "symbol": "decodeCommand"}],
+      "fixtures": ["ephemeral-graph-root-only"],
+      "operations": [{"op": "buildModule"}],
+      "expected": {"status": "accepted"}
+    },
+    {
+      "id": "RU0-ephemeral-graph-missing-local",
+      "decisions": ["W-1050", "W-1485"],
+      "references": [{"path": "../reference/last-light/app.w", "symbol": "decodeCommand"}],
+      "operations": [
+        {
+          "op": "parseModule",
+          "path": "reference/last-light/app.w",
+          "sourceText": "module app\nimport missing\n",
+          "entry": "default",
+          "imports": [{"path": "missing"}]
+        },
+        {"op": "selectContext", "mode": "ephemeral"},
+        {"op": "resolveRoots", "localRoot": "reference/last-light"},
+        {
+          "op": "validateImports",
+          "imports": [{"path": "missing"}],
+          "localGraph": {
+            "rootSourceId": "app.w",
+            "root": {
+              "sourceId": "app.w",
+              "sourceText": "module app\nimport missing\n",
+              "imports": [{"path": "missing"}],
+              "provider": {
+                "providerId": "ru0-provider",
+                "rootToken": "ru0-root",
+                "owner": "ru0-owner",
+                "canonicalToken": "root-token",
+                "opened": true,
+                "containment": "inside",
+                "snapshot": {"stable": true, "bytes": 26, "digest": "sha256:c1e7a9137a78e4a7ff057649a4e150d57b681d6f94481dbd1736b509588152ba"}
+              }
+            },
+            "sources": []
+          }
+        }
+      ],
+      "expected": {"status": "rejected", "code": "externalDependencyInEphemeral", "at": "last"}
     }
   ]
 }

@@ -4211,6 +4211,7 @@ seleciona a função `fetch`. Use braces para importar essa função.
 explícitos. `export import` é rejeitado; URL, versão e digest nunca aparecem no
 source.
 Módulos formam um grafo acíclico. Um ciclo interno deve formar um único módulo.
+Em contexto efêmero, a origin local e o inventário seguem [§24.1.2 W-1485](#2412-module-run-arquivo-único).
 
 ### 6.2 Visibilidade
 
@@ -30987,6 +30988,67 @@ capability. Fetch, CAS, artifact, signature, authority e offline seguem
 source, resolution, artifacts e outputs consumidos; path físico serve discovery,
 diagnóstico e provenance, nunca identity. Run temporário ou falho não deixa
 estado oculto.
+
+**W-1485 — inventário local em contexto efêmero (Forma vigente de design;
+oracle-backed-current; implementation-gap):** fora de package ou workspace, o
+parent lógico do source root explícito forma uma root efêmera por invocation.
+O provider deve abrir e confirmar essa root e cada source alcançado. Um import
+local parser-validado contém um ou mais componentes identifier. O host
+normaliza a spelling completa para NFC e deriva, sempre a partir da root
+efêmera, `a.b` para o `PackagePath` lógico `a/b.w`. O diretório do importer
+nunca altera esse mapeamento.
+
+`std` e `std.*` pertencem somente ao provider de std. Um arquivo local não
+sombreia std. Um import não-std sem source local falha como dependency externa
+indisponível no contexto efêmero e orienta criar ou adotar package ou
+workspace. Não existe fallback, scan ou fetch. A root recebe module path pelo
+header quando presente ou pelo stem lógico. Como a CLI nomeou a root
+explicitamente, um header diferente do stem é aceito. Um import desse module
+path resolve a root antes de derivar outro source.
+
+Um source descoberto por import recebe o module path do import normalizado. Sem
+header, o último componente fornece o nome local. Com header, ele deve ser
+igual ao último componente. Outro nome ou composição multi-file exige package
+ou workspace. Como a root efêmera é o parent do source explícito, o `SourceId`
+da root é somente o basename lógico `.w`; sources descobertos usam
+`PackagePath` root-relative e podem conter `/`, como `kitchen/menu.w`. Module
+path permanece separado, como `app` ou `kitchen.menu`. Canonical provider token
+e physical display são somente provenance e diagnóstico. Eles nunca entram em
+semantic identity ou recipe.
+
+Todo source lido deve trazer facts do mesmo provider, root e source/provider
+owner token. O provider deve provar containment `inside`, canonical token único
+e snapshot estável de
+bytes e digest. Escape, fact ausente, alias de dois logical paths para o mesmo
+token, colisão lógica NFC e mutation durante acquisition falham fechados.
+Symlink interno exige containment provado e token único. Symlink escape falha.
+O digest e o byte count são derivados dos bytes do source; a evidence que não
+corresponde a esses bytes falha.
+
+O host expande somente imports, reexports e service-import origins explícitos
+dos sources alcançados. Candidate vizinho não alcançado não entra. Recursive,
+cwd, `PATH`, environment, URL, stdin e shebang discovery não são formas de
+source. O grafo local deve ser acíclico. Self-cycle e SCC multi-node falham
+antes da publicação. Multiple source files por module ficam fora desse
+contexto.
+
+O inventory usa ordinal `0` para a root. Os demais sources seguem os bytes
+UTF-8 do `SourceId` normalizado em NFC. Edges seguem source ordinal, origin
+normalizado e target ordinal. Scheduling e candidate order não alteram graph
+ou recipe. Os limits pertencem ao profile ou provider. O oracle usa somente
+defaults de fixture não normativos de 64 sources, 4096 edges, depth 64 e 16
+MiB de source bytes, e prova bounds finitos para cada dimensão.
+
+A projeção do module graph incorporada ao product e à recipe contém somente
+inventory lógico `{SourceId,modulePath,digest}` e edges lógicos ordenados.
+Context, resolution, target, host profile, toolchain, deployment e demais
+inputs já definidos continuam na recipe completa. Canonical token, host path e
+candidate order ficam fora. Mover a árvore fisicamente preserva a identity
+quando facts lógicos e bytes não mudam. As formas de binding mantêm a
+semântica de [§6.1](#61-imports-de-pacotes-e-módulos). W-1485 resolve somente a
+origin. O provider real, owner detection, C graph loader, std provider,
+frontend resolved-edge API e diagnostics completos permanecem implementation
+gaps. CHK1 continua no perfil closed-single-source.
 
 O estudo PYN1 superseded em [`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1-superseded)
 preserva a proveniência do antigo fluxo standalone. A forma vigente é este

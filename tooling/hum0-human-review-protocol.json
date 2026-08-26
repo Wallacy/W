@@ -1014,7 +1014,7 @@
         {
           "id": "module-run-cases",
           "path": "tooling/module-run-cases.json",
-          "digest": "sha256:20a9c4390aec396fee7c766da78fa0211cc023af19e28710249446dab1de5ed3",
+          "digest": "sha256:324caa6e9d7aecde2a4ae98d5187b00464d4f6e2db412ae3f691cf3c1d0d8c95",
           "claim": "Current RU0 module-run context, resolution, roots, and entry cases"
         },
         {

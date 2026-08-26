@@ -1,4 +1,8 @@
 import { createHash } from "node:crypto";
+import {
+  ephemeralSourceDigest,
+  runEphemeralModuleGraph,
+} from "./ephemeral-module-graph-machine.mjs";
 
 /**
  * Host-only RU0 oracle for the current module-run workflow.
@@ -63,6 +67,7 @@ function normalizeImports(imports) {
       path: item.path,
       digest: item.digest ?? null,
       external: item.external === true,
+      ...(item.kind === undefined ? {} : { kind: item.kind }),
     };
   });
 }
@@ -70,6 +75,11 @@ function normalizeImports(imports) {
 function sourceDigest(sourceText) {
   if (typeof sourceText !== "string") fail("sourceBytesRequired");
   return moduleRunDigest("w-module-source-v1", sourceText.replace(/\r\n?/g, "\n"));
+}
+
+function isStandardImportPath(importPath) {
+  const normalized = importPath.normalize("NFC");
+  return normalized === "std" || normalized.startsWith("std.");
 }
 
 function parseEvidenceFor(operation, digest, entry, imports) {
@@ -98,6 +108,7 @@ function parseModule(state, operation) {
     fail("implicitEntryBodyRejected");
   }
   const digest = sourceDigest(operation.sourceText);
+  const sourceBytesDigest = ephemeralSourceDigest(operation.sourceText);
   const imports = normalizeImports(operation.imports ?? []);
   const entry = operation.entry === undefined || operation.entry === null
     ? null
@@ -110,6 +121,7 @@ function parseModule(state, operation) {
     path: text(operation.path) || "<memory>",
     kind: "module",
     sourceDigest: digest,
+    sourceBytesDigest,
     textDigest: digest,
     entry,
     entryForm: entry === null ? "missing" : "explicit",
@@ -178,14 +190,28 @@ function validateImports(state, operation) {
   }
   const imports = normalizeImports(operation.imports ?? state.source.imports);
   if (JSON.stringify(imports) !== JSON.stringify(state.source.imports)) fail("importEvidenceMismatch");
-  if (state.context.mode === "ephemeral" && imports.some((item) => item.external)) {
-    fail("externalDependencyInEphemeral");
+  let localGraph = null;
+  if (operation.localGraph !== undefined && state.context.mode !== "ephemeral") {
+    fail("ephemeralGraphContextRejected", { mode: state.context.mode });
+  }
+  if (state.context.mode === "ephemeral" && operation.localGraph !== undefined) {
+    const graphResult = runEphemeralModuleGraph(operation.localGraph, {
+      rootImports: imports,
+      rootSourceBytesDigest: state.source.sourceBytesDigest,
+      rootModuleHeader: state.source.moduleHeader,
+    });
+    if (graphResult.status !== "accepted") fail(graphResult.code, graphResult.facts);
+    localGraph = graphResult.graph;
+  } else if (state.context.mode === "ephemeral") {
+    if (imports.some((item) => !isStandardImportPath(item.path))) fail("localGraphEvidenceRequired");
+    if (imports.some((item) => item.external)) fail("externalDependencyInEphemeral");
   }
   state.imports = {
     validated: true,
     modules: imports,
     paths: imports.map((item) => item.path),
     digests: imports.map((item) => item.digest).filter(Boolean),
+    localGraph,
   };
   state.phase = "imports";
   state.trace.push({ event: "validateImports", count: imports.length, paths: state.imports.paths });
@@ -244,9 +270,9 @@ function build(state, operation) {
   const hostProfile = text(operation.hostProfile) || "native-process@1";
   const toolchainDigest = text(operation.toolchainDigest) || moduleRunDigest("w-toolchain-v1", hostProfile);
   const localModules = state.imports.modules.filter((item) => !item.external).map((item) => ({ path: item.path, digest: item.digest }));
+  const localGraph = state.imports.localGraph;
   const recipe = {
     sourceDigest: state.source.sourceDigest,
-    localModules,
     context: state.context.mode,
     root: state.roots.kind,
     resolutionDigest: state.resolution.digest,
@@ -254,6 +280,9 @@ function build(state, operation) {
     hostProfile,
     toolchainDigest,
     deployment: state.context.deployment,
+    ...(localGraph
+      ? { moduleGraph: clone(localGraph.recipe) }
+      : { localModules }),
   };
   const identity = moduleRunDigest("w-module-product-v1", recipe);
   state.product = {
@@ -267,6 +296,7 @@ function build(state, operation) {
     toolchainDigest,
     entry: state.source.entry,
     physicalRoot: state.roots.local,
+    ...(localGraph ? { moduleGraph: clone(localGraph.recipe), graphRecipeKey: localGraph.recipeKey } : {}),
   };
   state.phase = "built";
   state.trace.push({ event: "buildModule", identity, target, hostProfile, physicalPathExcluded: true });
@@ -360,10 +390,10 @@ export function runModuleRunProgram(operations) {
 function initialState() {
   return {
     phase: "empty",
-    source: { path: null, kind: null, sourceDigest: null, textDigest: null, entry: null, entryForm: null, imports: [], moduleHeader: null, parseEvidence: null },
+    source: { path: null, kind: null, sourceDigest: null, sourceBytesDigest: null, textDigest: null, entry: null, entryForm: null, imports: [], moduleHeader: null, parseEvidence: null },
     context: { mode: null, reason: null, owner: null, deployment: null, explanation: null },
     roots: { kind: null, local: null, canonical: null, physicalDisplay: null, owner: null, withinRoot: null },
-    imports: { validated: false, modules: [], paths: [], digests: [] },
+    imports: { validated: false, modules: [], paths: [], digests: [], localGraph: null },
     resolution: { validated: false, digest: null, rootDigest: null, selectedContext: null, contexts: [], packages: [], deployments: [] },
     product: null,
     run: null,

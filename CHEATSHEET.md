@@ -359,6 +359,25 @@ Visibilidade (private, internal, public/export) acompanha a interface do módulo
 Não use o [portal](portal/README.md) como fonte de regras de import: é um
 protótipo congelado.
 
+### Import local em invocation efêmera
+
+Esta é uma forma de design de W-1485. Com uma root explícita fora de package ou
+workspace, a origin local é root-relative: `import platform.native` procura
+`platform/native.w`, e não um path relativo ao importer. `std` permanece no
+provider de standard library e não é sombreado por `std.w` local.
+
+```text
+module app
+
+import command
+import platform.native
+import std.io
+```
+
+O exemplo é oracle-backed e não uma promessa de execução. O bootstrap
+`w check` ainda é fechado no perfil `closed-single-source`; provider real,
+owner detection e loader completo do graph continuam gaps.
+
 ## Declarações, tipos e contratos
 
 Contrato: [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões),
