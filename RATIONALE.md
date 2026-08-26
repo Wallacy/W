@@ -7347,6 +7347,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1476 | teste de tipo e recuperação borrowed | `is` testa somente enum tag ou tipo nominal exato de existential com `reflect.Reflectable`, retorna Bool e não faz narrowing; `reflect.downcast<T>(ref existential)` retorna `ref T?`, exige `T` compatível com toda a composição, herda origin/lifetime e não copia, move, retém ou aloca; downcast owned, `as`/`as?`/`as!`, cast por string, type pattern e smart cast ficam fora | current design contract em DESIGN §8.8.1; compiler typing, existential runtime identity, borrow lowering, diagnostics e execução continuam implementation-evidence gaps |
 | W-1477 | scatter read e transferência posicional | `io.ReadBatch` é owner move-only de segments com capacity fixa e initialized counts privados; `io.readMany` preenche a concatenação em ordem e retorna `data`, `end` ou `full`, com fallback de uma leitura. `io.TransferPlan` possui intervalo, progresso e scratch reservado; `io.transfer` liga `SnapshotByteSource` a `ByteSink`, diferencia source end de limit, preserva sufixo não committed e pode selecionar operação nativa somente por capability interna. `IoSliceMut`, `inout view Bytes...`, probe `isVectored`, syscall pública e promessa universal de zero-copy ficam fora | current design contract em DESIGN §14.2.11, std.io draft e Última Luz; compiler/runtime, provider SPI, cross-target fault tests, receipts de estratégia e benchmarks continuam implementation-evidence gaps. Fontes primárias de `readv`, `WSARecv`, `sendfile`, `TransmitFile` e Rust vectored I/O foram verificadas em 2026-08-25 |
 | W-1478 | aplicação fechada e hook pós-borrow de behavior | behavior aceita zero ou um input, exatamente `initialValue: fn(): Value`; cada parâmetro generic deve ser inferido unicamente pelo tipo lógico depois de `for`; a aplicação usa somente o nome nominal, sem argumentos, generic arguments, composição ou backing access. `modify` pode usar `defer` uma vez após o borrow e observa mutation admission, inclusive término com error, sem copiar `oldValue`. Policy estática pertence ao tipo; dependência runtime usa owner, método, service ou channel nomeado | current design contract em DESIGN §10 e witness `Versioned` no Última Luz; parser aceita a declaration existente, mas checker/HIR, diagnostics e execução do lifecycle continuam implementation-evidence gaps. Swift SE-0258 foi verificado como alternativa de argumentos, backing e projection em 2026-08-25 |
+| W-1479 | projeção nominal borrowed de aggregate | Uma API que suprime properties declara um aggregate nominal lifetime-dependent: `ref Field` para place completo, `view Carrier` para extent verificável e valor owned para snapshot/cópia; constructor ou método nomeado escolhe fields e o HIR preserva origins por field. Protocol menor limita methods, aggregate borrowed expõe dados sem copiar e DTO owned permite escape. `view Object`, `view Nominal`, field mask, derivação estrutural, `Viewable` universal e recuperação de authority omitida ficam fora | current design contract em DESIGN §16.2 e witness `PublicCourse` em `views.w`; parser de aggregates e borrows existe como seed, mas checker de origins por field, diagnostics e execução do borrow continuam implementation-evidence gaps |
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
@@ -7559,6 +7560,16 @@ W-1472 não cria outro tipo de view. `ref` observa o place completo e
 capacity, UTF-8 e strides é normativa. Um protocol ou aggregate com properties
 suprimidas é interface projection e não storage view. A ausência de `Viewable`
 universal evita um protocolo que não teria como provar provenance.
+
+W-1479 torna a alternativa de aggregate concreta. Uma projeção nominal pode
+combinar `ref` para properties completas, `view` para extents de carriers e
+valores owned copiados. O Restaurante usa `PublicCourse` para mostrar título e
+allergens sem expor `supplierContract`. O tipo do resultado, e não uma field
+mask dinâmica, define a autoridade disponível. Suas dependency edges impedem
+mutation incompatível e não mantêm o owner vivo. Um protocol menor continua a
+forma para reduzir methods; um DTO owned continua a forma para obter snapshot e
+escape. Uma derivação universal seria curta, mas teria de inventar descriptor,
+origins e regras de authority para qualquer layout nominal.
 
 W-1473 fecha uma fronteira de performance, não uma API. File mapping,
 anonymous virtual memory e device memory possuem owners, permissions,

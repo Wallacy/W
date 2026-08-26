@@ -21696,6 +21696,52 @@ projection, por exemplo um protocol menor, aggregate borrowed nominal ou DTO
 owned. Ela não é uma storage view. W não cria `Viewable`, protocol universal de
 view ou `view Object` automático.
 
+**W-1479 — projeção nominal borrowed de aggregate (Forma vigente):** quando
+uma API precisa expor somente parte dos dados de um valor nominal, ela declara
+um aggregate de projeção com nome próprio. Cada property selecionada usa o
+modo que descreve seu acesso: `ref Field` para um place completo, `view
+Carrier` para uma janela de uma família que possui descriptor verificável e um
+valor owned para um snapshot ou scalar copiado. O constructor ou método nomeado
+escolhe as properties e o HIR propaga as origin edges de cada field para o
+resultado. Properties omitidas não existem no tipo projetado.
+
+```w
+struct MenuCourse {
+  title: String
+  allergens: Array<String>
+  supplierContract: String
+}
+
+struct PublicCourse {
+  title: ref String
+  allergens: view Array<String>
+}
+
+fn publicCourse(course: ref MenuCourse): PublicCourse {
+  return PublicCourse(
+    title: ref course.title,
+    allergens: course.allergens[0..<course.allergens.count],
+  )
+}
+```
+
+`PublicCourse` é um valor nominal lifetime-dependent. Ele não possui o
+`MenuCourse`, não mantém o owner vivo e não pode acessar `supplierContract`.
+Copiar a projeção, quando sua composição satisfaz `Copy`, preserva as mesmas
+origins. O borrow impede mutation incompatível do owner enquanto algum field da
+projeção continua vivo. Um retorno bodyless registra a relação com
+`borrows(0: [course])` quando a regra normal não puder inferir a origin do
+result slot. As projections de fields permanecem fatos do HIR, não syntax
+pública adicional.
+
+Esta forma não introduz derivação estrutural, field mask, `view MenuCourse`,
+conformance `Viewable` nem conversão implícita. Um `ref any Protocol` menor
+limita a superfície callable de um valor; um aggregate borrowed nominal expõe
+um conjunto de dados sem copiar; um DTO owned cria um snapshot que pode
+escapar. A API escolhe uma dessas três propriedades de forma explícita. Uma
+projeção borrowed não pode apagar authority de um field e depois recuperá-la
+por downcast ou reflection.
+
 Esta separação evita dois erros. `view` não é um sinônimo menor para `ref`.
 Também não é um wrapper que torna qualquer grafo profundamente imutável.
 

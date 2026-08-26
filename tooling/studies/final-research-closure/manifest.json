@@ -37,7 +37,7 @@
       "id": "FRC0-snapshot",
       "role": "snapshot",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
-      "digest": "sha256:05d9607b91d3a848ff90f9049836eb430eb05b3f9499a49ddb6070add7385b0d"
+      "digest": "sha256:3f7acf2c9a76e3524beb1e5dc966f7d3ee0c237d020208cea001efaf05005081"
     },
     {
       "id": "FRC0-oracle",
@@ -49,7 +49,7 @@
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:8669a5acfac1db4ddcb2047a9f09b62540871809f015e8c391f0df7f4ebafe08"
+      "digest": "sha256:73656e698b959d21e50308f30cc5c925d92ef7f2d042b616c711aa87c052a5b2"
     },
     {
       "id": "FRC0-study",
@@ -175,25 +175,25 @@
       "id": "FRC0-classification",
       "role": "classification",
       "path": "tooling/design-freeze-classification.json",
-      "digest": "sha256:001aa0ee552e9cbbeb0db6970ce3be169eeddb4b7bb329486875dbd013f890ea"
+      "digest": "sha256:43893421782946588ac95730e5beef77384d4c6a1fa7302e0f9efd6dd3daa46a"
     },
     {
       "id": "FRC0-ledger",
       "role": "ledger",
       "path": "RATIONALE.md",
-      "digest": "sha256:580538e6b1baa759ff8d3fb1a5455b92481d4e7e4373bcce65ce7dba40b6c50d"
+      "digest": "sha256:b9870b70f1af85013a1ce42950b6c75f87d89f5432296981e21fd7d3ecff69fc"
     },
     {
       "id": "FRC0-design",
       "role": "design",
       "path": "DESIGN.md",
-      "digest": "sha256:273344ad6b2ffc779b51f7178c1fcad1dabd8dae496081c84459ee1ec3237c45"
+      "digest": "sha256:f5a0b8984175da720b4c7af6becc746db383281c141d275f9ced870c726a0c2e"
     },
     {
       "id": "FRC0-index",
       "role": "index",
       "path": "DESIGN-INDEX.md",
-      "digest": "sha256:35c3abd20b0befec0f2d0ec8524baa26895d6f18738b0524c8edc9d165626571"
+      "digest": "sha256:a039264f791ee83d3a63be0124f7e539650ed2bd5c953f055640fd35d83350be"
     }
   ],
   "evidence": {
