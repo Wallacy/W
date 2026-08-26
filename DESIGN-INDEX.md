@@ -16,8 +16,8 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 32565 |
-| tokens aproximados de `DESIGN.md` | 359300 |
+| linhas de `DESIGN.md` | 32573 |
+| tokens aproximados de `DESIGN.md` | 359400 |
 | linhas de `RATIONALE.md` | 7776 |
 | tokens aproximados de `RATIONALE.md` | 197000 |
 | seções numeradas | 27 |
@@ -165,7 +165,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 23 | 29342–30892 | 19100 | Protocolos e pesquisas de ecossistema |
 | 24 | 30893–31981 | 18100 | Design freeze e pendências |
 | 25 | 31982–32192 | 1900 | Produto de referência Última Luz |
-| 26 | 32193–32565 | 4800 | Plano de implementação |
+| 26 | 32193–32573 | 4900 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
@@ -185,7 +185,7 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | segurança e execução | 9, 10, 11, 12, 13 | 8605–16935 | 92400 | ownership, errors, tasks, domains, services e entries |
 | std e performance | 14, 15, 16, 17, 18, 19 | 16936–25036 | 92900 | módulos, números, texto, tensors, custo, C e unsafe |
 | compiler e distribuição | 20, 21, 22, 23 | 25037–30892 | 63000 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 30893–32565 | 24800 | freeze, Última Luz, gates e roadmap |
+| validação e decisões | 24, 25, 26 | 30893–32573 | 24900 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

@@ -226,7 +226,11 @@ canonical; `W-LEX-0001` cobre somente literals/comments não terminados com
 facts semânticos estáveis; os mappings atuais de `W-PARSE-*` preservam
 `actual`, `construct`, `expected` e labels com spans. Identity, UTF-8, NUL,
 spans e capacity são validados. Lex facts não mapeados e parser internos sem
-catalog truth retornam `UNSUPPORTED`; não há claim semântico.
+catalog truth retornam `UNSUPPORTED`; não há claim semântico. O mapping
+frontend adicional aceita somente `W-SEM-0001` com phase `semantic.type` e
+facts `actual`/`expected`. Ele valida o primary span contra a source view e
+aceita somente o document index zero nesta fatia. Ele retorna `UNSUPPORTED`
+para outros diagnostics ou identidades de documento.
 
 ## Build local
 
@@ -255,6 +259,12 @@ O adapter D0 compara os 28 records `W-FMT-0001` byte-a-byte ao snapshot e
 valida records lex/parse com JSON.parse e schema/ordem determinísticos:
 
     bun tooling/check-seed-diagnostic.mjs
+
+O driver interno bounded lê um path `.w`, verifica o frontend seed e exerce o
+mapping `W-SEM-0001` em JSONL D0 e no renderer humano. Ele não é o comando
+público `w check` e não resolve package ou workspace:
+
+    bun tooling/check-seed-check-driver.mjs
 
 O gate dedicado do scanner C constrói o probe em diretório temporário e compara
 32 operações de scan C do corpus FB0, o witness source-backed atual de
@@ -299,6 +309,16 @@ Ownership/HIR completo, async/services/providers, avaliação de
 initializers/dependencies, cache e materialização, generic calls completas,
 heads importados e aplicações de enum/object/type/alias/function, tensor,
 runtime, MLIR e WInterface permanecem fora desta fatia.
+
+`tests/check_driver.c` é uma evidência interna bounded de source → parser →
+frontend → D0. O executável `w_seed_check_driver` aceita um path explícito de
+até 16 MiB, sem package graph, workspace context ou external-module stubs.
+Exit `0` significa frontend síncrono completo sem diagnostics. Exit `1`
+significa que todos os diagnostics são `W-SEM-0001` mapeáveis. Exit `2`
+representa invocation, source, parse, unsupported, barrier, capacity ou
+resultado incompleto. Exit `3` representa falha interna. `--json` faz o
+preflight de todos os diagnostics antes de emitir JSONL. Esta evidência não
+promove o executável a compiler ou a CLI `w check`.
 
 Funções `const` no D0 conservam a normalização runtime. Literals, parâmetros,
 bindings, valores/construtores de enum, operadores já suportados, `switch` e
@@ -864,7 +884,8 @@ e não são output de um compiler. A proveniência é mantida em
 [formatting.w](../../reference/last-light/formatting.w) e nos
 [check-seed-source-reader.mjs](../../tooling/check-seed-source-reader.mjs),
 [check-seed-formatter.mjs](../../tooling/check-seed-formatter.mjs) e
-[check-seed-diagnostic.mjs](../../tooling/check-seed-diagnostic.mjs) e
+[check-seed-diagnostic.mjs](../../tooling/check-seed-diagnostic.mjs),
+[check-seed-check-driver.mjs](../../tooling/check-seed-check-driver.mjs) e
 [check-seed-frontend.mjs](../../tooling/check-seed-frontend.mjs); os
 checker lê essas fontes e não copia seus payloads. O checker do parser também
 extrai slices delimitados por marcadores de bytes atuais de

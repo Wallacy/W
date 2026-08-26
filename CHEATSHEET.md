@@ -142,6 +142,12 @@ stderr. A forma é uma direção de CLI, não uma implementação disponível ne
 checkout. O seed frontend e o gate `check:seed-frontend` não satisfazem esse
 contrato.
 
+O driver interno `w_seed_check_driver` fornece evidência bounded de um path
+source → parser → frontend → D0. Ele aceita até 16 MiB e mapeia somente
+`W-SEM-0001`. O gate cobre `platform.w`, sua inversão negativa e as barreiras
+de source, parse e frontend. Esse executável não disponibiliza `w check` e não
+resolve package ou workspace.
+
 O [gate da Última Luz](reference/last-light/BUILD.md) separa parser,
 checker, HIR, lowering, runtime, toolchain e provider. Não use um comando
 planejado como evidência de que uma camada existe.

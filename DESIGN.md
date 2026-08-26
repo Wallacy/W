@@ -32299,6 +32299,14 @@ A aceitação do primeiro checker é fechada por estes casos:
   fixa um contexto de harness e não fornece driver público, contexto de
   package/workspace ou CLI.
 
+O executável interno `w_seed_check_driver` fornece uma primeira evidência
+bounded deste corte. Ele lê um path explícito de até 16 MiB, usa o source
+reader, lexer, parser e frontend seed e emite somente o mapping D0 de
+`W-SEM-0001`. O gate prova um source síncrono real de Última Luz, a inversão
+negativa, o renderer humano e as barreiras de source, parse, unsupported e
+capacity. O executável não é `w check`, não resolve package ou workspace e não
+reduz o implementation gap da CLI.
+
 Saída: `w check <path/file.w> [--json]` verifica o subset síncrono do
 restaurante. O comando continua implementation gap até que esses casos sejam
 executáveis pela CLI.

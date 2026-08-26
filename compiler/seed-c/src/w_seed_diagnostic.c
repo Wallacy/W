@@ -565,3 +565,88 @@ w_seed_diagnostic_status w_seed_diagnostic_parse_record(
                              source_id_length, issue, code, construct,
                              has_owner, output, output_capacity, result);
 }
+
+static bool is_semantic_type_diagnostic(
+    const w_seed_frontend_diagnostic *diagnostic) {
+  static const char code[] = "W-SEM-0001";
+  return diagnostic != NULL &&
+         diagnostic->kind == W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC &&
+         diagnostic->code.data != NULL && diagnostic->code.length == 10u &&
+         memcmp(diagnostic->code.data, code, sizeof(code) - 1u) == 0;
+}
+
+static bool valid_frontend_fact_text(w_seed_frontend_text text) {
+  return text.data != NULL && text.length != 0u &&
+         valid_utf8_identity(text.data, text.length);
+}
+
+static void write_frontend_record(
+    diagnostic_writer *writer, const char *instance, size_t instance_length,
+    const char *source_id, size_t source_id_length,
+    const w_seed_frontend_diagnostic *diagnostic) {
+  writer_text(writer, "{\"schemaVersion\":1,\"instance\":");
+  writer_json_string(writer, instance, instance_length);
+  writer_text(writer,
+              ",\"code\":\"W-SEM-0001\",\"phase\":\"semantic.type\","
+              "\"severity\":\"error\",\"primary\":{\"source\":");
+  writer_json_string(writer, source_id, source_id_length);
+  writer_text(writer, ",\"startByte\":");
+  writer_decimal(writer, diagnostic->primary.start_byte);
+  writer_text(writer, ",\"endByte\":");
+  writer_decimal(writer, diagnostic->primary.end_byte);
+  writer_text(writer, "},\"labels\":[],\"facts\":{\"actual\":");
+  writer_json_string(writer, diagnostic->actual.data, diagnostic->actual.length);
+  writer_text(writer, ",\"expected\":");
+  writer_json_string(writer, diagnostic->expected.data,
+                     diagnostic->expected.length);
+  writer_text(writer, "},\"notes\":[],\"fixes\":[],\"root\":null}");
+}
+
+w_seed_diagnostic_status w_seed_diagnostic_frontend_record(
+    const char *instance, size_t instance_length, const char *source_id,
+    size_t source_id_length, const w_seed_source *source,
+    const w_seed_frontend_diagnostic *diagnostic, uint8_t *output,
+    size_t output_capacity, w_seed_diagnostic_result *result) {
+  clear_result(result, W_SEED_DIAGNOSTIC_INVALID);
+  if (result == NULL || !valid_instance(instance, instance_length) ||
+      !valid_utf8_identity(source_id, source_id_length) || source == NULL ||
+      diagnostic == NULL) {
+    if (result != NULL) result->status = W_SEED_DIAGNOSTIC_INVALID;
+    return W_SEED_DIAGNOSTIC_INVALID;
+  }
+  if (!is_semantic_type_diagnostic(diagnostic)) {
+    result->status = W_SEED_DIAGNOSTIC_UNSUPPORTED;
+    return result->status;
+  }
+  if (diagnostic->document_index != 0u) {
+    result->status = W_SEED_DIAGNOSTIC_UNSUPPORTED;
+    return result->status;
+  }
+  if (!valid_frontend_fact_text(diagnostic->actual) ||
+      !valid_frontend_fact_text(diagnostic->expected)) {
+    result->status = W_SEED_DIAGNOSTIC_INVALID;
+    return result->status;
+  }
+  w_seed_source_error source_error;
+  if (!w_seed_source_validate_span(source, diagnostic->primary,
+                                   &source_error)) {
+    result->status = W_SEED_DIAGNOSTIC_UNSUPPORTED;
+    return result->status;
+  }
+
+  diagnostic_writer measure = {NULL, 0, 0, 0};
+  write_frontend_record(&measure, instance, instance_length, source_id,
+                        source_id_length, diagnostic);
+  result->required_bytes = measure.required;
+  result->primary_byte = diagnostic->primary.start_byte;
+  if (output == NULL || output_capacity < measure.required) {
+    result->status = W_SEED_DIAGNOSTIC_CAPACITY;
+    return result->status;
+  }
+  diagnostic_writer writer = {output, output_capacity, 0, 0};
+  write_frontend_record(&writer, instance, instance_length, source_id,
+                        source_id_length, diagnostic);
+  result->status = W_SEED_DIAGNOSTIC_OK;
+  result->written_bytes = writer.written;
+  return result->status;
+}

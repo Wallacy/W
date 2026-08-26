@@ -7,6 +7,7 @@
 
 #include "w_seed_lexer.h"
 #include "w_seed_parser.h"
+#include "w_seed_frontend.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,6 +56,17 @@ w_seed_diagnostic_status w_seed_diagnostic_parse_record(
     size_t source_id_length, const w_seed_parse_issue *issue, size_t source_length,
     uint8_t *output, size_t output_capacity,
     w_seed_diagnostic_result *result);
+
+/* Map only the complete W-SEM-0001 frontend diagnostic to the D0
+ * semantic.type record. The source view is authoritative for primary-span
+ * order, range, and UTF-8 code-point boundaries. This bounded adapter accepts
+ * only document index zero. Other frontend diagnostics or document identities
+ * return UNSUPPORTED and never produce a partial record. */
+w_seed_diagnostic_status w_seed_diagnostic_frontend_record(
+    const char *instance, size_t instance_length, const char *source_id,
+    size_t source_id_length, const w_seed_source *source,
+    const w_seed_frontend_diagnostic *diagnostic, uint8_t *output,
+    size_t output_capacity, w_seed_diagnostic_result *result);
 
 #ifdef __cplusplus
 }
