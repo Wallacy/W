@@ -2883,8 +2883,8 @@ O índice gerado usa esta tabela somente como projeção.
 | adapters blocking com quota | **Provável** | pool bounded preserva semântica; cancellation física depende da API |
 | backends readiness/completion equivalentes | **Provável** | contrato comum está fechado; matriz de targets deve provar os mesmos traces |
 | gather write com segments borrowed | **Possível agora** | rest homogêneo, prefix progress e fallback sem allocation fecham a superfície |
-| scatter read por `ReadBatch` | **Provável** | owner único fecha aliases, initialized counts e rollback parcial |
-| file/device transfer especializada | **Provável** | operação informa progress e fallback; zero-copy exige capability do adapter |
+| scatter read por `ReadBatch` | **Possível agora** | owner único, views somente inicializadas, `.full` e fallback de um read fecham a superfície |
+| file-to-sink por `TransferPlan` | **Possível agora** | snapshot posicional, limite, scratch owned e progress tipado fecham a semântica; operação nativa exige capability interna |
 | `transferable`/`shareable` estruturais | **Possível agora** | fields, captures, borrows, cleanup e interface compilada fornecem facts fechados |
 | data-race freedom e happens-before | **Possível agora** | ownership, tasks, channels, services, locks e atomics fornecem edges fechados |
 | `var atomic` e orders estáticas | **Possível agora** | superfície baixa diretamente para atomic load/store/RMW/cmpxchg |
@@ -3621,8 +3621,8 @@ evitar três nomes abstratos diferentes em documentação, testes e produto.
 Esta tabela preserva o snapshot que precedeu o fechamento das formas correntes.
 Ela não cria uma segunda lista normativa de features.
 
-**Exemplo:** `ReadBatch` fica provável. `inout T...` fica rejeitado. Os dois
-resultados tratam a mesma necessidade sem deixar uma decisão ambígua.
+**Exemplo:** W-1477 torna `ReadBatch` vigente. `inout T...` fica rejeitado. Os
+dois resultados tratam a mesma necessidade sem deixar uma decisão ambígua.
 
 Todos os itens antes classificados como **Pesquisa** possuem agora uma saída:
 
@@ -3971,14 +3971,28 @@ e
 [Windows `SetConsoleCtrlHandler`](https://learn.microsoft.com/en-us/windows/console/setconsolectrlhandler).
 
 Os adapters de I/O comparados incluem IOCP/`WSASend`, `io_uring`, `writev`,
-epoll, kqueue, poll, WASI e pools blocking bounded. Scatter read por `ReadBatch`
-e `io.transfer` continuam candidatos: ambos precisam preservar owner, short
-progress, cancellation, offset, fallback e scratch observável. Referências:
+epoll, kqueue, poll, WASI e pools blocking bounded. W-1477 fecha a superfície
+portátil de scatter read e file-to-sink. `ReadBatch` é o único owner dos
+segments e nunca publica memória não inicializada. `TransferPlan` mantém o
+intervalo posicional, o progresso e o scratch de fallback. `io.readMany` e
+`io.transfer` podem usar uma capability interna de provider, mas o resultado
+não promete a estratégia física.
+
+`readv` e `WSARecv` confirmam preenchimento ordenado de buffers e limites de
+descriptor específicos do host. `sendfile` e `TransmitFile` confirmam que a
+transferência direta é especializada, possui limites e pode exigir fallback.
+Rust `Read::read_vectored` e `Write::write_vectored` demonstram um fallback no
+primeiro buffer, mas W evita os wrappers públicos `IoSlice`/`IoSliceMut` porque
+`Bytes` já guarda initialized count e ownership. Referências verificadas em
+2026-08-25:
 
 - [`readv` e `writev`](https://man7.org/linux/man-pages/man2/writev.2.html);
+- [`WSARecv`](https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsarecv);
 - [`WSASend`](https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsasend);
 - [`sendfile`](https://man7.org/linux/man-pages/man2/sendfile.2.html);
-- [`TransmitFile`](https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile).
+- [`TransmitFile`](https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile);
+- [Rust `Read::read_vectored`](https://doc.rust-lang.org/std/io/trait.Read.html#method.read_vectored);
+- [Rust `Write::write_vectored`](https://doc.rust-lang.org/std/io/trait.Write.html#method.write_vectored).
 
 O profile Web compara conceitos com
 [WinterTC](https://wintertc.org/),
@@ -7318,6 +7332,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1474 | efeitos simulados, aprovação posterior e test infrastructure | Direção vigente: state machine bounded `proposed -> simulated -> awaitingApproval -> revalidating -> committing -> committed|rejected|conflict|unknown`, proposals com effect/input/authority/provider+generation/result/dependencies/approval/limits/expiry, DAG causal, bulk approval topológica, revalidation externa e `unknownOutcome(effectId)` após dispatch; simulated e committed values ficam separados; não há rollback, compensation ou exactly-once | oracle-backed-current por `DRC0-W-1474-current`; [`SEA0`](tooling/studies/sea0-simulated-effects-approval/) fecha a máquina compartilhada e as quatro lanes de teste. Carrier, provider real, fault multi-process/hardware e performance continuam gaps. Fontes primárias registradas no estudo foram verificadas em 2026-08-25 |
 | W-1475 | readiness de training e inference | Direção vigente: LLM0 inventaria a cobertura existente de Tensor/shape/value parameters, broadcast/reduction/numeric mode, f16/bf16/quant direction, views/strides, Device/Queue/Launch, DLPack, ownership, streams/backpressure/services, deterministic RNG/profile e packages/receipts; gaps de training e inference são classificados como core, std/API, typed IR/compiler, runtime/provider, tooling/evidence ou application framework, com default de não inflar o core | oracle-backed-current por `DRC0-W-1475-current`; [`LLM0`](tooling/studies/llm0-training-inference/) fecha o ownership map e os dois workloads, não framework, kernel, provider ou performance. Fontes primárias registradas no estudo foram verificadas em 2026-08-25 |
 | W-1476 | teste de tipo e recuperação borrowed | `is` testa somente enum tag ou tipo nominal exato de existential com `reflect.Reflectable`, retorna Bool e não faz narrowing; `reflect.downcast<T>(ref existential)` retorna `ref T?`, exige `T` compatível com toda a composição, herda origin/lifetime e não copia, move, retém ou aloca; downcast owned, `as`/`as?`/`as!`, cast por string, type pattern e smart cast ficam fora | current design contract em DESIGN §8.8.1; compiler typing, existential runtime identity, borrow lowering, diagnostics e execução continuam implementation-evidence gaps |
+| W-1477 | scatter read e transferência posicional | `io.ReadBatch` é owner move-only de segments com capacity fixa e initialized counts privados; `io.readMany` preenche a concatenação em ordem e retorna `data`, `end` ou `full`, com fallback de uma leitura. `io.TransferPlan` possui intervalo, progresso e scratch reservado; `io.transfer` liga `SnapshotByteSource` a `ByteSink`, diferencia source end de limit, preserva sufixo não committed e pode selecionar operação nativa somente por capability interna. `IoSliceMut`, `inout view Bytes...`, probe `isVectored`, syscall pública e promessa universal de zero-copy ficam fora | current design contract em DESIGN §14.2.11, std.io draft e Última Luz; compiler/runtime, provider SPI, cross-target fault tests, receipts de estratégia e benchmarks continuam implementation-evidence gaps. Fontes primárias de `readv`, `WSARecv`, `sendfile`, `TransmitFile` e Rust vectored I/O foram verificadas em 2026-08-25 |
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova

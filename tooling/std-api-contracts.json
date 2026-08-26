@@ -152,12 +152,26 @@
       "bounds": ["maximum-argument", "destination-capacity", "allocation-budget"],
       "complexity": { "time": "linear-progress", "space": "destination-growth-bounded-by-maximum" }
     },
+    "scatter-read-owner": {
+      "capabilities": ["byte-io-provider"],
+      "effects": ["allocation", "suspension", "byte-io", "cancellation-drain"],
+      "failures": { "mode": "generic", "types": ["AllocationError", "Failure"] },
+      "bounds": ["segment-count", "fixed-segment-capacities", "initialized-prefix", "provider-descriptor-limit"],
+      "complexity": { "time": "linear-progress", "space": "reserved-segment-capacity" }
+    },
     "byte-sink": {
       "capabilities": ["byte-io-provider"],
       "effects": ["suspension", "byte-io"],
       "failures": { "mode": "generic", "types": ["Failure", "WriteAllError"] },
       "bounds": ["source-size", "segment-count"],
       "complexity": { "time": "linear-progress", "space": "bounded-by-argument" }
+    },
+    "byte-transfer": {
+      "capabilities": ["byte-io-provider"],
+      "effects": ["allocation-at-plan-init", "suspension", "byte-io", "cancellation-drain"],
+      "failures": { "mode": "generic", "types": ["TransferPlanError", "TransferError<ReadFailure, WriteFailure>"] },
+      "bounds": ["positional-range", "chunk-bytes", "committed-progress", "reserved-fallback-scratch"],
+      "complexity": { "time": "linear-progress", "space": "bounded-by-chunk-bytes" }
     },
     "io-error": {
       "capabilities": [],
@@ -1189,7 +1203,7 @@
       "id": "std.io",
       "availability": "byte-io-provider",
       "source": "std/io/contracts.w",
-      "designAnchors": ["14.2.1", "14.2.2", "14.2.3", "14.2.4", "14.2.8", "14.4.2"],
+      "designAnchors": ["14.2.1", "14.2.2", "14.2.3", "14.2.4", "14.2.8", "14.2.11", "14.4.2"],
       "implementationProvider": {
         "kind": "std-intrinsic",
         "id": "std.io@1",
@@ -1197,6 +1211,9 @@
         "gates": [
           "byte-source",
           "byte-sink",
+          "scatter-read-owner",
+          "positional-transfer-plan",
+          "native-transfer-fallback-equivalence",
           "snapshot-positional-read",
           "parallel-short-read",
           "limits",
@@ -1208,7 +1225,7 @@
       },
       "consumer": {
         "path": "reference/last-light/io.w",
-        "symbols": ["IoError", "ReadStep", "WriteStep", "WriteAllError", "ByteSource", "ByteSink"]
+        "symbols": ["IoError", "ReadStep", "ScatterReadStep", "WriteStep", "WriteAllError", "ReadBatch", "TransferPlan", "TransferStep", "TransferError", "ByteSource", "ByteSink", "readMany", "transfer"]
       },
       "apis": [
         { "symbol": "IoOperation", "kind": "enum", "profile": "value-contract" },
@@ -1233,10 +1250,42 @@
         { "symbol": "ReadStep", "kind": "enum", "profile": "value-contract" },
         { "symbol": "SnapshotReadStep", "kind": "enum", "profile": "value-contract" },
         { "symbol": "WriteStep", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "ScatterReadStep", "kind": "enum", "profile": "byte-source" },
+        { "symbol": "TransferStep", "kind": "enum", "profile": "byte-transfer" },
+        { "symbol": "TransferPlanError", "kind": "enum", "profile": "byte-transfer" },
+        { "symbol": "TransferCause", "kind": "enum", "profile": "byte-transfer" },
+        { "symbol": "TransferError", "kind": "struct", "profile": "byte-transfer" },
         { "symbol": "WriteAllError", "kind": "struct", "profile": "value-contract" },
+        {
+          "symbol": "ReadBatch",
+          "kind": "struct",
+          "profile": "scatter-read-owner",
+          "members": [
+            { "symbol": "init", "profile": "scatter-read-owner" },
+            { "symbol": "segmentCount", "profile": "value-contract" },
+            { "symbol": "filledBytes", "profile": "value-contract" },
+            { "symbol": "isFull", "profile": "value-contract" },
+            { "symbol": "segment", "profile": "scatter-read-owner" },
+            { "symbol": "reset", "profile": "scatter-read-owner" },
+            { "symbol": "intoSegments", "profile": "scatter-read-owner" }
+          ]
+        },
+        {
+          "symbol": "TransferPlan",
+          "kind": "struct",
+          "profile": "byte-transfer",
+          "members": [
+            { "symbol": "init", "profile": "byte-transfer" },
+            { "symbol": "transferred", "profile": "value-contract" },
+            { "symbol": "remaining", "profile": "value-contract" },
+            { "symbol": "pendingBytes", "profile": "value-contract" }
+          ]
+        },
         { "symbol": "ByteSource", "kind": "protocol", "profile": "byte-source" },
         { "symbol": "ByteSink", "kind": "protocol", "profile": "byte-sink" },
-        { "symbol": "SnapshotByteSource", "kind": "protocol", "profile": "snapshot-byte-source" }
+        { "symbol": "SnapshotByteSource", "kind": "protocol", "profile": "snapshot-byte-source" },
+        { "symbol": "readMany", "kind": "fn", "profile": "scatter-read-owner" },
+        { "symbol": "transfer", "kind": "fn", "profile": "byte-transfer" }
       ]
     },
     {

@@ -284,7 +284,9 @@ O rascunho fixa nove fronteiras:
   configuração.
 
 `ByteSink.writeMany` usa segments borrowed e um fallback sem allocation.
-Scatter read e transferência zero-copy permanecem em **Pesquisa**.
+`io.ReadBatch` fecha scatter read sem publicar memória não inicializada.
+`io.TransferPlan` fecha file-to-sink com intervalo, progress e scratch owned.
+Operações nativas permanecem choices do provider; a API não promete zero-copy.
 
 `StepEffect.atMostOnce` é o default seguro. Retry só ocorre quando o effect
 contract permite. Timer e event wait não mantêm um worker ativo.

@@ -17464,7 +17464,7 @@ exigem delimitador usam um framer explícito com `final: .requireDelimiter`.
 `readToEnd` também exige `limit`. Sources contínuos, como terminal ou socket,
 podem nunca produzir EOF. A API não oferece uma versão ilimitada por default.
 
-#### 14.2.11 Backend, gather write e transferências especializadas
+#### 14.2.11 Backend, I/O vetorizado e transferências especializadas
 
 **Forma vigente:** `ByteSink.writeMany` recebe zero ou mais segments borrowed:
 
@@ -17529,9 +17529,87 @@ Atomicidade de `writev` em um arquivo não vira garantia de `ByteSink`. Sockets,
 filesystems e adapters possuem boundaries diferentes. Uma API que exige
 atomicidade usa um contrato específico.
 
-`ByteSource` mantém um único destino por operação. Scatter read e transferência
-file-to-sink não fazem parte da superfície vigente; requisitos e referências
-permanecem em
+**Scatter read:** `io.ReadBatch` é um owner move-only de zero ou mais segments.
+Cada capacidade presente é positiva e fica fixa até o consumo do batch. O
+initialized count de cada segment é privado; `segment(at:)` publica somente o
+prefixo inicializado como `view Bytes`.
+
+```w
+var batch = try io.ReadBatch(64, 4_096, 32)
+
+switch try await io.readMany(from: inout input, scatterInto: inout batch) {
+  case .data(let count): inspectEnvelope(ref batch, bytesRead: count)
+  case .end: finishInput()
+  case .full: consumeThenReset(inout batch)
+}
+```
+
+`readMany` observa os segments como uma concatenação lógica e os preenche em
+ordem, sem holes. `.data(count)` possui `count > 0`; `.end` preserva o batch;
+`.full` não submete I/O e ocorre quando não resta capacidade, inclusive no
+batch vazio. Error antes de progress não muda os initialized counts. Progress
+junto com error confirma o prefixo e segue o mesmo latch de `ByteSource.read`.
+
+O fallback lê somente no primeiro segment ainda incompleto. Ele não aloca, não
+copia entre segments e não executa uma segunda operação física. Um adapter pode
+usar `readv`, `WSARecv` ou operação equivalente, limitado ao maior prefixo de
+descriptors aceito pelo host. O limite do host nunca vira error público.
+
+`reset()` zera os initialized counts e conserva as reservas. `intoSegments()`
+consome o batch e devolve os `Bytes` inicializados. Uma live view de segment
+impede `reset`, outra read ou consumo. W não publica `IoSliceMut`, memória
+uninitialized, `inout view Bytes...` ou `isReadVectored`.
+
+**Transferência posicional:** `io.TransferPlan` mantém offset, limite total,
+progresso committed e um scratch privado reservado na inicialização. O source
+é `SnapshotByteSource`, portanto tamanho e conteúdo permanecem estáveis. O
+sink continua qualquer `ByteSink`.
+
+```w
+var plan = try io.TransferPlan(
+  at: 0,
+  maximumBytes: archive.byteCount(),
+  chunkBytes: 64 * 1_024,
+)
+
+while true {
+  switch try await io.transfer(
+    from: ref archive,
+    to: inout response,
+    using: inout plan,
+  ) {
+    case .data(let count): recordCommitted(count)
+    case .sourceEnd: break
+    case .limitReached: break
+  }
+}
+```
+
+`TransferPlan` rejeita overflow de `at + maximumBytes`; `chunkBytes` é
+positivo. Uma inicialização bem-sucedida faz toda reserva do fallback, portanto
+cada step posterior não aloca. `.data(count)` confirma um prefixo positivo no
+sink. `.sourceEnd` distingue EOF anterior ao limite; `.limitReached` confirma
+que o limite foi alcançado, inclusive quando ele é zero. Ambos são terminais:
+calls posteriores devolvem o mesmo case sem submeter I/O.
+
+O fallback faz read posicional para o scratch e escreve esse mesmo prefixo no
+sink. Se uma escrita falha depois de calls anteriores terem avançado,
+`TransferError` informa `committed` e o plan conserva o sufixo ainda não
+committed para retry ou drop. Uma falha de read possui `committed == 0` nessa
+call. Cancellation mantém source, sink, plan e buffers borrowed até drain; o
+plan continua válido com exatamente o progresso confirmado.
+
+Quando source e sink expõem uma capability interna compatível, o adapter pode
+usar `sendfile`, `TransmitFile`, `copy_file_range`, `splice` ou mecanismo
+equivalente. Isso não é parte do resultado semântico. A ausência, o limite ou a
+falha de elegibilidade da operação especializada seleciona o fallback antes de
+progress. Depois de progress, não há replay automático por outra estratégia.
+`w explain io` informa native scatter/transfer, descriptor limit, fallback,
+scratch bytes, allocation e missed reason; não existe promessa universal de
+zero-copy.
+
+As regras de host, short progress e validade dos descriptors são sustentadas
+pelas referências preservadas em
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 #### 14.2.12 Observabilidade de I/O
@@ -23433,6 +23511,8 @@ provider, optimization de compiler, adapter target unsafe ou promessa universal
 rejeitada. `Mapped<T>` universal não é escolhido. O contrato corrente é a
 classificação e seus invariants, não uma API única. Compiler, runtime,
 providers, receipts por target e benchmarks continuam implementation gaps.
+W-1477 promove somente `ReadBatch` e `TransferPlan` para a API portátil de byte
+I/O; as demais famílias de MEM0 conservam a classificação da pesquisa.
 
 **W-1475 — training e inference (Direção vigente):**
 [`LLM0`](tooling/studies/llm0-training-inference/) fecha o inventário finito sem

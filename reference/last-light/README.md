@@ -952,7 +952,10 @@ Aceite:
 - o cursor sequencial é um `some ByteSource<IoError>`, não `FileReader`;
 - I/O blocking usa um adapter e uma quota explícitos;
 - readiness, completion e fallback blocking produzem o mesmo trace semântico;
-- scatter read e transferência zero-copy permanecem em **Pesquisa**.
+- `ReadBatch` faz scatter read sem expor memória não inicializada;
+- `TransferPlan` preserva intervalo, progresso e scratch no file-to-sink;
+- native scatter/transfer e fallback produzem o mesmo trace sem promessa de
+  zero-copy.
 
 O oracle divide o Arquivo das Receitas Extintas em todos os pontos possíveis.
 Cada execução injeta short read, short write, EOF junto com dados, error depois
@@ -963,6 +966,16 @@ readiness e executor blocking.
 O teste gather usa zero segments, segments vazios e mais segments que o limite
 do host. Ele injeta progress dentro e entre segments. O payload final deve ser
 idêntico com fallback, `writev` e `WSASend`.
+
+O teste scatter usa segments de capacidades diferentes, batch cheio, EOF no
+meio do batch e progress no último segment parcial. Views observam somente os
+prefixos inicializados. O trace deve ser idêntico com fallback, `readv` e
+`WSARecv`.
+
+O teste de transferência divide um `FileSnapshot` antes, dentro e depois de
+cada chunk, injeta source end, limit reached, short write, error e cancellation.
+O plan deve conservar o sufixo não committed. Fallback e operação nativa devem
+confirmar os mesmos bytes; a estratégia física aparece somente em explanation.
 
 O teste posicional lê blocos sobrepostos com um `shared File`. A ordem de
 completion pode mudar. Cada bloco deve manter o offset solicitado. O cursor
@@ -3069,8 +3082,8 @@ O Book deve mostrar pares lado a lado:
 | arquivo seekable | `read(at:)` posicional por default | cursor compartilhado e lock invisível |
 | I/O blocking | adapter em executor bounded | bloquear worker cooperativo ou pool ilimitado |
 | gather write | `writeMany(view Bytes...)` com fallback | `IoSlice` público, concatenação ou erro sem backend |
-| scatter read | Pesquisa; append em um `Bytes` continua baseline | `inout view Bytes...` ou `ReadBatch` |
-| zero-copy | operação especializada e explícita em Pesquisa | `sendfile`/`mmap` invisível |
+| scatter read | `ReadBatch` owner + `readMany`, initialized prefixes e fallback de um read | `inout view Bytes...`, `IoSliceMut` ou probe runtime |
+| file-to-sink | `TransferPlan` + `io.transfer`, scratch/progress bounded e native choice explicável | `sendfile`/`mmap` invisível ou promessa universal de zero-copy |
 | construção textual | reserve/append no próprio `String` | `StringBuilder` público |
 | storage textual | owner único flat + SSO invisível | COW baseline, rope universal ou threshold público |
 | reserva textual | `tryReserve(minimumBytes:)` | capacity property e growth factor fixo |

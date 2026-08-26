@@ -1,5 +1,7 @@
 // Public byte I/O contracts.
 
+import { AllocationError } from std.memory
+
 export enum IoOperation: Copy & Equatable & Hashable {
   resolve
   open
@@ -47,9 +49,56 @@ export enum IoErrorKind: Copy & Equatable & Hashable {
 foreign intrinsic from "std.io@1" {
   type IoCauseHandle
   type SnapshotByteSourceProviderMarker
+  type ReadBatchHandle
+  type TransferPlanHandle
 
   fn stdIoCauseDuplicate(handle: ref IoCauseHandle): IoCauseHandle
   fn stdIoCauseDrop(handle: inout IoCauseHandle)
+
+  fn stdIoReadBatchCreate(
+    capacities: ref Array<usize<(1...)>>,
+  ): ReadBatchHandle throws AllocationError
+  fn stdIoReadBatchSegmentCount(handle: ref ReadBatchHandle): usize
+  fn stdIoReadBatchFilledBytes(handle: ref ReadBatchHandle): usize
+  fn stdIoReadBatchIsFull(handle: ref ReadBatchHandle): Bool
+  fn stdIoReadBatchSegment(
+    handle: ref ReadBatchHandle,
+    index: usize,
+  ): view Bytes
+  fn stdIoReadBatchReset(handle: inout ReadBatchHandle)
+  fn stdIoReadBatchIntoSegments(
+    handle: take ReadBatchHandle,
+  ): Array<Bytes>
+  fn stdIoReadBatchDrop(handle: inout ReadBatchHandle)
+
+  fn stdIoTransferPlanCreate(
+    offset: u64,
+    maximumBytes: u64,
+    chunkBytes: usize<(1...)>,
+  ): TransferPlanHandle throws TransferPlanError
+  fn stdIoTransferPlanTransferred(handle: ref TransferPlanHandle): u64
+  fn stdIoTransferPlanRemaining(handle: ref TransferPlanHandle): u64
+  fn stdIoTransferPlanPendingBytes(handle: ref TransferPlanHandle): usize
+  fn stdIoTransferPlanDrop(handle: inout TransferPlanHandle)
+
+  async fn stdIoReadMany<
+    Failure: Error,
+    Source: ByteSource<Failure>,
+  >(
+    source: inout Source,
+    destination: inout ReadBatchHandle,
+  ): ScatterReadStep throws Failure
+
+  async fn stdIoTransfer<
+    ReadFailure: Error,
+    WriteFailure: Error,
+    Source: SnapshotByteSource<ReadFailure>,
+    Destination: ByteSink<WriteFailure>,
+  >(
+    source: ref Source,
+    destination: inout Destination,
+    plan: inout TransferPlanHandle,
+  ): TransferStep throws TransferError<ReadFailure, WriteFailure>
 }
 
 // IoCause is a bounded, redacted provider snapshot. It owns no file, socket,
@@ -122,6 +171,104 @@ export enum SnapshotReadStep {
 export enum WriteStep {
   complete
   partial(usize<(1...)>)
+}
+
+export enum ScatterReadStep {
+  data(usize<(1...)>)
+  end
+  full
+}
+
+export enum TransferStep {
+  data(usize<(1...)>)
+  sourceEnd
+  limitReached
+}
+
+export enum TransferPlanError: Error {
+  allocation(AllocationError)
+  rangeOverflow
+}
+
+export enum TransferCause<ReadFailure: Error, WriteFailure: Error>: Error {
+  read(ReadFailure)
+  write(WriteFailure)
+}
+
+export struct TransferError<ReadFailure: Error, WriteFailure: Error>: Error {
+  export cause: TransferCause<ReadFailure, WriteFailure>
+  export committed: usize
+}
+
+// ReadBatch is the sole owner of fixed-capacity scatter segments. Public views
+// expose initialized prefixes only; reset retains the reservations.
+export struct ReadBatch {
+  handle: ReadBatchHandle
+
+  export init(_ capacities: usize<(1...)>...) throws AllocationError {
+    self.handle = unsafe { try stdIoReadBatchCreate(ref capacities) }
+  }
+
+  export segmentCount: usize {
+    get => unsafe { stdIoReadBatchSegmentCount(ref handle) }
+  }
+
+  export filledBytes: usize {
+    get => unsafe { stdIoReadBatchFilledBytes(ref handle) }
+  }
+
+  export isFull: Bool {
+    get => unsafe { stdIoReadBatchIsFull(ref handle) }
+  }
+
+  export fn segment(at index: usize): view Bytes {
+    return unsafe { stdIoReadBatchSegment(ref handle, index) }
+  }
+
+  export mut fn reset() {
+    unsafe { stdIoReadBatchReset(inout handle) }
+  }
+
+  export take fn intoSegments(): Array<Bytes> {
+    return unsafe { stdIoReadBatchIntoSegments(take handle) }
+  }
+
+  deinit {
+    unsafe { stdIoReadBatchDrop(inout handle) }
+  }
+}
+
+// TransferPlan owns the bounded fallback scratch and tracks only bytes that a
+// destination has committed. A successful initialization is allocation-free
+// for every later transfer step.
+export struct TransferPlan {
+  handle: TransferPlanHandle
+
+  export init(
+    at offset: u64,
+    maximumBytes: u64,
+    chunkBytes: usize<(1...)>,
+  ) throws TransferPlanError {
+    self.handle = unsafe {
+      try stdIoTransferPlanCreate(offset, maximumBytes, chunkBytes)
+    }
+  }
+
+  export transferred: u64 {
+    get => unsafe { stdIoTransferPlanTransferred(ref handle) }
+  }
+
+  export remaining: u64 {
+    get => unsafe { stdIoTransferPlanRemaining(ref handle) }
+  }
+
+  export pendingBytes: usize {
+    get => unsafe { stdIoTransferPlanPendingBytes(ref handle) }
+  }
+
+  deinit {
+    unsafe { stdIoTransferPlanDrop(inout handle) }
+  }
 }
 
 export struct WriteAllError<Cause: Error>: Error {
@@ -203,6 +350,41 @@ export protocol ByteSink<Failure: Error> {
     }
 
     return .complete
+  }
+}
+
+// readMany uses native scatter only when the provider has a compatible hidden
+// capability. Its portable fallback reads into the first incomplete segment.
+export async fn readMany<
+  Failure: Error,
+  Source: ByteSource<Failure>,
+>(
+  from source: inout Source,
+  scatterInto destination: inout ReadBatch,
+): ScatterReadStep throws Failure {
+  return unsafe {
+    try await stdIoReadMany(inout source, inout destination.handle)
+  }
+}
+
+// transfer joins a stable positional source to a sink. Native data movement is
+// an adapter choice; the TransferPlan scratch is the portable fallback.
+export async fn transfer<
+  ReadFailure: Error,
+  WriteFailure: Error,
+  Source: SnapshotByteSource<ReadFailure>,
+  Destination: ByteSink<WriteFailure>,
+>(
+  from source: ref Source,
+  to destination: inout Destination,
+  using plan: inout TransferPlan,
+): TransferStep throws TransferError<ReadFailure, WriteFailure> {
+  return unsafe {
+    try await stdIoTransfer(
+      ref source,
+      inout destination,
+      inout plan.handle,
+    )
   }
 }
 
