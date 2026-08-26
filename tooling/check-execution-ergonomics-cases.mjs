@@ -22,6 +22,19 @@ const requiredIds = new Set([
   "EE-INFO-public-widening",
   "EE-NEG-bare-may-suspend",
   "EE-NEG-blocking-sync",
+  "EE-POS-sync-direct-entry",
+  "EE-POS-sync-composition",
+  "EE-NEG-sync-transitive-facet-loss",
+  "EE-NEG-sync-invalid-call-poisons-caller",
+  "EE-NEG-sync-unknown-uppercase-poisons-caller",
+  "EE-POS-sync-scc-direct-entry",
+  "EE-NEG-sync-explicit-await",
+  "EE-NEG-sync-dynamic-path",
+  "EE-INFO-direct-entry-breaking",
+  "EE-NEG-sync-protocol-bodyless",
+  "EE-NEG-sync-foreign-bodyless",
+  "EE-POS-sync-indirect-facet",
+  "EE-NEG-sync-erased-facet",
   "EE-POS-spawn-serial-domain",
   "EE-POS-spawn-main-domain",
   "EE-POS-spawn-parallel-domain",
@@ -141,15 +154,39 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
     const declaration = suspensionDeclaration(result, expected)
     if (!declaration) errors.push(`${item.id}: source spelling ${expected.sourceSpelling}`)
   }
+  if (expected.directEntry) {
+    const declaration = result.suspension.declarations.find((candidate) => candidate.name === (expected.callee ?? expected.declaration))
+    if (declaration?.directEntry !== expected.directEntry) errors.push(`${item.id}: direct entry ${declaration?.directEntry ?? "missing"}`)
+  }
   if (expected.callForm && !firstCall(result, expected.callForm, expected.callee)) errors.push(`${item.id}: call form ${expected.callForm}`)
-  if (expected.syncCurrent !== undefined && result.suspension.syncBridges.find((bridge) => bridge.callee === expected.callee)?.eligible !== expected.syncCurrent) errors.push(`${item.id}: sync current contract`)
+  const syncCall = result.suspension.syncCalls.find((call) => call.callee === expected.callee)
+  if (expected.syncCurrent !== undefined && syncCall?.eligible !== expected.syncCurrent) errors.push(`${item.id}: sync current contract`)
+  if (expected.publishedSuspension !== undefined && syncCall?.publishedSuspension !== expected.publishedSuspension) errors.push(`${item.id}: sync published suspension`)
+  if (expected.selectedEntrySuspension !== undefined && syncCall?.selectedEntrySuspension !== expected.selectedEntrySuspension) errors.push(`${item.id}: sync selected entry suspension`)
+  if (expected.blocksThread !== undefined && syncCall?.blocksThread !== expected.blocksThread) errors.push(`${item.id}: sync blocksThread`)
+  if (expected.createsTask !== undefined && syncCall?.createsTask !== expected.createsTask) errors.push(`${item.id}: sync createsTask`)
+  if (expected.suspendsTask !== undefined && syncCall?.suspendsTask !== expected.suspendsTask) errors.push(`${item.id}: sync suspendsTask`)
+  if (expected.sameExecutionContext !== undefined) {
+    const sameExecutionContext = syncCall?.sameTask === true && syncCall?.sameContext === true && syncCall?.sameDomain === true
+    if (sameExecutionContext !== expected.sameExecutionContext) errors.push(`${item.id}: sync execution context`)
+  }
+  if (expected.runtimeFallback !== undefined && syncCall?.runtimeFallback !== expected.runtimeFallback) errors.push(`${item.id}: sync runtime fallback`)
+  if (expected.tryOrthogonal !== undefined && result.suspension.tryOrthogonal !== expected.tryOrthogonal) errors.push(`${item.id}: try orthogonality`)
   if (expected.childForm && !result.suspension.children.some((child) => child.form === expected.childForm)) errors.push(`${item.id}: child form ${expected.childForm}`)
   if (expected.childAccepts && JSON.stringify(result.suspension.children[0]?.accepts) !== JSON.stringify(expected.childAccepts)) errors.push(`${item.id}: child callable policy`)
   if (expected.sccSuspension) {
     const component = result.suspension.scc.find((component) => expected.members.every((member) => component.members.includes(member)))
     if (!component || component.suspension !== expected.sccSuspension) errors.push(`${item.id}: SCC inference`)
   }
+  if (expected.sccDirectEntry) {
+    const component = result.suspension.directEntryScc.find((candidate) =>
+      expected.members.every((member) => candidate.members.includes(member)))
+    if (!component || component.directEntry !== expected.sccDirectEntry) errors.push(`${item.id}: direct-entry SCC`)
+    if (component?.terminationProven !== expected.terminationProven) errors.push(`${item.id}: termination proof`)
+    if (component?.evaluationPerformed !== expected.evaluationPerformed) errors.push(`${item.id}: static SCC evaluation`)
+  }
   if (expected.sourceBreaking !== undefined && result.suspension.public?.sourceBreaking !== expected.sourceBreaking) errors.push(`${item.id}: public widening`)
+  if (expected.semanticInterfaceKeyChanged !== undefined && result.suspension.public?.semanticInterfaceKeyChanged !== expected.semanticInterfaceKeyChanged) errors.push(`${item.id}: semantic interface key`)
   if (expected.widening !== undefined && result.suspension.public?.widening !== expected.widening) errors.push(`${item.id}: widening`)
   if (expected.removable !== undefined && !codes.includes("W-SUSPEND-0002")) errors.push(`${item.id}: removable await`)
   if (expected.evaluation && JSON.stringify(result.suspension.staging) !== JSON.stringify(expected.evaluation)) errors.push(`${item.id}: staging`)
@@ -198,6 +235,7 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
       declarations: result.suspension.declarations,
       children: result.suspension.children,
       scc: result.suspension.scc,
+      directEntryScc: result.suspension.directEntryScc,
       public: result.suspension.public,
     },
     placement: result.placement,

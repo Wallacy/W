@@ -97,6 +97,18 @@ describe("syntax atlas coverage checker", () => {
     expect(source.includes("allocator .none")).toBe(true);
   });
 
+  test("direct sync entry remains static and keeps its error edge", () => {
+    const source = snapshot.blocks.find((block) => block.id === "execution-forms").snippet;
+    const variant = snapshot.variants.find((entry) => entry.id === "execution-sync");
+    expect(source).toContain('let direct = try sync fetch("north")');
+    expect(source).toContain("async fn fetch(city: String): String throws String");
+    expect(variant).toMatchObject({
+      construction: "direct neverSuspend entry; requires explicit async fn and a declaration-wide static proof",
+      evidenceStatus: "tree-sitter-parse-only-compiler-runtime-missing",
+    });
+    expect(snapshot.blocks.find((block) => block.id === "execution-forms").designRefs).toContain("12.2.2");
+  });
+
   test("quick reference syntax cells come from source bytes", () => {
     for (const variant of snapshot.variants) {
       expect(snapshot.blocks.find((block) => block.id === variant.block).snippet.includes(variant.witness)).toBe(true);

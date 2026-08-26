@@ -48,8 +48,9 @@
 | `ownership-pin` | `pin target` | `restricted-expressions` |
 | `ownership-atomic` | `var atomic count` | `allocator-and-bindings` |
 | `execution-direct` | `fn directCall` | `execution-forms` |
-| `execution-await` | `try await direct` | `execution-forms` |
-| `execution-async-initializer` | `let direct = async` | `execution-forms` |
+| `execution-await` | `try await concurrent` | `execution-forms` |
+| `execution-sync` | `try sync fetch` | `execution-forms` |
+| `execution-async-initializer` | `let concurrent = async` | `execution-forms` |
 | `execution-spawn` | `spawn<.compute>` | `execution-forms` |
 | `callable-positional` | `order: String` | `callables-and-foreign` |
 | `callable-required-homonym` | `named audit: String` | `callables-and-foreign` |
@@ -438,9 +439,9 @@ fn walk(values: Array<i32>): i32 throws String {
 </details>
 
 <details>
-<summary>Direct, await, async and spawn initializers, and calls · execution · execution-forms</summary>
+<summary>Direct sync entry, await, async and spawn initializers, and calls · execution · execution-forms</summary>
 
-**current** · **tree-sitter-parse-only-provider-missing**
+**current** · **tree-sitter-parse-only-compiler-runtime-missing**
 
 ```w
 async fn fetch(city: String): String throws String {
@@ -448,12 +449,13 @@ async fn fetch(city: String): String throws String {
 }
 
 async fn runTasks(): String throws String {
-  let direct = async fetch("north")
+  let direct = try sync fetch("north")
+  let concurrent = async fetch("east")
   let parallel = spawn<.compute> fetch("south")
-  let first = try await direct
+  let first = try await concurrent
   let second = try await parallel
   let optional = try? await fetch("west")
-  return first + second + optional?
+  return first + second + direct + optional?
 }
 
 fn inspect<T>(each values: T...): String {

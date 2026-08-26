@@ -281,7 +281,7 @@
     {
       "id": "R1-pkg1-project-transaction",
       "path": "tooling/studies/pkg1-project-transaction/bundle.json",
-      "digest": "sha256:21981f3b96d8108c19ca13b497a235b009908abfde77246967343c8490a31351"
+      "digest": "sha256:e928bf281376465ce2d2ebbbb4f51cb212948530286341f7304d4f32f000af54"
     },
     {
       "id": "R1-post-test-loop",
@@ -456,25 +456,25 @@
       "id": "execution-ergonomics",
       "role": "execution",
       "path": "tooling/execution-ergonomics-cases.json",
-      "digest": "sha256:1a8057f9277bcc05d212019b28cf2036fb91a0dd1439413b2ffc0ef4e795cfae"
+      "digest": "sha256:777e0c2a30432c37039de2685a55bc6f82d2be745a987e218fb69e89b92fd30d"
     },
     {
       "id": "execution-ergonomics-machine",
       "role": "execution",
       "path": "tooling/execution-ergonomics-machine.mjs",
-      "digest": "sha256:32ee3b38ed9bbba4785a986acc5b8eb43d57f7864614e4ec271a884b48f2f647"
+      "digest": "sha256:db255e098542ca20470f0c9f2b3758a508e07d5dd7b7c8b76ac3908d2e2da27b"
     },
     {
       "id": "execution-ergonomics-checker",
       "role": "execution",
       "path": "tooling/check-execution-ergonomics-cases.mjs",
-      "digest": "sha256:880406c45c0dc7d450764a870d56ea57e723619542bdb7a59e329be75af130d0"
+      "digest": "sha256:3b6f7f56f1c236de5880dde9f59a8ac005987d8d5e8b1e9ae38b7befb1f39025"
     },
     {
       "id": "execution-ergonomics-snapshot",
       "role": "execution",
       "path": "tooling/execution-ergonomics-results.snapshot.jsonl",
-      "digest": "sha256:e1ee4963a822e5acdb735a15dbf118adfada26b1421f6cb541d2197f0b6f9bd3"
+      "digest": "sha256:c9a52479169c7a3e1feba3c5ee23f116f74b19bc8ffec9cce2945e33c13fbfb6"
     }
   ],
   "evidence": {

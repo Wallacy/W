@@ -237,7 +237,21 @@ w explain execution last-light-native \
 ```
 
 O relatório deve mostrar requirements alcançáveis, pool compartilhado, budgets
-do artifact, redução por unit e digest do profile.
+do artifact, redução por unit e digest do profile. Ele também mostra:
+
+- identificador da política física do provider;
+- suporte da política no target;
+- `sourcePriority: absent`.
+
+O provider receipt registra os mesmos campos. O programa não pode consultar ou
+usar esses campos em branch. A política física escolhe somente latência e ordem
+que o source e o contrato aplicável de domain, channel ou service deixam
+unspecified. Ela não viola order/arbitration realmente garantida, não cria FIFO
+global, não fabrica outcome, não ignora cancellation/deadline e não burla
+admission, capacity, budget ou drain. Para o mesmo trace lógico, outcome, owner/drop e decisões
+derivadas são iguais. Outro trace permitido pode mudar deadline observation,
+admission, winner ou outro outcome permitido. Replay fixa o trace lógico;
+detalhes físicos ficam no sidecar.
 
 ### 3.3 Workflow de pedidos
 
@@ -252,6 +266,14 @@ O supervisor `fulfillment` liga `fulfillOrderDurably`. O artifact fixa:
 - retry window, outcome records e tombstones de `EffectId`;
 - restart intensity e instance generation;
 - adapters compatíveis.
+
+Um pedido com alergia recebe uma deadline e uma `OrderCoordinator` dedicada,
+que isola state. Admission, reserva e budget protegem overload. O product pode
+usar o domain atual, compartilhado ou dedicado por placement, performance ou
+liveness; domain não protege correctness. O source não usa priority ou QoS.
+Num scheduler com uma CPU lógica, success exige validação segura. Deadline
+vencida produz cancellation/rejection sem unsafe fulfillment ou partial commit,
+seguida de terminal drain; progress depende das premissas do profile.
 
 O deployment seleciona o adapter por role:
 

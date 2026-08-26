@@ -72,12 +72,13 @@ async fn fetch(city: String): String throws String {
 }
 
 async fn runTasks(): String throws String {
-  let direct = async fetch("north")
+  let direct = try sync fetch("north")
+  let concurrent = async fetch("east")
   let parallel = spawn<.compute> fetch("south")
-  let first = try await direct
+  let first = try await concurrent
   let second = try await parallel
   let optional = try? await fetch("west")
-  return first + second + optional?
+  return first + second + direct + optional?
 }
 
 fn inspect<T>(each values: T...): String {

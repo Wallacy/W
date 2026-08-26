@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "current.w",
     "symbol": "finalResearchClosure",
-    "digest": "sha256:74f835a25b97479da71fe4641ad18ac86b2028af237849dc427406b3c1434487"
+    "digest": "sha256:986e2d4ce962f730a01f0085c7431efcb0343e25470b51ab4474a392f4253dd2"
   },
   "sourceRefs": [
     {
@@ -25,22 +25,22 @@
     {
       "path": "../../../tooling/hum0-human-review-protocol.json",
       "symbol": "w-hum0-human-review-protocol-1",
-      "digest": "sha256:924a0349524a06a09bb866c05e9651803c9fee87d2f79c5965fa9fe64fbe6306"
+      "digest": "sha256:2cb463769a68b875ab5da761e30b5d2616a01bb9b157c02a612b1502b01930ea"
     },
     {
       "path": "../../../tooling/design-freeze-classification.json",
       "symbol": "w-design-freeze-classification-1",
-      "digest": "sha256:ddf7eecd1cbe8fbf1f4fc96d62e0340f7a0a85d8b7e3bfd44d473f79f5b4abd3"
+      "digest": "sha256:036d995284ff9c63008feb5de06c6aaa911fa40e8d0d538efbe7e0066423acea"
     },
     {
       "path": "../../../RATIONALE.md",
       "symbol": "| W-707 | gate de design freeze",
-      "digest": "sha256:602d2ee29d43b4038d612161b9615c160c7fdbb0a3c378e60457294d03ed5b9f"
+      "digest": "sha256:66edf46c57c07b2e153645c3d1e934c84bc79da10f032065a4b3d1abc92b0e62"
     },
     {
       "path": "../../../DESIGN.md",
       "symbol": "#### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa",
-      "digest": "sha256:b1e8e9a72b41abb51d815508ed822ec67b4580ba58771dae0f1a6e70fb338e78"
+      "digest": "sha256:81d0365d0ce5d061f6dc0c32ed9ccd78132d499e8895fb4023a17500cd5fb61c"
     }
   ],
   "variants": [
@@ -49,7 +49,7 @@
       "role": "selected",
       "language": "w",
       "path": "current.w",
-      "digest": "sha256:74f835a25b97479da71fe4641ad18ac86b2028af237849dc427406b3c1434487",
+      "digest": "sha256:986e2d4ce962f730a01f0085c7431efcb0343e25470b51ab4474a392f4253dd2",
       "changedConstructs": [
         "current gate contract",
         "reuse-only host evidence"

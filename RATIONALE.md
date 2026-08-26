@@ -2041,6 +2041,54 @@ primitives do host, mas precisa preservar tickets, drain e a ausência de wake
 perdida. A notification não publica dados sozinha; o edge continua vindo da
 load acquire que observa uma release.
 
+#### 1.4.5.1 W-1483 — domain placement sem priority portável
+
+W-1483 fecha a fronteira entre contrato semântico e política física de
+scheduling. O source usa domain placement, deadline, admission, capacity,
+budgets, service e isolation. Ele não publica task priority ou QoS.
+
+A proposta de structured concurrency do Swift inclui inheritance e escalation
+de priority. Esse precedente mostra que priority exige regras para a árvore de
+tasks e para inversão. Ele não justifica um hint sem contrato em W. A proposta
+de executor preference do Swift separa o executor que fornece threads da
+isolation serial. W preserva essa separação, mas usa o termo domain placement
+para o contrato de source.
+
+O runtime Tokio garante fairness somente sob premissas bounded e cooperativas.
+Ele não garante uma ordem específica entre tasks ready. Essa distinção sustenta
+a regra de W: uma política física pode escolher somente a ordem que o contrato
+aplicável deixa unspecified. Ela preserva order e arbitration realmente
+garantidas, sem inventar FIFO global para channel ou service, e não pode
+enfraquecer a liveness ou fairness do profile.
+
+Java SE 25 ignora `Thread.setPriority` para virtual threads e mantém
+`NORM_PRIORITY`. Esse comportamento demonstra que um valor source-level não
+possui suporte uniforme nem mesmo dentro de uma única plataforma de threads.
+
+Fontes primárias verificadas em 2026-08-26:
+
+- [Swift structured concurrency](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0304-structured-concurrency.md)
+- [Swift task executor preference](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0417-task-executor-preference.md)
+- [Tokio runtime fairness](https://docs.rs/tokio/latest/tokio/runtime/index.html)
+- [Java SE 25 `Thread`](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Thread.html).
+
+QOS0 usa um oracle host para comparar políticas físicas. O oracle preserva as
+regras de outcome, owner/drop, arbitration, admission, budget, ordering, drain
+e progress. Para o mesmo trace lógico, outcome, ledger de owner/drop e decisões
+derivadas são iguais. Traces permitidos diferentes podem mudar a observação de
+deadline, o resultado de admission, o winner de first-settled ou outro outcome
+permitido. O oracle não implementa o runtime W.
+
+No pedido com alergia, a service instance isola state, admission/reserva/budget
+protegem overload e deadline produz cancellation. O domain pode ser atual,
+compartilhado ou dedicado. Essa escolha trata placement, performance e liveness;
+ela não concede segurança nem correctness.
+
+Priority portável só volta à pesquisa com um workload bounded do Última Luz e
+perda material cross-target. O novo contrato precisa cobrir inversion, donation,
+starvation, cancellation, deadline, admission, fault e liveness. A pesquisa
+também precisa de estudos humano e de modelos.
+
 #### 1.4.6 Inicialização lazy concorrente
 
 O [`lazy` do Swift](https://docs.swift.org/swift-book/LanguageGuide/Properties.html)
@@ -2900,7 +2948,7 @@ O índice gerado usa esta tabela somente como projeção.
 | RCU genérico safe | **Rejeitado** | reclamation, ABA e leitura longa exigem adapter `unsafe` especializado |
 | facts trusted para FFI e synchronization customizada | **Possível agora** | somente provider ou foreign interface fixa target, digest e negative facts |
 | domain default por módulo | **Rejeitado** | import não possui instance, lifecycle ou executor |
-| QoS na syntax de `spawn` | **Rejeitado** | policy no profile ou group não parece garantia de ordering ou deadline |
+| priority/QoS portável no source | **Rejeitado** | domain, admission e deadline expressam o contrato; política física não pode mudar semântica |
 | `bootstrap.w0` e self-host antes de tasks | **Provável** | subset fechado; seed C e adapter MLIR precisam de prova |
 | mimalloc como profile | **Provável** | API e build são conhecidos; versão, targets e foreign mix exigem benchmark |
 | mimalloc universal | **Rejeitado por enquanto** | origem estrangeira, versão e targets impedem um default sem evidência |
@@ -5628,16 +5676,18 @@ R1 fixa duas variantes W finas e parseáveis, ordem de apresentação, blinding 
 oracle host. O stop condition cobre stale digest, caller echo, manual count,
 registro human/model, preference/score, decisão/caso ausente ou duplicado,
 source escape, categoria errada e qualquer `Research` residual. W-1471,
-W-1473, W-1474 e W-1475 reabriram gates depois do snapshot; DRC0 fechou suas
-stop conditions. FRC0 preserva os gaps de implementação e não promove compiler,
-runtime ou provider.
+W-1473, W-1474 e W-1475 reabriram gates depois do snapshot; W-1484 substituiu
+depois a semântica blocking de W-1471, e DRC0 fecha W-1484, W-1473, W-1474 e
+W-1475. FRC0 preserva os gaps de implementação e não promove compiler, runtime
+ou provider.
 
 ### 1.37 Gate SOTA de performance e matriz de responsabilidade
 
 Esta seção prepara a implementação de performance. Ela é evidência comparativa
 e não contrato normativo. A matriz não cria syntax, API ou W-ID. No snapshot em
-que foi criada, ela não reabriu `Research=0`; W-1471, W-1473, W-1474 e W-1475
-foram abertas posteriormente e não pertencem a esse gate.
+que foi criada, ela não reabriu `Research=0`; W-1471, depois substituída por
+W-1484, e W-1473, W-1474 e W-1475 foram abertas posteriormente e não pertencem
+a esse gate.
 
 O artigo de 2026 sobre o expoente de multiplicação ([arXiv:2608.16884](https://arxiv.org/abs/2608.16884))
 relata o limite teórico `omega < 2.371177`. Esse resultado pertence à
@@ -5702,9 +5752,10 @@ o target, o workload, o provider ou o oracle mudar.
 PFU0 fornece a evidência host-only para três decisões depois do snapshot
 histórico FRC0. W-1451, W-1452 e W-1453 são agora
 `oracle-backed-current`; FRC0 verifica `Research=0` nesse limite histórico.
-As gates W-1471, W-1473, W-1474 e W-1475 foram abertas depois e fechadas por
-DRC0. PFU0 não trata a máquina host como compiler, runtime, provider ou
-resultado humano.
+As gates W-1471, W-1473, W-1474 e W-1475 foram abertas depois. W-1484
+substituiu a interpretação blocking de W-1471; DRC0 fecha W-1484, W-1473,
+W-1474 e W-1475. PFU0 não trata a máquina host como compiler, runtime, provider
+ou resultado humano.
 
 | Gate | Controle vigente | Alternativa avaliada | Rejeitado |
 |---|---|---|---|
@@ -5827,7 +5878,7 @@ os sinais do divisor, mantém a falha `min / -1` somente para divide e conserva
 SIMD1 é `oracle-backed-current` e não é implementação. Compiler, runtime,
 provider, native acceleration, ABI, FFI, measurements e estudos humanos/modelos
 continuam missing. No limite W-1459, `Research=0` permaneceu; as gates posteriores
-W-1471, W-1473, W-1474 e W-1475 não pertencem a SIMD1.
+W-1471, sua sucessora W-1484, W-1473, W-1474 e W-1475 não pertencem a SIMD1.
 
 ## 2. Proveniência
 
@@ -5840,7 +5891,7 @@ rastreáveis.
 | unit literal | `9.81[m/s^2]` | `9.81<m/s^2>` |
 | namespace import | `import path [as alias]` | `import localName from modulePath` |
 | refinement | `T where predicate`, com alternativas | `T<(predicate)>` |
-| execution preference | superfície aberta | `async/spawn<.domain>` |
+| executor preference / preference | superfície aberta | domain placement por `async`/`spawn<.domain>` |
 | entry | superfície aberta | forma curta + descriptor tipado |
 | tensors | nested baseline, operadores abertos | nested + `@`, broadcast explícito |
 | value generics | aberto | `name: Type` value parameters e labels declarados |
@@ -5989,13 +6040,13 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-114 | cláusula estática | `<...>` no source e record tipado na HIR | `where`/`on`; modifier map |
 | W-115 | slots angulares | schema declara posição, labels e slot primário | inferir slot pelo nome do enum case |
 | W-116 | evolução self-host | gates SH0–SH7; cadeia seed C → A → B → C → D; oracle rejeita dependência de extended e drift fora de target metadata | marco único; compiler usa todo o design vigente; aceitar igualdade de payload sem comparar HIR |
-| W-117 | eixos de execução | lifetime, intent, preference, isolation e affinity separados | thread group único |
+| W-117 | eixos de execução | lifetime, intent, domain placement, isolation e affinity separados | thread group único |
 | W-118 | início de child | initializers `async`/`spawn` iniciam no binding | lazy no primeiro await |
 | W-119 | task longa | owner runtime explícito; sem detached sem owner | drop destaca; task global |
 | W-120 | outcome de task | body settled, cleanup e só então success/error/canceled observável; panic encerra fault boundary | outcome antes do cleanup; cancel em `E`; panic como Result |
 | W-121 | seleção de error | ordem lexical declarada | primeira completion sempre vence |
 | W-122 | cancelamento | cooperativo, idempotente, snapshot bounded e sem rollback ou shield geral | matar thread; transação ou shield implícito |
-| W-123 | resolução de domain | isolation/affinity vencem preference | contrato do caller substitui isolation |
+| W-123 | resolução de domain | isolation/affinity vencem domain placement | contrato do caller substitui isolation |
 | W-124 | grupos dinâmicos | concurrent/parallel map bounded e ordering explícito | queue ilimitada; intent oculto |
 | W-125 | stream/channel | pull single-pass e MPSC bounded; detalhes em W-454–472 | generator unbounded; channel bidirecional universal |
 | W-126 | memory model | safe W é data-race-free e SC sem orders fracas; orders explícitas seguem outcomes C++20 fechados pela superfície W | race definida em safe code; somente “thread-safe” nominal; chamar toda execução race-free de SC |
@@ -6219,7 +6270,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-344 | fingerprint de representação | inclui somente validity, bytes, carrier e fatos ABI que mudam a entry; provider, options e patch ficam na recipe | fingerprint por target triple; allocator name sempre entra; compiler completo como proxy |
 | W-345 | pointer compression | handle de arena/heap isolado é classe própria com base e bounds | tratar índice como pointer tagged |
 | W-346 | início de async (retired) | forma anterior; W-1161 mantém `await` na task atual e children dos initializers `async`/`spawn<domain>` após staging lexical | Promise implícita; body parcial no parent |
-| W-347 | contexto de child | cancellation, deadline, trace, budget e preference; user data/capability são explícitos | task-local map mutável herdado |
+| W-347 | contexto de child | cancellation, deadline, trace, budget e domain placement; user data/capability são explícitos | task-local map mutável herdado |
 | W-348 | domains portáteis | somente `.main` é padrão; módulo e pacote declaram os outros IDs | lista global; enum manual; string |
 | W-349 | domain schema | capabilities, capacity, fallback, affinity e trace identity | thread/pool como identidade semântica |
 | W-350 | defaults de execução (retired) | forma anterior; W-1162 torna placement uma escolha do caller/profile no call site | default em módulo; `.compute` global; herdar domain serial e degradar `spawn` |
@@ -6227,7 +6278,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-352 | capacity aninhada | groups no mesmo domain compartilham budget; parent aguardando não retém permit | pool por group; produto dos limits |
 | W-353 | liveness paralela | simultaneidade nunca é necessária para correção | spin wait entre children; thread por child |
 | W-354 | fairness | eventual sob budgets bounded e jobs non-blocking; sem ordem entre siblings | FIFO scheduler como semântica; queue ilimitada |
-| W-355 | priority e deadline | priority é policy; deadline monotônico vira cancellation; `Task.withTimeout` cria child lexical | `.background` como domain; priority garante prazo; deadline wall-clock |
+| W-355 | priority e deadline | deadline monotônico vira cancellation e `Task.withTimeout` cria child lexical; W-1483 retira priority portável do source | `.background` como domain; priority garante prazo; deadline wall-clock |
 | W-356 | executor dinâmico (retired) | direção anterior deixava `ExecutionDomainRef` provável; W-1175 fecha somente lane serial bounded e mantém executor custom em runtime unsafe | detached escondida; protocol comum substitui scheduler |
 | W-357 | bytes de String | view read-only; mutação somente por operação que preserva UTF-8 | byte mutation com validação posterior; storage exposto |
 | W-358 | conversão UTF-8 | view valida; String copia; adoption transfere carrier sem allocation e devolve o mesmo owner no erro | cópia implícita em todas; reuse opcional |
@@ -6597,7 +6648,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-722 | mutação reproduzível do codec | mutations com offsets e masks fixos; aceitação exige re-encode byte-for-byte; rejection usa erro de codec conhecido | random sem seed; aceitar valor diferente sem canonicalização; misturar mutation de structure com property de scalar |
 | W-723 | segunda implementação wWire | C e Node concordam nos quatro vetores; cada implementação testa erros básicos; compilação usa diretório temporário e não cria artefato no repo | considerar GCC como target W; comparar somente o payload final; aceitar divergência de directory; exigir GCC em hosts sem toolchain |
 | W-724 | evidência de reprodução | attestation completa compara todos os inputs declarados e payload/artifact digests; builder identity mede independência, mas não é input; oracle distingue input e artifact mismatch | hash somente do executável; comparar só recipe digest; usar builder identity como input; aceitar evidence incompleta; tratar bytes iguais com recipe diferente como reprodução |
-| W-725 | resolução de execution domain (retired) | policy anterior de preference/default; W-1162 mantém requirements e profile, mas fecha domain no call site e não promete simultaneidade | thread group fixo no source; default de módulo; default implícito em todo `spawn`; capacity um invalida `.compute`; deployment aumenta budget; import cria queue ou thread |
+| W-725 | resolução de execution domain (retired) | policy anterior de domain placement/default; W-1162 mantém requirements e profile, mas fecha domain no call site e não promete simultaneidade | thread group fixo no source; default de módulo; default implícito em todo `spawn`; capacity um invalida `.compute`; deployment aumenta budget; import cria queue ou thread |
 | W-726 | separação de ServiceLink e transport | local usa mailbox/thunk, component usa component ABI, wRPC usa session/codec/transport e foreign usa adapter próprio; local/component não criam frames wRPC | transport universal; local serializado por aparência; component com wire implícito; foreign adapter sem digest; ServiceLink confundido com ServiceTransport |
 | W-727 | quorum de reprodução | threshold só vale quando cada par prova builder, operator, credential e execution root distintos; contagem sem independência resulta em `rejectReproduction` | contar jobs da mesma CI; comparar somente `builderIdentity`; usar assinatura como prova de operador; aceitar root de execução compartilhado |
 | W-728 | provenance e assinatura de platform | recipe, toolchain digest, artifact e platform target precisam apontar para os mesmos records; roles permanecem distintas; divergência resulta em `rejectReproduction` | assinatura platform como prova de source; toolchain implícito; comparar somente payload; um envelope para maintainer, builder e platform |
@@ -7344,7 +7395,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1469 | authority origin e continuidade registry bounded | `AuthorityOrigin` usa bytes públicos completos da gênese sem assinaturas; `trustedGenesis` é o payload público completo fornecido out-of-band e define o origin; `trustedCheckpoint` é resolver-owned, persistido entre chamadas e não é um novo trust input out-of-band; ele ancora a root corrente; cada update N+1 satisfaz separadamente o threshold da root anterior e o threshold da root nova; lock separa origin, evidence e record; AUL0-W-1469-current liga o Last Light Restaurante | oracle-backed-current; AUL0-W-1469-current prova trusted anchor, rotação, checkpoint, alias, mirror, corrupção, rollback, gap, thresholds, key IDs, package identity e full-byte equality; persistence/CAS real, expiry/freshness/timestamp, targets/snapshot, Git authority, `.local` origin, NFC e compiler completo permanecem gaps |
 
 | W-1470 | posição do launcher de child no initializer | Forma vigente: `let x = async ...`, `let x = spawn<.compute> ...` e `let x = spawn<domain: .compute> ...`; `async` usa o domain atual e `spawn<domain>` usa o domain explícito; initializer produz `Task<T, E>`; staging de callee/args/captures ocorre uma vez no parent; somente raiz callable única de initializer de binding `let` é aceita; `var`, return, escape, launcher nested, expression statement e expressão composta são rejeitados; await direto permanece na task atual e await de task faz join | current; grammar, parser seed, formatter, semantic/tooling machine, corpus, atlas e Last Light migram para a posição do initializer sem shim. A posição anterior vinha do modelo declaration-like de Swift, mas W preserva o mesmo Task lexical. Sources: [Swift SE-0317](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0317-async-let.md), acessado em 2026-08-25 |
-| W-1471 | bridge blocking call-site `sync` | Forma vigente de design: bare `maySuspend` continua error. `sync f()` só é válido quando o callee escreve `async fn` (`sourceSpelling: explicit`), preserva scope estruturado, cancellation, deadline, cleanup, join e drain, não cria detached task, bloqueia a thread e acrescenta `blocksThread`; exige blocking authority, quota bounded, provider bridge e checks de target/deadlock/fairness/cancellation; rejeita cooperative/serial/signal/freestanding/nonblocking, progresso dependente do mesmo permit, callable inferida, callable `fn` sem async explícito e `neverSuspend` | oracle-backed-current por `DRC0-W-1471-current`; frontend grammar, lowering, runtime bridge, provider receipt e liveness/deadlock validation continuam missing. Kotlin [`runBlocking`](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/run-blocking.html), acessado em 2026-08-25, é precedente de bridge em main/tests/callbacks, não prova universal |
+| W-1471 | bridge blocking call-site `sync` | Decisão histórica: `sync f()` executaria callable `maySuspend` por bridge blocking com authority, quota e provider | **superseded por W-1484 somente nesta semântica blocking**. A linha preserva proveniência; ela não define a forma vigente, runtime bridge, `blocksThread` ou requisitos de provider |
 | W-1472 | view, ref e interface projection | Forma vigente: `ref Array<T>` observa owner e metadata completos; `view Array<T>` observa janela lógica sem capacity; `view String` exige substring UTF-8 válida; `view Tensor` pode ser strided; tipos nominais podem expor views de famílias core por método e aggregates owned podem guardar `ref`/`view` com origins; properties suprimidas formam interface projection, não storage view; não há `Viewable`, protocol universal ou `view Object` automático | current; clarificação normativa em DESIGN §16.2 e examples no cheatsheet preservam a semântica existente de `ref`, `view` e `inout view` |
 | W-1473 | virtual memory e data movement performance | Direção vigente: MEM0 separa file-backed immutable mapping, anonymous reserve/commit/decommit, private COW, shared/MMIO boundary, protection, advice/prefault/discard, huge pages, NUMA, pinned host, device/unified transfer, vectored I/O, sendfile-style zero-copy, alignment/cache/prefetch/non-temporal operations e composição allocator/Arena/fixed/IPC1. Cada item exige owner move-only, extent bounded, permissions, address-space/provenance, drop determinístico, live-view exclusion, external interference e target evidence; `Mapped<T>` universal é rejeitado | oracle-backed-current por `DRC0-W-1473-current`; [`MEM0`](tooling/studies/mem0-virtual-memory-data-movement/) fecha a classificação, não uma API/provider/compiler/benchmark. Esses itens continuam implementation gaps. Fontes primárias registradas no estudo foram verificadas em 2026-08-25 |
 | W-1474 | efeitos simulados, aprovação posterior e test infrastructure | Direção vigente: state machine bounded `proposed -> simulated -> awaitingApproval -> revalidating -> committing -> committed|rejected|conflict|unknown`, proposals com effect/input/authority/provider+generation/result/dependencies/approval/limits/expiry, DAG causal, bulk approval topológica, revalidation externa e `unknownOutcome(effectId)` após dispatch; simulated e committed values ficam separados; não há rollback, compensation ou exactly-once | oracle-backed-current por `DRC0-W-1474-current`; [`SEA0`](tooling/studies/sea0-simulated-effects-approval/) fecha a máquina compartilhada e as quatro lanes de teste. Carrier, provider real, fault multi-process/hardware e performance continuam gaps. Fontes primárias registradas no estudo foram verificadas em 2026-08-25 |
@@ -7356,6 +7407,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1480 | direções de service stream sem Channel implícito | Service operation usa o mesmo carrier em posições diretas: `take some Stream<Item, Failure>` no parâmetro forma client-streaming, `some Stream<Item, Failure>` no resultado forma server-streaming, ambos formam bidirectional e nenhum forma unary; input transfere o readable owner, output permanece opaque, items são owned/transferable/WireValue, Failure admite ServiceFailure e cada edge preserva créditos, ordem, terminal, cancellation e drain. Channel.receive pode fornecer input após Channel.open com capacity explícita. Stream nested, input sem take, item borrowed/non-wire, any Stream publicado, stream fn, Channel/capacity implícito e open sem await ficam fora; W-1480 substitui somente a rejeição client/bidi de W-1452 | current design contract em DESIGN §23.1.5, estudo host SVC0 e witness `service_streaming.w`; semantic checker, ServiceIR lowering, runtime pumps, providers, cross-route faults, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de gRPC, WebAssembly Component Model e Cloudflare RPC foram verificadas em 2026-08-25 |
 | W-1481 | first-settled de tasks estruturadas | `Task.firstSettled` consome `Array<Task<Value, Failure>>` já criada, não cria child nem escolhe domain e devolve `TaskSettlement<Value, Failure>?` com index e `TaskOutcome`; vazio devolve none; o arm registra todos os handles, candidates já settled usam menor index e o primeiro settlement posterior usa completion order sem desempate por índice; winner fica fixo, losers recebem cancellation e a call aguarda body/cleanup/outcome/drop antes de publicar; parent cancellation observada antes da publicação suprime o settlement, drena todos e permanece control outcome; effects committed não sofrem rollback. Handles heterogêneos/duplicados, statement select, branch/default/fairness implícitos, first-success, future drop e multiplexing persistente ficam fora | current design contract em DESIGN §12.4.1, estudo host FST0, `TaskSettlement` em std.runtime e witness `task_settlement.w`; semantic checker, runtime wake/CAS, provider conformance, cross-domain fault/liveness tests, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de Swift structured concurrency, Tokio select, Go select e Kotlin select foram verificadas em 2026-08-25 |
 | W-1482 | famílias TaskGroup map/collect fechadas | `TaskGroup.concurrentMap`/`parallelMap<domain>` e `concurrentCollect`/`parallelCollect<domain>` usam somente labels `limit`, `ordering`, `using`; limit é `usize<(1...)>` explícito e limita children vivos, enquanto domain/product/host podem reduzir execução física; input e callable são staged uma vez, cada item move uma vez após admission, e result storage é reservado antes do primeiro child. Map usa fail-fast e publica só success total; collect não cancela por application error/child cancellation e retorna um `TaskSettlement` por input, preservando index em `.completion`. Parent cancellation/fault suprime o array e todo caminho drena; array input/output continua O(count). Labels alternativos, zero/unbounded, callable mutável/consuming, parallel sem domain/capability, collect sem index ou retorno parcial ficam fora | current design contract em DESIGN §12.8, estudo host TGM0, `TaskGroupOrdering`/`TaskSettlement` em std.runtime e witness `inspectEveryFailure` no Restaurante; semantic checker, intrinsic lowering, runtime admission, cross-domain provider, fault/liveness tests, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de Swift TaskGroup, Rust futures, Go errgroup e Kotlin coroutines foram verificadas em 2026-08-26 |
+| W-1483 | domain placement sem priority/QoS portável | W 1.0 usa domain placement e não possui `priority`/`qos` em initializer `async`, `spawn`, `TaskGroup`, função, `Task`, service call, entry, service ou descriptor. A std não possui `.background`, `.userInteractive`, `Task.currentPriority` ou `Task.withPriority`, nem inheritance, escalation ou donation. Política física escolhe somente latência e interleavings sem ordem no source; ela não viola a ordem ou arbitration que o contrato aplicável de domain, barrier, channel ou service garante, não fabrica/substitui outcome, não ignora cancellation/deadline e não burla admission/budget/drain. Ordem deixada unspecified pode variar entre traces permitidos. Para o mesmo trace lógico de schedule, timer/deadline e eventos externos, outcome, ledger owner/drop e decisões derivadas são iguais; traces permitidos diferentes podem mudar observação de deadline, resultado de admission, winner de first-settled ou outro outcome permitido sem criar semântica QoS. `w explain execution` e provider receipt mostram política, suporte e `sourcePriority: absent` como evidência não branchable. No pedido com alergia, service/instance isola state, admission/reserva/budget protegem overload e deadline produz cancellation; domain é somente placement e pode ser atual, compartilhado ou dedicado | current design contract em DESIGN §12.6.2, estudo host QOS0 e narrativa do Restaurante; semantic checker, lowering, runtime/provider, receipts cross-target, testes de fault/liveness, performance e estudos humano/modelo continuam implementation-evidence gaps. Reabrir exige workload bounded do Última Luz, perda material não expressável pelos mecanismos vigentes e contrato cross-target completo de inversion/donation/starvation/cancel/deadline/admission/fault/liveness. Fontes primárias de Swift structured concurrency, Swift executor preference, Tokio fairness e Java SE 25 Thread foram verificadas em 2026-08-26 |
+| W-1484 | direct entry `sync` com prova `neverSuspend` | `sync f()` é uma call direta na mesma task/context/domain, sem Task, suspensão, thread blocking, event-loop reentry, authority, quota, provider, fallback ou `blocksThread`; exige spelling explícito `async fn` e `directEntry: available`, derivado sobre todo o body antes de specialization. A async entry continua publicando `suspension: may`, enquanto `sync` seleciona a direct entry `neverSuspend`. A prova aceita `sync` para outro facet available e compõe essas dependências por ponto fixo, inclusive SCCs sem provar termination; await/bare maySuspend, sync para facet absent e sync inválido para ordinary tornam o caller absent. Function type/HIR/WInterface preservam o facet; export concrete que o remove quebra source/API e muda `SemanticInterfaceKey`; protocol/foreign/interface bodyless e erasure sem facet não aceitam sync; overload resolve antes do facet; ordinary e async entries podem coexistir pela ABI W-1163 | oracle-backed-current por `DRC0-W-1484-current` e SYNC1; W-1484 substitui somente a semântica blocking de W-1471. Semantic checker, type/HIR/interface, dual-entry lowering/ABI, cross-module/erasure, diagnostics e estudos humano/modelo continuam missing. Swift SE-0296, Kotlin coroutines basics e Rust `Future` foram verificados em 2026-08-26; são precedentes de potential suspension e da separação entre suspension, polling e thread blocking, não execução W |
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
@@ -7554,14 +7607,48 @@ parent e owned pelo scope. O initializer é a posição comum para call direta,
 uma expression composta, e a forma corrente não fornece shim para código
 antigo.
 
-W-1471 fecha a pergunta sintática: a bridge `sync` não pode ser inferida de
-`maySuspend`; somente `async fn` explícito dá uma precondição source-visible
-estável. Uma callable may-suspend por inferência continua válida em `await`,
-`async` e `spawn`, mas `sync` nela é error. A bridge blocking exige authority,
-quota, provider, deadlock/fairness e cancellation evidence. Ela mantém o scope
-estruturado e bloqueia a thread. `runBlocking` de Kotlin é precedente de uso
-localizado, não evidência de uma policy portátil. DRC0 fecha o design; frontend
-e runtime continuam gaps.
+W-1471 fechou inicialmente `sync` como uma bridge blocking. W-1484 substitui
+somente essa interpretação. A motivação é tornar a promessa source-visible e
+estática: `sync f()` só chama uma ordinary entry cuja declaration explícita
+`async fn` possui prova `neverSuspend` sobre todo o body. A call permanece na
+mesma task, context e domain; não bloqueia thread, não cria Task e não depende
+de runtime ou provider. Uma callable may-suspend por inferência, uma interface
+bodyless e um function value que apagou o facet continuam disponíveis para
+`await`, `async` e `spawn`, mas não para `sync`.
+
+A prova precede specialization e não usa readiness. Por isso um corpo que
+retorna do cache em um ramo, mas alcança `await catalog` em outro, não recebe
+direct entry, mesmo quando o caller conhece o cache hit. Essa regra evita
+partial effects e um trap `WouldSuspend`. Remover `directEntry: available` de
+uma export concrete muda a interface e a `SemanticInterfaceKey`; um optimizer
+não pode alterar a validade do call site. `try` continua independente porque a
+ordinary entry ainda pode lançar error.
+
+Uma call `sync` para outro function type com `directEntry: available` compõe a
+prova: a async entry ainda publica `suspension: may`, mas a call seleciona sua
+entry `neverSuspend`. O checker calcula essas dependências por ponto fixo e pode
+aceitar um SCC formado apenas por calls `sync` elegíveis. Isso não executa a
+recursão nem prova termination. A perda transitiva de um facet torna os callers
+`absent`; uma call bare ou `await` para `maySuspend`, ou `sync` para ordinary,
+summary sem facet ou callee desconhecido, não entra como call segura na prova
+do caller.
+
+A proposta [Swift SE-0296](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0296-async-await.md)
+torna potential suspension explícita em `await` e separa essa propriedade de
+uma bridge blocking geral. O guia [Kotlin coroutines basics](https://kotlinlang.org/docs/coroutines-basics.html)
+separa suspensão de thread blocking e usa `runBlocking` como uma bridge que
+realmente bloqueia; W rejeita esse modelo para `sync`. O trait
+[Rust `Future`](https://doc.rust-lang.org/std/future/trait.Future.html) mostra
+que um poll pending não entrega `Output` e não deve bloquear. As três fontes
+foram acessadas em 2026-08-26. Elas sustentam a separação conceitual; não provam
+compiler, ABI ou runtime W.
+
+Alternativas rejeitadas: alias de `await`, execução até first-pending, event
+loop reentrante oculto, conversão recursiva de `await` para `sync`, fast path
+dinâmico, bridge blocking no estilo W-1471/Kotlin `runBlocking` e `sync` como
+no-op sobre função ordinary. DRC0/SYNC1 fecha o design; checker semântico,
+function type/HIR/interface, dual-entry lowering, cross-module/erasure,
+diagnostics e estudos humano/modelo continuam gaps.
 
 W-1472 não cria outro tipo de view. `ref` observa o place completo e
 `view` observa uma projeção da família do carrier. A diferença de metadata,
@@ -7682,6 +7769,7 @@ ownership é corrente; frameworks, kernels, providers e benchmarks não são.
 
 As três pastas de estudo têm dados estruturados, casos positivos e adversariais,
 oracles independentes e checkers no package root. DRC0 acrescenta um caso de
-fechamento independente para W-1471, W-1473, W-1474 e W-1475. Cada README marca
-o limite entre design-oracle-input e implementação. Somente W-1471 seleciona
-nova syntax; os outros estudos fecham direções sem promover uma API universal.
+fechamento independente para W-1484, W-1473, W-1474 e W-1475 e preserva W-1471
+como superseded. Cada README marca o limite entre design-oracle-input e
+implementação. Somente W-1484 seleciona a semântica vigente da syntax `sync`;
+os outros estudos fecham direções sem promover uma API universal.

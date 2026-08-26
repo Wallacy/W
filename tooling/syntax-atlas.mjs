@@ -24,7 +24,7 @@ const REQUIRED_VARIANT_IDS = [
   "import-ordinary", "import-domain", "import-service", "import-wildcard",
   "entry-explicit", "allocator-named", "allocator-anonymous", "allocator-root-plan", "allocator-none", "allocator-contextual-parameter", "allocator-contextual-call",
   "ownership-ref", "ownership-inout", "ownership-take", "ownership-shared", "ownership-weak", "ownership-view", "ownership-pin", "ownership-atomic",
-  "execution-direct", "execution-await", "execution-async-initializer", "execution-spawn",
+  "execution-direct", "execution-await", "execution-sync", "execution-async-initializer", "execution-spawn",
   "callable-positional", "callable-required-homonym", "callable-optional-label", "callable-required-external", "callable-default", "callable-rest", "callable-some-fn", "callable-any-fn", "callable-static", "callable-generic",
   "closure-copy", "closure-ref", "closure-take", "closure-weak",
   "property-get", "property-set", "property-modify",

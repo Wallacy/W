@@ -304,6 +304,7 @@ function declarationBodies(source) {
       hasBody: bodyStart >= 0,
       exported: Boolean(match[1]),
       scope: owner?.id ?? "module",
+      scopeKind: owner?.kind ?? "module",
     })
   }
   return declarations
@@ -724,6 +725,84 @@ function bodyCalls(body) {
     .filter((name) => !["if", "for", "while", "switch", "return", "Task"].includes(name))
 }
 
+function directEntryLocalBlockers(declaration) {
+  const blockers = []
+  if (!declaration.explicitAsync) blockers.push("source-spelling-not-explicit-async")
+  if (!declaration.hasBody) blockers.push("body-unavailable")
+  if (declaration.boundary === "foreign") blockers.push("foreign-boundary")
+  if (/\bawait\b/.test(declaration.body)) blockers.push("potential-await")
+  if (/\bTask\s*\.\s*yield\s*\(/.test(declaration.body)) blockers.push("task-yield")
+  if (/\blet\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*(?:async\b|spawn\s*<)/.test(declaration.body)) blockers.push("child-initializer")
+  if (/(?:\.|\b)join\s*\(/.test(declaration.body)) blockers.push("task-join")
+  if (/\bdefer\s+async\b/.test(declaration.body)) blockers.push("async-defer")
+  return [...new Set(blockers)]
+}
+
+function deriveDirectEntries(declarations, suspensionByName, input = {}) {
+  const byName = new Map(declarations.map((declaration) => [declaration.name, declaration]))
+  const external = new Map((input.functionTypes ?? []).map((summary) => [summary.name, summary]))
+  const blockers = new Map(declarations.map((declaration) => [declaration.name, directEntryLocalBlockers(declaration)]))
+  const available = new Set(declarations
+    .filter((declaration) => blockers.get(declaration.name).length === 0)
+    .map((declaration) => declaration.name))
+
+  // Start with every locally eligible declaration and remove declarations
+  // whose sync-call dependencies lose their direct entry. This greatest fixed
+  // point accepts recursive sync-call SCCs without proving that they terminate.
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const declaration of declarations) {
+      if (!available.has(declaration.name)) continue
+      const callBlockers = []
+      for (const call of parseCalls(declaration.body)) {
+        const local = byName.get(call.callee)
+        if (local) {
+          if (call.callForm === "sync") {
+            if (local.explicitAsync && available.has(local.name)) continue
+            callBlockers.push(`invalid-sync-call:${call.callee}`)
+            continue
+          }
+          const suspension = suspensionByName.get(local.name) ?? "never"
+          if (suspension === "never") continue
+          callBlockers.push(`may-suspend-call:${call.callee}`)
+          continue
+        }
+        const summary = external.get(call.callee)
+        if (summary) {
+          if (call.callForm === "sync") {
+            if (summary.suspension === "may"
+              && summary.sourceSpelling === "explicit"
+              && summary.directEntry === "available") continue
+            callBlockers.push(`invalid-sync-call:${call.callee}`)
+            continue
+          }
+          if (summary.suspension !== "may") continue
+          callBlockers.push(`may-suspend-call:${call.callee}`)
+          continue
+        }
+        // Nominal constructors are value formation in this bounded oracle.
+        // Unknown lower-case functions and member calls are conservatively
+        // treated as potentially suspending until a function-type summary is
+        // present.
+        if (call.callForm === "sync") {
+          callBlockers.push(`invalid-sync-call:${call.callee}`)
+          continue
+        }
+        if (!call.member && /^[A-Z]/.test(call.callee)) continue
+        callBlockers.push(`unknown-call-summary:${call.callee}`)
+      }
+      if (callBlockers.length > 0) {
+        blockers.set(declaration.name, [...blockers.get(declaration.name), ...new Set(callBlockers)])
+        available.delete(declaration.name)
+        changed = true
+      }
+    }
+  }
+
+  return { available, blockers, external }
+}
+
 function stronglyConnected(nodes, edges) {
   let index = 0
   const stack = []
@@ -762,10 +841,13 @@ function deriveSuspension(source, declarations, input = {}) {
   const names = declarations.map((declaration) => declaration.name)
   const byName = new Map(declarations.map((declaration) => [declaration.name, declaration]))
   const edges = new Map(names.map((name) => [name, new Set()]))
+  const external = new Map((input.functionTypes ?? []).map((summary) => [summary.name, summary]))
   const may = new Set(input.functionTypes?.filter((item) => item.suspension === "may").map((item) => item.name) ?? [])
   for (const declaration of declarations) {
     if (declaration.explicitAsync || /\bawait\b|\blet\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*(?:async|spawn\s*<)/.test(declaration.body)) may.add(declaration.name)
-    for (const callee of bodyCalls(declaration.body)) if (byName.has(callee)) edges.get(declaration.name).add(callee)
+    for (const call of parseCalls(declaration.body)) {
+      if (call.callForm !== "sync" && byName.has(call.callee)) edges.get(declaration.name).add(call.callee)
+    }
   }
   let changed = true
   while (changed) {
@@ -779,16 +861,48 @@ function deriveSuspension(source, declarations, input = {}) {
     }
   }
   const components = stronglyConnected(names, edges)
+  const directEntryEdges = new Map(names.map((name) => [name, new Set()]))
+  for (const declaration of declarations) {
+    for (const call of parseCalls(declaration.body)) {
+      if (call.callForm === "sync" && byName.has(call.callee)) {
+        directEntryEdges.get(declaration.name).add(call.callee)
+      }
+    }
+  }
+  const directEntryComponents = stronglyConnected(names, directEntryEdges)
+  const suspensionByName = new Map([
+    ...names.map((name) => [name, may.has(name) ? "may" : "never"]),
+    ...(input.functionTypes ?? []).map((summary) => [summary.name, summary.suspension ?? "never"]),
+  ])
+  const direct = deriveDirectEntries(declarations, suspensionByName, input)
   const calls = parseCalls(source).map((call) => {
-    const suspension = may.has(call.callee) ? "may" : "never"
-    const explicitAsync = byName.get(call.callee)?.explicitAsync === true
+    const declaration = byName.get(call.callee)
+    const summary = external.get(call.callee)
+    const suspension = suspensionByName.get(call.callee) ?? "never"
+    const sourceSpelling = declaration?.explicitAsync === true
+      ? "explicit"
+      : summary?.sourceSpelling
+        ?? (suspension === "may" ? "inferred" : "none")
+    const directEntry = declaration
+      ? direct.available.has(call.callee) ? "available" : "absent"
+      : summary?.directEntry ?? "absent"
     const invalidBare = suspension === "may" && call.callForm === "direct"
-    const syncEligible = call.callForm === "sync" && suspension === "may" && explicitAsync
-    return { ...call, suspension, sourceSpelling: explicitAsync ? "explicit" : suspension === "may" ? "inferred" : "none", invalidBare, syncEligible }
+    const syncEligible = call.callForm === "sync"
+      && suspension === "may"
+      && sourceSpelling === "explicit"
+      && directEntry === "available"
+    return { ...call, suspension, sourceSpelling, directEntry, invalidBare, syncEligible }
   })
   const diagnostics = calls.filter((call) => call.invalidBare).map((call) => ({ code: "W-SUSPEND-0001", callee: call.callee, callForm: call.callForm }))
   for (const call of calls.filter((candidate) => candidate.callForm === "sync" && !candidate.syncEligible)) {
-    diagnostics.push({ code: "W-SUSPEND-0005", callee: call.callee, reason: "sync requires explicit async fn and maySuspend" })
+    diagnostics.push({
+      code: "W-SUSPEND-0005",
+      callee: call.callee,
+      sourceSpelling: call.sourceSpelling,
+      suspension: call.suspension,
+      directEntry: call.directEntry,
+      reason: "sync requires explicit async fn with directEntry available",
+    })
   }
   const removable = calls.filter((call) => call.suspension === "never" && call.callForm === "await")
   for (const call of removable) diagnostics.push({ code: "W-SUSPEND-0002", callee: call.callee, callForm: call.callForm })
@@ -814,24 +928,79 @@ function deriveSuspension(source, declarations, input = {}) {
   }))
   const publicContract = input.publicContract
   const publicResult = publicContract
-    ? {
+    ? (() => {
+      const widening = publicContract.previous === "never" && publicContract.current === "may"
+      const directEntryRemoved = publicContract.previousDirectEntry === "available"
+        && publicContract.currentDirectEntry === "absent"
+      const exported = publicContract.exported !== false
+      return {
         previous: publicContract.previous,
         current: publicContract.current,
         explicit: Boolean(publicContract.explicitAsync),
-        widening: publicContract.previous === "never" && publicContract.current === "may",
-        sourceBreaking: publicContract.exported !== false && publicContract.previous === "never" && publicContract.current === "may",
+        previousDirectEntry: publicContract.previousDirectEntry ?? "absent",
+        currentDirectEntry: publicContract.currentDirectEntry ?? "absent",
+        widening,
+        directEntryRemoved,
+        sourceBreaking: exported && (widening || directEntryRemoved),
+        semanticInterfaceKeyChanged: exported && directEntryRemoved,
       }
+    })()
     : null
   return {
-    declarations: declarations.map((declaration) => ({ name: declaration.name, suspension: may.has(declaration.name) ? "may" : "never", sourceSpelling: declaration.explicitAsync ? "explicit" : may.has(declaration.name) ? "inferred" : "none" })),
+    declarations: declarations.map((declaration) => ({
+      name: declaration.name,
+      suspension: may.has(declaration.name) ? "may" : "never",
+      asyncEntrySuspension: declaration.explicitAsync ? "may" : null,
+      sourceSpelling: declaration.explicitAsync ? "explicit" : may.has(declaration.name) ? "inferred" : "none",
+      directEntry: direct.available.has(declaration.name) ? "available" : "absent",
+      directEntrySuspension: direct.available.has(declaration.name) ? "never" : null,
+      directEntryProof: {
+        scope: "declaration-wide",
+        beforeSpecialization: true,
+        dynamicReadinessUsed: false,
+        blockers: direct.blockers.get(declaration.name) ?? [],
+      },
+      boundary: declaration.boundary,
+      hasBody: declaration.hasBody,
+      exported: declaration.exported,
+    })),
     calls,
     children,
     staging: children.length > 0 ? ["callee", "arguments", "captures", "reserve", "publish"] : [],
     scc: components.map((members) => ({ members, suspension: members.some((member) => may.has(member)) ? "may" : "never" })),
+    directEntryScc: directEntryComponents.map((members) => {
+      const recursive = members.length > 1
+        || (members.length === 1 && directEntryEdges.get(members[0])?.has(members[0]))
+      return {
+        members,
+        directEntry: members.every((member) => direct.available.has(member)) ? "available" : "absent",
+        recursive,
+        terminationProven: recursive ? false : null,
+        evaluationPerformed: false,
+      }
+    }),
     diagnostics: [...diagnostics, ...placementDiagnostics],
-    syncBridges: calls.filter((call) => call.callForm === "sync").map((call) => ({ callee: call.callee, eligible: call.syncEligible, blocksThread: call.syncEligible, sourceSpelling: call.sourceSpelling })),
+    syncCalls: calls.filter((call) => call.callForm === "sync").map((call) => ({
+      callee: call.callee,
+      eligible: call.syncEligible,
+      sourceSpelling: call.sourceSpelling,
+      directEntry: call.directEntry,
+      publishedSuspension: call.suspension,
+      selectedEntry: call.syncEligible ? "direct" : null,
+      selectedEntrySuspension: call.syncEligible ? "never" : null,
+      blocksThread: false,
+      createsTask: false,
+      suspendsTask: false,
+      sameTask: true,
+      sameContext: true,
+      sameDomain: true,
+      runtimeFallback: false,
+      partialEffectsBeforeRejection: false,
+    })),
     public: publicResult,
     tryOrthogonal: /\btry\b/.test(source),
+    overloadResolutionBeforeDirectEntry: true,
+    optimizerChangesSourceValidity: false,
   }
 }
 
@@ -1190,6 +1359,7 @@ export function deriveExecutionErgonomics(source, input = {}) {
     forms: {
       direct: "same-task/neverSuspend",
       await: "same-task/maySuspend",
+      sync: "same-task/directEntry/neverSuspend",
       async: "structured-child/current-domain",
       spawn: "structured-child/explicit-domain",
     },

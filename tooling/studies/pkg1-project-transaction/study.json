@@ -24,7 +24,7 @@
     {
       "path": "../../../reference/last-light/BUILD.md",
       "symbol": "deployment",
-      "digest": "sha256:7e0c4cce0e6eb2e0bcc7267b19f10b332c4252747fe584eb2ee4d3dcdaaeb6cf",
+      "digest": "sha256:044ebb8c2cf0f001082219d69c0003f71c3e69e7d08a34cc6f22b7580ceefbce",
       "claim": "Reference build documents named deployment records."
     },
     {
@@ -118,7 +118,7 @@
     },
     {
       "path": "bundle.json",
-      "digest": "sha256:21981f3b96d8108c19ca13b497a235b009908abfde77246967343c8490a31351",
+      "digest": "sha256:e928bf281376465ce2d2ebbbb4f51cb212948530286341f7304d4f32f000af54",
       "role": "study-bundle"
     },
     {

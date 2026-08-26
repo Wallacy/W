@@ -1079,11 +1079,12 @@
       "state": "active",
       "phase": "semantic.effect",
       "defaultSeverity": "error",
-      "meaning": "a sync bridge requires an explicitly declared async maySuspend callable",
+      "meaning": "a sync call requires an explicitly declared async callable whose function type preserves directEntry available",
       "requiredFacts": {
         "callee": "string",
         "sourceSpelling": "string",
         "suspension": "string",
+        "directEntry": "string",
         "reason": "string"
       },
       "labelRoles": {},

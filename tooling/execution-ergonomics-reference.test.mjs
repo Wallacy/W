@@ -256,6 +256,7 @@ test("suspension is inferred monotonically and child accepts sync or may", () =>
   assert.deepEqual(result.forms, {
     direct: "same-task/neverSuspend",
     await: "same-task/maySuspend",
+    sync: "same-task/directEntry/neverSuspend",
     async: "structured-child/current-domain",
     spawn: "structured-child/explicit-domain",
   })
@@ -278,15 +279,164 @@ test("bare maySuspend and blocking wait are errors; await never is removable", (
   assert.ok(diagnostics.includes("W-SUSPEND-0003"))
 })
 
-test("sync is the selected bridge only for explicit async declarations", () => {
-  const accepted = deriveExecutionErgonomics("async fn func() { await Task.yield(); return value }\nlet y = sync func()")
-  assert.deepEqual(accepted.suspension.syncBridges, [{ callee: "func", eligible: true, blocksThread: true, sourceSpelling: "explicit" }])
+test("sync uses only a proven direct entry and never blocks or creates a task", () => {
+  const accepted = deriveExecutionErgonomics("async fn func(): Value throws String { return value }\nlet y = try sync func()")
+  assert.deepEqual(accepted.suspension.syncCalls, [{
+    callee: "func",
+    eligible: true,
+    sourceSpelling: "explicit",
+    directEntry: "available",
+    publishedSuspension: "may",
+    selectedEntry: "direct",
+    selectedEntrySuspension: "never",
+    blocksThread: false,
+    createsTask: false,
+    suspendsTask: false,
+    sameTask: true,
+    sameContext: true,
+    sameDomain: true,
+    runtimeFallback: false,
+    partialEffectsBeforeRejection: false,
+  }])
+  assert.equal(accepted.suspension.tryOrthogonal, true)
+  assert.equal(accepted.suspension.declarations.find((item) => item.name === "func").directEntry, "available")
+
+  const suspending = deriveExecutionErgonomics("async fn func(): Value { await Task.yield(); return value }\nlet y = sync func()")
+  assert.ok(summarizeDiagnostics(suspending).includes("W-SUSPEND-0005"))
+  assert.equal(suspending.suspension.syncCalls[0].eligible, false)
+  assert.equal(suspending.suspension.syncCalls[0].partialEffectsBeforeRejection, false)
+
+  const dynamicPath = deriveExecutionErgonomics("async fn cached(hit: Bool): Value { if hit { return value }; return await catalog() }\nlet y = sync cached(true)", {
+    functionTypes: [{ name: "catalog", suspension: "may", sourceSpelling: "explicit", directEntry: "absent" }],
+  })
+  assert.ok(summarizeDiagnostics(dynamicPath).includes("W-SUSPEND-0005"))
+  assert.equal(dynamicPath.suspension.declarations.find((item) => item.name === "cached").directEntryProof.beforeSpecialization, true)
+  assert.equal(dynamicPath.suspension.declarations.find((item) => item.name === "cached").directEntryProof.dynamicReadinessUsed, false)
+
   const inferred = deriveExecutionErgonomics("fn inferredMay() { await Task.yield(); return value }\nlet y = sync inferredMay()")
   assert.ok(summarizeDiagnostics(inferred).includes("W-SUSPEND-0005"))
   const ordinary = deriveExecutionErgonomics("fn ordinary() { return value }\nlet y = sync ordinary()")
   assert.ok(summarizeDiagnostics(ordinary).includes("W-SUSPEND-0005"))
   const bare = deriveExecutionErgonomics("async fn func() { await Task.yield(); return value }\nlet w = func()")
   assert.ok(summarizeDiagnostics(bare).includes("W-SUSPEND-0001"))
+})
+
+test("directEntry is declaration-wide, preserved by function type, and part of public identity", () => {
+  for (const source of [
+    "async fn blocked(): Value { let child = async work(); return value }\nlet y = sync blocked()",
+    "async fn blocked(): Value { task.join(); return value }\nlet y = sync blocked()",
+    "async fn blocked(): Value { defer async { cleanup() }; return value }\nlet y = sync blocked()",
+  ]) assert.ok(summarizeDiagnostics(deriveExecutionErgonomics(source)).includes("W-SUSPEND-0005"))
+
+  const service = deriveExecutionErgonomics("async fn blocked(): Value { return catalog.fetch() }\nlet y = sync blocked()")
+  assert.ok(summarizeDiagnostics(service).includes("W-SUSPEND-0005"))
+
+  const protocol = deriveExecutionErgonomics("protocol Loader { async fn load(): Value }\nlet y = sync load()")
+  assert.equal(protocol.suspension.declarations.find((item) => item.name === "load").directEntry, "absent")
+  assert.ok(summarizeDiagnostics(protocol).includes("W-SUSPEND-0005"))
+  const foreign = deriveExecutionErgonomics("foreign c { async fn load(): Value }\nlet y = sync load()")
+  assert.equal(foreign.suspension.declarations.find((item) => item.name === "load").directEntry, "absent")
+
+  const indirect = deriveExecutionErgonomics("let y = sync worker()", {
+    functionTypes: [{ name: "worker", suspension: "may", sourceSpelling: "explicit", directEntry: "available" }],
+  })
+  assert.equal(indirect.suspension.syncCalls[0].eligible, true)
+  const erased = deriveExecutionErgonomics("let y = sync worker()", {
+    functionTypes: [{ name: "worker", suspension: "may", sourceSpelling: "explicit", directEntry: "absent" }],
+  })
+  assert.ok(summarizeDiagnostics(erased).includes("W-SUSPEND-0005"))
+
+  const publicFacet = deriveExecutionErgonomics("export async fn published(): Value { return value }", {
+    publicContract: {
+      previous: "may",
+      current: "may",
+      previousDirectEntry: "available",
+      currentDirectEntry: "absent",
+      exported: true,
+    },
+  })
+  assert.equal(publicFacet.suspension.public.directEntryRemoved, true)
+  assert.equal(publicFacet.suspension.public.sourceBreaking, true)
+  assert.equal(publicFacet.suspension.public.semanticInterfaceKeyChanged, true)
+  assert.equal(publicFacet.suspension.overloadResolutionBeforeDirectEntry, true)
+  assert.equal(publicFacet.suspension.optimizerChangesSourceValidity, false)
+})
+
+test("directEntry composes through sync calls and recursive SCCs without a termination proof", () => {
+  const composed = deriveExecutionErgonomics(`
+    async fn leaf(): Value { return value }
+    async fn wrapper(): Value { return sync leaf() }
+    let result = sync wrapper()
+  `)
+  for (const name of ["leaf", "wrapper"]) {
+    const declaration = composed.suspension.declarations.find((item) => item.name === name)
+    assert.equal(declaration.suspension, "may")
+    assert.equal(declaration.asyncEntrySuspension, "may")
+    assert.equal(declaration.directEntry, "available")
+    assert.equal(declaration.directEntrySuspension, "never")
+  }
+  assert.deepEqual(summarizeDiagnostics(composed), [])
+  assert.deepEqual(
+    composed.suspension.syncCalls.filter((call) => ["leaf", "wrapper"].includes(call.callee))
+      .map((call) => [call.callee, call.publishedSuspension, call.selectedEntrySuspension]),
+    [["leaf", "may", "never"], ["wrapper", "may", "never"]],
+  )
+
+  const lost = deriveExecutionErgonomics(`
+    async fn leaf(): Value { return await catalog() }
+    async fn middle(): Value { return sync leaf() }
+    async fn top(): Value { return sync middle() }
+    let result = sync top()
+  `, { functionTypes: [{ name: "catalog", suspension: "may", sourceSpelling: "explicit", directEntry: "absent" }] })
+  for (const name of ["leaf", "middle", "top"]) {
+    assert.equal(lost.suspension.declarations.find((item) => item.name === name).directEntry, "absent")
+  }
+  assert.ok(summarizeDiagnostics(lost).includes("W-SUSPEND-0005"))
+
+  const invalidLocal = deriveExecutionErgonomics(`
+    fn ordinary(): Value { return value }
+    async fn wrapper(): Value { return sync ordinary() }
+    let result = sync wrapper()
+  `)
+  assert.equal(invalidLocal.suspension.declarations.find((item) => item.name === "wrapper").directEntry, "absent")
+  assert.ok(summarizeDiagnostics(invalidLocal).includes("W-SUSPEND-0005"))
+
+  const invalidExternal = deriveExecutionErgonomics(`
+    async fn wrapper(): Value { return sync ordinary() }
+    let result = sync wrapper()
+  `, { functionTypes: [{ name: "ordinary", suspension: "never", sourceSpelling: "none", directEntry: "absent" }] })
+  assert.equal(invalidExternal.suspension.declarations.find((item) => item.name === "wrapper").directEntry, "absent")
+  assert.ok(summarizeDiagnostics(invalidExternal).includes("W-SUSPEND-0005"))
+
+  const inconsistentExternal = deriveExecutionErgonomics(`
+    async fn wrapper(): Value { return sync worker() }
+    let result = sync wrapper()
+  `, { functionTypes: [{ name: "worker", suspension: "never", sourceSpelling: "explicit", directEntry: "available" }] })
+  assert.equal(inconsistentExternal.suspension.declarations.find((item) => item.name === "wrapper").directEntry, "absent")
+  assert.ok(summarizeDiagnostics(inconsistentExternal).includes("W-SUSPEND-0005"))
+
+  const invalidUnknown = deriveExecutionErgonomics(`
+    async fn wrapper(): Value { return sync Foo() }
+    let result = sync wrapper()
+  `)
+  assert.equal(invalidUnknown.suspension.declarations.find((item) => item.name === "wrapper").directEntry, "absent")
+  assert.ok(summarizeDiagnostics(invalidUnknown).includes("W-SUSPEND-0005"))
+
+  const recursive = deriveExecutionErgonomics(`
+    async fn even(n: usize): Bool { return if n == 0 { true } else { sync odd(n - 1) } }
+    async fn odd(n: usize): Bool { return if n == 0 { false } else { sync even(n - 1) } }
+    let result = sync even(2)
+  `)
+  const component = recursive.suspension.directEntryScc.find((item) =>
+    item.members.includes("even") && item.members.includes("odd"))
+  assert.deepEqual(component, {
+    members: ["even", "odd"],
+    directEntry: "available",
+    recursive: true,
+    terminationProven: false,
+    evaluationPerformed: false,
+  })
+  assert.deepEqual(summarizeDiagnostics(recursive), [])
 })
 
 test("spawn dispatches to serial or concurrent domains and requires a target", () => {
