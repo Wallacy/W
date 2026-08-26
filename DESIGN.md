@@ -10653,8 +10653,25 @@ Quando o behavior exige `initialValue`, a declaração de aplicação
 slot. O initializer do behavior chama o slot conforme as restrições de effects
 vigentes. Ausência do initializer produz `W-BEHAVIOR-0001`. Nome, aridade, type,
 `throws`, `await` ou effects incompatíveis também produzem esse diagnostic.
-Slots adicionais ou nomes alternativos exigem syntax de binding na aplicação e
-ficam **Pesquisa**. Um identifier solto sem `input` e `type` é rejeitado.
+Um identifier solto sem `input` e `type` é rejeitado.
+
+**W-1478 — aplicação fechada de behavior:** a baseline aceita exatamente zero
+ou um input. Quando existe, ele é `input initialValue: fn(): Value`. Outro nome
+ou um segundo input produz `W-BEHAVIOR-0001`. A aplicação usa somente o nome
+nominal do behavior. Ela não aceita argumentos, generic arguments, lista por
+vírgula ou acesso ao backing.
+
+Todo parâmetro generic do behavior deve ser inferido de forma única pela
+unificação do tipo lógico da property com o pattern depois de `for`. Um
+parâmetro que não aparece nesse pattern é inválido. A interface normalizada
+registra o behavior nominal, a especialização inferida e o slot
+`initialValue`, quando presente. O source não repete esses argumentos.
+
+Uma policy estática pertence ao tipo lógico. Use refinement, newtype ou value
+parameter do tipo. Uma dependência runtime pertence ao owner e entra por método,
+service ou channel nomeado. Um wrapper nominal explícito atende ao caso que
+precisa guardar configuração por instância. W não transforma behavior em um
+segundo sistema de initializer, capture ou dependency injection.
 
 O uso de inicialização tardia continua simples:
 
@@ -10665,6 +10682,12 @@ var Lazy heatProfile = deriveHeatProfile(model)
 Um behavior definido pelo programa aceita somente `init`, `get`, `set` e
 `modify` síncronos e sem `throws`. Ele não suspende, bloqueia, faz I/O, cria
 tasks ou adquire authority. Behavior não concede mobilidade ou atomicidade.
+
+`modify` pode usar `defer` como hook local pós-borrow. O hook executa uma vez
+depois que o borrow exclusivo termina, inclusive quando a operação do caller
+termina com error. Ele observa uma mutation admission, não uma comparação de
+valor. Um behavior que precisa detectar mudança real usa storage explícito ou
+um método nomeado. Ele não solicita uma cópia oculta do valor anterior.
 
 **W-1193 — estado lógico de `Lazy`:** `Lazy` é um behavior padrão reconhecido
 pelo compiler. Ele possui estes estados lógicos:

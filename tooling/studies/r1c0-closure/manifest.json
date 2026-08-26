@@ -151,7 +151,7 @@
     {
       "id": "R1-avf0-availability-feature",
       "path": "tooling/studies/avf0-availability-feature/bundle.json",
-      "digest": "sha256:ed88832a33cd7dc5e4bb43afe18b42eeec1ffe8ec4d01aa41436cb03c34b7412"
+      "digest": "sha256:e5069d0186cb22dc0be3c52fa5d738fa09fac3fe210544a557a2f89b0f3cb5b4"
     },
     {
       "id": "R1-borrow-expressivity",
@@ -171,7 +171,7 @@
     {
       "id": "R1-call-label-order",
       "path": "tooling/studies/r1-call-label-order/bundle.json",
-      "digest": "sha256:300caeeff3f08ff6c5ee1d9204c0229264ad5ebc027416b2291f556a7dcb8b2c"
+      "digest": "sha256:f6b98829f340788c47cceafad27f4713185f201afced440bf89267a0fa0870da"
     },
     {
       "id": "R1-callable-model-last-light",
@@ -216,7 +216,7 @@
     {
       "id": "R1-data-declaration-surface",
       "path": "tooling/studies/r1-data-declaration-surface/bundle.json",
-      "digest": "sha256:1716e2a0f44623646b044762b2ffce7e01a072415da877662c040b28446b1e16"
+      "digest": "sha256:5f508d985c8b9f831d9c7d24387085bc118625f0390f68967ffcfc8d48106e3d"
     },
     {
       "id": "R1-delimited-value-surface",
@@ -231,7 +231,7 @@
     {
       "id": "R1-end-relative-access",
       "path": "tooling/studies/r1-end-relative-access/bundle.json",
-      "digest": "sha256:c1ba27d88da6991425ed527d39167145a4ce33e16372fc383dee544073598212"
+      "digest": "sha256:6b111f145b01f4679bee02e312c732fb10802d5610859f20d866ba1e433c2a84"
     },
     {
       "id": "R1-fail-fast-last-light",
