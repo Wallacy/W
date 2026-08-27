@@ -17,6 +17,7 @@ add_library(w_seed_source STATIC
   src/w_seed_ephemeral_graph.c
   src/w_seed_ephemeral_provider.c
   src/w_seed_ephemeral_provider_linux.c
+  src/w_seed_ephemeral_driver.c
   src/w_seed_formatter.c
   src/w_seed_sha256.c
   src/w_seed_diagnostic.c
@@ -98,6 +99,16 @@ add_executable(w_seed_ephemeral_provider_adapter_tests
   tests/test_ephemeral_provider_linux.c
 )
 target_link_libraries(w_seed_ephemeral_provider_adapter_tests PRIVATE w_seed_source)
+
+add_executable(w_seed_ephemeral_driver_tests
+  tests/test_ephemeral_driver.c
+)
+target_link_libraries(w_seed_ephemeral_driver_tests PRIVATE w_seed_source)
+
+add_executable(w_seed_ephemeral_driver_linux_tests
+  tests/test_ephemeral_driver_linux.c
+)
+target_link_libraries(w_seed_ephemeral_driver_linux_tests PRIVATE w_seed_source)
 
 add_executable(w_seed_formatter_probe
   tests/formatter_probe.c
@@ -183,6 +194,8 @@ if(MSVC)
   target_compile_options(w_seed_ephemeral_graph_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_ephemeral_provider_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_ephemeral_provider_adapter_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_ephemeral_driver_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_ephemeral_driver_linux_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_formatter_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_formatter_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_diagnostic_probe PRIVATE /W4 /WX)
@@ -280,6 +293,24 @@ else()
     -Werror
   )
   target_compile_options(w_seed_ephemeral_provider_adapter_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_ephemeral_driver_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_ephemeral_driver_linux_tests PRIVATE
     -Wall
     -Wextra
     -Wpedantic
@@ -434,6 +465,8 @@ add_test(NAME w_seed_module_scan_unit COMMAND w_seed_module_scan_tests)
 add_test(NAME w_seed_ephemeral_graph_unit COMMAND w_seed_ephemeral_graph_tests)
 add_test(NAME w_seed_ephemeral_provider_core_unit COMMAND w_seed_ephemeral_provider_tests)
 add_test(NAME w_seed_ephemeral_provider_adapter_unit COMMAND w_seed_ephemeral_provider_adapter_tests)
+add_test(NAME w_seed_ephemeral_driver_unit COMMAND w_seed_ephemeral_driver_tests)
+add_test(NAME w_seed_ephemeral_driver_linux_unit COMMAND w_seed_ephemeral_driver_linux_tests)
 add_test(NAME w_seed_formatter_unit COMMAND w_seed_formatter_tests)
 add_test(NAME w_seed_diagnostic_unit COMMAND w_seed_diagnostic_tests)
 add_test(NAME w_seed_foreign_unit COMMAND w_seed_foreign_tests)

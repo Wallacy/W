@@ -373,10 +373,41 @@ repete os binários, exige stdout determinístico e stderr vazio, registra
 
     bun tooling/check-seed-ephemeral-provider.mjs
 
-Discovery loop, NFC completo, provider std, adapter Windows real,
-reexport/service-import, package/workspace, `w check` multi-file, diagnostics
-completos e conformance multiplataforma não testada permanecem gaps. `w check`
-continua closed-single-source.
+O discovery loop interno bounded tem evidência no CHK6 abaixo. NFC completo,
+provider std, adapter Windows real, reexport/service-import,
+package/workspace, `w check` multi-file, diagnostics completos e conformance
+multiplataforma não testada permanecem gaps. `w check` continua
+closed-single-source.
+
+## Driver de descoberta efêmera (CHK6)
+
+`include/w_seed_ephemeral_driver.h` e `src/w_seed_ephemeral_driver.c` formam
+um driver C11 interno, bounded e caller-owned para descoberta local iterativa a
+partir de uma root e de um `SourceId` root explícitos. Em waves limitadas, ele
+compõe a aquisição/revalidação CHK5, parser e module scan, e o graph builder
+CHK4. O resultado entrega a um caller futuro os documentos em ordem lógica e
+os imports resolvidos. Ele não chama o frontend, não abre a CLI pública
+`w check` multi-file e não faz scan de diretório, cwd, PATH, environment, fetch
+ou fallback.
+
+O driver separa scratch mutável de outputs publicados e falha fechado. A última
+wave estável é a aquisição cujos bytes, CST e facts alimentam o graph, mas waves
+sucessivas não constituem uma transação única de snapshot: candidates antigos
+podem ser readquiridos, e o CHK4 publica somente nodes alcançados. Os limites
+finitos de sources, edges, depth, bytes, rounds e capacities são caller/provider
+owned; `std`/`std.*`, NFC completo, package/workspace, owner detection e
+adapter Windows real permanecem fora. A proveniência de capacity do parser é
+evidência interna do driver, sem novo mapping de diagnóstico D0 público.
+
+O teste fake backend cobre cadeia transitiva, root header divergente,
+discovery determinístico, candidate não alcançado, missing, `std`, não-ASCII,
+header mismatch, parse incomplete/issues, cycle, limites, overlap e outputs
+inalterados. O adapter Linux cobre a árvore real, child nested, missing e
+symlink/escape; fora de Linux o stub retorna `UNSUPPORTED` sem abrir handles.
+O gate repete os testes, exige stdout determinístico e mantém a prova real de
+Linux ou registra um skip explícito:
+
+    bun tooling/check-seed-ephemeral-driver.mjs
 
 ## Frontend seed interno (fatia semântica)
 

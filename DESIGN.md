@@ -31289,13 +31289,25 @@ ou recipe. Os limits pertencem ao profile ou provider. O oracle usa somente
 defaults de fixture não normativos de 64 sources, 4096 edges, depth 64 e 16
 MiB de source bytes, e prova bounds finitos para cada dimensão.
 
-A evidência executável desta fronteira agora tem três cortes. CHK3 prova a
+A evidência executável desta fronteira agora tem quatro cortes. CHK3 prova a
 fronteira caller-owned de origins e edges resolvidos. CHK4 prova o builder
 caller-owned do graph, sem abrir filesystem. CHK5 prova o core bounded de
 aquisição/revalidação para a root física e os `SourceId` explicitamente
 solicitados, além do adapter Linux real ancorado em `openat2` quando essa
-capability está disponível. O core publica somente após snapshot antes/depois,
-validação de bytes e digest, e mantém outputs inalterados em falha.
+capability está disponível. CHK6 prova um driver C11 interno caller-owned de
+descoberta local iterativa a partir de uma root explícita, compondo uma
+aquisição/revalidação CHK5, parser/module scan e graph CHK4. Ele entrega ao
+caller futuro os documentos em `document_order` e os imports resolvidos; não
+chama o frontend nem abre a CLI pública `w check` multi-file. O core e o
+driver publicam somente após seus preflights bounded; bytes, CST/facts da
+última wave estável e graph permanecem coerentes, e outputs publicados ficam
+inalterados em falha.
+
+As waves de CHK6 não formam uma transação única de snapshot: um candidate de
+wave anterior pode ser readquirido, e o CHK4 continua sendo a autoridade de
+reachability e publica somente os nodes alcançados. A proveniência de
+capacity preservada pelo parser é evidência interna de diagnóstico de
+capacidade, sem adicionar mapping D0 público.
 
 A projeção do module graph incorporada ao product e à recipe contém somente
 inventory lógico `{SourceId,modulePath,digest}` e edges lógicos ordenados.
@@ -31305,10 +31317,11 @@ candidate order ficam fora. Mover a árvore fisicamente preserva a identity
 quando facts lógicos e bytes não mudam. As formas de binding mantêm a
 semântica de [§6.1](#61-imports-de-pacotes-e-módulos). W-1485 resolve somente a
 origin. CHK5 cobre somente o provider core injetável e o adapter filesystem
-Linux com `openat2`; não cobre o discovery loop, NFC completo, provider std,
-adapter Windows real, owner detection, package/workspace, diagnostics completos
-ou `w check` multi-file. A conformance multiplataforma não testada permanece
-gap. CHK1 continua no perfil closed-single-source.
+Linux com `openat2`; CHK6 cobre somente o driver interno de discovery local
+bounded. Nenhum dos dois cobre NFC completo, provider std, adapter Windows
+real, owner detection, package/workspace, novos diagnostics D0 ou `w check`
+multi-file. A resolução pública e a conformance multiplataforma não testada
+permanecem gaps. CHK1 continua no perfil closed-single-source.
 
 O estudo PYN1 superseded em [`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1-superseded)
 preserva a proveniência do antigo fluxo standalone. A forma vigente é este
@@ -32668,13 +32681,20 @@ O adapter D0 recebe também o índice esperado do documento; a rota CHK1 passa
 CHK3 é a evidência de resolved-edge caller-owned. CHK4 acrescenta o graph
 builder caller-owned para os documentos e facts já fornecidos. CHK5 acrescenta
 o provider core de aquisição/revalidação e o adapter Linux `openat2` para
-requests explícitos, com stub fail-closed fora de Linux. Esses cortes não
-alteram a claim normativa de resolução: o resolver ainda fornece origins,
-identities e edges explícitos.
+requests explícitos, com stub fail-closed fora de Linux. CHK6 acrescenta o
+driver C11 interno caller-owned de discovery local iterativo: cada wave faz
+parse/scan e reacquire bounded, e o graph CHK4 publica somente a reachability
+alcançada. O driver entrega documentos em ordem lógica e imports resolvidos a
+um caller futuro, mas não chama frontend nem a CLI pública multi-file. As
+waves não são uma transação única de snapshot; bytes/CST/facts da última wave
+estável são os que alimentam o graph. A extensão de capacity do parser serve
+somente como evidência interna. Esses cortes não alteram a claim normativa de
+resolução: o resolver ainda fornece origins, identities e edges explícitos.
 
-O discovery loop, NFC completo, provider std, owner discovery, package/workspace,
-reexport ou service-import origin, multi-file package, adapter Windows real,
-conformance multiplataforma e a resolução pública de `w check` continuam gaps.
+O discovery loop bounded interno tem evidência CHK6. NFC completo, provider
+std, owner discovery, package/workspace, reexport ou service-import origin,
+multi-file package, adapter Windows real, conformance multiplataforma e a
+resolução pública de `w check` continuam gaps.
 Reexport e service-import ainda não possuem CST seed; NFC continua
 responsabilidade do resolver.
 

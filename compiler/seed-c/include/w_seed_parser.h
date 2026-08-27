@@ -114,6 +114,18 @@ typedef enum {
   W_SEED_PARSE_FATAL,
 } w_seed_parse_status;
 
+/* The parser retains the first saturated caller-owned store so an enclosing
+ * driver can report the real capacity field after recovery clears lookahead.
+ */
+typedef enum {
+  W_SEED_PARSE_CAPACITY_NONE = 0,
+  W_SEED_PARSE_CAPACITY_NODE,
+  W_SEED_PARSE_CAPACITY_TOKEN,
+  W_SEED_PARSE_CAPACITY_FRAME,
+  W_SEED_PARSE_CAPACITY_ISSUE,
+  W_SEED_PARSE_CAPACITY_LEXER_FRAME,
+} w_seed_parse_capacity_kind;
+
 /* Internal issue kinds. The comments record the future D0 adapter mapping. */
 typedef enum {
   W_SEED_PARSE_ISSUE_NONE = 0,
@@ -204,6 +216,8 @@ typedef struct {
   size_t issue_capacity;
   size_t issue_count;
   w_seed_parse_status status;
+  w_seed_parse_capacity_kind capacity_kind;
+  size_t capacity_required;
   bool parsed;
   w_seed_cst_index root;
   size_t last_token_end;

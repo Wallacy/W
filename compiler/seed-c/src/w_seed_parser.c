@@ -74,8 +74,16 @@ static w_seed_span owner_span(const w_seed_parser *parser) {
   return parser->nodes[parser->frames[parser->frame_count - 1].node].raw_span;
 }
 
-static void record_capacity(w_seed_parser *parser) {
+static size_t capacity_after(size_t capacity) {
+  return capacity == SIZE_MAX ? SIZE_MAX : capacity + 1u;
+}
+
+static void record_capacity(w_seed_parser *parser,
+                            w_seed_parse_capacity_kind kind,
+                            size_t capacity) {
   if (parser->status == W_SEED_PARSE_FATAL) return;
+  parser->capacity_kind = kind;
+  parser->capacity_required = capacity_after(capacity);
   parser->status = W_SEED_PARSE_FATAL;
   if (parser->issue_count < parser->issue_capacity) {
     w_seed_parse_issue *issue = &parser->issues[parser->issue_count];
@@ -92,7 +100,8 @@ static bool record_issue(w_seed_parser *parser, w_seed_parse_issue_kind kind,
                          w_seed_span primary, uint32_t expected_mask) {
   if (parser->status == W_SEED_PARSE_FATAL) return false;
   if (parser->issue_count >= parser->issue_capacity) {
-    record_capacity(parser);
+    record_capacity(parser, W_SEED_PARSE_CAPACITY_ISSUE,
+                    parser->issue_capacity);
     return false;
   }
   w_seed_parse_issue *issue = &parser->issues[parser->issue_count];
@@ -121,7 +130,8 @@ static w_seed_cst_index add_node(w_seed_parser *parser, w_seed_cst_kind kind,
                                  uint16_t flags, w_seed_span span) {
   if (parser->node_count >= parser->node_capacity ||
       parser->node_count >= (size_t)UINT32_MAX) {
-    record_capacity(parser);
+    record_capacity(parser, W_SEED_PARSE_CAPACITY_NODE,
+                    parser->node_capacity);
     return W_SEED_CST_NONE;
   }
   const w_seed_cst_index index = (w_seed_cst_index)parser->node_count;
@@ -152,7 +162,8 @@ static w_seed_cst_index push_node(w_seed_parser *parser, w_seed_cst_kind kind,
       add_node(parser, kind, 0, (w_seed_span){start, start});
   if (node == W_SEED_CST_NONE) return W_SEED_CST_NONE;
   if (parser->frame_count >= parser->frame_capacity) {
-    record_capacity(parser);
+    record_capacity(parser, W_SEED_PARSE_CAPACITY_FRAME,
+                    parser->frame_capacity);
     return W_SEED_CST_NONE;
   }
   w_seed_parse_frame *frame = &parser->frames[parser->frame_count];
@@ -200,13 +211,19 @@ static bool fill_tokens(w_seed_parser *parser, size_t needed) {
   while (parser->token_count < needed) {
     if (parser->status == W_SEED_PARSE_FATAL) return false;
     if (parser->token_count >= parser->token_capacity) {
-      record_capacity(parser);
+      record_capacity(parser, W_SEED_PARSE_CAPACITY_TOKEN,
+                      parser->token_capacity);
       return false;
     }
     w_seed_lex_error error;
     if (!w_seed_lexer_next(&parser->lexer,
                            &parser->token_cache[parser->token_count].item,
                            &error)) {
+      if (error.kind == W_SEED_LEX_ERROR_FRAME_LIMIT) {
+        parser->capacity_kind = W_SEED_PARSE_CAPACITY_LEXER_FRAME;
+        parser->capacity_required = capacity_after(
+            parser->lexer.frame_capacity);
+      }
       parser->status = W_SEED_PARSE_FATAL;
       if (parser->issue_count < parser->issue_capacity) {
         w_seed_parse_issue *issue = &parser->issues[parser->issue_count];
