@@ -389,12 +389,20 @@ O exemplo é oracle-backed e não uma promessa de execução. CHK3 fornece origi
 e edges explícitos caller-owned; CHK4 fornece o graph builder caller-owned.
 CHK5 fornece aquisição e revalidação somente para a root e os `SourceId`
 explicitamente solicitados pelo caller, com evidência real do adapter Linux
-quando `openat2` está disponível. O bootstrap público `w check` continua
-fechado no perfil `closed-single-source`.
+quando `openat2` está disponível. CHK6 fornece um driver C11 interno
+caller-owned de discovery local iterativo: ele compõe CHK5, parser/module scan
+e CHK4 em waves bounded e entrega documentos em `document_order` e imports
+resolvidos a um caller futuro. O driver não chama o frontend nem abre a CLI
+pública `w check` multi-file; o bootstrap público continua fechado no perfil
+`closed-single-source`.
 
-Discovery loop, NFC completo, provider std, adapter Windows real,
-package/workspace e `w check` multi-file continuam gaps. A API CHK5 não faz
-discovery pelo raw import path.
+As waves CHK6 não formam uma transação única de snapshot. Candidates de waves
+anteriores podem ser readquiridos, mas o CHK4 é a autoridade de reachability e
+publica somente nodes alcançados; bytes, CST e facts da última wave estável
+alimentam o graph. NFC completo, provider std, adapter Windows real,
+package/workspace e `w check` multi-file continuam gaps. A proveniência de
+capacity preservada pelo parser é evidência interna, sem novo mapping D0
+público. A API CHK5 isolada não faz discovery pelo raw import path.
 
 ## Declarações, tipos e contratos
 
