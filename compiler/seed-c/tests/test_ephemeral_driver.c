@@ -1,4 +1,4 @@
-#include "w_seed_ephemeral_driver.h"
+#include "w_seed_ephemeral_check.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -27,6 +27,37 @@ enum {
   TEST_PARSE_FRAMES = 512,
   TEST_ISSUES = 128,
   TEST_ORIGINS = 32,
+  TEST_FRONT_MODULES = 8,
+  TEST_FRONT_IMPORTS = 32,
+  TEST_FRONT_IMPORT_ITEMS = 32,
+  TEST_FRONT_STRUCTS = 16,
+  TEST_FRONT_FIELDS = 64,
+  TEST_FRONT_DECLARATIONS = 32,
+  TEST_FRONT_TYPES = 128,
+  TEST_FRONT_FUNCTIONS = 32,
+  TEST_FRONT_PARAMETERS = 128,
+  TEST_FRONT_ENTRIES = 16,
+  TEST_FRONT_STATEMENTS = 256,
+  TEST_FRONT_EXPRESSIONS = 1024,
+  TEST_FRONT_ARGUMENTS = 256,
+  TEST_FRONT_SYMBOLS = 512,
+  TEST_FRONT_FACTS = 512,
+  TEST_FRONT_DIAGNOSTICS = 128,
+  TEST_FRONT_RECEIPT = 128 * 1024,
+  TEST_FRONT_GENERIC_PARAMETERS = 64,
+  TEST_FRONT_GENERIC_APPLICATIONS = 64,
+  TEST_FRONT_GENERIC_ARGUMENTS = 256,
+  TEST_FRONT_TYPED_CONST_EXPRESSIONS = 256,
+  TEST_FRONT_CONST_VALUES = 512,
+  TEST_FRONT_CONST_ELEMENTS = 512,
+  TEST_FRONT_CONST_BYTES = 8192,
+  TEST_FRONT_ENUMS = 16,
+  TEST_FRONT_ENUM_CASES = 128,
+  TEST_FRONT_ENUM_CASE_PARAMETERS = 256,
+  TEST_FRONT_SWITCH_ARMS = 256,
+  TEST_FRONT_ENUM_SUBSET_MEMBERS = 256,
+  TEST_FRONT_ENUM_MEMBERSHIP_CASES = 1024,
+  TEST_FRONT_CONST_DECLARATIONS = 32,
 };
 
 typedef struct {
@@ -90,6 +121,51 @@ typedef struct {
   w_seed_ephemeral_driver_input input;
   w_seed_ephemeral_driver_output output;
   w_seed_ephemeral_driver_result result;
+  w_seed_frontend_module frontend_modules[TEST_FRONT_MODULES];
+  w_seed_frontend_import frontend_imports[TEST_FRONT_IMPORTS];
+  w_seed_frontend_import_item
+      frontend_import_items[TEST_FRONT_IMPORT_ITEMS];
+  w_seed_frontend_struct frontend_structs[TEST_FRONT_STRUCTS];
+  w_seed_frontend_field frontend_fields[TEST_FRONT_FIELDS];
+  w_seed_frontend_type_declaration
+      frontend_type_declarations[TEST_FRONT_DECLARATIONS];
+  w_seed_frontend_alias frontend_aliases[TEST_FRONT_DECLARATIONS];
+  w_seed_frontend_type frontend_types[TEST_FRONT_TYPES];
+  w_seed_frontend_function frontend_functions[TEST_FRONT_FUNCTIONS];
+  w_seed_frontend_parameter frontend_parameters[TEST_FRONT_PARAMETERS];
+  w_seed_frontend_entry frontend_entries[TEST_FRONT_ENTRIES];
+  w_seed_frontend_statement frontend_statements[TEST_FRONT_STATEMENTS];
+  w_seed_frontend_expression frontend_expressions[TEST_FRONT_EXPRESSIONS];
+  w_seed_frontend_argument frontend_arguments[TEST_FRONT_ARGUMENTS];
+  w_seed_frontend_symbol frontend_symbols[TEST_FRONT_SYMBOLS];
+  w_seed_frontend_fact frontend_facts[TEST_FRONT_FACTS];
+  w_seed_frontend_diagnostic frontend_diagnostics[TEST_FRONT_DIAGNOSTICS];
+  uint8_t frontend_receipt[TEST_FRONT_RECEIPT];
+  w_seed_frontend_enum frontend_enums[TEST_FRONT_ENUMS];
+  w_seed_frontend_enum_case frontend_enum_cases[TEST_FRONT_ENUM_CASES];
+  w_seed_frontend_enum_case_parameter
+      frontend_enum_case_parameters[TEST_FRONT_ENUM_CASE_PARAMETERS];
+  w_seed_frontend_const_declaration
+      frontend_const_declarations[TEST_FRONT_CONST_DECLARATIONS];
+  w_seed_frontend_switch_arm frontend_switch_arms[TEST_FRONT_SWITCH_ARMS];
+  w_seed_frontend_enum_subset_member
+      frontend_enum_subset_members[TEST_FRONT_ENUM_SUBSET_MEMBERS];
+  w_seed_frontend_enum_membership_case
+      frontend_enum_membership_cases[TEST_FRONT_ENUM_MEMBERSHIP_CASES];
+  w_seed_frontend_generic_parameter
+      frontend_generic_parameters[TEST_FRONT_GENERIC_PARAMETERS];
+  w_seed_frontend_generic_application
+      frontend_generic_applications[TEST_FRONT_GENERIC_APPLICATIONS];
+  w_seed_frontend_generic_argument
+      frontend_generic_arguments[TEST_FRONT_GENERIC_ARGUMENTS];
+  w_seed_frontend_typed_const_expression
+      frontend_typed_const_expressions[TEST_FRONT_TYPED_CONST_EXPRESSIONS];
+  w_seed_frontend_const_value
+      frontend_const_values[TEST_FRONT_CONST_VALUES];
+  w_seed_frontend_const_element
+      frontend_const_elements[TEST_FRONT_CONST_ELEMENTS];
+  uint8_t frontend_const_bytes[TEST_FRONT_CONST_BYTES];
+  w_seed_frontend_output frontend_output;
 } driver_fixture;
 
 static driver_fixture fixture;
@@ -342,6 +418,71 @@ static void init_fixture(fake_backend *backend) {
       W_SEED_EPHEMERAL_GRAPH_MAX_DEPTH,
       {65536u, 256u},
       fake_backend_vtable(backend)};
+  fixture.frontend_output = (w_seed_frontend_output){
+      .modules = fixture.frontend_modules,
+      .module_capacity = TEST_FRONT_MODULES,
+      .imports = fixture.frontend_imports,
+      .import_capacity = TEST_FRONT_IMPORTS,
+      .import_items = fixture.frontend_import_items,
+      .import_item_capacity = TEST_FRONT_IMPORT_ITEMS,
+      .structs = fixture.frontend_structs,
+      .struct_capacity = TEST_FRONT_STRUCTS,
+      .fields = fixture.frontend_fields,
+      .field_capacity = TEST_FRONT_FIELDS,
+      .type_declarations = fixture.frontend_type_declarations,
+      .type_declaration_capacity = TEST_FRONT_DECLARATIONS,
+      .aliases = fixture.frontend_aliases,
+      .alias_capacity = TEST_FRONT_DECLARATIONS,
+      .types = fixture.frontend_types,
+      .type_capacity = TEST_FRONT_TYPES,
+      .functions = fixture.frontend_functions,
+      .function_capacity = TEST_FRONT_FUNCTIONS,
+      .parameters = fixture.frontend_parameters,
+      .parameter_capacity = TEST_FRONT_PARAMETERS,
+      .arguments = fixture.frontend_arguments,
+      .argument_capacity = TEST_FRONT_ARGUMENTS,
+      .entries = fixture.frontend_entries,
+      .entry_capacity = TEST_FRONT_ENTRIES,
+      .statements = fixture.frontend_statements,
+      .statement_capacity = TEST_FRONT_STATEMENTS,
+      .expressions = fixture.frontend_expressions,
+      .expression_capacity = TEST_FRONT_EXPRESSIONS,
+      .symbols = fixture.frontend_symbols,
+      .symbol_capacity = TEST_FRONT_SYMBOLS,
+      .facts = fixture.frontend_facts,
+      .fact_capacity = TEST_FRONT_FACTS,
+      .diagnostics = fixture.frontend_diagnostics,
+      .diagnostic_capacity = TEST_FRONT_DIAGNOSTICS,
+      .receipt = fixture.frontend_receipt,
+      .receipt_capacity = TEST_FRONT_RECEIPT,
+      .enums = fixture.frontend_enums,
+      .enum_capacity = TEST_FRONT_ENUMS,
+      .enum_cases = fixture.frontend_enum_cases,
+      .enum_case_capacity = TEST_FRONT_ENUM_CASES,
+      .enum_case_parameters = fixture.frontend_enum_case_parameters,
+      .enum_case_parameter_capacity = TEST_FRONT_ENUM_CASE_PARAMETERS,
+      .const_declarations = fixture.frontend_const_declarations,
+      .const_declaration_capacity = TEST_FRONT_CONST_DECLARATIONS,
+      .switch_arms = fixture.frontend_switch_arms,
+      .switch_arm_capacity = TEST_FRONT_SWITCH_ARMS,
+      .enum_subset_members = fixture.frontend_enum_subset_members,
+      .enum_subset_member_capacity = TEST_FRONT_ENUM_SUBSET_MEMBERS,
+      .enum_membership_cases = fixture.frontend_enum_membership_cases,
+      .enum_membership_case_capacity = TEST_FRONT_ENUM_MEMBERSHIP_CASES,
+      .generic_parameters = fixture.frontend_generic_parameters,
+      .generic_parameter_capacity = TEST_FRONT_GENERIC_PARAMETERS,
+      .generic_applications = fixture.frontend_generic_applications,
+      .generic_application_capacity = TEST_FRONT_GENERIC_APPLICATIONS,
+      .generic_arguments = fixture.frontend_generic_arguments,
+      .generic_argument_capacity = TEST_FRONT_GENERIC_ARGUMENTS,
+      .typed_const_expressions = fixture.frontend_typed_const_expressions,
+      .typed_const_expression_capacity = TEST_FRONT_TYPED_CONST_EXPRESSIONS,
+      .const_values = fixture.frontend_const_values,
+      .const_value_capacity = TEST_FRONT_CONST_VALUES,
+      .const_elements = fixture.frontend_const_elements,
+      .const_element_capacity = TEST_FRONT_CONST_ELEMENTS,
+      .const_bytes = fixture.frontend_const_bytes,
+      .const_bytes_capacity = TEST_FRONT_CONST_BYTES};
 }
 
 static w_seed_ephemeral_driver_status run_fixture(fake_backend *backend) {
@@ -580,11 +721,337 @@ static bool test_parser_capacity_fields(void) {
   return true;
 }
 
+static w_seed_ephemeral_check_status run_check_fixture(
+    fake_backend *backend, uint8_t *jsonl, size_t jsonl_capacity,
+    size_t *jsonl_length, uint8_t *json_staging, size_t json_staging_capacity,
+    w_seed_ephemeral_check_result *result) {
+  fixture.input.backend = fake_backend_vtable(backend);
+  const w_seed_ephemeral_check_input input = {
+      &fixture.input,
+      &fixture.scratch,
+      &fixture.output,
+      &fixture.frontend_output,
+      "D000001",
+      7u,
+      json_staging,
+      json_staging_capacity};
+  w_seed_ephemeral_check_output output = {
+      jsonl,
+      jsonl_capacity,
+      jsonl_length == NULL ? 0u : *jsonl_length};
+  const w_seed_ephemeral_check_status status =
+      w_seed_ephemeral_check_run(&input, &output, result);
+  if (jsonl_length != NULL) *jsonl_length = output.jsonl_length;
+  return status;
+}
+
+static bool frontend_saw_function_from_child(
+    const w_seed_frontend_result *frontend_result) {
+  if (frontend_result == NULL) return false;
+  for (size_t index = 0u; index < frontend_result->written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &fixture.frontend_expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_CALL ||
+        expression->resolved_function_index == W_SEED_FRONTEND_NONE)
+      continue;
+    const uint32_t function_index = expression->resolved_function_index;
+    if ((size_t)function_index >= frontend_result->written.functions)
+      continue;
+    const w_seed_frontend_function *function =
+        &fixture.frontend_functions[function_index];
+    if (function->module_index == 1u && function->name.length == 5u &&
+        memcmp(function->name.data, "value", 5u) == 0)
+      return true;
+  }
+  return false;
+}
+
+static bool bytes_contain(const uint8_t *bytes, size_t byte_count,
+                          const char *needle) {
+  if (bytes == NULL || needle == NULL) return false;
+  const size_t needle_length = strlen(needle);
+  if (needle_length > byte_count) return false;
+  for (size_t offset = 0u; offset <= byte_count - needle_length;
+       offset += 1u) {
+    if (memcmp(bytes + offset, needle, needle_length) == 0) return true;
+  }
+  return false;
+}
+
+static bool test_ephemeral_check_cross_module(void) {
+  fake_backend backend = {0};
+  backend.root_text =
+      "module app;\nimport { value } from child\n"
+      "fn use(): i64 { return value() }\n";
+  add_file(&backend, 0u, "child.w",
+           "module child;\nexport fn value(): i64 { return 42 }\n");
+  init_fixture(&backend);
+  uint8_t jsonl[4096];
+  uint8_t staging[4096];
+  (void)memset(jsonl, 0xA5, sizeof(jsonl));
+  size_t jsonl_length = 73u;
+  w_seed_ephemeral_check_result result;
+  CHECK(run_check_fixture(&backend, jsonl, sizeof(jsonl), &jsonl_length,
+                          staging, sizeof(staging), &result) ==
+        W_SEED_EPHEMERAL_CHECK_OK);
+  CHECK(jsonl_length == 0u);
+  CHECK(result.driver_status == W_SEED_EPHEMERAL_DRIVER_OK);
+  CHECK(result.frontend_status == W_SEED_FRONTEND_OK);
+  CHECK(fixture.output.document_count == 2u);
+  CHECK(result.frontend_result.written.modules == 2u);
+  CHECK(frontend_saw_function_from_child(&result.frontend_result));
+  return true;
+}
+
+static bool test_ephemeral_check_diagnostic_determinism(void) {
+  const char root_source[] =
+      "module app;\nimport { bad } from child\n"
+      "fn use(): i64 { return bad() }\n";
+  const char child_source[] =
+      "module child;\n"
+      "export fn bad(): i64 { if 1 { return 42 } return 0 }\n";
+  fake_backend backend = {0};
+  backend.root_text = root_source;
+  add_file(&backend, 0u, "child.w", child_source);
+  init_fixture(&backend);
+  uint8_t first[4096];
+  uint8_t first_staging[4096];
+  size_t first_length = 73u;
+  w_seed_ephemeral_check_result first_result;
+  CHECK(run_check_fixture(&backend, first, sizeof(first), &first_length,
+                          first_staging, sizeof(first_staging),
+                          &first_result) ==
+        W_SEED_EPHEMERAL_CHECK_DIAGNOSTICS);
+  CHECK(first_length != 0u);
+  CHECK(first_result.frontend_status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(first_result.diagnostic_index == 0u);
+  CHECK(first_result.frontend_result.written.diagnostics >= 1u);
+  CHECK(fixture.frontend_diagnostics[0].document_index == 1u);
+  CHECK(fixture.frontend_diagnostics[0].code.length == 10u &&
+        memcmp(fixture.frontend_diagnostics[0].code.data, "W-SEM-0001",
+               10u) == 0);
+  /* There is no post-frontend injection seam in this composition API. The
+   * adapter receives the frontend-owned index and the assertion above proves
+   * the honest index-to-document binding; direct forged-index coverage stays
+   * in test_diagnostic.c. */
+  CHECK(first_result.diagnostic_status == W_SEED_DIAGNOSTIC_OK);
+  CHECK(first_length + 1u < sizeof(first));
+  CHECK(bytes_contain(first, first_length, "\"source\":\"child.w\""));
+
+  fake_backend second_backend = {0};
+  second_backend.root_text = root_source;
+  add_file(&second_backend, 0u, "child.w", child_source);
+  init_fixture(&second_backend);
+  uint8_t second[4096];
+  uint8_t second_staging[4096];
+  size_t second_length = 11u;
+  w_seed_ephemeral_check_result second_result;
+  CHECK(run_check_fixture(&second_backend, second, sizeof(second),
+                          &second_length, second_staging, sizeof(second_staging),
+                          &second_result) ==
+        W_SEED_EPHEMERAL_CHECK_DIAGNOSTICS);
+  CHECK(second_length == first_length &&
+        memcmp(second, first, first_length) == 0);
+  return true;
+}
+
+static bool test_ephemeral_check_publication_barriers(void) {
+  const char root_source[] =
+      "module app;\nimport { bad } from child\n"
+      "fn use(): i64 { return bad() }\n";
+  const char child_source[] =
+      "module child;\n"
+      "export fn bad(): u16 { if 1 { return 1 } return 70_000_u32 }\n";
+  const char supported_root_source[] =
+      "module app;\nimport { bad } from child\n"
+      "fn use(): i64 { return bad() }\n";
+  const char supported_child_source[] =
+      "module child;\n"
+      "export fn bad(): i64 { if 1 { return 42 } return 0 }\n";
+
+  fake_backend backend = {0};
+  backend.root_text = root_source;
+  add_file(&backend, 0u, "child.w", child_source);
+  init_fixture(&backend);
+  uint8_t final_json[4096];
+  uint8_t staging[4096];
+  (void)memset(final_json, 0xA5, sizeof(final_json));
+  size_t final_length = 91u;
+  w_seed_ephemeral_check_result result;
+  CHECK(run_check_fixture(&backend, final_json, sizeof(final_json),
+                          &final_length, staging, sizeof(staging), &result) ==
+        W_SEED_EPHEMERAL_CHECK_UNSUPPORTED);
+  CHECK(result.diagnostic_index >= 1u);
+  CHECK(final_length == 91u);
+  for (size_t index = 0u; index < sizeof(final_json); index += 1u)
+    CHECK(final_json[index] == 0xA5u);
+
+  backend = (fake_backend){0};
+  backend.root_text = "module app;\n";
+  init_fixture(&backend);
+  (void)memset(final_json, 0x5Au, sizeof(final_json));
+  final_length = 37u;
+  const w_seed_ephemeral_check_status no_diag_status =
+      run_check_fixture(&backend, final_json, sizeof(final_json),
+                        &final_length, staging, sizeof(staging), &result);
+  CHECK(no_diag_status == W_SEED_EPHEMERAL_CHECK_OK);
+  CHECK(final_length == 0u);
+
+  backend = (fake_backend){0};
+  backend.root_text = supported_root_source;
+  add_file(&backend, 0u, "child.w", supported_child_source);
+  init_fixture(&backend);
+  (void)memset(final_json, 0x3Cu, sizeof(final_json));
+  final_length = 53u;
+  CHECK(run_check_fixture(&backend, final_json, sizeof(final_json),
+                          &final_length, staging, 1u, &result) ==
+        W_SEED_EPHEMERAL_CHECK_CAPACITY);
+  CHECK(result.failure == W_SEED_EPHEMERAL_CHECK_FAILURE_OUTPUT);
+  CHECK(result.required_capacity > 1u);
+  CHECK(result.frontend_result.written.diagnostics == 1u);
+  CHECK(result.diagnostic_status == W_SEED_DIAGNOSTIC_CAPACITY);
+  CHECK(result.diagnostic_result.status == W_SEED_DIAGNOSTIC_CAPACITY);
+  CHECK(result.required_capacity == result.diagnostic_result.required_bytes + 1u);
+  CHECK(final_length == 53u);
+  for (size_t index = 0u; index < sizeof(final_json); index += 1u)
+    CHECK(final_json[index] == 0x3Cu);
+
+  backend = (fake_backend){0};
+  backend.root_text = root_source;
+  add_file(&backend, 0u, "child.w", child_source);
+  init_fixture(&backend);
+  (void)memset(final_json, 0xC3, sizeof(final_json));
+  final_length = 59u;
+  CHECK(run_check_fixture(&backend, final_json, sizeof(final_json),
+                          &final_length, staging, sizeof(staging), &result) ==
+        W_SEED_EPHEMERAL_CHECK_UNSUPPORTED);
+  CHECK(final_length == 59u);
+  for (size_t index = 0u; index < sizeof(final_json); index += 1u)
+    CHECK(final_json[index] == 0xC3u);
+
+  backend = (fake_backend){0};
+  backend.root_text = supported_root_source;
+  add_file(&backend, 0u, "child.w", supported_child_source);
+  init_fixture(&backend);
+  (void)memset(final_json, 0x96, sizeof(final_json));
+  final_length = 61u;
+  CHECK(run_check_fixture(&backend, final_json, 1u, &final_length, staging,
+                          sizeof(staging), &result) ==
+        W_SEED_EPHEMERAL_CHECK_CAPACITY);
+  CHECK(result.failure == W_SEED_EPHEMERAL_CHECK_FAILURE_OUTPUT);
+  CHECK(result.required_capacity > 1u);
+  CHECK(result.frontend_result.written.diagnostics == 1u);
+  CHECK(result.diagnostic_status == W_SEED_DIAGNOSTIC_CAPACITY);
+  CHECK(result.diagnostic_result.status == W_SEED_DIAGNOSTIC_CAPACITY);
+  CHECK(result.required_capacity == result.diagnostic_result.required_bytes + 1u);
+  CHECK(final_length == 61u);
+  for (size_t index = 0u; index < sizeof(final_json); index += 1u)
+    CHECK(final_json[index] == 0x96u);
+
+  backend = (fake_backend){0};
+  backend.root_text = "module app;\nimport missing;\n";
+  init_fixture(&backend);
+  (void)memset(final_json, 0x69, sizeof(final_json));
+  final_length = 67u;
+  CHECK(run_check_fixture(&backend, final_json, sizeof(final_json),
+                          &final_length, staging, sizeof(staging), &result) ==
+        W_SEED_EPHEMERAL_CHECK_UNSUPPORTED);
+  CHECK(final_length == 67u);
+  for (size_t index = 0u; index < sizeof(final_json); index += 1u)
+    CHECK(final_json[index] == 0x69u);
+
+  backend = (fake_backend){0};
+  backend.root_text = "module app;\nimport std.io;\n";
+  init_fixture(&backend);
+  (void)memset(final_json, 0x78, sizeof(final_json));
+  final_length = 71u;
+  CHECK(run_check_fixture(&backend, final_json, sizeof(final_json),
+                          &final_length, staging, sizeof(staging), &result) ==
+        W_SEED_EPHEMERAL_CHECK_UNSUPPORTED);
+  CHECK(final_length == 71u);
+  for (size_t index = 0u; index < sizeof(final_json); index += 1u)
+    CHECK(final_json[index] == 0x78u);
+
+  backend = (fake_backend){0};
+  backend.root_text = "module app;\nimport child;\n";
+  add_file(&backend, 0u, "child.w", "module child;\nimport app;\n");
+  init_fixture(&backend);
+  (void)memset(final_json, 0x87, sizeof(final_json));
+  final_length = 73u;
+  CHECK(run_check_fixture(&backend, final_json, sizeof(final_json),
+                          &final_length, staging, sizeof(staging), &result) ==
+        W_SEED_EPHEMERAL_CHECK_INVALID);
+  CHECK(final_length == 73u);
+  for (size_t index = 0u; index < sizeof(final_json); index += 1u)
+    CHECK(final_json[index] == 0x87u);
+
+  backend = (fake_backend){0};
+  backend.root_text = supported_root_source;
+  add_file(&backend, 0u, "child.w", supported_child_source);
+  init_fixture(&backend);
+  fixture.frontend_output.module_capacity = 0u;
+  (void)memset(final_json, 0x4Bu, sizeof(final_json));
+  final_length = 77u;
+  CHECK(run_check_fixture(&backend, final_json, sizeof(final_json),
+                          &final_length, staging, sizeof(staging), &result) ==
+        W_SEED_EPHEMERAL_CHECK_CAPACITY);
+  CHECK(final_length == 77u);
+  for (size_t index = 0u; index < sizeof(final_json); index += 1u)
+    CHECK(final_json[index] == 0x4Bu);
+  return true;
+}
+
+static bool test_ephemeral_check_result_alias(void) {
+  fake_backend backend = {0};
+  backend.root_text = "module app;\n";
+  uint8_t final_json[4096];
+  uint8_t staging[4096];
+  init_fixture(&backend);
+  (void)memset(final_json, 0xA1, sizeof(final_json));
+  const size_t final_length = 83u;
+  w_seed_ephemeral_check_input input = {
+      &fixture.input, &fixture.scratch, &fixture.output,
+      &fixture.frontend_output, "D000001", 7u, staging, sizeof(staging)};
+  w_seed_ephemeral_check_output output = {final_json, sizeof(final_json),
+                                          final_length};
+  const size_t output_size = sizeof(fixture.output);
+  uint8_t output_before[sizeof(fixture.output)];
+  (void)memcpy(output_before, &fixture.output, output_size);
+  const w_seed_ephemeral_check_status alias_status =
+      w_seed_ephemeral_check_run(
+          &input, &output,
+          (w_seed_ephemeral_check_result *)(void *)&fixture.output);
+  CHECK(alias_status == W_SEED_EPHEMERAL_CHECK_INVALID);
+  CHECK(memcmp(output_before, &fixture.output, output_size) == 0);
+  CHECK(output.jsonl_length == final_length);
+
+  w_seed_ephemeral_check_result overlap_result;
+  (void)memset(&overlap_result, 0xCD, sizeof(overlap_result));
+  w_seed_ephemeral_check_result overlap_before = overlap_result;
+  (void)memset(final_json, 0xB2, sizeof(final_json));
+  uint8_t final_before[sizeof(final_json)];
+  (void)memcpy(final_before, final_json, sizeof(final_json));
+  output.jsonl_length = final_length;
+  input.json_staging = final_json;
+  input.json_staging_capacity = sizeof(final_json);
+  const w_seed_ephemeral_check_status overlap_status =
+      w_seed_ephemeral_check_run(&input, &output, &overlap_result);
+  CHECK(overlap_status == W_SEED_EPHEMERAL_CHECK_INVALID);
+  CHECK(memcmp(final_json, final_before, sizeof(final_json)) == 0);
+  CHECK(memcmp(&overlap_result, &overlap_before, sizeof(overlap_result)) == 0);
+  return true;
+}
+
 int main(void) {
   if (!test_root_only() || !test_transitive_and_sorted() ||
       !test_chain_and_root_header() || !test_failures_and_output_atomicity() ||
       !test_cycle_capacity_overlap_and_unicode() ||
-      !test_mutated_extra_candidate() || !test_parser_capacity_fields())
+      !test_mutated_extra_candidate() || !test_parser_capacity_fields() ||
+      !test_ephemeral_check_cross_module() ||
+      !test_ephemeral_check_diagnostic_determinism() ||
+      !test_ephemeral_check_publication_barriers() ||
+      !test_ephemeral_check_result_alias())
     return 1;
   (void)puts("w_seed_ephemeral_driver_tests: ok");
   return 0;

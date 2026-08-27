@@ -31976,6 +31976,29 @@ Num product que alcança tasks, services ou device queues, os gates 24.3.1 e
 24.3.2 são conjuntos: nenhum scheduler pode reparar ownership, e nenhum plano
 de memória pode ignorar join, cancellation, provider drain ou reclamation.
 
+### 24.3.3 CHK7 — composição interna de discovery e frontend
+
+**Exemplo:** a root `app.w` importa `child.w`; o caller entrega o conjunto
+ordenado ao frontend e recebe um JSONL D0 completo, ou nenhum byte publicado
+quando uma etapa falha.
+
+CHK7 é uma composição interna caller-owned de CHK6, frontend seed e adapter D0
+JSON-only. O driver e os records do frontend são staging fornecido pelo caller;
+a composição não lê filesystem, não cria provider e não abre uma nova CLI. O
+fluxo faz preflight integral de todos os diagnostics, com `document_index`,
+`SourceId` lógico e source span, e mantém o JSONL em staging separado. Todo o
+trabalho falível termina antes do commit: o JSONL é copiado uma vez para o
+buffer final e então `jsonl_length` é atualizado, sem novo ramo falível. Em
+qualquer falha `CAPACITY`, `INVALID`, `UNSUPPORTED` ou `IO`, os bytes do JSONL
+final e seu `jsonl_length` permanecem bitwise inalterados.
+
+A prova CHK7 cobre um import e chamada de export de `root` para `child` e uma
+falha `if 1` em `child.w`, com `W-SEM-0001` e source lógico `child.w` em ordem
+determinística. Ela mapeia somente esse diagnostic. O corte não prova frontend
+completo, novos diagnostics, package/workspace, provider `std`, filesystem novo,
+Windows real ou resolução pública multi-file; não transforma a composição em
+`w check` público.
+
 ### 24.4 Artefatos que ainda bloqueiam o design freeze
 
 **Exemplo:** `std.fs` só ganhou classificação de design depois de fixar
@@ -32697,6 +32720,15 @@ multi-file package, adapter Windows real, conformance multiplataforma e a
 resolução pública de `w check` continuam gaps.
 Reexport e service-import ainda não possuem CST seed; NFC continua
 responsabilidade do resolver.
+
+CHK7 acrescenta somente uma composição interna caller-owned CHK6→frontend→D0
+JSON-only. Todo o trabalho falível termina antes do commit: o fluxo preflighta
+todos os diagnostics, copia o JSONL uma vez para o buffer final e então atualiza
+`jsonl_length`, sem novo ramo falível. Em qualquer falha, ambos permanecem
+inalterados. A fixture comprova import/call de `root` para `child` e `W-SEM-0001`
+originado em `child.w`, com ordem determinística. A evidência cobre somente
+`W-SEM-0001`; não abre CLI pública, filesystem novo, provider `std`,
+package/workspace, Windows real ou frontend completo.
 
 Saída: `w check <path/file.w> [--json]` verifica o subset síncrono do
 restaurante. O target bootstrap `w` executa essa rota no perfil

@@ -409,6 +409,24 @@ Linux ou registra um skip explícito:
 
     bun tooling/check-seed-ephemeral-driver.mjs
 
+## Composição interna CHK7 — discovery, frontend e D0
+
+`include/w_seed_ephemeral_check.h` e `src/w_seed_ephemeral_check.c` compõem
+internamente CHK6, o frontend seed e o adapter D0 em uma API caller-owned
+JSON-only. O driver, os records do frontend e o buffer JSON staging são scratch
+separados; somente o JSONL final e `jsonl_length` são publicados. A composição
+preflighta todos os diagnostics em ordem de `document_index`, `SourceId` lógico e
+span. Todo o trabalho falível termina antes do commit: o JSONL é copiado uma vez
+para o buffer final e então `jsonl_length` é atualizado, sem novo ramo falível.
+Qualquer falha de capacidade, validade, suporte ou I/O deixa o JSONL final e
+`jsonl_length` bitwise inalterados.
+
+O teste fake prova que `root` importa e chama um export de `child`, e que `if 1`
+em `child.w` produz somente `W-SEM-0001` com source lógico `child.w`, em duas
+execuções determinísticas. A API não abre CLI pública, filesystem novo,
+provider `std`, package/workspace ou provider Windows real; não prova frontend
+completo nem adiciona diagnostics além de `W-SEM-0001`.
+
 ## Frontend seed interno (fatia semântica)
 
 `include/w_seed_frontend.h` e `src/w_seed_frontend.c` formam a primeira fatia
