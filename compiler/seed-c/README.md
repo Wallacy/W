@@ -3,8 +3,8 @@
 **Status:** componente real do w-seed-c. O parser seed abaixo é uma fatia
 incremental de CST/recovery. O formatter, o adapter D0 e o frontend seed
 semântico são fatias fechadas caller-owned. O target bootstrap `w` usa o núcleo
-privado para o perfil fechado de source único (closed-single-source). O target
-bootstrap não é um compiler driver completo.
+privado para o perfil CHK9 de root efêmera explícita e imports locais
+alcançáveis. O target bootstrap não é um compiler driver completo.
 
 Este componente fornece uma view de bytes sem cópia. Ele valida UTF-8 estrito,
 detecta o BOM inicial, conta linhas por LF, valida spans half-open e converte
@@ -323,9 +323,10 @@ determinísticas com spans/proveniência e a projeção `document_order` mais
 `w_seed_frontend_resolved_import` na ordem estrita do frontend. Este builder
 ordena edges por mergesort bounded O(E log E) e reconstrói a ordem do frontend
 em O(E + S), sem scratch implícito. Este builder não publica recipe ou key.
-Provider acquisition/filesystem, owner detection, NFC
-completo, std provider, reexport/service-import, diagnostics e `w check`
-multi-file permanecem gaps; `w check` continua closed-single-source.
+Provider acquisition/filesystem não pertence a CHK4. Owner detection, NFC
+completo, std provider, reexport/service-import, diagnostics e package/workspace
+permanecem gaps. CHK9 compõe os adapters e o pipeline para a rota pública
+local de root efêmera. O builder CHK4 isolado não abre essa rota.
 
 O gate dedicado é executado com:
 
@@ -374,10 +375,9 @@ repete os binários, exige stdout determinístico e stderr vazio, registra
     bun tooling/check-seed-ephemeral-provider.mjs
 
 O discovery loop interno bounded tem evidência no CHK6 abaixo. NFC completo,
-provider std, reexport/service-import,
-package/workspace, `w check` multi-file, diagnostics completos e conformance
-multiplataforma não testada permanecem gaps. `w check` continua
-closed-single-source.
+provider std, reexport/service-import, package/workspace, diagnostics
+completos e conformance multiplataforma não testada permanecem gaps. CHK9
+compõe o provider com CHK6 e CHK7 na rota pública local.
 
 ## Driver de descoberta efêmera (CHK6)
 
@@ -463,6 +463,43 @@ multi-file, package/workspace ou provider `std`.
 
     bun tooling/check-seed-ephemeral-provider.mjs
 
+## `w check` público para múltiplos arquivos (CHK9)
+
+`cli/check.c` integra `check_host`, storage adaptativo, retry bounded e a
+composição CHK6 → CHK7. O target bootstrap `w` aceita uma root explícita em
+contexto efêmero e alcança somente imports locais root-relative. A rota não
+faz scan de diretório, cwd, `PATH`, environment, URL, stdin ou fetch.
+
+Linux exige `openat2`. Windows exige `NtCreateFile`. Outras plataformas ou
+capabilities ausentes falham fechadas. O host fecha somente o handle base que
+abriu. A root usa basename ASCII `[A-Za-z_][A-Za-z0-9_]*.w` como `SourceId`.
+O core/provider aceita diretório físico codificado em UTF-8, e o gate Windows
+prova cwd Unicode; um path Unicode recebido por `argv` narrow não está provado
+e permanece gap. Header override altera o module path da root, não o
+`SourceId`. Sources filhos usam `SourceId` root-relative.
+
+Os limites bootstrap são 64 sources, 4096 edges, depth 64, 16 MiB por source
+e agregado, CST de 32768 nodes por source e 262144 nodes agregados. Source
+bytes, CST e JSON staging/final crescem adaptativamente. JSON tem teto de
+64 MiB. Cada retry repete CHK6 → CHK7 e permanece bounded.
+
+Exit `0` indica clean. Exit `1` indica diagnostics mapeáveis de `W-SEM-0001`.
+Exit `2` indica invocation, source, parse, unsupported, barrier, capacity ou
+check incompleto. Exit `3` indica allocation, invariant, renderer ou falha de
+escrita. JSON preflighta os diagnostics e faz uma única `fwrite` do buffer final.
+Human preflighta todos os diagnostics antes do primeiro diagnostic. Uma falha
+de escrita pode produzir saída parcial.
+
+O gate público prova o witness single-source de Última Luz e o Restaurant
+multifile temporário com child nested, diagnóstico determinístico, source
+inalcançado, missing, `std`, cycle, identidade inválida, UTF-8, parse, frontend,
+limites de source e graph e escape por symlink ou junction.
+
+CHK9 não fecha owner detection, resolução externa, package/workspace, provider
+`std`, NFC completo, identifiers Unicode no SourceId bootstrap,
+reexport/service-import no CST seed, diagnostics além do subset, frontend
+normativo, compiler, backend ou runtime.
+
 ## Frontend seed interno (fatia semântica)
 
 `include/w_seed_frontend.h` e `src/w_seed_frontend.c` formam a primeira fatia
@@ -513,17 +550,16 @@ initializers/dependencies, cache e materialização, generic calls completas,
 heads importados e aplicações de enum/object/type/alias/function, tensor,
 runtime, MLIR e WInterface permanecem fora desta fatia.
 
-`cli/check.c` é o núcleo privado bounded de source → parser → frontend → D0.
-`tests/check_driver.c` fornece o wrapper da evidência interna
-`w_seed_check_driver`. O target bootstrap `w` fornece a rota pública `w check` e
-as três formas de help. O núcleo e o driver aceitam um path explícito de até
-16 MiB. O perfil closed-single-source não usa package graph, workspace context
-ou descoberta de owner/provider/filesystem. A resolução completa continua
-caller-owned no frontend seed; owner discovery, provider real, filesystem
-loader, std provider, package/workspace, multi-file package e o frontend
-normativo completo continuam gaps nesta fatia.
+`cli/check.c` compõe o núcleo bounded de source → parser → frontend → D0 na
+rota pública CHK9. `tests/check_driver.c` fornece o wrapper da evidência interna
+`w_seed_check_driver`. O frontend seed e o driver continuam caller-owned e
+aceitam um path explícito de até 16 MiB; o target bootstrap `w` fornece as três
+formas de help e a rota pública `w check` em root efêmera local, com imports
+alcançáveis root-relative e os limites descritos em CHK9. Package/workspace,
+resolução externa, owner detection, provider real de `std`, loader geral e o
+frontend normativo completo continuam gaps.
 
-Exit `0` significa frontend síncrono completo sem diagnostics. Exit `1`
+Exit `0` significa que a composição síncrona terminou sem diagnostics. Exit `1`
 significa que todos os diagnostics são `W-SEM-0001` mapeáveis. Exit `2`
 representa invocation, source, parse, unsupported, barrier, capacity ou
 resultado incompleto. Exit `3` representa falha interna. `--json` faz o

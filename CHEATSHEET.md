@@ -3,9 +3,10 @@
 > **Rascunho de design · agosto de 2026**
 >
 > W ainda não tem compiler W completo, runtime, SDK, package manager ou
-> providers de standard library. O target bootstrap `w` executa somente o
-> perfil fechado de source único (closed-single-source). Este arquivo é um mapa
-> de leitura para a superfície proposta. Ele não promete que um snippet execute.
+> providers de standard library. O target bootstrap `w` executa `w check` no
+> perfil CHK9 de root efêmera local e imports alcançáveis. Este arquivo é um
+> mapa de leitura para a superfície proposta. Ele não promete que um snippet
+> execute.
 
 Este cheatsheet usa a forma integrada de DESIGN.md e os casos do produto de
 referência [Última Luz](reference/last-light/README.md). A edição segue a
@@ -116,7 +117,7 @@ não módulos W comuns.
 
 ### Comandos planejados
 
-O target bootstrap `w` executa somente `w check` no perfil closed-single-source.
+O target bootstrap `w` executa `w check` no perfil CHK9 de root efêmera local.
 As demais rotas abaixo são uma interface prevista, não uma CLI disponível:
 
 | Objetivo | Forma prevista | Estado |
@@ -124,7 +125,7 @@ As demais rotas abaixo são uma interface prevista, não uma CLI disponível:
 | Rodar arquivo único | `w run path/file.w` | Direção + implementation-gap |
 | Construir package | `w build` | Direção + provider missing |
 | Abrir sessão | `w repl` | Direção + implementation-gap |
-| Verificar um source | `w check path/file.w [--json]` | Forma vigente executável no perfil CHK1 |
+| Verificar um source ou graph local | `w check path/file.w [--json]` | Forma vigente executável no perfil CHK9 bounded |
 | Verificar um package | `w package check [package]` | Direção + implementation-gap |
 | Verificar um workspace | `w workspace check` | Direção + implementation-gap |
 | Exportar notebook | `w notebook export` | Direção + provider/implementation-gap |
@@ -142,8 +143,12 @@ graph. `w workspace check` verifica os members selecionados e sua resolution
 compartilhada. Os três scopes são distintos.
 
 Com `--json`, stdout contém somente JSONL D0. O renderer humano escreve em
-stderr. O target bootstrap `w` executa somente um source fechado de até 16 MiB.
-Owner detection, resolution, imports/module graph, package/workspace e o
+stderr. CHK9 usa uma root explícita em contexto efêmero e imports locais
+alcançáveis root-relative. A rota aceita até 64 sources, 4096 edges, depth 64,
+16 MiB por source e agregado, CST de 32768 por source e 262144 agregados.
+Source bytes, CST e JSON staging/final crescem adaptativamente. Linux exige
+`openat2`; Windows exige `NtCreateFile`; outras capabilities falham fechadas.
+Owner detection, resolução externa, provider `std`, package/workspace e o
 frontend normativo completo continuam gaps. O comando não executa build,
 backend, link ou runtime e não gera artifact.
 
@@ -393,16 +398,16 @@ quando `openat2` está disponível. CHK6 fornece um driver C11 interno
 caller-owned de discovery local iterativo: ele compõe CHK5, parser/module scan
 e CHK4 em waves bounded e entrega documentos em `document_order` e imports
 resolvidos a um caller futuro. O driver não chama o frontend nem abre a CLI
-pública `w check` multi-file; o bootstrap público continua fechado no perfil
-`closed-single-source`.
+pública `w check` multi-file. CHK9 usa essa composição na boundary pública
+somente para a root efêmera local.
 
 As waves CHK6 não formam uma transação única de snapshot. Candidates de waves
 anteriores podem ser readquiridos, mas o CHK4 é a autoridade de reachability e
 publica somente nodes alcançados; bytes, CST e facts da última wave estável
-alimentam o graph. NFC completo, provider std, package/workspace e `w check`
-multi-file continuam gaps. A proveniência de
-capacity preservada pelo parser é evidência interna, sem novo mapping D0
-público. A API CHK5 isolada não faz discovery pelo raw import path.
+alimentam o graph. NFC completo, provider std, package/workspace e resolução
+externa continuam gaps. CHK9 cobre somente imports locais alcançáveis. A
+proveniência de capacity preservada pelo parser é evidência interna, sem novo
+mapping D0 público. A API CHK5 isolada não faz discovery pelo raw import path.
 
 CHK7 compõe internamente CHK6, frontend seed e D0 em uma API caller-owned
 JSON-only. Todo o trabalho falível termina antes do commit: ela preflighta todos
@@ -426,6 +431,34 @@ intermediário, mutation, replacement, removal, UTF-8 físico e limites. O gate
 separa os targets Linux e Windows, exige `windows-real=passed` em Windows,
 prova Linux real via WSL no host Windows e executa os stubs fail-closed. CHK8
 é adapter interno e não habilita `w check` público multi-file.
+
+### CHK9 — `w check` público em root efêmera
+
+`w check path/file.w [--json]` é a rota pública executável para uma root
+explícita em contexto efêmero. Ela alcança somente imports locais
+root-relative. Linux exige `openat2`; Windows exige `NtCreateFile`.
+Outras plataformas ou capabilities ausentes falham fechadas.
+
+A root usa basename ASCII `[A-Za-z_][A-Za-z0-9_]*.w` como `SourceId`.
+O core/provider aceita diretório físico codificado em UTF-8, e o gate Windows
+prova cwd Unicode; um path Unicode recebido por `argv` narrow não está provado
+e permanece gap. Header override altera o module path da root, não o
+`SourceId`. Sources filhos usam paths root-relative.
+
+O bootstrap aceita até 64 sources, 4096 edges, depth 64, 16 MiB por source
+e agregado, CST de 32768 por source e 262144 agregado, e JSON staging/final
+até 64 MiB. Source, CST e JSON crescem por retry bounded que repete a
+composição CHK6 → CHK7.
+
+Exit `0` é clean. Exit `1` é diagnostic mapeável. Exit `2` é invocation,
+source, parse, unsupported, barrier ou capacity. Exit `3` é allocation,
+invariant, renderer ou falha de escrita. JSON usa `SourceId` lógico. Human usa
+path físico somente para display.
+
+O gate prova o witness single-source e o Restaurant multifile com child nested,
+diagnostic determinístico, source inalcançado, missing/std/cycle, limites,
+identidade, UTF-8, parse, frontend e symlink/junction escape. Package,
+workspace, provider `std`, NFC completo e frontend normativo permanecem gaps.
 
 ## Declarações, tipos e contratos
 
@@ -1667,11 +1700,11 @@ owner de `resolution` e `deployments` de forma única. Não copie campos de
 
 `w package check [package]`, `w workspace check`, `w build`, `w run`, `w repl`,
 `w test` e comandos de export são direções de interface. O target bootstrap `w`
-implementa `w check path/file.w [--json]` somente para o perfil
-closed-single-source. Owner detection, resolution, imports/module graph,
-package/workspace, package manager e as demais rotas da CLI continuam gaps. O
-tooling existente neste checkout inclui o target bootstrap, Tree-sitter, atlas e
-checks de design.
+implementa `w check path/file.w [--json]` no perfil CHK9 de root efêmera local,
+com imports alcançáveis root-relative e os limites bounded registrados acima.
+Owner detection, resolution externa, provider `std`, package/workspace, package
+manager e as demais rotas da CLI continuam gaps. O tooling existente neste
+checkout inclui o target bootstrap, Tree-sitter, atlas e checks de design.
 
 ### Distribuição binary-first e execução remota
 

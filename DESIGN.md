@@ -28932,13 +28932,30 @@ Outra capacity ou interrupção incompleta emite o root D0 aplicável quando ain
 é possível serializá-lo. Um internal fault pode usar uma mensagem de emergência
 em stderr.
 
-**Estado de implementação CHK1:** o target bootstrap `w` executa a sintaxe
+**Estado de implementação CHK9:** o target bootstrap `w` executa a sintaxe
 pública `w check <path/file.w> [--json]`, `w --help`, `w help` e `w check --help`.
-O perfil executável é o perfil fechado de source único (closed-single-source),
-com source de até 16 MiB e o pipeline source → parser → frontend seed → D0.
-Owner detection, resolution, imports/module graph, package/workspace e o
-frontend normativo completo continuam gaps. O perfil não executa build,
-backend, link ou runtime e não gera artifact.
+O perfil executável usa uma root explícita em contexto efêmero e verifica os
+imports locais alcançáveis root-relative. Linux exige o adapter `openat2`.
+Windows exige o adapter `NtCreateFile`. Outras plataformas ou capabilities
+ausentes falham fechadas.
+
+A root usa `SourceId` igual ao basename ASCII com stem
+`[A-Za-z_][A-Za-z0-9_]*` e extensão `.w`. O core/provider aceita diretório
+físico codificado em UTF-8, e o gate Windows prova cwd Unicode; um path Unicode
+recebido por `argv` narrow não está provado e permanece gap. Um header pode
+substituir o module path da root sem substituir seu `SourceId`. Sources filhos
+usam `SourceId` root-relative, como `kitchen/menu.w`. O perfil não fornece NFC
+completo nem identifiers Unicode para o `SourceId` bootstrap.
+
+O gate público prova a rota CHK9 com witness single-source e Restaurant
+multifile, incluindo child nested, diagnóstico determinístico, barriers e
+containment. O contrato executável completo de alcance, limits, exits e
+renderers está em [§24.3.5](#2435-chk9-rota-pública-w-check-para-root-efêmera-local).
+
+Owner detection, resolução externa, package/workspace, provider `std`,
+reexport/service-import no CST seed, diagnostics além de `W-SEM-0001`, frontend
+normativo, compiler, backend e runtime continuam gaps. O perfil não executa
+build, link ou runtime e não gera artifact.
 
 `w explain authority <locator-or-origin>` mostra, no mínimo, kind, locator,
 lineage, origin digest e length, trusted checkpoint version e dimensões da
@@ -31239,14 +31256,21 @@ source, resolution, artifacts e outputs consumidos; path físico serve discovery
 diagnóstico e provenance, nunca identity. Run temporário ou falho não deixa
 estado oculto.
 
-**W-1485 — inventário local em contexto efêmero (Forma vigente de design;
-oracle-backed-current; implementation-gap):** fora de package ou workspace, o
-parent lógico do source root explícito forma uma root efêmera por invocation.
+**W-1485 — inventário local em contexto efêmero (Forma vigente):** fora de
+package ou workspace, o parent lógico do source root explícito forma uma root
+efêmera por invocation.
 O provider deve abrir e confirmar essa root e cada source alcançado. Um import
 local parser-validado contém um ou mais componentes identifier. O host
 normaliza a spelling completa para NFC e deriva, sempre a partir da root
 efêmera, `a.b` para o `PackagePath` lógico `a/b.w`. O diretório do importer
 nunca altera esse mapeamento.
+
+No perfil executável CHK9, a root `SourceId` usa somente o basename ASCII
+com stem `[A-Za-z_][A-Za-z0-9_]*` e extensão `.w`. O core/provider aceita
+diretório físico codificado em UTF-8, e o gate Windows prova cwd Unicode; um
+path Unicode recebido por `argv` narrow não está provado e permanece gap. Essa
+restrição é um limite do bootstrap. Ela não substitui a regra normativa de NFC
+completo e identifiers Unicode quando o resolver completo estiver disponível.
 
 `std` e `std.*` pertencem somente ao provider de std. Um arquivo local não
 sombreia std. Um import não-std sem source local falha como dependency externa
@@ -31289,7 +31313,7 @@ ou recipe. Os limits pertencem ao profile ou provider. O oracle usa somente
 defaults de fixture não normativos de 64 sources, 4096 edges, depth 64 e 16
 MiB de source bytes, e prova bounds finitos para cada dimensão.
 
-A evidência executável desta fronteira agora tem cinco cortes. CHK3 prova a
+A evidência executável desta fronteira agora tem sete cortes. CHK3 prova a
 fronteira caller-owned de origins e edges resolvidos. CHK4 prova o builder
 caller-owned do graph, sem abrir filesystem. CHK5 prova o core bounded de
 aquisição/revalidação para a root física e os `SourceId` explicitamente
@@ -31302,6 +31326,12 @@ chama o frontend nem abre a CLI pública `w check` multi-file. O core e o
 driver publicam somente após seus preflights bounded; bytes, CST/facts da
 última wave estável e graph permanecem coerentes, e outputs publicados ficam
 inalterados em falha.
+
+CHK7 acrescenta a composição interna caller-owned CHK6 → frontend seed → D0.
+A composição preflighta todos os diagnostics e usa `SourceId` lógico e spans
+válidos. O JSONL passa por staging separado e somente o buffer final é
+publicado. Esse corte não abre filesystem, provider `std`, package/workspace
+ou a CLI pública.
 
 CHK8 prova o adapter Windows real do mesmo provider. O adapter usa
 `NtCreateFile` relativo a um `HANDLE` de diretório emprestado, com
@@ -31323,6 +31353,24 @@ host Windows e valida os stubs fail-closed cruzados. Esta prova não abre
 `w check` público multi-file e não fecha package/workspace, provider `std` ou
 conformance de todos os filesystems Windows.
 
+CHK9 acrescenta a rota pública `w check` para uma root explícita em contexto
+efêmero. A rota combina `check_host`, storage adaptativo e retry com a
+composição CHK6 → CHK7. Linux exige `openat2`; Windows exige `NtCreateFile`.
+Outras plataformas ou capabilities ausentes falham fechadas.
+
+A root `SourceId` exige basename ASCII com stem
+`[A-Za-z_][A-Za-z0-9_]*` e extensão `.w`. O core/provider aceita diretório
+físico codificado em UTF-8, e o gate Windows prova cwd Unicode; um path Unicode
+recebido por `argv` narrow não está provado e permanece gap. Header override
+altera o module path da root, não seu `SourceId`. Sources filhos usam
+`SourceId` root-relative.
+
+O gate prova root single-source e Restaurant multifile root → nested child,
+child diagnostic determinístico, arquivo inalcançado, missing/std/cycle,
+limites, identidade e escape por symlink/junction. O contrato executável
+completo de limits, exits e renderers está em
+[§24.3.5](#2435-chk9-rota-pública-w-check-para-root-efêmera-local).
+
 As waves de CHK6 não formam uma transação única de snapshot: um candidate de
 wave anterior pode ser readquirido, e o CHK4 continua sendo a autoridade de
 reachability e publica somente os nodes alcançados. A proveniência de
@@ -31336,13 +31384,14 @@ inputs já definidos continuam na recipe completa. Canonical token, host path e
 candidate order ficam fora. Mover a árvore fisicamente preserva a identity
 quando facts lógicos e bytes não mudam. As formas de binding mantêm a
 semântica de [§6.1](#61-imports-de-pacotes-e-módulos). W-1485 resolve somente a
-origin. CHK5 cobre somente o provider core injetável e o adapter filesystem
-Linux com `openat2`; CHK6 cobre somente o driver interno de discovery local
-bounded; CHK8 cobre somente o adapter Windows real. Esses cortes não cobrem
-NFC completo, provider std, owner detection, package/workspace, novos
-diagnostics D0 ou `w check` multi-file. A resolução pública e a conformance
-multiplataforma não testada permanecem gaps. CHK1 continua no perfil
-closed-single-source.
+origin. CHK5 cobre o provider core injetável e o adapter filesystem Linux com
+`openat2`; CHK6 cobre o driver interno de discovery local bounded; CHK7 cobre a
+composição interna caller-owned; CHK8 cobre o adapter Windows real; e CHK9 cobre
+a rota pública bootstrap de root efêmera local.
+CHK9 não fecha NFC completo, provider `std`, owner detection, resolução externa,
+package/workspace, reexport/service-import no CST seed, diagnostics completos,
+frontend normativo, compiler, backend, runtime ou conformance multiplataforma
+além dos adapters cobertos.
 
 O estudo PYN1 superseded em [`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1-superseded)
 preserva a proveniência do antigo fluxo standalone. A forma vigente é este
@@ -32049,6 +32098,54 @@ valida os stubs fail-closed cruzados. CHK8 é evidência de adapter interno. Nã
 abre `w check` público multi-file e não fecha package/workspace, provider `std`
 ou conformance de todos os filesystems Windows.
 
+### 24.3.5 CHK9 — rota pública `w check` para root efêmera local
+
+**Exemplo:** `w check restaurant.w --json` abre a root explícita, alcança
+`menu.w` e publica somente o JSONL final ou falha sem stdout.
+
+CHK9 compõe `check_host`, storage adaptativo, retry bounded e a sequência
+CHK6 → CHK7. A rota pública aceita somente uma root explícita em contexto
+efêmero. Imports locais alcançáveis usam `SourceId` root-relative. A rota não
+faz scan de diretório, cwd, `PATH`, environment, URL, stdin ou fetch.
+
+Linux exige `openat2`. Windows exige `NtCreateFile`. Outras plataformas ou
+capabilities ausentes falham fechadas. O host fecha somente o handle base que
+abriu, depois de destruir o contexto de check.
+
+A root `SourceId` exige basename ASCII com stem
+`[A-Za-z_][A-Za-z0-9_]*` e extensão `.w`. O core/provider aceita diretório
+físico codificado em UTF-8, e o gate Windows prova cwd Unicode; um path Unicode
+recebido por `argv` narrow não está provado e permanece gap. Header override
+altera o module path da root, mas não altera seu `SourceId`. Sources filhos
+usam `SourceId` root-relative com `/`.
+
+Os limits bootstrap são 64 sources, 4096 edges, depth 64, 16 MiB por source
+e agregado, 32768 nodes CST por source e 262144 nodes agregados. JSON staging
+e final podem crescer até 64 MiB. Source bytes, CST e JSON crescem somente
+por requests bounded. Cada retry repete a composição completa e possui limite
+finito.
+
+Exit `0` indica clean. Exit `1` indica diagnostics mapeáveis do frontend seed.
+Exit `2` indica invocation, source, parse, unsupported, barrier, capacity ou
+check incompleto. Exit `3` indica allocation, invariant, renderer ou write
+fault.
+
+No modo `--json`, todos os diagnostics são preflightados e o JSONL final recebe
+uma única `fwrite`. Um I/O fault não promete atomicidade do kernel. No modo
+humano, todos os diagnostics são preflightados antes do primeiro diagnostic.
+Falha de escrita pode produzir saída parcial no renderer.
+
+O gate CHK9 prova o witness single-source de Última Luz, Restaurant
+multifile root → nested child, child diagnostic determinístico, source inválido
+não alcançado, missing, `std`, cycle, identidade inválida, UTF-8 inválido,
+parse incompleto, frontend unsupported, limits de source e graph e escape por
+symlink ou junction.
+
+CHK9 não fecha owner detection, resolução externa, package/workspace, provider
+`std`, NFC completo, identifiers Unicode no SourceId bootstrap,
+reexport/service-import no CST seed, diagnostics além de `W-SEM-0001`, frontend
+normativo, compiler, backend ou runtime.
+
 ### 24.4 Artefatos que ainda bloqueiam o design freeze
 
 **Exemplo:** `std.fs` só ganhou classificação de design depois de fixar
@@ -32723,13 +32820,20 @@ A aceitação do primeiro checker é fechada por estes casos:
   exato, seu span e o mesmo JSONL em duas execuções;
 - a inversão negativa produz o diagnostic humano esperado em stderr e stdout
   vazio;
-- invocation inválida, source inválido, parse incompleto, import/module graph,
   frontend unsupported e capacity produzem exit `2` e stdout vazio;
+- invocation inválida, source inválido, parse incompleto, missing local, `std`,
+  cycle, frontend unsupported e capacity produzem exit `2` e stdout vazio;
+- `restaurant.w` importa `menu.w` e passa clean, enquanto um child em
+  `kitchen/menu.w` produz `W-SEM-0001` com `SourceId` lógico determinístico;
+- um source inválido não alcançado não afeta o root clean;
+- invalid UTF-8, identidade inválida, source acima de 16 MiB e graph acima de
+  64 sources falham fechados;
 - o resultado agregado não retorna sucesso parcial.
 
-O contrato de contexto e module graph da rota completa continua gap. O frontend
-probe atual de `compiler/seed-c` fixa um contexto de harness e não fornece esse
-contexto nem um driver público.
+O contrato de package/workspace e resolução externa continua gap. O frontend
+probe atual de `compiler/seed-c` fixa um contexto de harness; o target `w` usa
+a boundary pública CHK9 somente para a root efêmera e imports locais
+alcançáveis.
 
 O executável interno `w_seed_check_driver` fornece uma primeira evidência
 bounded deste corte. Ele lê um path explícito de até 16 MiB, usa o source
@@ -32789,10 +32893,12 @@ real no host Windows, Linux real via WSL nesse host e os dois stubs fail-closed.
 O adapter não transforma essa evidência interna em uma CLI pública multi-file.
 
 Saída: `w check <path/file.w> [--json]` verifica o subset síncrono do
-restaurante. O target bootstrap `w` executa essa rota no perfil
-closed-single-source. Owner detection, resolution, imports/module graph,
-package/workspace e o frontend normativo completo continuam gaps. O comando
-continua sem build, backend, link, runtime ou artifact.
+restaurante em root efêmera explícita e imports locais alcançáveis. O target
+bootstrap `w` executa a rota pública CHK9. Owner detection, resolução
+externa, provider `std`, package/workspace, reexport/service-import no CST
+seed, diagnostics além de `W-SEM-0001` e frontend normativo completo
+continuam gaps. O comando continua sem build, backend, link, runtime ou
+artifact.
 
 ### 26.4 Fase 2 — HIR, MLIR e executável nativo
 
