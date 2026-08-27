@@ -12,9 +12,9 @@ o package manager continuam gaps. O seed C possui source reader, lexer lossless,
 scanner C de validação de fonte, parser seed caller-owned e incremental,
 formatter seed CST-driven e adapter D0 caller-owned, com suporte sintático
 coberto por 28 IDs F0. O target bootstrap `w` executa a rota pública `w check`
-no perfil fechado de source único (closed-single-source). Owner detection,
-resolution, imports/module graph, package/workspace e o frontend normativo
-completo continuam gaps.
+no perfil CHK9 de root efêmera explícita e imports locais alcançáveis.
+Owner detection, resolução externa, provider `std`, package/workspace e o
+frontend normativo completo continuam gaps.
 
 Dois objetivos centrais orientam o design: gerência automática de memória sem
 anotações de lifetime no caminho comum e execução estruturada que mantém
@@ -92,7 +92,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, D0 e target bootstrap w](compiler/seed-c/README.md) | implementação caller-owned/incremental; Unicode 17 pinado, scanner C source-validation-only, parser/formatter CST, frontend seed e adapter D0; `w check` executa somente o perfil closed-single-source de até 16 MiB; não é frontend normativo completo, compiler ou typechecker completo |
+| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, D0 e target bootstrap w](compiler/seed-c/README.md) | implementação caller-owned/incremental; Unicode 17 pinado, scanner C source-validation-only, parser/formatter CST, frontend seed e adapter D0; `w check` executa CHK9 bounded para root efêmera local, com até 64 sources e 16 MiB por source/agregado; não é frontend normativo completo, compiler ou typechecker completo |
 | Formatter normativo, frontend normativo completo, HIR e MLIR | planejados, não implementados; o formatter e o frontend seed são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |
 | Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |

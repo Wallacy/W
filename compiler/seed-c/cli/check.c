@@ -1,6 +1,10 @@
 #include "check.h"
 
-#include "w_seed_diagnostic.h"
+#include "check_host.h"
+#include "check_pipeline.h"
+#include "check_storage.h"
+
+#include "w_seed_ephemeral_graph.h"
 #include "w_seed_frontend.h"
 
 #include <inttypes.h>
@@ -9,13 +13,13 @@
 #include <stdio.h>
 #include <string.h>
 
-/* This bounded one-shot core is shared by the internal evidence driver and
- * the public `w check` command. It does not resolve packages or workspaces. */
+/* The public command is a bounded adapter around the caller-owned CHK6 and
+ * CHK7 composition. These arrays are the fixed frontend and graph scratch
+ * profile. Source bytes, CST nodes, and D0 JSON are owned by the adaptive
+ * check storage instead of consuming one large static arena. */
 enum {
-  CHECK_SOURCE_CAPACITY = 16 * 1024 * 1024,
   CHECK_LEXER_FRAMES = 2048,
   CHECK_TOKENS = 32768,
-  CHECK_NODES = 262144,
   CHECK_PARSE_FRAMES = 16384,
   CHECK_ISSUES = 4096,
   CHECK_MODULES = 64,
@@ -49,15 +53,54 @@ enum {
   CHECK_FACTS = 131072,
   CHECK_DIAGNOSTICS = 65536,
   CHECK_RECEIPT = 8 * 1024 * 1024,
-  CHECK_D0_OUTPUT_CAPACITY = 64 * 1024 * 1024,
+  CHECK_SOURCES = W_SEED_CHECK_STORAGE_MAX_SOURCES,
+  CHECK_EDGES = W_SEED_EPHEMERAL_GRAPH_MAX_EDGES,
+  CHECK_PATH_BYTES = W_SEED_EPHEMERAL_PROVIDER_MAX_PATH_BYTES,
+  CHECK_TOKEN_BYTES = W_SEED_EPHEMERAL_PROVIDER_MAX_TOKEN_BYTES,
+  CHECK_DISPLAY_PATH_BYTES =
+      (2 * W_SEED_EPHEMERAL_PROVIDER_MAX_PATH_BYTES) + 2,
 };
 
-static uint8_t source_bytes[CHECK_SOURCE_CAPACITY];
+typedef struct {
+  char provider_id[CHECK_TOKEN_BYTES];
+  char root_token[CHECK_TOKEN_BYTES];
+  char source_provider_owner_token[CHECK_TOKEN_BYTES];
+  char canonical_token[CHECK_TOKEN_BYTES];
+} check_token_set;
+
 static w_seed_lexer_frame lexer_frames[CHECK_LEXER_FRAMES];
 static w_seed_parse_token tokens[CHECK_TOKENS];
-static w_seed_cst_node nodes[CHECK_NODES];
 static w_seed_parse_frame parse_frames[CHECK_PARSE_FRAMES];
 static w_seed_parse_issue issues[CHECK_ISSUES];
+static w_seed_ephemeral_driver_slot driver_slots[CHECK_SOURCES];
+static w_seed_ephemeral_provider_request requests[CHECK_SOURCES];
+static char root_source_id_storage[CHECK_PATH_BYTES];
+static char source_ids[CHECK_SOURCES][CHECK_PATH_BYTES];
+static char module_ids[CHECK_SOURCES][CHECK_PATH_BYTES];
+static check_token_set token_sets[CHECK_SOURCES];
+static check_token_set revalidation_token_sets[CHECK_SOURCES];
+static w_seed_module_origin driver_origins[CHECK_IMPORTS];
+static w_seed_frontend_document candidate_documents[CHECK_SOURCES];
+static w_seed_ephemeral_graph_provider_facts candidate_facts[CHECK_SOURCES];
+
+static w_seed_ephemeral_graph_scratch_node graph_nodes[CHECK_SOURCES];
+static w_seed_ephemeral_graph_scratch_edge graph_edges[CHECK_EDGES];
+static size_t sorted_nodes[CHECK_SOURCES];
+static size_t node_ordinals[CHECK_SOURCES];
+static size_t sorted_edges[CHECK_EDGES];
+static size_t sorted_resolved_edges[CHECK_EDGES];
+static w_seed_module_origin graph_origins[CHECK_EDGES];
+static uint32_t indegree[CHECK_SOURCES];
+static uint32_t queue[CHECK_SOURCES];
+static uint32_t depths[CHECK_SOURCES];
+
+static w_seed_ephemeral_graph_scratch graph_scratch;
+static w_seed_ephemeral_graph_inventory_item inventory[CHECK_SOURCES];
+static w_seed_ephemeral_graph_edge graph_output_edges[CHECK_EDGES];
+static uint32_t document_order[CHECK_SOURCES];
+static w_seed_frontend_resolved_import resolved_imports[CHECK_EDGES];
+static w_seed_frontend_document documents[CHECK_SOURCES];
+
 static w_seed_frontend_module modules[CHECK_MODULES];
 static w_seed_frontend_import imports[CHECK_IMPORTS];
 static w_seed_frontend_import_item import_items[CHECK_IMPORT_ITEMS];
@@ -97,266 +140,72 @@ static w_seed_frontend_enum_membership_case
 static w_seed_frontend_symbol symbols[CHECK_SYMBOLS];
 static w_seed_frontend_fact facts[CHECK_FACTS];
 static w_seed_frontend_diagnostic diagnostics[CHECK_DIAGNOSTICS];
-static w_seed_module_origin module_origins[CHECK_IMPORTS];
 static uint8_t receipt[CHECK_RECEIPT];
-static uint8_t d0_output[CHECK_D0_OUTPUT_CAPACITY];
+static char display_paths[CHECK_SOURCES][CHECK_DISPLAY_PATH_BYTES];
 
-static bool frontend_counts_equal(const w_seed_frontend_counts *left,
-                                 const w_seed_frontend_counts *right) {
-  if (left == NULL || right == NULL) return false;
-#define SAME_COUNT(field) (left->field == right->field)
-  return SAME_COUNT(modules) && SAME_COUNT(imports) &&
-         SAME_COUNT(import_items) && SAME_COUNT(structs) &&
-         SAME_COUNT(fields) && SAME_COUNT(type_declarations) &&
-         SAME_COUNT(aliases) && SAME_COUNT(types) && SAME_COUNT(functions) &&
-         SAME_COUNT(parameters) && SAME_COUNT(entries) &&
-         SAME_COUNT(statements) && SAME_COUNT(expressions) &&
-         SAME_COUNT(arguments) && SAME_COUNT(symbols) && SAME_COUNT(facts) &&
-         SAME_COUNT(diagnostics) && SAME_COUNT(receipt_bytes) &&
-         SAME_COUNT(enums) && SAME_COUNT(enum_cases) &&
-         SAME_COUNT(enum_case_parameters) && SAME_COUNT(switch_arms) &&
-         SAME_COUNT(enum_subset_members) &&
-         SAME_COUNT(enum_membership_cases) &&
-         SAME_COUNT(generic_parameters) &&
-         SAME_COUNT(generic_applications) && SAME_COUNT(generic_arguments) &&
-         SAME_COUNT(typed_const_expressions) && SAME_COUNT(const_values) &&
-         SAME_COUNT(const_elements) && SAME_COUNT(const_bytes) &&
-         SAME_COUNT(const_declarations);
-#undef SAME_COUNT
+static void reset_driver_storage(void) {
+  (void)memset(driver_slots, 0, sizeof(driver_slots));
+  (void)memset(requests, 0, sizeof(requests));
+  (void)memset(&graph_scratch, 0, sizeof(graph_scratch));
+  for (size_t index = 0u; index < (size_t)CHECK_SOURCES; index += 1u) {
+    driver_slots[index].source_id_storage = source_ids[index];
+    driver_slots[index].source_id_capacity = CHECK_PATH_BYTES;
+    driver_slots[index].module_id_storage = module_ids[index];
+    driver_slots[index].module_id_capacity = CHECK_PATH_BYTES;
+    requests[index].tokens = (w_seed_ephemeral_provider_token_buffers){
+        token_sets[index].provider_id, CHECK_TOKEN_BYTES,
+        token_sets[index].root_token, CHECK_TOKEN_BYTES,
+        token_sets[index].source_provider_owner_token, CHECK_TOKEN_BYTES,
+        token_sets[index].canonical_token, CHECK_TOKEN_BYTES};
+    requests[index].revalidation_tokens =
+        (w_seed_ephemeral_provider_token_buffers){
+            revalidation_token_sets[index].provider_id, CHECK_TOKEN_BYTES,
+            revalidation_token_sets[index].root_token, CHECK_TOKEN_BYTES,
+            revalidation_token_sets[index].source_provider_owner_token,
+            CHECK_TOKEN_BYTES, revalidation_token_sets[index].canonical_token,
+            CHECK_TOKEN_BYTES};
+  }
+  graph_scratch = (w_seed_ephemeral_graph_scratch){
+      graph_nodes, CHECK_SOURCES, graph_edges, CHECK_EDGES, sorted_nodes,
+      CHECK_SOURCES, node_ordinals, CHECK_SOURCES, sorted_edges, CHECK_EDGES,
+      sorted_resolved_edges, CHECK_EDGES, graph_origins, CHECK_EDGES, indegree,
+      CHECK_SOURCES, queue, CHECK_SOURCES, depths, CHECK_SOURCES};
 }
 
-static bool frontend_result_complete(const w_seed_frontend_result *result) {
-  if (result == NULL || !frontend_counts_equal(&result->required,
-                                               &result->written) ||
-      result->receipt_bytes != result->written.receipt_bytes) {
-    return false;
-  }
-  if (result->status == W_SEED_FRONTEND_OK) {
-    return result->written.facts == 0u && result->written.diagnostics == 0u;
-  }
-  if (result->status == W_SEED_FRONTEND_DIAGNOSTICS) {
-    return result->written.facts == 0u && result->written.diagnostics != 0u &&
-           result->primary_diagnostic != W_SEED_FRONTEND_NONE_SIZE;
-  }
-  return false;
+static w_seed_ephemeral_driver_scratch driver_scratch_value(void) {
+  return (w_seed_ephemeral_driver_scratch){
+      driver_slots,
+      CHECK_SOURCES,
+      requests,
+      CHECK_SOURCES,
+      lexer_frames,
+      CHECK_LEXER_FRAMES,
+      tokens,
+      CHECK_TOKENS,
+      parse_frames,
+      CHECK_PARSE_FRAMES,
+      issues,
+      CHECK_ISSUES,
+      driver_origins,
+      CHECK_IMPORTS,
+      candidate_documents,
+      CHECK_SOURCES,
+      candidate_facts,
+      CHECK_SOURCES,
+      &graph_scratch};
 }
 
-static int read_source_file(const char *path, size_t *length) {
-  if (path == NULL || length == NULL || path[0] == '\0') return 2;
-  FILE *file = fopen(path, "rb");
-  if (file == NULL) return 2;
-  *length = 0u;
-  while (*length < CHECK_SOURCE_CAPACITY) {
-    const size_t room = CHECK_SOURCE_CAPACITY - *length;
-    const size_t count = fread(source_bytes + *length, 1u, room, file);
-    *length += count;
-    if (count < room) {
-      if (ferror(file) != 0) {
-        (void)fclose(file);
-        return 2;
-      }
-      break;
-    }
-  }
-  if (*length == CHECK_SOURCE_CAPACITY) {
-    const int extra = fgetc(file);
-    if (extra != EOF || ferror(file) != 0) {
-      (void)fclose(file);
-      return 2;
-    }
-  }
-  if (fclose(file) != 0) return 2;
-  return 0;
+static w_seed_ephemeral_driver_output driver_output_value(void) {
+  return (w_seed_ephemeral_driver_output){
+      {inventory, CHECK_SOURCES, graph_output_edges, CHECK_EDGES,
+       document_order, CHECK_SOURCES, resolved_imports, CHECK_EDGES},
+      documents,
+      CHECK_SOURCES,
+      0u};
 }
 
-static void report_text(FILE *stream, const char *text, size_t length,
-                        size_t limit) {
-  if (stream == NULL || text == NULL) return;
-  const size_t count = length < limit ? length : limit;
-  for (size_t index = 0; index < count; index += 1u) {
-    const unsigned char byte = (unsigned char)text[index];
-    if (byte == '\n' || byte == '\r' || byte == '\t') {
-      (void)fputc(' ', stream);
-    } else if (byte < 0x20u) {
-      (void)fputc('?', stream);
-    } else {
-      (void)fputc((int)byte, stream);
-    }
-  }
-  if (count != length) (void)fputs("...", stream);
-}
-
-static int report_human_diagnostic(const char *path,
-                                   const w_seed_source *source,
-                                   const w_seed_frontend_diagnostic *diagnostic) {
-  if (path == NULL || source == NULL || diagnostic == NULL) return 3;
-  w_seed_source_point point;
-  w_seed_source_error source_error;
-  if (!w_seed_source_offset_to_point(source, diagnostic->primary.start_byte,
-                                     &point, &source_error)) {
-    return 3;
-  }
-  (void)fprintf(stderr, "%s:%" PRIuMAX ":%" PRIuMAX ":%.*s: actual=",
-                path, (uintmax_t)(point.line + 1u),
-                (uintmax_t)(point.byte_column + 1u),
-                (int)diagnostic->code.length, diagnostic->code.data);
-  report_text(stderr, diagnostic->actual.data, diagnostic->actual.length, 160u);
-  (void)fputs(" expected=", stderr);
-  report_text(stderr, diagnostic->expected.data, diagnostic->expected.length,
-              160u);
-  (void)fputc('\n', stderr);
-  return 0;
-}
-
-static void report_failure(const char *path, const char *reason) {
-  if (path != NULL && reason != NULL) {
-    (void)fprintf(stderr, "%s: %s\n", path, reason);
-  } else if (reason != NULL) {
-    (void)fprintf(stderr, "w_seed_check: %s\n", reason);
-  }
-}
-
-static bool local_module_name_from_path(const char *path, size_t path_length,
-                                        w_seed_frontend_text *name) {
-  if (path == NULL || name == NULL || path_length == 0u) return false;
-  size_t end = path_length;
-  if (end >= 2u && path[end - 2u] == '.' && path[end - 1u] == 'w') {
-    end -= 2u;
-  }
-  size_t start = end;
-  while (start > 0u && path[start - 1u] != '/' &&
-         path[start - 1u] != '\\') {
-    start -= 1u;
-  }
-  if (start == end) return false;
-  *name = (w_seed_frontend_text){path + start, end - start};
-  return true;
-}
-
-static int emit_json_diagnostics(const char *path, const w_seed_source *source,
-                                 size_t count) {
-  size_t total = 0u;
-  for (size_t index = 0u; index < count; index += 1u) {
-    char instance[8];
-    const int written = snprintf(instance, sizeof(instance), "D%06" PRIuMAX,
-                                 (uintmax_t)(index + 1u));
-    if (written != 7) return 2;
-    w_seed_diagnostic_result measured;
-    const w_seed_diagnostic_status status =
-        w_seed_diagnostic_frontend_record(
-            instance, sizeof(instance) - 1u, path, strlen(path), source,
-            0u, &diagnostics[index], NULL, 0u, &measured);
-    if (status != W_SEED_DIAGNOSTIC_CAPACITY ||
-        measured.required_bytes > CHECK_D0_OUTPUT_CAPACITY - total ||
-        CHECK_D0_OUTPUT_CAPACITY - total - measured.required_bytes < 1u) {
-      return 2;
-    }
-    total += measured.required_bytes + 1u;
-  }
-  size_t offset = 0u;
-  for (size_t index = 0u; index < count; index += 1u) {
-    char instance[8];
-    const int written = snprintf(instance, sizeof(instance), "D%06" PRIuMAX,
-                                 (uintmax_t)(index + 1u));
-    if (written != 7) return 3;
-    w_seed_diagnostic_result emitted;
-    const w_seed_diagnostic_status status =
-        w_seed_diagnostic_frontend_record(
-            instance, sizeof(instance) - 1u, path, strlen(path), source,
-            0u, &diagnostics[index], d0_output + offset,
-            CHECK_D0_OUTPUT_CAPACITY - offset, &emitted);
-    if (status != W_SEED_DIAGNOSTIC_OK || emitted.written_bytes == 0u ||
-        emitted.written_bytes + 1u > CHECK_D0_OUTPUT_CAPACITY - offset) {
-      return 3;
-    }
-    offset += emitted.written_bytes;
-    d0_output[offset] = (uint8_t)'\n';
-    offset += 1u;
-  }
-  if (fwrite(d0_output, 1u, offset, stdout) != offset) return 3;
-  return 1;
-}
-
-int w_seed_check_run(const char *path, bool json) {
-  if (path == NULL || path[0] == '\0') {
-    report_failure(path, "path is empty");
-    return 2;
-  }
-  size_t length = 0u;
-  if (read_source_file(path, &length) != 0) {
-    report_failure(path, "cannot read source or source exceeds 16 MiB");
-    return 2;
-  }
-
-  w_seed_source source;
-  w_seed_source_error source_error;
-  if (!w_seed_source_init((w_seed_byte_view){source_bytes, length}, &source,
-                          &source_error)) {
-    report_failure(path, "source is not valid UTF-8");
-    return 2;
-  }
-  w_seed_parser parser;
-  w_seed_lex_error lex_error;
-  if (!w_seed_parser_init(
-          &source, (w_seed_span){0u, length},
-          (w_seed_foreign_limits){65536u, 256u}, lexer_frames,
-          CHECK_LEXER_FRAMES, tokens, CHECK_TOKENS, nodes, CHECK_NODES,
-          parse_frames, CHECK_PARSE_FRAMES, issues, CHECK_ISSUES, &parser,
-          &lex_error)) {
-    report_failure(path, "parser initialization failed");
-    return 2;
-  }
-  w_seed_parse_result parse;
-  if (!w_seed_parser_parse(&parser, &parse) ||
-      parse.status != W_SEED_PARSE_COMPLETE || parse.issue_count != 0u) {
-    report_failure(path, "source parse is incomplete");
-    return 2;
-  }
-
-  for (size_t index = 0u; index < parse.node_count; index += 1u) {
-    if (nodes[index].kind == W_SEED_CST_IMPORT) {
-      report_failure(path, "imports require module graph resolution");
-      return 2;
-    }
-  }
-
-  w_seed_module_scan_result module_scan;
-  if (w_seed_module_scan(&source, nodes, parse.node_count, &parse,
-                         module_origins, CHECK_IMPORTS, &module_scan) !=
-      W_SEED_MODULE_SCAN_OK) {
-    report_failure(path, "module origin scan failed");
-    return 2;
-  }
-
-  const size_t path_length = strlen(path);
-  w_seed_frontend_text local_module_name;
-  if (module_scan.has_module_header_name) {
-    const w_seed_span header = module_scan.module_header_name_span;
-    local_module_name = (w_seed_frontend_text){
-        (const char *)source.bytes.data + header.start_byte,
-        header.end_byte - header.start_byte,
-    };
-  } else if (!local_module_name_from_path(path, path_length,
-                                          &local_module_name)) {
-    report_failure(path, "logical module name is empty");
-    return 2;
-  }
-  const w_seed_frontend_document document = {
-      .logical_source_id = {path, path_length},
-      .module_id = {path, path_length},
-      .local_module_name = local_module_name,
-      .source = &source,
-      .nodes = nodes,
-      .node_count = parse.node_count,
-      .parse = parse,
-  };
-  const w_seed_frontend_input input = {
-      .documents = &document,
-      .document_count = 1u,
-      .external_modules = NULL,
-      .external_module_count = 0u,
-  };
-  w_seed_frontend_output output = {
+static w_seed_frontend_output frontend_output_value(void) {
+  return (w_seed_frontend_output){
       .modules = modules,
       .module_capacity = CHECK_MODULES,
       .imports = imports,
@@ -420,41 +269,330 @@ int w_seed_check_run(const char *path, bool json) {
       .diagnostics = diagnostics,
       .diagnostic_capacity = CHECK_DIAGNOSTICS,
       .receipt = receipt,
-      .receipt_capacity = CHECK_RECEIPT,
-  };
-  w_seed_frontend_result frontend_result;
-  const w_seed_frontend_status frontend_status =
-      w_seed_frontend_run(&input, &output, &frontend_result);
-  if (frontend_status != frontend_result.status ||
-      !frontend_result_complete(&frontend_result)) {
-    report_failure(path, "frontend result is incomplete or unsupported");
-    return 2;
-  }
-  if (frontend_status == W_SEED_FRONTEND_OK) return 0;
+      .receipt_capacity = CHECK_RECEIPT};
+}
 
-  for (size_t index = 0u; index < frontend_result.written.diagnostics;
-       index += 1u) {
-    w_seed_diagnostic_result measured;
-    char instance[8];
-    const int written = snprintf(instance, sizeof(instance), "D%06" PRIuMAX,
-                                 (uintmax_t)(index + 1u));
-    if (written != 7 ||
-        w_seed_diagnostic_frontend_record(
-            instance, sizeof(instance) - 1u, path, path_length, &source,
-            0u, &diagnostics[index], NULL, 0u, &measured) !=
-            W_SEED_DIAGNOSTIC_CAPACITY) {
-      report_failure(path, "frontend diagnostic is outside the bounded D0 mapping");
-      return 2;
+static bool text_view_valid(w_seed_frontend_text text) {
+  if (text.length != 0u && text.data == NULL) return false;
+  if (text.data == NULL) return text.length == 0u;
+  for (size_t index = 0u; index < text.length; index += 1u)
+    if ((uint8_t)text.data[index] == 0u) return false;
+  return true;
+}
+
+static bool report_failure(const char *path, const char *reason) {
+  if (reason == NULL) return false;
+  const int result = path == NULL
+                         ? fprintf(stderr, "w_seed_check: %s\n", reason)
+                         : fprintf(stderr, "%s: %s\n", path, reason);
+  return result >= 0;
+}
+
+static bool report_text(FILE *stream, w_seed_frontend_text text,
+                        size_t limit) {
+  if (stream == NULL || (text.length != 0u && text.data == NULL)) return false;
+  const size_t count = text.length < limit ? text.length : limit;
+  for (size_t index = 0u; index < count; index += 1u) {
+    const unsigned char byte = (unsigned char)text.data[index];
+    int output = (int)byte;
+    if (byte == '\n' || byte == '\r' || byte == '\t')
+      output = (int)' ';
+    else if (byte < 0x20u)
+      output = (int)'?';
+    if (fputc(output, stream) == EOF) return false;
+  }
+  if (count != text.length && fputs("...", stream) == EOF) return false;
+  return true;
+}
+
+static bool display_paths_prepare(
+    const char *path, size_t path_length, w_seed_frontend_text root_source_id,
+    const w_seed_frontend_document *documents_value, size_t document_count) {
+  const w_seed_frontend_text root_logical =
+      documents_value == NULL ? (w_seed_frontend_text){NULL, 0u}
+                               : documents_value[0].logical_source_id;
+  if (path == NULL || documents_value == NULL || document_count == 0u ||
+      document_count > (size_t)CHECK_SOURCES ||
+      !text_view_valid(root_source_id) || root_source_id.length == 0u ||
+      root_source_id.length > (size_t)CHECK_PATH_BYTES ||
+      !text_view_valid(root_logical) || root_logical.length == 0u ||
+      root_logical.length > (size_t)CHECK_PATH_BYTES) {
+    return false;
+  }
+  if (root_source_id.data < path ||
+      root_source_id.data > path + path_length) {
+    return false;
+  }
+  const size_t parent_length = (size_t)(root_source_id.data - path);
+  if (parent_length > path_length ||
+      path_length >= (size_t)CHECK_DISPLAY_PATH_BYTES) {
+    return false;
+  }
+  if (root_logical.length != root_source_id.length ||
+      memcmp(root_logical.data, root_source_id.data,
+             root_source_id.length) != 0) {
+    return false;
+  }
+  (void)memcpy(display_paths[0], path, path_length);
+  display_paths[0][path_length] = '\0';
+  for (size_t index = 0u; index < document_count; index += 1u) {
+    const w_seed_frontend_text logical =
+        documents_value[index].logical_source_id;
+    if (!text_view_valid(logical) || logical.length == 0u ||
+        logical.length > (size_t)CHECK_PATH_BYTES) {
+      return false;
+    }
+    if (index == 0u) continue;
+    if (parent_length > (size_t)CHECK_DISPLAY_PATH_BYTES - 1u ||
+        logical.length > (size_t)CHECK_DISPLAY_PATH_BYTES - 1u -
+                              parent_length) {
+      return false;
+    }
+    (void)memcpy(display_paths[index], path, parent_length);
+    (void)memcpy(display_paths[index] + parent_length, logical.data,
+                 logical.length);
+    display_paths[index][parent_length + logical.length] = '\0';
+  }
+  return true;
+}
+
+static bool preflight_human(
+    const char *path, size_t path_length, w_seed_frontend_text root_source_id,
+    const w_seed_ephemeral_driver_output *driver_output,
+    const w_seed_frontend_output *frontend_output,
+    const w_seed_check_pipeline_result *pipeline_result) {
+  if (driver_output == NULL || frontend_output == NULL ||
+      pipeline_result == NULL || pipeline_result->status !=
+                                     W_SEED_CHECK_PIPELINE_DIAGNOSTICS ||
+      driver_output->document_count == 0u ||
+      driver_output->document_count > driver_output->document_capacity ||
+      driver_output->document_count > (size_t)CHECK_SOURCES ||
+      pipeline_result->check_result.frontend_result.written.diagnostics >
+          frontend_output->diagnostic_capacity) {
+    return false;
+  }
+  if (!display_paths_prepare(path, path_length, root_source_id,
+                             driver_output->documents,
+                             driver_output->document_count)) {
+    return false;
+  }
+  const size_t count =
+      pipeline_result->check_result.frontend_result.written.diagnostics;
+  if (count != 0u && frontend_output->diagnostics == NULL) return false;
+  for (size_t index = 0u; index < count; index += 1u) {
+    const w_seed_frontend_diagnostic *diagnostic =
+        &frontend_output->diagnostics[index];
+    if (diagnostic->document_index >= driver_output->document_count ||
+        !text_view_valid(diagnostic->code) || diagnostic->code.length == 0u ||
+        !text_view_valid(diagnostic->actual) ||
+        !text_view_valid(diagnostic->expected) ||
+        !text_view_valid(diagnostic->declaration) ||
+        !text_view_valid(diagnostic->label) ||
+        !text_view_valid(diagnostic->accepted_forms)) {
+      return false;
+    }
+    const w_seed_frontend_document *document =
+        &driver_output->documents[diagnostic->document_index];
+    if (document->source == NULL ||
+        !w_seed_source_validate_span(document->source, diagnostic->primary,
+                                     NULL)) {
+      return false;
+    }
+    w_seed_source_point point;
+    if (!w_seed_source_offset_to_point(document->source,
+                                       diagnostic->primary.start_byte, &point,
+                                       NULL)) {
+      return false;
     }
   }
-  if (json) return emit_json_diagnostics(path, &source,
-                                         frontend_result.written.diagnostics);
-  for (size_t index = 0u; index < frontend_result.written.diagnostics;
-       index += 1u) {
-    if (report_human_diagnostic(path, &source, &diagnostics[index]) != 0) {
-      report_failure(path, "cannot render diagnostic source location");
+  return true;
+}
+
+static bool render_human_diagnostics(
+    const w_seed_ephemeral_driver_output *driver_output,
+    const w_seed_frontend_output *frontend_output,
+    const w_seed_check_pipeline_result *pipeline_result) {
+  if (driver_output == NULL || frontend_output == NULL ||
+      pipeline_result == NULL) {
+    return false;
+  }
+  const size_t count =
+      pipeline_result->check_result.frontend_result.written.diagnostics;
+  for (size_t index = 0u; index < count; index += 1u) {
+    const w_seed_frontend_diagnostic *diagnostic =
+        &frontend_output->diagnostics[index];
+    const w_seed_frontend_document *document =
+        &driver_output->documents[diagnostic->document_index];
+    w_seed_source_point point;
+    if (!w_seed_source_offset_to_point(document->source,
+                                       diagnostic->primary.start_byte, &point,
+                                       NULL)) {
+      return false;
+    }
+    if (fprintf(stderr, "%s:%" PRIuMAX ":%" PRIuMAX ":",
+                display_paths[diagnostic->document_index],
+                (uintmax_t)(point.line + 1u),
+                (uintmax_t)(point.byte_column + 1u)) < 0 ||
+        !report_text(stderr, diagnostic->code, SIZE_MAX) ||
+        fputs(": actual=", stderr) == EOF ||
+        !report_text(stderr, diagnostic->actual, 160u) ||
+        fputs(" expected=", stderr) == EOF ||
+        !report_text(stderr, diagnostic->expected, 160u) ||
+        fputc('\n', stderr) == EOF) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool emit_json_diagnostics(const w_seed_check_storage *storage,
+                                  size_t length) {
+  if (storage == NULL || length == 0u || storage->json_final == NULL ||
+      length > storage->json_final_capacity) {
+    return false;
+  }
+  /* The pipeline has already staged and committed every record. This is the
+   * sole public write for a successful JSON diagnostic result. */
+  return fwrite(storage->json_final, 1u, length, stdout) == length;
+}
+
+static int pipeline_exit_code(w_seed_check_pipeline_status status) {
+  switch (status) {
+    case W_SEED_CHECK_PIPELINE_CLEAN:
+      return 0;
+    case W_SEED_CHECK_PIPELINE_DIAGNOSTICS:
+      return 1;
+    case W_SEED_CHECK_PIPELINE_FAULT:
       return 3;
-    }
+    case W_SEED_CHECK_PIPELINE_CAPACITY:
+    case W_SEED_CHECK_PIPELINE_UNSUPPORTED:
+    case W_SEED_CHECK_PIPELINE_INVALID:
+    case W_SEED_CHECK_PIPELINE_IO:
+    default:
+      return 2;
   }
-  return 1;
+}
+
+static const char *pipeline_failure_reason(
+    w_seed_check_pipeline_status status) {
+  switch (status) {
+    case W_SEED_CHECK_PIPELINE_CAPACITY:
+      return "source check capacity exceeded";
+    case W_SEED_CHECK_PIPELINE_UNSUPPORTED:
+      return "source check uses unsupported input";
+    case W_SEED_CHECK_PIPELINE_INVALID:
+      return "source check input is invalid";
+    case W_SEED_CHECK_PIPELINE_IO:
+      return "source check I/O failed";
+    case W_SEED_CHECK_PIPELINE_FAULT:
+      return "internal check pipeline fault";
+    case W_SEED_CHECK_PIPELINE_CLEAN:
+    case W_SEED_CHECK_PIPELINE_DIAGNOSTICS:
+    default:
+      return "source check failed";
+  }
+}
+
+int w_seed_check_run(const char *path, bool json) {
+  if (path == NULL || path[0] == '\0') {
+    return report_failure(path, "path is empty") ? 2 : 3;
+  }
+  const size_t path_length = strlen(path);
+  w_seed_frontend_text root_source_id;
+  const w_seed_check_host_status source_id_status =
+      w_seed_check_root_source_id(path, path_length, &root_source_id);
+  if (source_id_status != W_SEED_CHECK_HOST_OK) {
+    const char *reason = source_id_status == W_SEED_CHECK_HOST_UNSUPPORTED
+                             ? "root basename uses unsupported Unicode"
+                             : "path is not a valid W source path";
+    return report_failure(path, reason) ? 2 : 3;
+  }
+
+  w_seed_check_host host = {0};
+  w_seed_check_storage storage = {0};
+  bool host_initialized = false;
+  bool storage_initialized = false;
+  int exit_code = 3;
+  const char *failure_reason = NULL;
+  w_seed_ephemeral_driver_scratch driver_scratch;
+  w_seed_ephemeral_driver_output driver_output;
+  w_seed_frontend_output frontend_output;
+  w_seed_check_pipeline_result pipeline_result;
+
+  if (w_seed_check_host_init(&host) != W_SEED_CHECK_HOST_OK) {
+    failure_reason = "host initialization failed";
+    goto cleanup;
+  }
+  host_initialized = true;
+  if (!w_seed_check_storage_init(&storage)) {
+    failure_reason = "check storage initialization failed";
+    goto cleanup;
+  }
+  storage_initialized = true;
+  const w_seed_check_host_status host_status =
+      w_seed_check_host_open(&host, &host.backend);
+  if (host_status != W_SEED_CHECK_HOST_OK) {
+    failure_reason = host_status == W_SEED_CHECK_HOST_UNSUPPORTED
+                         ? "host provider is unsupported"
+                         : "cannot open the check host";
+    exit_code = 2;
+    goto cleanup;
+  }
+
+  reset_driver_storage();
+  (void)memcpy(root_source_id_storage, root_source_id.data,
+               root_source_id.length);
+  const w_seed_frontend_text driver_root_source_id =
+      (w_seed_frontend_text){root_source_id_storage, root_source_id.length};
+  driver_scratch = driver_scratch_value();
+  driver_output = driver_output_value();
+  frontend_output = frontend_output_value();
+  const w_seed_ephemeral_driver_input driver_input = {
+      {(const uint8_t *)path, path_length},
+      driver_root_source_id,
+      {CHECK_SOURCES, W_SEED_EPHEMERAL_PROVIDER_MAX_SOURCE_BYTES,
+       W_SEED_EPHEMERAL_PROVIDER_MAX_TOTAL_SOURCE_BYTES,
+       W_SEED_EPHEMERAL_PROVIDER_MAX_PATH_BYTES,
+       W_SEED_EPHEMERAL_PROVIDER_MAX_TOKEN_BYTES},
+      W_SEED_EPHEMERAL_GRAPH_MAX_EDGES,
+      W_SEED_EPHEMERAL_GRAPH_MAX_DEPTH,
+      {65536u, 256u},
+      host.backend};
+  const w_seed_check_pipeline_input pipeline_input = {
+      &driver_input, &driver_scratch, &driver_output, &frontend_output,
+      &storage, "D000001", 7u};
+  const w_seed_check_pipeline_status pipeline_status =
+      w_seed_check_pipeline_run(&pipeline_input, &pipeline_result);
+  exit_code = pipeline_exit_code(pipeline_status);
+  if (pipeline_status == W_SEED_CHECK_PIPELINE_CLEAN) goto cleanup;
+  if (pipeline_status != W_SEED_CHECK_PIPELINE_DIAGNOSTICS) {
+    failure_reason = pipeline_failure_reason(pipeline_status);
+    goto cleanup;
+  }
+  if (json) {
+    if (!emit_json_diagnostics(&storage, pipeline_result.json_length)) {
+      exit_code = 3;
+      goto cleanup;
+    }
+    goto cleanup;
+  }
+  if (!preflight_human(path, path_length, root_source_id, &driver_output,
+                       &frontend_output, &pipeline_result)) {
+    exit_code = 3;
+    failure_reason = "cannot render diagnostic source location";
+    goto cleanup;
+  }
+  if (!render_human_diagnostics(&driver_output, &frontend_output,
+                                &pipeline_result)) {
+    exit_code = 3;
+    failure_reason = "cannot write diagnostic";
+    goto cleanup;
+  }
+
+cleanup:
+  if (storage_initialized) w_seed_check_storage_destroy(&storage);
+  if (host_initialized) w_seed_check_host_close(&host);
+  if (failure_reason != NULL && !report_failure(path, failure_reason))
+    exit_code = 3;
+  return exit_code;
 }
