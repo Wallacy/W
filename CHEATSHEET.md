@@ -4,7 +4,8 @@
 >
 > W ainda não tem compiler W completo, runtime, SDK, package manager ou
 > providers de standard library. O target bootstrap `w` executa `w check` no
-> perfil CHK9 de root efêmera local e imports alcançáveis. Este arquivo é um
+> perfil CHK9 de root efêmera local e imports alcançáveis, com o mapping
+> bounded de diagnostics CHK10. Este arquivo é um
 > mapa de leitura para a superfície proposta. Ele não promete que um snippet
 > execute.
 
@@ -125,7 +126,7 @@ As demais rotas abaixo são uma interface prevista, não uma CLI disponível:
 | Rodar arquivo único | `w run path/file.w` | Direção + implementation-gap |
 | Construir package | `w build` | Direção + provider missing |
 | Abrir sessão | `w repl` | Direção + implementation-gap |
-| Verificar um source ou graph local | `w check path/file.w [--json]` | Forma vigente executável no perfil CHK9 bounded |
+| Verificar um source ou graph local | `w check path/file.w [--json]` | Forma vigente executável no perfil CHK9 bounded, com mapping CHK10 subset |
 | Verificar um package | `w package check [package]` | Direção + implementation-gap |
 | Verificar um workspace | `w workspace check` | Direção + implementation-gap |
 | Exportar notebook | `w notebook export` | Direção + provider/implementation-gap |
@@ -457,8 +458,33 @@ path físico somente para display.
 
 O gate prova o witness single-source e o Restaurant multifile com child nested,
 diagnostic determinístico, source inalcançado, missing/std/cycle, limites,
-identidade, UTF-8, parse, frontend e symlink/junction escape. Package,
-workspace, provider `std`, NFC completo e frontend normativo permanecem gaps.
+identidade, UTF-8, parse, frontend e symlink/junction escape. O witness público
+de `W-MATCH-0001` usa `missingCases` set byte-sorted e label source-backed
+`match-subject`, com JSON repetível e exit `1`. Package, workspace, provider
+`std`, NFC completo e frontend normativo permanecem gaps.
+
+### CHK10 — diagnostics frontend estruturados
+
+O carrier frontend `w-seed-frontend-9` é caller-owned e append-only. Cada record
+publica `code`, `primary`, `document_index` e ranges exatos de facts, items e
+labels. STRING usa `text`; INTEGER usa `integer_value`; ARRAY/SET usam a faixa
+de `diagnostic_items`. O adapter preflighta profile e comprimento, schema,
+fact keys/types, UTF-8, sets únicos em ordem de bytes, grupos/ordem/cardinalidade
+de labels, SourceIds válidos e únicos, documentos, spans e counts exatos antes
+de medir ou escrever JSON.
+
+O mapping fechado cobre exatamente estes 17 codes: `W-SEM-0001`,
+`W-TYPE-0120`, `W-TYPE-0121`, `W-TYPE-0122`, `W-LABEL-0005`, `W-LABEL-0006`,
+`W-MATCH-0001`, `W-MATCH-0002`, `W-MATCH-0003`, `W-CONST-0001`,
+`W-CONTRACT-0001`, `W-CONTRACT-0002`, `W-CONTRACT-0003`, `W-CONTRACT-0004`,
+`W-GENERIC-0001`, `W-GENERIC-0002` e `W-GENERIC-0003`; outros codes continuam
+`UNSUPPORTED`. JSON é all-or-nothing no preflight e conserva SourceId lógico;
+human compartilha a validação e usa paths físicos para primary e labels, com
+summary específico. A evidência inclui matrix 17/17, caso cross-document,
+sets determinísticos, três diagnostics em ordem e o witness público Restaurant
+de `W-MATCH-0001`. Isto é uma fatia bounded de mapping, não frontend completo
+nem `w check` completo; package/workspace, provider `std`, resolution externa,
+owner detection e diagnostics fora dos 17 profiles continuam gaps.
 
 ## Declarações, tipos e contratos
 

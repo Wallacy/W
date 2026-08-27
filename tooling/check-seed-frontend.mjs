@@ -29,7 +29,7 @@ function parseResult(output, label) {
   const lines = output.toString().split(/\r?\n/u)
   const line = lines.find((candidate) => candidate.startsWith("RESULT "))
   if (!line) fail(`${label} has no RESULT line`)
-  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) generic_parameters=(\d+) generic_applications=(\d+) generic_arguments=(\d+) typed_const_expressions=(\d+) const_values=(\d+) const_elements=(\d+) const_bytes=(\d+) const_declarations=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) enum_membership_cases=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) receipt=(\d+)$/u.exec(line)
+  const match = /^RESULT parse=(\d+) frontend=(\w+) modules=(\d+) imports=(\d+) structs=(\d+) generic_parameters=(\d+) generic_applications=(\d+) generic_arguments=(\d+) typed_const_expressions=(\d+) const_values=(\d+) const_elements=(\d+) const_bytes=(\d+) const_declarations=(\d+) enums=(\d+) enum_cases=(\d+) enum_case_parameters=(\d+) switch_arms=(\d+) enum_subset_members=(\d+) enum_membership_cases=(\d+) types=(\d+) functions=(\d+) params=(\d+) entries=(\d+) statements=(\d+) expressions=(\d+) arguments=(\d+) symbols=(\d+) facts=(\d+) diagnostics=(\d+) diagnostic_facts=(\d+) diagnostic_items=(\d+) diagnostic_labels=(\d+) receipt=(\d+)$/u.exec(line)
   if (!match) fail(`${label} has an invalid RESULT line: ${line}`)
   return {
     parse: Number(match[1]),
@@ -61,7 +61,10 @@ function parseResult(output, label) {
     symbols: Number(match[27]),
     facts: Number(match[28]),
     diagnostics: Number(match[29]),
-    receipt: Number(match[30]),
+    diagnostic_facts: Number(match[30]),
+    diagnostic_items: Number(match[31]),
+    diagnostic_labels: Number(match[32]),
+    receipt: Number(match[33]),
   }
 }
 

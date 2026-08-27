@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-8"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-9"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -223,6 +223,10 @@ typedef struct {
   size_t symbols;
   size_t facts;
   size_t diagnostics;
+  /* Typed D0 diagnostic carrier ranges. */
+  size_t diagnostic_facts;
+  size_t diagnostic_items;
+  size_t diagnostic_labels;
   size_t receipt_bytes;
   /* Append-only enum declaration/case/payload counts. */
   size_t enums;
@@ -702,21 +706,41 @@ typedef struct {
 } w_seed_frontend_expression;
 
 typedef enum {
-  W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC = 0,
-  W_SEED_FRONTEND_DIAGNOSTIC_TYPE,
-  W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
-} w_seed_frontend_diagnostic_kind;
+  W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING = 0,
+  W_SEED_FRONTEND_DIAGNOSTIC_FACT_INTEGER,
+  W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_ARRAY,
+  W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET,
+} w_seed_frontend_diagnostic_fact_kind;
 
 typedef struct {
-  w_seed_frontend_diagnostic_kind kind;
+  w_seed_frontend_text key;
+  /* STRING uses text. INTEGER uses integer_value. ARRAY and SET values use
+   * ranges in the append-only diagnostic_items array. */
+  w_seed_frontend_diagnostic_fact_kind kind;
+  w_seed_frontend_text text;
+  int64_t integer_value;
+  uint32_t first_item;
+  uint32_t item_count;
+} w_seed_frontend_diagnostic_fact;
+
+typedef struct {
+  w_seed_frontend_text text;
+} w_seed_frontend_diagnostic_item;
+
+typedef struct {
+  w_seed_frontend_text role;
+  w_seed_span span;
+  size_t document_index;
+} w_seed_frontend_diagnostic_label;
+
+typedef struct {
   w_seed_frontend_text code;
-  w_seed_frontend_text actual;
-  w_seed_frontend_text expected;
-  w_seed_frontend_text declaration;
-  w_seed_frontend_text label;
-  w_seed_frontend_text accepted_forms;
   w_seed_span primary;
   size_t document_index;
+  uint32_t first_fact;
+  uint32_t fact_count;
+  uint32_t first_label;
+  uint32_t label_count;
 } w_seed_frontend_diagnostic;
 
 typedef struct {
@@ -761,6 +785,12 @@ typedef struct {
   size_t fact_capacity;
   w_seed_frontend_diagnostic *diagnostics;
   size_t diagnostic_capacity;
+  w_seed_frontend_diagnostic_fact *diagnostic_facts;
+  size_t diagnostic_fact_capacity;
+  w_seed_frontend_diagnostic_item *diagnostic_items;
+  size_t diagnostic_item_capacity;
+  w_seed_frontend_diagnostic_label *diagnostic_labels;
+  size_t diagnostic_label_capacity;
   uint8_t *receipt;
   size_t receipt_capacity;
   /* Append-only enum output arrays. */

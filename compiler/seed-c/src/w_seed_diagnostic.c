@@ -566,78 +566,547 @@ w_seed_diagnostic_status w_seed_diagnostic_parse_record(
                              has_owner, output, output_capacity, result);
 }
 
-static bool is_semantic_type_diagnostic(
-    const w_seed_frontend_diagnostic *diagnostic) {
-  static const char code[] = "W-SEM-0001";
-  return diagnostic != NULL &&
-         diagnostic->kind == W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC &&
-         diagnostic->code.data != NULL && diagnostic->code.length == 10u &&
-         memcmp(diagnostic->code.data, code, sizeof(code) - 1u) == 0;
+typedef struct {
+  const char *key;
+  size_t length;
+  w_seed_frontend_diagnostic_fact_kind kind;
+} frontend_fact_spec;
+
+typedef struct {
+  const char *role;
+  size_t length;
+  size_t minimum;
+  size_t maximum;
+} frontend_label_spec;
+
+typedef struct {
+  const char *code;
+  size_t length;
+  const char *phase;
+  const frontend_fact_spec *facts;
+  size_t fact_count;
+  const frontend_label_spec *labels;
+  size_t label_count;
+} frontend_code_profile;
+
+#define FRONTEND_FACT_SPEC(name, fact_kind) \
+  {name, sizeof(name) - 1u, fact_kind}
+#define FRONTEND_LABEL_SPEC(name, minimum_count, maximum_count) \
+  {name, sizeof(name) - 1u, minimum_count, maximum_count}
+
+static const frontend_fact_spec frontend_sem_facts[] = {
+    FRONTEND_FACT_SPEC("actual", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("expected", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_type0120_facts[] = {
+    FRONTEND_FACT_SPEC("leftType", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("rightType", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_type0121_facts[] = {
+    FRONTEND_FACT_SPEC("actualCase", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("allowedCases", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET),
+    FRONTEND_FACT_SPEC("baseEnum", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("expectedType", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_type0122_facts[] = {
+    FRONTEND_FACT_SPEC("actualType", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("candidateRoutes", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET),
+    FRONTEND_FACT_SPEC("expectedType", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("reason", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_label0005_facts[] = {
+    FRONTEND_FACT_SPEC("acceptedForms", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_ARRAY),
+    FRONTEND_FACT_SPEC("declaration", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("label", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_label0006_facts[] = {
+    FRONTEND_FACT_SPEC("declaration", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("label", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("slot", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_match0001_facts[] = {
+    FRONTEND_FACT_SPEC("missingCases", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET),
+    FRONTEND_FACT_SPEC("subjectType", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_match0002_facts[] = {
+    FRONTEND_FACT_SPEC("coveredBy", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("pattern", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("subjectType", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_match0003_facts[] = {
+    FRONTEND_FACT_SPEC("context", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("expectedType", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("member", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_const0001_facts[] = {
+    FRONTEND_FACT_SPEC("callChain", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_ARRAY),
+    FRONTEND_FACT_SPEC("operation", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("reason", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("symbol", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_contract0001_facts[] = {
+    FRONTEND_FACT_SPEC("availableSlots", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET),
+    FRONTEND_FACT_SPEC("head", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("slot", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_contract0002_facts[] = {
+    FRONTEND_FACT_SPEC("actualKind", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("expectedKind", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("head", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("slot", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_contract0003_facts[] = {
+    FRONTEND_FACT_SPEC("expectedType", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("head", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("predicateType", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_contract0004_facts[] = {
+    FRONTEND_FACT_SPEC("head", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("slot", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("slotOrder", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_ARRAY),
+    FRONTEND_FACT_SPEC("violation", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_generic0001_facts[] = {
+    FRONTEND_FACT_SPEC("domain", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("parameter", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("resolutionReason", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_generic0002_facts[] = {
+    FRONTEND_FACT_SPEC("candidates", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET),
+    FRONTEND_FACT_SPEC("equationSources", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET),
+    FRONTEND_FACT_SPEC("parameter", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("reason", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+static const frontend_fact_spec frontend_generic0003_facts[] = {
+    FRONTEND_FACT_SPEC("externalLabel", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("kind", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("parameter", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+    FRONTEND_FACT_SPEC("position", W_SEED_FRONTEND_DIAGNOSTIC_FACT_INTEGER),
+    FRONTEND_FACT_SPEC("reason", W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING),
+};
+
+static const frontend_label_spec frontend_branch_result_labels[] = {
+    FRONTEND_LABEL_SPEC("branch-result", 2u, SIZE_MAX),
+};
+static const frontend_label_spec frontend_expected_type_labels[] = {
+    FRONTEND_LABEL_SPEC("expected-type", 1u, 1u),
+};
+static const frontend_label_spec frontend_call_owner_expected_labels[] = {
+    FRONTEND_LABEL_SPEC("call-owner", 1u, 1u),
+    FRONTEND_LABEL_SPEC("expected-type", 1u, 1u),
+};
+static const frontend_label_spec frontend_match_subject_labels[] = {
+    FRONTEND_LABEL_SPEC("match-subject", 1u, 1u),
+};
+static const frontend_label_spec frontend_match_case_subject_labels[] = {
+    FRONTEND_LABEL_SPEC("covered-case", 1u, 1u),
+    FRONTEND_LABEL_SPEC("match-subject", 1u, 1u),
+};
+static const frontend_label_spec frontend_const_owner_labels[] = {
+    FRONTEND_LABEL_SPEC("const-owner", 1u, 1u),
+};
+static const frontend_label_spec frontend_contract_labels[] = {
+    FRONTEND_LABEL_SPEC("contract-head", 1u, 1u),
+    FRONTEND_LABEL_SPEC("slot-declaration", 0u, 1u),
+};
+static const frontend_label_spec frontend_generic_parameter_labels[] = {
+    FRONTEND_LABEL_SPEC("generic-parameter", 1u, 1u),
+};
+static const frontend_label_spec frontend_generic_call_labels[] = {
+    FRONTEND_LABEL_SPEC("call-owner", 1u, 1u),
+    FRONTEND_LABEL_SPEC("generic-parameter", 1u, 1u),
+};
+
+static const frontend_code_profile frontend_profiles[] = {
+    {"W-SEM-0001", 10u, "semantic.type", frontend_sem_facts, 2u, NULL, 0u},
+    {"W-TYPE-0120", 11u, "semantic.type", frontend_type0120_facts, 2u,
+     frontend_branch_result_labels, 1u},
+    {"W-TYPE-0121", 11u, "semantic.type", frontend_type0121_facts, 4u,
+     frontend_expected_type_labels, 1u},
+    {"W-TYPE-0122", 11u, "semantic.type", frontend_type0122_facts, 4u,
+     frontend_call_owner_expected_labels, 2u},
+    {"W-LABEL-0005", 12u, "semantic.type", frontend_label0005_facts, 3u,
+     NULL, 0u},
+    {"W-LABEL-0006", 12u, "semantic.type", frontend_label0006_facts, 3u,
+     NULL, 0u},
+    {"W-MATCH-0001", 12u, "semantic.flow", frontend_match0001_facts, 2u,
+     frontend_match_subject_labels, 1u},
+    {"W-MATCH-0002", 12u, "semantic.flow", frontend_match0002_facts, 3u,
+     frontend_match_case_subject_labels, 2u},
+    {"W-MATCH-0003", 12u, "semantic.type", frontend_match0003_facts, 3u,
+     NULL, 0u},
+    {"W-CONST-0001", sizeof("W-CONST-0001") - 1u, "semantic.const", frontend_const0001_facts, 4u,
+     frontend_const_owner_labels, 1u},
+    {"W-CONTRACT-0001", sizeof("W-CONTRACT-0001") - 1u, "semantic.type", frontend_contract0001_facts, 3u,
+     frontend_contract_labels, 2u},
+    {"W-CONTRACT-0002", sizeof("W-CONTRACT-0002") - 1u, "semantic.type", frontend_contract0002_facts, 4u,
+     frontend_contract_labels, 2u},
+    {"W-CONTRACT-0003", sizeof("W-CONTRACT-0003") - 1u, "semantic.type", frontend_contract0003_facts, 3u,
+     frontend_contract_labels, 2u},
+    {"W-CONTRACT-0004", sizeof("W-CONTRACT-0004") - 1u, "semantic.type", frontend_contract0004_facts, 4u,
+     frontend_contract_labels, 2u},
+    {"W-GENERIC-0001", sizeof("W-GENERIC-0001") - 1u, "semantic.type", frontend_generic0001_facts, 3u,
+     frontend_generic_parameter_labels, 1u},
+    {"W-GENERIC-0002", sizeof("W-GENERIC-0002") - 1u, "semantic.type", frontend_generic0002_facts, 4u,
+     frontend_generic_call_labels, 2u},
+    {"W-GENERIC-0003", sizeof("W-GENERIC-0003") - 1u, "semantic.type", frontend_generic0003_facts, 5u,
+     frontend_generic_parameter_labels, 1u},
+};
+
+_Static_assert(sizeof(frontend_profiles) / sizeof(frontend_profiles[0]) == 17u,
+               "frontend diagnostic profiles must cover the active set");
+
+#undef FRONTEND_FACT_SPEC
+#undef FRONTEND_LABEL_SPEC
+
+static const frontend_code_profile *frontend_profile_for(
+    w_seed_frontend_text code) {
+  for (size_t index = 0u;
+       index < sizeof(frontend_profiles) / sizeof(frontend_profiles[0]);
+       index += 1u) {
+    if (code.length == frontend_profiles[index].length &&
+        memcmp(code.data, frontend_profiles[index].code, code.length) == 0) {
+      return &frontend_profiles[index];
+    }
+  }
+  return NULL;
 }
 
-static bool valid_frontend_fact_text(w_seed_frontend_text text) {
-  return text.data != NULL && text.length != 0u &&
-         valid_utf8_identity(text.data, text.length);
+static bool valid_frontend_text(w_seed_frontend_text text, bool allow_empty) {
+  if (!allow_empty && text.length == 0u) return false;
+  if (text.length != 0u && text.data == NULL) return false;
+  return valid_utf8_identity(text.data, text.length);
+}
+
+static bool frontend_source_valid(const w_seed_source *source) {
+  if (source == NULL) return false;
+  w_seed_source canonical = {0};
+  w_seed_source_error error;
+  if (!w_seed_source_init(source->bytes, &canonical, &error)) return false;
+  return canonical.line_count == source->line_count &&
+         canonical.bom_length == source->bom_length;
+}
+
+static int compare_frontend_text(w_seed_frontend_text left,
+                                 w_seed_frontend_text right) {
+  const size_t common = left.length < right.length ? left.length : right.length;
+  const int comparison = common == 0u
+                              ? 0
+                              : memcmp(left.data, right.data, common);
+  if (comparison != 0) return comparison;
+  if (left.length < right.length) return -1;
+  if (left.length > right.length) return 1;
+  return 0;
+}
+
+static void writer_signed(diagnostic_writer *writer, int64_t value) {
+  uint64_t magnitude = value < 0
+                           ? (uint64_t)(-(value + 1)) + UINT64_C(1)
+                           : (uint64_t)value;
+  if (value < 0) writer_byte(writer, (uint8_t)'-');
+  char digits[32];
+  size_t length = 0u;
+  do {
+    digits[length] = (char)('0' + (magnitude % UINT64_C(10)));
+    magnitude /= UINT64_C(10);
+    length += 1u;
+  } while (magnitude != 0u);
+  while (length != 0u) {
+    length -= 1u;
+    writer_byte(writer, (uint8_t)digits[length]);
+  }
+}
+
+static bool frontend_item_range_valid(
+    const w_seed_frontend_output *frontend,
+    const w_seed_frontend_diagnostic_fact *fact,
+    size_t item_count_limit) {
+  if (fact->item_count == 0u) {
+    return fact->first_item == W_SEED_FRONTEND_NONE;
+  }
+  if (fact->first_item == W_SEED_FRONTEND_NONE ||
+      (size_t)fact->first_item > item_count_limit ||
+      (size_t)fact->item_count > item_count_limit - (size_t)fact->first_item ||
+      frontend->diagnostic_items == NULL) {
+    return false;
+  }
+  return true;
+}
+
+static bool frontend_validate_diagnostic(
+    const w_seed_diagnostic_frontend_context *context,
+    const w_seed_frontend_diagnostic *diagnostic,
+    const frontend_code_profile *profile) {
+  if (context == NULL || diagnostic == NULL || profile == NULL ||
+      context->frontend_output == NULL || context->sources == NULL ||
+      context->source_ids == NULL || context->source_count == 0u ||
+      diagnostic->document_index >= context->source_count ||
+      !valid_frontend_text(diagnostic->code, false) ||
+      diagnostic->code.length != profile->length ||
+      memcmp(diagnostic->code.data, profile->code, profile->length) != 0 ||
+      diagnostic->fact_count != profile->fact_count) {
+    return false;
+  }
+  const w_seed_frontend_output *frontend = context->frontend_output;
+  const size_t diagnostic_limit = context->diagnostic_count;
+  if (context->diagnostic_count > frontend->diagnostic_capacity ||
+      context->diagnostic_fact_count > frontend->diagnostic_fact_capacity ||
+      context->diagnostic_item_count > frontend->diagnostic_item_capacity ||
+      context->diagnostic_label_count > frontend->diagnostic_label_capacity) {
+    return false;
+  }
+  if (diagnostic->first_fact == W_SEED_FRONTEND_NONE ||
+      (size_t)diagnostic->first_fact > frontend->diagnostic_fact_capacity ||
+      (size_t)diagnostic->fact_count >
+          frontend->diagnostic_fact_capacity - (size_t)diagnostic->first_fact ||
+      diagnostic->first_label == W_SEED_FRONTEND_NONE ||
+      (size_t)diagnostic->first_label > frontend->diagnostic_label_capacity ||
+      (size_t)diagnostic->label_count >
+          frontend->diagnostic_label_capacity - (size_t)diagnostic->first_label ||
+      context->frontend_output->diagnostics == NULL ||
+      diagnostic_limit == 0u) {
+    return false;
+  }
+  const w_seed_frontend_text primary_source_id =
+      context->source_ids[diagnostic->document_index];
+  for (size_t source_index = 0u; source_index < context->source_count;
+       source_index += 1u) {
+    if (!frontend_source_valid(&context->sources[source_index])) return false;
+    const w_seed_frontend_text source_id = context->source_ids[source_index];
+    if (!valid_frontend_text(source_id, false)) {
+      return false;
+    }
+    for (size_t prior = 0u; prior < source_index; prior += 1u) {
+      if (compare_frontend_text(context->source_ids[prior], source_id) == 0) {
+        return false;
+      }
+    }
+  }
+  if (!valid_frontend_text(primary_source_id, false)) {
+    return false;
+  }
+  w_seed_source_error source_error;
+  if (!w_seed_source_validate_span(&context->sources[diagnostic->document_index],
+                                   diagnostic->primary, &source_error)) {
+    return false;
+  }
+  const size_t item_limit = context->diagnostic_item_count;
+  const size_t fact_limit = context->diagnostic_fact_count;
+  const size_t label_limit = context->diagnostic_label_count;
+  if ((profile->fact_count != 0u && frontend->diagnostic_facts == NULL) ||
+      (diagnostic->label_count != 0u && frontend->diagnostic_labels == NULL)) {
+    return false;
+  }
+  if ((size_t)diagnostic->first_fact > fact_limit ||
+      (size_t)diagnostic->fact_count >
+          fact_limit - (size_t)diagnostic->first_fact) {
+    return false;
+  }
+  if ((size_t)diagnostic->first_label > label_limit ||
+      (size_t)diagnostic->label_count >
+          label_limit - (size_t)diagnostic->first_label) {
+    return false;
+  }
+  for (size_t index = 0u; index < profile->fact_count; index += 1u) {
+    const w_seed_frontend_diagnostic_fact *fact =
+        &frontend->diagnostic_facts[(size_t)diagnostic->first_fact + index];
+    const frontend_fact_spec *spec = &profile->facts[index];
+    if (!valid_frontend_text(fact->key, false) ||
+        fact->key.length != spec->length ||
+        memcmp(fact->key.data, spec->key, spec->length) != 0 ||
+        fact->kind != spec->kind ||
+        !frontend_item_range_valid(frontend, fact, item_limit)) {
+      return false;
+    }
+    if (fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_INTEGER) {
+      if (fact->text.data != NULL || fact->text.length != 0u ||
+          fact->first_item != W_SEED_FRONTEND_NONE || fact->item_count != 0u) {
+        return false;
+      }
+    } else if (fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING) {
+      if (!valid_frontend_text(fact->text, false) || fact->integer_value != 0 ||
+          fact->first_item != W_SEED_FRONTEND_NONE || fact->item_count != 0u) {
+        return false;
+      }
+    } else {
+      if (fact->text.data != NULL || fact->text.length != 0u ||
+          fact->integer_value != 0) {
+        return false;
+      }
+      for (size_t item = 0u; item < fact->item_count; item += 1u) {
+        const w_seed_frontend_diagnostic_item *value =
+            &frontend->diagnostic_items[(size_t)fact->first_item + item];
+        if (!valid_frontend_text(value->text, false)) return false;
+      if (fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET &&
+          item != 0u &&
+          compare_frontend_text(
+              frontend->diagnostic_items[(size_t)fact->first_item + item - 1u]
+                  .text,
+              value->text) >= 0) {
+          return false;
+        }
+      }
+    }
+  }
+  for (size_t index = 0u; index < profile->label_count; index += 1u) {
+    size_t count = 0u;
+    for (size_t label_index = 0u; label_index < diagnostic->label_count;
+         label_index += 1u) {
+      const w_seed_frontend_diagnostic_label *label =
+          &frontend->diagnostic_labels[(size_t)diagnostic->first_label +
+                                       label_index];
+      if (!valid_frontend_text(label->role, false) ||
+          label->document_index >= context->source_count ||
+          !w_seed_source_validate_span(
+              &context->sources[label->document_index], label->span,
+              &source_error)) {
+        return false;
+      }
+      if (label->role.length == profile->labels[index].length &&
+          memcmp(label->role.data, profile->labels[index].role,
+                 profile->labels[index].length) == 0) {
+        count += 1u;
+      }
+    }
+    if (count < profile->labels[index].minimum ||
+        count > profile->labels[index].maximum) {
+      return false;
+    }
+  }
+  size_t previous_role = 0u;
+  bool have_previous_role = false;
+  for (size_t label_index = 0u; label_index < diagnostic->label_count;
+       label_index += 1u) {
+    const w_seed_frontend_diagnostic_label *label =
+        &frontend->diagnostic_labels[(size_t)diagnostic->first_label +
+                                     label_index];
+    bool known = false;
+    size_t role_index = 0u;
+    for (size_t index = 0u; index < profile->label_count; index += 1u) {
+      if (label->role.length == profile->labels[index].length &&
+          memcmp(label->role.data, profile->labels[index].role,
+                 profile->labels[index].length) == 0) {
+        known = true;
+        role_index = index;
+        break;
+      }
+    }
+    if (!known) return false;
+    if (have_previous_role && role_index < previous_role) return false;
+    previous_role = role_index;
+    have_previous_role = true;
+  }
+  return true;
+}
+
+static void write_frontend_fact_value(
+    diagnostic_writer *writer, const w_seed_frontend_output *frontend,
+    const w_seed_frontend_diagnostic_fact *fact) {
+  if (fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_INTEGER) {
+    writer_signed(writer, fact->integer_value);
+    return;
+  }
+  if (fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING) {
+    writer_json_string(writer, fact->text.data, fact->text.length);
+    return;
+  }
+  writer_byte(writer, (uint8_t)'[');
+  for (size_t index = 0u; index < fact->item_count; index += 1u) {
+    if (index != 0u) writer_byte(writer, (uint8_t)',');
+    const w_seed_frontend_diagnostic_item *item =
+        &frontend->diagnostic_items[(size_t)fact->first_item + index];
+    writer_json_string(writer, item->text.data, item->text.length);
+  }
+  writer_byte(writer, (uint8_t)']');
 }
 
 static void write_frontend_record(
     diagnostic_writer *writer, const char *instance, size_t instance_length,
-    const char *source_id, size_t source_id_length,
+    const w_seed_diagnostic_frontend_context *context,
     const w_seed_frontend_diagnostic *diagnostic) {
+  const w_seed_frontend_output *frontend = context->frontend_output;
+  const w_seed_frontend_text primary_source_id =
+      context->source_ids[diagnostic->document_index];
+  const frontend_code_profile *profile = frontend_profile_for(diagnostic->code);
   writer_text(writer, "{\"schemaVersion\":1,\"instance\":");
   writer_json_string(writer, instance, instance_length);
-  writer_text(writer,
-              ",\"code\":\"W-SEM-0001\",\"phase\":\"semantic.type\","
-              "\"severity\":\"error\",\"primary\":{\"source\":");
-  writer_json_string(writer, source_id, source_id_length);
+  writer_text(writer, ",\"code\":");
+  writer_json_string(writer, diagnostic->code.data, diagnostic->code.length);
+  writer_text(writer, ",\"phase\":");
+  writer_json_string(writer, profile->phase, strlen(profile->phase));
+  writer_text(writer, ",\"severity\":\"error\",\"primary\":{\"source\":");
+  writer_json_string(writer, primary_source_id.data, primary_source_id.length);
   writer_text(writer, ",\"startByte\":");
   writer_decimal(writer, diagnostic->primary.start_byte);
   writer_text(writer, ",\"endByte\":");
   writer_decimal(writer, diagnostic->primary.end_byte);
-  writer_text(writer, "},\"labels\":[],\"facts\":{\"actual\":");
-  writer_json_string(writer, diagnostic->actual.data, diagnostic->actual.length);
-  writer_text(writer, ",\"expected\":");
-  writer_json_string(writer, diagnostic->expected.data,
-                     diagnostic->expected.length);
+  writer_text(writer, "},\"labels\":[");
+  for (size_t index = 0u; index < diagnostic->label_count; index += 1u) {
+    if (index != 0u) writer_byte(writer, (uint8_t)',');
+    const w_seed_frontend_diagnostic_label *label =
+        &frontend->diagnostic_labels[(size_t)diagnostic->first_label + index];
+    const w_seed_frontend_text label_source_id =
+        context->source_ids[label->document_index];
+    writer_text(writer, "{\"role\":");
+    writer_json_string(writer, label->role.data, label->role.length);
+    writer_text(writer, ",\"span\":{\"source\":");
+    writer_json_string(writer, label_source_id.data, label_source_id.length);
+    writer_text(writer, ",\"startByte\":");
+    writer_decimal(writer, label->span.start_byte);
+    writer_text(writer, ",\"endByte\":");
+    writer_decimal(writer, label->span.end_byte);
+    writer_text(writer, "}}");
+  }
+  writer_text(writer, "],\"facts\":{");
+  for (size_t index = 0u; index < diagnostic->fact_count; index += 1u) {
+    if (index != 0u) writer_byte(writer, (uint8_t)',');
+    const w_seed_frontend_diagnostic_fact *fact =
+        &frontend->diagnostic_facts[(size_t)diagnostic->first_fact + index];
+    writer_json_string(writer, fact->key.data, fact->key.length);
+    writer_byte(writer, (uint8_t)':');
+    write_frontend_fact_value(writer, frontend, fact);
+  }
   writer_text(writer, "},\"notes\":[],\"fixes\":[],\"root\":null}");
 }
 
 w_seed_diagnostic_status w_seed_diagnostic_frontend_record(
-    const char *instance, size_t instance_length, const char *source_id,
-    size_t source_id_length, const w_seed_source *source,
-    size_t expected_document_index,
-    const w_seed_frontend_diagnostic *diagnostic, uint8_t *output,
-    size_t output_capacity, w_seed_diagnostic_result *result) {
+    const char *instance, size_t instance_length,
+    const w_seed_diagnostic_frontend_context *context,
+    size_t diagnostic_index, uint8_t *output, size_t output_capacity,
+    w_seed_diagnostic_result *result) {
   clear_result(result, W_SEED_DIAGNOSTIC_INVALID);
   if (result == NULL || !valid_instance(instance, instance_length) ||
-      !valid_utf8_identity(source_id, source_id_length) || source == NULL ||
-      diagnostic == NULL) {
+      context == NULL || context->frontend_output == NULL ||
+      context->sources == NULL ||
+      context->source_ids == NULL || context->source_count == 0u ||
+      diagnostic_index >= context->frontend_output->diagnostic_capacity ||
+      context->frontend_output->diagnostics == NULL) {
     if (result != NULL) result->status = W_SEED_DIAGNOSTIC_INVALID;
     return W_SEED_DIAGNOSTIC_INVALID;
   }
-  if (!is_semantic_type_diagnostic(diagnostic)) {
-    result->status = W_SEED_DIAGNOSTIC_UNSUPPORTED;
-    return result->status;
-  }
-  if (diagnostic->document_index != expected_document_index) {
-    result->status = W_SEED_DIAGNOSTIC_UNSUPPORTED;
-    return result->status;
-  }
-  if (!valid_frontend_fact_text(diagnostic->actual) ||
-      !valid_frontend_fact_text(diagnostic->expected)) {
+  if (diagnostic_index >= context->diagnostic_count) {
     result->status = W_SEED_DIAGNOSTIC_INVALID;
     return result->status;
   }
-  w_seed_source_error source_error;
-  if (!w_seed_source_validate_span(source, diagnostic->primary,
-                                   &source_error)) {
+  const w_seed_frontend_diagnostic *diagnostic =
+      &context->frontend_output->diagnostics[diagnostic_index];
+  if (!valid_frontend_text(diagnostic->code, false)) {
+    result->status = W_SEED_DIAGNOSTIC_INVALID;
+    return result->status;
+  }
+  const frontend_code_profile *profile = frontend_profile_for(diagnostic->code);
+  if (profile == NULL) {
     result->status = W_SEED_DIAGNOSTIC_UNSUPPORTED;
+    return result->status;
+  }
+  if (!frontend_validate_diagnostic(context, diagnostic, profile)) {
+    result->status = W_SEED_DIAGNOSTIC_INVALID;
     return result->status;
   }
 
   diagnostic_writer measure = {NULL, 0, 0, 0};
-  write_frontend_record(&measure, instance, instance_length, source_id,
-                        source_id_length, diagnostic);
+  write_frontend_record(&measure, instance, instance_length, context,
+                        diagnostic);
   result->required_bytes = measure.required;
   result->primary_byte = diagnostic->primary.start_byte;
   if (output == NULL || output_capacity < measure.required) {
@@ -645,8 +1114,8 @@ w_seed_diagnostic_status w_seed_diagnostic_frontend_record(
     return result->status;
   }
   diagnostic_writer writer = {output, output_capacity, 0, 0};
-  write_frontend_record(&writer, instance, instance_length, source_id,
-                        source_id_length, diagnostic);
+  write_frontend_record(&writer, instance, instance_length, context,
+                        diagnostic);
   result->status = W_SEED_DIAGNOSTIC_OK;
   result->written_bytes = writer.written;
   return result->status;

@@ -43,6 +43,9 @@ enum {
   TEST_FRONT_SYMBOLS = 512,
   TEST_FRONT_FACTS = 512,
   TEST_FRONT_DIAGNOSTICS = 128,
+  TEST_FRONT_DIAGNOSTIC_FACTS = TEST_FRONT_DIAGNOSTICS * 5,
+  TEST_FRONT_DIAGNOSTIC_ITEMS = TEST_FRONT_DIAGNOSTICS * 4,
+  TEST_FRONT_DIAGNOSTIC_LABELS = TEST_FRONT_DIAGNOSTICS * 2,
   TEST_FRONT_RECEIPT = 128 * 1024,
   TEST_FRONT_GENERIC_PARAMETERS = 64,
   TEST_FRONT_GENERIC_APPLICATIONS = 64,
@@ -140,6 +143,12 @@ typedef struct {
   w_seed_frontend_symbol frontend_symbols[TEST_FRONT_SYMBOLS];
   w_seed_frontend_fact frontend_facts[TEST_FRONT_FACTS];
   w_seed_frontend_diagnostic frontend_diagnostics[TEST_FRONT_DIAGNOSTICS];
+  w_seed_frontend_diagnostic_fact
+      frontend_diagnostic_facts[TEST_FRONT_DIAGNOSTIC_FACTS];
+  w_seed_frontend_diagnostic_item
+      frontend_diagnostic_items[TEST_FRONT_DIAGNOSTIC_ITEMS];
+  w_seed_frontend_diagnostic_label
+      frontend_diagnostic_labels[TEST_FRONT_DIAGNOSTIC_LABELS];
   uint8_t frontend_receipt[TEST_FRONT_RECEIPT];
   w_seed_frontend_enum frontend_enums[TEST_FRONT_ENUMS];
   w_seed_frontend_enum_case frontend_enum_cases[TEST_FRONT_ENUM_CASES];
@@ -453,6 +462,12 @@ static void init_fixture(fake_backend *backend) {
       .fact_capacity = TEST_FRONT_FACTS,
       .diagnostics = fixture.frontend_diagnostics,
       .diagnostic_capacity = TEST_FRONT_DIAGNOSTICS,
+      .diagnostic_facts = fixture.frontend_diagnostic_facts,
+      .diagnostic_fact_capacity = TEST_FRONT_DIAGNOSTIC_FACTS,
+      .diagnostic_items = fixture.frontend_diagnostic_items,
+      .diagnostic_item_capacity = TEST_FRONT_DIAGNOSTIC_ITEMS,
+      .diagnostic_labels = fixture.frontend_diagnostic_labels,
+      .diagnostic_label_capacity = TEST_FRONT_DIAGNOSTIC_LABELS,
       .receipt = fixture.frontend_receipt,
       .receipt_capacity = TEST_FRONT_RECEIPT,
       .enums = fixture.frontend_enums,
@@ -779,6 +794,40 @@ static bool bytes_contain(const uint8_t *bytes, size_t byte_count,
   return false;
 }
 
+static bool child_diagnostic_jsonl_is_well_formed(const uint8_t *jsonl,
+                                                  size_t length) {
+  if (jsonl == NULL || length == 0u) return false;
+  size_t line_start = 0u;
+  size_t line_count = 0u;
+  while (line_start < length) {
+    size_t newline = line_start;
+    while (newline < length && jsonl[newline] != '\n') newline += 1u;
+    if (newline == line_start || newline >= length ||
+        jsonl[line_start] != '{' || jsonl[newline - 1u] != '}' ||
+        !bytes_contain(jsonl + line_start, newline - line_start,
+                       "\"schemaVersion\":1"))
+      return false;
+    const uint8_t *line = jsonl + line_start;
+    const size_t line_length = newline - line_start;
+    const char *instance = line_count == 0u
+                               ? "\"instance\":\"D000001\""
+                               : line_count == 1u
+                                     ? "\"instance\":\"D000002\""
+                                     : "\"instance\":\"D000003\"";
+    const char *source = line_count == 0u ? "\"source\":\"root.w\""
+                                         : "\"source\":\"child.w\"";
+    const char *code = line_count < 2u ? "\"code\":\"W-SEM-0001\""
+                                      : "\"code\":\"W-TYPE-0122\"";
+    if (!bytes_contain(line, line_length, instance) ||
+        !bytes_contain(line, line_length, source) ||
+        !bytes_contain(line, line_length, code))
+      return false;
+    line_count += 1u;
+    line_start = newline + 1u;
+  }
+  return line_count == 3u && line_start == length;
+}
+
 static bool test_ephemeral_check_cross_module(void) {
   fake_backend backend = {0};
   backend.root_text =
@@ -881,11 +930,30 @@ static bool test_ephemeral_check_publication_barriers(void) {
   w_seed_ephemeral_check_result result;
   CHECK(run_check_fixture(&backend, final_json, sizeof(final_json),
                           &final_length, staging, sizeof(staging), &result) ==
-        W_SEED_EPHEMERAL_CHECK_UNSUPPORTED);
-  CHECK(result.diagnostic_index >= 1u);
-  CHECK(final_length == 91u);
-  for (size_t index = 0u; index < sizeof(final_json); index += 1u)
-    CHECK(final_json[index] == 0xA5u);
+        W_SEED_EPHEMERAL_CHECK_DIAGNOSTICS);
+  CHECK(result.status == W_SEED_EPHEMERAL_CHECK_DIAGNOSTICS);
+  CHECK(result.frontend_status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(result.frontend_result.written.diagnostics == 3u);
+  CHECK(result.diagnostic_index == 2u);
+  CHECK(result.diagnostic_status == W_SEED_DIAGNOSTIC_OK);
+  CHECK(result.diagnostic_result.status == W_SEED_DIAGNOSTIC_OK);
+  CHECK(result.required_capacity == final_length && final_length != 91u);
+  CHECK(fixture.frontend_diagnostics[0].document_index == 0u);
+  CHECK(fixture.frontend_diagnostics[1].document_index == 1u);
+  CHECK(fixture.frontend_diagnostics[2].document_index == 1u);
+  CHECK(fixture.frontend_diagnostics[0].code.length == 10u &&
+        memcmp(fixture.frontend_diagnostics[0].code.data, "W-SEM-0001",
+               10u) == 0);
+  CHECK(fixture.frontend_diagnostics[1].code.length == 10u &&
+        memcmp(fixture.frontend_diagnostics[1].code.data, "W-SEM-0001",
+               10u) == 0);
+  CHECK(fixture.frontend_diagnostics[2].code.length == 11u &&
+        memcmp(fixture.frontend_diagnostics[2].code.data, "W-TYPE-0122",
+               11u) == 0);
+  CHECK(child_diagnostic_jsonl_is_well_formed(final_json, final_length));
+  uint8_t first_child_json[4096];
+  const size_t first_child_length = final_length;
+  (void)memcpy(first_child_json, final_json, first_child_length);
 
   backend = (fake_backend){0};
   backend.root_text = "module app;\n";
@@ -925,10 +993,20 @@ static bool test_ephemeral_check_publication_barriers(void) {
   final_length = 59u;
   CHECK(run_check_fixture(&backend, final_json, sizeof(final_json),
                           &final_length, staging, sizeof(staging), &result) ==
-        W_SEED_EPHEMERAL_CHECK_UNSUPPORTED);
-  CHECK(final_length == 59u);
-  for (size_t index = 0u; index < sizeof(final_json); index += 1u)
-    CHECK(final_json[index] == 0xC3u);
+        W_SEED_EPHEMERAL_CHECK_DIAGNOSTICS);
+  CHECK(result.status == W_SEED_EPHEMERAL_CHECK_DIAGNOSTICS);
+  CHECK(result.frontend_status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(result.frontend_result.written.diagnostics == 3u);
+  CHECK(result.diagnostic_index == 2u);
+  CHECK(result.diagnostic_status == W_SEED_DIAGNOSTIC_OK);
+  CHECK(result.diagnostic_result.status == W_SEED_DIAGNOSTIC_OK);
+  CHECK(result.required_capacity == final_length && final_length != 59u);
+  CHECK(fixture.frontend_diagnostics[0].document_index == 0u);
+  CHECK(fixture.frontend_diagnostics[1].document_index == 1u);
+  CHECK(fixture.frontend_diagnostics[2].document_index == 1u);
+  CHECK(child_diagnostic_jsonl_is_well_formed(final_json, final_length));
+  CHECK(final_length == first_child_length &&
+        memcmp(final_json, first_child_json, first_child_length) == 0);
 
   backend = (fake_backend){0};
   backend.root_text = supported_root_source;

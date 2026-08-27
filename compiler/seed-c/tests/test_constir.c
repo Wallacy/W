@@ -30,6 +30,9 @@ enum {
   SWITCH_ARMS = 8192,
   MEMBERSHIP = 32768,
   CONST_BYTES = 65536,
+  DIAGNOSTIC_FACTS = ARRAY * 5,
+  DIAGNOSTIC_ITEMS = ARRAY * 4,
+  DIAGNOSTIC_LABELS = ARRAY * 2,
   FRONTEND_RECEIPT = 2 * 1024 * 1024,
   CONSTIR_FUNCTIONS = 256,
   CONSTIR_PARAMETERS = 4096,
@@ -89,6 +92,9 @@ typedef struct {
   w_seed_frontend_symbol symbols[ARRAY];
   w_seed_frontend_fact facts[ARRAY];
   w_seed_frontend_diagnostic diagnostics[ARRAY];
+  w_seed_frontend_diagnostic_fact diagnostic_facts[DIAGNOSTIC_FACTS];
+  w_seed_frontend_diagnostic_item diagnostic_items[DIAGNOSTIC_ITEMS];
+  w_seed_frontend_diagnostic_label diagnostic_labels[DIAGNOSTIC_LABELS];
   w_seed_frontend_external_parameter external_parameters[ARRAY];
   w_seed_frontend_external_symbol external_symbols[ARRAY];
   w_seed_frontend_external_module external_modules[ARRAY];
@@ -181,6 +187,12 @@ static void fixture_init_output(fixture *value) {
       .fact_capacity = ARRAY,
       .diagnostics = value->diagnostics,
       .diagnostic_capacity = ARRAY,
+      .diagnostic_facts = value->diagnostic_facts,
+      .diagnostic_fact_capacity = DIAGNOSTIC_FACTS,
+      .diagnostic_items = value->diagnostic_items,
+      .diagnostic_item_capacity = DIAGNOSTIC_ITEMS,
+      .diagnostic_labels = value->diagnostic_labels,
+      .diagnostic_label_capacity = DIAGNOSTIC_LABELS,
       .receipt = value->frontend_receipt,
       .receipt_capacity = FRONTEND_RECEIPT,
   };

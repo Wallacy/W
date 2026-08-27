@@ -158,7 +158,8 @@ try {
   expectEmptyOutput(human, "mutation human")
   const point = pointAt(mutationBytes, startByte)
   const expectedHuman = mutationSource + ":" + point.line + ":" +
-    point.column + ":W-SEM-0001: actual=1 expected=Bool\n"
+    point.column + ":W-SEM-0001: node does not satisfy its expected semantic " +
+    "use; facts=actual=1, expected=Bool\n"
   if (human.exitCode !== 1 || normalize(human.stderr) !== expectedHuman) {
     fail("human diagnostic is not stable: " + JSON.stringify(human))
   }

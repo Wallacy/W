@@ -57,18 +57,28 @@ w_seed_diagnostic_status w_seed_diagnostic_parse_record(
     uint8_t *output, size_t output_capacity,
     w_seed_diagnostic_result *result);
 
-/* Map only the complete W-SEM-0001 frontend diagnostic to the D0
- * semantic.type record. The caller supplies the document identity expected for
- * the source view. The source view is authoritative for primary-span order,
- * range, and UTF-8 code-point boundaries. Other frontend diagnostics or a
- * document/source mismatch return UNSUPPORTED and never produce a partial
- * record. */
+/* The frontend adapter receives the complete caller-owned source inventory and
+ * typed frontend output. It validates every source view, one diagnostic, and
+ * all of its related ranges before measuring or writing a D0 record. */
+typedef struct {
+  const w_seed_source *sources;
+  const w_seed_frontend_text *source_ids;
+  size_t source_count;
+  const w_seed_frontend_output *frontend_output;
+  size_t diagnostic_count;
+  size_t diagnostic_fact_count;
+  size_t diagnostic_item_count;
+  size_t diagnostic_label_count;
+} w_seed_diagnostic_frontend_context;
+
+/* Map one of the 17 active frontend diagnostics to D0. Unknown frontend
+ * codes return UNSUPPORTED. The output contains one record without a trailing
+ * newline, so callers can compose JSONL atomically. */
 w_seed_diagnostic_status w_seed_diagnostic_frontend_record(
-    const char *instance, size_t instance_length, const char *source_id,
-    size_t source_id_length, const w_seed_source *source,
-    size_t expected_document_index,
-    const w_seed_frontend_diagnostic *diagnostic, uint8_t *output,
-    size_t output_capacity, w_seed_diagnostic_result *result);
+    const char *instance, size_t instance_length,
+    const w_seed_diagnostic_frontend_context *context,
+    size_t diagnostic_index, uint8_t *output, size_t output_capacity,
+    w_seed_diagnostic_result *result);
 
 #ifdef __cplusplus
 }

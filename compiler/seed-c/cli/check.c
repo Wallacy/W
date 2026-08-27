@@ -52,6 +52,9 @@ enum {
   CHECK_SYMBOLS = 131072,
   CHECK_FACTS = 131072,
   CHECK_DIAGNOSTICS = 65536,
+  CHECK_DIAGNOSTIC_FACTS = CHECK_DIAGNOSTICS * 5,
+  CHECK_DIAGNOSTIC_ITEMS = CHECK_DIAGNOSTICS * 4,
+  CHECK_DIAGNOSTIC_LABELS = CHECK_DIAGNOSTICS * 2,
   CHECK_RECEIPT = 8 * 1024 * 1024,
   CHECK_SOURCES = W_SEED_CHECK_STORAGE_MAX_SOURCES,
   CHECK_EDGES = W_SEED_EPHEMERAL_GRAPH_MAX_EDGES,
@@ -140,6 +143,12 @@ static w_seed_frontend_enum_membership_case
 static w_seed_frontend_symbol symbols[CHECK_SYMBOLS];
 static w_seed_frontend_fact facts[CHECK_FACTS];
 static w_seed_frontend_diagnostic diagnostics[CHECK_DIAGNOSTICS];
+static w_seed_frontend_diagnostic_fact
+    diagnostic_facts[CHECK_DIAGNOSTIC_FACTS];
+static w_seed_frontend_diagnostic_item
+    diagnostic_items[CHECK_DIAGNOSTIC_ITEMS];
+static w_seed_frontend_diagnostic_label
+    diagnostic_labels[CHECK_DIAGNOSTIC_LABELS];
 static uint8_t receipt[CHECK_RECEIPT];
 static char display_paths[CHECK_SOURCES][CHECK_DISPLAY_PATH_BYTES];
 
@@ -268,6 +277,12 @@ static w_seed_frontend_output frontend_output_value(void) {
       .fact_capacity = CHECK_FACTS,
       .diagnostics = diagnostics,
       .diagnostic_capacity = CHECK_DIAGNOSTICS,
+      .diagnostic_facts = diagnostic_facts,
+      .diagnostic_fact_capacity = CHECK_DIAGNOSTIC_FACTS,
+      .diagnostic_items = diagnostic_items,
+      .diagnostic_item_capacity = CHECK_DIAGNOSTIC_ITEMS,
+      .diagnostic_labels = diagnostic_labels,
+      .diagnostic_label_capacity = CHECK_DIAGNOSTIC_LABELS,
       .receipt = receipt,
       .receipt_capacity = CHECK_RECEIPT};
 }
@@ -376,36 +391,67 @@ static bool preflight_human(
                              driver_output->document_count)) {
     return false;
   }
+  w_seed_source sources[CHECK_SOURCES] = {0};
+  w_seed_frontend_text adapter_source_ids[CHECK_SOURCES] = {0};
+  for (size_t index = 0u; index < driver_output->document_count; index += 1u) {
+    const w_seed_frontend_document *document =
+        &driver_output->documents[index];
+    if (document->source == NULL) return false;
+    sources[index] = *document->source;
+    adapter_source_ids[index] = document->logical_source_id;
+  }
+  const w_seed_diagnostic_frontend_context diagnostic_context = {
+      sources,
+      adapter_source_ids,
+      driver_output->document_count,
+      frontend_output,
+      pipeline_result->check_result.frontend_result.written.diagnostics,
+      pipeline_result->check_result.frontend_result.written.diagnostic_facts,
+      pipeline_result->check_result.frontend_result.written.diagnostic_items,
+      pipeline_result->check_result.frontend_result.written.diagnostic_labels};
   const size_t count =
       pipeline_result->check_result.frontend_result.written.diagnostics;
   if (count != 0u && frontend_output->diagnostics == NULL) return false;
   for (size_t index = 0u; index < count; index += 1u) {
     const w_seed_frontend_diagnostic *diagnostic =
         &frontend_output->diagnostics[index];
-    if (diagnostic->document_index >= driver_output->document_count ||
-        !text_view_valid(diagnostic->code) || diagnostic->code.length == 0u ||
-        !text_view_valid(diagnostic->actual) ||
-        !text_view_valid(diagnostic->expected) ||
-        !text_view_valid(diagnostic->declaration) ||
-        !text_view_valid(diagnostic->label) ||
-        !text_view_valid(diagnostic->accepted_forms)) {
-      return false;
-    }
-    const w_seed_frontend_document *document =
-        &driver_output->documents[diagnostic->document_index];
-    if (document->source == NULL ||
-        !w_seed_source_validate_span(document->source, diagnostic->primary,
-                                     NULL)) {
-      return false;
-    }
-    w_seed_source_point point;
-    if (!w_seed_source_offset_to_point(document->source,
-                                       diagnostic->primary.start_byte, &point,
-                                       NULL)) {
-      return false;
-    }
+    if (diagnostic->document_index >= driver_output->document_count) return false;
+    w_seed_diagnostic_result adapter_result = {0};
+    char instance[8] = "D000001";
+    const w_seed_diagnostic_status adapter_status =
+        w_seed_diagnostic_frontend_record(
+            instance, sizeof(instance) - 1u,
+            &diagnostic_context,
+            index, NULL, 0u, &adapter_result);
+    if (adapter_status != W_SEED_DIAGNOSTIC_CAPACITY) return false;
   }
   return true;
+}
+
+static const char *frontend_diagnostic_summary(w_seed_frontend_text code) {
+#define CODE_SUMMARY(value, text)                                               \
+  if (code.length == sizeof(value) - 1u &&                                     \
+      memcmp(code.data, value, sizeof(value) - 1u) == 0)                        \
+    return text
+  CODE_SUMMARY("W-SEM-0001", "node does not satisfy its expected semantic use");
+  CODE_SUMMARY("W-TYPE-0120", "values do not have one unique safe common type");
+  CODE_SUMMARY("W-TYPE-0121", "enum value is outside the expected normalized case subset");
+  CODE_SUMMARY("W-TYPE-0122", "no total exact unique implicit conversion exists");
+  CODE_SUMMARY("W-LABEL-0005", "call uses an unknown label or invalid positional/named form");
+  CODE_SUMMARY("W-LABEL-0006", "call repeats a label or supplies the same normalized slot twice");
+  CODE_SUMMARY("W-MATCH-0001", "required switch or catch does not cover its complete proven domain");
+  CODE_SUMMARY("W-MATCH-0002", "case is completely covered by an earlier unguarded case");
+  CODE_SUMMARY("W-MATCH-0003", "short enum member has no unique expected enum type");
+  CODE_SUMMARY("W-CONST-0001", "operation is not const-safe");
+  CODE_SUMMARY("W-CONTRACT-0001", "contract argument names a slot that its head does not publish");
+  CODE_SUMMARY("W-CONTRACT-0002", "contract argument kind or value domain is incompatible with its resolved slot");
+  CODE_SUMMARY("W-CONTRACT-0003", "contract refinement predicate does not produce Bool");
+  CODE_SUMMARY("W-CONTRACT-0004", "contract slot is duplicated");
+  CODE_SUMMARY("W-GENERIC-0001", "generic parameter domain does not resolve to an allowed constraint");
+  CODE_SUMMARY("W-GENERIC-0002", "required generic slot is missing or open inference has no unique solution");
+  CODE_SUMMARY("W-GENERIC-0003", "generic parameter label or positional order is invalid");
+#undef CODE_SUMMARY
+  return "frontend diagnostic";
 }
 
 static bool render_human_diagnostics(
@@ -429,18 +475,63 @@ static bool render_human_diagnostics(
                                        NULL)) {
       return false;
     }
-    if (fprintf(stderr, "%s:%" PRIuMAX ":%" PRIuMAX ":",
+    if (fprintf(stderr, "%s:%" PRIuMAX ":%" PRIuMAX ":%.*s: ",
                 display_paths[diagnostic->document_index],
                 (uintmax_t)(point.line + 1u),
-                (uintmax_t)(point.byte_column + 1u)) < 0 ||
-        !report_text(stderr, diagnostic->code, SIZE_MAX) ||
-        fputs(": actual=", stderr) == EOF ||
-        !report_text(stderr, diagnostic->actual, 160u) ||
-        fputs(" expected=", stderr) == EOF ||
-        !report_text(stderr, diagnostic->expected, 160u) ||
-        fputc('\n', stderr) == EOF) {
+                (uintmax_t)(point.byte_column + 1u),
+                (int)diagnostic->code.length, diagnostic->code.data) < 0) {
       return false;
     }
+    const w_seed_frontend_diagnostic_fact *diagnostic_facts_view =
+        &frontend_output->diagnostic_facts[diagnostic->first_fact];
+    if (fputs(frontend_diagnostic_summary(diagnostic->code), stderr) == EOF)
+      return false;
+    if (diagnostic->fact_count != 0u && fputs("; facts=", stderr) == EOF)
+      return false;
+    for (size_t fact_index = 0u; fact_index < diagnostic->fact_count;
+         fact_index += 1u) {
+      if (fact_index != 0u && fputs(", ", stderr) == EOF) return false;
+      const w_seed_frontend_diagnostic_fact *fact =
+          &diagnostic_facts_view[fact_index];
+      if (!report_text(stderr, fact->key, SIZE_MAX) || fputc('=', stderr) == EOF)
+        return false;
+      if (fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_INTEGER) {
+        if (fprintf(stderr, "%" PRId64, fact->integer_value) < 0) return false;
+      } else if (fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING) {
+        if (!report_text(stderr, fact->text, 160u)) return false;
+      } else {
+        if (fputc('[', stderr) == EOF) return false;
+        for (size_t item_index = 0u; item_index < fact->item_count;
+             item_index += 1u) {
+          if (item_index != 0u && fputs(", ", stderr) == EOF) return false;
+          const w_seed_frontend_diagnostic_item *item =
+              &frontend_output->diagnostic_items[(size_t)fact->first_item +
+                                                 item_index];
+          if (!report_text(stderr, item->text, 160u)) return false;
+        }
+        if (fputc(']', stderr) == EOF) return false;
+      }
+    }
+    for (size_t label_index = 0u; label_index < diagnostic->label_count;
+         label_index += 1u) {
+      const w_seed_frontend_diagnostic_label *label =
+          &frontend_output->diagnostic_labels[(size_t)diagnostic->first_label +
+                                              label_index];
+      const w_seed_frontend_document *label_document =
+          &driver_output->documents[label->document_index];
+      w_seed_source_point label_point;
+      if (!w_seed_source_offset_to_point(label_document->source,
+                                         label->span.start_byte, &label_point,
+                                         NULL) ||
+          fprintf(stderr, " [%.*s %s:%" PRIuMAX ":%" PRIuMAX "]",
+                  (int)label->role.length, label->role.data,
+                  display_paths[label->document_index],
+                  (uintmax_t)(label_point.line + 1u),
+                  (uintmax_t)(label_point.byte_column + 1u)) < 0) {
+        return false;
+      }
+    }
+    if (fputc('\n', stderr) == EOF) return false;
   }
   return true;
 }

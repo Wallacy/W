@@ -7585,6 +7585,16 @@ classificação de módulo e root. Os IDs permanecem no ledger como proveniênci
 A regra corrente não preserva header, body implícito, lock/deployment root ou
 `export import` por compatibilidade pré-1.0.
 
+Addendum do ledger W-1485: CHK10 fornece evidência executável de um carrier
+frontend v9 caller-owned e append-only. Facts, items e labels são tipados, com
+profiles e schemas fechados para exatamente 17 codes; SourceIds válidos e
+únicos, origins cross-document, sets únicos byte-sorted e counts
+exatos são validados no preflight antes de medir ou escrever JSON. A matriz
+17/17, a fixture de três diagnostics, o caso cross-document e o witness
+Restaurant de `W-MATCH-0001` registram o mapping bounded; paths físicos ficam
+somente no human renderer. Diagnostics fora dos 17 profiles e frontend,
+provider e resolução completos continuam gaps.
+
 #### 1.3.21.7 Identidade semântica collision-safe de specialization (W-1467)
 
 **Motivação:** W-1460–W-1466 provaram um fingerprint pós-validação. Eles não
@@ -8021,6 +8031,23 @@ symlink/junction. JSON usa SourceId lógico, preflight integral e uma única
 `fwrite` do buffer final; human usa path físico somente para display e
 preflighta todos os diagnostics antes do primeiro diagnostic.
 
+CHK10 fecha somente o mapping D0 bounded dos diagnostics frontend. O carrier v9
+é caller-owned e append-only: cada record publica `code`, `primary`,
+`document_index` e ranges de facts, items e labels; STRING, INTEGER, ARRAY e
+SET usam os campos canônicos e não mantêm população escondida. O adapter prova
+profiles, fact keys/types/values, UTF-8, sets únicos em ordem de bytes,
+grupos/ordem/cardinalidade de labels, spans, documentos, SourceIds e counts
+exatos antes de medir ou escrever. O mapping cobre exatamente `W-SEM-0001`,
+`W-TYPE-0120`, `W-TYPE-0121`, `W-TYPE-0122`, `W-LABEL-0005`, `W-LABEL-0006`,
+`W-MATCH-0001`, `W-MATCH-0002`, `W-MATCH-0003`, `W-CONST-0001`,
+`W-CONTRACT-0001`, `W-CONTRACT-0002`, `W-CONTRACT-0003`, `W-CONTRACT-0004`,
+`W-GENERIC-0001`, `W-GENERIC-0002` e `W-GENERIC-0003`; outros códigos ficam
+`UNSUPPORTED`. Os testes incluem matrix 17/17, caso cross-document, sets
+determinísticos, três diagnostics ordenados e witness público Restaurant com
+`W-MATCH-0001`, `missingCases` sorted, label `match-subject`, exit `1` e JSON
+repetível. Human usa paths físicos para primary/labels e summaries específicos;
+isso não fecha frontend completo nem `w check` completo.
+
 O witness ancora paths, imports e símbolos existentes do Last Light para
 `app.w`, `command.w`, `domain.w` e `platform/native.w`, com imports transitive
 e `std.*` separado. Os `sourceText` e digests dos snippets RU0 são evidence
@@ -8042,12 +8069,12 @@ recipe dependente do host. A forma corrente mantém as bindings de §6.1 e
 resolve somente origin e inventory.
 
 O resultado é oracle-backed-current para a semântica de inventário, com
-evidência executável CHK3–CHK9; isso não é implementação de compiler. O owner
+evidência executável CHK3–CHK10; isso não é implementação de compiler. O owner
 fact é um source/provider owner token, não um package/workspace owner. CHK7
 continua uma composição interna caller-owned CHK6→frontend→D0 JSON-only e
 mapeia `W-SEM-0001`; CHK9 é a rota pública somente para o perfil local
 efêmero descrito acima. NFC completo, provider `std`, owner detection,
-package/workspace, resolução externa, diagnostics completos, frontend
+package/workspace, resolução externa, diagnostics fora dos 17 profiles, frontend
 normativo, compiler, runtime e conformance cross-target continuam gaps. A
 proveniência de capacity preservada pelo parser é evidência interna e não cria
 mapping D0 público.

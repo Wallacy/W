@@ -32820,7 +32820,6 @@ A aceitação do primeiro checker é fechada por estes casos:
   exato, seu span e o mesmo JSONL em duas execuções;
 - a inversão negativa produz o diagnostic humano esperado em stderr e stdout
   vazio;
-  frontend unsupported e capacity produzem exit `2` e stdout vazio;
 - invocation inválida, source inválido, parse incompleto, missing local, `std`,
   cycle, frontend unsupported e capacity produzem exit `2` e stdout vazio;
 - `restaurant.w` importa `menu.w` e passa clean, enquanto um child em
@@ -32852,8 +32851,8 @@ quando a resolução está completa, o caller fornece exatamente um edge por
 import com target local ou external explícito. O teste multi-documento prova
 um import nomeado para um módulo `kitchen.menu` cujo header local é `menu`,
 lookup no target exato, redirect determinístico e rejeições de edge inválido.
-O adapter D0 recebe também o índice esperado do documento; a rota CHK1 passa
-`0` e mantém os bytes existentes.
+O adapter D0 recebe o contexto caller-owned completo, incluindo o inventário de
+sources e o índice de documento, e mantém os bytes existentes.
 
 CHK3 é a evidência de resolved-edge caller-owned. CHK4 acrescenta o graph
 builder caller-owned para os documentos e facts já fornecidos. CHK5 acrescenta
@@ -32892,11 +32891,33 @@ hardlinks, mutation/replacement/removal, UTF-8 e limites. O gate exige Windows
 real no host Windows, Linux real via WSL nesse host e os dois stubs fail-closed.
 O adapter não transforma essa evidência interna em uma CLI pública multi-file.
 
+CHK10 acrescenta o carrier frontend v9 caller-owned e append-only. Records
+publicam `code`, `primary`, `document_index` e ranges exatos de facts, items e
+labels tipados; STRING usa `text`, INTEGER usa `integer_value` e ARRAY/SET usam
+a faixa append-only de `diagnostic_items`. O adapter preflighta, antes de medir
+ou escrever JSON, o profile e seu comprimento, schema e tipos, ordem de keys,
+UTF-8, sets únicos e byte-sorted, grupos/ordem/cardinalidade de labels,
+inventário completo de SourceIds não vazios e únicos, documentos, spans e
+counts exatos. O mapping fechado cobre exatamente `W-SEM-0001`,
+`W-TYPE-0120`, `W-TYPE-0121`, `W-TYPE-0122`, `W-LABEL-0005`, `W-LABEL-0006`,
+`W-MATCH-0001`, `W-MATCH-0002`, `W-MATCH-0003`, `W-CONST-0001`,
+`W-CONTRACT-0001`, `W-CONTRACT-0002`, `W-CONTRACT-0003`, `W-CONTRACT-0004`,
+`W-GENERIC-0001`, `W-GENERIC-0002` e `W-GENERIC-0003`; outros codes continuam
+`UNSUPPORTED`. JSON preflighta todos os diagnostics all-or-nothing e preserva
+SourceId lógico; human compartilha a validação, usa paths físicos para primary
+e labels e publica summaries específicos. A evidência inclui matrix 17/17, spans cross-document,
+sets determinísticos, três diagnostics em ordem e witness público Restaurant
+de `W-MATCH-0001` com `missingCases` sorted, label `match-subject`, exit `1` e
+JSON idêntico em duas execuções. Isso é evidência bounded de mapping e não
+frontend completo nem `w check` completo; package/workspace, provider `std`,
+resolution externa, owner detection, compiler, backend e runtime permanecem
+gaps.
+
 Saída: `w check <path/file.w> [--json]` verifica o subset síncrono do
 restaurante em root efêmera explícita e imports locais alcançáveis. O target
 bootstrap `w` executa a rota pública CHK9. Owner detection, resolução
 externa, provider `std`, package/workspace, reexport/service-import no CST
-seed, diagnostics além de `W-SEM-0001` e frontend normativo completo
+seed, diagnostics fora dos 17 profiles e frontend normativo completo
 continuam gaps. O comando continua sem build, backend, link, runtime ou
 artifact.
 
