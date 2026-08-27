@@ -28,7 +28,7 @@ const authorityKinds = new Set([
   "design-absence",
   "superseding-decision",
 ]);
-const evidenceKinds = new Set(["source", "oracle"]);
+const evidenceKinds = new Set(["source", "oracle", "study"]);
 
 function fail(message) {
   errors.push(message);
@@ -190,14 +190,14 @@ function validateEvidence(ref, location, decisionId) {
     fail(`${location} must be an object.`);
     return;
   }
-  if (!evidenceKinds.has(ref.kind)) fail(`${location}.kind must be source or oracle.`);
+  if (!evidenceKinds.has(ref.kind)) fail(`${location}.kind must be source, oracle, or study.`);
   validateFileRef(ref, location);
   if (!nonEmptyString(ref.caseId, `${location}.caseId`)) return;
   if (ref.kind === "source") {
     if (!legacySubstitutionCases.has(ref.caseId)) fail(`${location}.caseId is not a substitution case.`);
     const testCase = legacySubstitutionCases.get(ref.caseId);
     if (!(testCase.decisions ?? []).includes(decisionId)) fail(`${location}.caseId does not cite ${decisionId}.`);
-  } else {
+  } else if (ref.kind === "oracle") {
     const oracle = oracleCases.get(ref.caseId);
     if (!oracle) {
       fail(`${location}.caseId is not a corpus case.`);
@@ -223,6 +223,16 @@ function validateEvidence(ref, location, decisionId) {
           else validateSourceRef(ref.sourceRef, `${location}.sourceRef`);
         }
       }
+    }
+  } else if (ref.kind === "study") {
+    const expectedStudyPaths = new Map([
+      ["RDX0-task-ledger", "tooling/studies/rdx0-binary-registry-execution/task-ledger.json"],
+      ["RDX0-checker", "tooling/studies/rdx0-binary-registry-execution/check.mjs"],
+    ]);
+    if (decisionId !== "W-1486") fail(`${location}.study evidence is only valid for W-1486.`);
+    if (!nonEmptyString(ref.caseId, `${location}.caseId`)) return;
+    if (expectedStudyPaths.get(ref.caseId) !== ref.path) {
+      fail(`${location}.path does not match its RDX0 study artifact.`);
     }
   }
   if (Object.prototype.hasOwnProperty.call(ref, "expected") || Object.prototype.hasOwnProperty.call(ref, "result")) {
@@ -369,6 +379,15 @@ for (const [index, entry] of (classification.entries ?? []).entries()) {
       const key = `${ref.kind}:${ref.path}:${ref.caseId}`;
       if (refs.has(key)) fail(`${refLocation} duplicates ${key}.`);
       refs.add(key);
+    }
+    if (entry.decisionId === "W-1486") {
+      const studyEvidence = [...new Set(entry.evidence
+        .filter((ref) => ref?.kind === "study")
+        .map((ref) => ref?.caseId))].sort();
+      const expectedStudyEvidence = ["RDX0-checker", "RDX0-task-ledger"];
+      if (JSON.stringify(studyEvidence) !== JSON.stringify(expectedStudyEvidence)) {
+        fail(`${location}.evidence must include exactly the RDX0 task ledger and checker study refs.`);
+      }
     }
   }
   if (!nonEmptyString(entry.reason, `${location}.reason`)) continue;
@@ -612,6 +631,11 @@ for (const [decisionId, category, authorityId] of fixedCategoryAssertions) {
   }
   const actualId = category === "research-gated" ? entry.researchGate?.id : entry.authorityRef?.caseId;
   if (actualId !== authorityId) fail(`fixed category assertion ${decisionId} must use ${authorityId}.`);
+}
+const fixedRdx0Gate = entriesById.get("W-1486");
+if (!fixedRdx0Gate || fixedRdx0Gate.category !== "research-gated" ||
+    fixedRdx0Gate.researchGate?.id !== "RDX0-binary-registry-execution") {
+  fail("fixed research gate assertion W-1486 must remain the sole RDX0-binary-registry-execution gate.");
 }
 const baselineExtension = entriesById.get("W-1436");
 if (baselineExtension && (baselineExtension.researchExtension !== undefined ||

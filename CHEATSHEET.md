@@ -63,10 +63,12 @@ estável que limita futuras soluções. **Pesquisa** é uma hipótese ou baselin
 | Rejeitado por enquanto | Alternativa não adotada sem evidência nova. |
 | Rejeitado / rejected | Alternativa fora do W atual. Reabrir exige necessidade e evidência novas. |
 
-A classificação ativa do design freeze tem zero entradas research-gated. Uma
-nota normativa ou uma subcapacidade ainda pode citar Pesquisa com escopo
-fechado. Isso não abre um estado global novo. Pesquisa histórica encerrada é
-um qualificador de proveniência em history, não um estado de §0.
+A classificação ativa do design freeze tem uma entrada research-gated:
+W-1486 (`RDX0-binary-registry-execution`). O fechamento histórico `Research=0`
+permanece válido até W-1459. A direção candidate RDX0 e suas oito tasks não
+são implementação; canonical signing payload, protocol/security/provider
+evidence e stop conditions aguardam evidence e revisão. Pesquisa histórica
+encerrada é um qualificador de proveniência em history, não um estado de §0.
 
 #### Qualificadores de evidência, não estados
 
@@ -1634,6 +1636,72 @@ closed-single-source. Owner detection, resolution, imports/module graph,
 package/workspace, package manager e as demais rotas da CLI continuam gaps. O
 tooling existente neste checkout inclui o target bootstrap, Tree-sitter, atlas e
 checks de design.
+
+### Distribuição binary-first e execução remota
+
+O bundle [`RDX0`](tooling/studies/rdx0-binary-registry-execution/) registra a
+direção do registry e as pesquisas de publicação, cápsula, evidence, runner,
+sandbox e entitlement. O bundle não anuncia implementação.
+
+| Eixo | Forma registrada | Limite |
+| --- | --- | --- |
+| Registry | `w.registry-http/1`, static-first | HTTP/1.1, HTTP/2 e HTTP/3 equivalentes; HTTPS fora de local explícito |
+| Discovery | `/.well-known/w-registry.json` | metadata não concede authority |
+| Package | `/v1/packages/<encoded-package-id>/index.json` | signed, bounded, monotonic, versions/channels e release digests |
+| Release | `/v1/releases/<algorithm>/<digest>.json` | immutable por digest |
+| Object | `/v1/objects/<algorithm>/<digest>` | GET/HEAD; Range opcional |
+| Catalog checkpoint | `/v1/catalog/checkpoint.json` | trusted checkpoint assinado |
+| Catalog pages | `/v1/catalog/pages/<first>-<last>.jsonl` | immutable append-only; mirror/search |
+| Search | projection do catálogo, `/v1/search` opcional | nunca resolve known identity ou entra no lock |
+| Evidence | `/v1/evidence/<algorithm>/<subject-digest>/index.json` | attestation objects imutáveis |
+| Channel | `/v1/channels/<encoded-package-id>/<encoded-channel>/<encoded-target-profile>.json` | signed convenience, não substitui lock |
+
+Release e objects não são reescritos. Deprecation recomenda replacement. Yank
+impede nova resolution por default. Revocation bloqueia install ou execution no
+scope. JSON é UTF-8 estrito e duplicate keys são rejeitadas. Package index
+rollback compara com trusted checkpoint, não somente com contador do servidor.
+Read capability ou signed URL privada concede acesso scoped por object/package,
+audience e expiry, mas digest continua identity dos bytes. Channel JSON é
+convenience e não substitui lock ou verification. Search só é reconstruído de
+checkpoint e pages. Privacy mode escolhe 401, 403 ou 404 sem ampliar mirror ou
+token authority.
+
+`PCB0` usa release intent assinado e assertion OIDC curta. O serviço W valida
+issuer, audience, subject, workflow e ref e emite capability W de publicação
+one-use, curta e scoped. CI busca source da authority escolhida e publica
+artifact e attestations. Builder, registry e maintainer têm authorities
+distintas. Provider/tools podem observar source. Claim de descarte não prova
+descarte físico. Pinned builder/toolchain/actions, egress mínimo, redaction de
+logs/artifacts, secret lifecycle e provider identity entram no threat model.
+Plano e billing de CI são externos. Não há claim de que GitHub gratuito atende
+source fechado.
+O ledger separa `oidc-assertion-replay` de `publication-capability-reuse`.
+
+`WEC0` mantém HIR/MLIR/LLVM bitcode privado da recipe e exige exact toolchain
+key para IR. `ExecutionDescriptor` registra entrypoints, requirements, sandbox
+profile e payload refs. Fingerprints de section/chunk e runtime measurements
+tratam relocation/ASLR sem raw in-memory hash. Benchmark source rebuild versus
+exact capsule reuse/link mede compile time, cache, storage e network. Não existe
+promessa de universal binary.
+
+`TEV0` usa `TestDescriptor` e `TestPlan` para `@example`, `w test`, testes
+co-localizados e `*.test.w`. Cada descriptor exige stable ID, owner, origin
+carrier, source map, kind, fixtures/effects, oracle ou expected
+diagnostic/outcome, target/profile, seed/limits e body/plan digest. Async,
+cancellation e snapshot/golden identity têm cases próprios. Unit, compile-fail,
+property/fuzz, simulation, provider, multi-process/hardware fault e performance
+são lanes separadas. `SEV0` mantém security/advisory evidence, SBOM,
+RuntimeClosure, reachability, matches, snapshots append-only e analyzer
+conflicts por eixo/freshness, sem safe badge agregado.
+
+`SBX0` pesquisa provider/profile enforcement antes do user code. Learn mode não
+é receipt. `RSX0` exige resolução exata, authorization, admission, digest,
+freshness, revocation e consumer policy para `w run package@version`; execution
+remoto é sandboxed por default e native code usa child process ou compartment.
+`ENT0` pesquisa lease opaco com expiry sem raw token na API. O witness adversarial
+usa o fluxo `compile-final-menu / menu-compiler` do
+[`reference/last-light/README.md`](reference/last-light/README.md) e percorre os
+oito tasks, sem alegar execução. Nenhuma pesquisa promete DRM inviolável.
 
 ### REPL, module run e Jupyter
 

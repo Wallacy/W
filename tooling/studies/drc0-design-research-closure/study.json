@@ -3,11 +3,14 @@
   "id": "DRC0",
   "status": "complete-design-study",
   "decisions": ["W-1484", "W-1473", "W-1474", "W-1475"],
+  "historicalResearchZeroThrough": "W-1459",
+  "activeResearchGates": ["W-1486"],
   "corpus": "../../design-research-closure-cases.json",
   "machine": "../../design-research-closure-machine.mjs",
   "checker": "../../check-design-research-closure.mjs",
   "evidenceBoundary": {
     "researchClosed": true,
+    "researchClosedScope": "W-1484/W-1473/W-1474/W-1475 only",
     "implementationClaimed": false,
     "performanceClaimed": false,
     "providerConformanceClaimed": false

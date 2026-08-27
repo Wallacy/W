@@ -25,7 +25,7 @@ export const PFU0_DISPOSITIONS = Object.freeze({
   "W-1453": "oracle-backed-current",
 });
 export const PFU0_SUPERSESSIONS = Object.freeze({ "W-1452": "W-1480" });
-export const ACTIVE_RESEARCH_GATES = Object.freeze([]);
+export const ACTIVE_RESEARCH_GATES = Object.freeze(["W-1486"]);
 export const DISPOSITIONS = Object.freeze({
   "W-707": "oracle-backed-current",
   "W-731": "oracle-backed-current",
@@ -136,6 +136,7 @@ const TOP_LEVEL_KEYS = Object.freeze([
   "reuse",
   "historicalSnapshot",
   "reopenedResearch",
+  "activeResearchGates",
   "cases",
 ]);
 const CASE_KEYS = Object.freeze(["id", "kind", "decisions", "gate", "mutation"]);
@@ -320,6 +321,7 @@ function classificationFacts(state) {
     pfuSupersessionValid,
     globalResearch,
     globalResearchExact,
+    activeResearchGates: ACTIVE_RESEARCH_GATES,
     targetCategories,
     ledgerDigestValid,
   };
@@ -473,6 +475,9 @@ export function validateCorpus(input = readJson("tooling/final-research-closure-
       input.historicalSnapshot.count !== HISTORICAL_SNAPSHOT_IDS.length ||
       input.historicalSnapshot.researchZero !== true) {
     errors.push("FRC0 historical snapshot must close only W-001 through W-1450 with Research=0.");
+  }
+  if (!same(input.activeResearchGates, ACTIVE_RESEARCH_GATES)) {
+    errors.push("FRC0 activeResearchGates must list exactly W-1486 as the post-snapshot research gate.");
   }
   if (!exactKeys(input.reopenedResearch, ["decisions", "dispositions", "gate"]) ||
       !same(input.reopenedResearch.decisions, PFU0_DECISIONS) ||
@@ -663,6 +668,11 @@ export function mutationChecks() {
     reason: "W-1454 hidden research gate",
   });
   checks.extraResearchGateRejected = classificationFacts(extraResearch).valid === false;
+
+  const omittedActiveResearchGate = clone(state);
+  omittedActiveResearchGate.classification.entries = omittedActiveResearchGate.classification.entries
+    .filter((entry) => entry.decisionId !== "W-1486");
+  checks.activeResearchGateOmissionRejected = classificationFacts(omittedActiveResearchGate).valid === false;
 
   const missingCase = clone(corpus);
   missingCase.cases.pop();

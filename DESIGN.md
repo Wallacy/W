@@ -24419,8 +24419,9 @@ Antes de implementar uma otimização nova, a equipe deve preencher a matriz de
 domínios em [`RATIONALE.md` §1.37](RATIONALE.md#137-gate-sota-de-performance-e-matriz-de-responsabilidade).
 O gate registra problema, alternativas, fonte primária, owner, workload,
 oracle e stop condition. Ele não cria sintaxe, API ou W-ID. No snapshot em que
-foi criado, ele não reabriu `Research=0`; as gates posteriores W-1471, depois
-substituída por W-1484, W-1473, W-1474 e W-1475 são independentes.
+foi criado, ele não reabriu o fechamento histórico `Research=0`; as gates
+posteriores W-1471, depois substituída por W-1484, W-1473, W-1474 e W-1475 são
+independentes, e W-1486 é a única research gate ativa posterior.
 
 A matriz é um seed mínimo extensível, não um catálogo exaustivo. Ao abrir um
 bundle para um hotspot, a equipe atualiza as fontes primárias e as alternativas
@@ -25930,6 +25931,12 @@ ABI, service schema ou source rebuild. Uma futura ABI W resiliente só entra ap�
 um protótipo que meça accessors, witnesses, nonexhaustive enums, metadata e o
 custo de manter um runtime permanente.
 
+**WEC0 — cápsula binary-first (Pesquisa):** o estudo pode agrupar um artifact
+W em uma cápsula com digest raiz e índice bounded de chunks internos. A cápsula
+não altera a regra de reuse desta seção. O verifier exige `WAbiKey` exata e
+rejeita binary-only com key incompatível. O source continua fallback somente
+quando o source existe.
+
 #### 20.4.10 C façade escrita em W
 
 **Exemplo:** o body é W. O contrato da call é C:
@@ -26110,6 +26117,13 @@ Ele não pode:
 - usar um intermediate artifact de outra toolchain key.
 
 Module continua uma unidade semântica; LTO é estratégia da recipe.
+
+**WEC0 — intermediários e escopo (Pesquisa):** HIR, MLIR e LLVM bitcode
+continuam privados da recipe. Um índice de cápsula pode apontar para objects
+nativos, symbol manifest, runtime requirements e optimization summaries. Um
+chunk de IR privado exige a exact toolchain key. Static library pode participar
+de WPO. A cápsula não promete universal binary e não torna uma dynamic recipe
+equivalente a uma recipe estática.
 
 Tooling oferece:
 
@@ -28532,6 +28546,86 @@ records imutáveis.
 O corpus P0 e seus limites ficam em
 [`RATIONALE.md` §1.16](RATIONALE.md#116-evidence-de-boundaries-packages-e-releases).
 
+#### 21.3.3 PCB0, WEC0 e TEV0 — publicação, cápsula e evidence
+
+**Exemplo:** uma CI apresenta uma assertion OIDC curta. O serviço W valida a
+identity do workflow e emite uma capability W de publicação one-use, curta e
+scoped. A CI publica artifact e attestations e aguarda autorização separada
+para o digest final.
+
+O bundle [`RDX0`](tooling/studies/rdx0-binary-registry-execution/) registra
+tasks finitas para distribuição e execução. Ele não anuncia compiler, runtime,
+registry, provider ou sandbox disponíveis.
+
+**PCB0 — publicação closed-source (Pesquisa):** o maintainer cria um release
+intent assinado. A CI apresenta uma assertion OIDC curta. Essa assertion é uma
+prova de identity do workflow, não uma credencial W de uso único. O serviço W
+valida issuer, audience, subject, workflow e ref e emite uma capability W de
+publicação one-use, curta e scoped. A CI
+busca o source diretamente da authority escolhida no intent. Ela executa build,
+tests, fuzz e analyzers. Depois publica artifact, builder attestation, test
+attestation e security attestation. O maintainer ou uma automação separada
+autoriza os digests finais.
+
+O registry não precisa receber source. Provider e tools podem observar o source
+durante a execução. Um claim de descarte do provider não é prova de descarte
+físico. `publicSource` e `sourceClosedBinary` são estados separados. Package
+privado e binary público também são estados separados. Uma divergência
+binary-only de `WAbiKey` falha sem source fallback. Pinned builder, toolchain e
+actions, egress mínimo após source acquisition, redaction de logs e artifacts,
+lifecycle de secrets e identity do provider são outputs de ameaça do CI.
+
+Hosted CI, seu plano e seu billing são externos ao protocolo. W não afirma que
+GitHub gratuito atende ao requisito de source fechado.
+
+Replay da assertion OIDC e reuse da capability W de publicação são adversários
+distintos. O primeiro testa a validação da identity. O segundo testa a
+one-use da capability emitida pelo serviço W.
+
+Builder signing, registry admission e maintainer authorization usam
+authorities distintas. Builder não usa private key do maintainer. Reprodução
+fechada pode existir entre builders autorizados. A UI separa `publicSource`,
+`authorizedReproduction` e `independentPublicReproduction`.
+
+**WEC0 — cápsula binary-first (Pesquisa):** uma cápsula possui um digest raiz e
+um índice bounded que referencia chunks por digest. Seu `ExecutionDescriptor`
+registra entrypoints, requirements, sandbox profile e payload refs. Ela pode
+conter:
+
+- `WInterface` e facts de `WMeta` e `WAbi`;
+- objects nativos, symbol manifest e runtime requirements;
+- generic body chunks permitidos e optimization summaries;
+- chunks de IR privado somente com exact toolchain key.
+
+Debug maps, source maps, SBOM e evidence são sidecars ou referrers. Section e
+chunk fingerprints, junto com um runtime measurement map, podem tratar
+relocation e ASLR sem alegar raw in-memory hash. A família de artifacts é
+definida por target, profile e toolchain-plan row. W não promete universal
+binary. Dynamic artifact é uma recipe separada.
+
+WEC0 exige benchmark de source rebuild contra exact capsule reuse/link, com
+cache granularity, storage e network medidos. O objetivo é evidenciar redução
+de compile time. O formato da cápsula sozinho não prova esse ganho.
+Modified executable page e self-modifying code ou JIT sem policy explícita são
+adversarial cases da pesquisa. Um fingerprint de section ou chunk não é um
+receipt de integridade raw da memória em execução.
+
+**TEV0 — Test/evidence (Pesquisa):** `@example`, fence `w test`, teste
+co-localizado e `*.test.w` baixam para o mesmo `TestDescriptor` e `TestPlan`.
+Esta direção não cria syntax nova. O `TestDescriptor` e o `TestPlan` exigem
+stable ID, owner declaration, origin carrier, source map, kind, fixtures e
+effects, oracle ou expected diagnostic/outcome, target/profile, seed/limits e
+body/plan digest. Evidence imutável é keyed por source, release, artifact,
+test plan, analyzer, recipe, toolchain, target e profile. O record inclui seed,
+limits e outcome. Async/cancellation e snapshot/golden identity são cases
+separados.
+
+As lanes continuam separadas: unit, compile-fail, property/fuzz, simulation,
+provider conformance, multi-process/hardware fault e performance. A projection
+de evidence do registry aponta por subject digest para attestation objects
+imutáveis. Ela mostra facts por eixo e freshness. Ela não mostra safe badge
+agregado. Simulation não prova provider real.
+
 ### 21.4 Registry, mirrors e estado de segurança
 
 **Exemplo:** uma versão pode ser `reproduced` e ainda possuir um advisory de
@@ -28586,6 +28680,148 @@ antes de extrair, compilar ou executar.
 
 As fontes de supply-chain e transparência ficam em
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
+
+#### 21.4.1 RDX0 — registry HTTP candidate protocol
+
+**RDX0 — registry HTTP candidate protocol (Direção):** o baseline tem o
+identificador `w.registry-http/1`. Esse identificador é independente da
+versão do transporte. HTTP/1.1, HTTP/2 e HTTP/3 são transportes equivalentes.
+HTTPS é obrigatório, exceto em transportes locais explicitamente selecionados.
+
+O estudo fecha estes recursos lógicos como candidate protocol. A spelling
+física não é syntax de W:
+
+| Recurso | Candidate path | Invariante mínimo |
+|---|---|---|
+| discovery | `/.well-known/w-registry.json` | identifica schema, origins e profiles sem conceder package authority |
+| package projection | `/v1/packages/<encoded-package-id>/index.json` | signed, bounded e monotonic; lista versions, channels e release-record digests |
+| release record | `/v1/releases/<algorithm>/<digest>.json` | record imutável por digest |
+| object | `/v1/objects/<algorithm>/<digest>` | bytes imutáveis; GET e HEAD; Range é opcional |
+| catalog checkpoint | `/v1/catalog/checkpoint.json` | checkpoint assinado que ancora páginas append-only imutáveis |
+| catalog pages | `/v1/catalog/pages/<first>-<last>.jsonl` | páginas imutáveis, append-only e bounded para mirror e search |
+| evidence projection | `/v1/evidence/<algorithm>/<subject-digest>/index.json` | aponta para attestation objects imutáveis |
+| channel document | `/v1/channels/<encoded-package-id>/<encoded-channel>/<encoded-target-profile>.json` | JSON signed de convenience, sem authority |
+
+Os records JSON usam UTF-8 estrito. Duplicate keys são rejeitadas. O estudo
+deve produzir um output de pesquisa para o canonical signing payload e comparar
+alternativas com evidence. Nenhuma canonicalização é escolhida por esta
+Direção.
+
+Known-identity resolution nunca depende de search. Search é uma projection
+derivada do catálogo. Um endpoint dinâmico opcional `/v1/search` pode existir,
+mas não concede authority e não entra no lock. Um registry pequeno pode servir
+somente arquivos estáticos. A conformance suite reconstrói o search index
+somente de `catalog/checkpoint.json` e das `catalog/pages/*.jsonl`.
+
+O `trustedCheckpoint` ancora o catálogo e a package index. A monotonicidade do
+package index é relativa a esse checkpoint confiável. Um contador fornecido pelo
+servidor, isolado, não impede rollback.
+
+Update ou channel usa um JSON pequeno assinado. O record inclui schema,
+monotonic sequence, package identity, channel, target/profile selector, version,
+release digest, artifact digest, state e signatures. `204` pode indicar que um
+profile dinâmico não tem mudança. O resolver normal usa o package index. Um
+channel document é convenience e nunca substitui lock ou release verification.
+
+Release e objects são imutáveis. Deprecation é metadata append-only que
+recomenda replacement e preserva resolution. Yank exclui nova resolution por
+default, mas lock existente segue sua policy. Revocation bloqueia install ou
+execution no scope publicado. Metadata nova não reescreve release ou
+attestation.
+
+Download privado pode usar uma read capability curta ou uma signed URL scoped
+por object, package, audience e expiry. Essa credencial somente concede acesso.
+Digest continua sendo a identity dos bytes e não da credencial. O estudo fixa
+privacy mode com decisões 401, 403 ou 404 e verifica que mirror não ganha
+authority nem amplia o scope.
+
+Registry, object host, mirror, portal e builder são papéis distintos. Mirror
+não é authority. Protocol, schemas, conformance e reference implementation
+devem ser abertos e self-hostable. Cloudflare R2 ou Workers é deployment
+candidate, não semântica.
+
+RDX0 preserva a continuidade bounded de roots já descrita nesta seção. Targets,
+snapshot, timestamp, download, archive e o registry completo continuam outputs
+de pesquisa. A pesquisa não promove esses outputs a implementação.
+
+**W-1486 — programa RDX0 de distribuição e execução (Direção):** a direção
+candidate para distribuição binary-first, registry HTTP static-first e execução
+assinada está aprovada como baseline do estudo. Canonical signing payload,
+protocol/security/provider evidence e as stop conditions das oito tasks RDX0,
+PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 e ENT0 permanecem research-gated. Esta
+decisão registra uma direção e suas dependências; não afirma implementação de
+registry, compiler, runner, sandbox, provider ou attestation verifier.
+
+#### 21.4.2 SEV0, SBX0, RSX0 e ENT0 — evidence, execução e capability provider
+
+**Exemplo:** um `w run package@version` resolve um artifact assinado e inicia
+o native code em child process depois do enforcement do provider.
+
+**SEV0 — security/advisory evidence contínua (Pesquisa):** uma security
+attestation imutável é keyed por artifact, analyzer identity e version, policy,
+corpus ou database digest, target e profile. O estudo também registra SBOM,
+`RuntimeClosure` e reachability map. Uma advisory match identifica package,
+version, target, profile e artifact. Cada reevaluation produz um snapshot
+append-only. O portal projeta axis e freshness, e registra analyzer conflicts
+como facts distintos.
+
+Hash-valid malicious bytes, analyzer stale, database update, nova regra ou
+assinatura de zero-day sem claim de conhecê-lo antes da divulgação, vulnerability
+target-specific, dependency resolved mas dead-stripped, analyzers conflitantes,
+artifact revoked ou yanked, binary-only scan e aggregate safe badge são cases
+adversariais mínimos. SEV0 para quando schema, closure, matches, snapshots,
+projection e conflitos tiverem resultados observáveis. Ele não produz safe badge
+nem alegação de conhecimento prévio de zero-days.
+
+**SBX0 — sandbox provider/profile (Pesquisa):** o provider traduz o capability
+ou effect plan para Linux seccomp allowlist com namespaces, credentials,
+filesystem, network e resource controls. Providers Windows, macOS e WASI
+precisam de equivalentes explícitos. O provider instala enforcement antes do
+user code. Audit ou learn mode somente sugere policy. Ele não é enforcement
+receipt.
+
+Seccomp sozinho, denylist, `LD_PRELOAD`, wrapper com ptrace ou `CAP_SYS_ADMIN` e
+native plugin no mesmo processo são rejeitados como baseline adversarial.
+
+**RSX0 — signed runner (Pesquisa):** `w run package@version` remoto exige
+resolution, release e artifact exatos. Também exige maintainer authorization,
+registry admission trusted, digest, freshness, revocation e consumer policy.
+Official root pode ser default. Ela nunca é a única root hard-coded. Source
+local unsigned só é permitido por local debug policy explícita.
+
+Remote ad-hoc execution é sandboxed por default. Native code remoto não é
+`dlopen` no processo principal. A baseline usa child process ou compartment.
+Signature não concede capability. Admission exige entry requirements e budgets
+explícitos para filesystem, network, environment, secrets, process, device e
+resources. W signature não substitui OS signing, notarization ou entitlements.
+
+**ENT0 — entitlement/DRM (Pesquisa):** um provider pode estudar entitlement ou
+lease opaco com product, feature, audience e expiry. A policy precisa declarar
+online ou offline. A API W não expõe raw token. W não promete DRM inviolável.
+
+Consumer install e run policy é local ou owned pelo deployment. Ela pode exigir
+reproduction quorum, evidence lanes, budget, freshness, advisory severity e
+capability restrictions. O package não escolhe a policy que o considera
+seguro.
+
+**Witness adversarial Última Luz/Restaurante (fixture de design, Pesquisa):** o
+fixture parte do fluxo `compile-final-menu / menu-compiler` descrito no
+[`reference/last-light/README.md`](reference/last-light/README.md) e usa o
+manifest e o transform reais em
+[`packages/menu-compiler/build.w`](reference/last-light/packages/menu-compiler/build.w)
+e [`packages/menu-compiler/transform.w`](reference/last-light/packages/menu-compiler/transform.w).
+Ele percorre RDX0 para identity, download privado, checkpoint e search rebuild;
+PCB0 para release intent, assertion OIDC validada, capability W de publicação e
+dois builders autorizados; WEC0 para uma cápsula por target; TEV0 para doctests,
+fuzz e snapshots; SEV0 para SBOM, security scans, advisory update e analyzer
+conflict; e deprecation, update, yank e revocation.
+
+Por fim, RSX0 tenta `w run` com resolution e digest exatos, SBX0 aplica sandbox
+sem network por default antes do child process e ENT0 oferece entitlement
+opcional. Mutar digest, repetir capability, trocar target, esconder um
+dependency dead-stripped, reconstruir search com page faltante ou revogar o
+artifact deve produzir um resultado negativo. Este witness é uma fixture/case
+de design. Ele não é execução concluída nem evidence de implementação.
 
 ### 21.5 Scripts e supply chain
 
@@ -28943,6 +29179,20 @@ e revisáveis. IA pode propor testes em diff; ela não substitui o oracle aceito
 payload. O lens de recursos pode registrar measurements por input, source,
 target, profile e recipe. Uma measurement de exemplo não vira fato universal de
 memória ou tempo. Proof estático e budget permanecem a autoridade.
+
+**TEV0 — Test/evidence (Pesquisa):** o runner deriva `TestDescriptor` e
+`TestPlan` dos quatro carriers já descritos. Cada descriptor exige stable ID,
+owner declaration, origin carrier, source map, kind, fixtures/effects, oracle
+ou expected diagnostic/outcome, target/profile, seed/limits e body/plan digest.
+Evidence deve incluir os digests de source, release, artifact, test plan,
+analyzer, recipe, toolchain, target e profile, além de seed, limits e outcome.
+Async/cancellation e snapshot/golden identity possuem cases próprios. Unit,
+compile-fail, property/fuzz, simulation, provider conformance,
+multi-process/hardware fault e performance continuam lanes separadas.
+
+Evidence não recebe um safe badge agregado. Registry e portal mostram facts por
+eixo e freshness. Attestation object é imutável e pode ser referenciado por
+subject digest. A ausência de provider receipt permanece uma lacuna.
 
 ### 22.3 Lens de recursos
 
@@ -31055,6 +31305,12 @@ preserva a proveniência do antigo fluxo standalone. A forma vigente é este
 module-run uniforme; operações de dependency são `w add`, `w remove`,
 `w resolve` e `w update` no contexto package/workspace.
 
+O estudo **RSX0 (Pesquisa)** usa `w run package@version` como fluxo remoto
+adicional. A resolução precisa ser exata e passar pela verificação de release,
+artifact, authorization, admission, freshness, revocation e consumer policy.
+Execution remoto é sandboxed por default e usa child process ou compartment
+para native code. Esta direção não anuncia uma CLI disponível.
+
 #### 24.1.3 Sessão e REPL transacionais
 
 **Exemplo:** uma sessão preserva `snapshot = 6` quando `limit` muda para `4`,
@@ -31910,7 +32166,7 @@ provider.
 | Gate | Current | Adversarial | Contrato fechado |
 |---|---|---|---|
 | W-707 / `FZ0-freeze-completeness` | `FRC0-W-707-current` | `FRC0-W-707-adversarial` | completude G0–G5, refs e snapshot coerentes; não é `count=implementation` |
-| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão do ledger tem disposition; DRC0 fecha W-1484/W-1473/W-1474/W-1475, preserva W-1471 como superseded e a classificação global tem `Research=0` |
+| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão do ledger tem disposition; DRC0 fecha W-1484/W-1473/W-1474/W-1475, preserva W-1471 como superseded e o fechamento histórico mantém `Research=0` até W-1459; W-1486 é a única research gate ativa |
 | W-1408 / `HUM0-promotion` | `FRC0-W-1408-current` | `FRC0-W-1408-adversarial` | stop-on-first-violation, no-automatic-promotion e 0 human/0 model preservados |
 
 O resultado de cada rota é `oracle-backed-current` para os contratos fechados.
@@ -31922,14 +32178,16 @@ preferência, score ou métrica manual é criado.
 
 O stop condition é stale digest, caller echo, métrica manual, registro humano
 ou de modelo forjado, preference/score, decisão ou caso ausente/duplicado,
-source escape, categoria errada ou qualquer `Research` residual. A máquina
+source escape, categoria errada ou qualquer Research residual fora de W-1486. A máquina
 exige W-1451–W-1453 como `oracle-backed-current` após PFU0 e os quatro casos
 DRC0 como fechamento independente. A cadeia
 estrita é manifest → artefatos → bundle/study
 → fixtures thin parseáveis → oracle e snapshot. O checker root e o checker
 aninhado devem permanecer verdes antes de qualquer recascade adicional. FRC0
-preserva o fechamento histórico e DRC0 fecha as quatro gates posteriores. Isso
-não autoriza alegação de implementação.
+preserva o fechamento histórico até W-1450, AEG0/SIMD1 preservam `Research=0`
+até W-1459 e DRC0 fecha somente as quatro gates anteriores a W-1486. W-1486
+permanece como a única research gate ativa. Isso não autoriza alegação de
+implementação.
 
 #### 24.4.3 PFU0 — fechamento de usabilidade pré-freeze
 
@@ -31975,7 +32233,8 @@ O corpus AEG0 possui seis casos current e oito casos rejected. O host oracle
 deriva as rotas de facts. Ele rejeita `expected`, `result`, status caller-owned,
 ID-derived outcome e provider/runtime claims. Mutation guards cobrem ambient
 authority, fallback, plaintext/serialization, codec inference e stale
-source/digest. `Research=0` permanece obrigatório para todo W-001–W-1459.
+source/digest. O fechamento histórico `Research=0` permanece obrigatório para
+todo W-001–W-1459; a única research gate ativa posterior é W-1486.
 
 AEG0 não promove provider. Continuam missing compiler, runtime, provider,
 target, FFI, stress, fault, rotation, zeroization e estudos humano/modelo.
@@ -31999,8 +32258,9 @@ overflow values/mask, swizzle duplicado e reductions. O oracle verifica também
 snippets e claims proibidos em `DESIGN.md`, `CHEATSHEET.md` e Last Light. Ele
 não compila, executa ou mede W.
 
-`Research=0` permanece obrigatório para W-001–W-1459. A classificação de W-1459
-é `oracle-backed-current` por evidence do oracle host e design contract.
+O fechamento histórico `Research=0` permanece obrigatório para W-001–W-1459;
+a única research gate ativa posterior é W-1486. A classificação de W-1459 é
+`oracle-backed-current` por evidence do oracle host e design contract.
 Compiler, runtime, provider, native acceleration, ABI e measurements continuam
 missing. Nenhuma evidência de parse ou oracle promove implementação.
 
@@ -32612,12 +32872,19 @@ de marcar a versão como reproduced.
 - descriptors SQL, codecs de row e adapters database com pool limitado;
 - cache local com limite, replacement, expiration e loader compartilhado;
 - provenance, SBOM e reprodução local;
+- registro finito dos estudos RDX0, PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 e ENT0;
+- candidate protocol static-first, release records, objects, catalog pages e evidence projections;
+- publication closed-source com assertion OIDC curta, capability W de publicação one-use, authorities separadas e autorização final de digest;
+- cápsula binary-first bounded e seleção por target, profile e toolchain-plan row;
+- security/advisory evidence contínua, runner remoto assinado, provider sandbox e entitlement capability como research gaps;
 - lens por import;
 - SQLite adapter para steps, timers, events e outcomes supervisionados;
 - recovery por operation version, effect ID e schema;
 - crash injection antes e depois de cada attempt e journal commit.
 
 Saída: uma máquina limpa reconstrói o mesmo payload sem rede durante o build.
+Os estudos de distribuição permanecem `Direção` ou `Pesquisa` e registram
+outputs, cases adversariais, evidence missing e stop conditions no ledger.
 
 ### 26.10 Fase 8 — ciência e extração
 
@@ -32650,6 +32917,9 @@ Saída: design W demonstrado de ponta a ponta e pronto para revisão pública.
 | SOTA performance | cada domínio tem owner, workload, oracle e stop condition sem nova surface? | matriz de [`RATIONALE.md` §1.37](RATIONALE.md#137-gate-sota-de-performance-e-matriz-de-responsabilidade), fontes primárias e recipe reproduzível |
 | packages | resolver e evidence model são operáveis? | projeto real offline/reproduzido |
 | ABI | source, W exact, C e component ficam distintos? | mismatch, header, symbols, allocator e version-skew oracles |
+| distribuição | RDX0, PCB0, WEC0 e TEV0 têm schemas bounded e roles distintos? | ledger finito, conformance de arquivos estáticos, digests, attestation cases e reconstrução de search |
+| security/advisory | SEV0 mantém scans, advisories, closure e freshness por eixo? | attestations imutáveis, snapshots append-only, matches por target e conflitos de analyzer |
+| execução confiável | SBX0, RSX0 e ENT0 impedem bypass de resolution, capability e provider? | negative cases, provider enforcement receipts, OS boundary evidence e policy local sem safe badge |
 | self-host | SH0–SH7 fecham e convergem? | mini compiler, builds diversos e diff de outputs |
 
 ### 26.12 Checkpoint por fase

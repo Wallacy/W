@@ -8,6 +8,8 @@ import { loadData as loadLlm0, validate as validateLlm0 } from "./studies/llm0-t
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 export const decisions = Object.freeze(["W-1484", "W-1473", "W-1474", "W-1475"]);
+export const activeResearchGates = Object.freeze(["W-1486"]);
+export const historicalResearchZeroThrough = "W-1459";
 
 export function loadCorpus() {
   return JSON.parse(fs.readFileSync(path.join(directory, "design-research-closure-cases.json"), "utf8"));
@@ -121,6 +123,8 @@ export function deriveClosure(corpus = loadCorpus()) {
   const errors = [];
   if (corpus.$schema !== "w-design-research-closure-cases-1" || corpus.id !== "DRC0" || corpus.status !== "design-oracle-input") errors.push("DRC0 identity is invalid");
   if (JSON.stringify(corpus.decisions) !== JSON.stringify(decisions)) errors.push("DRC0 decision set is invalid");
+  if (JSON.stringify(corpus.activeResearchGates) !== JSON.stringify(activeResearchGates)) errors.push("DRC0 active research gate set is invalid");
+  if (corpus.historicalResearchZeroThrough !== historicalResearchZeroThrough) errors.push("DRC0 historical Research=0 boundary is invalid");
   if (!Array.isArray(corpus.cases) || corpus.cases.length !== decisions.length) errors.push("DRC0 requires exactly four current cases");
   const ids = new Set();
   for (const item of corpus.cases ?? []) {
@@ -135,5 +139,11 @@ export function deriveClosure(corpus = loadCorpus()) {
     if (Object.hasOwn(item, "implemented") || Object.hasOwn(item, "expected") || Object.hasOwn(item, "result")) errors.push(`${item.id}: caller-owned result claim is forbidden`);
   }
   for (const decision of decisions) if (!ids.has(`DRC0-${decision}-current`)) errors.push(`${decision}: closure case is missing`);
-  return { errors, studyFacts, researchGates: errors.length === 0 ? [] : decisions };
+  return {
+    errors,
+    studyFacts,
+    researchGates: errors.length === 0 ? [] : decisions,
+    activeResearchGates,
+    historicalResearchZeroThrough,
+  };
 }

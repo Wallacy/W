@@ -52,8 +52,9 @@ describe("FRC0 final research closure host oracle", () => {
     });
     expect(current.facts.reopenedResearch).toBe(true);
     expect(current.facts.pfuSupersessionValid).toBe(true);
-    expect(current.facts.globalResearch).toEqual([]);
+    expect(current.facts.globalResearch).toEqual(["W-1486"]);
     expect(current.facts.globalResearchExact).toBe(true);
+    expect(current.facts.activeResearchGates).toEqual(["W-1486"]);
   });
 
   test("rejects copied-state mutations for all three gates", () => {
