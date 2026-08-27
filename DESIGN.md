@@ -31289,7 +31289,7 @@ ou recipe. Os limits pertencem ao profile ou provider. O oracle usa somente
 defaults de fixture não normativos de 64 sources, 4096 edges, depth 64 e 16
 MiB de source bytes, e prova bounds finitos para cada dimensão.
 
-A evidência executável desta fronteira agora tem quatro cortes. CHK3 prova a
+A evidência executável desta fronteira agora tem cinco cortes. CHK3 prova a
 fronteira caller-owned de origins e edges resolvidos. CHK4 prova o builder
 caller-owned do graph, sem abrir filesystem. CHK5 prova o core bounded de
 aquisição/revalidação para a root física e os `SourceId` explicitamente
@@ -31302,6 +31302,26 @@ chama o frontend nem abre a CLI pública `w check` multi-file. O core e o
 driver publicam somente após seus preflights bounded; bytes, CST/facts da
 última wave estável e graph permanecem coerentes, e outputs publicados ficam
 inalterados em falha.
+
+CHK8 prova o adapter Windows real do mesmo provider. O adapter usa
+`NtCreateFile` relativo a um `HANDLE` de diretório emprestado, com
+`OBJECT_ATTRIBUTES.RootDirectory`, `OBJ_DONT_REPARSE` e
+`FILE_OPEN_REPARSE_POINT`. Ele confirma o handle final com
+`FileAttributeTagInfo`, obtém identidade com `FILE_ID_INFO` e aceita somente
+arquivos regulares. O adapter é C11, caller-owned, sem heap e bounded. Ele
+suporta root relativa e root absoluta drive-local. UNC retorna
+`UNSUPPORTED`; namespaces, devices, ADS e formas rooted inválidas retornam
+`INVALID`.
+
+O adapter mantém handles próprios em slots com generation e nunca fecha o
+`base_handle` emprestado. Durante a revalidação, o adapter reabre o mesmo nome
+relativo e valida root, tipo, tamanho e identidade. O core compara tokens,
+bytes e digest da aquisição e da revalidação e faz o commit all-or-nothing. O
+gate compila e executa os targets Linux e Windows
+separados, exige a prova Windows nativa, executa a prova Linux real via WSL no
+host Windows e valida os stubs fail-closed cruzados. Esta prova não abre
+`w check` público multi-file e não fecha package/workspace, provider `std` ou
+conformance de todos os filesystems Windows.
 
 As waves de CHK6 não formam uma transação única de snapshot: um candidate de
 wave anterior pode ser readquirido, e o CHK4 continua sendo a autoridade de
@@ -31318,10 +31338,11 @@ quando facts lógicos e bytes não mudam. As formas de binding mantêm a
 semântica de [§6.1](#61-imports-de-pacotes-e-módulos). W-1485 resolve somente a
 origin. CHK5 cobre somente o provider core injetável e o adapter filesystem
 Linux com `openat2`; CHK6 cobre somente o driver interno de discovery local
-bounded. Nenhum dos dois cobre NFC completo, provider std, adapter Windows
-real, owner detection, package/workspace, novos diagnostics D0 ou `w check`
-multi-file. A resolução pública e a conformance multiplataforma não testada
-permanecem gaps. CHK1 continua no perfil closed-single-source.
+bounded; CHK8 cobre somente o adapter Windows real. Esses cortes não cobrem
+NFC completo, provider std, owner detection, package/workspace, novos
+diagnostics D0 ou `w check` multi-file. A resolução pública e a conformance
+multiplataforma não testada permanecem gaps. CHK1 continua no perfil
+closed-single-source.
 
 O estudo PYN1 superseded em [`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1-superseded)
 preserva a proveniência do antigo fluxo standalone. A forma vigente é este
@@ -31995,9 +32016,38 @@ final e seu `jsonl_length` permanecem bitwise inalterados.
 A prova CHK7 cobre um import e chamada de export de `root` para `child` e uma
 falha `if 1` em `child.w`, com `W-SEM-0001` e source lógico `child.w` em ordem
 determinística. Ela mapeia somente esse diagnostic. O corte não prova frontend
-completo, novos diagnostics, package/workspace, provider `std`, filesystem novo,
-Windows real ou resolução pública multi-file; não transforma a composição em
-`w check` público.
+completo, novos diagnostics, package/workspace, provider `std`, filesystem novo
+ou resolução pública multi-file; não transforma a composição em `w check`
+público.
+
+### 24.3.4 CHK8 — adapter Windows do provider efêmero
+
+**Exemplo:** uma root relativa a um `HANDLE` de diretório e uma root absoluta
+drive-local abrem os mesmos bytes sob as mesmas regras de containment, ou a
+operação falha sem publicar output quando o caminho não é seguro.
+
+CHK8 prova o adapter Windows real do provider efêmero. O adapter usa
+`NtCreateFile` relativo a `HANDLE` de diretório emprestado, com
+`OBJECT_ATTRIBUTES.RootDirectory`, `OBJ_DONT_REPARSE` e
+`FILE_OPEN_REPARSE_POINT`. Ele confirma o handle final com
+`FileAttributeTagInfo`, obtém a identidade com `FILE_ID_INFO` e aceita somente
+arquivos regulares. O perfil é C11, caller-owned, sem heap e bounded. Ele
+suporta root relativa e root absoluta drive-local. UNC retorna `UNSUPPORTED`.
+Namespaces, devices, ADS e formas rooted inválidas retornam `INVALID`.
+
+O adapter mantém handles próprios em slots com generation e nunca fecha o
+`base_handle` emprestado. Durante a revalidação, o adapter reabre o mesmo nome
+relativo e valida root, tipo, tamanho e identidade. O core compara tokens,
+bytes e digest da aquisição e da revalidação e faz o commit all-or-nothing. O
+teste prova também mutation, replacement, removal,
+hardlink alias, junction final/intermediário, UTF-8 físico válido e paths
+inválidos.
+
+O gate compila e executa os targets Linux e Windows separados. Ele exige a
+prova Windows nativa, executa a prova Linux real via WSL no host Windows e
+valida os stubs fail-closed cruzados. CHK8 é evidência de adapter interno. Não
+abre `w check` público multi-file e não fecha package/workspace, provider `std`
+ou conformance de todos os filesystems Windows.
 
 ### 24.4 Artefatos que ainda bloqueiam o design freeze
 
@@ -32716,8 +32766,8 @@ resolução: o resolver ainda fornece origins, identities e edges explícitos.
 
 O discovery loop bounded interno tem evidência CHK6. NFC completo, provider
 std, owner discovery, package/workspace, reexport ou service-import origin,
-multi-file package, adapter Windows real, conformance multiplataforma e a
-resolução pública de `w check` continuam gaps.
+multi-file package, conformance multiplataforma e a resolução pública de `w
+check` continuam gaps.
 Reexport e service-import ainda não possuem CST seed; NFC continua
 responsabilidade do resolver.
 
@@ -32728,7 +32778,15 @@ todos os diagnostics, copia o JSONL uma vez para o buffer final e então atualiz
 inalterados. A fixture comprova import/call de `root` para `child` e `W-SEM-0001`
 originado em `child.w`, com ordem determinística. A evidência cobre somente
 `W-SEM-0001`; não abre CLI pública, filesystem novo, provider `std`,
-package/workspace, Windows real ou frontend completo.
+package/workspace ou frontend completo.
+
+CHK8 acrescenta o adapter Windows real do provider efêmero. A implementação
+usa `NtCreateFile` com `RootDirectory` e `OBJ_DONT_REPARSE`, valida o handle
+final com `FileAttributeTagInfo` e identifica o arquivo com `FILE_ID_INFO`.
+O teste separado cobre roots relativa e absoluta drive-local, reparse points,
+hardlinks, mutation/replacement/removal, UTF-8 e limites. O gate exige Windows
+real no host Windows, Linux real via WSL nesse host e os dois stubs fail-closed.
+O adapter não transforma essa evidência interna em uma CLI pública multi-file.
 
 Saída: `w check <path/file.w> [--json]` verifica o subset síncrono do
 restaurante. O target bootstrap `w` executa essa rota no perfil
