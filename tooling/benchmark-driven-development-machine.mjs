@@ -1,6 +1,38 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  BYTE_SCAN_MANIFEST_ID,
+  BYTE_SCAN_MAX_BYTES,
+  BYTE_SCAN_OUTPUT_SHAPE,
+  LANGUAGE_CATALOG_ID,
+  LANGUAGE_CATALOG_VERSION,
+  LANGUAGE_STRATA,
+  LANGUAGE_UNIT_IDS,
+  canonicalByteScanOutput,
+  calculateByteScan,
+  deterministicByteScanCases,
+  expectedByteScanOutput,
+  loadByteScanDocuments,
+  validateByteScanManifest,
+  validateLanguageCatalog,
+} from "./byte-scan-view-machine.mjs";
+
+export {
+  BYTE_SCAN_MANIFEST_ID,
+  BYTE_SCAN_MAX_BYTES,
+  BYTE_SCAN_OUTPUT_SHAPE,
+  LANGUAGE_CATALOG_ID,
+  LANGUAGE_CATALOG_VERSION,
+  LANGUAGE_STRATA,
+  LANGUAGE_UNIT_IDS,
+  canonicalByteScanOutput,
+  calculateByteScan,
+  deterministicByteScanCases,
+  expectedByteScanOutput,
+  validateByteScanManifest,
+  validateLanguageCatalog,
+};
 
 export const ROOT = path.resolve(import.meta.dir, "..");
 export const SCHEMA_VERSION = "wbench/1";
@@ -89,6 +121,25 @@ export const REQUIRED_CASES = Object.freeze([
   "BMD2-W-1489-leading-zero",
   "BMD2-W-1489-u64-overflow",
   "BMD2-W-1489-regression-blocked",
+  "BMD3-W-1490-current-catalog",
+  "BMD3-W-1490-current-byte-scan-view",
+  "BMD3-W-1490-catalog-not-21",
+  "BMD3-W-1490-catalog-duplicate-id",
+  "BMD3-W-1490-catalog-wrong-stratum",
+  "BMD3-W-1490-profile-missing",
+  "BMD3-W-1490-learner-artificial",
+  "BMD3-W-1490-lane-fraud",
+  "BMD3-W-1490-frontier-disclosure-missing",
+  "BMD3-W-1490-constant-output",
+  "BMD3-W-1490-output-precomputed",
+  "BMD3-W-1490-input-incomplete",
+  "BMD3-W-1490-boundary-incomplete",
+  "BMD3-W-1490-oracle-incomplete",
+  "BMD3-W-1490-claim-timing",
+  "BMD3-W-1490-claim-backend",
+  "BMD3-W-1490-baseline-partial",
+  "BMD3-W-1490-baseline-forged",
+  "BMD3-W-1490-temp-source-provenance",
 ]);
 export const SOURCE_FIXTURE = Object.freeze({
   path: "reference/last-light/checker_bootstrap.w",
@@ -1526,16 +1577,18 @@ function checkTaskGraph(tasks, corpusIds, errors) {
   const expected = [
     "protocol",
     "seed-compiler-lifecycle",
+    "language-catalog",
     "core-language-units",
     "computer-language-benchmarks-game",
     "restaurant-composition",
   ];
   if (!Array.isArray(tasks) || !sameArray(tasks.map((task) => task?.id), expected)) {
-    push(errors, "program.tasks must use the five BMD1 tasks in order.");
+    push(errors, "program.tasks must use the six BMD3 task projections in order.");
     return;
   }
   const ids = new Set(expected);
   const comparisonCaseIds = [...corpusIds].filter((caseId) => caseId.startsWith("BMD2-W-1489-")).sort();
+  const languageCaseIds = [...corpusIds].filter((caseId) => caseId.startsWith("BMD3-W-1490-")).sort();
   const seen = new Set();
   for (const [index, task] of tasks.entries()) {
     const location = "program.tasks[" + index + "]";
@@ -1594,6 +1647,26 @@ function checkTaskGraph(tasks, corpusIds, errors) {
           !task.stopCondition?.includes("regression remains blocked") ||
           !task.stopCondition?.includes(REGRESSION_BLOCKER)) {
         push(errors, "seed compiler lifecycle stopCondition must separate comparison-only current results from managed regression.");
+      }
+    }
+    if (task.id === "language-catalog") {
+      if (task.status !== "ready" || task.implementation !== "partial") {
+        push(errors, "language-catalog must be ready with partial implementation: catalog validation is ready while reserved units remain blocked.");
+      }
+      if (!task.outputs?.includes("versioned 21-unit language catalog") ||
+          !task.outputs?.includes("source-backed byte-scan-view unit") ||
+          !task.outputs?.includes("correctness smoke")) {
+        push(errors, "language-catalog outputs must include the catalog, byte-scan source package and correctness smoke.");
+      }
+      for (const caseId of languageCaseIds) {
+        if (!task.adversarialCases?.includes(caseId)) {
+          push(errors, "language-catalog must cover BMD3 case " + caseId + ".");
+        }
+      }
+      if (!task.stopCondition?.includes("catalog status ready means catalog validated") ||
+          !task.stopCondition?.includes("language-benchmark-runner") ||
+          !task.stopCondition?.includes("no W timing")) {
+        push(errors, "language-catalog stopCondition must separate catalog readiness from W execution and timing.");
       }
     }
     if (["core-language-units", "computer-language-benchmarks-game", "restaurant-composition"].includes(task.id) &&
@@ -1705,6 +1778,18 @@ export function validateProgram(program, corpus = undefined) {
   }
   if (program.baselinePolicy?.gameRole !== "exploratory-never-authority") {
     push(errors, "Benchmarks Game must remain exploratory and never authority.");
+  }
+  if (!checkExactKeys(program.languageCatalog, "program.languageCatalog", [
+    "path", "id", "version", "unitCount", "firstUnit",
+  ], errors)) {
+    // The closed-shape error is sufficient; field checks below retain useful diagnostics.
+  }
+  if (program.languageCatalog?.path !== "benchmarks/language-catalog.json" ||
+      program.languageCatalog?.id !== LANGUAGE_CATALOG_ID ||
+      program.languageCatalog?.version !== LANGUAGE_CATALOG_VERSION ||
+      program.languageCatalog?.unitCount !== LANGUAGE_UNIT_IDS.length ||
+      program.languageCatalog?.firstUnit !== LANGUAGE_UNIT_IDS[3]) {
+    push(errors, "program.languageCatalog must identify the versioned 21-unit catalog and byte-scan-view as its first borrow/memory unit.");
   }
   const corpusIds = new Set(corpus?.cases?.map((item) => item?.id) ?? []);
   checkTaskGraph(program.tasks, corpusIds, errors);
@@ -1852,6 +1937,8 @@ export function validateManifest(manifest) {
 
 const CANONICAL_FIXTURES = new Set([
   "language-equivalent",
+  "language-catalog",
+  "byte-scan-view",
   "documentation",
   "compiler-lifecycle",
   "result",
@@ -1910,6 +1997,23 @@ const BOUNDED_MUTATIONS = new Set([
   "comparison-leading-zero",
   "comparison-u64-overflow",
   "comparison-regression-blocked",
+  "catalog-not-21",
+  "catalog-duplicate-id",
+  "catalog-wrong-stratum",
+  "byte-profile-missing",
+  "byte-learner-artificial",
+  "byte-lane-fraud",
+  "byte-frontier-disclosure-missing",
+  "byte-constant-output",
+  "byte-output-precomputed",
+  "byte-input-incomplete",
+  "byte-boundary-incomplete",
+  "byte-oracle-incomplete",
+  "byte-claim-timing",
+  "byte-claim-backend",
+  "byte-baseline-partial",
+  "byte-baseline-forged",
+  "byte-temp-source-provenance",
 ]);
 
 function cloneValue(value) {
@@ -1943,6 +2047,14 @@ function languageFixture() {
     baseline: { independent: ["c-clang", "rust"], provenanceComplete: true, exceptionReason: null },
     samples: { mode: "not-started", order: COMPARISON_ORDER },
   };
+}
+
+function languageCatalogFixture() {
+  return cloneValue(loadByteScanDocuments().catalog);
+}
+
+function byteScanViewFixture() {
+  return cloneValue(loadByteScanDocuments().manifest);
 }
 
 function compilerFixture() {
@@ -2285,6 +2397,57 @@ function applyBoundedMutation(value, mutation, errors) {
       value.quality = "regression-grade";
       value.claim = "regression";
       break;
+    case "catalog-not-21":
+      value.units = value.units.slice(0, 20);
+      break;
+    case "catalog-duplicate-id":
+      value.units[1].id = value.units[0].id;
+      break;
+    case "catalog-wrong-stratum":
+      value.units.find((unit) => unit.id === "byte-scan-view").stratum = "scalar/control";
+      break;
+    case "byte-profile-missing":
+      value.profiles = value.profiles.slice(0, 2);
+      break;
+    case "byte-learner-artificial":
+      value.profiles[0].shape = "sleep before scanning to appear slower";
+      break;
+    case "byte-lane-fraud":
+      value.profiles[0].sameInput = false;
+      break;
+    case "byte-frontier-disclosure-missing":
+      delete value.profiles[2].disclosures.algorithm;
+      break;
+    case "byte-constant-output":
+      value.profiles[0].shape = "return constant output without reading source";
+      break;
+    case "byte-output-precomputed":
+      value.profiles[1].shape = "precomputed output bypass";
+      break;
+    case "byte-input-incomplete":
+      value.inputs.classes = value.inputs.classes.slice(0, 7);
+      break;
+    case "byte-boundary-incomplete":
+      value.inputs.classes.find((item) => item.id === "boundary").sizes = [0, 1, 15, 16, 17, 64, 65];
+      break;
+    case "byte-oracle-incomplete":
+      value.oracle.complete = false;
+      break;
+    case "byte-claim-timing":
+      value.backend.timingResultsAllowed = true;
+      break;
+    case "byte-claim-backend":
+      value.backend.nativeBackendAvailable = true;
+      break;
+    case "byte-baseline-partial":
+      value.baselines = value.baselines.slice(0, 1);
+      break;
+    case "byte-baseline-forged":
+      value.baselines[0].output = "forged-output";
+      break;
+    case "byte-temp-source-provenance":
+      value.profiles[0].path = "C:\\temp\\learner.w";
+      break;
   }
 }
 
@@ -2297,6 +2460,8 @@ export function materializeCase(item) {
   }
   let value;
   if (item.fixture === "language-equivalent") value = languageFixture();
+  else if (item.fixture === "language-catalog") value = languageCatalogFixture();
+  else if (item.fixture === "byte-scan-view") value = byteScanViewFixture();
   else if (item.fixture === "documentation") value = {
     benchmarkDisposition: "not-applicable",
     reason: "A digest-only documentation change has no behavioral workload.",
@@ -2330,6 +2495,10 @@ export function validateCorpus(corpus) {
       !corpus.decisions.includes("W-1487") ||
       !corpus.decisions.includes("W-1488")) {
     push(errors, "corpus decisions must cite W-1487 and W-1488.");
+  }
+  const hasBmd3Cases = corpus.cases?.some((item) => String(item?.id ?? "").startsWith("BMD3-W-1490-"));
+  if (hasBmd3Cases && !corpus.decisions?.includes("W-1490")) {
+    push(errors, "corpus decisions must cite W-1490 for language catalog and byte-scan cases.");
   }
   if (corpus.cases?.some((item) => item?.fixture === "comparison-result") &&
       !corpus.decisions?.includes("W-1489")) {
@@ -2370,6 +2539,13 @@ export function validateCorpus(corpus) {
         (!Array.isArray(item.decisions) || !item.decisions.includes("W-1489"))) {
       push(errors, location + ".decisions must cite W-1489 for comparison result.");
     }
+    if (["language-catalog", "byte-scan-view"].includes(item.fixture)) {
+      if (item.track !== "language") push(errors, location + ".track must be language for BMD3 fixtures.");
+      if (item.lane !== "equivalent") push(errors, location + ".lane must be equivalent for BMD3 fixture identity.");
+      if (!Array.isArray(item.decisions) || !item.decisions.includes("W-1490")) {
+        push(errors, location + ".decisions must cite W-1490 for BMD3 fixtures.");
+      }
+    }
     if (item.kind === "rejected") requiredString(item.violation, location + ".violation", errors);
     if (!Array.isArray(item.contract) || item.contract.length === 0) {
       push(errors, location + ".contract must not be empty.");
@@ -2378,6 +2554,8 @@ export function validateCorpus(corpus) {
     let caseErrors = [...materialized.errors];
     if (materialized.value !== undefined && caseErrors.length === 0) {
       if (item.fixture === "result" || item.fixture === "comparison-result") caseErrors = validateResult(materialized.value);
+      else if (item.fixture === "language-catalog") caseErrors = validateLanguageCatalog(materialized.value);
+      else if (item.fixture === "byte-scan-view") caseErrors = validateByteScanManifest(materialized.value, loadByteScanDocuments().catalog);
       else caseErrors = validateScenario({
         ...materialized.value,
         track: item.track,
@@ -2404,7 +2582,11 @@ export function reduceCase(item) {
     const value = materialized.value;
     errors.push(...((item.fixture === "result" || item.fixture === "comparison-result")
       ? validateResult(value)
-      : validateScenario({ ...value, track: item.track, lane: item.lane })));
+      : item.fixture === "language-catalog"
+        ? validateLanguageCatalog(value)
+        : item.fixture === "byte-scan-view"
+          ? validateByteScanManifest(value, loadByteScanDocuments().catalog)
+          : validateScenario({ ...value, track: item.track, lane: item.lane })));
   }
   return {
     id: item.id,
@@ -2425,5 +2607,7 @@ export function loadBmdDocuments() {
     program: read("benchmarks/program.json"),
     manifest: read("benchmarks/seed-check-lifecycle.manifest.json"),
     corpus: read("tooling/benchmark-driven-development-cases.json"),
+    languageCatalog: read("benchmarks/language-catalog.json"),
+    byteScanManifest: read("benchmarks/byte-scan-view.manifest.json"),
   };
 }

@@ -1619,6 +1619,33 @@ de performance. Regression continua rejeitada por
 `managed-regression-runner`; language, product-runtime e Computer Language
 Benchmarks Game continuam sem result corrente.
 
+### Catálogo BMD3 de language
+
+W-1490 fecha [`benchmarks/language-catalog.json`](benchmarks/language-catalog.json)
+com exatamente 21 IDs required em sete estratos de três. `catalog.status: ready`
+valida o catálogo, não a execução das unidades. A primeira unidade é
+[`byte-scan-view`](benchmarks/byte-scan-view.manifest.json): delimitador runtime,
+`view Bytes` binária até 64 MiB e saída canônica
+`{"bytes":"<u64>","matches":"<u64>"}`. O oracle host é independente e
+bounded; `readiness.oracle` é host-ready, mas codegen, runtime, runner de
+language e performance W continuam blocked.
+
+`learner` e `idiomatic` são equivalentes. `frontier` é `open` por estratégia
+física SIMD e declara todos os eixos de unsafe, FFI, target, layout, algoritmo e
+legibilidade. C11 e Rust são referências de correção sem ranking no estado
+atual; seu papel futuro é comparação independente após equivalência, com
+toolchain e recipe fixos. O smoke separado usa CMake/Rust sem Cargo, exige
+stdout/exit completos e não grava timing ou result W:
+
+```text
+bun run check:bmd
+bun run check:bmd:byte-scan
+bun run check:bmd:parse
+```
+
+O parse Tree-sitter é somente uma verificação sintática dos três sources W;
+ele não é execução W nem evidência de performance.
+
 ### SIMD portátil
 
 `std.simd` publica os heads compiler-owned `Simd<Element, lanes: usize>` e

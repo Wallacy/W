@@ -74,6 +74,13 @@
     "exception": "Record why one independent baseline is sufficient when two baselines are not reasonable.",
     "gameRole": "exploratory-never-authority"
   },
+  "languageCatalog": {
+    "path": "benchmarks/language-catalog.json",
+    "id": "w-language-catalog",
+    "version": "bmd3/1",
+    "unitCount": 21,
+    "firstUnit": "byte-scan-view"
+  },
   "tasks": [
     {
       "id": "protocol",
@@ -163,6 +170,48 @@
       "stopCondition": "The clean x check-end-to-end comparison may record exploratory comparison-only results after both paired oracles and equivalent recipe-class, toolchain and workload checks pass. All other cells remain blocked by their declared component; regression remains blocked by managed-regression-runner until controlled provider, repetition/uncertainty policy and threshold evidence exist."
     },
     {
+      "id": "language-catalog",
+      "label": "versioned language catalog and byte-scan source unit",
+      "status": "ready",
+      "implementation": "partial",
+      "blockedBy": [
+        "codegen",
+        "runtime",
+        "language-benchmark-runner"
+      ],
+      "dependencies": [
+        "protocol",
+        "seed-compiler-lifecycle"
+      ],
+      "outputs": [
+        "versioned 21-unit language catalog",
+        "source-backed byte-scan-view unit",
+        "correctness smoke"
+      ],
+      "adversarialCases": [
+        "BMD3-W-1490-current-catalog",
+        "BMD3-W-1490-current-byte-scan-view",
+        "BMD3-W-1490-catalog-not-21",
+        "BMD3-W-1490-catalog-duplicate-id",
+        "BMD3-W-1490-catalog-wrong-stratum",
+        "BMD3-W-1490-profile-missing",
+        "BMD3-W-1490-learner-artificial",
+        "BMD3-W-1490-lane-fraud",
+        "BMD3-W-1490-frontier-disclosure-missing",
+        "BMD3-W-1490-constant-output",
+        "BMD3-W-1490-output-precomputed",
+        "BMD3-W-1490-input-incomplete",
+        "BMD3-W-1490-boundary-incomplete",
+        "BMD3-W-1490-oracle-incomplete",
+        "BMD3-W-1490-claim-timing",
+        "BMD3-W-1490-claim-backend",
+        "BMD3-W-1490-baseline-partial",
+        "BMD3-W-1490-baseline-forged",
+        "BMD3-W-1490-temp-source-provenance"
+      ],
+      "stopCondition": "catalog status ready means catalog validated, not that its reserved units are executable. Keep W codegen, W runtime and the language-benchmark-runner blocked; collect no W timing or results until source, oracle, input, toolchain and recipe provenance are complete."
+    },
+    {
       "id": "core-language-units",
       "label": "core language units",
       "status": "blocked",
@@ -172,7 +221,8 @@
       ],
       "dependencies": [
         "protocol",
-        "seed-compiler-lifecycle"
+        "seed-compiler-lifecycle",
+        "language-catalog"
       ],
       "outputs": [
         "language workloads for the three profiles",

@@ -9,6 +9,8 @@ import {
   REQUIRED_CASES,
   SCHEMA_VERSION,
   SOURCE_FIXTURE,
+  validateByteScanManifest,
+  validateLanguageCatalog,
   loadBmdDocuments,
   materializeCase,
   reduceCorpus,
@@ -35,6 +37,8 @@ function checkErrors(label, values) {
 checkErrors("program", validateProgram(documents.program, documents.corpus));
 checkErrors("manifest", validateManifest(documents.manifest));
 checkErrors("corpus", validateCorpus(documents.corpus));
+checkErrors("language catalog", validateLanguageCatalog(documents.languageCatalog));
+checkErrors("byte-scan manifest", validateByteScanManifest(documents.byteScanManifest, documents.languageCatalog));
 
 const preciseBackendFlags = [
   "compilerLifecycleResultsAllowed",
@@ -57,6 +61,13 @@ for (const [name, backend] of [["program", documents.program.backend], ["manifes
 if (documents.schema?.$id !== SCHEMA_VERSION) fail("schema id must be wbench/1.");
 if (!documents.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/result")) {
   fail("WBench/1 root must expose kind result.");
+}
+if (!documents.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/languageCatalog") ||
+    !documents.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/languageWorkloadManifest")) {
+  fail("WBench/1 root must expose the language catalog and language workload manifest kinds.");
+}
+if (documents.schema?.$defs?.languageWorkloadManifest?.$ref !== "#/$defs/byteScanManifest") {
+  fail("language workload manifest schema must bind the closed byte-scan manifest.");
 }
 
 const resultDefinition = documents.schema?.$defs?.result;
@@ -210,7 +221,7 @@ const cases = documents.corpus.cases ?? [];
 const reductions = reduceCorpus(documents.corpus);
 const accepted = cases.filter((item) => item.kind === "accepted");
 const rejected = cases.filter((item) => item.kind === "rejected");
-if (accepted.length !== 7) fail("expected five BMD1 accepted cases and two BMD2 comparison cases.");
+if (accepted.length !== 9) fail("expected five BMD1, two BMD2 and two BMD3 accepted cases.");
 if (rejected.length < 1) fail("corpus must contain rejected adversarial cases.");
 if (!hasAll(cases.map((item) => item.id), REQUIRED_CASES)) {
   fail("corpus is missing a required adversarial or disposition case.");
@@ -251,7 +262,7 @@ if (errors.length > 0) {
   for (const error of errors) console.error(error);
   process.exitCode = 1;
 } else {
-  console.log("BMD1/BMD2 benchmark protocol: " + LANGUAGE_PROFILES.length +
+  console.log("BMD1/BMD2/BMD3 benchmark protocol: " + LANGUAGE_PROFILES.length +
     " language profiles, 2 lanes, " + LIFECYCLE_SCENARIOS.length +
     " scenarios, " + LIFECYCLE_STAGES.length + " stages, " +
     matrix.points.length + " matrix points, " + cases.length +

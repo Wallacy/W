@@ -24553,6 +24553,78 @@ repetição/uncertainty e threshold antes de qualquer claim.
 bun tooling/benchmark-driven-development-runner.mjs --baseline <40-hex-sha> --candidate <40-hex-sha> --output <new-output-path>
 ```
 
+#### W-1490 — catálogo BMD3 de language e unidade `byte-scan-view`
+
+W-1490 fecha a reserva nominal da track `language` como um catálogo explícito
+e versionado. O arquivo [`benchmarks/language-catalog.json`](benchmarks/language-catalog.json)
+tem exatamente 21 IDs, em sete estratos de três: `scalar/control`,
+`borrow/memory`, `collections/text`, `abstraction/error`,
+`concurrency/service`, `I/O/data` e `numeric/accelerator`. A ordem e os IDs
+canônicos são, respectivamente:
+
+```text
+integer-bit-mix, branch-enum-dispatch, call-generic-specialization
+byte-scan-view, copy-move-buffer, allocation-lifecycle
+array-transform-reduce, hash-table-mixed, unicode-scalar-grapheme
+option-result-pipeline, protocol-dispatch, json-adapter
+task-tree-join, bounded-channel-pipeline, local-service-roundtrip
+mapped-file-scan, buffered-file-copy, database-row-materialization
+float-reduction-modes, matrix-small-gemm, tensor-strided-reduction
+```
+
+Cada unidade registra owners/features W, escopo, oracle, classes de input,
+métricas futuras, papel dos baselines, blockers/readiness, crosspoint separado
+do Restaurant e stop condition. `benchmarkDisposition` é `required`. O
+`catalog.status: ready` significa somente que o catálogo fechado foi
+validado; não promove as unidades reservadas a source, oracle, codegen,
+runtime ou performance ready. Em cada unidade, `oracle.status: declared` é o
+contrato obrigatório do oracle. `readiness.oracle` é a evidência de
+implementação corrente: permanece `reserved` nas unidades não materializadas e
+é `host-ready` somente em `byte-scan-view`.
+
+A primeira unidade é `byte-scan-view`. O kernel puro recebe em runtime um
+delimitador e uma `view Bytes` binária limitada a 64 MiB, conta suas
+ocorrências e devolve exatamente `{bytes,matches}` como strings decimais u64
+canônicas (`{"bytes":"N","matches":"M"}`), sem newline. Os inputs cobrem
+vazio, limites 15/16/17 e 64/65, ASCII, UTF-8/mixed binary, matches dense e
+sparse e ausência de matches; o delimitador não é constante de compilação.
+Criação de arquivo e aquisição do input ficam fora de qualquer timing futuro.
+O oracle host é independente, bounded e completo para essa operação, mas a
+execução W ainda não existe.
+
+O manifesto [`benchmarks/byte-scan-view.manifest.json`](benchmarks/byte-scan-view.manifest.json)
+mantém três formas source-shaped. `learner` usa loop e indexação checked;
+`idiomatic` usa `for byte in source` safe e é equivalente ao learner;
+`frontier` usa SIMD com `loadPartial`/mask/countTrue quando a forma corrente
+permitir e declara a estratégia física aberta. Todas preservam algoritmo
+lógico, representação `view Bytes`, validação, contrato numérico e input; a
+frontier marca somente `samePhysicalStrategy: false` e `lane: open`. Cada
+forma declara explicitamente `unsafe`, FFI, target specialization, manual
+layout, algorithm e legibility, inclusive `none`. O target specialization é
+`none`: SIMD portátil com fallback scalar não é target especializado.
+
+C11 e Rust são referências de correção independentes e auditáveis, sem ranking
+no estado atual (`correctness-reference-no-ranking`). O baseline primário e a
+regressão futura continuam sendo W histórico. Após equivalência, a função
+futura dos dois baselines é `independent-comparison-after-equivalence`, com
+toolchain e recipe fixos por proveniência. Ambos recebem path e delimitador
+explícitos, fazem leitura bounded, publicam somente um JSON canônico depois de
+validar todo o input e falham sem stdout parcial. A receita C11 usa o
+`CMakeLists.txt` versionado e seu digest; Rust usa `rustc --edition=2021` sem
+Cargo ou lockfile. O checker Bun cria
+arquivos temporários determinísticos, calcula um oracle independente, testa
+empty, limites, classes, delimitadores inválidos e excesso de 64 MiB e exige
+bytes exatos de stdout e exit code. Se um toolchain estiver ausente, o smoke
+reporta `SKIP` explícito; uma falha de toolchain presente é erro. O runner
+disponível é correctness-only: `correctnessRunnerAvailable` é true,
+`benchmarkRunnerAvailable` é false, e nenhum timing ou result W é gravado.
+
+O Computer Language Benchmarks Game continua exploratório e separado. A
+composição Restaurant continua uma track distinta. Não há claim de
+performance W, backend, runtime ou qualidade de compiler nesta decisão. A
+implementação futura para somente quando codegen, runtime, runner de language,
+oracle, input, toolchain, recipe e proveniência completos existirem.
+
 ### 18.9 Gate pré-implementação de pesquisa SOTA
 
 Antes de implementar uma otimização nova, a equipe deve preencher a matriz de

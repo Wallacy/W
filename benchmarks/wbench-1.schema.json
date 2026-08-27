@@ -2,9 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "wbench/1",
   "title": "WBench/1",
-  "description": "Schema for W benchmark protocols and compiler lifecycle measurements.",
+  "description": "Schema for WBench/1 protocols, versioned language catalogs and compiler lifecycle measurements.",
   "oneOf": [
     { "$ref": "#/$defs/program" },
+    { "$ref": "#/$defs/languageCatalog" },
+    { "$ref": "#/$defs/languageWorkloadManifest" },
     { "$ref": "#/$defs/workloadManifest" },
     { "$ref": "#/$defs/result" },
     { "$ref": "#/$defs/comparisonResult" }
@@ -78,6 +80,254 @@
         "requirements": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
       }
     },
+    "catalogOracle": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "status", "independent", "output"],
+      "properties": {
+        "kind": { "const": "host-independent" },
+        "status": { "const": "declared" },
+        "independent": { "const": true },
+        "output": { "const": "canonical-json-u64" }
+      }
+    },
+    "catalogReadiness": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "source", "oracle", "codegen", "runtime", "performance", "blockers"],
+      "properties": {
+        "status": { "enum": ["reserved", "source-oracle-ready"] },
+        "source": { "enum": ["reserved", "source-shaped"] },
+        "oracle": { "enum": ["reserved", "host-ready"] },
+        "codegen": { "const": "blocked" },
+        "runtime": { "const": "blocked" },
+        "performance": { "const": "blocked" },
+        "blockers": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "catalogBaselineRole": {
+      "type": "object", "additionalProperties": false,
+      "required": ["primary", "independent", "role", "futurePerformanceRole", "futurePerformanceRecipe", "recipe"],
+      "properties": {
+        "primary": { "const": "historical-w" },
+        "independent": { "const": ["c11", "rust"] },
+        "role": { "const": "correctness-reference-no-ranking" },
+        "futurePerformanceRole": { "const": "independent-comparison-after-equivalence" },
+        "futurePerformanceRecipe": { "const": "pin-toolchain-and-equivalent-recipe" },
+        "recipe": { "const": "equivalent" }
+      }
+    },
+    "restaurantCrosspoint": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "reference", "crosspoint"],
+      "properties": {
+        "status": { "const": "separate-track" },
+        "reference": { "type": "string", "minLength": 1 },
+        "crosspoint": { "type": "string", "minLength": 1 }
+      }
+    },
+    "catalogUnit": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "id", "stratum", "benchmarkDisposition", "featureOwners", "wIds", "scope", "oracle",
+        "inputClasses", "futureMetrics", "baselineRole", "readiness", "restaurantCrosspoint", "stopCondition"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "stratum": { "type": "string", "minLength": 1 },
+        "benchmarkDisposition": { "const": "required" },
+        "featureOwners": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "wIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^W-[0-9]{3,}$" } },
+        "scope": { "type": "string", "minLength": 1 },
+        "oracle": { "$ref": "#/$defs/catalogOracle" },
+        "inputClasses": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "futureMetrics": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "baselineRole": { "$ref": "#/$defs/catalogBaselineRole" },
+        "readiness": { "$ref": "#/$defs/catalogReadiness" },
+        "restaurantCrosspoint": { "$ref": "#/$defs/restaurantCrosspoint" },
+        "stopCondition": { "type": "string", "minLength": 1 }
+      }
+    },
+    "languageCatalog": {
+      "type": "object", "additionalProperties": false,
+      "required": ["$schema", "schema", "kind", "id", "version", "status", "track", "benchmarkDisposition", "strata", "units"],
+      "properties": {
+        "$schema": { "const": "./wbench-1.schema.json" },
+        "schema": { "const": "wbench/1" },
+        "kind": { "const": "language-catalog" },
+        "id": { "const": "w-language-catalog" },
+        "version": { "const": "bmd3/1" },
+        "status": { "const": "ready" },
+        "track": { "const": "language" },
+        "benchmarkDisposition": { "const": "required" },
+        "strata": {
+          "type": "array", "minItems": 7, "maxItems": 7,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["id", "units"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "units": { "type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+            }
+          }
+        },
+        "units": { "type": "array", "minItems": 21, "maxItems": 21, "items": { "$ref": "#/$defs/catalogUnit" } }
+      }
+    },
+    "languageProfileSource": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "id", "path", "symbol", "digest", "shape", "lane", "sameAlgorithm", "sameRepresentation",
+        "samePhysicalStrategy", "sameValidation", "sameNumericContract", "sameInput", "disclosures"
+      ],
+      "properties": {
+        "id": { "enum": ["learner", "idiomatic", "frontier"] },
+        "path": { "type": "string", "minLength": 1 },
+        "symbol": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/digest" },
+        "shape": { "type": "string", "minLength": 1 },
+        "lane": { "enum": ["equivalent", "open"] },
+        "sameAlgorithm": { "type": "boolean" },
+        "sameRepresentation": { "type": "boolean" },
+        "samePhysicalStrategy": { "type": "boolean" },
+        "sameValidation": { "type": "boolean" },
+        "sameNumericContract": { "type": "boolean" },
+        "sameInput": { "type": "boolean" },
+        "disclosures": {
+          "type": "object", "additionalProperties": false,
+          "required": ["unsafe", "ffi", "targetSpecialization", "manualLayout", "algorithm", "legibility"],
+          "properties": {
+            "unsafe": { "type": "string", "minLength": 1 },
+            "ffi": { "type": "string", "minLength": 1 },
+            "targetSpecialization": { "type": "string", "minLength": 1 },
+            "manualLayout": { "type": "string", "minLength": 1 },
+            "algorithm": { "type": "string", "minLength": 1 },
+            "legibility": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "byteScanBaseline": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "path", "digest", "recipePath", "recipeDigest", "language", "compileSteps", "invoke", "flags", "edition", "role", "futurePerformanceRole", "futurePerformanceRecipe", "output"],
+      "properties": {
+        "id": { "enum": ["c11", "rust"] },
+        "path": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/digest" },
+        "recipePath": { "type": ["string", "null"] },
+        "recipeDigest": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+        "language": { "type": "string", "minLength": 1 },
+        "compileSteps": {
+          "type": "array", "minItems": 1,
+          "items": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        },
+        "invoke": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "flags": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "edition": { "type": ["string", "null"] },
+        "role": { "const": "correctness-reference-no-ranking" },
+        "futurePerformanceRole": { "const": "independent-comparison-after-equivalence" },
+        "futurePerformanceRecipe": { "const": "pin-toolchain-and-equivalent-recipe" },
+        "output": { "const": "canonical-json-u64" }
+      }
+    },
+    "byteScanInputClass": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "sizes", "delimiterValues"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "sizes": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "integer", "minimum": 0, "maximum": 67108864 } },
+        "delimiterValues": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^(?:0|[1-9][0-9]{0,2})$" } }
+      }
+    },
+    "byteScanManifest": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "$schema", "schema", "kind", "id", "version", "status", "track", "benchmarkDisposition", "unitId", "stratum",
+        "lane", "frontierLane", "backend", "scope", "profiles", "oracle", "inputs", "baselines", "futureMetrics",
+        "readiness", "restaurantCrosspoint", "provenance", "stopCondition"
+      ],
+      "properties": {
+        "$schema": { "const": "./wbench-1.schema.json" },
+        "schema": { "const": "wbench/1" },
+        "kind": { "const": "language-workload-manifest" },
+        "id": { "const": "bmd3-byte-scan-view" },
+        "version": { "const": "bmd3/1" },
+        "status": { "const": "source-oracle-ready" },
+        "track": { "const": "language" },
+        "benchmarkDisposition": { "const": "required" },
+        "unitId": { "const": "byte-scan-view" },
+        "stratum": { "const": "borrow/memory" },
+        "lane": { "const": "equivalent" },
+        "frontierLane": { "const": "open" },
+        "backend": {
+          "type": "object", "additionalProperties": false,
+          "required": ["correctnessRunnerAvailable", "benchmarkRunnerAvailable", "nativeBackendAvailable", "runtimeAvailable", "languageResultsAllowed", "timingResultsAllowed", "note"],
+          "properties": {
+            "correctnessRunnerAvailable": { "const": true },
+            "benchmarkRunnerAvailable": { "const": false },
+            "nativeBackendAvailable": { "const": false },
+            "runtimeAvailable": { "const": false },
+            "languageResultsAllowed": { "const": false },
+            "timingResultsAllowed": { "const": false },
+            "note": { "type": "string", "minLength": 1 }
+          }
+        },
+        "scope": {
+          "type": "object", "additionalProperties": false,
+          "required": ["kernel", "representation", "output", "setup"],
+          "properties": {
+            "kernel": { "type": "string", "minLength": 1 },
+            "representation": { "const": "view Bytes" },
+            "output": { "const": "{\"bytes\":\"<u64>\",\"matches\":\"<u64>\"}" },
+            "setup": { "type": "string", "minLength": 1 }
+          }
+        },
+        "profiles": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "$ref": "#/$defs/languageProfileSource" } },
+        "oracle": {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "path", "symbol", "correctnessRecord", "complete", "beforeSamples", "independent", "runtime", "setup", "output"],
+          "properties": {
+            "kind": { "const": "host-oracle" },
+            "path": { "type": "string", "minLength": 1 },
+            "symbol": { "type": "string", "minLength": 1 },
+            "correctnessRecord": { "type": "string", "minLength": 1 },
+            "complete": { "const": true },
+            "beforeSamples": { "const": true },
+            "independent": { "const": true },
+            "runtime": { "const": "unavailable" },
+            "setup": { "type": "string", "minLength": 1 },
+            "output": { "const": "{\"bytes\":\"<u64>\",\"matches\":\"<u64>\"}" }
+          }
+        },
+        "inputs": {
+          "type": "object", "additionalProperties": false,
+          "required": ["pathArgument", "delimiter", "delimiterValues", "maximumBytes", "classes", "setup"],
+          "properties": {
+            "pathArgument": { "const": true },
+            "delimiter": { "const": "runtime-parameter" },
+            "delimiterValues": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^(?:0|[1-9][0-9]{0,2})$" } },
+            "maximumBytes": { "const": 67108864 },
+            "classes": { "type": "array", "minItems": 8, "maxItems": 8, "items": { "$ref": "#/$defs/byteScanInputClass" } },
+            "setup": { "type": "string", "minLength": 1 }
+          }
+        },
+        "baselines": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/byteScanBaseline" } },
+        "futureMetrics": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "readiness": { "$ref": "#/$defs/catalogReadiness" },
+        "restaurantCrosspoint": { "$ref": "#/$defs/restaurantCrosspoint" },
+        "provenance": {
+          "type": "object", "additionalProperties": false,
+          "required": ["catalogPath", "sourceRoot", "oraclePath", "oracleDigest"],
+          "properties": {
+            "catalogPath": { "const": "benchmarks/language-catalog.json" },
+            "sourceRoot": { "const": "benchmarks/byte-scan-view" },
+            "oraclePath": { "type": "string", "minLength": 1 },
+            "oracleDigest": { "$ref": "#/$defs/digest" }
+          }
+        },
+        "stopCondition": { "type": "string", "minLength": 1 }
+      }
+    },
+    "languageWorkloadManifest": { "$ref": "#/$defs/byteScanManifest" },
     "baselinePolicy": {
       "type": "object", "additionalProperties": false,
       "required": ["defaultIndependent", "exception", "gameRole"],
@@ -89,7 +339,7 @@
     },
     "program": {
       "type": "object", "additionalProperties": false,
-      "required": ["$schema", "schema", "kind", "id", "status", "backend", "profiles", "lanes", "baselinePolicy", "tasks"],
+      "required": ["$schema", "schema", "kind", "id", "status", "backend", "profiles", "lanes", "baselinePolicy", "languageCatalog", "tasks"],
       "properties": {
         "$schema": { "const": "./wbench-1.schema.json" },
         "schema": { "const": "wbench/1" },
@@ -112,7 +362,18 @@
         "profiles": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "$ref": "#/$defs/profile" } },
         "lanes": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/lane" } },
         "baselinePolicy": { "$ref": "#/$defs/baselinePolicy" },
-        "tasks": { "type": "array", "minItems": 5, "maxItems": 5, "items": { "$ref": "#/$defs/task" } }
+        "languageCatalog": {
+          "type": "object", "additionalProperties": false,
+          "required": ["path", "id", "version", "unitCount", "firstUnit"],
+          "properties": {
+            "path": { "const": "benchmarks/language-catalog.json" },
+            "id": { "const": "w-language-catalog" },
+            "version": { "const": "bmd3/1" },
+            "unitCount": { "const": 21 },
+            "firstUnit": { "const": "byte-scan-view" }
+          }
+        },
+        "tasks": { "type": "array", "minItems": 6, "maxItems": 6, "items": { "$ref": "#/$defs/task" } }
       }
     },
     "source": {

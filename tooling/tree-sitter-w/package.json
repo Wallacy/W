@@ -14,6 +14,7 @@
     "generate": "tree-sitter generate",
     "test": "tree-sitter test",
     "parse:reference": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/*.w",
+    "parse:bmd3-byte-scan": "tree-sitter parse --grammar-path . --quiet --stat ../../benchmarks/byte-scan-view/*.w",
     "check:source-calls": "bun ../check-source-call-shapes.mjs",
     "check:syntax-atlas": "bun test ../syntax-atlas.test.mjs && bun ../syntax-atlas.mjs --check",
     "check:operator-surface": "bun ../check-operator-surface.mjs",

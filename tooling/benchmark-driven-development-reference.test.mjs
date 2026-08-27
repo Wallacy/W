@@ -10,6 +10,8 @@ import {
   LIFECYCLE_STAGES,
   REQUIRED_CASES,
   SOURCE_FIXTURE,
+  validateByteScanManifest,
+  validateLanguageCatalog,
   expectedMatrixBlockers,
   expectedMatrixStatus,
   loadBmdDocuments,
@@ -27,10 +29,51 @@ const root = path.resolve(import.meta.dir, "..");
 const documents = loadBmdDocuments();
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
-test("BMD1 documents pass the host validators", () => {
+test("BMD1-BMD3 documents pass the host validators", () => {
   assert.deepEqual(validateProgram(documents.program, documents.corpus), []);
   assert.deepEqual(validateManifest(documents.manifest), []);
   assert.deepEqual(validateCorpus(documents.corpus), []);
+  assert.deepEqual(validateLanguageCatalog(documents.languageCatalog), []);
+  assert.deepEqual(validateByteScanManifest(documents.byteScanManifest, documents.languageCatalog), []);
+});
+
+test("BMD3 closes the catalog and keeps byte-scan readiness distinct", () => {
+  assert.equal(documents.program.languageCatalog.unitCount, 21);
+  assert.equal(documents.languageCatalog.status, "ready");
+  assert.equal(documents.languageCatalog.units.length, 21);
+  assert.deepEqual(documents.languageCatalog.units.map((unit) => unit.id), [
+    "integer-bit-mix", "branch-enum-dispatch", "call-generic-specialization",
+    "byte-scan-view", "copy-move-buffer", "allocation-lifecycle",
+    "array-transform-reduce", "hash-table-mixed", "unicode-scalar-grapheme",
+    "option-result-pipeline", "protocol-dispatch", "json-adapter",
+    "task-tree-join", "bounded-channel-pipeline", "local-service-roundtrip",
+    "mapped-file-scan", "buffered-file-copy", "database-row-materialization",
+    "float-reduction-modes", "matrix-small-gemm", "tensor-strided-reduction",
+  ]);
+  const byte = documents.languageCatalog.units.find((unit) => unit.id === "byte-scan-view");
+  for (const unit of documents.languageCatalog.units) {
+    assert.equal(unit.baselineRole.primary, "historical-w");
+    assert.equal(unit.baselineRole.role, "correctness-reference-no-ranking");
+    assert.equal(unit.baselineRole.futurePerformanceRole, "independent-comparison-after-equivalence");
+    assert.equal(unit.baselineRole.futurePerformanceRecipe, "pin-toolchain-and-equivalent-recipe");
+  }
+  assert.equal(byte.oracle.status, "declared");
+  assert.equal(byte.readiness.oracle, "host-ready");
+  assert.equal(byte.readiness.status, "source-oracle-ready");
+  assert.deepEqual(byte.readiness.blockers, ["native-backend", "runtime", "language-benchmark-runner"]);
+  const manifest = documents.byteScanManifest;
+  for (const baseline of manifest.baselines) {
+    assert.equal(baseline.role, "correctness-reference-no-ranking");
+    assert.equal(baseline.futurePerformanceRole, "independent-comparison-after-equivalence");
+    assert.equal(baseline.futurePerformanceRecipe, "pin-toolchain-and-equivalent-recipe");
+  }
+  assert.equal(manifest.backend.correctnessRunnerAvailable, true);
+  assert.equal(manifest.backend.benchmarkRunnerAvailable, false);
+  assert.equal(manifest.profiles.find((profile) => profile.id === "frontier").sameAlgorithm, true);
+  assert.equal(manifest.profiles.find((profile) => profile.id === "frontier").sameRepresentation, true);
+  assert.equal(manifest.profiles.find((profile) => profile.id === "frontier").samePhysicalStrategy, false);
+  assert.equal(manifest.profiles.find((profile) => profile.id === "frontier").disclosures.targetSpecialization, "none");
+  assert.match(manifest.stopCondition, /Do not collect W results or timing/u);
 });
 
 test("W-1487 profiles and lanes remain separate from compiler lifecycle", () => {
@@ -188,11 +231,21 @@ test("the corpus has independent negative coverage", () => {
   assert.equal(REQUIRED_CASES.every((id) => documents.corpus.cases.some((item) => item.id === id)), true);
   const reductions = reduceCorpus(documents.corpus);
   assert.equal(reductions.length, documents.corpus.cases.length);
-  assert.equal(reductions.filter((item) => item.classification === "accepted").length, 7);
-  assert.equal(reductions.filter((item) => item.classification === "rejected").length, documents.corpus.cases.length - 7);
+  assert.equal(reductions.filter((item) => item.classification === "accepted").length, 9);
+  assert.equal(reductions.filter((item) => item.classification === "rejected").length, documents.corpus.cases.length - 9);
   for (const id of REQUIRED_CASES.filter((value) => value.includes("result-") || value.includes("blocker-incomplete"))) {
     assert.equal(reduceCase(documents.corpus.cases.find((item) => item.id === id)).classification, "rejected", id);
   }
+});
+
+test("BMD3 adversarial mutations reject catalog and byte-scan fraud", () => {
+  const ids = REQUIRED_CASES.filter((id) => id.startsWith("BMD3-W-1490-") && !id.includes("current-"));
+  for (const id of ids) {
+    assert.equal(reduceCase(documents.corpus.cases.find((item) => item.id === id)).classification, "rejected", id);
+  }
+  const current = documents.corpus.cases.find((item) => item.id === "BMD3-W-1490-current-byte-scan-view");
+  const manifest = materializeCase(current).value;
+  assert.deepEqual(validateByteScanManifest(manifest, documents.languageCatalog), []);
 });
 
 test("BMD2 comparison fixture is closed, paired and calibration-aware", () => {

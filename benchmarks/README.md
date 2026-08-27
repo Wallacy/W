@@ -44,7 +44,32 @@ Ele nunca é authority de W.
 O catálogo de language reserva 21 unidades de workload. Essa contagem pertence
 à track de language. Ela não é a matriz de 27 células do compiler lifecycle.
 Cada unidade usa os perfis e as lanes que o manifesto declarar. Uma unidade sem
-backend, runtime ou provider permanece blocked.
+backend, runtime ou provider permanece blocked. O catálogo fechado e versionado
+está em [`language-catalog.json`](language-catalog.json): sete estratos contêm
+três IDs cada. `catalog.status: ready` valida a forma do catálogo; não torna as
+unidades reservadas prontas para execução.
+
+### Catálogo BMD3 e `byte-scan-view`
+
+W-1490 materializa o catálogo da track `language` e sua primeira unidade
+source-backed em [`byte-scan-view.manifest.json`](byte-scan-view.manifest.json).
+`byte-scan-view` conta um delimitador recebido em runtime em uma `view Bytes`
+binária bounded a 64 MiB e publica exatamente
+`{"bytes":"<u64>","matches":"<u64>"}`. Os casos determinísticos incluem
+empty, boundaries 15/16/17 e 64/65, ASCII, UTF-8/mixed binary, dense, sparse e
+no-matches; criação do input fica fora de timing futuro. O oracle host é
+independente, bounded e completo para a operação. `oracle.status: declared` é
+o contrato do catálogo, enquanto `readiness.oracle: host-ready` registra a
+evidência corrente.
+
+As fontes W `learner` e `idiomatic` são lane `equivalent`; `frontier` é lane
+`open` somente pela estratégia física SIMD declarada. C11 e Rust são referências
+de correção independentes sem ranking agora; após equivalência, podem ter papel
+de comparação independente com toolchain e recipe fixos. O baseline primário e
+a regressão futura continuam sendo W histórico. O checker usa CMakeLists
+versionado e `rustc --edition=2021`, valida stdout/exit completos e rejeita
+falhas de toolchain presente; ausência de toolchain é `SKIP` explícito. Não há
+execução W, timing ou result W.
 
 ## Compiler lifecycle
 
@@ -144,12 +169,19 @@ Execute os checks focais com:
 
 ```text
 bun run check:bmd
+bun run check:bmd:byte-scan
+bun run check:bmd:parse
 bun run check:bmd:smoke
 bun run check:bmd:comparison-smoke
 ```
 
-O primeiro check valida protocolo, matriz, corpus, schema e runner host-side. O
-smoke BMD1 constrói o seed e executa uma medição real em diretório temporário.
+O primeiro check é um gate estrutural rápido: valida protocolo, matriz, corpus,
+schema e runner host-side, sem compilar baselines de language. O
+`check:bmd:byte-scan` é o smoke de correctness separado: cria inputs
+temporários, executa o oracle e testa C11/Rust quando os toolchains existem.
+`check:bmd:parse` executa o parser Tree-sitter nos três sources W; isso é uma
+checagem de forma sintática e não execução W.
+O smoke BMD1 constrói o seed e executa uma medição real em diretório temporário.
 O smoke de comparação faz HEAD×HEAD com dois builds independentes, um warmup
 pair e nove raw pairs, e verifica apenas a estrutura do result sem gravá-lo.
 Os checks não publicam resultados no repositório.
