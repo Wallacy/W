@@ -299,6 +299,38 @@ O gate dedicado é executado com:
 
     bun tooling/check-seed-module-scan.mjs
 
+## Graph efêmero seed (CHK4)
+
+`include/w_seed_ephemeral_graph.h` e `src/w_seed_ephemeral_graph.c` formam um
+builder C11 bounded para o graph efêmero W-1485. A entrada é uma lista de
+documentos CST completos, facts de provider já adquiridos pelo caller e um
+índice explícito do root. O builder só expande
+`W_SEED_MODULE_ORIGIN_IMPORT` produzido pelo scanner CHK3. Ele não abre
+filesystem, não descobre owner/provider e não adquire source. Sources, facts,
+text views, outputs e todo o scratch são caller-owned.
+
+O profile fixa no máximo 64 sources alcançados, 4096 imports/edges, depth 64 e
+16 MiB de source bytes. `measure` e `write` recebem o mesmo scratch explícito
+com arrays e capacities fornecidos pelo caller; uma capacity menor retorna
+`CAPACITY` sem publicar output. A projeção valida identidade ASCII parser-validada
+(NFC completo fica fora desta fatia), header/stem, mapping root-relative,
+provider/root/owner, canonical token, snapshots antes/depois e o digest
+`SHA-256("w-module-source-v1\\0" || source bytes)`. Ela rejeita missing local,
+`std`, aliases canônicos, cycles/SCC e limites excedidos.
+
+O output mantém root ordinal 0, inventory alcançado em byte order, edges
+determinísticas com spans/proveniência e a projeção `document_order` mais
+`w_seed_frontend_resolved_import` na ordem estrita do frontend. Este builder
+ordena edges por mergesort bounded O(E log E) e reconstrói a ordem do frontend
+em O(E + S), sem scratch implícito. Este builder não publica recipe ou key.
+Provider acquisition/filesystem, owner detection, NFC
+completo, std provider, reexport/service-import, diagnostics e `w check`
+multi-file permanecem gaps; `w check` continua closed-single-source.
+
+O gate dedicado é executado com:
+
+    bun tooling/check-seed-ephemeral-graph.mjs
+
 ## Frontend seed interno (fatia semântica)
 
 `include/w_seed_frontend.h` e `src/w_seed_frontend.c` formam a primeira fatia

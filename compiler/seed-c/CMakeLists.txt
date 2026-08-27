@@ -14,6 +14,7 @@ add_library(w_seed_source STATIC
   src/w_seed_lexer.c
   src/w_seed_parser.c
   src/w_seed_module_scan.c
+  src/w_seed_ephemeral_graph.c
   src/w_seed_formatter.c
   src/w_seed_sha256.c
   src/w_seed_diagnostic.c
@@ -80,6 +81,11 @@ add_executable(w_seed_module_scan_tests
   tests/test_module_scan.c
 )
 target_link_libraries(w_seed_module_scan_tests PRIVATE w_seed_source)
+
+add_executable(w_seed_ephemeral_graph_tests
+  tests/test_ephemeral_graph.c
+)
+target_link_libraries(w_seed_ephemeral_graph_tests PRIVATE w_seed_source)
 
 add_executable(w_seed_formatter_probe
   tests/formatter_probe.c
@@ -162,6 +168,7 @@ if(MSVC)
   target_compile_options(w_seed_parser_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_parser_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_module_scan_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_ephemeral_graph_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_formatter_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_formatter_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_diagnostic_probe PRIVATE /W4 /WX)
@@ -241,6 +248,15 @@ else()
     -Werror
   )
   target_compile_options(w_seed_module_scan_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_ephemeral_graph_tests PRIVATE
     -Wall
     -Wextra
     -Wpedantic
@@ -383,6 +399,7 @@ add_test(NAME w_seed_lexer_unit COMMAND w_seed_lexer_tests)
 add_test(NAME w_seed_unicode_unit COMMAND w_seed_unicode_tests)
 add_test(NAME w_seed_parser_unit COMMAND w_seed_parser_tests)
 add_test(NAME w_seed_module_scan_unit COMMAND w_seed_module_scan_tests)
+add_test(NAME w_seed_ephemeral_graph_unit COMMAND w_seed_ephemeral_graph_tests)
 add_test(NAME w_seed_formatter_unit COMMAND w_seed_formatter_tests)
 add_test(NAME w_seed_diagnostic_unit COMMAND w_seed_diagnostic_tests)
 add_test(NAME w_seed_foreign_unit COMMAND w_seed_foreign_tests)
