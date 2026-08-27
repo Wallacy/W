@@ -20,40 +20,58 @@ export const BENCHMARK_DISPOSITIONS = Object.freeze([
   "deferred",
   "not-applicable",
 ]);
-export const LIFECYCLE_PHASES = Object.freeze([
-  "clean",
-  "no-op",
-  "edit",
-  "frontend",
+export const LIFECYCLE_SCENARIOS = Object.freeze(["clean", "no-op", "edit"]);
+export const LIFECYCLE_STAGES = Object.freeze([
+  "check-end-to-end",
+  "source",
+  "lex",
+  "parse",
+  "semantic",
   "hir",
   "lowering",
   "codegen",
   "link",
-  "startup",
-  "execution",
 ]);
 export const REQUIRED_CASES = Object.freeze([
-  "BMD0-W-1487-current",
-  "BMD0-W-1487-compiler-lifecycle",
-  "BMD0-W-1487-open-lane",
-  "BMD0-W-1487-deferred",
-  "BMD0-W-1487-not-applicable",
-  "BMD0-W-1487-profile-missing",
-  "BMD0-W-1487-profile-duplicate",
-  "BMD0-W-1487-idiomatic-not-primary",
-  "BMD0-W-1487-oracle-partial",
-  "BMD0-W-1487-equivalent-semantic-difference",
-  "BMD0-W-1487-learner-artificially-slow",
-  "BMD0-W-1487-frontier-missing-disclosure",
-  "BMD0-W-1487-baseline-provenance-missing",
-  "BMD0-W-1487-compile-execution-mixed",
-  "BMD0-W-1487-best-only",
-  "BMD0-W-1487-output-constant-bypass",
-  "BMD0-W-1487-claim-without-backend",
-  "BMD0-W-1487-specialization-universal",
-  "BMD0-W-1487-invalid-benchmark-disposition",
-  "BMD0-W-1487-deferred-missing-blocker",
-  "BMD0-W-1487-not-applicable-missing-reason",
+  "BMD1-W-1487-current",
+  "BMD1-W-1488-current-matrix",
+  "BMD1-W-1487-open-lane",
+  "BMD1-W-1487-deferred",
+  "BMD1-W-1487-not-applicable",
+  "BMD1-W-1487-profile-missing",
+  "BMD1-W-1487-profile-duplicate",
+  "BMD1-W-1487-idiomatic-not-primary",
+  "BMD1-W-1487-oracle-partial",
+  "BMD1-W-1487-equivalent-semantic-difference",
+  "BMD1-W-1487-learner-artificially-slow",
+  "BMD1-W-1487-frontier-missing-disclosure",
+  "BMD1-W-1488-baseline-provenance-missing",
+  "BMD1-W-1488-compile-execution-mixed",
+  "BMD1-W-1487-best-only",
+  "BMD1-W-1487-output-constant-bypass",
+  "BMD1-W-1488-claim-without-backend",
+  "BMD1-W-1487-specialization-universal",
+  "BMD1-W-1487-invalid-benchmark-disposition",
+  "BMD1-W-1487-deferred-missing-blocker",
+  "BMD1-W-1487-not-applicable-missing-reason",
+  "BMD1-W-1488-flattened-axis",
+  "BMD1-W-1488-no-op-without-cache",
+  "BMD1-W-1488-edit-without-cache",
+  "BMD1-W-1488-internal-stage-without-instrumentation",
+  "BMD1-W-1488-runtime-mixed",
+  "BMD1-W-1488-result-blocked-point",
+  "BMD1-W-1488-result-language-without-backend",
+  "BMD1-W-1488-result-regression-without-comparison",
+  "BMD1-W-1488-result-partial-oracle",
+  "BMD1-W-1488-result-tracked-timing",
+  "BMD1-W-1488-result-output-overwrite",
+  "BMD1-W-1488-result-oracle-false",
+  "BMD1-W-1488-result-forged-metric",
+  "BMD1-W-1488-result-even-samples",
+  "BMD1-W-1488-result-leading-zero",
+  "BMD1-W-1488-result-u64-overflow",
+  "BMD1-W-1488-result-comparison-incomplete",
+  "BMD1-W-1488-blocker-incomplete",
 ]);
 export const SOURCE_FIXTURE = Object.freeze({
   path: "reference/last-light/checker_bootstrap.w",
@@ -87,23 +105,37 @@ export const DESCRIPTOR_IDENTITIES = Object.freeze({
   }),
 });
 
+export const RESULT_MIN_SAMPLES = 9;
+export const RESULT_MIN_WARMUP = 1;
+export const RESULT_CLOCK = "monotonic-wall-ns";
+export const MEASUREMENT_ORDER = "single-series";
+export const COMPARISON_ORDER = "randomized-interleaved";
+export const MAX_BOUNDED_MUTATIONS = 2;
+export const MAX_U64 = (1n << 64n) - 1n;
+
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 const PROFILE_SET = new Set(LANGUAGE_PROFILES);
 const LANE_SET = new Set(LANES);
 const DISPOSITION_SET = new Set(BENCHMARK_DISPOSITIONS);
-const PHASE_SET = new Set(LIFECYCLE_PHASES);
+const SCENARIO_SET = new Set(LIFECYCLE_SCENARIOS);
+const STAGE_SET = new Set(LIFECYCLE_STAGES);
+const INTERNAL_STAGES = new Set(["source", "lex", "parse", "semantic"]);
+const COMPONENT_STAGES = new Set(["hir", "lowering", "codegen", "link"]);
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
-
 function push(errors, message) {
   errors.push(message);
 }
 
+function hasOwn(value, key) {
+  return isObject(value) && Object.prototype.hasOwnProperty.call(value, key);
+}
+
 function requiredString(value, name, errors) {
   if (typeof value !== "string" || value.trim() === "") {
-    push(errors, `${name} must be a non-empty string.`);
+    push(errors, name + " must be a non-empty string.");
     return false;
   }
   return true;
@@ -111,7 +143,7 @@ function requiredString(value, name, errors) {
 
 function requiredBoolean(value, name, errors) {
   if (value !== true) {
-    push(errors, `${name} must be true.`);
+    push(errors, name + " must be true.");
     return false;
   }
   return true;
@@ -119,7 +151,7 @@ function requiredBoolean(value, name, errors) {
 
 function requiredDigest(value, name, errors) {
   if (!DIGEST_PATTERN.test(value ?? "")) {
-    push(errors, `${name} must be a lowercase sha256 digest.`);
+    push(errors, name + " must be a lowercase sha256 digest.");
     return false;
   }
   return true;
@@ -130,169 +162,225 @@ function sameArray(actual, expected) {
     actual.every((value, index) => value === expected[index]);
 }
 
+function checkExactKeys(value, name, expected, errors) {
+  if (!isObject(value)) return false;
+  if (!sameArray(Object.keys(value).sort(), [...expected].sort())) {
+    push(errors, name + " must use a closed object shape.");
+    return false;
+  }
+  return true;
+}
+
 function repositoryPath(relativePath) {
   if (typeof relativePath !== "string" || relativePath.trim() === "") return undefined;
   const absolutePath = path.resolve(ROOT, relativePath);
   const relative = path.relative(ROOT, absolutePath);
-  if (relative === "" || relative === ".." || relative.startsWith(".." + path.sep) || path.isAbsolute(relative)) return undefined;
+  if (relative === "" || relative === ".." ||
+      relative.startsWith(".." + path.sep) || path.isAbsolute(relative)) return undefined;
   return absolutePath;
 }
 
 function fileDigest(relativePath) {
   const absolutePath = repositoryPath(relativePath);
-  if (!absolutePath) return undefined;
-  if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) return undefined;
-  return `sha256:${crypto.createHash("sha256").update(fs.readFileSync(absolutePath)).digest("hex")}`;
+  if (!absolutePath || !fs.existsSync(absolutePath) ||
+      !fs.statSync(absolutePath).isFile()) return undefined;
+  return "sha256:" + crypto.createHash("sha256")
+    .update(fs.readFileSync(absolutePath)).digest("hex");
 }
 
 function checkSource(source, name, errors, requirePath = true) {
   if (!isObject(source)) {
-    push(errors, `${name} must be an object.`);
+    push(errors, name + " must be an object.");
     return;
   }
-  if (requirePath) requiredString(source.path, `${name}.path`, errors);
-  const hasSymbol = requiredString(source.symbol, `${name}.symbol`, errors);
-  const hasDigest = requiredDigest(source.digest, `${name}.digest`, errors);
-  if (source.path !== SOURCE_FIXTURE.path) push(errors, `${name}.path must use the Last Light benchmark fixture.`);
-  if (hasSymbol && source.symbol !== SOURCE_FIXTURE.symbol) push(errors, `${name}.symbol must identify canAcceptOrder.`);
-  if (hasDigest && source.digest !== SOURCE_FIXTURE.digest) push(errors, `${name}.digest is not the current fixture digest.`);
+  if (requirePath) requiredString(source.path, name + ".path", errors);
+  const hasSymbol = requiredString(source.symbol, name + ".symbol", errors);
+  const hasDigest = requiredDigest(source.digest, name + ".digest", errors);
+  if (source.path !== SOURCE_FIXTURE.path) {
+    push(errors, name + ".path must use the Last Light benchmark fixture.");
+  }
+  if (hasSymbol && source.symbol !== SOURCE_FIXTURE.symbol) {
+    push(errors, name + ".symbol must identify canAcceptOrder.");
+  }
+  if (hasDigest && source.digest !== SOURCE_FIXTURE.digest) {
+    push(errors, name + ".digest is not the current fixture digest.");
+  }
   const actual = fileDigest(source.path);
-  if (!actual) push(errors, `${name}.path does not identify an existing source file.`);
-  else {
-    if (source.digest !== actual) push(errors, `${name}.digest is stale.`);
-    if (hasSymbol && !fs.readFileSync(repositoryPath(source.path), "utf8").includes(source.symbol)) push(errors, `${name}.symbol is not present in the source bytes.`);
+  if (!actual) {
+    push(errors, name + ".path does not identify an existing source file.");
+  } else {
+    if (source.digest !== actual) push(errors, name + ".digest is stale.");
+    if (hasSymbol &&
+        !fs.readFileSync(repositoryPath(source.path), "utf8").includes(source.symbol)) {
+      push(errors, name + ".symbol is not present in the source bytes.");
+    }
   }
 }
 
 function checkCorpusSource(source, name, errors) {
   if (!isObject(source)) {
-    push(errors, `${name} must be an object.`);
+    push(errors, name + " must be an object.");
     return;
   }
-  requiredString(source.path, `${name}.path`, errors);
-  requiredString(source.symbol, `${name}.symbol`, errors);
-  const hasDigest = requiredDigest(source.digest, `${name}.digest`, errors);
+  requiredString(source.path, name + ".path", errors);
+  requiredString(source.symbol, name + ".symbol", errors);
+  const hasDigest = requiredDigest(source.digest, name + ".digest", errors);
   const actual = fileDigest(source.path);
-  if (!actual) push(errors, `${name}.path does not identify an existing source file.`);
-  else {
-    if (hasDigest && source.digest !== actual) push(errors, `${name}.digest is stale.`);
-    if (typeof source.symbol === "string" && !fs.readFileSync(repositoryPath(source.path), "utf8").includes(source.symbol)) push(errors, `${name}.symbol is not present in the source bytes.`);
+  if (!actual) {
+    push(errors, name + ".path does not identify an existing source file.");
+  } else {
+    if (hasDigest && source.digest !== actual) push(errors, name + ".digest is stale.");
+    if (typeof source.symbol === "string" &&
+        !fs.readFileSync(repositoryPath(source.path), "utf8").includes(source.symbol)) {
+      push(errors, name + ".symbol is not present in the source bytes.");
+    }
   }
 }
 
 function checkIdentity(identity, name, errors, requirePath = false) {
   if (!isObject(identity)) {
-    push(errors, `${name} must be an object.`);
+    push(errors, name + " must be an object.");
     return false;
   }
-  const validId = requiredString(identity.id, `${name}.id`, errors);
-  const validDigest = requiredDigest(identity.digest, `${name}.digest`, errors);
-  const validPath = requirePath ? requiredString(identity.path, `${name}.path`, errors) : true;
+  const validId = requiredString(identity.id, name + ".id", errors);
+  const validDigest = requiredDigest(identity.digest, name + ".digest", errors);
+  const validPath = requirePath
+    ? requiredString(identity.path, name + ".path", errors)
+    : true;
   return validId && validDigest && validPath;
 }
 
 function checkOracle(oracle, name, errors, expectedKind = "host-oracle") {
   if (!isObject(oracle)) {
-    push(errors, `${name} must be an object.`);
+    push(errors, name + " must be an object.");
     return;
   }
-  if (expectedKind === "host-structural" && oracle.kind !== expectedKind) push(errors, `${name}.kind must be ${expectedKind}.`);
-  if (expectedKind === "host-oracle" && oracle.kind !== undefined && oracle.kind !== expectedKind) push(errors, `${name}.kind must be ${expectedKind} when present.`);
+  if (expectedKind === "host-structural" && oracle.kind !== expectedKind) {
+    push(errors, name + ".kind must be " + expectedKind + ".");
+  }
+  if (expectedKind === "host-oracle" && oracle.kind !== undefined &&
+      oracle.kind !== expectedKind) {
+    push(errors, name + ".kind must be " + expectedKind + " when present.");
+  }
   if (expectedKind === "host-structural") {
-    requiredBoolean(oracle.requiredBeforeSamples, `${name}.requiredBeforeSamples`, errors);
-    if (oracle.runtime !== "unavailable") push(errors, `${name}.runtime must be unavailable.`);
+    requiredBoolean(oracle.requiredBeforeSamples, name + ".requiredBeforeSamples", errors);
+    if (oracle.runtime !== "unavailable") {
+      push(errors, name + ".runtime must be unavailable.");
+    }
     return;
   }
-  requiredString(oracle.correctnessRecord, `${name}.correctnessRecord`, errors);
-  requiredBoolean(oracle.complete, `${name}.complete`, errors);
-  requiredBoolean(oracle.beforeSamples, `${name}.beforeSamples`, errors);
+  requiredString(oracle.correctnessRecord, name + ".correctnessRecord", errors);
+  requiredBoolean(oracle.complete, name + ".complete", errors);
+  requiredBoolean(oracle.beforeSamples, name + ".beforeSamples", errors);
 }
 
 function checkBaseline(baseline, name, errors) {
   if (!isObject(baseline)) {
-    push(errors, `${name} must be an object.`);
+    push(errors, name + " must be an object.");
     return;
   }
   if (!Array.isArray(baseline.independent)) {
-    push(errors, `${name}.independent must be an array.`);
+    push(errors, name + ".independent must be an array.");
   } else {
     const unique = new Set(baseline.independent);
-    if (unique.size !== baseline.independent.length) push(errors, `${name}.independent must not contain duplicates.`);
-    for (const baselineId of baseline.independent) {
-      if (!["c-clang", "rust"].includes(baselineId)) push(errors, `${name}.independent contains an unknown baseline.`);
+    if (unique.size !== baseline.independent.length) {
+      push(errors, name + ".independent must not contain duplicates.");
     }
-    if (baseline.independent.length < 2 && !requiredString(baseline.exceptionReason, `${name}.exceptionReason`, errors)) {
-      push(errors, `${name} needs two independent baselines or an exception reason.`);
+    for (const baselineId of baseline.independent) {
+      if (!["c-clang", "rust"].includes(baselineId)) {
+        push(errors, name + ".independent contains an unknown baseline.");
+      }
+    }
+    if (baseline.independent.length < 2 &&
+        !requiredString(baseline.exceptionReason, name + ".exceptionReason", errors)) {
+      push(errors, name + " needs two independent baselines or an exception reason.");
     }
     if (baseline.independent.length >= 2 && baseline.exceptionReason !== null) {
-      push(errors, `${name}.exceptionReason must be null when two baselines are present.`);
+      push(errors, name + ".exceptionReason must be null when two baselines are present.");
     }
   }
-  if (baseline.provenanceComplete !== true) push(errors, `${name}.provenanceComplete must be true.`);
+  if (baseline.provenanceComplete !== true) {
+    push(errors, name + ".provenanceComplete must be true.");
+  }
 }
 
-function checkSamples(samples, name, errors, backendAvailable) {
+function checkSamples(samples, name, errors, backendAvailable, expectedOrder = COMPARISON_ORDER) {
   if (!isObject(samples)) {
-    push(errors, `${name} must be an object.`);
+    push(errors, name + " must be an object.");
     return;
   }
-  if (samples.order !== "randomized-interleaved") push(errors, `${name}.order must be randomized-interleaved.`);
+  if (samples.order !== expectedOrder) {
+    push(errors, name + ".order must be " + expectedOrder + ".");
+  }
   if (!backendAvailable && samples.mode !== "not-started") {
-    push(errors, `${name}.mode must be not-started while the backend is unavailable.`);
+    push(errors, name + ".mode must be not-started while the backend is unavailable.");
   }
 }
 
 function checkBackend(backendAvailable, claims, name, errors) {
-  if (backendAvailable !== false) push(errors, `${name}.backendAvailable must be false for this protocol.`);
+  if (backendAvailable !== false) {
+    push(errors, name + ".backendAvailable must be false for this protocol.");
+  }
   if (!Array.isArray(claims)) {
-    push(errors, `${name}.claims must be an array.`);
+    push(errors, name + ".claims must be an array.");
   } else if (backendAvailable === false && claims.length > 0) {
-    push(errors, `${name}.claims must be empty without a backend.`);
+    push(errors, name + ".claims must be empty without a backend.");
   }
 }
 
 function checkDisposition(value, name, errors) {
-  if (!DISPOSITION_SET.has(value)) push(errors, `${name} must be required, compiler-lifecycle, deferred or not-applicable.`);
+  if (!DISPOSITION_SET.has(value)) {
+    push(errors, name + " must be required, compiler-lifecycle, deferred or not-applicable.");
+  }
 }
 
 function checkLanguageProfiles(profiles, name, errors) {
   if (!Array.isArray(profiles) || profiles.length !== LANGUAGE_PROFILES.length) {
-    push(errors, `${name} must contain exactly learner, idiomatic and frontier.`);
+    push(errors, name + " must contain exactly learner, idiomatic and frontier.");
     return new Map();
   }
   const byId = new Map();
   for (const [index, profile] of profiles.entries()) {
-    const location = `${name}[${index}]`;
+    const location = name + "[" + index + "]";
     if (!isObject(profile)) {
-      push(errors, `${location} must be an object.`);
+      push(errors, location + " must be an object.");
       continue;
     }
-    if (!PROFILE_SET.has(profile.id)) push(errors, `${location}.id is not a required profile.`);
-    if (byId.has(profile.id)) push(errors, `${location}.id duplicates ${profile.id}.`);
+    if (!PROFILE_SET.has(profile.id)) {
+      push(errors, location + ".id is not a required profile.");
+    }
+    if (byId.has(profile.id)) {
+      push(errors, location + ".id duplicates " + profile.id + ".");
+    }
     byId.set(profile.id, profile);
-    requiredBoolean(profile.correct, `${location}.correct`, errors);
-    requiredBoolean(profile.plausible, `${location}.plausible`, errors);
+    requiredBoolean(profile.correct, location + ".correct", errors);
+    requiredBoolean(profile.plausible, location + ".plausible", errors);
   }
   for (const profileId of LANGUAGE_PROFILES) {
-    if (!byId.has(profileId)) push(errors, `${name} is missing ${profileId}.`);
+    if (!byId.has(profileId)) push(errors, name + " is missing " + profileId + ".");
   }
   const learner = byId.get("learner");
   if (learner) {
     for (const field of ["sleep", "uselessWork", "worseFlags", "bypass"]) {
-      if (learner[field] !== false) push(errors, `${name}.learner.${field} must be false.`);
+      if (learner[field] !== false) push(errors, name + ".learner." + field + " must be false.");
     }
   }
   const frontier = byId.get("frontier");
   if (frontier) {
     if (!isObject(frontier.disclosures)) {
-      push(errors, `${name}.frontier.disclosures must declare every frontier axis.`);
+      push(errors, name + ".frontier.disclosures must declare every frontier axis.");
     } else {
-      for (const field of PROFILE_DISCLOSURES) requiredString(frontier.disclosures[field], `${name}.frontier.disclosures.${field}`, errors);
+      for (const field of PROFILE_DISCLOSURES) {
+        requiredString(frontier.disclosures[field],
+          name + ".frontier.disclosures." + field, errors);
+      }
       for (const field of Object.keys(frontier.disclosures)) {
-        if (!PROFILE_DISCLOSURES.includes(field)) push(errors, `${name}.frontier.disclosures has an unknown axis ${field}.`);
+        if (!PROFILE_DISCLOSURES.includes(field)) {
+          push(errors, name + ".frontier.disclosures has an unknown axis " + field + ".");
+        }
       }
       if (frontier.disclosures.targetSpecialization === "universal") {
-        push(errors, `${name}.frontier.disclosures.targetSpecialization must name a bounded target and fallback.`);
+        push(errors, name + ".frontier.disclosures.targetSpecialization must name a bounded target and fallback.");
       }
     }
   }
@@ -300,224 +388,642 @@ function checkLanguageProfiles(profiles, name, errors) {
 }
 
 function checkEquivalence(input, name, errors) {
-  const fields = ["sameAlgorithm", "sameRepresentation", "sameValidation", "sameNumericContract", "sameInput"];
-  for (const field of fields) {
-    if (input[field] !== true) push(errors, `${name}.${field} must be true in the equivalent lane.`);
+  for (const field of [
+    "sameAlgorithm",
+    "sameRepresentation",
+    "sameValidation",
+    "sameNumericContract",
+    "sameInput",
+  ]) {
+    if (input[field] !== true) {
+      push(errors, name + "." + field + " must be true in the equivalent lane.");
+    }
   }
 }
 
 function checkOpenLane(input, name, errors) {
   for (const field of ["sameValidation", "sameNumericContract", "sameInput"]) {
-    if (input[field] !== true) push(errors, `${name}.${field} must be true in the open lane.`);
+    if (input[field] !== true) {
+      push(errors, name + "." + field + " must be true in the open lane.");
+    }
   }
   if (input.sameAlgorithm !== false && input.sameRepresentation !== false) {
-    push(errors, `${name} must record an algorithm or representation difference in the open lane.`);
+    push(errors, name + " must record an algorithm or representation difference in the open lane.");
   }
 }
 
 function checkLanguageScenario(input, name, errors) {
   const disposition = input?.benchmarkDisposition;
-  checkDisposition(disposition, `${name}.benchmarkDisposition`, errors);
+  checkDisposition(disposition, name + ".benchmarkDisposition", errors);
   if (!(["required", "deferred"].includes(disposition))) {
-    push(errors, `${name}.language workload must use required or deferred disposition.`);
+    push(errors, name + ".language workload must use required or deferred disposition.");
   }
-  checkLanguageProfiles(input?.profiles, `${name}.profiles`, errors);
-  if (input?.primaryProfile !== "idiomatic") push(errors, `${name}.primaryProfile must be idiomatic.`);
-  if (input?.regressionProfile !== "idiomatic") push(errors, `${name}.regressionProfile must be idiomatic.`);
+  checkLanguageProfiles(input?.profiles, name + ".profiles", errors);
+  if (input?.primaryProfile !== "idiomatic") {
+    push(errors, name + ".primaryProfile must be idiomatic.");
+  }
+  if (input?.regressionProfile !== "idiomatic") {
+    push(errors, name + ".regressionProfile must be idiomatic.");
+  }
   if (input?.lane === "equivalent") checkEquivalence(input, name, errors);
   else if (input?.lane === "open") checkOpenLane(input, name, errors);
-  else push(errors, `${name}.lane must be equivalent or open.`);
-  checkOracle(input?.oracle, `${name}.oracle`, errors);
+  else push(errors, name + ".lane must be equivalent or open.");
+  checkOracle(input?.oracle, name + ".oracle", errors);
   checkBackend(input?.backendAvailable, input?.claims, name, errors);
-  checkBaseline(input?.baseline, `${name}.baseline`, errors);
-  checkSamples(input?.samples, `${name}.samples`, errors, input?.backendAvailable);
+  checkBaseline(input?.baseline, name + ".baseline", errors);
+  checkSamples(input?.samples, name + ".samples", errors,
+    input?.backendAvailable, COMPARISON_ORDER);
   if (disposition === "deferred") {
-    requiredString(input.blocker, `${name}.blocker`, errors);
-    requiredString(input.taskId, `${name}.taskId`, errors);
-    requiredString(input.stopCondition, `${name}.stopCondition`, errors);
+    requiredString(input.blocker, name + ".blocker", errors);
+    requiredString(input.taskId, name + ".taskId", errors);
+    requiredString(input.stopCondition, name + ".stopCondition", errors);
   }
 }
 
 function checkProgramProfiles(profiles, name, errors) {
   if (!Array.isArray(profiles) || profiles.length !== LANGUAGE_PROFILES.length) {
-    push(errors, `${name} must contain exactly learner, idiomatic and frontier.`);
+    push(errors, name + " must contain exactly learner, idiomatic and frontier.");
     return new Map();
   }
   const byId = new Map();
   for (const [index, profile] of profiles.entries()) {
-    const location = `${name}[${index}]`;
+    const location = name + "[" + index + "]";
     if (!isObject(profile)) {
-      push(errors, `${location} must be an object.`);
+      push(errors, location + " must be an object.");
       continue;
     }
-    if (!PROFILE_SET.has(profile.id)) push(errors, `${location}.id is not a required profile.`);
-    if (byId.has(profile.id)) push(errors, `${location}.id duplicates ${profile.id}.`);
+    if (!PROFILE_SET.has(profile.id)) {
+      push(errors, location + ".id is not a required profile.");
+    }
+    if (byId.has(profile.id)) {
+      push(errors, location + ".id duplicates " + profile.id + ".");
+    }
     byId.set(profile.id, profile);
-    if (profile.track !== "language") push(errors, `${location}.track must be language.`);
-    requiredString(profile.description, `${location}.description`, errors);
-    if (typeof profile.primary !== "boolean") push(errors, `${location}.primary must be boolean.`);
-    if (typeof profile.regression !== "boolean") push(errors, `${location}.regression must be boolean.`);
+    if (profile.track !== "language") {
+      push(errors, location + ".track must be language.");
+    }
+    requiredString(profile.description, location + ".description", errors);
+    if (typeof profile.primary !== "boolean") {
+      push(errors, location + ".primary must be boolean.");
+    }
+    if (typeof profile.regression !== "boolean") {
+      push(errors, location + ".regression must be boolean.");
+    }
   }
-  for (const profileId of LANGUAGE_PROFILES) if (!byId.has(profileId)) push(errors, `${name} is missing ${profileId}.`);
+  for (const profileId of LANGUAGE_PROFILES) {
+    if (!byId.has(profileId)) push(errors, name + " is missing " + profileId + ".");
+  }
   const frontier = byId.get("frontier");
   if (!isObject(frontier?.disclosures)) {
-    push(errors, `${name}.frontier.disclosures must declare every frontier axis.`);
+    push(errors, name + ".frontier.disclosures must declare every frontier axis.");
   } else {
-    for (const field of PROFILE_DISCLOSURES) requiredString(frontier.disclosures[field], `${name}.frontier.disclosures.${field}`, errors);
-    for (const field of Object.keys(frontier.disclosures)) if (!PROFILE_DISCLOSURES.includes(field)) push(errors, `${name}.frontier.disclosures has an unknown axis ${field}.`);
-    if (frontier.disclosures.targetSpecialization === "universal") push(errors, `${name}.frontier.disclosures.targetSpecialization must name a bounded target and fallback.`);
+    for (const field of PROFILE_DISCLOSURES) {
+      requiredString(frontier.disclosures[field],
+        name + ".frontier.disclosures." + field, errors);
+    }
+    for (const field of Object.keys(frontier.disclosures)) {
+      if (!PROFILE_DISCLOSURES.includes(field)) {
+        push(errors, name + ".frontier.disclosures has an unknown axis " + field + ".");
+      }
+    }
+    if (frontier.disclosures.targetSpecialization === "universal") {
+      push(errors, name + ".frontier.disclosures.targetSpecialization must name a bounded target and fallback.");
+    }
   }
   return byId;
 }
 
-function checkCompilerLifecycle(input, name, errors) {
-  if (input?.benchmarkDisposition !== "compiler-lifecycle") {
-    push(errors, `${name}.benchmarkDisposition must be compiler-lifecycle.`);
+export function expectedMatrixBlockers(scenario, stage) {
+  if (scenario === "clean" && stage === "check-end-to-end") return [];
+  const blockers = [];
+  if (scenario === "no-op" || scenario === "edit") blockers.push("incremental-cache");
+  if (INTERNAL_STAGES.has(stage)) blockers.push("stage-instrumentation");
+  if (COMPONENT_STAGES.has(stage)) blockers.push(stage);
+  return blockers;
+}
+
+export function expectedMatrixStatus(scenario, stage) {
+  return scenario === "clean" && stage === "check-end-to-end" ? "ready" : "blocked";
+}
+
+function checkMatrix(matrix, name, identities, errors) {
+  if (!isObject(matrix)) {
+    push(errors, name + " must be an object. The compiler lifecycle must use a matrix.");
+    return;
   }
-  if (Object.prototype.hasOwnProperty.call(input ?? {}, "profiles")) {
-    push(errors, `${name}.profiles must not define language source profiles.`);
+  if (!sameArray(matrix.scenarios, [...LIFECYCLE_SCENARIOS])) {
+    push(errors, name + ".scenarios must be clean, no-op and edit in order.");
   }
-  if (input?.languageProfiles?.applicability !== "not-applicable" ||
-      !requiredString(input?.languageProfiles?.reason, `${name}.languageProfiles.reason`, errors)) {
-    push(errors, `${name}.languageProfiles must mark language profiles not-applicable with a reason.`);
+  if (!sameArray(matrix.stages, [...LIFECYCLE_STAGES])) {
+    push(errors, name + ".stages must be check-end-to-end, source, lex, parse, semantic, hir, lowering, codegen and link in order.");
   }
-  checkIdentity(input?.source, `${name}.source`, errors);
-  checkIdentity(input?.graph, `${name}.graph`, errors);
-  checkIdentity(input?.inputIdentity, `${name}.inputIdentity`, errors);
-  if (input?.source?.id !== SOURCE_ID || input?.source?.digest !== SOURCE_FIXTURE.digest) {
-    push(errors, `${name}.source must use the current checker source identity.`);
+  if (!Array.isArray(matrix.points) ||
+      matrix.points.length !== LIFECYCLE_SCENARIOS.length * LIFECYCLE_STAGES.length) {
+    push(errors, name + ".points must contain all 27 scenario-stage cells.");
+    return;
   }
-  if (input?.graph?.id !== DESCRIPTOR_IDENTITIES.graph.id || input?.graph?.digest !== DESCRIPTOR_IDENTITIES.graph.digest) {
-    push(errors, `${name}.graph must use the source-backed graph descriptor.`);
-  }
-  if (input?.inputIdentity?.id !== DESCRIPTOR_IDENTITIES.input.id || input?.inputIdentity?.digest !== DESCRIPTOR_IDENTITIES.input.digest) {
-    push(errors, `${name}.inputIdentity must use the source-backed invocation descriptor.`);
-  }
-  if (!sameArray(input?.phases, LIFECYCLE_PHASES)) push(errors, `${name}.phases must separate all ten lifecycle phases in order.`);
-  if (!Array.isArray(input?.phaseIdentities) || input.phaseIdentities.length !== LIFECYCLE_PHASES.length) {
-    push(errors, `${name}.phaseIdentities must contain one identity record per lifecycle phase.`);
-  } else {
-    for (const [index, phase] of input.phaseIdentities.entries()) {
-      const location = `${name}.phaseIdentities[${index}]`;
-      if (!isObject(phase)) {
-        push(errors, `${location} must be an object.`);
-        continue;
-      }
-      if (phase.phase !== LIFECYCLE_PHASES[index]) push(errors, `${location}.phase must preserve lifecycle order.`);
-      if (phase.source !== input.source?.id) push(errors, `${location}.source must equal the source identity.`);
-      if (phase.graph !== input.graph?.id) push(errors, `${location}.graph must equal the graph identity.`);
-      if (phase.input !== input.inputIdentity?.id) push(errors, `${location}.input must equal the input identity.`);
+  const seen = new Set();
+  for (const [index, point] of matrix.points.entries()) {
+    const location = name + ".points[" + index + "]";
+    if (!isObject(point)) {
+      push(errors, location + " must be an object.");
+      continue;
+    }
+    checkExactKeys(point, location, ["scenario", "stage", "status", "blockedBy"], errors);
+    const scenario = point.scenario;
+    const stage = point.stage;
+    if (!SCENARIO_SET.has(scenario)) push(errors, location + ".scenario is invalid.");
+    if (!STAGE_SET.has(stage)) push(errors, location + ".stage is invalid.");
+    const key = String(scenario) + "\u0000" + String(stage);
+    if (seen.has(key)) push(errors, location + " duplicates a scenario-stage cell.");
+    seen.add(key);
+    const expectedStatus = expectedMatrixStatus(scenario, stage);
+    const expectedBlockers = expectedMatrixBlockers(scenario, stage);
+    if (point.status !== expectedStatus) {
+      push(errors, location + ".status must be " + expectedStatus + ".");
+    }
+    if (!sameArray(point.blockedBy ?? [], expectedBlockers)) {
+      push(errors, location + ".blockedBy must be " +
+        (expectedBlockers.length ? expectedBlockers.join(", ") : "empty") + ".");
     }
   }
-  if (input?.phaseMix !== undefined) push(errors, `${name}.phaseMix must not mix compiler and execution phases.`);
-  checkOracle(input?.oracle, `${name}.oracle`, errors, "host-oracle");
+  for (const scenario of LIFECYCLE_SCENARIOS) {
+    for (const stage of LIFECYCLE_STAGES) {
+      const key = scenario + "\u0000" + stage;
+      if (!seen.has(key)) push(errors, name + " is missing " + scenario + " x " + stage + ".");
+    }
+  }
+  for (const key of ["lifecycle", "phases", "phaseIdentities", "phaseMix"]) {
+    if (hasOwn(matrix, key)) push(errors, name + " must not flatten lifecycle axes.");
+  }
+}
+
+function checkCompilerLifecycle(input, name, errors) {
+  if (input?.benchmarkDisposition !== "compiler-lifecycle") {
+    push(errors, name + ".benchmarkDisposition must be compiler-lifecycle.");
+  }
+  if (hasOwn(input, "profiles")) {
+    push(errors, name + ".profiles must not define language source profiles.");
+  }
+  if (input?.languageProfiles?.applicability !== "not-applicable" ||
+      !requiredString(input?.languageProfiles?.reason,
+        name + ".languageProfiles.reason", errors)) {
+    push(errors, name + ".languageProfiles must mark language profiles not-applicable with a reason.");
+  }
+  checkIdentity(input?.source, name + ".source", errors);
+  checkIdentity(input?.graph, name + ".graph", errors);
+  checkIdentity(input?.inputIdentity, name + ".inputIdentity", errors);
+  if (input?.source?.id !== SOURCE_ID ||
+      input?.source?.digest !== SOURCE_FIXTURE.digest) {
+    push(errors, name + ".source must use the current checker source identity.");
+  }
+  if (input?.graph?.id !== DESCRIPTOR_IDENTITIES.graph.id ||
+      input?.graph?.digest !== DESCRIPTOR_IDENTITIES.graph.digest) {
+    push(errors, name + ".graph must use the source-backed graph descriptor.");
+  }
+  if (input?.inputIdentity?.id !== DESCRIPTOR_IDENTITIES.input.id ||
+      input?.inputIdentity?.digest !== DESCRIPTOR_IDENTITIES.input.digest) {
+    push(errors, name + ".inputIdentity must use the source-backed invocation descriptor.");
+  }
+  const identities = {
+    source: input.source,
+    graph: input.graph,
+    input: input.inputIdentity,
+  };
+  checkMatrix(input.matrix, name + ".matrix", identities, errors);
+  for (const key of ["phases", "phaseIdentities", "phaseMix", "lifecycle"]) {
+    if (hasOwn(input, key)) push(errors, name + "." + key + " must not flatten compiler lifecycle axes.");
+  }
+  checkOracle(input?.oracle, name + ".oracle", errors);
   checkBackend(input?.backendAvailable, input?.claims, name, errors);
-  checkBaseline(input?.baseline, `${name}.baseline`, errors);
-  if (input?.baseline?.primary !== "historical-w") push(errors, `${name}.baseline.primary must be historical-w.`);
-  if (input?.baseline?.role !== "contextual-not-ranking") push(errors, `${name}.baseline.role must be contextual-not-ranking.`);
-  if (input?.baseline?.recipe !== "equivalent") push(errors, `${name}.baseline.recipe must be equivalent.`);
-  checkSamples(input?.samples, `${name}.samples`, errors, input?.backendAvailable);
+  checkBaseline(input?.baseline, name + ".baseline", errors);
+  if (input?.baseline?.primary !== "historical-w") {
+    push(errors, name + ".baseline.primary must be historical-w.");
+  }
+  if (input?.baseline?.role !== "contextual-not-ranking") {
+    push(errors, name + ".baseline.role must be contextual-not-ranking.");
+  }
+  if (input?.baseline?.recipe !== "equivalent") {
+    push(errors, name + ".baseline.recipe must be equivalent.");
+  }
+  checkSamples(input?.samples, name + ".samples", errors,
+    input?.backendAvailable, MEASUREMENT_ORDER);
 }
 
 function checkManifestDescriptor(descriptor, name, expectedKind, errors) {
   if (!isObject(descriptor)) {
-    push(errors, `${name} must be an object.`);
+    push(errors, name + " must be an object.");
     return;
   }
-  if (descriptor.$schema !== "wbench/1-identity") push(errors, `${name}.$schema must be wbench/1-identity.`);
-  if (descriptor.schema !== "wbench/1-identity") push(errors, `${name}.schema must be wbench/1-identity.`);
-  if (descriptor.kind !== expectedKind) push(errors, `${name}.kind must be ${expectedKind}.`);
-  requiredString(descriptor.id, `${name}.id`, errors);
-  checkSource(descriptor.source, `${name}.source`, errors);
+  if (descriptor.$schema !== "wbench/1-identity") {
+    push(errors, name + ".$schema must be wbench/1-identity.");
+  }
+  if (descriptor.schema !== "wbench/1-identity") {
+    push(errors, name + ".schema must be wbench/1-identity.");
+  }
+  if (descriptor.kind !== expectedKind) {
+    push(errors, name + ".kind must be " + expectedKind + ".");
+  }
+  requiredString(descriptor.id, name + ".id", errors);
+  checkSource(descriptor.source, name + ".source", errors);
   if (expectedKind === "source-graph") {
-    if (!Array.isArray(descriptor.nodes) || descriptor.nodes.length !== 1) push(errors, `${name}.nodes must contain one source node.`);
-    if (!Array.isArray(descriptor.edges) || descriptor.edges.length !== 0) push(errors, `${name}.edges must be empty for a single-source graph.`);
+    if (!Array.isArray(descriptor.nodes) || descriptor.nodes.length !== 1) {
+      push(errors, name + ".nodes must contain one source node.");
+    }
+    if (!Array.isArray(descriptor.edges) || descriptor.edges.length !== 0) {
+      push(errors, name + ".edges must be empty for the seed graph.");
+    }
     const node = descriptor.nodes?.[0];
-    if (node?.path !== descriptor.source?.path || node?.digest !== descriptor.source?.digest) push(errors, `${name}.nodes[0] must preserve the source path and digest.`);
-  } else {
-    if (descriptor.invocation?.entry !== "canAcceptOrder") push(errors, `${name}.invocation.entry must be canAcceptOrder.`);
+    if (node?.id !== "checker_bootstrap" || node?.path !== SOURCE_FIXTURE.path ||
+        node?.digest !== SOURCE_FIXTURE.digest) {
+      push(errors, name + ".nodes[0] must identify checker_bootstrap with the current digest.");
+    }
+  }
+  if (expectedKind === "invocation-edit-input") {
     const edit = descriptor.invocation?.edit;
     const recipe = descriptor.invocation?.recipe;
-    if (edit?.kind !== EDIT_RECIPE.kind) push(errors, `${name}.invocation.edit.kind must be whitespace-only.`);
-    if (edit?.sourcePath !== descriptor.source?.path) push(errors, `${name}.invocation.edit.sourcePath must preserve the source path.`);
-    if (edit?.targetSymbol !== SOURCE_FIXTURE.symbol) push(errors, `${name}.invocation.edit.targetSymbol must identify canAcceptOrder.`);
-    if (edit?.occurrence !== EDIT_RECIPE.occurrence) push(errors, `${name}.invocation.edit.occurrence must be one.`);
-    if (edit?.match !== EDIT_RECIPE.match || edit?.replacement !== EDIT_RECIPE.replacement) push(errors, `${name}.invocation.edit must use the fixed whitespace-preserving replacement.`);
-    if (edit?.semanticPreserving !== true) push(errors, `${name}.invocation.edit.semanticPreserving must be true.`);
-    if (edit?.applyTo !== EDIT_RECIPE.applyTo) push(errors, `${name}.invocation.edit.applyTo must be temporary-copy.`);
-    if (recipe?.operation !== EDIT_RECIPE.operation || recipe?.expectedMatches !== EDIT_RECIPE.expectedMatches || recipe?.temporaryCopy !== true) {
-      push(errors, `${name}.invocation.recipe must define one fixed replace-once operation on a temporary copy.`);
+    if (!isObject(edit) || edit.semanticPreserving !== true ||
+        edit.applyTo !== "temporary-copy") {
+      push(errors, name + ".invocation.edit must be a semantic-preserving temporary-copy edit.");
     }
-    if (recipe?.match !== EDIT_RECIPE.match || recipe?.replacement !== EDIT_RECIPE.replacement || recipe?.semanticPreserving !== true) {
-      push(errors, `${name}.invocation.recipe must preserve semantics with the fixed replacement.`);
-    }
-    const sourcePath = repositoryPath(descriptor.source?.path);
-    if (!sourcePath || !fs.existsSync(sourcePath)) return;
-    const sourceText = fs.readFileSync(sourcePath, "utf8");
-    const matches = sourceText.split(EDIT_RECIPE.match).length - 1;
-    if (matches !== EDIT_RECIPE.occurrence) push(errors, `${name}.invocation.recipe match must occur exactly once in the source bytes.`);
-    else {
-      const editedText = sourceText.replace(EDIT_RECIPE.match, EDIT_RECIPE.replacement);
-      if (editedText === sourceText) push(errors, `${name}.invocation.recipe must change the temporary copy.`);
-      if (editedText.replace(/\s+/gu, " ") !== sourceText.replace(/\s+/gu, " ")) push(errors, `${name}.invocation.recipe must be semantic-preserving whitespace only.`);
-      if (!editedText.includes(SOURCE_FIXTURE.symbol)) push(errors, `${name}.invocation.recipe must preserve the source symbol.`);
+    if (!isObject(recipe) || recipe.operation !== EDIT_RECIPE.operation ||
+        recipe.expectedMatches !== EDIT_RECIPE.expectedMatches ||
+        recipe.semanticPreserving !== true || recipe.temporaryCopy !== true) {
+      push(errors, name + ".invocation.recipe must be the bounded source-backed recipe.");
     }
   }
 }
 
 function checkDescriptorFile(identity, name, expectedKind, errors) {
-  if (!checkIdentity(identity, name, errors, true)) return;
-  const absolutePath = repositoryPath(identity.path);
-  if (!absolutePath) {
-    push(errors, `${name}.path must stay inside the repository.`);
+  if (!isObject(identity)) {
+    push(errors, name + " must be an object.");
     return;
   }
-  if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
-    push(errors, `${name}.path does not exist.`);
+  const absolutePath = repositoryPath(identity.path);
+  requiredString(identity.path, name + ".path", errors);
+  checkIdentity(identity, name, errors);
+  if (!absolutePath || !fs.existsSync(absolutePath) ||
+      !fs.statSync(absolutePath).isFile()) {
+    push(errors, name + ".path does not exist.");
     return;
   }
   const actualDigest = fileDigest(identity.path);
-  if (actualDigest !== identity.digest) push(errors, `${name}.digest is stale.`);
+  if (actualDigest !== identity.digest) push(errors, name + ".digest is stale.");
   try {
     const descriptor = JSON.parse(fs.readFileSync(absolutePath, "utf8"));
-    if (descriptor.id !== identity.id) push(errors, `${name}.path descriptor id must match its identity.`);
+    if (descriptor.id !== identity.id) {
+      push(errors, name + ".path descriptor id must match its identity.");
+    }
     checkManifestDescriptor(descriptor, name, expectedKind, errors);
   } catch (error) {
-    push(errors, `${name}.path is not valid JSON: ${error.message}`);
+    push(errors, name + ".path is not valid JSON: " + error.message);
   }
 }
 
 function containsForbiddenInputKey(value, location, errors) {
   if (Array.isArray(value)) {
-    value.forEach((item, index) => containsForbiddenInputKey(item, `${location}[${index}]`, errors));
+    value.forEach((item, index) =>
+      containsForbiddenInputKey(item, location + "[" + index + "]", errors));
     return;
   }
   if (!isObject(value)) return;
   for (const [key, item] of Object.entries(value)) {
     if (["expected", "expectedResult", "result"].includes(key)) {
-      push(errors, `${location}.${key} must not echo an expected result.`);
+      push(errors, location + "." + key + " must not echo an expected result.");
     }
-    containsForbiddenInputKey(item, `${location}.${key}`, errors);
+    containsForbiddenInputKey(item, location + "." + key, errors);
   }
 }
 
-export function validateScenario(input) {
+function parseU64(value, name, errors) {
+  if (typeof value !== "string" || !/^(?:0|[1-9]\d*)$/u.test(value)) {
+    push(errors, name + " must be a decimal u64 string.");
+    return undefined;
+  }
+  try {
+    const parsed = BigInt(value);
+    if (parsed > MAX_U64) {
+      push(errors, name + " exceeds u64.");
+      return undefined;
+    }
+    return parsed;
+  } catch {
+    push(errors, name + " must be a decimal u64 string.");
+    return undefined;
+  }
+}
+
+function checkStringSet(value, name, errors, minimum = 0) {
+  if (!Array.isArray(value)) {
+    push(errors, name + " must be an array of non-empty strings.");
+    return new Set();
+  }
+  if (value.length < minimum) {
+    push(errors, name + " must contain at least " + minimum + " item(s).");
+  }
+  const seen = new Set();
+  for (const [index, item] of value.entries()) {
+    if (!requiredString(item, name + "[" + index + "]", errors)) continue;
+    if (seen.has(item)) push(errors, name + " must not contain duplicates.");
+    seen.add(item);
+  }
+  return seen;
+}
+
+function checkResultSample(sample, name, errors) {
+  if (!isObject(sample)) {
+    push(errors, name + " must be an object.");
+    return undefined;
+  }
+  checkExactKeys(sample, name, ["ns"], errors);
+  return parseU64(sample.ns, name + ".ns", errors);
+}
+
+function median(values) {
+  const sorted = [...values].sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+function expectedLatency(raw) {
+  const center = median(raw);
+  const deviations = raw.map((value) => value >= center ? value - center : center - value);
+  return {
+    minimumNs: raw.reduce((minimum, value) => value < minimum ? value : minimum),
+    medianNs: center,
+    maximumNs: raw.reduce((maximum, value) => value > maximum ? value : maximum),
+    madNs: median(deviations),
+  };
+}
+
+function checkResultComparison(comparison, result, errors) {
+  if (comparison !== null) {
+    push(errors, "result.comparison must be null; comparison is blocked by interleaved-comparison-runner.");
+  }
+  if (result.quality !== "exploratory") {
+    push(errors, "result.quality must be exploratory; regression is blocked by interleaved-comparison-runner.");
+  }
+  if (result.claim !== "measurement-only") {
+    push(errors, "result.claim must be measurement-only; regression is blocked by interleaved-comparison-runner.");
+  }
+}
+
+function loadCurrentManifest() {
+  try {
+    return JSON.parse(fs.readFileSync(
+      path.join(ROOT, "benchmarks", "seed-check-lifecycle.manifest.json"), "utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+function checkResultWorkload(workload, name, manifest, errors) {
+  if (!isObject(workload)) {
+    push(errors, name + " must be an object.");
+    return;
+  }
+  checkExactKeys(workload, name, ["manifestDigest", "track", "lane", "scenario", "stage", "subject", "profile"], errors);
+  requiredDigest(workload.manifestDigest, name + ".manifestDigest", errors);
+  if (workload.track !== "compiler-lifecycle") {
+    push(errors, name + ".track must be compiler-lifecycle.");
+  }
+  if (!LANE_SET.has(workload.lane)) push(errors, name + ".lane must be equivalent or open.");
+  if (!SCENARIO_SET.has(workload.scenario)) {
+    push(errors, name + ".scenario must be clean, no-op or edit.");
+  }
+  if (!STAGE_SET.has(workload.stage)) {
+    push(errors, name + ".stage must be a compiler lifecycle stage.");
+  }
+  requiredString(workload.subject, name + ".subject", errors);
+  if (workload.profile !== null) {
+    push(errors, name + ".profile must be null for compiler lifecycle.");
+  }
+  const expectedManifestDigest = fileDigest(
+    "benchmarks/seed-check-lifecycle.manifest.json");
+  if (expectedManifestDigest && workload.manifestDigest !== expectedManifestDigest) {
+    push(errors, name + ".manifestDigest is stale.");
+  }
+  if (manifest) {
+    if (workload.manifestDigest !== fileDigest(
+      "benchmarks/seed-check-lifecycle.manifest.json")) {
+      push(errors, name + ".manifestDigest does not identify the supplied manifest.");
+    }
+    if (workload.lane !== manifest.lane) {
+      push(errors, name + ".lane must match the manifest.");
+    }
+    const point = manifest.matrix?.points?.find((candidate) =>
+      candidate?.scenario === workload.scenario &&
+      candidate?.stage === workload.stage);
+    if (!point) {
+      push(errors, name + " does not identify a manifest matrix point.");
+    } else if (point.status !== "ready") {
+      push(errors, name + " identifies a blocked matrix point.");
+    }
+  }
+}
+
+function checkResultIdentity(identity, name, manifest, errors) {
+  if (!isObject(identity)) {
+    push(errors, name + " must be an object.");
+    return;
+  }
+  checkExactKeys(identity, name, ["source", "graph", "input", "command"], errors);
+  checkSource(identity.source, name + ".source", errors);
+  checkDescriptorFile(identity.graph, name + ".graph", "source-graph", errors);
+  checkDescriptorFile(identity.input, name + ".input", "invocation-edit-input", errors);
+  if (!isObject(identity.command)) {
+    push(errors, name + ".command must be an object.");
+  } else {
+    checkExactKeys(identity.command, name + ".command", ["tool", "operation", "arguments"], errors);
+    if (identity.command.tool !== "w" || identity.command.operation !== "check" ||
+        !Array.isArray(identity.command.arguments) || identity.command.arguments.length === 0) {
+      push(errors, name + ".command must invoke w check with arguments.");
+    }
+  }
+  if (!manifest) return;
+  if (JSON.stringify(identity.source) !== JSON.stringify(manifest.identity?.source)) {
+    push(errors, name + ".source must match the manifest identity.");
+  }
+  if (JSON.stringify(identity.graph) !== JSON.stringify(manifest.identity?.graph)) {
+    push(errors, name + ".graph must match the manifest identity.");
+  }
+  if (JSON.stringify(identity.input) !== JSON.stringify(manifest.identity?.input)) {
+    push(errors, name + ".input must match the manifest identity.");
+  }
+  if (JSON.stringify(identity.command) !== JSON.stringify(manifest.command)) {
+    push(errors, name + ".command must match the manifest command.");
+  }
+}
+
+export function validateResult(result, manifest = loadCurrentManifest()) {
   const errors = [];
-  if (!isObject(input)) {
-    push(errors, "scenario must be an object.");
-    return errors;
+  if (!isObject(result)) return ["result must be an object."];
+  checkExactKeys(result, "result", [
+    "$schema", "schema", "kind", "id", "status", "quality", "claim",
+    "workload", "identity", "comparison", "oracle", "samples", "environment",
+    "provenance", "metrics", "summary", "semanticDeviations", "disclosures",
+  ], errors);
+  if (result.$schema !== "./wbench-1.schema.json") {
+    push(errors, "result.$schema must identify wbench-1.schema.json.");
   }
-  if (input.track === "language") checkLanguageScenario(input, "scenario", errors);
-  else if (input.track === "compiler-lifecycle") checkCompilerLifecycle(input, "scenario", errors);
-  else if (input.track === "documentation") {
-    if (input.benchmarkDisposition !== "not-applicable") push(errors, "documentation benchmarkDisposition must be not-applicable.");
-    requiredString(input.reason, "scenario.reason", errors);
-    if (input.digestOnly !== true) push(errors, "documentation digestOnly must be true.");
-    if (Object.prototype.hasOwnProperty.call(input, "profiles")) push(errors, "documentation must not define language source profiles.");
+  if (result.schema !== SCHEMA_VERSION) push(errors, "result.schema must be wbench/1.");
+  if (result.kind !== "result") push(errors, "result.kind must be result.");
+  if (result.status !== "recorded") push(errors, "result.status must be recorded.");
+  requiredString(result.id, "result.id", errors);
+  if (!["exploratory", "regression-grade"].includes(result.quality)) {
+    push(errors, "result.quality must be exploratory or regression-grade.");
   }
-  else push(errors, "scenario.track must be language, compiler-lifecycle or documentation.");
-  if (!LANE_SET.has(input.lane)) push(errors, "scenario.lane must be equivalent or open.");
-  containsForbiddenInputKey(input, "scenario", errors);
+  if (!["measurement-only", "regression"].includes(result.claim)) {
+    push(errors, "result.claim must be measurement-only or regression.");
+  }
+  checkResultWorkload(result.workload, "result.workload", manifest, errors);
+  checkResultIdentity(result.identity, "result.identity", manifest, errors);
+  if (!hasOwn(result, "comparison")) {
+    push(errors, "result.comparison must be present and null for measurement-only.");
+  }
+  checkResultComparison(result.comparison, result, errors);
+
+  const oracle = result.oracle;
+  if (!isObject(oracle)) {
+    push(errors, "result.oracle must be an object.");
+  } else {
+    checkExactKeys(oracle, "result.oracle", ["validationDigest", "complete", "beforeSamples"], errors);
+    requiredDigest(oracle.validationDigest, "result.oracle.validationDigest", errors);
+    requiredBoolean(oracle.complete, "result.oracle.complete", errors);
+    requiredBoolean(oracle.beforeSamples, "result.oracle.beforeSamples", errors);
+  }
+
+  const samples = result.samples;
+  let rawValues = [];
+  let warmupValues = [];
+  if (!isObject(samples)) {
+    push(errors, "result.samples must be an object.");
+  } else {
+    checkExactKeys(samples, "result.samples", ["raw", "warmup", "stopRule", "clock", "order"], errors);
+    if (!Array.isArray(samples.raw) || samples.raw.length < RESULT_MIN_SAMPLES) {
+      push(errors, "result.samples.raw must contain at least " + RESULT_MIN_SAMPLES + " samples.");
+    } else {
+      rawValues = samples.raw.map((sample, index) =>
+        checkResultSample(sample, "result.samples.raw[" + index + "]", errors));
+      if (samples.raw.length % 2 === 0) {
+        push(errors, "result.samples.raw count must be odd.");
+      }
+    }
+    if (!Array.isArray(samples.warmup) || samples.warmup.length < RESULT_MIN_WARMUP) {
+      push(errors, "result.samples.warmup must contain at least " + RESULT_MIN_WARMUP + " sample.");
+    } else {
+      warmupValues = samples.warmup.map((sample, index) =>
+        checkResultSample(sample, "result.samples.warmup[" + index + "]", errors));
+    }
+    if (!isObject(samples.stopRule) ||
+        !checkExactKeys(samples.stopRule, "result.samples.stopRule", ["kind", "count"], errors) ||
+        samples.stopRule.kind !== "fixed-count" ||
+        !Number.isInteger(samples.stopRule.count) ||
+        samples.stopRule.count !== samples.raw?.length) {
+      push(errors, "result.samples.stopRule must be fixed-count and equal raw sample count.");
+    }
+    if (samples.clock !== RESULT_CLOCK) {
+      push(errors, "result.samples.clock must be monotonic-wall-ns.");
+    }
+    if (samples.order !== MEASUREMENT_ORDER) {
+      push(errors, "result.samples.order must be single-series; interleaved comparison is blocked by interleaved-comparison-runner.");
+    }
+  }
+
+  const environment = result.environment;
+  if (!isObject(environment)) {
+    push(errors, "result.environment must be an object.");
+  } else {
+    checkExactKeys(environment, "result.environment", ["hardware", "kernel", "target", "provider", "toolchain", "flags", "noiseControls"], errors);
+    for (const field of ["hardware", "kernel", "target", "provider", "toolchain"]) {
+      requiredString(environment[field], "result.environment." + field, errors);
+    }
+    checkStringSet(environment.flags, "result.environment.flags", errors, 1);
+    if (!isObject(environment.noiseControls) ||
+        !checkExactKeys(environment.noiseControls, "result.environment.noiseControls", ["known", "unknown"], errors)) {
+      push(errors, "result.environment.noiseControls must record known and unknown controls.");
+    } else {
+      const known = checkStringSet(environment.noiseControls.known,
+        "result.environment.noiseControls.known", errors);
+      const unknown = checkStringSet(environment.noiseControls.unknown,
+        "result.environment.noiseControls.unknown", errors);
+      for (const value of known) {
+        if (unknown.has(value)) {
+          push(errors, "result.environment.noiseControls.known and unknown must not overlap.");
+          break;
+        }
+      }
+    }
+  }
+
+  const provenance = result.provenance;
+  if (!isObject(provenance)) {
+    push(errors, "result.provenance must be an object.");
+  } else {
+    checkExactKeys(provenance, "result.provenance", ["sourceDigest", "artifactDigest", "inputDigest", "recipeDigest", "runnerDigest", "toolchainDigest"], errors);
+    for (const field of [
+      "sourceDigest",
+      "artifactDigest",
+      "inputDigest",
+      "recipeDigest",
+      "runnerDigest",
+      "toolchainDigest",
+    ]) requiredDigest(provenance[field], "result.provenance." + field, errors);
+    if (provenance.sourceDigest !== SOURCE_FIXTURE.digest) {
+      push(errors, "result.provenance.sourceDigest must identify the current fixture.");
+    }
+    if (provenance.inputDigest !== DESCRIPTOR_IDENTITIES.input.digest) {
+      push(errors, "result.provenance.inputDigest must identify the current input.");
+    }
+  }
+
+  const rawIsValid = rawValues.length >= RESULT_MIN_SAMPLES &&
+    rawValues.every((value) => value !== undefined) && rawValues.length % 2 === 1;
+  if (!isObject(result.metrics) || Object.keys(result.metrics).length !== 1 ||
+      !hasOwn(result.metrics, "latency")) {
+    push(errors, "result.metrics must contain only the derived latency metric.");
+  } else {
+    const metric = result.metrics.latency;
+    const metricFields = ["unit", "minimumNs", "medianNs", "maximumNs", "madNs", "derivedFromRawSamples"];
+    if (!isObject(metric) || !sameArray(Object.keys(metric).sort(), [...metricFields].sort())) {
+      push(errors, "result.metrics.latency must use the closed latency shape.");
+    } else {
+      if (metric.unit !== "ns") push(errors, "result.metrics.latency.unit must be ns.");
+      if (metric.derivedFromRawSamples !== true) {
+        push(errors, "result.metrics.latency must derive only from raw samples.");
+      }
+      const expected = rawIsValid ? expectedLatency(rawValues) : undefined;
+      for (const field of ["minimumNs", "medianNs", "maximumNs", "madNs"]) {
+        const actual = parseU64(metric[field], "result.metrics.latency." + field, errors);
+        if (expected && actual !== expected[field]) {
+          push(errors, "result.metrics.latency." + field + " does not match raw samples.");
+        }
+      }
+    }
+  }
+  if (!isObject(result.summary) ||
+      !sameArray(Object.keys(result.summary).sort(), ["derivedFromRawSamples", "sampleCount", "warmupCount"].sort())) {
+    push(errors, "result.summary must use the closed derived shape.");
+  } else {
+    if (result.summary.derivedFromRawSamples !== true) {
+      push(errors, "result.summary must derive only from raw samples.");
+    }
+    if (!Number.isInteger(result.summary.sampleCount) ||
+        result.summary.sampleCount !== rawValues.length) {
+      push(errors, "result.summary.sampleCount must equal raw sample count.");
+    }
+    if (!Number.isInteger(result.summary.warmupCount) ||
+        result.summary.warmupCount !== warmupValues.length) {
+      push(errors, "result.summary.warmupCount must equal warmup sample count.");
+    }
+  }
+  checkStringSet(result.semanticDeviations, "result.semanticDeviations", errors);
+  checkStringSet(result.disclosures, "result.disclosures", errors);
+  if (hasOwn(result, "timing") || hasOwn(result, "timings") ||
+      hasOwn(result, "expected") || hasOwn(result, "expectedResult") ||
+      hasOwn(result, "overwrite") || hasOwn(result, "force") ||
+      hasOwn(result, "outputPath")) {
+    push(errors, "result must not contain tracked timing or expected output fields.");
+  }
   return errors;
 }
 
@@ -530,40 +1036,101 @@ function checkTaskGraph(tasks, corpusIds, errors) {
     "restaurant-composition",
   ];
   if (!Array.isArray(tasks) || !sameArray(tasks.map((task) => task?.id), expected)) {
-    push(errors, "program.tasks must use the five BMD0 tasks in order.");
+    push(errors, "program.tasks must use the five BMD1 tasks in order.");
     return;
   }
   const ids = new Set(expected);
   const seen = new Set();
   for (const [index, task] of tasks.entries()) {
-    const location = `program.tasks[${index}]`;
+    const location = "program.tasks[" + index + "]";
     if (!isObject(task)) {
-      push(errors, `${location} must be an object.`);
+      push(errors, location + " must be an object.");
       continue;
     }
-    if (seen.has(task.id)) push(errors, `${location}.id duplicates ${task.id}.`);
+    if (seen.has(task.id)) push(errors, location + ".id duplicates " + task.id + ".");
     seen.add(task.id);
-    if (!Array.isArray(task.dependencies)) push(errors, `${location}.dependencies must be an array.`);
-    else for (const dependency of task.dependencies) {
-      if (!ids.has(dependency)) push(errors, `${location}.dependencies contains an unknown task.`);
-      if (dependency === task.id) push(errors, `${location}.dependencies must not self-reference.`);
-      if (expected.indexOf(dependency) >= index) push(errors, `${location}.dependencies must point to an earlier task.`);
+    if (!Array.isArray(task.dependencies)) {
+      push(errors, location + ".dependencies must be an array.");
+    } else {
+      for (const dependency of task.dependencies) {
+        if (!ids.has(dependency)) {
+          push(errors, location + ".dependencies contains an unknown task.");
+        }
+        if (dependency === task.id) {
+          push(errors, location + ".dependencies must not self-reference.");
+        }
+        if (expected.indexOf(dependency) >= index) {
+          push(errors, location + ".dependencies must point to an earlier task.");
+        }
+      }
     }
-    if (!Array.isArray(task.outputs) || task.outputs.length === 0) push(errors, `${location}.outputs must not be empty.`);
-    if (!Array.isArray(task.adversarialCases) || task.adversarialCases.length === 0) push(errors, `${location}.adversarialCases must not be empty.`);
-    else for (const caseId of task.adversarialCases) if (!corpusIds.has(caseId)) push(errors, `${location}.adversarialCases references an unknown case ${caseId}.`);
-    requiredString(task.stopCondition, `${location}.stopCondition`, errors);
-    if (task.id === "protocol" && (task.status !== "completed" || task.implementation !== "complete")) push(errors, "protocol task must be completed.");
-    if (task.id === "seed-compiler-lifecycle" && (task.status !== "ready" || task.implementation !== "pending")) push(errors, "seed compiler lifecycle must be ready with pending implementation.");
+    if (!Array.isArray(task.outputs) || task.outputs.length === 0) {
+      push(errors, location + ".outputs must not be empty.");
+    }
+    if (!Array.isArray(task.adversarialCases) || task.adversarialCases.length === 0) {
+      push(errors, location + ".adversarialCases must not be empty.");
+    } else {
+      for (const caseId of task.adversarialCases) {
+        if (!corpusIds.has(caseId)) {
+          push(errors, location + ".adversarialCases references an unknown case " + caseId + ".");
+        }
+      }
+    }
+    requiredString(task.stopCondition, location + ".stopCondition", errors);
+    if (task.id === "protocol" &&
+        (task.status !== "completed" || task.implementation !== "complete")) {
+      push(errors, "protocol task must be completed.");
+    }
+    if (task.id === "seed-compiler-lifecycle" &&
+        (task.status !== "ready" || task.implementation !== "partial")) {
+      push(errors, "seed compiler lifecycle must be ready with partial implementation.");
+    }
     if (["core-language-units", "computer-language-benchmarks-game", "restaurant-composition"].includes(task.id) &&
-        (task.status !== "blocked" || task.implementation !== "blocked")) push(errors, `${task.id} must be blocked.`);
+        (task.status !== "blocked" || task.implementation !== "blocked")) {
+      push(errors, task.id + " must be blocked.");
+    }
     if (task.id === "core-language-units" || task.id === "computer-language-benchmarks-game") {
-      if (!Array.isArray(task.blockedBy) || !task.blockedBy.includes("codegen")) push(errors, `${task.id} must be blocked by codegen.`);
+      if (!Array.isArray(task.blockedBy) || !task.blockedBy.includes("codegen")) {
+        push(errors, task.id + " must be blocked by codegen.");
+      }
     }
     if (task.id === "restaurant-composition") {
-      if (!Array.isArray(task.blockedBy) || !task.blockedBy.includes("runtime/provider")) push(errors, "restaurant-composition must be blocked by runtime/provider.");
+      if (!Array.isArray(task.blockedBy) || !task.blockedBy.includes("runtime/provider")) {
+        push(errors, "restaurant-composition must be blocked by runtime/provider.");
+      }
     }
   }
+}
+
+export function validateScenario(input) {
+  const errors = [];
+  if (!isObject(input)) {
+    push(errors, "scenario must be an object.");
+    return errors;
+  }
+  if (input.track === "language") {
+    checkLanguageScenario(input, "scenario", errors);
+  } else if (input.track === "compiler-lifecycle") {
+    checkCompilerLifecycle(input, "scenario", errors);
+  } else if (input.track === "documentation") {
+    if (input.benchmarkDisposition !== "not-applicable") {
+      push(errors, "documentation benchmarkDisposition must be not-applicable.");
+    }
+    requiredString(input.reason, "scenario.reason", errors);
+    if (input.digestOnly !== true) {
+      push(errors, "documentation digestOnly must be true.");
+    }
+    if (hasOwn(input, "profiles")) {
+      push(errors, "documentation must not define language source profiles.");
+    }
+  } else {
+    push(errors, "scenario.track must be language, compiler-lifecycle or documentation.");
+  }
+  if (!LANE_SET.has(input.lane)) {
+    push(errors, "scenario.lane must be equivalent or open.");
+  }
+  containsForbiddenInputKey(input, "scenario", errors);
+  return errors;
 }
 
 export function validateProgram(program, corpus = undefined) {
@@ -571,30 +1138,61 @@ export function validateProgram(program, corpus = undefined) {
   if (!isObject(program)) return ["program must be an object."];
   if (program.schema !== SCHEMA_VERSION) push(errors, "program.schema must be wbench/1.");
   if (program.kind !== "program") push(errors, "program.kind must be program.");
-  if (program.id !== "bmd0") push(errors, "program.id must be bmd0.");
-  if (program.status !== "protocol-only") push(errors, "program.status must be protocol-only.");
-  if (program.backend?.benchmarkRunnerAvailable !== false || program.backend?.resultsAllowed !== false) push(errors, "program benchmark runner must be unavailable and must not allow results.");
+  if (program.id !== "bmd1") push(errors, "program.id must be bmd1.");
+  if (program.status !== "ready") {
+    push(errors, "program.status must be ready after M2 runner implementation.");
+  }
+  if (program.backend?.benchmarkRunnerAvailable !== true ||
+      program.backend?.compilerLifecycleResultsAllowed !== true ||
+      program.backend?.languageResultsAllowed !== false ||
+      program.backend?.productRuntimeResultsAllowed !== false) {
+    push(errors, "program backend must enable only compiler-lifecycle results after M2.");
+  }
+  if (hasOwn(program.backend, "resultsAllowed")) {
+    push(errors, "program.backend.resultsAllowed is obsolete; use precise result-track flags.");
+  }
   if (!requiredString(program.backend?.note, "program.backend.note", errors)) {}
   const profiles = checkProgramProfiles(program.profiles, "program.profiles", errors);
-  if (profiles.get("idiomatic")?.primary !== true || profiles.get("idiomatic")?.regression !== true) push(errors, "idiomatic must be primary and regression.");
-  if (profiles.get("learner")?.primary !== false || profiles.get("learner")?.regression !== false ||
-      profiles.get("frontier")?.primary !== false || profiles.get("frontier")?.regression !== false) {
+  if (profiles.get("idiomatic")?.primary !== true ||
+      profiles.get("idiomatic")?.regression !== true) {
+    push(errors, "idiomatic must be primary and regression.");
+  }
+  if (profiles.get("learner")?.primary !== false ||
+      profiles.get("learner")?.regression !== false ||
+      profiles.get("frontier")?.primary !== false ||
+      profiles.get("frontier")?.regression !== false) {
     push(errors, "learner and frontier must not be primary or regression profiles.");
   }
-  if (Object.prototype.hasOwnProperty.call(program, "results") || Object.prototype.hasOwnProperty.call(program, "timings")) {
+  if (hasOwn(program, "results") || hasOwn(program, "timings")) {
     push(errors, "program must not contain runtime results or timings.");
   }
-  if (!Array.isArray(program.lanes) || !sameArray(program.lanes.map((lane) => lane?.id), [...LANES])) push(errors, "program.lanes must define equivalent and open in order.");
-  else {
+  if (!Array.isArray(program.lanes) ||
+      !sameArray(program.lanes.map((lane) => lane?.id), [...LANES])) {
+    push(errors, "program.lanes must define equivalent and open in order.");
+  } else {
     const equivalent = program.lanes[0];
     const open = program.lanes[1];
-    for (const field of ["same algorithm", "same representation", "same validation", "same numeric contract", "same input"]) {
-      if (!equivalent.requirements?.includes(field)) push(errors, `equivalent lane must require ${field}.`);
+    for (const field of [
+      "same algorithm",
+      "same representation",
+      "same validation",
+      "same numeric contract",
+      "same input",
+    ]) {
+      if (!equivalent.requirements?.includes(field)) {
+        push(errors, "equivalent lane must require " + field + ".");
+      }
     }
-    if (!open.requirements?.includes("record algorithm and representation changes")) push(errors, "open lane must record algorithm and representation changes.");
+    if (!open.requirements?.includes("record algorithm and representation changes")) {
+      push(errors, "open lane must record algorithm and representation changes.");
+    }
   }
-  if (!sameArray(program.baselinePolicy?.defaultIndependent, ["c-clang", "rust"])) push(errors, "program baseline default must be C/Clang and Rust.");
-  if (program.baselinePolicy?.gameRole !== "exploratory-never-authority") push(errors, "Benchmarks Game must remain exploratory and never authority.");
+  if (!sameArray(program.baselinePolicy?.defaultIndependent, ["c-clang", "rust"])) {
+    push(errors, "program baseline default must be C/Clang and Rust.");
+  }
+  if (program.baselinePolicy?.gameRole !== "exploratory-never-authority") {
+    push(errors, "Benchmarks Game must remain exploratory and never authority.");
+  }
   const corpusIds = new Set(corpus?.cases?.map((item) => item?.id) ?? []);
   checkTaskGraph(program.tasks, corpusIds, errors);
   return errors;
@@ -605,140 +1203,493 @@ export function validateManifest(manifest) {
   if (!isObject(manifest)) return ["manifest must be an object."];
   if (manifest.schema !== SCHEMA_VERSION) push(errors, "manifest.schema must be wbench/1.");
   if (manifest.kind !== "workload-manifest") push(errors, "manifest.kind must be workload-manifest.");
-  if (manifest.id !== "bmd0-seed-check-lifecycle") push(errors, "manifest.id must be bmd0-seed-check-lifecycle.");
+  if (manifest.id !== "bmd1-seed-check-lifecycle") {
+    push(errors, "manifest.id must be bmd1-seed-check-lifecycle.");
+  }
   if (manifest.status !== "ready") push(errors, "manifest.status must be ready.");
-  if (manifest.track !== "compiler-lifecycle") push(errors, "manifest.track must be compiler-lifecycle.");
+  if (manifest.track !== "compiler-lifecycle") {
+    push(errors, "manifest.track must be compiler-lifecycle.");
+  }
   if (!LANE_SET.has(manifest.lane)) push(errors, "manifest.lane must be equivalent or open.");
-  if (manifest.benchmarkDisposition !== "compiler-lifecycle") push(errors, "manifest.benchmarkDisposition must be compiler-lifecycle.");
-  if (manifest.backend?.benchmarkRunnerAvailable !== false || manifest.backend?.frontendAvailable !== true ||
-      manifest.backend?.nativeBackendAvailable !== false || manifest.backend?.runtimeAvailable !== false ||
-      manifest.backend?.execution !== "pending" || manifest.backend?.resultsAllowed !== false) {
-    push(errors, "manifest backend must expose frontend only, keep native/runtime unavailable and remain result-free.");
+  if (manifest.benchmarkDisposition !== "compiler-lifecycle") {
+    push(errors, "manifest.benchmarkDisposition must be compiler-lifecycle.");
+  }
+  if (manifest.backend?.benchmarkRunnerAvailable !== true ||
+      manifest.backend?.frontendAvailable !== true ||
+      manifest.backend?.nativeBackendAvailable !== false ||
+      manifest.backend?.runtimeAvailable !== false ||
+      manifest.backend?.compilerLifecycleResultsAllowed !== true ||
+      manifest.backend?.languageResultsAllowed !== false ||
+      manifest.backend?.productRuntimeResultsAllowed !== false) {
+    push(errors, "manifest backend must expose the seed frontend and enable only compiler-lifecycle results after M2.");
+  }
+  if (hasOwn(manifest.backend, "resultsAllowed")) {
+    push(errors, "manifest.backend.resultsAllowed is obsolete; use precise result-track flags.");
   }
   checkSource(manifest.identity?.source, "manifest.identity.source", errors);
   const graph = manifest.identity?.graph;
   const input = manifest.identity?.input;
   checkDescriptorFile(graph, "manifest.identity.graph", "source-graph", errors);
   checkDescriptorFile(input, "manifest.identity.input", "invocation-edit-input", errors);
-  if (manifest.command?.tool !== "w" || manifest.command?.operation !== "check") push(errors, "manifest.command must invoke w check.");
-  if (!Array.isArray(manifest.command?.arguments) || manifest.command.arguments.length === 0) push(errors, "manifest.command.arguments must not be empty.");
-  else if (manifest.command.arguments[0] !== SOURCE_FIXTURE.path) push(errors, "manifest.command.arguments must check the source-backed fixture.");
-  if (manifest.languageProfiles?.applicability !== "not-applicable" || !requiredString(manifest.languageProfiles?.reason, "manifest.languageProfiles.reason", errors)) {
+  if (manifest.command?.tool !== "w" || manifest.command?.operation !== "check") {
+    push(errors, "manifest.command must invoke w check.");
+  }
+  if (!Array.isArray(manifest.command?.arguments) ||
+      manifest.command.arguments.length === 0) {
+    push(errors, "manifest.command.arguments must not be empty.");
+  } else if (manifest.command.arguments[0] !== SOURCE_FIXTURE.path) {
+    push(errors, "manifest.command must check the source-backed fixture.");
+  }
+  if (manifest.languageProfiles?.applicability !== "not-applicable" ||
+      !requiredString(manifest.languageProfiles?.reason,
+        "manifest.languageProfiles.reason", errors)) {
     push(errors, "manifest.languageProfiles must mark compiler lifecycle as not-applicable with a reason.");
   }
-  if (manifest.baselinePolicy?.primary !== "historical-w" || manifest.baselinePolicy?.role !== "contextual-not-ranking") {
+  if (manifest.baselinePolicy?.primary !== "historical-w" ||
+      manifest.baselinePolicy?.role !== "contextual-not-ranking") {
     push(errors, "manifest.baselinePolicy must use historical W as primary and C/Clang plus Rust as contextual-not-ranking.");
   }
-  if (manifest.baselinePolicy?.recipe !== "equivalent") push(errors, "manifest.baselinePolicy.recipe must be equivalent.");
+  if (manifest.baselinePolicy?.recipe !== "equivalent") {
+    push(errors, "manifest.baselinePolicy.recipe must be equivalent.");
+  }
   if (!sameArray(manifest.baselinePolicy?.independent, ["c-clang", "rust"])) {
     push(errors, "manifest.baselinePolicy.independent must list C/Clang and Rust.");
   }
-  if (manifest.baselinePolicy?.exceptionReason !== null && !requiredString(manifest.baselinePolicy?.exceptionReason, "manifest.baselinePolicy.exceptionReason", errors)) {}
-  if (!Array.isArray(manifest.lifecycle) || !sameArray(manifest.lifecycle.map((phase) => phase?.id), [...LIFECYCLE_PHASES])) {
-    push(errors, "manifest.lifecycle must contain all ten phases in order.");
-  } else {
-    for (const [index, phase] of manifest.lifecycle.entries()) {
-      const location = `manifest.lifecycle[${index}]`;
-      if (!isObject(phase)) {
-        push(errors, `${location} must be an object.`);
-        continue;
-      }
-      if (!PHASE_SET.has(phase.id)) push(errors, `${location}.id is not a lifecycle phase.`);
-      if (!["ready", "pending", "blocked"].includes(phase.status)) push(errors, `${location}.status is invalid.`);
-      const statusByPhase = {
-        clean: "ready",
-        "no-op": "ready",
-        edit: "ready",
-        frontend: "ready",
-        hir: "blocked",
-        lowering: "blocked",
-        codegen: "blocked",
-        link: "blocked",
-        startup: "blocked",
-        execution: "blocked",
-      };
-      if (statusByPhase[phase.id] && phase.status !== statusByPhase[phase.id]) push(errors, `${phase.id} must be ${statusByPhase[phase.id]} in the current backend boundary.`);
-      if (phase.id === "execution" && (!Array.isArray(phase.blockedBy) || !phase.blockedBy.includes("runtime") || !phase.blockedBy.includes("provider"))) push(errors, "execution must be blocked by runtime and provider.");
-      const blockerByPhase = {
-        hir: "hir",
-        lowering: "lowering",
-        codegen: "codegen",
-        link: "codegen",
-        startup: "runtime",
-      };
-      if (blockerByPhase[phase.id] && (!Array.isArray(phase.blockedBy) || !phase.blockedBy.includes(blockerByPhase[phase.id]))) push(errors, `${phase.id} must be blocked by ${blockerByPhase[phase.id]}.`);
-      const expectedAxes = {
-        source: { id: SOURCE_ID, digest: manifest.identity?.source?.digest },
-        graph,
-        input,
-      };
-      for (const axis of ["source", "graph", "input"]) {
-        const expected = expectedAxes[axis];
-        checkIdentity(phase[axis], `${location}.${axis}`, errors);
-        if (phase[axis]?.id !== expected?.id || phase[axis]?.digest !== expected?.digest) push(errors, `${location}.${axis} must preserve the manifest identity.`);
-      }
+  if (manifest.baselinePolicy?.exceptionReason !== null &&
+      !requiredString(manifest.baselinePolicy?.exceptionReason,
+        "manifest.baselinePolicy.exceptionReason", errors)) {}
+  const identities = {
+    source: manifest.identity?.source && {
+      id: SOURCE_ID,
+      digest: manifest.identity.source.digest,
+    },
+    graph,
+    input,
+  };
+  checkMatrix(manifest.matrix, "manifest.matrix", identities, errors);
+  for (const key of ["lifecycle", "phases", "phaseIdentities", "phaseMix"]) {
+    if (hasOwn(manifest, key)) {
+      push(errors, "manifest." + key + " must not flatten compiler lifecycle axes.");
     }
   }
   checkOracle(manifest.oracle, "manifest.oracle", errors, "host-structural");
   const policy = manifest.measurementPolicy;
-  if (!isObject(policy)) push(errors, "manifest.measurementPolicy must be an object.");
-  else {
-    requiredBoolean(policy.correctnessFirst, "manifest.measurementPolicy.correctnessFirst", errors);
-    if (policy.rawSamples !== "required-after-oracle") push(errors, "manifest.measurementPolicy.rawSamples must require the oracle first.");
-    if (policy.warmup !== "record-before-samples") push(errors, "manifest.measurementPolicy.warmup must be recorded before samples.");
-    if (policy.order !== "randomized-interleaved") push(errors, "manifest.measurementPolicy.order must be randomized-interleaved.");
-    requiredString(policy.stopRule, "manifest.measurementPolicy.stopRule", errors);
-    if (!Array.isArray(policy.environmentFields) || !["hardware", "kernel", "toolchain", "flags", "target", "provider", "source-digest", "artifact-digest", "input-digest"].every((field) => policy.environmentFields.includes(field))) {
-      push(errors, "manifest.measurementPolicy.environmentFields must include the full provenance set.");
+  if (!isObject(policy)) {
+    push(errors, "manifest.measurementPolicy must be an object.");
+  } else {
+    requiredBoolean(policy.correctnessFirst,
+      "manifest.measurementPolicy.correctnessFirst", errors);
+    if (policy.rawSamples !== "required-after-oracle") {
+      push(errors, "manifest.measurementPolicy.rawSamples must require the oracle first.");
     }
-    if (!Array.isArray(policy.metrics) || !["latency", "throughput", "memory", "allocations", "artifact-size"].every((metric) => policy.metrics.includes(metric))) {
-      push(errors, "manifest.measurementPolicy.metrics must cover applicable latency, throughput, memory, allocations and artifact size.");
+    if (policy.warmup !== "record-before-samples") {
+      push(errors, "manifest.measurementPolicy.warmup must be recorded before samples.");
     }
-    if (policy.semanticDeviations !== "record-all") push(errors, "manifest.measurementPolicy.semanticDeviations must record all deviations.");
-    if (policy.safetyDisclosures !== "record-all") push(errors, "manifest.measurementPolicy.safetyDisclosures must record all disclosures.");
+    if (policy.stopRule !== "fixed-count") {
+      push(errors, "manifest.measurementPolicy.stopRule must be fixed-count.");
+    }
+    if (policy.clock !== RESULT_CLOCK) {
+      push(errors, "manifest.measurementPolicy.clock must be monotonic-wall-ns.");
+    }
+    if (policy.order !== MEASUREMENT_ORDER) {
+      push(errors, "manifest.measurementPolicy.order must be single-series.");
+    }
+    if (policy.comparisonOrder !== COMPARISON_ORDER) {
+      push(errors, "manifest.measurementPolicy.comparisonOrder must be randomized-interleaved.");
+    }
+    if (!Array.isArray(policy.environmentFields) ||
+        !["hardware", "kernel", "toolchain", "flags", "target", "provider",
+          "noise-controls-known", "noise-controls-unknown"]
+          .every((field) => policy.environmentFields.includes(field))) {
+      push(errors, "manifest.measurementPolicy.environmentFields must include environment and noise controls.");
+    }
+    if (!Array.isArray(policy.metrics) || !policy.metrics.includes("latency-ns")) {
+      push(errors, "manifest.measurementPolicy.metrics must include latency-ns.");
+    }
+    if (policy.semanticDeviations !== "record-all") {
+      push(errors, "manifest.measurementPolicy.semanticDeviations must record all deviations.");
+    }
+    if (policy.safetyDisclosures !== "record-all") {
+      push(errors, "manifest.measurementPolicy.safetyDisclosures must record all disclosures.");
+    }
   }
-  if (!Array.isArray(manifest.outputs) || manifest.outputs.length === 0) push(errors, "manifest.outputs must not be empty.");
-  if (Object.prototype.hasOwnProperty.call(manifest, "results") || Object.prototype.hasOwnProperty.call(manifest, "timings")) push(errors, "manifest must not contain runtime results or timings.");
+  if (!Array.isArray(manifest.outputs) || manifest.outputs.length === 0) {
+    push(errors, "manifest.outputs must not be empty.");
+  }
+  if (hasOwn(manifest, "results") || hasOwn(manifest, "timings")) {
+    push(errors, "manifest must not contain runtime results or timings.");
+  }
   return errors;
+}
+
+const CANONICAL_FIXTURES = new Set([
+  "language-equivalent",
+  "documentation",
+  "compiler-lifecycle",
+  "result",
+]);
+const BOUNDED_MUTATIONS = new Set([
+  "open-lane",
+  "deferred",
+  "profile-missing",
+  "profile-duplicate",
+  "idiomatic-not-primary",
+  "oracle-partial",
+  "oracle-false",
+  "equivalent-semantic-difference",
+  "learner-artificially-slow",
+  "frontier-missing-disclosure",
+  "baseline-provenance-missing",
+  "compile-execution-mixed",
+  "best-only",
+  "output-constant-bypass",
+  "claim-without-backend",
+  "specialization-universal",
+  "invalid-benchmark-disposition",
+  "deferred-missing-blocker",
+  "not-applicable-missing-reason",
+  "flattened-axis",
+  "no-op-without-cache",
+  "edit-without-cache",
+  "internal-stage-without-instrumentation",
+  "runtime-mixed",
+  "result-blocked-point",
+  "result-language-without-backend",
+  "result-regression-without-comparison",
+  "result-partial-oracle",
+  "result-tracked-timing",
+  "result-output-overwrite",
+  "result-forged-metric",
+  "result-even-samples",
+  "result-leading-zero",
+  "result-u64-overflow",
+  "result-comparison-incomplete",
+  "blocker-incomplete",
+]);
+
+function cloneValue(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function languageProfilesFixture() {
+  return [
+    { id: "learner", correct: true, plausible: true, sleep: false, uselessWork: false, worseFlags: false, bypass: false },
+    { id: "idiomatic", correct: true, plausible: true, sleep: false, uselessWork: false, worseFlags: false, bypass: false },
+    { id: "frontier", correct: true, plausible: true, disclosures: {
+      unsafe: "none", ffi: "none", targetSpecialization: "none", manualLayout: "none", algorithm: "same", legibility: "none",
+    } },
+  ];
+}
+
+function languageFixture() {
+  return {
+    benchmarkDisposition: "required",
+    profiles: languageProfilesFixture(),
+    primaryProfile: "idiomatic",
+    regressionProfile: "idiomatic",
+    sameAlgorithm: true,
+    sameRepresentation: true,
+    sameValidation: true,
+    sameNumericContract: true,
+    sameInput: true,
+    oracle: { correctnessRecord: "host-oracle", complete: true, beforeSamples: true },
+    backendAvailable: false,
+    claims: [],
+    baseline: { independent: ["c-clang", "rust"], provenanceComplete: true, exceptionReason: null },
+    samples: { mode: "not-started", order: COMPARISON_ORDER },
+  };
+}
+
+function compilerFixture() {
+  return {
+    benchmarkDisposition: "compiler-lifecycle",
+    languageProfiles: {
+      applicability: "not-applicable",
+      reason: "Compiler lifecycle uses one source, graph and input identity instead of language source profiles.",
+    },
+    source: { id: SOURCE_ID, digest: SOURCE_FIXTURE.digest },
+    graph: { id: DESCRIPTOR_IDENTITIES.graph.id, digest: DESCRIPTOR_IDENTITIES.graph.digest },
+    inputIdentity: { id: DESCRIPTOR_IDENTITIES.input.id, digest: DESCRIPTOR_IDENTITIES.input.digest },
+    matrix: buildMatrix(),
+    oracle: { correctnessRecord: "host-oracle", complete: true, beforeSamples: true },
+    backendAvailable: false,
+    claims: [],
+    baseline: {
+      primary: "historical-w",
+      role: "contextual-not-ranking",
+      independent: ["c-clang", "rust"],
+      provenanceComplete: true,
+      exceptionReason: null,
+      recipe: "equivalent",
+    },
+    samples: { mode: "not-started", order: MEASUREMENT_ORDER },
+  };
+}
+
+function resultFixture() {
+  const values = ["100", "101", "102", "103", "104", "105", "106", "107", "108"];
+  return {
+    $schema: "./wbench-1.schema.json",
+    schema: SCHEMA_VERSION,
+    kind: "result",
+    id: "bmd1-seed-check-exploratory",
+    status: "recorded",
+    quality: "exploratory",
+    claim: "measurement-only",
+    workload: {
+      manifestDigest: fileDigest("benchmarks/seed-check-lifecycle.manifest.json") || "sha256:" + "0".repeat(64),
+      track: "compiler-lifecycle",
+      lane: "equivalent",
+      scenario: "clean",
+      stage: "check-end-to-end",
+      subject: "compiler/seed-c",
+      profile: null,
+    },
+    identity: {
+      source: {
+        path: SOURCE_FIXTURE.path,
+        symbol: SOURCE_FIXTURE.symbol,
+        digest: SOURCE_FIXTURE.digest,
+      },
+      graph: { ...DESCRIPTOR_IDENTITIES.graph },
+      input: { ...DESCRIPTOR_IDENTITIES.input },
+      command: {
+        tool: "w",
+        operation: "check",
+        arguments: [SOURCE_FIXTURE.path, "--json"],
+      },
+    },
+    comparison: null,
+    oracle: {
+      validationDigest: SOURCE_FIXTURE.digest,
+      complete: true,
+      beforeSamples: true,
+    },
+    samples: {
+      raw: values.map((ns) => ({ ns })),
+      warmup: [{ ns: "99" }],
+      stopRule: { kind: "fixed-count", count: values.length },
+      clock: RESULT_CLOCK,
+      order: MEASUREMENT_ORDER,
+    },
+    environment: {
+      hardware: "test-host",
+      kernel: "test-kernel",
+      target: "host",
+      provider: "host",
+      toolchain: "seed-c-release",
+      flags: ["Release"],
+      noiseControls: { known: [], unknown: ["scheduler"] },
+    },
+    provenance: {
+      sourceDigest: SOURCE_FIXTURE.digest,
+      artifactDigest: SOURCE_FIXTURE.digest,
+      inputDigest: DESCRIPTOR_IDENTITIES.input.digest,
+      recipeDigest: SOURCE_FIXTURE.digest,
+      runnerDigest: SOURCE_FIXTURE.digest,
+      toolchainDigest: SOURCE_FIXTURE.digest,
+    },
+    metrics: {
+      latency: {
+        unit: "ns",
+        minimumNs: "100",
+        medianNs: "104",
+        maximumNs: "108",
+        madNs: "2",
+        derivedFromRawSamples: true,
+      },
+    },
+    summary: { sampleCount: values.length, warmupCount: 1, derivedFromRawSamples: true },
+    semanticDeviations: [],
+    disclosures: [],
+  };
+}
+
+function buildMatrix() {
+  const points = [];
+  for (const scenario of LIFECYCLE_SCENARIOS) {
+    for (const stage of LIFECYCLE_STAGES) {
+      points.push({
+        scenario,
+        stage,
+        status: expectedMatrixStatus(scenario, stage),
+        blockedBy: expectedMatrixBlockers(scenario, stage),
+      });
+    }
+  }
+  return { scenarios: [...LIFECYCLE_SCENARIOS], stages: [...LIFECYCLE_STAGES], points };
+}
+
+function applyBoundedMutation(value, mutation, errors) {
+  if (!BOUNDED_MUTATIONS.has(mutation)) {
+    push(errors, "unknown or unbounded corpus mutation " + String(mutation) + ".");
+    return;
+  }
+  const point = (scenario, stage) => value.matrix?.points?.find((candidate) =>
+    candidate.scenario === scenario && candidate.stage === stage);
+  switch (mutation) {
+    case "open-lane":
+      value.sameAlgorithm = false;
+      value.sameRepresentation = false;
+      value.profiles[2].disclosures.algorithm = "quicksort versus stable sort is recorded";
+      break;
+    case "deferred":
+      value.benchmarkDisposition = "deferred";
+      value.blocker = "codegen";
+      value.taskId = "core-language-units";
+      value.stopCondition = "Do not collect timing until codegen produces an equivalent artifact and the correctness oracle passes.";
+      break;
+    case "profile-missing": value.profiles = value.profiles.slice(0, 2); break;
+    case "profile-duplicate": value.profiles[2].id = "idiomatic"; break;
+    case "idiomatic-not-primary": value.primaryProfile = "learner"; value.regressionProfile = "learner"; break;
+    case "oracle-partial": value.oracle.complete = false; value.oracle.beforeSamples = false; break;
+    case "oracle-false": value.oracle.complete = false; break;
+    case "equivalent-semantic-difference": value.sameValidation = false; break;
+    case "learner-artificially-slow": value.profiles[0].sleep = true; break;
+    case "frontier-missing-disclosure": delete value.profiles[2].disclosures.ffi; break;
+    case "baseline-provenance-missing": value.baseline.independent = []; value.baseline.provenanceComplete = false; break;
+    case "compile-execution-mixed": value.phaseMix = "compiler+runtime"; break;
+    case "best-only": value.samples = { mode: "started", order: "best-only" }; break;
+    case "output-constant-bypass": value.profiles[0].bypass = true; value.sameValidation = false; break;
+    case "claim-without-backend": value.claims = ["W has the fastest execution"]; break;
+    case "specialization-universal": value.profiles[2].disclosures.targetSpecialization = "universal"; break;
+    case "invalid-benchmark-disposition": value.benchmarkDisposition = "maybe"; value.profiles = []; break;
+    case "deferred-missing-blocker": value.benchmarkDisposition = "deferred"; delete value.blocker; value.taskId = "core-language-units"; value.stopCondition = "Wait for codegen and correctness before timing."; break;
+    case "not-applicable-missing-reason": delete value.reason; break;
+    case "flattened-axis": value.phases = [...LIFECYCLE_STAGES]; break;
+    case "no-op-without-cache": { const target = point("no-op", "check-end-to-end"); if (target) target.blockedBy = []; break; }
+    case "edit-without-cache": { const target = point("edit", "check-end-to-end"); if (target) target.blockedBy = []; break; }
+    case "internal-stage-without-instrumentation": { const target = point("clean", "source"); if (target) target.blockedBy = []; break; }
+    case "runtime-mixed": value.phaseMix = "check-end-to-end+execution"; break;
+    case "result-blocked-point": value.workload.stage = "source"; break;
+    case "result-language-without-backend": value.workload.track = "language"; value.workload.profile = "idiomatic"; break;
+    case "result-regression-without-comparison": value.quality = "regression-grade"; value.claim = "regression"; break;
+    case "result-partial-oracle": value.oracle.complete = false; value.oracle.beforeSamples = false; break;
+    case "result-tracked-timing": value.timings = [{ ns: "100" }]; break;
+    case "result-output-overwrite": value.overwrite = true; break;
+    case "result-forged-metric": value.metrics.latency.medianNs = "999"; break;
+    case "result-even-samples": value.samples.raw = value.samples.raw.slice(0, 8); value.samples.stopRule.count = 8; break;
+    case "result-leading-zero": value.samples.raw[0].ns = "0100"; break;
+    case "result-u64-overflow": value.samples.raw[0].ns = "18446744073709551616"; break;
+    case "result-comparison-incomplete":
+      value.quality = "regression-grade";
+      value.claim = "regression";
+      value.comparison = { baseline: { subject: value.workload.subject }, candidate: {}, noisePolicy: { complete: true, controlled: ["scheduler"], unknown: [] } };
+      value.samples.order = COMPARISON_ORDER;
+      break;
+    case "blocker-incomplete": { const target = point("no-op", "semantic"); if (target) target.blockedBy = ["incremental-cache"]; break; }
+  }
+}
+
+export function materializeCase(item) {
+  const errors = [];
+  if (!isObject(item)) return { value: undefined, errors: ["case must be an object."] };
+  if (!CANONICAL_FIXTURES.has(item.fixture)) {
+    errors.push("case.fixture must identify a canonical fixture.");
+    return { value: undefined, errors };
+  }
+  let value;
+  if (item.fixture === "language-equivalent") value = languageFixture();
+  else if (item.fixture === "documentation") value = {
+    benchmarkDisposition: "not-applicable",
+    reason: "A digest-only documentation change has no behavioral workload.",
+    digestOnly: true,
+  };
+  else if (item.fixture === "compiler-lifecycle") value = compilerFixture();
+  else value = resultFixture();
+  if (!Array.isArray(item.mutations)) {
+    errors.push("case.mutations must be a bounded array.");
+  } else {
+    if (item.mutations.length > MAX_BOUNDED_MUTATIONS) {
+      errors.push("case.mutations must contain at most " + MAX_BOUNDED_MUTATIONS + " bounded mutations.");
+    }
+    for (const mutation of item.mutations) applyBoundedMutation(value, mutation, errors);
+  }
+  return { value, errors };
 }
 
 export function validateCorpus(corpus) {
   const errors = [];
   if (!isObject(corpus)) return ["corpus must be an object."];
-  if (corpus.$schema !== "w-benchmark-driven-development-cases-1") push(errors, "corpus schema is invalid.");
-  if (corpus.status !== "design-oracle-input") push(errors, "corpus status must be design-oracle-input.");
-  if (corpus.id !== "BMD0") push(errors, "corpus id must be BMD0.");
-  if (!sameArray(corpus.decisions, ["W-1487"])) push(errors, "corpus decisions must cite W-1487.");
+  if (corpus.$schema !== "w-benchmark-driven-development-cases-1") {
+    push(errors, "corpus schema is invalid.");
+  }
+  if (corpus.status !== "design-oracle-input") {
+    push(errors, "corpus status must be design-oracle-input.");
+  }
+  if (corpus.id !== "BMD1") push(errors, "corpus id must be BMD1.");
+  if (!Array.isArray(corpus.decisions) ||
+      !corpus.decisions.includes("W-1487") ||
+      !corpus.decisions.includes("W-1488")) {
+    push(errors, "corpus decisions must cite W-1487 and W-1488.");
+  }
   if (!Array.isArray(corpus.cases)) {
     push(errors, "corpus.cases must be an array.");
     return errors;
   }
   const ids = new Set();
   for (const [index, item] of corpus.cases.entries()) {
-    const location = `corpus.cases[${index}]`;
+    const location = "corpus.cases[" + index + "]";
     if (!isObject(item)) {
-      push(errors, `${location} must be an object.`);
+      push(errors, location + " must be an object.");
       continue;
     }
-    if (ids.has(item.id)) push(errors, `${location}.id duplicates ${item.id}.`);
+    const caseKeys = ["id", "kind", "track", "lane", "decisions", "fixture", "mutations", "contract"];
+    if (item.kind === "rejected") caseKeys.push("violation");
+    checkExactKeys(item, location, caseKeys, errors);
+    for (const forbidden of ["input", "result", "expected", "expectedResult"]) {
+      if (hasOwn(item, forbidden)) push(errors, location + "." + forbidden + " must not echo a fixture or result.");
+    }
+    if (ids.has(item.id)) push(errors, location + ".id duplicates " + item.id + ".");
     ids.add(item.id);
-    requiredString(item.id, `${location}.id`, errors);
-    if (!["accepted", "rejected"].includes(item.kind)) push(errors, `${location}.kind must be accepted or rejected.`);
-    if (!LANE_SET.has(item.lane)) push(errors, `${location}.lane is invalid.`);
-    if (!sameArray(item.decisions, ["W-1487"])) push(errors, `${location}.decisions must cite W-1487.`);
-    if (item.kind === "rejected") requiredString(item.violation, `${location}.violation`, errors);
-    if (item.source !== undefined) checkCorpusSource(item.source, `${location}.source`, errors);
-    const scenarioErrors = validateScenario({ ...item.input, track: item.track, lane: item.lane });
-    if (item.kind === "accepted" && scenarioErrors.length > 0) push(errors, `${location} accepted scenario is invalid: ${scenarioErrors.join(" ")}`);
-    if (item.kind === "rejected" && scenarioErrors.length === 0) push(errors, `${location} rejected scenario has no observable violation.`);
-    containsForbiddenInputKey(item.input, `${location}.input`, errors);
+    requiredString(item.id, location + ".id", errors);
+    if (!["accepted", "rejected"].includes(item.kind)) {
+      push(errors, location + ".kind must be accepted or rejected.");
+    }
+    if (!LANE_SET.has(item.lane)) push(errors, location + ".lane is invalid.");
+    if (!Array.isArray(item.decisions) || !item.decisions.includes("W-1487")) {
+      push(errors, location + ".decisions must cite W-1487.");
+    }
+    if (item.track === "compiler-lifecycle" &&
+        (!Array.isArray(item.decisions) || !item.decisions.includes("W-1488"))) {
+      push(errors, location + ".decisions must cite W-1488 for compiler lifecycle.");
+    }
+    if (item.kind === "rejected") requiredString(item.violation, location + ".violation", errors);
+    if (!Array.isArray(item.contract) || item.contract.length === 0) {
+      push(errors, location + ".contract must not be empty.");
+    }
+    const materialized = materializeCase(item);
+    let caseErrors = [...materialized.errors];
+    if (materialized.value !== undefined && caseErrors.length === 0) {
+      if (item.fixture === "result") caseErrors = validateResult(materialized.value);
+      else caseErrors = validateScenario({
+        ...materialized.value,
+        track: item.track,
+        lane: item.lane,
+      });
+    }
+    if (item.kind === "accepted" && caseErrors.length > 0) {
+      push(errors, location + " accepted case is invalid: " + caseErrors.join(" "));
+    }
+    if (item.kind === "rejected" && caseErrors.length === 0) {
+      push(errors, location + " rejected case has no observable violation.");
+    }
   }
-  for (const caseId of REQUIRED_CASES) if (!ids.has(caseId)) push(errors, `corpus is missing required case ${caseId}.`);
+  for (const caseId of REQUIRED_CASES) {
+    if (!ids.has(caseId)) push(errors, "corpus is missing required case " + caseId + ".");
+  }
   return errors;
 }
 
 export function reduceCase(item) {
-  const errors = validateScenario({ ...item.input, track: item.track, lane: item.lane });
+  const materialized = materializeCase(item);
+  const errors = [...materialized.errors];
+  if (materialized.value !== undefined && errors.length === 0) {
+    const value = materialized.value;
+    errors.push(...(item.fixture === "result"
+      ? validateResult(value)
+      : validateScenario({ ...value, track: item.track, lane: item.lane })));
+  }
   return {
     id: item.id,
     classification: errors.length === 0 ? "accepted" : "rejected",
@@ -751,7 +1702,8 @@ export function reduceCorpus(corpus) {
 }
 
 export function loadBmdDocuments() {
-  const read = (relativePath) => JSON.parse(fs.readFileSync(path.resolve(ROOT, relativePath), "utf8"));
+  const read = (relativePath) =>
+    JSON.parse(fs.readFileSync(path.resolve(ROOT, relativePath), "utf8"));
   return {
     schema: read("benchmarks/wbench-1.schema.json"),
     program: read("benchmarks/program.json"),

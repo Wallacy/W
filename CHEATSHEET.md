@@ -1570,24 +1570,27 @@ provider/library, e sparse/graph mantém rota separada. `.strict`, `.fast` e
 `.reproducible` ficam explícitos.
 
 W-1487 torna benchmark-driven development verificável sem inventar runtime.
-Workloads de language usam `learner`, `idiomatic` (primary/regression) e
-`frontier`; learner é correto e plausível, e frontier declara unsafe, FFI,
-target specialization, manual layout, algoritmo e legibilidade. A lacuna
-learner→idiomatic mede performance cliff; idiomatic→frontier mede
-specialization burden. A lane `equivalent` preserva algoritmo, representação,
-validation, numeric contract e input; `open` pode trocar algoritmo, mas não
-mede qualidade do compiler.
+Ele preserva os três perfis de language:
 
-O lifecycle do compiler mantém source/graph/input idênticos e separa
-`clean`, `no-op`, `edit`, `frontend`, `hir`, `lowering`, `codegen`, `link`,
-`startup` e `execution`. `w check`/frontend existem no seed; native backend e
-runtime não. C/Clang e Rust são contextuais e não-ranking nessa track, cujo
-baseline primário é W histórico com recipe equivalente. O protocolo WBench/1
-exige correctness/oracle antes de samples; um record futuro usa `kind: result`,
-validation digest, raw samples, warmup, stop rule, ordem randomized/interleaved,
-provenance completa (source, artifact, input, recipe, runner e toolchain
-digests), métricas derivadas e disclosures. BMD0 não contém timing
-ou result.
+- `learner`: código correto e plausível, sem trabalho artificial;
+- `idiomatic`: forma recomendada, primary e regression;
+- `frontier`: teto declarado com disclosures de unsafe, FFI, target,
+  layout, algoritmo e legibilidade.
+
+A lane `equivalent` preserva algoritmo, representação, validation,
+numeric contract e input. A lane `open` registra diferenças e não
+mede qualidade do compiler. W-1488 mede somente o ponto compiler-lifecycle
+ready. A matriz separa `clean`, `no-op` e `edit` dos nove stages.
+`startup` e `execution` são product-runtime.
+
+Primeiro comando real:
+
+```text
+bun tooling/benchmark-driven-development-runner.mjs --output benchmarks/results/seed-check.local.json
+```
+
+O path é explícito e não pode existir. O runner valida o oracle antes das
+samples e publica apenas result exploratory/measurement-only/single-series.
 
 ### SIMD portátil
 

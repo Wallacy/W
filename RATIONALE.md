@@ -5852,36 +5852,50 @@ W-1484, e W-1473, W-1474 e W-1475 foram abertas posteriormente e não pertencem
 a esse gate.
 
 W-1487 registra a política corrente de benchmark-driven development como
-`oracle-backed-current`: é um protocolo verificável, não uma research gate e
-não um claim de performance. BMD0 separa language workload de compiler
+`oracle-backed-current`: é um protocolo BMD0 verificável, não uma research
+gate e não um claim de performance. BMD0 separa language workload de compiler
 lifecycle. Language usa exatamente os perfis `learner`, `idiomatic` e
-`frontier`, com `idiomatic` como primary/regression; as lacunas
+`frontier`, com `idiomatic` como primary/regression. As lacunas
 learner→idiomatic medem performance cliffs e idiomatic→frontier medem
-specialization burden. Learner deve ser correto e plausível, e frontier declara
-unsafe, FFI, target specialization, manual layout, algoritmo e legibilidade.
-Compiler lifecycle mantém source/graph/input idênticos em clean, no-op, edit,
-frontend, HIR, lowering, codegen, link, startup e execution, sem três sources
-artificiais. O seed `w check` e o frontend existem; native backend/runtime não.
-Assim, o protocolo fecha oracle, provenance e stop conditions sem criar samples,
-timings ou claims de runtime.
+specialization burden. A lane `equivalent` exige o mesmo algoritmo,
+representação, validation, numeric contract e input. A lane `open` permite
+algoritmo melhor e registra diferenças sem medir qualidade do compiler.
 
-As quatro dispositions são `required` para language, `compiler-lifecycle` para
-a track de lifecycle, `deferred` com blocker, task e stop condition, e
-`not-applicable` com razão para documentação ou digest-only. A lane
-`equivalent` exige o mesmo algoritmo, representação, validation, numeric
-contract e input; `open` pode usar algoritmo melhor, mas não mede qualidade do
-compiler. O baseline primário do lifecycle é o W histórico com recipe
-equivalente; C/Clang e Rust são apenas contextuais e não-ranking nessa track.
-WBench/1 reserva `kind: result` para records futuros: o validation digest do
-oracle vem antes das samples, que são raw, aquecidas e randomized/interleaved,
-com `environment` separado de `provenance` (source, artifact, input, recipe,
-runner e toolchain digests), métricas derivadas, semantic deviations e
-disclosures completos. Nenhum result é criado no BMD0 atual.
+W-1488 acrescenta a implementação BMD1 da matriz e do runner. A matriz separa
+scenario de stage para que clean, no-op e edit mantenham a mesma identidade de
+source, graph e input sem transformar um tempo externo em tempo de frontend
+interno. Ela contém 27 células: clean, no-op e edit cruzam
+`check-end-to-end`, `source`, `lex`, `parse`, `semantic`, `hir`,
+`lowering`, `codegen` e `link`. `startup` e `execution` são da track
+product-runtime. Somente clean × check-end-to-end está ready. No-op e edit
+continuam bloqueados por incremental-cache. Os estágios internos exigem
+stage-instrumentation ou o componente correspondente.
+
+O runner constrói o seed `compiler/seed-c` em Release fora da medição. Ele
+executa o oracle source-backed do `w check` antes de warmup e raw. O oracle
+exige exit 0 e stdout/stderr vazios. Cada amostra usa processo novo e relógio
+monotonic wall clock em ns. O escopo inclui process startup e estado de cache
+do filesystem e do OS. O default é exatamente 1 warmup e 9 samples raw.
+Overrides exigem warmup >= 1 e samples raw ímpares >= 9, com stop rule de
+contagem fixa. O output exige path explícito e
+publicação atômica fail-if-exists. A proveniência registra source, artifact,
+input, recipe, runner e toolchain digests reais. Environment registra os
+controles de ruído conhecidos e desconhecidos sem alegar controle ausente.
+
+O record BMD1 corrente é somente compiler-lifecycle no ponto ready. Ele é
+`exploratory`, `measurement-only` e `single-series`, com comparison nula.
+Ele não afirma performance, native backend, runtime ou result de language.
+Comparison e regression exigem baseline e candidate identificados, samples
+etiquetadas, randomized interleaving e noise policy. Essa rota permanece
+bloqueada por `interleaved-comparison-runner`. O Computer Language Benchmarks
+Game continua exploratório e nunca é authority.
 
 As fontes [Benchmarks Game — how programs are measured](https://benchmarksgame-team.pages.debian.net/benchmarksgame/how-programs-are-measured.html),
-[LLVM — Benchmarking](https://llvm.org/docs/Benchmarking.html) e [Google Benchmark — User Guide](https://github.com/google/benchmark/blob/main/docs/user_guide.md)
-fornecem evidência metodológica para medição. Não são autoridade semântica
-para W.
+[LLVM — Benchmarking](https://llvm.org/docs/Benchmarking.html), [Google Benchmark — User Guide](https://github.com/google/benchmark/blob/main/docs/user_guide.md),
+[Google Benchmark — Random Interleaving](https://github.com/google/benchmark/blob/main/docs/random_interleaving.md)
+e [rustc-perf — tests/perf](https://rustc-dev-guide.rust-lang.org/tests/perf.html)
+fornecem evidência metodológica para medição, warmup, repetição, interleaving
+e separação de cenários clean/incremental. Não são autoridade semântica para W.
 
 O artigo de 2026 sobre o expoente de multiplicação ([arXiv:2608.16884](https://arxiv.org/abs/2608.16884))
 relata o limite teórico `omega < 2.371177`. Esse resultado pertence à
@@ -7611,6 +7625,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1485 | inventário de módulos locais no contexto efêmero | Fora de package ou workspace, o parent lógico do source root explícito forma uma root efêmera por invocation. O provider abre e confirma a root e cada source alcançado. Um import não-std parser-validado normaliza sua spelling completa para NFC e mapeia, a partir da root e nunca do importer, `a.b` para `a/b.w`; `std` e `std.*` pertencem somente ao provider std, e um source local nunca os sombreia. Um import não-std ausente falha como dependency externa indisponível e orienta package ou workspace, sem fallback, scan ou fetch. A root usa module path do header ou stem lógico, aceita header diferente do stem e resolve um import desse path para a própria root. Source descoberto usa o import como module path, recebe o último componente sem header e exige esse componente com header; outro nome e multi-file exigem package ou workspace. `SourceId` é `PackagePath` root-relative e module path é separado; canonical token e physical display são provenance. Cada source exige facts do mesmo provider, root e source/provider owner token (não package/workspace owner), containment `inside`, canonical token único e snapshot estável de bytes e digest. Escape, symlink escape, fact ausente, alias, colisão NFC e mutation falham. Somente imports, reexports e service-import origins explícitos expandem. O grafo é acíclico. Inventory tem root ordinal 0 e depois ordena `SourceId` por bytes UTF-8 NFC. Edges ordenam source ordinal, origin e target ordinal. Limits são do profile/provider. A recipe usa apenas `{SourceId,modulePath,digest}` e edges lógicos ordenados. | oracle-backed-current por RU0 host-only em `tooling/ephemeral-module-graph-machine.mjs`, com casos positivos e adversariais em `tooling/module-run-cases.json` e `tooling/module-run-reference.test.mjs`; CHK3 acrescenta scanner C caller-owned de origins, frontend seed de identities separadas e edges resolvidos explícitos, além do adapter D0 com índice de documento; CHK4 acrescenta o graph builder caller-owned; CHK5 acrescenta o core bounded de aquisição/revalidação e o adapter Linux real com `openat2`, enquanto o stub não-Linux permanece fail-closed; CHK6 acrescenta o driver C11 interno caller-owned de discovery local iterativo bounded, compondo aquisição/revalidação CHK5, parser/module scan e graph CHK4 e entregando documentos em ordem lógica e imports resolvidos para um caller futuro; não chama frontend nem abre `w check` público multi-file; waves não são transação única de snapshot e candidates antigos podem ser readquiridos, enquanto CHK4 publica somente reachable; capacity provenance do parser é evidência interna, sem novo mapping D0; CHK7 acrescenta composição interna caller-owned CHK6→frontend→D0 JSON-only, com preflight integral; todo o trabalho falível termina antes do commit, o JSONL é copiado uma vez para o buffer final e `jsonl_length` é atualizado sem novo ramo falível; em qualquer falha, o JSONL final e `jsonl_length` permanecem inalterados; a fixture prova import/call de root para child e `W-SEM-0001` em `child.w`; CHK8 acrescenta o adapter Windows real com `NtCreateFile`, identidade por `FILE_ID_INFO`, revalidação e gate nativo Windows mais Linux real via WSL; limita-se a esse diagnostic e não abre CLI pública, filesystem novo, provider std, package/workspace ou frontend completo; CHK9 acrescenta `check_host`, storage adaptativo, retry bounded e a rota pública `w check` para root explícita efêmera e imports locais alcançáveis; o gate prova Last Light, Restaurant multifile com child nested e diagnóstico determinístico, barriers de missing/std/cycle, identidade/UTF-8/parse/frontend, limites e escape por symlink/junction; o perfil usa SourceId lógico e caminho físico somente para display. NFC completo, std provider, owner detection, package/workspace, diagnostics completos, compiler, runtime e conformance multiplataforma continuam implementation-evidence gaps |
 | W-1486 | programa bounded de pesquisa binary-first registry/execution | A direção candidate para distribuição binary-first, registry HTTP static-first e execução assinada está aprovada como baseline do estudo. Canonical signing payload, protocol/security/provider evidence e as stop conditions das oito tasks RDX0, PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 e ENT0 permanecem research-gated; não há claim de implementação de registry, compiler, runner, sandbox, provider ou attestation verifier | O bundle RDX0 registra a direção, as dependencies, os outputs observáveis, os cases negativos e as stop conditions; a classificação research-gated usa a seção RDX0 como authority e exige evidence nova antes de promoção |
 | W-1487 | política e infraestrutura de benchmark-driven development | BMD0 define WBench/1, as tracks separadas de language e compiler lifecycle, os perfis learner/idiomatic/frontier, as lanes equivalent/open, as quatro dispositions e correctness/oracle antes de samples. O lifecycle usa um source, graph e input identity; C/Clang e Rust são contextuais e não-ranking, e o baseline primário é W histórico com recipe equivalente. O seed `w check`/frontend está disponível, mas native backend/runtime não; não há result, timing ou claim de runtime | `benchmarks/` contém schema, programa, manifesto source-backed, descriptors, máquina e corpus adversarial; `benchmark-driven-development-reference.test.mjs` e `check-benchmark-driven-development.mjs` provam o protocolo host-side. A categoria é `oracle-backed-current` por protocolo verificável, não research gate nem claim de performance |
+| W-1488 | matriz e runner BMD1 de compiler lifecycle | BMD1 acrescenta 27 células clean/no-op/edit × check-end-to-end/source/lex/parse/semantic/hir/lowering/codegen/link. Somente clean × check-end-to-end está ready. O runner constrói `compiler/seed-c` em Release fora da medição, executa o oracle source-backed antes de warmup e raw e mede processos novos com monotonic wall ns. O output exige path explícito e publicação atômica fail-if-exists. O result atual é exploratory/measurement-only/single-series com comparison nula. Provenance e environment registram digests e noise unknown honestos. `no-op` e `edit` permanecem bloqueados por `incremental-cache`; `source`, `lex`, `parse` e `semantic` permanecem bloqueados por `stage-instrumentation`; `hir`, `lowering`, `codegen` e `link` permanecem bloqueados pelos componentes correspondentes; language e product-runtime permanecem bloqueados por `native backend`, `runtime` e `provider` conforme aplicável; somente comparison e regression permanecem bloqueados por `interleaved-comparison-runner` | `BMD1-W-1488-current-matrix`, o runner host e o smoke real validam a matriz, o source `checker_bootstrap.w`, o oracle antes das samples, os digests, as métricas derivadas, a publicação atômica e o cleanup. A categoria é `oracle-backed-current` e não promove performance |
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
