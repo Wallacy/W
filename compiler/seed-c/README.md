@@ -331,6 +331,53 @@ O gate dedicado é executado com:
 
     bun tooling/check-seed-ephemeral-graph.mjs
 
+## Provider de source efêmero (CHK5)
+
+`include/w_seed_ephemeral_provider.h` e `src/w_seed_ephemeral_provider.c`
+formam a fronteira C11 bounded de aquisição e revalidação para o builder CHK4.
+O caller fornece uma root física explícita e uma lista explícita de `SourceId`
+root-relative. O core não faz scan, discovery de vizinhos, fetch, fallback,
+lookup de cwd/PATH/environment ou detecção de owner. A root física e o
+`SourceId` lógico continuam campos distintos.
+
+O backend é injetável e caller-owned. O preflight valida as capacities dos
+quatro tokens de cada fase contra a metadata (`required_capacity` deve cobrir
+`maximum_emitted_length`); `maximum_emitted_length` é metadata do backend, não
+um campo do result. As capacities de staging, revalidação e output são
+verificadas com o tamanho observado durante read, revalidate e commit. O
+agregado é aplicado como limite durante a aquisição.
+Cada sucesso confirma root/provider/owner tokens coerentes, containment
+canônico, um token canônico por arquivo e snapshot antes/depois com
+`byte_count` e digest. Só depois da revalidação o core publica bytes, `source` e
+facts compatíveis com CHK4. Falha, alias, escape, path inválido, UTF-8 inválido,
+NFC não comprovado, mutação, truncation/growth ou limite excedido deixa esses
+outputs bitwise inalterados.
+
+`include/w_seed_ephemeral_provider_linux.h` e
+`src/w_seed_ephemeral_provider_linux.c` fornecem o adapter real testado em
+Linux. Ele ancora root relativa em `base_dir_fd` emprestado, root absoluta em
+`/`, abre somente arquivos regulares e exige `openat2` com
+`RESOLVE_BENEATH|RESOLVE_NO_SYMLINKS|RESOLVE_NO_XDEV`; sem essa syscall ou
+flags retorna `UNSUPPORTED`, sem fallback por `realpath` ou `openat` parcial.
+Fora de Linux, a mesma vtable é um stub válido que retorna `UNSUPPORTED` e não
+abre handles. O limite padrão é 64 sources e 16 MiB de bytes agregados, com
+paths e tokens bounded a 4096 bytes; o caller pode escolher limites menores.
+
+Os testes separados cobrem core fake, capacities exatas/curtas, alias,
+mutation na revalidação, snapshots, digest e falhas all-or-nothing. O teste do
+adapter cobre root relativa e absoluta, child nested, missing, symlink,
+directory/FIFO, hardlink, zero bytes, limites e fechamento de handles. O gate
+repete os binários, exige stdout determinístico e stderr vazio, registra
+`linux-real=passed` somente com prova Linux e preserva
+`SKIP linux-openat2=unsupported` quando a capability não existe:
+
+    bun tooling/check-seed-ephemeral-provider.mjs
+
+Discovery loop, NFC completo, provider std, adapter Windows real,
+reexport/service-import, package/workspace, `w check` multi-file, diagnostics
+completos e conformance multiplataforma não testada permanecem gaps. `w check`
+continua closed-single-source.
+
 ## Frontend seed interno (fatia semântica)
 
 `include/w_seed_frontend.h` e `src/w_seed_frontend.c` formam a primeira fatia

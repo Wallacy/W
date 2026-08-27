@@ -391,13 +391,16 @@ static bool source_and_document_shape(const w_seed_frontend_document *document,
   return true;
 }
 
-static void digest_source(const w_seed_source *source, uint8_t digest[32]) {
+bool w_seed_ephemeral_graph_source_digest(const w_seed_source *source,
+                                          uint8_t digest[32]) {
   static const uint8_t tag[] = "w-module-source-v1\0";
+  if (digest == NULL || source == NULL) return false;
   w_seed_sha256_state state;
   w_seed_sha256_init(&state);
   w_seed_sha256_update(&state, tag, sizeof(tag) - 1u);
   w_seed_sha256_update(&state, source->bytes.data, source->bytes.length);
   w_seed_sha256_final(&state, digest);
+  return true;
 }
 
 static bool digest_equal(const uint8_t left[32], const uint8_t right[32]) {
@@ -424,7 +427,7 @@ static bool provider_facts_valid(
       facts->snapshot_after_byte_count != document->source->bytes.length) {
     return false;
   }
-  digest_source(document->source, digest);
+  w_seed_ephemeral_graph_source_digest(document->source, digest);
   return digest_equal(facts->snapshot_before_digest, digest) &&
          digest_equal(facts->snapshot_after_digest, digest);
 }

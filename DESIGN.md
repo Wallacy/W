@@ -31289,6 +31289,14 @@ ou recipe. Os limits pertencem ao profile ou provider. O oracle usa somente
 defaults de fixture não normativos de 64 sources, 4096 edges, depth 64 e 16
 MiB de source bytes, e prova bounds finitos para cada dimensão.
 
+A evidência executável desta fronteira agora tem três cortes. CHK3 prova a
+fronteira caller-owned de origins e edges resolvidos. CHK4 prova o builder
+caller-owned do graph, sem abrir filesystem. CHK5 prova o core bounded de
+aquisição/revalidação para a root física e os `SourceId` explicitamente
+solicitados, além do adapter Linux real ancorado em `openat2` quando essa
+capability está disponível. O core publica somente após snapshot antes/depois,
+validação de bytes e digest, e mantém outputs inalterados em falha.
+
 A projeção do module graph incorporada ao product e à recipe contém somente
 inventory lógico `{SourceId,modulePath,digest}` e edges lógicos ordenados.
 Context, resolution, target, host profile, toolchain, deployment e demais
@@ -31296,9 +31304,11 @@ inputs já definidos continuam na recipe completa. Canonical token, host path e
 candidate order ficam fora. Mover a árvore fisicamente preserva a identity
 quando facts lógicos e bytes não mudam. As formas de binding mantêm a
 semântica de [§6.1](#61-imports-de-pacotes-e-módulos). W-1485 resolve somente a
-origin. O provider real, owner detection, C graph loader, std provider,
-frontend resolved-edge API e diagnostics completos permanecem implementation
-gaps. CHK1 continua no perfil closed-single-source.
+origin. CHK5 cobre somente o provider core injetável e o adapter filesystem
+Linux com `openat2`; não cobre o discovery loop, NFC completo, provider std,
+adapter Windows real, owner detection, package/workspace, diagnostics completos
+ou `w check` multi-file. A conformance multiplataforma não testada permanece
+gap. CHK1 continua no perfil closed-single-source.
 
 O estudo PYN1 superseded em [`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1-superseded)
 preserva a proveniência do antigo fluxo standalone. A forma vigente é este
@@ -32655,11 +32665,18 @@ lookup no target exato, redirect determinístico e rejeições de edge inválido
 O adapter D0 recebe também o índice esperado do documento; a rota CHK1 passa
 `0` e mantém os bytes existentes.
 
-Esta evidência não implementa provider real, owner discovery, filesystem
-loader, std provider, package/workspace, reexport ou service-import origin,
-multi-file package ou a resolução pública de `w check`. Reexport e
-service-import ainda não possuem CST seed; NFC continua responsabilidade do
-resolver.
+CHK3 é a evidência de resolved-edge caller-owned. CHK4 acrescenta o graph
+builder caller-owned para os documentos e facts já fornecidos. CHK5 acrescenta
+o provider core de aquisição/revalidação e o adapter Linux `openat2` para
+requests explícitos, com stub fail-closed fora de Linux. Esses cortes não
+alteram a claim normativa de resolução: o resolver ainda fornece origins,
+identities e edges explícitos.
+
+O discovery loop, NFC completo, provider std, owner discovery, package/workspace,
+reexport ou service-import origin, multi-file package, adapter Windows real,
+conformance multiplataforma e a resolução pública de `w check` continuam gaps.
+Reexport e service-import ainda não possuem CST seed; NFC continua
+responsabilidade do resolver.
 
 Saída: `w check <path/file.w> [--json]` verifica o subset síncrono do
 restaurante. O target bootstrap `w` executa essa rota no perfil
