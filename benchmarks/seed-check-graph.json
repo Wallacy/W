@@ -1,0 +1,19 @@
+{
+  "$schema": "wbench/1-identity",
+  "schema": "wbench/1-identity",
+  "kind": "source-graph",
+  "id": "last-light-checker-bootstrap-graph",
+  "source": {
+    "path": "reference/last-light/checker_bootstrap.w",
+    "symbol": "export fn canAcceptOrder(",
+    "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
+  },
+  "nodes": [
+    {
+      "id": "checker_bootstrap",
+      "path": "reference/last-light/checker_bootstrap.w",
+      "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
+    }
+  ],
+  "edges": []
+}

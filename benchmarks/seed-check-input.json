@@ -1,0 +1,32 @@
+{
+  "$schema": "wbench/1-identity",
+  "schema": "wbench/1-identity",
+  "kind": "invocation-edit-input",
+  "id": "last-light-checker-bootstrap-input",
+  "source": {
+    "path": "reference/last-light/checker_bootstrap.w",
+    "symbol": "export fn canAcceptOrder(",
+    "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
+  },
+  "invocation": {
+    "entry": "canAcceptOrder",
+    "edit": {
+      "kind": "whitespace-only",
+      "sourcePath": "reference/last-light/checker_bootstrap.w",
+      "targetSymbol": "export fn canAcceptOrder(",
+      "occurrence": 1,
+      "match": "  return open\n",
+      "replacement": "    return open\n",
+      "semanticPreserving": true,
+      "applyTo": "temporary-copy"
+    },
+    "recipe": {
+      "operation": "replace-once",
+      "expectedMatches": 1,
+      "match": "  return open\n",
+      "replacement": "    return open\n",
+      "semanticPreserving": true,
+      "temporaryCopy": true
+    }
+  }
+}

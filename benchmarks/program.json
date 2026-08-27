@@ -1,0 +1,185 @@
+{
+  "$schema": "./wbench-1.schema.json",
+  "schema": "wbench/1",
+  "kind": "program",
+  "id": "bmd0",
+  "status": "protocol-only",
+  "backend": {
+    "benchmarkRunnerAvailable": false,
+    "resultsAllowed": false,
+    "note": "This program defines benchmark development work. It emits no runtime result or timing."
+  },
+  "profiles": [
+    {
+      "id": "learner",
+      "track": "language",
+      "primary": false,
+      "regression": false,
+      "description": "Correct plausible code from a learner who transfers patterns from another language and underuses W."
+    },
+    {
+      "id": "idiomatic",
+      "track": "language",
+      "primary": true,
+      "regression": true,
+      "description": "The recommended production form. This profile is the primary and regression profile."
+    },
+    {
+      "id": "frontier",
+      "track": "language",
+      "primary": false,
+      "regression": false,
+      "description": "The declared performance ceiling. Legibility can be lower when the disclosures are explicit.",
+      "disclosures": {
+        "unsafe": "Declare each unsafe boundary and its restored invariant.",
+        "ffi": "Declare each foreign call, ABI, ownership and provider requirement.",
+        "targetSpecialization": "Declare target, feature set and fallback scope.",
+        "manualLayout": "Declare offsets, alignment, representation and boundary.",
+        "algorithm": "Declare algorithm and representation changes.",
+        "legibility": "Declare each material legibility sacrifice."
+      }
+    }
+  ],
+  "lanes": [
+    {
+      "id": "equivalent",
+      "description": "Compare equivalent workloads only.",
+      "requirements": [
+        "same algorithm",
+        "same representation",
+        "same validation",
+        "same numeric contract",
+        "same input"
+      ]
+    },
+    {
+      "id": "open",
+      "description": "Allow a better algorithm, but do not use the result to measure compiler quality.",
+      "requirements": [
+        "record algorithm and representation changes",
+        "record semantic deviations",
+        "keep correctness oracle before samples"
+      ]
+    }
+  ],
+  "baselinePolicy": {
+    "defaultIndependent": [
+      "c-clang",
+      "rust"
+    ],
+    "exception": "Record why one independent baseline is sufficient when two baselines are not reasonable.",
+    "gameRole": "exploratory-never-authority"
+  },
+  "tasks": [
+    {
+      "id": "protocol",
+      "label": "protocol",
+      "status": "completed",
+      "implementation": "complete",
+      "dependencies": [],
+      "outputs": [
+        "wbench-1 schema",
+        "profile and lane policy",
+        "correctness-before-samples rule"
+      ],
+      "adversarialCases": [
+        "BMD0-W-1487-claim-without-backend",
+        "BMD0-W-1487-best-only"
+      ],
+      "stopCondition": "WBench/1 fields, lanes, disclosures and backend boundary are validated without runtime samples."
+    },
+    {
+      "id": "seed-compiler-lifecycle",
+      "label": "seed compiler lifecycle",
+      "status": "ready",
+      "implementation": "pending",
+      "dependencies": [
+        "protocol"
+      ],
+      "outputs": [
+        "seed-check lifecycle manifest",
+        "validation record when BMD0 runner exists",
+        "clean/no-op/edit/frontend/lowering lifecycle records"
+      ],
+      "adversarialCases": [
+        "BMD0-W-1487-compiler-lifecycle",
+        "BMD0-W-1487-compile-execution-mixed",
+        "BMD0-W-1487-baseline-provenance-missing"
+      ],
+      "stopCondition": "Use one source, graph and input identity across lifecycle phases. Keep codegen and execution pending until the BMD0 runner exists."
+    },
+    {
+      "id": "core-language-units",
+      "label": "core language units",
+      "status": "blocked",
+      "implementation": "blocked",
+      "blockedBy": [
+        "codegen"
+      ],
+      "dependencies": [
+        "protocol",
+        "seed-compiler-lifecycle"
+      ],
+      "outputs": [
+        "language workloads for the three profiles",
+        "differential correctness records",
+        "performance samples after backend readiness"
+      ],
+      "adversarialCases": [
+        "BMD0-W-1487-profile-missing",
+        "BMD0-W-1487-idiomatic-not-primary",
+        "BMD0-W-1487-learner-artificially-slow",
+        "BMD0-W-1487-frontier-missing-disclosure"
+      ],
+      "stopCondition": "Run only after codegen can produce equivalent artifacts. Promote no timing before differential correctness passes."
+    },
+    {
+      "id": "computer-language-benchmarks-game",
+      "label": "Computer Language Benchmarks Game",
+      "status": "blocked",
+      "implementation": "blocked",
+      "blockedBy": [
+        "codegen"
+      ],
+      "dependencies": [
+        "protocol",
+        "core-language-units"
+      ],
+      "outputs": [
+        "exploratory workload records",
+        "contextual comparison records"
+      ],
+      "adversarialCases": [
+        "BMD0-W-1487-equivalent-semantic-difference",
+        "BMD0-W-1487-output-constant-bypass",
+        "BMD0-W-1487-specialization-universal"
+      ],
+      "stopCondition": "Use this suite only as exploratory context. Never use its ranking as W authority or compiler-quality proof."
+    },
+    {
+      "id": "restaurant-composition",
+      "label": "Restaurant composition",
+      "status": "blocked",
+      "implementation": "blocked",
+      "blockedBy": [
+        "runtime/provider"
+      ],
+      "dependencies": [
+        "protocol",
+        "seed-compiler-lifecycle",
+        "core-language-units"
+      ],
+      "outputs": [
+        "Last Light composition workload",
+        "provider conformance records",
+        "runtime performance records after backend readiness"
+      ],
+      "adversarialCases": [
+        "BMD0-W-1487-oracle-partial",
+        "BMD0-W-1487-compile-execution-mixed",
+        "BMD0-W-1487-claim-without-backend"
+      ],
+      "stopCondition": "Run only after runtime and provider contracts produce the same validated Restaurant outcome."
+    }
+  ]
+}

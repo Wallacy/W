@@ -24413,6 +24413,60 @@ variante não remove validação nem retorna constants para melhorar o ranking.
 Workloads, topologias e fontes comparativas ficam em
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
+#### W-1487 — protocolo BMD corrente
+
+W-1487 é `oracle-backed-current` como protocolo verificável de benchmark-driven
+development. Ele não é research gate e não é claim de performance. A
+infraestrutura corrente fica em [`benchmarks/`](benchmarks/) e separa duas
+tracks: language workload e compiler lifecycle. A track de language usa
+exatamente `learner`, `idiomatic` e `frontier`; `idiomatic` é a métrica primária
+e a regressão, a lacuna learner→idiomatic mede performance cliffs e a lacuna
+idiomatic→frontier mede specialization burden. `learner` deve ser correto e
+plausível, sem sleep, trabalho inútil, flags deliberadamente piores ou bypass.
+`frontier` registra unsafe, FFI, target specialization, manual layout,
+algoritmo e perdas de legibilidade quando aplicável.
+
+A track compiler lifecycle usa um source, graph e input identity idênticos nas
+fases `clean`, `no-op`, `edit`, `frontend`, `hir`, `lowering`, `codegen`,
+`link`, `startup` e `execution`; ela não cria três sources artificiais. O seed
+`w check` e o frontend estão disponíveis, mas native backend e runtime ainda não
+estão. Portanto o manifesto pode validar o protocolo e a entrada source-backed,
+mas não produz timing, result ou claim de execução antes de o BMD0 runner
+existir. C/Clang e Rust são baselines independentes default na track de
+language; no compiler lifecycle são somente contextuais e não-ranking,
+enquanto a regressão primária é o W histórico com recipe equivalente. O
+Computer Language Benchmarks Game é
+exploratório e nunca é authority.
+
+Um fragmento local de manifesto de language fixa os perfis e a ordem da
+correção; ele não contém amostras ou resultados:
+
+```json
+{
+  "track": "language",
+  "lane": "equivalent",
+  "benchmarkDisposition": "required",
+  "profiles": [
+    { "id": "learner", "primary": false, "regression": false },
+    { "id": "idiomatic", "primary": true, "regression": true },
+    { "id": "frontier", "primary": false, "regression": false }
+  ],
+  "oracle": { "complete": true, "beforeSamples": true }
+}
+```
+
+As lanes são explícitas: `equivalent` exige algoritmo, representação,
+validation, numeric contract e input iguais; `open` permite algoritmo melhor,
+mas não mede qualidade do compiler e registra as diferenças. Antes de amostras,
+o protocolo exige correctness/oracle record. Um futuro record WBench/1 usa
+`kind: result`, o objeto `workload` com manifest digest, track, lane, phase,
+profile (nulo ou ausente no compiler lifecycle), baseline e variant, oracle
+validation digest anterior às samples, raw samples, warmup, stop rule, ordem
+randomized/interleaved, `environment` separado de `provenance` (source, artifact,
+input, recipe, runner e toolchain digests), métricas/summary
+derivados e disclosures de semantic deviations e segurança. Nenhum resultado
+corrente é inventado enquanto o BMD0 runner não existir.
+
 ### 18.9 Gate pré-implementação de pesquisa SOTA
 
 Antes de implementar uma otimização nova, a equipe deve preencher a matriz de
@@ -32943,8 +32997,10 @@ frontend self-hosted.
 - corpus diferencial entre o caminho seed-C e W/MLIR;
 - `w run` usa a mesma HIR verificada para fast native, incremental native,
   evaluator ou JIT;
-- benchmark cold/warm/edit-run separado por frontend, lowering, link/startup e
-  execution contra C, CPython, Bun/TypeScript e Rust.
+- benchmark compiler lifecycle em ordem `clean`, `no-op`, `edit`, `frontend`,
+  `hir`, `lowering`, `codegen`, `link`, `startup` e `execution`, sempre com o
+  mesmo source, graph e input identity; a medição de language workload fica
+  separada da medição do lifecycle.
 
 Saída: payload determinístico para programas síncronos nos dois caminhos.
 

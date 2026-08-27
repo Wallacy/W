@@ -1569,6 +1569,26 @@ pode receber lowering para código inline; trabalho grande ou irregular vai para
 provider/library, e sparse/graph mantém rota separada. `.strict`, `.fast` e
 `.reproducible` ficam explícitos.
 
+W-1487 torna benchmark-driven development verificável sem inventar runtime.
+Workloads de language usam `learner`, `idiomatic` (primary/regression) e
+`frontier`; learner é correto e plausível, e frontier declara unsafe, FFI,
+target specialization, manual layout, algoritmo e legibilidade. A lacuna
+learner→idiomatic mede performance cliff; idiomatic→frontier mede
+specialization burden. A lane `equivalent` preserva algoritmo, representação,
+validation, numeric contract e input; `open` pode trocar algoritmo, mas não
+mede qualidade do compiler.
+
+O lifecycle do compiler mantém source/graph/input idênticos e separa
+`clean`, `no-op`, `edit`, `frontend`, `hir`, `lowering`, `codegen`, `link`,
+`startup` e `execution`. `w check`/frontend existem no seed; native backend e
+runtime não. C/Clang e Rust são contextuais e não-ranking nessa track, cujo
+baseline primário é W histórico com recipe equivalente. O protocolo WBench/1
+exige correctness/oracle antes de samples; um record futuro usa `kind: result`,
+validation digest, raw samples, warmup, stop rule, ordem randomized/interleaved,
+provenance completa (source, artifact, input, recipe, runner e toolchain
+digests), métricas derivadas e disclosures. BMD0 não contém timing
+ou result.
+
 ### SIMD portátil
 
 `std.simd` publica os heads compiler-owned `Simd<Element, lanes: usize>` e
