@@ -4388,6 +4388,166 @@ A superfície vigente usa `WorkKeyRef.start`/`tryStart`, `work.step`,
 `waitUntil` bounded continuam candidatos. `spawn<owner: ...>`, detach por drop,
 call one-way, actor reentrant e persistência automática de frame não entram.
 
+#### Registry, distribuição e execução RDX0
+
+Esta subseção registra evidência comparativa para o bundle
+[`RDX0`](tooling/studies/rdx0-binary-registry-execution/). Ela não adiciona
+API, syntax, compiler, runtime ou provider. O ledger
+[`task-ledger.json`](tooling/studies/rdx0-binary-registry-execution/task-ledger.json)
+mantém as tasks, outputs, cases adversariais, lacunas e stop conditions.
+
+W-1486 é a decisão única que torna esse programa visível na classificação
+current. Ela aprova somente a direção candidate já descrita em RDX0. O ledger
+e o checker do bundle registram os outputs e negative cases das oito tasks; a
+evidence de protocol, security e provider, a escolha do canonical signing
+payload e cada stop condition continuam research-gated. W-1486 não promove
+registry, compiler, runner, sandbox ou provider.
+
+O updater do
+[Tauri](https://v2.tauri.app/plugin/updater/) fornece um precedente pequeno.
+Ele aceita metadata estática ou servidor dinâmico. O JSON liga version, target,
+URL e assinatura. A assinatura é obrigatória. W usa essa simplicidade como
+precedente de transporte. W não copia o trust model do updater.
+
+O protocolo de
+[Go modules](https://go.dev/ref/mod#protocol) mostra que GETs estáticos e um
+layout de filesystem podem formar um protocolo útil. Seus endpoints de list e
+info não autenticados não concedem package authority. W separa discovery,
+projection, release record, object, catalog e evidence. Search permanece uma
+projection derivada.
+
+O modelo de
+[OCI manifests](https://github.com/opencontainers/image-spec/blob/main/manifest.md)
+confirma a utilidade de manifests, blobs, indexes e referrers. OCI é mais amplo
+que a baseline W. W mantém uma cápsula bounded, identities separadas e recipes
+por target, profile e toolchain-plan row. W não promete universal binary.
+
+O projeto Linux
+[cloudflare/sandbox](https://github.com/cloudflare/sandbox) fornece regras
+seccomp simples com allow, deny e log mode. Ele é o projeto Linux de seccomp,
+não o Cloudflare Sandbox SDK. O
+[blog sobre sandbox Linux](https://blog.cloudflare.com/sandboxing-in-linux-with-zero-lines-of-code/)
+é uma fonte complementar sobre o mecanismo. Esses materiais fornecem
+precedentes para profiles de capability. Eles não provam isolamento para W. A
+linha dynamic com `LD_PRELOAD` e a linha static com ptrace ou `CAP_SYS_ADMIN`
+permanecem rejeitadas como baseline adversarial. Seccomp sozinho também não
+substitui namespaces, credentials, filesystem, network e resource controls.
+
+[GitHub-hosted runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners)
+são um precedente de ambiente efêmero. O
+[OIDC de GitHub Actions](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
+permite que a CI apresente uma assertion curta da identity do workflow. Essa
+assertion é uma prova de identity, não uma credencial W de uso único. O serviço
+W deve validar issuer, audience, subject, workflow e ref e então emitir uma
+capability W de publicação one-use, curta e scoped. Nenhuma fonte prova
+descarte físico do source. O provider e as tools podem observar o source. Por
+isso PCB0 registra claim do
+provider separado de evidence de lifecycle. Plano e billing da CI são externos
+ao protocolo, e não há claim de que GitHub gratuito satisfaça source fechado.
+
+Os controles de plataforma permanecem uma camada separada. A documentação
+oficial da Apple sobre
+[Hardened Runtime](https://developer.apple.com/documentation/security/hardened-runtime)
+e [Library Validation](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.cs.disable-library-validation)
+mostra que code injection, carregamento de libraries e exceções de entitlement
+dependem do OS. A documentação oficial da Microsoft sobre
+[Smart App Control](https://learn.microsoft.com/en-us/windows/apps/develop/smart-app-control/overview)
+e [SmartScreen](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)
+mostra controles de execução e reputação próprios da plataforma. W signature
+não substitui OS signing, notarization, entitlements, Smart App Control ou
+SmartScreen.
+
+Esses precedentes sustentam as seguintes inferências para W:
+
+- um registry pequeno pode ser static-first e self-hostable;
+- transportes HTTP/1.1, HTTP/2 e HTTP/3 podem ter semântica equivalente;
+- HTTPS deve ser exigido fora de transportes locais explícitos;
+- package index assinado deve ser bounded e monotonic;
+- package index rollback deve ser comparado com trusted checkpoint, não somente
+  com um contador fornecido pelo servidor;
+- release records e objects devem ser imutáveis por digest;
+- catalogs append-only podem alimentar mirror e search sem virar authority;
+- JSON deve ser UTF-8 estrito e rejeitar duplicate keys;
+- read capability ou signed URL privada concede acesso scoped, mas não troca a
+  identity do digest;
+- channel JSON pode ser convenience, mas não substitui lock e verification;
+- registry, mirror, object host, portal e builder precisam de papéis separados.
+
+PCB0 combina release intent assinado, source acquisition direta, assertion OIDC
+curta validada pelo serviço W, capability W de publicação one-use, attestations
+separadas e autorização final de digest. Builder não usa private key do
+maintainer. Registry não precisa receber source. Pinned builder, toolchain e
+actions, egress mínimo, redaction de logs/artifacts, lifecycle de secrets e
+identity do provider são outputs de threat model. A reprodução autorizada de
+source fechado não é reprodução pública. `publicSource`,
+`authorizedReproduction` e `independentPublicReproduction` permanecem claims
+distintos.
+
+O ledger separa o case `oidc-assertion-replay` do case
+`publication-capability-reuse`. A assertion comprova a identity apresentada ao
+serviço. A capability W emitida pelo serviço é que recebe o uso único.
+
+WEC0 aplica a regra já fechada para `WAbiKey`. A cápsula referencia chunks por
+digest e mantém um índice bounded. Seu `ExecutionDescriptor` registra
+entrypoints, requirements, sandbox profile e payload refs. WInterface, WMeta,
+WAbi, objects nativos, symbols, runtime requirements, generic body chunks
+permitidos e optimization summaries podem ser candidatos. HIR, MLIR e LLVM
+bitcode continuam privados da recipe. Um chunk de IR exige exact toolchain key.
+Debug maps, source maps, SBOM e evidence são sidecars ou referrers. Section e
+chunk fingerprints e runtime measurement map tratam relocation e ASLR sem
+alegar raw in-memory hash. Benchmark de source rebuild versus exact capsule
+reuse/link mede cache granularity, storage, network e redução de compile time.
+
+TEV0 preserva o cruzamento já descrito entre `@example`, fence `w test`, teste
+co-localizado e `*.test.w`. Todos baixam para `TestDescriptor` e `TestPlan`.
+Cada descriptor exige stable ID, owner declaration, origin carrier, source map,
+kind, fixtures/effects, oracle ou expected diagnostic/outcome, target/profile,
+seed/limits e body/plan digest. Evidence é keyed por source, release, artifact,
+plan, analyzer, recipe, toolchain, target e profile. Seed, limits e outcome
+também entram no record. Async/cancellation e snapshot/golden identity são
+cases próprios. Unit, compile-fail, property/fuzz, simulation, provider
+conformance, multi-process/hardware fault e performance continuam lanes
+separadas. Uma projection de evidence mostra facts por eixo e freshness, não um
+safe badge.
+
+SEV0 adiciona evidence contínua de security e advisory. A attestation imutável
+registra artifact, analyzer identity/version, policy, corpus-or-database digest,
+target e profile. SBOM, RuntimeClosure e reachability map ficam separados de
+advisory match, snapshots append-only, projection de portal/freshness e
+conflicting-analyzer record. A pesquisa cobre hash-valid malicious bytes,
+analyzer stale, atualização de database, regra de zero-day sem alegação
+retroativa, vulnerability target-specific, dead-stripped dependency,
+conflicting analyzers, revoked/yanked artifact, binary-only scan e safe badge
+agregado. O resultado não conhece zero-days antes da divulgação e não produz
+badge agregado.
+
+RSX0 liga execução remota a uma resolution, release e artifact exatos. A
+admission verifica maintainer authorization, registry admission, digest,
+freshness, revocation e consumer policy. Root oficial pode ser default, mas não
+é a única root possível. Source local unsigned exige local debug policy
+explícita. Native code remoto usa child process ou compartment. Signature não
+concede capability.
+
+SBX0 trata sandbox como provider/profile. O provider instala enforcement antes
+do user code e entrega receipt separado de audit ou learn mode. WEC0 rejeita
+modified executable pages e exige policy explícita para self-modifying code ou
+JIT. ENT0 trata entitlement como capability de provider com product, feature,
+audience e expiry. A API não expõe raw token. Nenhum desses estudos promete
+DRM inviolável.
+
+O witness adversarial do Restaurante usa o fluxo real
+`compile-final-menu / menu-compiler` do
+[`reference/last-light/README.md`](reference/last-light/README.md),
+seu manifest e transform, release/reproduction oracle e capability oracle. Ele
+é uma fixture de design que percorre RDX0, PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 e
+ENT0 com dois builders, targets, evidence, update/deprecation, revocation,
+search rebuild, `w run` sem network por default e entitlement opcional. Não é
+uma execução ou uma prova de implementação.
+
+O resultado é uma direção de distribuição e uma pauta de pesquisa, não um
+produto disponível. Compiler, runner, registry, attestation verifier, sandbox,
+hardware e provider continuam evidence missing no ledger.
+
 ### 1.18 Evidência de síntese KM0 e device scopes DEV0
 
 DEV0 mantém launch de accelerator sob as quatro formas de execução do W. A
@@ -5659,7 +5819,7 @@ resultado humano ou resultado de modelo.
 | Decisão | Current | Adversarial | Fact derivado |
 |---|---|---|---|
 | W-707 | completude G0–G5, source refs e snapshot | família FZ0 ausente | `FZ0-freeze-completeness` falha closed |
-| W-731 | uma disposition por decisão, `Research=0` no snapshot até W-1453 e lista exata das gates posteriores | decisão W-1408 removida | `freeze-research-close` falha closed |
+| W-731 | uma disposition por decisão, `Research=0` no snapshot até W-1453 e lista exata das gates posteriores | decisão W-1408 removida | `freeze-research-close` falha closed; o fechamento histórico foi estendido até W-1459 e W-1486 é a única research gate ativa posterior |
 | W-1408 | HUM0 com 8 slices, 32 tasks, 0 human, 0 model e stop-on-first | registros human/model e preference/score forjados | `HUM0-promotion` falha closed |
 
 O corpus `tooling/final-research-closure-cases.json` contém exatamente uma
@@ -5675,17 +5835,19 @@ O manifest fixa a cadeia de artefatos, digests, containment e roles. O bundle
 R1 fixa duas variantes W finas e parseáveis, ordem de apresentação, blinding e
 oracle host. O stop condition cobre stale digest, caller echo, manual count,
 registro human/model, preference/score, decisão/caso ausente ou duplicado,
-source escape, categoria errada e qualquer `Research` residual. W-1471,
+source escape, categoria errada e qualquer `Research` residual fora de W-1486.
+W-1471,
 W-1473, W-1474 e W-1475 reabriram gates depois do snapshot; W-1484 substituiu
 depois a semântica blocking de W-1471, e DRC0 fecha W-1484, W-1473, W-1474 e
-W-1475. FRC0 preserva os gaps de implementação e não promove compiler, runtime
-ou provider.
+W-1475. FRC0 preserva os gaps de implementação, registra o fechamento histórico
+até W-1459 e não promove compiler, runtime ou provider; W-1486 permanece a
+única research gate ativa.
 
 ### 1.37 Gate SOTA de performance e matriz de responsabilidade
 
 Esta seção prepara a implementação de performance. Ela é evidência comparativa
 e não contrato normativo. A matriz não cria syntax, API ou W-ID. No snapshot em
-que foi criada, ela não reabriu `Research=0`; W-1471, depois substituída por
+que foi criada, ela não reabriu o fechamento histórico `Research=0`; W-1471, depois substituída por
 W-1484, e W-1473, W-1474 e W-1475 foram abertas posteriormente e não pertencem
 a esse gate.
 
@@ -5724,8 +5886,9 @@ Cada linha exige cinco campos. O problema delimita o workload. A fonte primária
 registra alternativas observáveis. O owner recebe a decisão operacional. O
 workload e o oracle fixam a medição. A stop condition encerra a busca sem
 promover um resultado local a claim geral. O seed pode crescer quando um novo
-hotspot exigir outra alternativa, mas não muda a semântica nem reabre
-`Research=0`.
+hotspot exigir outra alternativa, mas não muda a semântica nem reabre o
+fechamento histórico `Research=0`; W-1486 é a única research gate ativa
+posterior.
 
 | Domínio | Problema, alternativas e fonte primária | Owner | Workload e oracle | Stop condition |
 |---|---|---|---|---|
@@ -5751,7 +5914,9 @@ o target, o workload, o provider ou o oracle mudar.
 
 PFU0 fornece a evidência host-only para três decisões depois do snapshot
 histórico FRC0. W-1451, W-1452 e W-1453 são agora
-`oracle-backed-current`; FRC0 verifica `Research=0` nesse limite histórico.
+`oracle-backed-current`; FRC0 verifica `Research=0` nesse limite histórico,
+estendido por AEG0/SIMD1 até W-1459. W-1486 é a única research gate ativa
+posterior.
 As gates W-1471, W-1473, W-1474 e W-1475 foram abertas depois. W-1484
 substituiu a interpretação blocking de W-1471; DRC0 fecha W-1484, W-1473,
 W-1474 e W-1475. PFU0 não trata a máquina host como compiler, runtime, provider
@@ -5784,7 +5949,7 @@ Artefatos canônicos: `tooling/pfu0-pre-freeze-usability-cases.json`,
 `tooling/studies/pfu0-pre-freeze-usability/`. As fontes reutilizadas são os
 contratos de build.w, stream/Channel/mailbox e property no atlas de Last Light;
 os digests são verificados pelo checker. O stop condition rejeita qualquer
-Research residual global, stale digest ou caller echo. A decisão de freeze usa
+Research residual fora de W-1486, stale digest ou caller echo. A decisão de freeze usa
 o resultado PFU0 e não afirma compiler, runtime ou provider.
 
 ### 1.39 AEG0 — App Essentials Gate
@@ -5801,8 +5966,9 @@ testemunhos finos. Ele não cria syntax, keyword, manifest field ou provider.
 | W-1457 | Packages específicos declaram ByteSource/Sink, profile+digest, streaming e quotas separadas para encoded, logical, allocation, depth e ratio. Offset/progress errors são tipados. Cancellation não desfaz bytes committed. Dictionary/state tem owner explícito. Codec/schema e compression transform têm identity e limits distintos | `Codec<T>` universal reflection-driven, primitive/syntax nova, filename/magic/locale/env inference, quota compartilhada ou rollback de bytes committed | codecs, compression providers, compiler, runtime, fuzz e estudos continuam missing |
 | W-1458 | Crypto passa por package/provider capability ligada pelo deployment. Algorithm/profile são typed e pinned. Secret/key handle é opaque, move-only e nonextractable por default, com purpose/audience/generation scope. Lifecycle tem dois caminhos: acquire→active→revoking→revoked→released para revoke/rotation, ou acquire→active→expired→released para expiry. Revoke fecha nova admission e drena operações admitidas. Host controla rotation/expiry/zeroization. Secret não entra em wire/storage/log/diagnostic/receipt | `std.crypto` universal, vault/global lookup, plaintext/env lookup, secret no wire, algorithm string, fallback ou downgrade | provider, compiler, runtime, HSM/keystore, rotation, zeroization, FFI e estudos continuam missing |
 
-AEG0 manteve `Research=0` no snapshot até W-1459. O oracle aceita os seis casos correntes (dois paths de
-crypto) e rejeita oito rotas contrafactuais. Mutation guards cobrem authority ambiental,
+AEG0 manteve o fechamento histórico `Research=0` no snapshot até W-1459;
+W-1486 é a única research gate ativa posterior. O oracle aceita os seis casos
+correntes (dois paths de crypto) e rejeita oito rotas contrafactuais. Mutation guards cobrem authority ambiental,
 fallback, plaintext/serialization, codec inference e source/digest stale. A
 máquina é host-only. Ela não afirma execução W nem readiness de provider.
 
@@ -5877,8 +6043,9 @@ os sinais do divisor, mantém a falha `min / -1` somente para divide e conserva
 
 SIMD1 é `oracle-backed-current` e não é implementação. Compiler, runtime,
 provider, native acceleration, ABI, FFI, measurements e estudos humanos/modelos
-continuam missing. No limite W-1459, `Research=0` permaneceu; as gates posteriores
-W-1471, sua sucessora W-1484, W-1473, W-1474 e W-1475 não pertencem a SIMD1.
+continuam missing. No limite W-1459, o fechamento histórico `Research=0`
+permaneceu; as gates posteriores W-1471, sua sucessora W-1484, W-1473, W-1474
+e W-1475 não pertencem a SIMD1, e W-1486 é a única research gate ativa.
 
 ## 2. Proveniência
 
@@ -7410,6 +7577,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1483 | domain placement sem priority/QoS portável | W 1.0 usa domain placement e não possui `priority`/`qos` em initializer `async`, `spawn`, `TaskGroup`, função, `Task`, service call, entry, service ou descriptor. A std não possui `.background`, `.userInteractive`, `Task.currentPriority` ou `Task.withPriority`, nem inheritance, escalation ou donation. Política física escolhe somente latência e interleavings sem ordem no source; ela não viola a ordem ou arbitration que o contrato aplicável de domain, barrier, channel ou service garante, não fabrica/substitui outcome, não ignora cancellation/deadline e não burla admission/budget/drain. Ordem deixada unspecified pode variar entre traces permitidos. Para o mesmo trace lógico de schedule, timer/deadline e eventos externos, outcome, ledger owner/drop e decisões derivadas são iguais; traces permitidos diferentes podem mudar observação de deadline, resultado de admission, winner de first-settled ou outro outcome permitido sem criar semântica QoS. `w explain execution` e provider receipt mostram política, suporte e `sourcePriority: absent` como evidência não branchable. No pedido com alergia, service/instance isola state, admission/reserva/budget protegem overload e deadline produz cancellation; domain é somente placement e pode ser atual, compartilhado ou dedicado | current design contract em DESIGN §12.6.2, estudo host QOS0 e narrativa do Restaurante; semantic checker, lowering, runtime/provider, receipts cross-target, testes de fault/liveness, performance e estudos humano/modelo continuam implementation-evidence gaps. Reabrir exige workload bounded do Última Luz, perda material não expressável pelos mecanismos vigentes e contrato cross-target completo de inversion/donation/starvation/cancel/deadline/admission/fault/liveness. Fontes primárias de Swift structured concurrency, Swift executor preference, Tokio fairness e Java SE 25 Thread foram verificadas em 2026-08-26 |
 | W-1484 | direct entry `sync` com prova `neverSuspend` | `sync f()` é uma call direta na mesma task/context/domain, sem Task, suspensão, thread blocking, event-loop reentry, authority, quota, provider, fallback ou `blocksThread`; exige spelling explícito `async fn` e `directEntry: available`, derivado sobre todo o body antes de specialization. A async entry continua publicando `suspension: may`, enquanto `sync` seleciona a direct entry `neverSuspend`. A prova aceita `sync` para outro facet available e compõe essas dependências por ponto fixo, inclusive SCCs sem provar termination; await/bare maySuspend, sync para facet absent e sync inválido para ordinary tornam o caller absent. Function type/HIR/WInterface preservam o facet; export concrete que o remove quebra source/API e muda `SemanticInterfaceKey`; protocol/foreign/interface bodyless e erasure sem facet não aceitam sync; overload resolve antes do facet; ordinary e async entries podem coexistir pela ABI W-1163 | oracle-backed-current por `DRC0-W-1484-current` e SYNC1; W-1484 substitui somente a semântica blocking de W-1471. Semantic checker, type/HIR/interface, dual-entry lowering/ABI, cross-module/erasure, diagnostics e estudos humano/modelo continuam missing. Swift SE-0296, Kotlin coroutines basics e Rust `Future` foram verificados em 2026-08-26; são precedentes de potential suspension e da separação entre suspension, polling e thread blocking, não execução W |
 | W-1485 | inventário de módulos locais no contexto efêmero | Fora de package ou workspace, o parent lógico do source root explícito forma uma root efêmera por invocation. O provider abre e confirma a root e cada source alcançado. Um import não-std parser-validado normaliza sua spelling completa para NFC e mapeia, a partir da root e nunca do importer, `a.b` para `a/b.w`; `std` e `std.*` pertencem somente ao provider std, e um source local nunca os sombreia. Um import não-std ausente falha como dependency externa indisponível e orienta package ou workspace, sem fallback, scan ou fetch. A root usa module path do header ou stem lógico, aceita header diferente do stem e resolve um import desse path para a própria root. Source descoberto usa o import como module path, recebe o último componente sem header e exige esse componente com header; outro nome e multi-file exigem package ou workspace. `SourceId` é `PackagePath` root-relative e module path é separado; canonical token e physical display são provenance. Cada source exige facts do mesmo provider, root e source/provider owner token (não package/workspace owner), containment `inside`, canonical token único e snapshot estável de bytes e digest. Escape, symlink escape, fact ausente, alias, colisão NFC e mutation falham. Somente imports, reexports e service-import origins explícitos expandem. O grafo é acíclico. Inventory tem root ordinal 0 e depois ordena `SourceId` por bytes UTF-8 NFC. Edges ordenam source ordinal, origin e target ordinal. Limits são do profile/provider. A recipe usa apenas `{SourceId,modulePath,digest}` e edges lógicos ordenados. | oracle-backed-current por RU0 host-only em `tooling/ephemeral-module-graph-machine.mjs`, com casos positivos e adversariais em `tooling/module-run-cases.json` e `tooling/module-run-reference.test.mjs`; CHK3 acrescenta scanner C caller-owned de origins, frontend seed de identities separadas e edges resolvidos explícitos, além do adapter D0 com índice de documento; provider real, owner detection, C graph loader, std provider, diagnostics completos, compiler e runtime continuam implementation-evidence gaps |
+| W-1486 | programa bounded de pesquisa binary-first registry/execution | A direção candidate para distribuição binary-first, registry HTTP static-first e execução assinada está aprovada como baseline do estudo. Canonical signing payload, protocol/security/provider evidence e as stop conditions das oito tasks RDX0, PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 e ENT0 permanecem research-gated; não há claim de implementação de registry, compiler, runner, sandbox, provider ou attestation verifier | O bundle RDX0 registra a direção, as dependencies, os outputs observáveis, os cases negativos e as stop conditions; a classificação research-gated usa a seção RDX0 como authority e exige evidence nova antes de promoção |
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova

@@ -15,7 +15,7 @@
     {
       "path": "../../../tooling/final-research-closure-cases.json",
       "symbol": "w-final-research-closure-cases-1",
-      "digest": "sha256:95a9eac1b73bb3625815eadf69baccd8a357cf7fa94d6daead7a1c17e9eb79b7"
+      "digest": "sha256:56373a355151248fd6fb99c64199ba267bf1d7ad8a4610c622d2ef1d9f710843"
     },
     {
       "path": "../../../tooling/frontend-freeze-cases.json",
@@ -30,17 +30,17 @@
     {
       "path": "../../../tooling/design-freeze-classification.json",
       "symbol": "w-design-freeze-classification-1",
-      "digest": "sha256:445b81fb947327c490107252d922b270b12ecb6f48ef5decdc2ebaa55c974281"
+      "digest": "sha256:ce495fd41dc2984fddb47ac5db5a8eb6f9ffbe29b1038b519ea0926a5d257927"
     },
     {
       "path": "../../../RATIONALE.md",
       "symbol": "| W-707 | gate de design freeze",
-      "digest": "sha256:6a1272d46590569fc7011f94d088d6b46b132637bf7de52a2a49473fc357f5cc"
+      "digest": "sha256:c9bd4cc486b12da54baef8292e3dd586435ce669ba64c8d607405450cb35ccbd"
     },
     {
       "path": "../../../DESIGN.md",
       "symbol": "#### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa",
-      "digest": "sha256:1bf9d042f9a88d2ac450cf5c7c8e419f14a99906ec5c8a234a1cb518cdaf11a4"
+      "digest": "sha256:0bc64da565efbe29f3193f5f930a516846a7800a12b1f065665af6ba559e30b7"
     }
   ],
   "variants": [
@@ -64,7 +64,7 @@
       "role": "rejected-witness",
       "language": "w",
       "path": "adversarial.w",
-      "digest": "sha256:141251fe09e786e1a089b00fe441b762f67181986de38a259841acf82e118c4b",
+      "digest": "sha256:0af7456b3467f852062bad4b834528220c80a21c055b809a1ff69d3df731f7b1",
       "changedConstructs": [
         "missing family/disposition/record mutation",
         "rejected gate route"
@@ -112,7 +112,7 @@
     },
     {
       "kind": "change",
-      "instruction": "Add one independent host case while preserving Research=0 and all implementation gaps."
+      "instruction": "Add one independent host case while preserving historical Research=0 through W-1459, the active W-1486 gate, and all implementation gaps."
     }
   ],
   "presentationOrders": [
@@ -139,7 +139,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:f2b0e3d25149c12281bcbb70be24ed55f9bf9f0b0b419308d9258019fe4af994"
+    "digest": "sha256:946168bab35b37b1c0ef6b5b78346784deded3ec705ffde4e310fe96a5202ddf"
   },
   "evidence": {
     "current": [

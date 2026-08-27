@@ -4,7 +4,7 @@
   "id": "FRC0",
   "gate": "FZ0-freeze-completeness/freeze-research-close/HUM0-promotion",
   "title": "Historical snapshot of the three research gates",
-  "question": "Does the reuse-only oracle close the historical W-001–W-1450 boundary, validate the exact PFU0 dispositions and W-1452 to W-1480 supersession, and preserve Research=0 after DRC0 without implementation or human/model results?",
+  "question": "Does the reuse-only oracle close the historical W-001–W-1450 boundary, validate the exact PFU0 dispositions and W-1452 to W-1480 supersession, preserve historical Research=0 through W-1459, and expose exactly W-1486 as the active post-snapshot research gate without implementation or human/model results?",
   "manifest": { "path": "manifest.json" },
   "corpus": { "path": "../../final-research-closure-cases.json" },
   "artifacts": {
@@ -24,5 +24,5 @@
     "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
     "hostOnly": true
   },
-  "stopCondition": "Stop on stale digest, caller echo, manual metric, forged human/model record, preference or score, missing or duplicate decision/case, source escape, wrong category, or any residual Research gate. Require PFU0 and DRC0 closure evidence before canonical recascade."
+  "stopCondition": "Stop on stale digest, caller echo, manual metric, forged human/model record, preference or score, missing or duplicate decision/case, source escape, wrong category, or any residual Research gate outside W-1486. Require PFU0 and DRC0 closure evidence before canonical recascade."
 }

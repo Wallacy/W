@@ -1,0 +1,395 @@
+{
+  "$schema": "w-rdx0-binary-registry-execution-ledger-1",
+  "id": "RDX0",
+  "status": "registered-research-bundle",
+  "title": "Binary-first distribution, static-first registry, signed execution, and provider research",
+  "languageSurface": "none",
+  "statePolicy": {
+    "registrationOnly": true,
+    "taskStatesAtRegistration": ["Direção", "Pesquisa"],
+    "promotionRequiresEvidence": true,
+    "promotionRule": "Uma revisão futura do schema e do checker pode promover uma task somente após evidence suficiente; os estados atuais são temporários e podem mudar com essa evidence."
+  },
+  "contractRefs": [
+    "DESIGN.md §20.4.9",
+    "DESIGN.md §20.4.12",
+    "DESIGN.md §21.2.2",
+    "DESIGN.md §§21.3–21.4",
+    "DESIGN.md §22.2",
+    "DESIGN.md §24.1.2",
+    "DESIGN.md §§26.9–26.11",
+    "RATIONALE.md §1.17",
+    "tooling/studies/sec0-security-model/README.md",
+    "tooling/studies/sea0-simulated-effects-approval/README.md"
+  ],
+  "candidatePaths": {
+    "discovery": "/.well-known/w-registry.json",
+    "packageIndex": "/v1/packages/<encoded-package-id>/index.json",
+    "releaseRecord": "/v1/releases/<algorithm>/<digest>.json",
+    "object": "/v1/objects/<algorithm>/<digest>",
+    "catalogCheckpoint": "/v1/catalog/checkpoint.json",
+    "catalogPages": "/v1/catalog/pages/<first>-<last>.jsonl",
+    "evidenceProjection": "/v1/evidence/<algorithm>/<subject-digest>/index.json",
+    "channel": "/v1/channels/<encoded-package-id>/<encoded-channel>/<encoded-target-profile>.json"
+  },
+  "serializationPolicy": {
+    "jsonEncoding": "UTF-8-strict",
+    "duplicateKeys": "reject",
+    "canonicalSigningPayload": "research-output-no-choice"
+  },
+  "sourceRefs": [
+    { "path": "DESIGN.md", "anchor": "21.4.1 RDX0", "claim": "candidate registry resources and resolution boundary" },
+    { "path": "DESIGN.md", "anchor": "21.3.3 PCB0", "claim": "closed-source publication and evidence separation" },
+    { "path": "DESIGN.md", "anchor": "21.4.2 SEV0, SBX0, RSX0 e ENT0", "claim": "security evidence, signed runner, sandbox and entitlement research" },
+    { "path": "DESIGN.md", "anchor": "22.2 Documentação e testes", "claim": "test carriers and evidence lanes" },
+    { "path": "tooling/studies/sec0-security-model/README.md", "anchor": "Invariantes", "claim": "security evidence boundary and profile limits" },
+    { "path": "tooling/studies/sea0-simulated-effects-approval/README.md", "anchor": "Test-infrastructure crosspoint", "claim": "bounded test lanes and independent oracle boundary" },
+    { "path": "reference/last-light/README.md", "anchor": "compile-final-menu / menu-compiler", "claim": "official Last Light menu compiler integration flow" },
+    { "path": "reference/last-light/packages/menu-compiler/build.w", "anchor": "package {", "claim": "real closed-package manifest fixture" },
+    { "path": "reference/last-light/packages/menu-compiler/transform.w", "anchor": "entry(transform)", "claim": "real hermetic menu transform fixture" },
+    { "path": "reference/last-light/release_oracle.w", "anchor": "test \"closed source keeps a separate reproduction claim\"", "claim": "release, reproduction, revocation and yank oracle fixture" },
+    { "path": "reference/last-light/capability_security_oracle.w", "anchor": "test \"revocation closes admission without rollback\"", "claim": "capability revocation boundary fixture" },
+    { "path": "reference/last-light/simulation.w", "anchor": "test \"a simulation profile replays the same observable history\"", "claim": "deterministic simulation fixture" },
+    { "path": "reference/last-light/execution.w", "anchor": "module execution<", "claim": "bounded execution and cancellation fixture" }
+  ],
+  "precedentRefs": [
+    { "url": "https://github.com/cloudflare/sandbox", "role": "Linux seccomp project with allow, deny and log rules; not the Cloudflare Sandbox SDK and not proof of W isolation" }
+  ],
+  "evidenceBoundary": {
+    "designOnly": true,
+    "current": ["design-source", "source-links", "host-ledger-checker"],
+    "missing": [
+      "compiler",
+      "runtime",
+      "registry",
+      "provider",
+      "attestation-verifier",
+      "sandbox-enforcement",
+      "hardware",
+      "fault-stress",
+      "canonical-signing-payload",
+      "private-download-auth",
+      "advisory-database",
+      "platform-os-controls",
+      "local-split-evidence",
+      "human-study",
+      "model-study"
+    ],
+    "claimsNotAllowed": [
+      "compiler-available",
+      "registry-available",
+      "provider-conformant",
+      "sandbox-isolated",
+      "source-physically-discarded",
+      "drm-inviolable",
+      "ci-source-confidentiality",
+      "zero-day-known-before-disclosure",
+      "canonicalization-selected"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "RDX0",
+      "state": "Direção",
+      "title": "Registry HTTP static-first candidate protocol",
+      "dependencies": ["DESIGN.md §21.4", "W-1469", "SEC0"],
+      "outputs": [
+        { "id": "RDX0-bounded-schema-set", "kind": "schema", "observable": "discovery, package, release, object, catalog, channel and evidence records with bounded fields" },
+        { "id": "RDX0-transport-fixtures", "kind": "fixture-matrix", "observable": "equivalent HTTP/1.1, HTTP/2 and HTTP/3 fixtures with HTTPS and explicit-local cases" },
+        { "id": "RDX0-catalog-rebuild-report", "kind": "conformance-report", "observable": "search index reconstructed only from checkpoint and immutable catalog pages without authority" },
+        { "id": "RDX0-monotonic-update-vectors", "kind": "test-vectors", "observable": "sequence, channel, yank, deprecation and revocation decisions anchored in trusted checkpoint" },
+        { "id": "RDX0-tuf-metadata-gap-matrix", "kind": "gap-matrix", "observable": "targets, snapshot, timestamp, expiry, download and archive remain explicit research outputs" },
+        { "id": "RDX0-canonical-signing-payload-report", "kind": "research-report", "observable": "candidate deterministic signing payload fixtures compare serialization choices without selecting canonicalization" },
+        { "id": "RDX0-private-read-capability-record", "kind": "access-record", "observable": "short-lived read capability or signed URL is scoped by object, package, audience and expiry and is not authority" },
+        { "id": "RDX0-privacy-error-mode-vectors", "kind": "test-vectors", "observable": "private download policy distinguishes 401, 403 and 404 outcomes" },
+        { "id": "RDX0-mirror-private-access-report", "kind": "mirror-report", "observable": "mirror serves matching digest bytes without gaining package authority or private-download scope" }
+      ],
+      "adversarialCases": [
+        { "id": "RDX0-transport-semantic-drift", "expected": "reject transport-specific semantics" },
+        { "id": "RDX0-search-authority-bypass", "expected": "search result cannot grant authority or alter lock" },
+        { "id": "RDX0-package-index-rollback", "expected": "reject rollback against trusted checkpoint even when the server counter appears monotonic" },
+        { "id": "RDX0-release-digest-mutation", "expected": "reject changed immutable release bytes" },
+        { "id": "RDX0-mirror-authority-substitution", "expected": "reject unlisted mirror as authority" },
+        { "id": "RDX0-catalog-gap", "expected": "reject missing append-only catalog page" },
+        { "id": "RDX0-channel-lock-bypass", "expected": "channel convenience cannot replace lock and release verification" },
+        { "id": "RDX0-timestamp-freeze-gap", "expected": "keep timestamp, expiry and freeze as explicit research gaps" },
+        { "id": "RDX0-download-archive-gap", "expected": "keep download and archive behavior outside the current implementation claim" },
+        { "id": "RDX0-duplicate-json-key", "expected": "reject duplicate keys in strict UTF-8 JSON" },
+        { "id": "RDX0-canonicalization-premature", "expected": "keep canonical signing payload as a research output until evidence selects a choice" },
+        { "id": "RDX0-read-capability-authority-confusion", "expected": "token or signed URL grants only scoped access and never package authority" },
+        { "id": "RDX0-private-download-privacy-mode", "expected": "return the selected 401, 403 or 404 privacy outcome without leaking private existence" },
+        { "id": "RDX0-mirror-private-object", "expected": "mirror cannot widen object, package, audience or expiry scope" }
+      ],
+      "evidence": {
+        "current": ["design-source", "official-precedent-note", "ledger-checker"],
+        "missing": ["canonical-serialization", "HTTP-conformance", "signature-verifier", "freeze-freshness-probe", "mirror-fault-probe"]
+      },
+      "stopCondition": "Pare quando schemas, strict JSON, bounds, transport equivalence, trusted-checkpoint rollback, catalog reconstruction, private access modes, canonical-payload alternatives e todos os cases adversariais tiverem resultados observáveis. Não promova um registry implementado."
+    },
+    {
+      "id": "PCB0",
+      "state": "Pesquisa",
+      "title": "Closed-source publication through ephemeral CI",
+      "dependencies": ["DESIGN.md §21.3.1", "DESIGN.md §21.3.2", "RDX0", "W-1469"],
+      "outputs": [
+        { "id": "PCB0-release-intent-schema", "kind": "schema", "observable": "signed intent binds source authority, recipe, target, policy and final digest scope" },
+        { "id": "PCB0-oidc-assertion-validation-trace", "kind": "evidence-record", "observable": "short-lived OIDC assertion is validated for issuer, audience, subject, workflow and ref without assuming one-use" },
+        { "id": "PCB0-publication-capability-record", "kind": "capability-record", "observable": "W service emits a one-use, short-lived, scoped publication capability after OIDC validation" },
+        { "id": "PCB0-publication-attestations", "kind": "attestation-set", "observable": "artifact, builder, test and security attestation links" },
+        { "id": "PCB0-final-authorization-record", "kind": "authorization-record", "observable": "maintainer or separate automation authorizes exact final digests" },
+        { "id": "PCB0-source-visibility-matrix", "kind": "state-matrix", "observable": "publicSource, sourceClosedBinary and private package remain separate" },
+        { "id": "PCB0-builder-toolchain-action-pin", "kind": "provenance-record", "observable": "builder image, toolchain and actions are pinned to digests or revisions" },
+        { "id": "PCB0-source-acquisition-egress-plan", "kind": "policy", "observable": "egress is minimized after source acquisition and each permitted destination is recorded" },
+        { "id": "PCB0-log-artifact-redaction-plan", "kind": "redaction-plan", "observable": "logs, artifacts, caches and diagnostics redact source and secret material" },
+        { "id": "PCB0-secret-lifecycle-record", "kind": "lifecycle-record", "observable": "secret issuance, use, revocation and cleanup have bounded receipts" },
+        { "id": "PCB0-ci-provider-identity-record", "kind": "identity-record", "observable": "CI provider and runner identity are recorded separately from maintainer and builder authorities" }
+      ],
+      "adversarialCases": [
+        { "id": "PCB0-oidc-assertion-replay", "expected": "reject stale or replayed OIDC assertion according to issuer, audience, subject, workflow and ref validation" },
+        { "id": "PCB0-publication-capability-reuse", "expected": "reject reuse of the W one-use publication capability" },
+        { "id": "PCB0-oidc-scope-escalation", "expected": "reject source, package or digest scope expansion" },
+        { "id": "PCB0-registry-source-upload", "expected": "registry is not required to receive source" },
+        { "id": "PCB0-builder-maintainer-key-reuse", "expected": "reject builder signing with maintainer private key" },
+        { "id": "PCB0-final-digest-without-authorization", "expected": "reject publication without final authorization" },
+        { "id": "PCB0-discard-claim-as-proof", "expected": "do not convert provider claim into physical discard proof" },
+        { "id": "PCB0-closed-public-reproduction", "expected": "separate authorized reproduction from independent public reproduction" },
+        { "id": "PCB0-binary-only-abi-mismatch", "expected": "fail without source fallback" },
+        { "id": "PCB0-unpinned-action-exfiltration", "expected": "reject unpinned action that can exfiltrate source" },
+        { "id": "PCB0-log-source-leak", "expected": "redact source and secrets from logs and diagnostics" },
+        { "id": "PCB0-artifact-cache-leak", "expected": "redact or scope artifact and cache outputs" },
+        { "id": "PCB0-fork-pr-secret-access", "expected": "do not expose publication secrets to fork or pull-request execution" },
+        { "id": "PCB0-oidc-scope-audience-ref-mismatch", "expected": "reject issuer, audience, subject, workflow or ref mismatch" }
+      ],
+      "evidence": {
+        "current": ["design-source", "OIDC-precedent-note", "ephemeral-runner-precedent-note"],
+        "missing": ["CI-provider-receipt", "source-lifecycle-proof", "attestation-verifier", "multi-builder-reproduction", "secret-lifecycle-probe"]
+      },
+      "stopCondition": "Pare quando intent, OIDC assertion validation, one-use W publication capability, source acquisition, pinned CI threat outputs, attestations, final authorization, visibility states e todos os cases de replay, leakage ou authority tiverem outputs observáveis. Não alegue descarte físico, source confidentiality ou reprodução pública."
+    },
+    {
+      "id": "WEC0",
+      "state": "Pesquisa",
+      "title": "Bounded binary capsule and artifact family",
+      "dependencies": ["DESIGN.md §20.4.9", "DESIGN.md §20.4.12", "DESIGN.md §21.2.2", "PCB0"],
+      "outputs": [
+        { "id": "WEC0-capsule-schema", "kind": "schema", "observable": "root digest and bounded index that reference internal chunks by digest" },
+        { "id": "WEC0-execution-descriptor-capsule", "kind": "schema", "observable": "ExecutionDescriptor records entrypoints, requirements, sandbox profile and payload refs" },
+        { "id": "WEC0-chunk-kind-matrix", "kind": "matrix", "observable": "WInterface, WMeta, WAbi, native objects, symbols, requirements and allowed summaries" },
+        { "id": "WEC0-toolchain-private-ir-gate", "kind": "admission-rule", "observable": "HIR, MLIR or LLVM bitcode requires exact toolchain key" },
+        { "id": "WEC0-artifact-family-matrix", "kind": "recipe-matrix", "observable": "target, profile and toolchain-plan row select an artifact family" },
+        { "id": "WEC0-sidecar-referrer-map", "kind": "reference-map", "observable": "debug maps, source maps, SBOM and evidence remain sidecars or referrers" },
+        { "id": "WEC0-relocation-fingerprint-map", "kind": "measurement-map", "observable": "section and chunk fingerprints treat relocation and ASLR without raw in-memory hashing" },
+        { "id": "WEC0-source-vs-capsule-benchmark", "kind": "benchmark-plan", "observable": "source rebuild versus exact capsule reuse/link measures compile time, cache granularity, storage and network" }
+      ],
+      "adversarialCases": [
+        { "id": "WEC0-root-index-cycle", "expected": "reject unbounded or cyclic capsule index" },
+        { "id": "WEC0-missing-chunk", "expected": "reject absent digest-referenced chunk" },
+        { "id": "WEC0-chunk-digest-mutation", "expected": "reject bytes that do not match chunk digest" },
+        { "id": "WEC0-toolchain-private-ir-mismatch", "expected": "reject IR from another exact toolchain key" },
+        { "id": "WEC0-universal-binary-claim", "expected": "reject artifact family that hides target/profile/toolchain identity" },
+        { "id": "WEC0-dynamic-static-recipe-mix", "expected": "keep dynamic recipe separate from static capsule" },
+        { "id": "WEC0-binary-only-wabi-mismatch", "expected": "reject mismatch without source fallback" },
+        { "id": "WEC0-modified-executable-page", "expected": "detect or reject modified executable page under the selected platform and provider policy" },
+        { "id": "WEC0-self-modifying-jit-policy", "expected": "require explicit policy and evidence for self-modifying code or JIT" },
+        { "id": "WEC0-raw-in-memory-hash-claim", "expected": "do not claim raw in-memory equality when relocation or ASLR changes addresses" }
+      ],
+      "evidence": {
+        "current": ["DESIGN-ABI-contract", "recipe-identity-contract", "ledger-checker"],
+        "missing": ["capsule-parser", "canonical-index-encoding", "chunk-fault-probe", "cross-target-builds", "toolchain-reproduction"]
+      },
+      "stopCondition": "Pare quando capsule schema, ExecutionDescriptor, bounds, chunk classes, toolchain gate, artifact family, sidecars, relocation measurements, source-versus-capsule benchmark e todos os modified-page, JIT e mismatch cases tiverem outputs observáveis. O objetivo é provar redução de compile time. Não promova uma universal binary ou uma nova ABI W."
+    },
+    {
+      "id": "TEV0",
+      "state": "Pesquisa",
+      "title": "Test descriptor, evidence key and separated lanes",
+      "dependencies": ["DESIGN.md §22.2", "W-1474", "SEC0", "RDX0"],
+      "outputs": [
+        { "id": "TEV0-test-plan-normalization", "kind": "mapping", "observable": "@example, w test, colocated test and *.test.w map to TestDescriptor and TestPlan" },
+        { "id": "TEV0-test-descriptor-complete-schema", "kind": "schema", "observable": "stable ID, owner declaration, origin carrier, source map, kind, fixtures/effects, oracle or expected diagnostic/outcome, target/profile, seed/limits and body/plan digest are required" },
+        { "id": "TEV0-evidence-key-schema", "kind": "schema", "observable": "source, release, artifact, plan, analyzer, recipe, toolchain, target and profile keys plus seed, limits and outcome" },
+        { "id": "TEV0-lane-matrix", "kind": "lane-matrix", "observable": "unit, compile-fail, property/fuzz, simulation, provider, fault and performance remain distinct" },
+        { "id": "TEV0-subject-projection-fixture", "kind": "projection-fixture", "observable": "subject digest points to immutable attestation objects and axis facts" },
+        { "id": "TEV0-freshness-policy-vectors", "kind": "test-vectors", "observable": "stale evidence and advisory changes produce new projections without rewriting attestations" }
+      ],
+      "adversarialCases": [
+        { "id": "TEV0-effect-without-fixture", "expected": "reject effectful test without explicit fixture" },
+        { "id": "TEV0-simulation-as-provider-proof", "expected": "reject simulation as real-provider evidence" },
+        { "id": "TEV0-lane-collapse", "expected": "reject one aggregate lane for unit, fuzz, provider and fault evidence" },
+        { "id": "TEV0-missing-seed-or-limits", "expected": "reject property or fuzz evidence without seed and limits" },
+        { "id": "TEV0-stale-attestation-rewrite", "expected": "append a projection instead of mutating the attestation" },
+        { "id": "TEV0-safe-badge-aggregation", "expected": "reject aggregated safe badge" },
+        { "id": "TEV0-test-payload-leak", "expected": "keep documentation tests out of release payload" },
+        { "id": "TEV0-async-cancellation", "expected": "record async and cancellation behavior in the descriptor and evidence lane" },
+        { "id": "TEV0-snapshot-golden-identity", "expected": "bind snapshot or golden identity to source, plan, target and profile digests" }
+      ],
+      "evidence": {
+        "current": ["DESIGN-test-contract", "SEA0-test-crosspoint", "SEC0-boundary"],
+        "missing": ["test-runner", "provider-conformance", "fault-injection", "evidence-verifier", "freshness-monitor"]
+      },
+      "stopCondition": "Pare quando os quatro carriers, complete TestDescriptor/TestPlan fields, evidence key, lane matrix, async/cancellation and snapshot/golden vectors, subject projection, freshness vectors e todos os cases de fixture ou aggregation tiverem resultados observáveis. Não produza safe badge."
+    },
+    {
+      "id": "SEV0",
+      "state": "Pesquisa",
+      "title": "Continuous security and advisory evidence",
+      "dependencies": ["DESIGN.md §21.4.2", "SEC0", "TEV0", "RDX0"],
+      "outputs": [
+        { "id": "SEV0-immutable-security-attestation-schema", "kind": "schema", "observable": "immutable security attestation is keyed by artifact, analyzer identity and version, policy, corpus-or-database digest, target and profile" },
+        { "id": "SEV0-sbom-runtime-closure-reachability-map", "kind": "evidence-map", "observable": "SBOM, RuntimeClosure and reachability facts are linked to the exact artifact and target/profile" },
+        { "id": "SEV0-advisory-match-projection", "kind": "projection", "observable": "advisory match identifies package, version, target, profile and artifact" },
+        { "id": "SEV0-append-only-reevaluation-snapshot", "kind": "snapshot", "observable": "analyzer or database changes append a new reevaluation snapshot without rewriting attestations" },
+        { "id": "SEV0-portal-axis-freshness-projection", "kind": "portal-projection", "observable": "portal exposes security facts by axis and freshness without an aggregate safe badge" },
+        { "id": "SEV0-conflicting-analyzer-record", "kind": "conflict-record", "observable": "conflicting analyzer identities, versions, policies and outcomes remain separate facts" }
+      ],
+      "adversarialCases": [
+        { "id": "SEV0-hash-valid-malicious-bytes", "expected": "record valid digest bytes as malicious evidence when analyzer policy identifies them" },
+        { "id": "SEV0-stale-analyzer", "expected": "mark stale analyzer evidence and do not treat it as current" },
+        { "id": "SEV0-advisory-database-update", "expected": "append reevaluation after a CVE or advisory database update" },
+        { "id": "SEV0-new-zero-day-rule", "expected": "record a newly disclosed rule or signature without claiming knowledge before disclosure" },
+        { "id": "SEV0-target-specific-vulnerability", "expected": "match vulnerability only to affected target/profile and artifact scope" },
+        { "id": "SEV0-dead-stripped-dependency", "expected": "distinguish a resolved dependency from reachable or shipped code" },
+        { "id": "SEV0-conflicting-analyzers", "expected": "preserve conflicting analyzer results instead of selecting a hidden winner" },
+        { "id": "SEV0-revoked-yanked-artifact", "expected": "carry revoked or yanked state into the security projection without rewriting the artifact" },
+        { "id": "SEV0-binary-only-scan", "expected": "record binary-only scan limits and do not infer source or build provenance" },
+        { "id": "SEV0-aggregate-safe-badge", "expected": "reject an aggregate safe badge in portal or registry projection" }
+      ],
+      "evidence": {
+        "current": ["DESIGN-security-boundary", "SEC0-boundary", "TEV0-evidence-key"],
+        "missing": ["security-attestation-verifier", "advisory-feed-receipt", "sbom-generator", "runtime-closure-analyzer", "reachability-analyzer", "conflict-reducer"]
+      },
+      "stopCondition": "Pare quando security attestation, SBOM/RuntimeClosure/reachability, advisory match, reevaluation snapshot, portal axis/freshness e conflicting-analyzer record tiverem resultados observáveis e todos os cases forem avaliados. Não alegue conhecimento prévio de zero-days nem produza safe badge agregado."
+    },
+    {
+      "id": "SBX0",
+      "state": "Pesquisa",
+      "title": "Provider/profile sandbox enforcement",
+      "dependencies": ["DESIGN.md §21.4.2", "SEC0", "WEC0"],
+      "outputs": [
+        { "id": "SBX0-capability-effect-plan", "kind": "mapping", "observable": "capability and effect plan maps to provider-specific controls" },
+        { "id": "SBX0-linux-enforcement-profile", "kind": "profile", "observable": "seccomp allowlist plus namespaces, credentials, filesystem, network and resource controls" },
+        { "id": "SBX0-cross-platform-equivalence", "kind": "profile-matrix", "observable": "Windows, macOS and WASI equivalents preserve explicit admission facts" },
+        { "id": "SBX0-pre-user-code-receipt", "kind": "enforcement-receipt", "observable": "provider enforcement completes before user code" },
+        { "id": "SBX0-learn-mode-separation", "kind": "policy", "observable": "audit or learn mode is suggestion-only and never an enforcement receipt" }
+      ],
+      "adversarialCases": [
+        { "id": "SBX0-seccomp-alone", "expected": "reject seccomp without namespaces, credentials and policy controls" },
+        { "id": "SBX0-denylist-baseline", "expected": "reject denylist as adversarial baseline" },
+        { "id": "SBX0-ld-preload-bypass", "expected": "reject LD_PRELOAD as isolation" },
+        { "id": "SBX0-ptrace-cap-admin-wrapper", "expected": "reject ptrace or CAP_SYS_ADMIN wrapper as baseline" },
+        { "id": "SBX0-same-process-plugin", "expected": "reject same-process native plugin" },
+        { "id": "SBX0-learn-mode-receipt", "expected": "learn mode cannot satisfy enforcement receipt" },
+        { "id": "SBX0-pre-enforcement-entry", "expected": "reject user code before provider enforcement" },
+        { "id": "SBX0-budget-or-capability-drift", "expected": "reject resource or capability expansion at deployment" }
+      ],
+      "evidence": {
+        "current": ["SEC0-profile-boundary", "cloudflare-sandbox-linux-seccomp-precedent", "WEC0-execution-descriptor-boundary"],
+        "missing": ["provider-enforcement", "Linux-fault-stress", "Windows-provider", "macOS-provider", "WASI-provider", "side-channel-evidence"]
+      },
+      "stopCondition": "Pare quando plan, provider profiles, pre-user-code ordering, learn-mode separation e todos os bypass cases tiverem provider receipts e negative results. Não alegue isolamento adversarial."
+    },
+    {
+      "id": "RSX0",
+      "state": "Pesquisa",
+      "title": "Signed remote runner with explicit admission",
+      "dependencies": ["DESIGN.md §21.4.2", "DESIGN.md §24.1.2", "RDX0", "WEC0", "SBX0"],
+      "outputs": [
+        { "id": "RSX0-exact-resolution-machine", "kind": "state-machine", "observable": "package version resolves to exact lock, release, artifact and digest" },
+        { "id": "RSX0-admission-receipt-schema", "kind": "schema", "observable": "authorization, registry admission, freshness, revocation and consumer policy facts" },
+        { "id": "RSX0-remote-launch-trace", "kind": "launch-trace", "observable": "native code starts in child process or compartment after enforcement" },
+        { "id": "RSX0-local-debug-policy", "kind": "policy", "observable": "unsigned local source is allowed only by explicit local debug policy" },
+        { "id": "RSX0-consumer-policy-matrix", "kind": "policy-matrix", "observable": "deployment-owned reproduction, evidence, advisory and capability requirements" }
+      ],
+      "adversarialCases": [
+        { "id": "RSX0-package-version-drift", "expected": "reject non-exact resolution" },
+        { "id": "RSX0-artifact-digest-mismatch", "expected": "reject payload digest mismatch" },
+        { "id": "RSX0-stale-or-revoked-release", "expected": "block install or execution" },
+        { "id": "RSX0-hard-coded-official-root", "expected": "allow configured trusted roots and reject single-root assumption" },
+        { "id": "RSX0-signature-capability-grant", "expected": "signature cannot grant capability" },
+        { "id": "RSX0-same-process-native-load", "expected": "reject baseline same-process native loading" },
+        { "id": "RSX0-unsandboxed-ad-hoc-run", "expected": "reject remote ad-hoc execution without sandbox admission" },
+        { "id": "RSX0-channel-convenience-bypass", "expected": "channel document cannot replace lock or release verification" }
+      ],
+      "evidence": {
+        "current": ["DESIGN-run-boundary", "WEC0-capsule-boundary", "consumer-policy-direction"],
+        "missing": ["runner", "signature-verifier", "revocation-monitor", "sandbox-provider", "OS-signing-adapter", "remote-fault-probe"]
+      },
+      "stopCondition": "Pare quando exact resolution, admission, freshness, revocation, local debug policy, child-process launch, consumer policy e todos os bypass cases tiverem outputs observáveis. Não anuncie CLI ou runner disponível."
+    },
+    {
+      "id": "ENT0",
+      "state": "Pesquisa",
+      "title": "Opaque entitlement or lease capability",
+      "dependencies": ["DESIGN.md §21.4.2", "RSX0", "SBX0"],
+      "outputs": [
+        { "id": "ENT0-opaque-lease-schema", "kind": "schema", "observable": "product, feature, audience and expiry are bound without raw token in app API" },
+        { "id": "ENT0-online-offline-policy", "kind": "policy-matrix", "observable": "online and offline validation rules have explicit expiry and revocation behavior" },
+        { "id": "ENT0-provider-redaction-boundary", "kind": "boundary-record", "observable": "provider owns opaque entitlement material and app receives only capability result" },
+        { "id": "ENT0-expiry-revocation-vectors", "kind": "test-vectors", "observable": "expired, revoked, audience-mismatch and product-mismatch decisions" },
+        { "id": "ENT0-residual-risk-record", "kind": "risk-record", "observable": "tamper, replay, offline and provider compromise limits are explicit" }
+      ],
+      "adversarialCases": [
+        { "id": "ENT0-raw-token-app-api", "expected": "reject raw entitlement token in app API" },
+        { "id": "ENT0-product-feature-audience-mismatch", "expected": "reject scope mismatch" },
+        { "id": "ENT0-expired-offline-lease", "expected": "reject expired lease under offline policy" },
+        { "id": "ENT0-indefinite-lease", "expected": "reject lease without bounded expiry or renewal policy" },
+        { "id": "ENT0-provider-identity-without-scope", "expected": "reject provider identity as entitlement authority without scope" },
+        { "id": "ENT0-replay-after-revocation", "expected": "reject replayed revoked lease when policy requires online check" },
+        { "id": "ENT0-inviolable-drm-claim", "expected": "record residual risk and reject inviolable DRM claim" }
+      ],
+      "evidence": {
+        "current": ["DESIGN-entitlement-boundary", "RSX0-policy-boundary", "SBX0-provider-boundary"],
+        "missing": ["entitlement-provider", "secure-storage", "online-revocation", "offline-replay-probe", "tamper-resistance-evidence"]
+      },
+      "stopCondition": "Pare quando lease schema, online/offline policy, redaction boundary, expiry/revocation vectors e residual risk tiverem outputs observáveis. Não prometa DRM inviolável."
+    }
+  ],
+  "witnesses": [
+    {
+      "id": "RDX0-last-light-restaurant-full-traversal",
+      "kind": "adversarial-design-fixture",
+      "sourceRefs": [
+        { "path": "reference/last-light/README.md", "anchor": "compile-final-menu / menu-compiler", "claim": "Last Light menu compiler and integrated restaurant flow" },
+        { "path": "reference/last-light/packages/menu-compiler/build.w", "anchor": "package {", "claim": "closed-package manifest and public product fixture" },
+        { "path": "reference/last-light/packages/menu-compiler/transform.w", "anchor": "entry(transform)", "claim": "hermetic transform entry and typed input/output" },
+        { "path": "reference/last-light/release_oracle.w", "anchor": "test \"closed source keeps a separate reproduction claim\"", "claim": "closed release, reproduction, yank and revocation fixture" },
+        { "path": "reference/last-light/capability_security_oracle.w", "anchor": "test \"revocation closes admission without rollback\"", "claim": "capability revocation without rollback fixture" },
+        { "path": "reference/last-light/simulation.w", "anchor": "test \"a simulation profile replays the same observable history\"", "claim": "doctest and deterministic simulation fixture" },
+        { "path": "reference/last-light/execution.w", "anchor": "module execution<", "claim": "bounded task and cancellation fixture" }
+      ],
+      "taskIds": ["RDX0", "PCB0", "WEC0", "TEV0", "SEV0", "SBX0", "RSX0", "ENT0"],
+      "scenario": "A closed-source last-light/menu-compiler package presents a release intent, uses two authorized builders, emits one WEC capsule per target, runs doctests and fuzz lanes, publishes security evidence, applies update and deprecation metadata, revokes a release, rebuilds search, and attempts w run in a sandbox without network by default with optional entitlement.",
+      "outputs": [
+        { "id": "RDX0-last-light-witness-output", "kind": "fixture-report", "observable": "one bounded report traverses all eight tasks in dependency order and names every source, digest, target, profile and policy boundary" },
+        { "id": "RDX0-last-light-witness-resolution", "kind": "resolution-trace", "observable": "known identity, private read capability, trusted checkpoint, catalog search rebuild and channel convenience remain separate" },
+        { "id": "RDX0-last-light-witness-release-evidence", "kind": "evidence-trace", "observable": "release intent, two builders, per-target capsules, test/security attestations, update, deprecation and revocation are linked by digest" },
+        { "id": "RDX0-last-light-witness-run-policy", "kind": "admission-trace", "observable": "exact w run resolution reaches child-process sandbox with network denied by default and optional opaque entitlement" }
+      ],
+      "adversarialCases": [
+        { "id": "RDX0-last-light-closed-package-full-traversal", "expected": "fixture reaches RDX0, PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 and ENT0 without claiming implementation" },
+        { "id": "RDX0-last-light-oidc-assertion-capability", "expected": "OIDC assertion replay is distinct from W publication capability reuse and scope escalation" },
+        { "id": "RDX0-last-light-target-capsule-evidence", "expected": "target-specific capsules and doctest, fuzz and security evidence cannot be substituted across target or profile" },
+        { "id": "RDX0-last-light-deprecation-revocation-search", "expected": "deprecation/update, revocation and search rebuild append metadata and never rewrite release or attestation" },
+        { "id": "RDX0-last-light-sandbox-entitlement", "expected": "w run is sandboxed with network denied by default and entitlement remains optional, scoped and opaque" }
+      ]
+    }
+  ],
+  "completion": {
+    "taskIds": ["RDX0", "PCB0", "WEC0", "TEV0", "SEV0", "SBX0", "RSX0", "ENT0"],
+    "witnessIds": ["RDX0-last-light-restaurant-full-traversal"],
+    "requiredPerTask": ["dependencies", "outputs", "adversarialCases", "evidence", "stopCondition"],
+    "registrationOnly": true,
+    "taskStatesAtRegistration": ["Direção", "Pesquisa"],
+    "promotionRequiresEvidence": true,
+    "promotionRule": "Uma revisão futura do schema e do checker pode promover uma task somente após evidence suficiente; os estados atuais são temporários e podem mudar com essa evidence.",
+    "stopCondition": "Pare o bundle quando cada task satisfizer sua stop condition, o witness passar, o checker passar e a revisão Sol confirmar que nenhum output virou implementação."
+  },
+  "nonClaims": [
+    "Este ledger não implementa registry, compiler, runtime, runner, provider ou sandbox.",
+    "Este ledger não prova descarte físico do source.",
+    "Este ledger não prova conformance, isolamento, reprodução pública ou DRM inviolável.",
+    "Uma assertion OIDC curta é prova da identity do workflow, não credencial W de uso único; somente a capability W de publicação pode ter one-use explícito.",
+    "Ephemeral CI, provider identity ou billing não provam source confidentiality nem tornam GitHub gratuito suficiente para source fechado.",
+    "Este ledger não escolhe canonicalização de signing payload nem alega conhecer zero-days antes da divulgação."
+  ]
+}
