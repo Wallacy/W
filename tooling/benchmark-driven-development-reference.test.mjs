@@ -5,200 +5,210 @@ import test from "node:test";
 import {
   BENCHMARK_DISPOSITIONS,
   DESCRIPTOR_IDENTITIES,
-  EDIT_RECIPE,
   LANGUAGE_PROFILES,
-  LIFECYCLE_PHASES,
+  LIFECYCLE_SCENARIOS,
+  LIFECYCLE_STAGES,
   REQUIRED_CASES,
   SOURCE_FIXTURE,
+  expectedMatrixBlockers,
+  expectedMatrixStatus,
   loadBmdDocuments,
+  materializeCase,
   reduceCase,
   reduceCorpus,
   validateCorpus,
   validateManifest,
   validateProgram,
+  validateResult,
   validateScenario,
 } from "./benchmark-driven-development-machine.mjs";
 
 const root = path.resolve(import.meta.dir, "..");
 const documents = loadBmdDocuments();
+const clone = (value) => JSON.parse(JSON.stringify(value));
 
-test("BMD0 documents pass the host validators", () => {
+test("BMD1 documents pass the host validators", () => {
   assert.deepEqual(validateProgram(documents.program, documents.corpus), []);
   assert.deepEqual(validateManifest(documents.manifest), []);
   assert.deepEqual(validateCorpus(documents.corpus), []);
 });
 
-test("program profiles and language scenario profiles have separate contracts", () => {
+test("W-1487 profiles and lanes remain separate from compiler lifecycle", () => {
   assert.deepEqual(documents.program.profiles.map((profile) => profile.id), LANGUAGE_PROFILES);
   assert.equal(documents.program.profiles.find((profile) => profile.id === "idiomatic").primary, true);
   assert.equal(documents.program.profiles.find((profile) => profile.id === "idiomatic").regression, true);
-  assert.equal(documents.program.profiles.find((profile) => profile.id === "learner").primary, false);
-  assert.equal(documents.program.profiles.find((profile) => profile.id === "frontier").regression, false);
-
-  const compiler = documents.corpus.cases.find((item) => item.id === "BMD0-W-1487-compiler-lifecycle");
-  assert.equal(Object.hasOwn(compiler.input, "profiles"), false);
-  assert.deepEqual(compiler.input.languageProfiles, {
-    applicability: "not-applicable",
-    reason: "Compiler lifecycle uses one source, graph and input identity instead of language source profiles.",
-  });
-  assert.equal(Object.hasOwn(documents.manifest, "profiles"), false);
-  assert.equal(documents.manifest.benchmarkDisposition, "compiler-lifecycle");
-  assert.equal(documents.manifest.languageProfiles.applicability, "not-applicable");
-  assert.equal(documents.manifest.backend.benchmarkRunnerAvailable, false);
-  assert.equal(documents.manifest.backend.frontendAvailable, true);
-  assert.equal(documents.manifest.backend.nativeBackendAvailable, false);
+  const compiler = documents.corpus.cases.find((item) => item.id === "BMD1-W-1488-current-matrix");
+  const materialized = materializeCase(compiler);
+  assert.deepEqual(materialized.errors, []);
+  assert.equal(Object.hasOwn(materialized.value, "profiles"), false);
+  assert.equal(materialized.value.languageProfiles.applicability, "not-applicable");
+  assert.equal(documents.manifest.backend.benchmarkRunnerAvailable, true);
+  assert.equal(documents.manifest.backend.compilerLifecycleResultsAllowed, true);
+  assert.equal(documents.manifest.backend.languageResultsAllowed, false);
+  assert.equal(documents.manifest.backend.productRuntimeResultsAllowed, false);
   assert.equal(documents.manifest.backend.runtimeAvailable, false);
-  assert.equal(documents.manifest.backend.resultsAllowed, false);
 });
 
-test("the accepted corpus covers all four dispositions with their tracks", () => {
+test("the accepted corpus covers all dispositions", () => {
   const accepted = documents.corpus.cases.filter((item) => item.kind === "accepted");
-  const byDisposition = new Map(accepted.map((item) => [item.input.benchmarkDisposition, item]));
+  const byDisposition = new Map(accepted.map((item) => {
+    const value = materializeCase(item).value;
+    return [value.benchmarkDisposition, { item, value }];
+  }));
   assert.deepEqual([...byDisposition.keys()].sort(), [...BENCHMARK_DISPOSITIONS].sort());
-  assert.equal(byDisposition.get("required").track, "language");
-  assert.equal(byDisposition.get("compiler-lifecycle").track, "compiler-lifecycle");
-  assert.equal(byDisposition.get("deferred").track, "language");
-  assert.equal(byDisposition.get("deferred").input.blocker, "codegen");
-  assert.equal(byDisposition.get("deferred").input.taskId, "core-language-units");
-  assert.ok(byDisposition.get("deferred").input.stopCondition.length > 0);
-  assert.equal(byDisposition.get("not-applicable").track, "documentation");
-  assert.equal(byDisposition.get("not-applicable").input.digestOnly, true);
-  assert.ok(byDisposition.get("not-applicable").input.reason.length > 0);
+  assert.equal(byDisposition.get("required").item.track, "language");
+  assert.equal(byDisposition.get("compiler-lifecycle").item.track, "compiler-lifecycle");
+  assert.equal(byDisposition.get("deferred").item.track, "language");
+  assert.equal(byDisposition.get("not-applicable").item.track, "documentation");
 });
 
-test("source-backed lifecycle descriptors use current bytes and identities", () => {
-  assert.deepEqual(documents.manifest.identity.source, SOURCE_FIXTURE);
+test("the seed matrix has three scenarios, nine stages and one ready cell", () => {
+  const matrix = documents.manifest.matrix;
+  assert.equal(documents.program.tasks.find((task) => task.id === "seed-compiler-lifecycle").implementation, "partial");
+  assert.deepEqual(matrix.scenarios, LIFECYCLE_SCENARIOS);
+  assert.deepEqual(matrix.stages, LIFECYCLE_STAGES);
+  assert.equal(matrix.points.length, 27);
+  assert.equal(matrix.points.filter((point) => point.status === "ready").length, 1);
+  for (const point of matrix.points) {
+    assert.deepEqual(Object.keys(point).sort(), ["blockedBy", "scenario", "stage", "status"]);
+    assert.equal(point.status, expectedMatrixStatus(point.scenario, point.stage));
+    assert.deepEqual(point.blockedBy, expectedMatrixBlockers(point.scenario, point.stage));
+  }
+  assert.deepEqual(matrix.points.find((point) => point.status === "ready"), {
+    scenario: "clean",
+    stage: "check-end-to-end",
+    status: "ready",
+    blockedBy: [],
+  });
+  assert.deepEqual(matrix.points.find((point) => point.scenario === "no-op" && point.stage === "semantic").blockedBy, [
+    "incremental-cache", "stage-instrumentation",
+  ]);
+  assert.deepEqual(matrix.points.find((point) => point.scenario === "edit" && point.stage === "hir").blockedBy, [
+    "incremental-cache", "hir",
+  ]);
+  assert.equal(Object.hasOwn(documents.manifest, "lifecycle"), false);
+  assert.equal(Object.hasOwn(documents.manifest, "phases"), false);
+});
+
+test("root identities are source-backed once for the whole matrix", () => {
+  assert.deepEqual(documents.manifest.identity.source, {
+    path: SOURCE_FIXTURE.path,
+    symbol: SOURCE_FIXTURE.symbol,
+    digest: SOURCE_FIXTURE.digest,
+  });
+  assert.deepEqual(documents.manifest.identity.graph, DESCRIPTOR_IDENTITIES.graph);
+  assert.deepEqual(documents.manifest.identity.input, DESCRIPTOR_IDENTITIES.input);
   for (const axis of ["graph", "input"]) {
-    assert.deepEqual(documents.manifest.identity[axis], DESCRIPTOR_IDENTITIES[axis]);
     const descriptor = JSON.parse(fs.readFileSync(path.resolve(root, DESCRIPTOR_IDENTITIES[axis].path), "utf8"));
-    assert.equal(descriptor.id, DESCRIPTOR_IDENTITIES[axis].id);
     assert.equal(descriptor.source.path, SOURCE_FIXTURE.path);
     assert.equal(descriptor.source.symbol, SOURCE_FIXTURE.symbol);
     assert.equal(descriptor.source.digest, SOURCE_FIXTURE.digest);
   }
-  assert.equal(documents.manifest.command.operation, "check");
-  assert.equal(documents.manifest.command.arguments[0], SOURCE_FIXTURE.path);
-  const inputDescriptor = JSON.parse(fs.readFileSync(path.resolve(root, DESCRIPTOR_IDENTITIES.input.path), "utf8"));
-  assert.deepEqual(inputDescriptor.invocation.edit, {
-    kind: EDIT_RECIPE.kind,
-    sourcePath: EDIT_RECIPE.sourcePath,
-    targetSymbol: EDIT_RECIPE.targetSymbol,
-    occurrence: EDIT_RECIPE.occurrence,
-    match: EDIT_RECIPE.match,
-    replacement: EDIT_RECIPE.replacement,
-    semanticPreserving: true,
-    applyTo: "temporary-copy",
-  });
-  assert.deepEqual(inputDescriptor.invocation.recipe, {
-    operation: EDIT_RECIPE.operation,
-    expectedMatches: EDIT_RECIPE.expectedMatches,
-    match: EDIT_RECIPE.match,
-    replacement: EDIT_RECIPE.replacement,
-    semanticPreserving: true,
-    temporaryCopy: true,
-  });
 });
 
-test("compiler lifecycle is one identity across ten ordered phases", () => {
-  assert.deepEqual(documents.manifest.lifecycle.map((phase) => phase.id), LIFECYCLE_PHASES);
-  assert.deepEqual(documents.manifest.lifecycle.slice(0, 4).map((phase) => phase.status), ["ready", "ready", "ready", "ready"]);
-  assert.deepEqual(documents.manifest.lifecycle.slice(4).map((phase) => phase.status), ["blocked", "blocked", "blocked", "blocked", "blocked", "blocked"]);
-  assert.deepEqual(documents.manifest.lifecycle.find((phase) => phase.id === "hir").blockedBy, ["hir"]);
-  assert.deepEqual(documents.manifest.lifecycle.find((phase) => phase.id === "lowering").blockedBy, ["lowering"]);
-  assert.deepEqual(documents.manifest.lifecycle.find((phase) => phase.id === "codegen").blockedBy, ["codegen"]);
-  assert.deepEqual(documents.manifest.lifecycle.find((phase) => phase.id === "link").blockedBy, ["codegen"]);
-  assert.deepEqual(documents.manifest.lifecycle.find((phase) => phase.id === "startup").blockedBy, ["runtime"]);
-  assert.deepEqual(documents.manifest.lifecycle.find((phase) => phase.id === "execution").blockedBy, ["runtime", "provider"]);
-  for (const phase of documents.manifest.lifecycle) {
-    assert.equal(phase.source.id, "last-light-checker-bootstrap-source");
-    assert.equal(phase.graph.id, DESCRIPTOR_IDENTITIES.graph.id);
-    assert.equal(phase.input.id, DESCRIPTOR_IDENTITIES.input.id);
-  }
-});
-
-test("equivalent and open lanes preserve their different comparison contracts", () => {
-  const equivalent = documents.corpus.cases.find((item) => item.id === "BMD0-W-1487-current").input;
-  for (const field of ["sameAlgorithm", "sameRepresentation", "sameValidation", "sameNumericContract", "sameInput"]) assert.equal(equivalent[field], true);
-  const open = documents.corpus.cases.find((item) => item.id === "BMD0-W-1487-open-lane").input;
-  assert.equal(open.sameAlgorithm, false);
-  assert.equal(open.sameRepresentation, false);
-  assert.equal(open.sameValidation, true);
-  assert.equal(open.sameNumericContract, true);
-  assert.equal(open.sameInput, true);
-  assert.deepEqual(documents.manifest.baselinePolicy, {
-    primary: "historical-w",
-    independent: ["c-clang", "rust"],
-    role: "contextual-not-ranking",
-    exceptionReason: null,
-    recipe: "equivalent",
-  });
-});
-
-test("the corpus has independent negative coverage and no expected-result echo", () => {
-  assert.equal(documents.corpus.cases.length, 21);
-  assert.equal(documents.corpus.cases.filter((item) => item.kind === "accepted").length, 5);
-  assert.equal(documents.corpus.cases.filter((item) => item.kind === "rejected").length, 16);
-  assert.deepEqual(REQUIRED_CASES.every((id) => documents.corpus.cases.some((item) => item.id === id)), true);
-  for (const id of REQUIRED_CASES.filter((value) => value.includes("missing-blocker") || value.includes("missing-reason"))) {
-    const item = documents.corpus.cases.find((candidate) => candidate.id === id);
-    assert.equal(item.kind, "rejected");
-    assert.equal(reduceCase(item).classification, "rejected");
-  }
-  for (const item of documents.corpus.cases) {
-    assert.equal(Object.hasOwn(item.input ?? {}, "expected"), false);
-    assert.equal(Object.hasOwn(item.input ?? {}, "expectedResult"), false);
-    assert.equal(Object.hasOwn(item.input ?? {}, "result"), false);
-  }
-  const reductions = reduceCorpus(documents.corpus);
-  assert.equal(reductions.filter((item) => item.classification === "accepted").length, 5);
-  assert.equal(reductions.filter((item) => item.classification === "rejected").length, 16);
-});
-
-test("WBench/1 defines a future result without creating one", () => {
+test("WBench/1 result shape is closed and binds the ready matrix point", () => {
   const result = documents.schema.$defs.result;
-  assert.equal(result.properties.kind.const, "result");
   assert.deepEqual(result.required, [
-    "$schema",
-    "schema",
-    "kind",
-    "id",
-    "status",
-    "workload",
-    "oracle",
-    "samples",
-    "environment",
-    "provenance",
-    "metrics",
-    "summary",
-    "semanticDeviations",
-    "disclosures",
+    "$schema", "schema", "kind", "id", "status", "quality", "claim",
+    "workload", "identity", "comparison", "oracle", "samples", "environment",
+    "provenance", "metrics", "summary", "semanticDeviations", "disclosures",
   ]);
-  assert.deepEqual(result.properties.oracle.required, ["validationDigest", "complete", "beforeSamples"]);
-  assert.deepEqual(result.properties.samples.required, ["raw", "warmup", "stopRule", "order"]);
-  assert.deepEqual(result.properties.environment.required, [
-    "hardware",
-    "kernel",
-    "toolchain",
-    "flags",
-    "target",
-    "provider",
+  assert.deepEqual(result.properties.workload.required, [
+    "manifestDigest", "track", "lane", "scenario", "stage", "subject", "profile",
   ]);
-  assert.deepEqual(result.properties.provenance.required, ["sourceDigest", "artifactDigest", "inputDigest", "recipeDigest", "runnerDigest", "toolchainDigest"]);
-  assert.deepEqual(result.properties.workload.required, ["manifestDigest", "track", "lane", "phase", "baseline", "variant"]);
-  assert.deepEqual(result.properties.workload.properties.profile.enum, ["learner", "idiomatic", "frontier", null]);
-  assert.equal(result.properties.summary.properties.derivedFromRawSamples.const, true);
-  assert.equal(fs.existsSync(path.join(root, "benchmarks", "results")), false);
+  assert.equal(result.properties.workload.properties.track.const, "compiler-lifecycle");
+  assert.equal(result.properties.workload.properties.profile.const, null);
+  assert.equal(result.properties.quality.const, "exploratory");
+  assert.equal(result.properties.claim.const, "measurement-only");
+  assert.equal(result.properties.comparison.const, null);
+  assert.deepEqual(result.properties.samples.required, ["raw", "warmup", "stopRule", "clock", "order"]);
+  assert.equal(result.properties.samples.properties.clock.const, "monotonic-wall-ns");
+  assert.equal(result.properties.samples.properties.order.const, "single-series");
+  assert.deepEqual(result.properties.provenance.required, [
+    "sourceDigest", "artifactDigest", "inputDigest", "recipeDigest", "runnerDigest", "toolchainDigest",
+  ]);
+  assert.deepEqual(result.properties.metrics.required, ["latency"]);
+  assert.deepEqual(result.properties.summary.required, ["sampleCount", "warmupCount", "derivedFromRawSamples"]);
 });
 
-test("disposition fields are required and compiler lifecycle rejects source profiles", () => {
-  const deferred = documents.corpus.cases.find((item) => item.id === "BMD0-W-1487-deferred");
-  const missingBlocker = structuredClone(deferred.input);
-  delete missingBlocker.blocker;
-  assert.ok(validateScenario({ ...missingBlocker, track: "language", lane: "equivalent" }).some((error) => error.includes("blocker")));
-  const notApplicable = documents.corpus.cases.find((item) => item.id === "BMD0-W-1487-not-applicable");
-  const missingReason = structuredClone(notApplicable.input);
-  delete missingReason.reason;
-  assert.ok(validateScenario({ ...missingReason, track: "documentation", lane: "open" }).some((error) => error.includes("reason")));
-  const compiler = documents.corpus.cases.find((item) => item.id === "BMD0-W-1487-compiler-lifecycle");
-  assert.ok(validateScenario({ ...compiler.input, profiles: documents.program.profiles, track: compiler.track, lane: compiler.lane }).some((error) => error.includes("profiles")));
+test("machine materializes and recalculates a complete exploratory result", () => {
+  const result = materializeCase({ fixture: "result", mutations: [] }).value;
+  assert.deepEqual(validateResult(result, documents.manifest), []);
+  assert.deepEqual(result.samples.raw.map((sample) => typeof sample.ns), Array(9).fill("string"));
+  assert.deepEqual(result.metrics.latency, {
+    unit: "ns",
+    minimumNs: "100",
+    medianNs: "104",
+    maximumNs: "108",
+    madNs: "2",
+    derivedFromRawSamples: true,
+  });
+  assert.deepEqual(result.summary, { sampleCount: 9, warmupCount: 1, derivedFromRawSamples: true });
+  const forged = clone(result);
+  forged.metrics.latency.medianNs = "999";
+  assert.ok(validateResult(forged, documents.manifest).some((error) => error.includes("does not match")));
+  const comparison = clone(result);
+  comparison.comparison = { baseline: {}, candidate: {}, noisePolicy: {} };
+  assert.ok(validateResult(comparison, documents.manifest).some((error) => error.includes("interleaved-comparison-runner")));
+  const invalidLists = clone(result);
+  invalidLists.environment.flags = ["Release", "Release"];
+  invalidLists.environment.noiseControls.known = ["scheduler"];
+  invalidLists.environment.noiseControls.unknown = ["scheduler"];
+  invalidLists.semanticDeviations = [""];
+  invalidLists.disclosures = ["host", "host"];
+  const listErrors = validateResult(invalidLists, documents.manifest);
+  assert.ok(listErrors.some((error) => error.includes("must not contain duplicates")));
+  assert.ok(listErrors.some((error) => error.includes("must not overlap")));
+  assert.ok(listErrors.some((error) => error.includes("non-empty string")));
+});
+
+test("corpus uses bounded fixture mutations and rejects unknown mutations", () => {
+  const source = fs.readFileSync(path.join(root, "tooling", "benchmark-driven-development-cases.json"), "utf8");
+  assert.ok(source.split(/\r?\n/u).length < 500);
+  for (const item of documents.corpus.cases) {
+    assert.equal(Object.hasOwn(item, "input"), false);
+    assert.equal(Object.hasOwn(item, "result"), false);
+    assert.equal(Object.hasOwn(item, "expected"), false);
+    assert.equal(Object.hasOwn(item, "expectedResult"), false);
+    assert.equal(Array.isArray(item.mutations), true);
+  }
+  assert.deepEqual(materializeCase({ fixture: "compiler-lifecycle", mutations: ["unknown"] }).errors.length > 0, true);
+});
+
+test("the corpus has independent negative coverage", () => {
+  assert.equal(REQUIRED_CASES.every((id) => documents.corpus.cases.some((item) => item.id === id)), true);
+  const reductions = reduceCorpus(documents.corpus);
+  assert.equal(reductions.length, documents.corpus.cases.length);
+  assert.equal(reductions.filter((item) => item.classification === "accepted").length, 5);
+  assert.equal(reductions.filter((item) => item.classification === "rejected").length, documents.corpus.cases.length - 5);
+  for (const id of REQUIRED_CASES.filter((value) => value.includes("result-") || value.includes("blocker-incomplete"))) {
+    assert.equal(reduceCase(documents.corpus.cases.find((item) => item.id === id)).classification, "rejected", id);
+  }
+});
+
+test("required adversarial cases reject the matrix and result boundaries", () => {
+  const ids = [
+    "BMD1-W-1488-flattened-axis",
+    "BMD1-W-1488-no-op-without-cache",
+    "BMD1-W-1488-edit-without-cache",
+    "BMD1-W-1488-internal-stage-without-instrumentation",
+    "BMD1-W-1488-runtime-mixed",
+    "BMD1-W-1488-result-blocked-point",
+    "BMD1-W-1488-result-language-without-backend",
+    "BMD1-W-1488-result-regression-without-comparison",
+    "BMD1-W-1488-result-partial-oracle",
+    "BMD1-W-1488-result-tracked-timing",
+    "BMD1-W-1488-result-output-overwrite",
+    "BMD1-W-1488-result-oracle-false",
+    "BMD1-W-1488-result-forged-metric",
+    "BMD1-W-1488-result-even-samples",
+    "BMD1-W-1488-result-leading-zero",
+    "BMD1-W-1488-result-u64-overflow",
+    "BMD1-W-1488-result-comparison-incomplete",
+  ];
+  for (const id of ids) {
+    assert.equal(reduceCase(documents.corpus.cases.find((item) => item.id === id)).classification, "rejected", id);
+  }
+  const compiler = materializeCase({ fixture: "compiler-lifecycle", mutations: [] }).value;
+  assert.ok(validateScenario({ ...compiler, phases: ["clean"], track: "compiler-lifecycle", lane: "equivalent" }).some((error) => error.includes("flatten")));
 });

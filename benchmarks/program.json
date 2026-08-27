@@ -2,12 +2,14 @@
   "$schema": "./wbench-1.schema.json",
   "schema": "wbench/1",
   "kind": "program",
-  "id": "bmd0",
-  "status": "protocol-only",
+  "id": "bmd1",
+  "status": "ready",
   "backend": {
-    "benchmarkRunnerAvailable": false,
-    "resultsAllowed": false,
-    "note": "This program defines benchmark development work. It emits no runtime result or timing."
+    "benchmarkRunnerAvailable": true,
+    "compilerLifecycleResultsAllowed": true,
+    "languageResultsAllowed": false,
+    "productRuntimeResultsAllowed": false,
+    "note": "BMD1 records exploratory compiler-lifecycle measurements for the source-backed clean check-end-to-end point. Language and product-runtime results remain disabled."
   },
   "profiles": [
     {
@@ -29,7 +31,7 @@
       "track": "language",
       "primary": false,
       "regression": false,
-      "description": "The declared performance ceiling. Legibility can be lower when the disclosures are explicit.",
+      "description": "The declared performance ceiling. Legibility can be lower when disclosures are explicit.",
       "disclosures": {
         "unsafe": "Declare each unsafe boundary and its restored invariant.",
         "ffi": "Declare each foreign call, ABI, ownership and provider requirement.",
@@ -78,35 +80,67 @@
       "implementation": "complete",
       "dependencies": [],
       "outputs": [
-        "wbench-1 schema",
-        "profile and lane policy",
+        "WBench/1 schema",
+        "language profiles and lanes",
         "correctness-before-samples rule"
       ],
       "adversarialCases": [
-        "BMD0-W-1487-claim-without-backend",
-        "BMD0-W-1487-best-only"
+        "BMD1-W-1487-profile-missing",
+        "BMD1-W-1487-profile-duplicate",
+        "BMD1-W-1487-idiomatic-not-primary",
+        "BMD1-W-1487-oracle-partial",
+        "BMD1-W-1487-equivalent-semantic-difference",
+        "BMD1-W-1487-learner-artificially-slow",
+        "BMD1-W-1487-frontier-missing-disclosure",
+        "BMD1-W-1487-best-only",
+        "BMD1-W-1487-output-constant-bypass",
+        "BMD1-W-1487-specialization-universal",
+        "BMD1-W-1487-invalid-benchmark-disposition",
+        "BMD1-W-1487-deferred",
+        "BMD1-W-1487-not-applicable",
+        "BMD1-W-1487-deferred-missing-blocker",
+        "BMD1-W-1487-not-applicable-missing-reason"
       ],
-      "stopCondition": "WBench/1 fields, lanes, disclosures and backend boundary are validated without runtime samples."
+      "stopCondition": "WBench/1 fields, profiles, lanes and correctness rules are validated without language results."
     },
     {
       "id": "seed-compiler-lifecycle",
-      "label": "seed compiler lifecycle",
+      "label": "seed compiler lifecycle matrix",
       "status": "ready",
-      "implementation": "pending",
+      "implementation": "partial",
       "dependencies": [
         "protocol"
       ],
       "outputs": [
-        "seed-check lifecycle manifest",
-        "validation record when BMD0 runner exists",
-        "clean/no-op/edit/frontend/lowering lifecycle records"
+        "3x9 compiler lifecycle matrix",
+        "source-backed ready point",
+        "result validator"
       ],
       "adversarialCases": [
-        "BMD0-W-1487-compiler-lifecycle",
-        "BMD0-W-1487-compile-execution-mixed",
-        "BMD0-W-1487-baseline-provenance-missing"
+        "BMD1-W-1488-current-matrix",
+        "BMD1-W-1488-flattened-axis",
+        "BMD1-W-1488-no-op-without-cache",
+        "BMD1-W-1488-edit-without-cache",
+        "BMD1-W-1488-internal-stage-without-instrumentation",
+        "BMD1-W-1488-runtime-mixed",
+        "BMD1-W-1488-result-blocked-point",
+        "BMD1-W-1488-result-language-without-backend",
+        "BMD1-W-1488-result-regression-without-comparison",
+        "BMD1-W-1488-result-partial-oracle",
+        "BMD1-W-1488-result-tracked-timing",
+        "BMD1-W-1488-result-output-overwrite",
+        "BMD1-W-1488-result-oracle-false",
+        "BMD1-W-1488-result-forged-metric",
+        "BMD1-W-1488-result-even-samples",
+        "BMD1-W-1488-result-leading-zero",
+        "BMD1-W-1488-result-u64-overflow",
+        "BMD1-W-1488-result-comparison-incomplete",
+        "BMD1-W-1488-blocker-incomplete",
+        "BMD1-W-1488-baseline-provenance-missing",
+        "BMD1-W-1488-compile-execution-mixed",
+        "BMD1-W-1488-claim-without-backend"
       ],
-      "stopCondition": "Use one source, graph and input identity across lifecycle phases. Keep codegen and execution pending until the BMD0 runner exists."
+      "stopCondition": "Only clean x check-end-to-end is ready. All other cells remain blocked by their declared component."
     },
     {
       "id": "core-language-units",
@@ -126,10 +160,9 @@
         "performance samples after backend readiness"
       ],
       "adversarialCases": [
-        "BMD0-W-1487-profile-missing",
-        "BMD0-W-1487-idiomatic-not-primary",
-        "BMD0-W-1487-learner-artificially-slow",
-        "BMD0-W-1487-frontier-missing-disclosure"
+        "BMD1-W-1487-current",
+        "BMD1-W-1487-open-lane",
+        "BMD1-W-1488-claim-without-backend"
       ],
       "stopCondition": "Run only after codegen can produce equivalent artifacts. Promote no timing before differential correctness passes."
     },
@@ -150,9 +183,8 @@
         "contextual comparison records"
       ],
       "adversarialCases": [
-        "BMD0-W-1487-equivalent-semantic-difference",
-        "BMD0-W-1487-output-constant-bypass",
-        "BMD0-W-1487-specialization-universal"
+        "BMD1-W-1487-specialization-universal",
+        "BMD1-W-1487-output-constant-bypass"
       ],
       "stopCondition": "Use this suite only as exploratory context. Never use its ranking as W authority or compiler-quality proof."
     },
@@ -175,9 +207,8 @@
         "runtime performance records after backend readiness"
       ],
       "adversarialCases": [
-        "BMD0-W-1487-oracle-partial",
-        "BMD0-W-1487-compile-execution-mixed",
-        "BMD0-W-1487-claim-without-backend"
+        "BMD1-W-1488-runtime-mixed",
+        "BMD1-W-1487-not-applicable"
       ],
       "stopCondition": "Run only after runtime and provider contracts produce the same validated Restaurant outcome."
     }

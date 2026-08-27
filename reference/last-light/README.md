@@ -20,6 +20,20 @@ profiles e artifacts.
 O record `workspace` data-only e o record `package` principal estão no único
 [`build.w`](build.w); o workspace é owner de resolution e deployments.
 
+## Limite de benchmark BMD1
+
+O runner BMD1 usa somente
+`reference/last-light/checker_bootstrap.w` para medir
+`clean × check-end-to-end` do seed compiler. Ele prova o oracle do comando
+`w check` antes das samples e mede processos novos com monotonic wall clock em
+ns. O escopo inclui startup do processo e estado de cache do filesystem e do OS.
+
+O runner não mede este produto Restaurant. Não prova runtime, provider, HTTP,
+database, as outras stages do compiler lifecycle, no-op, edit, native backend,
+language workload ou comparação de performance. `benchmark_app.w` continua uma
+fonte de design para a futura matriz de composition. Essa matriz permanece
+blocked por runtime/provider e não cria variantes artificiais do app.
+
 ## 1. Rotas operacionais
 
 ```text
@@ -2737,8 +2751,9 @@ Famílias: HTTP, JSON, database, allocation, admission e performance evidence.
 `benchmark_app.w` contém um oracle de source para as sete famílias do
 TechEmpower. `build.w` fecha o runtime graph. `build.w (deployment "benchmark")`
 seleciona PostgreSQL, cache local e limites menores que o envelope do product.
-Isso ainda não é um resultado de benchmark. Não existem runtime, adapters,
-harness executável ou medição.
+Essa é uma matriz source-backed para futura composition. Ela continua blocked por
+runtime/provider. Não é o workload BMD1, não é um resultado de benchmark e não
+cria três variantes artificiais do app.
 
 Aceite:
 

@@ -2,18 +2,19 @@
   "$schema": "./wbench-1.schema.json",
   "schema": "wbench/1",
   "kind": "workload-manifest",
-  "id": "bmd0-seed-check-lifecycle",
+  "id": "bmd1-seed-check-lifecycle",
   "status": "ready",
   "track": "compiler-lifecycle",
   "lane": "equivalent",
   "benchmarkDisposition": "compiler-lifecycle",
   "backend": {
-    "benchmarkRunnerAvailable": false,
+    "benchmarkRunnerAvailable": true,
     "frontendAvailable": true,
     "nativeBackendAvailable": false,
     "runtimeAvailable": false,
-    "resultsAllowed": false,
-    "execution": "pending"
+    "compilerLifecycleResultsAllowed": true,
+    "languageResultsAllowed": false,
+    "productRuntimeResultsAllowed": false
   },
   "identity": {
     "source": {
@@ -44,187 +45,256 @@
     "applicability": "not-applicable",
     "reason": "Compiler lifecycle uses one source, graph and input identity. It does not compare learner, idiomatic or frontier source variants."
   },
-  "lifecycle": [
-    {
-      "id": "clean",
-      "status": "ready",
-      "source": {
-        "id": "last-light-checker-bootstrap-source",
-        "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
+  "matrix": {
+    "scenarios": [
+      "clean",
+      "no-op",
+      "edit"
+    ],
+    "stages": [
+      "check-end-to-end",
+      "source",
+      "lex",
+      "parse",
+      "semantic",
+      "hir",
+      "lowering",
+      "codegen",
+      "link"
+    ],
+    "points": [
+      {
+        "scenario": "clean",
+        "stage": "check-end-to-end",
+        "status": "ready",
+        "blockedBy": []
       },
-      "graph": {
-        "id": "last-light-checker-bootstrap-graph",
-        "digest": "sha256:ff78805c96c17e617106c27af1007ac3fc0e0327e2d87c1bfa36e3d5f23160f5"
+      {
+        "scenario": "clean",
+        "stage": "source",
+        "status": "blocked",
+        "blockedBy": [
+          "stage-instrumentation"
+        ]
       },
-      "input": {
-        "id": "last-light-checker-bootstrap-input",
-        "digest": "sha256:c202dd03968c1a9a2999e81eb6bfbb633e8d53cb33e12e62adeb65e3fa4a2020"
+      {
+        "scenario": "clean",
+        "stage": "lex",
+        "status": "blocked",
+        "blockedBy": [
+          "stage-instrumentation"
+        ]
+      },
+      {
+        "scenario": "clean",
+        "stage": "parse",
+        "status": "blocked",
+        "blockedBy": [
+          "stage-instrumentation"
+        ]
+      },
+      {
+        "scenario": "clean",
+        "stage": "semantic",
+        "status": "blocked",
+        "blockedBy": [
+          "stage-instrumentation"
+        ]
+      },
+      {
+        "scenario": "clean",
+        "stage": "hir",
+        "status": "blocked",
+        "blockedBy": [
+          "hir"
+        ]
+      },
+      {
+        "scenario": "clean",
+        "stage": "lowering",
+        "status": "blocked",
+        "blockedBy": [
+          "lowering"
+        ]
+      },
+      {
+        "scenario": "clean",
+        "stage": "codegen",
+        "status": "blocked",
+        "blockedBy": [
+          "codegen"
+        ]
+      },
+      {
+        "scenario": "clean",
+        "stage": "link",
+        "status": "blocked",
+        "blockedBy": [
+          "link"
+        ]
+      },
+      {
+        "scenario": "no-op",
+        "stage": "check-end-to-end",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache"
+        ]
+      },
+      {
+        "scenario": "no-op",
+        "stage": "source",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "stage-instrumentation"
+        ]
+      },
+      {
+        "scenario": "no-op",
+        "stage": "lex",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "stage-instrumentation"
+        ]
+      },
+      {
+        "scenario": "no-op",
+        "stage": "parse",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "stage-instrumentation"
+        ]
+      },
+      {
+        "scenario": "no-op",
+        "stage": "semantic",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "stage-instrumentation"
+        ]
+      },
+      {
+        "scenario": "no-op",
+        "stage": "hir",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "hir"
+        ]
+      },
+      {
+        "scenario": "no-op",
+        "stage": "lowering",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "lowering"
+        ]
+      },
+      {
+        "scenario": "no-op",
+        "stage": "codegen",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "codegen"
+        ]
+      },
+      {
+        "scenario": "no-op",
+        "stage": "link",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "link"
+        ]
+      },
+      {
+        "scenario": "edit",
+        "stage": "check-end-to-end",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache"
+        ]
+      },
+      {
+        "scenario": "edit",
+        "stage": "source",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "stage-instrumentation"
+        ]
+      },
+      {
+        "scenario": "edit",
+        "stage": "lex",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "stage-instrumentation"
+        ]
+      },
+      {
+        "scenario": "edit",
+        "stage": "parse",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "stage-instrumentation"
+        ]
+      },
+      {
+        "scenario": "edit",
+        "stage": "semantic",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "stage-instrumentation"
+        ]
+      },
+      {
+        "scenario": "edit",
+        "stage": "hir",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "hir"
+        ]
+      },
+      {
+        "scenario": "edit",
+        "stage": "lowering",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "lowering"
+        ]
+      },
+      {
+        "scenario": "edit",
+        "stage": "codegen",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "codegen"
+        ]
+      },
+      {
+        "scenario": "edit",
+        "stage": "link",
+        "status": "blocked",
+        "blockedBy": [
+          "incremental-cache",
+          "link"
+        ]
       }
-    },
-    {
-      "id": "no-op",
-      "status": "ready",
-      "source": {
-        "id": "last-light-checker-bootstrap-source",
-        "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
-      },
-      "graph": {
-        "id": "last-light-checker-bootstrap-graph",
-        "digest": "sha256:ff78805c96c17e617106c27af1007ac3fc0e0327e2d87c1bfa36e3d5f23160f5"
-      },
-      "input": {
-        "id": "last-light-checker-bootstrap-input",
-        "digest": "sha256:c202dd03968c1a9a2999e81eb6bfbb633e8d53cb33e12e62adeb65e3fa4a2020"
-      }
-    },
-    {
-      "id": "edit",
-      "status": "ready",
-      "source": {
-        "id": "last-light-checker-bootstrap-source",
-        "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
-      },
-      "graph": {
-        "id": "last-light-checker-bootstrap-graph",
-        "digest": "sha256:ff78805c96c17e617106c27af1007ac3fc0e0327e2d87c1bfa36e3d5f23160f5"
-      },
-      "input": {
-        "id": "last-light-checker-bootstrap-input",
-        "digest": "sha256:c202dd03968c1a9a2999e81eb6bfbb633e8d53cb33e12e62adeb65e3fa4a2020"
-      }
-    },
-    {
-      "id": "frontend",
-      "status": "ready",
-      "source": {
-        "id": "last-light-checker-bootstrap-source",
-        "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
-      },
-      "graph": {
-        "id": "last-light-checker-bootstrap-graph",
-        "digest": "sha256:ff78805c96c17e617106c27af1007ac3fc0e0327e2d87c1bfa36e3d5f23160f5"
-      },
-      "input": {
-        "id": "last-light-checker-bootstrap-input",
-        "digest": "sha256:c202dd03968c1a9a2999e81eb6bfbb633e8d53cb33e12e62adeb65e3fa4a2020"
-      }
-    },
-    {
-      "id": "hir",
-      "status": "blocked",
-      "blockedBy": [
-        "hir"
-      ],
-      "source": {
-        "id": "last-light-checker-bootstrap-source",
-        "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
-      },
-      "graph": {
-        "id": "last-light-checker-bootstrap-graph",
-        "digest": "sha256:ff78805c96c17e617106c27af1007ac3fc0e0327e2d87c1bfa36e3d5f23160f5"
-      },
-      "input": {
-        "id": "last-light-checker-bootstrap-input",
-        "digest": "sha256:c202dd03968c1a9a2999e81eb6bfbb633e8d53cb33e12e62adeb65e3fa4a2020"
-      }
-    },
-    {
-      "id": "lowering",
-      "status": "blocked",
-      "blockedBy": [
-        "lowering"
-      ],
-      "source": {
-        "id": "last-light-checker-bootstrap-source",
-        "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
-      },
-      "graph": {
-        "id": "last-light-checker-bootstrap-graph",
-        "digest": "sha256:ff78805c96c17e617106c27af1007ac3fc0e0327e2d87c1bfa36e3d5f23160f5"
-      },
-      "input": {
-        "id": "last-light-checker-bootstrap-input",
-        "digest": "sha256:c202dd03968c1a9a2999e81eb6bfbb633e8d53cb33e12e62adeb65e3fa4a2020"
-      }
-    },
-    {
-      "id": "codegen",
-      "status": "blocked",
-      "blockedBy": [
-        "codegen"
-      ],
-      "source": {
-        "id": "last-light-checker-bootstrap-source",
-        "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
-      },
-      "graph": {
-        "id": "last-light-checker-bootstrap-graph",
-        "digest": "sha256:ff78805c96c17e617106c27af1007ac3fc0e0327e2d87c1bfa36e3d5f23160f5"
-      },
-      "input": {
-        "id": "last-light-checker-bootstrap-input",
-        "digest": "sha256:c202dd03968c1a9a2999e81eb6bfbb633e8d53cb33e12e62adeb65e3fa4a2020"
-      }
-    },
-    {
-      "id": "link",
-      "status": "blocked",
-      "blockedBy": [
-        "codegen"
-      ],
-      "source": {
-        "id": "last-light-checker-bootstrap-source",
-        "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
-      },
-      "graph": {
-        "id": "last-light-checker-bootstrap-graph",
-        "digest": "sha256:ff78805c96c17e617106c27af1007ac3fc0e0327e2d87c1bfa36e3d5f23160f5"
-      },
-      "input": {
-        "id": "last-light-checker-bootstrap-input",
-        "digest": "sha256:c202dd03968c1a9a2999e81eb6bfbb633e8d53cb33e12e62adeb65e3fa4a2020"
-      }
-    },
-    {
-      "id": "startup",
-      "status": "blocked",
-      "blockedBy": [
-        "runtime"
-      ],
-      "source": {
-        "id": "last-light-checker-bootstrap-source",
-        "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
-      },
-      "graph": {
-        "id": "last-light-checker-bootstrap-graph",
-        "digest": "sha256:ff78805c96c17e617106c27af1007ac3fc0e0327e2d87c1bfa36e3d5f23160f5"
-      },
-      "input": {
-        "id": "last-light-checker-bootstrap-input",
-        "digest": "sha256:c202dd03968c1a9a2999e81eb6bfbb633e8d53cb33e12e62adeb65e3fa4a2020"
-      }
-    },
-    {
-      "id": "execution",
-      "status": "blocked",
-      "blockedBy": [
-        "runtime",
-        "provider"
-      ],
-      "source": {
-        "id": "last-light-checker-bootstrap-source",
-        "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
-      },
-      "graph": {
-        "id": "last-light-checker-bootstrap-graph",
-        "digest": "sha256:ff78805c96c17e617106c27af1007ac3fc0e0327e2d87c1bfa36e3d5f23160f5"
-      },
-      "input": {
-        "id": "last-light-checker-bootstrap-input",
-        "digest": "sha256:c202dd03968c1a9a2999e81eb6bfbb633e8d53cb33e12e62adeb65e3fa4a2020"
-      }
-    }
-  ],
+    ]
+  },
   "oracle": {
     "kind": "host-structural",
     "requiredBeforeSamples": true,
@@ -234,8 +304,10 @@
     "correctnessFirst": true,
     "rawSamples": "required-after-oracle",
     "warmup": "record-before-samples",
-    "stopRule": "Stop only after correctness, variance and the declared lifecycle phase are reproducible.",
-    "order": "randomized-interleaved",
+    "stopRule": "fixed-count",
+    "clock": "monotonic-wall-ns",
+    "order": "single-series",
+    "comparisonOrder": "randomized-interleaved",
     "environmentFields": [
       "hardware",
       "kernel",
@@ -243,16 +315,11 @@
       "flags",
       "target",
       "provider",
-      "source-digest",
-      "artifact-digest",
-      "input-digest"
+      "noise-controls-known",
+      "noise-controls-unknown"
     ],
     "metrics": [
-      "latency",
-      "throughput",
-      "memory",
-      "allocations",
-      "artifact-size"
+      "latency-ns"
     ],
     "semanticDeviations": "record-all",
     "safetyDisclosures": "record-all"
@@ -269,7 +336,7 @@
   },
   "outputs": [
     "validation-record",
-    "lifecycle-record",
-    "raw-samples-after-bmd0-runner"
+    "compiler-lifecycle-matrix",
+    "result-for-ready-point"
   ]
 }

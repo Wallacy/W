@@ -6,6 +6,20 @@ semântico são fatias fechadas caller-owned. O target bootstrap `w` usa o núcl
 privado para o perfil CHK9 de root efêmera explícita e imports locais
 alcançáveis. O target bootstrap não é um compiler driver completo.
 
+## Limite de medição BMD1
+
+O runner BMD1 mede somente o ponto `clean × check-end-to-end` da matriz
+compiler-lifecycle. Ele constrói este seed em Release fora da medição. Depois
+executa `w check reference/last-light/checker_bootstrap.w --json` como oracle.
+O oracle prova exit 0 e stdout/stderr vazios antes de warmup e samples. Cada
+sample inicia um processo novo e usa monotonic wall clock em ns. O tempo inclui
+startup do processo e o estado de cache do filesystem e do OS.
+
+Essa medição não prova tempo de source, lex, parse, semantic, HIR, lowering,
+codegen ou link. Ela não prova no-op, edit, native backend, runtime, provider,
+linguagem ou uma comparação de performance. O runner não transforma o seed em
+compiler W completo.
+
 Este componente fornece uma view de bytes sem cópia. Ele valida UTF-8 estrito,
 detecta o BOM inicial, conta linhas por LF, valida spans half-open e converte
 offsets de bytes para pontos determinísticos. Neste primeiro seed, cada

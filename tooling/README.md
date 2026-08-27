@@ -19,7 +19,7 @@ linguagem.
 uma entrada explícita para cada ID do ledger. O checker exige a união exata do
 ledger e rejeita IDs ausentes, novos, duplicados ou com digest stale. Cada
 registro carrega `selection: explicit-ledger-id`, `basisRef` para a linha do
-ledger e digest atual; o `archiveGapDistribution` registra por que os 946 IDs
+ledger e digest atual; o `archiveGapDistribution` registra por que os 947 IDs
 que permanecem fora da cobertura legada não foram classificados por range ou
 default.
 
@@ -31,9 +31,9 @@ As categorias têm estados diferentes:
 - `superseded` aponta para a decisão corrente que substitui a proveniência.
 - `rejected` aponta para a ausência corrente sem promover a forma recusada.
 
-O estado atual é `91 source-backed-current`, `506 oracle-backed-current`, `1
+O estado atual é `91 source-backed-current`, `507 oracle-backed-current`, `1
 research-gated`, `822 implementation-evidence-gap`, `59 superseded` e `8
-rejected` (1487/1487). A lacuna corrente de 946 fica distribuída em 86
+rejected` (1488/1488). A lacuna corrente de 947 fica distribuída em 87
 oracle, 1 Research, 815 gaps de implementação, 37 superseded e 7 rejected;
 nenhuma decisão é selecionada por faixa, época, regex ou default em massa.
 
@@ -60,14 +60,15 @@ compiler, runtime, provider ou execução W.
 ## Benchmark-driven development
 
 [`../benchmarks/`](../benchmarks/) mantém o protocolo WBench/1 fora de
-`tooling/studies/`, que preserva estudos históricos. BMD0 separa workloads de
-language e compiler lifecycle, valida os perfis `learner`, `idiomatic` e
-`frontier`, as lanes `equivalent`/`open`, as quatro dispositions e o limite
-frontend/backend. [`benchmark-driven-development-machine.mjs`](benchmark-driven-development-machine.mjs)
-é a máquina host; [`benchmark-driven-development-cases.json`](benchmark-driven-development-cases.json)
-é o corpus adversarial; o teste independente e o checker focal são executados
-por `bun run check:bmd0`. A infraestrutura não produz `results/` nem timings:
-o seed `w check`/frontend existe, mas native backend/runtime ainda não.
+`tooling/studies/`, que preserva estudos históricos. W-1487 mantém o
+protocolo BMD0. W-1488 acrescenta a matriz BMD1 e o runner real para o único
+ponto ready `clean × check-end-to-end`. A máquina host e o corpus adversarial
+ficam em [`benchmark-driven-development-machine.mjs`](benchmark-driven-development-machine.mjs)
+e [`benchmark-driven-development-cases.json`](benchmark-driven-development-cases.json).
+O teste independente e o checker focal rodam com `bun run check:bmd`. O smoke
+real roda com `bun run check:bmd:smoke`. O runner exige output explícito,
+oracle antes das samples, processos novos, monotonic ns e publication
+fail-if-exists. Ele não produz result de language ou product-runtime.
 
 ## Duas camadas, uma só gramática sintática
 
@@ -111,7 +112,7 @@ o seed `w check`/frontend existe, mas native backend/runtime ainda não.
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
 | `simd-reference-cases.json` + `simd-reference.test.mjs` | SIMD1 deriva lanes, masks, scan de menu `16...32` bytes com full/tail e fill masked, bounds, overflow, swizzle e reductions para W-1459; o corpus guarda bytes/operandos e é `design-oracle-input`, sem outcomes caller-owned | oracle host-only; compara scalar/native/split e instrumenta read/write bounds, mas não alega compiler, runtime, provider, native acceleration ou measurement |
 | `generic-fingerprint-cases.json` + `check-seed-generic-validation.mjs` | GPF0-W-1460 fixa o witness file-backed `restaurant`/`StagePath<`, standard duplicado, cancelled e rejeitados vazio/skipped/duplicate; GPF0-W-1461 fixa `generics.w`/`isFinalCallLabel`, positivos duplicados, rejeitados, empty, over-limit e corrupção; GPF0-W-1462 fixa `isUltimateAnswer`, immediate 42, computed/duplicate 6×7, rejected 6×6, quota cumulativa, overflow, unsupported call e corruption; GPF0-W-1463 fixa named/duplicate 42, forward chain, ciclos self/2/3 e inalcançável, `dependency-limit` separado de arithmetic overflow `W-CONST-0006`, e fingerprint equivalente ao immediate/D3; GPF0-W-1464 fixa o diamond `answerSeed`/`assembledUltimateAnswer`, quatro misses/um hit/sete steps, reset, quota, falha não cacheada e counters zero para preflight/corrupção, preservando o receipt causal de ciclo somente quando há capacidade; GPF0-W-1465 acrescenta `AnswerPair.agrees`, o teste `restaurantGenericContractHolds`, duas aliases textualmente equivalentes, sessão por aplicação, 7/4/1 no primeiro argumento, 1/0/1 no irmão, quota 8/7, reset e falha-first; GPF0-W-1466 acrescenta inferência scalar append-only, `declared_type=NONE`/`effective_type=i64` nos quatro records do diamond, default integer, Bool, suffix, propagation, forward/reordered graph, equivalência explicit/inferred, ciclos e barreiras negativas; GPF0-W-1467 acrescenta preimage completo collision-safe de specialization, declaração/schema de parâmetros, substitutions type/value com domínio TYPE/dependent, `StaticValue<Bool,true>`/`StaticValue<String,"The final seating">`, capacity exact/zero/short-by-one, comparação full-byte sob digest forçado, adversários de head/module/refinement e separação de recipe/TypeId; GPF0-W-1468 acrescenta receipt collision-safe de origem nominal ligado ao `AuthorityOrigin` completo de AUL0-W-1469, package/module path `domain`/`generics`, kind/owner/name, missing/invalid/capacity/trailing/digest collision e specialization-2; o probe publica bytes C efetivamente escritos e o gate Bun compara os bytes completos com reconstrução independente. AUL0 é evidence bounded e não é resolver registry/TUF completo; os witnesses usam fragments reais sem alegar que `generics.w` inteiro compila | evidence local pós-validação; não é compiler completo, runtime, provider, persistence/CAS real, expiry/freshness/timestamp, targets/snapshot, Git authority, `.local` origin, NFC, recipe física ou TypeId |
-| `design-freeze-classification.json` + `check-design-freeze-audit.mjs` | registro versionado e explícito dos 1487 IDs, com uma categoria fechada, claim do ledger, authority ref, digests, casos de fonte/oráculo e stop condition; preserva a cobertura legada 170 source, 415 oracle, 8 explícitas e 52 overlaps; PFU0 e AEG0 promovem W-1451–W-1458 a `oracle-backed-current`, SIMD1 promove W-1459 com oracle host-only, GPF0 promove W-1460–W-1469, W-1487 soma `oracle-backed-current`, W-1354 é superseded por W-1437, W-1448–W-1450 permanecem implementation-evidence-gap e W-1486 é a única research gate ativa | auditoria de design; fonte/oráculo host não são compiler, runtime ou provider |
+| `design-freeze-classification.json` + `check-design-freeze-audit.mjs` | registro versionado e explícito dos 1488 IDs, com uma categoria fechada, claim do ledger, authority ref, digests, casos de fonte/oráculo e stop condition; preserva a cobertura legada 170 source, 415 oracle, 8 explícitas e 52 overlaps; PFU0 e AEG0 promovem W-1451–W-1458 a `oracle-backed-current`, SIMD1 promove W-1459 com oracle host-only, GPF0 promove W-1460–W-1469, W-1487 e W-1488 somam `oracle-backed-current`, W-1354 é superseded por W-1437, W-1448–W-1450 permanecem implementation-evidence-gap e W-1486 é a única research gate ativa | auditoria de design; fonte/oráculo host não são compiler, runtime ou provider |
 | `final-research-closure-cases.json` + máquina/checker/test + snapshot + `studies/final-research-closure` | FRC0 fecha somente o snapshot histórico W-001–W-1450: seis casos current/adversarial, manifest estrito, bundle R1 reuse-only e três disposições `oracle-backed-current`; W-707 é completude FZ0, W-731 é `Research=0` apenas na fronteira histórica e W-1408 é stop/no-auto com 0 human/0 model. A reabertura W-1451–W-1453 foi explicitamente PFU0 `research-gated`; PFU0 e AEG0 fecham essa sequência no histórico até W-1459. W-1486 é a única research gate ativa posterior, sem reescrever o snapshot histórico FRC0; W-1468 fica ligado ao boundary corrente por `GPF0-W-1468-current` e pela classificação de freeze | oracle host design-only; não alega implementation, compiler, runtime, provider ou resultados humano/modelo |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 190 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
 | `studies/*/bundle.json` + checker | 57 bundles R1, 162 variantes e 228 tarefas; base R1 51/148/204/69/75, agregados R1C0 52/150/208/69/75, PRC0 reuse-only 53/152/212, ASIC0 reuse-only 54/154/216, FRC0 reuse-only 55/156/220, PFU0 56/159/224 e AEG0 57/162/228 | parse e oracle host não equivalem a compilar ou executar W |
