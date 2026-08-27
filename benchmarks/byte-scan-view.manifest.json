@@ -1,0 +1,182 @@
+{
+  "$schema": "./wbench-1.schema.json",
+  "schema": "wbench/1",
+  "kind": "language-workload-manifest",
+  "id": "bmd3-byte-scan-view",
+  "version": "bmd3/1",
+  "status": "source-oracle-ready",
+  "track": "language",
+  "benchmarkDisposition": "required",
+  "unitId": "byte-scan-view",
+  "stratum": "borrow/memory",
+  "lane": "equivalent",
+  "frontierLane": "open",
+  "backend": {
+    "correctnessRunnerAvailable": true,
+    "benchmarkRunnerAvailable": false,
+    "nativeBackendAvailable": false,
+    "runtimeAvailable": false,
+    "languageResultsAllowed": false,
+    "timingResultsAllowed": false,
+    "note": "The correctness smoke and host oracle are available. No language benchmark runner, W codegen, W runtime, W language results, or W timing is available."
+  },
+  "scope": {
+    "kernel": "Count occurrences of a runtime delimiter byte in view Bytes.",
+    "representation": "view Bytes",
+    "output": "{\"bytes\":\"<u64>\",\"matches\":\"<u64>\"}",
+    "setup": "input file creation is outside future timing"
+  },
+  "profiles": [
+    {
+      "id": "learner",
+      "path": "benchmarks/byte-scan-view/learner.w",
+      "symbol": "export fn byteScanView(",
+      "digest": "sha256:bb9c5701c560efeec5dcaf6a2c414c79f16ea4615bc7b527a577b98f60542317",
+      "shape": "checked loop and index access over the view",
+      "lane": "equivalent",
+      "sameAlgorithm": true,
+      "sameRepresentation": true,
+      "samePhysicalStrategy": true,
+      "sameValidation": true,
+      "sameNumericContract": true,
+      "sameInput": true,
+      "disclosures": {
+        "unsafe": "none",
+        "ffi": "none",
+        "targetSpecialization": "none",
+        "manualLayout": "none",
+        "algorithm": "none",
+        "legibility": "none"
+      }
+    },
+    {
+      "id": "idiomatic",
+      "path": "benchmarks/byte-scan-view/idiomatic.w",
+      "symbol": "export fn byteScanView(",
+      "digest": "sha256:1a7ed8358b07d1ae4994f41f14ea770adc1a8f5023bb8aa6eb9db506a96ee075",
+      "shape": "safe for byte in source iteration",
+      "lane": "equivalent",
+      "sameAlgorithm": true,
+      "sameRepresentation": true,
+      "samePhysicalStrategy": true,
+      "sameValidation": true,
+      "sameNumericContract": true,
+      "sameInput": true,
+      "disclosures": {
+        "unsafe": "none",
+        "ffi": "none",
+        "targetSpecialization": "none",
+        "manualLayout": "none",
+        "algorithm": "none",
+        "legibility": "none"
+      }
+    },
+    {
+      "id": "frontier",
+      "path": "benchmarks/byte-scan-view/frontier.w",
+      "symbol": "export fn byteScanView(",
+      "digest": "sha256:8bc2e16bed10b9780592ae3764c8ccf8573cc9507506c4d96f84f4913eb52a0f",
+      "shape": "SIMD full chunks with loadPartial and a masked tail",
+      "lane": "open",
+      "sameAlgorithm": true,
+      "sameRepresentation": true,
+      "samePhysicalStrategy": false,
+      "sameValidation": true,
+      "sameNumericContract": true,
+      "sameInput": true,
+      "disclosures": {
+        "unsafe": "none",
+        "ffi": "none",
+        "targetSpecialization": "none",
+        "manualLayout": "none",
+        "algorithm": "SIMD chunk scan changes the physical strategy while preserving the scalar logical algorithm. This open lane does not measure compiler quality.",
+        "legibility": "The vector and mask path adds physical detail."
+      }
+    }
+  ],
+  "oracle": {
+    "kind": "host-oracle",
+    "path": "tooling/byte-scan-view-oracle.mjs",
+    "symbol": "oracleForPath(",
+    "correctnessRecord": "host-independent exact output before any future samples",
+    "complete": true,
+    "beforeSamples": true,
+    "independent": true,
+    "runtime": "unavailable",
+    "setup": "input setup outside future timing",
+    "output": "{\"bytes\":\"<u64>\",\"matches\":\"<u64>\"}"
+  },
+  "inputs": {
+    "pathArgument": true,
+    "delimiter": "runtime-parameter",
+    "delimiterValues": ["0", "10", "32", "124", "255"],
+    "maximumBytes": 67108864,
+    "classes": [
+      {"id":"empty","kind":"empty","sizes":[0],"delimiterValues":["10","124"]},
+      {"id":"boundary","kind":"boundary sizes","sizes":[0,1,15,16,17,64,65,67108864],"delimiterValues":["0","10","255"]},
+      {"id":"ascii","kind":"ASCII bytes","sizes":[16,64,1024],"delimiterValues":["32","124"]},
+      {"id":"utf8-mixed","kind":"UTF-8 and mixed text","sizes":[16,64,1024],"delimiterValues":["10","124"]},
+      {"id":"mixed-binary","kind":"mixed binary bytes","sizes":[16,64,4096],"delimiterValues":["0","10","255"]},
+      {"id":"dense","kind":"dense matches","sizes":[16,257,4096],"delimiterValues":["0","255"]},
+      {"id":"sparse","kind":"sparse matches","sizes":[16,4097,65536],"delimiterValues":["10","255"]},
+      {"id":"no-matches","kind":"no matches","sizes":[0,1,1024,65536],"delimiterValues":["255"]}
+    ],
+    "setup": "deterministic temporary files outside future timing"
+  },
+  "baselines": [
+    {
+      "id": "c11",
+      "path": "benchmarks/byte-scan-view/byte_scan_view.c",
+      "digest": "sha256:a297424ba2365d47cf335f57c97a187a96fe198999f462c57f22d2d3831cfd2c",
+      "recipePath": "benchmarks/byte-scan-view/CMakeLists.txt",
+      "recipeDigest": "sha256:0caa98fdb5a9fe487d6c39f4b08ea0f47d5cb7ba3be45224cd40ca12b7c35ddd",
+      "language": "C11",
+      "compileSteps": [["cmake", "-S", "<source-dir>", "-B", "<build-dir>", "-DCMAKE_BUILD_TYPE=Release"], ["cmake", "--build", "<build-dir>", "--config", "Release"]],
+      "invoke": ["<executable>", "<path>", "<delimiter>"],
+      "flags": ["CMAKE_BUILD_TYPE=Release", "C_STANDARD=11"],
+      "edition": null,
+      "role": "correctness-reference-no-ranking",
+      "futurePerformanceRole": "independent-comparison-after-equivalence",
+      "futurePerformanceRecipe": "pin-toolchain-and-equivalent-recipe",
+      "output": "canonical-json-u64"
+    },
+    {
+      "id": "rust",
+      "path": "benchmarks/byte-scan-view/byte_scan_view.rs",
+      "digest": "sha256:e9e9adf12053a6c30e41110d744b6c368259b1319bd16edfcf0d599d1f2b60a3",
+      "recipePath": null,
+      "recipeDigest": null,
+      "language": "Rust",
+      "compileSteps": [["rustc", "--edition=2021", "-C", "opt-level=2", "<source>", "-o", "<executable>"]],
+      "invoke": ["<executable>", "<path>", "<delimiter>"],
+      "flags": ["--edition=2021", "-C opt-level=2"],
+      "edition": "2021",
+      "role": "correctness-reference-no-ranking",
+      "futurePerformanceRole": "independent-comparison-after-equivalence",
+      "futurePerformanceRecipe": "pin-toolchain-and-equivalent-recipe",
+      "output": "canonical-json-u64"
+    }
+  ],
+  "futureMetrics": ["bytes per second", "latency-distribution", "allocation count", "code-size"],
+  "readiness": {
+    "status": "source-oracle-ready",
+    "source": "source-shaped",
+    "oracle": "host-ready",
+    "codegen": "blocked",
+    "runtime": "blocked",
+    "performance": "blocked",
+    "blockers": ["native-backend", "runtime", "language-benchmark-runner"]
+  },
+  "restaurantCrosspoint": {
+    "status": "separate-track",
+    "reference": "reference/last-light/allocation.w",
+    "crosspoint": "The Restaurant allocation scanner is a source precedent only. It does not replace this bounded view workload."
+  },
+  "provenance": {
+    "catalogPath": "benchmarks/language-catalog.json",
+    "sourceRoot": "benchmarks/byte-scan-view",
+    "oraclePath": "tooling/byte-scan-view-oracle.mjs",
+    "oracleDigest": "sha256:57449ccf51f3d0bb1ad54044d4563e906faff2a23dd4a48b74ac0b97dc765cb5"
+  },
+  "stopCondition": "Do not collect W results or timing until W codegen and runtime exist; then rerun all declared inputs against the independent oracle with complete source, input, toolchain and recipe provenance."
+}
