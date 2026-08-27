@@ -44,8 +44,10 @@ const preciseBackendFlags = [
 for (const [name, backend] of [["program", documents.program.backend], ["manifest", documents.manifest.backend]]) {
   if (backend?.benchmarkRunnerAvailable !== true ||
       backend?.compilerLifecycleResultsAllowed !== true ||
+      backend?.comparisonResultsAllowed !== true ||
+      backend?.regressionResultsAllowed !== false ||
       preciseBackendFlags.slice(1).some((flag) => backend?.[flag] !== false)) {
-    fail(name + " backend must enable only compiler-lifecycle results after M2.");
+    fail(name + " backend must enable compiler-lifecycle comparison results and disable regression, language and runtime results.");
   }
   if (Object.prototype.hasOwnProperty.call(backend ?? {}, "resultsAllowed")) {
     fail(name + " backend must not retain resultsAllowed.");
@@ -72,7 +74,7 @@ if (!resultDefinition) {
   if (resultDefinition.properties?.quality?.const !== "exploratory" ||
       resultDefinition.properties?.claim?.const !== "measurement-only" ||
       resultDefinition.properties?.comparison?.const !== null) {
-    fail("result schema must remain measurement-only until interleaved-comparison-runner exists.");
+    fail("BMD1 result schema must remain measurement-only; BMD2 comparison uses its separate closed result kind.");
   }
   const workload = resultDefinition.properties?.workload;
   if (JSON.stringify(workload?.required ?? []) !== JSON.stringify([
@@ -89,7 +91,7 @@ if (!resultDefinition) {
     fail("result identity must bind source, graph, input and manifest command.");
   }
   if (resultDefinition.properties?.samples?.properties?.order?.const !== "single-series") {
-    fail("result schema must use single-series ordering until interleaved-comparison-runner exists.");
+    fail("BMD1 result schema must use single-series ordering; BMD2 declares its paired order separately.");
   }
   const oracleRequired = resultDefinition.properties?.oracle?.required ?? [];
   if (!hasAll(oracleRequired, ["validationDigest", "complete", "beforeSamples"])) {
@@ -151,6 +153,32 @@ if (!resultDefinition) {
   }
 }
 
+const comparisonDefinition = documents.schema?.$defs?.comparisonResult;
+if (!comparisonDefinition || !documents.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/comparisonResult")) {
+  fail("WBench/1 root must expose the comparison result kind.");
+} else {
+  if (comparisonDefinition.additionalProperties !== false ||
+      comparisonDefinition.properties?.claim?.const !== "comparison-only" ||
+      comparisonDefinition.properties?.verdict?.const !== "not-evaluated") {
+    fail("comparison result schema must be closed and comparison-only/not-evaluated.");
+  }
+  if (comparisonDefinition.properties?.comparison?.$ref !== "#/$defs/comparison") {
+    fail("comparison result schema must bind the closed comparison object.");
+  }
+  if (comparisonDefinition.properties?.samples?.$ref !== "#/$defs/comparisonSamples") {
+    fail("comparison result schema must bind paired samples.");
+  }
+}
+
+const taskDefinition = documents.schema?.$defs?.task;
+const seedTaskRule = taskDefinition?.allOf?.find((rule) =>
+  rule?.if?.properties?.id?.const === "seed-compiler-lifecycle");
+if (seedTaskRule?.then?.properties?.outputs?.contains?.const !== "source-backed paired compiler comparator" ||
+    JSON.stringify(seedTaskRule?.then?.properties?.stopCondition?.allOf?.map((rule) => rule?.pattern).sort()) !==
+      JSON.stringify(["comparison-only", "managed-regression-runner"].sort())) {
+  fail("task schema must bind the seed compiler comparator and separate comparison-only from managed regression.");
+}
+
 const matrix = documents.manifest.matrix;
 if (JSON.stringify(matrix?.scenarios) !== JSON.stringify(LIFECYCLE_SCENARIOS)) {
   fail("manifest matrix scenarios are not clean, no-op and edit.");
@@ -182,7 +210,7 @@ const cases = documents.corpus.cases ?? [];
 const reductions = reduceCorpus(documents.corpus);
 const accepted = cases.filter((item) => item.kind === "accepted");
 const rejected = cases.filter((item) => item.kind === "rejected");
-if (accepted.length !== 5) fail("expected five accepted disposition/matrix cases.");
+if (accepted.length !== 7) fail("expected five BMD1 accepted cases and two BMD2 comparison cases.");
 if (rejected.length < 1) fail("corpus must contain rejected adversarial cases.");
 if (!hasAll(cases.map((item) => item.id), REQUIRED_CASES)) {
   fail("corpus is missing a required adversarial or disposition case.");
@@ -223,7 +251,7 @@ if (errors.length > 0) {
   for (const error of errors) console.error(error);
   process.exitCode = 1;
 } else {
-  console.log("BMD1 benchmark protocol: " + LANGUAGE_PROFILES.length +
+  console.log("BMD1/BMD2 benchmark protocol: " + LANGUAGE_PROFILES.length +
     " language profiles, 2 lanes, " + LIFECYCLE_SCENARIOS.length +
     " scenarios, " + LIFECYCLE_STAGES.length + " stages, " +
     matrix.points.length + " matrix points, " + cases.length +

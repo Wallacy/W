@@ -50,7 +50,7 @@ test("W-1487 profiles and lanes remain separate from compiler lifecycle", () => 
 });
 
 test("the accepted corpus covers all dispositions", () => {
-  const accepted = documents.corpus.cases.filter((item) => item.kind === "accepted");
+  const accepted = documents.corpus.cases.filter((item) => item.kind === "accepted" && item.fixture !== "comparison-result");
   const byDisposition = new Map(accepted.map((item) => {
     const value = materializeCase(item).value;
     return [value.benchmarkDisposition, { item, value }];
@@ -88,6 +88,15 @@ test("the seed matrix has three scenarios, nine stages and one ready cell", () =
   ]);
   assert.equal(Object.hasOwn(documents.manifest, "lifecycle"), false);
   assert.equal(Object.hasOwn(documents.manifest, "phases"), false);
+});
+
+test("seed compiler lifecycle task owns every W-1489 comparison case", () => {
+  const task = documents.program.tasks.find((item) => item.id === "seed-compiler-lifecycle");
+  const comparisonIds = REQUIRED_CASES.filter((id) => id.startsWith("BMD2-W-1489-"));
+  assert.ok(task.outputs.includes("source-backed paired compiler comparator"));
+  assert.equal(comparisonIds.every((id) => task.adversarialCases.includes(id)), true);
+  assert.match(task.stopCondition, /comparison-only/u);
+  assert.match(task.stopCondition, /regression remains blocked by managed-regression-runner/u);
 });
 
 test("root identities are source-backed once for the whole matrix", () => {
@@ -179,11 +188,34 @@ test("the corpus has independent negative coverage", () => {
   assert.equal(REQUIRED_CASES.every((id) => documents.corpus.cases.some((item) => item.id === id)), true);
   const reductions = reduceCorpus(documents.corpus);
   assert.equal(reductions.length, documents.corpus.cases.length);
-  assert.equal(reductions.filter((item) => item.classification === "accepted").length, 5);
-  assert.equal(reductions.filter((item) => item.classification === "rejected").length, documents.corpus.cases.length - 5);
+  assert.equal(reductions.filter((item) => item.classification === "accepted").length, 7);
+  assert.equal(reductions.filter((item) => item.classification === "rejected").length, documents.corpus.cases.length - 7);
   for (const id of REQUIRED_CASES.filter((value) => value.includes("result-") || value.includes("blocker-incomplete"))) {
     assert.equal(reduceCase(documents.corpus.cases.find((item) => item.id === id)).classification, "rejected", id);
   }
+});
+
+test("BMD2 comparison fixture is closed, paired and calibration-aware", () => {
+  const current = documents.corpus.cases.find((item) => item.id === "BMD2-W-1489-current-comparison");
+  const result = materializeCase(current).value;
+  assert.deepEqual(validateResult(result, documents.manifest), []);
+  assert.equal(result.claim, "comparison-only");
+  assert.equal(result.verdict, "not-evaluated");
+  assert.equal(result.samples.raw.length, 18);
+  assert.equal(result.samples.order, "balanced-paired-interleaved-sha256-v1");
+  assert.equal(result.comparison.calibration, true);
+  assert.equal(result.comparison.pairs.length, 9);
+  const different = materializeCase(documents.corpus.cases.find((item) => item.id === "BMD2-W-1489-different-closure-comparison")).value;
+  assert.deepEqual(validateResult(different, documents.manifest), []);
+  assert.equal(different.comparison.calibration, false);
+});
+
+test("paired comparison samples reject round zero", () => {
+  const current = documents.corpus.cases.find((item) => item.id === "BMD2-W-1489-current-comparison");
+  const result = clone(materializeCase(current).value);
+  result.samples.raw[0].round = 0;
+  assert.equal(documents.schema.$defs.comparisonSample.properties.round.minimum, 1);
+  assert.ok(validateResult(result, documents.manifest).some((error) => error.includes("positive rounds")));
 });
 
 test("required adversarial cases reject the matrix and result boundaries", () => {

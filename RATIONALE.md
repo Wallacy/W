@@ -5885,10 +5885,41 @@ controles de ruído conhecidos e desconhecidos sem alegar controle ausente.
 O record BMD1 corrente é somente compiler-lifecycle no ponto ready. Ele é
 `exploratory`, `measurement-only` e `single-series`, com comparison nula.
 Ele não afirma performance, native backend, runtime ou result de language.
-Comparison e regression exigem baseline e candidate identificados, samples
-etiquetadas, randomized interleaving e noise policy. Essa rota permanece
-bloqueada por `interleaved-comparison-runner`. O Computer Language Benchmarks
-Game continua exploratório e nunca é authority.
+W-1489 define a comparação BMD2 source-backed para dois commits locais. O
+Computer Language Benchmarks Game continua exploratório e nunca é authority.
+
+W-1489 fecha somente a forma `comparison-only` do compiler lifecycle. O
+runner aceita SHAs completos, arquiva cada `compiler/seed-c` separadamente,
+constrói ambos em Release fora da medição e fixa closure, artifact, recipe,
+recipe-class e toolchain digests por papel. O workload continua sendo
+`reference/last-light/checker_bootstrap.w`; recipe-class, toolchain e workload
+divergentes falham antes de samples. Os dois oracles exigem exit 0 e output
+vazio antes de qualquer warmup ou raw.
+
+O schedule `balanced-paired-interleaved-sha256-v1` usa seed CSPRNG interno,
+é reproduzível pelo seed e equilibra a primeira posição. Cada round executa
+baseline e candidate uma vez. Warmup usa um ou mais pares, com rounds próprios
+de `1..warmupPairCount` na mesma orientação do primeiro round raw, e raw usa
+número ímpar fixo de pelo menos nove pares. A máquina valida samples, schedule,
+labels e ordem, recalcula com `BigInt` as estatísticas por série, os deltas
+candidate-baseline, relative ppm com sinal, counts e calibration, valida o
+workload corrente e verifica a consistência entre as identidades de papel
+duplicadas em `comparison` e `provenance`. O result permanece
+`exploratory`, `equivalent`, `clean`, `check-end-to-end`,
+`verdict: not-evaluated`, com `comparison-only` e noise desconhecido honesto.
+Closure igual produz calibration, não regression. Não há mean, p-value,
+bootstrap, threshold ou verdict direcional.
+
+O runner deriva a proveniência de archive, build, artifact, recipe e toolchain
+e executa o oracle de cada papel. Um result isolado não permite à máquina
+recomputar essa proveniência nem reexecutar o oracle; ela valida somente a
+forma fechada e a consistência dessas evidências.
+
+O smoke HEAD×HEAD usa dois builds independentes, um warmup pair e nove raw
+pairs, mas não publica result. Regression continua bloqueada por
+`managed-regression-runner`, que exige provider controlado, repetição,
+uncertainty e threshold. Nenhum caso BMD2 cria ranking, programa executável
+de linguagem ou timing de runtime.
 
 As fontes [Benchmarks Game — how programs are measured](https://benchmarksgame-team.pages.debian.net/benchmarksgame/how-programs-are-measured.html),
 [LLVM — Benchmarking](https://llvm.org/docs/Benchmarking.html), [Google Benchmark — User Guide](https://github.com/google/benchmark/blob/main/docs/user_guide.md),
@@ -7626,6 +7657,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1486 | programa bounded de pesquisa binary-first registry/execution | A direção candidate para distribuição binary-first, registry HTTP static-first e execução assinada está aprovada como baseline do estudo. Canonical signing payload, protocol/security/provider evidence e as stop conditions das oito tasks RDX0, PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 e ENT0 permanecem research-gated; não há claim de implementação de registry, compiler, runner, sandbox, provider ou attestation verifier | O bundle RDX0 registra a direção, as dependencies, os outputs observáveis, os cases negativos e as stop conditions; a classificação research-gated usa a seção RDX0 como authority e exige evidence nova antes de promoção |
 | W-1487 | política e infraestrutura de benchmark-driven development | BMD0 define WBench/1, as tracks separadas de language e compiler lifecycle, os perfis learner/idiomatic/frontier, as lanes equivalent/open, as quatro dispositions e correctness/oracle antes de samples. O lifecycle usa um source, graph e input identity; C/Clang e Rust são contextuais e não-ranking, e o baseline primário é W histórico com recipe equivalente. O seed `w check`/frontend está disponível, mas native backend/runtime não; não há result, timing ou claim de runtime | `benchmarks/` contém schema, programa, manifesto source-backed, descriptors, máquina e corpus adversarial; `benchmark-driven-development-reference.test.mjs` e `check-benchmark-driven-development.mjs` provam o protocolo host-side. A categoria é `oracle-backed-current` por protocolo verificável, não research gate nem claim de performance |
 | W-1488 | matriz e runner BMD1 de compiler lifecycle | BMD1 acrescenta 27 células clean/no-op/edit × check-end-to-end/source/lex/parse/semantic/hir/lowering/codegen/link. Somente clean × check-end-to-end está ready. O runner constrói `compiler/seed-c` em Release fora da medição, executa o oracle source-backed antes de warmup e raw e mede processos novos com monotonic wall ns. O output exige path explícito e publicação atômica fail-if-exists. O result atual é exploratory/measurement-only/single-series com comparison nula. Provenance e environment registram digests e noise unknown honestos. `no-op` e `edit` permanecem bloqueados por `incremental-cache`; `source`, `lex`, `parse` e `semantic` permanecem bloqueados por `stage-instrumentation`; `hir`, `lowering`, `codegen` e `link` permanecem bloqueados pelos componentes correspondentes; language e product-runtime permanecem bloqueados por `native backend`, `runtime` e `provider` conforme aplicável; somente comparison e regression permanecem bloqueados por `interleaved-comparison-runner` | `BMD1-W-1488-current-matrix`, o runner host e o smoke real validam a matriz, o source `checker_bootstrap.w`, o oracle antes das samples, os digests, as métricas derivadas, a publicação atômica e o cleanup. A categoria é `oracle-backed-current` e não promove performance |
+| W-1489 | comparação BMD2 source-backed de compiler lifecycle | BMD2 compara dois commits locais completos por `git archive` isolado de `compiler/seed-c`, builds Release independentes, oracles vazios antes de samples e schedule `balanced-paired-interleaved-sha256-v1` com pares fixos, ímpares e balanceados. A máquina recompõe schedule e labels, recalcula estatísticas BigInt, deltas, ppm, counts e calibration, valida o workload corrente e verifica a consistência entre as identidades de papel duplicadas em `comparison` e `provenance`. O runner deriva a proveniência de archive, build, artifact, recipe e toolchain e executa o oracle de cada papel; um result isolado não permite à máquina recomputar essa proveniência nem reexecutar o oracle. O result é exploratory/comparison-only/equivalent/clean/check-end-to-end/not-evaluated; não é claim de performance e regression permanece bloqueada por `managed-regression-runner` | casos BMD2 aceitos e adversariais, testes host do runner e smoke HEAD×HEAD cobrem SHAs, archives, builds independentes, oracle-before-samples, divergência de recipe-class/toolchain/workload, schedule forjado, métricas forjadas, publicação atômica e cleanup; a categoria é `oracle-backed-current` |
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova

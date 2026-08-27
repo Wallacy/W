@@ -72,6 +72,23 @@ export const REQUIRED_CASES = Object.freeze([
   "BMD1-W-1488-result-u64-overflow",
   "BMD1-W-1488-result-comparison-incomplete",
   "BMD1-W-1488-blocker-incomplete",
+  "BMD2-W-1489-current-comparison",
+  "BMD2-W-1489-different-closure-comparison",
+  "BMD2-W-1489-schedule-forged",
+  "BMD2-W-1489-sample-label-forged",
+  "BMD2-W-1489-oracle-partial",
+  "BMD2-W-1489-recipe-class-divergent",
+  "BMD2-W-1489-toolchain-divergent",
+  "BMD2-W-1489-workload-divergent",
+  "BMD2-W-1489-metric-forged",
+  "BMD2-W-1489-delta-forged",
+  "BMD2-W-1489-calibration-forged",
+  "BMD2-W-1489-counts-forged",
+  "BMD2-W-1489-even-pairs",
+  "BMD2-W-1489-zero-ns",
+  "BMD2-W-1489-leading-zero",
+  "BMD2-W-1489-u64-overflow",
+  "BMD2-W-1489-regression-blocked",
 ]);
 export const SOURCE_FIXTURE = Object.freeze({
   path: "reference/last-light/checker_bootstrap.w",
@@ -110,6 +127,10 @@ export const RESULT_MIN_WARMUP = 1;
 export const RESULT_CLOCK = "monotonic-wall-ns";
 export const MEASUREMENT_ORDER = "single-series";
 export const COMPARISON_ORDER = "randomized-interleaved";
+export const PAIRED_COMPARISON_ORDER = "balanced-paired-interleaved-sha256-v1";
+export const COMPARISON_CLAIM = "comparison-only";
+export const REGRESSION_BLOCKER = "managed-regression-runner";
+export const COMPARISON_SEED_BYTES = 32;
 export const MAX_BOUNDED_MUTATIONS = 2;
 export const MAX_U64 = (1n << 64n) - 1n;
 
@@ -713,6 +734,180 @@ function parseU64(value, name, errors) {
   }
 }
 
+const COMPARISON_SEED_PATTERN = /^[0-9a-f]{64}$/u;
+const COMPARISON_COMMIT_PATTERN = /^[0-9a-f]{40}$/u;
+
+function hashHex(value) {
+  return crypto.createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function compareStrings(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function validateScheduleSeed(seed) {
+  if (typeof seed !== "string" || !COMPARISON_SEED_PATTERN.test(seed)) {
+    throw new TypeError("comparison schedule seed must be 64 lowercase hexadecimal characters.");
+  }
+}
+
+function validatePairCount(pairCount) {
+  if (!Number.isSafeInteger(pairCount) || pairCount < RESULT_MIN_SAMPLES || pairCount % 2 === 0) {
+    throw new TypeError("comparison schedule pair count must be odd and at least 9.");
+  }
+}
+
+/**
+ * Build the versioned randomized balanced paired schedule.
+ *
+ * The seed is a runner-generated CSPRNG value. Hash-ranked orientation and
+ * round shuffles make the schedule deterministic without exposing a seed CLI
+ * option. Exactly ceil(N/2) rounds start with baseline.
+ */
+export function pairedScheduleForSeed(seed, pairCount) {
+  validateScheduleSeed(seed);
+  validatePairCount(pairCount);
+  const orientationRanks = Array.from({ length: pairCount }, (_, index) => ({
+    index,
+    rank: hashHex(seed + "\u0000orientation\u0000" + index),
+  })).sort((left, right) => compareStrings(left.rank, right.rank));
+  const baselineFirst = new Set(
+    orientationRanks.slice(0, Math.ceil(pairCount / 2)).map((entry) => entry.index),
+  );
+  const order = Array.from({ length: pairCount }, (_, index) => index);
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    const rank = hashHex(seed + "\u0000round\u0000" + index);
+    const choice = Number(BigInt("0x" + rank.slice(0, 16)) % BigInt(index + 1));
+    [order[index], order[choice]] = [order[choice], order[index]];
+  }
+  return order.map((sourceIndex, index) => {
+    const first = baselineFirst.has(sourceIndex) ? "baseline" : "candidate";
+    return {
+      round: index + 1,
+      first,
+      second: first === "baseline" ? "candidate" : "baseline",
+    };
+  });
+}
+
+export const createPairedSchedule = pairedScheduleForSeed;
+
+function parsePositiveU64(value, name, errors) {
+  const parsed = parseU64(value, name, errors);
+  if (parsed === 0n) push(errors, name + " must be positive for paired comparison.");
+  return parsed === 0n ? undefined : parsed;
+}
+
+function parseSignedDecimal(value, name, errors) {
+  if (typeof value !== "string" || !/^(?:0|-?[1-9]\d*)$/u.test(value)) {
+    push(errors, name + " must be a canonical signed decimal string.");
+    return undefined;
+  }
+  try {
+    return BigInt(value);
+  } catch {
+    push(errors, name + " must be a canonical signed decimal string.");
+    return undefined;
+  }
+}
+
+function roundedRatio(numerator, denominator) {
+  if (denominator <= 0n) throw new RangeError("ratio denominator must be positive.");
+  const negative = numerator < 0n;
+  const absolute = negative ? -numerator : numerator;
+  let quotient = absolute / denominator;
+  const remainder = absolute % denominator;
+  if (remainder * 2n >= denominator) quotient += 1n;
+  return negative ? -quotient : quotient;
+}
+
+export function roundSignedRatio(numerator, denominator) {
+  return roundedRatio(BigInt(numerator), BigInt(denominator));
+}
+
+function positiveLatency(values) {
+  const parsed = values.map((value) => typeof value === "bigint" ? value : BigInt(value));
+  if (parsed.length < RESULT_MIN_SAMPLES || parsed.length % 2 === 0 || parsed.some((value) => value <= 0n)) {
+    throw new TypeError("paired latency requires an odd positive raw sample count of at least 9.");
+  }
+  const center = median(parsed);
+  const deviations = parsed.map((value) => value >= center ? value - center : center - value);
+  return {
+    unit: "ns",
+    minimumNs: parsed.reduce((minimum, value) => value < minimum ? value : minimum).toString(),
+    medianNs: center.toString(),
+    maximumNs: parsed.reduce((maximum, value) => value > maximum ? value : maximum).toString(),
+    madNs: median(deviations).toString(),
+    derivedFromRawSamples: true,
+  };
+}
+
+function signedSummary(values, suffix) {
+  if (values.length < RESULT_MIN_SAMPLES || values.length % 2 === 0) {
+    throw new TypeError("paired derived values require an odd count of at least 9.");
+  }
+  const minimum = values.reduce((left, right) => left < right ? left : right);
+  const maximum = values.reduce((left, right) => left > right ? left : right);
+  return {
+    ["minimum" + suffix]: minimum.toString(),
+    ["median" + suffix]: median(values).toString(),
+    ["maximum" + suffix]: maximum.toString(),
+  };
+}
+
+export function calculatePairedComparison(rawSamples, pairCount = undefined) {
+  if (!Array.isArray(rawSamples)) throw new TypeError("paired raw samples must be an array.");
+  const grouped = new Map([["baseline", new Map()], ["candidate", new Map()]]);
+  for (const sample of rawSamples) {
+    if (!isObject(sample) || !["baseline", "candidate"].includes(sample.series)) {
+      throw new TypeError("paired raw samples must identify baseline or candidate.");
+    }
+    const ns = BigInt(sample.ns);
+    if (ns <= 0n) throw new TypeError("paired raw samples must use positive nanoseconds.");
+    const round = Number(sample.round);
+    if (!Number.isSafeInteger(round) || round < 1) throw new TypeError("paired raw samples must use positive rounds.");
+    const values = grouped.get(sample.series);
+    if (values.has(round)) throw new TypeError("paired raw samples must not duplicate a round.");
+    values.set(round, ns);
+  }
+  const count = pairCount ?? grouped.get("baseline").size;
+  validatePairCount(count);
+  const baseline = grouped.get("baseline");
+  const candidate = grouped.get("candidate");
+  if (baseline.size !== count || candidate.size !== count ||
+      [...baseline.keys()].some((round) => !candidate.has(round))) {
+    throw new TypeError("paired raw samples must contain one baseline and candidate value per round.");
+  }
+  const pairs = Array.from({ length: count }, (_, index) => {
+    const round = index + 1;
+    const baselineNs = baseline.get(round);
+    const candidateNs = candidate.get(round);
+    const deltaNs = candidateNs - baselineNs;
+    const relativePpm = roundedRatio(deltaNs * 1_000_000n, baselineNs);
+    return {
+      round,
+      baselineNs: baselineNs.toString(),
+      candidateNs: candidateNs.toString(),
+      deltaNs: deltaNs.toString(),
+      relativePpm: relativePpm.toString(),
+    };
+  });
+  const deltas = pairs.map((pair) => BigInt(pair.deltaNs));
+  const ppm = pairs.map((pair) => BigInt(pair.relativePpm));
+  return {
+    baseline: positiveLatency([...baseline.values()]),
+    candidate: positiveLatency([...candidate.values()]),
+    pairs,
+    delta: signedSummary(deltas, "Ns"),
+    relativePpm: signedSummary(ppm, "Ppm"),
+    counts: {
+      faster: deltas.filter((value) => value < 0n).length,
+      tied: deltas.filter((value) => value === 0n).length,
+      slower: deltas.filter((value) => value > 0n).length,
+    },
+  };
+}
+
 function checkStringSet(value, name, errors, minimum = 0) {
   if (!Array.isArray(value)) {
     push(errors, name + " must be an array of non-empty strings.");
@@ -854,9 +1049,309 @@ function checkResultIdentity(identity, name, manifest, errors) {
   }
 }
 
+function requiredCommit(value, name, errors) {
+  if (typeof value !== "string" || !COMPARISON_COMMIT_PATTERN.test(value)) {
+    push(errors, name + " must be a complete 40-hex Git commit SHA.");
+    return false;
+  }
+  return true;
+}
+
+function checkComparisonRole(role, name, errors) {
+  if (!isObject(role)) {
+    push(errors, name + " must be an object.");
+    return;
+  }
+  checkExactKeys(role, name, [
+    "commit", "closureDigest", "artifactDigest", "recipeDigest",
+    "recipeClassDigest", "toolchainDigest",
+  ], errors);
+  requiredCommit(role.commit, name + ".commit", errors);
+  for (const field of [
+    "closureDigest", "artifactDigest", "recipeDigest", "recipeClassDigest", "toolchainDigest",
+  ]) requiredDigest(role[field], name + "." + field, errors);
+}
+
+function comparisonWorkloadDigest(result) {
+  const payload = {
+    manifestDigest: result.workload?.manifestDigest,
+    track: result.workload?.track,
+    lane: result.workload?.lane,
+    scenario: result.workload?.scenario,
+    stage: result.workload?.stage,
+    subject: result.workload?.subject,
+    profile: result.workload?.profile,
+    source: result.identity?.source,
+    graph: result.identity?.graph,
+    input: result.identity?.input,
+    command: result.identity?.command,
+  };
+  return "sha256:" + crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
+
+function checkPositiveResultSample(sample, name, errors) {
+  if (!isObject(sample)) {
+    push(errors, name + " must be an object.");
+    return undefined;
+  }
+  checkExactKeys(sample, name, ["round", "series", "position", "ns"], errors);
+  if (!Number.isInteger(sample.round) || sample.round < 0) {
+    push(errors, name + ".round must be a non-negative integer.");
+  }
+  if (!["baseline", "candidate"].includes(sample.series)) {
+    push(errors, name + ".series must be baseline or candidate.");
+  }
+  if (!["first", "second"].includes(sample.position)) {
+    push(errors, name + ".position must be first or second.");
+  }
+  return parsePositiveU64(sample.ns, name + ".ns", errors);
+}
+
+function checkLatencyShape(metric, name, errors) {
+  const fields = ["unit", "minimumNs", "medianNs", "maximumNs", "madNs", "derivedFromRawSamples"];
+  if (!isObject(metric) || !sameArray(Object.keys(metric).sort(), [...fields].sort())) {
+    push(errors, name + " must use the closed latency shape.");
+    return;
+  }
+  if (metric.unit !== "ns") push(errors, name + ".unit must be ns.");
+  if (metric.derivedFromRawSamples !== true) push(errors, name + " must derive only from raw samples.");
+  for (const field of ["minimumNs", "medianNs", "maximumNs"]) {
+    parsePositiveU64(metric[field], name + "." + field, errors);
+  }
+  parseU64(metric.madNs, name + ".madNs", errors);
+}
+
+function checkComparisonSignedSummary(summary, suffix, name, errors) {
+  const fields = ["minimum" + suffix, "median" + suffix, "maximum" + suffix];
+  if (!isObject(summary) || !sameArray(Object.keys(summary).sort(), [...fields].sort())) {
+    push(errors, name + " must use the closed signed summary shape.");
+    return;
+  }
+  for (const field of fields) parseSignedDecimal(summary[field], name + "." + field, errors);
+}
+
+function checkComparisonResult(result, manifest, errors) {
+  checkExactKeys(result, "result", [
+    "$schema", "schema", "kind", "id", "status", "quality", "claim",
+    "workload", "identity", "comparison", "verdict", "oracle", "samples", "environment",
+    "provenance", "metrics", "summary", "semanticDeviations", "disclosures",
+  ], errors);
+  if (result.$schema !== "./wbench-1.schema.json") push(errors, "result.$schema must identify wbench-1.schema.json.");
+  if (result.schema !== SCHEMA_VERSION) push(errors, "result.schema must be wbench/1.");
+  if (result.kind !== "result") push(errors, "result.kind must be result.");
+  if (result.status !== "recorded") push(errors, "result.status must be recorded.");
+  requiredString(result.id, "result.id", errors);
+  if (result.quality !== "exploratory") push(errors, "comparison result quality must be exploratory.");
+  if (result.claim === "regression" || result.quality === "regression-grade") {
+    push(errors, "regression-grade/regression requires " + REGRESSION_BLOCKER + " with controlled provider, repetition/uncertainty policy and threshold.");
+  }
+  if (result.claim !== COMPARISON_CLAIM) push(errors, "comparison result claim must be comparison-only.");
+  if (result.verdict !== "not-evaluated") push(errors, "comparison result verdict must be not-evaluated.");
+  checkResultWorkload(result.workload, "result.workload", manifest, errors);
+  checkResultIdentity(result.identity, "result.identity", manifest, errors);
+
+  const comparison = result.comparison;
+  if (!isObject(comparison)) {
+    push(errors, "result.comparison must be a complete comparison object.");
+  } else {
+    checkExactKeys(comparison, "result.comparison", [
+      "baseline", "candidate", "calibration", "verdict", "pairs", "delta",
+      "relativePpm", "counts", "noisePolicy",
+    ], errors);
+    checkComparisonRole(comparison.baseline, "result.comparison.baseline", errors);
+    checkComparisonRole(comparison.candidate, "result.comparison.candidate", errors);
+    if (comparison.calibration !== (comparison.baseline?.closureDigest === comparison.candidate?.closureDigest)) {
+      push(errors, "result.comparison.calibration must derive from compiler/seed-c closure digests.");
+    }
+    if (comparison.verdict !== "not-evaluated") push(errors, "result.comparison.verdict must be not-evaluated.");
+    checkComparisonSignedSummary(comparison.delta, "Ns", "result.comparison.delta", errors);
+    checkComparisonSignedSummary(comparison.relativePpm, "Ppm", "result.comparison.relativePpm", errors);
+    if (!isObject(comparison.counts) ||
+        !sameArray(Object.keys(comparison.counts).sort(), ["faster", "slower", "tied"].sort())) {
+      push(errors, "result.comparison.counts must contain faster, tied and slower.");
+    } else {
+      for (const field of ["faster", "tied", "slower"]) {
+        if (!Number.isSafeInteger(comparison.counts[field]) || comparison.counts[field] < 0) {
+          push(errors, "result.comparison.counts." + field + " must be a non-negative integer.");
+        }
+      }
+    }
+    if (!isObject(comparison.noisePolicy) ||
+        !checkExactKeys(comparison.noisePolicy, "result.comparison.noisePolicy", ["known", "unknown"], errors)) {
+      push(errors, "result.comparison.noisePolicy must record known and unknown controls.");
+    } else {
+      checkStringSet(comparison.noisePolicy.known, "result.comparison.noisePolicy.known", errors);
+      checkStringSet(comparison.noisePolicy.unknown, "result.comparison.noisePolicy.unknown", errors, 1);
+    }
+  }
+
+  const oracle = result.oracle;
+  if (!isObject(oracle) || !checkExactKeys(oracle, "result.oracle", ["baseline", "candidate", "complete", "beforeSamples"], errors)) {
+    push(errors, "result.oracle must contain both role validations and completion flags.");
+  } else {
+    for (const role of ["baseline", "candidate"]) {
+      const evidence = oracle[role];
+      if (!isObject(evidence) || !checkExactKeys(evidence, "result.oracle." + role, ["validationDigest", "complete", "beforeSamples"], errors)) {
+        push(errors, "result.oracle." + role + " must be closed.");
+      } else {
+        requiredDigest(evidence.validationDigest, "result.oracle." + role + ".validationDigest", errors);
+        requiredBoolean(evidence.complete, "result.oracle." + role + ".complete", errors);
+        requiredBoolean(evidence.beforeSamples, "result.oracle." + role + ".beforeSamples", errors);
+      }
+    }
+    requiredBoolean(oracle.complete, "result.oracle.complete", errors);
+    requiredBoolean(oracle.beforeSamples, "result.oracle.beforeSamples", errors);
+  }
+
+  const samples = result.samples;
+  let rawValues = [];
+  let pairCount;
+  let computed;
+  if (!isObject(samples) || !checkExactKeys(samples, "result.samples", ["raw", "warmup", "stopRule", "clock", "order", "schedule"], errors)) {
+    push(errors, "result.samples must use the closed paired shape.");
+  } else {
+    if (!isObject(samples.stopRule) ||
+        !checkExactKeys(samples.stopRule, "result.samples.stopRule", ["kind", "pairs"], errors) ||
+        samples.stopRule.kind !== "fixed-pairs" || !Number.isSafeInteger(samples.stopRule.pairs) ||
+        samples.stopRule.pairs < RESULT_MIN_SAMPLES || samples.stopRule.pairs % 2 === 0) {
+      push(errors, "result.samples.stopRule must be fixed-pairs with odd pairs >= 9.");
+    } else pairCount = samples.stopRule.pairs;
+    if (samples.clock !== RESULT_CLOCK) push(errors, "result.samples.clock must be monotonic-wall-ns.");
+    if (samples.order !== PAIRED_COMPARISON_ORDER) push(errors, "result.samples.order must be " + PAIRED_COMPARISON_ORDER + ".");
+    const schedule = samples.schedule;
+    if (!isObject(schedule) || !checkExactKeys(schedule, "result.samples.schedule", ["algorithm", "seed", "rounds"], errors)) {
+      push(errors, "result.samples.schedule must identify the versioned seed and order.");
+    } else {
+      if (schedule.algorithm !== PAIRED_COMPARISON_ORDER) push(errors, "result.samples.schedule.algorithm must be " + PAIRED_COMPARISON_ORDER + ".");
+      if (typeof schedule.seed !== "string" || !COMPARISON_SEED_PATTERN.test(schedule.seed)) {
+        push(errors, "result.samples.schedule.seed must be 64 lowercase hexadecimal characters.");
+      } else if (pairCount !== undefined) {
+        try {
+          const expectedSchedule = pairedScheduleForSeed(schedule.seed, pairCount);
+          if (!Array.isArray(schedule.rounds) || JSON.stringify(schedule.rounds) !== JSON.stringify(expectedSchedule)) {
+            push(errors, "result.samples.schedule.rounds do not match the seed-derived schedule.");
+          }
+        } catch (error) {
+          push(errors, "result.samples.schedule is invalid: " + error.message);
+        }
+      }
+    }
+    if (!Array.isArray(samples.raw) || pairCount === undefined || samples.raw.length !== pairCount * 2) {
+      push(errors, "result.samples.raw must contain exactly two samples per fixed pair.");
+    } else {
+      rawValues = samples.raw.map((sample, index) =>
+        checkPositiveResultSample(sample, "result.samples.raw[" + index + "]", errors));
+      const rounds = samples.schedule?.rounds;
+      if (Array.isArray(rounds) && rounds.length === pairCount) {
+        for (let index = 0; index < samples.raw.length; index += 1) {
+          const sample = samples.raw[index];
+          const roundIndex = Math.floor(index / 2);
+          const expected = rounds[roundIndex];
+          const expectedPosition = index % 2 === 0 ? "first" : "second";
+          const expectedSeries = index % 2 === 0 ? expected?.first : expected?.second;
+          if (sample.round !== roundIndex + 1 || sample.position !== expectedPosition || sample.series !== expectedSeries) {
+            push(errors, "result.samples.raw order does not match the declared seed-derived schedule.");
+            break;
+          }
+        }
+      }
+    }
+    if (!Array.isArray(samples.warmup) || samples.warmup.length < 2 || samples.warmup.length % 2 !== 0) {
+      push(errors, "result.samples.warmup must contain at least one complete pair.");
+    } else {
+      for (let index = 0; index < samples.warmup.length; index += 1) {
+        const sample = samples.warmup[index];
+        checkPositiveResultSample(sample, "result.samples.warmup[" + index + "]", errors);
+        const expectedPosition = index % 2 === 0 ? "first" : "second";
+        const expectedSeries = index % 2 === 0 ? samples.schedule?.rounds?.[0]?.first : samples.schedule?.rounds?.[0]?.second;
+        const expectedRound = Math.floor(index / 2) + 1;
+        if (sample?.round !== expectedRound || sample?.position !== expectedPosition || sample?.series !== expectedSeries) {
+          push(errors, "result.samples.warmup must use contiguous rounds 1..warmupPairCount with the first schedule orientation.");
+          break;
+        }
+      }
+    }
+    if (Array.isArray(samples.raw) && pairCount !== undefined && rawValues.every((value) => value !== undefined)) {
+      try {
+        computed = calculatePairedComparison(samples.raw, pairCount);
+      } catch (error) {
+        push(errors, "result.samples raw comparison is invalid: " + error.message);
+      }
+    }
+  }
+
+  const environment = result.environment;
+  if (!isObject(environment) || !checkExactKeys(environment, "result.environment", ["hardware", "kernel", "target", "provider", "toolchain", "flags", "noiseControls"], errors)) {
+    push(errors, "result.environment must use the closed environment shape.");
+  } else {
+    for (const field of ["hardware", "kernel", "target", "provider", "toolchain"]) requiredString(environment[field], "result.environment." + field, errors);
+    checkStringSet(environment.flags, "result.environment.flags", errors, 1);
+    if (!isObject(environment.noiseControls) || !checkExactKeys(environment.noiseControls, "result.environment.noiseControls", ["known", "unknown"], errors)) {
+      push(errors, "result.environment.noiseControls must record known and unknown controls.");
+    } else {
+      const known = checkStringSet(environment.noiseControls.known, "result.environment.noiseControls.known", errors);
+      const unknown = checkStringSet(environment.noiseControls.unknown, "result.environment.noiseControls.unknown", errors, 1);
+      for (const value of known) if (unknown.has(value)) {
+        push(errors, "result.environment.noiseControls.known and unknown must not overlap.");
+        break;
+      }
+    }
+  }
+
+  const provenance = result.provenance;
+  if (!isObject(provenance) || !checkExactKeys(provenance, "result.provenance", ["sourceDigest", "graphDigest", "inputDigest", "workloadDigest", "runnerDigest", "baseline", "candidate"], errors)) {
+    push(errors, "result.provenance must record shared and per-role identities.");
+  } else {
+    for (const field of ["sourceDigest", "graphDigest", "inputDigest", "workloadDigest", "runnerDigest"]) requiredDigest(provenance[field], "result.provenance." + field, errors);
+    if (provenance.sourceDigest !== SOURCE_FIXTURE.digest) push(errors, "result.provenance.sourceDigest must identify the current fixture.");
+    if (provenance.graphDigest !== DESCRIPTOR_IDENTITIES.graph.digest) push(errors, "result.provenance.graphDigest must identify the current graph.");
+    if (provenance.inputDigest !== DESCRIPTOR_IDENTITIES.input.digest) push(errors, "result.provenance.inputDigest must identify the current input.");
+    if (provenance.workloadDigest !== comparisonWorkloadDigest(result)) push(errors, "result.provenance.workloadDigest must derive from the current workload identity.");
+    checkComparisonRole(provenance.baseline, "result.provenance.baseline", errors);
+    checkComparisonRole(provenance.candidate, "result.provenance.candidate", errors);
+    if (comparison && JSON.stringify(provenance.baseline) !== JSON.stringify(comparison.baseline)) push(errors, "result.provenance.baseline must match comparison.baseline.");
+    if (comparison && JSON.stringify(provenance.candidate) !== JSON.stringify(comparison.candidate)) push(errors, "result.provenance.candidate must match comparison.candidate.");
+    if (provenance.baseline?.recipeClassDigest !== provenance.candidate?.recipeClassDigest) push(errors, "baseline and candidate recipe-class digests must match before samples.");
+    if (provenance.baseline?.toolchainDigest !== provenance.candidate?.toolchainDigest) push(errors, "baseline and candidate toolchain digests must match before samples.");
+  }
+
+  if (!isObject(result.metrics) || !sameArray(Object.keys(result.metrics).sort(), ["baseline", "candidate"].sort())) {
+    push(errors, "result.metrics must contain baseline and candidate latency metrics.");
+  } else {
+    checkLatencyShape(result.metrics.baseline, "result.metrics.baseline", errors);
+    checkLatencyShape(result.metrics.candidate, "result.metrics.candidate", errors);
+    if (computed) {
+      if (JSON.stringify(result.metrics.baseline) !== JSON.stringify(computed.baseline)) push(errors, "result.metrics.baseline does not match raw samples.");
+      if (JSON.stringify(result.metrics.candidate) !== JSON.stringify(computed.candidate)) push(errors, "result.metrics.candidate does not match raw samples.");
+    }
+  }
+  if (!isObject(result.summary) || !checkExactKeys(result.summary, "result.summary", ["pairCount", "warmupPairCount", "derivedFromRawSamples"], errors)) {
+    push(errors, "result.summary must use the closed paired shape.");
+  } else {
+    if (!Number.isSafeInteger(result.summary.pairCount) || result.summary.pairCount !== pairCount) push(errors, "result.summary.pairCount must equal raw pair count.");
+    if (!Number.isSafeInteger(result.summary.warmupPairCount) || result.summary.warmupPairCount !== (Array.isArray(samples?.warmup) ? samples.warmup.length / 2 : -1)) push(errors, "result.summary.warmupPairCount must equal warmup pair count.");
+    if (result.summary.derivedFromRawSamples !== true) push(errors, "result.summary must derive only from raw samples.");
+  }
+  if (computed && comparison) {
+    for (const field of ["pairs", "delta", "relativePpm", "counts"]) {
+      if (JSON.stringify(comparison[field]) !== JSON.stringify(computed[field])) push(errors, "result.comparison." + field + " does not match raw samples.");
+    }
+  }
+  checkStringSet(result.semanticDeviations, "result.semanticDeviations", errors);
+  checkStringSet(result.disclosures, "result.disclosures", errors);
+  if (hasOwn(result, "timing") || hasOwn(result, "timings") || hasOwn(result, "expected") || hasOwn(result, "expectedResult") || hasOwn(result, "overwrite") || hasOwn(result, "force") || hasOwn(result, "outputPath")) {
+    push(errors, "result must not contain tracked timing or expected output fields.");
+  }
+  return errors;
+}
+
 export function validateResult(result, manifest = loadCurrentManifest()) {
   const errors = [];
   if (!isObject(result)) return ["result must be an object."];
+  if (result.claim === COMPARISON_CLAIM || result.verdict === "not-evaluated" ||
+      (result.comparison !== null && result.claim !== "measurement-only")) {
+    return checkComparisonResult(result, manifest, errors);
+  }
   checkExactKeys(result, "result", [
     "$schema", "schema", "kind", "id", "status", "quality", "claim",
     "workload", "identity", "comparison", "oracle", "samples", "environment",
@@ -1040,6 +1535,7 @@ function checkTaskGraph(tasks, corpusIds, errors) {
     return;
   }
   const ids = new Set(expected);
+  const comparisonCaseIds = [...corpusIds].filter((caseId) => caseId.startsWith("BMD2-W-1489-")).sort();
   const seen = new Set();
   for (const [index, task] of tasks.entries()) {
     const location = "program.tasks[" + index + "]";
@@ -1084,6 +1580,21 @@ function checkTaskGraph(tasks, corpusIds, errors) {
     if (task.id === "seed-compiler-lifecycle" &&
         (task.status !== "ready" || task.implementation !== "partial")) {
       push(errors, "seed compiler lifecycle must be ready with partial implementation.");
+    }
+    if (task.id === "seed-compiler-lifecycle") {
+      if (!task.outputs?.includes("source-backed paired compiler comparator")) {
+        push(errors, "seed compiler lifecycle outputs must include the source-backed paired compiler comparator.");
+      }
+      for (const caseId of comparisonCaseIds) {
+        if (!task.adversarialCases?.includes(caseId)) {
+          push(errors, "seed compiler lifecycle must cover comparison case " + caseId + ".");
+        }
+      }
+      if (!task.stopCondition?.includes("comparison-only") ||
+          !task.stopCondition?.includes("regression remains blocked") ||
+          !task.stopCondition?.includes(REGRESSION_BLOCKER)) {
+        push(errors, "seed compiler lifecycle stopCondition must separate comparison-only current results from managed regression.");
+      }
     }
     if (["core-language-units", "computer-language-benchmarks-game", "restaurant-composition"].includes(task.id) &&
         (task.status !== "blocked" || task.implementation !== "blocked")) {
@@ -1144,9 +1655,11 @@ export function validateProgram(program, corpus = undefined) {
   }
   if (program.backend?.benchmarkRunnerAvailable !== true ||
       program.backend?.compilerLifecycleResultsAllowed !== true ||
+      program.backend?.comparisonResultsAllowed !== true ||
+      program.backend?.regressionResultsAllowed !== false ||
       program.backend?.languageResultsAllowed !== false ||
       program.backend?.productRuntimeResultsAllowed !== false) {
-    push(errors, "program backend must enable only compiler-lifecycle results after M2.");
+    push(errors, "program backend must enable compiler-lifecycle comparison results and disable regression, language and runtime results.");
   }
   if (hasOwn(program.backend, "resultsAllowed")) {
     push(errors, "program.backend.resultsAllowed is obsolete; use precise result-track flags.");
@@ -1219,9 +1732,11 @@ export function validateManifest(manifest) {
       manifest.backend?.nativeBackendAvailable !== false ||
       manifest.backend?.runtimeAvailable !== false ||
       manifest.backend?.compilerLifecycleResultsAllowed !== true ||
+      manifest.backend?.comparisonResultsAllowed !== true ||
+      manifest.backend?.regressionResultsAllowed !== false ||
       manifest.backend?.languageResultsAllowed !== false ||
       manifest.backend?.productRuntimeResultsAllowed !== false) {
-    push(errors, "manifest backend must expose the seed frontend and enable only compiler-lifecycle results after M2.");
+    push(errors, "manifest backend must expose the seed frontend, comparison results and no regression, language or runtime results.");
   }
   if (hasOwn(manifest.backend, "resultsAllowed")) {
     push(errors, "manifest.backend.resultsAllowed is obsolete; use precise result-track flags.");
@@ -1313,6 +1828,19 @@ export function validateManifest(manifest) {
       push(errors, "manifest.measurementPolicy.safetyDisclosures must record all disclosures.");
     }
   }
+  const comparisonPolicy = manifest.comparisonPolicy;
+  if (!isObject(comparisonPolicy) ||
+      !sameArray(Object.keys(comparisonPolicy).sort(), ["algorithm", "nanoseconds", "order", "pairsMinimum", "regressionBlocker", "warmup"].sort())) {
+    push(errors, "manifest.comparisonPolicy must define the closed paired comparison protocol.");
+  } else {
+    if (comparisonPolicy.order !== PAIRED_COMPARISON_ORDER || comparisonPolicy.algorithm !== PAIRED_COMPARISON_ORDER) {
+      push(errors, "manifest.comparisonPolicy must use the versioned balanced paired order.");
+    }
+    if (comparisonPolicy.pairsMinimum !== RESULT_MIN_SAMPLES) push(errors, "manifest.comparisonPolicy.pairsMinimum must be 9.");
+    if (comparisonPolicy.warmup !== "at-least-one-pair") push(errors, "manifest.comparisonPolicy.warmup must require one pair.");
+    if (comparisonPolicy.nanoseconds !== "positive-u64") push(errors, "manifest.comparisonPolicy.nanoseconds must require positive u64.");
+    if (comparisonPolicy.regressionBlocker !== REGRESSION_BLOCKER) push(errors, "manifest.comparisonPolicy.regressionBlocker must be managed-regression-runner.");
+  }
   if (!Array.isArray(manifest.outputs) || manifest.outputs.length === 0) {
     push(errors, "manifest.outputs must not be empty.");
   }
@@ -1327,6 +1855,7 @@ const CANONICAL_FIXTURES = new Set([
   "documentation",
   "compiler-lifecycle",
   "result",
+  "comparison-result",
 ]);
 const BOUNDED_MUTATIONS = new Set([
   "open-lane",
@@ -1365,6 +1894,22 @@ const BOUNDED_MUTATIONS = new Set([
   "result-u64-overflow",
   "result-comparison-incomplete",
   "blocker-incomplete",
+  "comparison-different-closure",
+  "comparison-schedule-forged",
+  "comparison-sample-label-forged",
+  "comparison-oracle-partial",
+  "comparison-recipe-class-divergent",
+  "comparison-toolchain-divergent",
+  "comparison-workload-divergent",
+  "comparison-metric-forged",
+  "comparison-delta-forged",
+  "comparison-calibration-forged",
+  "comparison-counts-forged",
+  "comparison-even-pairs",
+  "comparison-zero-ns",
+  "comparison-leading-zero",
+  "comparison-u64-overflow",
+  "comparison-regression-blocked",
 ]);
 
 function cloneValue(value) {
@@ -1505,6 +2050,114 @@ function resultFixture() {
   };
 }
 
+function comparisonRoleFixture(commit = "1".repeat(40), closureDigest = SOURCE_FIXTURE.digest) {
+  return {
+    commit,
+    closureDigest,
+    artifactDigest: "sha256:" + "2".repeat(64),
+    recipeDigest: "sha256:" + "3".repeat(64),
+    recipeClassDigest: "sha256:" + "4".repeat(64),
+    toolchainDigest: "sha256:" + "5".repeat(64),
+  };
+}
+
+function comparisonResultFixture() {
+  const pairCount = RESULT_MIN_SAMPLES;
+  const seed = "0123456789abcdef".repeat(4);
+  const schedule = pairedScheduleForSeed(seed, pairCount);
+  const raw = [];
+  for (const round of schedule) {
+    const baselineNs = String(100 + round.round);
+    const candidateNs = String(101 + round.round);
+    raw.push({ round: round.round, series: round.first, position: "first", ns: round.first === "baseline" ? baselineNs : candidateNs });
+    raw.push({ round: round.round, series: round.second, position: "second", ns: round.second === "baseline" ? baselineNs : candidateNs });
+  }
+  const computed = calculatePairedComparison(raw, pairCount);
+  const role = comparisonRoleFixture();
+  const workload = {
+    manifestDigest: fileDigest("benchmarks/seed-check-lifecycle.manifest.json") || "sha256:" + "0".repeat(64),
+    track: "compiler-lifecycle",
+    lane: "equivalent",
+    scenario: "clean",
+    stage: "check-end-to-end",
+    subject: "compiler/seed-c",
+    profile: null,
+  };
+  const identity = {
+    source: { path: SOURCE_FIXTURE.path, symbol: SOURCE_FIXTURE.symbol, digest: SOURCE_FIXTURE.digest },
+    graph: { ...DESCRIPTOR_IDENTITIES.graph },
+    input: { ...DESCRIPTOR_IDENTITIES.input },
+    command: { tool: "w", operation: "check", arguments: [SOURCE_FIXTURE.path, "--json"] },
+  };
+  const value = {
+    $schema: "./wbench-1.schema.json",
+    schema: SCHEMA_VERSION,
+    kind: "result",
+    id: "bmd2-seed-check-comparison",
+    status: "recorded",
+    quality: "exploratory",
+    claim: COMPARISON_CLAIM,
+    verdict: "not-evaluated",
+    workload,
+    identity,
+    comparison: {
+      baseline: { ...role },
+      candidate: { ...role },
+      calibration: true,
+      verdict: "not-evaluated",
+      pairs: computed.pairs,
+      delta: computed.delta,
+      relativePpm: computed.relativePpm,
+      counts: computed.counts,
+      noisePolicy: { known: [], unknown: ["scheduler"] },
+    },
+    oracle: {
+      baseline: { validationDigest: "sha256:" + "6".repeat(64), complete: true, beforeSamples: true },
+      candidate: { validationDigest: "sha256:" + "7".repeat(64), complete: true, beforeSamples: true },
+      complete: true,
+      beforeSamples: true,
+    },
+    samples: {
+      raw,
+      warmup: [
+        { round: 1, series: schedule[0].first, position: "first", ns: schedule[0].first === "baseline" ? "99" : "100" },
+        { round: 1, series: schedule[0].second, position: "second", ns: schedule[0].second === "baseline" ? "99" : "100" },
+      ],
+      stopRule: { kind: "fixed-pairs", pairs: pairCount },
+      clock: RESULT_CLOCK,
+      order: PAIRED_COMPARISON_ORDER,
+      schedule: { algorithm: PAIRED_COMPARISON_ORDER, seed, rounds: schedule },
+    },
+    environment: {
+      hardware: "test-host",
+      kernel: "test-kernel",
+      target: "host",
+      provider: "host",
+      toolchain: "seed-c-release",
+      flags: ["Release"],
+      noiseControls: { known: [], unknown: ["scheduler"] },
+    },
+    provenance: {
+      sourceDigest: SOURCE_FIXTURE.digest,
+      graphDigest: DESCRIPTOR_IDENTITIES.graph.digest,
+      inputDigest: DESCRIPTOR_IDENTITIES.input.digest,
+      workloadDigest: "pending",
+      runnerDigest: "sha256:" + "8".repeat(64),
+      baseline: { ...role },
+      candidate: { ...role },
+    },
+    metrics: { baseline: computed.baseline, candidate: computed.candidate },
+    summary: { pairCount, warmupPairCount: 1, derivedFromRawSamples: true },
+    semanticDeviations: [],
+    disclosures: [
+      "Each warmup and raw sample uses a new driver process.",
+      "Noise controls remain unknown unless the environment records them as controlled.",
+    ],
+  };
+  value.provenance.workloadDigest = comparisonWorkloadDigest(value);
+  return value;
+}
+
 function buildMatrix() {
   const points = [];
   for (const scenario of LIFECYCLE_SCENARIOS) {
@@ -1578,6 +2231,60 @@ function applyBoundedMutation(value, mutation, errors) {
       value.samples.order = COMPARISON_ORDER;
       break;
     case "blocker-incomplete": { const target = point("no-op", "semantic"); if (target) target.blockedBy = ["incremental-cache"]; break; }
+    case "comparison-different-closure":
+      value.comparison.candidate.closureDigest = "sha256:" + "9".repeat(64);
+      value.provenance.candidate.closureDigest = value.comparison.candidate.closureDigest;
+      value.comparison.calibration = false;
+      break;
+    case "comparison-schedule-forged":
+      value.samples.schedule.rounds = [...value.samples.schedule.rounds].reverse();
+      break;
+    case "comparison-sample-label-forged":
+      value.samples.raw[0].series = value.samples.raw[0].series === "baseline" ? "candidate" : "baseline";
+      break;
+    case "comparison-oracle-partial":
+      value.oracle.candidate.complete = false;
+      value.oracle.complete = false;
+      break;
+    case "comparison-recipe-class-divergent":
+      value.comparison.candidate.recipeClassDigest = "sha256:" + "a".repeat(64);
+      value.provenance.candidate.recipeClassDigest = value.comparison.candidate.recipeClassDigest;
+      break;
+    case "comparison-toolchain-divergent":
+      value.comparison.candidate.toolchainDigest = "sha256:" + "b".repeat(64);
+      value.provenance.candidate.toolchainDigest = value.comparison.candidate.toolchainDigest;
+      break;
+    case "comparison-workload-divergent":
+      value.provenance.workloadDigest = "sha256:" + "c".repeat(64);
+      break;
+    case "comparison-metric-forged":
+      value.metrics.baseline.medianNs = "999";
+      break;
+    case "comparison-delta-forged":
+      value.comparison.delta.medianNs = "999";
+      break;
+    case "comparison-calibration-forged":
+      value.comparison.calibration = false;
+      break;
+    case "comparison-counts-forged":
+      value.comparison.counts.tied += 1;
+      break;
+    case "comparison-even-pairs":
+      value.samples.stopRule.pairs = 10;
+      break;
+    case "comparison-zero-ns":
+      value.samples.raw[0].ns = "0";
+      break;
+    case "comparison-leading-zero":
+      value.samples.raw[0].ns = "0100";
+      break;
+    case "comparison-u64-overflow":
+      value.samples.raw[0].ns = "18446744073709551616";
+      break;
+    case "comparison-regression-blocked":
+      value.quality = "regression-grade";
+      value.claim = "regression";
+      break;
   }
 }
 
@@ -1596,7 +2303,8 @@ export function materializeCase(item) {
     digestOnly: true,
   };
   else if (item.fixture === "compiler-lifecycle") value = compilerFixture();
-  else value = resultFixture();
+  else if (item.fixture === "result") value = resultFixture();
+  else value = comparisonResultFixture();
   if (!Array.isArray(item.mutations)) {
     errors.push("case.mutations must be a bounded array.");
   } else {
@@ -1622,6 +2330,10 @@ export function validateCorpus(corpus) {
       !corpus.decisions.includes("W-1487") ||
       !corpus.decisions.includes("W-1488")) {
     push(errors, "corpus decisions must cite W-1487 and W-1488.");
+  }
+  if (corpus.cases?.some((item) => item?.fixture === "comparison-result") &&
+      !corpus.decisions?.includes("W-1489")) {
+    push(errors, "corpus decisions must cite W-1489 for comparison cases.");
   }
   if (!Array.isArray(corpus.cases)) {
     push(errors, "corpus.cases must be an array.");
@@ -1654,6 +2366,10 @@ export function validateCorpus(corpus) {
         (!Array.isArray(item.decisions) || !item.decisions.includes("W-1488"))) {
       push(errors, location + ".decisions must cite W-1488 for compiler lifecycle.");
     }
+    if (item.fixture === "comparison-result" &&
+        (!Array.isArray(item.decisions) || !item.decisions.includes("W-1489"))) {
+      push(errors, location + ".decisions must cite W-1489 for comparison result.");
+    }
     if (item.kind === "rejected") requiredString(item.violation, location + ".violation", errors);
     if (!Array.isArray(item.contract) || item.contract.length === 0) {
       push(errors, location + ".contract must not be empty.");
@@ -1661,7 +2377,7 @@ export function validateCorpus(corpus) {
     const materialized = materializeCase(item);
     let caseErrors = [...materialized.errors];
     if (materialized.value !== undefined && caseErrors.length === 0) {
-      if (item.fixture === "result") caseErrors = validateResult(materialized.value);
+      if (item.fixture === "result" || item.fixture === "comparison-result") caseErrors = validateResult(materialized.value);
       else caseErrors = validateScenario({
         ...materialized.value,
         track: item.track,
@@ -1686,7 +2402,7 @@ export function reduceCase(item) {
   const errors = [...materialized.errors];
   if (materialized.value !== undefined && errors.length === 0) {
     const value = materialized.value;
-    errors.push(...(item.fixture === "result"
+    errors.push(...((item.fixture === "result" || item.fixture === "comparison-result")
       ? validateResult(value)
       : validateScenario({ ...value, track: item.track, lane: item.lane })));
   }

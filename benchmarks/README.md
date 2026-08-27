@@ -3,7 +3,9 @@
 `WBench/1` define o protocolo de desenvolvimento orientado por benchmark para
 W. O protocolo separa workloads de linguagem, compiler lifecycle e
 product-runtime. BMD1 executa somente o ponto source-backed ready do compiler
-lifecycle. Ele não produz result de language ou de product-runtime.
+lifecycle como série única. BMD2 adiciona comparação source-backed entre dois
+commits locais do mesmo seed. Nenhum bundle produz result de language ou de
+product-runtime.
 
 O programa BMD1 fica em [`program.json`](program.json). O schema fica em
 [`wbench-1.schema.json`](wbench-1.schema.json). O manifesto do seed fica em
@@ -69,7 +71,7 @@ workloads de composition do Restaurant. Essa matriz é blocked por
 runtime/provider. Ela não cria três variantes artificiais do app e não é o
 workload do runner BMD1.
 
-## Runner BMD1
+## Runner BMD1 e comparação BMD2
 
 Use um output path explícito. Crie o parent e execute o runner. O CLI recusa
 overwrite:
@@ -87,12 +89,41 @@ stdout/stderr vazios. Cada warmup e cada sample inicia processo novo e usa
 monotonic wall clock em ns. O escopo inclui startup do processo e estado de
 cache do filesystem e do OS.
 
-O result atual é `exploratory`, `measurement-only` e `single-series`.
-Comparison e regression estão bloqueadas por
-`interleaved-comparison-runner`. O record valida antes da publicação e usa
-provenance real de source, artifact, input, recipe, runner e toolchain. Os
-controles de ruído conhecidos e desconhecidos ficam explícitos. A track language
-e a track product-runtime continuam sem result.
+O result BMD1 é `exploratory`, `measurement-only` e `single-series`, com
+`comparison: null`. Ele preserva a execução de um único seed.
+
+Para BMD2, os dois refs devem ser SHAs completos de 40 hex e existir no
+repositório local:
+
+```text
+bun tooling/benchmark-driven-development-runner.mjs --baseline <40-hex-sha> --candidate <40-hex-sha> --output benchmarks/results/seed-check-comparison.local.json
+```
+
+O runner extrai somente `compiler/seed-c` por `git archive` para diretórios
+temporários próprios e faz builds Release independentes com CMake/Ninja fora
+da medição. Não usa working tree suja, rede ou worktree Git. Os digests de
+commit, closure, artifact, recipe, recipe-class e toolchain são registrados por
+papel. Recipe-class, toolchain e workload divergentes falham antes de samples.
+Os dois oracles exigem exit 0 com stdout/stderr vazios antes de warmup e raw.
+
+Warmup usa pelo menos um par, com rounds próprios de `1..warmupPairCount` na
+mesma orientação do primeiro round raw. Raw usa número ímpar fixo de pelo
+menos nove pares. Cada round executa baseline e candidate uma vez. A ordem é
+gerada pelo runner com `balanced-paired-interleaved-sha256-v1`, registrada com
+seed, e a máquina recompõe e valida o schedule. O caller não escolhe seed. A
+máquina recalcula as estatísticas, deltas candidate-baseline, ppm com sinal,
+counts e calibration com `BigInt` e arredondamento explícito; ela valida também
+o workload corrente e a consistência entre as identidades de papel duplicadas.
+O runner deriva a proveniência de archive, build, artifact, recipe e toolchain e
+executa os oracles. Um result isolado não permite à máquina recomputar essa
+proveniência nem reexecutar o oracle.
+
+O result BMD2 é `exploratory`, `comparison-only`, lane `equivalent`, cenário
+`clean`, estágio `check-end-to-end` e `verdict: not-evaluated`. Ele não é claim
+de performance. Regression continua bloqueada por
+`managed-regression-runner`, que exige provider controlado, repetição,
+uncertainty e threshold. O record valida antes da publicação e os controles de
+ruído conhecidos e desconhecidos ficam explícitos.
 
 Outputs são evidência local explícita. Não rastreie automaticamente os arquivos
 gerados. O diretório `benchmarks/results/` é ignorado. O runner recusa target
@@ -114,8 +145,11 @@ Execute os checks focais com:
 ```text
 bun run check:bmd
 bun run check:bmd:smoke
+bun run check:bmd:comparison-smoke
 ```
 
 O primeiro check valida protocolo, matriz, corpus, schema e runner host-side. O
-smoke constrói o seed e executa uma medição real em diretório temporário. Os
-checks não publicam resultados no repositório.
+smoke BMD1 constrói o seed e executa uma medição real em diretório temporário.
+O smoke de comparação faz HEAD×HEAD com dois builds independentes, um warmup
+pair e nove raw pairs, e verifica apenas a estrutura do result sem gravá-lo.
+Os checks não publicam resultados no repositório.

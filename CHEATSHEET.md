@@ -1591,6 +1591,33 @@ bun tooling/benchmark-driven-development-runner.mjs --output benchmarks/results/
 
 O path é explícito e não pode existir. O runner valida o oracle antes das
 samples e publica apenas result exploratory/measurement-only/single-series.
+Essa forma BMD1 mantém `comparison: null`.
+
+Para a comparação BMD2, forneça dois commits locais completos e um output
+novo:
+
+```text
+bun tooling/benchmark-driven-development-runner.mjs --baseline <40-hex-sha> --candidate <40-hex-sha> --output benchmarks/results/seed-check-comparison.local.json
+```
+
+O runner arquiva somente `compiler/seed-c` de cada SHA e faz dois builds
+Release independentes fora da medição. Ele executa os dois oracles antes de
+qualquer warmup ou raw. Warmup usa pelo menos um par, com rounds próprios de
+`1..warmupPairCount` na orientação do primeiro round raw, e raw usa número
+ímpar de pelo menos nove pares. Cada round executa baseline e candidate uma vez, com
+ordem do schedule `balanced-paired-interleaved-sha256-v1` gerado pelo runner.
+O caller não escolhe o seed. A máquina valida samples, schedule, labels e ordem
+e recalcula métricas, deltas, ppm, counts e calibration, além de validar o
+workload corrente e a consistência entre as identidades de papel duplicadas.
+O runner deriva a proveniência de archive, build, artifact, recipe e toolchain
+e executa os oracles; um result isolado não permite recomputar essa
+proveniência nem reexecutar o oracle.
+
+O result BMD2 é `exploratory`/`comparison-only`, lane `equivalent`, cenário
+`clean`, estágio `check-end-to-end` e verdict `not-evaluated`. Ele não é claim
+de performance. Regression continua rejeitada por
+`managed-regression-runner`; language, product-runtime e Computer Language
+Benchmarks Game continuam sem result corrente.
 
 ### SIMD portátil
 
