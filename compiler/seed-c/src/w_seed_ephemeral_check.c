@@ -79,6 +79,12 @@ static bool add_frontend_ranges(check_ranges *ranges,
   ADD_FRONTEND_RANGE(facts, fact_capacity, w_seed_frontend_fact);
   ADD_FRONTEND_RANGE(diagnostics, diagnostic_capacity,
                      w_seed_frontend_diagnostic);
+  ADD_FRONTEND_RANGE(diagnostic_facts, diagnostic_fact_capacity,
+                     w_seed_frontend_diagnostic_fact);
+  ADD_FRONTEND_RANGE(diagnostic_items, diagnostic_item_capacity,
+                     w_seed_frontend_diagnostic_item);
+  ADD_FRONTEND_RANGE(diagnostic_labels, diagnostic_label_capacity,
+                     w_seed_frontend_diagnostic_label);
   ADD_FRONTEND_RANGE(receipt, receipt_capacity, uint8_t);
   ADD_FRONTEND_RANGE(enums, enum_capacity, w_seed_frontend_enum);
   ADD_FRONTEND_RANGE(enum_cases, enum_case_capacity,
@@ -417,6 +423,26 @@ w_seed_ephemeral_check_status w_seed_ephemeral_check_run(
       input->driver_staging_output->graph.resolved_imports,
       resolved_import_count};
 
+  /* The diagnostic adapter validates every primary and label against the
+   * complete source inventory. Keep the adapter's parallel, caller-owned
+   * views local to this composition call. */
+  if (frontend_input.document_count > W_SEED_FRONTEND_MAX_DOCUMENTS) {
+    return fail_result(result, W_SEED_EPHEMERAL_CHECK_INVALID,
+                       W_SEED_EPHEMERAL_CHECK_FAILURE_FRONTEND,
+                       W_SEED_EPHEMERAL_CHECK_PHASE_FRONTEND_MEASURE);
+  }
+  w_seed_source diagnostic_sources[W_SEED_FRONTEND_MAX_DOCUMENTS] = {0};
+  w_seed_frontend_text diagnostic_source_ids[W_SEED_FRONTEND_MAX_DOCUMENTS] = {0};
+  for (size_t index = 0u; index < frontend_input.document_count; index += 1u) {
+    if (frontend_input.documents[index].source == NULL) {
+      return fail_result(result, W_SEED_EPHEMERAL_CHECK_INVALID,
+                         W_SEED_EPHEMERAL_CHECK_FAILURE_FRONTEND,
+                         W_SEED_EPHEMERAL_CHECK_PHASE_FRONTEND_MEASURE);
+    }
+    diagnostic_sources[index] = *frontend_input.documents[index].source;
+    diagnostic_source_ids[index] = frontend_input.documents[index].logical_source_id;
+  }
+
   w_seed_frontend_counts frontend_counts = {0};
   w_seed_frontend_result frontend_result = {0};
   const w_seed_frontend_status measure_status = w_seed_frontend_measure(
@@ -445,6 +471,15 @@ w_seed_ephemeral_check_status w_seed_ephemeral_check_run(
   }
 
   const size_t diagnostic_count = frontend_result.written.diagnostics;
+  const w_seed_diagnostic_frontend_context diagnostic_context = {
+      diagnostic_sources,
+      diagnostic_source_ids,
+      frontend_input.document_count,
+      input->frontend_staging_output,
+      diagnostic_count,
+      frontend_result.written.diagnostic_facts,
+      frontend_result.written.diagnostic_items,
+      frontend_result.written.diagnostic_labels};
   size_t required_json = 0u;
   w_seed_diagnostic_result diagnostic_result = {0};
   diagnostic_result.status = W_SEED_DIAGNOSTIC_NO_RECORD;
@@ -469,13 +504,9 @@ w_seed_ephemeral_check_status w_seed_ephemeral_check_run(
                          W_SEED_EPHEMERAL_CHECK_FAILURE_INSTANCE,
                          W_SEED_EPHEMERAL_CHECK_PHASE_DIAGNOSTIC_MEASURE);
     }
-    const w_seed_frontend_document *document =
-        &frontend_input.documents[diagnostic->document_index];
     diagnostic_result = (w_seed_diagnostic_result){0};
     const w_seed_diagnostic_status status = w_seed_diagnostic_frontend_record(
-        instance, sizeof(instance) - 1u, document->logical_source_id.data,
-        document->logical_source_id.length, document->source,
-        diagnostic->document_index, diagnostic, NULL, 0u,
+        instance, sizeof(instance) - 1u, &diagnostic_context, index, NULL, 0u,
         &diagnostic_result);
     result->diagnostic_status = status;
     result->diagnostic_result = diagnostic_result;
@@ -515,15 +546,9 @@ w_seed_ephemeral_check_status w_seed_ephemeral_check_run(
                          W_SEED_EPHEMERAL_CHECK_FAILURE_INSTANCE,
                          W_SEED_EPHEMERAL_CHECK_PHASE_DIAGNOSTIC_WRITE);
     }
-    const w_seed_frontend_diagnostic *diagnostic =
-        &input->frontend_staging_output->diagnostics[index];
-    const w_seed_frontend_document *document =
-        &frontend_input.documents[diagnostic->document_index];
     diagnostic_result = (w_seed_diagnostic_result){0};
     const w_seed_diagnostic_status status = w_seed_diagnostic_frontend_record(
-        instance, sizeof(instance) - 1u, document->logical_source_id.data,
-        document->logical_source_id.length, document->source,
-        diagnostic->document_index, diagnostic,
+        instance, sizeof(instance) - 1u, &diagnostic_context, index,
         input->json_staging + json_offset,
         input->json_staging_capacity - json_offset, &diagnostic_result);
     result->diagnostic_status = status;

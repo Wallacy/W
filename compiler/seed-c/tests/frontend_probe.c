@@ -50,6 +50,9 @@ enum {
   PROBE_SYMBOLS = 131072,
   PROBE_FACTS = 131072,
   PROBE_DIAGNOSTICS = 65536,
+  PROBE_DIAGNOSTIC_FACTS = PROBE_DIAGNOSTICS * 5,
+  PROBE_DIAGNOSTIC_ITEMS = PROBE_DIAGNOSTICS * 4,
+  PROBE_DIAGNOSTIC_LABELS = PROBE_DIAGNOSTICS * 2,
   PROBE_RECEIPT = 8 * 1024 * 1024,
 };
 
@@ -98,6 +101,9 @@ static w_seed_frontend_enum_membership_case
 static w_seed_frontend_symbol symbols[PROBE_SYMBOLS];
 static w_seed_frontend_fact facts[PROBE_FACTS];
 static w_seed_frontend_diagnostic diagnostics[PROBE_DIAGNOSTICS];
+static w_seed_frontend_diagnostic_fact diagnostic_facts[PROBE_DIAGNOSTIC_FACTS];
+static w_seed_frontend_diagnostic_item diagnostic_items[PROBE_DIAGNOSTIC_ITEMS];
+static w_seed_frontend_diagnostic_label diagnostic_labels[PROBE_DIAGNOSTIC_LABELS];
 static w_seed_frontend_resolved_import resolved_imports[PROBE_IMPORTS];
 static w_seed_module_origin module_origins[PROBE_IMPORTS];
 static uint8_t receipt[PROBE_RECEIPT];
@@ -294,6 +300,12 @@ int main(void) {
       .fact_capacity = PROBE_FACTS,
       .diagnostics = diagnostics,
       .diagnostic_capacity = PROBE_DIAGNOSTICS,
+      .diagnostic_facts = diagnostic_facts,
+      .diagnostic_fact_capacity = PROBE_DIAGNOSTIC_FACTS,
+      .diagnostic_items = diagnostic_items,
+      .diagnostic_item_capacity = PROBE_DIAGNOSTIC_ITEMS,
+      .diagnostic_labels = diagnostic_labels,
+      .diagnostic_label_capacity = PROBE_DIAGNOSTIC_LABELS,
       .receipt = receipt,
       .receipt_capacity = PROBE_RECEIPT,
   };
@@ -320,6 +332,9 @@ int main(void) {
                " statements=%" PRIuMAX " expressions=%" PRIuMAX
                " arguments=%" PRIuMAX " symbols=%" PRIuMAX
                " facts=%" PRIuMAX " diagnostics=%" PRIuMAX
+               " diagnostic_facts=%" PRIuMAX
+               " diagnostic_items=%" PRIuMAX
+               " diagnostic_labels=%" PRIuMAX
                " receipt=%" PRIuMAX "\n",
                (int)parse.status, status_name(status),
                (uintmax_t)result.written.modules,
@@ -349,6 +364,9 @@ int main(void) {
                (uintmax_t)result.written.symbols,
                (uintmax_t)result.written.facts,
                (uintmax_t)result.written.diagnostics,
+               (uintmax_t)result.written.diagnostic_facts,
+               (uintmax_t)result.written.diagnostic_items,
+               (uintmax_t)result.written.diagnostic_labels,
                (uintmax_t)result.receipt_bytes);
   (void)fprintf(stderr, "required const=%" PRIuMAX " expr=%" PRIuMAX
                  " type=%" PRIuMAX " receipt=%" PRIuMAX

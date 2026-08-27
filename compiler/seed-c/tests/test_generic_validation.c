@@ -48,6 +48,9 @@ enum {
   SYMBOLS = 4096,
   FACTS = 4096,
   DIAGNOSTICS = 2048,
+  DIAGNOSTIC_FACTS = DIAGNOSTICS * 5,
+  DIAGNOSTIC_ITEMS = DIAGNOSTICS * 4,
+  DIAGNOSTIC_LABELS = DIAGNOSTICS * 2,
   FRONTEND_RECEIPT = 4 * 1024 * 1024,
   CONSTIR_FUNCTIONS = 512,
   CONSTIR_PARAMETERS = 512,
@@ -102,6 +105,9 @@ typedef struct {
   w_seed_frontend_symbol symbols[SYMBOLS];
   w_seed_frontend_fact facts[FACTS];
   w_seed_frontend_diagnostic diagnostics[DIAGNOSTICS];
+  w_seed_frontend_diagnostic_fact diagnostic_facts[DIAGNOSTIC_FACTS];
+  w_seed_frontend_diagnostic_item diagnostic_items[DIAGNOSTIC_ITEMS];
+  w_seed_frontend_diagnostic_label diagnostic_labels[DIAGNOSTIC_LABELS];
   w_seed_frontend_generic_parameter generic_parameters[GENERIC_PARAMETERS];
   w_seed_frontend_generic_application generic_applications[GENERIC_APPLICATIONS];
   w_seed_frontend_generic_argument generic_arguments[GENERIC_ARGUMENTS];
@@ -187,6 +193,12 @@ static void fixture_init_outputs(fixture *fixture_value) {
       .fact_capacity = FACTS,
       .diagnostics = fixture_value->diagnostics,
       .diagnostic_capacity = DIAGNOSTICS,
+      .diagnostic_facts = fixture_value->diagnostic_facts,
+      .diagnostic_fact_capacity = DIAGNOSTIC_FACTS,
+      .diagnostic_items = fixture_value->diagnostic_items,
+      .diagnostic_item_capacity = DIAGNOSTIC_ITEMS,
+      .diagnostic_labels = fixture_value->diagnostic_labels,
+      .diagnostic_label_capacity = DIAGNOSTIC_LABELS,
       .enums = fixture_value->enums,
       .enum_capacity = ENUMS,
       .enum_cases = fixture_value->enum_cases,

@@ -36,6 +36,9 @@ enum {
   FRONTEND_MEMBERSHIP = 262144,
   FRONTEND_ARRAY = 262144,
   FRONTEND_CONST_DECLARATIONS = 4096,
+  FRONTEND_DIAGNOSTIC_FACTS = FRONTEND_ARRAY * 5,
+  FRONTEND_DIAGNOSTIC_ITEMS = FRONTEND_ARRAY * 4,
+  FRONTEND_DIAGNOSTIC_LABELS = FRONTEND_ARRAY * 2,
   FRONTEND_RECEIPT = 16 * 1024 * 1024,
   CONSTIR_FUNCTIONS = 8192,
   CONSTIR_PARAMETERS = 65536,
@@ -91,6 +94,12 @@ static w_seed_frontend_entry entries[FRONTEND_ARRAY];
 static w_seed_frontend_symbol symbols[FRONTEND_ARRAY];
 static w_seed_frontend_fact facts[FRONTEND_ARRAY];
 static w_seed_frontend_diagnostic frontend_diagnostics[FRONTEND_ARRAY];
+static w_seed_frontend_diagnostic_fact
+    frontend_diagnostic_facts[FRONTEND_DIAGNOSTIC_FACTS];
+static w_seed_frontend_diagnostic_item
+    frontend_diagnostic_items[FRONTEND_DIAGNOSTIC_ITEMS];
+static w_seed_frontend_diagnostic_label
+    frontend_diagnostic_labels[FRONTEND_DIAGNOSTIC_LABELS];
 static uint8_t frontend_receipt[FRONTEND_RECEIPT];
 static w_seed_constir_function constir_functions[CONSTIR_FUNCTIONS];
 static w_seed_constir_parameter constir_parameters[CONSTIR_PARAMETERS];
@@ -220,6 +229,12 @@ int main(void) {
       .fact_capacity = FRONTEND_ARRAY,
       .diagnostics = frontend_diagnostics,
       .diagnostic_capacity = FRONTEND_ARRAY,
+      .diagnostic_facts = frontend_diagnostic_facts,
+      .diagnostic_fact_capacity = FRONTEND_DIAGNOSTIC_FACTS,
+      .diagnostic_items = frontend_diagnostic_items,
+      .diagnostic_item_capacity = FRONTEND_DIAGNOSTIC_ITEMS,
+      .diagnostic_labels = frontend_diagnostic_labels,
+      .diagnostic_label_capacity = FRONTEND_DIAGNOSTIC_LABELS,
       .receipt = frontend_receipt,
       .receipt_capacity = FRONTEND_RECEIPT,
   };

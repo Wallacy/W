@@ -14,6 +14,12 @@ _Static_assert(sizeof(size_t) * CHAR_BIT >= W_SEED_FRONTEND_TARGET_USIZE_BITS,
 #define FRONTEND_MAX_GENERIC_METADATA 4096u
 #define FRONTEND_MAX_MEMBERSHIP_ITEMS 4096u
 #define FRONTEND_MAX_IMPORTS 4096u
+#define FRONTEND_MAX_DIAGNOSTIC_FACTS 8u
+#define FRONTEND_MAX_DIAGNOSTIC_ITEMS 4096u
+#define FRONTEND_MAX_DIAGNOSTIC_LABELS 8u
+#define FRONTEND_DIAGNOSTIC_CATEGORY_TEXT_MAX 128u
+#define FRONTEND_DIAGNOSTIC_CATEGORY_SLOTS \
+  (W_SEED_FRONTEND_MAX_CST_NODES * 2u)
 
 typedef struct {
   const w_seed_frontend_document *document;
@@ -43,6 +49,10 @@ typedef struct {
   uint32_t element_enum_index;
   w_seed_frontend_text element_spelling;
   w_seed_frontend_text element_enum_name;
+  /* Source provenance for diagnostics that point at a type annotation. */
+  bool has_origin;
+  size_t origin_document_index;
+  w_seed_span origin_span;
 } frontend_simple_type;
 
 typedef struct {
@@ -80,6 +90,9 @@ typedef struct {
   size_t symbols;
   size_t facts;
   size_t diagnostics;
+  size_t diagnostic_facts;
+  size_t diagnostic_items;
+  size_t diagnostic_labels;
   size_t enums;
   size_t enum_cases;
   size_t enum_case_parameters;
@@ -101,6 +114,21 @@ typedef struct {
   uint32_t type_node;
   uint32_t owner_type;
 } frontend_pending_application;
+
+typedef struct {
+  w_seed_frontend_text key;
+  w_seed_frontend_diagnostic_fact_kind kind;
+  w_seed_frontend_text text;
+  int64_t integer_value;
+  const w_seed_frontend_text *items;
+  size_t item_count;
+} frontend_diagnostic_fact_input;
+
+typedef struct {
+  w_seed_frontend_text role;
+  w_seed_span span;
+  size_t document_index;
+} frontend_diagnostic_label_input;
 
 typedef struct {
   bool has_contract;
@@ -182,6 +210,58 @@ static _Thread_local uint8_t frontend_const_inference_states_scratch
     [W_SEED_FRONTEND_MAX_CONST_DECLARATIONS];
 static _Thread_local w_seed_module_origin frontend_module_origins_scratch
     [FRONTEND_MAX_IMPORTS];
+/* CONTRACT-0002 facts add a stable category prefix to a source spelling. The
+ * public text view has one contiguous pointer, so retain these bounded
+ * composed values in per-thread storage until the caller starts its next
+ * frontend operation. A spelling that does not fit is rejected closed. */
+static _Thread_local char frontend_diagnostic_category_scratch
+    [FRONTEND_DIAGNOSTIC_CATEGORY_SLOTS]
+    [FRONTEND_DIAGNOSTIC_CATEGORY_TEXT_MAX];
+static _Thread_local size_t frontend_diagnostic_category_scratch_count;
+
+static bool diagnostic_category_compose(w_seed_frontend_text prefix,
+                                        w_seed_frontend_text suffix,
+                                        w_seed_frontend_text *out) {
+  if (out != NULL) *out = (w_seed_frontend_text){NULL, 0u};
+  if (out == NULL || prefix.data == NULL || suffix.data == NULL ||
+      prefix.length == 0u || suffix.length == 0u ||
+      prefix.length > FRONTEND_DIAGNOSTIC_CATEGORY_TEXT_MAX ||
+      suffix.length > FRONTEND_DIAGNOSTIC_CATEGORY_TEXT_MAX - prefix.length ||
+      frontend_diagnostic_category_scratch_count >=
+          FRONTEND_DIAGNOSTIC_CATEGORY_SLOTS) {
+    return false;
+  }
+  char *destination =
+      frontend_diagnostic_category_scratch
+          [frontend_diagnostic_category_scratch_count];
+  (void)memcpy(destination, prefix.data, prefix.length);
+  (void)memcpy(destination + prefix.length, suffix.data, suffix.length);
+  *out = (w_seed_frontend_text){
+      destination, prefix.length + suffix.length};
+  frontend_diagnostic_category_scratch_count += 1u;
+  return true;
+}
+
+static bool diagnostic_category_arity(size_t arity,
+                                      w_seed_frontend_text *out) {
+  char decimal[3u * sizeof(size_t) + 1u];
+  size_t length = 0u;
+  do {
+    decimal[length] = (char)('0' + (arity % 10u));
+    length += 1u;
+    arity /= 10u;
+  } while (arity != 0u && length < sizeof(decimal));
+  if (arity != 0u) return false;
+  for (size_t left = 0u; left < length / 2u; left += 1u) {
+    const size_t right = length - left - 1u;
+    const char value = decimal[left];
+    decimal[left] = decimal[right];
+    decimal[right] = value;
+  }
+  return diagnostic_category_compose(
+      (w_seed_frontend_text){"arity:", sizeof("arity:") - 1u},
+      (w_seed_frontend_text){decimal, length}, out);
+}
 
 static bool normalize_document(frontend_context *context);
 static bool normalize_module_const(frontend_context *context,
@@ -247,6 +327,9 @@ static w_seed_frontend_text enum_case_parameter_label(
     const w_seed_frontend_document *doc, uint32_t parameter_node);
 static const w_seed_frontend_document *context_document(
     const frontend_context *context);
+static size_t context_document_index_for(
+    const frontend_context *context,
+    const w_seed_frontend_document *document);
 static w_seed_frontend_text first_word_in_span(
     const w_seed_frontend_document *doc, w_seed_span span);
 static w_seed_frontend_text name_after_keyword(
@@ -302,12 +385,106 @@ static frontend_simple_type simple_type_from_view(w_seed_frontend_text spelling)
 static frontend_simple_type literal_simple_type(
     const w_seed_frontend_document *doc, w_seed_span span,
     w_seed_cst_kind token_kind);
-static bool context_append_diagnostic(
-    frontend_context *context, w_seed_frontend_diagnostic_kind kind,
-    const char *code, w_seed_frontend_text actual,
-    w_seed_frontend_text expected, w_seed_frontend_text declaration,
-    w_seed_frontend_text label, w_seed_frontend_text accepted_forms,
-    w_seed_span primary);
+static bool diagnostic_value_kind_from_simple(
+    frontend_simple_type type, bool use_spelling, w_seed_frontend_text *out);
+static bool context_append_diagnostic_raw(
+    frontend_context *context, const char *code, w_seed_span primary,
+    const frontend_diagnostic_fact_input *facts, size_t fact_count,
+    const frontend_diagnostic_label_input *labels, size_t label_count);
+static bool context_append_diagnostic_raw_at(
+    frontend_context *context, const char *code, size_t primary_document_index,
+    w_seed_span primary, const frontend_diagnostic_fact_input *facts,
+    size_t fact_count, const frontend_diagnostic_label_input *labels,
+    size_t label_count);
+static bool append_type0121_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text actual_case, frontend_simple_type expected);
+static bool append_type0122_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    frontend_simple_type actual, frontend_simple_type expected,
+    w_seed_frontend_text reason);
+static bool append_type0120_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    frontend_simple_type left, w_seed_span left_span, size_t left_document,
+    frontend_simple_type right, w_seed_span right_span,
+    size_t right_document);
+static bool append_match0001_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text subject_type, w_seed_span subject_span,
+    const w_seed_frontend_text *missing, size_t missing_count);
+static bool append_match0002_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text covered_by, w_seed_frontend_text pattern,
+    w_seed_frontend_text subject_type, w_seed_span covered_span,
+    size_t covered_document, w_seed_span subject_span);
+static bool append_sem0001_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text actual, w_seed_frontend_text expected);
+static bool append_label0005_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text declaration, w_seed_frontend_text label,
+    const w_seed_frontend_text *accepted_forms, size_t accepted_count);
+static bool append_label0006_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text declaration, w_seed_frontend_text label,
+    w_seed_frontend_text slot);
+static bool append_match0003_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text context_name, w_seed_frontend_text expected_type,
+    w_seed_frontend_text member);
+static size_t diagnostic_call_accepted_forms(
+    const frontend_context *context, bool enum_case_constructor,
+    uint32_t enum_case_index, const w_seed_frontend_document *signature_doc,
+    uint32_t signature_node,
+    const w_seed_frontend_external_symbol *external_signature, size_t ordinal,
+    w_seed_frontend_text *forms, size_t form_capacity);
+static bool append_const0001_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    const w_seed_frontend_text *call_chain, size_t call_chain_count,
+    w_seed_frontend_text operation, w_seed_frontend_text reason,
+    w_seed_frontend_text symbol, size_t owner_document, w_seed_span owner_span);
+static bool append_contract0002_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text actual_kind, w_seed_frontend_text expected_kind,
+    w_seed_frontend_text head, size_t head_document, w_seed_span head_span,
+    w_seed_frontend_text slot, size_t slot_document, w_seed_span slot_span);
+static bool append_contract0003_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text expected_type, w_seed_frontend_text head,
+    size_t head_document, w_seed_span head_span,
+    w_seed_frontend_text predicate_type, size_t slot_document,
+    w_seed_span slot_span);
+static bool append_contract0004_diagnostic(
+    frontend_context *context, w_seed_span primary, w_seed_frontend_text head,
+    size_t head_document, w_seed_span head_span, w_seed_frontend_text slot,
+    size_t slot_document, w_seed_span slot_span,
+    const w_seed_frontend_text *slot_order, size_t slot_order_count,
+    w_seed_frontend_text violation);
+static bool append_generic0001_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text domain, w_seed_frontend_text parameter,
+    w_seed_frontend_text resolution_reason, size_t parameter_document,
+    w_seed_span parameter_span);
+static bool append_contract0001_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    const w_seed_frontend_text *available_slots, size_t available_count,
+    w_seed_frontend_text head, size_t head_document, w_seed_span head_span,
+    w_seed_frontend_text slot);
+static bool append_generic0002_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text parameter, size_t parameter_document,
+    w_seed_span parameter_span, size_t call_document, w_seed_span call_span);
+static bool append_generic0003_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text external_label, w_seed_frontend_text kind,
+    w_seed_frontend_text parameter, int64_t position,
+    w_seed_frontend_text reason, size_t label_document, w_seed_span label_span);
+static bool diagnostic_name_span_after_keyword(
+    const w_seed_frontend_document *doc, w_seed_span span,
+    const char *keyword, w_seed_frontend_text *name, w_seed_span *name_span);
+static size_t diagnostic_generic_slot_order(
+    const w_seed_frontend_document *doc, uint32_t generic_node,
+    w_seed_frontend_text *slots, size_t slot_capacity);
 static bool context_append_fact(frontend_context *context,
                                 w_seed_frontend_fact_kind kind,
                                 w_seed_span span,
@@ -334,6 +511,15 @@ static bool struct_declaration_for_name(
     const frontend_context *context, w_seed_frontend_text name,
     uint32_t *struct_index, const w_seed_frontend_document **owner_doc,
     uint32_t *struct_node);
+static bool function_signature_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    const w_seed_frontend_document **owner_doc, uint32_t *function_node);
+static bool external_symbol_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    const w_seed_frontend_external_symbol **symbol);
+static frontend_simple_type function_return_type(
+    const frontend_context *context, const w_seed_frontend_document *doc,
+    uint32_t function_node);
 static w_seed_span trim_span(const w_seed_frontend_document *doc,
                              w_seed_span span);
 static frontend_token_cursor token_cursor_for(
@@ -1839,6 +2025,53 @@ static bool generic_type_argument_is_literal(
   return false;
 }
 
+/* Classify an offending application argument without publishing its source
+ * spelling as a kind.  Literal values use their semantic scalar category;
+ * an argument that resolves as a type uses `type`; expressions that cannot be
+ * typed stay in the stable unresolved category. */
+static bool diagnostic_generic_actual_kind(
+    const w_seed_frontend_document *doc, w_seed_span span,
+    w_seed_frontend_text *kind_out) {
+  if (kind_out != NULL) *kind_out = (w_seed_frontend_text){NULL, 0u};
+  if (doc == NULL || kind_out == NULL) return false;
+  frontend_token tokens[W_SEED_FRONTEND_MAX_NESTING * 2u];
+  size_t token_count = 0u;
+  if (!const_tokens_for_span(doc, span, tokens,
+                             sizeof(tokens) / sizeof(tokens[0]),
+                             &token_count) ||
+      token_count == 0u) {
+    *kind_out = (w_seed_frontend_text){"value:unresolved",
+                                       sizeof("value:unresolved") - 1u};
+    return true;
+  }
+  for (size_t index = 0u; index < token_count; index += 1u) {
+    if (text_equal(text_from_span(doc, tokens[index].span), ".")) {
+      *kind_out = (w_seed_frontend_text){"unbound-contextual-member",
+                                         sizeof("unbound-contextual-member") -
+                                             1u};
+      return true;
+    }
+  }
+  const frontend_token *first = &tokens[0];
+  const w_seed_frontend_text first_text = text_from_span(doc, first->span);
+  if (token_count == 1u &&
+      (first->kind == W_SEED_CST_NUMBER ||
+       first->kind == W_SEED_CST_LITERAL_EVENT ||
+       text_equal(first_text, "true") || text_equal(first_text, "false"))) {
+    const frontend_simple_type literal =
+        literal_simple_type(doc, first->span, first->kind);
+    if (diagnostic_value_kind_from_simple(literal, false, kind_out)) return true;
+  }
+  uint32_t type_node = W_SEED_CST_NONE;
+  if (find_type_node_for_span(doc, span, &type_node)) {
+    *kind_out = (w_seed_frontend_text){"type", sizeof("type") - 1u};
+    return true;
+  }
+  *kind_out = (w_seed_frontend_text){"value:unresolved",
+                                     sizeof("value:unresolved") - 1u};
+  return true;
+}
+
 static bool generic_value_is_parenthesized(
     const w_seed_frontend_document *doc, w_seed_span span) {
   if (doc == NULL) return false;
@@ -1857,15 +2090,6 @@ static bool generic_typed_scalar_expected(frontend_simple_type type) {
   return type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
          (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.bit_width != 0u &&
           type.bit_width <= 128u);
-}
-
-static bool generic_application_diagnostic(
-    frontend_context *context, const char *code, w_seed_span span,
-    w_seed_frontend_text actual, w_seed_frontend_text expected) {
-  return context_append_diagnostic(
-      context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE, code, actual, expected,
-      (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
-      (w_seed_frontend_text){"generic application", 18}, span);
 }
 
 static bool resolve_one_pending_generic_application(
@@ -1922,6 +2146,23 @@ static bool resolve_one_pending_generic_application(
             W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID)
       schema_invalid = true;
   }
+  w_seed_frontend_text available_slots[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
+  size_t available_slot_count = 0u;
+  for (size_t schema_index = 0u; schema_index < schema_count;
+       schema_index += 1u) {
+    const w_seed_frontend_text external_label =
+        schema[schema_index].parameter.external_label;
+    if (external_label.length == 0u) continue;
+    if (available_slot_count >=
+        sizeof(available_slots) / sizeof(available_slots[0])) {
+      context->module_index = saved_module;
+      return false;
+    }
+    available_slots[available_slot_count] = external_label;
+    available_slot_count += 1u;
+  }
+  const w_seed_span application_head_span =
+      generic_head_type_span(doc, pending->type_node);
   frontend_generic_argument_shape shapes[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
   size_t shape_count = 0u;
   bool shape_limit_hit = false;
@@ -1956,10 +2197,13 @@ static bool resolve_one_pending_generic_application(
           context, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE, envelope_span,
           text_from_span(doc, envelope_span));
     } else {
-      (void)generic_application_diagnostic(
-          context, "W-GENERIC-0003", envelope_span,
-          text_from_span(doc, envelope_span),
-          (w_seed_frontend_text){"ordered arguments", 18});
+      /* A parser-complete CST cannot take this route. Keep the defensive
+       * barrier for a caller-supplied malformed tree without publishing a
+       * diagnostic whose source syntax is not parser-reachable. */
+      unsupported_seen = true;
+      (void)context_append_fact(
+          context, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE, envelope_span,
+          text_from_span(doc, envelope_span));
     }
   }
   for (size_t ordinal = 0u; ordinal < shape_count; ordinal += 1u) {
@@ -1984,6 +2228,7 @@ static bool resolve_one_pending_generic_application(
     argument->type_simple = simple_type_unknown();
     size_t slot = SIZE_MAX;
     bool label_matches_type = false;
+    size_t type_label_slot = SIZE_MAX;
     if (shape->has_label) {
       /* Named syntax is sticky even when its label is malformed.  A later
        * positional argument must not recover the binding after this point. */
@@ -1994,6 +2239,7 @@ static bool resolve_one_pending_generic_application(
             text_equal_text(schema[candidate].parameter.internal_name,
                             shape->label)) {
           label_matches_type = true;
+          type_label_slot = candidate;
         }
         if (schema[candidate].parameter.kind !=
                 W_SEED_FRONTEND_GENERIC_KIND_TYPE &&
@@ -2009,54 +2255,112 @@ static bool resolve_one_pending_generic_application(
       }
       if (slot == SIZE_MAX) {
         valid = false;
-        (void)generic_application_diagnostic(
-            context, label_matches_type ? "W-GENERIC-0003"
-                                        : "W-CONTRACT-0001",
-            shape->span, shape->label,
-            label_matches_type ? (w_seed_frontend_text){"positional type", 15}
-                                : (w_seed_frontend_text){"declared label", 14});
+        if (label_matches_type) {
+          if (type_label_slot == SIZE_MAX) return false;
+          (void)append_generic0003_diagnostic(
+              context, shape->span, shape->label,
+              (w_seed_frontend_text){"type", sizeof("type") - 1u},
+              schema[type_label_slot].parameter.internal_name,
+              (int64_t)ordinal,
+              (w_seed_frontend_text){"type-parameter-must-be-positional",
+                                     sizeof("type-parameter-must-be-positional") -
+                                         1u},
+              pending->module_index, schema[type_label_slot].parameter.span);
+        } else {
+          (void)append_contract0001_diagnostic(
+              context, shape->span, available_slots, available_slot_count,
+              head_name, pending->module_index, application_head_span,
+              shape->label);
+        }
         slot = SIZE_MAX;
       } else if (slot < next_slot || bound[slot]) {
         valid = false;
-        (void)generic_application_diagnostic(
-            context, "W-CONTRACT-0004", shape->span, shape->label,
-            schema[slot].parameter.internal_name);
+        w_seed_frontend_text slot_order[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
+        const size_t slot_order_count = diagnostic_generic_slot_order(
+            doc, first_direct_kind(doc, struct_node,
+                                   W_SEED_CST_GENERIC_PARAMETERS),
+            slot_order, sizeof(slot_order) / sizeof(slot_order[0]));
+        if (slot_order_count == 0u) return false;
+        (void)append_contract0004_diagnostic(
+            context, shape->span, head_name, pending->module_index,
+            application_head_span, schema[slot].parameter.internal_name,
+            pending->module_index, schema[slot].parameter.span, slot_order,
+            slot_order_count,
+            (w_seed_frontend_text){"duplicate", sizeof("duplicate") - 1u});
         slot = SIZE_MAX;
       } else if (slot != next_slot) {
         valid = false;
         const w_seed_frontend_text expected_slot =
             next_slot < schema_count
                 ? schema[next_slot].parameter.internal_name
-                : (w_seed_frontend_text){"declared slots", 15};
-        (void)generic_application_diagnostic(
-            context, "W-GENERIC-0003", shape->span, shape->label,
-            expected_slot);
+                : (w_seed_frontend_text){"extra", sizeof("extra") - 1u};
+        const w_seed_frontend_text expected_kind =
+            next_slot < schema_count &&
+                    schema[next_slot].parameter.kind ==
+                        W_SEED_FRONTEND_GENERIC_KIND_TYPE
+                ? (w_seed_frontend_text){"type", sizeof("type") - 1u}
+                : (w_seed_frontend_text){"value", sizeof("value") - 1u};
+        if (expected_slot.length == 0u) return false;
+        const size_t expected_slot_index =
+            next_slot < schema_count ? next_slot : SIZE_MAX;
+        (void)append_generic0003_diagnostic(
+            context, shape->span, shape->label,
+            expected_kind,
+            expected_slot, (int64_t)ordinal,
+            (w_seed_frontend_text){"named-argument-out-of-order",
+                                   sizeof("named-argument-out-of-order") - 1u},
+            pending->module_index,
+            expected_slot_index == SIZE_MAX
+                ? shape->span
+                : schema[expected_slot_index].parameter.span);
         slot = SIZE_MAX;
       } else {
         /* The slot is still eligible after the order/label checks above. */
       }
     } else {
-      if (named_seen) {
+      if (named_seen && next_slot < schema_count) {
         valid = false;
-        (void)generic_application_diagnostic(
-            context, "W-GENERIC-0003", shape->span,
-            text_from_span(doc, shape->value_span),
-            (w_seed_frontend_text){"named arguments", 15});
+        const bool has_expected_slot = next_slot < schema_count;
+        const w_seed_frontend_text parameter =
+            has_expected_slot
+                ? schema[next_slot].parameter.internal_name
+                : (w_seed_frontend_text){"extra", sizeof("extra") - 1u};
+        const w_seed_frontend_text kind =
+            has_expected_slot &&
+                    schema[next_slot].parameter.kind ==
+                        W_SEED_FRONTEND_GENERIC_KIND_TYPE
+                ? (w_seed_frontend_text){"type", sizeof("type") - 1u}
+                : (w_seed_frontend_text){"value", sizeof("value") - 1u};
+        const w_seed_span label_span =
+            has_expected_slot ? schema[next_slot].parameter.span : shape->span;
+        (void)append_generic0003_diagnostic(
+            context, shape->span, (w_seed_frontend_text){"_", 1u}, kind,
+            parameter, (int64_t)ordinal,
+            (w_seed_frontend_text){"positional-after-named",
+                                   sizeof("positional-after-named") - 1u},
+            pending->module_index, label_span);
       } else if (next_slot >= schema_count) {
         valid = false;
-        (void)generic_application_diagnostic(
-            context, "W-GENERIC-0003", shape->span,
-            text_from_span(doc, shape->value_span),
-            (w_seed_frontend_text){"declared slots", 15});
+        (void)append_generic0003_diagnostic(
+            context, shape->span, (w_seed_frontend_text){"_", 1u},
+            (w_seed_frontend_text){"value", sizeof("value") - 1u},
+            (w_seed_frontend_text){"extra", sizeof("extra") - 1u},
+            (int64_t)ordinal,
+            (w_seed_frontend_text){"extra-argument",
+                                   sizeof("extra-argument") - 1u},
+            pending->module_index, shape->span);
       } else if (schema[next_slot].parameter.kind ==
                      W_SEED_FRONTEND_GENERIC_KIND_VALUE &&
                  schema[next_slot].parameter.label_kind !=
                      W_SEED_FRONTEND_LABEL_OPTIONAL) {
         valid = false;
-        (void)generic_application_diagnostic(
-            context, "W-GENERIC-0003", shape->span,
-            text_from_span(doc, shape->value_span),
-            schema[next_slot].parameter.external_label);
+        (void)append_generic0003_diagnostic(
+            context, shape->span, (w_seed_frontend_text){"_", 1u},
+            (w_seed_frontend_text){"value", sizeof("value") - 1u},
+            schema[next_slot].parameter.internal_name, (int64_t)ordinal,
+            (w_seed_frontend_text){"required-label-omitted",
+                                   sizeof("required-label-omitted") - 1u},
+            pending->module_index, schema[next_slot].parameter.span);
       } else {
         slot = next_slot;
       }
@@ -2071,24 +2375,41 @@ static bool resolve_one_pending_generic_application(
     if (schema[slot].parameter.kind == W_SEED_FRONTEND_GENERIC_KIND_TYPE) {
       if (shape->has_label) {
         valid = false;
-        (void)generic_application_diagnostic(
-            context, "W-GENERIC-0003", shape->span, shape->label,
-            (w_seed_frontend_text){"positional type", 15});
+        (void)append_generic0003_diagnostic(
+            context, shape->span, shape->label,
+            (w_seed_frontend_text){"type", sizeof("type") - 1u},
+            schema[slot].parameter.internal_name, (int64_t)ordinal,
+            (w_seed_frontend_text){"type-parameter-must-be-positional",
+                                   sizeof("type-parameter-must-be-positional") -
+                                       1u},
+            pending->module_index, schema[slot].parameter.span);
       } else if (generic_type_argument_is_literal(doc, shape->value_span)) {
         valid = false;
-        (void)generic_application_diagnostic(
-            context, "W-CONTRACT-0002", shape->value_span,
-            text_from_span(doc, shape->value_span),
-            (w_seed_frontend_text){"type argument", 13});
+        w_seed_frontend_text actual_kind;
+        if (!diagnostic_generic_actual_kind(doc, shape->value_span,
+                                             &actual_kind)) {
+          context->module_index = saved_module;
+          return false;
+        }
+        (void)append_contract0002_diagnostic(
+            context, shape->value_span, actual_kind,
+            (w_seed_frontend_text){"type", sizeof("type") - 1u}, head_name,
+            pending->module_index, application_head_span,
+            schema[slot].parameter.internal_name, pending->module_index,
+            schema[slot].parameter.span);
       } else {
         uint32_t type_node = W_SEED_CST_NONE;
         if (!find_type_node_for_span(doc, shape->value_span, &type_node) ||
             !normalize_type_tree(context, type_node, &argument->value.type_index)) {
           valid = false;
-          (void)generic_application_diagnostic(
-              context, "W-CONTRACT-0002", shape->value_span,
-              text_from_span(doc, shape->value_span),
-              (w_seed_frontend_text){"type", 4});
+          (void)append_contract0002_diagnostic(
+              context, shape->value_span,
+              (w_seed_frontend_text){"value:unresolved",
+                                     sizeof("value:unresolved") - 1u},
+              (w_seed_frontend_text){"type", sizeof("type") - 1u}, head_name,
+              pending->module_index, application_head_span,
+              schema[slot].parameter.internal_name, pending->module_index,
+              schema[slot].parameter.span);
         } else {
           argument->type_simple = contextual_type_from_span(
               context, doc, shape->value_span);
@@ -2109,10 +2430,19 @@ static bool resolve_one_pending_generic_application(
             built[dependent].value.kind !=
                 W_SEED_FRONTEND_GENERIC_ARGUMENT_TYPE) {
           valid = false;
-          (void)generic_application_diagnostic(
-              context, "W-CONTRACT-0002", shape->value_span,
-              text_from_span(doc, shape->value_span),
-              (w_seed_frontend_text){"StaticArgumentRepresentable type", 32});
+          w_seed_frontend_text actual_kind;
+          if (!diagnostic_generic_actual_kind(doc, shape->value_span,
+                                               &actual_kind)) {
+            context->module_index = saved_module;
+            return false;
+          }
+          (void)append_contract0002_diagnostic(
+              context, shape->value_span, actual_kind,
+              (w_seed_frontend_text){"value:dependent",
+                                     sizeof("value:dependent") - 1u},
+              head_name, pending->module_index, application_head_span,
+              schema[slot].parameter.internal_name, pending->module_index,
+              schema[slot].parameter.span);
           (void)append_invalid_const_value(context, shape->value_span,
                                            W_SEED_FRONTEND_NONE,
                                            &argument->value.const_value_index);
@@ -2137,10 +2467,20 @@ static bool resolve_one_pending_generic_application(
                 context, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE,
                 shape->value_span, text_from_span(doc, shape->value_span));
           } else {
-            (void)generic_application_diagnostic(
-                context, "W-CONTRACT-0002", shape->value_span,
-                text_from_span(doc, shape->value_span),
-                (w_seed_frontend_text){"StaticArgumentRepresentable", 27});
+            w_seed_frontend_text actual_kind;
+            w_seed_frontend_text expected_kind;
+            if (!diagnostic_generic_actual_kind(doc, shape->value_span,
+                                                 &actual_kind) ||
+                !diagnostic_value_kind_from_simple(expected, true,
+                                                   &expected_kind)) {
+              context->module_index = saved_module;
+              return false;
+            }
+            (void)append_contract0002_diagnostic(
+                context, shape->value_span, actual_kind, expected_kind,
+                head_name, pending->module_index, application_head_span,
+                schema[slot].parameter.internal_name, pending->module_index,
+                schema[slot].parameter.span);
           }
           bound[slot] = true;
           if (slot == next_slot) next_slot += 1u;
@@ -2152,10 +2492,20 @@ static bool resolve_one_pending_generic_application(
           schema[slot].parameter.domain_kind !=
           W_SEED_FRONTEND_GENERIC_DOMAIN_DEPENDENT) {
         valid = false;
-        (void)generic_application_diagnostic(
-            context, "W-CONTRACT-0002", shape->value_span,
-            text_from_span(doc, shape->value_span),
-            (w_seed_frontend_text){"StaticArgumentRepresentable domain", 34});
+        w_seed_frontend_text actual_kind;
+        w_seed_frontend_text expected_kind;
+        if (!diagnostic_generic_actual_kind(doc, shape->value_span,
+                                             &actual_kind) ||
+            !diagnostic_value_kind_from_simple(expected, true,
+                                               &expected_kind)) {
+          context->module_index = saved_module;
+          return false;
+        }
+        (void)append_contract0002_diagnostic(
+            context, shape->value_span, actual_kind, expected_kind, head_name,
+            pending->module_index, application_head_span,
+            schema[slot].parameter.internal_name, pending->module_index,
+            schema[slot].parameter.span);
       }
       const frontend_simple_type list_element =
           expected.kind == W_SEED_FRONTEND_TYPE_STATIC_LIST
@@ -2224,9 +2574,8 @@ static bool resolve_one_pending_generic_application(
         if (unresolved_local) {
           semantic_error = true;
           valid = false;
-          (void)generic_application_diagnostic(
-              context, "W-SEM-0001", shape->value_span, unresolved_name,
-              expected.spelling);
+          (void)append_sem0001_diagnostic(context, shape->value_span,
+                                          unresolved_name, expected.spelling);
           argument->value.binding_status =
               W_SEED_FRONTEND_GENERIC_BINDING_INVALID;
           bound[slot] = true;
@@ -2352,13 +2701,29 @@ static bool resolve_one_pending_generic_application(
                                     &integer_token_count) &&
               integer_token_count == 1u &&
               integer_tokens[0].kind == W_SEED_CST_NUMBER;
-          (void)generic_application_diagnostic(
-              context, integer_literal_shape ? "W-TYPE-0122"
-                                              : "W-CONTRACT-0002",
-              shape->value_span, text_from_span(doc, shape->value_span),
-              integer_literal_shape
-                  ? (w_seed_frontend_text){"representable integer", 21}
-                  : (w_seed_frontend_text){"typed ConstValue", 16});
+          if (integer_literal_shape) {
+            const frontend_simple_type literal_type = literal_simple_type(
+                doc, integer_tokens[0].span, integer_tokens[0].kind);
+            (void)append_type0122_diagnostic(
+                context, shape->value_span, literal_type, expected,
+                (w_seed_frontend_text){"integer is not exactly representable",
+                                       sizeof("integer is not exactly representable") - 1u});
+          } else {
+            w_seed_frontend_text actual_kind;
+            w_seed_frontend_text expected_kind;
+            if (!diagnostic_generic_actual_kind(doc, shape->value_span,
+                                                 &actual_kind) ||
+                !diagnostic_value_kind_from_simple(expected, true,
+                                                   &expected_kind)) {
+              context->module_index = saved_module;
+              return false;
+            }
+            (void)append_contract0002_diagnostic(
+                context, shape->value_span, actual_kind, expected_kind,
+                head_name, pending->module_index, application_head_span,
+                schema[slot].parameter.internal_name, pending->module_index,
+                schema[slot].parameter.span);
+          }
         }
       } else {
         argument->value.binding_status =
@@ -2371,10 +2736,10 @@ static bool resolve_one_pending_generic_application(
   for (size_t slot = 0u; slot < schema_count; slot += 1u) {
     if (bound[slot]) continue;
     valid = false;
-    (void)generic_application_diagnostic(
-        context, "W-GENERIC-0002", schema[slot].parameter.span,
-        schema[slot].parameter.internal_name,
-        (w_seed_frontend_text){"argument", 8});
+    (void)append_generic0002_diagnostic(
+        context, schema[slot].parameter.span,
+        schema[slot].parameter.internal_name, pending->module_index,
+        schema[slot].parameter.span, pending->module_index, envelope_span);
   }
   if (schema_count == 0u && shape_count == 0u) valid = false;
   w_seed_frontend_generic_application application;
@@ -2976,13 +3341,122 @@ static bool receipt_size_fact(frontend_context *context,
          receipt_size_literal(context, "\n");
 }
 
-static bool receipt_size_diagnostic(
-    frontend_context *context, const w_seed_frontend_diagnostic *diagnostic) {
-  return receipt_size_literal(context, "diagnostic=") &&
-         receipt_size_text(context, diagnostic->code) &&
-         receipt_size_literal(context, "|") &&
-         receipt_size_span(context, diagnostic->primary) &&
+static size_t receipt_signed_decimal_length(int64_t value) {
+  uint64_t magnitude = value < 0
+                           ? (uint64_t)(-(value + 1)) + UINT64_C(1)
+                           : (uint64_t)value;
+  size_t length = value < 0 ? 1u : 0u;
+  do {
+    magnitude /= UINT64_C(10);
+    length += 1u;
+  } while (magnitude != 0u);
+  return length;
+}
+
+static bool receipt_size_signed(frontend_context *context, int64_t value) {
+  return receipt_size_add(context, receipt_signed_decimal_length(value));
+}
+
+static bool receipt_size_diagnostic_fact_input(
+    frontend_context *context, size_t diagnostic_index, size_t first_item,
+    const frontend_diagnostic_fact_input *fact) {
+  if (context == NULL || fact == NULL) return false;
+  if (!receipt_size_literal(context, "diagnostic-fact=") ||
+      !receipt_size_size(context, diagnostic_index) ||
+      !receipt_size_literal(context, "|key=") ||
+      !receipt_size_text(context, fact->key) ||
+      !receipt_size_literal(context, "|kind=") ||
+      !receipt_size_size(context, (size_t)fact->kind) ||
+      !receipt_size_literal(context, "|value=")) {
+    return false;
+  }
+  if (fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_INTEGER) {
+    if (!receipt_size_signed(context, fact->integer_value)) return false;
+  } else if (!receipt_size_text(context, fact->text)) {
+    return false;
+  }
+  if (!receipt_size_literal(context, "|items=") ||
+      !receipt_size_size(context, first_item) ||
+      !receipt_size_literal(context, ":") ||
+      !receipt_size_size(context, fact->item_count) ||
+      !receipt_size_literal(context, "\n")) {
+    return false;
+  }
+  for (size_t item = 0; item < fact->item_count; item += 1u) {
+    if (fact->items == NULL ||
+        !receipt_size_literal(context, "diagnostic-item=") ||
+        !receipt_size_size(context, diagnostic_index) ||
+        !receipt_size_literal(context, "|") ||
+        !receipt_size_size(context, item) ||
+        !receipt_size_literal(context, "|") ||
+        !receipt_size_text(context, fact->items[item]) ||
+        !receipt_size_literal(context, "\n")) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool receipt_size_diagnostic_label_input(
+    frontend_context *context, size_t diagnostic_index,
+    const frontend_diagnostic_label_input *label) {
+  return context != NULL && label != NULL &&
+         receipt_size_literal(context, "diagnostic-label=") &&
+         receipt_size_size(context, diagnostic_index) &&
+         receipt_size_literal(context, "|role=") &&
+         receipt_size_text(context, label->role) &&
+         receipt_size_literal(context, "|document=") &&
+         receipt_size_size(context, label->document_index) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, label->span) &&
          receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_diagnostic_input(
+    frontend_context *context, size_t diagnostic_index,
+    const w_seed_frontend_diagnostic *diagnostic,
+    const frontend_diagnostic_fact_input *facts, size_t fact_count,
+    const frontend_diagnostic_label_input *labels, size_t label_count) {
+  if (context == NULL || diagnostic == NULL ||
+      !receipt_size_literal(context, "diagnostic=") ||
+      !receipt_size_text(context, diagnostic->code) ||
+      !receipt_size_literal(context, "|") ||
+      !receipt_size_span(context, diagnostic->primary) ||
+      !receipt_size_literal(context, "|facts=") ||
+      !receipt_size_size(context, diagnostic->first_fact) ||
+      !receipt_size_literal(context, ":") ||
+      !receipt_size_size(context, fact_count) ||
+      !receipt_size_literal(context, "|labels=") ||
+      !receipt_size_size(context, diagnostic->first_label) ||
+      !receipt_size_literal(context, ":") ||
+      !receipt_size_size(context, label_count) ||
+      !receipt_size_literal(context, "\n")) {
+    return false;
+  }
+  size_t item_offset = context->count.diagnostic_items;
+  for (size_t index = 0u; index < fact_count; index += 1u) {
+    /* Emit stores NONE for scalar facts.  Use the same sentinel while sizing
+     * the receipt, or the dry and emit passes produce different bytes. */
+    const size_t first_item = facts[index].item_count == 0u
+                                  ? (size_t)W_SEED_FRONTEND_NONE
+                                  : item_offset;
+    if (!receipt_size_diagnostic_fact_input(
+            context, diagnostic_index, first_item,
+            &facts[index])) {
+      return false;
+    }
+    if (item_offset > SIZE_MAX - facts[index].item_count) {
+      return false;
+    }
+    item_offset += facts[index].item_count;
+  }
+  for (size_t index = 0u; index < label_count; index += 1u) {
+    if (!receipt_size_diagnostic_label_input(context, diagnostic_index,
+                                             &labels[index])) {
+      return false;
+    }
+  }
+  return true;
 }
 
 static w_seed_frontend_text text_from_span(const w_seed_frontend_document *doc,
@@ -4137,6 +4611,9 @@ static void counts_from_measure(const frontend_measure *measure,
   counts->symbols = measure->symbols;
   counts->facts = measure->facts;
   counts->diagnostics = measure->diagnostics;
+  counts->diagnostic_facts = measure->diagnostic_facts;
+  counts->diagnostic_items = measure->diagnostic_items;
+  counts->diagnostic_labels = measure->diagnostic_labels;
   counts->enums = measure->enums;
   counts->enum_cases = measure->enum_cases;
   counts->enum_case_parameters = measure->enum_case_parameters;
@@ -4160,6 +4637,7 @@ w_seed_frontend_status w_seed_frontend_measure(
   size_t barrier_document = W_SEED_FRONTEND_NONE_SIZE;
   w_seed_span barrier_span = empty_span(0);
   if (counts == NULL || result == NULL) return W_SEED_FRONTEND_INVALID;
+  frontend_diagnostic_category_scratch_count = 0u;
   (void)memset(result, 0, sizeof(*result));
   result->barrier_document = W_SEED_FRONTEND_NONE_SIZE;
   result->primary_diagnostic = W_SEED_FRONTEND_NONE_SIZE;
@@ -4242,6 +4720,16 @@ static const w_seed_frontend_document *context_document(
     return NULL;
   }
   return &context->input.documents[context->module_index];
+}
+
+static size_t context_document_index_for(
+    const frontend_context *context,
+    const w_seed_frontend_document *document) {
+  if (context == NULL || document == NULL) return W_SEED_FRONTEND_NONE_SIZE;
+  for (size_t index = 0u; index < context->input.document_count; index += 1u) {
+    if (&context->input.documents[index] == document) return index;
+  }
+  return W_SEED_FRONTEND_NONE_SIZE;
 }
 
 static w_seed_frontend_text first_word_in_span(
@@ -4808,7 +5296,15 @@ static bool enum_subset_contains_case(
 static frontend_simple_type contextual_type_from_span(
     const frontend_context *context, const w_seed_frontend_document *doc,
     w_seed_span span) {
-  frontend_simple_type type = simple_type_from_text(doc, span);
+  const w_seed_span trimmed = trim_span(doc, span);
+  frontend_simple_type type = simple_type_from_text(doc, trimmed);
+  const size_t document_index = context_document_index_for(context, doc);
+  if (doc != NULL && document_index != W_SEED_FRONTEND_NONE_SIZE &&
+      trimmed.start_byte <= trimmed.end_byte) {
+    type.has_origin = true;
+    type.origin_document_index = document_index;
+    type.origin_span = trimmed;
+  }
   if (type.kind == W_SEED_FRONTEND_TYPE_STATIC_LIST) {
     (void)static_list_element_from_span(context, doc, span, &type);
   }
@@ -4867,50 +5363,1040 @@ static bool context_append_fact(frontend_context *context,
   return true;
 }
 
-static bool context_append_diagnostic(
-    frontend_context *context, w_seed_frontend_diagnostic_kind kind,
-    const char *code, w_seed_frontend_text actual,
-    w_seed_frontend_text expected, w_seed_frontend_text declaration,
-    w_seed_frontend_text label, w_seed_frontend_text accepted_forms,
-    w_seed_span primary) {
-  if (context == NULL) return false;
+static bool context_append_diagnostic_raw_at(
+    frontend_context *context, const char *code, size_t primary_document_index,
+    w_seed_span primary, const frontend_diagnostic_fact_input *facts,
+    size_t fact_count, const frontend_diagnostic_label_input *labels,
+    size_t label_count) {
+  if (context == NULL || code == NULL ||
+      (fact_count != 0u && facts == NULL) ||
+      (label_count != 0u && labels == NULL) ||
+      primary_document_index >= context->input.document_count ||
+      fact_count > (size_t)UINT32_MAX || label_count > (size_t)UINT32_MAX) {
+    return false;
+  }
+  w_seed_source_error primary_error;
+  if (context->input.documents[primary_document_index].source == NULL ||
+      !w_seed_source_validate_span(
+          context->input.documents[primary_document_index].source, primary,
+          &primary_error)) {
+    return false;
+  }
   const size_t ordinal = context->count.diagnostics;
-  context->count.diagnostics += 1;
+  const size_t first_fact = context->count.diagnostic_facts;
+  const size_t first_label = context->count.diagnostic_labels;
+  if (ordinal >= (size_t)UINT32_MAX || first_fact >= (size_t)UINT32_MAX ||
+      first_label >= (size_t)UINT32_MAX) {
+    return false;
+  }
+  size_t item_total = 0u;
+  for (size_t index = 0u; index < fact_count; index += 1u) {
+    const frontend_diagnostic_fact_input *fact = &facts[index];
+    if (fact->kind > W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET ||
+        fact->key.data == NULL || fact->key.length == 0u ||
+        (fact->item_count != 0u && fact->items == NULL) ||
+        fact->item_count > (size_t)UINT32_MAX ||
+        (fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_INTEGER &&
+         (fact->text.data != NULL || fact->text.length != 0u ||
+          fact->items != NULL || fact->item_count != 0u)) ||
+        (fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING &&
+         (fact->text.data == NULL || fact->text.length == 0u ||
+          fact->integer_value != 0 || fact->items != NULL ||
+          fact->item_count != 0u)) ||
+        ((fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_ARRAY ||
+          fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET) &&
+         (fact->text.data != NULL || fact->text.length != 0u ||
+          fact->integer_value != 0))) {
+      return false;
+    }
+    if (fact->kind != W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_ARRAY &&
+        fact->kind != W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET &&
+        fact->items != NULL) {
+      return false;
+    }
+    if (item_total > SIZE_MAX - fact->item_count) return false;
+    item_total += fact->item_count;
+    if (fact->kind != W_SEED_FRONTEND_DIAGNOSTIC_FACT_INTEGER &&
+        fact->kind != W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING &&
+        fact->text.length != 0u && fact->text.data == NULL) {
+      return false;
+    }
+    for (size_t item = 0u; item < fact->item_count; item += 1u) {
+      if (fact->items[item].data == NULL && fact->items[item].length != 0u) {
+        return false;
+      }
+    }
+    if (index != 0u) {
+      const frontend_diagnostic_fact_input *prior = &facts[index - 1u];
+      size_t key_index = 0u;
+      const size_t common = prior->key.length < fact->key.length
+                                ? prior->key.length
+                                : fact->key.length;
+      while (key_index < common &&
+             (uint8_t)prior->key.data[key_index] ==
+                 (uint8_t)fact->key.data[key_index]) {
+        key_index += 1u;
+      }
+      if (key_index == common && prior->key.length >= fact->key.length) {
+        return false;
+      }
+      if (key_index != common &&
+          (uint8_t)prior->key.data[key_index] >
+              (uint8_t)fact->key.data[key_index]) {
+        return false;
+      }
+    }
+  }
+  for (size_t index = 0u; index < label_count; index += 1u) {
+    const frontend_diagnostic_label_input *label = &labels[index];
+    if (label->role.data == NULL || label->role.length == 0u) return false;
+  }
+  if (context->count.diagnostics == SIZE_MAX ||
+      context->count.diagnostic_facts > SIZE_MAX - fact_count ||
+      context->count.diagnostic_items > SIZE_MAX - item_total ||
+      context->count.diagnostic_labels > SIZE_MAX - label_count) {
+    return false;
+  }
+  if (context->count.diagnostic_items > (size_t)UINT32_MAX - item_total) {
+    return false;
+  }
+  const w_seed_frontend_diagnostic value = {
+      {code, strlen(code)}, primary, primary_document_index,
+      (uint32_t)first_fact, (uint32_t)fact_count,
+      (uint32_t)first_label, (uint32_t)label_count};
   if (context->result != NULL &&
       context->result->primary_diagnostic == W_SEED_FRONTEND_NONE_SIZE) {
     context->result->primary_diagnostic = ordinal;
   }
   if (!context->emit) {
-    const w_seed_frontend_diagnostic value = {
-        kind,
-        {code, strlen(code)},
-        actual,
-        expected,
-        declaration,
-        label,
-        accepted_forms,
-        primary,
-        context->module_index,
-    };
-    return receipt_size_diagnostic(context, &value);
+    if (!receipt_size_diagnostic_input(context, ordinal, &value, facts,
+                                       fact_count, labels, label_count)) {
+      return false;
+    }
+    context->count.diagnostics += 1u;
+    context->count.diagnostic_facts += fact_count;
+    context->count.diagnostic_items += item_total;
+    context->count.diagnostic_labels += label_count;
+    return true;
   }
   if (context->output == NULL || context->output->diagnostics == NULL ||
-      ordinal >= context->output->diagnostic_capacity) {
+      ordinal >= context->output->diagnostic_capacity ||
+      (fact_count != 0u && context->output->diagnostic_facts == NULL) ||
+      (item_total != 0u && context->output->diagnostic_items == NULL) ||
+      (label_count != 0u && context->output->diagnostic_labels == NULL) ||
+      first_fact + fact_count > context->output->diagnostic_fact_capacity ||
+      context->count.diagnostic_items + item_total >
+          context->output->diagnostic_item_capacity ||
+      first_label + label_count > context->output->diagnostic_label_capacity) {
     return false;
   }
   w_seed_frontend_diagnostic *diagnostic =
       &context->output->diagnostics[ordinal];
-  diagnostic->kind = kind;
-  diagnostic->code.data = code;
-  diagnostic->code.length = strlen(code);
-  diagnostic->actual = actual;
-  diagnostic->expected = expected;
-  diagnostic->declaration = declaration;
-  diagnostic->label = label;
-  diagnostic->accepted_forms = accepted_forms;
-  diagnostic->primary = primary;
-  diagnostic->document_index = context->module_index;
+  *diagnostic = value;
+  for (size_t index = 0u; index < fact_count; index += 1u) {
+    const frontend_diagnostic_fact_input *input_fact = &facts[index];
+    w_seed_frontend_diagnostic_fact *fact =
+        &context->output->diagnostic_facts[first_fact + index];
+    fact->key = input_fact->key;
+    fact->kind = input_fact->kind;
+    fact->first_item = W_SEED_FRONTEND_NONE;
+    fact->item_count = 0u;
+    fact->text = (w_seed_frontend_text){NULL, 0u};
+    fact->integer_value = 0;
+    if (input_fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING) {
+      fact->text = input_fact->text;
+    } else if (input_fact->kind ==
+               W_SEED_FRONTEND_DIAGNOSTIC_FACT_INTEGER) {
+      fact->integer_value = input_fact->integer_value;
+    } else {
+      fact->item_count = (uint32_t)input_fact->item_count;
+    }
+    if (input_fact->item_count != 0u) {
+      const size_t item_start = context->count.diagnostic_items;
+      if (!add_u32(item_start, &fact->first_item)) return false;
+      for (size_t item = 0u; item < input_fact->item_count; item += 1u) {
+        context->output->diagnostic_items[item_start + item].text =
+            input_fact->items[item];
+      }
+      context->count.diagnostic_items += input_fact->item_count;
+    }
+  }
+  for (size_t index = 0u; index < label_count; index += 1u) {
+    w_seed_frontend_diagnostic_label *label =
+        &context->output->diagnostic_labels[first_label + index];
+    label->role = labels[index].role;
+    label->span = labels[index].span;
+    label->document_index = labels[index].document_index;
+  }
+  context->count.diagnostics += 1u;
+  context->count.diagnostic_facts += fact_count;
+  context->count.diagnostic_labels += label_count;
   return true;
+}
+
+static bool context_append_diagnostic_raw(
+    frontend_context *context, const char *code, w_seed_span primary,
+    const frontend_diagnostic_fact_input *facts, size_t fact_count,
+    const frontend_diagnostic_label_input *labels, size_t label_count) {
+  return context_append_diagnostic_raw_at(
+      context, code, context == NULL ? W_SEED_FRONTEND_NONE_SIZE
+                                      : context->module_index,
+      primary, facts, fact_count, labels, label_count);
+}
+
+static void diagnostic_label(frontend_context *context,
+                             frontend_diagnostic_label_input *label,
+                             const char *role, w_seed_span span) {
+  label->role = (w_seed_frontend_text){role, strlen(role)};
+  label->span = span;
+  label->document_index = context->module_index;
+}
+
+static void diagnostic_label_at(frontend_diagnostic_label_input *label,
+                                const char *role, w_seed_span span,
+                                size_t document_index) {
+  if (label == NULL) return;
+  label->role = (w_seed_frontend_text){role, strlen(role)};
+  label->span = span;
+  label->document_index = document_index;
+}
+
+/* Resolve an exact source-backed occurrence when a semantic type carries no
+ * origin. If no occurrence can be proven, the typed diagnostic fails closed. */
+static bool diagnostic_find_text_span(const frontend_context *context,
+                                      w_seed_frontend_text text,
+                                      w_seed_span near,
+                                      size_t *document_index,
+                                      w_seed_span *span) {
+  if (context == NULL || text.data == NULL || text.length == 0u ||
+      span == NULL || document_index == NULL) {
+    return false;
+  }
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL || doc->source == NULL || text.length > doc->source->bytes.length)
+    return false;
+  const size_t source_length = doc->source->bytes.length;
+  size_t begin = near.start_byte < source_length ? near.start_byte : 0u;
+  for (size_t pass = 0u; pass < 2u; pass += 1u) {
+    const size_t first = pass == 0u ? begin : 0u;
+    const size_t last = pass == 0u
+                            ? source_length - text.length
+                            : (begin < text.length ? 0u : begin - text.length);
+    if (first > source_length - text.length) continue;
+    for (size_t offset = first; offset <= last; offset += 1u) {
+      if (memcmp(doc->source->bytes.data + offset, text.data, text.length) != 0)
+        continue;
+      const w_seed_span candidate = {offset, offset + text.length};
+      w_seed_source_error source_error;
+      if (!w_seed_source_validate_span(doc->source, candidate, &source_error))
+        continue;
+      *document_index = context->module_index;
+      *span = candidate;
+      return true;
+    }
+  }
+  return false;
+}
+
+static int diagnostic_compare_text(w_seed_frontend_text left,
+                                   w_seed_frontend_text right) {
+  const size_t common = left.length < right.length ? left.length : right.length;
+  if (common != 0u) {
+    const int result = memcmp(left.data, right.data, common);
+    if (result != 0) return result;
+  }
+  return left.length < right.length ? -1 : left.length > right.length ? 1 : 0;
+}
+
+static bool diagnostic_enum_cases(
+    const frontend_context *context, frontend_simple_type expected,
+    w_seed_frontend_text *items, size_t item_capacity, size_t *item_count) {
+  if (item_count != NULL) *item_count = 0u;
+  if (context == NULL || items == NULL || item_count == NULL ||
+      item_capacity == 0u || !frontend_type_is_enum(expected)) {
+    return false;
+  }
+  const w_seed_frontend_document *doc = context_document(context);
+  if (expected.has_origin &&
+      expected.origin_document_index < context->input.document_count) {
+    doc = &context->input.documents[expected.origin_document_index];
+  }
+  if (doc == NULL) return false;
+  if (expected.kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET &&
+      expected.subset_span.end_byte > expected.subset_span.start_byte) {
+    for (size_t ordinal = 0u; ordinal < item_capacity; ordinal += 1u) {
+      frontend_enum_subset_item item;
+      if (!enum_subset_item_at(doc, expected.subset_span, ordinal, &item))
+        break;
+      items[*item_count] = item.name;
+      *item_count += 1u;
+    }
+  } else {
+    const w_seed_frontend_document *enum_doc = NULL;
+    uint32_t enum_node = W_SEED_CST_NONE;
+    if (!enum_declaration_for_name(context, expected.enum_name.length != 0u
+                                             ? expected.enum_name
+                                             : expected.spelling,
+                                   NULL, NULL, &enum_doc, &enum_node) ||
+        enum_doc == NULL) {
+      return false;
+    }
+    uint32_t cursor = enum_doc->nodes[enum_node].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t guard = 0u;
+    while (*item_count < item_capacity &&
+           next_child(enum_doc, &cursor, &child) &&
+           guard < enum_doc->parse.node_count) {
+      if (enum_doc->nodes[child].kind == W_SEED_CST_ENUM_CASE) {
+        const w_seed_frontend_text name =
+            first_word_in_span(enum_doc, enum_doc->nodes[child].raw_span);
+        if (name.length != 0u) {
+          items[*item_count] = name;
+          *item_count += 1u;
+        }
+      }
+      guard += 1u;
+    }
+  }
+  /* Sets use byte order, independent of the declaration's semantic order. */
+  for (size_t index = 1u; index < *item_count; index += 1u) {
+    const w_seed_frontend_text value = items[index];
+    size_t insert = index;
+    while (insert != 0u &&
+           diagnostic_compare_text(items[insert - 1u], value) > 0) {
+      items[insert] = items[insert - 1u];
+      insert -= 1u;
+    }
+    items[insert] = value;
+  }
+  size_t unique = 0u;
+  for (size_t index = 0u; index < *item_count; index += 1u) {
+    if (unique == 0u ||
+        diagnostic_compare_text(items[unique - 1u], items[index]) != 0) {
+      items[unique] = items[index];
+      unique += 1u;
+    }
+  }
+  *item_count = unique;
+  return true;
+}
+
+static bool append_type0121_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text actual_case, frontend_simple_type expected) {
+  if (context == NULL || actual_case.data == NULL || actual_case.length == 0u ||
+      expected.spelling.data == NULL || expected.spelling.length == 0u)
+    return false;
+  w_seed_frontend_text items[FRONTEND_MAX_DIAGNOSTIC_ITEMS];
+  size_t item_count = 0u;
+  if (!diagnostic_enum_cases(context, expected, items,
+                             sizeof(items) / sizeof(items[0]), &item_count))
+    return false;
+  const w_seed_frontend_text base_enum =
+      expected.enum_name.length != 0u ? expected.enum_name : expected.spelling;
+  if (base_enum.data == NULL || base_enum.length == 0u) return false;
+  const w_seed_frontend_text expected_type = expected.spelling;
+  frontend_diagnostic_fact_input facts[4];
+  (void)memset(facts, 0, sizeof(facts));
+  facts[0] = (frontend_diagnostic_fact_input){{"actualCase", 10u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               actual_case, 0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"allowedCases", 12u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET,
+                                               {NULL, 0u}, 0, items, item_count};
+  facts[2] = (frontend_diagnostic_fact_input){{"baseEnum", 8u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               base_enum, 0, NULL, 0u};
+  facts[3] = (frontend_diagnostic_fact_input){{"expectedType", 12u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               expected_type, 0, NULL, 0u};
+  frontend_diagnostic_label_input label;
+  (void)memset(&label, 0, sizeof(label));
+  size_t document_index = context->module_index;
+  w_seed_span label_span = primary;
+  if (expected.has_origin &&
+      expected.origin_document_index < context->input.document_count) {
+    document_index = expected.origin_document_index;
+    label_span = expected.origin_span;
+  } else {
+    if (!diagnostic_find_text_span(context, expected_type, primary,
+                                   &document_index, &label_span))
+      return false;
+    diagnostic_label_at(&label, "expected-type", label_span, document_index);
+    return context_append_diagnostic_raw(context, "W-TYPE-0121", primary,
+                                         facts, 4u, &label, 1u);
+  }
+  diagnostic_label_at(&label, "expected-type", label_span, document_index);
+  return context_append_diagnostic_raw(context, "W-TYPE-0121", primary, facts,
+                                       4u, &label, 1u);
+}
+
+static bool append_type0122_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    frontend_simple_type actual, frontend_simple_type expected,
+    w_seed_frontend_text reason) {
+  if (context == NULL || actual.spelling.data == NULL ||
+      actual.spelling.length == 0u || expected.spelling.data == NULL ||
+      expected.spelling.length == 0u || reason.data == NULL ||
+      reason.length == 0u)
+    return false;
+  const w_seed_frontend_text actual_type = actual.spelling;
+  const w_seed_frontend_text expected_type = expected.spelling;
+  const w_seed_frontend_text stable_reason = reason;
+  frontend_diagnostic_fact_input facts[4];
+  (void)memset(facts, 0, sizeof(facts));
+  facts[0] = (frontend_diagnostic_fact_input){{"actualType", 10u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               actual_type, 0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"candidateRoutes", 15u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET,
+                                               {NULL, 0u}, 0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"expectedType", 12u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               expected_type, 0, NULL, 0u};
+  facts[3] = (frontend_diagnostic_fact_input){{"reason", 6u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               stable_reason, 0, NULL, 0u};
+  frontend_diagnostic_label_input labels[2];
+  (void)memset(labels, 0, sizeof(labels));
+  diagnostic_label(context, &labels[0], "call-owner", primary);
+  size_t expected_document = context->module_index;
+  w_seed_span expected_span = primary;
+  if (expected.has_origin &&
+      expected.origin_document_index < context->input.document_count) {
+    expected_document = expected.origin_document_index;
+    expected_span = expected.origin_span;
+    diagnostic_label_at(&labels[1], "expected-type", expected_span,
+                        expected_document);
+  } else {
+    size_t expected_document_index = context->module_index;
+    w_seed_span expected_type_span = primary;
+    if (!diagnostic_find_text_span(context, expected_type, primary,
+                                   &expected_document_index,
+                                   &expected_type_span))
+      return false;
+    diagnostic_label_at(&labels[1], "expected-type", expected_type_span,
+                        expected_document_index);
+  }
+  return context_append_diagnostic_raw(context, "W-TYPE-0122", primary, facts,
+                                       4u, labels, 2u);
+}
+
+static bool append_type0120_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    frontend_simple_type left, w_seed_span left_span, size_t left_document,
+    frontend_simple_type right, w_seed_span right_span,
+    size_t right_document) {
+  if (context == NULL || left.spelling.data == NULL ||
+      left.spelling.length == 0u || right.spelling.data == NULL ||
+      right.spelling.length == 0u ||
+      left_document >= context->input.document_count ||
+      right_document >= context->input.document_count)
+    return false;
+  const w_seed_frontend_text left_type = left.spelling;
+  const w_seed_frontend_text right_type = right.spelling;
+  frontend_diagnostic_fact_input facts[2];
+  facts[0] = (frontend_diagnostic_fact_input){{"leftType", 8u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               left_type, 0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"rightType", 9u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               right_type, 0, NULL, 0u};
+  frontend_diagnostic_label_input labels[2];
+  diagnostic_label_at(&labels[0], "branch-result", left_span, left_document);
+  diagnostic_label_at(&labels[1], "branch-result", right_span, right_document);
+  return context_append_diagnostic_raw(context, "W-TYPE-0120", primary, facts,
+                                       2u, labels, 2u);
+}
+
+static bool append_match0001_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text subject_type, w_seed_span subject_span,
+    const w_seed_frontend_text *missing, size_t missing_count) {
+  if (context == NULL || subject_type.data == NULL ||
+      subject_type.length == 0u || missing == NULL || missing_count == 0u)
+    return false;
+  w_seed_frontend_text sorted[FRONTEND_MAX_DIAGNOSTIC_ITEMS];
+  if (missing_count > sizeof(sorted) / sizeof(sorted[0])) return false;
+  for (size_t index = 0u; index < missing_count; index += 1u) {
+    if (missing[index].data == NULL || missing[index].length == 0u)
+      return false;
+    sorted[index] = missing[index];
+  }
+  for (size_t index = 1u; index < missing_count; index += 1u) {
+    const w_seed_frontend_text value = sorted[index];
+    size_t insert = index;
+    while (insert != 0u &&
+           diagnostic_compare_text(sorted[insert - 1u], value) > 0) {
+      sorted[insert] = sorted[insert - 1u];
+      insert -= 1u;
+    }
+    sorted[insert] = value;
+  }
+  size_t unique = 0u;
+  for (size_t index = 0u; index < missing_count; index += 1u) {
+    if (unique == 0u ||
+        diagnostic_compare_text(sorted[unique - 1u], sorted[index]) != 0) {
+      sorted[unique] = sorted[index];
+      unique += 1u;
+    }
+  }
+  const w_seed_frontend_text type_text = subject_type;
+  frontend_diagnostic_fact_input facts[2];
+  facts[0] = (frontend_diagnostic_fact_input){{"missingCases", 12u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET,
+                                               {NULL, 0u}, 0, sorted, unique};
+  facts[1] = (frontend_diagnostic_fact_input){{"subjectType", 11u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               type_text, 0, NULL, 0u};
+  frontend_diagnostic_label_input label;
+  diagnostic_label(context, &label, "match-subject", subject_span);
+  return context_append_diagnostic_raw(context, "W-MATCH-0001", primary, facts,
+                                       2u, &label, 1u);
+}
+
+static bool append_match0002_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text covered_by, w_seed_frontend_text pattern,
+    w_seed_frontend_text subject_type, w_seed_span covered_span,
+    size_t covered_document, w_seed_span subject_span) {
+  if (context == NULL || covered_by.data == NULL || covered_by.length == 0u ||
+      pattern.data == NULL || pattern.length == 0u ||
+      subject_type.data == NULL || subject_type.length == 0u)
+    return false;
+  const w_seed_frontend_text covered = covered_by;
+  const w_seed_frontend_text current = pattern;
+  const w_seed_frontend_text subject = subject_type;
+  frontend_diagnostic_fact_input facts[3];
+  facts[0] = (frontend_diagnostic_fact_input){{"coveredBy", 9u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               covered, 0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"pattern", 7u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               current, 0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"subjectType", 11u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               subject, 0, NULL, 0u};
+  frontend_diagnostic_label_input labels[2];
+  diagnostic_label_at(&labels[0], "covered-case", covered_span,
+                      covered_document);
+  diagnostic_label(context, &labels[1], "match-subject", subject_span);
+  return context_append_diagnostic_raw(context, "W-MATCH-0002", primary, facts,
+                                       3u, labels, 2u);
+}
+
+static bool append_sem0001_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text actual, w_seed_frontend_text expected) {
+  if (context == NULL || actual.data == NULL || actual.length == 0u ||
+      expected.data == NULL || expected.length == 0u)
+    return false;
+  const w_seed_frontend_text actual_text = actual;
+  const w_seed_frontend_text expected_text = expected;
+  frontend_diagnostic_fact_input facts[2];
+  facts[0] = (frontend_diagnostic_fact_input){{"actual", 6u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               actual_text, 0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"expected", 8u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               expected_text, 0, NULL, 0u};
+  return context_append_diagnostic_raw(context, "W-SEM-0001", primary, facts,
+                                       2u, NULL, 0u);
+}
+
+static bool diagnostic_form_push(w_seed_frontend_text *forms,
+                                 size_t form_capacity, size_t *form_count,
+                                 w_seed_frontend_text form) {
+  if (forms == NULL || form_count == NULL || form.length == 0u) return false;
+  if (*form_count >= form_capacity) return false;
+  forms[*form_count] = form;
+  *form_count += 1u;
+  return true;
+}
+
+static w_seed_frontend_text diagnostic_enum_case_name(
+    const frontend_context *context, uint32_t enum_case_index) {
+  const w_seed_frontend_document *document = NULL;
+  uint32_t case_node = W_SEED_CST_NONE;
+  if (context == NULL ||
+      !enum_case_node_for_index(context, enum_case_index, &document,
+                                &case_node) ||
+      document == NULL)
+    return (w_seed_frontend_text){NULL, 0u};
+  return first_word_in_span(document, document->nodes[case_node].raw_span);
+}
+
+/* Return the accepted form for the selected declaration slot.  Labels are
+ * source slices; only an omitted label is represented by the normalized
+ * semantic marker `positional`. */
+static size_t diagnostic_call_accepted_forms(
+    const frontend_context *context, bool enum_case_constructor,
+    uint32_t enum_case_index, const w_seed_frontend_document *signature_doc,
+    uint32_t signature_node,
+    const w_seed_frontend_external_symbol *external_signature, size_t ordinal,
+    w_seed_frontend_text *forms, size_t form_capacity) {
+  if (forms == NULL || form_capacity == 0u) return 0u;
+  size_t form_count = 0u;
+  const w_seed_frontend_text positional = {"positional", 10u};
+  if (enum_case_constructor) {
+    const w_seed_frontend_document *case_doc = NULL;
+    uint32_t case_node = W_SEED_CST_NONE;
+    if (context == NULL ||
+        !enum_case_node_for_index(context, enum_case_index, &case_doc,
+                                  &case_node) ||
+        case_doc == NULL) {
+      return 0u;
+    }
+    uint32_t cursor = case_doc->nodes[case_node].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t position = 0u;
+    size_t guard = 0u;
+    while (next_child(case_doc, &cursor, &child) &&
+           guard < case_doc->parse.node_count) {
+      if (case_doc->nodes[child].kind == W_SEED_CST_ENUM_CASE_PARAMETER) {
+        if (position == ordinal) {
+          const w_seed_frontend_text label =
+              enum_case_parameter_label(case_doc, child);
+          (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                     label.length != 0u ? label : positional);
+          return form_count;
+        }
+        position += 1u;
+      }
+      guard += 1u;
+    }
+    return form_count;
+  }
+  if (signature_doc != NULL && signature_node != W_SEED_CST_NONE) {
+    const uint32_t parameters = first_direct_kind(
+        signature_doc, signature_node, W_SEED_CST_PARAMETER_LIST);
+    if (parameters == W_SEED_CST_NONE) return 0u;
+    uint32_t cursor = signature_doc->nodes[parameters].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t position = 0u;
+    size_t guard = 0u;
+    while (next_child(signature_doc, &cursor, &child) &&
+           guard < signature_doc->parse.node_count) {
+      if (signature_doc->nodes[child].kind == W_SEED_CST_PARAMETER) {
+        if (position == ordinal) {
+          const w_seed_frontend_label_kind policy = parameter_label_kind(
+              signature_doc, signature_doc->nodes[child].raw_span);
+          const w_seed_frontend_text label = parameter_external_label_from_span(
+              signature_doc, signature_doc->nodes[child].raw_span);
+          if (policy == W_SEED_FRONTEND_LABEL_OPTIONAL) {
+            (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                       positional);
+            (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                       label);
+          } else if (policy == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
+            (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                       positional);
+          } else {
+            (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                       label.length != 0u ? label : positional);
+          }
+          return form_count;
+        }
+        position += 1u;
+      }
+      guard += 1u;
+    }
+    return form_count;
+  }
+  if (external_signature != NULL && ordinal < external_signature->parameter_count) {
+    const w_seed_frontend_external_parameter *parameter =
+        &external_signature->parameters[ordinal];
+    if (parameter->label_kind == W_SEED_FRONTEND_LABEL_OPTIONAL) {
+      (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                 positional);
+      (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                 parameter->name);
+    } else if (parameter->label_kind ==
+               W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
+      (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                 positional);
+    } else {
+      (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                 parameter->name.length != 0u
+                                     ? parameter->name
+                                     : positional);
+    }
+  }
+  return form_count;
+}
+
+static bool append_label0005_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text declaration, w_seed_frontend_text label,
+    const w_seed_frontend_text *accepted_forms, size_t accepted_count) {
+  if (context == NULL || declaration.data == NULL || declaration.length == 0u ||
+      (label.length != 0u && label.data == NULL))
+    return false;
+  w_seed_frontend_text fallback = {"positional", 10u};
+  if (accepted_count == 0u) {
+    accepted_forms = &fallback;
+    accepted_count = 1u;
+  }
+  if (accepted_forms == NULL || accepted_count == 0u ||
+      accepted_count > FRONTEND_MAX_DIAGNOSTIC_ITEMS)
+    return false;
+  for (size_t index = 0u; index < accepted_count; index += 1u) {
+    if (accepted_forms[index].data == NULL ||
+        accepted_forms[index].length == 0u)
+      return false;
+  }
+  frontend_diagnostic_fact_input facts[3];
+  facts[0] = (frontend_diagnostic_fact_input){{"acceptedForms", 13u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_ARRAY,
+                                               {NULL, 0u}, 0, accepted_forms,
+                                               accepted_count};
+  facts[1] = (frontend_diagnostic_fact_input){{"declaration", 11u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               declaration,
+                                               0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"label", 5u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               label.length != 0u ? label : fallback,
+                                               0, NULL, 0u};
+  return context_append_diagnostic_raw(context, "W-LABEL-0005", primary,
+                                       facts, 3u, NULL, 0u);
+}
+
+static bool append_label0006_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text declaration, w_seed_frontend_text label,
+    w_seed_frontend_text slot) {
+  if (context == NULL || declaration.data == NULL || declaration.length == 0u ||
+      slot.data == NULL || slot.length == 0u ||
+      (label.length != 0u && label.data == NULL))
+    return false;
+  const w_seed_frontend_text positional = {"positional", 10u};
+  const w_seed_frontend_text slot_text = slot;
+  frontend_diagnostic_fact_input facts[3];
+  facts[0] = (frontend_diagnostic_fact_input){{"declaration", 11u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               declaration,
+                                               0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"label", 5u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               label.length != 0u ? label : positional,
+                                               0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"slot", 4u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               slot_text, 0, NULL, 0u};
+  return context_append_diagnostic_raw(context, "W-LABEL-0006", primary,
+                                       facts, 3u, NULL, 0u);
+}
+
+static bool append_match0003_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text context_name, w_seed_frontend_text expected_type,
+    w_seed_frontend_text member) {
+  if (context == NULL || context_name.data == NULL ||
+      context_name.length == 0u || expected_type.data == NULL ||
+      expected_type.length == 0u || member.data == NULL || member.length == 0u)
+    return false;
+  const w_seed_frontend_text context_text = context_name;
+  const w_seed_frontend_text expected_text = expected_type;
+  const w_seed_frontend_text member_text = member;
+  frontend_diagnostic_fact_input facts[3];
+  facts[0] = (frontend_diagnostic_fact_input){{"context", 7u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               context_text, 0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"expectedType", 12u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               expected_text, 0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"member", 6u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               member_text, 0, NULL, 0u};
+  return context_append_diagnostic_raw(context, "W-MATCH-0003", primary,
+                                       facts, 3u, NULL, 0u);
+}
+
+static bool append_const0001_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    const w_seed_frontend_text *call_chain, size_t call_chain_count,
+    w_seed_frontend_text operation, w_seed_frontend_text reason,
+    w_seed_frontend_text symbol, size_t owner_document, w_seed_span owner_span) {
+  if (context == NULL || call_chain == NULL || call_chain_count == 0u ||
+      call_chain_count > FRONTEND_MAX_DIAGNOSTIC_ITEMS ||
+      operation.data == NULL || operation.length == 0u || reason.data == NULL ||
+      reason.length == 0u || symbol.data == NULL || symbol.length == 0u ||
+      owner_document >= context->input.document_count)
+    return false;
+  for (size_t index = 0u; index < call_chain_count; index += 1u) {
+    if (call_chain[index].data == NULL || call_chain[index].length == 0u)
+      return false;
+  }
+  frontend_diagnostic_fact_input facts[4];
+  facts[0] = (frontend_diagnostic_fact_input){{"callChain", 9u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_ARRAY,
+                                               {NULL, 0u}, 0, call_chain,
+                                               call_chain_count};
+  facts[1] = (frontend_diagnostic_fact_input){{"operation", 9u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               operation, 0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"reason", 6u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               reason, 0, NULL, 0u};
+  facts[3] = (frontend_diagnostic_fact_input){{"symbol", 6u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               symbol, 0, NULL, 0u};
+  frontend_diagnostic_label_input label;
+  diagnostic_label_at(&label, "const-owner", owner_span, owner_document);
+  return context_append_diagnostic_raw(context, "W-CONST-0001", primary,
+                                       facts, 4u, &label, 1u);
+}
+
+static bool append_contract0002_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text actual_kind, w_seed_frontend_text expected_kind,
+    w_seed_frontend_text head, size_t head_document, w_seed_span head_span,
+    w_seed_frontend_text slot, size_t slot_document, w_seed_span slot_span) {
+  if (context == NULL || actual_kind.data == NULL || actual_kind.length == 0u ||
+      expected_kind.data == NULL || expected_kind.length == 0u ||
+      head.data == NULL || head.length == 0u || slot.data == NULL ||
+      slot.length == 0u ||
+      head_document >= context->input.document_count ||
+      slot_document >= context->input.document_count)
+    return false;
+  frontend_diagnostic_fact_input facts[4];
+  facts[0] = (frontend_diagnostic_fact_input){{"actualKind", 10u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               actual_kind, 0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"expectedKind", 12u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               expected_kind, 0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"head", 4u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               head, 0, NULL, 0u};
+  facts[3] = (frontend_diagnostic_fact_input){{"slot", 4u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               slot, 0, NULL, 0u};
+  frontend_diagnostic_label_input labels[2];
+  diagnostic_label_at(&labels[0], "contract-head", head_span, head_document);
+  diagnostic_label_at(&labels[1], "slot-declaration", slot_span,
+                      slot_document);
+  return context_append_diagnostic_raw(context, "W-CONTRACT-0002", primary,
+                                       facts, 4u, labels, 2u);
+}
+
+static bool append_contract0003_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text expected_type, w_seed_frontend_text head,
+    size_t head_document, w_seed_span head_span,
+    w_seed_frontend_text predicate_type, size_t slot_document,
+    w_seed_span slot_span) {
+  if (context == NULL || expected_type.data == NULL ||
+      expected_type.length == 0u || head.data == NULL || head.length == 0u ||
+      predicate_type.data == NULL || predicate_type.length == 0u ||
+      head_document >= context->input.document_count ||
+      slot_document >= context->input.document_count)
+    return false;
+  frontend_diagnostic_fact_input facts[3];
+  facts[0] = (frontend_diagnostic_fact_input){{"expectedType", 12u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               expected_type, 0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"head", 4u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               head, 0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"predicateType", 13u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               predicate_type, 0, NULL, 0u};
+  frontend_diagnostic_label_input labels[2];
+  diagnostic_label_at(&labels[0], "contract-head", head_span, head_document);
+  diagnostic_label_at(&labels[1], "slot-declaration", slot_span,
+                      slot_document);
+  return context_append_diagnostic_raw(context, "W-CONTRACT-0003", primary,
+                                       facts, 3u, labels, 2u);
+}
+
+static bool append_contract0004_diagnostic(
+    frontend_context *context, w_seed_span primary, w_seed_frontend_text head,
+    size_t head_document, w_seed_span head_span, w_seed_frontend_text slot,
+    size_t slot_document, w_seed_span slot_span,
+    const w_seed_frontend_text *slot_order, size_t slot_order_count,
+    w_seed_frontend_text violation) {
+  if (context == NULL || head.data == NULL || head.length == 0u ||
+      slot.data == NULL || slot.length == 0u ||
+      slot_order == NULL || slot_order_count == 0u ||
+      slot_order_count > FRONTEND_MAX_DIAGNOSTIC_ITEMS ||
+      violation.data == NULL || violation.length == 0u ||
+      head_document >= context->input.document_count ||
+      slot_document >= context->input.document_count)
+    return false;
+  for (size_t index = 0u; index < slot_order_count; index += 1u) {
+    if (slot_order[index].data == NULL || slot_order[index].length == 0u)
+      return false;
+  }
+  frontend_diagnostic_fact_input facts[4];
+  facts[0] = (frontend_diagnostic_fact_input){{"head", 4u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               head, 0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"slot", 4u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               slot, 0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"slotOrder", 9u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_ARRAY,
+                                               {NULL, 0u}, 0, slot_order,
+                                               slot_order_count};
+  facts[3] = (frontend_diagnostic_fact_input){{"violation", 9u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               violation, 0, NULL, 0u};
+  frontend_diagnostic_label_input labels[2];
+  diagnostic_label_at(&labels[0], "contract-head", head_span, head_document);
+  diagnostic_label_at(&labels[1], "slot-declaration", slot_span,
+                      slot_document);
+  return context_append_diagnostic_raw(context, "W-CONTRACT-0004", primary,
+                                       facts, 4u, labels, 2u);
+}
+
+static bool append_generic0001_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text domain, w_seed_frontend_text parameter,
+    w_seed_frontend_text resolution_reason, size_t parameter_document,
+    w_seed_span parameter_span) {
+  if (context == NULL || domain.data == NULL || domain.length == 0u ||
+      parameter.data == NULL || parameter.length == 0u ||
+      resolution_reason.data == NULL || resolution_reason.length == 0u ||
+      parameter_document >= context->input.document_count)
+    return false;
+  frontend_diagnostic_fact_input facts[3];
+  facts[0] = (frontend_diagnostic_fact_input){{"domain", 6u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               domain, 0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"parameter", 9u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               parameter, 0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"resolutionReason", 16u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               resolution_reason, 0, NULL, 0u};
+  frontend_diagnostic_label_input label;
+  diagnostic_label_at(&label, "generic-parameter", parameter_span,
+                      parameter_document);
+  return context_append_diagnostic_raw(context, "W-GENERIC-0001", primary,
+                                       facts, 3u, &label, 1u);
+}
+
+static bool append_contract0001_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    const w_seed_frontend_text *available_slots, size_t available_count,
+    w_seed_frontend_text head, size_t head_document, w_seed_span head_span,
+    w_seed_frontend_text slot) {
+  if (context == NULL || head.length == 0u || head.data == NULL ||
+      slot.length == 0u || slot.data == NULL ||
+      available_count > W_SEED_FRONTEND_MAX_GENERIC_SLOTS ||
+      (available_count != 0u && available_slots == NULL) ||
+      head_document >= context->input.document_count) {
+    return false;
+  }
+  w_seed_frontend_text sorted[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
+  for (size_t index = 0u; index < available_count; index += 1u) {
+    if (available_slots[index].data == NULL ||
+        available_slots[index].length == 0u)
+      return false;
+    sorted[index] = available_slots[index];
+  }
+  for (size_t index = 1u; index < available_count; index += 1u) {
+    const w_seed_frontend_text value = sorted[index];
+    size_t insert = index;
+    while (insert != 0u &&
+           diagnostic_compare_text(sorted[insert - 1u], value) > 0) {
+      sorted[insert] = sorted[insert - 1u];
+      insert -= 1u;
+    }
+    sorted[insert] = value;
+  }
+  size_t unique_count = 0u;
+  for (size_t index = 0u; index < available_count; index += 1u) {
+    if (unique_count == 0u ||
+        diagnostic_compare_text(sorted[unique_count - 1u], sorted[index]) !=
+            0) {
+      sorted[unique_count] = sorted[index];
+      unique_count += 1u;
+    }
+  }
+  frontend_diagnostic_fact_input facts[3];
+  facts[0] = (frontend_diagnostic_fact_input){{"availableSlots", 14u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET,
+                                               {NULL, 0u}, 0, sorted,
+                                               unique_count};
+  facts[1] = (frontend_diagnostic_fact_input){{"head", 4u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               head, 0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"slot", 4u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               slot, 0, NULL, 0u};
+  frontend_diagnostic_label_input label;
+  diagnostic_label_at(&label, "contract-head", head_span, head_document);
+  return context_append_diagnostic_raw(context, "W-CONTRACT-0001", primary,
+                                       facts, 3u, &label, 1u);
+}
+
+static bool append_generic0002_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text parameter, size_t parameter_document,
+    w_seed_span parameter_span, size_t call_document, w_seed_span call_span) {
+  if (context == NULL || parameter.length == 0u || parameter.data == NULL ||
+      parameter_document >= context->input.document_count ||
+      call_document >= context->input.document_count) {
+    return false;
+  }
+  frontend_diagnostic_fact_input facts[4];
+  facts[0] = (frontend_diagnostic_fact_input){{"candidates", 10u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET,
+                                               {NULL, 0u}, 0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"equationSources", 15u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET,
+                                               {NULL, 0u}, 0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"parameter", 9u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               parameter, 0, NULL, 0u};
+  facts[3] = (frontend_diagnostic_fact_input){{"reason", 6u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               {"missing-required-argument", 25u},
+                                               0, NULL, 0u};
+  frontend_diagnostic_label_input labels[2];
+  diagnostic_label_at(&labels[0], "call-owner", call_span, call_document);
+  diagnostic_label_at(&labels[1], "generic-parameter", parameter_span,
+                      parameter_document);
+  return context_append_diagnostic_raw(context, "W-GENERIC-0002", primary,
+                                       facts, 4u, labels, 2u);
+}
+
+static bool append_generic0003_diagnostic(
+    frontend_context *context, w_seed_span primary,
+    w_seed_frontend_text external_label, w_seed_frontend_text kind,
+    w_seed_frontend_text parameter, int64_t position,
+    w_seed_frontend_text reason, size_t label_document, w_seed_span label_span) {
+  if (context == NULL || external_label.length == 0u ||
+      external_label.data == NULL || kind.length == 0u || kind.data == NULL ||
+      parameter.length == 0u || parameter.data == NULL || reason.length == 0u ||
+      reason.data == NULL || position < 0 ||
+      label_document >= context->input.document_count) {
+    return false;
+  }
+  frontend_diagnostic_fact_input facts[5];
+  facts[0] = (frontend_diagnostic_fact_input){{"externalLabel", 13u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               external_label, 0, NULL, 0u};
+  facts[1] = (frontend_diagnostic_fact_input){{"kind", 4u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               kind, 0, NULL, 0u};
+  facts[2] = (frontend_diagnostic_fact_input){{"parameter", 9u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               parameter, 0, NULL, 0u};
+  facts[3] = (frontend_diagnostic_fact_input){{"position", 8u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_INTEGER,
+                                               {NULL, 0u}, position, NULL, 0u};
+  facts[4] = (frontend_diagnostic_fact_input){{"reason", 6u},
+                                               W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
+                                               reason, 0, NULL, 0u};
+  frontend_diagnostic_label_input label;
+  diagnostic_label_at(&label, "generic-parameter", label_span,
+                      label_document);
+  return context_append_diagnostic_raw(context, "W-GENERIC-0003", primary,
+                                       facts, 5u, &label, 1u);
 }
 
 static bool const_record_failure(frontend_context *context, w_seed_span span,
@@ -4928,11 +6414,38 @@ static bool const_record_failure(frontend_context *context, w_seed_span span,
   }
   if (context->current_const_root_emitted) return true;
   context->current_const_root_emitted = true;
-  return context_append_diagnostic(
-      context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-CONST-0001", detail,
-      (w_seed_frontend_text){"const-safe", 10},
-      (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
-      (w_seed_frontend_text){"const body", 10}, span);
+  const w_seed_frontend_document *owner_doc = context_document(context);
+  if (owner_doc == NULL || context->function_node == NULL) return false;
+  const w_seed_span owner_span = context->function_node->raw_span;
+  const w_seed_frontend_text owner_name =
+      name_after_keyword(owner_doc, owner_span, "fn");
+  if (owner_name.length == 0u) return false;
+  w_seed_frontend_text call_chain[2];
+  size_t call_chain_count = 0u;
+  call_chain[call_chain_count] = owner_name;
+  call_chain_count += 1u;
+  if (detail.length != 0u && !text_equal_text(detail, owner_name)) {
+    call_chain[call_chain_count] = detail;
+    call_chain_count += 1u;
+  }
+  const w_seed_frontend_document *signature_doc = NULL;
+  uint32_t signature_node = W_SEED_CST_NONE;
+  const w_seed_frontend_external_symbol *external_symbol = NULL;
+  const bool resolved_call =
+      detail.length != 0u &&
+      (function_signature_for_name(context, detail, &signature_doc,
+                                   &signature_node) ||
+       external_symbol_for_name(context, detail, &external_symbol));
+  const w_seed_frontend_text operation =
+      resolved_call
+          ? (w_seed_frontend_text){"call", sizeof("call") - 1u}
+          : (w_seed_frontend_text){"expression", sizeof("expression") - 1u};
+  const w_seed_frontend_text reason = {
+      "not const-safe", sizeof("not const-safe") - 1u};
+  const w_seed_frontend_text symbol = detail.length != 0u ? detail : owner_name;
+  return append_const0001_diagnostic(
+      context, span, call_chain, call_chain_count, operation, reason, symbol,
+      context->module_index, owner_span);
 }
 
 static bool append_module(frontend_context *context, w_seed_frontend_module value,
@@ -5531,6 +7044,55 @@ static w_seed_frontend_text name_after_keyword(
     if (token.kind == W_SEED_CST_WORD) return text_from_span(doc, token.span);
   }
   return (w_seed_frontend_text){NULL, 0};
+}
+
+static bool diagnostic_name_span_after_keyword(
+    const w_seed_frontend_document *doc, w_seed_span span,
+    const char *keyword, w_seed_frontend_text *name, w_seed_span *name_span) {
+  if (name != NULL) *name = (w_seed_frontend_text){NULL, 0u};
+  if (name_span != NULL) *name_span = empty_span(span.start_byte);
+  if (doc == NULL || keyword == NULL || name == NULL || name_span == NULL)
+    return false;
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token token;
+  bool saw_keyword = false;
+  while (cursor_take(&cursor, &token)) {
+    if (!saw_keyword) {
+      if (token_text(doc, &token, keyword)) saw_keyword = true;
+      continue;
+    }
+    if (token.kind == W_SEED_CST_WORD) {
+      *name = text_from_span(doc, token.span);
+      *name_span = token.span;
+      return name->length != 0u;
+    }
+  }
+  return false;
+}
+
+static size_t diagnostic_generic_slot_order(
+    const w_seed_frontend_document *doc, uint32_t generic_node,
+    w_seed_frontend_text *slots, size_t slot_capacity) {
+  if (doc == NULL || slots == NULL || slot_capacity == 0u ||
+      generic_node == W_SEED_CST_NONE || generic_node >= doc->parse.node_count)
+    return 0u;
+  uint32_t cursor = doc->nodes[generic_node].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t count = 0u;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_GENERIC_PARAMETER) {
+      if (count >= slot_capacity) return 0u;
+      w_seed_frontend_text slot = generic_parameter_name(doc, child);
+      if (slot.length == 0u)
+        slot = generic_parameter_external_label(doc, child);
+      if (slot.length == 0u) return 0u;
+      slots[count] = slot;
+      count += 1u;
+    }
+    guard += 1u;
+  }
+  return count;
 }
 
 static bool span_has_keyword(const w_seed_frontend_document *doc,
@@ -6173,11 +7735,15 @@ static bool function_declaration_for_name(
   if (function_index != NULL) *function_index = W_SEED_FRONTEND_NONE;
   if (owner_doc != NULL) *owner_doc = NULL;
   if (function_node != NULL) *function_node = W_SEED_CST_NONE;
-  if (context == NULL || name.length == 0) return false;
-  const w_seed_frontend_document *current = context_document(context);
-  if (current == NULL) return false;
+  if (context == NULL || name.length == 0 || function_index == NULL) return false;
+  const w_seed_frontend_document *resolved_doc = NULL;
+  uint32_t resolved_node = W_SEED_CST_NONE;
+  if (!function_signature_for_name(context, name, &resolved_doc,
+                                   &resolved_node) ||
+      resolved_doc == NULL || resolved_node == W_SEED_CST_NONE) {
+    return false;
+  }
   size_t ordinal = 0;
-  bool found = false;
   for (size_t document_index = 0;
        document_index < context->input.document_count; document_index += 1) {
     const w_seed_frontend_document *doc =
@@ -6188,23 +7754,18 @@ static bool function_declaration_for_name(
     while (next_child(doc, &cursor, &child) &&
            guard < doc->parse.node_count) {
       if (doc->nodes[child].kind == W_SEED_CST_FUNCTION) {
-        const w_seed_frontend_text candidate =
-            name_after_keyword(doc, doc->nodes[child].raw_span, "fn");
-        if (module_id_equal(document_module_name(doc),
-                            document_module_name(current)) &&
-            text_equal_text(candidate, name)) {
-          if (found) return false;
-          found = true;
+        if (doc == resolved_doc && child == resolved_node) {
           if (!add_u32(ordinal, function_index)) return false;
           if (owner_doc != NULL) *owner_doc = doc;
           if (function_node != NULL) *function_node = child;
+          return true;
         }
         ordinal += 1;
       }
       guard += 1;
     }
   }
-  return found;
+  return false;
 }
 
 static bool generic_value_domain_supported(
@@ -6378,6 +7939,7 @@ static bool normalize_struct_generic_parameters(
     value.dependent_type_parameter_ordinal = W_SEED_FRONTEND_NONE;
 
     bool duplicate_schema_name = false;
+    w_seed_frontend_text duplicate_slot = {NULL, 0u};
     for (size_t prior = 0u; prior < ordinal; prior += 1u) {
       if ((value.internal_name.length != 0u &&
            text_equal_text(value.internal_name, prior_names[prior])) ||
@@ -6385,17 +7947,31 @@ static bool normalize_struct_generic_parameters(
            text_equal_text(value.external_label,
                            prior_external_labels[prior]))) {
         duplicate_schema_name = true;
+        duplicate_slot = value.internal_name.length != 0u
+                             ? value.internal_name
+                             : value.external_label;
         break;
       }
     }
     if (duplicate_schema_name) {
       value.kind = W_SEED_FRONTEND_GENERIC_KIND_INVALID;
       value.domain_kind = W_SEED_FRONTEND_GENERIC_DOMAIN_INVALID;
-      (void)context_append_diagnostic(
-          context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE, "W-CONTRACT-0004",
-          value.internal_name, (w_seed_frontend_text){"unique parameter", 16},
-          value.internal_name, value.external_label,
-          (w_seed_frontend_text){"generic schema", 14}, value.span);
+      w_seed_frontend_text head = {NULL, 0u};
+      w_seed_span head_span = empty_span(value.span.start_byte);
+      if (!diagnostic_name_span_after_keyword(
+              doc, doc->nodes[struct_node].raw_span, "struct", &head,
+              &head_span))
+        return false;
+      w_seed_frontend_text slot_order[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
+      const size_t slot_order_count = diagnostic_generic_slot_order(
+          doc, generic_node, slot_order,
+          sizeof(slot_order) / sizeof(slot_order[0]));
+      if (duplicate_slot.length == 0u || slot_order_count == 0u) return false;
+      (void)append_contract0004_diagnostic(
+          context, value.span, head, context->module_index, head_span,
+          duplicate_slot, context->module_index, value.span, slot_order,
+          slot_order_count,
+          (w_seed_frontend_text){"duplicate", sizeof("duplicate") - 1u});
     }
 
     const uint32_t type_node = generic_parameter_type_node(doc, child);
@@ -6457,6 +8033,19 @@ static bool normalize_struct_generic_parameters(
                                            &predicate_doc, &predicate_node)) {
           value.predicate_function_span =
               predicate_doc->nodes[predicate_node].raw_span;
+          w_seed_frontend_text contract_head = {NULL, 0u};
+          w_seed_span contract_head_span =
+              empty_span(doc->nodes[struct_node].raw_span.start_byte);
+          if (!diagnostic_name_span_after_keyword(
+                  doc, doc->nodes[struct_node].raw_span, "struct",
+                  &contract_head, &contract_head_span))
+            return false;
+          const w_seed_frontend_text contract_slot =
+              value.internal_name.length != 0u ? value.internal_name
+                                               : value.external_label;
+          if (contract_slot.length == 0u) return false;
+          const size_t contract_head_document = context->module_index;
+          const size_t contract_slot_document = context->module_index;
           const bool is_const = function_prefix_has_keyword(
               predicate_doc, value.predicate_function_span, "const");
           bool returns_bool = false;
@@ -6467,35 +8056,82 @@ static bool normalize_struct_generic_parameters(
             value.refinement_kind =
                 W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID;
             value.subject_kind = W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID;
-            (void)context_append_diagnostic(
-                context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE,
-                "W-CONTRACT-0003", predicate_name,
-                (w_seed_frontend_text){"Bool", 4}, value.internal_name,
-                (w_seed_frontend_text){NULL, 0},
-                (w_seed_frontend_text){"predicate", 9},
-                value.predicate_span);
+            frontend_simple_type predicate_return = function_return_type(
+                context, predicate_doc, predicate_node);
+            w_seed_frontend_text predicate_type = predicate_return.spelling;
+            if (predicate_type.length == 0u) {
+              const uint32_t return_node = first_direct_kind(
+                  predicate_doc, predicate_node, W_SEED_CST_RETURN_TYPE);
+              const uint32_t return_type =
+                  return_node == W_SEED_CST_NONE
+                      ? W_SEED_CST_NONE
+                      : direct_type_index(predicate_doc, return_node);
+              if (return_type != W_SEED_CST_NONE)
+                predicate_type = text_from_span(
+                    predicate_doc, predicate_doc->nodes[return_type].raw_span);
+            }
+            if (predicate_type.length == 0u) return false;
+            (void)append_contract0003_diagnostic(
+                context, value.predicate_span,
+                (w_seed_frontend_text){"Bool", sizeof("Bool") - 1u},
+                contract_head, contract_head_document, contract_head_span,
+                predicate_type, contract_slot_document, value.span);
           } else if (!is_const) {
             value.refinement_kind =
                 W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID;
             value.subject_kind = W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID;
-            (void)context_append_diagnostic(
-                context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
-                "W-CONST-0001", predicate_name,
-                (w_seed_frontend_text){"const-safe", 10}, value.internal_name,
-                (w_seed_frontend_text){NULL, 0},
-                (w_seed_frontend_text){"predicate", 9},
-                value.predicate_span);
+            const w_seed_frontend_text call_chain[1] = {predicate_name};
+            (void)append_const0001_diagnostic(
+                context, value.predicate_span, call_chain, 1u,
+                (w_seed_frontend_text){"call", sizeof("call") - 1u},
+                (w_seed_frontend_text){"not const-safe",
+                                       sizeof("not const-safe") - 1u},
+                predicate_name,
+                context_document_index_for(context, predicate_doc),
+                value.predicate_function_span);
           } else if (!signature_compatible) {
             value.refinement_kind =
                 W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID;
             value.subject_kind = W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID;
-            (void)context_append_diagnostic(
-                context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE,
-                "W-CONTRACT-0002", predicate_name,
-                (w_seed_frontend_text){"one compatible argument", 23},
-                value.internal_name, (w_seed_frontend_text){NULL, 0},
-                (w_seed_frontend_text){"predicate", 9},
-                value.predicate_span);
+            const uint32_t parameter_list = first_direct_kind(
+                predicate_doc, predicate_node, W_SEED_CST_PARAMETER_LIST);
+            const size_t parameter_count =
+                parameter_list == W_SEED_CST_NONE
+                    ? 0u
+                    : count_direct_kind(predicate_doc, parameter_list,
+                                         W_SEED_CST_PARAMETER);
+            w_seed_frontend_text actual_kind = {NULL, 0u};
+            w_seed_frontend_text expected_kind = {NULL, 0u};
+            if (parameter_count != 1u) {
+              if (!diagnostic_category_arity(parameter_count, &actual_kind))
+                return false;
+              expected_kind = (w_seed_frontend_text){
+                  "arity:1", sizeof("arity:1") - 1u};
+            } else {
+              const uint32_t parameter = first_direct_kind(
+                  predicate_doc, parameter_list, W_SEED_CST_PARAMETER);
+              const uint32_t parameter_type =
+                  parameter == W_SEED_CST_NONE
+                      ? W_SEED_CST_NONE
+                      : direct_type_index(predicate_doc, parameter);
+              if (parameter_type == W_SEED_CST_NONE) return false;
+              const w_seed_frontend_text actual_type = text_from_span(
+                  predicate_doc, predicate_doc->nodes[parameter_type].raw_span);
+              const w_seed_frontend_text expected_type = text_from_span(
+                  doc, generic_base_type_span(doc, type_node));
+              if (actual_type.length == 0u || expected_type.length == 0u ||
+                  !diagnostic_category_compose(
+                      (w_seed_frontend_text){"value:", sizeof("value:") - 1u},
+                      actual_type, &actual_kind) ||
+                  !diagnostic_category_compose(
+                      (w_seed_frontend_text){"value:", sizeof("value:") - 1u},
+                      expected_type, &expected_kind))
+                return false;
+            }
+            (void)append_contract0002_diagnostic(
+                context, value.predicate_span, actual_kind, expected_kind,
+                contract_head, contract_head_document, contract_head_span,
+                contract_slot, contract_slot_document, value.span);
           } else {
             value.refinement_kind =
                 W_SEED_FRONTEND_GENERIC_REFINEMENT_PREDICATE;
@@ -6511,13 +8147,22 @@ static bool normalize_struct_generic_parameters(
         }
       }
       if (!domain_supported) {
-        (void)context_append_diagnostic(
-            context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE, "W-GENERIC-0001",
-            value.internal_name,
-            text_from_span(doc, generic_base_type_span(doc, type_node)),
-            value.internal_name, (w_seed_frontend_text){NULL, 0},
-            (w_seed_frontend_text){"StaticArgumentRepresentable domain", 34},
-            doc->nodes[type_node].raw_span);
+        const w_seed_frontend_text domain =
+            text_from_span(doc, generic_base_type_span(doc, type_node));
+        const w_seed_frontend_text parameter =
+            value.internal_name.length != 0u ? value.internal_name
+                                             : value.external_label;
+        if (domain.length == 0u || parameter.length == 0u) return false;
+        const w_seed_frontend_text resolution_reason =
+            domain_simple.kind == W_SEED_FRONTEND_TYPE_NOMINAL
+                ? (w_seed_frontend_text){"unresolved-domain",
+                                         sizeof("unresolved-domain") - 1u}
+                : (w_seed_frontend_text){
+                      "not-static-argument-representable",
+                      sizeof("not-static-argument-representable") - 1u};
+        (void)append_generic0001_diagnostic(
+            context, doc->nodes[type_node].raw_span, domain, parameter,
+            resolution_reason, context->module_index, value.span);
       }
     } else if (value.internal_name.length == 0) {
       value.kind = W_SEED_FRONTEND_GENERIC_KIND_INVALID;
@@ -7163,6 +8808,49 @@ static frontend_simple_type literal_simple_type(
     }
   }
   return type;
+}
+
+static bool diagnostic_value_kind_from_simple(
+    frontend_simple_type type, bool use_spelling, w_seed_frontend_text *out) {
+  if (out != NULL) *out = (w_seed_frontend_text){NULL, 0u};
+  if (out == NULL) return false;
+  if (use_spelling && type.spelling.data != NULL &&
+      type.spelling.length != 0u) {
+    return diagnostic_category_compose(
+        (w_seed_frontend_text){"value:", sizeof("value:") - 1u},
+        type.spelling, out);
+  }
+  switch (type.kind) {
+    case W_SEED_FRONTEND_TYPE_BOOL:
+      *out = (w_seed_frontend_text){"value:Bool", sizeof("value:Bool") - 1u};
+      return true;
+    case W_SEED_FRONTEND_TYPE_INTEGER:
+      *out = (w_seed_frontend_text){"value:integer",
+                                    sizeof("value:integer") - 1u};
+      return true;
+    case W_SEED_FRONTEND_TYPE_FLOAT:
+      *out = (w_seed_frontend_text){"value:float", sizeof("value:float") - 1u};
+      return true;
+    case W_SEED_FRONTEND_TYPE_STRING:
+      *out = (w_seed_frontend_text){"value:String",
+                                    sizeof("value:String") - 1u};
+      return true;
+    case W_SEED_FRONTEND_TYPE_BYTES:
+      *out = (w_seed_frontend_text){"value:bytes",
+                                    sizeof("value:bytes") - 1u};
+      return true;
+    case W_SEED_FRONTEND_TYPE_UNIT:
+      *out = (w_seed_frontend_text){"value:()", sizeof("value:()") - 1u};
+      return true;
+    case W_SEED_FRONTEND_TYPE_STATIC_LIST:
+      *out = (w_seed_frontend_text){"value:static-list",
+                                    sizeof("value:static-list") - 1u};
+      return true;
+    default:
+      *out = (w_seed_frontend_text){"value:unresolved",
+                                    sizeof("value:unresolved") - 1u};
+      return true;
+  }
 }
 
 static frontend_simple_type simple_type_from_frontend_type(
@@ -8357,12 +10045,8 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
                 parser->expected_type.kind ==
                     W_SEED_FRONTEND_TYPE_ENUM_SUBSET &&
                 parser->expected_type.enum_index != enum_index) {
-              (void)context_append_diagnostic(
-                  parser->context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE,
-                  "W-TYPE-0121", member_name,
-                  parser->expected_type.spelling, spelling,
-                  (w_seed_frontend_text){NULL, 0},
-                  (w_seed_frontend_text){"expected enum subset", 21}, span);
+              (void)append_type0121_diagnostic(
+                  parser->context, span, member_name, parser->expected_type);
               return expression_append(
                   parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, span,
                   text_from_span(parser->document, span),
@@ -8376,13 +10060,9 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
                 parser->expected_type.enum_index == enum_index) {
               if (!enum_subset_contains_case(parser->context,
                                               parser->expected_type, case_index)) {
-                (void)context_append_diagnostic(
-                    parser->context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE,
-                    "W-TYPE-0121", member_name,
-                    parser->expected_type.spelling, spelling,
-                    (w_seed_frontend_text){NULL, 0},
-                    (w_seed_frontend_text){"expected enum subset", 21},
-                    span);
+                (void)append_type0121_diagnostic(
+                    parser->context, span, member_name,
+                    parser->expected_type);
                 return expression_append(
                     parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, span,
                     text_from_span(parser->document, span),
@@ -8578,12 +10258,8 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
                                &case_index, NULL, NULL)) {
           if (!enum_subset_contains_case(parser->context,
                                          parser->expected_type, case_index)) {
-            (void)context_append_diagnostic(
-                parser->context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE,
-                "W-TYPE-0121", case_name, parser->expected_type.spelling,
-                parser->expected_type.enum_name,
-                (w_seed_frontend_text){NULL, 0},
-                (w_seed_frontend_text){"expected enum subset", 21}, span);
+            (void)append_type0121_diagnostic(
+                parser->context, span, case_name, parser->expected_type);
             return expression_append(
                 parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, span,
                 text_from_span(parser->document, span),
@@ -8613,12 +10289,11 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
       }
       if (enum_declaration_name_count(parser->context,
                                       parser->expected_type.spelling) != 1u) {
-        (void)context_append_diagnostic(
-            parser->context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
-            "W-MATCH-0003", case_name,
-            (w_seed_frontend_text){"enum", 4}, parser->expected_type.spelling,
-            (w_seed_frontend_text){NULL, 0},
-            (w_seed_frontend_text){"qualified", 9}, span);
+        (void)append_match0003_diagnostic(
+            parser->context, span, (w_seed_frontend_text){"enum-member", 11u},
+            parser->has_expected_type ? parser->expected_type.spelling
+                                      : (w_seed_frontend_text){"none", 4u},
+            case_name);
       } else {
         (void)context_append_fact(
             parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
@@ -8639,12 +10314,9 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
                                     parser->expected_type.spelling) > 1u;
     if ((!parser->has_expected_type || ambiguous_expected_enum) &&
         !parser->suppress_short_diagnostic) {
-      (void)context_append_diagnostic(
-          parser->context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
-          "W-MATCH-0003", case_name,
-          (w_seed_frontend_text){"enum", 4},
-          (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
-          (w_seed_frontend_text){"qualified", 9}, span);
+      (void)append_match0003_diagnostic(
+          parser->context, span, (w_seed_frontend_text){"short-enum", 10u},
+          (w_seed_frontend_text){"none", 4u}, case_name);
     } else {
       (void)context_append_fact(
           parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, span,
@@ -8790,6 +10462,10 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     size_t argument_count = 0;
     bool labels_valid = true;
     const bool enum_case_constructor = value->is_enum_case;
+    const w_seed_frontend_text diagnostic_declaration =
+        enum_case_constructor
+            ? diagnostic_enum_case_name(parser->context, value->enum_case_index)
+            : value->name;
     bool enum_constructor_diagnostic_emitted = false;
     const size_t enum_constructor_parameter_count =
         enum_case_constructor
@@ -8831,11 +10507,15 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
         }
         if (resolved && !known) {
           labels_valid = false;
-          (void)context_append_diagnostic(
-              parser->context, W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
-              "W-LABEL-0005", value->name,
-              (w_seed_frontend_text){"signature", 9}, value->name, label,
-              (w_seed_frontend_text){"positional", 10}, value->span);
+          w_seed_frontend_text accepted_forms[2];
+          const size_t accepted_count = diagnostic_call_accepted_forms(
+              parser->context, enum_case_constructor, value->enum_case_index,
+              signature_doc, signature_node, external_signature,
+              argument_count, accepted_forms,
+              sizeof(accepted_forms) / sizeof(accepted_forms[0]));
+          (void)append_label0005_diagnostic(
+              parser->context, value->span, diagnostic_declaration, label,
+              accepted_forms, accepted_count);
         }
       }
       frontend_simple_type expected = simple_type_unknown();
@@ -8873,30 +10553,44 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           labels_valid = false;
           if (enum_case_constructor) {
             if (!enum_constructor_diagnostic_emitted) {
-              (void)context_append_diagnostic(
-                  parser->context, W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
-                  "W-LABEL-0005", value->name,
-                  (w_seed_frontend_text){"enum-case", 9}, value->name, label,
-                  (w_seed_frontend_text){"source-order labels", 19},
-                  value->span);
+              w_seed_frontend_text accepted_forms[2];
+              const size_t accepted_count = diagnostic_call_accepted_forms(
+                  parser->context, true, value->enum_case_index, NULL,
+                  W_SEED_CST_NONE, NULL, argument_count, accepted_forms,
+                  sizeof(accepted_forms) / sizeof(accepted_forms[0]));
+              (void)append_label0005_diagnostic(
+                  parser->context, value->span, diagnostic_declaration, label,
+                  accepted_forms, accepted_count);
               enum_constructor_diagnostic_emitted = true;
             }
           } else if (label.length == 0) {
-            (void)context_append_diagnostic(
-                parser->context, W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
-                "W-LABEL-0005", value->name,
-                (w_seed_frontend_text){"signature", 9}, value->name, label,
-                (w_seed_frontend_text){"named", 5}, value->span);
+            w_seed_frontend_text accepted_forms[2];
+            const size_t accepted_count = diagnostic_call_accepted_forms(
+                parser->context, false, value->enum_case_index, signature_doc,
+                signature_node, external_signature, argument_count,
+                accepted_forms,
+                sizeof(accepted_forms) / sizeof(accepted_forms[0]));
+            (void)append_label0005_diagnostic(
+                parser->context, value->span, diagnostic_declaration, label,
+                accepted_forms, accepted_count);
           }
         } else if (enum_case_constructor && !enum_label_valid) {
           labels_valid = false;
           if (!enum_constructor_diagnostic_emitted) {
-            (void)context_append_diagnostic(
-                parser->context, W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
-                enum_label_previous ? "W-LABEL-0006" : "W-LABEL-0005",
-                value->name, (w_seed_frontend_text){"enum-case", 9},
-                value->name, label,
-                (w_seed_frontend_text){"source-order labels", 19}, value->span);
+            if (enum_label_previous) {
+              (void)append_label0006_diagnostic(
+                  parser->context, value->span, diagnostic_declaration, label,
+                  label);
+            } else {
+              w_seed_frontend_text accepted_forms[2];
+              const size_t accepted_count = diagnostic_call_accepted_forms(
+                  parser->context, true, value->enum_case_index, NULL,
+                  W_SEED_CST_NONE, NULL, argument_count, accepted_forms,
+                  sizeof(accepted_forms) / sizeof(accepted_forms[0]));
+              (void)append_label0005_diagnostic(
+                  parser->context, value->span, diagnostic_declaration, label,
+                  accepted_forms, accepted_count);
+            }
             enum_constructor_diagnostic_emitted = true;
           }
         } else if (argument_value.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
@@ -8914,16 +10608,17 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                   argument_value.type.bit_width != 0 &&
                   expected.bit_width != 0 &&
                   argument_value.type.bit_width > expected.bit_width;
-              (void)context_append_diagnostic(
-                  parser->context,
-                  narrowing ? W_SEED_FRONTEND_DIAGNOSTIC_TYPE
-                            : W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
-                  narrowing ? "W-TYPE-0122" : "W-SEM-0001",
-                  argument_value.type.spelling, expected.spelling,
-                  (w_seed_frontend_text){NULL, 0},
-                  (w_seed_frontend_text){NULL, 0},
-                  (w_seed_frontend_text){"enum-case argument", 18},
-                  argument_value.span);
+              if (narrowing) {
+                (void)append_type0122_diagnostic(
+                    parser->context, argument_value.span, argument_value.type,
+                    expected, (w_seed_frontend_text){
+                                  "integer narrowing is not implicit",
+                                  sizeof("integer narrowing is not implicit") - 1u});
+              } else {
+                (void)append_sem0001_diagnostic(
+                    parser->context, argument_value.span,
+                    argument_value.type.spelling, expected.spelling);
+              }
               enum_constructor_diagnostic_emitted = true;
             }
           } else {
@@ -8959,12 +10654,19 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       if (enum_constructor_parameter_count != argument_count) {
         labels_valid = false;
         if (!enum_constructor_diagnostic_emitted) {
-          (void)context_append_diagnostic(
-              parser->context, W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
-              "W-LABEL-0005", value->name,
-              (w_seed_frontend_text){"enum-case", 9}, value->name,
-              (w_seed_frontend_text){NULL, 0},
-              (w_seed_frontend_text){"constructor arity", 17}, value->span);
+          w_seed_frontend_text accepted_forms[2];
+          const size_t accepted_count = diagnostic_call_accepted_forms(
+              parser->context, true, value->enum_case_index, NULL,
+              W_SEED_CST_NONE, NULL,
+              argument_count < enum_constructor_parameter_count
+                  ? argument_count
+                  : 0u,
+              accepted_forms,
+              sizeof(accepted_forms) / sizeof(accepted_forms[0]));
+          (void)append_label0005_diagnostic(
+              parser->context, value->span, diagnostic_declaration,
+              (w_seed_frontend_text){NULL, 0u}, accepted_forms,
+              accepted_count);
           enum_constructor_diagnostic_emitted = true;
         }
       }
@@ -9007,12 +10709,10 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     if (enum_case_constructor && enum_constructor_parameter_count == 0) {
       labels_valid = false;
       if (!enum_constructor_diagnostic_emitted) {
-        (void)context_append_diagnostic(
-            parser->context, W_SEED_FRONTEND_DIAGNOSTIC_LABEL,
-            "W-LABEL-0005", value->name,
-            (w_seed_frontend_text){"enum-case", 9}, value->name,
-            (w_seed_frontend_text){NULL, 0},
-            (w_seed_frontend_text){"bare value", 10}, span);
+        const w_seed_frontend_text positional = {"positional", 10u};
+        (void)append_label0005_diagnostic(
+            parser->context, span, diagnostic_declaration,
+            (w_seed_frontend_text){NULL, 0u}, &positional, 1u);
         enum_constructor_diagnostic_emitted = true;
       }
     }
@@ -9839,12 +11539,15 @@ static bool normalize_switch_expression(
   bool switch_supported = subject_is_enum;
   bool patterns_supported = subject_is_enum;
   bool wildcard_seen = false;
+  w_seed_span wildcard_span = empty_span(switch_cst->raw_span.start_byte);
   size_t arm_count = 0;
   /* Derive the join from arm results.  An outer expected type only supplies
    * nominal context for short enum values; it must not hide narrowing at the
    * statement boundary. */
   frontend_simple_type join_type = simple_type_unknown();
   bool have_join = false;
+  w_seed_span join_span = empty_span(switch_cst->raw_span.start_byte);
+  size_t join_document = context->module_index;
   uint32_t arm_cursor = switch_cst->first_child;
   uint32_t arm_node = W_SEED_CST_NONE;
   size_t guard = 0;
@@ -9900,11 +11603,13 @@ static bool normalize_switch_expression(
         if (!enum_subset_contains_case(context, subject_type, arm_case)) {
           arm_supported = false;
           switch_supported = false;
-          (void)context_append_diagnostic(
-              context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-MATCH-0002",
-              case_name, (w_seed_frontend_text){"unreachable", 11},
-              subject_type.spelling, case_name,
-              (w_seed_frontend_text){"case-set member", 16}, pattern_span);
+          (void)append_match0002_diagnostic(
+              context, pattern_span, subject_type.spelling, case_name,
+              subject_type.spelling,
+              subject_type.has_origin ? subject_type.origin_span : pattern_span,
+              subject_type.has_origin ? subject_type.origin_document_index
+                                      : context->module_index,
+              doc->nodes[subject_node].raw_span);
         }
       }
     } else if (pattern_kind == W_SEED_FRONTEND_SWITCH_PATTERN_LITERAL) {
@@ -9920,25 +11625,24 @@ static bool normalize_switch_expression(
     if (arm_after_wildcard) {
       arm_supported = false;
       switch_supported = false;
-      (void)context_append_diagnostic(
-          context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-MATCH-0002",
-          text_from_span(doc, pattern_span),
-          (w_seed_frontend_text){"unreachable", 11},
-          (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
-          (w_seed_frontend_text){"wildcard", 8}, pattern_span);
+      (void)append_match0002_diagnostic(
+          context, pattern_span, text_from_span(doc, wildcard_span),
+          text_from_span(doc, pattern_span), subject_type.spelling,
+          wildcard_span, context->module_index,
+          doc->nodes[subject_node].raw_span);
     }
     if (pattern_kind == W_SEED_FRONTEND_SWITCH_PATTERN_WILDCARD) {
       if (wildcard_seen && !arm_after_wildcard) {
         arm_supported = false;
         switch_supported = false;
-        (void)context_append_diagnostic(
-            context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-MATCH-0002",
-            text_from_span(doc, pattern_span),
-            (w_seed_frontend_text){"wildcard", 8},
-            (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
-            (w_seed_frontend_text){"one wildcard", 12}, pattern_span);
+        (void)append_match0002_diagnostic(
+            context, pattern_span, text_from_span(doc, wildcard_span),
+            text_from_span(doc, pattern_span), subject_type.spelling,
+            wildcard_span, context->module_index,
+            doc->nodes[subject_node].raw_span);
       }
       wildcard_seen = true;
+      wildcard_span = pattern_span;
     }
     if (arm_enum != W_SEED_FRONTEND_NONE && arm_case != W_SEED_FRONTEND_NONE &&
         !arm_after_wildcard) {
@@ -9961,12 +11665,11 @@ static bool normalize_switch_expression(
                   prior_case == arm_case) {
                 arm_supported = false;
                 switch_supported = false;
-                (void)context_append_diagnostic(
-                    context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
-                    "W-MATCH-0002", prior_name,
-                    (w_seed_frontend_text){"duplicate enum case", 19},
-                    (w_seed_frontend_text){NULL, 0}, prior_name,
-                    (w_seed_frontend_text){"unique", 6}, pattern_span);
+                (void)append_match0002_diagnostic(
+                    context, pattern_span, prior_name,
+                    text_from_span(doc, pattern_span), subject_type.spelling,
+                    doc->nodes[prior_pattern].raw_span,
+                    context->module_index, doc->nodes[subject_node].raw_span);
                 break;
               }
             }
@@ -10000,18 +11703,22 @@ static bool normalize_switch_expression(
     } else if (!have_join) {
       join_type = arm_type;
       have_join = true;
+      join_span = doc->nodes[result_node].raw_span;
+      join_document = context->module_index;
     } else if (!frontend_widening_allowed(context, arm_type, join_type) &&
                !frontend_widening_allowed(context, join_type, arm_type)) {
       arm_supported = false;
       switch_supported = false;
-      (void)context_append_diagnostic(
-          context, W_SEED_FRONTEND_DIAGNOSTIC_TYPE, "W-TYPE-0120",
-          arm_type.spelling, join_type.spelling,
-          (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
-          (w_seed_frontend_text){"single join type", 16},
-          doc->nodes[result_node].raw_span);
+      (void)append_type0120_diagnostic(
+          context, doc->nodes[result_node].raw_span, arm_type,
+          doc->nodes[result_node].raw_span, context->module_index, join_type,
+          join_span, join_document);
     } else if (frontend_widening_allowed(context, join_type, arm_type)) {
       join_type = arm_type;
+      join_span = doc->nodes[result_node].raw_span;
+      join_document = context->module_index;
+    } else if (frontend_widening_allowed(context, arm_type, join_type)) {
+      /* Keep the existing representative and its source span. */
     }
     w_seed_frontend_switch_arm arm;
     (void)memset(&arm, 0, sizeof(arm));
@@ -10030,6 +11737,8 @@ static bool normalize_switch_expression(
     guard += 1;
   }
 
+  w_seed_frontend_text missing_cases[FRONTEND_MAX_DIAGNOSTIC_ITEMS];
+  size_t missing_case_count = 0u;
   if (subject_is_enum && patterns_supported && !wildcard_seen) {
     uint32_t expected_cursor = subject_enum_doc->nodes[subject_enum_node].first_child;
     uint32_t expected_case_node = W_SEED_CST_NONE;
@@ -10072,16 +11781,20 @@ static bool normalize_switch_expression(
         }
         if (!covered) {
           switch_supported = false;
-          (void)context_append_diagnostic(
-              context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-MATCH-0001",
-              expected_name, (w_seed_frontend_text){"enum case", 9},
-              subject_type.spelling, (w_seed_frontend_text){NULL, 0},
-              (w_seed_frontend_text){"all cases or _", 14},
-              subject_enum_doc->nodes[expected_case_node].raw_span);
+          if (missing_case_count <
+              sizeof(missing_cases) / sizeof(missing_cases[0])) {
+            missing_cases[missing_case_count] = expected_name;
+            missing_case_count += 1u;
+          }
         }
       }
       expected_guard += 1;
     }
+  }
+  if (missing_case_count != 0u) {
+    (void)append_match0001_diagnostic(
+        context, switch_cst->raw_span, subject_type.spelling,
+        doc->nodes[subject_node].raw_span, missing_cases, missing_case_count);
   }
   if (!subject_is_enum) {
     (void)context_append_fact(context, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE,
@@ -10228,14 +11941,16 @@ static bool normalize_statement_depth(frontend_context *context,
                              expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
                              actual.is_signed == expected.is_signed &&
                              actual.bit_width > expected.bit_width;
-      (void)context_append_diagnostic(
-          context,
-          narrowing ? W_SEED_FRONTEND_DIAGNOSTIC_TYPE
-                    : W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
-          narrowing ? "W-TYPE-0122" : "W-SEM-0001", actual.spelling,
-          expected.spelling, (w_seed_frontend_text){NULL, 0},
-          (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
-          doc->nodes[expression_node].raw_span);
+      if (narrowing) {
+        (void)append_type0122_diagnostic(
+            context, doc->nodes[expression_node].raw_span, actual, expected,
+            (w_seed_frontend_text){"integer narrowing is not implicit",
+                                   sizeof("integer narrowing is not implicit") - 1u});
+      } else {
+        (void)append_sem0001_diagnostic(
+            context, doc->nodes[expression_node].raw_span, actual.spelling,
+            expected.spelling);
+      }
       value.kind = W_SEED_FRONTEND_STMT_UNSUPPORTED;
       (void)context_append_fact(context,
                                 W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
@@ -10247,12 +11962,10 @@ static bool normalize_statement_depth(frontend_context *context,
     const frontend_simple_type condition = normalized_actual;
     if (condition.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
         !type_is_bool(condition)) {
-      (void)context_append_diagnostic(
-          context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-SEM-0001",
+      (void)append_sem0001_diagnostic(
+          context, doc->nodes[expression_node].raw_span,
           text_from_span(doc, trim_span(doc, doc->nodes[expression_node].raw_span)),
-          (w_seed_frontend_text){"Bool", 4}, (w_seed_frontend_text){NULL, 0},
-          (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
-          doc->nodes[expression_node].raw_span);
+          (w_seed_frontend_text){"Bool", 4});
     }
   }
   if (node->kind == W_SEED_CST_GUARD_STATEMENT) {
@@ -10260,12 +11973,10 @@ static bool normalize_statement_depth(frontend_context *context,
     const frontend_simple_type condition = normalized_actual;
     if (condition.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
         !type_is_bool(condition)) {
-      (void)context_append_diagnostic(
-          context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-SEM-0001",
+      (void)append_sem0001_diagnostic(
+          context, doc->nodes[expression_node].raw_span,
           text_from_span(doc, trim_span(doc, doc->nodes[expression_node].raw_span)),
-          (w_seed_frontend_text){"Bool", 4}, (w_seed_frontend_text){NULL, 0},
-          (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
-          doc->nodes[expression_node].raw_span);
+          (w_seed_frontend_text){"Bool", 4});
     }
   }
   if (node->kind == W_SEED_CST_FOR_STATEMENT &&
@@ -10292,14 +12003,16 @@ static bool normalize_statement_depth(frontend_context *context,
                              expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
                              actual.is_signed == expected.is_signed &&
                              actual.bit_width > expected.bit_width;
-      (void)context_append_diagnostic(
-          context,
-          narrowing ? W_SEED_FRONTEND_DIAGNOSTIC_TYPE
-                    : W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
-          narrowing ? "W-TYPE-0122" : "W-SEM-0001",
-          actual.spelling, expected.spelling, (w_seed_frontend_text){NULL, 0},
-          (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
-          doc->nodes[expression_node].raw_span);
+      if (narrowing) {
+        (void)append_type0122_diagnostic(
+            context, doc->nodes[expression_node].raw_span, actual, expected,
+            (w_seed_frontend_text){"integer narrowing is not implicit",
+                                   sizeof("integer narrowing is not implicit") - 1u});
+      } else {
+        (void)append_sem0001_diagnostic(
+            context, doc->nodes[expression_node].raw_span, actual.spelling,
+            expected.spelling);
+      }
     }
   }
   if (node->kind == W_SEED_CST_RETURN_STATEMENT &&
@@ -10308,11 +12021,9 @@ static bool normalize_statement_depth(frontend_context *context,
         context, doc, (uint32_t)(context->function_node - doc->nodes));
     if (expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
         expected.kind != W_SEED_FRONTEND_TYPE_UNIT) {
-      (void)context_append_diagnostic(
-          context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-SEM-0001",
-          (w_seed_frontend_text){"()", 2}, expected.spelling,
-          (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
-          (w_seed_frontend_text){NULL, 0}, node->raw_span);
+      (void)append_sem0001_diagnostic(
+          context, node->raw_span, (w_seed_frontend_text){"()", 2},
+          expected.spelling);
       value.kind = W_SEED_FRONTEND_STMT_UNSUPPORTED;
       (void)context_append_fact(context, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE,
                                 node->raw_span, text_from_span(doc, node->raw_span));
@@ -10679,11 +12390,8 @@ static bool normalize_module_const(frontend_context *context,
        !imported_target_for_name(context, expression_value.name, &imported_kind,
                                  &imported_index, &imported_target);
   if (unresolved_local) {
-    (void)context_append_diagnostic(
-        context, W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC, "W-SEM-0001",
-        expression_value.name, expected.spelling, value.name,
-        (w_seed_frontend_text){NULL, 0}, (w_seed_frontend_text){NULL, 0},
-        value.body_span);
+    (void)append_sem0001_diagnostic(context, value.body_span,
+                                    expression_value.name, expected.spelling);
   }
   if (scalar_type &&
       normalized && expression_value.supported &&
@@ -10696,12 +12404,15 @@ static bool normalize_module_const(frontend_context *context,
         expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
         actual.is_signed == expected.is_signed &&
         actual.bit_width > expected.bit_width;
-    (void)context_append_diagnostic(
-        context, narrowing ? W_SEED_FRONTEND_DIAGNOSTIC_TYPE
-                           : W_SEED_FRONTEND_DIAGNOSTIC_SEMANTIC,
-        narrowing ? "W-TYPE-0122" : "W-SEM-0001", actual.spelling,
-        expected.spelling, value.name, (w_seed_frontend_text){NULL, 0},
-        (w_seed_frontend_text){NULL, 0}, value.body_span);
+    if (narrowing) {
+      (void)append_type0122_diagnostic(
+          context, value.body_span, actual, expected,
+          (w_seed_frontend_text){"integer narrowing is not implicit",
+                                 sizeof("integer narrowing is not implicit") - 1u});
+    } else {
+      (void)append_sem0001_diagnostic(context, value.body_span,
+                                      actual.spelling, expected.spelling);
+    }
   }
   value.lowerable = scalar_type && normalized &&
                     expression_value.supported &&
@@ -11323,6 +13034,25 @@ static void receipt_write_size(frontend_receipt_writer *writer, size_t value) {
   receipt_write_bytes(writer, (const uint8_t *)digits, length);
 }
 
+static void receipt_write_signed(frontend_receipt_writer *writer,
+                                 int64_t value) {
+  uint64_t magnitude = value < 0
+                           ? (uint64_t)(-(value + 1)) + UINT64_C(1)
+                           : (uint64_t)value;
+  if (value < 0) receipt_write_literal(writer, "-");
+  char digits[3u * sizeof(uint64_t) + 3u];
+  size_t length = 0u;
+  do {
+    digits[length] = (char)('0' + (magnitude % UINT64_C(10)));
+    magnitude /= UINT64_C(10);
+    length += 1u;
+  } while (magnitude != 0u);
+  while (length != 0u) {
+    length -= 1u;
+    receipt_write_bytes(writer, (const uint8_t *)&digits[length], 1u);
+  }
+}
+
 static void receipt_write_text(frontend_receipt_writer *writer,
                                w_seed_frontend_text text) {
   static const char digits[] = "0123456789abcdef";
@@ -11829,7 +13559,67 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_text(writer, diagnostic->code);
       receipt_write_literal(writer, "|");
       receipt_write_span(writer, diagnostic->primary);
+      receipt_write_literal(writer, "|facts=");
+      receipt_write_size(writer, diagnostic->first_fact);
+      receipt_write_literal(writer, ":");
+      receipt_write_size(writer, diagnostic->fact_count);
+      receipt_write_literal(writer, "|labels=");
+      receipt_write_size(writer, diagnostic->first_label);
+      receipt_write_literal(writer, ":");
+      receipt_write_size(writer, diagnostic->label_count);
       receipt_write_literal(writer, "\n");
+      for (size_t fact_index = 0u; fact_index < diagnostic->fact_count;
+           fact_index += 1u) {
+        const w_seed_frontend_diagnostic_fact *fact =
+            &output->diagnostic_facts[(size_t)diagnostic->first_fact +
+                                      fact_index];
+        receipt_write_literal(writer, "diagnostic-fact=");
+        receipt_write_size(writer, index);
+        receipt_write_literal(writer, "|key=");
+        receipt_write_text(writer, fact->key);
+        receipt_write_literal(writer, "|kind=");
+        receipt_write_size(writer, (size_t)fact->kind);
+        receipt_write_literal(writer, "|value=");
+        if (fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_INTEGER) {
+          receipt_write_signed(writer, fact->integer_value);
+        } else if (fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING) {
+          receipt_write_text(writer, fact->text);
+        } else {
+          receipt_write_text(writer, (w_seed_frontend_text){NULL, 0u});
+        }
+        receipt_write_literal(writer, "|items=");
+        receipt_write_size(writer, fact->first_item);
+        receipt_write_literal(writer, ":");
+        receipt_write_size(writer, fact->item_count);
+        receipt_write_literal(writer, "\n");
+        for (size_t item_index = 0u; item_index < fact->item_count;
+             item_index += 1u) {
+          const w_seed_frontend_diagnostic_item *item =
+              &output->diagnostic_items[(size_t)fact->first_item + item_index];
+          receipt_write_literal(writer, "diagnostic-item=");
+          receipt_write_size(writer, index);
+          receipt_write_literal(writer, "|");
+          receipt_write_size(writer, item_index);
+          receipt_write_literal(writer, "|");
+          receipt_write_text(writer, item->text);
+          receipt_write_literal(writer, "\n");
+        }
+      }
+      for (size_t label_index = 0u; label_index < diagnostic->label_count;
+           label_index += 1u) {
+        const w_seed_frontend_diagnostic_label *label =
+            &output->diagnostic_labels[(size_t)diagnostic->first_label +
+                                       label_index];
+        receipt_write_literal(writer, "diagnostic-label=");
+        receipt_write_size(writer, index);
+        receipt_write_literal(writer, "|role=");
+        receipt_write_text(writer, label->role);
+        receipt_write_literal(writer, "|document=");
+        receipt_write_size(writer, label->document_index);
+        receipt_write_literal(writer, "|span=");
+        receipt_write_span(writer, label->span);
+        receipt_write_literal(writer, "\n");
+      }
     }
   }
 }
@@ -11905,6 +13695,12 @@ static bool output_capacity_ok(const w_seed_frontend_output *output,
          capacity_ok(required->facts, output->facts, output->fact_capacity) &&
          capacity_ok(required->diagnostics, output->diagnostics,
                      output->diagnostic_capacity) &&
+         capacity_ok(required->diagnostic_facts, output->diagnostic_facts,
+                     output->diagnostic_fact_capacity) &&
+         capacity_ok(required->diagnostic_items, output->diagnostic_items,
+                     output->diagnostic_item_capacity) &&
+         capacity_ok(required->diagnostic_labels, output->diagnostic_labels,
+                     output->diagnostic_label_capacity) &&
          capacity_ok(receipt_required, output->receipt, output->receipt_capacity);
 }
 
@@ -11920,6 +13716,7 @@ w_seed_frontend_status w_seed_frontend_run(
   size_t barrier_document = W_SEED_FRONTEND_NONE_SIZE;
   w_seed_span barrier_span = empty_span(0);
   if (result == NULL || output == NULL) return W_SEED_FRONTEND_INVALID;
+  frontend_diagnostic_category_scratch_count = 0u;
   (void)memset(result, 0, sizeof(*result));
   result->barrier_document = W_SEED_FRONTEND_NONE_SIZE;
   result->primary_diagnostic = W_SEED_FRONTEND_NONE_SIZE;
@@ -11993,6 +13790,7 @@ w_seed_frontend_status w_seed_frontend_run(
     return result->status;
   }
 
+  frontend_diagnostic_category_scratch_count = 0u;
   frontend_context emit;
   (void)memset(&emit, 0, sizeof(emit));
   emit.input = *input;

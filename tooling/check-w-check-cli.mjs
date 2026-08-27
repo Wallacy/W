@@ -146,6 +146,49 @@ function expectDiagnostic(result, source, startByte, endByte, label) {
   return lines[0]
 }
 
+function expectMatchDiagnostic(result, source, startByte, endByte, label) {
+  if (result.exitCode !== 1 || result.stderr.length !== 0) {
+    fail(label + " has the wrong exit or stderr: " + JSON.stringify({
+      exitCode: result.exitCode,
+      stderr: result.stderr,
+    }))
+  }
+  const text = result.stdout.toString()
+  const lines = text.split("\n")
+  if (lines.length !== 2 || lines[1] !== "") {
+    fail(label + " is not one JSONL record: " + JSON.stringify(text))
+  }
+  let record
+  try {
+    record = JSON.parse(lines[0])
+  } catch (error) {
+    fail(label + " is not JSON: " + error)
+  }
+  if (JSON.stringify(record) !== lines[0]) {
+    fail(label + " changed canonical field order")
+  }
+  const expected = {
+    schemaVersion: 1,
+    instance: "D000001",
+    code: "W-MATCH-0001",
+    phase: "semantic.flow",
+    severity: "error",
+    primary: { source, startByte, endByte },
+    labels: [{
+      role: "match-subject",
+      span: { source, startByte: startByte + 7, endByte: startByte + 13 },
+    }],
+    facts: { missingCases: ["accepted", "reserving"], subjectType: "Stage" },
+    notes: [],
+    fixes: [],
+    root: null,
+  }
+  if (JSON.stringify(record) !== JSON.stringify(expected)) {
+    fail(label + " differs: " + JSON.stringify(record))
+  }
+  return lines[0]
+}
+
 function expectEmptyOutput(result, label) {
   if (result.stdout.length !== 0) fail(label + " wrote to stdout")
 }
@@ -154,7 +197,22 @@ function expectHumanDiagnostic(result, path, bytes, startByte, label) {
   expectEmptyOutput(result, label + " stdout")
   const point = pointAt(bytes, startByte)
   const expected = path + ":" + point.line + ":" + point.column +
-    ":W-SEM-0001: actual=1 expected=Bool\n"
+    ":W-SEM-0001: node does not satisfy its expected semantic use; " +
+    "facts=actual=1, expected=Bool\n"
+  if (result.exitCode !== 1 || normalize(result.stderr) !== expected) {
+    fail(label + " is not stable: " + JSON.stringify(result))
+  }
+}
+
+function expectMatchHumanDiagnostic(result, path, bytes, startByte, label) {
+  expectEmptyOutput(result, label + " stdout")
+  const point = pointAt(bytes, startByte)
+  const labelPoint = pointAt(bytes, startByte + 7)
+  const expected = path + ":" + point.line + ":" + point.column +
+    ":W-MATCH-0001: required switch or catch does not cover its complete " +
+    "proven domain; facts=missingCases=[accepted, reserving], " +
+    "subjectType=Stage [match-subject " + path + ":" + labelPoint.line +
+    ":" + labelPoint.column + "]\n"
   if (result.exitCode !== 1 || normalize(result.stderr) !== expected) {
     fail(label + " is not stable: " + JSON.stringify(result))
   }
@@ -170,7 +228,8 @@ const incompleteSource = join(buildDirectory, "incomplete.w")
 const unsupportedSource = join(buildDirectory, "unsupported.w")
 const oversizedSource = join(buildDirectory, "oversized.w")
 const missingSource = join(buildDirectory, "missing.w")
-const mutationSource = join(buildDirectory, "checker_bootstrap_negative.w")
+  const mutationSource = join(buildDirectory, "checker_bootstrap_negative.w")
+  const matchWitnessSource = join(buildDirectory, "match_witness.w")
 const nestedDirectory = join(buildDirectory, "nested", "logical")
 const headerlessNestedSource = join(nestedDirectory, "headerless.w")
 const headerOverrideNestedSource = join(nestedDirectory, "header_override.w")
@@ -264,6 +323,36 @@ try {
   }
   expectHumanDiagnostic(invoke(executable, ["check", mutationSource]),
     mutationSource, mutationBytes, mutationStart, "root physical human diagnostic")
+
+  const matchWitnessText =
+    "module match_witness\n" +
+    "export enum Stage { accepted reserving preparing }\n" +
+    "fn missing(stage: Stage): String { return switch stage { " +
+    "case .preparing: \"P\" } }\n"
+  const matchWitnessBytes = Buffer.from(matchWitnessText, "utf8")
+  await writeFile(matchWitnessSource, matchWitnessBytes)
+  const matchWitnessStart = Buffer.byteLength(
+    "module match_witness\nexport enum Stage { accepted reserving preparing }\n" +
+    "fn missing(stage: Stage): String { return ", "utf8")
+  const matchWitnessEnd = matchWitnessStart + Buffer.byteLength(
+    "switch stage { case .preparing: \"P\" }", "utf8")
+  const matchWitnessSourceId = basename(matchWitnessSource)
+  const matchFirst = invoke(executable,
+    ["check", matchWitnessSource, "--json"])
+  const matchSecond = invoke(executable,
+    ["check", matchWitnessSource, "--json"])
+  const matchRecordFirst = expectMatchDiagnostic(matchFirst,
+    matchWitnessSourceId, matchWitnessStart, matchWitnessEnd,
+    "MATCH-0001 JSON first run")
+  const matchRecordSecond = expectMatchDiagnostic(matchSecond,
+    matchWitnessSourceId, matchWitnessStart, matchWitnessEnd,
+    "MATCH-0001 JSON second run")
+  if (matchRecordFirst !== matchRecordSecond) {
+    fail("MATCH-0001 JSON is not byte-identical across runs")
+  }
+  expectMatchHumanDiagnostic(invoke(executable,
+    ["check", matchWitnessSource]), matchWitnessSource, matchWitnessBytes,
+  matchWitnessStart, "MATCH-0001 physical human diagnostic")
 
   await mkdir(join(buildDirectory, "restaurant"), { recursive: true })
   const restaurantDirectory = join(buildDirectory, "restaurant")

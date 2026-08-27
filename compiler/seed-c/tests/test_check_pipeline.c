@@ -42,6 +42,9 @@ enum {
   TEST_SYMBOLS = 128,
   TEST_FACTS = 128,
   TEST_DIAGNOSTICS = 16,
+  TEST_DIAGNOSTIC_FACTS = TEST_DIAGNOSTICS * 5,
+  TEST_DIAGNOSTIC_ITEMS = TEST_DIAGNOSTICS * 4,
+  TEST_DIAGNOSTIC_LABELS = TEST_DIAGNOSTICS * 2,
   TEST_RECEIPT = 16384,
   TEST_ENUMS = 4,
   TEST_ENUM_CASES = 8,
@@ -128,6 +131,9 @@ typedef struct {
   w_seed_frontend_symbol symbols[TEST_SYMBOLS];
   w_seed_frontend_fact facts[TEST_FACTS];
   w_seed_frontend_diagnostic diagnostics[TEST_DIAGNOSTICS];
+  w_seed_frontend_diagnostic_fact diagnostic_facts[TEST_DIAGNOSTIC_FACTS];
+  w_seed_frontend_diagnostic_item diagnostic_items[TEST_DIAGNOSTIC_ITEMS];
+  w_seed_frontend_diagnostic_label diagnostic_labels[TEST_DIAGNOSTIC_LABELS];
   uint8_t receipt[TEST_RECEIPT];
   w_seed_frontend_enum enums[TEST_ENUMS];
   w_seed_frontend_enum_case enum_cases[TEST_ENUM_CASES];
@@ -367,6 +373,12 @@ static void initialize_frontend_output(pipeline_fixture *fixture) {
       .fact_capacity = TEST_FACTS,
       .diagnostics = fixture->diagnostics,
       .diagnostic_capacity = TEST_DIAGNOSTICS,
+      .diagnostic_facts = fixture->diagnostic_facts,
+      .diagnostic_fact_capacity = TEST_DIAGNOSTIC_FACTS,
+      .diagnostic_items = fixture->diagnostic_items,
+      .diagnostic_item_capacity = TEST_DIAGNOSTIC_ITEMS,
+      .diagnostic_labels = fixture->diagnostic_labels,
+      .diagnostic_label_capacity = TEST_DIAGNOSTIC_LABELS,
       .receipt = fixture->receipt,
       .receipt_capacity = TEST_RECEIPT,
       .enums = fixture->enums,

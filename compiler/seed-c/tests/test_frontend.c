@@ -50,6 +50,9 @@ enum {
   TEST_SYMBOLS = 512,
   TEST_FACTS = 512,
   TEST_DIAGNOSTICS = 128,
+  TEST_DIAGNOSTIC_FACTS = TEST_DIAGNOSTICS * 5,
+  TEST_DIAGNOSTIC_ITEMS = TEST_DIAGNOSTICS * 4,
+  TEST_DIAGNOSTIC_LABELS = TEST_DIAGNOSTICS * 2,
   TEST_RECEIPT = 128 * 1024,
 };
 
@@ -102,6 +105,12 @@ typedef struct {
   w_seed_frontend_symbol symbols[TEST_SYMBOLS];
   w_seed_frontend_fact facts[TEST_FACTS];
   w_seed_frontend_diagnostic diagnostics[TEST_DIAGNOSTICS];
+  w_seed_frontend_diagnostic_fact
+      diagnostic_facts[TEST_DIAGNOSTIC_FACTS];
+  w_seed_frontend_diagnostic_item
+      diagnostic_items[TEST_DIAGNOSTIC_ITEMS];
+  w_seed_frontend_diagnostic_label
+      diagnostic_labels[TEST_DIAGNOSTIC_LABELS];
   w_seed_frontend_external_parameter external_parameters[2];
   w_seed_frontend_external_symbol external_symbols[2];
   w_seed_frontend_external_module external_modules[2];
@@ -190,6 +199,12 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
   (void)memset(fixture_value->facts, value, sizeof(fixture_value->facts));
   (void)memset(fixture_value->diagnostics, value,
                sizeof(fixture_value->diagnostics));
+  (void)memset(fixture_value->diagnostic_facts, value,
+               sizeof(fixture_value->diagnostic_facts));
+  (void)memset(fixture_value->diagnostic_items, value,
+               sizeof(fixture_value->diagnostic_items));
+  (void)memset(fixture_value->diagnostic_labels, value,
+               sizeof(fixture_value->diagnostic_labels));
   (void)memset(fixture_value->receipt, value, sizeof(fixture_value->receipt));
 }
 
@@ -258,6 +273,12 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                          value) &&
          all_bytes_equal(fixture_value->diagnostics,
                          sizeof(fixture_value->diagnostics), value) &&
+         all_bytes_equal(fixture_value->diagnostic_facts,
+                         sizeof(fixture_value->diagnostic_facts), value) &&
+         all_bytes_equal(fixture_value->diagnostic_items,
+                         sizeof(fixture_value->diagnostic_items), value) &&
+         all_bytes_equal(fixture_value->diagnostic_labels,
+                         sizeof(fixture_value->diagnostic_labels), value) &&
          all_bytes_equal(fixture_value->receipt, sizeof(fixture_value->receipt),
                          value);
 }
@@ -368,6 +389,12 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .fact_capacity = TEST_FACTS,
       .diagnostics = fixture_value->diagnostics,
       .diagnostic_capacity = TEST_DIAGNOSTICS,
+      .diagnostic_facts = fixture_value->diagnostic_facts,
+      .diagnostic_fact_capacity = TEST_DIAGNOSTIC_FACTS,
+      .diagnostic_items = fixture_value->diagnostic_items,
+      .diagnostic_item_capacity = TEST_DIAGNOSTIC_ITEMS,
+      .diagnostic_labels = fixture_value->diagnostic_labels,
+      .diagnostic_label_capacity = TEST_DIAGNOSTIC_LABELS,
       .receipt = fixture_value->receipt,
       .receipt_capacity = TEST_RECEIPT,
   };
@@ -454,6 +481,9 @@ static bool counts_equal(const w_seed_frontend_counts *left,
          left->enum_membership_cases == right->enum_membership_cases &&
          left->facts == right->facts &&
          left->diagnostics == right->diagnostics &&
+         left->diagnostic_facts == right->diagnostic_facts &&
+         left->diagnostic_items == right->diagnostic_items &&
+         left->diagnostic_labels == right->diagnostic_labels &&
          left->receipt_bytes == right->receipt_bytes;
 }
 
@@ -494,6 +524,188 @@ static bool has_diagnostic(const fixture *fixture_value, const char *code) {
     }
   }
   return false;
+}
+
+static bool frontend_text_is(w_seed_frontend_text text, const char *literal) {
+  if (literal == NULL) return false;
+  const size_t length = strlen(literal);
+  return text.length == length &&
+         (length == 0u || (text.data != NULL &&
+                           memcmp(text.data, literal, length) == 0));
+}
+
+static bool fixture_span_text_is(const fixture *fixture_value,
+                                 size_t document_index, w_seed_span span,
+                                 const char *literal) {
+  if (fixture_value == NULL || literal == NULL ||
+      fixture_value->input.documents == NULL ||
+      document_index >= fixture_value->input.document_count ||
+      fixture_value->input.documents[document_index].source == NULL ||
+      span.start_byte > span.end_byte) {
+    return false;
+  }
+  const w_seed_source *source =
+      fixture_value->input.documents[document_index].source;
+  const size_t length = strlen(literal);
+  return span.end_byte - span.start_byte == length &&
+         span.end_byte <= source->bytes.length &&
+         (length == 0u ||
+          memcmp(source->bytes.data + span.start_byte, literal, length) == 0);
+}
+
+static const w_seed_frontend_diagnostic *diagnostic_for_code(
+    const fixture *fixture_value, const char *code) {
+  if (fixture_value == NULL || code == NULL) return NULL;
+  const size_t length = strlen(code);
+  for (size_t index = 0u;
+       index < fixture_value->result.written.diagnostics; index += 1u) {
+    const w_seed_frontend_diagnostic *diagnostic =
+        &fixture_value->diagnostics[index];
+    if (diagnostic->code.length == length &&
+        memcmp(diagnostic->code.data, code, length) == 0)
+      return diagnostic;
+  }
+  return NULL;
+}
+
+static const w_seed_frontend_diagnostic *diagnostic_for_code_occurrence(
+    const fixture *fixture_value, const char *code, size_t occurrence) {
+  if (fixture_value == NULL || code == NULL) return NULL;
+  const size_t length = strlen(code);
+  size_t seen = 0u;
+  for (size_t index = 0u;
+       index < fixture_value->result.written.diagnostics; index += 1u) {
+    const w_seed_frontend_diagnostic *diagnostic =
+        &fixture_value->diagnostics[index];
+    if (diagnostic->code.length != length ||
+        memcmp(diagnostic->code.data, code, length) != 0)
+      continue;
+    if (seen == occurrence) return diagnostic;
+    seen += 1u;
+  }
+  return NULL;
+}
+
+static bool diagnostic_record_ranges_are_valid(
+    const fixture *fixture_value,
+    const w_seed_frontend_diagnostic *diagnostic) {
+  if (fixture_value == NULL || diagnostic == NULL ||
+      diagnostic->document_index >= fixture_value->input.document_count ||
+      fixture_value->input.documents == NULL)
+    return false;
+  const w_seed_frontend_document *document =
+      &fixture_value->input.documents[diagnostic->document_index];
+  if (document->source == NULL ||
+      diagnostic->primary.start_byte > diagnostic->primary.end_byte ||
+      diagnostic->primary.end_byte > document->source->bytes.length ||
+      (size_t)diagnostic->first_fact + diagnostic->fact_count >
+          fixture_value->result.written.diagnostic_facts ||
+      (size_t)diagnostic->first_label + diagnostic->label_count >
+          fixture_value->result.written.diagnostic_labels)
+    return false;
+  for (size_t offset = 0u; offset < diagnostic->label_count; offset += 1u) {
+    const w_seed_frontend_diagnostic_label *label =
+        &fixture_value->diagnostic_labels[diagnostic->first_label + offset];
+    if (label->document_index >= fixture_value->input.document_count ||
+        label->role.length == 0u || label->role.data == NULL ||
+        label->span.start_byte > label->span.end_byte ||
+        label->span.end_byte >
+            fixture_value->input.documents[label->document_index]
+                .source->bytes.length)
+      return false;
+  }
+  return true;
+}
+
+static const w_seed_frontend_diagnostic_fact *diagnostic_fact_for(
+    const fixture *fixture_value, const w_seed_frontend_diagnostic *diagnostic,
+    size_t offset) {
+  if (!diagnostic_record_ranges_are_valid(fixture_value, diagnostic) ||
+      offset >= diagnostic->fact_count)
+    return NULL;
+  return &fixture_value->diagnostic_facts[diagnostic->first_fact + offset];
+}
+
+static bool diagnostic_fact_string_is(
+    const fixture *fixture_value, const w_seed_frontend_diagnostic *diagnostic,
+    size_t offset, const char *key, const char *value) {
+  const w_seed_frontend_diagnostic_fact *fact =
+      diagnostic_fact_for(fixture_value, diagnostic, offset);
+  return fact != NULL && fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING &&
+         frontend_text_is(fact->key, key) && frontend_text_is(fact->text, value);
+}
+
+static bool diagnostic_fact_array_is(
+    const fixture *fixture_value, const w_seed_frontend_diagnostic *diagnostic,
+    size_t offset, const char *key, const char *const *values,
+    size_t value_count) {
+  const w_seed_frontend_diagnostic_fact *fact =
+      diagnostic_fact_for(fixture_value, diagnostic, offset);
+  if (fact == NULL || fact->kind != W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_ARRAY ||
+      !frontend_text_is(fact->key, key) ||
+      fact->item_count != value_count)
+    return false;
+  if (value_count == 0u)
+    return fact->first_item == W_SEED_FRONTEND_NONE;
+  if (fact->first_item == W_SEED_FRONTEND_NONE ||
+      (size_t)fact->first_item + fact->item_count >
+          fixture_value->result.written.diagnostic_items)
+    return false;
+  for (size_t item = 0u; item < value_count; item += 1u) {
+    if (!frontend_text_is(
+            fixture_value->diagnostic_items[fact->first_item + item].text,
+            values[item]))
+      return false;
+  }
+  return true;
+}
+
+static bool diagnostic_fact_set_is(
+    const fixture *fixture_value, const w_seed_frontend_diagnostic *diagnostic,
+    size_t offset, const char *key, const char *const *values,
+    size_t value_count) {
+  const w_seed_frontend_diagnostic_fact *fact =
+      diagnostic_fact_for(fixture_value, diagnostic, offset);
+  if (fact == NULL || fact->kind != W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING_SET ||
+      !frontend_text_is(fact->key, key) ||
+      fact->item_count != value_count)
+    return false;
+  if (value_count == 0u)
+    return fact->first_item == W_SEED_FRONTEND_NONE;
+  if (fact->first_item == W_SEED_FRONTEND_NONE ||
+      (size_t)fact->first_item + fact->item_count >
+          fixture_value->result.written.diagnostic_items)
+    return false;
+  for (size_t item = 0u; item < value_count; item += 1u) {
+    if (!frontend_text_is(
+            fixture_value->diagnostic_items[fact->first_item + item].text,
+            values[item]))
+      return false;
+  }
+  return true;
+}
+
+static bool diagnostic_fact_integer_is(
+    const fixture *fixture_value, const w_seed_frontend_diagnostic *diagnostic,
+    size_t offset, const char *key, int64_t value) {
+  const w_seed_frontend_diagnostic_fact *fact =
+      diagnostic_fact_for(fixture_value, diagnostic, offset);
+  return fact != NULL && fact->kind == W_SEED_FRONTEND_DIAGNOSTIC_FACT_INTEGER &&
+         frontend_text_is(fact->key, key) && fact->integer_value == value &&
+         fact->item_count == 0u && fact->first_item == W_SEED_FRONTEND_NONE;
+}
+
+static bool diagnostic_label_role_is(
+    const fixture *fixture_value, const w_seed_frontend_diagnostic *diagnostic,
+    size_t offset, const char *role) {
+  if (!diagnostic_record_ranges_are_valid(fixture_value, diagnostic) ||
+      offset >= diagnostic->label_count || role == NULL)
+    return false;
+  return frontend_text_is(
+      fixture_value
+          ->diagnostic_labels[diagnostic->first_label + offset]
+          .role,
+      role);
 }
 
 static bool test_declarations_and_determinism(void) {
@@ -650,6 +862,13 @@ static bool test_semantic_diagnostics(void) {
   CHECK(condition->result.written.diagnostics >= 1);
   CHECK(condition->diagnostics[0].code.length == 10 &&
         memcmp(condition->diagnostics[0].code.data, "W-SEM-0001", 10) == 0);
+  const w_seed_frontend_diagnostic *semantic =
+      diagnostic_for_code(condition, "W-SEM-0001");
+  CHECK(semantic != NULL && semantic->fact_count == 2u &&
+        semantic->label_count == 0u &&
+        diagnostic_record_ranges_are_valid(condition, semantic));
+  CHECK(diagnostic_fact_string_is(condition, semantic, 0u, "actual", "1"));
+  CHECK(diagnostic_fact_string_is(condition, semantic, 1u, "expected", "Bool"));
 
   fixture *narrowing = &fixture_narrowing;
   CHECK(fixture_run(narrowing,
@@ -673,6 +892,17 @@ static bool test_semantic_diagnostics(void) {
       saw_label = true;
   }
   CHECK(saw_label);
+  const w_seed_frontend_diagnostic *unknown_label =
+      diagnostic_for_code(label, "W-LABEL-0005");
+  static const char *const positional_form[] = {"positional"};
+  CHECK(unknown_label != NULL && unknown_label->fact_count == 3u &&
+        unknown_label->label_count == 0u &&
+        diagnostic_record_ranges_are_valid(label, unknown_label));
+  CHECK(diagnostic_fact_array_is(label, unknown_label, 0u, "acceptedForms",
+                                 positional_form, 1u));
+  CHECK(diagnostic_fact_string_is(label, unknown_label, 1u, "declaration",
+                                  "callee"));
+  CHECK(diagnostic_fact_string_is(label, unknown_label, 2u, "label", "other"));
   fixture *call_type = &fixture_label;
   CHECK(fixture_run(call_type,
                     "fn callee(value: u32): u32 { return value }\n"
@@ -1001,6 +1231,17 @@ static bool test_enum_values_constructors_and_switches(void) {
   CHECK(values->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
   CHECK(has_diagnostic(values, "W-LABEL-0005"));
   CHECK(!has_diagnostic(values, "W-PATTERN-0002"));
+  const w_seed_frontend_diagnostic *reversed_label =
+      diagnostic_for_code(values, "W-LABEL-0005");
+  static const char *const from_form[] = {"from"};
+  CHECK(reversed_label != NULL && reversed_label->fact_count == 3u &&
+        reversed_label->label_count == 0u &&
+        diagnostic_record_ranges_are_valid(values, reversed_label));
+  CHECK(diagnostic_fact_array_is(values, reversed_label, 0u, "acceptedForms",
+                                 from_form, 1u));
+  CHECK(diagnostic_fact_string_is(values, reversed_label, 1u, "declaration",
+                                  "invalidTransition"));
+  CHECK(diagnostic_fact_string_is(values, reversed_label, 2u, "label", "to"));
   CHECK(fixture_run(values,
                     "enum Stage { accepted reserving preparing }\n"
                     "enum DomainError { invalidTransition(from: Stage, to: Stage) }\n"
@@ -1008,6 +1249,15 @@ static bool test_enum_values_constructors_and_switches(void) {
                     "return .invalidTransition(from: from, from: to) }\n"));
   CHECK(values->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
   CHECK(has_diagnostic(values, "W-LABEL-0006"));
+  const w_seed_frontend_diagnostic *duplicate_label =
+      diagnostic_for_code(values, "W-LABEL-0006");
+  CHECK(duplicate_label != NULL && duplicate_label->fact_count == 3u &&
+        duplicate_label->label_count == 0u &&
+        diagnostic_record_ranges_are_valid(values, duplicate_label));
+  CHECK(diagnostic_fact_string_is(values, duplicate_label, 0u, "declaration",
+                                  "invalidTransition"));
+  CHECK(diagnostic_fact_string_is(values, duplicate_label, 1u, "label", "from"));
+  CHECK(diagnostic_fact_string_is(values, duplicate_label, 2u, "slot", "from"));
   CHECK(fixture_run(values,
                     "enum Stage { accepted reserving preparing }\n"
                     "enum DomainError { invalidTransition(from: Stage, to: Stage) }\n"
@@ -1034,6 +1284,17 @@ static bool test_enum_values_constructors_and_switches(void) {
                     "fn f(): Stage { let value = .preparing return value }\n"));
   CHECK(short_case->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
   CHECK(has_diagnostic(short_case, "W-MATCH-0003"));
+  const w_seed_frontend_diagnostic *short_member =
+      diagnostic_for_code(short_case, "W-MATCH-0003");
+  CHECK(short_member != NULL && short_member->fact_count == 3u &&
+        short_member->label_count == 0u &&
+        diagnostic_record_ranges_are_valid(short_case, short_member));
+  CHECK(diagnostic_fact_string_is(short_case, short_member, 0u, "context",
+                                  "short-enum"));
+  CHECK(diagnostic_fact_string_is(short_case, short_member, 1u, "expectedType",
+                                  "none"));
+  CHECK(diagnostic_fact_string_is(short_case, short_member, 2u, "member",
+                                  "preparing"));
   CHECK(fixture_run(short_case,
                     "enum Stage { accepted preparing }\n"
                     "fn f(): Stage { return .missing }\n"));
@@ -1091,6 +1352,21 @@ static bool test_enum_values_constructors_and_switches(void) {
                     "case .reserving: \"R\" case .preparing: \"P\" } }\n"));
   CHECK(switch_value->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
   CHECK(has_diagnostic(switch_value, "W-MATCH-0002"));
+  const w_seed_frontend_diagnostic *duplicate_pattern =
+      diagnostic_for_code(switch_value, "W-MATCH-0002");
+  CHECK(duplicate_pattern != NULL && duplicate_pattern->fact_count == 3u &&
+        duplicate_pattern->label_count == 2u &&
+        diagnostic_record_ranges_are_valid(switch_value, duplicate_pattern));
+  CHECK(diagnostic_fact_string_is(switch_value, duplicate_pattern, 0u,
+                                  "coveredBy", "accepted"));
+  CHECK(diagnostic_fact_string_is(switch_value, duplicate_pattern, 1u,
+                                  "pattern", ".accepted"));
+  CHECK(diagnostic_fact_string_is(switch_value, duplicate_pattern, 2u,
+                                  "subjectType", "Stage"));
+  CHECK(diagnostic_label_role_is(switch_value, duplicate_pattern, 0u,
+                                 "covered-case"));
+  CHECK(diagnostic_label_role_is(switch_value, duplicate_pattern, 1u,
+                                 "match-subject"));
   CHECK(fixture_run(switch_value,
                     "enum Stage { accepted reserving preparing }\n"
                     "fn label(stage: Stage): String { return switch stage { "
@@ -1172,6 +1448,37 @@ static bool test_enum_values_constructors_and_switches(void) {
   CHECK(fixture_run(many, long_source));
   CHECK(many->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
   CHECK(has_diagnostic(many, "W-MATCH-0001"));
+  CHECK(many->result.written.diagnostics == 1u);
+  const w_seed_frontend_diagnostic *missing_many =
+      diagnostic_for_code(many, "W-MATCH-0001");
+  static const char *const missing_cases[] = {"case69"};
+  CHECK(missing_many != NULL && missing_many->fact_count == 2u &&
+        missing_many->label_count == 1u &&
+        diagnostic_record_ranges_are_valid(many, missing_many));
+  CHECK(diagnostic_fact_set_is(many, missing_many, 0u, "missingCases",
+                               missing_cases, 1u));
+  CHECK(diagnostic_fact_string_is(many, missing_many, 1u, "subjectType",
+                                  "Many"));
+  CHECK(diagnostic_label_role_is(many, missing_many, 0u, "match-subject"));
+
+  CHECK(fixture_run(switch_value,
+                    "enum Stage { accepted reserving preparing }\n"
+                    "fn missing(stage: Stage): String { return switch stage { "
+                    "case .preparing: \"P\" } }\n"));
+  CHECK(switch_value->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(switch_value->result.written.diagnostics == 1u);
+  const w_seed_frontend_diagnostic *aggregated_missing =
+      diagnostic_for_code(switch_value, "W-MATCH-0001");
+  static const char *const sorted_missing[] = {"accepted", "reserving"};
+  CHECK(aggregated_missing != NULL && aggregated_missing->fact_count == 2u &&
+        aggregated_missing->label_count == 1u &&
+        diagnostic_record_ranges_are_valid(switch_value, aggregated_missing));
+  CHECK(diagnostic_fact_set_is(switch_value, aggregated_missing, 0u,
+                               "missingCases", sorted_missing, 2u));
+  CHECK(diagnostic_fact_string_is(switch_value, aggregated_missing, 1u,
+                                  "subjectType", "Stage"));
+  CHECK(diagnostic_label_role_is(switch_value, aggregated_missing, 0u,
+                                 "match-subject"));
   return true;
 }
 
@@ -1313,6 +1620,26 @@ static bool test_const_and_membership(void) {
   CHECK(value->functions[1].is_const && !value->functions[1].const_body_supported);
   CHECK(value->diagnostics[0].primary.start_byte <
         value->diagnostics[0].primary.end_byte);
+  const w_seed_frontend_diagnostic *const_call =
+      diagnostic_for_code(value, "W-CONST-0001");
+  static const char *const const_call_chain[] = {"bad", "normal"};
+  CHECK(const_call != NULL && const_call->fact_count == 4u &&
+        const_call->label_count == 1u &&
+        diagnostic_record_ranges_are_valid(value, const_call));
+  CHECK(diagnostic_fact_array_is(value, const_call, 0u, "callChain",
+                                 const_call_chain, 2u));
+  CHECK(diagnostic_fact_string_is(value, const_call, 1u, "operation",
+                                  "call"));
+  CHECK(diagnostic_fact_string_is(value, const_call, 2u, "reason",
+                                  "not const-safe"));
+  CHECK(diagnostic_fact_string_is(value, const_call, 3u, "symbol",
+                                  "normal"));
+  CHECK(diagnostic_label_role_is(value, const_call, 0u, "const-owner"));
+  CHECK(value->diagnostic_labels[const_call->first_label].document_index == 0u &&
+        value->diagnostic_labels[const_call->first_label].span.start_byte ==
+            value->functions[1].span.start_byte &&
+        value->diagnostic_labels[const_call->first_label].span.end_byte ==
+            value->functions[1].span.end_byte);
 
   CHECK(fixture_run(value,
                     "const fn bad(): Bool { return true.foo }\n"));
@@ -1576,6 +1903,73 @@ static bool test_multidocument_const_ordinals(void) {
             W_SEED_FRONTEND_TYPE_INTEGER &&
         first.types[first.const_declarations[1].effective_type].kind ==
             W_SEED_FRONTEND_TYPE_INTEGER);
+  return true;
+}
+
+static bool test_multidocument_predicate_owner(void) {
+  static fixture root;
+  static fixture helper;
+  static const char root_source[] =
+      "import { isValid } from helper\n"
+      "struct Invalid<_ value: usize<(isValid(.member))>> {}\n";
+  static const char helper_source[] =
+      "module helper\n"
+      "export fn isValid(value: usize): Bool { return true }\n";
+  CHECK(fixture_parse(&root, root_source));
+  CHECK(fixture_parse(&helper, helper_source));
+  root.document.logical_source_id = (w_seed_frontend_text){"root", 4u};
+  root.document.module_id = root.document.logical_source_id;
+  root.document.local_module_name = root.document.module_id;
+  helper.document.logical_source_id =
+      (w_seed_frontend_text){"helper", 6u};
+  helper.document.module_id = helper.document.logical_source_id;
+  helper.document.local_module_name = helper.document.module_id;
+
+  w_seed_module_origin origins[TEST_IMPORTS];
+  w_seed_module_scan_result scan_result;
+  CHECK(w_seed_module_scan(&root.source, root.nodes, root.parse.node_count,
+                           &root.parse, origins, TEST_IMPORTS, &scan_result) ==
+            W_SEED_MODULE_SCAN_OK &&
+        scan_result.written == 1u);
+  root.resolved_imports[0] = (w_seed_frontend_resolved_import){
+      .source_document_index = 0u,
+      .direct_import_ordinal = origins[0].direct_import_ordinal,
+      .import_declaration_span = origins[0].declaration_span,
+      .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT,
+      .target_index = 1u};
+  w_seed_frontend_document documents[2] = {root.document, helper.document};
+  root.input.documents = documents;
+  root.input.document_count = 2u;
+  root.input.external_modules = NULL;
+  root.input.external_module_count = 0u;
+  root.input.import_resolution_complete = true;
+  root.input.resolved_imports = root.resolved_imports;
+  root.input.resolved_import_count = 1u;
+  fixture_fill_output(&root, 0u);
+  CHECK(w_seed_frontend_run(&root.input, &root.output, &root.result) ==
+        W_SEED_FRONTEND_DIAGNOSTICS);
+  CHECK(has_diagnostic(&root, "W-CONST-0001"));
+  const w_seed_frontend_diagnostic *diagnostic =
+      diagnostic_for_code(&root, "W-CONST-0001");
+  CHECK(diagnostic != NULL && diagnostic->fact_count == 4u &&
+        diagnostic->label_count == 1u &&
+        diagnostic_record_ranges_are_valid(&root, diagnostic));
+  const w_seed_frontend_diagnostic_label *label =
+      &root.diagnostic_labels[diagnostic->first_label];
+  uint32_t helper_function_node = W_SEED_CST_NONE;
+  for (size_t index = 0u; index < helper.parse.node_count; index += 1u) {
+    if (helper.nodes[index].kind == W_SEED_CST_FUNCTION) {
+      helper_function_node = (uint32_t)index;
+      break;
+    }
+  }
+  CHECK(helper_function_node != W_SEED_CST_NONE &&
+        label->document_index == 1u &&
+        label->span.start_byte == helper.nodes[helper_function_node]
+                                        .raw_span.start_byte &&
+        label->span.end_byte == helper.nodes[helper_function_node]
+                                      .raw_span.end_byte &&
+        root.input.documents[1].source == helper.document.source);
   return true;
 }
 
@@ -2168,6 +2562,32 @@ static bool test_generic_schema(void) {
             W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID &&
         non_bool->generic_parameters[0].subject_kind ==
             W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID);
+  const w_seed_frontend_diagnostic *non_bool_diagnostic =
+      diagnostic_for_code(non_bool, "W-CONTRACT-0003");
+  CHECK(non_bool_diagnostic != NULL &&
+        non_bool_diagnostic->fact_count == 3u &&
+        non_bool_diagnostic->label_count == 2u &&
+        diagnostic_record_ranges_are_valid(non_bool, non_bool_diagnostic));
+  CHECK(diagnostic_fact_string_is(non_bool, non_bool_diagnostic, 0u,
+                                  "expectedType", "Bool"));
+  CHECK(diagnostic_fact_string_is(non_bool, non_bool_diagnostic, 1u, "head",
+                                  "Invalid"));
+  CHECK(diagnostic_fact_string_is(non_bool, non_bool_diagnostic, 2u,
+                                  "predicateType", "usize"));
+  CHECK(diagnostic_label_role_is(non_bool, non_bool_diagnostic, 0u,
+                                 "contract-head") &&
+        diagnostic_label_role_is(non_bool, non_bool_diagnostic, 1u,
+                                 "slot-declaration"));
+  CHECK(non_bool->diagnostic_labels[non_bool_diagnostic->first_label]
+            .document_index == 0u &&
+        fixture_span_text_is(
+            non_bool, 0u,
+            non_bool->diagnostic_labels[non_bool_diagnostic->first_label].span,
+            "Invalid") &&
+        non_bool->diagnostic_labels[non_bool_diagnostic->first_label + 1u]
+                .span.start_byte == non_bool->generic_parameters[0].span.start_byte &&
+        non_bool->diagnostic_labels[non_bool_diagnostic->first_label + 1u]
+                .span.end_byte == non_bool->generic_parameters[0].span.end_byte);
 
   fixture *non_const = &fixture_external;
   CHECK(fixture_run(
@@ -2183,6 +2603,23 @@ static bool test_generic_schema(void) {
             W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID &&
         non_const->generic_parameters[0].subject_kind ==
             W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID);
+  const w_seed_frontend_diagnostic *non_const_diagnostic =
+      diagnostic_for_code(non_const, "W-CONST-0001");
+  static const char *const predicate_call_chain[] = {"isValid"};
+  CHECK(non_const_diagnostic != NULL &&
+        non_const_diagnostic->fact_count == 4u &&
+        non_const_diagnostic->label_count == 1u &&
+        diagnostic_record_ranges_are_valid(non_const, non_const_diagnostic));
+  CHECK(diagnostic_fact_array_is(non_const, non_const_diagnostic, 0u,
+                                 "callChain", predicate_call_chain, 1u));
+  CHECK(diagnostic_fact_string_is(non_const, non_const_diagnostic, 1u,
+                                  "operation", "call"));
+  CHECK(diagnostic_fact_string_is(non_const, non_const_diagnostic, 2u,
+                                  "reason", "not const-safe"));
+  CHECK(diagnostic_fact_string_is(non_const, non_const_diagnostic, 3u,
+                                  "symbol", "isValid"));
+  CHECK(diagnostic_label_role_is(non_const, non_const_diagnostic, 0u,
+                                 "const-owner"));
 
   fixture *malformed = &fixture_narrowing;
   CHECK(fixture_run(
@@ -2230,6 +2667,25 @@ static bool test_generic_schema(void) {
         unresolved->generic_parameters[0].kind ==
             W_SEED_FRONTEND_GENERIC_KIND_INVALID &&
         has_diagnostic(unresolved, "W-GENERIC-0001"));
+  const w_seed_frontend_diagnostic *unresolved_domain =
+      diagnostic_for_code(unresolved, "W-GENERIC-0001");
+  CHECK(unresolved_domain != NULL && unresolved_domain->fact_count == 3u &&
+        unresolved_domain->label_count == 1u &&
+        diagnostic_record_ranges_are_valid(unresolved, unresolved_domain));
+  CHECK(diagnostic_fact_string_is(unresolved, unresolved_domain, 0u, "domain",
+                                  "UnknownName"));
+  CHECK(diagnostic_fact_string_is(unresolved, unresolved_domain, 1u,
+                                  "parameter", "rows"));
+  CHECK(diagnostic_fact_string_is(unresolved, unresolved_domain, 2u,
+                                  "resolutionReason", "unresolved-domain"));
+  CHECK(diagnostic_label_role_is(unresolved, unresolved_domain, 0u,
+                                 "generic-parameter"));
+  CHECK(unresolved->diagnostic_labels[unresolved_domain->first_label]
+            .document_index == 0u &&
+        unresolved->diagnostic_labels[unresolved_domain->first_label]
+                .span.start_byte == unresolved->generic_parameters[0].span.start_byte &&
+        unresolved->diagnostic_labels[unresolved_domain->first_label]
+                .span.end_byte == unresolved->generic_parameters[0].span.end_byte);
 
   CHECK(fixture_run(
       unresolved,
@@ -2264,6 +2720,63 @@ static bool test_generic_schema(void) {
             W_SEED_FRONTEND_GENERIC_REFINEMENT_INVALID &&
         wrong_signature->generic_parameters[1].subject_kind ==
             W_SEED_FRONTEND_GENERIC_SUBJECT_INVALID);
+  const w_seed_frontend_diagnostic *wrong_arity =
+      diagnostic_for_code_occurrence(wrong_signature, "W-CONTRACT-0002", 0u);
+  const w_seed_frontend_diagnostic *wrong_domain =
+      diagnostic_for_code_occurrence(wrong_signature, "W-CONTRACT-0002", 1u);
+  CHECK(wrong_arity != NULL && wrong_domain != NULL &&
+        wrong_arity->fact_count == 4u && wrong_arity->label_count == 2u &&
+        wrong_domain->fact_count == 4u && wrong_domain->label_count == 2u &&
+        diagnostic_record_ranges_are_valid(wrong_signature, wrong_arity) &&
+        diagnostic_record_ranges_are_valid(wrong_signature, wrong_domain));
+  CHECK(diagnostic_fact_string_is(wrong_signature, wrong_arity, 0u,
+                                  "actualKind", "arity:2") &&
+        diagnostic_fact_string_is(wrong_signature, wrong_arity, 1u,
+                                  "expectedKind", "arity:1") &&
+        diagnostic_fact_string_is(wrong_signature, wrong_arity, 2u, "head",
+                                  "Arity") &&
+        diagnostic_fact_string_is(wrong_signature, wrong_arity, 3u, "slot",
+                                  "stages"));
+  CHECK(diagnostic_label_role_is(wrong_signature, wrong_arity, 0u,
+                                 "contract-head") &&
+        diagnostic_label_role_is(wrong_signature, wrong_arity, 1u,
+                                 "slot-declaration"));
+  CHECK(wrong_signature->diagnostic_labels[wrong_arity->first_label]
+            .document_index == 0u &&
+        fixture_span_text_is(
+            wrong_signature, 0u,
+            wrong_signature->diagnostic_labels[wrong_arity->first_label].span,
+            "Arity") &&
+        wrong_signature
+                ->diagnostic_labels[wrong_arity->first_label + 1u]
+                .span.start_byte == wrong_signature->generic_parameters[0].span.start_byte &&
+        wrong_signature
+                ->diagnostic_labels[wrong_arity->first_label + 1u]
+                .span.end_byte == wrong_signature->generic_parameters[0].span.end_byte);
+  CHECK(diagnostic_fact_string_is(wrong_signature, wrong_domain, 0u,
+                                  "actualKind", "value:usize") &&
+        diagnostic_fact_string_is(wrong_signature, wrong_domain, 1u,
+                                  "expectedKind", "value:StaticList<Stage>") &&
+        diagnostic_fact_string_is(wrong_signature, wrong_domain, 2u, "head",
+                                  "Domain") &&
+        diagnostic_fact_string_is(wrong_signature, wrong_domain, 3u, "slot",
+                                  "stages"));
+  CHECK(diagnostic_label_role_is(wrong_signature, wrong_domain, 0u,
+                                 "contract-head") &&
+        diagnostic_label_role_is(wrong_signature, wrong_domain, 1u,
+                                 "slot-declaration"));
+  CHECK(wrong_signature->diagnostic_labels[wrong_domain->first_label]
+            .document_index == 0u &&
+        fixture_span_text_is(
+            wrong_signature, 0u,
+            wrong_signature->diagnostic_labels[wrong_domain->first_label].span,
+            "Domain") &&
+        wrong_signature
+                ->diagnostic_labels[wrong_domain->first_label + 1u]
+                .span.start_byte == wrong_signature->generic_parameters[1].span.start_byte &&
+        wrong_signature
+                ->diagnostic_labels[wrong_domain->first_label + 1u]
+                .span.end_byte == wrong_signature->generic_parameters[1].span.end_byte);
 
   fixture *forward = &fixture_generic;
   CHECK(fixture_run(
@@ -2455,6 +2968,259 @@ static bool test_generic_applications(void) {
   }
 
   CHECK(fixture_run(
+      &fixture_collision,
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, bogus: 3, columns: 4> }\n"));
+  {
+    const w_seed_frontend_diagnostic *unknown_label =
+        diagnostic_for_code(&fixture_collision, "W-CONTRACT-0001");
+    static const char *const available_slots[] = {"columns", "rows"};
+    CHECK(unknown_label != NULL && unknown_label->fact_count == 3u &&
+          unknown_label->label_count == 1u &&
+          diagnostic_record_ranges_are_valid(&fixture_collision,
+                                             unknown_label));
+    CHECK(diagnostic_fact_set_is(&fixture_collision, unknown_label, 0u,
+                                 "availableSlots", available_slots, 2u) &&
+          diagnostic_fact_string_is(&fixture_collision, unknown_label, 1u,
+                                    "head", "Matrix") &&
+          diagnostic_fact_string_is(&fixture_collision, unknown_label, 2u,
+                                    "slot", "bogus"));
+    CHECK(fixture_span_text_is(
+              &fixture_collision, 0u, unknown_label->primary, "bogus: 3") &&
+          diagnostic_label_role_is(&fixture_collision, unknown_label, 0u,
+                                   "contract-head") &&
+          fixture_collision.diagnostic_labels[unknown_label->first_label]
+                  .document_index == 0u &&
+          fixture_span_text_is(
+              &fixture_collision, 0u,
+              fixture_collision.diagnostic_labels[unknown_label->first_label]
+                  .span,
+              "Matrix"));
+  }
+
+  CHECK(fixture_run(
+      &fixture_collision,
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, 3, columns: 4> }\n"));
+  {
+    const w_seed_frontend_diagnostic *required_label =
+        diagnostic_for_code_occurrence(&fixture_collision, "W-GENERIC-0003",
+                                       0u);
+    CHECK(required_label != NULL && required_label->fact_count == 5u &&
+          required_label->label_count == 1u &&
+          diagnostic_record_ranges_are_valid(&fixture_collision,
+                                             required_label));
+    CHECK(diagnostic_fact_string_is(&fixture_collision, required_label, 0u,
+                                    "externalLabel", "_") &&
+          diagnostic_fact_string_is(&fixture_collision, required_label, 1u,
+                                    "kind", "value") &&
+          diagnostic_fact_string_is(&fixture_collision, required_label, 2u,
+                                    "parameter", "rows") &&
+          diagnostic_fact_integer_is(&fixture_collision, required_label, 3u,
+                                     "position", 1) &&
+          diagnostic_fact_string_is(&fixture_collision, required_label, 4u,
+                                    "reason", "required-label-omitted"));
+    CHECK(fixture_span_text_is(&fixture_collision, 0u,
+                               required_label->primary, "3") &&
+          diagnostic_label_role_is(&fixture_collision, required_label, 0u,
+                                   "generic-parameter") &&
+          fixture_collision.diagnostic_labels[required_label->first_label]
+                  .document_index == 0u &&
+          fixture_collision.diagnostic_labels[required_label->first_label]
+                  .span.start_byte == fixture_collision.generic_parameters[1]
+                                             .span.start_byte &&
+          fixture_collision.diagnostic_labels[required_label->first_label]
+                  .span.end_byte == fixture_collision.generic_parameters[1]
+                                            .span.end_byte);
+  }
+
+  CHECK(fixture_run(
+      &fixture_collision,
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, columns: 4, rows: 3> }\n"));
+  {
+    const w_seed_frontend_diagnostic *named_order =
+        diagnostic_for_code_occurrence(&fixture_collision, "W-GENERIC-0003",
+                                       0u);
+    CHECK(named_order != NULL && named_order->fact_count == 5u &&
+          named_order->label_count == 1u &&
+          diagnostic_record_ranges_are_valid(&fixture_collision, named_order));
+    CHECK(diagnostic_fact_string_is(&fixture_collision, named_order, 0u,
+                                    "externalLabel", "columns") &&
+          diagnostic_fact_string_is(&fixture_collision, named_order, 1u,
+                                    "kind", "value") &&
+          diagnostic_fact_string_is(&fixture_collision, named_order, 2u,
+                                    "parameter", "rows") &&
+          diagnostic_fact_integer_is(&fixture_collision, named_order, 3u,
+                                     "position", 1) &&
+          diagnostic_fact_string_is(&fixture_collision, named_order, 4u,
+                                    "reason", "named-argument-out-of-order"));
+    CHECK(fixture_span_text_is(&fixture_collision, 0u,
+                               named_order->primary, "columns: 4") &&
+          diagnostic_label_role_is(&fixture_collision, named_order, 0u,
+                                   "generic-parameter") &&
+          fixture_collision.diagnostic_labels[named_order->first_label]
+                  .document_index == 0u &&
+          fixture_collision.diagnostic_labels[named_order->first_label]
+                  .span.start_byte == fixture_collision.generic_parameters[1]
+                                             .span.start_byte &&
+          fixture_collision.diagnostic_labels[named_order->first_label]
+                  .span.end_byte == fixture_collision.generic_parameters[1]
+                                            .span.end_byte);
+  }
+
+  CHECK(fixture_run(
+      &fixture_collision,
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, rows: 3, 3> }\n"));
+  {
+    const w_seed_frontend_diagnostic *positional_after_named =
+        diagnostic_for_code_occurrence(&fixture_collision, "W-GENERIC-0003",
+                                       0u);
+    CHECK(positional_after_named != NULL &&
+          positional_after_named->fact_count == 5u &&
+          positional_after_named->label_count == 1u &&
+          diagnostic_record_ranges_are_valid(&fixture_collision,
+                                             positional_after_named));
+    CHECK(diagnostic_fact_string_is(&fixture_collision, positional_after_named,
+                                    0u, "externalLabel", "_") &&
+          diagnostic_fact_string_is(&fixture_collision, positional_after_named,
+                                    1u, "kind", "value") &&
+          diagnostic_fact_string_is(&fixture_collision, positional_after_named,
+                                    2u, "parameter", "columns") &&
+          diagnostic_fact_integer_is(&fixture_collision, positional_after_named,
+                                     3u, "position", 2) &&
+          diagnostic_fact_string_is(&fixture_collision, positional_after_named,
+                                    4u, "reason", "positional-after-named"));
+    CHECK(fixture_span_text_is(&fixture_collision, 0u,
+                               positional_after_named->primary, "3") &&
+          diagnostic_label_role_is(&fixture_collision, positional_after_named,
+                                   0u, "generic-parameter") &&
+          fixture_collision.diagnostic_labels[
+              positional_after_named->first_label].document_index == 0u &&
+          fixture_collision.diagnostic_labels[
+              positional_after_named->first_label]
+                  .span.start_byte == fixture_collision.generic_parameters[2]
+                                             .span.start_byte &&
+          fixture_collision.diagnostic_labels[
+              positional_after_named->first_label]
+                  .span.end_byte == fixture_collision.generic_parameters[2]
+                                            .span.end_byte);
+  }
+
+  CHECK(fixture_run(
+      &fixture_collision,
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, rows: 3, columns: 4, 5> }\n"));
+  {
+    const w_seed_frontend_diagnostic *extra_argument =
+        diagnostic_for_code(&fixture_collision, "W-GENERIC-0003");
+    CHECK(fixture_collision.result.written.diagnostics == 1u &&
+          extra_argument != NULL && extra_argument->fact_count == 5u &&
+          extra_argument->label_count == 1u &&
+          diagnostic_record_ranges_are_valid(&fixture_collision,
+                                             extra_argument));
+    CHECK(diagnostic_fact_string_is(&fixture_collision, extra_argument, 0u,
+                                    "externalLabel", "_") &&
+          diagnostic_fact_string_is(&fixture_collision, extra_argument, 1u,
+                                    "kind", "value") &&
+          diagnostic_fact_string_is(&fixture_collision, extra_argument, 2u,
+                                    "parameter", "extra") &&
+          diagnostic_fact_integer_is(&fixture_collision, extra_argument, 3u,
+                                     "position", 3) &&
+          diagnostic_fact_string_is(&fixture_collision, extra_argument, 4u,
+                                    "reason", "extra-argument"));
+    CHECK(fixture_span_text_is(&fixture_collision, 0u,
+                               extra_argument->primary, "5") &&
+          diagnostic_label_role_is(&fixture_collision, extra_argument, 0u,
+                                   "generic-parameter") &&
+          fixture_collision.diagnostic_labels[extra_argument->first_label]
+                  .document_index == 0u &&
+          fixture_span_text_is(
+              &fixture_collision, 0u,
+              fixture_collision.diagnostic_labels[extra_argument->first_label]
+                  .span,
+              "5"));
+  }
+
+  CHECK(fixture_run(&fixture_collision,
+                    "struct Box<T> {}\n"
+                    "struct Use { value: Box<T: u8> }\n"));
+  {
+    const w_seed_frontend_diagnostic *type_label =
+        diagnostic_for_code(&fixture_collision, "W-GENERIC-0003");
+    CHECK(type_label != NULL && type_label->fact_count == 5u &&
+          type_label->label_count == 1u &&
+          diagnostic_record_ranges_are_valid(&fixture_collision, type_label));
+    CHECK(diagnostic_fact_string_is(&fixture_collision, type_label, 0u,
+                                    "externalLabel", "T") &&
+          diagnostic_fact_string_is(&fixture_collision, type_label, 1u,
+                                    "kind", "type") &&
+          diagnostic_fact_string_is(&fixture_collision, type_label, 2u,
+                                    "parameter", "T") &&
+          diagnostic_fact_integer_is(&fixture_collision, type_label, 3u,
+                                     "position", 0) &&
+          diagnostic_fact_string_is(&fixture_collision, type_label, 4u,
+                                    "reason", "type-parameter-must-be-positional"));
+    CHECK(fixture_span_text_is(&fixture_collision, 0u, type_label->primary,
+                               "T: u8") &&
+          diagnostic_label_role_is(&fixture_collision, type_label, 0u,
+                                   "generic-parameter") &&
+          fixture_collision.diagnostic_labels[type_label->first_label]
+                  .document_index == 0u &&
+          fixture_collision.diagnostic_labels[type_label->first_label]
+                  .span.start_byte == fixture_collision.generic_parameters[0]
+                                             .span.start_byte &&
+          fixture_collision.diagnostic_labels[type_label->first_label]
+                  .span.end_byte == fixture_collision.generic_parameters[0]
+                                            .span.end_byte);
+  }
+
+  CHECK(fixture_run(
+      &fixture_collision,
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, rows: 3> }\n"));
+  {
+    const w_seed_frontend_diagnostic *missing_slot =
+        diagnostic_for_code(&fixture_collision, "W-GENERIC-0002");
+    CHECK(fixture_collision.result.written.diagnostics == 1u &&
+          missing_slot != NULL && missing_slot->fact_count == 4u &&
+          missing_slot->label_count == 2u &&
+          diagnostic_record_ranges_are_valid(&fixture_collision, missing_slot));
+    CHECK(diagnostic_fact_set_is(&fixture_collision, missing_slot, 0u,
+                                 "candidates", NULL, 0u) &&
+          diagnostic_fact_set_is(&fixture_collision, missing_slot, 1u,
+                                 "equationSources", NULL, 0u) &&
+          diagnostic_fact_string_is(&fixture_collision, missing_slot, 2u,
+                                    "parameter", "columns") &&
+          diagnostic_fact_string_is(&fixture_collision, missing_slot, 3u,
+                                    "reason", "missing-required-argument"));
+    CHECK(diagnostic_label_role_is(&fixture_collision, missing_slot, 0u,
+                                   "call-owner") &&
+          diagnostic_label_role_is(&fixture_collision, missing_slot, 1u,
+                                   "generic-parameter") &&
+          fixture_collision.diagnostic_labels[missing_slot->first_label]
+                  .document_index == 0u &&
+          fixture_collision.diagnostic_labels[missing_slot->first_label].span
+                  .start_byte ==
+              fixture_collision.generic_applications[0].envelope_span.start_byte &&
+          fixture_collision.diagnostic_labels[missing_slot->first_label].span
+                  .end_byte ==
+              fixture_collision.generic_applications[0].envelope_span.end_byte &&
+          fixture_collision
+                  .diagnostic_labels[missing_slot->first_label + 1u]
+                  .document_index == 0u &&
+          fixture_collision
+                  .diagnostic_labels[missing_slot->first_label + 1u]
+                  .span.start_byte == fixture_collision.generic_parameters[2]
+                                             .span.start_byte &&
+          fixture_collision
+                  .diagnostic_labels[missing_slot->first_label + 1u]
+                  .span.end_byte == fixture_collision.generic_parameters[2]
+                                            .span.end_byte);
+  }
+
+  CHECK(fixture_run(
       &fixture_unresolved,
       "struct StaticValue<T, _ value: T> {}\n"
       "struct Use { bad: StaticValue<f32, value: 0> }\n"));
@@ -2462,6 +3228,46 @@ static bool test_generic_applications(void) {
         has_diagnostic(&fixture_unresolved, "W-CONTRACT-0002") &&
         fixture_unresolved.generic_applications[0].binding_status ==
             W_SEED_FRONTEND_GENERIC_BINDING_INVALID);
+  {
+    const w_seed_frontend_diagnostic *value_kind =
+        diagnostic_for_code(&fixture_unresolved, "W-CONTRACT-0002");
+    CHECK(fixture_unresolved.result.written.diagnostics == 1u &&
+          value_kind != NULL && value_kind->fact_count == 4u &&
+          value_kind->label_count == 2u &&
+          diagnostic_record_ranges_are_valid(&fixture_unresolved, value_kind));
+    CHECK(diagnostic_fact_string_is(&fixture_unresolved, value_kind, 0u,
+                                    "actualKind", "value:integer") &&
+          diagnostic_fact_string_is(&fixture_unresolved, value_kind, 1u,
+                                    "expectedKind", "value:f32") &&
+          diagnostic_fact_string_is(&fixture_unresolved, value_kind, 2u,
+                                    "head", "StaticValue") &&
+          diagnostic_fact_string_is(&fixture_unresolved, value_kind, 3u,
+                                    "slot", "value"));
+    CHECK(fixture_span_text_is(&fixture_unresolved, 0u, value_kind->primary,
+                               "0") &&
+          diagnostic_label_role_is(&fixture_unresolved, value_kind, 0u,
+                                   "contract-head") &&
+          diagnostic_label_role_is(&fixture_unresolved, value_kind, 1u,
+                                   "slot-declaration") &&
+          fixture_unresolved.diagnostic_labels[value_kind->first_label]
+                  .document_index == 0u &&
+          fixture_span_text_is(
+              &fixture_unresolved, 0u,
+              fixture_unresolved.diagnostic_labels[value_kind->first_label]
+                  .span,
+              "StaticValue") &&
+          fixture_unresolved
+                  .diagnostic_labels[value_kind->first_label + 1u]
+                  .document_index == 0u &&
+          fixture_unresolved
+                  .diagnostic_labels[value_kind->first_label + 1u]
+                  .span.start_byte == fixture_unresolved.generic_parameters[1]
+                                             .span.start_byte &&
+          fixture_unresolved
+                  .diagnostic_labels[value_kind->first_label + 1u]
+                  .span.end_byte == fixture_unresolved.generic_parameters[1]
+                                            .span.end_byte);
+  }
 
   CHECK(fixture_run(
       &fixture_external,
@@ -2471,6 +3277,45 @@ static bool test_generic_applications(void) {
         has_diagnostic(&fixture_external, "W-CONTRACT-0002") &&
         fixture_external.generic_applications[0].binding_status ==
             W_SEED_FRONTEND_GENERIC_BINDING_INVALID);
+  {
+    const w_seed_frontend_diagnostic *type_kind =
+        diagnostic_for_code(&fixture_external, "W-CONTRACT-0002");
+    CHECK(fixture_external.result.written.diagnostics == 1u &&
+          type_kind != NULL && type_kind->fact_count == 4u &&
+          type_kind->label_count == 2u &&
+          diagnostic_record_ranges_are_valid(&fixture_external, type_kind));
+    CHECK(diagnostic_fact_string_is(&fixture_external, type_kind, 0u,
+                                    "actualKind", "value:Bool") &&
+          diagnostic_fact_string_is(&fixture_external, type_kind, 1u,
+                                    "expectedKind", "type") &&
+          diagnostic_fact_string_is(&fixture_external, type_kind, 2u, "head",
+                                    "Box") &&
+          diagnostic_fact_string_is(&fixture_external, type_kind, 3u, "slot",
+                                    "T"));
+    CHECK(fixture_span_text_is(&fixture_external, 0u, type_kind->primary,
+                               "true") &&
+          diagnostic_label_role_is(&fixture_external, type_kind, 0u,
+                                   "contract-head") &&
+          diagnostic_label_role_is(&fixture_external, type_kind, 1u,
+                                   "slot-declaration") &&
+          fixture_external.diagnostic_labels[type_kind->first_label]
+                  .document_index == 0u &&
+          fixture_span_text_is(
+              &fixture_external, 0u,
+              fixture_external.diagnostic_labels[type_kind->first_label].span,
+              "Box") &&
+          fixture_external
+                  .diagnostic_labels[type_kind->first_label + 1u]
+                  .document_index == 0u &&
+          fixture_external
+                  .diagnostic_labels[type_kind->first_label + 1u]
+                  .span.start_byte == fixture_external.generic_parameters[0]
+                                             .span.start_byte &&
+          fixture_external
+                  .diagnostic_labels[type_kind->first_label + 1u]
+                  .span.end_byte == fixture_external.generic_parameters[0]
+                                            .span.end_byte);
+  }
 
   CHECK(fixture_run(
       &fixture_narrowing,
@@ -2518,6 +3363,39 @@ static bool test_generic_applications(void) {
         has_diagnostic(&fixture_collision, "W-CONTRACT-0004") &&
         fixture_collision.generic_applications[0].binding_status ==
             W_SEED_FRONTEND_GENERIC_BINDING_INVALID);
+  const w_seed_frontend_diagnostic *duplicate_slot =
+      diagnostic_for_code(&fixture_collision, "W-CONTRACT-0004");
+  static const char *const duplicate_slot_order[] = {"T", "T"};
+  CHECK(duplicate_slot != NULL && duplicate_slot->fact_count == 4u &&
+        duplicate_slot->label_count == 2u &&
+        diagnostic_record_ranges_are_valid(&fixture_collision,
+                                           duplicate_slot));
+  CHECK(diagnostic_fact_string_is(&fixture_collision, duplicate_slot, 0u,
+                                  "head", "Duplicate") &&
+        diagnostic_fact_string_is(&fixture_collision, duplicate_slot, 1u,
+                                  "slot", "T") &&
+        diagnostic_fact_array_is(&fixture_collision, duplicate_slot, 2u,
+                                 "slotOrder", duplicate_slot_order, 2u) &&
+        diagnostic_fact_string_is(&fixture_collision, duplicate_slot, 3u,
+                                  "violation", "duplicate"));
+  CHECK(diagnostic_label_role_is(&fixture_collision, duplicate_slot, 0u,
+                                 "contract-head") &&
+        diagnostic_label_role_is(&fixture_collision, duplicate_slot, 1u,
+                                 "slot-declaration"));
+  CHECK(fixture_collision.diagnostic_labels[duplicate_slot->first_label]
+            .document_index == 0u &&
+        fixture_span_text_is(
+            &fixture_collision, 0u,
+            fixture_collision
+                .diagnostic_labels[duplicate_slot->first_label]
+                .span,
+            "Duplicate") &&
+        fixture_collision
+                .diagnostic_labels[duplicate_slot->first_label + 1u]
+                .span.start_byte == fixture_collision.generic_parameters[1].span.start_byte &&
+        fixture_collision
+                .diagnostic_labels[duplicate_slot->first_label + 1u]
+                .span.end_byte == fixture_collision.generic_parameters[1].span.end_byte);
 
   CHECK(fixture_run(
       &fixture_collision,
@@ -2855,6 +3733,7 @@ int main(void) {
   if (!test_const_and_membership()) return 1;
   if (!test_module_named_consts()) return 1;
   if (!test_multidocument_const_ordinals()) return 1;
+  if (!test_multidocument_predicate_owner()) return 1;
   if (!test_resolved_import_edges_and_identity()) return 1;
   if (!test_resolved_import_edge_validation()) return 1;
   if (!test_semantic_diagnostics()) return 1;

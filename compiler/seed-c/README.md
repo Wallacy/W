@@ -95,12 +95,14 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` é `w-seed-frontend-8`. Os campos D2/D3
+`W_SEED_FRONTEND_SCHEMA_VERSION` é `w-seed-frontend-9`. Os campos D2/D3
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
 counts/capacities e relações de module const; a versão 7 acrescenta
 `effective_type` e preserva `declared_type` como annotation source-only para
 inferência scalar D7; a versão 8 separa `logical_source_id`, `module_id` e
-`local_module_name` e acrescenta edges de import resolvidos caller-owned.
+`local_module_name` e acrescenta edges de import resolvidos caller-owned; a
+versão 9 acrescenta o carrier de diagnostics frontend com facts, items e
+labels tipados, counts exatos e ranges caller-owned append-only.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
@@ -229,13 +231,19 @@ facts semânticos estáveis; os mappings atuais de `W-PARSE-*` preservam
 `actual`, `construct`, `expected` e labels com spans. Identity, UTF-8, NUL,
 spans e capacity são validados. Lex facts não mapeados e parser internos sem
 catalog truth retornam `UNSUPPORTED`; não há claim semântico. O mapping
-frontend adicional aceita somente `W-SEM-0001` com phase `semantic.type` e
-facts `actual`/`expected`. Ele recebe o `document_index` esperado junto da
-source, valida a igualdade com o diagnostic e valida o primary span contra
-aquela source view. O perfil CHK1 passa explicitamente o índice `0`; o teste
-bounded também prova um diagnostic do documento `1`, mismatch de identidade e
-boundary UTF-8 sem alterar os bytes D0 existentes. Ele retorna `UNSUPPORTED`
-para outros diagnostics ou identidades de documento incompatíveis.
+frontend adicional usa o carrier v9 e mapeia exatamente os 17 codes
+`W-SEM-0001`, `W-TYPE-0120`, `W-TYPE-0121`, `W-TYPE-0122`, `W-LABEL-0005`,
+`W-LABEL-0006`, `W-MATCH-0001`, `W-MATCH-0002`, `W-MATCH-0003`,
+`W-CONST-0001`, `W-CONTRACT-0001`, `W-CONTRACT-0002`, `W-CONTRACT-0003`,
+`W-CONTRACT-0004`, `W-GENERIC-0001`, `W-GENERIC-0002` e `W-GENERIC-0003`.
+Facts, items e labels são caller-owned, tipados e append-only; o adapter valida
+profiles, schemas, UTF-8, sets únicos byte-sorted, groups/order/cardinality de
+labels, SourceIds não vazios e únicos, todos os source views, documentos,
+spans e counts exatos antes de medir ou escrever. STRING usa `text`, INTEGER
+usa `integer_value` e ARRAY/SET usam a faixa de items. O teste prova matrix
+17/17, origins cross-document e um documento não referenciado corrompido;
+outros diagnostics retornam `UNSUPPORTED`. O snapshot de `W-SEM-0001` mantém
+os bytes D0 existentes.
 
 ## Build local
 
@@ -483,7 +491,7 @@ e agregado, CST de 32768 nodes por source e 262144 nodes agregados. Source
 bytes, CST e JSON staging/final crescem adaptativamente. JSON tem teto de
 64 MiB. Cada retry repete CHK6 → CHK7 e permanece bounded.
 
-Exit `0` indica clean. Exit `1` indica diagnostics mapeáveis de `W-SEM-0001`.
+Exit `0` indica clean. Exit `1` indica diagnostics mapeáveis do subset CHK10.
 Exit `2` indica invocation, source, parse, unsupported, barrier, capacity ou
 check incompleto. Exit `3` indica allocation, invariant, renderer ou falha de
 escrita. JSON preflighta os diagnostics e faz uma única `fwrite` do buffer final.
@@ -494,6 +502,12 @@ O gate público prova o witness single-source de Última Luz e o Restaurant
 multifile temporário com child nested, diagnóstico determinístico, source
 inalcançado, missing, `std`, cycle, identidade inválida, UTF-8, parse, frontend,
 limites de source e graph e escape por symlink ou junction.
+
+O witness público Restaurant de `W-MATCH-0001` prova `missingCases` set
+byte-sorted, label `match-subject` source-backed, JSON canônico repetível e
+exit `1`. O mapping é uma fatia bounded: frontend normativo completo,
+package/workspace, provider `std`, resolução externa, owner detection e codes
+fora dos 17 profiles continuam gaps.
 
 CHK9 não fecha owner detection, resolução externa, package/workspace, provider
 `std`, NFC completo, identifiers Unicode no SourceId bootstrap,
@@ -560,7 +574,7 @@ resolução externa, owner detection, provider real de `std`, loader geral e o
 frontend normativo completo continuam gaps.
 
 Exit `0` significa que a composição síncrona terminou sem diagnostics. Exit `1`
-significa que todos os diagnostics são `W-SEM-0001` mapeáveis. Exit `2`
+significa que os diagnostics pertencem ao subset CHK10 mapeável. Exit `2`
 representa invocation, source, parse, unsupported, barrier, capacity ou
 resultado incompleto. Exit `3` representa falha interna. `--json` faz o
 preflight de todos os diagnostics antes de emitir JSONL. O gate público é
