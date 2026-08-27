@@ -146,6 +146,27 @@ Sol envia uma lista consolidada ao mesmo Luna. Luna corrige e repete somente os
 checks invalidados. Evite revisão cerimonial. Se duas rodadas não fecharem o
 contrato, pare e informe o usuário.
 
+### Benchmark-driven development
+
+Todo bundle comportamental futuro declara exatamente um
+`benchmarkDisposition`: `required`, `compiler-lifecycle`, `deferred` ou
+`not-applicable`. `required` pertence à track de language e exige os perfis
+`learner`, `idiomatic` e `frontier`, com correctness/oracle record antes de
+qualquer sample; não exige timing antes de correção ou antes de o backend
+existir. `compiler-lifecycle` usa sua track própria, um source/graph/input
+identity e fases separadas. `deferred` exige blocker, taskId e stop condition
+explícitos. `not-applicable` exige razão e fica reservado a documentação ou
+mudança digest-only. A disposição não é claim de performance e não transforma
+um oracle de protocolo em gate de pesquisa.
+
+Quando houver resultado WBench/1, o record usa `kind: result` e liga o digest do
+oracle de validação às amostras seguintes. O record inclui raw samples, warmup,
+stop rule, ordem randomized/interleaved, ambiente e provenance completa,
+métricas/summary derivados, semantic deviations e disclosures. Claims sem
+backend, best-only, output precomputed, compiler recognition, hidden FFI,
+validation removida, numeric mode ou input specialization não declarados são
+rejeitados pelo checker da superfície BMD.
+
 ### 5. Fechar
 
 Luna faz a revisão final de manutenção. Ele remove duplicação, artefatos

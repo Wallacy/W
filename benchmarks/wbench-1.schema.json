@@ -1,0 +1,972 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wbench/1",
+  "title": "WBench/1",
+  "description": "Schema for benchmark protocols and workload manifests.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/program"
+    },
+    {
+      "$ref": "#/$defs/workloadManifest"
+    },
+    {
+      "$ref": "#/$defs/result"
+    }
+  ],
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "track",
+        "primary",
+        "regression",
+        "description"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "learner",
+            "idiomatic",
+            "frontier"
+          ]
+        },
+        "track": {
+          "const": "language"
+        },
+        "primary": {
+          "type": "boolean"
+        },
+        "regression": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "disclosures": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "unsafe": {
+              "type": "string",
+              "minLength": 1
+            },
+            "ffi": {
+              "type": "string",
+              "minLength": 1
+            },
+            "targetSpecialization": {
+              "type": "string",
+              "minLength": 1
+            },
+            "manualLayout": {
+              "type": "string",
+              "minLength": 1
+            },
+            "algorithm": {
+              "type": "string",
+              "minLength": 1
+            },
+            "legibility": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "status",
+        "implementation",
+        "dependencies",
+        "outputs",
+        "adversarialCases",
+        "stopCondition"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "ready",
+            "blocked"
+          ]
+        },
+        "implementation": {
+          "enum": [
+            "complete",
+            "pending",
+            "blocked"
+          ]
+        },
+        "blockedBy": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "adversarialCases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "stopCondition": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "program": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "schema",
+        "kind",
+        "id",
+        "status",
+        "backend",
+        "profiles",
+        "lanes",
+        "baselinePolicy",
+        "tasks"
+      ],
+      "properties": {
+        "$schema": {
+          "const": "./wbench-1.schema.json"
+        },
+        "schema": {
+          "const": "wbench/1"
+        },
+        "kind": {
+          "const": "program"
+        },
+        "id": {
+          "const": "bmd0"
+        },
+        "status": {
+          "const": "protocol-only"
+        },
+        "backend": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "benchmarkRunnerAvailable",
+            "resultsAllowed",
+            "note"
+          ],
+          "properties": {
+            "benchmarkRunnerAvailable": {
+              "const": false
+            },
+            "resultsAllowed": {
+              "const": false
+            },
+            "note": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "profiles": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/profile"
+          }
+        },
+        "lanes": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "description",
+              "requirements"
+            ],
+            "properties": {
+              "id": {
+                "enum": [
+                  "equivalent",
+                  "open"
+                ]
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "requirements": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "baselinePolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "defaultIndependent",
+            "exception",
+            "gameRole"
+          ],
+          "properties": {
+            "defaultIndependent": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "enum": [
+                  "c-clang",
+                  "rust"
+                ]
+              }
+            },
+            "exception": {
+              "type": "string",
+              "minLength": 1
+            },
+            "gameRole": {
+              "const": "exploratory-never-authority"
+            }
+          }
+        },
+        "tasks": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/task"
+          }
+        }
+      }
+    },
+    "workloadManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "schema",
+        "kind",
+        "id",
+        "status",
+        "track",
+        "lane",
+        "benchmarkDisposition",
+        "backend",
+        "identity",
+        "command",
+        "languageProfiles",
+        "lifecycle",
+        "oracle",
+        "measurementPolicy",
+        "baselinePolicy",
+        "outputs"
+      ],
+      "properties": {
+        "$schema": {
+          "const": "./wbench-1.schema.json"
+        },
+        "schema": {
+          "const": "wbench/1"
+        },
+        "kind": {
+          "const": "workload-manifest"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "ready",
+            "pending"
+          ]
+        },
+        "track": {
+          "const": "compiler-lifecycle"
+        },
+        "lane": {
+          "enum": [
+            "equivalent",
+            "open"
+          ]
+        },
+        "benchmarkDisposition": {
+          "const": "compiler-lifecycle"
+        },
+        "backend": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "benchmarkRunnerAvailable",
+            "frontendAvailable",
+            "nativeBackendAvailable",
+            "runtimeAvailable",
+            "execution",
+            "resultsAllowed"
+          ],
+          "properties": {
+            "benchmarkRunnerAvailable": {
+              "const": false
+            },
+            "frontendAvailable": {
+              "const": true
+            },
+            "nativeBackendAvailable": {
+              "const": false
+            },
+            "runtimeAvailable": {
+              "const": false
+            },
+            "execution": {
+              "const": "pending"
+            },
+            "resultsAllowed": {
+              "const": false
+            }
+          }
+        },
+        "identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "graph",
+            "input"
+          ],
+          "properties": {
+            "source": {
+              "$ref": "#/$defs/source"
+            },
+            "graph": {
+              "$ref": "#/$defs/descriptorIdentity"
+            },
+            "input": {
+              "$ref": "#/$defs/descriptorIdentity"
+            }
+          }
+        },
+        "command": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tool",
+            "operation",
+            "arguments"
+          ],
+          "properties": {
+            "tool": {
+              "const": "w"
+            },
+            "operation": {
+              "const": "check"
+            },
+            "arguments": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "languageProfiles": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "applicability",
+            "reason"
+          ],
+          "properties": {
+            "applicability": {
+              "const": "not-applicable"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "baselinePolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "primary",
+            "independent",
+            "role",
+            "exceptionReason",
+            "recipe"
+          ],
+          "properties": {
+            "primary": {
+              "const": "historical-w"
+            },
+            "independent": {
+              "const": [
+                "c-clang",
+                "rust"
+              ]
+            },
+            "role": {
+              "const": "contextual-not-ranking"
+            },
+            "exceptionReason": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "recipe": {
+              "const": "equivalent"
+            }
+          }
+        },
+        "lifecycle": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/lifecyclePhase"
+          }
+        },
+        "oracle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "requiredBeforeSamples",
+            "runtime"
+          ],
+          "properties": {
+            "kind": {
+              "const": "host-structural"
+            },
+            "requiredBeforeSamples": {
+              "const": true
+            },
+            "runtime": {
+              "const": "unavailable"
+            }
+          }
+        },
+        "measurementPolicy": {
+          "$ref": "#/$defs/measurementPolicy"
+        },
+        "outputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "symbol",
+        "digest"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "identityDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "digest"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "descriptorIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "digest"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "lifecyclePhase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "status",
+        "source",
+        "graph",
+        "input"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "clean",
+            "no-op",
+            "edit",
+            "frontend",
+            "hir",
+            "lowering",
+            "codegen",
+            "link",
+            "startup",
+            "execution"
+          ]
+        },
+        "status": {
+          "enum": [
+            "ready",
+            "pending",
+            "blocked"
+          ]
+        },
+        "blockedBy": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "source": {
+          "$ref": "#/$defs/identityDigest"
+        },
+        "graph": {
+          "$ref": "#/$defs/identityDigest"
+        },
+        "input": {
+          "$ref": "#/$defs/identityDigest"
+        }
+      }
+    },
+    "measurementPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "correctnessFirst",
+        "rawSamples",
+        "warmup",
+        "stopRule",
+        "order",
+        "environmentFields",
+        "metrics",
+        "semanticDeviations",
+        "safetyDisclosures"
+      ],
+      "properties": {
+        "correctnessFirst": {
+          "const": true
+        },
+        "rawSamples": {
+          "const": "required-after-oracle"
+        },
+        "warmup": {
+          "const": "record-before-samples"
+        },
+        "stopRule": {
+          "type": "string",
+          "minLength": 1
+        },
+        "order": {
+          "const": "randomized-interleaved"
+        },
+        "environmentFields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "metrics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "latency",
+              "throughput",
+              "memory",
+              "allocations",
+              "artifact-size"
+            ]
+          }
+        },
+        "semanticDeviations": {
+          "const": "record-all"
+        },
+        "safetyDisclosures": {
+          "const": "record-all"
+        }
+      }
+    },
+    "benchmarkDisposition": {
+      "enum": [
+        "required",
+        "compiler-lifecycle",
+        "deferred",
+        "not-applicable"
+      ]
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "schema",
+        "kind",
+        "id",
+        "status",
+        "workload",
+        "oracle",
+        "samples",
+        "environment",
+        "provenance",
+        "metrics",
+        "summary",
+        "semanticDeviations",
+        "disclosures"
+      ],
+      "properties": {
+        "$schema": {
+          "const": "./wbench-1.schema.json"
+        },
+        "schema": {
+          "const": "wbench/1"
+        },
+        "kind": {
+          "const": "result"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "const": "recorded"
+        },
+        "workload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "manifestDigest",
+            "track",
+            "lane",
+            "phase",
+            "baseline",
+            "variant"
+          ],
+          "properties": {
+            "manifestDigest": {
+              "$ref": "#/$defs/digest"
+            },
+            "track": {
+              "enum": [
+                "language",
+                "compiler-lifecycle"
+              ]
+            },
+            "lane": {
+              "enum": [
+                "equivalent",
+                "open"
+              ]
+            },
+            "phase": {
+              "type": "string",
+              "minLength": 1
+            },
+            "profile": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "learner",
+                "idiomatic",
+                "frontier",
+                null
+              ]
+            },
+            "baseline": {
+              "type": "string",
+              "minLength": 1
+            },
+            "variant": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "track": {
+                    "const": "language"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "profile"
+                ]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "track": {
+                    "const": "compiler-lifecycle"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "profile": {
+                    "const": null
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "oracle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "validationDigest",
+            "complete",
+            "beforeSamples"
+          ],
+          "properties": {
+            "validationDigest": {
+              "$ref": "#/$defs/digest"
+            },
+            "complete": {
+              "const": true
+            },
+            "beforeSamples": {
+              "const": true
+            }
+          }
+        },
+        "samples": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "raw",
+            "warmup",
+            "stopRule",
+            "order"
+          ],
+          "properties": {
+            "raw": {
+              "type": "array",
+              "minItems": 1
+            },
+            "warmup": {
+              "type": "array",
+              "minItems": 1
+            },
+            "stopRule": {
+              "type": "string",
+              "minLength": 1
+            },
+            "order": {
+              "const": "randomized-interleaved"
+            }
+          }
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hardware",
+            "kernel",
+            "toolchain",
+            "flags",
+            "target",
+            "provider"
+          ],
+          "properties": {
+            "hardware": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kernel": {
+              "type": "string",
+              "minLength": 1
+            },
+            "toolchain": {
+              "type": "string",
+              "minLength": 1
+            },
+            "flags": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1
+            },
+            "provider": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceDigest",
+            "artifactDigest",
+            "inputDigest",
+            "recipeDigest",
+            "runnerDigest",
+            "toolchainDigest"
+          ],
+          "properties": {
+            "sourceDigest": {
+              "$ref": "#/$defs/digest"
+            },
+            "artifactDigest": {
+              "$ref": "#/$defs/digest"
+            },
+            "inputDigest": {
+              "$ref": "#/$defs/digest"
+            },
+            "recipeDigest": {
+              "$ref": "#/$defs/digest"
+            },
+            "runnerDigest": {
+              "$ref": "#/$defs/digest"
+            },
+            "toolchainDigest": {
+              "$ref": "#/$defs/digest"
+            }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "propertyNames": {
+            "enum": [
+              "latency",
+              "throughput",
+              "memory",
+              "allocations",
+              "artifactSize"
+            ]
+          },
+          "description": "Measured latency, throughput, memory, allocations or artifact size as applicable."
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "derivedFromRawSamples"
+          ],
+          "properties": {
+            "derivedFromRawSamples": {
+              "const": true
+            }
+          }
+        },
+        "semanticDeviations": {
+          "type": "array"
+        },
+        "disclosures": {
+          "type": "array"
+        }
+      }
+    }
+  }
+}
