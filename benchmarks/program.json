@@ -7,9 +7,11 @@
   "backend": {
     "benchmarkRunnerAvailable": true,
     "compilerLifecycleResultsAllowed": true,
+    "comparisonResultsAllowed": true,
+    "regressionResultsAllowed": false,
     "languageResultsAllowed": false,
     "productRuntimeResultsAllowed": false,
-    "note": "BMD1 records exploratory compiler-lifecycle measurements for the source-backed clean check-end-to-end point. Language and product-runtime results remain disabled."
+    "note": "BMD2 records exploratory compiler-lifecycle comparisons for two source-backed compiler commits. Regression, language and product-runtime results remain disabled."
   },
   "profiles": [
     {
@@ -114,7 +116,8 @@
       "outputs": [
         "3x9 compiler lifecycle matrix",
         "source-backed ready point",
-        "result validator"
+        "result validator",
+        "source-backed paired compiler comparator"
       ],
       "adversarialCases": [
         "BMD1-W-1488-current-matrix",
@@ -138,9 +141,26 @@
         "BMD1-W-1488-blocker-incomplete",
         "BMD1-W-1488-baseline-provenance-missing",
         "BMD1-W-1488-compile-execution-mixed",
-        "BMD1-W-1488-claim-without-backend"
+        "BMD1-W-1488-claim-without-backend",
+        "BMD2-W-1489-current-comparison",
+        "BMD2-W-1489-different-closure-comparison",
+        "BMD2-W-1489-schedule-forged",
+        "BMD2-W-1489-sample-label-forged",
+        "BMD2-W-1489-oracle-partial",
+        "BMD2-W-1489-recipe-class-divergent",
+        "BMD2-W-1489-toolchain-divergent",
+        "BMD2-W-1489-workload-divergent",
+        "BMD2-W-1489-metric-forged",
+        "BMD2-W-1489-delta-forged",
+        "BMD2-W-1489-calibration-forged",
+        "BMD2-W-1489-counts-forged",
+        "BMD2-W-1489-even-pairs",
+        "BMD2-W-1489-zero-ns",
+        "BMD2-W-1489-leading-zero",
+        "BMD2-W-1489-u64-overflow",
+        "BMD2-W-1489-regression-blocked"
       ],
-      "stopCondition": "Only clean x check-end-to-end is ready. All other cells remain blocked by their declared component."
+      "stopCondition": "The clean x check-end-to-end comparison may record exploratory comparison-only results after both paired oracles and equivalent recipe-class, toolchain and workload checks pass. All other cells remain blocked by their declared component; regression remains blocked by managed-regression-runner until controlled provider, repetition/uncertainty policy and threshold evidence exist."
     },
     {
       "id": "core-language-units",

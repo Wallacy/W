@@ -6,7 +6,8 @@
   "oneOf": [
     { "$ref": "#/$defs/program" },
     { "$ref": "#/$defs/workloadManifest" },
-    { "$ref": "#/$defs/result" }
+    { "$ref": "#/$defs/result" },
+    { "$ref": "#/$defs/comparisonResult" }
   ],
   "$defs": {
     "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
@@ -50,7 +51,23 @@
         "outputs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
         "adversarialCases": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
         "stopCondition": { "type": "string", "minLength": 1 }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "id": { "const": "seed-compiler-lifecycle" } } },
+          "then": {
+            "properties": {
+              "outputs": { "contains": { "const": "source-backed paired compiler comparator" } },
+              "stopCondition": {
+                "allOf": [
+                  { "pattern": "comparison-only" },
+                  { "pattern": "managed-regression-runner" }
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
     "lane": {
       "type": "object", "additionalProperties": false,
@@ -81,10 +98,12 @@
         "status": { "const": "ready" },
         "backend": {
           "type": "object", "additionalProperties": false,
-          "required": ["benchmarkRunnerAvailable", "compilerLifecycleResultsAllowed", "languageResultsAllowed", "productRuntimeResultsAllowed", "note"],
+          "required": ["benchmarkRunnerAvailable", "compilerLifecycleResultsAllowed", "comparisonResultsAllowed", "regressionResultsAllowed", "languageResultsAllowed", "productRuntimeResultsAllowed", "note"],
           "properties": {
             "benchmarkRunnerAvailable": { "const": true },
             "compilerLifecycleResultsAllowed": { "const": true },
+            "comparisonResultsAllowed": { "const": true },
+            "regressionResultsAllowed": { "const": false },
             "languageResultsAllowed": { "const": false },
             "productRuntimeResultsAllowed": { "const": false },
             "note": { "type": "string", "minLength": 1 }
@@ -162,7 +181,7 @@
     },
     "workloadManifest": {
       "type": "object", "additionalProperties": false,
-      "required": ["$schema", "schema", "kind", "id", "status", "track", "lane", "benchmarkDisposition", "backend", "identity", "command", "languageProfiles", "matrix", "oracle", "measurementPolicy", "baselinePolicy", "outputs"],
+      "required": ["$schema", "schema", "kind", "id", "status", "track", "lane", "benchmarkDisposition", "backend", "identity", "command", "languageProfiles", "matrix", "oracle", "measurementPolicy", "comparisonPolicy", "baselinePolicy", "outputs"],
       "properties": {
         "$schema": { "const": "./wbench-1.schema.json" },
         "schema": { "const": "wbench/1" },
@@ -174,13 +193,15 @@
         "benchmarkDisposition": { "const": "compiler-lifecycle" },
         "backend": {
           "type": "object", "additionalProperties": false,
-          "required": ["benchmarkRunnerAvailable", "frontendAvailable", "nativeBackendAvailable", "runtimeAvailable", "compilerLifecycleResultsAllowed", "languageResultsAllowed", "productRuntimeResultsAllowed"],
+          "required": ["benchmarkRunnerAvailable", "frontendAvailable", "nativeBackendAvailable", "runtimeAvailable", "compilerLifecycleResultsAllowed", "comparisonResultsAllowed", "regressionResultsAllowed", "languageResultsAllowed", "productRuntimeResultsAllowed"],
           "properties": {
             "benchmarkRunnerAvailable": { "const": true },
             "frontendAvailable": { "const": true },
             "nativeBackendAvailable": { "const": false },
             "runtimeAvailable": { "const": false },
             "compilerLifecycleResultsAllowed": { "const": true },
+            "comparisonResultsAllowed": { "const": true },
+            "regressionResultsAllowed": { "const": false },
             "languageResultsAllowed": { "const": false },
             "productRuntimeResultsAllowed": { "const": false }
           }
@@ -228,6 +249,18 @@
             "metrics": { "type": "array", "minItems": 1, "items": { "const": "latency-ns" } },
             "semanticDeviations": { "const": "record-all" },
             "safetyDisclosures": { "const": "record-all" }
+          }
+        },
+        "comparisonPolicy": {
+          "type": "object", "additionalProperties": false,
+          "required": ["order", "algorithm", "pairsMinimum", "warmup", "nanoseconds", "regressionBlocker"],
+          "properties": {
+            "order": { "const": "balanced-paired-interleaved-sha256-v1" },
+            "algorithm": { "const": "balanced-paired-interleaved-sha256-v1" },
+            "pairsMinimum": { "const": 9 },
+            "warmup": { "const": "at-least-one-pair" },
+            "nanoseconds": { "const": "positive-u64" },
+            "regressionBlocker": { "const": "managed-regression-runner" }
           }
         },
         "baselinePolicy": {
@@ -361,6 +394,259 @@
             "derivedFromRawSamples": { "const": true }
           }
         },
+        "semanticDeviations": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "disclosures": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "positiveU64": {
+      "allOf": [
+        { "$ref": "#/$defs/u64" },
+        { "type": "string", "pattern": "^[1-9][0-9]*$" }
+      ]
+    },
+    "comparisonCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "signedDecimal": {
+      "type": "string",
+      "pattern": "^(?:0|-?[1-9][0-9]*)$"
+    },
+    "comparisonRole": {
+      "type": "object", "additionalProperties": false,
+      "required": ["commit", "closureDigest", "artifactDigest", "recipeDigest", "recipeClassDigest", "toolchainDigest"],
+      "properties": {
+        "commit": { "$ref": "#/$defs/comparisonCommit" },
+        "closureDigest": { "$ref": "#/$defs/digest" },
+        "artifactDigest": { "$ref": "#/$defs/digest" },
+        "recipeDigest": { "$ref": "#/$defs/digest" },
+        "recipeClassDigest": { "$ref": "#/$defs/digest" },
+        "toolchainDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "comparisonSample": {
+      "type": "object", "additionalProperties": false,
+      "required": ["round", "series", "position", "ns"],
+      "properties": {
+        "round": { "type": "integer", "minimum": 1 },
+        "series": { "enum": ["baseline", "candidate"] },
+        "position": { "enum": ["first", "second"] },
+        "ns": { "$ref": "#/$defs/positiveU64" }
+      }
+    },
+    "comparisonScheduleRound": {
+      "type": "object", "additionalProperties": false,
+      "required": ["round", "first", "second"],
+      "properties": {
+        "round": { "type": "integer", "minimum": 1 },
+        "first": { "enum": ["baseline", "candidate"] },
+        "second": { "enum": ["baseline", "candidate"] }
+      }
+    },
+    "comparisonSchedule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["algorithm", "seed", "rounds"],
+      "properties": {
+        "algorithm": { "const": "balanced-paired-interleaved-sha256-v1" },
+        "seed": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "rounds": {
+          "type": "array", "minItems": 9,
+          "items": { "$ref": "#/$defs/comparisonScheduleRound" }
+        }
+      }
+    },
+    "comparisonOracleRole": {
+      "type": "object", "additionalProperties": false,
+      "required": ["validationDigest", "complete", "beforeSamples"],
+      "properties": {
+        "validationDigest": { "$ref": "#/$defs/digest" },
+        "complete": { "const": true },
+        "beforeSamples": { "const": true }
+      }
+    },
+    "comparisonOracle": {
+      "type": "object", "additionalProperties": false,
+      "required": ["baseline", "candidate", "complete", "beforeSamples"],
+      "properties": {
+        "baseline": { "$ref": "#/$defs/comparisonOracleRole" },
+        "candidate": { "$ref": "#/$defs/comparisonOracleRole" },
+        "complete": { "const": true },
+        "beforeSamples": { "const": true }
+      }
+    },
+    "comparisonSignedSummaryNs": {
+      "type": "object", "additionalProperties": false,
+      "required": ["minimumNs", "medianNs", "maximumNs"],
+      "properties": {
+        "minimumNs": { "$ref": "#/$defs/signedDecimal" },
+        "medianNs": { "$ref": "#/$defs/signedDecimal" },
+        "maximumNs": { "$ref": "#/$defs/signedDecimal" }
+      }
+    },
+    "comparisonSignedSummaryPpm": {
+      "type": "object", "additionalProperties": false,
+      "required": ["minimumPpm", "medianPpm", "maximumPpm"],
+      "properties": {
+        "minimumPpm": { "$ref": "#/$defs/signedDecimal" },
+        "medianPpm": { "$ref": "#/$defs/signedDecimal" },
+        "maximumPpm": { "$ref": "#/$defs/signedDecimal" }
+      }
+    },
+    "comparisonCounts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["faster", "tied", "slower"],
+      "properties": {
+        "faster": { "type": "integer", "minimum": 0 },
+        "tied": { "type": "integer", "minimum": 0 },
+        "slower": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "comparisonPair": {
+      "type": "object", "additionalProperties": false,
+      "required": ["round", "baselineNs", "candidateNs", "deltaNs", "relativePpm"],
+      "properties": {
+        "round": { "type": "integer", "minimum": 1 },
+        "baselineNs": { "$ref": "#/$defs/positiveU64" },
+        "candidateNs": { "$ref": "#/$defs/positiveU64" },
+        "deltaNs": { "$ref": "#/$defs/signedDecimal" },
+        "relativePpm": { "$ref": "#/$defs/signedDecimal" }
+      }
+    },
+    "comparison": {
+      "type": "object", "additionalProperties": false,
+      "required": ["baseline", "candidate", "calibration", "verdict", "pairs", "delta", "relativePpm", "counts", "noisePolicy"],
+      "properties": {
+        "baseline": { "$ref": "#/$defs/comparisonRole" },
+        "candidate": { "$ref": "#/$defs/comparisonRole" },
+        "calibration": { "type": "boolean" },
+        "verdict": { "const": "not-evaluated" },
+        "pairs": { "type": "array", "minItems": 9, "items": { "$ref": "#/$defs/comparisonPair" } },
+        "delta": { "$ref": "#/$defs/comparisonSignedSummaryNs" },
+        "relativePpm": { "$ref": "#/$defs/comparisonSignedSummaryPpm" },
+        "counts": { "$ref": "#/$defs/comparisonCounts" },
+        "noisePolicy": {
+          "type": "object", "additionalProperties": false,
+          "required": ["known", "unknown"],
+          "properties": {
+            "known": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+            "unknown": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+          }
+        }
+      }
+    },
+    "comparisonSamples": {
+      "type": "object", "additionalProperties": false,
+      "required": ["raw", "warmup", "stopRule", "clock", "order", "schedule"],
+      "properties": {
+        "raw": { "type": "array", "minItems": 18, "items": { "$ref": "#/$defs/comparisonSample" } },
+        "warmup": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/comparisonSample" } },
+        "stopRule": {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "pairs"],
+          "properties": {
+            "kind": { "const": "fixed-pairs" },
+            "pairs": { "type": "integer", "minimum": 9 }
+          }
+        },
+        "clock": { "const": "monotonic-wall-ns" },
+        "order": { "const": "balanced-paired-interleaved-sha256-v1" },
+        "schedule": { "$ref": "#/$defs/comparisonSchedule" }
+      }
+    },
+    "comparisonLatency": {
+      "type": "object", "additionalProperties": false,
+      "required": ["unit", "minimumNs", "medianNs", "maximumNs", "madNs", "derivedFromRawSamples"],
+      "properties": {
+        "unit": { "const": "ns" },
+        "minimumNs": { "$ref": "#/$defs/positiveU64" },
+        "medianNs": { "$ref": "#/$defs/positiveU64" },
+        "maximumNs": { "$ref": "#/$defs/positiveU64" },
+        "madNs": { "$ref": "#/$defs/u64" },
+        "derivedFromRawSamples": { "const": true }
+      }
+    },
+    "comparisonMetrics": {
+      "type": "object", "additionalProperties": false,
+      "required": ["baseline", "candidate"],
+      "properties": {
+        "baseline": { "$ref": "#/$defs/comparisonLatency" },
+        "candidate": { "$ref": "#/$defs/comparisonLatency" }
+      }
+    },
+    "comparisonSummary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pairCount", "warmupPairCount", "derivedFromRawSamples"],
+      "properties": {
+        "pairCount": { "type": "integer", "minimum": 9 },
+        "warmupPairCount": { "type": "integer", "minimum": 1 },
+        "derivedFromRawSamples": { "const": true }
+      }
+    },
+    "comparisonProvenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sourceDigest", "graphDigest", "inputDigest", "workloadDigest", "runnerDigest", "baseline", "candidate"],
+      "properties": {
+        "sourceDigest": { "$ref": "#/$defs/digest" },
+        "graphDigest": { "$ref": "#/$defs/digest" },
+        "inputDigest": { "$ref": "#/$defs/digest" },
+        "workloadDigest": { "$ref": "#/$defs/digest" },
+        "runnerDigest": { "$ref": "#/$defs/digest" },
+        "baseline": { "$ref": "#/$defs/comparisonRole" },
+        "candidate": { "$ref": "#/$defs/comparisonRole" }
+      }
+    },
+    "comparisonResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["$schema", "schema", "kind", "id", "status", "quality", "claim", "verdict", "workload", "identity", "comparison", "oracle", "samples", "environment", "provenance", "metrics", "summary", "semanticDeviations", "disclosures"],
+      "properties": {
+        "$schema": { "const": "./wbench-1.schema.json" },
+        "schema": { "const": "wbench/1" },
+        "kind": { "const": "result" },
+        "id": { "type": "string", "minLength": 1 },
+        "status": { "const": "recorded" },
+        "quality": { "const": "exploratory" },
+        "claim": { "const": "comparison-only" },
+        "verdict": { "const": "not-evaluated" },
+        "workload": {
+          "type": "object", "additionalProperties": false,
+          "required": ["manifestDigest", "track", "lane", "scenario", "stage", "subject", "profile"],
+          "properties": {
+            "manifestDigest": { "$ref": "#/$defs/digest" },
+            "track": { "const": "compiler-lifecycle" },
+            "lane": { "const": "equivalent" },
+            "scenario": { "const": "clean" },
+            "stage": { "const": "check-end-to-end" },
+            "subject": { "const": "compiler/seed-c" },
+            "profile": { "const": null }
+          }
+        },
+        "identity": { "$ref": "#/$defs/resultIdentity" },
+        "comparison": { "$ref": "#/$defs/comparison" },
+        "oracle": { "$ref": "#/$defs/comparisonOracle" },
+        "samples": { "$ref": "#/$defs/comparisonSamples" },
+        "environment": {
+          "type": "object", "additionalProperties": false,
+          "required": ["hardware", "kernel", "target", "provider", "toolchain", "flags", "noiseControls"],
+          "properties": {
+            "hardware": { "type": "string", "minLength": 1 },
+            "kernel": { "type": "string", "minLength": 1 },
+            "target": { "type": "string", "minLength": 1 },
+            "provider": { "type": "string", "minLength": 1 },
+            "toolchain": { "type": "string", "minLength": 1 },
+            "flags": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+            "noiseControls": {
+              "type": "object", "additionalProperties": false,
+              "required": ["known", "unknown"],
+              "properties": {
+                "known": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+                "unknown": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+              }
+            }
+          }
+        },
+        "provenance": { "$ref": "#/$defs/comparisonProvenance" },
+        "metrics": { "$ref": "#/$defs/comparisonMetrics" },
+        "summary": { "$ref": "#/$defs/comparisonSummary" },
         "semanticDeviations": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
         "disclosures": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
       }

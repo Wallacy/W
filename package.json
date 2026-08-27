@@ -33,6 +33,7 @@
     "check:simd": "bun test tooling/simd-reference.test.mjs",
     "check:bmd": "bun test tooling/benchmark-driven-development-reference.test.mjs tooling/benchmark-driven-development-runner.test.mjs && bun tooling/check-benchmark-driven-development.mjs",
     "check:bmd:smoke": "bun tooling/benchmark-driven-development-runner-smoke.mjs",
+    "check:bmd:comparison-smoke": "bun tooling/benchmark-driven-development-comparison-runner-smoke.mjs",
     "check:cheatsheet": "bun test tooling/cheatsheet-snippets.test.mjs && bun tooling/check-cheatsheet-snippets.mjs",
     "check:service-recovery": "bun test tooling/service-recovery-reference.test.mjs && bun tooling/check-service-recovery-cases.mjs",
     "check:docs": "bun run check:bmd && bun run --cwd tooling/tree-sitter-w check:docs",

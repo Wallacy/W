@@ -13,6 +13,8 @@
     "nativeBackendAvailable": false,
     "runtimeAvailable": false,
     "compilerLifecycleResultsAllowed": true,
+    "comparisonResultsAllowed": true,
+    "regressionResultsAllowed": false,
     "languageResultsAllowed": false,
     "productRuntimeResultsAllowed": false
   },
@@ -324,6 +326,14 @@
     "semanticDeviations": "record-all",
     "safetyDisclosures": "record-all"
   },
+  "comparisonPolicy": {
+    "order": "balanced-paired-interleaved-sha256-v1",
+    "algorithm": "balanced-paired-interleaved-sha256-v1",
+    "pairsMinimum": 9,
+    "warmup": "at-least-one-pair",
+    "nanoseconds": "positive-u64",
+    "regressionBlocker": "managed-regression-runner"
+  },
   "baselinePolicy": {
     "primary": "historical-w",
     "independent": [
@@ -337,6 +347,7 @@
   "outputs": [
     "validation-record",
     "compiler-lifecycle-matrix",
-    "result-for-ready-point"
+    "result-for-ready-point",
+    "comparison-result-for-ready-point"
   ]
 }

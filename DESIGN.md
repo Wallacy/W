@@ -24493,11 +24493,65 @@ target, provider, toolchain, flags e noise controls conhecidos e
 desconhecidos. O record não afirma performance, native backend, runtime ou
 result de language.
 
-Comparison e regression permanecem bloqueados por
-`interleaved-comparison-runner`. Uma comparação futura exige baseline e
-candidate identificados, samples etiquetadas, randomized interleaving e noise
-policy completa. BMD1 não aceita essa forma. A track language e a track
-product-runtime continuam sem result corrente.
+BMD1 comparison permanece bloqueada por `interleaved-comparison-runner` e
+regression permanece bloqueada por `managed-regression-runner`. W-1489 define
+a comparação BMD2 exploratória.
+BMD1 não aceita essa forma. A track language e a track product-runtime
+continuam sem result corrente.
+
+#### W-1489 — comparação BMD2 source-backed de compiler lifecycle
+
+W-1489 adiciona um runner `oracle-backed-current` para comparação somente no
+compiler lifecycle. O contrato libera `comparison-only`, não libera
+`regression` e não é claim de performance, linguagem ou runtime. O result é
+`exploratory`, usa lane `equivalent`, cenário `clean`, estágio
+`check-end-to-end`, `verdict: not-evaluated` e `noise: unknown` quando o host
+não fornece controles adicionais. A aceitação mantém `calibration: true`
+quando as closures compiler/seed-c são idênticas, mesmo com commits distintos.
+
+O caller fornece dois SHAs completos de 40 hex, `baseline` e `candidate`. O
+runner resolve somente commits locais e extrai apenas `compiler/seed-c` com
+`git archive` para diretórios temporários próprios. Ele não usa working tree,
+rede ou worktree Git. Cada papel recebe build Release independente com
+CMake/Ninja fora da medição. O record fixa commit, closure, artifact, recipe,
+recipe-class e toolchain digests por papel. Recipe-class, toolchain e workload
+devem ser equivalentes antes do primeiro sample.
+
+O oracle completo de cada papel termina antes de warmup e raw. Cada oracle
+exige exit 0 e stdout/stderr vazios. Warmup usa pelo menos um par, com rounds
+próprios de `1..warmupPairCount` na orientação do primeiro round raw. Raw usa
+um número fixo, ímpar e pelo menos nove pares. Cada round executa baseline e
+candidate uma vez. A ordem é derivada por CSPRNG interno e pelo algoritmo
+versionado `balanced-paired-interleaved-sha256-v1`. O result registra seed e
+ordem, balanceia baseline-first/candidate-first com diferença máxima um e a
+máquina recompõe o schedule. O caller não escolhe seed.
+
+Cada sample registra round, series, position e nanoseconds como u64 decimal
+positivo canônico. A máquina valida labels, schedule e ordem real. Ela calcula
+com `BigInt` e arredondamento explícito median, min, max e MAD por série, além
+de candidate-baseline e relative ppm com sinal, median/min/max dos deltas e
+ppm, e contagens faster/tied/slower. Não há mean, p-value, bootstrap,
+threshold ou verdict direcional. Duração zero invalida o result pareado.
+
+A máquina recompõe e valida o schedule, labels e ordem, recalcula com `BigInt`
+as métricas, deltas, ppm, counts e calibration, valida o workload corrente e
+verifica a consistência entre as identidades de papel duplicadas em
+`comparison` e `provenance`. O runner deriva a proveniência de archive, build,
+artifact, recipe e toolchain e executa o oracle de cada papel. Um result
+isolado não permite à máquina recomputar essa proveniência nem reexecutar o
+oracle; ela valida somente a forma fechada e a consistência dessas evidências.
+Publicação exige output explícito, atomicidade, fail-if-exists e all-or-nothing.
+Falha não produz result nem output parcial e o cleanup remove somente
+temporários próprios.
+`regression-grade` e `regression` continuam rejeitados pelo blocker estável
+`managed-regression-runner`, que exige provider controlado, política de
+repetição/uncertainty e threshold antes de qualquer claim.
+
+**Exemplo:**
+
+```text
+bun tooling/benchmark-driven-development-runner.mjs --baseline <40-hex-sha> --candidate <40-hex-sha> --output <new-output-path>
+```
 
 ### 18.9 Gate pré-implementação de pesquisa SOTA
 

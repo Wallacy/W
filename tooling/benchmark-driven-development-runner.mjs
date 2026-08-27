@@ -15,6 +15,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   DESCRIPTOR_IDENTITIES,
+  COMPARISON_CLAIM,
+  COMPARISON_SEED_BYTES,
+  PAIRED_COMPARISON_ORDER,
+  MAX_U64,
+  calculatePairedComparison,
+  pairedScheduleForSeed,
   MEASUREMENT_ORDER,
   RESULT_CLOCK,
   SCHEMA_VERSION,
@@ -34,6 +40,10 @@ export const BUILD_TYPE = "Release";
 export const DEFAULT_WARMUP_COUNT = 1;
 export const DEFAULT_SAMPLE_COUNT = 9;
 export const MAX_COUNT = 100_001;
+export const COMPARISON_COMMIT_PATTERN = /^[0-9a-f]{40}$/iu;
+export const COMPARISON_SEED_PATTERN = /^[0-9a-f]{64}$/u;
+export const COMPARISON_DEFAULT_PAIR_COUNT = 9;
+export const COMPARISON_DEFAULT_WARMUP_PAIRS = 1;
 export const RUNNER_EVIDENCE_PATHS = Object.freeze([
   "benchmarks/wbench-1.schema.json",
   "tooling/benchmark-driven-development-machine.mjs",
@@ -44,7 +54,7 @@ const CLEANUP_MAX_RETRIES = 3;
 const CLEANUP_RETRY_DELAY_MS = 100;
 
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
-const USAGE = "usage: bun tooling/benchmark-driven-development-runner.mjs --output <path> [--warmup <count>] [--samples <odd-count>]";
+const USAGE = "usage: bun tooling/benchmark-driven-development-runner.mjs --output <path> [--warmup <count>] [--samples <odd-count>] [--baseline <40-hex-sha> --candidate <40-hex-sha>]";
 
 export class RunnerError extends Error {
   constructor(code, message) {
@@ -125,6 +135,13 @@ function parsePositiveInteger(value, name) {
   return parsed;
 }
 
+export function validateCommitSha(value, name = "commit") {
+  if (typeof value !== "string" || !COMPARISON_COMMIT_PATTERN.test(value)) {
+    throw new RunnerError("usage", name + " must be a complete 40-hex Git commit SHA.");
+  }
+  return value.toLowerCase();
+}
+
 export function validateRunnerOptions(options) {
   if (!options || typeof options !== "object") {
     throw new RunnerError("usage", "runner options are required.");
@@ -165,7 +182,8 @@ export function parseRunnerArgs(argv) {
     }
     let name;
     let value;
-    if (argument === "--output" || argument === "--warmup" || argument === "--samples") {
+    if (argument === "--output" || argument === "--warmup" || argument === "--samples" ||
+        argument === "--baseline" || argument === "--candidate") {
       name = argument;
       if (index + 1 >= argv.length) throw new RunnerError("usage", name + " requires a value.");
       value = argv[++index];
@@ -178,6 +196,12 @@ export function parseRunnerArgs(argv) {
     } else if (typeof argument === "string" && argument.startsWith("--samples=")) {
       name = "--samples";
       value = optionValue(argument, name);
+    } else if (typeof argument === "string" && argument.startsWith("--baseline=")) {
+      name = "--baseline";
+      value = optionValue(argument, name);
+    } else if (typeof argument === "string" && argument.startsWith("--candidate=")) {
+      name = "--candidate";
+      value = optionValue(argument, name);
     } else if (argument === "--force" || argument === "--overwrite") {
       throw new RunnerError("usage", argument + " is not supported; output is fail-if-exists.");
     } else {
@@ -188,8 +212,19 @@ export function parseRunnerArgs(argv) {
     if (name === "--output") values.outputPath = value;
     if (name === "--warmup") values.warmupCount = parsePositiveInteger(value, "warmup count");
     if (name === "--samples") values.sampleCount = parsePositiveInteger(value, "sample count");
+    if (name === "--baseline" || name === "--candidate") values[name.slice(2)] = value;
   }
-  return { help: false, ...validateRunnerOptions(values) };
+  const parsed = { help: false, ...validateRunnerOptions(values) };
+  const hasBaseline = values.baseline !== undefined;
+  const hasCandidate = values.candidate !== undefined;
+  if (hasBaseline !== hasCandidate) {
+    throw new RunnerError("usage", "--baseline and --candidate must be specified together for comparison.");
+  }
+  if (hasBaseline) {
+    parsed.baseline = validateCommitSha(values.baseline, "baseline");
+    parsed.candidate = validateCommitSha(values.candidate, "candidate");
+  }
+  return parsed;
 }
 
 function isSymlinkOrReparse(statValue) {
@@ -418,11 +453,11 @@ async function toolchainEvidence(executor, buildDirectory) {
   };
 }
 
-export async function buildSeed({ executor = defaultExecutor } = {}) {
-  const buildDirectory = await mkdtemp(path.join(os.tmpdir(), "w-bmd1-seed-"));
+async function buildSeedAt(sourceDirectory, { executor = defaultExecutor, prefix = "w-bmd1-seed-" } = {}) {
+  const buildDirectory = await mkdtemp(path.join(os.tmpdir(), prefix));
   try {
     await runChecked(executor, "cmake", [
-      "-S", SEED_DIRECTORY,
+      "-S", sourceDirectory,
       "-B", buildDirectory,
       "-G", BUILD_GENERATOR,
       "-DCMAKE_BUILD_TYPE=" + BUILD_TYPE,
@@ -448,6 +483,148 @@ export async function buildSeed({ executor = defaultExecutor } = {}) {
     if (error instanceof RunnerError) throw error;
     throw new RunnerError("build", error.message);
   }
+}
+
+export async function buildSeed({ executor = defaultExecutor } = {}) {
+  return buildSeedAt(SEED_DIRECTORY, { executor, prefix: "w-bmd1-seed-" });
+}
+
+async function collectArchiveFiles(directory, sourceDirectory, files = []) {
+  const entries = (await readdir(directory, { withFileTypes: true }))
+    .sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
+  for (const entry of entries) {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isSymbolicLink()) {
+      throw new RunnerError("archive", "compiler/seed-c archive cannot contain a symlink: " + absolute + ".");
+    }
+    if (entry.isDirectory()) {
+      await collectArchiveFiles(absolute, sourceDirectory, files);
+    } else if (entry.isFile()) {
+      files.push({
+        path: ("compiler/seed-c/" + path.relative(sourceDirectory, absolute).split(path.sep).join("/")),
+        digest: await digestFile(absolute),
+      });
+    } else {
+      throw new RunnerError("archive", "compiler/seed-c archive contains an unsupported file: " + absolute + ".");
+    }
+  }
+  return files;
+}
+
+async function archiveClosure(sourceDirectory) {
+  let sourceStat;
+  try {
+    sourceStat = await stat(sourceDirectory);
+  } catch {
+    throw new RunnerError("archive", "git archive does not contain compiler/seed-c.");
+  }
+  if (!sourceStat.isDirectory()) throw new RunnerError("archive", "compiler/seed-c archive entry is not a directory.");
+  const files = await collectArchiveFiles(sourceDirectory, sourceDirectory);
+  if (files.length === 0) throw new RunnerError("archive", "git archive contains an empty compiler/seed-c closure.");
+  files.sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+  const evidence = {
+    schema: "wbench/1-compiler-seed-c-closure",
+    root: "compiler/seed-c",
+    files,
+  };
+  return { digest: digestJson(evidence), evidence };
+}
+
+async function resolveLocalCommit(executor, value, role) {
+  const commit = validateCommitSha(value, role);
+  const result = await runChecked(executor, "git", ["rev-parse", "--verify", commit + "^{commit}"], ROOT, "commit");
+  const resolved = result.stdout.toString("utf8").trim().toLowerCase();
+  if (resolved !== "" && (!COMPARISON_COMMIT_PATTERN.test(resolved) || resolved !== commit)) {
+    throw new RunnerError("commit", role + " does not resolve to the supplied complete commit SHA.");
+  }
+  return commit;
+}
+
+export async function archiveCompilerSeed(commit, role, { executor = defaultExecutor } = {}) {
+  const resolvedCommit = await resolveLocalCommit(executor, commit, role);
+  const archiveDirectory = await mkdtemp(path.join(os.tmpdir(), "w-bmd2-" + role + "-archive-"));
+  const archivePath = path.join(archiveDirectory, "compiler-seed-c.tar");
+  try {
+    await runChecked(executor, "git", [
+      "archive", "--format=tar", "--output", archivePath, resolvedCommit, "--", "compiler/seed-c",
+    ], ROOT, "archive");
+    await runChecked(executor, "tar", ["-xf", archivePath, "-C", archiveDirectory], ROOT, "archive");
+    const sourceDirectory = path.join(archiveDirectory, "compiler", "seed-c");
+    const closure = await archiveClosure(sourceDirectory);
+    return { commit: resolvedCommit, archiveDirectory, sourceDirectory, closure };
+  } catch (error) {
+    await cleanupDirectoryBestEffort(archiveDirectory);
+    if (error instanceof RunnerError) throw error;
+    throw new RunnerError("archive", error.message);
+  }
+}
+
+export async function buildArchivedCompilerSeed(archive, { executor = defaultExecutor } = {}) {
+  const build = await buildSeedAt(archive.sourceDirectory, { executor, prefix: "w-bmd2-" + archive.commit.slice(0, 8) + "-build-" });
+  return { ...archive, build };
+}
+
+function comparisonRecipeClass(manifest) {
+  return {
+    schema: "wbench/1-comparison-recipe-class",
+    track: "compiler-lifecycle",
+    lane: manifest.lane,
+    source: SOURCE_FIXTURE,
+    graph: DESCRIPTOR_IDENTITIES.graph,
+    input: DESCRIPTOR_IDENTITIES.input,
+    command: manifest.command,
+    build: {
+      sourceDirectory: "compiler/seed-c",
+      generator: BUILD_GENERATOR,
+      configuration: BUILD_TYPE,
+      target: TARGET_NAME,
+      configureArguments: ["-G", BUILD_GENERATOR, "-DCMAKE_BUILD_TYPE=" + BUILD_TYPE],
+      buildArguments: ["--target", TARGET_NAME, "--", "-j", "2"],
+    },
+    measurement: {
+      clock: RESULT_CLOCK,
+      order: PAIRED_COMPARISON_ORDER,
+      processPerSample: true,
+      pairsMinimum: DEFAULT_SAMPLE_COUNT,
+      positiveNanoseconds: true,
+    },
+  };
+}
+
+function comparisonWorkloadDigest({ manifest, source, graph, input, command }) {
+  return digestJson({
+    manifestDigest: manifest,
+    track: "compiler-lifecycle",
+    lane: "equivalent",
+    scenario: "clean",
+    stage: "check-end-to-end",
+    subject: "compiler/seed-c",
+    profile: null,
+    source,
+    graph,
+    input,
+    command,
+  });
+}
+
+function comparisonRoleEvidence(archive, recipeClass, artifactDigest, toolchainDigest) {
+  const recipe = {
+    schema: "wbench/1-comparison-recipe",
+    class: recipeClass,
+    commit: archive.commit,
+    closure: archive.closure.evidence,
+    closureDigest: archive.closure.digest,
+    artifactDigest,
+    toolchainDigest,
+  };
+  return {
+    commit: archive.commit,
+    closureDigest: archive.closure.digest,
+    artifactDigest,
+    recipeDigest: digestJson(recipe),
+    recipeClassDigest: digestJson(recipeClass),
+    toolchainDigest,
+  };
 }
 
 function median(values) {
@@ -538,6 +715,14 @@ async function timedInvocation(invoke, args, clock, phase) {
   return end - start;
 }
 
+async function timedPositiveInvocation(invoke, args, clock, phase) {
+  const elapsed = await timedInvocation(invoke, args, clock, phase);
+  if (elapsed <= 0n || elapsed > MAX_U64) {
+    throw new RunnerError(phase, "paired duration must be a positive u64 nanosecond value.");
+  }
+  return elapsed;
+}
+
 function resultId(payload) {
   return "bmd1-" + digestJson(payload).slice("sha256:".length);
 }
@@ -606,12 +791,306 @@ export function makeResult({ manifest, artifactDigest, recipeDigest, runnerDiges
   return { ...payload, id: resultId(payload) };
 }
 
+export function makeComparisonResult({ manifest, baseline, candidate, runnerDigest,
+  oracle, warmup, raw, schedule, sourceDigest, graphDigest, inputDigest, workloadDigest }) {
+  const pairCount = schedule.rounds.length;
+  const computed = calculatePairedComparison(raw, pairCount);
+  const rawSamples = raw.map((sample) => ({
+    round: sample.round,
+    series: sample.series,
+    position: sample.position,
+    ns: sample.ns.toString(),
+  }));
+  const warmupSamples = warmup.map((sample) => ({
+    round: sample.round,
+    series: sample.series,
+    position: sample.position,
+    ns: sample.ns.toString(),
+  }));
+  const environment = environmentEvidence(baseline.build.toolchain);
+  const roleBaseline = baseline.role;
+  const roleCandidate = candidate.role;
+  const comparison = {
+    baseline: roleBaseline,
+    candidate: roleCandidate,
+    calibration: roleBaseline.closureDigest === roleCandidate.closureDigest,
+    verdict: "not-evaluated",
+    pairs: computed.pairs,
+    delta: computed.delta,
+    relativePpm: computed.relativePpm,
+    counts: computed.counts,
+    noisePolicy: environment.noiseControls,
+  };
+  const payload = {
+    $schema: "./wbench-1.schema.json",
+    schema: SCHEMA_VERSION,
+    kind: "result",
+    status: "recorded",
+    quality: "exploratory",
+    claim: COMPARISON_CLAIM,
+    verdict: "not-evaluated",
+    workload: {
+      manifestDigest: manifest.__digest,
+      track: "compiler-lifecycle",
+      lane: manifest.lane,
+      scenario: "clean",
+      stage: "check-end-to-end",
+      subject: "compiler/seed-c",
+      profile: null,
+    },
+    identity: {
+      source: manifest.identity.source,
+      graph: manifest.identity.graph,
+      input: manifest.identity.input,
+      command: manifest.command,
+    },
+    comparison,
+    oracle: {
+      baseline: oracle.baseline,
+      candidate: oracle.candidate,
+      complete: true,
+      beforeSamples: true,
+    },
+    samples: {
+      raw: rawSamples,
+      warmup: warmupSamples,
+      stopRule: { kind: "fixed-pairs", pairs: pairCount },
+      clock: RESULT_CLOCK,
+      order: PAIRED_COMPARISON_ORDER,
+      schedule: {
+        algorithm: PAIRED_COMPARISON_ORDER,
+        seed: schedule.seed,
+        rounds: schedule.rounds,
+      },
+    },
+    environment,
+    provenance: {
+      sourceDigest,
+      graphDigest,
+      inputDigest,
+      workloadDigest,
+      runnerDigest,
+      baseline: roleBaseline,
+      candidate: roleCandidate,
+    },
+    metrics: {
+      baseline: computed.baseline,
+      candidate: computed.candidate,
+    },
+    summary: {
+      pairCount,
+      warmupPairCount: warmupSamples.length / 2,
+      derivedFromRawSamples: true,
+    },
+    semanticDeviations: [],
+    disclosures: [
+      "Each warmup and raw sample uses a new driver process.",
+      "The schedule uses balanced-paired-interleaved-sha256-v1 with a runner-generated CSPRNG seed.",
+      "Noise controls remain unknown unless the environment records them as controlled.",
+    ],
+  };
+  return { ...payload, id: "bmd2-" + digestJson(payload).slice("sha256:".length) };
+}
+
+export function validateComparisonOptions(options) {
+  const validated = validateRunnerOptions(options);
+  if (!options || options.baseline === undefined || options.candidate === undefined) {
+    throw new RunnerError("usage", "--baseline and --candidate are required for comparison.");
+  }
+  return {
+    ...validated,
+    baseline: validateCommitSha(options.baseline, "baseline"),
+    candidate: validateCommitSha(options.candidate, "candidate"),
+  };
+}
+
+function comparisonToolchain(build, role) {
+  const toolchain = build?.toolchain;
+  if (!toolchain?.identity || !DIGEST_PATTERN.test(toolchain.digest ?? "") ||
+      !toolchain.evidence || typeof toolchain.evidence.bunVersion !== "string" ||
+      toolchain.evidence.bunVersion.trim() === "" || toolchain.evidence.bunVersion === "unknown") {
+    throw new RunnerError("toolchain", role + " toolchain evidence is incomplete.");
+  }
+  return toolchain;
+}
+
+function comparisonRoleFromBuild(record, recipeClass, role) {
+  const build = record?.build ?? record;
+  const toolchain = comparisonToolchain(build, role);
+  if (typeof build?.artifactDigest !== "string" || !DIGEST_PATTERN.test(build.artifactDigest)) {
+    throw new RunnerError("provenance", role + " artifact digest is incomplete.");
+  }
+  const archive = {
+    commit: validateCommitSha(record?.commit, role),
+    closure: record?.closure ?? {
+      digest: record?.closureDigest,
+      evidence: record?.closureEvidence,
+    },
+  };
+  if (!DIGEST_PATTERN.test(archive.closure?.digest ?? "") || !archive.closure?.evidence) {
+    throw new RunnerError("provenance", role + " compiler/seed-c closure evidence is incomplete.");
+  }
+  const expectedRole = comparisonRoleEvidence(
+    archive, recipeClass, build.artifactDigest, toolchain.digest,
+  );
+  const roleEvidence = record.role ?? expectedRole;
+  for (const field of [
+    "closureDigest", "artifactDigest", "recipeDigest", "recipeClassDigest", "toolchainDigest",
+  ]) {
+    if (!DIGEST_PATTERN.test(roleEvidence[field] ?? "")) {
+      throw new RunnerError("provenance", role + " " + field + " is incomplete.");
+    }
+    if (roleEvidence[field] !== expectedRole[field]) {
+      throw new RunnerError("provenance", role + " " + field + " does not derive from the archived build.");
+    }
+  }
+  if (roleEvidence.commit !== expectedRole.commit) {
+    throw new RunnerError("provenance", role + " commit does not derive from the resolved archive.");
+  }
+  return { record, build, role: roleEvidence };
+}
+
+function comparisonInvocation(dependencies, build, role) {
+  if (dependencies.invokeRole) return (args) => dependencies.invokeRole(role, args, build);
+  if (dependencies.invoke) return (args) => dependencies.invoke(args, role, build);
+  return (args) => (dependencies.executor ?? defaultExecutor)(build.executable, args, ROOT);
+}
+
+async function comparisonOracle(invoke, driverArgs, role, sourceDigest, graphDigest, inputDigest, manifest) {
+  const evidence = {
+    schema: "wbench/1-comparison-oracle",
+    role,
+    sourceDigest,
+    graphDigest,
+    inputDigest,
+    command: manifest.command,
+    driverArguments: driverArgs,
+    exitCode: 0,
+    stdoutDigest: digestBytes(Buffer.alloc(0)),
+    stderrDigest: digestBytes(Buffer.alloc(0)),
+    stdoutBytes: 0,
+    stderrBytes: 0,
+  };
+  await invokeChecked(invoke, driverArgs, "oracle-" + role);
+  return {
+    validationDigest: digestJson(evidence),
+    complete: true,
+    beforeSamples: true,
+  };
+}
+
 async function manifestDigest() {
   return digestFile(MANIFEST_PATH);
 }
 
 function digestFileFromManifest(manifest) {
   return manifest.__digest;
+}
+
+export async function runComparisonBenchmark(options, dependencies = {}) {
+  const validated = validateComparisonOptions(options);
+  const cwd = dependencies.cwd ?? process.cwd();
+  const outputPath = await assertOutputTargetAvailable(validated.outputPath, cwd);
+  const executor = dependencies.executor ?? defaultExecutor;
+  const documents = dependencies.documents ?? loadBmdDocuments();
+  const manifest = dependencies.manifest ?? documents.manifest;
+  const manifestErrors = dependencies.validateManifest
+    ? dependencies.validateManifest(manifest)
+    : validateManifest(manifest);
+  if (manifestErrors.length > 0) throw new RunnerError("manifest", manifestErrors.join(" "));
+  const manifestWithDigest = {
+    ...manifest,
+    __digest: dependencies.manifestDigest ?? await digestFile(MANIFEST_PATH),
+  };
+  const sourceDigest = await digestFile(path.resolve(ROOT, SOURCE_FIXTURE.path));
+  const graphDigest = await digestFile(path.resolve(ROOT, DESCRIPTOR_IDENTITIES.graph.path));
+  const inputDigest = await digestFile(path.resolve(ROOT, DESCRIPTOR_IDENTITIES.input.path));
+  if (!DIGEST_PATTERN.test(sourceDigest) || sourceDigest !== SOURCE_FIXTURE.digest ||
+      !DIGEST_PATTERN.test(graphDigest) || graphDigest !== DESCRIPTOR_IDENTITIES.graph.digest ||
+      !DIGEST_PATTERN.test(inputDigest) || inputDigest !== DESCRIPTOR_IDENTITIES.input.digest) {
+    throw new RunnerError("provenance", "source, graph or input digest is not current.");
+  }
+  const runnerEvidenceRecord = dependencies.runnerEvidence ?? await runnerEvidence();
+  const runnerDigest = dependencies.runnerDigest ?? runnerEvidenceRecord.digest;
+  if (!DIGEST_PATTERN.test(runnerDigest)) throw new RunnerError("provenance", "runner evidence digest is incomplete.");
+  const randomBytes = dependencies.randomBytes ?? crypto.randomBytes;
+  const seedValue = await randomBytes(COMPARISON_SEED_BYTES);
+  const seedBytes = asBuffer(seedValue);
+  if (seedBytes.length !== COMPARISON_SEED_BYTES) throw new RunnerError("schedule", "runner CSPRNG must return exactly 32 bytes.");
+  const schedule = {
+    seed: seedBytes.toString("hex"),
+    rounds: pairedScheduleForSeed(seedBytes.toString("hex"), validated.sampleCount),
+  };
+  const recipeClass = comparisonRecipeClass(manifest);
+  const workloadDigest = comparisonWorkloadDigest({
+    manifest: manifestWithDigest.__digest,
+    source: manifest.identity.source,
+    graph: manifest.identity.graph,
+    input: manifest.identity.input,
+    command: manifest.command,
+  });
+  const ownedDirectories = [];
+  const buildRole = dependencies.buildRole ?? (async ({ commit, role }) => {
+    const archive = await archiveCompilerSeed(commit, role, { executor });
+    ownedDirectories.push(archive.archiveDirectory);
+    const built = await buildArchivedCompilerSeed(archive, { executor });
+    if (built.build?.buildDirectory) ownedDirectories.push(built.build.buildDirectory);
+    return built;
+  });
+  try {
+    const baselineRecord = await buildRole({ commit: validated.baseline, role: "baseline", executor });
+    const candidateRecord = await buildRole({ commit: validated.candidate, role: "candidate", executor });
+    const baseline = comparisonRoleFromBuild(baselineRecord, recipeClass, "baseline");
+    const candidate = comparisonRoleFromBuild(candidateRecord, recipeClass, "candidate");
+    if (baseline.role.recipeClassDigest !== candidate.role.recipeClassDigest) throw new RunnerError("provenance", "recipe-class digests diverge before samples.");
+    if (baseline.role.toolchainDigest !== candidate.role.toolchainDigest) throw new RunnerError("provenance", "toolchain digests diverge before samples.");
+    const baselineInvoke = comparisonInvocation(dependencies, baseline.build, "baseline");
+    const candidateInvoke = comparisonInvocation(dependencies, candidate.build, "candidate");
+    const driverArgs = driverArguments(manifest);
+    const oracle = {
+      baseline: await comparisonOracle(baselineInvoke, driverArgs, "baseline", sourceDigest, graphDigest, inputDigest, manifest),
+      candidate: await comparisonOracle(candidateInvoke, driverArgs, "candidate", sourceDigest, graphDigest, inputDigest, manifest),
+    };
+    const clock = dependencies.clock ?? (() => process.hrtime.bigint());
+    const warmup = [];
+    for (let index = 0; index < validated.warmupCount; index += 1) {
+      const round = schedule.rounds[0];
+      const firstInvoke = round.first === "baseline" ? baselineInvoke : candidateInvoke;
+      const secondInvoke = round.second === "baseline" ? baselineInvoke : candidateInvoke;
+      const warmupRound = index + 1;
+      warmup.push({ round: warmupRound, series: round.first, position: "first", ns: await timedPositiveInvocation(firstInvoke, driverArgs, clock, "warmup") });
+      warmup.push({ round: warmupRound, series: round.second, position: "second", ns: await timedPositiveInvocation(secondInvoke, driverArgs, clock, "warmup") });
+    }
+    const raw = [];
+    for (const round of schedule.rounds) {
+      const firstInvoke = round.first === "baseline" ? baselineInvoke : candidateInvoke;
+      const secondInvoke = round.second === "baseline" ? baselineInvoke : candidateInvoke;
+      raw.push({ round: round.round, series: round.first, position: "first", ns: await timedPositiveInvocation(firstInvoke, driverArgs, clock, "sample") });
+      raw.push({ round: round.round, series: round.second, position: "second", ns: await timedPositiveInvocation(secondInvoke, driverArgs, clock, "sample") });
+    }
+    const result = makeComparisonResult({
+      manifest: manifestWithDigest,
+      baseline,
+      candidate,
+      runnerDigest,
+      oracle,
+      warmup,
+      raw,
+      schedule: { ...schedule, algorithm: PAIRED_COMPARISON_ORDER },
+      sourceDigest,
+      graphDigest,
+      inputDigest,
+      workloadDigest,
+    });
+    const resultErrors = dependencies.validateResult
+      ? dependencies.validateResult(result, manifest)
+      : validateResult(result, manifest);
+    if (resultErrors.length > 0) throw new RunnerError("result", resultErrors.join(" "));
+    await atomicPublishJson(outputPath, result, cwd);
+    return { result, outputPath };
+  } finally {
+    for (const directory of ownedDirectories.reverse()) await cleanupDirectoryBestEffort(directory);
+  }
 }
 
 export async function runBenchmark(options, dependencies = {}) {
@@ -714,17 +1193,19 @@ export function usage() {
 }
 
 async function main() {
+  let parsed;
   try {
-    const parsed = parseRunnerArgs(process.argv.slice(2));
+    parsed = parseRunnerArgs(process.argv.slice(2));
     if (parsed.help) {
       process.stdout.write(USAGE + "\n");
       return;
     }
-    await runBenchmark(parsed);
+    if (parsed.baseline !== undefined) await runComparisonBenchmark(parsed);
+    else await runBenchmark(parsed);
   } catch (error) {
     const message = error instanceof RunnerError ? error.message : error?.message || String(error);
     if (error?.code === "usage") process.stderr.write(USAGE + "\n");
-    process.stderr.write("BMD1 runner: " + message + "\n");
+    process.stderr.write((parsed?.baseline !== undefined ? "BMD2 runner: " : "BMD1 runner: ") + message + "\n");
     process.exitCode = 2;
   }
 }

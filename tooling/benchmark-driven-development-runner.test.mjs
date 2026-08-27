@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   DEFAULT_SAMPLE_COUNT,
   DEFAULT_WARMUP_COUNT,
+  COMPARISON_DEFAULT_PAIR_COUNT,
   ROOT,
   RUNNER_EVIDENCE_PATHS,
   TARGET_NAME,
@@ -14,12 +15,15 @@ import {
   atomicPublishJson,
   buildSeed,
   calculateLatency,
+  runComparisonBenchmark,
+  validateComparisonOptions,
+  validateCommitSha,
   cleanupDirectoryBestEffort,
   parseRunnerArgs,
   runnerEvidence,
   runBenchmark,
 } from "./benchmark-driven-development-runner.mjs";
-import { loadBmdDocuments } from "./benchmark-driven-development-machine.mjs";
+import { loadBmdDocuments, pairedScheduleForSeed, validateResult } from "./benchmark-driven-development-machine.mjs";
 
 const digest = "sha256:" + "1".repeat(64);
 const fakeToolchain = () => ({
@@ -322,6 +326,181 @@ test("injected build directories remain caller-owned on runner failure", async (
       oracleDigest: digest,
     }), /driver must exit 0/u);
     assert.equal(await readFile(marker, "utf8"), "caller-owned\n");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("comparison schedule is deterministic and balances first orientation", () => {
+  const seed = "ab".repeat(32);
+  const first = pairedScheduleForSeed(seed, COMPARISON_DEFAULT_PAIR_COUNT);
+  const second = pairedScheduleForSeed(seed, COMPARISON_DEFAULT_PAIR_COUNT);
+  assert.deepEqual(first, second);
+  assert.equal(first.length, 9);
+  const baselineFirst = first.filter((round) => round.first === "baseline").length;
+  const candidateFirst = first.filter((round) => round.first === "candidate").length;
+  assert.ok(Math.abs(baselineFirst - candidateFirst) <= 1);
+  for (const round of first) assert.notEqual(round.first, round.second);
+});
+
+test("comparison options require two complete SHAs and never expose a seed option", () => {
+  assert.equal(validateCommitSha("A".repeat(40)), "a".repeat(40));
+  assert.throws(() => validateCommitSha("HEAD"), /complete 40-hex/u);
+  assert.deepEqual(parseRunnerArgs([
+    "--output", "result.json",
+    "--baseline", "1".repeat(40),
+    "--candidate", "2".repeat(40),
+  ]), {
+    help: false,
+    outputPath: "result.json",
+    warmupCount: DEFAULT_WARMUP_COUNT,
+    sampleCount: DEFAULT_SAMPLE_COUNT,
+    baseline: "1".repeat(40),
+    candidate: "2".repeat(40),
+  });
+  for (const args of [
+    ["--output", "result.json", "--baseline", "1".repeat(40)],
+    ["--output", "result.json", "--candidate", "2".repeat(40)],
+    ["--output", "result.json", "--baseline", "HEAD", "--candidate", "HEAD"],
+    ["--output", "result.json", "--baseline", "1".repeat(40), "--candidate", "2".repeat(40), "--seed", "x"],
+  ]) assert.throws(() => parseRunnerArgs(args), (error) => error instanceof RunnerError && error.code === "usage");
+  assert.throws(() => validateComparisonOptions({ outputPath: "result.json", baseline: "1".repeat(40) }), /required for comparison/u);
+});
+
+test("fake comparison runner completes both oracles before paired samples", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "w-bmd2-runner-test-"));
+  const target = path.join(directory, "result.json");
+  const documents = loadBmdDocuments();
+  const roleDigest = "sha256:" + "2".repeat(64);
+  const calls = [];
+  const makeBuild = ({ commit, role }) => ({
+    commit,
+    closure: {
+      digest: roleDigest,
+      evidence: { schema: "wbench/1-compiler-seed-c-closure", root: "compiler/seed-c", files: [{ path: "compiler/seed-c/file", digest }] },
+    },
+    build: {
+      executable: "fake-" + role,
+      artifactDigest: "sha256:" + (role === "baseline" ? "3" : "4").repeat(64),
+      toolchain: fakeToolchain(),
+    },
+  });
+  let tick = 0n;
+  try {
+    const execution = await runComparisonBenchmark({
+      outputPath: target,
+      baseline: "1".repeat(40),
+      candidate: "2".repeat(40),
+      warmupCount: 2,
+    }, {
+      documents,
+      randomBytes: () => Buffer.alloc(32, 7),
+      buildRole: async ({ commit, role }) => makeBuild({ commit, role }),
+      invokeRole: async (role) => {
+        calls.push(role);
+        return { exitCode: 0, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) };
+      },
+      clock: () => ++tick,
+    });
+    assert.deepEqual(calls.slice(0, 2), ["baseline", "candidate"]);
+    assert.equal(calls.length, 2 + 2 * (2 + COMPARISON_DEFAULT_PAIR_COUNT));
+    assert.equal(execution.result.claim, "comparison-only");
+    assert.equal(execution.result.comparison.calibration, true);
+    assert.equal(execution.result.samples.raw.length, 18);
+    assert.equal(execution.result.samples.warmup.length, 4);
+    assert.deepEqual(execution.result.samples.warmup.map((sample) => sample.round), [1, 1, 2, 2]);
+    assert.deepEqual(execution.result.samples.warmup.map((sample) => sample.position), ["first", "second", "first", "second"]);
+    assert.deepEqual(validateResult(execution.result, documents.manifest), []);
+    assert.equal(JSON.parse(await readFile(target, "utf8")).id, execution.result.id);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("baseline oracle failure publishes no result and starts no samples", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "w-bmd2-runner-test-"));
+  try {
+    const target = path.join(directory, "result.json");
+    let sampled = false;
+    const makeBuild = ({ commit, role }) => ({
+      commit,
+      closure: { digest: "sha256:" + "2".repeat(64), evidence: { files: [{ path: "compiler/seed-c/file", digest }] } },
+      build: { executable: role, artifactDigest: digest, toolchain: fakeToolchain() },
+    });
+    await assert.rejects(() => runComparisonBenchmark({ outputPath: target, baseline: "1".repeat(40), candidate: "2".repeat(40) }, {
+      buildRole: async ({ commit, role }) => makeBuild({ commit, role }),
+      invokeRole: async (role) => role === "baseline"
+        ? { exitCode: 1, stdout: Buffer.alloc(0), stderr: Buffer.from("oracle failed") }
+        : { exitCode: 0, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) },
+      randomBytes: () => Buffer.alloc(32, 9),
+      clock: () => { sampled = true; return 1n; },
+    }), /driver must exit 0/u);
+    assert.equal(sampled, false);
+    await assert.rejects(() => readFile(target), { code: "ENOENT" });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("candidate oracle failure follows baseline oracle and precedes samples", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "w-bmd2-runner-test-"));
+  try {
+    const target = path.join(directory, "result.json");
+    const calls = [];
+    let sampled = false;
+    const makeBuild = ({ commit, role }) => ({
+      commit,
+      closure: { digest: "sha256:" + "2".repeat(64), evidence: { files: [{ path: "compiler/seed-c/file", digest }] } },
+      build: { executable: role, artifactDigest: digest, toolchain: fakeToolchain() },
+    });
+    await assert.rejects(() => runComparisonBenchmark({ outputPath: target, baseline: "1".repeat(40), candidate: "2".repeat(40) }, {
+      buildRole: async ({ commit, role }) => makeBuild({ commit, role }),
+      invokeRole: async (role) => {
+        calls.push(role);
+        return role === "candidate"
+          ? { exitCode: 1, stdout: Buffer.alloc(0), stderr: Buffer.from("candidate oracle failed") }
+          : { exitCode: 0, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) };
+      },
+      randomBytes: () => Buffer.alloc(32, 10),
+      clock: () => { sampled = true; return 1n; },
+    }), /driver must exit 0/u);
+    assert.deepEqual(calls, ["baseline", "candidate"]);
+    assert.equal(sampled, false);
+    await assert.rejects(() => readFile(target), { code: "ENOENT" });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("toolchain divergence rejects before either oracle or sample", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "w-bmd2-runner-test-"));
+  try {
+    const target = path.join(directory, "result.json");
+    const invoked = [];
+    let sampled = false;
+    const makeBuild = ({ commit, role }) => ({
+      commit,
+      closure: { digest: "sha256:" + "2".repeat(64), evidence: { files: [{ path: "compiler/seed-c/file", digest }] } },
+      build: {
+        executable: role,
+        artifactDigest: digest,
+        toolchain: role === "candidate"
+          ? { ...fakeToolchain(), digest: "sha256:" + "3".repeat(64) }
+          : fakeToolchain(),
+      },
+    });
+    await assert.rejects(() => runComparisonBenchmark({ outputPath: target, baseline: "1".repeat(40), candidate: "2".repeat(40) }, {
+      buildRole: async ({ commit, role }) => makeBuild({ commit, role }),
+      invokeRole: async (role) => {
+        invoked.push(role);
+        return { exitCode: 0, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) };
+      },
+      randomBytes: () => Buffer.alloc(32, 11),
+      clock: () => { sampled = true; return 1n; },
+    }), /toolchain digests diverge before samples/u);
+    assert.deepEqual(invoked, []);
+    assert.equal(sampled, false);
+    await assert.rejects(() => readFile(target), { code: "ENOENT" });
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
