@@ -21,6 +21,7 @@ add_library(w_seed_source STATIC
   src/w_seed_formatter.c
   src/w_seed_sha256.c
   src/w_seed_diagnostic.c
+  src/w_seed_ephemeral_check.c
   src/w_seed_frontend.c
   src/w_seed_constir.c
   src/w_seed_generic_validation.c

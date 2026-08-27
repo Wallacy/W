@@ -97,6 +97,9 @@ function wslSourceArguments(wslRoot) {
     "w_seed_ephemeral_provider.c",
     "w_seed_ephemeral_provider_linux.c",
     "w_seed_ephemeral_driver.c",
+    "w_seed_diagnostic.c",
+    "w_seed_frontend.c",
+    "w_seed_ephemeral_check.c",
   ].map((source) => `${wslRoot}/compiler/seed-c/src/${source}`)
 }
 
@@ -115,6 +118,24 @@ function checkWslDeterministic(label, executable, expectedLines) {
     fail(`${label} output differs: ${JSON.stringify(output)}`)
   }
   return output
+}
+
+function isWslSanitizerUnavailable(execution) {
+  const detail = execution.stderr.toString()
+  return /(?:gcc|cc1):\s*(?:command not found|not found)/iu.test(detail) ||
+    /(?:cannot find|no such file).*-l(?:asan|ubsan)\b/iu.test(detail) ||
+    /(?:unrecognized|unsupported).*(?:sanitize|fsanitize)/iu.test(detail)
+}
+
+function compileWslSanitizer(label, args) {
+  const execution = spawn("wsl.exe", args)
+  if (execution.exitCode === 0) return execution
+  if (isWslSanitizerUnavailable(execution)) {
+    console.log("SKIP sanitizer-wsl=unavailable")
+    return undefined
+  }
+  const detail = execution.stderr.toString().trim()
+  fail(`${label} failed${detail ? `: ${detail}` : ""}`)
 }
 
 async function runWslLinuxAdapter() {
@@ -194,26 +215,20 @@ async function runWslSanitizer() {
     ...wslSourceArguments(wslRoot),
   ]
   try {
-    const coreCompile = spawn("wsl.exe", [
+    const coreCompile = compileWslSanitizer("WSL ASan+UBSan core compile", [
       ...common,
       `${wslRoot}/compiler/seed-c/tests/test_ephemeral_driver.c`,
       "-o",
       coreExecutable,
     ])
-    if (coreCompile.exitCode !== 0) {
-      console.log("SKIP sanitizer-wsl=unavailable")
-      return "unavailable"
-    }
-    const adapterCompile = spawn("wsl.exe", [
+    if (coreCompile === undefined) return "unavailable"
+    const adapterCompile = compileWslSanitizer("WSL ASan+UBSan adapter compile", [
       ...common,
       `${wslRoot}/compiler/seed-c/tests/test_ephemeral_driver_linux.c`,
       "-o",
       adapterExecutable,
     ])
-    if (adapterCompile.exitCode !== 0) {
-      console.log("SKIP sanitizer-wsl=unavailable")
-      return "unavailable"
-    }
+    if (adapterCompile === undefined) return "unavailable"
     if (coreCompile.stderr.length !== 0 || adapterCompile.stderr.length !== 0) {
       fail("WSL ASan+UBSan compile wrote to stderr")
     }
@@ -331,7 +346,7 @@ try {
   await runWslLinuxAdapter()
   const sanitizerMode = await runSanitizer()
   if (sanitizerMode === "unavailable") await runWslSanitizer()
-  console.log("seed ephemeral driver: bounded core/adapter tests, deterministic output, fail-closed publication, and optional sanitizer/WSL evidence passed")
+  console.log("seed ephemeral driver/CHK7: bounded core/adapter tests, CHK6-to-frontend-to-D0 composition, deterministic output, fail-closed publication, and optional sanitizer/WSL evidence passed")
 } finally {
   await rm(buildDirectory, { recursive: true, force: true })
 }

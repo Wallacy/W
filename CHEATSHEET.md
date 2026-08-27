@@ -404,6 +404,16 @@ package/workspace e `w check` multi-file continuam gaps. A proveniência de
 capacity preservada pelo parser é evidência interna, sem novo mapping D0
 público. A API CHK5 isolada não faz discovery pelo raw import path.
 
+CHK7 compõe internamente CHK6, frontend seed e D0 em uma API caller-owned
+JSON-only. Todo o trabalho falível termina antes do commit: ela preflighta todos
+os diagnostics por `document_index`, copia o JSONL uma vez para o buffer final e
+então atualiza `jsonl_length`, sem novo ramo falível; qualquer falha deixa ambos
+inalterados. A fixture prova
+import/call de `root` para `child` e `W-SEM-0001` em `child.w`, de modo
+determinístico. O corte mapeia somente `W-SEM-0001` e não abre CLI pública,
+filesystem novo, provider `std`, package/workspace, Windows real ou frontend
+completo.
+
 ## Declarações, tipos e contratos
 
 Contrato: [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões),
