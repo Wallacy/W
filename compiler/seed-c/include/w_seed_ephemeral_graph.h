@@ -178,6 +178,12 @@ typedef struct {
   w_seed_span span;
 } w_seed_ephemeral_graph_result;
 
+/* Compute the CHK4 source digest over the tagged source bytes. The source view
+ * must be initialized by w_seed_source_init and remains caller-owned. */
+bool w_seed_ephemeral_graph_source_digest(
+    const w_seed_source *source,
+    uint8_t digest[W_SEED_EPHEMERAL_GRAPH_SHA256_BYTES]);
+
 /* Compute exact requirements without writing any output. */
 w_seed_ephemeral_graph_status w_seed_ephemeral_graph_measure(
     const w_seed_ephemeral_graph_input *input,

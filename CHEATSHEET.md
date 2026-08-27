@@ -385,10 +385,15 @@ import platform.native
 import std.io
 ```
 
-O exemplo é oracle-backed e não uma promessa de execução. O bootstrap
-`w check` ainda é fechado no perfil `closed-single-source`; provider real,
-owner detection, loader completo do graph e resolução pública continuam gaps.
-O frontend seed CHK3 aceita somente edges explícitos caller-owned; não faz
+O exemplo é oracle-backed e não uma promessa de execução. CHK3 fornece origins
+e edges explícitos caller-owned; CHK4 fornece o graph builder caller-owned.
+CHK5 fornece aquisição e revalidação somente para a root e os `SourceId`
+explicitamente solicitados pelo caller, com evidência real do adapter Linux
+quando `openat2` está disponível. O bootstrap público `w check` continua
+fechado no perfil `closed-single-source`.
+
+Discovery loop, NFC completo, provider std, adapter Windows real,
+package/workspace e `w check` multi-file continuam gaps. A API CHK5 não faz
 discovery pelo raw import path.
 
 ## Declarações, tipos e contratos
