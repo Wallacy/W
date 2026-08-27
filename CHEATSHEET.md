@@ -399,8 +399,8 @@ pública `w check` multi-file; o bootstrap público continua fechado no perfil
 As waves CHK6 não formam uma transação única de snapshot. Candidates de waves
 anteriores podem ser readquiridos, mas o CHK4 é a autoridade de reachability e
 publica somente nodes alcançados; bytes, CST e facts da última wave estável
-alimentam o graph. NFC completo, provider std, adapter Windows real,
-package/workspace e `w check` multi-file continuam gaps. A proveniência de
+alimentam o graph. NFC completo, provider std, package/workspace e `w check`
+multi-file continuam gaps. A proveniência de
 capacity preservada pelo parser é evidência interna, sem novo mapping D0
 público. A API CHK5 isolada não faz discovery pelo raw import path.
 
@@ -411,8 +411,21 @@ então atualiza `jsonl_length`, sem novo ramo falível; qualquer falha deixa amb
 inalterados. A fixture prova
 import/call de `root` para `child` e `W-SEM-0001` em `child.w`, de modo
 determinístico. O corte mapeia somente `W-SEM-0001` e não abre CLI pública,
-filesystem novo, provider `std`, package/workspace, Windows real ou frontend
-completo.
+filesystem novo, provider `std`, package/workspace ou frontend completo.
+
+CHK8 fornece o adapter Windows interno do provider efêmero. Ele usa
+`NtCreateFile` relativo a um `HANDLE` de diretório, rejeita reparse points e
+objetos que não sejam arquivos regulares, e confirma identidade por
+`FILE_ID_INFO`. O perfil aceita root relativa e root absoluta drive-local.
+UNC retorna `UNSUPPORTED`; namespaces, devices, ADS e formas rooted inválidas
+retornam `INVALID`. O adapter é caller-owned, sem heap e bounded, e herda do
+core a revalidação e a publicação all-or-nothing.
+
+O teste Windows cobre nested child, hardlink alias, junction final e
+intermediário, mutation, replacement, removal, UTF-8 físico e limites. O gate
+separa os targets Linux e Windows, exige `windows-real=passed` em Windows,
+prova Linux real via WSL no host Windows e executa os stubs fail-closed. CHK8
+é adapter interno e não habilita `w check` público multi-file.
 
 ## Declarações, tipos e contratos
 

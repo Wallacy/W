@@ -374,7 +374,7 @@ repete os binários, exige stdout determinístico e stderr vazio, registra
     bun tooling/check-seed-ephemeral-provider.mjs
 
 O discovery loop interno bounded tem evidência no CHK6 abaixo. NFC completo,
-provider std, adapter Windows real, reexport/service-import,
+provider std, reexport/service-import,
 package/workspace, `w check` multi-file, diagnostics completos e conformance
 multiplataforma não testada permanecem gaps. `w check` continua
 closed-single-source.
@@ -395,8 +395,8 @@ wave estável é a aquisição cujos bytes, CST e facts alimentam o graph, mas w
 sucessivas não constituem uma transação única de snapshot: candidates antigos
 podem ser readquiridos, e o CHK4 publica somente nodes alcançados. Os limites
 finitos de sources, edges, depth, bytes, rounds e capacities são caller/provider
-owned; `std`/`std.*`, NFC completo, package/workspace, owner detection e
-adapter Windows real permanecem fora. A proveniência de capacity do parser é
+owned; `std`/`std.*`, NFC completo, package/workspace e owner detection
+permanecem fora. A proveniência de capacity do parser é
 evidência interna do driver, sem novo mapping de diagnóstico D0 público.
 
 O teste fake backend cobre cadeia transitiva, root header divergente,
@@ -424,8 +424,44 @@ Qualquer falha de capacidade, validade, suporte ou I/O deixa o JSONL final e
 O teste fake prova que `root` importa e chama um export de `child`, e que `if 1`
 em `child.w` produz somente `W-SEM-0001` com source lógico `child.w`, em duas
 execuções determinísticas. A API não abre CLI pública, filesystem novo,
-provider `std`, package/workspace ou provider Windows real; não prova frontend
-completo nem adiciona diagnostics além de `W-SEM-0001`.
+provider `std` ou package/workspace; não prova frontend completo nem adiciona
+diagnostics além de `W-SEM-0001`.
+
+## Adapter Windows do provider efêmero (CHK8)
+
+`include/w_seed_ephemeral_provider_windows.h` e
+`src/w_seed_ephemeral_provider_windows.c` fornecem o adapter Windows real do
+provider CHK5. O adapter usa `NtCreateFile` com
+`OBJECT_ATTRIBUTES.RootDirectory`, `OBJ_DONT_REPARSE` e
+`FILE_OPEN_REPARSE_POINT`. Ele confirma o handle final com
+`FileAttributeTagInfo`, obtém identidade com `FILE_ID_INFO` e aceita somente
+handles de disco e arquivos regulares.
+
+O adapter é C11, caller-owned, não reentrante, sem heap e bounded. O
+`base_handle` é emprestado e nunca é fechado pelo adapter. Handles próprios são
+mantidos em slots com generation e fechados uma vez. O perfil aceita root
+relativa e root absoluta drive-local. UNC retorna `UNSUPPORTED`; namespaces,
+devices, ADS, drive-relative e outras formas rooted inválidas retornam
+`INVALID`. A indisponibilidade da API, do filesystem ou da consulta de
+identidade retorna `UNSUPPORTED`, sem fallback por canonical path ou
+`CreateFile` permissivo.
+
+O core CHK5 mantém a revalidação e o commit all-or-nothing. Durante a
+revalidação, o adapter reabre o mesmo nome relativo e valida root, tipo,
+tamanho e identidade. O core compara tokens, bytes e digest da aquisição e da
+revalidação e só então faz o commit. O teste cobre roots relativa e
+absoluta, nested child, missing, zero byte, UTF-8 físico válido, path inválido,
+directory/special, hardlink alias, mutation, replacement, removal, junction
+final/intermediário, capacities, tokens, slots, handles e determinismo.
+
+O gate compila os targets Linux e Windows separadamente e executa CTest scoped.
+No Windows, `windows-real=passed` exige o teste nativo real. O mesmo gate prova
+Linux real via WSL e os stubs Windows e Linux fail-closed cruzados. A saída
+esperada inclui `SKIP` somente para symlink sem privilégio, cross-mount ou
+`openat2` indisponível. Este adapter é interno. Ele não habilita `w check`
+multi-file, package/workspace ou provider `std`.
+
+    bun tooling/check-seed-ephemeral-provider.mjs
 
 ## Frontend seed interno (fatia semântica)
 

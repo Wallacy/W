@@ -17,6 +17,7 @@ const compileSources = [
   "w_seed_ephemeral_graph.c",
   "w_seed_ephemeral_provider.c",
   "w_seed_ephemeral_provider_linux.c",
+  "w_seed_ephemeral_provider_windows.c",
 ]
 const strictWarnings = [
   "-std=c11",
@@ -60,33 +61,57 @@ function validateCoreOutput(execution, label) {
   return "core=passed"
 }
 
-function validateAdapterOutput(execution, label, linux) {
+function normalizedStdout(execution, label) {
   if (execution.stderr.length !== 0) fail(`${label} wrote to stderr`)
-  const normalizedOutput = execution.stdout.toString().replaceAll("\r\n", "\n")
-  const lines = normalizedOutput.trimEnd().split("\n")
-  const expected = linux
-    ? [
-        "SKIP cross-mount=not-created-without-privilege",
-        "RESULT provider-adapter=pass",
-      ]
-    : [
-        "SKIP adapter-linux-real=non-linux-stub",
-        "RESULT provider-adapter=pass",
-      ]
+  return execution.stdout.toString().replaceAll("\r\n", "\n")
+}
+
+function validateLinuxAdapterOutput(execution, label) {
+  const output = normalizedStdout(execution, label)
   const openat2Unsupported =
-    linux &&
-    lines.length === expected.length + 1 &&
-    lines[0] === "SKIP adapter-linux-openat2=unsupported"
-  if (openat2Unsupported) {
-    lines.shift()
+    output ===
+    "SKIP adapter-linux-openat2=unsupported\nSKIP cross-mount=not-created-without-privilege\nRESULT provider-adapter=pass\n"
+  if (openat2Unsupported) return "linux-openat2=unsupported"
+  if (
+    output !==
+    "SKIP cross-mount=not-created-without-privilege\nRESULT provider-adapter=pass\n"
+  ) {
+    fail(`${label} returned unexpected records: ${JSON.stringify(output)}`)
   }
-  if (lines.length !== expected.length || lines.some((line, index) => line !== expected[index])) {
-    fail(`${label} returned unexpected records: ${JSON.stringify(execution.stdout.toString())}`)
+  return "linux-real=passed"
+}
+
+function validateLinuxStubOutput(execution, label) {
+  const output = normalizedStdout(execution, label)
+  if (
+    output !==
+    "SKIP adapter-linux-real=non-linux-stub\nRESULT provider-adapter=pass\n"
+  ) {
+    fail(`${label} returned unexpected records: ${JSON.stringify(output)}`)
   }
-  if (!linux) return "windows-stub=passed"
-  return openat2Unsupported
-    ? "linux-openat2=unsupported"
-    : "linux-real=passed"
+  return "linux-stub=passed"
+}
+
+function validateWindowsAdapterOutput(execution, label, real) {
+  const output = normalizedStdout(execution, label)
+  if (real) {
+    if (
+      output !==
+        "SKIP symlink=not-created-without-privilege\nRESULT provider-adapter-windows=pass\n" &&
+      output !==
+        "RESULT symlink=created\nRESULT provider-adapter-windows=pass\n"
+    ) {
+      fail(`${label} did not produce a real Windows result: ${JSON.stringify(output)}`)
+    }
+    return "windows-real=passed"
+  }
+  if (
+    output !==
+    "SKIP adapter-windows-real=non-windows-stub\nRESULT provider-adapter-windows=pass\n"
+  ) {
+    fail(`${label} returned unexpected stub records: ${JSON.stringify(output)}`)
+  }
+  return "windows-stub=passed"
 }
 
 function runDeterministic(label, executable, validator) {
@@ -118,13 +143,13 @@ async function runWslAdapter() {
   if (process.platform !== "win32") return undefined
   const wslRoot = wslRepositoryPath()
   if (wslRoot === undefined) {
-    console.log("SKIP provider-linux-wsl=unavailable")
-    return "wsl-unavailable"
+    fail("WSL Ubuntu is required for the real Linux adapter proof on Windows")
   }
-  const linuxExecutable = `/tmp/w-seed-ephemeral-provider-${process.pid}`
+  const linuxExecutable = `/tmp/w-seed-ephemeral-provider-linux-${process.pid}`
+  const windowsExecutable = `/tmp/w-seed-ephemeral-provider-windows-${process.pid}`
   const linuxSources = compileSources.map((source) => `${wslRoot}/compiler/seed-c/src/${source}`)
   try {
-    const compile = runRequired(
+    const linuxCompile = runRequired(
       "WSL Linux adapter compile",
       "wsl.exe",
       [
@@ -141,31 +166,93 @@ async function runWslAdapter() {
         linuxExecutable,
       ],
     )
-    if (compile.stderr.length !== 0) fail("WSL Linux adapter compile wrote to stderr")
-    const first = runRequired(
+    if (linuxCompile.stderr.length !== 0) {
+      fail("WSL Linux adapter compile wrote to stderr")
+    }
+    const windowsCompile = runRequired(
+      "WSL Windows adapter stub compile",
+      "wsl.exe",
+      [
+        "-d",
+        "Ubuntu",
+        "--",
+        "gcc",
+        ...strictWarnings,
+        "-I",
+        `${wslRoot}/compiler/seed-c/include`,
+        ...linuxSources,
+        `${wslRoot}/compiler/seed-c/tests/test_ephemeral_provider_windows.c`,
+        "-o",
+        windowsExecutable,
+      ],
+    )
+    if (windowsCompile.stderr.length !== 0) {
+      fail("WSL Windows adapter stub compile wrote to stderr")
+    }
+    const firstLinux = runRequired(
       "WSL Linux adapter first",
       "wsl.exe",
       ["-d", "Ubuntu", "--", linuxExecutable],
     )
-    const second = runRequired(
+    const secondLinux = runRequired(
       "WSL Linux adapter second",
       "wsl.exe",
       ["-d", "Ubuntu", "--", linuxExecutable],
     )
-    if (!Buffer.from(first.stdout).equals(Buffer.from(second.stdout))) {
+    if (!Buffer.from(firstLinux.stdout).equals(Buffer.from(secondLinux.stdout))) {
       fail("WSL Linux adapter stdout is not deterministic")
     }
-    if (!Buffer.from(first.stderr).equals(Buffer.from(second.stderr))) {
+    if (!Buffer.from(firstLinux.stderr).equals(Buffer.from(secondLinux.stderr))) {
       fail("WSL Linux adapter stderr is not deterministic")
     }
-    const firstMode = validateAdapterOutput(first, "WSL Linux adapter first", true)
-    const secondMode = validateAdapterOutput(second, "WSL Linux adapter second", true)
-    if (firstMode !== secondMode) fail("WSL Linux adapter status is not deterministic")
-    return firstMode
+    const firstLinuxMode = validateLinuxAdapterOutput(
+      firstLinux,
+      "WSL Linux adapter first",
+    )
+    const secondLinuxMode = validateLinuxAdapterOutput(
+      secondLinux,
+      "WSL Linux adapter second",
+    )
+    if (firstLinuxMode !== secondLinuxMode) {
+      fail("WSL Linux adapter status is not deterministic")
+    }
+
+    const firstWindows = runRequired(
+      "WSL Windows adapter stub first",
+      "wsl.exe",
+      ["-d", "Ubuntu", "--", windowsExecutable],
+    )
+    const secondWindows = runRequired(
+      "WSL Windows adapter stub second",
+      "wsl.exe",
+      ["-d", "Ubuntu", "--", windowsExecutable],
+    )
+    if (!Buffer.from(firstWindows.stdout).equals(Buffer.from(secondWindows.stdout))) {
+      fail("WSL Windows adapter stub stdout is not deterministic")
+    }
+    if (!Buffer.from(firstWindows.stderr).equals(Buffer.from(secondWindows.stderr))) {
+      fail("WSL Windows adapter stub stderr is not deterministic")
+    }
+    const firstWindowsMode = validateWindowsAdapterOutput(
+      firstWindows,
+      "WSL Windows adapter stub first",
+      false,
+    )
+    const secondWindowsMode = validateWindowsAdapterOutput(
+      secondWindows,
+      "WSL Windows adapter stub second",
+      false,
+    )
+    if (firstWindowsMode !== secondWindowsMode) {
+      fail("WSL Windows adapter stub status is not deterministic")
+    }
+    return { linux: firstLinuxMode, windows: firstWindowsMode }
   } finally {
-    const cleanup = spawn("wsl.exe", ["-d", "Ubuntu", "--", "rm", "-f", linuxExecutable])
-    if (cleanup.exitCode !== 0) {
-      fail(`WSL Linux adapter cleanup failed: ${cleanup.stderr.toString().trim()}`)
+    for (const executable of [linuxExecutable, windowsExecutable]) {
+      const cleanup = spawn("wsl.exe", ["-d", "Ubuntu", "--", "rm", "-f", executable])
+      if (cleanup.exitCode !== 0) {
+        fail(`WSL adapter cleanup failed: ${cleanup.stderr.toString().trim()}`)
+      }
     }
   }
 }
@@ -186,6 +273,7 @@ try {
       "--target",
       "w_seed_ephemeral_provider_tests",
       "w_seed_ephemeral_provider_adapter_tests",
+      "w_seed_ephemeral_provider_windows_tests",
     ],
   )
   runRequired(
@@ -196,7 +284,7 @@ try {
       buildDirectory,
       "--output-on-failure",
       "-R",
-      "w_seed_ephemeral_provider_(core|adapter)",
+      "w_seed_ephemeral_provider_(core|adapter|windows)",
     ],
   )
 
@@ -205,31 +293,48 @@ try {
     buildDirectory,
     `w_seed_ephemeral_provider_adapter_tests${executableSuffix}`,
   )
+  const windowsExecutable = join(
+    buildDirectory,
+    `w_seed_ephemeral_provider_windows_tests${executableSuffix}`,
+  )
   runDeterministic("native provider core", coreExecutable, validateCoreOutput)
-  const nativeAdapterMode = runDeterministic(
+  const nativeLinuxIsReal = process.platform === "linux"
+  const nativeLinuxMode = runDeterministic(
     "native provider adapter",
     adapterExecutable,
-    (execution, label) => validateAdapterOutput(execution, label, process.platform !== "win32"),
+    nativeLinuxIsReal ? validateLinuxAdapterOutput : validateLinuxStubOutput,
   )
-  if (nativeAdapterMode === "windows-stub=passed") {
+  const nativeWindowsMode = runDeterministic(
+    "native Windows provider adapter",
+    windowsExecutable,
+    (execution, label) =>
+      validateWindowsAdapterOutput(execution, label, process.platform === "win32"),
+  )
+  if (nativeLinuxMode === "linux-stub=passed") {
     console.log("SKIP adapter-linux-real=non-linux-stub")
-    console.log("windows-stub=passed")
-  } else if (nativeAdapterMode === "linux-openat2=unsupported") {
+    console.log("linux-stub=passed")
+  } else if (nativeLinuxMode === "linux-openat2=unsupported") {
     console.log("SKIP linux-openat2=unsupported")
     console.log("SKIP cross-mount=not-created-without-privilege")
   } else {
     console.log("SKIP cross-mount=not-created-without-privilege")
     console.log("linux-real=passed")
   }
+  console.log(nativeWindowsMode)
   const wslAdapterMode = await runWslAdapter()
-  if (wslAdapterMode === "linux-openat2=unsupported") {
-    console.log("SKIP linux-openat2=unsupported")
-    console.log("SKIP cross-mount=not-created-without-privilege")
-  } else if (wslAdapterMode === "linux-real=passed") {
-    console.log("SKIP cross-mount=not-created-without-privilege")
-    console.log("linux-real=passed")
+  if (wslAdapterMode !== undefined) {
+    if (wslAdapterMode.linux === "linux-openat2=unsupported") {
+      console.log("SKIP WSL linux-openat2=unsupported")
+      console.log("SKIP WSL cross-mount=not-created-without-privilege")
+    } else {
+      console.log("SKIP WSL cross-mount=not-created-without-privilege")
+      console.log("WSL linux-real=passed")
+    }
+    console.log("WSL windows-stub=passed")
   }
-  console.log("seed ephemeral provider: CMake core/adapter tests and deterministic bounded records passed; optional Linux evidence is reported above")
+  console.log(
+    "seed ephemeral provider: CMake core/Linux/Windows tests and deterministic bounded records passed",
+  )
 } finally {
   await rm(buildDirectory, { recursive: true, force: true })
 }
