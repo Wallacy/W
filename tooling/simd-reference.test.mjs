@@ -326,7 +326,7 @@ const sources = {
   performance: read("reference/last-light/performance.w"),
   lastLightReadme: read("reference/last-light/README.md"),
   operators: read("reference/syntax-atlas/operators.w"),
-  atlasCheatsheet: read("reference/syntax-atlas/CHEATSHEET.md"),
+  syntaxCoverage: read("reference/syntax-atlas/SYNTAX-COVERAGE.md"),
   stdSimd: read("std/simd/contracts.w"),
   corpus: JSON.parse(read("tooling/simd-reference-cases.json")),
 };
@@ -437,8 +437,8 @@ describe("SIMD1 host oracle", () => {
       [sources.cheatsheet, "saturatingReduceMultiply"],
       [sources.cheatsheet, "reduceBitXor"],
       [sources.lastLightReadme, "scanMenuDelimiters"],
-      [sources.atlasCheatsheet, "../../CHEATSHEET.md#operadores-bits-e-política-numérica"],
-      [sources.atlasCheatsheet, "../../CHEATSHEET.md#performance-e-custo"],
+      [sources.syntaxCoverage, "../../CHEATSHEET.md#operadores-bits-e-política-numérica"],
+      [sources.syntaxCoverage, "../../CHEATSHEET.md#performance-e-custo"],
       [sources.stdSimd, "export enum ReductionMode: Copy & Equatable"],
       [sources.stdSimd, "Simd and SimdMask are compiler-owned heads"],
     ];

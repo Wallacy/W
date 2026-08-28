@@ -44,9 +44,10 @@ Cada regra pública da grammar recebe uma classificação `direct`, `composed`,
 `root`, `lexical` ou `recovery`; uma regra nova sem classificação falha o
 checker.
 
-[`CHEATSHEET.md`](CHEATSHEET.md) é gerado dos blocos reais dos arquivos `.w`.
-Ele é um atlas parse-only, não um guia editorial e não uma promessa de
-execução. Não edite o arquivo. Use o gerador para manter os snippets idênticos.
+[`SYNTAX-COVERAGE.md`](SYNTAX-COVERAGE.md) é gerado dos blocos reais dos arquivos
+`.w`. Ele é uma cobertura técnica parse-only, não um guia editorial e não uma
+promessa de execução. Não edite o arquivo. Use o gerador para manter os
+snippets idênticos.
 
 O guia editorial fica na raiz em [`../../CHEATSHEET.md`](../../CHEATSHEET.md).
 Ele explica contexto, rotas de uso e trade-offs. O guia editorial não é uma
@@ -82,7 +83,7 @@ bun tooling/syntax-atlas.mjs --check
 
 O checker rejeita marker ausente, duplicado ou não listado, digest ou snippet
 stale, regra pública não classificada, bloco inválido, root incompatível e
-cheatsheet stale. Ele também parseia todos os `.w` do atlas sem recovery.
+syntax coverage stale. Ele também parseia todos os `.w` do atlas sem recovery.
 
 Para atualizar os artefatos depois de uma alteração aprovada:
 

@@ -13,7 +13,7 @@ const paths = {
   rootCheatsheet: path.join(ROOT, "CHEATSHEET.md"),
   atlasSource: path.join(ROOT, "reference", "syntax-atlas", "operators.w"),
   atlasManifest: path.join(ROOT, "reference", "syntax-atlas", "atlas-manifest.json"),
-  atlasCheatsheet: path.join(ROOT, "reference", "syntax-atlas", "CHEATSHEET.md"),
+  syntaxCoverage: path.join(ROOT, "reference", "syntax-atlas", "SYNTAX-COVERAGE.md"),
   lastLightNumerics: path.join(ROOT, "reference", "last-light", "numerics.w"),
 };
 
@@ -405,7 +405,7 @@ function check() {
   const parserSource = read(paths.seedParser);
   const rootCheatsheet = read(paths.rootCheatsheet);
   const atlasSource = read(paths.atlasSource);
-  const atlasCheatsheet = read(paths.atlasCheatsheet);
+  const syntaxCoverage = read(paths.syntaxCoverage);
   const lastLightNumerics = read(paths.lastLightNumerics);
   let manifest;
   try {
@@ -527,8 +527,8 @@ function check() {
   const block = manifest.blocks?.find((entry) => entry.id === "operators");
   if (!manifest.sourceFiles?.includes("operators.w") || !manifest.pedagogicalOrder?.includes("operators") || !block) fail(errors, "atlas manifest does not inventory operators.w");
   if (block && (block.file !== "operators.w" || block.root !== "module" || block.designStatus !== "current" || !block.designRefs?.includes("5.6"))) fail(errors, "operators atlas block metadata is incomplete");
-  if (!atlasCheatsheet.includes("<summary>Operators and numeric policies")) fail(errors, "generated atlas cheatsheet is missing operators block");
-  if (!atlasCheatsheet.includes("let power = -2 ** 2") || !atlasCheatsheet.includes("u16.checkedAdd")) fail(errors, "generated atlas cheatsheet lost operator witnesses");
+  if (!syntaxCoverage.includes("<summary>Operators and numeric policies")) fail(errors, "generated syntax coverage is missing operators block");
+  if (!syntaxCoverage.includes("let power = -2 ** 2") || !syntaxCoverage.includes("u16.checkedAdd")) fail(errors, "generated syntax coverage lost operator witnesses");
   const digest = `sha256:${crypto.createHash("sha256").update(read(paths.grammar)).digest("hex")}`;
   if (manifest.grammar?.digest !== digest) fail(errors, "atlas manifest grammar digest is stale");
 

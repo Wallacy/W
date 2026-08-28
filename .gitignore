@@ -23,6 +23,7 @@ tooling/vscode-w/dist/
 *.tgz
 
 # Editor and operating-system artifacts
+/.vscode/
 .idea/
 .DS_Store
 Thumbs.db

@@ -40,7 +40,7 @@
     "check:bmd:comparison-smoke": "bun tooling/benchmark-driven-development-comparison-runner-smoke.mjs",
     "check:cheatsheet": "bun test tooling/cheatsheet-snippets.test.mjs && bun tooling/check-cheatsheet-snippets.mjs",
     "check:service-recovery": "bun test tooling/service-recovery-reference.test.mjs && bun tooling/check-service-recovery-cases.mjs",
-    "check:docs": "bun run check:bmd && bun run --cwd tooling/tree-sitter-w check:docs",
+    "check:docs": "bun test tooling/diagnostic-catalog.test.mjs && bun tooling/diagnostic-catalog.mjs --check && bun run check:bmd && bun run --cwd tooling/tree-sitter-w check:docs",
     "check:borrow-expressivity": "bun test tooling/borrow-expressivity-reference.test.mjs && bun tooling/check-borrow-expressivity-cases.mjs && bun test tooling/studies/r1-borrow-expressivity/oracle.test.mjs && bun run --cwd tooling/tree-sitter-w parse:borrow-expressivity",
     "check:brx2": "bun test tooling/brx2-borrow-relations-reference.test.mjs tooling/studies/brx2-borrow-relations/oracle.test.mjs && bun tooling/check-brx2-borrow-relations.mjs",
     "check:brx3": "bun test tooling/brx3-borrow-relations-reference.test.mjs tooling/studies/brx3-borrow-relations/oracle.test.mjs && bun tooling/check-brx3-borrow-relations.mjs && bun run --cwd tooling/tree-sitter-w parse:brx3",
@@ -126,6 +126,8 @@
     "check:wmeta": "bun run --cwd tooling/tree-sitter-w check:wmeta",
     "measure:substitutions": "bun tooling/substitution-surface.mjs --write",
     "measure:std": "bun tooling/check-std-api-contracts.mjs --write",
+    "docs:write": "bun tooling/diagnostic-catalog.mjs --write && bun tooling/syntax-atlas.mjs --write && bun tooling/design-index.mjs --write",
+    "docs:check": "bun test tooling/diagnostic-catalog.test.mjs && bun tooling/diagnostic-catalog.mjs --check && bun test tooling/syntax-atlas.test.mjs && bun tooling/syntax-atlas.mjs --check && bun run check:cheatsheet && bun tooling/check-operator-surface.mjs && bun tooling/check-markdown-links.mjs && bun run design:index:check",
     "design:index": "bun tooling/design-index.mjs --write",
     "design:index:check": "bun tooling/design-index.mjs --check"
   }
