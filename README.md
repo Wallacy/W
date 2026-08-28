@@ -26,6 +26,9 @@ Contribuições humanas, assistidas por IA e automatizadas são bem-vindas. W
 avalia o resultado, a evidência e a responsabilidade. A ferramenta usada não
 define a qualidade da contribuição.
 
+Leia [Sobre o W](ABOUT.md) para uma visão curta da origem, dos princípios e do
+estado atual do projeto.
+
 ## Fontes canônicas
 
 Leia estes artefatos nesta ordem:
@@ -187,9 +190,9 @@ Somente pessoas podem ser maintainers, aprovar merges e assinar releases.
 Ferramentas podem ajudar em qualquer etapa verificável. A pessoa que envia ou
 aprova uma mudança continua responsável pelo resultado.
 
-## Histórico
+## Sobre e proveniência
 
-As notas originais e os documentos substituídos ficam em
-[`history/`](history). A consolidação substituída de 27 de julho de 2026 está no
-[arquivo histórico](history/archive/db1-2026-07-27).
-Esses arquivos preservam proveniência. Eles não definem o W atual.
+[Sobre o W](ABOUT.md) resume a origem, o método do restaurante, os princípios e
+o estado atual. A lista dos arquivos históricos preservados está em
+[`history/README.md`](history/README.md). Esses arquivos preservam proveniência.
+Eles não definem o W atual.

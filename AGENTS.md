@@ -1,7 +1,7 @@
 # Orientações do repositório
 
 W é uma linguagem experimental em fase de projeto. Este repositório é a fonte
-de trabalho do W depois da extração do monorepo `wallacy.com`.
+de trabalho do W.
 
 Antes de uma tarefa sobre W, leia `.codex/W.md`. Leia `CONTRIBUTING.md` para
 mudança pública, preparação de pull request ou política de contribuição. Para
