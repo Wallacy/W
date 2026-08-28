@@ -2,11 +2,15 @@
 
 > **Working Draft · pesquisa histórica · 18 de julho de 2026**
 
-Este catálogo cobre os **42 arquivos C** históricos de
-[`Y/_w_/C`](../../_w_/C), conferidos no
-[registro de consolidação](../consolidation-manifest.md) por caminho e blob. Eles
-registram perguntas sobre representação, concorrência, ABI, plataforma e stdlib.
-Não formam uma biblioteca única nem uma implementação parcial validada do runtime W.
+Este catálogo cobre os **42 arquivos C** históricos do laboratório anterior.
+Eles registram perguntas sobre representação, concorrência, ABI, plataforma e
+stdlib. Não formam uma biblioteca única nem uma implementação parcial validada
+do runtime W.
+
+Os fontes brutos não fazem parte da superfície corrente. O commit imutável
+`4964d1f` ainda os contém. Use `git show 4964d1f:<path>` para recuperá-los.
+Este catálogo preserva os alertas que devem ser revistos antes de qualquer
+promoção.
 
 ## Regra de uso
 
