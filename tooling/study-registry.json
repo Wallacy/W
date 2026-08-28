@@ -28,8 +28,8 @@
     "digestReferences": 770,
     "pathOnlyReferences": 127,
     "dependencyEdges": 54,
-    "entrypoints": 84,
-    "scripts": 106,
+    "entrypoints": 83,
+    "scripts": 107,
     "roots": 19,
     "leaves": 69,
     "missing": 0,
@@ -1039,7 +1039,7 @@
     {
       "path": "package.json",
       "kind": "script-package",
-      "digest": "sha256:ac118571b4b7dab8d9055ac99da8fe07848c74b063572319ad9c81886fae6ca1"
+      "digest": "sha256:34a75016457d578099753f2c3cda138db25319554516ca20b9435af94d293b97"
     },
     {
       "path": "reference/last-light/borrow_relations_brx3.w",
@@ -1205,6 +1205,11 @@
       "path": "tooling/check-study-bundles.mjs",
       "kind": "script-target",
       "digest": "sha256:1df415d8e9d4b921b4cc7bcc7b38d5d83ad94a7dbddc1dfa32690bbae6a3e01a"
+    },
+    {
+      "path": "tooling/check-suite.mjs",
+      "kind": "script-target",
+      "digest": "sha256:5b59744052e5989d905d2f997411309d20e775269174f202146a6a878ba6ef3e"
     },
     {
       "path": "tooling/check-syn1-typed-generation.mjs",
@@ -1564,7 +1569,7 @@
     {
       "path": "tooling/tree-sitter-w/package.json",
       "kind": "script-package",
-      "digest": "sha256:35993b9fc7c7a5e949b0e5564bf265d220bcf6e6c9179d8f7d38c59c3af27841"
+      "digest": "sha256:a92a82467360587b44266266c21ef9e702020a63d4a04a5bc0850cb175d9ddda"
     }
   ],
   "studies": [
@@ -1620,20 +1625,20 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
         41,
+        64,
         65,
         66,
-        67,
-        71,
+        70,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -1714,22 +1719,21 @@
         29,
         30,
         31,
-        38,
+        32,
         39,
         40,
         42,
-        51,
+        64,
         65,
         66,
-        67,
+        71,
         72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -1779,20 +1783,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
         43,
-        51,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -1859,20 +1862,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
         44,
-        51,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -1934,20 +1936,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
         45,
-        51,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -2010,20 +2011,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
         47,
-        51,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -2071,19 +2071,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
         48,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -2117,18 +2117,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -2200,20 +2200,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
         49,
-        51,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -2261,19 +2260,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
         50,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -2311,18 +2310,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -2401,20 +2400,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
         51,
-        52,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -2506,20 +2504,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
-        51,
-        53,
+        52,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -2555,18 +2552,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -2616,19 +2613,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
-        54,
+        53,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -2698,19 +2695,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
-        55,
+        54,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -2774,20 +2771,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
-        51,
-        56,
+        55,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -2827,20 +2823,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
-        51,
-        57,
+        56,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -2899,20 +2894,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
-        51,
-        58,
+        57,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -2948,18 +2942,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -2995,18 +2989,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -3063,20 +3057,20 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
-        59,
+        58,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
         77,
-        78,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -3129,20 +3123,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
-        51,
-        60,
+        59,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3228,21 +3221,20 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
-        51,
-        61,
+        60,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        79,
-        81,
-        82
+        78,
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -3278,19 +3270,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
-        62,
+        61,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -3323,18 +3315,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3371,18 +3363,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3419,18 +3411,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3465,18 +3457,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3514,19 +3506,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
         46,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3561,18 +3553,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3609,18 +3601,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3663,18 +3655,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3713,18 +3705,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3759,18 +3751,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3805,18 +3797,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3851,18 +3843,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3900,18 +3892,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3948,18 +3940,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -3996,18 +3988,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4042,18 +4034,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4090,18 +4082,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4136,18 +4128,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4182,18 +4174,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4230,18 +4222,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4276,18 +4268,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4322,18 +4314,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4368,18 +4360,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4414,18 +4406,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4462,18 +4454,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4510,18 +4502,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4556,18 +4548,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4602,18 +4594,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4648,18 +4640,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4696,18 +4688,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4745,18 +4737,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4791,18 +4783,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4839,18 +4831,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4887,18 +4879,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4933,18 +4925,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -4979,18 +4971,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -5025,18 +5017,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -5075,18 +5067,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -5220,23 +5212,22 @@
         29,
         30,
         31,
-        37,
-        39,
+        32,
+        38,
         40,
-        51,
-        63,
+        62,
+        64,
         65,
         66,
-        67,
-        70,
+        69,
+        72,
         73,
         74,
         75,
         76,
-        77,
+        79,
         80,
-        81,
-        82
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -5337,18 +5328,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -5384,18 +5375,18 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -5465,20 +5456,19 @@
         29,
         30,
         31,
-        39,
+        32,
         40,
-        51,
+        63,
         64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -5516,18 +5506,18 @@
         30,
         31,
         32,
-        39,
+        33,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -5613,22 +5603,21 @@
         29,
         30,
         31,
-        33,
+        32,
         34,
-        39,
+        35,
         40,
-        51,
+        64,
         65,
         66,
         67,
-        68,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [
@@ -5704,22 +5693,21 @@
         29,
         30,
         31,
-        35,
-        39,
+        32,
+        36,
         40,
-        51,
+        64,
         65,
         66,
-        67,
-        69,
+        68,
+        72,
         73,
         74,
         75,
         76,
-        77,
+        80,
         81,
-        82,
-        83
+        82
       ],
       "dependencies": {
         "inbound": [
@@ -5760,19 +5748,19 @@
         29,
         30,
         31,
-        36,
-        39,
+        32,
+        37,
         40,
+        64,
         65,
         66,
-        67,
+        72,
         73,
         74,
         75,
         76,
-        77,
-        81,
-        82
+        80,
+        81
       ],
       "dependencies": {
         "inbound": [],
@@ -14760,7 +14748,7 @@
       "command": "bun test tooling/studies/aeg0-app-essentials-gate/oracle.test.mjs && bun tooling/check-aeg0-app-essentials-gate.mjs && bun run --cwd tooling/tree-sitter-w parse:aeg0",
       "targets": [
         10,
-        48
+        49
       ],
       "patterns": [],
       "studies": [
@@ -14780,7 +14768,7 @@
       "command": "bun test tooling/studies/asic0-evidence-gap-closure/oracle.test.mjs && bun tooling/check-asic0-evidence-gap-closure.mjs && bun run --cwd tooling/tree-sitter-w parse:asic0",
       "targets": [
         11,
-        51
+        52
       ],
       "patterns": [],
       "studies": [
@@ -14800,7 +14788,7 @@
       "command": "bun test tooling/studies/atom1-atomic-extensibility/oracle.test.mjs && bun tooling/check-atom1-atomic-extensibility.mjs",
       "targets": [
         12,
-        52
+        53
       ],
       "patterns": [],
       "studies": [
@@ -14820,7 +14808,7 @@
       "command": "bun test tooling/studies/atom2-atomic-contract/oracle.test.mjs && bun tooling/check-atom2-atomic-contract.mjs",
       "targets": [
         13,
-        53
+        54
       ],
       "patterns": [],
       "studies": [
@@ -14841,7 +14829,7 @@
       "targets": [
         6,
         14,
-        54
+        55
       ],
       "patterns": [],
       "studies": [
@@ -14862,7 +14850,7 @@
       "targets": [
         7,
         15,
-        81
+        82
       ],
       "patterns": [],
       "studies": [
@@ -14883,7 +14871,7 @@
       "targets": [
         8,
         16,
-        55
+        56
       ],
       "patterns": [],
       "studies": [
@@ -14904,7 +14892,7 @@
       "targets": [
         9,
         17,
-        56
+        57
       ],
       "patterns": [],
       "studies": [
@@ -14924,8 +14912,8 @@
       "command": "bun test tooling/cyc1-explicit-cycle-reference.test.mjs tooling/studies/cyc1-explicit-cycle-lifecycle/oracle.test.mjs && bun tooling/check-cyc1-explicit-cycle.mjs && bun run --cwd tooling/tree-sitter-w parse:cyc1",
       "targets": [
         18,
-        37,
-        57
+        38,
+        58
       ],
       "patterns": [],
       "studies": [
@@ -14945,8 +14933,8 @@
       "command": "bun test tooling/cyc2-conditional-liveness-reference.test.mjs tooling/studies/cyc2-conditional-liveness/oracle.test.mjs && bun tooling/check-cyc2-conditional-liveness.mjs && bun run --cwd tooling/tree-sitter-w parse:cyc2",
       "targets": [
         19,
-        38,
-        58
+        39,
+        59
       ],
       "patterns": [],
       "studies": [
@@ -14966,7 +14954,7 @@
       "command": "bun test tooling/studies/drc0-design-research-closure/oracle.test.mjs && bun tooling/check-design-research-closure.mjs",
       "targets": [
         20,
-        59
+        60
       ],
       "patterns": [],
       "studies": [
@@ -14986,8 +14974,8 @@
       "command": "bun test tooling/dyn1-versioned-behavior-reference.test.mjs tooling/studies/dyn1-versioned-behavior/oracle.test.mjs && bun tooling/check-dyn1-versioned-behavior.mjs",
       "targets": [
         21,
-        39,
-        60
+        40,
+        61
       ],
       "patterns": [],
       "studies": [
@@ -15023,8 +15011,8 @@
       "name": "check:fst0",
       "command": "bun test tooling/studies/fst0-first-settled-task/oracle.test.mjs && bun tooling/studies/fst0-first-settled-task/check.mjs",
       "targets": [
-        62,
-        63
+        63,
+        64
       ],
       "patterns": [],
       "studies": [
@@ -15044,7 +15032,7 @@
       "command": "bun test tooling/gen1-incremental-suspension-reference.test.mjs && bun tooling/check-gen1-incremental-suspension.mjs",
       "targets": [
         22,
-        40
+        41
       ],
       "patterns": [],
       "studies": [
@@ -15064,8 +15052,8 @@
       "command": "bun test tooling/gen2-stream-yield-reference.test.mjs tooling/studies/gen2-stream-yield/oracle.test.mjs && bun tooling/check-gen2-stream-yield.mjs && bun run --cwd tooling/tree-sitter-w parse:gen2",
       "targets": [
         23,
-        41,
-        64
+        42,
+        65
       ],
       "patterns": [],
       "studies": [
@@ -15085,7 +15073,7 @@
       "command": "bun test tooling/studies/hrd0-hot-reload-dev/oracle.test.mjs && bun tooling/check-hot-reload-dev.mjs",
       "targets": [
         24,
-        65
+        66
       ],
       "patterns": [],
       "studies": [
@@ -15105,8 +15093,8 @@
       "command": "bun test tooling/hum0-human-review-reference.test.mjs tooling/studies/hum0-human-review/oracle.test.mjs && bun tooling/check-hum0-human-review.mjs",
       "targets": [
         25,
-        42,
-        66
+        43,
+        67
       ],
       "patterns": [],
       "studies": [
@@ -15126,8 +15114,8 @@
       "command": "bun test tooling/ipc1-mapped-ipc-reference.test.mjs && bun test tooling/studies/ipc1-mapped-ipc/oracle.test.mjs && bun tooling/check-ipc1-mapped-ipc.mjs",
       "targets": [
         26,
-        43,
-        67
+        44,
+        68
       ],
       "patterns": [],
       "studies": [
@@ -15146,8 +15134,8 @@
       "name": "check:llm0",
       "command": "bun test tooling/studies/llm0-training-inference/oracle.test.mjs && bun tooling/studies/llm0-training-inference/check.mjs",
       "targets": [
-        68,
-        69
+        69,
+        70
       ],
       "patterns": [],
       "studies": [
@@ -15166,8 +15154,8 @@
       "name": "check:mem0",
       "command": "bun test tooling/studies/mem0-virtual-memory-data-movement/oracle.test.mjs && bun tooling/studies/mem0-virtual-memory-data-movement/check.mjs",
       "targets": [
-        70,
-        71
+        71,
+        72
       ],
       "patterns": [],
       "studies": [
@@ -15187,7 +15175,7 @@
       "command": "bun test tooling/studies/pfu0-pre-freeze-usability/oracle.test.mjs && bun tooling/check-pfu0-pre-freeze-usability.mjs && bun run --cwd tooling/tree-sitter-w parse:pfu0",
       "targets": [
         27,
-        74
+        75
       ],
       "patterns": [],
       "studies": [
@@ -15207,8 +15195,8 @@
       "command": "bun test tooling/pkg1-project-transaction-reference.test.mjs tooling/studies/pkg1-project-transaction/oracle.test.mjs && bun tooling/check-pkg1-project-transaction.mjs",
       "targets": [
         28,
-        44,
-        75
+        45,
+        76
       ],
       "patterns": [],
       "studies": [
@@ -15229,7 +15217,7 @@
       "targets": [
         29,
         30,
-        77
+        78
       ],
       "patterns": [],
       "studies": [
@@ -15248,8 +15236,8 @@
       "name": "check:qos0",
       "command": "bun test tooling/studies/qos0-scheduling-boundary/oracle.test.mjs && bun tooling/studies/qos0-scheduling-boundary/check.mjs",
       "targets": [
-        79,
-        80
+        80,
+        81
       ],
       "patterns": [],
       "studies": [
@@ -15287,7 +15275,7 @@
       "name": "check:rdx0",
       "command": "bun tooling/studies/rdx0-binary-registry-execution/check.mjs",
       "targets": [
-        85
+        86
       ],
       "patterns": [],
       "studies": [
@@ -15306,8 +15294,8 @@
       "name": "check:sea0",
       "command": "bun test tooling/studies/sea0-simulated-effects-approval/oracle.test.mjs && bun tooling/studies/sea0-simulated-effects-approval/check.mjs",
       "targets": [
-        86,
-        87
+        87,
+        88
       ],
       "patterns": [],
       "studies": [
@@ -15327,8 +15315,8 @@
       "command": "bun test tooling/sec0-security-model-reference.test.mjs tooling/studies/sec0-security-model/oracle.test.mjs && bun tooling/check-sec0-security-model.mjs",
       "targets": [
         32,
-        45,
-        88
+        46,
+        89
       ],
       "patterns": [],
       "studies": [
@@ -15345,8 +15333,10 @@
       "scope": "root",
       "script": 0,
       "name": "check:studies",
-      "command": "bun run check:study-bundles && bun run check:r1c0 && bun run check:prc0 && bun run check:asic0 && bun run check:frc0 && bun run check:pfu0 && bun run check:aeg0 && bun run check:mem0 && bun run check:svc0 && bun run check:fst0 && bun run check:tgm0 && bun run check:qos0 && bun run check:sea0 && bun run check:rdx0 && bun run check:llm0 && bun run check:drc0 && bun run check:gen1 && bun run check:gen2 && bun run check:syn1 && bun run check:brx2 && bun run check:brx3 && bun run check:cyc1 && bun run check:cyc2 && bun run check:dyn1 && bun run check:hrd0 && bun run check:syn2-dyn2 && bun run check:pkg1 && bun run check:avf0 && bun run check:sec0 && bun run check:atom2 && bun run check:ipc1 && bun test tooling/studies && bun run --cwd tooling/tree-sitter-w parse:studies",
-      "targets": [],
+      "command": "bun tooling/check-suite.mjs --suite root-studies",
+      "targets": [
+        34
+      ],
       "patterns": [],
       "studies": [
         0,
@@ -15424,11 +15414,11 @@
       "appliesTo": [
         {
           "study": 0,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 1,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 2,
@@ -15436,19 +15426,19 @@
         },
         {
           "study": 3,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 4,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 5,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 6,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 7,
@@ -15456,27 +15446,27 @@
         },
         {
           "study": 8,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 9,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 10,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 11,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 12,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 13,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 14,
@@ -15488,7 +15478,7 @@
         },
         {
           "study": 16,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 17,
@@ -15496,31 +15486,31 @@
         },
         {
           "study": 18,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 19,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 20,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 21,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 22,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 23,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 24,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 25,
@@ -15676,35 +15666,35 @@
         },
         {
           "study": 63,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 64,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 65,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 66,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 67,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 68,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 69,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         },
         {
           "study": 70,
-          "reason": "study-id-or-name"
+          "reason": "study-glob"
         }
       ]
     },
@@ -16080,11 +16070,378 @@
     {
       "scope": "root",
       "script": 0,
+      "name": "check:study-oracles",
+      "command": "bun test tooling/studies",
+      "targets": [],
+      "patterns": [],
+      "studies": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70
+      ],
+      "appliesTo": [
+        {
+          "study": 0,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 1,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 2,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 3,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 4,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 5,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 6,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 7,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 8,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 9,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 10,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 11,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 12,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 13,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 14,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 15,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 16,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 17,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 18,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 19,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 20,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 21,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 22,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 23,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 24,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 25,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 26,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 27,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 28,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 29,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 30,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 31,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 32,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 33,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 34,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 35,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 36,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 37,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 38,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 39,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 40,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 41,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 42,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 43,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 44,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 45,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 46,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 47,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 48,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 49,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 50,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 51,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 52,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 53,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 54,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 55,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 56,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 57,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 58,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 59,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 60,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 61,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 62,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 63,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 64,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 65,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 66,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 67,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 68,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 69,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 70,
+          "reason": "study-tooling"
+        }
+      ]
+    },
+    {
+      "scope": "root",
+      "script": 0,
       "name": "check:study-registry",
       "command": "bun test tooling/study-registry.test.mjs && bun tooling/study-registry.mjs --check",
       "targets": [
-        100,
-        101
+        101,
+        102
       ],
       "patterns": [],
       "studies": [
@@ -16453,8 +16810,8 @@
       "name": "check:svc0",
       "command": "bun test tooling/studies/svc0-service-stream-directions/oracle.test.mjs && bun tooling/studies/svc0-service-stream-directions/check.mjs",
       "targets": [
-        89,
-        90
+        90,
+        91
       ],
       "patterns": [],
       "studies": [
@@ -16473,9 +16830,9 @@
       "name": "check:syn1",
       "command": "bun test tooling/syn1-typed-generation-reference.test.mjs tooling/studies/syn1-typed-generation/oracle.test.mjs && bun tooling/check-syn1-typed-generation.mjs",
       "targets": [
-        34,
-        91,
-        102
+        35,
+        92,
+        103
       ],
       "patterns": [],
       "studies": [
@@ -16494,9 +16851,9 @@
       "name": "check:syn1-typed-generation",
       "command": "bun test tooling/syn1-typed-generation-reference.test.mjs tooling/studies/syn1-typed-generation/oracle.test.mjs && bun tooling/check-syn1-typed-generation.mjs",
       "targets": [
-        34,
-        91,
-        102
+        35,
+        92,
+        103
       ],
       "patterns": [],
       "studies": [
@@ -16515,8 +16872,8 @@
       "name": "check:syn2-dyn2",
       "command": "bun test tooling/studies/syn2-dyn2-closure/oracle.test.mjs && bun tooling/check-syn2-dyn2-closure.mjs && bun run --cwd tooling/tree-sitter-w check:syn2-dyn2",
       "targets": [
-        35,
-        96
+        36,
+        97
       ],
       "patterns": [],
       "studies": [
@@ -16535,8 +16892,8 @@
       "name": "check:tgm0",
       "command": "bun test tooling/studies/tgm0-task-group-map-collect/oracle.test.mjs && bun tooling/studies/tgm0-task-group-map-collect/check.mjs",
       "targets": [
-        98,
-        99
+        99,
+        100
       ],
       "patterns": [],
       "studies": [
@@ -16555,8 +16912,8 @@
       "name": "check:wlo1",
       "command": "bun test tooling/studies/r1c0-closure/oracle.test.mjs && bun tooling/check-wlo1-closure.mjs && bun run --cwd tooling/tree-sitter-w parse:r1c0",
       "targets": [
-        36,
-        83
+        37,
+        84
       ],
       "patterns": [],
       "studies": [
@@ -16592,7 +16949,7 @@
       "name": "study:registry",
       "command": "bun tooling/study-registry.mjs --write",
       "targets": [
-        100
+        101
       ],
       "patterns": [],
       "studies": [
@@ -16957,379 +17314,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
-      "name": "check",
-      "command": "bun run generate && bun run check:syntax-atlas && bun run check:operator-surface && bun run check:cheatsheet && bun run check:pkg1 && bun run check:avf0 && bun run check:wire && bun run check:wire:c && bun run check:hir && bun run check:hir0 && bun run check:memory-transitions && bun run check:allocation && bun run check:allocator-scope && bun run check:shared-control && bun run check:layout-abi-model && bun run check:layout-abi && bun run check:execution-model && bun run check:execution-concurrency && bun run check:execution-ergonomics && bun run check:process-root && bun run check:filesystem && bun run check:io-error && bun run check:time && bun run check:injections && bun run check:foreign-bodies && bun run check:runtime-liveness-model && bun run check:runtime-liveness && bun run check:lazy && bun run check:ownership-execution && bun run check:channel && bun run check:context-local && bun run check:interference-layout && bun run check:locks && bun run check:snapshot-cell && bun run check:boundary-effects && bun run check:service-recovery && bun run check:package-releases && bun run check:module-run && bun run check:repl-session && bun run check:presentation && bun run check:dlpack && bun run check:device-execution && bun run check:kernel-modules && bun run check:jupyter && bun run check:notebook-export && bun run check:std-api && bun run check:web-bodies && bun run check:wmeta && bun run check:semantic-cases && bun run check:semantic-matrix && bun run check:formatter-cases && bun run check:seed-source-reader && bun run check:seed-test-exits && bun run check:seed-lexer && bun run check:seed-parser && bun run check:seed-module-scan && bun run check:seed-ephemeral-graph && bun run check:seed-ephemeral-provider && bun run check:seed-ephemeral-driver && bun run check:seed-formatter && bun run check:seed-diagnostic && bun run check:seed-check-driver && bun run check:w-cli && bun run check:seed-foreign && bun run check:seed-frontend && bun run check:seed-constir && bun run check:seed-generic-validation && bun run check:hlo0 && bun run check:hlo1 && bun run check:seed-unicode && bun run check:substitutions && bun run check:freeze-audit && bun run check:frc0 && bun run check:substitution-surface && bun run check:tabular-carrier && bun run check:tabular-adapters && bun run check:source-calls && bun run check:study-bundles && bun run check:r1c0 && bun run check:prc0 && bun run check:asic0 && bun run check:syn2-dyn2 && bun run check:hrd0 && bun run check:atom2 && bun run check:ipc1 && bun run check:hum0 && bun run check:gen1 && bun run check:gen2 && bun run check:atom1 && bun run check:cyc1 && bun run check:syn1 && bun run check:dyn1 && bun run check:borrow-expressivity && bun run check:study-oracles && bun run test && bun run parse:reference && bun run parse:platforms && bun run parse:packages && bun run parse:roots && bun run parse:std && bun run parse:fixture && bun run parse:studies && bun run check:links && bun run check:design && bun run check:index",
-      "targets": [],
-      "patterns": [],
-      "studies": [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22,
-        23,
-        24,
-        25,
-        26,
-        27,
-        28,
-        29,
-        30,
-        31,
-        32,
-        33,
-        34,
-        35,
-        36,
-        37,
-        38,
-        39,
-        40,
-        41,
-        42,
-        43,
-        44,
-        45,
-        46,
-        47,
-        48,
-        49,
-        50,
-        51,
-        52,
-        53,
-        54,
-        55,
-        56,
-        57,
-        58,
-        59,
-        60,
-        61,
-        62,
-        63,
-        64,
-        65,
-        66,
-        67,
-        68,
-        69,
-        70
-      ],
-      "appliesTo": [
-        {
-          "study": 0,
-          "reason": "study-glob"
-        },
-        {
-          "study": 1,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 2,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 3,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 4,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 5,
-          "reason": "study-glob"
-        },
-        {
-          "study": 6,
-          "reason": "study-glob"
-        },
-        {
-          "study": 7,
-          "reason": "study-glob"
-        },
-        {
-          "study": 8,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 9,
-          "reason": "study-glob"
-        },
-        {
-          "study": 10,
-          "reason": "study-glob"
-        },
-        {
-          "study": 11,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 12,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 13,
-          "reason": "study-glob"
-        },
-        {
-          "study": 14,
-          "reason": "study-glob"
-        },
-        {
-          "study": 15,
-          "reason": "study-glob"
-        },
-        {
-          "study": 16,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 17,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 18,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 19,
-          "reason": "study-glob"
-        },
-        {
-          "study": 20,
-          "reason": "study-glob"
-        },
-        {
-          "study": 21,
-          "reason": "study-glob"
-        },
-        {
-          "study": 22,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 23,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 24,
-          "reason": "study-glob"
-        },
-        {
-          "study": 25,
-          "reason": "study-glob"
-        },
-        {
-          "study": 26,
-          "reason": "study-glob"
-        },
-        {
-          "study": 27,
-          "reason": "study-glob"
-        },
-        {
-          "study": 28,
-          "reason": "study-glob"
-        },
-        {
-          "study": 29,
-          "reason": "study-glob"
-        },
-        {
-          "study": 30,
-          "reason": "study-glob"
-        },
-        {
-          "study": 31,
-          "reason": "study-glob"
-        },
-        {
-          "study": 32,
-          "reason": "study-glob"
-        },
-        {
-          "study": 33,
-          "reason": "study-glob"
-        },
-        {
-          "study": 34,
-          "reason": "study-glob"
-        },
-        {
-          "study": 35,
-          "reason": "study-glob"
-        },
-        {
-          "study": 36,
-          "reason": "study-glob"
-        },
-        {
-          "study": 37,
-          "reason": "study-glob"
-        },
-        {
-          "study": 38,
-          "reason": "study-glob"
-        },
-        {
-          "study": 39,
-          "reason": "study-glob"
-        },
-        {
-          "study": 40,
-          "reason": "study-glob"
-        },
-        {
-          "study": 41,
-          "reason": "study-glob"
-        },
-        {
-          "study": 42,
-          "reason": "study-glob"
-        },
-        {
-          "study": 43,
-          "reason": "study-glob"
-        },
-        {
-          "study": 44,
-          "reason": "study-glob"
-        },
-        {
-          "study": 45,
-          "reason": "study-glob"
-        },
-        {
-          "study": 46,
-          "reason": "study-glob"
-        },
-        {
-          "study": 47,
-          "reason": "study-glob"
-        },
-        {
-          "study": 48,
-          "reason": "study-glob"
-        },
-        {
-          "study": 49,
-          "reason": "study-glob"
-        },
-        {
-          "study": 50,
-          "reason": "study-glob"
-        },
-        {
-          "study": 51,
-          "reason": "study-glob"
-        },
-        {
-          "study": 52,
-          "reason": "study-glob"
-        },
-        {
-          "study": 53,
-          "reason": "study-glob"
-        },
-        {
-          "study": 54,
-          "reason": "study-glob"
-        },
-        {
-          "study": 55,
-          "reason": "study-glob"
-        },
-        {
-          "study": 56,
-          "reason": "study-glob"
-        },
-        {
-          "study": 57,
-          "reason": "study-glob"
-        },
-        {
-          "study": 58,
-          "reason": "study-glob"
-        },
-        {
-          "study": 59,
-          "reason": "study-glob"
-        },
-        {
-          "study": 60,
-          "reason": "study-glob"
-        },
-        {
-          "study": 61,
-          "reason": "study-glob"
-        },
-        {
-          "study": 62,
-          "reason": "study-glob"
-        },
-        {
-          "study": 63,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 64,
-          "reason": "study-glob"
-        },
-        {
-          "study": 65,
-          "reason": "study-glob"
-        },
-        {
-          "study": 66,
-          "reason": "study-glob"
-        },
-        {
-          "study": 67,
-          "reason": "study-glob"
-        },
-        {
-          "study": 68,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 69,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 70,
-          "reason": "study-glob"
-        }
-      ]
-    },
-    {
-      "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:aeg0",
       "command": "bun test ../studies/aeg0-app-essentials-gate/oracle.test.mjs && bun ../check-aeg0-app-essentials-gate.mjs && bun run parse:aeg0",
       "targets": [
         10,
-        48
+        49
       ],
       "patterns": [],
       "studies": [
@@ -17344,12 +17334,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:asic0",
       "command": "bun test ../studies/asic0-evidence-gap-closure/oracle.test.mjs && bun ../check-asic0-evidence-gap-closure.mjs && bun run parse:asic0",
       "targets": [
         11,
-        51
+        52
       ],
       "patterns": [],
       "studies": [
@@ -17364,12 +17354,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:atom1",
       "command": "bun test ../studies/atom1-atomic-extensibility/oracle.test.mjs && bun ../check-atom1-atomic-extensibility.mjs",
       "targets": [
         12,
-        52
+        53
       ],
       "patterns": [],
       "studies": [
@@ -17384,12 +17374,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:atom2",
       "command": "bun test ../studies/atom2-atomic-contract/oracle.test.mjs && bun ../check-atom2-atomic-contract.mjs",
       "targets": [
         13,
-        53
+        54
       ],
       "patterns": [],
       "studies": [
@@ -17404,13 +17394,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:avf0",
       "command": "bun test ../avf0-availability-feature-reference.test.mjs ../studies/avf0-availability-feature/oracle.test.mjs && bun ../check-avf0-availability-feature.mjs",
       "targets": [
         6,
         14,
-        54
+        55
       ],
       "patterns": [],
       "studies": [
@@ -17425,13 +17415,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:borrow-expressivity",
       "command": "bun test ../borrow-expressivity-reference.test.mjs && bun ../check-borrow-expressivity-cases.mjs && bun test ../studies/r1-borrow-expressivity/oracle.test.mjs && bun run parse:borrow-expressivity",
       "targets": [
         7,
         15,
-        81
+        82
       ],
       "patterns": [],
       "studies": [
@@ -17446,13 +17436,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:brx2",
       "command": "bun test ../brx2-borrow-relations-reference.test.mjs ../studies/brx2-borrow-relations/oracle.test.mjs && bun ../check-brx2-borrow-relations.mjs",
       "targets": [
         8,
         16,
-        55
+        56
       ],
       "patterns": [],
       "studies": [
@@ -17467,13 +17457,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:brx3",
       "command": "bun test ../brx3-borrow-relations-reference.test.mjs ../studies/brx3-borrow-relations/oracle.test.mjs && bun ../check-brx3-borrow-relations.mjs && bun run parse:brx3",
       "targets": [
         9,
         17,
-        56
+        57
       ],
       "patterns": [],
       "studies": [
@@ -17488,13 +17478,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:cyc1",
       "command": "bun test ../cyc1-explicit-cycle-reference.test.mjs ../studies/cyc1-explicit-cycle-lifecycle/oracle.test.mjs && bun ../check-cyc1-explicit-cycle.mjs && bun run parse:cyc1",
       "targets": [
         18,
-        37,
-        57
+        38,
+        58
       ],
       "patterns": [],
       "studies": [
@@ -17509,13 +17499,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:cyc2",
       "command": "bun test ../cyc2-conditional-liveness-reference.test.mjs ../studies/cyc2-conditional-liveness/oracle.test.mjs && bun ../check-cyc2-conditional-liveness.mjs && bun run parse:cyc2",
       "targets": [
         19,
-        38,
-        58
+        39,
+        59
       ],
       "patterns": [],
       "studies": [
@@ -17530,110 +17520,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
-      "name": "check:docs",
-      "command": "bun run check:reader && bun run check:syntax-atlas && bun run check:operator-surface && bun run check:cheatsheet && bun run check:root-unification && bun run check:pkg1 && bun run check:avf0 && bun run check:sec0 && bun run check:asic0 && bun run check:links && bun run check:design && bun run check:capability-matrix && bun run check:memory-transitions && bun run check:allocation && bun run check:allocator-scope && bun run check:shared-control && bun run check:layout-abi-model && bun run check:layout-abi && bun run check:execution-model && bun run check:execution-concurrency && bun run check:execution-ergonomics && bun run check:process-root && bun run check:filesystem && bun run check:io-error && bun run check:time && bun run check:injections && bun run check:foreign-bodies && bun run check:runtime-liveness-model && bun run check:runtime-liveness && bun run check:lazy && bun run check:ownership-execution && bun run check:channel && bun run check:context-local && bun run check:interference-layout && bun run check:locks && bun run check:snapshot-cell && bun run check:boundary-effects && bun run check:service-recovery && bun run check:package-releases && bun run check:module-run && bun run check:repl-session && bun run check:presentation && bun run check:dlpack && bun run check:device-execution && bun run check:kernel-modules && bun run check:jupyter && bun run check:notebook-export && bun run check:std-api && bun run check:web-bodies && bun run check:wmeta && bun run check:semantic-matrix && bun run check:substitutions && bun run check:freeze-audit && bun run check:frontend-freeze && bun run check:frc0 && bun run check:substitution-surface && bun run check:tabular-carrier && bun run check:tabular-adapters && bun run check:source-calls && bun run check:study-bundles && bun run check:r1c0 && bun run check:prc0 && bun run check:syn2-dyn2 && bun run check:hrd0 && bun run check:atom2 && bun run check:ipc1 && bun run check:hum0 && bun run check:gen1 && bun run check:gen2 && bun run check:atom1 && bun run check:cyc1 && bun run check:syn1 && bun run check:dyn1 && bun run check:borrow-expressivity && bun run check:brx2 && bun run check:index",
-      "targets": [],
-      "patterns": [],
-      "studies": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        8,
-        11,
-        12,
-        16,
-        17,
-        18,
-        22,
-        23,
-        63,
-        66,
-        68,
-        69
-      ],
-      "appliesTo": [
-        {
-          "study": 1,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 2,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 3,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 4,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 5,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 8,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 11,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 12,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 16,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 17,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 18,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 22,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 23,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 63,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 66,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 68,
-          "reason": "study-id-or-name"
-        },
-        {
-          "study": 69,
-          "reason": "study-id-or-name"
-        }
-      ]
-    },
-    {
-      "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:dyn1",
       "command": "bun test ../dyn1-versioned-behavior-reference.test.mjs ../studies/dyn1-versioned-behavior/oracle.test.mjs && bun ../check-dyn1-versioned-behavior.mjs",
       "targets": [
         21,
-        39,
-        60
+        40,
+        61
       ],
       "patterns": [],
       "studies": [
@@ -17648,12 +17541,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:frc0",
       "command": "bun test ../studies/final-research-closure/oracle.test.mjs && bun check-frc0.mjs",
       "targets": [
-        61,
-        103
+        62,
+        104
       ],
       "patterns": [],
       "studies": [
@@ -17668,12 +17561,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:gen1",
       "command": "bun test ../gen1-incremental-suspension-reference.test.mjs && bun ../check-gen1-incremental-suspension.mjs",
       "targets": [
         22,
-        40
+        41
       ],
       "patterns": [],
       "studies": [
@@ -17688,13 +17581,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:gen2",
       "command": "bun test ../gen2-stream-yield-reference.test.mjs ../studies/gen2-stream-yield/oracle.test.mjs && bun ../check-gen2-stream-yield.mjs && bun run parse:gen2",
       "targets": [
         23,
-        41,
-        64
+        42,
+        65
       ],
       "patterns": [],
       "studies": [
@@ -17709,12 +17602,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:hrd0",
       "command": "bun test ../studies/hrd0-hot-reload-dev/oracle.test.mjs && bun ../check-hot-reload-dev.mjs && bun run parse:hrd0",
       "targets": [
         24,
-        65
+        66
       ],
       "patterns": [],
       "studies": [
@@ -17729,13 +17622,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:hum0",
       "command": "bun test ../hum0-human-review-reference.test.mjs ../studies/hum0-human-review/oracle.test.mjs && bun ../check-hum0-human-review.mjs",
       "targets": [
         25,
-        42,
-        66
+        43,
+        67
       ],
       "patterns": [],
       "studies": [
@@ -17750,13 +17643,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:ipc1",
       "command": "bun test ../ipc1-mapped-ipc-reference.test.mjs && bun test ../studies/ipc1-mapped-ipc/oracle.test.mjs && bun ../check-ipc1-mapped-ipc.mjs",
       "targets": [
         26,
-        43,
-        67
+        44,
+        68
       ],
       "patterns": [],
       "studies": [
@@ -17771,12 +17664,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:pfu0",
       "command": "bun test ../studies/pfu0-pre-freeze-usability/oracle.test.mjs && bun ../check-pfu0-pre-freeze-usability.mjs && bun run parse:pfu0",
       "targets": [
         27,
-        74
+        75
       ],
       "patterns": [],
       "studies": [
@@ -17791,13 +17684,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:pkg1",
       "command": "bun test ../pkg1-project-transaction-reference.test.mjs ../studies/pkg1-project-transaction/oracle.test.mjs && bun ../check-pkg1-project-transaction.mjs",
       "targets": [
         28,
-        44,
-        75
+        45,
+        76
       ],
       "patterns": [],
       "studies": [
@@ -17812,13 +17705,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:prc0",
       "command": "bun test ../studies/prc0-provider-runtime-closure/oracle.test.mjs && bun check-prc0.mjs && bun ../check-quantity-source-contract.mjs && bun run parse:prc0",
       "targets": [
         30,
-        77,
-        104
+        78,
+        105
       ],
       "patterns": [],
       "studies": [
@@ -17833,12 +17726,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:qos0",
       "command": "bun test ../studies/qos0-scheduling-boundary/oracle.test.mjs && bun ../studies/qos0-scheduling-boundary/check.mjs",
       "targets": [
-        79,
-        80
+        80,
+        81
       ],
       "patterns": [],
       "studies": [
@@ -17853,7 +17746,7 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:r1c0",
       "command": "bun run check:wlo1 && bun ../check-r1c0-closure.mjs",
       "targets": [
@@ -17872,13 +17765,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:sec0",
       "command": "bun test ../sec0-security-model-reference.test.mjs ../studies/sec0-security-model/oracle.test.mjs && bun ../check-sec0-security-model.mjs && bun run parse:sec0",
       "targets": [
         32,
-        45,
-        88
+        46,
+        89
       ],
       "patterns": [],
       "studies": [
@@ -17893,7 +17786,7 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:study-bundles",
       "command": "bun ../check-study-bundles.mjs",
       "targets": [
@@ -18262,13 +18155,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:study-oracles",
       "command": "bun test ../studies && bun ../studies/svc0-service-stream-directions/check.mjs && bun ../studies/fst0-first-settled-task/check.mjs && bun ../studies/tgm0-task-group-map-collect/check.mjs && bun run check:qos0 && bun run check:brx2",
       "targets": [
-        62,
-        89,
-        98
+        63,
+        90,
+        99
       ],
       "patterns": [],
       "studies": [
@@ -18633,12 +18526,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:study-registry",
       "command": "bun test ../study-registry.test.mjs && bun ../study-registry.mjs --check",
       "targets": [
-        100,
-        101
+        101,
+        102
       ],
       "patterns": [],
       "studies": [
@@ -19003,13 +18896,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:syn1",
       "command": "bun test ../syn1-typed-generation-reference.test.mjs ../studies/syn1-typed-generation/oracle.test.mjs && bun ../check-syn1-typed-generation.mjs",
       "targets": [
-        34,
-        91,
-        102
+        35,
+        92,
+        103
       ],
       "patterns": [],
       "studies": [
@@ -19024,13 +18917,13 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:syn2-dyn2",
       "command": "bun test ../studies/syn2-dyn2-closure/oracle.test.mjs && bun ../check-syn2-dyn2-closure.mjs && bun ../studies/syn2-dyn2-closure/check.mjs && bun run parse:syn2-dyn2",
       "targets": [
-        35,
-        92,
-        96
+        36,
+        93,
+        97
       ],
       "patterns": [],
       "studies": [
@@ -19045,12 +18938,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "check:wlo1",
       "command": "bun test ../studies/r1c0-closure/oracle.test.mjs && bun ../check-wlo1-closure.mjs && bun run parse:r1c0",
       "targets": [
-        36,
-        83
+        37,
+        84
       ],
       "patterns": [],
       "studies": [
@@ -19065,12 +18958,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:aeg0",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../studies/aeg0-app-essentials-gate/current.w ../studies/aeg0-app-essentials-gate/adversarial.w",
       "targets": [
-        46,
-        47
+        47,
+        48
       ],
       "patterns": [],
       "studies": [
@@ -19085,12 +18978,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:asic0",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../studies/asic0-evidence-gap-closure/current.w ../studies/asic0-evidence-gap-closure/adversarial.w",
       "targets": [
-        49,
-        50
+        50,
+        51
       ],
       "patterns": [],
       "studies": [
@@ -19105,7 +18998,7 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:brx3",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/borrow_relations_brx3.w ../studies/brx3-borrow-relations/*.w",
       "targets": [
@@ -19476,7 +19369,7 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:cyc1",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../studies/cyc1-explicit-cycle-lifecycle/*.w",
       "targets": [],
@@ -19845,7 +19738,7 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:cyc2",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/cyc2_liveness.w ../studies/cyc2-conditional-liveness/*.w",
       "targets": [
@@ -20216,7 +20109,7 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:gen2",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../studies/gen2-stream-yield/*.w",
       "targets": [],
@@ -20585,7 +20478,7 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:hrd0",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/hot_reload_dev_contract.w ../../reference/last-light/hot_reload_dev_local.w ../../reference/last-light/hot_reload_dev_split.w ../studies/hrd0-hot-reload-dev/*.w",
       "targets": [
@@ -20958,12 +20851,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:pfu0",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../studies/pfu0-pre-freeze-usability/current.w ../studies/pfu0-pre-freeze-usability/adversarial.w",
       "targets": [
-        72,
-        73
+        73,
+        74
       ],
       "patterns": [],
       "studies": [
@@ -20978,12 +20871,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:prc0",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../studies/prc0-provider-runtime-closure/current.w ../studies/prc0-provider-runtime-closure/rejected.w",
       "targets": [
-        76,
-        78
+        77,
+        79
       ],
       "patterns": [],
       "studies": [
@@ -20998,12 +20891,12 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:r1c0",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../studies/r1c0-closure/portable.w ../studies/r1c0-closure/native.w",
       "targets": [
-        82,
-        84
+        83,
+        85
       ],
       "patterns": [],
       "studies": [
@@ -21018,7 +20911,7 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:sec0",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../studies/sec0-security-model/*.w",
       "targets": [],
@@ -21387,7 +21280,7 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:studies",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../studies/*/*.w",
       "targets": [],
@@ -21756,14 +21649,14 @@
     },
     {
       "scope": "tree-sitter",
-      "script": 105,
+      "script": 106,
       "name": "parse:syn2-dyn2",
       "command": "tree-sitter parse --grammar-path . --quiet --stat ../studies/syn2-dyn2-closure/syn2-module-set.w ../studies/syn2-dyn2-closure/dyn2-local.w ../studies/syn2-dyn2-closure/dyn2-split.w ../studies/syn2-dyn2-closure/generation-reference.w",
       "targets": [
-        93,
         94,
         95,
-        97
+        96,
+        98
       ],
       "patterns": [],
       "studies": [

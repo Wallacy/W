@@ -95,14 +95,23 @@ if (treePackage?.private !== true) {
 if (treePackage?.scripts?.generate !== "tree-sitter generate") {
   errors.push("Tree-sitter generate must remain the explicit bootstrap command");
 }
-if (!treePackage?.scripts?.check?.startsWith("bun run generate &&")) {
-  errors.push("Tree-sitter check must generate outputs before consumers");
+if (treePackage?.scripts?.check !== "bun ../check-suite.mjs --suite tree-check") {
+  errors.push("Tree-sitter check must use the declarative tree-check suite");
 }
-if (!treePackage?.scripts?.["check:syntax-atlas"]?.startsWith("bun run check:generated-policy &&")) {
-  errors.push("Tree-sitter check must run generated policy after generation");
+if (treePackage?.scripts?.["check:docs"] !== "bun ../check-suite.mjs --suite tree-docs") {
+  errors.push("Tree-sitter check:docs must use the declarative tree-docs suite");
 }
-if (!rootPackage?.scripts?.check?.includes("bun run --cwd tooling/tree-sitter-w check")) {
-  errors.push("root check must include the integrated Tree-sitter check");
+if (rootPackage?.scripts?.check !== "bun tooling/check-suite.mjs --suite root-check") {
+  errors.push("root check must use the declarative root-check suite");
+}
+if (rootPackage?.scripts?.["check:docs"] !== "bun tooling/check-suite.mjs --suite root-docs") {
+  errors.push("root check:docs must use the declarative root-docs suite");
+}
+if (rootPackage?.scripts?.["check:studies"] !== "bun tooling/check-suite.mjs --suite root-studies") {
+  errors.push("root check:studies must use the declarative root-studies suite");
+}
+if (rootPackage?.scripts?.["check:suite-manifest"] !== "bun test tooling/check-suite.test.mjs && bun tooling/check-suite.mjs --check") {
+  errors.push("root check:suite-manifest must test and validate the declarative suite manifest");
 }
 
 const workflowPath = resolve(root, ".github", "workflows", "validate.yml");

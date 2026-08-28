@@ -13,15 +13,31 @@ semântica. A autoridade normativa continua em [DESIGN.md](../DESIGN.md).
 comportamento; nenhum highlighter aceita ou rejeita um programa em nome da
 linguagem.
 
+## Suítes de checks
+
+[`check-suites.json`](check-suites.json) é o inventário declarativo das suítes
+agregadas. Cada passo aponta para um script de um pacote ou para outra suíte.
+O validador rejeita scripts ausentes, paths fora do repositório e ciclos antes
+de executar um filho.
+
+Use `bun run check:suite-manifest` para executar os testes do runner e validar o
+inventário. Use `bun tooling/check-suite.mjs --list` para listar as suítes e
+seus passos. `bun run check` executa `root-check`; o alias equivalente no
+pacote Tree-sitter executa `tree-check`. Os aliases individuais continuam
+disponíveis para o check focal. Durante uma execução, o runner anuncia cada
+passo com sua posição, pacote/script e duração; em uma falha, mantém a mesma
+informação e inclui a duração até o erro. A ordem declarada permanece
+sequencial até existir evidência para uma execução paralela segura.
+
 ## Registro do design freeze
 
 [`design-freeze-classification.json`](design-freeze-classification.json) possui
 uma entrada explícita para cada ID do ledger. O checker exige a união exata do
 ledger e rejeita IDs ausentes, novos, duplicados ou com digest stale. Cada
 registro carrega `selection: explicit-ledger-id`, `basisRef` para a linha do
-ledger e digest atual; o `archiveGapDistribution` registra por que os 951 IDs
-que permanecem fora da cobertura legada não foram classificados por range ou
-default.
+ledger e digest atual; o `archiveGapDistribution` registra por que os IDs que
+permanecem fora da cobertura legada não foram classificados por range ou
+default. Use o checker para consultar as contagens e a distribuição atuais.
 
 As categorias têm estados diferentes:
 
@@ -31,11 +47,9 @@ As categorias têm estados diferentes:
 - `superseded` aponta para a decisão corrente que substitui a proveniência.
 - `rejected` aponta para a ausência corrente sem promover a forma recusada.
 
-O estado atual é `93 source-backed-current`, `509 oracle-backed-current`, `1
-research-gated`, `824 implementation-evidence-gap`, `59 superseded` e `8
-rejected` (1494/1494). A lacuna corrente de 951 fica distribuída em 89
-oracle, 1 Research, 817 gaps de implementação, 37 superseded e 7 rejected;
-nenhuma decisão é selecionada por faixa, época, regex ou default em massa.
+O checker publica as categorias e os totais derivados do ledger em cada
+execução. Nenhuma decisão é selecionada por faixa, época, regex ou default em
+massa.
 
 Gaps de implementação usam `authorityRef.kind: design-contract` com a seção e
 heading exatos de `DESIGN.md`, digest do arquivo e digest do slice. O `gap.gate`
@@ -67,7 +81,9 @@ snapshots e sem definir semântica.
 
 Gere a projeção com `bun tooling/study-registry.mjs --write` e valide entradas,
 paths, digests e a projeção com `bun tooling/study-registry.mjs --check`. O gate
-completo também está disponível em `bun run check:study-registry`.
+completo também está disponível em `bun run check:study-registry`. O registry e
+o checker publicam as contagens derivadas dos arquivos presentes; a projeção
+não contém paths ausentes, digests stale, duplicatas, JSON inválido ou ciclos.
 
 ## Benchmark-driven development
 
@@ -134,12 +150,12 @@ reexecutar o oracle. Nenhum runner produz result de language ou product-runtime.
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 74 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
 | `simd-reference-cases.json` + `simd-reference.test.mjs` | SIMD1 deriva lanes, masks, scan de menu `16...32` bytes com full/tail e fill masked, bounds, overflow, swizzle e reductions para W-1459; o corpus guarda bytes/operandos e é `design-oracle-input`, sem outcomes caller-owned | oracle host-only; compara scalar/native/split e instrumenta read/write bounds, mas não alega compiler, runtime, provider, native acceleration ou measurement |
 | `generic-fingerprint-cases.json` + `check-seed-generic-validation.mjs` | GPF0-W-1460 fixa o witness file-backed `restaurant`/`StagePath<`, standard duplicado, cancelled e rejeitados vazio/skipped/duplicate; GPF0-W-1461 fixa `generics.w`/`isFinalCallLabel`, positivos duplicados, rejeitados, empty, over-limit e corrupção; GPF0-W-1462 fixa `isUltimateAnswer`, immediate 42, computed/duplicate 6×7, rejected 6×6, quota cumulativa, overflow, unsupported call e corruption; GPF0-W-1463 fixa named/duplicate 42, forward chain, ciclos self/2/3 e inalcançável, `dependency-limit` separado de arithmetic overflow `W-CONST-0006`, e fingerprint equivalente ao immediate/D3; GPF0-W-1464 fixa o diamond `answerSeed`/`assembledUltimateAnswer`, quatro misses/um hit/sete steps, reset, quota, falha não cacheada e counters zero para preflight/corrupção, preservando o receipt causal de ciclo somente quando há capacidade; GPF0-W-1465 acrescenta `AnswerPair.agrees`, o teste `restaurantGenericContractHolds`, duas aliases textualmente equivalentes, sessão por aplicação, 7/4/1 no primeiro argumento, 1/0/1 no irmão, quota 8/7, reset e falha-first; GPF0-W-1466 acrescenta inferência scalar append-only, `declared_type=NONE`/`effective_type=i64` nos quatro records do diamond, default integer, Bool, suffix, propagation, forward/reordered graph, equivalência explicit/inferred, ciclos e barreiras negativas; GPF0-W-1467 acrescenta preimage completo collision-safe de specialization, declaração/schema de parâmetros, substitutions type/value com domínio TYPE/dependent, `StaticValue<Bool,true>`/`StaticValue<String,"The final seating">`, capacity exact/zero/short-by-one, comparação full-byte sob digest forçado, adversários de head/module/refinement e separação de recipe/TypeId; GPF0-W-1468 acrescenta receipt collision-safe de origem nominal ligado ao `AuthorityOrigin` completo de AUL0-W-1469, package/module path `domain`/`generics`, kind/owner/name, missing/invalid/capacity/trailing/digest collision e specialization-2; o probe publica bytes C efetivamente escritos e o gate Bun compara os bytes completos com reconstrução independente. AUL0 é evidence bounded e não é resolver registry/TUF completo; os witnesses usam fragments reais sem alegar que `generics.w` inteiro compila | evidence local pós-validação; não é compiler completo, runtime, provider, persistence/CAS real, expiry/freshness/timestamp, targets/snapshot, Git authority, `.local` origin, NFC, recipe física ou TypeId |
-| `design-freeze-classification.json` + `check-design-freeze-audit.mjs` | registro versionado e explícito dos 1492 IDs, com uma categoria fechada, claim do ledger, authority ref, digests, casos de fonte/oráculo e stop condition; preserva a cobertura legada 170 source, 415 oracle, 8 explícitas e 52 overlaps; PFU0 e AEG0 promovem W-1451–W-1458 a `oracle-backed-current`, SIMD1 promove W-1459 com oracle host-only, GPF0 promove W-1460–W-1469, W-1487, W-1488 e W-1489 somam `oracle-backed-current`, W-1354 é superseded por W-1437, W-1448–W-1450 permanecem implementation-evidence-gap e W-1486 é a única research gate ativa | auditoria de design; fonte/oráculo host não são compiler, runtime ou provider |
+| `design-freeze-classification.json` + `check-design-freeze-audit.mjs` | registro versionado e explícito dos IDs do ledger, com uma categoria fechada, claim do ledger, authority ref, digests, casos de fonte/oráculo e stop condition; preserva a cobertura legada fixa e rejeita classificação por faixa, default ou regex; PFU0 e AEG0 promovem W-1451–W-1458 a `oracle-backed-current`, SIMD1 promove W-1459 com oracle host-only, GPF0 promove W-1460–W-1469, W-1487, W-1488 e W-1489 somam `oracle-backed-current`, W-1492 e W-1494 permanecem ligados às suas evidências correntes, W-1354 é superseded por W-1437, W-1448–W-1450 permanecem implementation-evidence-gap e W-1486 é a única research gate ativa | auditoria de design; fonte/oráculo host não são compiler, runtime ou provider |
 | `final-research-closure-cases.json` + máquina/checker/test + snapshot + `studies/final-research-closure` | FRC0 fecha somente o snapshot histórico W-001–W-1450: seis casos current/adversarial, manifest estrito, bundle R1 reuse-only e três disposições `oracle-backed-current`; W-707 é completude FZ0, W-731 é `Research=0` apenas na fronteira histórica e W-1408 é stop/no-auto com 0 human/0 model. A reabertura W-1451–W-1453 foi explicitamente PFU0 `research-gated`; PFU0 e AEG0 fecham essa sequência no histórico até W-1459. W-1486 é a única research gate ativa posterior, sem reescrever o snapshot histórico FRC0; W-1468 fica ligado ao boundary corrente por `GPF0-W-1468-current` e pela classificação de freeze | oracle host design-only; não alega implementation, compiler, runtime, provider ou resultados humano/modelo |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 190 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 57 bundles R1, 162 variantes e 228 tarefas; base R1 51/148/204/69/75, agregados R1C0 52/150/208/69/75, PRC0 reuse-only 53/152/212, ASIC0 reuse-only 54/154/216, FRC0 reuse-only 55/156/220, PFU0 56/159/224 e AEG0 57/162/228 | parse e oracle host não equivalem a compilar ou executar W |
+| `studies/*/bundle.json` + checker | deriva bundles, variantes, tarefas e casos R0 a partir dos arquivos presentes; use `bun tooling/check-study-bundles.mjs` para os denominadores atuais | parse e oracle host não equivalem a compilar ou executar W |
 | `wlo1-closure-cases.json` + `wlo1-closure-machine.mjs` + `check-wlo1-closure.mjs` + snapshot | WLO1 fecha o perfil `wlo.string.v1` com CBOR determinístico RFC 8949, 14 casos (3 accepted, 11 typed negatives) e uma paridade de target; receipts de schema/versão/limites ficam fora do payload | oracle host de codec; não é W ABI e não alega compiler, runtime, provider, OOM, target, package ou estudo humano/modelo |
-| `r1c0-closure-cases.json` + `check-r1c0-closure.mjs` + `studies/r1c0-closure` | R1C0 fecha 21 gates por metadados reuse-only, 52 bundles pinados, 150 variantes e 208 tarefas; W-092 usa WLO1, W-207 é rejected e W-1441 preserva o gap do provider | oracle host de design; não alega implementação, preferência humana ou resultado de modelo |
+| `r1c0-closure-cases.json` + `check-r1c0-closure.mjs` + `studies/r1c0-closure` | R1C0 fecha os gates declarados por metadados reuse-only; W-092 usa WLO1, W-207 é rejected e W-1441 preserva o gap do provider; use o checker para os denominadores atuais | oracle host de design; não alega implementação, preferência humana ou resultado de modelo |
 | `prc0-provider-runtime-closure-cases.json` + máquina/checker/snapshot + `studies/prc0-provider-runtime-closure` | PRC0 fecha sete gates Research com 14 casos (sete current e sete adversarial), 53 bundles, 152 variantes e 212 tarefas; reusa SR0, RU0, PYN3, PYN4, LZ0, ASC0 e R1 units sem copiar payloads, mantém W-1442–W-1447 como implementation-evidence-gap e reutiliza W-1333 no ASC0 | oracle host design-only; não prova compiler, runtime, provider, bridge, W compile/run ou estudos humano/modelo |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
 | `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
@@ -299,14 +315,13 @@ somente do registro R0. Witnesses textuais usam caminho não-`.w` e
 parseiam sem recovery. Cada bundle fixa primary, adversarial, quatro tasks,
 ordens contrabalançadas, blinding, digests e host oracle independente.
 
-O checker deriva 57 bundles, 162 variantes, 228 tasks e 69/75 casos R0
-promovidos (FRC0 acrescenta um bundle reuse-only sem payloads copiados, PFU0
-acrescenta três rotas de pesquisa e AEG0 acrescenta cinco gates correntes).
-O conjunto contém 107 variantes `.w` parseadas e 32 witnesses reservados fora do parse. `sourceRefs` sustentam constructs adicionais de fontes
-reais sem criar uma segunda autoridade. Cada oracle compara todos os inputs com
-`expected` após derivação independente. Parse Tree-sitter e host oracle são
-evidência corrente. `w-compile`, `w-run`, `human-study` e `model-study`
-permanecem missing.
+O checker deriva os bundles, variantes, tarefas e denominadores R0 a partir dos
+arquivos presentes (FRC0 acrescenta um bundle reuse-only sem payloads copiados,
+PFU0 acrescenta rotas de pesquisa e AEG0 acrescenta gates correntes).
+`sourceRefs` sustentam constructs adicionais de fontes reais sem criar uma
+segunda autoridade. Cada oracle compara todos os inputs com `expected` após
+derivação independente. Parse Tree-sitter e host oracle são evidência corrente.
+`w-compile`, `w-run`, `human-study` e `model-study` permanecem missing.
 
 ### R1C0/WLO1 — fechamento comparativo
 
@@ -316,11 +331,10 @@ mantém receipts externos de schema, versão, target e limites. O corpus tem 14
 casos, três positivos, onze negativos tipados e uma paridade portable/native;
 árvore, rope e interning continuam especializados e rejeitados como default.
 
-R1C0 liga os 21 gates às decisões correntes por casos de fechamento, sem copiar
-payloads dos estudos. Seus números são 52 bundles, 150 variantes e 208 tarefas
-no agregado (base R1: 51/148/204/69/75; R1C0: 52/150/208/69/75). O checker e os
-oracles permanecem host-only: não afirmam compile, run, provider, OOM, target,
-package, humano ou modelo.
+R1C0 liga os gates às decisões correntes por casos de fechamento, sem copiar
+payloads dos estudos. O checker e os oracles permanecem host-only: não afirmam
+compile, run, provider, OOM, target, package, humano ou modelo. Use o checker
+para consultar os denominadores derivados do registry.
 
 Use os gates encadeados:
 

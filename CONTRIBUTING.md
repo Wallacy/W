@@ -138,6 +138,10 @@ Use Bun 1.4.0 ou uma versão compatível. Instale o tooling local uma vez:
 bun run tooling:install
 ```
 
+Valide o inventário das suítes agregadas com `bun run check:suite-manifest`.
+Use os aliases individuais para um check focal. Use `bun run check` para a
+suíte integrada.
+
 Para documentação e decisões:
 
 ```powershell
