@@ -18,6 +18,7 @@
     "parse:hlo0": "tree-sitter parse --grammar-path . --quiet --stat ../../compiler/seed-c/fixtures/hlo0-hello.w",
     "check:source-calls": "bun ../check-source-call-shapes.mjs",
     "check:generated-policy": "bun ../check-generated-policy.mjs",
+    "check:maintained-parse": "bun ../check-maintained-parse.mjs",
     "check:syntax-atlas": "bun run check:generated-policy && bun test ../syntax-atlas.test.mjs && bun ../syntax-atlas.mjs --check",
     "check:operator-surface": "bun ../check-operator-surface.mjs",
     "check:cheatsheet": "bun test ../cheatsheet-snippets.test.mjs && bun ../check-cheatsheet-snippets.mjs",

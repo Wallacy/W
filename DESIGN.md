@@ -18588,8 +18588,11 @@ por U+FFFD. `stream(chunkBytes:)` cria um cursor independente e bounded sobre o
 mesmo backing. Blob também atende a `SnapshotByteSource`; reads posicionais
 podem executar em paralelo sem alterar o value.
 
-O media type conserva o nome Web `type`. O constructor e `slice` aceitam
-String, exigem somente bytes ASCII `0x20...0x7e`, convertem ASCII uppercase para
+O media type preserva o nome Web `type` na property contextual `Blob.type` e
+no member access. Como `type` é keyword e call labels e bindings exigem
+identifier, o constructor, o initializer retaining e `slice` usam o nome
+`mediaType` nesses parâmetros e labels. Eles aceitam String, exigem somente
+bytes ASCII `0x20...0x7e`, convertem ASCII uppercase para
 lowercase e usam String vazia quando o input contém outro byte. Essa
 normalização é value logic e não um parser MIME geral. `std.blob` não cria um
 provider ou uma façade `File`. Um futuro File precisa fechar snapshot de disco,

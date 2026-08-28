@@ -30,7 +30,7 @@ export fn horizonObservationForm(
   try form.append(name: "sensor", value: "Violet Horizon")
   try form.append(name: "sensor", value: "Patient Comet")
 
-  let snapshot = Blob(take image, type: "IMAGE/JPEG")
+  let snapshot = Blob(take image, mediaType: "IMAGE/JPEG")
   try form.append(
     name: "horizon",
     blob: take snapshot,
@@ -73,7 +73,7 @@ export fn horizonObservationRequest(
 export fn horizonSnapshotResponse(
   image: take Bytes,
 ): http.Response throws HorizonBodyError {
-  let snapshot = Blob(take image, type: "image/jpeg")
+  let snapshot = Blob(take image, mediaType: "image/jpeg")
   do {
     return try http.Response(take snapshot)
   } catch error {

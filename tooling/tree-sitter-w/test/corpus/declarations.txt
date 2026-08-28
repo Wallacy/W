@@ -564,3 +564,92 @@ async fn closeStream(cursor: take Stream) throws CloseError {
                     (identifier)))
                 (identifier))
               (argument_list))))))))
+
+==================
+Web Blob and Response type remain contextual
+==================
+
+struct Blob {
+  stored: String
+
+  export type: String {
+    get => stored
+  }
+}
+
+struct Response {
+  stored: String
+
+  export type: String {
+    get => stored
+  }
+}
+
+fn readTypes(blob: Blob, response: Response): String {
+  return blob.type + response.type
+}
+
+---
+
+(source_file
+  (struct_declaration
+    (type_identifier)
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (computed_property_declaration
+        (declaration_prefix)
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (property_accessor_body
+          (get_accessor
+            (accessor_implementation
+              (identifier)))))))
+  (struct_declaration
+    (type_identifier)
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (computed_property_declaration
+        (declaration_prefix)
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (property_accessor_body
+          (get_accessor
+            (accessor_implementation
+              (identifier)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (binary_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (member_expression
+            (identifier)
+            (identifier)))))))
