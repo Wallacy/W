@@ -902,15 +902,15 @@ static bool test_duplicate_edge_total_order(void) {
 }
 
 int main(void) {
-  CHECK(test_transitive_and_frontend());
-  CHECK(test_unreachable_and_capacity());
-  CHECK(test_digest_and_adversarial_barriers());
-  CHECK(test_std_missing_cycle_and_all_or_nothing());
-  CHECK(test_scratch_capacity_and_zero_depth());
-  CHECK(test_candidate_order_determinism());
-  CHECK(test_import_order_projections());
-  CHECK(test_source_id_byte_order());
-  CHECK(test_shuffled_root_candidate_and_frontend());
-  CHECK(test_duplicate_edge_total_order());
+  if (!test_transitive_and_frontend()) return 1;
+  if (!test_unreachable_and_capacity()) return 1;
+  if (!test_digest_and_adversarial_barriers()) return 1;
+  if (!test_std_missing_cycle_and_all_or_nothing()) return 1;
+  if (!test_scratch_capacity_and_zero_depth()) return 1;
+  if (!test_candidate_order_determinism()) return 1;
+  if (!test_import_order_projections()) return 1;
+  if (!test_source_id_byte_order()) return 1;
+  if (!test_shuffled_root_candidate_and_frontend()) return 1;
+  if (!test_duplicate_edge_total_order()) return 1;
   return 0;
 }

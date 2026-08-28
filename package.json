@@ -46,6 +46,7 @@
     "check:brx3": "bun test tooling/brx3-borrow-relations-reference.test.mjs tooling/studies/brx3-borrow-relations/oracle.test.mjs && bun tooling/check-brx3-borrow-relations.mjs && bun run --cwd tooling/tree-sitter-w parse:brx3",
     "check:frontend-freeze": "bun test tooling/frontend-freeze-guards.test.mjs && bun tooling/check-frontend-freeze.mjs",
     "check:seed-source-reader": "bun tooling/check-seed-source-reader.mjs",
+    "check:seed-test-exits": "bun test tooling/check-seed-test-exits.test.mjs && bun tooling/check-seed-test-exits.mjs",
     "check:seed-lexer": "bun tooling/check-seed-lexer.mjs",
     "check:seed-parser": "bun tooling/check-seed-parser.mjs",
     "check:seed-module-scan": "bun tooling/check-seed-module-scan.mjs",

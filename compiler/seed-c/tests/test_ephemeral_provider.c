@@ -897,14 +897,14 @@ static bool test_invalid_source_and_zero_source(void) {
 }
 
 int main(void) {
-  CHECK(test_source_digest_helper());
-  CHECK(test_positive_root_not_first());
-  CHECK(test_invalid_paths_and_ids());
-  CHECK(test_limits_capacity_and_overlap());
-  CHECK(test_metadata_preflight_before_open());
-  CHECK(test_provider_faults());
-  CHECK(test_invalid_handles());
-  CHECK(test_invalid_source_and_zero_source());
+  if (!test_source_digest_helper()) return 1;
+  if (!test_positive_root_not_first()) return 1;
+  if (!test_invalid_paths_and_ids()) return 1;
+  if (!test_limits_capacity_and_overlap()) return 1;
+  if (!test_metadata_preflight_before_open()) return 1;
+  if (!test_provider_faults()) return 1;
+  if (!test_invalid_handles()) return 1;
+  if (!test_invalid_source_and_zero_source()) return 1;
   (void)printf("RESULT provider-core=pass\n");
   return 0;
 }
