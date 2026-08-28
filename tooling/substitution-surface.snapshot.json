@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:da8e133ea88f2579b965678b13de51b57d2f97c2fbe7e4c5c0f7fac38fcb8996",
+  "corpusDigest": "sha256:3e98735163b9756a68d185642c5ffe3cc7e6cb2042ee07d47e65454230b328ff",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3180,6 +3180,114 @@
             "nonWhitespaceCodePoints": 49,
             "lines": 4,
             "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-hlo1-c11-emission",
+      "task": {
+        "utf8Bytes": 112,
+        "codePoints": 112,
+        "nonWhitespaceCodePoints": 95,
+        "lines": 1,
+        "surfaceLexemes": 19
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:a4e5b68eb3b6104c7af4df767890e8db8fed2e6d26b8375809b6335b17d6cd2d",
+        "metrics": {
+          "utf8Bytes": 48,
+          "codePoints": 48,
+          "nonWhitespaceCodePoints": 42,
+          "lines": 2,
+          "surfaceLexemes": 14
+        }
+      },
+      "alternatives": [
+        {
+          "name": "direct-c-template",
+          "language": "c",
+          "sourceDigest": "sha256:0870886cdb781d6d3a7e99ca8d57d3c318ce9ece2bbb82b10ae39db7e8ee94da",
+          "metrics": {
+            "utf8Bytes": 125,
+            "codePoints": 125,
+            "nonWhitespaceCodePoints": 104,
+            "lines": 1,
+            "surfaceLexemes": 52
+          }
+        },
+        {
+          "name": "restaurant-substring-witness",
+          "language": "w-adversarial",
+          "sourceDigest": "sha256:c1d97f9d360f42e5713c2ca1f4f77de7b2fbfa116f79952fb4423c1537be6315",
+          "metrics": {
+            "utf8Bytes": 65,
+            "codePoints": 65,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 2,
+            "surfaceLexemes": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-hir0-verified-lowering",
+      "task": {
+        "utf8Bytes": 274,
+        "codePoints": 274,
+        "nonWhitespaceCodePoints": 240,
+        "lines": 1,
+        "surfaceLexemes": 55
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:a4e5b68eb3b6104c7af4df767890e8db8fed2e6d26b8375809b6335b17d6cd2d",
+        "metrics": {
+          "utf8Bytes": 48,
+          "codePoints": 48,
+          "nonWhitespaceCodePoints": 42,
+          "lines": 2,
+          "surfaceLexemes": 14
+        }
+      },
+      "alternatives": [
+        {
+          "name": "direct-frontend-hlo0",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:f059d756c5f53a7884b99ac813bce2fd88034a645b86358b6703bde2dd3eb5e9",
+          "metrics": {
+            "utf8Bytes": 30,
+            "codePoints": 28,
+            "nonWhitespaceCodePoints": 24,
+            "lines": 1,
+            "surfaceLexemes": 5
+          }
+        },
+        {
+          "name": "forged-hir-record",
+          "language": "w-adversarial",
+          "sourceDigest": "sha256:fe6dbefac340847177e207859df11b1d11fe2f1d0f53e7c2d68984b9821e32e6",
+          "metrics": {
+            "utf8Bytes": 52,
+            "codePoints": 52,
+            "nonWhitespaceCodePoints": 44,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "direct-c-template",
+          "language": "c",
+          "sourceDigest": "sha256:0870886cdb781d6d3a7e99ca8d57d3c318ce9ece2bbb82b10ae39db7e8ee94da",
+          "metrics": {
+            "utf8Bytes": 125,
+            "codePoints": 125,
+            "nonWhitespaceCodePoints": 104,
+            "lines": 1,
+            "surfaceLexemes": 52
           }
         }
       ]

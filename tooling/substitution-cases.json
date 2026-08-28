@@ -1805,6 +1805,40 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-hir0-verified-lowering",
+      "reviewItem": "HIR0 verificada e independente do lifetime do frontend contra acesso direto do HLO0 a records frontend e template C11",
+      "decisions": ["W-1494"],
+      "task": "Lower the canonical W source into a copied, verified HIR0 before HLO0. Prove the bounded one-document/one-module/one-entry (.default) schema, dense ownership partitions, auxiliary symbol index, host labels, and rejection of frontend bypasses and forged intermediate records.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn main() { print(\"Hello, world!\") }",
+          "entry(main)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "direct-frontend-hlo0",
+          "language": "w-internal-rejected",
+          "source": ["frontend records → HLO0 plan"],
+          "expectedDifference": "Direct frontend access leaves HLO0 coupled to frontend lifetime and does not establish a verified intermediate contract."
+        },
+        {
+          "name": "forged-hir-record",
+          "language": "w-adversarial",
+          "source": ["HIR0 with a mutated callee, payload, owner or digest"],
+          "expectedDifference": "The HIR0 verifier recomputes semantic and provenance digests and rejects the mutation before HLO0 writes a plan."
+        },
+        {
+          "name": "direct-c-template",
+          "language": "c",
+          "source": ["static const unsigned char output[] = { 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x0a };"],
+          "expectedDifference": "A C template can reproduce bytes but cannot prove source, HIR ownership, callee identity or verifier invariants."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

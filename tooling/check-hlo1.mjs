@@ -116,6 +116,16 @@ endif()
   assert(Buffer.from(execution.stdout).equals(Buffer.from("Hello, world!\n")),
     "generated program stdout is not exactly Hello, world! LF")
 
+  const commentedPath = resolve(artifactDirectory, "commented-canonical.w")
+  await writeFile(commentedPath,
+    "// source comment\nfn main() {   print(\"Hello, world!\")   }\n\nentry(main)\n")
+  const commented = run(seedGate, [commentedPath])
+  assert(commented.exitCode === 0,
+    `commented canonical route failed: ${commented.stderrText.trim()}`)
+  assert(commented.stderr.length === 0, "commented route wrote to stderr")
+  assert(Buffer.from(commented.stdout).equals(Buffer.from(canonical.stdout)),
+    "commented canonical route changed the deterministic C11 artifact")
+
   const adversarial = [
     ["restaurant-comment.w",
       `fn main() { noop("Other") } // print("Hello, world!")\nentry(main)\n`],
@@ -130,7 +140,7 @@ endif()
     assert(rejected.stdout.length === 0,
       `${name} produced partial C output`)
   }
-  console.log("HLO1: source-backed C11 emission and execution passed")
+  console.log("HLO1: verified-HIR C11 emission and execution passed")
 } finally {
   await rm(buildDirectory, { recursive: true, force: true })
   await rm(artifactDirectory, { recursive: true, force: true })

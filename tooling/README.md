@@ -19,7 +19,7 @@ linguagem.
 uma entrada explícita para cada ID do ledger. O checker exige a união exata do
 ledger e rejeita IDs ausentes, novos, duplicados ou com digest stale. Cada
 registro carrega `selection: explicit-ledger-id`, `basisRef` para a linha do
-ledger e digest atual; o `archiveGapDistribution` registra por que os 948 IDs
+ledger e digest atual; o `archiveGapDistribution` registra por que os 951 IDs
 que permanecem fora da cobertura legada não foram classificados por range ou
 default.
 
@@ -31,10 +31,10 @@ As categorias têm estados diferentes:
 - `superseded` aponta para a decisão corrente que substitui a proveniência.
 - `rejected` aponta para a ausência corrente sem promover a forma recusada.
 
-O estado atual é `91 source-backed-current`, `508 oracle-backed-current`, `1
-research-gated`, `822 implementation-evidence-gap`, `59 superseded` e `8
-rejected` (1489/1489). A lacuna corrente de 948 fica distribuída em 88
-oracle, 1 Research, 815 gaps de implementação, 37 superseded e 7 rejected;
+O estado atual é `93 source-backed-current`, `509 oracle-backed-current`, `1
+research-gated`, `824 implementation-evidence-gap`, `59 superseded` e `8
+rejected` (1494/1494). A lacuna corrente de 951 fica distribuída em 89
+oracle, 1 Research, 817 gaps de implementação, 37 superseded e 7 rejected;
 nenhuma decisão é selecionada por faixa, época, regex ou default em massa.
 
 Gaps de implementação usam `authorityRef.kind: design-contract` com a seção e
@@ -85,7 +85,7 @@ reexecutar o oracle. Nenhum runner produz result de language ou product-runtime.
 | [VS Code/TextMate](vscode-w/README.md) | highlighting lexical local, comentários, pares e indentação | regex tolerante; não produz CST nem diagnósticos |
 | [Tree-sitter](tree-sitter-w/README.md) | parser incremental e queries estruturais sobre o subset candidato | protótipo; o gate do parser normativo está em `DESIGN.md` |
 | Corpus Tree-sitter | positivos e snapshots de CST em `tree-sitter-w/test/corpus/` | execução W ainda não existe |
-| [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) + `check-seed-source-reader.mjs` + `check-seed-lexer.mjs` + `check-seed-unicode.mjs` + `check-seed-parser.mjs` + `check-seed-formatter.mjs` + `check-seed-diagnostic.mjs` + `check-seed-foreign.mjs` + `check-seed-frontend.mjs` + `check-seed-constir.mjs` + `check-seed-generic-validation.mjs` | source reader C11 allocation-free, byte-first, UTF-8 estrito, spans e pontos; lexer lossless com profile Unicode 17.0.0 pinado e handshake de foreign; scanner C `c-inline-1` source-validation-only com spans/limites/SHA-256; parser seed caller-owned/incremental de CST/recovery, formatter CST-driven, adapter D0 bounded sobre 28 IDs F0, frontend seed caller-owned COMPLETE-only para AST/declarations, graph facts e type subset, executor ConstIR D1-D6 para Bool, integers, enums, listas estáticas e expressions escalares parentetizadas borrowed em corpos bounded (`guard`/`if`/`for`/`return`), com a fatia D5 source-backed de module const local e a fatia D6 de sessão privada por aplicação, memoização bounded, dependências e ciclos bounded, counters/quotas determinísticas e teto explícito de elementos; a validação caller-owned pós-frontend consome aplicações BOUND_IMMEDIATE ou TYPED_PENDING_CONST, receipts ordenados e valores normalizados, sem reparsear source e sem fechar type identity | componente interno do seed; parser/formatter/adapter/scanner/frontend/ConstIR não são compiler normativo, HIR, runtime, provider ou publicação de build; frontend é uma fatia semântica bounded, um documento por module ID, com imports externos somente por stubs estruturados; checkers validam dados pinados, witnesses, corpus, outputs canônicos e records D0; NFC, resolver completo, CR isolado, compiler/typechecker completo e build publication continuam gaps |
+| [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) + `check-seed-source-reader.mjs` + `check-seed-lexer.mjs` + `check-seed-unicode.mjs` + `check-seed-parser.mjs` + `check-seed-formatter.mjs` + `check-seed-diagnostic.mjs` + `check-seed-foreign.mjs` + `check-seed-frontend.mjs` + `check-hir0.mjs` + `check-hlo0.mjs` + `check-hlo1.mjs` + `check-seed-constir.mjs` + `check-seed-generic-validation.mjs` | source reader C11 allocation-free, byte-first, UTF-8 estrito, spans e pontos; lexer lossless com profile Unicode 17.0.0 pinado e handshake de foreign; scanner C `c-inline-1` source-validation-only com spans/limites/SHA-256; parser seed caller-owned/incremental de CST/recovery, formatter CST-driven, adapter D0 bounded sobre 28 IDs F0, frontend seed caller-owned COMPLETE-only para AST/declarations, graph facts e type subset; HIR0 caller-owned, bounded e verificada para o subset inicial, com HLO0/HLO1 source→C11; executor ConstIR D1-D6 para Bool, integers, enums, listas estáticas e expressions escalares parentetizadas borrowed em corpos bounded (`guard`/`if`/`for`/`return`), com a fatia D5 source-backed de module const local e a fatia D6 de sessão privada por aplicação, memoização bounded, dependências e ciclos bounded, counters/quotas determinísticas e teto explícito de elementos; a validação caller-owned pós-frontend consome aplicações BOUND_IMMEDIATE ou TYPED_PENDING_CONST, receipts ordenados e valores normalizados, sem reparsear source e sem fechar type identity | componente interno do seed; parser/formatter/adapter/scanner/frontend/ConstIR/HIR0/HLO0/HLO1 não são compiler normativo, HIR geral, runtime, provider ou publicação de build; frontend e HIR0 são fatias semânticas bounded, um documento por module ID, com imports externos somente por stubs estruturados; checkers validam dados pinados, witnesses, corpus, outputs canônicos e records D0; NFC, resolver completo, CR isolado, compiler/typechecker completo, HIR geral, backend/runtime e build publication continuam gaps |
 | `check-design-examples.mjs` | confirma exemplo local em cada seção normativa terminal | inspeção estrutural; não valida a semântica do exemplo |
 | `check-markdown-links.mjs` | valida targets e anchors locais fora do histórico | não consulta links externos |
 | `design-index.mjs` | gera intervalos e métricas separadas de `DESIGN.md` e `RATIONALE.md` | projeção navegável; não define decisões |

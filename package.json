@@ -58,6 +58,7 @@
     "check:w-cli": "bun tooling/check-w-check-cli.mjs",
     "check:seed-foreign": "bun tooling/check-seed-foreign.mjs",
     "check:seed-frontend": "bun tooling/check-seed-frontend.mjs",
+    "check:hir0": "bun tooling/check-hir0.mjs",
     "check:hlo0": "bun tooling/check-hlo0.mjs",
     "check:hlo1": "bun tooling/check-hlo1.mjs",
     "parse:hlo0": "bun run --cwd tooling/tree-sitter-w parse:hlo0",
