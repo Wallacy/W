@@ -56,6 +56,8 @@
     "check:w-cli": "bun tooling/check-w-check-cli.mjs",
     "check:seed-foreign": "bun tooling/check-seed-foreign.mjs",
     "check:seed-frontend": "bun tooling/check-seed-frontend.mjs",
+    "check:hlo0": "bun tooling/check-hlo0.mjs",
+    "parse:hlo0": "bun run --cwd tooling/tree-sitter-w parse:hlo0",
     "check:seed-constir": "bun tooling/check-seed-constir.mjs",
     "check:seed-generic-validation": "bun tooling/check-seed-generic-validation.mjs",
     "check:authority-registry": "bun test tooling/authority-registry-reference.test.mjs && bun tooling/check-authority-registry.mjs",

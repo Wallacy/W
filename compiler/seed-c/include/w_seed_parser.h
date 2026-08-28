@@ -106,6 +106,11 @@ enum {
   W_SEED_CST_FLAG_TRIVIA = 1u << 1,
   W_SEED_CST_FLAG_ERROR = 1u << 2,
   W_SEED_CST_FLAG_MISSING = 1u << 3,
+  /* Append-only structured function qualifier facts. */
+  W_SEED_CST_FUNCTION_FLAG_ASYNC = 1u << 4,
+  W_SEED_CST_FUNCTION_FLAG_THROWS = 1u << 5,
+  W_SEED_CST_FUNCTION_FLAG_UNSAFE = 1u << 6,
+  W_SEED_CST_FUNCTION_FLAG_BORROWS = 1u << 7,
 };
 
 typedef enum {

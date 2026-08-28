@@ -114,6 +114,10 @@ typedef struct {
   w_seed_frontend_external_parameter external_parameters[2];
   w_seed_frontend_external_symbol external_symbols[2];
   w_seed_frontend_external_module external_modules[2];
+  w_seed_frontend_host_requirement host_requirements[2];
+  w_seed_frontend_external_parameter host_parameters[2];
+  w_seed_frontend_host_prelude_symbol host_symbols[2];
+  w_seed_frontend_host_prelude host_scope;
   uint8_t receipt[TEST_RECEIPT];
   w_seed_frontend_output output;
   w_seed_frontend_result result;
@@ -134,6 +138,7 @@ static fixture fixture_generic;
 static fixture fixture_callback;
 static fixture fixture_collision;
 static fixture fixture_const;
+static fixture fixture_host;
 static char long_source[8192];
 
 static bool all_bytes_equal(const void *data, size_t size, uint8_t value) {
@@ -322,6 +327,7 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
   fixture_value->input.document_count = 1;
   fixture_value->input.external_modules = NULL;
   fixture_value->input.external_module_count = 0;
+  fixture_value->input.host_scope = NULL;
   fixture_value->input.import_resolution_complete = false;
   fixture_value->input.resolved_imports = NULL;
   fixture_value->input.resolved_import_count = 0u;
@@ -1680,6 +1686,175 @@ static bool test_const_and_membership(void) {
   CHECK(fixture_external.result.status == W_SEED_FRONTEND_OK);
   CHECK(fixture_external.functions[0].is_const &&
         fixture_external.functions[0].const_body_supported);
+  return true;
+}
+
+static bool test_host_scope_and_callee_identity(void) {
+  fixture *value = &fixture_host;
+  static const char source[] =
+      "fn main(): () { print(\"Hello, world!\") }\n"
+      "entry(main)\n";
+  CHECK(fixture_parse(value, source));
+  value->host_requirements[0] = (w_seed_frontend_host_requirement){
+      .name = (w_seed_frontend_text){"Console", 7u}};
+  value->host_parameters[0] = (w_seed_frontend_external_parameter){
+      .name = (w_seed_frontend_text){"message", 7u},
+      .type = (w_seed_frontend_text){"String", 6u},
+      .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY};
+  value->host_symbols[0] = (w_seed_frontend_host_prelude_symbol){
+      .name = (w_seed_frontend_text){"print", 5u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .parameters = value->host_parameters,
+      .parameter_count = 1u,
+      .return_type = (w_seed_frontend_text){"()", 2u},
+      .is_const = false,
+      .requirements = value->host_requirements,
+      .requirement_count = 1u};
+  value->host_scope = (w_seed_frontend_host_prelude){
+      .profile = (w_seed_frontend_text){"native-process@1", 16u},
+      .symbols = value->host_symbols,
+      .symbol_count = 1u};
+  value->input.host_scope = &value->host_scope;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.functions == 1u &&
+        value->functions[0].name.length == 4u &&
+        !value->functions[0].is_async && !value->functions[0].is_throws &&
+        !value->functions[0].is_unsafe &&
+        !value->functions[0].has_borrow_clause);
+  uint32_t call_index = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    if (value->expressions[index].kind == W_SEED_FRONTEND_EXPR_CALL) {
+      CHECK(call_index == W_SEED_FRONTEND_NONE);
+      call_index = (uint32_t)index;
+    }
+  }
+  CHECK(call_index != W_SEED_FRONTEND_NONE);
+  const w_seed_frontend_expression *call = &value->expressions[call_index];
+  CHECK(call->supported && call->left != W_SEED_FRONTEND_NONE &&
+        call->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL &&
+        call->resolved_host_symbol_index == 0u &&
+        call->resolved_external_module_index == W_SEED_FRONTEND_NONE &&
+        call->resolved_external_symbol_index == W_SEED_FRONTEND_NONE &&
+        call->resolved_function_index == W_SEED_FRONTEND_NONE);
+  CHECK((size_t)call->left < value->result.written.expressions);
+  const w_seed_frontend_expression *callee = &value->expressions[call->left];
+  CHECK(callee->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        callee->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL &&
+        callee->resolved_host_symbol_index == 0u &&
+        callee->resolved_external_module_index == W_SEED_FRONTEND_NONE &&
+        callee->resolved_external_symbol_index == W_SEED_FRONTEND_NONE);
+  CHECK(call->argument_count == 1u && call->first_argument == 0u);
+  CHECK(value->arguments[0].resolved_parameter_ordinal == 0u);
+  CHECK((size_t)value->arguments[0].expression_index <
+        value->result.written.expressions);
+  const w_seed_frontend_expression *literal =
+      &value->expressions[value->arguments[0].expression_index];
+  CHECK(literal->kind == W_SEED_FRONTEND_EXPR_STRING && literal->supported &&
+        literal->const_byte_offset != W_SEED_FRONTEND_NONE &&
+        literal->const_byte_count == 13u &&
+        memcmp(value->const_bytes + literal->const_byte_offset,
+               "Hello, world!", 13u) == 0);
+  CHECK(receipt_contains(value, "host-scope=16:6e61746976652d70726f636573734031",
+                         strlen("host-scope=16:6e61746976652d70726f636573734031")));
+  CHECK(receipt_contains(value, "host-requirement=0|0|7:436f6e736f6c65",
+                         strlen("host-requirement=0|0|7:436f6e736f6c65")));
+  CHECK(receipt_contains(value, "|async=0|throws=0|unsafe=0|borrows=0\n",
+                         strlen("|async=0|throws=0|unsafe=0|borrows=0\n")));
+  w_seed_frontend_counts measured;
+  w_seed_frontend_result measured_result;
+  CHECK(w_seed_frontend_measure(&value->input, &measured, &measured_result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&measured, &value->result.required));
+  const size_t receipt_bytes = value->result.receipt_bytes;
+  uint8_t receipt_copy[TEST_RECEIPT];
+  CHECK(receipt_bytes <= sizeof(receipt_copy));
+  (void)memcpy(receipt_copy, value->receipt, receipt_bytes);
+  (void)w_seed_frontend_run(&value->input, &value->output, &value->result);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.receipt_bytes == receipt_bytes &&
+        memcmp(value->receipt, receipt_copy, receipt_bytes) == 0);
+
+  value->input.host_scope = NULL;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_UNSUPPORTED);
+  value->input.host_scope = &value->host_scope;
+
+  fixture *external = &fixture_external;
+  CHECK(fixture_parse(external,
+                      "import { print } from extdep\n"
+                      "fn main(): () { print(\"Hello, world!\") }\n"
+                      "entry(main)\n"));
+  external->external_symbols[0] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"print", 5u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .exported = true,
+      .parameters = external->external_parameters,
+      .parameter_count = 1u,
+      .return_type = (w_seed_frontend_text){"()", 2u},
+      .is_const = false};
+  external->external_parameters[0] = (w_seed_frontend_external_parameter){
+      .name = (w_seed_frontend_text){"message", 7u},
+      .type = (w_seed_frontend_text){"String", 6u},
+      .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY};
+  external->external_modules[0] = (w_seed_frontend_external_module){
+      .module_id = (w_seed_frontend_text){"extdep", 6u},
+      .symbols = external->external_symbols,
+      .symbol_count = 1u};
+  external->input.external_modules = external->external_modules;
+  external->input.external_module_count = 1u;
+  external->host_requirements[0] = value->host_requirements[0];
+  external->host_parameters[0] = value->host_parameters[0];
+  external->host_symbols[0] = value->host_symbols[0];
+  external->host_symbols[0].parameters = external->host_parameters;
+  external->host_symbols[0].requirements = external->host_requirements;
+  external->host_scope = value->host_scope;
+  external->host_scope.symbols = external->host_symbols;
+  external->input.host_scope = &external->host_scope;
+  CHECK(fixture_resolve_external_imports(external));
+  CHECK(w_seed_frontend_run(&external->input, &external->output,
+                            &external->result) == W_SEED_FRONTEND_OK);
+  call_index = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < external->result.written.expressions;
+       index += 1u) {
+    if (external->expressions[index].kind == W_SEED_FRONTEND_EXPR_CALL)
+      call_index = (uint32_t)index;
+  }
+  CHECK(call_index != W_SEED_FRONTEND_NONE);
+  call = &external->expressions[call_index];
+  CHECK(call->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL &&
+        call->resolved_external_module_index == 0u &&
+        call->resolved_external_symbol_index == 0u &&
+        call->resolved_host_symbol_index == W_SEED_FRONTEND_NONE);
+  CHECK((size_t)call->left < external->result.written.expressions);
+  callee = &external->expressions[call->left];
+  CHECK(callee->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL &&
+        callee->resolved_external_module_index == 0u &&
+        callee->resolved_external_symbol_index == 0u);
+
+  CHECK(fixture_parse(value,
+                      "fn print(message: String): () {}\n"
+                      "fn main(): () { print(\"Hello, world!\") }\n"
+                      "entry(main)\n"));
+  value->input.host_scope = &value->host_scope;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  call_index = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    if (value->expressions[index].kind == W_SEED_FRONTEND_EXPR_CALL)
+      call_index = (uint32_t)index;
+  }
+  CHECK(call_index != W_SEED_FRONTEND_NONE);
+  CHECK(value->expressions[call_index].resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION &&
+        value->expressions[call_index].resolved_function_index == 0u);
   return true;
 }
 
@@ -3732,6 +3907,7 @@ int main(void) {
   if (!test_enum_values_constructors_and_switches()) return 1;
   if (!test_const_and_membership()) return 1;
   if (!test_module_named_consts()) return 1;
+  if (!test_host_scope_and_callee_identity()) return 1;
   if (!test_multidocument_const_ordinals()) return 1;
   if (!test_multidocument_predicate_owner()) return 1;
   if (!test_resolved_import_edges_and_identity()) return 1;

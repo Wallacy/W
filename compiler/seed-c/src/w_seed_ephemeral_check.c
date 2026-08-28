@@ -419,6 +419,7 @@ w_seed_ephemeral_check_status w_seed_ephemeral_check_run(
       input->driver_staging_output->document_count,
       NULL,
       0u,
+      NULL,
       true,
       input->driver_staging_output->graph.resolved_imports,
       resolved_import_count};

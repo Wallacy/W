@@ -649,6 +649,10 @@ static bool test_borrow_clause_shapes(void) {
 
   const w_seed_cst_index function = first_kind(&value, W_SEED_CST_FUNCTION);
   CHECK(function != W_SEED_CST_NONE);
+  CHECK((value.nodes[function].flags & W_SEED_CST_FUNCTION_FLAG_ASYNC) == 0u);
+  CHECK((value.nodes[function].flags & W_SEED_CST_FUNCTION_FLAG_THROWS) != 0u);
+  CHECK((value.nodes[function].flags & W_SEED_CST_FUNCTION_FLAG_UNSAFE) == 0u);
+  CHECK((value.nodes[function].flags & W_SEED_CST_FUNCTION_FLAG_BORROWS) != 0u);
   const w_seed_cst_index parameters =
       direct_child_after(&value, function, W_SEED_CST_PARAMETER_LIST, 0);
   const w_seed_cst_index return_type =
@@ -938,6 +942,10 @@ static bool test_async_function_shapes(void) {
     CHECK(check_tree_links(&value));
     const w_seed_cst_index function = first_kind(&value, W_SEED_CST_FUNCTION);
     CHECK(function != W_SEED_CST_NONE);
+    CHECK((value.nodes[function].flags & W_SEED_CST_FUNCTION_FLAG_ASYNC) != 0u);
+    CHECK((value.nodes[function].flags & W_SEED_CST_FUNCTION_FLAG_THROWS) != 0u);
+    CHECK((value.nodes[function].flags & W_SEED_CST_FUNCTION_FLAG_UNSAFE) == 0u);
+    CHECK((value.nodes[function].flags & W_SEED_CST_FUNCTION_FLAG_BORROWS) == 0u);
     CHECK(value.nodes[function].raw_span.start_byte == 0);
     bool async_raw = false;
     w_seed_cst_index function_child = value.nodes[function].first_child;
@@ -2759,6 +2767,12 @@ static bool test_foreign_islands(void) {
                      sizeof(abi.nodes) / sizeof(abi.nodes[0]),
                      sizeof(abi.issues) / sizeof(abi.issues[0])));
   CHECK(abi.result.status == W_SEED_PARSE_COMPLETE);
+  const w_seed_cst_index abi_function = first_kind(&abi, W_SEED_CST_FUNCTION);
+  CHECK(abi_function != W_SEED_CST_NONE);
+  CHECK((abi.nodes[abi_function].flags & W_SEED_CST_FUNCTION_FLAG_UNSAFE) != 0u);
+  CHECK((abi.nodes[abi_function].flags & W_SEED_CST_FUNCTION_FLAG_ASYNC) == 0u);
+  CHECK((abi.nodes[abi_function].flags & W_SEED_CST_FUNCTION_FLAG_THROWS) == 0u);
+  CHECK((abi.nodes[abi_function].flags & W_SEED_CST_FUNCTION_FLAG_BORROWS) == 0u);
   CHECK(count_kind(&abi, W_SEED_CST_FOREIGN_BODY_OWNER) == 0);
   CHECK(count_kind(&abi, W_SEED_CST_BLOCK) == 1);
   CHECK(check_leaf_partition(&abi));

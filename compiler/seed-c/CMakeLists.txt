@@ -26,6 +26,7 @@ add_library(w_seed_source STATIC
   src/w_seed_frontend.c
   src/w_seed_constir.c
   src/w_seed_generic_validation.c
+  src/w_seed_hlo0.c
 )
 
 target_include_directories(w_seed_source
@@ -240,6 +241,16 @@ add_executable(w_seed_frontend_tests
 )
 target_link_libraries(w_seed_frontend_tests PRIVATE w_seed_source)
 
+add_executable(w_seed_hlo0_tests
+  tests/test_hlo0.c
+)
+target_link_libraries(w_seed_hlo0_tests PRIVATE w_seed_source)
+
+add_executable(w_seed_hlo0_gate
+  tests/hlo0_gate.c
+)
+target_link_libraries(w_seed_hlo0_gate PRIVATE w_seed_source)
+
 if(MSVC)
   target_compile_options(w_seed_source_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_source_probe PRIVATE /W4 /WX)
@@ -270,6 +281,8 @@ if(MSVC)
   target_compile_options(w_seed_check_host_tests PRIVATE /W4 /WX)
   target_compile_options(w PRIVATE /W4 /WX)
   target_compile_options(w_seed_frontend_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_hlo0_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_hlo0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_constir_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_constir_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_generic_validation_tests PRIVATE /W4 /WX)
@@ -562,6 +575,24 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_hlo0_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_hlo0_gate PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
 endif()
 
 enable_testing()
@@ -580,6 +611,7 @@ add_test(NAME w_seed_formatter_unit COMMAND w_seed_formatter_tests)
 add_test(NAME w_seed_diagnostic_unit COMMAND w_seed_diagnostic_tests)
 add_test(NAME w_seed_foreign_unit COMMAND w_seed_foreign_tests)
 add_test(NAME w_seed_frontend_unit COMMAND w_seed_frontend_tests)
+add_test(NAME w_seed_hlo0_unit COMMAND w_seed_hlo0_tests)
 add_test(NAME w_seed_check_storage_unit COMMAND w_seed_check_storage_tests)
 add_test(NAME w_seed_check_retry_unit COMMAND w_seed_check_retry_tests)
 add_test(NAME w_seed_check_pipeline_unit COMMAND w_seed_check_pipeline_tests)
