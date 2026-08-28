@@ -2,13 +2,11 @@
 Reflection and homogeneous rest arguments
 ==================
 
-import reflect from std
-
-struct Ticket: Hashable & reflect.Reflectable {
+struct Ticket: Hashable & Reflectable {
   id: u64
 }
 
-enum Signal: reflect.Reflectable {
+enum Signal: Reflectable {
   ready(Ticket)
   delayed(u32)
   stopped
@@ -28,22 +26,26 @@ fn archive(_ records: take Record...): usize {
   return records.count
 }
 
-fn inspect() {
+fn inspect(value: ref any Reflectable, other: TypeId) {
   let planned = [.broth, .cake]
   let count = load(2, courses: .salad, each planned)
   let tail = planned.slice(4...)
-  let id = reflect.TypeId.of<Ticket>()
-  let ref info = reflect.info<ActiveSignal>()
+  let staticId = type of Ticket
+  let T = Ticket(id: 1)
+  let staticHomonym = type of T
+  let dynamicHomonym = type of (T)
+  let dynamicId = type of value
+  let ref metadata = info of ActiveSignal
+  let ref dynamicMetadata = info of value
+  let recovered = value as? Ticket
+  let queryPrecedence = type of value == other
+  let groupedQuery = type of (value == other)
   let loader: fn(u16, Course...): u32 = load
 }
 
 ---
 
 (source_file
-  (import_statement
-    (identifier)
-    (module_path
-      (identifier)))
   (struct_declaration
     (type_identifier)
     (conformance_clause
@@ -51,7 +53,6 @@ fn inspect() {
         (type_name
           (type_identifier))
         (type_name
-          (type_identifier)
           (type_identifier))))
     (type_body
       (field_declaration
@@ -63,7 +64,6 @@ fn inspect() {
     (type_identifier)
     (type
       (type_name
-        (type_identifier)
         (type_identifier)))
     (enum_body
       (enum_case
@@ -154,7 +154,17 @@ fn inspect() {
           (identifier)))))
   (function_declaration
     (identifier)
-    (parameter_list)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
     (block
       (binding_declaration
         (pattern
@@ -193,33 +203,66 @@ fn inspect() {
       (binding_declaration
         (pattern
           (identifier))
-        (call_expression
-          (generic_application_expression
-            (member_expression
-              (member_expression
-                (identifier)
-                (identifier))
-              (identifier))
-            (generic_call_arguments
-              (type_argument
-                (type
-                  (type_name
-                    (type_identifier))))))
-          (argument_list)))
+        (type_query_expression
+          (identifier)))
       (binding_declaration
         (pattern
           (identifier))
         (call_expression
-          (generic_application_expression
-            (member_expression
+          (identifier)
+          (argument_list
+            (argument
               (identifier)
-              (identifier))
-            (generic_call_arguments
-              (type_argument
-                (type
-                  (type_name
-                    (type_identifier))))))
-          (argument_list)))
+              (number_literal)))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type_query_expression
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type_query_expression
+          (parenthesized_expression
+            (identifier))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type_query_expression
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type_query_expression
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type_query_expression
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (conditional_cast_expression
+          (identifier)
+          (type
+            (type_name
+              (type_identifier)))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (type_query_expression
+            (identifier))
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type_query_expression
+          (parenthesized_expression
+            (binary_expression
+              (identifier)
+              (identifier)))))
       (binding_declaration
         (pattern
           (identifier))

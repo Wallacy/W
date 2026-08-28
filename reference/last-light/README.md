@@ -191,7 +191,7 @@ alvo de execução independente.
 | `generics.w` | primary associated types, constraints, static contract atoms, inference e witnesses |
 | `enum_contracts.w` | subsets fechados de enum, narrowing e payloads |
 | `state_transitions.w` | paths validados, typestate consuming e snapshots runtime |
-| `reflection.w` | TypeId local, reflection opt-in, synthesis e visibilidade |
+| `reflection.w` | queries `type of`/`info of`, TypeId local, metadata opt-in, synthesis e visibilidade |
 | `rest_arguments.w` | rest homogêneo, expansão `each`, ownership e call shape |
 | `units.w` | SI, dimensão e units customizadas |
 | `quantity_oracle.w` | Quantity/SI canonical value, affine points, IEC bits e schemas JSON |
@@ -1842,22 +1842,42 @@ Outros fixtures devem passar `.completed` a `requestCancellation` e retornar
 
 ### 3.26 Arquivo dos Nomes que Não Sobrevivem ao Universo
 
-Famílias: `TypeId`, reflection opt-in, synthesis e metadata alcançável.
+Famílias: queries `type of`/`info of`, `TypeId`, `Reflectable`, síntese e
+metadata alcançável.
 
 Aceite:
 
-- `TypeId.of<T>()` identifica uma specialization no build atual;
-- o programa não persiste ou transmite `TypeId`;
+- `type of T` identifica uma specialization no build atual;
+- `type of value` observa concrete ou existential sem mover o source;
+- `info of T` retorna `ref TypeInfo` somente para `T: Reflectable`;
+- `info of value` exige concrete `Reflectable` ou composição existential com `Reflectable`;
+- `value as? T` retorna `ref T?` borrowed e avalia o source uma vez;
+- para um existential nominal compatível, `value is T` equivale a
+  `type of value == type of T`, e `value as? T` é `.some(ref payload)` quando
+  o teste é verdadeiro, ou `.none` quando é falso;
+- `(info of T).id` equivale a `type of T`, e `(info of value).id` equivale a
+  `type of value`; queries não executam accessors nem código do usuário;
+- o type namespace vence para Subject não parentetizado;
+- `type of (T)` força expression quando `T` também é um valor;
+- `type of value == other` termina o Subject antes da relação;
+- `type of (value == other)` consulta a expression composta;
 - `Reflectable` emite somente metadata alcançável;
 - o descriptor mostra properties exportadas e omite `secretCalibration`;
 - `ActionableSignal` mostra somente os dois cases permitidos;
 - `Hashable` e `Reflectable` são sintetizados sem annotations;
 - backing storage de property behavior não aparece;
-- debug symbols podem ser removidos sem alterar reflection;
+- debug symbols podem ser removidos sem alterar metadata;
 - nenhum descriptor oferece offset, dynamic construction ou acesso por string.
 
-O fixture negativo deve tentar persistir `TypeId`. Outro fixture deve procurar
-`secretCalibration` no descriptor exportado.
+Fixtures negativos devem rejeitar `info of` sem `Reflectable`, target não nominal
+em `as?`, escape do borrow de `as?` e `type of` sem Subject. Os dois últimos
+usam os diagnostics gerais `W-BORROW-0001` e `W-PARSE-0020`; postfix core
+inexistente usa `W-EXPR-0006`. No contexto
+baseline core/std sem binding user-defined, eles também registram que não são
+fornecidos `std.reflect`, o namespace compiler-owned `reflect.*`, `typeof` como
+query, `type(of:)` e `TypeId.of<T>()`. Isso é ausência de superfície core, não
+ban lexical: `reflect`, `info`, `of` e `typeof` continuam identifiers de usuário
+onde a gramática os permite.
 
 ### 3.27 Mesa para um Número Incerto de Convidados
 
@@ -3111,8 +3131,8 @@ O Book deve mostrar pares lado a lado:
 | enum subset | `ServiceStage<[.preparing, .serving]>` | enum base + guard runtime |
 | typestate | `OvenSession<.ready>` + `take fn` | state keyword, annotation ou mutation do tipo no lugar |
 | protocol composition | `T: Display & Equatable` | postfix `where`; static list de protocols |
-| runtime reflection | `T: reflect.Reflectable` | metadata universal e annotations |
-| metatype | `TypeId.of<T>()` + generic/factory | `Type<T>` e dynamic construction |
+| runtime reflection | `T: Reflectable` + `info of T` | metadata universal e annotations |
+| type identity | `type of T` e `type of value` | `typeof`, metatype e dynamic construction |
 | synthesis | conformance no type head | `@derive` e user macro |
 | rest | `T...` + `each values` | Array obrigatório e heterogeneous pack |
 | retorno fluente | `mut fn advance(...): self` | retorno `self` implícito |

@@ -6185,7 +6185,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-015 | value generics | value parameters e labels | positional only; contrato universal aberto |
 | W-016 | existential | `any P` | `P` sozinho; `dyn P`; `Any` universal |
 | W-017 | opaque type | `some P` em local, retorno e parâmetro generic anônimo | existential; generic nomeado |
-| W-018 | reflection | `reflect.Reflectable` opt-in e alcançável | metadata universal; annotations |
+| W-018 | reflection | grafia histórica `reflect.Reflectable` (superseded por W-1492; somente proveniência) | metadata universal; annotations |
 | W-019 | Option | `T?` com some/none | null; sentinel; result-like |
 | W-020 | conversão | total, única e sem perda | tudo explícito; promotions amplas |
 | W-021 | owner | único/move-first | ARC universal; GC |
@@ -6475,9 +6475,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-305 | subset evolution | retorno widening e parâmetro narrowing são major | qualquer mudança minor; variance automática |
 | W-306 | subset de error | `throws Enum<[...]>`; throw e catch usam o case-set publicado | error enum inteiro; effect union separado |
 | W-307 | planos de introspecção | interface/HIR para tooling; descriptor opt-in no runtime | runtime metadata universal; debug como API |
-| W-308 | type identity | `reflect.TypeId` local ao build; sem persistência ou layout | ID estável global; nome como identidade |
+| W-308 | type identity | grafia histórica `reflect.TypeId` local ao build (superseded por W-1492; somente proveniência) | ID estável global; nome como identidade |
 | W-309 | metatype | sem `Type<T>`/`T.type`; generic, factory ou enum | metatype universal; dynamic construction |
-| W-310 | reflection trigger | conformance explícita a `reflect.Reflectable`; sem annotation | inferir por uso; decorator; registro manual |
+| W-310 | reflection trigger | grafia histórica `reflect.Reflectable` (superseded por W-1492; somente proveniência) | inferir por uso; decorator; registro manual |
 | W-311 | reflection visibility | somente interface exportada e properties lógicas | fields privados; backing storage; getter por string |
 | W-312 | reflection reachability | witness alcançável mantém descriptor; sem registry global | todos os conformers como roots |
 | W-313 | synthesis trigger | conformance no type head; protocol reconhecido por identidade | `@derive`; macro; nome textual |
@@ -7634,7 +7634,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1464 | memoização local determinística de DAG de module const | D5 source-backed bounded para module const local `Bool`/integer já lowerable por D4: tabela fixa por invocation, chave por declaration identity, estados `ACTIVE`/`READY`, counters append-only em evaluation result/receipts, hits que omitem body work e preservam o step do `CALL`, reset e quota observáveis, sem alterar preflight causal ou fingerprint | oracle-backed-current; `GPF0-W-1464-current` liga os markers reais de `generics.w`, prova diamond 4 misses/1 hit/7 steps, reconstrução Bun independente de source order, repeated invocation, D3/D4 linear com zero hits, quota 7/6, arithmetic failure não cacheada, cycles/zero capacity/dependency-limit/corruption com counters zero e receipt causal de ciclo somente quando há capacidade e fingerprint idêntico ao immediate/D3/D4; cache compartilhável de §3.6.5, cross-argument/session, imports, associated const, inference, identity final, compiler/runtime e self-host permanecem limites |
 | W-1465 | sessão privada de avaliação por aplicação | D6 source-backed bounded para duas arguments `TYPED_PENDING_CONST` da mesma aplicação: sessão vazia por run, tabela fixa de 256 compartilhada somente durante o loop de argumentos, READY reutilizável entre irmãos, predicates com evaluation nova, counters/quotas/receipts/fingerprint preservados e sem API pública | oracle-backed-current; `GPF0-W-1465-current` liga `AnswerPair.agrees`, as aliases equivalentes e o teste `restaurantGenericContractHolds` do Restaurante, prova primeiro argument 7 steps/4 misses/1 hit, segundo irmão 1 step/0 misses/1 hit, quota total 8, quota 7 com falha antes do lookup no segundo, novo run 7/1, failure-first, cycle/corruption/dependency-limit preflight zero e preimage Bun independente de dois i64; cache compartilhável, outro run/application, imports, associated const, inference, identity final, compiler/runtime e self-host permanecem limites |
 | W-1466 | inferência scalar append-only de module const | D7 source-backed bounded para `const name = initializer` e `export const` local: solver de grafo acíclico independente de source order, forward references, `declared_type` source-only, `effective_type` append-only, default `Int`/`i64`, Bool, suffix e propagation por identifier; cycles causais e barreiras D4 preservados; ConstIR-6/fingerprint-1 estáveis | oracle-backed-current; `GPF0-W-1466-current` remove somente as quatro annotations do diamond Last Light, preserva `ultimateAnswer: i64`, prova quatro records explicit=false/declared=NONE/effective=i64, symbol exportado i64, integer default/Bool/suffix/propagation, graph forward/reordered, equivalência explicit/inferred, ciclos anchor/unanchored com zero evidence e negativos D4 completos via C e oracle Bun independente; imports, associated const, identity final, cache compartilhável, compiler/runtime e self-host permanecem limites |
-| W-1467 | identidade semântica collision-safe de specialization | D8 separa a identidade semântica da specialization, a recipe física de materialização/cache e `reflect.TypeId`; preimage completo com declaração nominal local struct, substitution normalizado, refinements e witness vector count zero; digest somente accelerator com full-byte compare; schema `w-seed-generic-specialization-1`; API caller-owned com measure/write, lifecycle explícito `NOT_AVAILABLE`/`AVAILABLE`/`UNSUPPORTED`/`CAPACITY`, bytes required/written e digest | oracle-backed-current; `GPF0-W-1467-current` liga fragments reais do Restaurante para immediate/computed/named/diamond/AnswerPair e `StaticValue<Bool,true>`/`StaticValue<String,"The final seating">`; head/module/refinement adversaries continuam fixtures C sintéticos; o gate Bun compara bytes C, length e SHA e cobre rejected/quota/overflow/cycle/invalid/corrupt/unsupported, capacity exact/zero/short-by-one, sentinels, NULL input e digest-forced collision; recipe física, receipts autoritativos package/interface, witness selection geral, TypeId runtime e compiler completo permanecem gaps |
+| W-1467 | identidade semântica collision-safe de specialization | D8 separa a identidade semântica da specialization, a recipe física de materialização/cache e a grafia histórica (superseded) `reflect.TypeId`; preimage completo com declaração nominal local struct, substitution normalizado, refinements e witness vector count zero; digest somente accelerator com full-byte compare; schema `w-seed-generic-specialization-1`; API caller-owned com measure/write, lifecycle explícito `NOT_AVAILABLE`/`AVAILABLE`/`UNSUPPORTED`/`CAPACITY`, bytes required/written e digest | oracle-backed-current; `GPF0-W-1467-current` liga fragments reais do Restaurante para immediate/computed/named/diamond/AnswerPair e `StaticValue<Bool,true>`/`StaticValue<String,"The final seating">`; head/module/refinement adversaries continuam fixtures C sintéticos; o gate Bun compara bytes C, length e SHA e cobre rejected/quota/overflow/cycle/invalid/corrupt/unsupported, capacity exact/zero/short-by-one, sentinels, NULL input e digest-forced collision; recipe física, receipts autoritativos package/interface, witness selection geral, TypeId runtime e compiler completo permanecem gaps |
 | W-1468 | origem nominal collision-safe e specialization-2 | D9 separa `NominalDeclarationOrigin`, `SemanticTypeConstructor`, contrato/interface agregados, recipe física e `TypeId`; receipt completo de authority/package/module path/kind/owner/name; builder caller-owned measure/write com schema `w-seed-nominal-origin-1`, SHA accelerator, full-byte equality e validação de digest/framing/relação; specialization sobe para `w-seed-generic-specialization-2` e validation para `w-seed-generic-validation-8`, preservando fingerprint-1 | oracle-backed-current; `GPF0-W-1468-current` liga markers reais de `build.w`, `domain.w` e `generics.w` ao package `last-light/restaurant`, consome o AuthorityOrigin completo de `AUL0-W-1469-current`, separa módulos `domain`/`generics`, compara bytes completos C e Bun independentes e cobre authorities/packages/modules/kinds/owners, aliases/version/revision/path/target/profile ausentes, missing origin, corrupção/truncated/trailing/digest/relation, capacidade e digest collision; o resolver completo de registry e a Git repository authority permanecem gaps, assim como NFC completo, `.local` build-local nonportable e nunca publicável, witness selection geral, recipe física, TypeId runtime e compiler completo |
 | W-1469 | authority origin e continuidade registry bounded | `AuthorityOrigin` usa bytes públicos completos da gênese sem assinaturas; `trustedGenesis` é o payload público completo fornecido out-of-band e define o origin; `trustedCheckpoint` é resolver-owned, persistido entre chamadas e não é um novo trust input out-of-band; ele ancora a root corrente; cada update N+1 satisfaz separadamente o threshold da root anterior e o threshold da root nova; lock separa origin, evidence e record; AUL0-W-1469-current liga o Last Light Restaurante | oracle-backed-current; AUL0-W-1469-current prova trusted anchor, rotação, checkpoint, alias, mirror, corrupção, rollback, gap, thresholds, key IDs, package identity e full-byte equality; persistence/CAS real, expiry/freshness/timestamp, targets/snapshot, Git authority, `.local` origin, NFC e compiler completo permanecem gaps |
 
@@ -7644,7 +7644,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1473 | virtual memory e data movement performance | Direção vigente: MEM0 separa file-backed immutable mapping, anonymous reserve/commit/decommit, private COW, shared/MMIO boundary, protection, advice/prefault/discard, huge pages, NUMA, pinned host, device/unified transfer, vectored I/O, sendfile-style zero-copy, alignment/cache/prefetch/non-temporal operations e composição allocator/Arena/fixed/IPC1. Cada item exige owner move-only, extent bounded, permissions, address-space/provenance, drop determinístico, live-view exclusion, external interference e target evidence; `Mapped<T>` universal é rejeitado | oracle-backed-current por `DRC0-W-1473-current`; [`MEM0`](tooling/studies/mem0-virtual-memory-data-movement/) fecha a classificação, não uma API/provider/compiler/benchmark. Esses itens continuam implementation gaps. Fontes primárias registradas no estudo foram verificadas em 2026-08-25 |
 | W-1474 | efeitos simulados, aprovação posterior e test infrastructure | Direção vigente: state machine bounded `proposed -> simulated -> awaitingApproval -> revalidating -> committing -> committed|rejected|conflict|unknown`, proposals com effect/input/authority/provider+generation/result/dependencies/approval/limits/expiry, DAG causal, bulk approval topológica, revalidation externa e `unknownOutcome(effectId)` após dispatch; simulated e committed values ficam separados; não há rollback, compensation ou exactly-once | oracle-backed-current por `DRC0-W-1474-current`; [`SEA0`](tooling/studies/sea0-simulated-effects-approval/) fecha a máquina compartilhada e as quatro lanes de teste. Carrier, provider real, fault multi-process/hardware e performance continuam gaps. Fontes primárias registradas no estudo foram verificadas em 2026-08-25 |
 | W-1475 | readiness de training e inference | Direção vigente: LLM0 inventaria a cobertura existente de Tensor/shape/value parameters, broadcast/reduction/numeric mode, f16/bf16/quant direction, views/strides, Device/Queue/Launch, DLPack, ownership, streams/backpressure/services, deterministic RNG/profile e packages/receipts; gaps de training e inference são classificados como core, std/API, typed IR/compiler, runtime/provider, tooling/evidence ou application framework, com default de não inflar o core | oracle-backed-current por `DRC0-W-1475-current`; [`LLM0`](tooling/studies/llm0-training-inference/) fecha o ownership map e os dois workloads, não framework, kernel, provider ou performance. Fontes primárias registradas no estudo foram verificadas em 2026-08-25 |
-| W-1476 | teste de tipo e recuperação borrowed | `is` testa somente enum tag ou tipo nominal exato de existential com `reflect.Reflectable`, retorna Bool e não faz narrowing; `reflect.downcast<T>(ref existential)` retorna `ref T?`, exige `T` compatível com toda a composição, herda origin/lifetime e não copia, move, retém ou aloca; downcast owned, `as`/`as?`/`as!`, cast por string, type pattern e smart cast ficam fora | current design contract em DESIGN §8.8.1; compiler typing, existential runtime identity, borrow lowering, diagnostics e execução continuam implementation-evidence gaps |
+| W-1476 | teste de tipo e recuperação borrowed | Proveniência histórica: `is` exigia `reflect.Reflectable` e `reflect.downcast<T>(ref existential)` retornava `ref T?`; downcast owned, `as`/`as?`/`as!`, cast por string, type pattern e smart cast ficavam fora | **superseded por W-1492** para identidade dinâmica sem conformance, `as?` borrowed e queries de tipo. A linha preserva a proveniência e não define a forma vigente |
 | W-1477 | scatter read e transferência posicional | `io.ReadBatch` é owner move-only de segments com capacity fixa e initialized counts privados; `io.readMany` preenche a concatenação em ordem e retorna `data`, `end` ou `full`, com fallback de uma leitura. `io.TransferPlan` possui intervalo, progresso e scratch reservado; `io.transfer` liga `SnapshotByteSource` a `ByteSink`, diferencia source end de limit, preserva sufixo não committed e pode selecionar operação nativa somente por capability interna. `IoSliceMut`, `inout view Bytes...`, probe `isVectored`, syscall pública e promessa universal de zero-copy ficam fora | current design contract em DESIGN §14.2.11, std.io draft e Última Luz; compiler/runtime, provider SPI, cross-target fault tests, receipts de estratégia e benchmarks continuam implementation-evidence gaps. Fontes primárias de `readv`, `WSARecv`, `sendfile`, `TransmitFile` e Rust vectored I/O foram verificadas em 2026-08-25 |
 | W-1478 | aplicação fechada e hook pós-borrow de behavior | behavior aceita zero ou um input, exatamente `initialValue: fn(): Value`; cada parâmetro generic deve ser inferido unicamente pelo tipo lógico depois de `for`; a aplicação usa somente o nome nominal, sem argumentos, generic arguments, composição ou backing access. `modify` pode usar `defer` uma vez após o borrow e observa mutation admission, inclusive término com error, sem copiar `oldValue`. Policy estática pertence ao tipo; dependência runtime usa owner, método, service ou channel nomeado | current design contract em DESIGN §10 e witness `Versioned` no Última Luz; parser aceita a declaration existente, mas checker/HIR, diagnostics e execução do lifecycle continuam implementation-evidence gaps. Swift SE-0258 foi verificado como alternativa de argumentos, backing e projection em 2026-08-25 |
 | W-1479 | projeção nominal borrowed de aggregate | Uma API que suprime properties declara um aggregate nominal lifetime-dependent: `ref Field` para place completo, `view Carrier` para extent verificável e valor owned para snapshot/cópia; constructor ou método nomeado escolhe fields e o HIR preserva origins por field. Protocol menor limita methods, aggregate borrowed expõe dados sem copiar e DTO owned permite escape. `view Object`, `view Nominal`, field mask, derivação estrutural, `Viewable` universal e recuperação de authority omitida ficam fora | current design contract em DESIGN §16.2 e witness `PublicCourse` em `views.w`; parser de aggregates e borrows existe como seed, mas checker de origins por field, diagnostics e execução do borrow continuam implementation-evidence gaps |
@@ -7660,6 +7660,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1489 | comparação BMD2 source-backed de compiler lifecycle | BMD2 compara dois commits locais completos por `git archive` isolado de `compiler/seed-c`, builds Release independentes, oracles vazios antes de samples e schedule `balanced-paired-interleaved-sha256-v1` com pares fixos, ímpares e balanceados. A máquina recompõe schedule e labels, recalcula estatísticas BigInt, deltas, ppm, counts e calibration, valida o workload corrente e verifica a consistência entre as identidades de papel duplicadas em `comparison` e `provenance`. O runner deriva a proveniência de archive, build, artifact, recipe e toolchain e executa o oracle de cada papel; um result isolado não permite à máquina recomputar essa proveniência nem reexecutar o oracle. O result é exploratory/comparison-only/equivalent/clean/check-end-to-end/not-evaluated; não é claim de performance e regression permanece bloqueada por `managed-regression-runner` | casos BMD2 aceitos e adversariais, testes host do runner e smoke HEAD×HEAD cobrem SHAs, archives, builds independentes, oracle-before-samples, divergência de recipe-class/toolchain/workload, schedule forjado, métricas forjadas, publicação atômica e cleanup; a categoria é `oracle-backed-current` |
 | W-1490 | catálogo BMD3 de language e unidade byte-scan-view | W-1490 fecha um catálogo versionado com exatamente 21 unidades required em sete estratos de três, cada uma com owners, escopo, oracle declarado, classes de input, métricas futuras, baselines, readiness, crosspoint separado do Restaurant e stop condition. `byte-scan-view` é a primeira unidade source-oracle-ready: kernel puro conta um delimitador runtime em `view Bytes` binária bounded a 64 MiB e devolve JSON canônico com bytes e matches como u64 decimal. Learner e idiomatic são formas equivalentes; frontier abre somente a estratégia física SIMD com disclosures completos. O oracle host é independente, bounded e completo para a operação, mas W codegen, runtime, language benchmark runner, timings e results continuam bloqueados. C11 e Rust são referências de correção independentes sem ranking agora; após equivalência, seu papel futuro é comparação independente com toolchain e recipe fixos, enquanto W histórico continua primário | `benchmarks/language-catalog.json`, `benchmarks/byte-scan-view.manifest.json`, fontes W, C11, Rust, `CMakeLists.txt`, oracle e smoke Bun são source-backed. O smoke testa classes, limites, delimitador runtime, rejeições sem stdout parcial e provenance de recipe; toolchain ausente é skip explícito e falha de toolchain presente é erro. `catalog.status: ready` valida o catálogo, enquanto `oracle.status: declared` é contrato e `readiness.oracle` é evidência. A categoria é `oracle-backed-current` |
 | W-1491 | plano HLO0 source-backed de Hello World | O frontend v10 recebe um host scope ativo explícito, publica qualifiers, Unit inferido e identidade discriminada de callee; `print` é um símbolo normal do host prelude `native-process@1` com requirement nominal `Console`, não intrinsic ou global. O adapter caller-owned valida o grafo estruturado sem substring de source/receipt e produz, para `fn main() { print("Hello, world!") }` com `entry(main)`, um plano bounded com payload, LF, stdout de 14 bytes, digest e exit success. A evidência termina em source → parser → frontend → plano; emitter, linker, runtime, provider e `w run` não existem nesse corte. `benchmarkDisposition` é deferred para `hlo3-hello-world-runtime-benchmark`, e timing fica proibido até execução W real | Source, adapter e gates C11 estão em `compiler/seed-c`; `bun run check:hlo0`, frontend seed, parse focal e CTest provam o plano e suas barreiras. A decisão permanece `implementation-evidence-gap` para verified HIR, C11 emitter, Console provider, linker, runner e execução W |
+| W-1492 | identidade de tipo, recuperação borrowed e queries de tipo | `is` continua Bool e tipo nominal exato sem exigir `Reflectable`; `value as? T` substitui a recuperação pública anterior e retorna `ref T?` borrowed, com avaliação única e sem copy/move/retain/allocation/repack. `type of Subject` retorna `TypeId` e `info of Subject` retorna `ref TypeInfo`; Subject estático usa o type namespace primeiro e não avalia valor, Subject dinâmico observa identidade concreta/existential sem mover e avalia uma vez. `info of` exige `Reflectable`, `Reflectable`/`TypeId`/`TypeInfo` são core-owned e `std.reflect`/`reflect.*`, `typeof`, `type(of:)`, `TypeId.of<T>()` e pseudo-functions não são superfícies core fornecidas | **implementation-evidence-gap**; current design contract em DESIGN §8.8.1/§8.9; Tree-sitter e syntax atlas são source-backed, mas não houve mudança em parser seed nem formatter. Compiler typing, existential layout/identity, type-query lowering, runtime metadata, native backend e language benchmark runner continuam gaps. `benchmarkDisposition` é `deferred`, taskId `runtime-type-identity-metadata-benchmark` |
+
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
@@ -7681,8 +7683,8 @@ provider e resolução completos continuam gaps.
 
 **Motivação:** W-1460–W-1466 provaram um fingerprint pós-validação. Eles não
 fecharam a igualdade collision-safe de uma specialization. A decisão D8 separa
-essa igualdade semântica da recipe física de materialização/cache e de
-`reflect.TypeId`.
+essa igualdade semântica da recipe física de materialização/cache e da grafia
+histórica (superseded por W-1492) `reflect.TypeId`.
 
 A identidade semântica é o preimage canônico completo da declaração nominal,
 do substitution environment normalizado e das conformance/witness semantic
@@ -8160,3 +8162,82 @@ package/workspace, resolução externa, diagnostics fora dos 17 profiles, fronte
 normativo, compiler, runtime e conformance cross-target continuam gaps. A
 proveniência de capacity preservada pelo parser é evidência interna e não cria
 mapping D0 público.
+
+#### W-1492 — identidade de tipo, recuperação borrowed e queries de tipo
+
+W-1476 misturava a identidade runtime mínima com a conformance que solicita
+metadata. Essa mistura bloqueava `is` e recuperação borrowed para existentials.
+W-1492 separa os planos: o record de value-witness/conformance expõe uma
+identidade nominal runtime opaca reutilizável por `is`, `as?` e `type of`, sem
+metadata estrutural; `info of` exige `Reflectable` e alcançabilidade de
+metadata. Layout físico e word count permanecem gaps para medição posterior.
+
+A tabela antiga de diagnostics em §8.8 colidia com o `W-TYPE-0123` ativo para
+mutation/refinement. W-1492 usa o ID não colidente `W-TYPE-0130` para o caso
+`is`; os IDs executáveis existentes não são renumerados. As lacunas nessa faixa
+são intencionais: escape/lifetime, operand ausente e postfix core inexistente
+reutilizam, respectivamente, `W-BORROW-0001`, `W-PARSE-0020` e
+`W-EXPR-0006`.
+
+A forma corrente `value as? T` foi escolhida como substituição da grafia
+histórica `reflect.downcast<T>(value)`. O resultado é `ref T?` e herda origin
+e lifetime. O source é avaliado uma vez.
+Não há copy, move, retain, allocation ou repack. A forma não introduz `as`
+genérico, `as!`, downcast owned ou alias de compatibilidade antes de 1.0.
+
+`type of Subject` e `info of Subject` são queries prefixas e não functions.
+`type of` devolve `TypeId` mesmo quando o tipo não solicita metadata. `info of`
+devolve `ref TypeInfo` e exige conformance `Reflectable` no tipo estático ou no
+tipo concreto/composição existential dinâmica. A resolução usa o type namespace
+primeiro para um Subject não parentetizado. `(Subject)` força expression e
+preserva uma avaliação única. A precedência de query consome postfixes e para
+antes de binary operators, assignment e range. Subject ou target ausente usa
+`W-PARSE-0020`; escape e lifetime do borrow usam `W-BORROW-0001`; uma operação
+postfix ou generic envelope inexistente nos nomes core, como `TypeId.of<T>()`,
+usa `W-EXPR-0006`. Os casos específicos `W-TYPE-0124`, `W-TYPE-0128` e
+`W-TYPE-0130` ficam reservados para a futura verificação de tipo, sem witness
+semântico neste corte. Lookup por string, factory e função user-defined não são
+proibidos por esse contrato.
+
+Os precedentes primários foram consultados sem importar suas APIs. Swift
+separa `is`/`as?`, `type(of:)` e `Mirror`: a
+[documentação de type casting](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/typecasting/),
+a documentação de [`type(of:)`](https://developer.apple.com/documentation/swift/type(of:))
+e a de [`Mirror`](https://developer.apple.com/documentation/swift/mirror)
+separam casting, query de identidade e metadata estrutural. O
+[TypeScript `typeof` type operator](https://www.typescriptlang.org/docs/handbook/2/typeof-types.html)
+mostra a sobrecarga entre query contextual e a forma runtime de string da
+linguagem hospedeira. O
+[trait `Any` do Rust](https://doc.rust-lang.org/std/any/trait.Any.html) registra
+`downcast_ref` como precedente borrowed. W conserva a distinção de identidade e
+metadata, mas não adota method surface de Rust, `typeof`, `type(of:)`,
+metatype, lookup por String ou `Any` universal.
+
+Os exemplos legados são avaliados no contexto baseline core/std sem binding de
+usuário: `reflect.TypeId...` não é uma API fornecida nesse contexto, mas um
+módulo, valor ou função user-defined chamado `reflect` pode ter members
+próprios quando a resolução e a gramática os permitem. O mesmo limite
+contextual vale para `info`, `of` e `typeof`; não há ban lexical global.
+
+A implementação permanece um gap de evidência. A classificação exige compiler
+typing, existential layout/identity, type-query lowering, runtime metadata,
+native backend e language benchmark runner. A gramática Tree-sitter e o atlas
+são source-backed; parser seed, formatter, checker semântico, lowering e
+runtime não foram atualizados neste corte. O benchmark tem
+`benchmarkDisposition: deferred`, taskId
+`runtime-type-identity-metadata-benchmark` e quatro eixos separados: `is`,
+`as?`, `type of` e `info of`. As variantes incluem hits e misses monomórficos e
+polimórficos para `is`/`as?`, subjects estáticos e dinâmicos concrete/existential
+para `type of`, e as variantes `static-reachable-query`,
+`dynamic-reachable-query`, `unreachable-type-stripped-control` e
+`reachable-Reflectable-conformance-without-query` para `info of`. As duas últimas
+são controles de retenção: não executam uma query que tornaria metadata
+alcançável. Também há empty-loop e dead-code prevention baselines. Quando
+aplicável, cada eixo mede latência e throughput hot/cold, binary/code size,
+existential footprint e metadata reachability/stripping somente depois de
+correctness, lowering e runtime.
+
+O parse completo da referência permanece no baseline conhecido 106/107: um
+`ERROR` pré-existente em `reference/last-light/web_bodies.w` na faixa
+`[32,34]-[32,39]`. Esse resultado não é evidência de checker ou lowering para
+as queries de tipo.

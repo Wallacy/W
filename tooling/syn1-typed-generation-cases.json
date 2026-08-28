@@ -31,7 +31,7 @@
       "path": "reference/last-light/reflection.w",
       "symbol": "export struct ReservationKey:",
       "claim": "closed Hashable and Reflectable synthesis",
-      "digest": "sha256:fbb891f6d6a94a6508e37ba63b0e674edb51de1af3b0c86a2da8d1bc844cf8f1"
+      "digest": "sha256:d80e7f3c5cda23b3391ca09cbcaff29e9c1626b78337ba8951d5bae392e94b53"
     },
     {
       "id": "last-light-data",
@@ -9980,8 +9980,8 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-          "digest": "sha256:95c347ca46aa639a5c6cd71472424c0e5ba55468548e5cf817db2cb2988a0d10",
-          "byteLength": 192
+              "digest": "sha256:95c347ca46aa639a5c6cd71472424c0e5ba55468548e5cf817db2cb2988a0d10",
+              "byteLength": 192
             }
           ],
           "frontendReceipt": {
@@ -10051,7 +10051,7 @@
             "generatorPlanDigest": "sha256:ddea337b19912b7eef8ae3a57fb7307aab7bf58d45ed08b799dda1873df7a0d7"
           },
           "documentation": "generated menu docs",
-      "byteOverrideBase64": "Ly8gVGhpcyBnZW5lcmF0ZWQtc291cmNlIGVudmVsb3BlIGZpeHR1cmUgaW50ZW50aW9uYWxseSBleGNlZWRzIG9uZSBodW5kcmVkIGFuZCB0d2VudHkgYnl0ZXMgdG8gcHJvdmUgdGhlIGJvdW5kZWQgbGluZS1sZW5ndGggcmVqZWN0aW9uLgppbXBvcnQgKiBmcm9tIHN0ZAoKZXhwb3J0IHN0cnVjdCBEaXNoSWQgewogIHJhdzogdTMyCn0K"
+          "byteOverrideBase64": "Ly8gVGhpcyBnZW5lcmF0ZWQtc291cmNlIGVudmVsb3BlIGZpeHR1cmUgaW50ZW50aW9uYWxseSBleGNlZWRzIG9uZSBodW5kcmVkIGFuZCB0d2VudHkgYnl0ZXMgdG8gcHJvdmUgdGhlIGJvdW5kZWQgbGluZS1sZW5ndGggcmVqZWN0aW9uLgppbXBvcnQgKiBmcm9tIHN0ZAoKZXhwb3J0IHN0cnVjdCBEaXNoSWQgewogIHJhdzogdTMyCn0K"
         }
       },
       "expected": {

@@ -124,6 +124,14 @@
     "keywords": {
       "patterns": [
         {
+          "name": "meta.type-query.w",
+          "match": "\\b(type|info)(\\s+)(of)\\b(?=\\s*[\\p{L}\\p{N}_\"'#(\\[])",
+          "captures": {
+            "1": { "name": "keyword.operator.type-query.w" },
+            "3": { "name": "keyword.operator.type-query.w" }
+          }
+        },
+        {
           "name": "entity.name.label.w",
           "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\s*:\\s*(?:for|while|repeat|\\{))"
         },

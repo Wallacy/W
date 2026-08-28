@@ -38,6 +38,21 @@
       tokens.push({ kind, value: source.slice(start, index), start, end: index, line: startLine, column: startColumn });
     }
 
+    function startsQuerySubject(value) {
+      return /^\s*(?:[\p{L}\p{N}_]|["'#(\[])/u.test(value);
+    }
+
+    function isContextualQueryWord(value, start, end) {
+      if (value === "info") {
+        const of = source.slice(end).match(/^\s+of\b([\s\S]*)/u);
+        return of !== null && startsQuerySubject(of[1]);
+      }
+      if (value === "of") {
+        return /\b(?:type|info)\s+$/u.test(source.slice(0, start)) && startsQuerySubject(source.slice(end));
+      }
+      return false;
+    }
+
     while (index < source.length) {
       const char = source[index];
       if (/\s/u.test(char)) {
@@ -167,7 +182,8 @@
       const identifier = rest.match(/^[\p{L}_][\p{L}\p{N}_]*/u);
       if (identifier) {
         advance(identifier[0].length);
-        add(keywords.has(identifier[0]) ? "keyword" : "identifier", start, startLine, startColumn);
+        const isKeyword = keywords.has(identifier[0]) || isContextualQueryWord(identifier[0], start, index);
+        add(isKeyword ? "keyword" : "identifier", start, startLine, startColumn);
         continue;
       }
 

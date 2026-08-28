@@ -1356,6 +1356,8 @@ module.exports = grammar({
         $.assignment_expression,
         $.task_expression,
         $.bounded_range_expression,
+        $.type_query_expression,
+        $.conditional_cast_expression,
         $.binary_expression,
         $.unary_expression,
         $.optional_try_expression,
@@ -1429,6 +1431,30 @@ module.exports = grammar({
             field("operator", choice("...", "..<")),
             field("upper", $._expression),
           ),
+        ),
+      ),
+
+    // Type queries are prefix forms. The resolver, not this grammar, applies
+    // the type-namespace-first rule for an unparenthesized subject.
+    type_query_expression: ($) =>
+      prec.right(
+        13,
+        seq(
+          field("query", choice("type", "info")),
+          "of",
+          field("subject", choice($.type, $._expression)),
+        ),
+      ),
+
+    // `as?` recovers a borrowed nominal target. The checker owns its dynamic
+    // identity, composition, and lifetime rules.
+    conditional_cast_expression: ($) =>
+      prec.left(
+        8,
+        seq(
+          field("source", $._expression),
+          field("operator", seq("as", token.immediate("?"))),
+          field("target", $.type),
         ),
       ),
 

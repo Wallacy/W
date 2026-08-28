@@ -8,7 +8,6 @@ module restaurant<
 import iec from std
 import std.http
 import { Order } from domain
-import reflect from std
 import { Tensor } from std.tensor
 import service {
   OvenApi as ovens<key: OvenId>,
@@ -62,7 +61,7 @@ fn reserveCourse(): WorkStage throws RecoverableServiceFault {
   return .preparing
 }
 
-struct ReservationKey: Hashable & reflect.Reflectable {
+struct ReservationKey: Hashable & Reflectable {
   orderId: OrderId
   course: Course
 }
@@ -78,7 +77,7 @@ fn announce(_ messages: ref String...): usize {
 fn restValues(): () {
   let planned = [.nebulaBroth, .horizonCake]
   let load = kitchenLoad(2, courses: each planned)
-  let ref info = reflect.info<ReservationKey>()
+  let ref info = info of ReservationKey
   let loader: fn(u16, Course...): u32 = kitchenLoad
 }
 
