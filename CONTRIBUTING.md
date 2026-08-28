@@ -93,8 +93,10 @@ corpus e produto de referência na mesma mudança ou explique a ordem planejada.
 7. Execute o check integrado antes do merge.
 8. Revise o diff e execute `git diff --check`.
 
-Não edite `DESIGN-INDEX.md` nem `tooling/tree-sitter-w/src/` manualmente.
-Use o gerador proprietário de cada arquivo.
+Não edite `DESIGN-INDEX.md` nem os outputs de `tooling/tree-sitter-w/src/`
+manualmente. Execute `bun run tooling:install` para instalar o tooling e recriar
+os outputs. Preserve `src/scanner.c`, que é authored e versionado. Execute
+`bun run check:generated-policy` para validar a política.
 
 ## Escrita e idiomas
 

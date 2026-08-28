@@ -54,8 +54,9 @@ Requer Bun 1.4.0 ou uma versão compatível e instala somente dependências loca
 desta pasta:
 
 ```sh
-bun install
+bun ci
 bun run generate
+bun run check:generated-policy
 bun run test
 bun run parse:reference
 bun run parse:platforms
@@ -80,11 +81,13 @@ bun run check
 workspace roots,
 std, fixture do VS Code, oracles de wire e HIR e cobertura de exemplos. O CLI
 está fixado em
-`tree-sitter-cli` 0.26.11.
+`tree-sitter-cli` 0.26.13.
 
-Após `generate`, `src/` e o parser C gerado tornam a gramática consumível sem
-copiar regras para outro lexer. Um binding Node nativo é responsabilidade do
-consumidor. Ele não é necessário para gerar ou testar esta pasta.
+Após `generate`, os outputs gerados em `src/` tornam a gramática consumível sem
+copiar regras para outro lexer. Esses outputs são locais e não são versionados.
+O arquivo `src/scanner.c` é authored e permanece versionado. Um binding Node
+nativo é responsabilidade do consumidor. Ele não é necessário para gerar ou
+testar esta pasta.
 
 ## Próximos consumidores
 

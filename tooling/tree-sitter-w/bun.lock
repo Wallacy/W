@@ -5,11 +5,11 @@
     "": {
       "name": "tree-sitter-w",
       "devDependencies": {
-        "tree-sitter-cli": "0.26.11",
+        "tree-sitter-cli": "0.26.13",
       },
     },
   },
   "packages": {
-    "tree-sitter-cli": ["tree-sitter-cli@0.26.11", "", { "bin": { "tree-sitter": "cli.js" } }, "sha512-/hRCA0Ehkgk6B5WTYSiENk1R2Zv3LJcfvL3wjofzx+EYaKySZDu0agGRQcccay9Lg7wxJWsDa9cTRS92wsM5gQ=="],
+    "tree-sitter-cli": ["tree-sitter-cli@0.26.13", "", { "bin": { "tree-sitter": "cli.js" } }, "sha512-SIC74lxT2jsygxaIGGb50Bpf8jtll24aXju98Y3eJienBTXCRQ+5k3YigwN31pASEUZKcKh98EPSZWky7ugUMA=="],
   }
 }

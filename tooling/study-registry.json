@@ -1039,7 +1039,7 @@
     {
       "path": "package.json",
       "kind": "script-package",
-      "digest": "sha256:0431481c54ddc96c3305f7612806da7d98be54220dcd9902417fb266cf2f84e4"
+      "digest": "sha256:ac118571b4b7dab8d9055ac99da8fe07848c74b063572319ad9c81886fae6ca1"
     },
     {
       "path": "reference/last-light/borrow_relations_brx3.w",
@@ -1564,7 +1564,7 @@
     {
       "path": "tooling/tree-sitter-w/package.json",
       "kind": "script-package",
-      "digest": "sha256:cca4f5aa83a115bd12d429ef6b6459ca2829c776446b871c7b4b50b3199c4f8f"
+      "digest": "sha256:35993b9fc7c7a5e949b0e5564bf265d220bcf6e6c9179d8f7d38c59c3af27841"
     }
   ],
   "studies": [

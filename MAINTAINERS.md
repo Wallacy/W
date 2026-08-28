@@ -66,7 +66,13 @@ Quando o resultado puder mudar source, ABI ou runtime, exija um spike.
 
 - `DESIGN-INDEX.md` sai de `tooling/design-index.mjs` e separa métricas e
   navegação de `DESIGN.md` e `RATIONALE.md`.
-- `tooling/tree-sitter-w/src/` sai de `tree-sitter generate`.
+- `tooling/tree-sitter-w/src/parser.c`, `grammar.json`, `node-types.json` e
+  `src/tree_sitter/{alloc.h,array.h,parser.h}` saem de `tree-sitter generate` e
+  não são versionados.
+- `tooling/tree-sitter-w/src/scanner.c` é authored e permanece versionado.
+- Um checkout limpo executa `bun run tooling:install` antes dos consumidores.
+  Esse comando instala o tooling e gera os outputs locais.
+- `bun run check:generated-policy` valida essa fronteira sem editar arquivos.
 - O portal permanece congelado até o design freeze.
 - `history/` recebe provenance, não correções da decisão vigente.
 
