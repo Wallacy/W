@@ -11,7 +11,7 @@
     "bundle": {"path": "bundle.json", "digest": "sha256:f7d90cdd08407810e827d695f95f3db414b0e525dc6ff64b2fc8d9b0f2ed81de"},
     "oracle": {"path": "oracle.test.mjs", "digest": "sha256:ec9e830a4720c198ec9ab7d8e717007b574c47d2f678ab5f07046201758bc383"},
     "checker": {"path": "../../check-r1c0-closure.mjs", "digest": "sha256:f86d02ec543edac376ddcfcc70b0bb3ea89adba9c0e367330e625eea9853c29a"},
-    "snapshot": {"path": "../../r1c0-closure-results.snapshot.jsonl", "digest": "sha256:bdf57114c646fdb9e4e3ebf28c39c900b047cbb1faca0e6a952396aea9da06ee"},
+    "snapshot": {"path": "../../r1c0-closure-results.snapshot.jsonl", "digest": "sha256:8c3fbbd66af28b295c9cc679e4bae33e4116b9ca1b59304cbbb1a6d4b11a8141"},
     "wloChecker": {"path": "../../check-wlo1-closure.mjs", "digest": "sha256:560b56402dd043d2463065911a667fa4412bcd6645ee3c40b8287085dad2ff60"},
     "wloSnapshot": {"path": "../../wlo1-closure-results.snapshot.jsonl", "digest": "sha256:034231169c580ad973437683ad278a4f57826fdf6615960e277a92511c2354a7"}
   },
