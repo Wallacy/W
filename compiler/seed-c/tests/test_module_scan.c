@@ -259,8 +259,8 @@ static bool test_invalid_inputs(void) {
 }
 
 int main(void) {
-  CHECK(test_forms_and_spans());
-  CHECK(test_capacity_and_all_or_nothing());
-  CHECK(test_invalid_inputs());
+  if (!test_forms_and_spans()) return 1;
+  if (!test_capacity_and_all_or_nothing()) return 1;
+  if (!test_invalid_inputs()) return 1;
   return 0;
 }

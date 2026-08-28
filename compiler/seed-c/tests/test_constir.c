@@ -2008,20 +2008,20 @@ static bool test_module_const_active_cycle_defense(void) {
 }
 
 int main(void) {
-  CHECK(test_can_move_and_digest());
-  CHECK(test_static_list_stage_path());
-  CHECK(test_diagnostics_and_quotas());
-  CHECK(test_labels_relations_and_parentheses());
-  CHECK(test_typed_literal_projection());
-  CHECK(test_string_literals_and_comparisons());
-  CHECK(test_recursion_and_invalid_inputs());
-  CHECK(test_empty_program_validation());
-  CHECK(test_depth_and_caller_owned_validation());
-  CHECK(test_direct_call_and_external_barrier());
-  CHECK(test_capacity_and_barrier());
-  CHECK(test_typed_const_expression_synthetic());
-  CHECK(test_module_const_synthetic_d4());
-  CHECK(test_module_const_active_cycle_defense());
+  if (!test_can_move_and_digest()) return 1;
+  if (!test_static_list_stage_path()) return 1;
+  if (!test_diagnostics_and_quotas()) return 1;
+  if (!test_labels_relations_and_parentheses()) return 1;
+  if (!test_typed_literal_projection()) return 1;
+  if (!test_string_literals_and_comparisons()) return 1;
+  if (!test_recursion_and_invalid_inputs()) return 1;
+  if (!test_empty_program_validation()) return 1;
+  if (!test_depth_and_caller_owned_validation()) return 1;
+  if (!test_direct_call_and_external_barrier()) return 1;
+  if (!test_capacity_and_barrier()) return 1;
+  if (!test_typed_const_expression_synthetic()) return 1;
+  if (!test_module_const_synthetic_d4()) return 1;
+  if (!test_module_const_active_cycle_defense()) return 1;
   (void)puts("constir tests passed");
   return 0;
 }
