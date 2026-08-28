@@ -1772,6 +1772,39 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-hlo1-c11-emission",
+      "reviewItem": "emissão C11 source-backed a partir de plano HLO0 contra template de texto e witness Restaurant sem caminho source → plano",
+      "decisions": ["W-1493"],
+      "task": "Emit and execute a deterministic C11 artifact only after the canonical W source reaches the validated HLO0 plan.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn main() { print(\"Hello, world!\") }",
+          "entry(main)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "direct-c-template",
+          "language": "c",
+          "source": [
+            "static const unsigned char output[] = { 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x0a };"
+          ],
+          "expectedDifference": "A template can contain the canonical bytes, but it does not establish that the W source produced the validated HLO0 plan."
+        },
+        {
+          "name": "restaurant-substring-witness",
+          "language": "w-adversarial",
+          "source": [
+            "fn main() { noop(\"Other\") } // print(\"Hello, world!\")",
+            "entry(main)"
+          ],
+          "expectedDifference": "A source comment or unrelated text must not select the HLO0 shape or emit the C11 artifact."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }
