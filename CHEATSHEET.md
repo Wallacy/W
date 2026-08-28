@@ -16,7 +16,7 @@ autoridade continua sendo DESIGN.md. A fonte .w, os oracles e o atlas são
 evidência de design ou de parsing, não uma implementação.
 
 Este arquivo é o cheatsheet editorial. Ele explica rotas de uso, contexto e
-trocas. O arquivo [CHEATSHEET.md do atlas](reference/syntax-atlas/CHEATSHEET.md)
+trocas. O arquivo [SYNTAX-COVERAGE.md do atlas](reference/syntax-atlas/SYNTAX-COVERAGE.md)
 é uma projeção gerada dos snippets marcados e registra somente evidência
 `tree-sitter-parse-only`. O atlas não substitui esta orientação e não deve ser
 editado manualmente.
@@ -90,7 +90,7 @@ válido.
 1. Leia [DESIGN.md §0](DESIGN.md#0-como-ler-este-documento) para a autoridade e os estados.
 2. Use o [índice gerado](DESIGN-INDEX.md) para localizar uma decisão.
 3. Compare o contrato com os [oracles e fontes da Última Luz](reference/last-light/README.md).
-4. Trate o [atlas sintático](reference/syntax-atlas/CHEATSHEET.md) como uma
+4. Trate o [atlas sintático](reference/syntax-atlas/SYNTAX-COVERAGE.md) como uma
    projeção parse-only. Ele é gerado e não deve ser editado.
 
 ## Primeira rota
@@ -223,7 +223,7 @@ Contrato: [DESIGN.md §5](DESIGN.md#5-source-nomes-e-edição) e
 ### Literais e collections
 
 Este trecho é current / tree-sitter-parse-only / source-backed, reduzido de
-[reference/syntax-atlas/CHEATSHEET.md](reference/syntax-atlas/CHEATSHEET.md).
+[reference/syntax-atlas/SYNTAX-COVERAGE.md](reference/syntax-atlas/SYNTAX-COVERAGE.md).
 
 ```w
 fn values(): () {
@@ -2153,7 +2153,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 - [DESIGN-INDEX.md](DESIGN-INDEX.md) é uma projeção gerada para navegação.
 - [reference/last-light/README.md](reference/last-light/README.md) define os
   oracles e os limites do produto de referência.
-- [reference/syntax-atlas/CHEATSHEET.md](reference/syntax-atlas/CHEATSHEET.md)
+- [reference/syntax-atlas/SYNTAX-COVERAGE.md](reference/syntax-atlas/SYNTAX-COVERAGE.md)
   é gerado. Seus snippets são parse-only, salvo indicação contrária.
 - [std/README.md](std/README.md) descreve contratos de std. Não há std build ou
   provider implícito neste documento.

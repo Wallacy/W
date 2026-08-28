@@ -1,7 +1,7 @@
 {
   "$schema": "w-syntax-atlas-1",
   "purpose": "Human syntax atlas for the current W Tree-sitter surface.",
-  "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. CHEATSHEET.md is generated.",
+  "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. SYNTAX-COVERAGE.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
     "digest": "sha256:2693c555b3472466c0555e31b6847c3e1cd323d8fb3d0d3751a9e97cf2ab6d30",
@@ -2679,7 +2679,7 @@
     }
   ],
   "generated": {
-    "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:005388dbd659f7af5c0bedd697638ee9e491cb5306ddc3fd88d12a2165023c98"
+    "coverage": "SYNTAX-COVERAGE.md",
+    "coverageDigest": "sha256:1fdd6992097ca4686e43da196249bd704817d960bebfed3bb954d49c593fe703"
   }
 }

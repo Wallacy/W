@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { buildManifest, checkManifest, deriveSnapshot, renderCheatsheet, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS } from "./syntax-atlas.mjs";
+import { buildManifest, checkManifest, deriveSnapshot, renderCoverage, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS } from "./syntax-atlas.mjs";
 
 const snapshot = deriveSnapshot();
-const cheatsheet = renderCheatsheet(snapshot);
-const manifest = buildManifest(snapshot, cheatsheet);
+const coverage = renderCoverage(snapshot);
+const manifest = buildManifest(snapshot, coverage);
 
 function errorsFor(mutator) {
   const candidate = structuredClone(manifest);
@@ -17,9 +17,9 @@ describe("syntax atlas coverage checker", () => {
   });
 
   test("generated header links normative operator and performance guidance", () => {
-    expect(cheatsheet).toContain("`language.w`, `execution.w`, `operators.w`, and `build.w`");
-    expect(cheatsheet).toContain("../../CHEATSHEET.md#operadores-bits-e-política-numérica");
-    expect(cheatsheet).toContain("../../CHEATSHEET.md#performance-e-custo");
+    expect(coverage).toContain("`language.w`, `execution.w`, `operators.w`, and `build.w`");
+    expect(coverage).toContain("../../CHEATSHEET.md#operadores-bits-e-política-numérica");
+    expect(coverage).toContain("../../CHEATSHEET.md#performance-e-custo");
   });
 
   test("rejects an unlisted marker", () => {
@@ -37,9 +37,9 @@ describe("syntax atlas coverage checker", () => {
     expect(errors.some((error) => error.includes("duplicate IDs"))).toBe(true);
   });
 
-  test("rejects a stale cheatsheet digest", () => {
-    const errors = errorsFor((candidate) => { candidate.generated.cheatsheetDigest = "sha256:" + "f".repeat(64); });
-    expect(errors.some((error) => error.includes("cheatsheet digest is stale"))).toBe(true);
+  test("rejects a stale syntax coverage digest", () => {
+    const errors = errorsFor((candidate) => { candidate.generated.coverageDigest = "sha256:" + "f".repeat(64); });
+    expect(errors.some((error) => error.includes("syntax coverage digest is stale"))).toBe(true);
   });
 
   test("rejects an incompatible root disposition", () => {
@@ -112,14 +112,14 @@ describe("syntax atlas coverage checker", () => {
   test("quick reference syntax cells come from source bytes", () => {
     for (const variant of snapshot.variants) {
       expect(snapshot.blocks.find((block) => block.id === variant.block).snippet.includes(variant.witness)).toBe(true);
-      expect(cheatsheet.includes(`| \`${variant.id}\` | \`${variant.witness}\` | \`${variant.block}\` |`)).toBe(true);
+      expect(coverage.includes(`| \`${variant.id}\` | \`${variant.witness}\` | \`${variant.block}\` |`)).toBe(true);
     }
   });
 
-  test("cheatsheet contains each snippet byte sequence", () => {
+  test("syntax coverage contains each snippet byte sequence", () => {
     for (const block of snapshot.blocks) {
       const body = block.snippet.replace(/\n$/u, "");
-      expect(cheatsheet.includes("\n" + body + "\n```\n")).toBe(true);
+      expect(coverage.includes("\n" + body + "\n```\n")).toBe(true);
     }
   });
 });

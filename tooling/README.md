@@ -93,6 +93,7 @@ reexecutar o oracle. Nenhum runner produz result de language ou product-runtime.
 | `design-slice.mjs` | recorta seção/heading de DESIGN ou heading/ledger de RATIONALE com contexto | leitura somente; não cria autoridade paralela |
 | `formatter-cases.json` + `check-seed-formatter.mjs` | 28 pares CST-equivalentes e snapshots de `w fmt --check`; o gate C11 valida bytes canônicos, reparse COMPLETE/0, assinatura CST recursiva, idempotência, capacity all-or-nothing, mutação whitespace e `FOREIGN_BODY` byte-a-byte | oracle Tree-sitter + formatter seed interno; não implementa frontend normativo, AST/HIR ou semantic checker |
 | `formatter-diagnostics.snapshot.jsonl` + `check-seed-diagnostic.mjs` | 28 records `W-FMT-0001` exatos, SHA-256 source/canonical, edit machine e primary zero-width; probes Bun fazem `JSON.parse`/ordem/escapes e records lex/parse cobrem mappings D0 suportados | snapshot é oracle de bytes; adapter D0 é bounded para `source.lex`, `source.parse`, `source.format`, sem claims semânticos ou códigos fabricados |
+| `diagnostic-catalog.json` + `diagnostic-catalog.mjs` + `diagnostic-catalog.test.mjs` | catálogo machine-readable e projeção humana `DIAGNOSTICS.md` para os 312 códigos, com facts, label roles, fixes e resolução exact/family para headings de `DESIGN.md` | JSON é a superfície de máquina; `DESIGN.md` é normativo; a projeção não cria autoridade nem implementação |
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
 | `frontend-freeze-cases.json` + `check-frontend-freeze.mjs` + guards/test + snapshot | FZ0 ratifica as seis famílias normalizadas G0–G5 com source Last Light real (digest/symbol), parse sem recovery, pares F0 CST-equivalentes com alvo byte canônico, inversão S0 ou waiver RU0 e D0 exato; 19 decisões são cobertas sem duplicatas ou expected echo | oracle de design; F0 não prova idempotência nem implementa formatter, e o checker não implementa parser, compiler, runtime ou provider |
 | `borrow-expressivity-cases.json` + máquina/checker/test + snapshot | BRX0 deriva 24 casos (17 mappings aceitos, cinco candidatos Research e quatro negativos de invocation) para receiver/body mapping, origem bodyless única, callable loans, lending cursor, adapter OriginSet, await, escapes, `any fn`, boundaries, alternativa nominal owned e drift/mutations de interface | oracle host de design; bodyless com duas ou mais entradas compatíveis rejeita com `W-BORROW-0011`; não implementa compiler, runtime, provider nem metadata de lifetime |
@@ -684,6 +685,29 @@ snippets e as formas proibidas. O check não compila, executa ou mede W.
 ```text
 bun run check:simd
 ```
+
+## Catálogo humano e superfícies de documentação
+
+`DIAGNOSTICS.md` é a projeção humana de `diagnostic-catalog.json`. O gerador
+mostra cada código, estado, fase, severidade, significado, facts, roles, fixes
+e o heading normativo resolvido em `DESIGN.md`. O JSON é a superfície de máquina
+e `DESIGN.md` continua a autoridade do contrato. Não edite a projeção.
+
+`reference/syntax-atlas/SYNTAX-COVERAGE.md` é a cobertura técnica gerada dos
+snippets `.w`. O `CHEATSHEET.md` da raiz é o único guia editorial público.
+
+Use estes comandos no root. Eles executam os geradores em sequência e não
+escrevem `DESIGN.md` nem o cheatsheet editorial:
+
+```text
+bun run docs:write
+bun run docs:check
+```
+
+`docs:check` verifica o catálogo humano, a cobertura sintática, o cheatsheet
+editorial, a superfície de operadores, os links Markdown e o índice gerado.
+Esse é o gate focal. `check:docs` permanece o gate completo, com BMD e a
+cadeia de validação do Tree-sitter.
 
 ## Validação de snippets do cheatsheet
 

@@ -42,10 +42,12 @@ Leia estes artefatos nesta ordem:
    snippets marcados, com evidência Tree-sitter parse-only; não é um tutorial;
 6. [Cheatsheet W](CHEATSHEET.md) — guia editorial de uso, alternativas,
    trade-offs e limites de evidência; ele não é gerado pelo atlas;
-7. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
+7. [Catálogo de diagnostics](DIAGNOSTICS.md) — índice humano gerado para
+   códigos, fatos, papéis, fixes e referências normativas;
+8. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
    specs, toolchain plans, ABIs, artifacts e gates;
-8. [Rascunho da std](std/README.md) — contratos da standard library em W;
-9. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
+9. [Rascunho da std](std/README.md) — contratos da standard library em W;
+10. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
 
 O [portal](portal/README.md) é um protótipo visual congelado. Ele não precisa
 acompanhar cada mudança antes do design freeze.
@@ -54,10 +56,23 @@ acompanhar cada mudança antes do design freeze.
 por que o contrato existe, sem definir comportamento. O Book e o produto de
 referência mostram esse contrato, mas não criam regras próprias.
 
-O arquivo [`reference/syntax-atlas/CHEATSHEET.md`](reference/syntax-atlas/CHEATSHEET.md)
+## Superfícies humanas e de máquina
+
+Use o [Cheatsheet W](CHEATSHEET.md) para rotas de uso e trade-offs. Use o
+[catálogo humano de diagnostics](DIAGNOSTICS.md) para buscar códigos e abrir a
+referência normativa correspondente. Use o
+[SYNTAX-COVERAGE.md](reference/syntax-atlas/SYNTAX-COVERAGE.md) para cobertura
+técnica de snippets parse-only.
+
+As superfícies de máquina ficam em `tooling/*.json`, nos checkers e no manifest
+do atlas. Elas sustentam geração e gates. Nenhuma projeção substitui
+`DESIGN.md` como autoridade semântica.
+
+O arquivo [`reference/syntax-atlas/SYNTAX-COVERAGE.md`](reference/syntax-atlas/SYNTAX-COVERAGE.md)
 é gerado por `bun tooling/syntax-atlas.mjs --write` e prova somente o parse dos
 snippets marcados. O [Cheatsheet W](CHEATSHEET.md) é mantido como texto
-editorial e explica quando usar cada forma. Não confunda os dois arquivos.
+editorial e explica quando usar cada forma. O [catálogo de diagnostics](DIAGNOSTICS.md)
+é outra projeção gerada para consulta humana. Não confunda essas superfícies.
 
 Use `DESIGN-INDEX.md` para localizar uma seção sem carregar o documento
 integral. O check do tooling falha quando o índice fica desatualizado.
@@ -74,7 +89,22 @@ bun tooling/design-slice.mjs --rationale-heading 1.1
 O leitor recorta `DESIGN.md` para contratos e `RATIONALE.md` para evidência e
 ledger; ele não cria uma segunda fonte de autoridade.
 
+`docs:check` é o gate focal para as projeções documentais e o índice.
+`check:docs` permanece o gate completo, com BMD e a cadeia do Tree-sitter.
+
 Para validar somente documentação e índice:
+
+```powershell
+bun run docs:check
+```
+
+Para regenerar somente as projeções de documentação:
+
+```powershell
+bun run docs:write
+```
+
+Para validar também BMD e toda a cadeia documental do Tree-sitter:
 
 ```powershell
 bun run tooling:install
