@@ -4,9 +4,9 @@
   "private": true,
   "description": "Design and executable specification workspace for the W language",
   "license": "MIT",
-  "packageManager": "bun@1.3.14",
+  "packageManager": "bun@1.4.0",
   "engines": {
-    "bun": ">=1.3.14"
+    "bun": ">=1.4.0"
   },
   "scripts": {
     "check:design-freeze": "bun tooling/check-design-freeze-audit.mjs --require-complete",
@@ -22,6 +22,9 @@
     "check:rdx0": "bun tooling/studies/rdx0-binary-registry-execution/check.mjs",
     "check:llm0": "bun test tooling/studies/llm0-training-inference/oracle.test.mjs && bun tooling/studies/llm0-training-inference/check.mjs",
     "check:drc0": "bun test tooling/studies/drc0-design-research-closure/oracle.test.mjs && bun tooling/check-design-research-closure.mjs",
+    "check:study-registry": "bun test tooling/study-registry.test.mjs && bun tooling/study-registry.mjs --check",
+    "check:study-bundles": "bun tooling/check-study-bundles.mjs",
+    "study:registry": "bun tooling/study-registry.mjs --write",
     "tooling:install": "bun ci --cwd tooling/tree-sitter-w",
     "check": "bun run check:bmd && bun run --cwd tooling/tree-sitter-w check",
     "check:abi": "bun tooling/check-layout-abi-cases.mjs",
@@ -108,7 +111,7 @@
     "check:prc0": "bun test tooling/studies/prc0-provider-runtime-closure/oracle.test.mjs && bun tooling/check-prc0-provider-runtime-closure.mjs && bun tooling/check-quantity-source-contract.mjs && bun run --cwd tooling/tree-sitter-w parse:prc0",
     "check:asic0": "bun test tooling/studies/asic0-evidence-gap-closure/oracle.test.mjs && bun tooling/check-asic0-evidence-gap-closure.mjs && bun run --cwd tooling/tree-sitter-w parse:asic0",
     "parse:asic0": "bun run --cwd tooling/tree-sitter-w parse:asic0",
-    "check:studies": "bun tooling/check-study-bundles.mjs && bun run check:r1c0 && bun run check:prc0 && bun run check:asic0 && bun run check:frc0 && bun run check:pfu0 && bun run check:aeg0 && bun run check:mem0 && bun run check:svc0 && bun run check:fst0 && bun run check:tgm0 && bun run check:qos0 && bun run check:sea0 && bun run check:rdx0 && bun run check:llm0 && bun run check:drc0 && bun run check:gen1 && bun run check:gen2 && bun run check:syn1 && bun run check:brx2 && bun run check:brx3 && bun run check:cyc1 && bun run check:cyc2 && bun run check:dyn1 && bun run check:hrd0 && bun run check:syn2-dyn2 && bun run check:pkg1 && bun run check:avf0 && bun run check:sec0 && bun run check:atom2 && bun run check:ipc1 && bun test tooling/studies && bun run --cwd tooling/tree-sitter-w parse:studies",
+    "check:studies": "bun run check:study-bundles && bun run check:r1c0 && bun run check:prc0 && bun run check:asic0 && bun run check:frc0 && bun run check:pfu0 && bun run check:aeg0 && bun run check:mem0 && bun run check:svc0 && bun run check:fst0 && bun run check:tgm0 && bun run check:qos0 && bun run check:sea0 && bun run check:rdx0 && bun run check:llm0 && bun run check:drc0 && bun run check:gen1 && bun run check:gen2 && bun run check:syn1 && bun run check:brx2 && bun run check:brx3 && bun run check:cyc1 && bun run check:cyc2 && bun run check:dyn1 && bun run check:hrd0 && bun run check:syn2-dyn2 && bun run check:pkg1 && bun run check:avf0 && bun run check:sec0 && bun run check:atom2 && bun run check:ipc1 && bun test tooling/studies && bun run --cwd tooling/tree-sitter-w parse:studies",
     "check:syn2-dyn2": "bun test tooling/studies/syn2-dyn2-closure/oracle.test.mjs && bun tooling/check-syn2-dyn2-closure.mjs && bun run --cwd tooling/tree-sitter-w check:syn2-dyn2",
     "check:avf0": "bun test tooling/avf0-availability-feature-reference.test.mjs tooling/studies/avf0-availability-feature/oracle.test.mjs && bun tooling/check-avf0-availability-feature.mjs",
     "check:sec0": "bun test tooling/sec0-security-model-reference.test.mjs tooling/studies/sec0-security-model/oracle.test.mjs && bun tooling/check-sec0-security-model.mjs",

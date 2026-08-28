@@ -130,7 +130,7 @@ reformatação fora do escopo.
 
 ## Ambiente e checks
 
-Use Bun 1.3.14 ou uma versão compatível. Instale o tooling local uma vez:
+Use Bun 1.4.0 ou uma versão compatível. Instale o tooling local uma vez:
 
 ```powershell
 bun run tooling:install

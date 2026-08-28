@@ -169,7 +169,7 @@
       "id": "FRC0-study-checker",
       "role": "study-checker",
       "path": "tooling/check-study-bundles.mjs",
-      "digest": "sha256:632bd4a531e71f6ff72a630b86cf6df645b31b20a671b921d08a64d1252e3c3d"
+      "digest": "sha256:1df415d8e9d4b921b4cc7bcc7b38d5d83ad94a7dbddc1dfa32690bbae6a3e01a"
     },
     {
       "id": "FRC0-classification",
