@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-9"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-10"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -32,6 +32,9 @@ extern "C" {
 #define W_SEED_FRONTEND_MAX_EXTERNAL_MODULES 256u
 #define W_SEED_FRONTEND_MAX_EXTERNAL_SYMBOLS 4096u
 #define W_SEED_FRONTEND_MAX_EXTERNAL_PARAMETERS 4096u
+#define W_SEED_FRONTEND_MAX_HOST_SYMBOLS 4096u
+#define W_SEED_FRONTEND_MAX_HOST_PARAMETERS 4096u
+#define W_SEED_FRONTEND_MAX_HOST_REQUIREMENTS 16u
 /* D1 uses an explicit 64-bit target profile.  This is a semantic target
  * fact, not a query of the host compiler's size_t width; changing it changes
  * normalized usize types and therefore the frontend receipt key. */
@@ -180,6 +183,41 @@ typedef struct {
   size_t symbol_count;
 } w_seed_frontend_external_module;
 
+/* A host-prelude is an explicit resolver input. It is separate from the
+ * external import graph: a name in this table is not an imported module
+ * symbol, and no implicit global prelude exists. Requirements are nominal
+ * records, not a closed global capability catalogue. */
+typedef struct {
+  w_seed_frontend_text name;
+} w_seed_frontend_host_requirement;
+
+typedef struct {
+  w_seed_frontend_text name;
+  w_seed_frontend_external_kind kind;
+  const w_seed_frontend_external_parameter *parameters;
+  size_t parameter_count;
+  w_seed_frontend_text return_type;
+  bool is_const;
+  const w_seed_frontend_host_requirement *requirements;
+  size_t requirement_count;
+} w_seed_frontend_host_prelude_symbol;
+
+typedef struct {
+  w_seed_frontend_text profile;
+  const w_seed_frontend_host_prelude_symbol *symbols;
+  size_t symbol_count;
+} w_seed_frontend_host_prelude;
+
+/* Append-only callee identity. A consumer must not infer provenance from a
+ * missing function index: host-prelude and imported external symbols are
+ * distinct identities. */
+typedef enum {
+  W_SEED_FRONTEND_CALLEE_NONE = 0,
+  W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION,
+  W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL,
+  W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL,
+} w_seed_frontend_callee_kind;
+
 typedef enum {
   W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT = 0,
   W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE,
@@ -200,6 +238,7 @@ typedef struct {
   size_t document_count;
   const w_seed_frontend_external_module *external_modules;
   size_t external_module_count;
+  const w_seed_frontend_host_prelude *host_scope;
   bool import_resolution_complete;
   const w_seed_frontend_resolved_import *resolved_imports;
   size_t resolved_import_count;
@@ -496,6 +535,12 @@ typedef struct {
   /* Append-only const capability and D0 body support flags. */
   bool is_const;
   bool const_body_supported;
+  /* Append-only function qualifiers. These are frontend facts, so downstream
+   * consumers never inspect CST tokens or source text to reject a function. */
+  bool is_async;
+  bool is_throws;
+  bool is_unsafe;
+  bool has_borrow_clause;
 } w_seed_frontend_function;
 
 typedef struct {
@@ -552,6 +597,9 @@ typedef struct {
 
 typedef struct {
   uint32_t module_index;
+  /* The seed currently records the identifier callee as the lexical owner.
+   * CALL.first_argument/argument_count is the authoritative call argument
+   * range; this field is retained as an append-only legacy relation. */
   uint32_t owner_expression;
   w_seed_frontend_text label;
   w_seed_span span;
@@ -694,6 +742,12 @@ typedef struct {
   /* Append-only frontend resolution facts for downstream const lowering. */
   uint32_t resolved_parameter_ordinal;
   uint32_t resolved_function_index;
+  /* Append-only discriminated callee identity. The numeric fields are valid
+   * only for their corresponding kind and are never pointer identities. */
+  w_seed_frontend_callee_kind resolved_callee_kind;
+  uint32_t resolved_host_symbol_index;
+  uint32_t resolved_external_module_index;
+  uint32_t resolved_external_symbol_index;
   uint32_t resolved_local_ordinal;
   w_seed_frontend_text member_name;
   /* Append-only resolution relation for a module const dependency. */
@@ -833,6 +887,9 @@ typedef struct {
   w_seed_frontend_status status;
   w_seed_frontend_counts required;
   w_seed_frontend_counts written;
+  /* Append-only schema identity for consumers that receive records directly
+   * instead of reparsing the frontend receipt. */
+  w_seed_frontend_text schema_version;
   size_t barrier_document;
   w_seed_span barrier_span;
   size_t primary_diagnostic;

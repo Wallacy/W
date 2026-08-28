@@ -95,6 +95,24 @@ válido.
 
 ## Primeira rota
 
+### Hello World source-backed
+
+```w
+fn main() { print("Hello, world!") }
+entry(main)
+```
+
+Esta é a primeira forma mínima ligada ao frontend seed e ao plano HLO0. No
+profile `native-process@1`, `print` é um símbolo normal do host prelude que
+exige `Console`; não é intrinsic nem global implícito. O gate atual comprova
+source → parser → frontend → plano com payload de 13 bytes, LF acrescentado,
+stdout esperado de 14 bytes e exit success. Ele não executa W: emitter,
+linker, Console provider, `w run` e runtime continuam gaps.
+
+Use `bun run check:hlo0` para validar essa fronteira. Não registre timing: o
+benchmark `hlo3-hello-world-runtime-benchmark` permanece deferred até existir
+execução W real.
+
 ### Um arquivo de source
 
 Esta é uma amostra curta do atlas. Ela é current / Forma vigente,
@@ -2099,7 +2117,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Design e forma de source | Forma vigente para avaliação, não release |
 | Atlas/Tree-sitter | Protótipo de parse e corpus; não checker/runtime |
 | Oracles host | Evidência lógica/física de design; não runtime |
-| Formatter/frontend/HIR/MLIR | Planejados; implementation gap |
+| Formatter/frontend/HIR/MLIR | Frontend seed e plano HLO0 bounded; frontend normativo, HIR e MLIR continuam gaps |
 | Runtime/scheduler/allocator | Planejados; implementation gap |
 | std/providers | Contratos e oracles; provider missing |
 | CLI além de `w check` / package manager | Direção; implementation gap |

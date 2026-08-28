@@ -33125,6 +33125,36 @@ frontend completo nem `w check` completo; package/workspace, provider `std`,
 resolution externa, owner detection, compiler, backend e runtime permanecem
 gaps.
 
+HLO0 acrescenta a primeira fronteira source-backed para o programa mínimo:
+
+```w
+fn main() { print("Hello, world!") }
+entry(main)
+```
+
+O frontend v10 recebe um único host scope ativo e explícito. No profile
+`native-process@1`, o símbolo `print` é um nome normal do host prelude com o
+requirement nominal `Console`; ele não é intrinsic nem global implícito.
+Resolução local vence host prelude, e um import externo explícito vence o
+homônimo do host. Calls publicam uma identidade discriminada de função local,
+símbolo de módulo externo ou símbolo do host prelude. Qualifiers de função e o
+retorno Unit omitido também são records estruturados.
+
+O adapter caller-owned `w_seed_hlo0` consome somente esses records e suas
+relações. Ele não procura substrings no source ou no receipt. Para o fixture
+exato, produz um plano bounded com payload `Hello, world!`, política de newline
+LF, 14 bytes de stdout, SHA-256 esperado e exit success. O gate comprova
+source → parser → frontend → plano HLO0. Ele não emite C, não liga, não executa
+W e não implementa `w run`.
+
+O `benchmarkDisposition` deste corte é `deferred`, com task
+`hlo3-hello-world-runtime-benchmark`. As fases futuras são compile, link,
+startup e execution. `verified-hir`, `c11-emitter`,
+`native-process-console-provider`, `linker`, `w-run-driver` e
+`language-benchmark-runner` bloqueiam qualquer timing. Nenhum resultado de
+performance pode existir antes de uma execução W real com stdout e exit
+verificados.
+
 Saída: `w check <path/file.w> [--json]` verifica o subset síncrono do
 restaurante em root efêmera explícita e imports locais alcançáveis. O target
 bootstrap `w` executa a rota pública CHK9. Owner detection, resolução

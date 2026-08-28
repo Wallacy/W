@@ -436,7 +436,8 @@ static size_t diagnostic_call_accepted_forms(
     const frontend_context *context, bool enum_case_constructor,
     uint32_t enum_case_index, const w_seed_frontend_document *signature_doc,
     uint32_t signature_node,
-    const w_seed_frontend_external_symbol *external_signature, size_t ordinal,
+    const w_seed_frontend_external_symbol *external_signature,
+    const w_seed_frontend_host_prelude_symbol *host_signature, size_t ordinal,
     w_seed_frontend_text *forms, size_t form_capacity);
 static bool append_const0001_diagnostic(
     frontend_context *context, w_seed_span primary,
@@ -1098,6 +1099,27 @@ static w_seed_frontend_type const_synthetic_type(frontend_simple_type simple) {
   type.span = empty_span(0);
   type.is_signed = simple.is_signed;
   type.bit_width = simple.bit_width;
+  type.element_type = W_SEED_FRONTEND_NONE;
+  type.return_type = W_SEED_FRONTEND_NONE;
+  type.first_parameter = W_SEED_FRONTEND_NONE;
+  type.parameter_count = 0u;
+  type.enum_base_index = W_SEED_FRONTEND_NONE;
+  type.first_subset_member = W_SEED_FRONTEND_NONE;
+  type.subset_member_count = 0u;
+  type.generic_application_index = W_SEED_FRONTEND_NONE;
+  return type;
+}
+
+/* An omitted function return annotation is the explicit Unit default. Keep
+ * this as a structured type record so downstream consumers do not need to
+ * inspect the declaration CST or guess from a missing index. */
+static w_seed_frontend_type inferred_unit_type(w_seed_span span) {
+  w_seed_frontend_type type;
+  (void)memset(&type, 0, sizeof(type));
+  type.kind = W_SEED_FRONTEND_TYPE_UNIT;
+  type.spelling = (w_seed_frontend_text){"()", 2u};
+  type.nominal_name = type.spelling;
+  type.span = span;
   type.element_type = W_SEED_FRONTEND_NONE;
   type.return_type = W_SEED_FRONTEND_NONE;
   type.first_parameter = W_SEED_FRONTEND_NONE;
@@ -2965,6 +2987,70 @@ static bool receipt_size_external_records(frontend_context *context) {
   return true;
 }
 
+static bool receipt_size_host_records(frontend_context *context) {
+  if (context == NULL) return false;
+  const w_seed_frontend_host_prelude *prelude = context->input.host_scope;
+  if (prelude == NULL) return true;
+  if (!receipt_size_literal(context, "host-scope=") ||
+      !receipt_size_text(context, prelude->profile) ||
+      !receipt_size_literal(context, "\n")) {
+    return false;
+  }
+  for (size_t symbol_index = 0u; symbol_index < prelude->symbol_count;
+       symbol_index += 1u) {
+    const w_seed_frontend_host_prelude_symbol *symbol =
+        &prelude->symbols[symbol_index];
+    if (!receipt_size_literal(context, "host-symbol=") ||
+        !receipt_size_size(context, symbol_index) ||
+        !receipt_size_literal(context, "|") ||
+        !receipt_size_text(context, symbol->name) ||
+        !receipt_size_literal(context, "|kind=") ||
+        !receipt_size_size(context, (size_t)symbol->kind) ||
+        !receipt_size_literal(context, "|const=") ||
+        !receipt_size_size(context, symbol->is_const ? 1u : 0u) ||
+        !receipt_size_literal(context, "|return=") ||
+        !receipt_size_text(context, symbol->return_type) ||
+        !receipt_size_literal(context, "|requirements=" ) ||
+        !receipt_size_size(context, symbol->requirement_count) ||
+        !receipt_size_literal(context, "\n")) {
+      return false;
+    }
+    for (size_t requirement_index = 0u;
+         requirement_index < symbol->requirement_count; requirement_index += 1u) {
+      const w_seed_frontend_host_requirement *requirement =
+          &symbol->requirements[requirement_index];
+      if (!receipt_size_literal(context, "host-requirement=") ||
+          !receipt_size_size(context, symbol_index) ||
+          !receipt_size_literal(context, "|") ||
+          !receipt_size_size(context, requirement_index) ||
+          !receipt_size_literal(context, "|") ||
+          !receipt_size_text(context, requirement->name) ||
+          !receipt_size_literal(context, "\n")) {
+        return false;
+      }
+    }
+    for (size_t parameter_index = 0u;
+         parameter_index < symbol->parameter_count; parameter_index += 1u) {
+      const w_seed_frontend_external_parameter *parameter =
+          &symbol->parameters[parameter_index];
+      if (!receipt_size_literal(context, "host-parameter=") ||
+          !receipt_size_size(context, symbol_index) ||
+          !receipt_size_literal(context, "|") ||
+          !receipt_size_size(context, parameter_index) ||
+          !receipt_size_literal(context, "|") ||
+          !receipt_size_text(context, parameter->name) ||
+          !receipt_size_literal(context, "|label=") ||
+          !receipt_size_size(context, (size_t)parameter->label_kind) ||
+          !receipt_size_literal(context, "|type=") ||
+          !receipt_size_text(context, parameter->type) ||
+          !receipt_size_literal(context, "\n")) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 static bool receipt_size_module(frontend_context *context,
                                const w_seed_frontend_module *module) {
   return receipt_size_literal(context, "module=") &&
@@ -3186,6 +3272,34 @@ static bool receipt_size_function(frontend_context *context,
          receipt_size_size(context, function->is_const ? 1u : 0u) &&
          receipt_size_literal(context, "|const-body=") &&
          receipt_size_size(context, function->const_body_supported ? 1u : 0u) &&
+         receipt_size_literal(context, "|async=") &&
+         receipt_size_size(context, function->is_async ? 1u : 0u) &&
+         receipt_size_literal(context, "|throws=") &&
+         receipt_size_size(context, function->is_throws ? 1u : 0u) &&
+         receipt_size_literal(context, "|unsafe=") &&
+         receipt_size_size(context, function->is_unsafe ? 1u : 0u) &&
+         receipt_size_literal(context, "|borrows=") &&
+         receipt_size_size(context, function->has_borrow_clause ? 1u : 0u) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_call_identity(
+    frontend_context *context, size_t call_index, size_t callee_index,
+    w_seed_frontend_callee_kind kind,
+    uint32_t host_symbol_index, uint32_t external_module_index,
+    uint32_t external_symbol_index) {
+  return receipt_size_literal(context, "callee=") &&
+         receipt_size_size(context, call_index) &&
+         receipt_size_literal(context, "|identifier=") &&
+         receipt_size_size(context, callee_index) &&
+         receipt_size_literal(context, "|kind=") &&
+         receipt_size_size(context, (size_t)kind) &&
+         receipt_size_literal(context, "|host=") &&
+         receipt_size_size(context, host_symbol_index) &&
+         receipt_size_literal(context, "|external=") &&
+         receipt_size_size(context, external_module_index) &&
+         receipt_size_literal(context, ":") &&
+         receipt_size_size(context, external_symbol_index) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -3648,6 +3762,81 @@ static bool external_input_ready(const w_seed_frontend_input *input) {
                             module->symbols[prior_symbol].name)) {
           return false;
         }
+      }
+    }
+  }
+  return true;
+}
+
+static bool host_prelude_input_ready(const w_seed_frontend_input *input) {
+  if (input == NULL) return false;
+  if (input->host_scope == NULL) return true;
+  const w_seed_frontend_host_prelude *prelude = input->host_scope;
+  size_t total_symbols = 0u;
+  size_t total_parameters = 0u;
+  if (!external_text_valid(prelude->profile) || prelude->profile.length == 0u ||
+      (prelude->symbol_count != 0u && prelude->symbols == NULL) ||
+      prelude->symbol_count > (size_t)W_SEED_FRONTEND_MAX_HOST_SYMBOLS ||
+      prelude->symbol_count > (size_t)UINT32_MAX ||
+      !add_size(total_symbols, prelude->symbol_count, &total_symbols) ||
+      total_symbols > (size_t)W_SEED_FRONTEND_MAX_HOST_SYMBOLS) {
+    return false;
+  }
+  for (size_t symbol_index = 0u; symbol_index < prelude->symbol_count;
+       symbol_index += 1u) {
+    const w_seed_frontend_host_prelude_symbol *symbol =
+        &prelude->symbols[symbol_index];
+    if (!external_text_valid(symbol->name) || symbol->name.length == 0u ||
+        (symbol->kind != W_SEED_FRONTEND_EXTERNAL_VALUE &&
+         symbol->kind != W_SEED_FRONTEND_EXTERNAL_TYPE) ||
+        !external_text_valid(symbol->return_type) ||
+        symbol->return_type.length == 0u ||
+        (symbol->parameter_count != 0u && symbol->parameters == NULL) ||
+        symbol->parameter_count >
+            (size_t)W_SEED_FRONTEND_MAX_HOST_PARAMETERS ||
+        symbol->parameter_count > (size_t)UINT32_MAX ||
+        !add_size(total_parameters, symbol->parameter_count,
+                  &total_parameters) ||
+        total_parameters > (size_t)W_SEED_FRONTEND_MAX_HOST_PARAMETERS ||
+        (symbol->requirement_count != 0u && symbol->requirements == NULL) ||
+        symbol->requirement_count >
+            (size_t)W_SEED_FRONTEND_MAX_HOST_REQUIREMENTS ||
+        symbol->requirement_count > (size_t)UINT32_MAX) {
+      return false;
+    }
+    for (size_t prior_symbol = 0u; prior_symbol < symbol_index;
+         prior_symbol += 1u) {
+      if (text_equal_text(symbol->name,
+                          prelude->symbols[prior_symbol].name)) {
+        return false;
+      }
+    }
+    for (size_t requirement_index = 0u;
+         requirement_index < symbol->requirement_count; requirement_index += 1u) {
+      const w_seed_frontend_host_requirement *requirement =
+          &symbol->requirements[requirement_index];
+      if (!external_text_valid(requirement->name) ||
+          requirement->name.length == 0u) {
+        return false;
+      }
+      for (size_t prior_requirement = 0u;
+           prior_requirement < requirement_index; prior_requirement += 1u) {
+        if (text_equal_text(requirement->name,
+                            symbol->requirements[prior_requirement].name)) {
+          return false;
+        }
+      }
+    }
+    for (size_t parameter_index = 0u;
+         parameter_index < symbol->parameter_count; parameter_index += 1u) {
+      const w_seed_frontend_external_parameter *parameter =
+          &symbol->parameters[parameter_index];
+      if (!external_text_valid(parameter->name) ||
+          parameter->name.length == 0u ||
+          parameter->label_kind > W_SEED_FRONTEND_LABEL_OPTIONAL ||
+          !external_text_valid(parameter->type) ||
+          parameter->type.length == 0u) {
+        return false;
       }
     }
   }
@@ -4531,7 +4720,7 @@ static bool measure_input(const w_seed_frontend_input *input,
       input->document_count == 0 ||
       input->document_count > (size_t)W_SEED_FRONTEND_MAX_DOCUMENTS ||
       input->document_count > (size_t)UINT32_MAX ||
-      !external_input_ready(input)) {
+      !external_input_ready(input) || !host_prelude_input_ready(input)) {
     return false;
   }
   size_t total_const_declarations = 0u;
@@ -4639,6 +4828,9 @@ w_seed_frontend_status w_seed_frontend_measure(
   if (counts == NULL || result == NULL) return W_SEED_FRONTEND_INVALID;
   frontend_diagnostic_category_scratch_count = 0u;
   (void)memset(result, 0, sizeof(*result));
+  result->schema_version = (w_seed_frontend_text){
+      W_SEED_FRONTEND_SCHEMA_VERSION,
+      sizeof(W_SEED_FRONTEND_SCHEMA_VERSION) - 1u};
   result->barrier_document = W_SEED_FRONTEND_NONE_SIZE;
   result->primary_diagnostic = W_SEED_FRONTEND_NONE_SIZE;
   if (!measure_input(input, &measure, &barrier_document, &barrier_span)) {
@@ -4685,6 +4877,10 @@ w_seed_frontend_status w_seed_frontend_measure(
     return result->status;
   }
   if (!receipt_size_external_records(&dry)) {
+    result->status = W_SEED_FRONTEND_INVALID;
+    return result->status;
+  }
+  if (!receipt_size_host_records(&dry)) {
     result->status = W_SEED_FRONTEND_INVALID;
     return result->status;
   }
@@ -5933,7 +6129,8 @@ static size_t diagnostic_call_accepted_forms(
     const frontend_context *context, bool enum_case_constructor,
     uint32_t enum_case_index, const w_seed_frontend_document *signature_doc,
     uint32_t signature_node,
-    const w_seed_frontend_external_symbol *external_signature, size_t ordinal,
+    const w_seed_frontend_external_symbol *external_signature,
+    const w_seed_frontend_host_prelude_symbol *host_signature, size_t ordinal,
     w_seed_frontend_text *forms, size_t form_capacity) {
   if (forms == NULL || form_capacity == 0u) return 0u;
   size_t form_count = 0u;
@@ -6006,6 +6203,25 @@ static size_t diagnostic_call_accepted_forms(
   if (external_signature != NULL && ordinal < external_signature->parameter_count) {
     const w_seed_frontend_external_parameter *parameter =
         &external_signature->parameters[ordinal];
+    if (parameter->label_kind == W_SEED_FRONTEND_LABEL_OPTIONAL) {
+      (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                 positional);
+      (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                 parameter->name);
+    } else if (parameter->label_kind ==
+               W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
+      (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                 positional);
+    } else {
+      (void)diagnostic_form_push(forms, form_capacity, &form_count,
+                                 parameter->name.length != 0u
+                                     ? parameter->name
+                                     : positional);
+    }
+  }
+  if (host_signature != NULL && ordinal < host_signature->parameter_count) {
+    const w_seed_frontend_external_parameter *parameter =
+        &host_signature->parameters[ordinal];
     if (parameter->label_kind == W_SEED_FRONTEND_LABEL_OPTIONAL) {
       (void)diagnostic_form_push(forms, form_capacity, &form_count,
                                  positional);
@@ -8482,6 +8698,11 @@ static bool normalize_function(frontend_context *context, uint32_t node_index,
   value.exported = function_prefix_has_keyword(doc, node->raw_span, "export");
   value.is_const = function_prefix_has_keyword(doc, node->raw_span, "const");
   value.const_body_supported = value.is_const;
+  value.is_async = (node->flags & W_SEED_CST_FUNCTION_FLAG_ASYNC) != 0u;
+  value.is_throws = (node->flags & W_SEED_CST_FUNCTION_FLAG_THROWS) != 0u;
+  value.is_unsafe = (node->flags & W_SEED_CST_FUNCTION_FLAG_UNSAFE) != 0u;
+  value.has_borrow_clause =
+      (node->flags & W_SEED_CST_FUNCTION_FLAG_BORROWS) != 0u;
   value.span = node->raw_span;
   value.body_span = empty_span(node->raw_span.end_byte);
   value.first_parameter = (uint32_t)context->count.parameters;
@@ -8545,6 +8766,10 @@ static bool normalize_function(frontend_context *context, uint32_t node_index,
         !normalize_type_tree(context, type_node, &value.return_type)) {
       return false;
     }
+  } else {
+    const w_seed_frontend_type unit =
+        inferred_unit_type(empty_span(node->raw_span.end_byte));
+    if (!context_append_type(context, unit, &value.return_type)) return false;
   }
   const uint32_t block_node = first_direct_kind(doc, node_index, W_SEED_CST_BLOCK);
   if (block_node != W_SEED_CST_NONE) {
@@ -9261,6 +9486,64 @@ static bool external_symbol_for_name(const frontend_context *context,
   return false;
 }
 
+static bool external_symbol_identity_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    uint32_t *module_index, uint32_t *symbol_index) {
+  if (module_index != NULL) *module_index = W_SEED_FRONTEND_NONE;
+  if (symbol_index != NULL) *symbol_index = W_SEED_FRONTEND_NONE;
+  if (context == NULL) return false;
+  w_seed_frontend_import_target_kind target_kind =
+      W_SEED_FRONTEND_IMPORT_UNRESOLVED;
+  uint32_t target_index = W_SEED_FRONTEND_NONE;
+  w_seed_frontend_text target_name = {NULL, 0u};
+  if (!imported_target_for_name(context, name, &target_kind, &target_index,
+                                &target_name) ||
+      target_kind != W_SEED_FRONTEND_IMPORT_EXTERNAL_MODULE ||
+      (size_t)target_index >= context->input.external_module_count) {
+    return false;
+  }
+  const w_seed_frontend_external_module *module =
+      &context->input.external_modules[target_index];
+  for (size_t index = 0u; index < module->symbol_count; index += 1u) {
+    const w_seed_frontend_external_symbol *candidate = &module->symbols[index];
+    if (candidate->exported && text_equal_text(candidate->name, target_name)) {
+      if (module_index != NULL) *module_index = target_index;
+      if (symbol_index != NULL) {
+        if (index >= (size_t)UINT32_MAX) return false;
+        *symbol_index = (uint32_t)index;
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool host_symbol_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    const w_seed_frontend_host_prelude_symbol **symbol,
+    uint32_t *symbol_index) {
+  if (symbol != NULL) *symbol = NULL;
+  if (symbol_index != NULL) *symbol_index = W_SEED_FRONTEND_NONE;
+  if (context == NULL || context->input.host_scope == NULL ||
+      name.length == 0u) {
+    return false;
+  }
+  const w_seed_frontend_host_prelude *prelude = context->input.host_scope;
+  for (size_t index = 0u; index < prelude->symbol_count; index += 1u) {
+    const w_seed_frontend_host_prelude_symbol *candidate =
+        &prelude->symbols[index];
+    if (text_equal_text(candidate->name, name)) {
+      if (symbol != NULL) *symbol = candidate;
+      if (symbol_index != NULL) {
+        if (index >= (size_t)UINT32_MAX) return false;
+        *symbol_index = (uint32_t)index;
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
 static bool external_label_known(const frontend_context *context,
                                  w_seed_frontend_text callee,
                                  w_seed_frontend_text label, bool *resolved) {
@@ -9275,6 +9558,24 @@ static bool external_label_known(const frontend_context *context,
     if (parameter->label_kind == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
       continue;
     }
+    if (text_equal_text(parameter->name, label)) return true;
+  }
+  return false;
+}
+
+static bool host_label_known(const frontend_context *context,
+                             w_seed_frontend_text callee,
+                             w_seed_frontend_text label, bool *resolved) {
+  const w_seed_frontend_host_prelude_symbol *symbol = NULL;
+  if (resolved != NULL) *resolved = false;
+  if (!host_symbol_for_name(context, callee, &symbol, NULL)) return false;
+  if (resolved != NULL) *resolved = true;
+  if (label.length == 0u) return true;
+  for (size_t index = 0u; index < symbol->parameter_count; index += 1u) {
+    const w_seed_frontend_external_parameter *parameter =
+        &symbol->parameters[index];
+    if (parameter->label_kind == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY)
+      continue;
     if (text_equal_text(parameter->name, label)) return true;
   }
   return false;
@@ -9374,6 +9675,61 @@ static bool external_argument_expected(
   }
   *expected = external_contextual_type(context, parameter->type);
   return true;
+}
+
+static bool host_argument_expected(
+    const frontend_context *context,
+    const w_seed_frontend_host_prelude_symbol *symbol, size_t ordinal,
+    w_seed_frontend_text label, frontend_simple_type *expected) {
+  if (symbol == NULL || expected == NULL) return false;
+  if (label.length != 0u) {
+    if (ordinal >= symbol->parameter_count) return false;
+    const w_seed_frontend_external_parameter *parameter =
+        &symbol->parameters[ordinal];
+    if (parameter->label_kind != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
+        text_equal_text(parameter->name, label)) {
+      *expected = external_contextual_type(context, parameter->type);
+      return true;
+    }
+    return false;
+  }
+  if (ordinal >= symbol->parameter_count) return false;
+  const w_seed_frontend_external_parameter *parameter =
+      &symbol->parameters[ordinal];
+  if (parameter->label_kind == W_SEED_FRONTEND_LABEL_NAMED_REQUIRED ||
+      parameter->label_kind == W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED) {
+    return false;
+  }
+  *expected = external_contextual_type(context, parameter->type);
+  return true;
+}
+
+static uint32_t external_argument_ordinal(
+    const w_seed_frontend_external_parameter *parameters,
+    size_t parameter_count, size_t offset, w_seed_frontend_text label) {
+  if (parameters == NULL && parameter_count != 0u)
+    return W_SEED_FRONTEND_NONE;
+  if (label.length == 0u) {
+    if (offset >= parameter_count) return W_SEED_FRONTEND_NONE;
+    const w_seed_frontend_external_parameter *parameter =
+        &parameters[offset];
+    return parameter->label_kind == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY ||
+                   parameter->label_kind == W_SEED_FRONTEND_LABEL_OPTIONAL
+               ? (offset >= (size_t)UINT32_MAX ? W_SEED_FRONTEND_NONE
+                                               : (uint32_t)offset)
+               : W_SEED_FRONTEND_NONE;
+  }
+  uint32_t selected = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < parameter_count; index += 1u) {
+    const w_seed_frontend_external_parameter *parameter = &parameters[index];
+    if (parameter->label_kind != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
+        text_equal_text(parameter->name, label)) {
+      if (selected != W_SEED_FRONTEND_NONE) return W_SEED_FRONTEND_NONE;
+      if (index >= (size_t)UINT32_MAX) return W_SEED_FRONTEND_NONE;
+      selected = (uint32_t)index;
+    }
+  }
+  return selected;
 }
 
 static bool function_signature_for_name(
@@ -9828,6 +10184,10 @@ static bool expression_append(frontend_expression_parser *parser,
   record.const_byte_count = 0u;
   record.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
   record.resolved_function_index = W_SEED_FRONTEND_NONE;
+  record.resolved_callee_kind = W_SEED_FRONTEND_CALLEE_NONE;
+  record.resolved_host_symbol_index = W_SEED_FRONTEND_NONE;
+  record.resolved_external_module_index = W_SEED_FRONTEND_NONE;
+  record.resolved_external_symbol_index = W_SEED_FRONTEND_NONE;
   record.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
   record.member_name = (w_seed_frontend_text){NULL, 0};
   record.resolved_const_declaration = W_SEED_FRONTEND_NONE;
@@ -10099,6 +10459,10 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
         const w_seed_frontend_external_symbol *external = NULL;
         resolved = external_symbol_for_name(parser->context, spelling,
                                             &external);
+      }
+      if (!resolved) {
+        const w_seed_frontend_host_prelude_symbol *host = NULL;
+        resolved = host_symbol_for_name(parser->context, spelling, &host, NULL);
       }
       if (!resolved) {
         frontend_simple_type module_type = simple_type_unknown();
@@ -10484,6 +10848,11 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
         !local_signature && value->has_name &&
         external_symbol_for_name(parser->context, value->name,
                                  &external_signature);
+    const w_seed_frontend_host_prelude_symbol *host_signature = NULL;
+    const bool host_signature_found =
+        !local_signature && !external_signature_found && value->has_name &&
+        host_symbol_for_name(parser->context, value->name, &host_signature,
+                             NULL);
     while (!cursor_peek_text(&parser->cursor, ")")) {
       frontend_token possible_label;
       w_seed_frontend_text label = {NULL, 0};
@@ -10505,12 +10874,16 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           known = external_label_known(parser->context, value->name, label,
                                        &resolved);
         }
+        if (!resolved) {
+          known = host_label_known(parser->context, value->name, label,
+                                   &resolved);
+        }
         if (resolved && !known) {
           labels_valid = false;
           w_seed_frontend_text accepted_forms[2];
           const size_t accepted_count = diagnostic_call_accepted_forms(
               parser->context, enum_case_constructor, value->enum_case_index,
-              signature_doc, signature_node, external_signature,
+              signature_doc, signature_node, external_signature, host_signature,
               argument_count, accepted_forms,
               sizeof(accepted_forms) / sizeof(accepted_forms[0]));
           (void)append_label0005_diagnostic(
@@ -10526,15 +10899,20 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
         expected_found = enum_case_argument_expected(
             parser->context, value->enum_case_index, argument_count, label,
             &expected, &enum_label_valid, &enum_label_previous);
-      } else if (local_signature || external_signature_found) {
+      } else if (local_signature || external_signature_found ||
+                 host_signature_found) {
         expected_found = local_signature
                              ? local_argument_expected(
                                    parser->context, signature_doc,
                                    signature_node, argument_count, label,
                                    &expected)
-                             : external_argument_expected(
-                                   parser->context, external_signature,
-                                   argument_count, label, &expected);
+                             : external_signature_found
+                                   ? external_argument_expected(
+                                         parser->context, external_signature,
+                                         argument_count, label, &expected)
+                                   : host_argument_expected(
+                                         parser->context, host_signature,
+                                         argument_count, label, &expected);
       }
       const frontend_simple_type saved_expected = parser->expected_type;
       const bool saved_has_expected = parser->has_expected_type;
@@ -10542,13 +10920,15 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       parser->expected_type = expected;
       parser->has_expected_type = expected_found;
       parser->suppress_short_diagnostic =
-          !expected_found && !local_signature && !external_signature_found;
+          !expected_found && !local_signature && !external_signature_found &&
+          !host_signature_found;
       frontend_expr_value argument_value;
       if (!expression_parse_bp(parser, 0, &argument_value)) return false;
       parser->expected_type = saved_expected;
       parser->has_expected_type = saved_has_expected;
       parser->suppress_short_diagnostic = saved_suppress_short;
-      if (enum_case_constructor || local_signature || external_signature_found) {
+      if (enum_case_constructor || local_signature ||
+          external_signature_found || host_signature_found) {
         if (!expected_found) {
           labels_valid = false;
           if (enum_case_constructor) {
@@ -10556,7 +10936,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
               w_seed_frontend_text accepted_forms[2];
               const size_t accepted_count = diagnostic_call_accepted_forms(
                   parser->context, true, value->enum_case_index, NULL,
-                  W_SEED_CST_NONE, NULL, argument_count, accepted_forms,
+                  W_SEED_CST_NONE, NULL, NULL, argument_count, accepted_forms,
                   sizeof(accepted_forms) / sizeof(accepted_forms[0]));
               (void)append_label0005_diagnostic(
                   parser->context, value->span, diagnostic_declaration, label,
@@ -10567,7 +10947,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
             w_seed_frontend_text accepted_forms[2];
             const size_t accepted_count = diagnostic_call_accepted_forms(
                 parser->context, false, value->enum_case_index, signature_doc,
-                signature_node, external_signature, argument_count,
+                signature_node, external_signature, host_signature,
+                argument_count,
                 accepted_forms,
                 sizeof(accepted_forms) / sizeof(accepted_forms[0]));
             (void)append_label0005_diagnostic(
@@ -10585,7 +10966,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
               w_seed_frontend_text accepted_forms[2];
               const size_t accepted_count = diagnostic_call_accepted_forms(
                   parser->context, true, value->enum_case_index, NULL,
-                  W_SEED_CST_NONE, NULL, argument_count, accepted_forms,
+                  W_SEED_CST_NONE, NULL, NULL, argument_count, accepted_forms,
                   sizeof(accepted_forms) / sizeof(accepted_forms[0]));
               (void)append_label0005_diagnostic(
                   parser->context, value->span, diagnostic_declaration, label,
@@ -10657,7 +11038,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           w_seed_frontend_text accepted_forms[2];
           const size_t accepted_count = diagnostic_call_accepted_forms(
               parser->context, true, value->enum_case_index, NULL,
-              W_SEED_CST_NONE, NULL,
+              W_SEED_CST_NONE, NULL, NULL,
               argument_count < enum_constructor_parameter_count
                   ? argument_count
                   : 0u,
@@ -10681,6 +11062,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     } else if (external_signature_found &&
                external_signature->parameter_count != argument_count) {
       labels_valid = false;
+    } else if (host_signature_found &&
+               host_signature->parameter_count != argument_count) {
+      labels_valid = false;
     }
     if (value->has_name) {
       bool resolved = false;
@@ -10689,6 +11073,10 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       if (!resolved) {
         (void)external_label_known(parser->context, value->name,
                                    (w_seed_frontend_text){NULL, 0}, &resolved);
+      }
+      if (!resolved) {
+        (void)host_label_known(parser->context, value->name,
+                               (w_seed_frontend_text){NULL, 0}, &resolved);
       }
       if (!resolved && value->supported) {
         (void)context_append_fact(parser->context,
@@ -10704,6 +11092,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                                           signature_node);
     } else if (external_signature_found) {
       return_type = simple_type_from_view(external_signature->return_type);
+    } else if (host_signature_found) {
+      return_type = simple_type_from_view(host_signature->return_type);
     }
     const w_seed_span span = {value->span.start_byte, close.span.end_byte};
     if (enum_case_constructor && enum_constructor_parameter_count == 0) {
@@ -10730,8 +11120,10 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           local_signature && function_node_is_const(signature_doc, signature_node);
       const bool external_const =
           external_signature_found && external_signature->is_const;
+      const bool host_const = host_signature_found && host_signature->is_const;
       if ((local_signature && !local_const) ||
-          (external_signature_found && !external_const)) {
+          (external_signature_found && !external_const) ||
+          (host_signature_found && !host_const)) {
         const_call_safe = false;
         (void)const_record_failure(parser->context, span, value->name);
       }
@@ -10745,6 +11137,11 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                                 W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
                                 span, text_from_span(parser->document, span));
     }
+    const size_t callee_index = value->index;
+    const w_seed_frontend_text callee_name =
+        value->has_name || value->is_enum_case
+            ? text_from_span(parser->document, value->span)
+            : (w_seed_frontend_text){NULL, 0u};
     if (!expression_append(parser, W_SEED_FRONTEND_EXPR_CALL, span,
                            text_from_span(parser->document, span),
                            (w_seed_frontend_text){NULL, 0}, return_type,
@@ -10752,6 +11149,31 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                            (size_t)W_SEED_FRONTEND_NONE, first_argument,
                            argument_count, value)) {
       return false;
+    }
+    if (!parser->context->emit) {
+      w_seed_frontend_callee_kind identity_kind =
+          W_SEED_FRONTEND_CALLEE_NONE;
+      uint32_t host_symbol_identity = W_SEED_FRONTEND_NONE;
+      uint32_t external_module_identity = W_SEED_FRONTEND_NONE;
+      uint32_t external_symbol_identity = W_SEED_FRONTEND_NONE;
+      if (local_signature) {
+        identity_kind = W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION;
+      } else if (external_signature_found &&
+                 external_symbol_identity_for_name(
+                     parser->context, callee_name, &external_module_identity,
+                     &external_symbol_identity)) {
+        identity_kind = W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL;
+      } else if (host_signature_found &&
+                 host_symbol_for_name(parser->context, callee_name, NULL,
+                                      &host_symbol_identity)) {
+        identity_kind = W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL;
+      }
+      if (!receipt_size_call_identity(
+              parser->context, value->index, callee_index,
+              identity_kind, host_symbol_identity, external_module_identity,
+              external_symbol_identity)) {
+        return false;
+      }
     }
     value->is_integer_literal = false;
   }
@@ -12665,6 +13087,10 @@ static bool resolve_frontend_links(frontend_context *context) {
     if (callee->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER) continue;
     uint32_t target = W_SEED_FRONTEND_NONE;
     bool duplicate = false;
+    w_seed_frontend_callee_kind callee_kind = W_SEED_FRONTEND_CALLEE_NONE;
+    uint32_t external_module_index = W_SEED_FRONTEND_NONE;
+    uint32_t external_symbol_index = W_SEED_FRONTEND_NONE;
+    uint32_t host_symbol_index = W_SEED_FRONTEND_NONE;
     for (size_t function_index = 0; function_index < context->count.functions;
          function_index += 1u) {
       const w_seed_frontend_function *candidate =
@@ -12674,6 +13100,10 @@ static bool resolve_frontend_links(frontend_context *context) {
         if (target != W_SEED_FRONTEND_NONE) duplicate = true;
         target = (uint32_t)function_index;
       }
+    }
+    if (duplicate) target = W_SEED_FRONTEND_NONE;
+    if (target != W_SEED_FRONTEND_NONE) {
+      callee_kind = W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION;
     }
     if (target == W_SEED_FRONTEND_NONE) {
       w_seed_frontend_import_target_kind imported_kind =
@@ -12698,9 +13128,78 @@ static bool resolve_frontend_links(frontend_context *context) {
       }
     }
     if (duplicate) target = W_SEED_FRONTEND_NONE;
+    if (target != W_SEED_FRONTEND_NONE &&
+        callee_kind == W_SEED_FRONTEND_CALLEE_NONE) {
+      callee_kind = W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION;
+    }
+    if (target == W_SEED_FRONTEND_NONE && !duplicate &&
+        external_symbol_identity_for_name(context, callee->spelling,
+                                           &external_module_index,
+                                           &external_symbol_index)) {
+      callee_kind = W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL;
+    }
+    if (target == W_SEED_FRONTEND_NONE && callee_kind ==
+                                               W_SEED_FRONTEND_CALLEE_NONE &&
+        !duplicate &&
+        host_symbol_for_name(context, callee->spelling, NULL,
+                             &host_symbol_index)) {
+      callee_kind = W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL;
+    }
+    if (duplicate) {
+      target = W_SEED_FRONTEND_NONE;
+      callee_kind = W_SEED_FRONTEND_CALLEE_NONE;
+    }
     callee->resolved_function_index = target;
     expression->resolved_function_index = target;
-    if (target == W_SEED_FRONTEND_NONE) continue;
+    callee->resolved_callee_kind = callee_kind;
+    expression->resolved_callee_kind = callee_kind;
+    callee->resolved_host_symbol_index = host_symbol_index;
+    expression->resolved_host_symbol_index = host_symbol_index;
+    callee->resolved_external_module_index = external_module_index;
+    expression->resolved_external_module_index = external_module_index;
+    callee->resolved_external_symbol_index = external_symbol_index;
+    expression->resolved_external_symbol_index = external_symbol_index;
+    if (target == W_SEED_FRONTEND_NONE &&
+        callee_kind != W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL &&
+        callee_kind != W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL)
+      continue;
+    if (callee_kind == W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL) {
+      const w_seed_frontend_external_module *module =
+          &context->input.external_modules[external_module_index];
+      const w_seed_frontend_external_symbol *symbol =
+          &module->symbols[external_symbol_index];
+      for (uint32_t offset = 0; offset < expression->argument_count;
+           offset += 1u) {
+        const size_t argument_index =
+            (size_t)expression->first_argument + offset;
+        if (argument_index >= context->count.arguments) return false;
+        w_seed_frontend_argument *argument =
+            &context->output->arguments[argument_index];
+        argument->resolved_parameter_ordinal = external_argument_ordinal(
+            symbol->parameters, symbol->parameter_count, offset,
+            argument->label);
+      }
+      continue;
+    }
+    if (callee_kind == W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL) {
+      const w_seed_frontend_host_prelude *prelude = context->input.host_scope;
+      if (prelude == NULL || host_symbol_index >= prelude->symbol_count)
+        return false;
+      const w_seed_frontend_host_prelude_symbol *symbol =
+          &prelude->symbols[host_symbol_index];
+      for (uint32_t offset = 0; offset < expression->argument_count;
+           offset += 1u) {
+        const size_t argument_index =
+            (size_t)expression->first_argument + offset;
+        if (argument_index >= context->count.arguments) return false;
+        w_seed_frontend_argument *argument =
+            &context->output->arguments[argument_index];
+        argument->resolved_parameter_ordinal = external_argument_ordinal(
+            symbol->parameters, symbol->parameter_count, offset,
+            argument->label);
+      }
+      continue;
+    }
     const w_seed_frontend_function *target_function =
         &context->output->functions[target];
     for (uint32_t offset = 0; offset < expression->argument_count; offset += 1u) {
@@ -13142,6 +13641,61 @@ static void receipt_write_external_records(
   }
 }
 
+static void receipt_write_host_records(frontend_receipt_writer *writer,
+                                       const w_seed_frontend_input *input) {
+  if (writer == NULL || input == NULL || input->host_scope == NULL) return;
+  const w_seed_frontend_host_prelude *prelude = input->host_scope;
+  receipt_write_literal(writer, "host-scope=");
+  receipt_write_text(writer, prelude->profile);
+  receipt_write_literal(writer, "\n");
+  for (size_t symbol_index = 0u; symbol_index < prelude->symbol_count;
+       symbol_index += 1u) {
+    const w_seed_frontend_host_prelude_symbol *symbol =
+        &prelude->symbols[symbol_index];
+    receipt_write_literal(writer, "host-symbol=");
+    receipt_write_size(writer, symbol_index);
+    receipt_write_literal(writer, "|");
+    receipt_write_text(writer, symbol->name);
+    receipt_write_literal(writer, "|kind=");
+    receipt_write_size(writer, (size_t)symbol->kind);
+    receipt_write_literal(writer, "|const=");
+    receipt_write_size(writer, symbol->is_const ? 1u : 0u);
+    receipt_write_literal(writer, "|return=");
+    receipt_write_text(writer, symbol->return_type);
+    receipt_write_literal(writer, "|requirements=");
+    receipt_write_size(writer, symbol->requirement_count);
+    receipt_write_literal(writer, "\n");
+    for (size_t requirement_index = 0u;
+         requirement_index < symbol->requirement_count; requirement_index += 1u) {
+      const w_seed_frontend_host_requirement *requirement =
+          &symbol->requirements[requirement_index];
+      receipt_write_literal(writer, "host-requirement=");
+      receipt_write_size(writer, symbol_index);
+      receipt_write_literal(writer, "|");
+      receipt_write_size(writer, requirement_index);
+      receipt_write_literal(writer, "|");
+      receipt_write_text(writer, requirement->name);
+      receipt_write_literal(writer, "\n");
+    }
+    for (size_t parameter_index = 0u;
+         parameter_index < symbol->parameter_count; parameter_index += 1u) {
+      const w_seed_frontend_external_parameter *parameter =
+          &symbol->parameters[parameter_index];
+      receipt_write_literal(writer, "host-parameter=");
+      receipt_write_size(writer, symbol_index);
+      receipt_write_literal(writer, "|");
+      receipt_write_size(writer, parameter_index);
+      receipt_write_literal(writer, "|");
+      receipt_write_text(writer, parameter->name);
+      receipt_write_literal(writer, "|label=");
+      receipt_write_size(writer, (size_t)parameter->label_kind);
+      receipt_write_literal(writer, "|type=");
+      receipt_write_text(writer, parameter->type);
+      receipt_write_literal(writer, "\n");
+    }
+  }
+}
+
 static const char *fact_name(w_seed_frontend_fact_kind kind) {
   switch (kind) {
     case W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE:
@@ -13189,6 +13743,7 @@ static void receipt_write_records(frontend_receipt_writer *writer,
     receipt_write_literal(writer, "\n");
   }
   receipt_write_external_records(writer, input);
+  receipt_write_host_records(writer, input);
   if (output != NULL) {
     for (size_t index = 0; index < context->count.modules; index += 1) {
       const w_seed_frontend_module *module = &output->modules[index];
@@ -13541,6 +14096,37 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, function->is_const ? 1u : 0u);
       receipt_write_literal(writer, "|const-body=");
       receipt_write_size(writer, function->const_body_supported ? 1u : 0u);
+      receipt_write_literal(writer, "|async=");
+      receipt_write_size(writer, function->is_async ? 1u : 0u);
+      receipt_write_literal(writer, "|throws=");
+      receipt_write_size(writer, function->is_throws ? 1u : 0u);
+      receipt_write_literal(writer, "|unsafe=");
+      receipt_write_size(writer, function->is_unsafe ? 1u : 0u);
+      receipt_write_literal(writer, "|borrows=");
+      receipt_write_size(writer, function->has_borrow_clause ? 1u : 0u);
+      receipt_write_literal(writer, "\n");
+    }
+    for (size_t index = 0u; index < context->count.expressions; index += 1u) {
+      const w_seed_frontend_expression *expression =
+          &output->expressions[index];
+      if (expression->kind != W_SEED_FRONTEND_EXPR_CALL) continue;
+      uint32_t callee_index = W_SEED_FRONTEND_NONE;
+      if (expression->left != W_SEED_FRONTEND_NONE &&
+          (size_t)expression->left < context->count.expressions) {
+        callee_index = expression->left;
+      }
+      receipt_write_literal(writer, "callee=");
+      receipt_write_size(writer, index);
+      receipt_write_literal(writer, "|identifier=");
+      receipt_write_size(writer, callee_index);
+      receipt_write_literal(writer, "|kind=");
+      receipt_write_size(writer, (size_t)expression->resolved_callee_kind);
+      receipt_write_literal(writer, "|host=");
+      receipt_write_size(writer, expression->resolved_host_symbol_index);
+      receipt_write_literal(writer, "|external=");
+      receipt_write_size(writer, expression->resolved_external_module_index);
+      receipt_write_literal(writer, ":");
+      receipt_write_size(writer, expression->resolved_external_symbol_index);
       receipt_write_literal(writer, "\n");
     }
     for (size_t index = 0; index < context->count.facts; index += 1) {
@@ -13718,6 +14304,9 @@ w_seed_frontend_status w_seed_frontend_run(
   if (result == NULL || output == NULL) return W_SEED_FRONTEND_INVALID;
   frontend_diagnostic_category_scratch_count = 0u;
   (void)memset(result, 0, sizeof(*result));
+  result->schema_version = (w_seed_frontend_text){
+      W_SEED_FRONTEND_SCHEMA_VERSION,
+      sizeof(W_SEED_FRONTEND_SCHEMA_VERSION) - 1u};
   result->barrier_document = W_SEED_FRONTEND_NONE_SIZE;
   result->primary_diagnostic = W_SEED_FRONTEND_NONE_SIZE;
   if (!measure_input(input, &ignored_measure, &barrier_document, &barrier_span)) {
@@ -13762,6 +14351,10 @@ w_seed_frontend_status w_seed_frontend_run(
     return result->status;
   }
   if (!receipt_size_external_records(&dry)) {
+    result->status = W_SEED_FRONTEND_INVALID;
+    return result->status;
+  }
+  if (!receipt_size_host_records(&dry)) {
     result->status = W_SEED_FRONTEND_INVALID;
     return result->status;
   }

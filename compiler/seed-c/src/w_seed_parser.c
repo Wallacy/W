@@ -2714,7 +2714,9 @@ static bool parse_foreign_body(w_seed_parser *parser) {
 
 static bool parse_function(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
-  if (push_node(parser, W_SEED_CST_FUNCTION, start) == W_SEED_CST_NONE)
+  const w_seed_cst_index function_node =
+      push_node(parser, W_SEED_CST_FUNCTION, start);
+  if (function_node == W_SEED_CST_NONE)
     return false;
   if (current_is_text(parser, "export"))
     (void)consume_text(parser, "export", NULL);
@@ -2726,11 +2728,13 @@ static bool parse_function(w_seed_parser *parser) {
   bool unsafe_prefix = false;
   if (current_is_text(parser, "unsafe")) {
     unsafe_prefix = true;
+    parser->nodes[function_node].flags |= W_SEED_CST_FUNCTION_FLAG_UNSAFE;
     (void)consume_text(parser, "unsafe", NULL);
   }
   bool async_prefix = false;
   if (current_is_text(parser, "async")) {
     async_prefix = true;
+    parser->nodes[function_node].flags |= W_SEED_CST_FUNCTION_FLAG_ASYNC;
     (void)consume_text(parser, "async", NULL);
   }
   if (const_prefix && (unsafe_prefix || async_prefix)) {
@@ -2781,11 +2785,14 @@ static bool parse_function(w_seed_parser *parser) {
     pop_node(parser, parser->last_token_end);
   }
   if (current_is_text(parser, "throws")) {
+    parser->nodes[function_node].flags |= W_SEED_CST_FUNCTION_FLAG_THROWS;
     (void)consume_text(parser, "throws", NULL);
     if (!parse_type(parser)) return false;
   }
-  if (current_is_text(parser, "borrows") && !parse_borrow_clause(parser))
-    return false;
+  if (current_is_text(parser, "borrows")) {
+    parser->nodes[function_node].flags |= W_SEED_CST_FUNCTION_FLAG_BORROWS;
+    if (!parse_borrow_clause(parser)) return false;
+  }
   if (foreign) {
     if (!parse_foreign_body(parser)) return false;
   } else {

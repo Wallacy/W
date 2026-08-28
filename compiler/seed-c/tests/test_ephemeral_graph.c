@@ -199,7 +199,7 @@ static bool test_transitive_and_frontend(void) {
   for (size_t index = 0u; index < 3u; index += 1u)
     ordered_documents[index] = fixtures[document_order[index]].document;
   w_seed_frontend_input frontend_input = {
-      ordered_documents, 3u, NULL, 0u, true, resolved, 3u};
+      ordered_documents, 3u, NULL, 0u, NULL, true, resolved, 3u};
   w_seed_frontend_counts counts;
   w_seed_frontend_result frontend_result;
   CHECK(w_seed_frontend_measure(&frontend_input, &counts, &frontend_result) ==
@@ -840,7 +840,7 @@ static bool test_shuffled_root_candidate_and_frontend(void) {
   for (size_t index = 0u; index < 3u; index += 1u)
     ordered_documents[index] = documents[document_order[index]];
   const w_seed_frontend_input frontend_input = {
-      ordered_documents, 3u, NULL, 0u, true, resolved, 3u};
+      ordered_documents, 3u, NULL, 0u, NULL, true, resolved, 3u};
   w_seed_frontend_counts frontend_counts;
   w_seed_frontend_result frontend_result;
   CHECK(w_seed_frontend_measure(&frontend_input, &frontend_counts,

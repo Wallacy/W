@@ -649,6 +649,45 @@ switch preservam fato explícito unsupported. As formas sem código normativo
 continuam fatos/barreiras explícitos; o seed não apresenta esta fatia como
 implementação ampla da linguagem.
 
+## HLO0 source-backed de Hello World
+
+`include/w_seed_hlo0.h` e `src/w_seed_hlo0.c` formam um adapter interno,
+caller-owned e sem heap para a primeira fronteira de plano HLO. O fixture
+canônico é:
+
+```w
+fn main() { print("Hello, world!") }
+entry(main)
+```
+
+O frontend v10 recebe um `host_scope` explícito. O profile
+`native-process@1` oferece `print(String): ()` como símbolo normal do host
+prelude, com requirement nominal `Console`. A resolução preserva identidades
+distintas para função local, símbolo importado e símbolo do host; o adapter não
+infere a origem por índices ausentes nem procura texto no source ou receipt.
+Ele também consome qualifiers estruturados e o record Unit criado quando o
+retorno é omitido.
+
+`w_seed_hlo0_measure` faz o preflight e mede um plano e receipt. Depois do mesmo
+preflight, `w_seed_hlo0_run` copia os dois outputs uma única vez. Capacity,
+alias, corrupção do grafo e frontend não concluído não alteram os buffers. Um
+grafo coerente fora do subset retorna `UNSUPPORTED`; records incoerentes
+retornam `INVALID`.
+
+O plano atual fixa payload `Hello, world!`, adiciona LF, registra 14 bytes de
+stdout, SHA-256 e exit success. Isso não é execução. Não há HIR verificado,
+emitter C11, Console provider, linker, `w run` ou runtime nesse corte.
+
+```text
+bun run check:hlo0
+bun run check:seed-frontend
+bun run parse:hlo0
+```
+
+O `benchmarkDisposition` é `deferred` para
+`hlo3-hello-world-runtime-benchmark`. Compile, link, startup e execution só
+podem ser medidos depois de execução W real com output e exit verificados.
+
 ## ConstIR D1-D6 seed
 
 `include/w_seed_constir.h` e `src/w_seed_constir.c` formam um executor interno
