@@ -27,6 +27,8 @@ permite language mode icons e não possui associação mais específica para `.w
 - ilhas `fn<Language>` e funções W com `fn<abi: .c>`;
 - operações de ownership e acesso `ref`, `view`, `inout`, `take`, `copy` e
   `pin`;
+- queries contextuais `type of` e `info of`; `info` e `of` continuam nomes
+  comuns fora dessas frases;
 - contratos de capture `<[copy name, take other]>` em closures;
 - declaração lexical `allocator` com plans fixed/bounded/custom;
 - blocos estruturados `pipeline` e `transaction`, com `commit`;

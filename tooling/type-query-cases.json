@@ -1,0 +1,384 @@
+{
+  "$schema": "w-type-query-cases-1",
+  "status": "design-oracle-input",
+  "rule": "W-1492",
+  "note": "These cases describe the contract and evidence gaps only.",
+  "benchmarkDisposition": {
+    "status": "deferred",
+    "taskId": "runtime-type-identity-metadata-benchmark",
+    "blockers": [
+      "verified-hir",
+      "existential-layout",
+      "type-query-lowering",
+      "runtime-metadata",
+      "native-backend",
+      "language-benchmark-runner"
+    ],
+    "measureSeparately": [
+      "is",
+      "as?",
+      "type of",
+      "info of"
+    ],
+    "metrics": [
+      "latency-hot",
+      "latency-cold",
+      "throughput-hot",
+      "throughput-cold",
+      "binary-and-code-size",
+      "existential-footprint",
+      "metadata-reachability-and-stripping"
+    ],
+    "variants": [
+      { "id": "is-hit-monomorphic", "axis": "is", "outcome": "hit", "dispatch": "monomorphic" },
+      { "id": "is-miss-monomorphic", "axis": "is", "outcome": "miss", "dispatch": "monomorphic" },
+      { "id": "is-hit-polymorphic", "axis": "is", "outcome": "hit", "dispatch": "polymorphic" },
+      { "id": "is-miss-polymorphic", "axis": "is", "outcome": "miss", "dispatch": "polymorphic" },
+      { "id": "as-hit-monomorphic", "axis": "as?", "outcome": "hit", "dispatch": "monomorphic" },
+      { "id": "as-miss-monomorphic", "axis": "as?", "outcome": "miss", "dispatch": "monomorphic" },
+      { "id": "as-hit-polymorphic", "axis": "as?", "outcome": "hit", "dispatch": "polymorphic" },
+      { "id": "as-miss-polymorphic", "axis": "as?", "outcome": "miss", "dispatch": "polymorphic" },
+      { "id": "type-of-static", "axis": "type of", "subject": "static" },
+      { "id": "type-of-dynamic-concrete", "axis": "type of", "subject": "dynamic-concrete" },
+      { "id": "type-of-dynamic-existential", "axis": "type of", "subject": "dynamic-existential" },
+      { "id": "static-reachable-query", "axis": "info of", "subject": "static", "metadata": "reachable", "query": "executed" },
+      { "id": "dynamic-reachable-query", "axis": "info of", "subject": "dynamic", "metadata": "reachable", "query": "executed" },
+      { "id": "unreachable-type-stripped-control", "axis": "info of", "subject": "unreachable-type", "metadata": "stripped", "query": "not-executed", "control": "unreachable" },
+      { "id": "reachable-Reflectable-conformance-without-query", "axis": "info of", "subject": "Reflectable-conformance", "metadata": "reachable", "query": "not-executed", "control": "retention" },
+      { "id": "baseline-empty-loop", "axis": "baseline", "guard": "empty-loop" },
+      { "id": "baseline-dead-code-prevention", "axis": "baseline", "guard": "dead-code-prevention" }
+    ]
+  },
+  "forbiddenSurface": {
+    "description": "These core/built-in surfaces are not provided. Their spellings are not lexical bans: user-defined identifiers remain legal where the grammar permits them.",
+    "notProvided": [
+      "std.reflect module",
+      "compiler-owned reflect.* namespace",
+      "typeof as a type query",
+      "type(of:)",
+      "TypeId.of<T>()"
+    ],
+    "unavailableExamples": {
+      "std.reflect module": ["import reflect from std"],
+      "compiler-owned reflect.* namespace": ["reflect.TypeId.of<Ticket>()"],
+      "typeof as a type query": ["typeof value"],
+      "type(of:)": ["type(of: value)"],
+      "TypeId.of<T>()": ["TypeId.of<ReservationKey>()"]
+    },
+    "userIdentifiersRemainLegal": ["reflect", "info", "of", "typeof"]
+  },
+  "cases": [
+    {
+      "id": "TQ-POS-is-exact-nominal",
+      "kind": "positive",
+      "fixture": "reference/last-light/reflection.w",
+      "form": "is",
+      "source": "let exact = value is ReservationKey",
+      "expect": {
+        "resultType": "Bool",
+        "identity": "exact-nominal",
+        "sourceEvaluation": "once",
+        "requiresReflectable": false,
+        "targetComposition": "whole",
+        "effects": []
+      }
+    },
+    {
+      "id": "TQ-POS-as-borrowed-existential",
+      "kind": "positive",
+      "fixture": "reference/last-light/reflection.w",
+      "form": "as?",
+      "source": "if let ref key = value as? ReservationKey",
+      "expect": {
+        "resultType": "ref ReservationKey?",
+        "sourceKind": "borrowed-protocol-existential",
+        "sourceEvaluation": "once",
+        "requiresReflectable": false,
+        "targetComposition": "whole",
+        "effects": ["no-copy", "no-move", "no-retain", "no-allocation", "no-repack"]
+      }
+    },
+    {
+      "id": "TQ-POS-type-static-without-metadata",
+      "kind": "positive",
+      "fixture": "reference/last-light/reflection.w",
+      "form": "type of",
+      "source": "let first = type of ReservationKey",
+      "expect": {
+        "resultType": "TypeId",
+        "subjectResolution": "static-type",
+        "sourceEvaluation": "none",
+        "requiresReflectable": false,
+        "opaqueIdentity": true,
+        "effects": []
+      }
+    },
+    {
+      "id": "TQ-POS-type-dynamic-borrowed",
+      "kind": "positive",
+      "fixture": "reference/last-light/reflection.w",
+      "form": "type of",
+      "source": "return type of value",
+      "expect": {
+        "resultType": "TypeId",
+        "subjectResolution": "dynamic-expression",
+        "sourceEvaluation": "once",
+        "sourceOwnership": "borrowed",
+        "movesSource": false,
+        "opaqueIdentity": true,
+        "effects": []
+      }
+    },
+    {
+      "id": "TQ-POS-info-static-reflectable",
+      "kind": "positive",
+      "fixture": "reference/last-light/reflection.w",
+      "form": "info of",
+      "source": "return info of ReservationKey",
+      "expect": {
+        "resultType": "ref TypeInfo",
+        "subjectResolution": "static-type",
+        "sourceEvaluation": "none",
+        "requiresReflectable": true,
+        "metadataOnly": true,
+        "effects": []
+      }
+    },
+    {
+      "id": "TQ-POS-info-dynamic-reflectable-existential",
+      "kind": "positive",
+      "fixture": "reference/last-light/reflection.w",
+      "form": "info of",
+      "source": "let ref metadata = info of value",
+      "expect": {
+        "resultType": "ref TypeInfo",
+        "subjectResolution": "dynamic-expression",
+        "sourceEvaluation": "once",
+        "sourceOwnership": "borrowed",
+        "requiresReflectable": "concrete-or-composition",
+        "metadataOnly": true,
+        "effects": []
+      }
+    },
+    {
+      "id": "TQ-POS-identity-invariants",
+      "kind": "positive",
+      "fixture": "reference/last-light/reflection.w",
+      "form": "identity-invariants",
+      "source": "fn identityInvariants(value: ref any Hashable)",
+      "expect": {
+        "sourceComposition": "nominal-compatible-existential",
+        "identityEquivalence": "value is T iff type of value == type of T",
+        "castEquivalence": "value as? T is some(ref payload) iff value is T; otherwise none",
+        "sourceEvaluation": "dynamic-subject-once; static-target-none",
+        "accessorsAndUserCode": "not-executed",
+        "checkerClaim": false
+      }
+    },
+    {
+      "id": "TQ-POS-metadata-id-invariants",
+      "kind": "positive",
+      "fixture": "reference/last-light/reflection.w",
+      "form": "metadata-id-invariants",
+      "source": "fn metadataInvariants(value: ref any Reflectable)",
+      "expect": {
+        "staticIdEquivalence": "(info of T).id == type of T",
+        "dynamicIdEquivalence": "(info of value).id == type of value",
+        "sourceEvaluation": "dynamic-subject-once; static-subject-none",
+        "accessorsAndUserCode": "not-executed",
+        "checkerClaim": false
+      }
+    },
+    {
+      "id": "TQ-POS-contextual-identifiers",
+      "kind": "positive",
+      "fixture": "tooling/tree-sitter-w/test/corpus/expressions.txt",
+      "form": "contextual-identifiers",
+      "source": "fn contextualQueryNames(reflect: Int, info: Int, of: Int, typeof: Int): Int",
+      "expect": {
+        "identifiers": ["reflect", "info", "of", "typeof"],
+        "outsideQuery": true,
+        "diagnostic": null
+      }
+    },
+    {
+      "id": "TQ-ADV-type-namespace-homonym",
+      "kind": "adversarial",
+      "fixture": "reference/last-light/reflection.w",
+      "form": "type of",
+      "source": "let staticHomonym = type of T",
+      "pairedSource": "let dynamicHomonym = type of (T)",
+      "expect": {
+        "unparenthesized": "static-type-namespace-first",
+        "parenthesized": "dynamic-expression",
+        "sourceEvaluation": "once-for-parenthesized-only",
+        "diagnostic": null
+      }
+    },
+    {
+      "id": "TQ-ADV-type-query-precedence",
+      "kind": "adversarial",
+      "fixture": "tooling/tree-sitter-w/test/corpus/expressions.txt",
+      "form": "type of",
+      "source": "let queryPrecedence = type of value == other",
+      "expect": {
+        "shape": "binary(type-query(value), other)",
+        "sourceEvaluation": "once",
+        "diagnostic": null
+      }
+    },
+    {
+      "id": "TQ-ADV-type-query-parenthesized-subject",
+      "kind": "adversarial",
+      "fixture": "tooling/tree-sitter-w/test/corpus/expressions.txt",
+      "form": "type of",
+      "source": "let groupedQuery = type of (value == other)",
+      "expect": {
+        "shape": "type-query(parenthesized(binary(value, other)))",
+        "sourceEvaluation": "once",
+        "diagnostic": null
+      }
+    },
+    {
+      "id": "TQ-NEG-is-no-dynamic-identity",
+      "kind": "negative",
+      "fixture": "reference/syntax-atlas/rejected.w-rejected.txt",
+      "form": "is",
+      "source": "plainValue is Ticket",
+      "expect": {
+        "diagnostic": "W-TYPE-0130",
+        "reason": "source lacks dynamic identity or existential form"
+      }
+    },
+    {
+      "id": "TQ-NEG-as-target-not-whole-composition",
+      "kind": "negative",
+      "fixture": "reference/syntax-atlas/rejected.w-rejected.txt",
+      "form": "as?",
+      "source": "value as? PartialTicket",
+      "expect": {
+        "diagnostic": "W-TYPE-0124",
+        "reason": "target does not satisfy the whole source composition"
+      }
+    },
+    {
+      "id": "TQ-NEG-as-borrow-escape",
+      "kind": "negative",
+      "fixture": "reference/syntax-atlas/rejected.w-rejected.txt",
+      "form": "as?",
+      "source": "return value as? Ticket",
+      "expect": {
+        "diagnostic": "W-BORROW-0001",
+        "reason": "borrowed result escapes source lifetime"
+      }
+    },
+    {
+      "id": "TQ-NEG-query-missing-subject",
+      "kind": "negative",
+      "fixture": "reference/syntax-atlas/rejected.w-rejected.txt",
+      "form": "type of",
+      "source": "type of",
+      "expect": {
+        "diagnostic": "W-PARSE-0020",
+        "reason": "Subject is absent"
+      }
+    },
+    {
+      "id": "TQ-NEG-info-without-reflectable",
+      "kind": "negative",
+      "fixture": "reference/syntax-atlas/rejected.w-rejected.txt",
+      "form": "info of",
+      "source": "info of PlainTicket",
+      "expect": {
+        "diagnostic": "W-TYPE-0128",
+        "reason": "static type or existential composition lacks Reflectable"
+      }
+    },
+    {
+      "id": "TQ-NEG-query-legacy-typeid",
+      "kind": "negative",
+      "fixture": "reference/syntax-atlas/rejected.w-rejected.txt",
+      "form": "legacy-query",
+      "source": "TypeId.of<ReservationKey>()",
+      "resolutionContext": "baseline-core-without-user-TypeId-of",
+      "expect": {
+        "diagnostic": "W-EXPR-0006",
+        "reason": "core query alternative is not provided",
+        "checkerClaim": false
+      }
+    },
+    {
+      "id": "TQ-ADV-cast-whitespace",
+      "kind": "adversarial",
+      "fixture": "tooling/tree-sitter-w/test/corpus/expressions.txt",
+      "form": "as?",
+      "source": "value as ? Ticket",
+      "expect": {
+        "surface": "parser-reject",
+        "diagnostic": null,
+        "checkerClaim": false
+      }
+    },
+    {
+      "id": "TQ-ADV-cast-chain-rejected",
+      "kind": "adversarial",
+      "fixture": "reference/syntax-atlas/rejected.w-rejected.txt",
+      "form": "as?",
+      "source": "value as? Ticket as? OrderId",
+      "expect": {
+        "surface": "semantic-reject",
+        "diagnostic": "W-TYPE-0124",
+        "reason": "the first result is optional borrowed, not a borrowed protocol existential",
+        "checkerClaim": false
+      }
+    },
+    {
+      "id": "TQ-NEG-legacy-reflect-surface",
+      "kind": "negative",
+      "fixture": "reference/syntax-atlas/rejected.w-rejected.txt",
+      "form": "legacy",
+      "source": "reflect.TypeId.of<Ticket>()",
+      "resolutionContext": "baseline-core-std-without-user-reflect-binding",
+      "expect": {
+        "status": "rejected-legacy-surface",
+        "checkerClaim": false
+      }
+    },
+    {
+      "id": "TQ-NEG-legacy-reflect-import",
+      "kind": "negative",
+      "fixture": "reference/syntax-atlas/rejected.w-rejected.txt",
+      "form": "legacy",
+      "source": "import reflect from std",
+      "resolutionContext": "baseline-core-std-module-resolution",
+      "expect": {
+        "status": "rejected-legacy-surface",
+        "checkerClaim": false
+      }
+    },
+    {
+      "id": "TQ-NEG-legacy-typeof",
+      "kind": "negative",
+      "fixture": "reference/syntax-atlas/rejected.w-rejected.txt",
+      "form": "legacy",
+      "source": "typeof value",
+      "resolutionContext": "baseline-core-without-user-typeof-binding",
+      "expect": {
+        "status": "rejected-legacy-surface",
+        "checkerClaim": false
+      }
+    },
+    {
+      "id": "TQ-NEG-legacy-typeof-function",
+      "kind": "negative",
+      "fixture": "reference/syntax-atlas/rejected.w-rejected.txt",
+      "form": "legacy",
+      "source": "type(of: value)",
+      "resolutionContext": "baseline-core-without-user-typeof-binding",
+      "expect": {
+        "status": "rejected-legacy-surface",
+        "checkerClaim": false
+      }
+    }
+  ]
+}

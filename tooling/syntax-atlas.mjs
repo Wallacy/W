@@ -9,7 +9,7 @@ const GRAMMAR = path.join(ROOT, "tooling", "tree-sitter-w", "grammar.js");
 const MANIFEST = path.join(ATLAS, "atlas-manifest.json");
 const CHEATSHEET = path.join(ATLAS, "CHEATSHEET.md");
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
-const RULE_SET_DIGEST = "sha256:f4df1c128932d4da3b8257c407eae3b88969db25da1419462e1f523d97d02233";
+const RULE_SET_DIGEST = "sha256:527bf912bd038d0c85984b9438458138a647a5e2239b22f6c91339f8b9e1b3d4";
 const SCHEMA = "w-syntax-atlas-1";
 
 const ROOT_KINDS = new Set(["module", "package", "workspace"]);
@@ -73,6 +73,7 @@ const DIRECT_RULES = new Set([
   "if_statement", "labeled_statement", "while_statement", "for_statement", "repeat_statement", "do_statement", "expression_statement",
   "pattern", "range_pattern", "enum_pattern", "struct_pattern", "tuple_pattern", "switch_expression", "assignment_expression",
   "bounded_range_expression", "one_sided_range_expression", "binary_expression", "unary_expression", "optional_try_expression",
+  "type_query_expression", "conditional_cast_expression",
   "optional_propagation_expression", "call_expression", "generic_application_expression", "member_expression", "optional_member_expression",
   "index_expression", "closure_expression", "capture_expression", "pipeline_expression", "lock_expression", "transaction_expression",
   "unsafe_expression", "if_expression", "array_literal", "map_literal", "repeat_array_literal", "tuple_expression", "unit_literal",
@@ -103,6 +104,8 @@ const MARKER_RULE_OVERRIDES = new Map([
   ["bounded_range_expression", "restricted-expressions"],
   ["one_sided_range_expression", "restricted-expressions"],
   ["binary_expression", "restricted-expressions"],
+  ["type_query_expression", "types-and-contracts"],
+  ["conditional_cast_expression", "restricted-expressions"],
   ["unary_expression", "execution-forms"],
   ["optional_try_expression", "execution-forms"],
   ["optional_propagation_expression", "execution-forms"],

@@ -1,7 +1,7 @@
 // atlas:begin operators
 module atlas_operators
 
-fn operatorSurface(payload: any reflect.Reflectable) {
+fn operatorSurface(payload: ref any Reflectable) {
   var value = 8
   var other = 2
   var fallback = 1
@@ -29,6 +29,13 @@ fn operatorSurface(payload: any reflect.Reflectable) {
   let equal = value == other
   let related = value < other
   let typed = payload is ReservationKey
+  let recovered = payload as? ReservationKey
+  let typeIdentity = type of payload
+  let staticTypeIdentity = type of ReservationKey
+  let staticInfo = info of ReservationKey
+  let dynamicInfo = info of payload
+  let precedence = type of value == other
+  let grouped = type of (value == other)
   let contained = value in 0..<other
   let ranges = 0...other
   // Bounded and one-sided forms include `...` and `..<`.
@@ -99,6 +106,13 @@ fn operatorSurface(payload: any reflect.Reflectable) {
   let _ = equal
   let _ = related
   let _ = typed
+  let _ = recovered
+  let _ = typeIdentity
+  let _ = staticTypeIdentity
+  let _ = staticInfo
+  let _ = dynamicInfo
+  let _ = precedence
+  let _ = grouped
   let _ = contained
   let _ = ranges
   let _ = shifts

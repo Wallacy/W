@@ -11,13 +11,20 @@ fn calculate(
   maximum: Int,
   primary: Int?,
   secondary: Int?,
-  payload: any reflect.Reflectable,
+  payload: ref any Reflectable,
   stage: ServiceStage,
 ) {
   let power = -2.0 ** 2 ** -3
   let arithmetic = a + b * c << shift
   let ordered = minimum <= a && a < maximum
   let typed = payload is ReservationKey
+  let recovered = payload as? ReservationKey
+  let staticId = type of ReservationKey
+  let dynamicId = type of payload
+  let staticInfo = info of ReservationKey
+  let dynamicInfo = info of payload
+  let queryPrecedence = type of value == other
+  let groupedQuery = type of (value == other)
   let preparing = stage is .preparing
   let fallback = primary ?? secondary ?? computeFallback()
   registers[index()] <<= 1
@@ -73,7 +80,6 @@ fn calculate(
         (identifier)
         (type
           (type_name
-            (type_identifier)
             (type_identifier))))
       (parameter
         (identifier)
@@ -120,6 +126,49 @@ fn calculate(
       (binding_declaration
         (pattern
           (identifier))
+        (conditional_cast_expression
+          (identifier)
+          (type
+            (type_name
+              (type_identifier)))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type_query_expression
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type_query_expression
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type_query_expression
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type_query_expression
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (type_query_expression
+            (identifier))
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type_query_expression
+          (parenthesized_expression
+            (binary_expression
+              (identifier)
+              (identifier)))))
+      (binding_declaration
+        (pattern
+          (identifier))
         (binary_expression
           (identifier)
           (contextual_member_expression
@@ -142,6 +191,47 @@ fn calculate(
               (identifier)
               (argument_list)))
           (number_literal))))))
+
+==================
+Contextual query words remain identifiers outside queries
+==================
+
+fn contextualQueryNames(reflect: Int, info: Int, of: Int, typeof: Int): Int {
+  return reflect
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (identifier)))))
 
 ==================
 Conditional expressions and value blocks
@@ -664,3 +754,46 @@ let invalid = <[]> () => model
     (identifier)
     (identifier)
     (identifier)))
+
+==================
+Type query and conditional cast operands are explicit
+==================
+
+fn invalidTypeQuery(value: any Reflectable) {
+  let missingSubject = type of;
+  let missingTarget = value as?;
+  let spacedCast = value as ? Ticket;
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type_query_expression
+          (MISSING identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (conditional_cast_expression
+          (identifier)
+          (type
+            (type_name
+              (MISSING type_identifier)))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (identifier))
+      (ERROR)
+      (expression_statement
+        (identifier)))))

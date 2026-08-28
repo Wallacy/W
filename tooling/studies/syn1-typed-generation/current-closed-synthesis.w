@@ -1,6 +1,6 @@
 import * from std
 
-export struct ReservationKey: Hashable & reflect.Reflectable {
+export struct ReservationKey: Hashable & Reflectable {
   table: u32
   sequence: u64
 }

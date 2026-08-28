@@ -4,8 +4,8 @@
   "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. CHEATSHEET.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:ae269f1e0fa3210a8c614f339de4398854504f50deb6243ad622aecda787215b",
-    "publicRuleSetDigest": "sha256:f4df1c128932d4da3b8257c407eae3b88969db25da1419462e1f523d97d02233"
+    "digest": "sha256:2693c555b3472466c0555e31b6847c3e1cd323d8fb3d0d3751a9e97cf2ab6d30",
+    "publicRuleSetDigest": "sha256:527bf912bd038d0c85984b9438458138a647a5e2239b22f6c91339f8b9e1b3d4"
   },
   "sourceFiles": [
     "build.w",
@@ -360,6 +360,14 @@
       "reason": "Direct source construction shown in the data-declarations atlas block.",
       "markers": [
         "data-declarations"
+      ]
+    },
+    {
+      "name": "conditional_cast_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
       ]
     },
     {
@@ -1455,6 +1463,14 @@
       ]
     },
     {
+      "name": "type_query_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the types-and-contracts atlas block.",
+      "markers": [
+        "types-and-contracts"
+      ]
+    },
+    {
       "name": "unary_expression",
       "surface": "direct",
       "reason": "Direct source construction shown in the execution-forms atlas block.",
@@ -2205,6 +2221,7 @@
         "type_argument",
         "type_arguments",
         "type_name",
+        "type_query_expression",
         "unit_literal"
       ],
       "designRefs": [
@@ -2467,6 +2484,7 @@
         "closure_expression",
         "closure_parameter",
         "closure_parameters",
+        "conditional_cast_expression",
         "if_expression",
         "lock_expression",
         "one_sided_range_expression",
@@ -2507,8 +2525,8 @@
         "18"
       ],
       "sourceRefs": [],
-      "snippetDigest": "sha256:c5f97d32f196774179b9a772d307b2b5fc462c26f80db98d3ebfd5547d61f38a",
-      "snippetBytes": 5301
+      "snippetDigest": "sha256:1b3e7c87124a95d7cf239a9389bb7fa535ce0e553a86182df82855f9f003771c",
+      "snippetBytes": 5744
     },
     {
       "id": "stream-and-channel",
@@ -2662,6 +2680,6 @@
   ],
   "generated": {
     "cheatsheet": "CHEATSHEET.md",
-    "cheatsheetDigest": "sha256:685b49c5f6878bb25ec234aebcfcdbaa491d391d8d627edb1e42d4eb3ca536c6"
+    "cheatsheetDigest": "sha256:005388dbd659f7af5c0bedd697638ee9e491cb5306ddc3fd88d12a2165023c98"
   }
 }

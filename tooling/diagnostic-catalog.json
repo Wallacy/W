@@ -1446,6 +1446,56 @@
       "fixes": {}
     },
     {
+      "code": "W-TYPE-0124",
+      "state": "reserved",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a conditional cast source or target is incompatible with the nominal protocol composition",
+      "requiredFacts": {
+        "operation": "string",
+        "sourceType": "string",
+        "targetType": "string",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "type-subject": { "minimum": 1, "maximum": 1 },
+        "target-type": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-TYPE-0128",
+      "state": "reserved",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "an info query requires Reflectable on its static type or existential composition",
+      "requiredFacts": {
+        "operation": "string",
+        "subjectType": "string",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "type-subject": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-TYPE-0130",
+      "state": "reserved",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "an is test lacks dynamic nominal identity or a nominal target",
+      "requiredFacts": {
+        "operation": "string",
+        "sourceIdentity": "string",
+        "targetType": "string"
+      },
+      "labelRoles": {
+        "type-subject": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
       "code": "W-INIT-0001",
       "state": "active",
       "phase": "semantic.ownership",

@@ -1948,7 +1948,7 @@ associação Boolean-integer de C. Parentheses não tornam um chain válido.
 
 `is` testa um runtime type permitido ou um enum case esperado. Ele não testa
 identity, não cria binding e não muda o tipo estático do operand. A recuperação
-borrowed de um tipo concreto usa `reflect.downcast<T>` conforme §8.8.1. `in`
+borrowed de um tipo concreto usa `as?` conforme §8.8.1. `in`
 aceita Range ou tuple finito intrínseco na baseline. Collections usam
 `contains` e flags usam `hasAny` ou `hasAll`.
 
@@ -5433,9 +5433,8 @@ comparativo fica em
 [`RATIONALE.md` §1.3.23](RATIONALE.md#1323-members-associados-diretos).
 
 W não reifica tipos como `Type<T>` no design vigente. Associated member lookup continua
-compile-time. `reflect.TypeId` oferece identidade runtime local. Uma conformance
-a `reflect.Reflectable` solicita metadata estrutural. A seção 8.9 define os dois
-contratos.
+compile-time. `TypeId` oferece identidade runtime local. Uma conformance a
+`Reflectable` solicita metadata estrutural. A seção 8.9 define os dois contratos.
 
 ### 8.3 Construção e inicialização
 
@@ -8132,104 +8131,165 @@ seat(70_000_u32) // error[W-TYPE-0122]: narrowing não é implícito
 
 #### 8.8.1 Teste de tipo runtime e recuperação borrowed
 
-**W-1476 — teste não é cast (Forma vigente):** `is` possui duas operações
-fechadas. `value is .case` testa somente a tag de um enum e não captura seu
-payload. `value is Concrete` testa o tipo nominal concreto de um existential
-cuja composição inclui `reflect.Reflectable`. O teste avalia `value` uma vez,
-não aloca, não executa código do programa e produz `Bool`.
+**W-1492 — identidade de tipo, recuperação borrowed e queries de tipo (Forma
+vigente):** `is` possui duas operações fechadas. `value is .case` testa somente a
+tag de um enum e não captura seu payload. `value is T` testa o tipo nominal
+concreto exato de um valor com identidade dinâmica. O teste avalia o source uma
+vez, não aloca, não executa código do programa e produz `Bool`.
 
-O teste de tipo é exato. Generic specializations, refinements e subsets de enum
-mantêm identidades distintas. W não possui herança de classes nem procura um
-“tipo base mais próximo”. O target concreto deve atender a toda a composição
-de protocols do existential. A conformance `Reflectable` torna o teste runtime
-uma escolha visível e não publica fields privados ou um registry global.
+Um protocol existential carrega um record de value-witness/conformance que
+expõe uma identidade nominal runtime opaca. Essa identidade pode ser
+reutilizada por `is`, `as?` e `type of` sem carregar metadata estrutural.
+O record não promete um layout físico ou uma contagem de words; esses fatos
+continuam um gap e devem ser medidos separadamente. `is` e `as?` não exigem
+`Reflectable`. Generic specializations, refinements e subsets de enum mantêm
+identidades distintas. W não possui herança de classes nem procura um tipo base
+mais próximo. O target nominal `T` deve atender a toda a composição de
+protocols do source existential.
 
 `is` não faz narrowing implícito. O binding original conserva seu tipo
-existential no ramo verdadeiro. Para usar a interface concreta, o programa faz
-uma recuperação borrowed e trata a ausência:
+existential no ramo verdadeiro. Quando o programa precisa da interface concreta,
+usa `as?` e trata a ausência:
 
 ```w
-fn inspectReservation(
-  value: ref any Hashable & reflect.Reflectable,
-) {
-  if value is ReservationKey {
-    if let ref key = reflect.downcast<ReservationKey>(value) {
-      inspect(key.orderId)
-    }
+fn inspectReservation(value: ref any Hashable) {
+  if let ref key = value as? ReservationKey {
+    inspect(key.orderId)
   }
 }
 ```
 
-`reflect.downcast<T>(value)` aceita um `ref` para um existential cuja composição
-inclui `reflect.Reflectable` e retorna `ref T?`. O checker exige que `T` atenda a
-toda a composição do source. O resultado aponta para o payload dentro do
-existential e herda a origem e o lifetime do argumento. A operação não copia,
-move, retém nem reempacota o payload. Uma incompatibilidade runtime produz
-`.none`.
+`value as? T` é a recuperação nominal borrowed. O source deve ser um protocol
+existential borrowed com identidade dinâmica. O source é avaliado uma vez.
+O resultado possui tipo `ref T?`, aponta para o payload dentro do existential e
+herda a origem e o lifetime do source. A operação não copia, move, retém,
+aloca, nem reempacota o payload. Uma incompatibilidade runtime produz `.none`.
+O checker exige que `T` atenda a toda a composição do source.
 
-O operador `is` é útil quando somente o Boolean interessa. Quando o ramo vai
-usar `T`, chame `downcast` diretamente; repetir primeiro `is` não é necessário.
-O exemplo acima mostra que as operações concordam, não a forma mais curta:
+`as?` é útil quando somente a recuperação interessa. O programa pode escrever
+`value is T` quando precisa somente do Boolean. Repetir `is` antes de `as?` não
+é necessário e não cria uma prova adicional.
 
-```w
-if let ref key = reflect.downcast<ReservationKey>(value) {
-  inspect(key.orderId)
-}
-```
+A baseline não oferece downcast owned, `as` genérico ou `as!`. Recuperar um
+payload move-only de uma caixa existential exigiria definir a recuperação do
+owner também no caminho de falha. Use enum fechado ou um método consuming no
+protocol quando essa operação faz parte do domínio. Um payload `Duplicable` pode
+ser copiado explicitamente a partir do resultado borrowed.
 
-A baseline não oferece downcast owned. Recuperar um payload move-only de uma
-caixa existential exigiria definir a recuperação do owner também no caminho de
-falha. Use enum fechado ou um método consuming no protocol quando essa operação
-faz parte do domínio. Um payload `Duplicable` pode ser copiado explicitamente a
-partir do resultado borrowed.
-
-`as`, `as?`, `as!`, cast por string, type pattern e smart cast flow-sensitive
-ficam rejeitados. `as` continua somente nas formas contextuais de import,
-reexport e `lock ... as binding`. Conversão numérica, parsing, FFI e
-reinterpretation continuam com constructors ou APIs nomeadas; não passam por
-`reflect.downcast`.
+Cast por string, type pattern e smart cast flow-sensitive ficam rejeitados.
+`as` continua somente nas formas contextuais de import, reexport e
+`lock ... as binding`. Conversão numérica, parsing, FFI e reinterpretation usam
+constructors ou APIs nomeadas.
 
 | Code | Condição |
 |---|---|
-| `W-TYPE-0123` | `is` recebe um teste de tipo statically conhecido, target não nominal ou source existential sem `Reflectable` |
-| `W-TYPE-0124` | `reflect.downcast<T>` recebe source não existential, source sem `Reflectable` ou `T` incompatível com a composição |
+| `W-TYPE-0130` | `is` recebe source sem identidade dinâmica/existential ou target não nominal |
+| `W-TYPE-0124` | `as?` recebe source sem identidade dinâmica, target não nominal ou `T` incompatível com a composição |
 
-### 8.9 Reflection, síntese e parâmetros rest
+Escape, lifetime e ownership do resultado `ref T?` usam o diagnostic geral
+`W-BORROW-0001`. A forma `as?` não cria uma exceção de ownership própria.
 
-#### 8.9.1 Dois planos de introspecção
+### 8.9 Queries de tipo, metadata, síntese e parâmetros rest
 
-W separa introspecção de tooling e reflection runtime.
+#### 8.9.1 Dois planos de introspecção e subject determinístico
 
-Tooling lê interfaces e HIR versionadas. Esse plano contém nomes, tipos,
-visibilidade, source spans, efeitos, ownership e documentação. Ele não exige
-metadata no executável.
+W separa introspecção de tooling e metadata runtime. Tooling lê interfaces e
+HIR versionadas com nomes, tipos, visibilidade, source spans, effects,
+ownership e documentação. Esse plano não exige metadata no executável.
 
-Runtime recebe somente metadata solicitada pelo programa. Uma conformance a
-`reflect.Reflectable` cria essa solicitação. Debug symbols e source maps
-continuam em sidecars removíveis.
+`Reflectable`, `TypeId` e `TypeInfo` são nomes compiler-owned do core. Eles ficam
+automaticamente no scope, sem import. Eles não pertencem a `std.reflect`.
+W não fornece o módulo `std.reflect` nem namespace ou qualificação
+compiler-owned `reflect.*`; `import reflect from std` falha por resolução de
+módulo inexistente. Um binding ou módulo user-defined chamado `reflect` pode
+ter members próprios quando a resolução os encontrar.
+
+Runtime recebe somente metadata solicitada pelo programa. A conformance a
+`Reflectable` cria essa solicitação. Debug symbols e source maps continuam em
+sidecars removíveis.
+
+Queries de tipo não são call-like. `type of Subject` retorna `TypeId` e
+`info of Subject` retorna `ref TypeInfo`:
 
 ```w
-import reflect from std
-
-export struct MenuCard: Hashable & reflect.Reflectable {
+export struct MenuCard: Hashable & Reflectable {
   title: String
   course: Course
 }
+
+let menuCardId = type of MenuCard
+let ref staticInfo = info of MenuCard
 ```
 
-A conformance fica na interface mesmo quando o linker remove o descriptor
-runtime. O witness alcançável mantém o descriptor necessário.
+O Subject pode ser um type conhecido estaticamente ou uma expression dinâmica.
+Para um Subject não parentetizado, o resolver tenta primeiro o type namespace.
+Se o nome ou path resolve para um tipo, a query é estática e não avalia um
+valor. Se não resolve para tipo, a query usa a expression e a avalia exatamente
+uma vez. Um parêntese força a interpretação como expression:
 
-Essa separação atende ferramentas e assistentes sem forçar reflection em todo
-programa. Ela também impede que debug metadata vire uma API.
+```w
+let T = runtimeValue()
+let staticId = type of T       // tipo T quando T também nomeia um tipo
+let dynamicId = type of (T)    // valor T, avaliado uma vez
+```
+
+O mesmo critério vale para `info of`. Uma query estática pode usar um type path
+ou uma especialização conhecida. Uma query dinâmica pode usar member, call,
+index ou outra expression postfix. A query não move o source, mesmo quando o
+source é um existential. A composição do type e o ownership do source são
+resolvidos antes da avaliação.
+
+O prefixo de query possui a precedência de um operador unary. O Subject inclui
+postfixes de maior precedência e termina antes de binary operators, assignment e
+range. Assim, `type of value == other` significa `(type of value) == other`.
+Para consultar a expressão composta, o programa escreve `type of (value ==
+other)`. `info of` segue a mesma regra. Um Subject ausente ou uma tentativa de
+fazer a query escapar como outra forma recebe diagnostic no ponto da query. A
+regra type namespace first e os parênteses tornam a resolução determinística;
+não há um diagnóstico residual de ambiguidade.
+
+`type of T` funciona para um tipo conhecido sem metadata estrutural. `info of T`
+exige `T: Reflectable`. `type of value` observa uma expression concreta ou
+existential sem mover o valor. `info of value` exige um tipo concreto
+`Reflectable` ou uma composição existential que inclua `Reflectable`.
+
+Para um source existential borrowed e um target nominal `T` compatível com toda
+a composição, estas equivalências são normativas. A notação abaixo é contrato
+design-only, não uma fixture executável:
+
+```w
+value is T iff type of value == type of T
+value as? T == .some(ref payload) quando value is T; caso contrário, .none
+(info of T).id == type of T
+(info of value).id == type of value
+```
+
+O source de cada forma dinâmica é avaliado uma vez. As queries estáticas não
+avaliam um valor. Nenhuma forma executa accessor, initializer, method ou outro
+código do usuário; elas somente consultam identidade nominal e metadata
+alcançável. A expressão `value as? T` preserva o origin e o lifetime do borrow.
+
+W não adota `typeof`. JavaScript e TypeScript sobrecarregam essa grafia entre
+strings runtime limitadas e uma query contextual de tipo. A identidade runtime
+opaca de W permanece distinta. W também não adota `type(of:)`, `TypeId.of<T>()`,
+`reflect.info` ou pseudo-functions equivalentes. Essas ausências descrevem a
+superfície core indisponível; elas não reservam globalmente os identifiers
+`reflect`, `info`, `of` ou `typeof` quando a gramática permite defini-los.
+
+| Code | Condição |
+|---|---|
+| `W-TYPE-0128` | `info of` recebe tipo concreto ou composição existential sem `Reflectable` |
+
+Subject ou target ausente usa `W-PARSE-0020`. Uma operação postfix ou generic
+envelope inexistente nos nomes core, como `TypeId.of<T>()`, usa `W-EXPR-0006`.
 
 #### 8.9.2 `TypeId` sem metatype universal
 
-`reflect.TypeId` identifica um tipo dentro de um build:
+`TypeId` identifica um tipo dentro de um build:
 
 ```w
-let menuCardId = reflect.TypeId.of<MenuCard>()
-let anotherId = reflect.TypeId.of<MenuCard>()
+let menuCardId = type of MenuCard
+let anotherId = type of MenuCard
 expect menuCardId == anotherId
 ```
 
@@ -8238,38 +8298,28 @@ argumentos normalizados e as conformance/witness semantic identities resolvidas
 na ordem de requirements. Ela também inclui refinements e subsets de enum:
 
 ```w
-expect reflect.TypeId.of<ServiceStage>() !=
-  reflect.TypeId.of<WorkStage>()
+expect type of ServiceStage != type of WorkStage
 ```
 
 `TypeId` é um handle opaco internado no build a partir dessa identidade
-semântica completa. A tabela do build resolve colisões por comparação dos bytes
-do preimage. O handle nunca é truncamento do digest e não pode ser persistido,
+semântica completa. A tabela do build resolve colisões comparando os bytes do
+preimage. O handle não é truncamento do digest e não pode ser persistido,
 serializado ou transmitido. Seu valor e hash podem mudar entre builds,
 toolchains e processos.
 
 `TypeId` atende a `Copy`, `Equatable` e `Hashable`. Esses operations usam o
-handle local. O digest da identidade semântica continua somente um accelerator
-e não é o valor de `TypeId`.
+handle local. O digest da identidade semântica é somente um accelerator e não é
+o valor de `TypeId`. Um schema ID usa nome, versão e codificação canônicos. Um
+package digest também não usa `TypeId`.
 
-Um schema ID possui outro contrato. Ele usa nome, versão e codificação
-canônicos. Um package digest também não usa `TypeId`.
-
-O design vigente não possui `Type<T>`, `T.type` ou construção por metatype. Um `TypeId`:
-
-- não constrói valores;
-- não resolve associated members;
-- não informa layout;
-- não faz lookup por nome;
-- não prova conformance.
-
-Uma API estática usa um type argument:
+O design vigente não possui `Type<T>`, `T.type` ou construção por metatype. Um
+`TypeId` não constrói valores, não resolve associated members, não informa
+layout, não faz lookup por nome e não prova conformance. Uma API estática usa um
+type argument. Uma escolha runtime usa enum fechado, factory ou existential.
 
 ```w
 let order = try decoder.decode<Order>()
 ```
-
-Uma escolha runtime usa um enum fechado, uma factory ou um existential:
 
 ```w
 protocol DishFactory {
@@ -8281,34 +8331,32 @@ fn makeDish(using factory: ref any DishFactory): Dish {
 }
 ```
 
-Construção runtime usa enum fechado, factory ou existential; nome textual não
-seleciona um initializer.
+Nome textual não seleciona um initializer.
 
 #### 8.9.3 `Reflectable` e metadata alcançável
 
-`std.reflect` pertence a baseline. Ele não depende do host. O protocol possui um
-body vazio:
+`Reflectable` é um protocol core com body vazio:
 
 ```w
 protocol Reflectable {}
 ```
 
 O compiler adiciona um descriptor ao conformance record. O marker continua
-existential-compatible e não expõe um method especial. O programa usa duas
-operações:
+existential-compatible e não expõe um method especial. O programa acessa os
+dois planos por `type of` e `info of`:
 
 ```w
-let ref staticInfo = reflect.info<MenuCard>()
+let ref staticInfo = info of MenuCard
 
-fn reflectedName(value: ref any reflect.Reflectable): view String {
-  let ref dynamicInfo = reflect.info(of: value)
+fn reflectedName(value: ref any Reflectable): view String {
+  let ref dynamicInfo = info of value
   return dynamicInfo.name
 }
 ```
 
-`reflect.info<T>()` usa o tipo estático. `reflect.info(of:)` usa o conformance
-record do valor apagado. Ambas retornam um descriptor imutável com lifetime de
-process.
+`info of T` usa o tipo estático. `info of value` usa o conformance record do
+valor concreto ou apagado. Ambas as formas retornam um descriptor imutável com
+lifetime de process. A operação não executa accessor, method ou initializer.
 
 O descriptor possui estes dados lógicos:
 
@@ -8318,19 +8366,14 @@ O descriptor possui estes dados lógicos:
 | `name` | nome qualificado da interface |
 | `kind` | scalar, struct, object, enum, refinement ou enum subset |
 | `base` | `TypeId?` para refinement e enum subset |
-| `properties` | propriedades instance exportadas, em ordem de declaração |
-| `cases` | cases exportados e payload types, em ordem de declaração |
+| `properties` | `TypeInfo.Property` exportadas, em ordem de declaração |
+| `cases` | `TypeInfo.Case` exportados e payload types, em ordem de declaração |
 
-`PropertyInfo` contém nome, `TypeId`, mutabilidade e accessors disponíveis.
-`CaseInfo` contém nome e payload types. O descriptor não contém:
-
-- offsets ou tamanho físico;
-- addresses de fields;
-- getter ou setter universal;
-- methods invocáveis por nome;
-- valores de associated members;
-- nomes privados;
-- acesso por string a uma instance.
+`TypeInfo.Property` contém nome, `TypeId`, mutabilidade e accessors disponíveis.
+`TypeInfo.Case` contém nome e payload types. O descriptor não contém offsets,
+tamanho físico, addresses de fields, getter ou setter universal, methods
+invocáveis por nome, valores de associated members, nomes privados ou acesso por
+string a uma instance.
 
 Property behavior aparece como uma propriedade lógica. Seu backing storage não
 aparece. Uma computed property exportada pode aparecer com seus accessors. O
@@ -8340,7 +8383,7 @@ Um enum subset preserva a conformance do enum base. Seu descriptor contém
 somente os cases permitidos e aponta para o `TypeId` base:
 
 ```w
-enum DispatchState: reflect.Reflectable {
+enum DispatchState: Reflectable {
   queued
   running
   completed
@@ -8348,17 +8391,17 @@ enum DispatchState: reflect.Reflectable {
 }
 
 alias LiveState = DispatchState<[.queued, .running]>
-let ref liveInfo = reflect.info<LiveState>()
+let ref liveInfo = info of LiveState
 expect liveInfo.cases.count == 2
 ```
 
-Reflection respeita a interface exportada. Ela não revela um field privado nem
+Metadata respeita a interface exportada. Ela não revela um field privado nem
 package por meio de um existential exportado. Código do mesmo módulo usa HIR
 compile-time ou uma API nominal para acessar esses fields.
 
-Generic specializations possuem `TypeId` distintos. O linker emite um
-descriptor somente para uma specialization alcançável. Um registry global de
-tipos não existe.
+Generic specializations possuem `TypeId` distintos. O linker emite descriptor
+somente para uma specialization alcançável. Um registry global de tipos não
+existe.
 
 #### 8.9.4 Síntese por conformance
 
@@ -8366,7 +8409,7 @@ Uma conformance explícita pode solicitar witnesses conhecidos pelo compiler. W
 não usa `@derive`, decorators ou macros:
 
 ```w
-struct ReservationKey: Hashable & reflect.Reflectable {
+struct ReservationKey: Hashable & Reflectable {
   table: TableId
   sequence: u64
 }
@@ -8382,7 +8425,7 @@ O design vigente sintetiza somente estas famílias:
 | `Equatable` | fields semânticos | tag e payloads | não |
 | `Hashable` | fields semânticos | tag e payloads | não |
 | `Duplicable` | fields semânticos | payload ativo | não |
-| `reflect.Reflectable` | interface exportada | cases e payloads | interface exportada |
+| `Reflectable` | interface exportada | cases e payloads | interface exportada |
 
 `Hashable` também fornece o witness requerido de `Equatable`. A ordem de
 declaração governa equality, hash e duplication. O enum inclui o case antes dos
@@ -8423,7 +8466,7 @@ Um type com property behavior não recebe synthesis estrutural de `Equatable`,
 `Hashable` ou `Duplicable` no design vigente. O author fornece witnesses manuais. Essa
 regra evita confundir o valor lógico com cache ou backing storage.
 
-`Reflectable` continua disponível. Ele descreve a propriedade lógica e ignora
+`Reflectable` continua disponível no core. Ele descreve a propriedade lógica e ignora
 o backing storage.
 
 O compiler grava HIR normalizada para cada witness. Tooling mostra o resultado:

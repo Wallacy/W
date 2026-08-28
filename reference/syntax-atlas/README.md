@@ -15,7 +15,7 @@ streams e channels.
 
 Para a superfície fechada de operadores, leia [`operators.w`](operators.w).
 O bloco demonstra precedência, bitwise, shifts, power, coalescing, `in`, `is`,
-ranges, `@`, compound assignment e APIs numéricas nomeadas, incluindo
+`as?`, `type of`, `info of`, ranges, `@`, compound assignment e APIs numéricas nomeadas, incluindo
 `bitWidth`, counts, `reversedBits` e `reversedBytes`. Essas APIs são nomes
 portáveis, não novos tokens de operador. O bloco é
 parse-only e não prova type-check, runtime ou provider.

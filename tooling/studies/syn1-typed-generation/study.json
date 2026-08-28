@@ -14,7 +14,7 @@
       "role": "fixture-current",
       "disposition": "fixture",
       "fixture": true,
-      "digest": "sha256:815c471b804911c12ded047554f0e78a1c1d1bcdcaa549cb9cc781e3cbc3934a"
+      "digest": "sha256:5e530cecd23ec3a8889fbdc6303ebd725939782f136d0ef46b82291a9a42518f"
     },
     {
       "id": "current-row-synthesis",
@@ -77,7 +77,7 @@
       "path": "reference/last-light/reflection.w",
       "symbol": "export struct ReservationKey:",
       "claim": "closed Hashable and Reflectable synthesis",
-      "digest": "sha256:fbb891f6d6a94a6508e37ba63b0e674edb51de1af3b0c86a2da8d1bc844cf8f1"
+      "digest": "sha256:d80e7f3c5cda23b3391ca09cbcaff29e9c1626b78337ba8951d5bae392e94b53"
     },
     {
       "id": "last-light-data",
