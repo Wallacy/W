@@ -4067,7 +4067,7 @@ Blob e FormData usam como evidência o
 [File API](https://w3c.github.io/FileAPI/), o
 [FormData Standard](https://xhr.spec.whatwg.org/#interface-formdata) e a
 [extração de BodyInit do Fetch](https://fetch.spec.whatwg.org/#bodyinit-unions).
-O File API motivou bytes imutáveis, slice sem mutação, type normalizado e decode
+O File API motivou bytes imutáveis, slice sem mutação, media type normalizado e decode
 UTF-8 com replacement. O FormData Standard motivou lista ordenada, repetição,
 append, set e delete. W rejeitou Blob como file authority, constructor dinâmico
 de parts, DOM form constructor, boundary controlada pelo caller e materialização
@@ -7449,7 +7449,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1277 | placement textual privado | byte bound fornece extent máximo; escape, target, profile e cost model escolhem inline, static, flat ou arena | storage source obrigatório, general allocation escondida sob gate, truncation |
 | W-1278 | mutation refinada | cada mutation prova o predicate na saída; unknown usa staging base e reconstrução fallible | check oculto, truncation, panic implícito, valor refinado temporariamente inválido |
 | W-1279 | boundary textual física | adapter declara count, fixed bytes, encoding, offsets, padding, bytes não usados e overflow | refinement como ABI, layout W privado atravessando boundary, capacity inferida publicada |
-| W-1280 | Blob por composição | `std.blob.Blob` usa `shared Bytes` imutável, faixa checked, type normalizado, duplicação explícita e cursores independentes | provider de Blob, file authority, registry URL, part list dinâmica, clamp silencioso |
+| W-1280 | Blob por composição | `std.blob.Blob` usa `shared Bytes` imutável, faixa checked, property Web `type`, parâmetros e labels `mediaType`, normalização do media type, duplicação explícita e cursores independentes. A property preserva a API Web; os labels evitam a colisão de `type` com keyword | provider de Blob, file authority, registry URL, part list dinâmica, clamp silencioso |
 | W-1281 | FormData lógico | lista W ordered de String ou Blob+filename; append/set/delete preservam o standard e falha não publica mutation parcial | object dinâmico, DOM form, filename como Path, unordered map, mutação parcial |
 | W-1282 | multipart bounded | FormDataLimits + MessageLimits precedem attachment; host escolhe boundary; encoder streams Blob com backpressure | boundary do caller, collect completo, tamanho unchecked, Content-Type divergente |
 | W-1283 | Body Web completo | BodySource aceita String, Bytes, URLSearchParams, Blob, FormData e stream; blob/formData consuming exigem limits | BodyInit apagado, stubs parciais, materialização sem limit, provider extra para Blob |

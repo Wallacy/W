@@ -221,11 +221,11 @@ export struct DecimalValue {
   }
 
   export static fn make(
-    type: take FixedDecimalType,
+    decimalType: take FixedDecimalType,
     unscaled: i128,
   ): DecimalValue throws SchemaError {
     return DecimalValue(validatedHandle: unsafe {
-      try stdDataDecimalValue(take type, unscaled)
+      try stdDataDecimalValue(take decimalType, unscaled)
     })
   }
 }
@@ -451,7 +451,7 @@ foreign intrinsic from "std.data@1" {
     named limits: ref Limits,
   ): SemanticExtensionHandle throws SchemaError
   fn stdDataDecimalValue(
-    type: take FixedDecimalType,
+    decimalType: take FixedDecimalType,
     unscaled: i128,
   ): DecimalValueHandle throws SchemaError
   fn stdDataUuidValue(bytes: take Bytes): UUIDValueHandle throws SchemaError
@@ -460,7 +460,7 @@ foreign intrinsic from "std.data@1" {
   fn stdDataInstantValue(epochNanoseconds: i128): InstantValueHandle throws SchemaError
   fn stdDataLocalDateTimeValue(civilTicks: i128): LocalDateTimeValueHandle throws SchemaError
   fn stdDataDynamicExtensionValue(
-    named type: take LogicalType,
+    named logicalType: take LogicalType,
     named extension: take SemanticExtension,
     named storage: take Bytes,
     named limits: ref Limits,
@@ -601,14 +601,14 @@ export struct DynamicExtensionValue {
   }
 
   export static fn make(
-    type: take LogicalType,
+    logicalType: take LogicalType,
     extension: take SemanticExtension,
     storage: take Bytes,
     limits: ref Limits = ref Limits.standard(),
   ): DynamicExtensionValue throws SchemaError {
     return DynamicExtensionValue(validatedHandle: unsafe {
       try stdDataDynamicExtensionValue(
-        type: take type,
+        logicalType: take logicalType,
         extension: take extension,
         storage: take storage,
         limits: limits,

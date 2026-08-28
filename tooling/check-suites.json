@@ -65,6 +65,7 @@
       "steps": [
         { "package": "tree", "script": "generate" },
         { "package": "tree", "script": "check:syntax-atlas" },
+        { "package": "tree", "script": "check:maintained-parse" },
         { "package": "tree", "script": "check:operator-surface" },
         { "package": "tree", "script": "check:cheatsheet" },
         { "package": "tree", "script": "check:pkg1" },

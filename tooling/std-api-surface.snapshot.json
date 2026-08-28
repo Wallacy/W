@@ -648,13 +648,13 @@
       "id": "std.blob",
       "availability": "bundled-portable",
       "source": "std/blob/contracts.w",
-      "catalogedDeclarationsDigest": "d3f99d9f296c19031414772919daf5a3c7d806dee26b98a925ae74a7c2a7934f",
+      "catalogedDeclarationsDigest": "10a68fda93a82cdead2376ea276ebc6bf01339e9c3bff54f92ad85fcf220e833",
       "apis": [
         {
           "symbol": "Blob",
           "kind": "struct",
           "signature": "export struct Blob: Duplicable & SnapshotByteSource<BlobError>",
-          "declarationDigest": "a66ddddd6121a434e7f44e42b1cce0aa4737ffed53d2b3c1e3b623c493424e81",
+          "declarationDigest": "f9968084007c0cef6e2a0b46d72da6c8956dbb1498d251ebe70eb68638902483",
           "line": 57,
           "profile": "blob-carrier",
           "members": [
@@ -662,7 +662,7 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ bytes: take Bytes, type: String = \"\")",
+                  "signature": "export init(_ bytes: take Bytes, mediaType: String = \"\")",
                   "line": 63
                 }
               ],
@@ -704,7 +704,7 @@
               "symbol": "slice",
               "overloads": [
                 {
-                  "signature": "export fn slice( start relativeStart: usize = 0, end relativeEnd: usize? = .none, type: String = \"\", ): Blob throws BlobError",
+                  "signature": "export fn slice( start relativeStart: usize = 0, end relativeEnd: usize? = .none, mediaType: String = \"\", ): Blob throws BlobError",
                   "line": 100
                 }
               ],
@@ -1195,7 +1195,7 @@
           "schema-identity"
         ]
       },
-      "catalogedDeclarationsDigest": "31e2126fe3d9029898e1ad91467e6f8847367d8b2c550a1698f66e6475c9b75b",
+      "catalogedDeclarationsDigest": "8cbf3a068b85e93b2ca4c099dc5b220e3a364e918a4bef55c79649859fc2a933",
       "apis": [
         {
           "symbol": "Batch",
@@ -1273,7 +1273,7 @@
           "symbol": "DecimalValue",
           "kind": "struct",
           "signature": "export struct DecimalValue",
-          "declarationDigest": "b88158349330c501287c666cad3ecdfa37398a85eb3ff0d7d22ecbd700155c7a",
+          "declarationDigest": "3b1af5bfce0ce8951c6b5b2f6a29ff158e4590e9269a557efc1db9234f93c9ad",
           "line": 216,
           "profile": "data-carrier",
           "status": "draft"
@@ -1309,7 +1309,7 @@
           "symbol": "DynamicExtensionValue",
           "kind": "struct",
           "signature": "export struct DynamicExtensionValue",
-          "declarationDigest": "966dd48ecd4b4da24a5e2b36e6a2d0f08bd90bd711ce0e02f2a45c68da655e41",
+          "declarationDigest": "84f2e49da6327a9df8373e5c01754850fb70f309f1c5674033fa44e00091ad10",
           "line": 596,
           "profile": "data-carrier",
           "status": "draft"

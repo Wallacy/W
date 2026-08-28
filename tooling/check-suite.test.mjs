@@ -63,10 +63,10 @@ describe("check-suite manifest", () => {
       "tree-check",
       "tree-docs",
     ]);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(107);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(108);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-docs" })).toHaveLength(78);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-studies" })).toHaveLength(33);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(105);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(106);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-docs" })).toHaveLength(76);
   });
 

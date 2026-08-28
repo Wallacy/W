@@ -60,24 +60,24 @@ export struct Blob: Duplicable & SnapshotByteSource<BlobError> {
   storedSize: usize
   storedType: String
 
-  export init(_ bytes: take Bytes, type: String = "") {
+  export init(_ bytes: take Bytes, mediaType: String = "") {
     let size = bytes.count
     self.backing = take bytes
     self.start = 0
     self.storedSize = size
-    self.storedType = normalizeMediaType(type)
+    self.storedType = normalizeMediaType(mediaType)
   }
 
   init(
     retaining backing: shared Bytes,
     start: usize,
     size: usize,
-    type: String,
+    mediaType: String,
   ) {
     self.backing = take backing
     self.start = start
     self.storedSize = size
-    self.storedType = take type
+    self.storedType = take mediaType
   }
 
   export size: usize {
@@ -93,14 +93,14 @@ export struct Blob: Duplicable & SnapshotByteSource<BlobError> {
       retaining: copy backing,
       start: start,
       size: storedSize,
-      type: copy storedType,
+      mediaType: copy storedType,
     )
   }
 
   export fn slice(
     start relativeStart: usize = 0,
     end relativeEnd: usize? = .none,
-    type: String = "",
+    mediaType: String = "",
   ): Blob throws BlobError {
     let end = relativeEnd ?? storedSize
     guard relativeStart <= end && end <= storedSize else {
@@ -115,7 +115,7 @@ export struct Blob: Duplicable & SnapshotByteSource<BlobError> {
       retaining: copy backing,
       start: start + relativeStart,
       size: end - relativeStart,
-      type: normalizeMediaType(type),
+      mediaType: normalizeMediaType(mediaType),
     )
   }
 
@@ -167,7 +167,7 @@ export struct Blob: Duplicable & SnapshotByteSource<BlobError> {
 }
 
 test "blob copies and slices retain immutable bytes" {
-  let source = Blob(take b"Restaurant at the End", type: "TEXT/PLAIN")
+  let source = Blob(take b"Restaurant at the End", mediaType: "TEXT/PLAIN")
   let copy = copy source
   let suffix = try source.slice(start: 18)
 

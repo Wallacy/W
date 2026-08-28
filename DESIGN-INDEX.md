@@ -16,7 +16,7 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 33595 |
+| linhas de `DESIGN.md` | 33598 |
 | tokens aproximados de `DESIGN.md` | 375200 |
 | linhas de `RATIONALE.md` | 8295 |
 | tokens aproximados de `RATIONALE.md` | 209000 |
@@ -38,7 +38,7 @@
 | variantes/tarefas R1 | 162/228 |
 | casos R0 promovidos a R1 | 69/77 |
 | protocolo HUM0 | 8 slices/32 tasks; 0 human records/0 model records; structure-only |
-| casos do corpus Tree-sitter | 129 |
+| casos do corpus Tree-sitter | 130 |
 | pares canônicos do formatter F0 | 28 |
 | casos/operações do kernel de memória M1 | 185/606 (79 aceitos + 106 rejeitados) |
 | casos/operações do control block shared SHC0 | 45/84 (16 aceitos + 6 errors + 3 faults + 20 rejeitados) |
@@ -153,19 +153,19 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 11 | 10843–11207 | 2900 | Erros, panic, OOM e cleanup |
 | 12 | 11208–14701 | 40100 | Concorrência, paralelismo e execução |
 | 13 | 14702–16979 | 23100 | Módulos de execução, services e entries |
-| 14 | 16980–21006 | 51100 | Prelude e standard library |
-| 15 | 21007–21818 | 8700 | Números, ranges e unidades |
-| 16 | 21819–23476 | 14200 | Texto, bytes e collections |
-| 17 | 23477–23826 | 4100 | Matrizes, tensors e ML |
-| 18 | 23827–24718 | 11000 | Performance e custo |
-| 19 | 24719–25293 | 6900 | FFI, unsafe e ilhas de linguagem |
-| 20 | 25294–26829 | 16600 | Compilador e bootstrap |
-| 21 | 26830–29326 | 25900 | Packages, builds e releases |
-| 22 | 29327–29872 | 5500 | Tooling e interface para máquinas |
-| 23 | 29873–31423 | 19100 | Protocolos e pesquisas de ecossistema |
-| 24 | 31424–32759 | 21800 | Design freeze e pendências |
-| 25 | 32760–32970 | 1900 | Produto de referência Última Luz |
-| 26 | 32971–33595 | 8800 | Plano de implementação |
+| 14 | 16980–21009 | 51200 | Prelude e standard library |
+| 15 | 21010–21821 | 8700 | Números, ranges e unidades |
+| 16 | 21822–23479 | 14200 | Texto, bytes e collections |
+| 17 | 23480–23829 | 4100 | Matrizes, tensors e ML |
+| 18 | 23830–24721 | 11000 | Performance e custo |
+| 19 | 24722–25296 | 6900 | FFI, unsafe e ilhas de linguagem |
+| 20 | 25297–26832 | 16600 | Compilador e bootstrap |
+| 21 | 26833–29329 | 25900 | Packages, builds e releases |
+| 22 | 29330–29875 | 5500 | Tooling e interface para máquinas |
+| 23 | 29876–31426 | 19100 | Protocolos e pesquisas de ecossistema |
+| 24 | 31427–32762 | 21800 | Design freeze e pendências |
+| 25 | 32763–32973 | 1900 | Produto de referência Última Luz |
+| 26 | 32974–33598 | 8800 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
@@ -173,7 +173,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 |---:|---:|---:|---|
 | 1 | 14–6128 | 97500 | Evidência comparativa |
 | 2 | 6129–6159 | 500 | Proveniência |
-| 3 | 6160–8295 | 110900 | Ledger |
+| 3 | 6160–8295 | 111000 | Ledger |
 
 ## Bundles de leitura
 
@@ -183,9 +183,9 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 |---|---:|---:|---:|---|
 | orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 15–8648 | 88200 | promessa, símbolos, source, módulos, funções e tipos |
 | segurança e execução | 9, 10, 11, 12, 13 | 8649–16979 | 92400 | ownership, errors, tasks, domains, services e entries |
-| std e performance | 14, 15, 16, 17, 18, 19 | 16980–25293 | 96000 | módulos, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 25294–31423 | 67100 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 31424–33595 | 32500 | freeze, Última Luz, gates e roadmap |
+| std e performance | 14, 15, 16, 17, 18, 19 | 16980–25296 | 96100 | módulos, números, texto, tensors, custo, C e unsafe |
+| compiler e distribuição | 20, 21, 22, 23 | 25297–31426 | 67100 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26 | 31427–33598 | 32500 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 
