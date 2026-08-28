@@ -629,7 +629,8 @@ gramáticas concorrentes.
 | Artefato | Política de manutenção |
 |---|---|
 | `tree-sitter-w/grammar.js`, corpus e `queries/*.scm` | fonte estrutural mantida; serve parsing incremental, highlights, locals e folds |
-| `tree-sitter-w/src/` | saída gerada e versionada para consumir o parser C sem exigir o CLI no usuário final; nunca editar à mão |
+| `tree-sitter-w/src/parser.c`, `grammar.json`, `node-types.json` e `src/tree_sitter/*.h` | saídas geradas locais para consumir o parser C; não são versionadas e nunca devem ser editadas à mão |
+| `tree-sitter-w/src/scanner.c` | scanner authored usado pelo external scanner; permanece versionado e não deve ser removido no bootstrap |
 | `vscode-w/syntaxes/*.json` | fallback TextMate pequeno mantido porque é a tokenização lexical nativa do VS Code |
 | `vscode-w/icons/w.png` e language configuration | integração declarativa mantida |
 | `portal/w-syntax.js` | fallback temporário; remover quando Tree-sitter/WASM local passar os mesmos testes no browser |

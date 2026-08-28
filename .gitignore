@@ -35,3 +35,11 @@ Desktop.ini
 *.temp
 
 build/
+
+# Tree-sitter generated parser outputs. Keep src/scanner.c authored and tracked.
+/tooling/tree-sitter-w/src/parser.c
+/tooling/tree-sitter-w/src/grammar.json
+/tooling/tree-sitter-w/src/node-types.json
+/tooling/tree-sitter-w/src/tree_sitter/alloc.h
+/tooling/tree-sitter-w/src/tree_sitter/array.h
+/tooling/tree-sitter-w/src/tree_sitter/parser.h
