@@ -122,8 +122,8 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HLO0/HLO1 e target bootstrap w](compiler/seed-c/README.md) | implementação caller-owned/incremental; Unicode 17 pinado, scanner C source-validation-only, parser/formatter CST, frontend seed e adapter D0; `w check` executa CHK9 bounded para root efêmera local, com até 64 sources e 16 MiB por source/agregado; HLO1 emite e executa C11 somente para Hello World source-backed; não é frontend normativo completo, compiler ou typechecker completo |
-| Formatter normativo, frontend normativo completo, HIR e MLIR | planejados, não implementados; o formatter e o frontend seed são fatias fechadas e não substituem essas camadas |
+| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1 e target bootstrap w](compiler/seed-c/README.md) | implementação caller-owned/incremental; Unicode 17 pinado, scanner C source-validation-only, parser/formatter CST, frontend seed e adapter D0; `w check` executa CHK9 bounded para root efêmera local, com até 64 sources e 16 MiB por source/agregado; HIR0 verifica o subset e HLO1 emite/executa C11 somente para Hello World verified-HIR-backed; não é frontend normativo completo, compiler ou typechecker completo |
+| Formatter normativo, frontend normativo completo, HIR geral e MLIR | planejados, não implementados; o formatter, o frontend seed e a HIR0 verificada são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |
 | Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |
 | services, `ServiceLink`, `pipeline` e wRPC | **Direção**; implementação na fase 6 |

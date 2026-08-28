@@ -33168,7 +33168,7 @@ frontend completo nem `w check` completo; package/workspace, provider `std`,
 resolution externa, owner detection, compiler, backend e runtime permanecem
 gaps.
 
-HLO0 acrescenta a primeira fronteira source-backed para o programa mínimo:
+HLO0 acrescenta a primeira fronteira verified-HIR-backed para o programa mínimo:
 
 ```w
 fn main() { print("Hello, world!") }
@@ -33183,23 +33183,25 @@ homônimo do host. Calls publicam uma identidade discriminada de função local,
 símbolo de módulo externo ou símbolo do host prelude. Qualifiers de função e o
 retorno Unit omitido também são records estruturados.
 
-O adapter caller-owned `w_seed_hlo0` consome somente esses records e suas
-relações. Ele não procura substrings no source ou no receipt. Para o fixture
+O adapter caller-owned `w_seed_hlo0` consome somente uma `w_seed_hir0_program`
+e seu receipt de verificação. A fronteira chama o verifier HIR0 novamente e
+não recebe pointers de frontend, source, CST ou host scope. Para o fixture
 exato, produz um plano bounded com payload `Hello, world!`, política de newline
 LF, 14 bytes de stdout, SHA-256 esperado e exit success. O gate comprova
-source → parser → frontend → plano HLO0. Ele não emite C, não liga, não executa
-W e não implementa `w run`.
+source → parser → frontend → lower HIR0 → verify HIR0 → plano HLO0. Ele não
+emite C, não liga, não executa W e não implementa `w run`.
 
 O `benchmarkDisposition` do corte HLO0 é `deferred`, com task
 `hlo3-hello-world-runtime-benchmark`. HLO0 não mede compile, link, startup ou
 execution. HLO1 prova somente a execução do artefato C11 deste subset, sem
 abrir execução W geral. Timing e resultados de performance continuam bloqueados
-por `verified-hir`, `native-process-console-provider`, `w-linker`,
+por HIR geral, `native-process-console-provider`, `w-linker`,
 `w-run-driver` e `language-benchmark-runner`.
 
 HLO1 acrescenta a primeira emissão executável sem abrir um backend W geral. A
-API interna caller-owned `w_seed_hlo1` recebe um `const w_seed_hlo0_plan` e
-expõe `measure` e `emit`. Ela revalida o schema, os campos de identidade, os
+API interna caller-owned `w_seed_hlo1` recebe um `const w_seed_hlo0_plan`
+produzido pela fronteira HIR0 verificada e expõe `measure` e `emit`. Ela
+revalida o schema, os campos de identidade, os
 effects, o payload, a política LF, o tamanho, o digest de stdout e o exit do
 subset HLO0 antes de produzir bytes. Um plano mutado, truncado, com digest
 incorreto ou fora do subset retorna status sem alterar os records ou buffers do
@@ -33227,10 +33229,10 @@ overlap com o plano e qualquer output parcial. O resultado publica o tamanho
 requerido, o tamanho escrito e o SHA-256 do arquivo C11. O digest do plano
 continua cobrindo somente payload + LF. A API não prova sozinha a proveniência
 do source, porque o plano é um record caller-owned. Somente o gate integrado
-prova source → parser → frontend → HLO0 → HLO1 → compilador C11 → execução.
+prova source → parser → frontend → HIR0 → HLO0 → HLO1 → compilador C11 → execução.
 
 O gate HLO1 constrói o seed em Release fora de diretório temporário do repo,
-obtém o plano pela rota source-backed, compila o C gerado com C11, executa e
+obtém o plano pela rota HIR0 verificada, compila o C gerado com C11, executa e
 exige stdout `Hello, world!\n`, stderr vazio e exit `0`. Ausência de CMake,
 Ninja ou compilador produz `SKIP` explícito sem claim. Falha de configure,
 build, execução ou verificação quando a toolchain existe produz `FAIL`. O gate
@@ -33238,10 +33240,10 @@ também usa um source do Restaurante com o texto em comentário ou em uma forma
 estruturalmente errada. Esse caso não pode emitir C, pois nenhuma etapa usa
 substring scanning.
 
-HLO1 não implementa HIR verificado, linker W, Console provider geral, runtime
-W, distribuição de artefato ou `w run`. Seu `benchmarkDisposition` é `deferred`
+HLO1 não implementa HIR geral, linker W, Console provider geral, runtime W,
+distribuição de artefato ou `w run`. Seu `benchmarkDisposition` é `deferred`
 para `hlo3-hello-world-runtime-benchmark`; não há timing nem resultado de
-performance neste corte. Os blockers são `verified-hir`,
+performance neste corte. Os blockers são HIR geral,
 `native-process-console-provider`, `w-linker`, `w-run-driver` e
 `language-benchmark-runner`.
 
@@ -33257,6 +33259,72 @@ artifact.
 
 **Exemplo:** o mesmo programa aritmético gera HIR equivalente pelo seed C e pelo
 frontend self-hosted.
+
+#### 26.4.1 HIR0 verificada do seed
+
+**Exemplo:** o source mínimo chega ao HLO0 somente depois de uma HIR0
+verificada:
+
+```w
+fn main() { print("Hello, world!") }
+entry(main)
+```
+
+**W-1494 — HIR0 verificada para o subset inicial (Forma vigente):**
+`w_seed_hir0` é uma representação intermediária fechada, bounded,
+caller-owned e sem heap para o único subset que o seed C prova neste corte.
+Ela publica módulos e identidades, os tipos `Unit` e `String`, funções e seus
+qualifiers, parâmetros com labels HIR, blocks e ordem, valores constantes
+`String` como byte slices copiados, instruções `CALL` com identidade
+discriminada do callee host-prelude, argumentos tipados e ordinais,
+requirements nominais, terminators de retorno `Unit` e o entry com target e
+slot normalizado. O registro de host inclui o profile explícito
+`native-process@1`; a identidade não é inferida pelo consumidor.
+
+Este schema inicial aceita exatamente um document, um module e um entry. O
+entry é publicado em um único slot `.default`, e cada module rejeita funções
+com nome duplicado. A tabela `symbols` do frontend é somente um índice
+auxiliar: o lowering não deriva dela nenhuma identidade, tipo ou callee, mas o
+preflight valida a projeção canônica de module, parâmetros, funções e entry.
+Outras famílias frontend que não possuem record HIR0 (imports, declarations,
+enums, generics, diagnostics, const families e similares) falham fechadas;
+isso não é uma promessa de HIR geral.
+
+As partições publicadas são densas e completas: ranges de functions e entries
+do module, parameters das functions, instructions dos blocks, parameters e
+requirements das host identities e arguments/values das calls não podem ter
+gap, overlap ou record órfão. Para host labels, `NAMED_REQUIRED` e
+`EXTERNAL_REQUIRED` copiam o nome como label; `POSITIONAL_ONLY` usa label
+vazio. O corte HIR0 aceita `OPTIONAL` somente quando a call publica o label
+canônico, embora o frontend possa aceitar a forma sem label; a forma omitida
+permanece fora deste lowering.
+
+O lowering recebe facts já publicados pelo frontend e não reparseia source,
+CST ou spelling. O output HIR copia para storage caller-owned todos os nomes,
+identidades e bytes constantes necessários para a verificação. Depois do
+lowering, o programa não depende do lifetime nem dos buffers do frontend.
+`w_seed_hir0_verify` é chamado na fronteira de consumo e recompõe um digest
+semântico field-by-field com encoding inteiro explícito e sem padding, spans,
+source bytes ou provenance. Um digest de provenance separado cobre source
+identity, `module.source_sha256`, comprimento e spans dos records HIR; o receipt
+serializa somente counts, semantic_digest e provenance_digest. Whitespace ou
+comentário podem mudar provenance sem mudar semântica; alteração de
+records, counts, owners, ranges, tipos, ordinais, identity, requirements,
+terminator, entry, alias/overlap, truncamento ou digest falha fechada.
+
+`measure`, `run` e a ponte `program_from_output` são transacionais:
+capacity, schema, resultado e receipt são preflightados antes de qualquer
+write; qualquer erro preserva todos os buffers do caller. O HLO0 aceita apenas
+`program` e `hir_result`, verifica HIR0 novamente e seleciona o plano Hello
+somente pelos records e bytes HIR. A rota comprovada é
+`source → parser → frontend → lower HIR0 → verify HIR0 → HLO0 → HLO1 →
+compilador C11 → execução`.
+
+W-1494 é source-backed-current somente para esse subset HIR0 bounded. HIR
+geral, type checking normativo, lowering geral, backend nativo, linker,
+runtime, Console provider geral, `w run` e execução de programas fora do
+subset continuam gaps. O benchmark de compiler lifecycle e o benchmark de
+runtime permanecem deferred e não há timing ou resultado publicado.
 
 - HIR tipada;
 - place projections, loans, reborrow e dependent-value facts;

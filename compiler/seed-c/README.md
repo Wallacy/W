@@ -649,7 +649,38 @@ switch preservam fato explícito unsupported. As formas sem código normativo
 continuam fatos/barreiras explícitos; o seed não apresenta esta fatia como
 implementação ampla da linguagem.
 
-## HLO0 source-backed de Hello World
+## HIR0 verificada do seed
+
+`include/w_seed_hir0.h` e `src/w_seed_hir0.c` formam uma representação
+intermediária fechada, bounded, caller-owned e sem heap para o subset inicial.
+O lowering copia para a HIR0 os módulos, identidades, tipos `Unit`/`String`,
+funções, qualifiers, parâmetros e labels HIR, blocks, ordem, constantes como
+byte slices, calls host-prelude, argumentos tipados/ordinais, requirements,
+terminators e entry com target e slot. O programa não retém pointers do
+frontend e permanece válido depois que os buffers de source/CST/frontend são
+descartados.
+
+O schema HIR0 aceita exatamente um document, um module e um entry em `.default`,
+e rejeita nomes de function duplicados. As ranges de function/entry do module,
+parameters, blocks, host parameters/requirements e call arguments/values são
+partições densas: não há gap, overlap ou record órfão. `symbols` é um índice
+auxiliar validado na ordem module → parâmetros → function → entry; ele não é
+autoridade para o lowering. Famílias frontend sem record HIR0 falham fechadas.
+Labels host named/external copiam o nome público, positional usa label vazio e
+`OPTIONAL` só entra quando a call publica o label; a forma opcional sem label
+permanece fora deste subset.
+
+`w_seed_hir0_verify` recompõe o semantic digest field-by-field com encoding
+explícito, sem padding, spans ou provenance. O provenance digest separado
+inclui source identity, `module.source_sha256`, comprimento e spans dos records
+HIR; o receipt serializa counts, semantic_digest e provenance_digest.
+`measure`, `run` e `program_from_output` são all-or-nothing; capacity,
+truncamento, alias, overlap, owner, range, type, ordinal, identity,
+requirement, terminator, entry ou digest inconsistente falha sem alterar os
+buffers do caller. HLO0 chama o verifier na entrada e não acessa source,
+frontend, CST ou host scope.
+
+## HLO0 verified-HIR-backed de Hello World
 
 `include/w_seed_hlo0.h` e `src/w_seed_hlo0.c` formam um adapter interno,
 caller-owned e sem heap para a primeira fronteira de plano HLO. O fixture
@@ -660,13 +691,14 @@ fn main() { print("Hello, world!") }
 entry(main)
 ```
 
-O frontend v10 recebe um `host_scope` explícito. O profile
+O frontend v10 recebe um `host_scope` explícito, e a etapa anterior faz lower e
+verify de HIR0. O profile
 `native-process@1` oferece `print(String): ()` como símbolo normal do host
 prelude, com requirement nominal `Console`. A resolução preserva identidades
-distintas para função local, símbolo importado e símbolo do host; o adapter não
-infere a origem por índices ausentes nem procura texto no source ou receipt.
-Ele também consome qualifiers estruturados e o record Unit criado quando o
-retorno é omitido.
+distintas para função local, símbolo importado e símbolo do host; a HIR0 publica
+essa identidade e o adapter não infere a origem por índices ausentes nem
+procura texto no source ou receipt. Ele também consome qualifiers estruturados
+e o record Unit criado quando o retorno é omitido.
 
 `w_seed_hlo0_measure` faz o preflight e mede um plano e receipt. Depois do mesmo
 preflight, `w_seed_hlo0_run` copia os dois outputs uma única vez. Capacity,
@@ -676,7 +708,7 @@ retornam `INVALID`.
 
 O plano atual fixa payload `Hello, world!`, adiciona LF, registra 14 bytes de
 stdout, SHA-256 e exit success. Isso não é execução W. O emitter C11 HLO1 é uma
-etapa separada e bounded; HLO0 não prova HIR verificado, Console provider W,
+etapa separada e bounded; HLO0 não prova HIR geral, Console provider W,
 w-linker, `w run` ou runtime.
 
 ```text
@@ -690,7 +722,7 @@ O `benchmarkDisposition` é `deferred` para
 podem ser medidos em W depois de um runner público/pinado com fases separáveis,
 reproduzíveis, output e exit verificados.
 
-## HLO1 emissão C11 source-backed
+## HLO1 emissão C11 verified-HIR-backed
 
 `include/w_seed_hlo1.h` e `src/w_seed_hlo1.c` consomem um plano HLO0 já
 validado e produzem, sem heap, um arquivo C11 bounded em buffer caller-owned.
@@ -698,7 +730,7 @@ validado e produzem, sem heap, um arquivo C11 bounded em buffer caller-owned.
 qualquer falha, os records e buffers do caller permanecem inalterados; alias,
 capacidade curta, plano corrompido e payload fora do subset retornam status.
 O plano isolado não prova sua própria proveniência. Essa prova pertence ao gate
-integrado source → parser → frontend → HLO0 → HLO1.
+integrado source → parser → frontend → HIR0 → HLO0 → HLO1.
 
 O arquivo emitido começa pelo comentário de schema `/* w-seed-hlo1-1 */` e usa
 stdio C11 e um array hexadecimal `unsigned char` com os 14 bytes de
@@ -708,7 +740,7 @@ _O_BINARY)` antes de `fwrite`; depois verifica a contagem escrita e
 `fflush(stdout)`. O buffer C é all-or-nothing, mas stdout externo não é
 transacional.
 
-O gate reproduz a rota source-backed, compila o C gerado com C11 em um
+O gate reproduz a rota HIR0 verificada, compila o C gerado com C11 em um
 diretório temporário fora do repo e exige stdout exato, stderr vazio e exit 0.
 Também rejeita dois witnesses Restaurant que colocam o texto em comentário ou
 usam callee/payload incorretos. CMake, Ninja ou compiler ausente produz `SKIP`;

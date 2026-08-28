@@ -34,6 +34,11 @@ enum {
   GATE_FACTS = 64,
   GATE_DIAGNOSTICS = 32,
   GATE_RECEIPT = 65536,
+  GATE_HIR_IDENTITIES = 32,
+  GATE_HIR_RECORDS = 32,
+  GATE_HIR_TEXT = 4096,
+  GATE_HIR_VALUES = 4096,
+  GATE_HIR_RECEIPT = 256,
 };
 
 typedef struct {
@@ -77,7 +82,77 @@ typedef struct {
   uint8_t frontend_receipt[GATE_RECEIPT];
   w_seed_frontend_output output;
   w_seed_frontend_result frontend_result;
+  w_seed_hir0_module hir_modules[GATE_HIR_RECORDS];
+  w_seed_hir0_identity hir_identities[GATE_HIR_IDENTITIES];
+  w_seed_hir0_type hir_types[GATE_HIR_RECORDS];
+  w_seed_hir0_function hir_functions[GATE_HIR_RECORDS];
+  w_seed_hir0_parameter hir_parameters[GATE_HIR_RECORDS];
+  w_seed_hir0_block hir_blocks[GATE_HIR_RECORDS];
+  w_seed_hir0_instruction hir_instructions[GATE_HIR_RECORDS];
+  w_seed_hir0_call hir_calls[GATE_HIR_RECORDS];
+  w_seed_hir0_host_parameter hir_host_parameters[GATE_HIR_RECORDS];
+  w_seed_hir0_argument hir_arguments[GATE_HIR_RECORDS];
+  w_seed_hir0_requirement hir_requirements[GATE_HIR_RECORDS];
+  w_seed_hir0_value hir_values[GATE_HIR_RECORDS];
+  w_seed_hir0_terminator hir_terminators[GATE_HIR_RECORDS];
+  w_seed_hir0_entry hir_entries[GATE_HIR_RECORDS];
+  uint8_t hir_text[GATE_HIR_TEXT];
+  uint8_t hir_value_bytes[GATE_HIR_VALUES];
+  uint8_t hir_receipt[GATE_HIR_RECEIPT];
+  w_seed_hir0_output hir_output;
+  w_seed_hir0_result hir_result;
+  w_seed_hir0_program hir_program;
 } gate_fixture;
+
+static bool lower_hir(gate_fixture *fixture) {
+  if (fixture == NULL) return false;
+  fixture->hir_output = (w_seed_hir0_output){
+      .modules = fixture->hir_modules,
+      .module_capacity = GATE_HIR_RECORDS,
+      .identities = fixture->hir_identities,
+      .identity_capacity = GATE_HIR_IDENTITIES,
+      .types = fixture->hir_types,
+      .type_capacity = GATE_HIR_RECORDS,
+      .functions = fixture->hir_functions,
+      .function_capacity = GATE_HIR_RECORDS,
+      .parameters = fixture->hir_parameters,
+      .parameter_capacity = GATE_HIR_RECORDS,
+      .blocks = fixture->hir_blocks,
+      .block_capacity = GATE_HIR_RECORDS,
+      .instructions = fixture->hir_instructions,
+      .instruction_capacity = GATE_HIR_RECORDS,
+      .calls = fixture->hir_calls,
+      .call_capacity = GATE_HIR_RECORDS,
+      .host_parameters = fixture->hir_host_parameters,
+      .host_parameter_capacity = GATE_HIR_RECORDS,
+      .arguments = fixture->hir_arguments,
+      .argument_capacity = GATE_HIR_RECORDS,
+      .requirements = fixture->hir_requirements,
+      .requirement_capacity = GATE_HIR_RECORDS,
+      .values = fixture->hir_values,
+      .value_capacity = GATE_HIR_RECORDS,
+      .terminators = fixture->hir_terminators,
+      .terminator_capacity = GATE_HIR_RECORDS,
+      .entries = fixture->hir_entries,
+      .entry_capacity = GATE_HIR_RECORDS,
+      .text_bytes = fixture->hir_text,
+      .text_byte_capacity = sizeof(fixture->hir_text),
+      .value_bytes = fixture->hir_value_bytes,
+      .value_byte_capacity = sizeof(fixture->hir_value_bytes),
+      .receipt = fixture->hir_receipt,
+      .receipt_capacity = sizeof(fixture->hir_receipt)};
+  const w_seed_hir0_input input = {
+      &fixture->input, &fixture->output, &fixture->frontend_result};
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  return w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK &&
+         w_seed_hir0_run(&input, &fixture->hir_output, &fixture->hir_result) ==
+             W_SEED_HIR0_OK &&
+         w_seed_hir0_program_from_output(&fixture->hir_output,
+                                          &fixture->hir_result,
+                                          &fixture->hir_program) &&
+         w_seed_hir0_verify(&fixture->hir_program, &fixture->hir_result);
+}
 
 static bool read_fixture(gate_fixture *fixture, const char *path) {
   if (fixture == NULL || path == NULL) return false;
@@ -198,7 +273,8 @@ static bool read_fixture(gate_fixture *fixture, const char *path) {
       .symbol_count = 2u};
   fixture->input.host_scope = &fixture->host_scope;
   return w_seed_frontend_run(&fixture->input, &fixture->output,
-                             &fixture->frontend_result) == W_SEED_FRONTEND_OK;
+                             &fixture->frontend_result) == W_SEED_FRONTEND_OK &&
+         lower_hir(fixture);
 }
 
 int main(int argc, char **argv) {
@@ -209,15 +285,11 @@ int main(int argc, char **argv) {
   gate_fixture fixture;
   (void)memset(&fixture, 0, sizeof(fixture));
   if (!read_fixture(&fixture, argv[1])) {
-    (void)fprintf(stderr, "HLO1 gate: fixture/frontend failed\n");
+    (void)fprintf(stderr, "HLO1 gate: fixture/frontend/HIR0 failed\n");
     return 1;
   }
   const w_seed_hlo0_input input = {
-      .frontend_input = &fixture.input,
-      .frontend_output = &fixture.output,
-      .frontend_result = &fixture.frontend_result,
-      .host_scope = &fixture.host_scope,
-      .profile_identity = (w_seed_frontend_text){"native-process@1", 16u}};
+      .program = &fixture.hir_program, .hir_result = &fixture.hir_result};
   w_seed_hlo0_plan plan;
   uint8_t hlo_receipt[4096];
   w_seed_hlo0_output hlo_output = {

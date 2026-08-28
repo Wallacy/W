@@ -5,21 +5,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "w_seed_frontend.h"
+#include "w_seed_hir0.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Internal HLO0 source-backed plan adapter. It does not emit, link, run, or
- * allocate. All input and output storage remains caller-owned. */
+/* Internal verified-HIR-backed HLO0 plan adapter for one bounded subset. It
+ * does not emit, link, run, or allocate. All input and output storage remains
+ * caller-owned. */
 #define W_SEED_HLO0_SCHEMA_VERSION "w-seed-hlo0-1"
 #define W_SEED_HLO0_MAX_TEXT 64u
 #define W_SEED_HLO0_MAX_PAYLOAD 256u
 
 typedef enum {
   W_SEED_HLO0_OK = 0,
-  W_SEED_HLO0_FRONTEND,
   W_SEED_HLO0_UNSUPPORTED,
   W_SEED_HLO0_CAPACITY,
   W_SEED_HLO0_INVALID,
@@ -29,15 +29,9 @@ typedef enum {
   W_SEED_HLO0_NEWLINE_ADD_LF = 0,
 } w_seed_hlo0_newline_policy;
 
-/* The host scope and profile are repeated explicitly at this boundary. The
- * adapter requires the scope pointer to be the same scope consumed by the
- * frontend input, while profile_identity is compared by value. */
 typedef struct {
-  const w_seed_frontend_input *frontend_input;
-  const w_seed_frontend_output *frontend_output;
-  const w_seed_frontend_result *frontend_result;
-  const w_seed_frontend_host_prelude *host_scope;
-  w_seed_frontend_text profile_identity;
+  const w_seed_hir0_program *program;
+  const w_seed_hir0_result *hir_result;
 } w_seed_hlo0_input;
 
 /* One bounded Hello plan. Text fields are copied into this caller-owned
@@ -89,8 +83,9 @@ w_seed_hlo0_status w_seed_hlo0_measure(const w_seed_hlo0_input *input,
                                         w_seed_hlo0_counts *counts,
                                         w_seed_hlo0_result *result);
 
-/* Build one exact source-backed plan and receipt. On failure no output byte or
- * plan field is changed. This is a plan boundary only; it never executes W. */
+/* Build one exact verified-HIR-backed plan and receipt. On failure no output
+ * byte or plan field is changed. This is a plan boundary only; it never
+ * executes W. */
 w_seed_hlo0_status w_seed_hlo0_run(const w_seed_hlo0_input *input,
                                    w_seed_hlo0_output *output,
                                    w_seed_hlo0_result *result);

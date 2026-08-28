@@ -95,18 +95,21 @@ válido.
 
 ## Primeira rota
 
-### Hello World source-backed
+### Hello World verified-HIR-backed
 
 ```w
 fn main() { print("Hello, world!") }
 entry(main)
 ```
 
-Esta é a primeira forma mínima ligada ao frontend seed e ao plano HLO0. No
-profile `native-process@1`, `print` é um símbolo normal do host prelude que
-exige `Console`; não é intrinsic nem global implícito. O gate HLO0 comprova
-source → parser → frontend → plano com payload de 13 bytes, LF acrescentado,
-stdout esperado de 14 bytes e exit success. HLO0 não executa W.
+Esta é a primeira forma mínima ligada ao frontend seed, à HIR0 verificada e ao
+plano HLO0. No profile `native-process@1`, `print` é um símbolo normal do host
+prelude que exige `Console`; não é intrinsic nem global implícito. O lowering
+copia os facts necessários para uma HIR0 caller-owned; o verifier recompõe o
+semantic digest antes de qualquer consumidor. O gate HLO0 comprova
+source → parser → frontend → lower HIR0 → verify HIR0 → plano com payload de
+13 bytes, LF acrescentado, stdout esperado de 14 bytes e exit success. HLO0
+não acessa buffers do frontend e não executa W.
 
 HLO1 usa esse plano validado para emitir e executar um artefato C11 bounded.
 O corpo C usa stdio C11 e um array hexadecimal `unsigned char` com
@@ -115,14 +118,45 @@ usa `_setmode` para preservar LF.
 O gate verifica CMake/Ninja/compiler, compila fora do repo, executa e exige
 stdout exato, stderr vazio e exit `0`. Ele também rejeita witnesses Restaurant
 com texto em comentário ou callee/payload errados, sem substring scanning.
-Isso prova apenas a emissão e execução C11 do subset source-backed e não cria
-`w run`, execução W geral, runtime W, Console provider geral ou w-linker.
+Isso prova apenas a emissão e execução C11 do subset verified-HIR-backed e não
+cria `w run`, execução W geral, HIR geral, runtime W, Console provider geral ou
+w-linker.
 
 Use `bun run check:hlo0` para validar o plano e `bun run check:hlo1` para a
 emissão/execução C11. Toolchain ausente gera `SKIP` explícito; falha com a
 toolchain presente é `FAIL`. Não registre timing: o benchmark
 `hlo3-hello-world-runtime-benchmark` permanece deferred até existir um runner
 público/pinado com fases separáveis e reproduzíveis para execução W.
+
+### HIR0 verificada do seed
+
+`w_seed_hir0` é uma representação intermediária fechada, bounded, caller-owned
+e sem heap. Ela publica módulos, identidades, `Unit`, `String`, funções,
+qualifiers, parâmetros com labels HIR, blocks e ordem, constantes como byte
+slices copiados, calls host-prelude, argumentos tipados/ordinais, requirements
+nominais, terminators e entry com target e slot. O HLO0 recebe somente a HIR0
+e seu receipt; ele chama `w_seed_hir0_verify` novamente e não recebe source,
+CST ou pointers do frontend.
+
+O semantic digest cobre os records e bytes field-by-field com encoding
+explícito, sem padding, spans ou provenance. O provenance digest cobre a
+identidade do source, `module.source_sha256`, comprimento e spans dos records
+HIR; o receipt serializa counts, semantic_digest e provenance_digest.
+Assim, comentário ou whitespace podem mudar provenance sem mudar semantic
+digest. `measure`, `run` e `program_from_output` são all-or-nothing e falham
+sem alterar buffers em capacity curta, truncamento, alias, overlap ou record
+forjado. A rota comprovada é
+`source → parser → frontend → lower HIR0 → verify HIR0 → HLO0 → HLO1 → C11 → execução`.
+Isto é uma evidência limitada ao subset; HIR geral, backend nativo, linker,
+runtime e `w run` continuam gaps.
+
+O subset HIR0 aceita exatamente um document, um module e um entry no slot
+`.default`; nomes de function duplicados, ranges com gap/overlap e records
+órfãos falham. `symbols` é apenas um índice auxiliar validado na ordem
+module → parâmetros → function → entry. Labels host named/external copiam o
+nome, positional usa label vazio e `OPTIONAL` exige o label na call; a forma
+sem label não é lowerada por HIR0. Famílias frontend sem record HIR0 também
+falham fechadas.
 
 ### Um arquivo de source
 
@@ -2149,7 +2183,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Design e forma de source | Forma vigente para avaliação, não release |
 | Atlas/Tree-sitter | Protótipo de parse e corpus; não checker/runtime |
 | Oracles host | Evidência lógica/física de design; não runtime |
-| Formatter/frontend/HIR/MLIR | Frontend seed e plano HLO0 bounded; frontend normativo, HIR e MLIR continuam gaps |
+| Formatter/frontend/HIR/MLIR | Frontend seed e HIR0 verified-HIR-backed bounded; HIR geral, frontend normativo e MLIR continuam gaps |
 | Runtime/scheduler/allocator | Planejados; implementation gap |
 | std/providers | Contratos e oracles; provider missing |
 | CLI além de `w check` / package manager | Direção; implementation gap |
