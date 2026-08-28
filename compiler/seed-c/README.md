@@ -675,8 +675,9 @@ grafo coerente fora do subset retorna `UNSUPPORTED`; records incoerentes
 retornam `INVALID`.
 
 O plano atual fixa payload `Hello, world!`, adiciona LF, registra 14 bytes de
-stdout, SHA-256 e exit success. Isso não é execução. Não há HIR verificado,
-emitter C11, Console provider, linker, `w run` ou runtime nesse corte.
+stdout, SHA-256 e exit success. Isso não é execução W. O emitter C11 HLO1 é uma
+etapa separada e bounded; HLO0 não prova HIR verificado, Console provider W,
+w-linker, `w run` ou runtime.
 
 ```text
 bun run check:hlo0
@@ -686,7 +687,40 @@ bun run parse:hlo0
 
 O `benchmarkDisposition` é `deferred` para
 `hlo3-hello-world-runtime-benchmark`. Compile, link, startup e execution só
-podem ser medidos depois de execução W real com output e exit verificados.
+podem ser medidos em W depois de um runner público/pinado com fases separáveis,
+reproduzíveis, output e exit verificados.
+
+## HLO1 emissão C11 source-backed
+
+`include/w_seed_hlo1.h` e `src/w_seed_hlo1.c` consomem um plano HLO0 já
+validado e produzem, sem heap, um arquivo C11 bounded em buffer caller-owned.
+`measure` e `emit` revalidam o plano completo antes de qualquer escrita. Em
+qualquer falha, os records e buffers do caller permanecem inalterados; alias,
+capacidade curta, plano corrompido e payload fora do subset retornam status.
+O plano isolado não prova sua própria proveniência. Essa prova pertence ao gate
+integrado source → parser → frontend → HLO0 → HLO1.
+
+O arquivo emitido começa pelo comentário de schema `/* w-seed-hlo1-1 */` e usa
+stdio C11 e um array hexadecimal `unsigned char` com os 14 bytes de
+`Hello, world!\n`. O source termina em LF. Em `_WIN32`, o adapter
+CRT acrescenta `<fcntl.h>`/`<io.h>` e chama `_setmode(_fileno(stdout),
+_O_BINARY)` antes de `fwrite`; depois verifica a contagem escrita e
+`fflush(stdout)`. O buffer C é all-or-nothing, mas stdout externo não é
+transacional.
+
+O gate reproduz a rota source-backed, compila o C gerado com C11 em um
+diretório temporário fora do repo e exige stdout exato, stderr vazio e exit 0.
+Também rejeita dois witnesses Restaurant que colocam o texto em comentário ou
+usam callee/payload incorretos. CMake, Ninja ou compiler ausente produz `SKIP`;
+falha de toolchain presente produz `FAIL`.
+
+```text
+bun run check:hlo1
+```
+
+Este gate é correctness-only. Não publica timing ou resultado de performance;
+`hlo3-hello-world-runtime-benchmark` continua deferred até existir um runner W
+público/pinado com fases separáveis e reproduzíveis.
 
 ## ConstIR D1-D6 seed
 

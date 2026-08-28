@@ -104,14 +104,25 @@ entry(main)
 
 Esta é a primeira forma mínima ligada ao frontend seed e ao plano HLO0. No
 profile `native-process@1`, `print` é um símbolo normal do host prelude que
-exige `Console`; não é intrinsic nem global implícito. O gate atual comprova
+exige `Console`; não é intrinsic nem global implícito. O gate HLO0 comprova
 source → parser → frontend → plano com payload de 13 bytes, LF acrescentado,
-stdout esperado de 14 bytes e exit success. Ele não executa W: emitter,
-linker, Console provider, `w run` e runtime continuam gaps.
+stdout esperado de 14 bytes e exit success. HLO0 não executa W.
 
-Use `bun run check:hlo0` para validar essa fronteira. Não registre timing: o
-benchmark `hlo3-hello-world-runtime-benchmark` permanece deferred até existir
-execução W real.
+HLO1 usa esse plano validado para emitir e executar um artefato C11 bounded.
+O corpo C usa stdio C11 e um array hexadecimal `unsigned char` com
+`Hello, world!\n`; no Windows, o adapter CRT acrescenta `<fcntl.h>`/`<io.h>` e
+usa `_setmode` para preservar LF.
+O gate verifica CMake/Ninja/compiler, compila fora do repo, executa e exige
+stdout exato, stderr vazio e exit `0`. Ele também rejeita witnesses Restaurant
+com texto em comentário ou callee/payload errados, sem substring scanning.
+Isso prova apenas a emissão e execução C11 do subset source-backed e não cria
+`w run`, execução W geral, runtime W, Console provider geral ou w-linker.
+
+Use `bun run check:hlo0` para validar o plano e `bun run check:hlo1` para a
+emissão/execução C11. Toolchain ausente gera `SKIP` explícito; falha com a
+toolchain presente é `FAIL`. Não registre timing: o benchmark
+`hlo3-hello-world-runtime-benchmark` permanece deferred até existir um runner
+público/pinado com fases separáveis e reproduzíveis para execução W.
 
 ### Um arquivo de source
 

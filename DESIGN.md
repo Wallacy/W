@@ -33190,13 +33190,60 @@ LF, 14 bytes de stdout, SHA-256 esperado e exit success. O gate comprova
 source → parser → frontend → plano HLO0. Ele não emite C, não liga, não executa
 W e não implementa `w run`.
 
-O `benchmarkDisposition` deste corte é `deferred`, com task
-`hlo3-hello-world-runtime-benchmark`. As fases futuras são compile, link,
-startup e execution. `verified-hir`, `c11-emitter`,
-`native-process-console-provider`, `linker`, `w-run-driver` e
-`language-benchmark-runner` bloqueiam qualquer timing. Nenhum resultado de
-performance pode existir antes de uma execução W real com stdout e exit
-verificados.
+O `benchmarkDisposition` do corte HLO0 é `deferred`, com task
+`hlo3-hello-world-runtime-benchmark`. HLO0 não mede compile, link, startup ou
+execution. HLO1 prova somente a execução do artefato C11 deste subset, sem
+abrir execução W geral. Timing e resultados de performance continuam bloqueados
+por `verified-hir`, `native-process-console-provider`, `w-linker`,
+`w-run-driver` e `language-benchmark-runner`.
+
+HLO1 acrescenta a primeira emissão executável sem abrir um backend W geral. A
+API interna caller-owned `w_seed_hlo1` recebe um `const w_seed_hlo0_plan` e
+expõe `measure` e `emit`. Ela revalida o schema, os campos de identidade, os
+effects, o payload, a política LF, o tamanho, o digest de stdout e o exit do
+subset HLO0 antes de produzir bytes. Um plano mutado, truncado, com digest
+incorreto ou fora do subset retorna status sem alterar os records ou buffers do
+caller.
+
+O schema HLO1 é `w-seed-hlo1-1`. O arquivo começa exatamente com o comentário
+`/* w-seed-hlo1-1 */` seguido por LF. O output é um arquivo C11 sem terminador
+implícito, limitado a `W_SEED_HLO1_MAX_C_BYTES`, com LF em todos os finais de
+linha. O corpo canônico usa somente um array `static const unsigned char` com
+os bytes hexadecimais `Hello, world!` seguidos por `0x0a`, `<stdio.h>`,
+`fwrite` e `fflush`. O source emitido termina em LF. Não existe literal string,
+locale ou política de escaping dependente do compilador.
+
+Em `_WIN32`, o corpo inclui `<fcntl.h>` e `<io.h>` e chama
+`_setmode(_fileno(stdout), _O_BINARY)` antes de escrever. Nos demais hosts, ele
+usa stdio C11. Esse adapter CRT torna a observação LF consistente no Windows e
+não é um provider W geral. A execução retorna `0` somente quando `fwrite`
+escreve todos os bytes e `fflush(stdout)` retorna sucesso. A emissão para o
+buffer caller-owned é all-or-nothing. O efeito externo em stdout não é
+atômico.
+
+`w_seed_hlo1_emit` mede e monta o arquivo em storage local bounded e copia os
+bytes uma única vez após o preflight. Ele rejeita `NULL`, capacidade curta,
+overlap com o plano e qualquer output parcial. O resultado publica o tamanho
+requerido, o tamanho escrito e o SHA-256 do arquivo C11. O digest do plano
+continua cobrindo somente payload + LF. A API não prova sozinha a proveniência
+do source, porque o plano é um record caller-owned. Somente o gate integrado
+prova source → parser → frontend → HLO0 → HLO1 → compilador C11 → execução.
+
+O gate HLO1 constrói o seed em Release fora de diretório temporário do repo,
+obtém o plano pela rota source-backed, compila o C gerado com C11, executa e
+exige stdout `Hello, world!\n`, stderr vazio e exit `0`. Ausência de CMake,
+Ninja ou compilador produz `SKIP` explícito sem claim. Falha de configure,
+build, execução ou verificação quando a toolchain existe produz `FAIL`. O gate
+também usa um source do Restaurante com o texto em comentário ou em uma forma
+estruturalmente errada. Esse caso não pode emitir C, pois nenhuma etapa usa
+substring scanning.
+
+HLO1 não implementa HIR verificado, linker W, Console provider geral, runtime
+W, distribuição de artefato ou `w run`. Seu `benchmarkDisposition` é `deferred`
+para `hlo3-hello-world-runtime-benchmark`; não há timing nem resultado de
+performance neste corte. Os blockers são `verified-hir`,
+`native-process-console-provider`, `w-linker`, `w-run-driver` e
+`language-benchmark-runner`.
 
 Saída: `w check <path/file.w> [--json]` verifica o subset síncrono do
 restaurante em root efêmera explícita e imports locais alcançáveis. O target

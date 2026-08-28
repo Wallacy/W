@@ -1386,7 +1386,7 @@
           },
           {
       "path": "tooling/syn1-typed-generation-cases.json",
-      "digest": "sha256:0b8731c67e9f77b9c3668ec62e9c64c0a4d9ac7ed8b1195dc3edbb89e4d39eac",
+      "digest": "sha256:599b16d07cd48402f12c8d099f4ffd540f5662124b81854cb954c8b6f28752a7",
             "claim": "SYN1 schema-3 65-case A/B/C/D corpus with module sets, strict events, action graphs, exact dependencies, maps, baseline refs, and target variants."
           },
           {
