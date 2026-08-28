@@ -57,6 +57,18 @@ cada família componente/seção.
 Casos host e snapshots descrevem design-oracle evidence. Eles não afirmam
 compiler, runtime, provider ou execução W.
 
+## Registro dos estudos
+
+[`study-registry.json`](study-registry.json) é uma projeção gerada dos
+diretórios presentes em [`studies/`](studies/). Ele registra metadata, fixtures,
+referências de path e digest, dependências, raízes, folhas, ciclos e
+entrypoints relacionados dos scripts root e Tree-sitter, sem copiar casos ou
+snapshots e sem definir semântica.
+
+Gere a projeção com `bun tooling/study-registry.mjs --write` e valide entradas,
+paths, digests e a projeção com `bun tooling/study-registry.mjs --check`. O gate
+completo também está disponível em `bun run check:study-registry`.
+
 ## Benchmark-driven development
 
 [`../benchmarks/`](../benchmarks/) mantém o protocolo WBench/1 fora de

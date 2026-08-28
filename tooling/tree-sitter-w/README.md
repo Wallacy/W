@@ -50,7 +50,7 @@ até existir type checker e runtime.
 
 ## Executar
 
-Requer Bun 1.3.14 ou uma versão compatível e instala somente dependências locais
+Requer Bun 1.4.0 ou uma versão compatível e instala somente dependências locais
 desta pasta:
 
 ```sh

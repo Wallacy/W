@@ -116,6 +116,7 @@
     "check:tabular-carrier": "bun test ../tabular-carrier-reference.test.mjs && bun ../check-tabular-carrier-cases.mjs",
     "check:tabular-adapters": "bun test ../tabular-adapter-reference.test.mjs && bun ../check-tabular-adapter-cases.mjs",
     "check:study-bundles": "bun ../check-study-bundles.mjs",
+    "check:study-registry": "bun test ../study-registry.test.mjs && bun ../study-registry.mjs --check",
     "check:wlo1": "bun test ../studies/r1c0-closure/oracle.test.mjs && bun ../check-wlo1-closure.mjs && bun run parse:r1c0",
     "check:r1c0": "bun run check:wlo1 && bun ../check-r1c0-closure.mjs",
     "check:prc0": "bun test ../studies/prc0-provider-runtime-closure/oracle.test.mjs && bun check-prc0.mjs && bun ../check-quantity-source-contract.mjs && bun run parse:prc0",

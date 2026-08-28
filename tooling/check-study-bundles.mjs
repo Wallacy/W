@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateSourceRefs } from "./study-source-refs.mjs";
+import { checkStudyRegistry } from "./study-registry.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const wDirectory = path.resolve(toolingDirectory, "..");
@@ -11,8 +12,9 @@ const substitutionCorpus = JSON.parse(
   fs.readFileSync(path.join(toolingDirectory, "substitution-cases.json"), "utf8"),
 );
 const r0CaseIds = new Set(substitutionCorpus.cases.map((testCase) => testCase.id));
+const registryCheck = checkStudyRegistry({ root: wDirectory });
 const studiedR0CaseIds = new Set();
-const errors = [];
+const errors = [...registryCheck.errors];
 const bundleIds = new Set();
 const requiredTaskKinds = ["explain", "recall", "repair", "change"];
 let variantCount = 0;

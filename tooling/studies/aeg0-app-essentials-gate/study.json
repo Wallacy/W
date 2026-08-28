@@ -7,7 +7,7 @@
   "gate": "AEG0-app-essentials-gate",
   "question": "Do explicit capability, civil, random, codec, and secret contracts reject ambient and fallback routes without claiming implementation?",
   "corpus": { "path": "../../aeg0-app-essentials-gate-cases.json", "digest": "sha256:f0ddddbcfaefd573ff0df9e139bf4cb4f10d0d4c9ac329485bf37dcfa65f743c" },
-  "machine": { "path": "../../aeg0-app-essentials-gate-machine.mjs", "digest": "sha256:3a98adcbc3140aa7bfcea964975b71aa953cdff8d1a40dceea5f1e7395c58d79" },
+  "machine": { "path": "../../aeg0-app-essentials-gate-machine.mjs", "digest": "sha256:5aabce5fe6cd0167fd72b3a1720ae9687b27af232c8b8079b793419ae3a70ca6" },
   "sourceRefs": [
     { "path": "../../../reference/last-light/capability_security_oracle.w", "symbol": "enum CapabilityOrigin {", "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b", "claim": "Capability boundary." },
     { "path": "../../../reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:025d2a5a0e10b356c9eced9ddcfecd6ffe5cc75492f0e3f71aceba1bccb367a9", "claim": "Operational time boundary." },
