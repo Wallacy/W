@@ -87,6 +87,10 @@ function designGate(ref) {
 
 function resolveRepositoryPath(value, location) {
   if (!nonEmptyString(value, `${location}.path`)) return null;
+  if (value.replaceAll("\\", "/").includes("history/")) {
+    fail(`${location}.path must not use history as current authority.`);
+    return null;
+  }
   if (path.isAbsolute(value)) {
     fail(`${location}.path must be repository-relative.`);
     return null;
@@ -100,9 +104,6 @@ function resolveRepositoryPath(value, location) {
   if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
     fail(`${location}.path does not exist: ${value}.`);
     return null;
-  }
-  if (value.replaceAll("\\", "/").includes("history/")) {
-    fail(`${location}.path must not use history as current authority.`);
   }
   return resolved;
 }

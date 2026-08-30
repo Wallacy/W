@@ -134,8 +134,9 @@ Use `bun run check:hlo0` para validar o plano. Use `bun run check:hlo1` para a
 emissão C11 e `bun run check:run0` para a execução interna. HLO1 gera `SKIP`
 explícito quando a toolchain está ausente. Uma falha com a toolchain presente é
 `FAIL`. RUN0 é somente evidência interna. Ele não publica `w run`, aquisição
-segura de source, owner detection, workspace, import graph, backend, linker,
-runtime ou provider geral.
+pública ou geral de source, seleção de contexto ou owner, workspace, backend,
+linker, runtime ou provider geral. ACQ0 cobre somente a aquisição interna
+bounded no contexto efêmero já fornecido.
 
 O `benchmarkDisposition` de RUN0 é `compiler-lifecycle`. O oracle de correção
 corresponde somente à célula ready `clean × check-end-to-end` de W-1488.
@@ -479,6 +480,38 @@ e CHK4 em waves bounded e entrega documentos em `document_order` e imports
 resolvidos a um caller futuro. O driver não chama o frontend nem abre a CLI
 pública `w check` multi-file. CHK9 usa essa composição na boundary pública
 somente para a root efêmera local.
+
+### ACQ0 — aquisição interna compartilhada
+
+`w_seed_acquisition_storage` possui as arenas adaptativas de bytes e CST usadas
+ao redor de CHK6. O owner é caller-owned e não pode ser copiado. Init exige
+objeto zero. Growth é bounded e transacional. Uma nova execução, growth
+bem-sucedido, reuse, destroy ou mutation de backing invalida views anteriores;
+growth que falha ou não faz trabalho preserva essas views.
+
+`w_seed_acquisition_retry_apply` valida o envelope CHK6 completo. Somente bytes
+do provider e nodes do parser são resizable. `w_seed_acquisition_pipeline_run`
+preflighta todos os ranges, exige um range explícito para o contexto mutável do
+backend e executa `bind → CHK6 → retry` com limite finito. O callback confiável
+pode escrever somente seus out-parameters e esse contexto. Todos os backings
+exigem acesso exclusivo durante a chamada.
+
+Em falha, o output publicado do driver permanece bitwise inalterado; storage,
+scratch e descriptors vinculados podem mudar. Em sucesso, `document_count` e
+os counts do graph delimitam os ranges válidos. Somente a última wave estável
+é publicada; ACQ0 não prova um snapshot global do filesystem entre waves.
+
+CHK9 reutiliza storage, bind e a lane `DRIVER` de retry. A rota pública
+continua a repetir CHK7 completo e preserva bytes, exits e renderers. ACQ0 é
+standalone e não chama frontend/D0, não escolhe policy de filesystem e não
+publica CLI. Use `bun run check:acquisition` para o gate focal. Owner detection,
+package/workspace, provider `std`, resolver geral e contexto público/geral
+continuam gaps.
+
+O `benchmarkDisposition` de ACQ0 é `compiler-lifecycle`. O gate fornece somente
+o oracle de correção do benchmark existente `bmd1-seed-check-lifecycle`, célula
+ready `clean × check-end-to-end`; não adiciona stage, timing ou result.
+`startup` e `execution` permanecem `product-runtime` deferred.
 
 As waves CHK6 não formam uma transação única de snapshot. Candidates de waves
 anteriores podem ser readquiridos, mas o CHK4 é a autoridade de reachability e

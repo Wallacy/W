@@ -1879,6 +1879,46 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-acq0-standalone-acquisition",
+      "reviewItem": "aquisição ACQ0 caller-owned compartilhada contra storage/retry duplicados, acoplamento a CHK7, storage global e snapshot global presumido entre waves",
+      "decisions": ["W-1496"],
+      "task": "Acquire one bounded ephemeral source graph through the standalone ACQ0 storage, bind, retry, and CHK6 loop while preserving published output on failure.",
+      "selected": {
+        "language": "c",
+        "source": [
+          "w_seed_acquisition_pipeline_input input = { .driver_input = &driver_input, .scratch = &scratch, .output = &output, .storage = &storage, .backend_context_size = sizeof(context) };",
+          "w_seed_acquisition_pipeline_status status = w_seed_acquisition_pipeline_run(&input, &result);"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "caller-local-growth-loop",
+          "language": "c-rejected",
+          "source": ["bind_local_arenas(); w_seed_ephemeral_driver_run(&driver_input, &scratch, &output, &driver_result); grow_from_local_switch(&driver_result);"],
+          "expectedDifference": "A caller-local loop duplicates the storage, bind, envelope validation, capacity and retry authorities that ACQ0 shares with CHK9."
+        },
+        {
+          "name": "chk7-coupled-acquisition",
+          "language": "c-rejected",
+          "source": ["w_seed_ephemeral_check_run(&check_input, &check_result);"],
+          "expectedDifference": "Calling CHK7 couples acquisition to frontend and D0 states and cannot provide the standalone CHK6 result required by a future internal runner."
+        },
+        {
+          "name": "global-acquisition-storage",
+          "language": "c-rejected",
+          "source": ["static uint8_t source_arenas[MAX_SOURCES][MAX_BYTES]; static w_seed_cst_node nodes[MAX_SOURCES][MAX_NODES];"],
+          "expectedDifference": "Global storage loses caller ownership, explicit lifetime, allocator provenance, exclusive access and independent reusable instances."
+        },
+        {
+          "name": "cross-wave-snapshot-assumption",
+          "language": "c-rejected",
+          "source": ["publish_every_wave_as_one_filesystem_snapshot();"],
+          "expectedDifference": "CHK6 can reacquire earlier candidates; ACQ0 publishes only the latest stable wave and cannot claim one global filesystem snapshot across waves."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

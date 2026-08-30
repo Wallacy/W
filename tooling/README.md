@@ -37,10 +37,12 @@ bun tooling/check-suite.mjs --dry-run --suite root-compiler
 
 `check:quick` valida manifests, projeções, documentação e parsing mantido sem
 builds C pesados. `check:compiler` executa uma vez os gates do compilador seed,
-HIR0, HLO0, HLO1, RUN0 interno e da CLI `w`. O leaf `root/check:run0` aparece
-uma vez em `root-compiler`; `tree-check` e `root-check` recebem o mesmo leaf por
-composição. `check` mantém a suíte integrada histórica. Use `check:docs` e
-`check:studies` para escopos menores.
+ACQ0, HIR0, HLO0, HLO1, RUN0 interno e da CLI `w`. O leaf
+`root/check:acquisition` aparece uma vez em `root-compiler`, imediatamente após
+`check:seed-ephemeral-driver`; `tree-check` e `root-check` recebem o mesmo leaf
+por composição. `check:w-cli` continua depois dele como regressão pública.
+`check` mantém a suíte integrada histórica. Use `check:docs` e `check:studies`
+para escopos menores.
 
 Não crie um alias equivalente em `tooling/tree-sitter-w/package.json`. O pacote
 Tree-sitter mantém apenas comandos locais da gramática:
@@ -114,16 +116,19 @@ Os checks de integração permanecem na raiz, por exemplo:
 
 O seed C é uma implementação caller-owned e incremental de validação. Ele
 contém source reader, lexer lossless, scanner C, parser, formatter, frontend
-seed, adapter D0 e as fatias verificadas HIR0/HLO0/HLO1/RUN0. Consulte
+seed, adapter D0, ACQ0 e as fatias verificadas HIR0/HLO0/HLO1/RUN0. Consulte
 [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) para a superfície
 local. Execute `bun run check:compiler` para os gates do bundle.
 
 O caminho source → parser → frontend → HIR0 verificada → HLO0 → HLO1 → C11
-continua limitado aos subset e witnesses documentados. RUN0 consome o plano
+continua limitado aos subset e witnesses documentados. ACQ0 executa CHK6 em
+storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
+CLI. Execute `bun run check:acquisition` para compilar os cinco targets focais,
+rodar o CTest ancorado e exigir duas saídas ACQ0 exatas. RUN0 consome o plano
 HLO0 pelo verifier compartilhado em um gate interno, bounded e test-only.
 Execute `bun run check:run0` para esse gate. Isso não é frontend normativo
-completo, typechecker, aquisição segura de source, backend, linker, runtime ou
-`w run`.
+completo, typechecker, contexto público/geral de aquisição, backend, linker,
+runtime ou `w run`.
 
 ## Estudos e oracles
 

@@ -431,6 +431,64 @@ Linux ou registra um skip explícito:
 
     bun tooling/check-seed-ephemeral-driver.mjs
 
+## Aquisição ACQ0 interna e compartilhada
+
+`include/w_seed_acquisition.h` e `src/w_seed_acquisition.c` formam uma camada
+C11 standalone, bounded e caller-owned ao redor do driver CHK6. A camada não
+chama frontend ou D0, não seleciona policy de filesystem ou contexto de projeto
+e não publica CLI. Um caller futuro pode chamar o pipeline ACQ0 diretamente.
+
+`w_seed_acquisition_storage` possui as arenas de staging, revalidação,
+publicação e nodes CST. O owner não pode ser copiado. Init exige objeto zero;
+growth é monotônico, bounded e transacional; destroy é idempotente para zero ou
+destruído. O allocator deve produzir allocations não vazias alinhadas e
+distintas. Bind valida todos os ranges de storage, arenas, slots, requests e
+buffers preservados antes de alterar records.
+
+`w_seed_acquisition_retry_apply` valida o envelope CHK6 completo. Somente
+capacities de bytes do provider e nodes do parser crescem. Capacities fixas,
+limites, envelope impossível, falta de progresso e allocation produzem outcomes
+explícitos. `w_seed_acquisition_pipeline_run` preflighta cada range antes da
+primeira chamada e de cada tentativa, então executa o loop bounded
+`bind → CHK6 → retry`.
+
+O backend declara o tamanho completo do contexto mutável. O par pointer/size é
+canônico e não pode sobrepor outro backing. Callbacks confiáveis escrevem
+somente seus out-parameters e esse contexto; ACQ0 não sandboxa callback C
+malicioso. Storage e todos os backings exigem acesso exclusivo durante a
+chamada. Reentrância, concorrência, growth, destroy e mutation de backing são
+proibidos enquanto o pipeline está ativo.
+
+Em toda falha, o output publicado do driver, seus counts e suas cinco arrays
+permanecem bitwise inalterados. Storage, scratch e descriptors vinculados podem
+mudar. O result terminal registra attempts reais, o último driver result e a
+última decisão de retry. Em sucesso, `document_count` e os counts do graph
+delimitam os ranges escritos.
+
+Views dependem de source/module IDs, tokens, slots, requests, scratch, graph,
+output, contexto e storage. Growth bem-sucedido, nova execução, reuse, destroy
+ou mutation invalida views anteriores. Growth que falha ou não faz trabalho
+preserva essas views. Somente a última wave estável é publicada. ACQ0 não prova
+snapshot global do filesystem entre waves.
+
+CHK9 embute esse storage e acrescenta somente as arenas JSON. O bind do driver
+e a lane `DRIVER` de retry delegam às autoridades ACQ0. O `w check` público
+continua no retry externo de CHK7 e preserva bytes, exits e renderers. Owner
+detection, package/workspace, provider `std`, resolver geral e contexto
+público/geral de aquisição permanecem gaps.
+
+O gate compila explicitamente os cinco targets ACQ/CHK9 relacionados, executa
+o CTest focal ancorado e exige duas execuções ACQ0 byte-idênticas com stdout
+exato e stderr vazio. Ele reutiliza os backends injetáveis e não duplica as
+fixtures de filesystem:
+
+    bun tooling/check-acquisition.mjs
+
+O `benchmarkDisposition` é `compiler-lifecycle`. O gate é somente oracle de
+correção para `bmd1-seed-check-lifecycle`, célula
+`clean × check-end-to-end`; não adiciona stage, timing ou result. `startup` e
+`execution` permanecem `product-runtime` deferred.
+
 ## Composição interna CHK7 — discovery, frontend e D0
 
 `include/w_seed_ephemeral_check.h` e `src/w_seed_ephemeral_check.c` compõem
@@ -778,7 +836,8 @@ reports inválidos retornam `IO`. Bytes aceitos podem ter efeito externo, e
 RUN0 não promete rollback desse efeito.
 
 `tests/run0_gate.c` é um harness test-only. Ele lê uma fixture por `fopen` com
-limite inclusivo de 4096 bytes. Esse path não prova aquisição segura de source.
+limite inclusivo de 4096 bytes. Esse path não prova aquisição pública ou geral
+de source nem seleção de contexto.
 O fluxo funcional do gate é
 `source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink`. Erros do
 source ou features fora do subset usam exit `2`. Falhas internas, do verifier
@@ -798,9 +857,10 @@ o binário público rejeita `w run`.
 bun run check:run0
 ```
 
-RUN0 é source-backed-current somente para esse subset bounded. Aquisição segura
-de source, owner detection, workspace, import graph, backend, linker, runtime,
-provider geral e outros programas W continuam gaps. O `benchmarkDisposition`
+RUN0 é source-backed-current somente para esse subset bounded. Aquisição pública
+ou geral de source, seleção de contexto ou owner, workspace, backend, linker,
+runtime, provider geral e outros programas W continuam gaps. ACQ0 cobre somente
+a aquisição interna bounded no contexto efêmero já fornecido. O `benchmarkDisposition`
 é `compiler-lifecycle`. O oracle de correção corresponde somente à célula ready
 `clean × check-end-to-end` de W-1488. Nenhuma etapa RUN0 ou de execução se
 torna um estágio medido. `startup` e `execution` permanecem na track
