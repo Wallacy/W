@@ -513,6 +513,34 @@ o oracle de correção do benchmark existente `bmd1-seed-check-lifecycle`, célu
 ready `clean × check-end-to-end`; não adiciona stage, timing ou result.
 `startup` e `execution` permanecem `product-runtime` deferred.
 
+### OWN0 — observação guarded de build.w
+
+`w_seed_owner_guard` observa candidates `build.w` da folha à root física em
+uma sessão bounded com handles retidos. O primeiro fato é somente
+`CANDIDATES_OBSERVED` ou `NO_CANDIDATE_OBSERVED`. Depois de reconfirmar source,
+ancestry, root, cada candidate e cada ausência na mesma sessão, o guard publica
+`CANDIDATES_RECONFIRMED` ou `NO_CANDIDATE_RECONFIRMED`.
+
+O guard é caller-owned, generation-tagged e não copiável. Candidate refs são
+descritivas e só valem com o guard vivo. Candidate, marker inválido, I/O,
+capacity, capability ausente, mutation, reparse ou boundary bloqueia fallback.
+Nenhum estado autoriza contexto efêmero, seleciona owner, lê manifest ou cria
+snapshot/lease global.
+
+O adapter Linux real usa `openat2` e `STATX_MNT_ID_UNIQUE`; o gate executa
+Linux nativo e, em host Windows, exige WSL Ubuntu. O adapter Windows permanece
+incondicionalmente `UNSUPPORTED` fail-closed neste bundle porque a capability
+não foi promovida e o parent `..` relativo por handle e a localidade ainda não
+foram comprovados. Probes bem-sucedidos continuam somente diagnósticos.
+Use `bun run check:owner-guard`. A classificação geral permanece
+`implementation-evidence-gap`; a evidência Linux é somente a fatia bounded.
+`w check` e `w run` não usam OWN0 neste corte. Um composer MAN0/WSP0 futuro
+ainda deve vincular a source OWN0 ao token/receipt ACQ0.
+
+O `benchmarkDisposition` é `compiler-lifecycle` somente como track futura.
+OWN0 não integra o `w check` medido por BMD1, e seu gate não é oracle dessa
+célula. Não há nova evidência de benchmark, stage, timing ou result.
+
 As waves CHK6 não formam uma transação única de snapshot. Candidates de waves
 anteriores podem ser readquiridos, mas o CHK4 é a autoridade de reachability e
 publica somente nodes alcançados; bytes, CST e facts da última wave estável

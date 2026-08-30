@@ -20,6 +20,9 @@ add_library(w_seed_source STATIC
   src/w_seed_ephemeral_provider_windows.c
   src/w_seed_ephemeral_driver.c
   src/w_seed_acquisition.c
+  src/w_seed_owner_guard.c
+  src/w_seed_owner_guard_linux.c
+  src/w_seed_owner_guard_windows.c
   src/w_seed_formatter.c
   src/w_seed_sha256.c
   src/w_seed_diagnostic.c
@@ -130,6 +133,16 @@ add_executable(w_seed_acquisition_tests
   tests/test_acquisition.c
 )
 target_link_libraries(w_seed_acquisition_tests PRIVATE w_seed_source)
+
+add_executable(w_seed_owner_guard_tests
+  tests/test_owner_guard.c
+)
+target_link_libraries(w_seed_owner_guard_tests PRIVATE w_seed_source)
+
+add_executable(w_seed_owner_guard_adapter_tests
+  tests/test_owner_guard_adapters.c
+)
+target_link_libraries(w_seed_owner_guard_adapter_tests PRIVATE w_seed_source)
 
 add_executable(w_seed_formatter_probe
   tests/formatter_probe.c
@@ -319,6 +332,8 @@ if(MSVC)
   target_compile_options(w_seed_ephemeral_driver_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_ephemeral_driver_linux_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_acquisition_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_owner_guard_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_owner_guard_adapter_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_formatter_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_formatter_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_diagnostic_probe PRIVATE /W4 /WX)
@@ -464,6 +479,24 @@ else()
     -Werror
   )
   target_compile_options(w_seed_acquisition_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_owner_guard_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_owner_guard_adapter_tests PRIVATE
     -Wall
     -Wextra
     -Wpedantic
@@ -730,6 +763,8 @@ add_test(NAME w_seed_ephemeral_provider_windows_unit COMMAND w_seed_ephemeral_pr
 add_test(NAME w_seed_ephemeral_driver_unit COMMAND w_seed_ephemeral_driver_tests)
 add_test(NAME w_seed_ephemeral_driver_linux_unit COMMAND w_seed_ephemeral_driver_linux_tests)
 add_test(NAME w_seed_acquisition_unit COMMAND w_seed_acquisition_tests)
+add_test(NAME w_seed_owner_guard_unit COMMAND w_seed_owner_guard_tests)
+add_test(NAME w_seed_owner_guard_adapter_unit COMMAND w_seed_owner_guard_adapter_tests)
 add_test(NAME w_seed_formatter_unit COMMAND w_seed_formatter_tests)
 add_test(NAME w_seed_diagnostic_unit COMMAND w_seed_diagnostic_tests)
 add_test(NAME w_seed_foreign_unit COMMAND w_seed_foreign_tests)

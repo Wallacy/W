@@ -65,12 +65,12 @@ describe("check-suite manifest", () => {
       "tree-check",
       "tree-docs",
     ]);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(111);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(112);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-docs" })).toHaveLength(79);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-studies" })).toHaveLength(33);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-quick" })).toHaveLength(21);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(23);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(109);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(24);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(110);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-docs" })).toHaveLength(76);
 
     const isRun0 = (step) =>
@@ -111,10 +111,11 @@ describe("check-suite manifest", () => {
         .filter((index) => index >= 0);
       expect(acquisitionIndices).toHaveLength(1);
       const acquisitionIndex = acquisitionIndices[0];
-      expect(expanded.slice(acquisitionIndex - 1, acquisitionIndex + 2))
+      expect(expanded.slice(acquisitionIndex - 1, acquisitionIndex + 3))
         .toEqual([
           { package: "root", script: "check:seed-ephemeral-driver" },
           { package: "root", script: "check:acquisition" },
+          { package: "root", script: "check:owner-guard" },
           { package: "root", script: "check:seed-formatter" },
         ]);
       expect(expanded.findIndex((step) =>
@@ -126,6 +127,27 @@ describe("check-suite manifest", () => {
     expect(loaded.suites["tree-check"].steps.filter(isAcquisition))
       .toHaveLength(0);
     expect(loaded.suites["root-check"].steps.filter(isAcquisition))
+      .toHaveLength(0);
+
+    const isOwnerGuard = (step) =>
+      step.package === "root" && step.script === "check:owner-guard";
+    for (const suiteName of ["root-compiler", "tree-check", "root-check"]) {
+      const expanded = flattenCheckSuite({ suites: loaded.suites, suiteName });
+      const indices = expanded
+        .map((step, index) => isOwnerGuard(step) ? index : -1)
+        .filter((index) => index >= 0);
+      expect(indices).toHaveLength(1);
+      expect(expanded.slice(indices[0] - 1, indices[0] + 2)).toEqual([
+        { package: "root", script: "check:acquisition" },
+        { package: "root", script: "check:owner-guard" },
+        { package: "root", script: "check:seed-formatter" },
+      ]);
+    }
+    expect(loaded.suites["root-compiler"].steps.filter(isOwnerGuard))
+      .toHaveLength(1);
+    expect(loaded.suites["tree-check"].steps.filter(isOwnerGuard))
+      .toHaveLength(0);
+    expect(loaded.suites["root-check"].steps.filter(isOwnerGuard))
       .toHaveLength(0);
   });
 

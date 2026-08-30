@@ -170,6 +170,7 @@ O corpus compara, no mínimo:
 - HIR0 verificada e independente do lifetime do frontend contra acesso direto do HLO0 a records frontend e template C11.
 - execução RUN0 por plano HLO0 verificado e sink fiel contra stdout direto, template, plano forjado e bypass do pipeline.
 - aquisição ACQ0 caller-owned compartilhada contra storage/retry duplicados, acoplamento a CHK7, storage global e snapshot global presumido entre waves.
+- observação OWN0 em duas waves contra busca textual, ausência consumida cedo, reopen por path e snapshot ou lease global presumido.
 
 ### 1.1 Cobertura de substituições
 
@@ -7670,6 +7671,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1495 | execução RUN0 interna bounded verified-HLO0 | RUN0 acrescenta `w_seed_run0_execute` como adapter interno, caller-owned e sem heap para o plano Hello verified-HLO0. `w_seed_hlo0_verify_plan` é a autoridade única consumida por HLO1 e RUN0 e exige fields, representação canônica, payload tail e digest exatos. O preflight rejeita plano inválido e overlap sem callback nem alteração do result. Depois do preflight, RUN0 faz uma chamada ao sink e publica attempted bytes, accepted bytes, flush status e call count fielmente. Bytes aceitos podem ter efeito externo e não possuem rollback. O gate test-only prova `source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink` com limite inclusivo de 4096 bytes, failures de short write/flush e repetição exata. O `benchmarkDisposition` é `compiler-lifecycle`, e o oracle de correção corresponde somente à célula ready `clean × check-end-to-end`. Nenhuma etapa RUN0 ou de execução se torna um estágio medido. `startup` e `execution` permanecem na track `product-runtime` e deferred. Não há timing nem result, e `hlo3-hello-world-runtime-benchmark` permanece deferred | RUN0 é source-backed-current somente para esse subset bounded. O caso `R0-run0-verified-hlo0-sink`, units e `check:run0` rejeitam stdout direto, template, plano forjado e bypass. O harness com `fopen` não prova aquisição pública ou geral de source nem seleção de contexto. `w run`, owner detection, workspace, backend, linker, runtime, provider geral e execução de outros programas continuam gaps; ACQ0 de W-1496 cobre somente aquisição interna bounded no contexto efêmero já fornecido |
 
 | W-1496 | aquisição ACQ0 interna e reutilizável | ACQ0 acrescenta `w_seed_acquisition_storage`, `w_seed_acquisition_retry_apply` e `w_seed_acquisition_pipeline_run` como fronteira C11 interna, bounded e caller-owned ao redor de CHK6. Storage possui as arenas adaptativas de staging, revalidação, publicação e CST; init exige objeto zero, growth é transacional e o owner não pode ser copiado. Bind valida todos os ranges antes de alterar records. Retry valida envelopes CHK6 completos e cresce somente bytes do provider ou nodes do parser. O pipeline preflighta todos os backings e o contexto mutável declarado, exige acesso exclusivo e executa tentativas completas bounded. Em falha, o output publicado permanece bitwise inalterado; em sucesso, counts delimitam documentos e graph. CHK9 compartilha storage, bind e a lane DRIVER de retry, mas `w check` continua no retry externo de CHK7 e preserva bytes, exits e renderers. A última wave estável não é um snapshot global. O `benchmarkDisposition` é `compiler-lifecycle`: somente o oracle de correção de `bmd1-seed-check-lifecycle` em `clean × check-end-to-end` está ready, sem stage, timing ou result; `startup` e `execution` continuam `product-runtime` deferred | source-backed-current somente para ACQ0 no contexto efêmero já fornecido. O caso `R0-acq0-standalone-acquisition`, os units C11 e `check:acquisition` cobrem lifecycle, rollback, envelopes, retries, ranges, contexto, Restaurant e regressões CHK9. ACQ0 não chama frontend/D0, não seleciona policy de filesystem e não publica CLI ou `w run`. Owner detection, package/workspace, provider `std`, resolver geral e contexto público/geral de aquisição continuam gaps |
+| W-1497 | observação OWN0 guarded de candidatos `build.w` | OWN0 acrescenta `w_seed_owner_guard` como fronteira C11 interna, bounded, caller-owned e generation-tagged. O core separa lifecycle de disposition, publica candidates densos folha → root ou ausência observada e exige revalidação na mesma sessão para publicar `CANDIDATES_RECONFIRMED` ou `NO_CANDIDATE_RECONFIRMED`. Staging, revalidação e publicação são disjuntos e all-or-nothing; candidate refs são descritivas e dependem do guard vivo. Candidate, marker problemático, I/O, capacity, unsupported, mutation, reparse ou boundary bloqueiam fallback. O adapter Linux usa handles retidos, `openat2` e `STATX_MNT_ID_UNIQUE`; o gate executa Linux nativo e, em host Windows, exige WSL Ubuntu. O adapter Windows permanece fail-closed `UNSUPPORTED` porque a capability não foi promovida e localidade e parent `..` por handle não foram comprovados. OWN0 não seleciona owner, não lê manifest, não autoriza contexto efêmero, não é snapshot/lease e não integra `w run` ou `w check`. Um composer MAN0/WSP0 futuro deve ainda vincular a source da sessão ao token/receipt ACQ0. O `benchmarkDisposition` é `compiler-lifecycle` somente como classificação da track futura. OWN0 não integra o `w check` medido por BMD1, e seu gate não é oracle dessa célula; não há nova evidência de benchmark, stage, timing ou result | `implementation-evidence-gap` no geral. O caso `R0-own0-guarded-project-candidates`, os units C11 e `check:owner-guard` provam o core e uma subevidência Linux bounded, além da rejeição Windows fail-closed. Não provam owner selection, manifest parsing, policy efêmera, composição ACQ0, public CLI, ordem reversa de closes nem a matriz geral de mounts, namespaces e volumes |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
@@ -8390,3 +8392,67 @@ O `benchmarkDisposition` é `compiler-lifecycle`. A evidência é somente o orac
 de correção do benchmark existente `bmd1-seed-check-lifecycle`, célula ready
 `clean × check-end-to-end`. Nenhum stage, timing ou result foi acrescentado.
 `startup` e `execution` permanecem na track `product-runtime` e deferred.
+
+#### W-1497 — observação OWN0 guarded de candidatos build.w
+
+W-1497 separa a observação de markers de projeto da escolha do owner. Essa
+separação impede que uma simples ausência inicial de `build.w` se transforme
+em autorização efêmera. O core publica primeiro um fato observado e só o
+promove depois que o mesmo backend reconfirma source, cadeia, root, candidates
+e ausências na sessão que reteve os handles.
+
+Lifecycle e disposition são eixos distintos. Um guard
+`LIVE_OBSERVED` pode descrever candidates ou ausência, mas nenhum desses fatos
+é uma autorização. Depois da revalidação, o guard pode publicar
+`CANDIDATES_RECONFIRMED` ou `NO_CANDIDATE_RECONFIRMED`. Qualquer falha envenena
+o guard e invalida views. Generation pertence ao backend e não pode ser zero,
+reutilizada ou sofrer wrap. Candidate refs não carregam handles ou identidade
+nativa; elas servem somente para consultar o guard vivo correspondente.
+
+O contrato de backend usa uma sessão retida em vez de reabrir ancestry por
+strings. Begin e revalidate podem refazer o binding descendente seguro do base
+emprestado até a source pela cópia bounded do path. Somente begin descobre a
+ancestry ascendente. Revalidate reconfirma o base, o binding até a source, a
+source, o start parent, cada diretório, cada edge de parent, a root,
+cada candidate e cada ausência exata. A fonte textual copiada é apenas input
+para o component walk seguro. `realpath`, path de `/proc`, ancestor textual ou
+reopen fora da sessão não substituem identidade e handles.
+
+O adapter Linux fecha uma fatia real e bounded. Ele usa `openat2` fail-closed,
+um helper separado para `..` e `STATX_MNT_ID_UNIQUE` junto de device e inode.
+O gate executa Linux nativo duas vezes e exige stdout exato; em host Windows,
+WSL Ubuntu é obrigatório. Skip ou `UNSUPPORTED` não são evidência Linux. Os
+casos cobrem dois markers em ordem,
+zero marker, reconfirmação, create/delete/replace, reparent determinístico,
+wrong type, symlink, FIFO, capacity, path adversarial, handle base emprestado e
+uma boundary `EXDEV` concreta em `/proc`.
+
+No Windows, a implementação deliberadamente para antes de observar a árvore.
+A capability fica incondicionalmente desabilitada neste bundle; os probes são
+somente diagnósticos, mesmo se tiverem sucesso em outro host.
+`FileRemoteProtocolInfo` não forneceu prova conclusiva de localidade no host e
+o probe `NtCreateFile` relativo de `..` retornou
+`STATUS_OBJECT_NAME_INVALID`. O adapter retorna `UNSUPPORTED` sem writes e sem
+fechar o handle emprestado. O gate host repete essa saída e o stub Linux. Não
+há fallback textual. Por isso, W-1497 permanece
+`implementation-evidence-gap` no geral; somente a fatia Linux bounded tem
+evidência source-backed.
+
+O caso `R0-own0-guarded-project-candidates` compara o guard em duas waves com
+uma busca textual, ausência consumida cedo, sessão reaberta por path e um
+snapshot/lease global presumido. Essas alternativas perdem identidade,
+revalidação ou authority boundaries. A implementação não seleciona owner, não
+lê MAN0, não autoriza fallback, não cria snapshot global e não integra CHK9,
+`w check` ou `w run`. Um composer MAN0/WSP0 futuro deve ainda comprovar que a
+source da sessão OWN0 é a mesma root representada pelo token/receipt ACQ0.
+
+Os testes nativos verificam cleanup observável e a sobrevivência do handle
+emprestado, mas não instrumentam a ordem reversa de todos os closes. A prova
+`/proc` não cobre a matriz geral de bind mounts, namespaces, volumes ou races.
+Esses limites impedem uma classificação mais ampla.
+
+O `benchmarkDisposition` é `compiler-lifecycle` somente como classificação da
+track futura. OWN0 não integra o `w check` medido por BMD1, e seu gate não é
+oracle dessa célula. Não há nova evidência de benchmark, stage, timing ou
+result. `startup` e `execution` permanecem na track `product-runtime` e
+deferred.

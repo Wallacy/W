@@ -31596,6 +31596,17 @@ O `w check` público continua na composição CHK7 e no retry externo de CHK9. O
 contrato executável de storage, retry, pipeline, lifetime e contexto está em
 [§24.3.6](#2436-acq0-aquisição-interna-reutilizável).
 
+**W-1497 — observação OWN0 guarded de candidatos `build.w` (Forma vigente):**
+OWN0 é uma fronteira C11 interna, bounded e caller-owned. Ela observa, em uma
+única sessão retida, candidatos `build.w` da folha à root física ou a ausência
+em cada nível e exige uma segunda validação antes de publicar um fato
+reconfirmado. O guard com generation representa somente lifetime da sessão;
+ele não é lease de namespace nem snapshot global. Um fato observado não
+autoriza fallback efêmero. OWN0 não seleciona owner, não lê manifest, não
+autoriza execução e não integra `w run` ou o `w check` vigente. O contrato e os
+limites de evidência estão em
+[§24.3.7](#2437-own0-observação-guarded-de-candidatos-buildw).
+
 CHK7 acrescenta a composição interna caller-owned CHK6 → frontend seed → D0.
 A composição preflighta todos os diagnostics e usa `SourceId` lógico e spans
 válidos. O JSONL passa por staging separado e somente o buffer final é
@@ -32479,6 +32490,81 @@ O `benchmarkDisposition` é `compiler-lifecycle`. O gate liga somente o oracle
 de correção ao benchmark existente `bmd1-seed-check-lifecycle`, célula ready
 `clean × check-end-to-end`. Não há stage, timing ou result novo. `startup` e
 `execution` permanecem na track `product-runtime` e deferred.
+
+### 24.3.7 OWN0 — observação guarded de candidatos build.w
+
+**Exemplo:** um caller fornece um handle de diretório emprestado e um path de
+source relativo. OWN0 retém a source, o diretório inicial, cada ancestral e
+cada marker encontrado. Ele publica candidatos em ordem folha → root somente
+depois de terminar a travessia bounded. Uma segunda wave na mesma sessão deve
+reconfirmar source, cadeia, root, candidatos e ausências.
+
+`w_seed_owner_guard` separa lifecycle de disposition. O lifecycle é
+`ZERO`, `LIVE_OBSERVED`, `LIVE_RECONFIRMED` ou `FAILED`. A disposition é
+`CANDIDATES_OBSERVED`, `NO_CANDIDATE_OBSERVED`,
+`CANDIDATES_RECONFIRMED` ou `NO_CANDIDATE_RECONFIRMED`. Somente os dois fatos
+reconfirmados sobreviveram à segunda wave. Nenhuma disposition concede
+autoridade para execução ou fallback. Em particular,
+`NO_CANDIDATE_OBSERVED` é informativo e não pode autorizar um contexto
+efêmero.
+
+O caller fornece storage disjoint para staging, revalidação e publicação. O
+core valida envelopes, ranges, alinhamento, aliases, ordinais densos, root
+terminal e generation antes do commit. Falha de `begin` preserva o guard do
+caller. Um `begin` que retorna um envelope `OK` malformado dispara
+`abort_begin` exatamente uma vez. Depois da publicação, falha de revalidação
+envenena o guard, invalida views e mantém os recursos retidos somente até
+`destroy`. Candidate refs contêm somente `{generation, directoryOrdinal,
+candidateIndex}`. Elas são descritivas e só podem ser consultadas com o guard
+vivo e a mesma generation.
+
+Begin e revalidate podem refazer o binding descendente seguro da source a
+partir do base emprestado e da cópia bounded do path relativo. Somente begin
+descobre a ancestry ascendente. O backend deve revalidar na mesma sessão, com
+handles retidos, a identidade e lifetime do diretório base, o binding até a
+mesma source, a source, o diretório inicial, cada diretório e edge de parent, a root terminal,
+cada marker resolvido, seu tipo e identidade e cada ausência exata. Reabrir a
+ancestry por path textual, `realpath`, `/proc` ou string de ancestor não é uma
+autoridade. Candidate, marker de tipo incorreto, reparse, I/O, access, erro de
+capacidade, capability ausente, mutation ou boundary de mount/volume bloqueia
+o fallback. Um lookup literal de `build.w` que resolve uma entry conta como
+candidate; spelling canônico do manifest é assunto de MAN0 futuro.
+
+O adapter Linux implementado é uma subevidência bounded. Ele ancora a source
+em um fd base emprestado, duplica e reconfirma a identidade antes do primeiro
+componente, usa `openat2` com `RESOLVE_NO_SYMLINKS`,
+`RESOLVE_NO_MAGICLINKS` e `RESOLVE_NO_XDEV`, e exige
+`STATX_MNT_ID_UNIQUE` com device e inode. O helper de parent abre somente
+`..`, sem `RESOLVE_BENEATH`, e preserva as outras barriers. Somente `ENOENT`
+no lookup literal significa ausência. O gate obrigatório executa Linux nativo;
+em host Windows, exige WSL Ubuntu. Ele não aceita skip ou `UNSUPPORTED` como
+sucesso.
+
+O adapter Windows permanece incondicionalmente fail-closed como `UNSUPPORTED`
+neste bundle. Os probes são somente diagnósticos e não promovem a capability,
+mesmo se tiverem sucesso em outro host. O host atual não forneceu uma prova
+conclusiva de localidade por `FileRemoteProtocolInfo`, e o
+probe `NtCreateFile` relativo de `..`, com `OBJ_DONT_REPARSE` e
+`FILE_OPEN_REPARSE_POINT`, retornou `STATUS_OBJECT_NAME_INVALID`. Não existe
+fallback textual. A classificação geral de W-1497 é
+`implementation-evidence-gap` até existir uma estratégia Windows comprovada
+de parent por handle e localidade. O gate host prova somente essa rejeição
+bounded, o stub Linux e que o handle base emprestado permanece aberto.
+
+A prova nativa não instrumenta ordem reversa de todos os closes e não cobre a
+matriz geral de bind mounts, mudanças de namespace ou volumes. O teste Linux
+prova uma boundary `EXDEV` concreta em `/proc`; isso não generaliza para toda
+race de mount. OWN0 não seleciona owner, não interpreta manifest, não publica
+policy efêmera, não fornece lease/snapshot global e não integra CHK9, `w check`
+ou `w run`. Um composer MAN0/WSP0 futuro também deve vincular a identidade da
+source desta sessão ao token/receipt da root adquirida por ACQ0; OWN0 isolado
+não prova essa composição.
+
+O `benchmarkDisposition` é `compiler-lifecycle` e identifica somente a track
+futura aplicável. OWN0 não integra a rota `w check` medida por BMD1, e
+`check:owner-guard` não é oracle dessa célula. Não há nova evidência de
+benchmark, stage, timing ou result. `startup` e `execution` permanecem na track
+`product-runtime` e deferred.
 
 ### 24.4 Artefatos que ainda bloqueiam o design freeze
 
@@ -33532,6 +33618,40 @@ oracle de correção para o benchmark existente `bmd1-seed-check-lifecycle`,
 célula ready `clean × check-end-to-end`; ele não acrescenta stage, timing ou
 result. `startup` e `execution` permanecem na track `product-runtime` e
 deferred.
+
+#### 26.4.4 Guard OWN0 bounded de candidatos de projeto
+
+**W-1497 — observação OWN0 guarded de candidatos `build.w` (Forma vigente):**
+`w_seed_owner_guard` publica uma lista bounded de candidates `build.w` em ordem
+folha → root, ou a ausência observada em todos os níveis, e exige revalidação
+na mesma sessão antes de publicar `CANDIDATES_RECONFIRMED` ou
+`NO_CANDIDATE_RECONFIRMED`. O guard é caller-owned, generation-tagged e não
+copiável. Storage de staging, revalidação e publicação é separado e
+all-or-nothing. Candidate refs são descritivas e dependem do guard vivo.
+
+| Evidência local | Prova bounded |
+|---|---|
+| [`test_owner_guard.c`](compiler/seed-c/tests/test_owner_guard.c) | Lifecycle, envelopes, candidates e ausências, revalidação, mutation, aliases, capacidades, commit, abort de sessão tentativa e cleanup fake. |
+| [`test_owner_guard_adapters.c`](compiler/seed-c/tests/test_owner_guard_adapters.c) | Linux real com source e ancestry por handles retidos, dois markers, zero marker, mutation, wrong type, symlink/reparse, capacity, boundary concreta e handle base emprestado; Windows permanece `UNSUPPORTED` fail-closed após probes nativos. |
+| [`check-owner-guard.mjs`](tooling/check-owner-guard.mjs) | Build Werror e duas execuções byte-idênticas no host, além de Linux nativo e stubs cruzados; em host Windows, WSL Ubuntu é obrigatório. Skip ou `UNSUPPORTED` não contam como prova Linux. |
+
+O core nunca autoriza fallback efêmero. Candidate, marker problemático,
+capability ausente, I/O, capacity, unsupported, mutation, reparse ou
+mount/volume boundary terminam fail-closed. O guard não seleciona owner, não
+interpreta manifest, não representa snapshot ou lease global e não abre
+`w run`. O `w check` público continua no contexto efêmero explícito vigente.
+Um composer MAN0/WSP0 futuro deve compor esta sessão com a identidade de source
+de ACQ0; esse vínculo ainda não está implementado.
+
+W-1497 permanece `implementation-evidence-gap` no geral porque o parent walk e
+a prova de localidade Windows não foram promovidos. A subevidência Linux é
+source-backed e bounded somente ao adapter e aos casos do gate. Ela não prova
+a ordem reversa de close nem a matriz geral de mounts, namespaces e races.
+
+O `benchmarkDisposition` é `compiler-lifecycle` e indica somente a track futura
+aplicável. OWN0 não integra o `w check` medido por BMD1; seu gate não é oracle
+dessa célula e não adiciona evidência de benchmark, stage, timing ou result.
+`startup` e `execution` permanecem `product-runtime` deferred.
 
 ### 26.5 Fase 3 — memória, errors e C
 
