@@ -7,6 +7,7 @@ import {
   buildStudyRegistry,
   checkStudyRegistry,
   repositoryRoot,
+  serializeStudyMarkdown,
   serializeStudyRegistry,
   validateStudyRegistry,
   writeStudyRegistry,
@@ -89,6 +90,7 @@ describe("study registry integrity", () => {
       valid: true,
       counts: { missing: 0, stale: 0, duplicates: 0, invalidJson: 0, cycles: 0 },
     });
+    expect(registry.studies.every((study) => Object.hasOwn(study, "title"))).toBe(true);
     expect(registry.metadata.every((record) => typeof record.digest === "string")).toBe(true);
     expect(registry.fixtures.every((record) => typeof record === "string")).toBe(true);
     expect(registry.references.every((record) => Number.isInteger(record.study) && Number.isInteger(record.metadata))).toBe(true);
@@ -99,6 +101,13 @@ describe("study registry integrity", () => {
     expect(serializeStudyRegistry(registry)).not.toMatch(/"cases"\s*:/u);
     expect(serializeStudyRegistry(registry)).not.toMatch(/\r\n/u);
     expect(Buffer.byteLength(serializeStudyRegistry(registry), "utf8")).toBeLessThan(750 * 1024);
+    const markdown = serializeStudyMarkdown(registry);
+    expect(markdown).toContain("# Estudos do W\n");
+    expect(markdown).toContain("| ID | Função / estado | Caminho | Gate principal | Entrypoint principal |");
+    expect(markdown.split("\n").find((line) => line.startsWith("| `CAP0` |"))).toContain("`bun run check:study-bundles`");
+    expect(markdown).toContain("| **Total** | **");
+    expect(markdown).toContain("Status: `design-oracle-input`");
+    expect(markdown).not.toMatch(/\r\n/u);
   });
 
   test("reports a missing path", () => {
@@ -223,11 +232,96 @@ describe("study registry integrity", () => {
       metadata: { references: [{ path: "fixture.txt", digest: `sha256:${"0".repeat(64)}` }] },
     }]);
     const file = path.join(root, "tooling", "study-registry.json");
+    const markdownFile = path.join(root, "STUDIES.md");
     fs.writeFileSync(file, "sentinel\n", "utf8");
-    const result = writeStudyRegistry({ root, file });
+    fs.writeFileSync(markdownFile, "sentinel markdown\n", "utf8");
+    const result = writeStudyRegistry({ root, file, markdownFile });
     expect(result.written).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);
     expect(fs.readFileSync(file, "utf8")).toBe("sentinel\n");
+    expect(fs.readFileSync(markdownFile, "utf8")).toBe("sentinel markdown\n");
+  });
+
+  test("writes and checks JSON and Markdown projections as one deterministic pair", () => {
+    const root = makeRoot([{ directory: "valid", id: "VALID", metadata: { title: "Valid study" } }]);
+    const file = path.join(root, "tooling", "study-registry.json");
+    const markdownFile = path.join(root, "STUDIES.md");
+    const first = writeStudyRegistry({ root, file, markdownFile });
+    expect(first.written).toBe(true);
+    const jsonBytes = fs.readFileSync(file, "utf8");
+    const markdownBytes = fs.readFileSync(markdownFile, "utf8");
+    expect(checkStudyRegistry({ root, file, markdownFile }).errors).toEqual([]);
+    const second = writeStudyRegistry({ root, file, markdownFile });
+    expect(second.written).toBe(true);
+    expect(fs.readFileSync(file, "utf8")).toBe(jsonBytes);
+    expect(fs.readFileSync(markdownFile, "utf8")).toBe(markdownBytes);
+  });
+
+  test("restores both sentinels when the second target installation fails", () => {
+    const root = makeRoot([{ directory: "valid", id: "VALID", metadata: { title: "Valid study" } }]);
+    const file = path.join(root, "tooling", "study-registry.json");
+    const markdownFile = path.join(root, "STUDIES.md");
+    fs.writeFileSync(file, "json sentinel\n", "utf8");
+    fs.writeFileSync(markdownFile, "markdown sentinel\n", "utf8");
+    const targets = new Set([path.resolve(file), path.resolve(markdownFile)]);
+    let installationCount = 0;
+    let failureInjected = false;
+    const fileSystem = {
+      ...fs,
+      renameSync(source, target, ...options) {
+        if (targets.has(path.resolve(target)) && path.basename(source).endsWith(".tmp")) {
+          installationCount += 1;
+          if (installationCount === 2 && !failureInjected) {
+            failureInjected = true;
+            throw new Error("injected second installation failure");
+          }
+        }
+        return fs.renameSync(source, target, ...options);
+      },
+    };
+    const result = writeStudyRegistry({ root, file, markdownFile, fileSystem });
+    expect(result.written).toBe(false);
+    expect(failureInjected).toBe(true);
+    expect(fs.readFileSync(file, "utf8")).toBe("json sentinel\n");
+    expect(fs.readFileSync(markdownFile, "utf8")).toBe("markdown sentinel\n");
+    expect(fs.readdirSync(root).filter((name) => /^(?:\.study-registry\.json|\.STUDIES\.md)\..+\.tmp$/u.test(name))).toEqual([]);
+  });
+
+  test("keeps committed outputs when backup cleanup fails", () => {
+    const root = makeRoot([{ directory: "valid", id: "VALID", metadata: { title: "Valid study" } }]);
+    const file = path.join(root, "tooling", "study-registry.json");
+    const markdownFile = path.join(root, "STUDIES.md");
+    fs.writeFileSync(file, "old json\n", "utf8");
+    fs.writeFileSync(markdownFile, "old markdown\n", "utf8");
+    let cleanupFailures = 0;
+    const fileSystem = {
+      ...fs,
+      rmSync(target, ...options) {
+        if (path.basename(target).startsWith(".study-registry.json.") && cleanupFailures === 0) {
+          cleanupFailures += 1;
+          throw new Error("injected backup cleanup failure");
+        }
+        return fs.rmSync(target, ...options);
+      },
+    };
+    const result = writeStudyRegistry({ root, file, markdownFile, fileSystem });
+    const expected = buildStudyRegistry({ root }).registry;
+    expect(result.written).toBe(true);
+    expect(cleanupFailures).toBe(1);
+    expect(fs.readFileSync(file, "utf8")).toBe(serializeStudyRegistry(expected));
+    expect(fs.readFileSync(markdownFile, "utf8")).toBe(serializeStudyMarkdown(expected));
+    expect(fs.readdirSync(root).filter((name) => /^(?:\.study-registry\.json|\.STUDIES\.md)\..+\.tmp$/u.test(name))).toEqual([]);
+  });
+
+  test("rejects a stale human projection through the shared API", () => {
+    const root = makeRoot([{ directory: "valid", id: "VALID" }]);
+    const file = path.join(root, "tooling", "study-registry.json");
+    const markdownFile = path.join(root, "STUDIES.md");
+    const generated = writeStudyRegistry({ root, file, markdownFile });
+    expect(generated.written).toBe(true);
+    fs.writeFileSync(markdownFile, "stale\n", "utf8");
+    const result = checkStudyRegistry({ root, file, markdownFile });
+    expect(result.errors).toContain("STUDIES.md is stale. Run bun tooling/study-registry.mjs --write.");
   });
 
   test("rejects a registry projection that is stale through the shared API", () => {

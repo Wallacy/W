@@ -86,20 +86,18 @@ if (
 ) {
   errors.push("tooling:install must install locked tooling and generate the parser outputs");
 }
-if (treePackage && treePackage.scripts?.["check:generated-policy"] !== "bun ../check-generated-policy.mjs") {
-  errors.push("Tree-sitter check:generated-policy must call the shared checker");
-}
 if (treePackage?.private !== true) {
   errors.push("Tree-sitter package must remain private");
 }
 if (treePackage?.scripts?.generate !== "tree-sitter generate") {
   errors.push("Tree-sitter generate must remain the explicit bootstrap command");
 }
-if (treePackage?.scripts?.check !== "bun ../check-suite.mjs --suite tree-check") {
-  errors.push("Tree-sitter check must use the declarative tree-check suite");
-}
-if (treePackage?.scripts?.["check:docs"] !== "bun ../check-suite.mjs --suite tree-docs") {
-  errors.push("Tree-sitter check:docs must use the declarative tree-docs suite");
+const treeScriptNames = Object.keys(treePackage?.scripts ?? {});
+const nonLocalTreeScripts = treeScriptNames.filter((name) =>
+  name !== "generate" && name !== "test" && name !== "check:injections" && !name.startsWith("parse:"),
+);
+if (nonLocalTreeScripts.length > 0) {
+  errors.push(`Tree-sitter package contains repo-wide scripts: ${nonLocalTreeScripts.join(", ")}`);
 }
 if (rootPackage?.scripts?.check !== "bun tooling/check-suite.mjs --suite root-check") {
   errors.push("root check must use the declarative root-check suite");
@@ -112,6 +110,12 @@ if (rootPackage?.scripts?.["check:studies"] !== "bun tooling/check-suite.mjs --s
 }
 if (rootPackage?.scripts?.["check:suite-manifest"] !== "bun test tooling/check-suite.test.mjs && bun tooling/check-suite.mjs --check") {
   errors.push("root check:suite-manifest must test and validate the declarative suite manifest");
+}
+if (rootPackage?.scripts?.["check:quick"] !== "bun tooling/check-suite.mjs --suite root-quick") {
+  errors.push("root check:quick must use the declarative root-quick suite");
+}
+if (rootPackage?.scripts?.["check:compiler"] !== "bun tooling/check-suite.mjs --suite root-compiler") {
+  errors.push("root check:compiler must use the declarative root-compiler suite");
 }
 
 const workflowPath = resolve(root, ".github", "workflows", "validate.yml");

@@ -50,7 +50,7 @@ O estudo é evidência de design. Ele não compila ou executa W.
 ```sh
 bun test tooling/gen2-stream-yield-reference.test.mjs
 bun tooling/check-gen2-stream-yield.mjs
-bun run --cwd tooling/tree-sitter-w generate
+bun run tooling:install
 bun run --cwd tooling/tree-sitter-w test
 ```
 

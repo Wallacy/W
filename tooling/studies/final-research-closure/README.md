@@ -35,5 +35,5 @@ Checks scoped:
 ```sh
 bun test tooling/studies/final-research-closure/oracle.test.mjs
 bun tooling/check-final-research-closure.mjs
-bun run --cwd tooling/tree-sitter-w check:frc0
+bun run check:frc0
 ```

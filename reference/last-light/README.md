@@ -292,8 +292,8 @@ alvo de execução independente.
 | `benchmark_app.w` | workloads HTTP e database para benchmark |
 | `formatting.w` | fixture canônico para source order, comments e chamadas multilinha |
 
-Esses arquivos usam a forma vigente. A consolidação substituída está no
-[arquivo histórico](../../history/archive/db1-2026-07-27/examples/restaurant).
+Esses arquivos usam a forma vigente. A consolidação substituída permanece
+recuperável no histórico Git e não é fonte normativa.
 
 ### 2.1 Cobertura e alcance
 
@@ -405,8 +405,8 @@ Adversariais:
 
 O host oracle [`tooling/module-run-machine.mjs`](../../tooling/module-run-machine.mjs)
 exercita o contrato module-run RU0. Ele não executa W nem fornece compiler,
-runtime, resolver, provider ou CLI. A proveniência PYN1 superseded fica somente
-em [`history/archive/pyn1-workflow`](../../history/archive/pyn1-workflow).
+runtime, resolver, provider ou CLI. A proveniência PYN1 superseded está no
+histórico Git e não entra no produto de referência.
 
 
 ### 3.1.2 Sessão/REPL transacional PYN2

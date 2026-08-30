@@ -1,3 +1,0 @@
-fn main() {
-  consume(take)
-}

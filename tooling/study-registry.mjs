@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = path.resolve(toolingDirectory, "..");
 export const registryPath = path.join(toolingDirectory, "study-registry.json");
+export const studiesMarkdownPath = path.join(repositoryRoot, "STUDIES.md");
 export const STUDY_REGISTRY_SCHEMA = "w-study-registry-2";
 
 const METADATA_NAMES = new Set(["study.json", "bundle.json", "manifest.json", "task-ledger.json"]);
@@ -16,7 +17,6 @@ const ROOT_RELATIVE_PREFIXES = [
   "compiler/",
   "std/",
   "portal/",
-  "history/",
 ];
 const PATH_STRING_KEYS = new Set([
   "bundle",
@@ -462,6 +462,7 @@ export function buildStudyRegistry({ root = repositoryRoot } = {}) {
     const entry = {
       directory: `tooling/studies/${directoryName}`,
       id: null,
+      title: null,
       status: "metadata-missing",
       ids: [],
       gates: [],
@@ -498,6 +499,9 @@ export function buildStudyRegistry({ root = repositoryRoot } = {}) {
       parsed.find(({ file }) => path.basename(file) === "manifest.json") ??
       parsed[0];
     entry.id = typeof primary?.value?.id === "string" ? primary.value.id : null;
+    entry.title = typeof primary?.value?.title === "string" && primary.value.title.trim() !== ""
+      ? primary.value.title.trim()
+      : null;
     entry.status = typeof primary?.value?.status === "string" ? primary.value.status : "metadata-missing";
     if (entry.id === null) {
       addIssue(issues.missing, { source: entry.directory, pointer: "id", path: entry.directory, reason: "missing-study-id" });
@@ -653,16 +657,110 @@ export function serializeStudyRegistry(registry) {
   return `${JSON.stringify(registry, null, 2)}\n`;
 }
 
-export function validateStudyRegistry(registry, { root = repositoryRoot, expected = null } = {}) {
+const GENERIC_ENTRYPOINTS = new Set([
+  "check:studies",
+  "check:study-bundles",
+  "check:study-oracles",
+  "check:study-registry",
+  "study:registry",
+]);
+
+function markdownCell(value) {
+  return String(value ?? "—")
+    .replaceAll("\\", "\\\\")
+    .replaceAll("|", "\\|")
+    .replaceAll(/\r?\n/gu, " ");
+}
+
+function fallbackStudyTitle(directory) {
+  const leaf = String(directory ?? "study").split("/").at(-1) ?? "study";
+  return leaf
+    .replaceAll(/[-_]+/gu, " ")
+    .replaceAll(/\b\w/gu, (character) => character.toUpperCase());
+}
+
+function principalEntrypoint(registry, study) {
+  const candidates = (study.entrypoints ?? [])
+    .map((index) => registry.entrypoints?.[index])
+    .filter((entrypoint) => entrypoint && typeof entrypoint.name === "string");
+  const rootChecks = candidates
+    .filter((entrypoint) => entrypoint.scope === "root" && entrypoint.name.startsWith("check:") && !GENERIC_ENTRYPOINTS.has(entrypoint.name))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  if (rootChecks.length > 0) return `bun run ${rootChecks[0].name}`;
+  if (candidates.some((entrypoint) => entrypoint.scope === "root" && entrypoint.name === "check:study-bundles")) {
+    return "bun run check:study-bundles";
+  }
+  return null;
+}
+
+export function serializeStudyMarkdown(registry) {
+  const studies = Array.isArray(registry?.studies) ? registry.studies : [];
+  const groups = new Map();
+  for (const study of studies) {
+    const status = typeof study?.status === "string" && study.status !== "" ? study.status : "metadata-missing";
+    if (!groups.has(status)) groups.set(status, []);
+    groups.get(status).push(study);
+  }
+  const lines = [
+    "# Estudos do W",
+    "",
+    "> Esta página é uma projeção humana gerada de `tooling/study-registry.json`.",
+    "> Edite os metadados dos estudos e os READMEs locais. Não edite este arquivo manualmente.",
+    ">",
+    "> Estudos e seus oracles registram evidência de design e o estado da infraestrutura.",
+    "> Eles não definem a semântica do W e não provam resultados de compiler, runtime, provider,",
+    "> revisão humana ou modelo. Leia `DESIGN.md` para as decisões normativas.",
+    "",
+    "## Resumo",
+    "",
+    "| Status | Estudos |",
+    "|---|---:|",
+  ];
+  for (const status of [...groups.keys()].sort(comparePath)) {
+    lines.push(`| \`${markdownCell(status)}\` | ${groups.get(status).length} |`);
+  }
+  lines.push(`| **Total** | **${studies.length}** |`);
+  lines.push("", "O registry de máquina também registra metadados, fixtures, referências, digests, dependências e entrypoints de scripts.");
+  lines.push("Use `bun run study:registry` para regenerar as duas projeções e `bun run check:study-registry` para validá-las.");
+  lines.push("");
+
+  for (const status of [...groups.keys()].sort(comparePath)) {
+    const group = groups.get(status).slice().sort((left, right) => String(left.id ?? left.directory).localeCompare(String(right.id ?? right.directory)));
+    lines.push(`## Status: \`${markdownCell(status)}\` (${group.length})`, "", "| ID | Função / estado | Caminho | Gate principal | Entrypoint principal |", "|---|---|---|---|---|");
+    for (const study of group) {
+      const title = study.title ?? fallbackStudyTitle(study.directory);
+      const state = `${title} — \`${study.status ?? "metadata-missing"}\``;
+      const path = String(study.directory ?? "");
+      const principalGate = Array.isArray(study.gates) && study.gates.length > 0 ? study.gates[0] : "—";
+      const entrypoint = principalEntrypoint(registry, study) ?? "—";
+      lines.push(`| \`${markdownCell(study.id ?? "—")}\` | ${markdownCell(state)} | [\`${markdownCell(path)}\`](./${path}/) | \`${markdownCell(principalGate)}\` | \`${markdownCell(entrypoint)}\` |`);
+    }
+    lines.push("");
+  }
+  return `${lines.join("\n").replace(/\n+$/u, "")}\n`;
+}
+
+function validateStudyMarkdown(markdown, registry) {
+  if (markdown !== serializeStudyMarkdown(registry)) {
+    return "STUDIES.md is stale. Run bun tooling/study-registry.mjs --write.";
+  }
+  return null;
+}
+
+export function validateStudyRegistry(registry, { root = repositoryRoot, expected = null, markdown = null } = {}) {
   const expectedResult = expected ? { registry: expected, errors: [] } : buildStudyRegistry({ root });
   const errors = [...expectedResult.errors];
   if (serializeStudyRegistry(registry) !== serializeStudyRegistry(expectedResult.registry)) {
     errors.push("study-registry.json is stale. Run bun tooling/study-registry.mjs --write.");
   }
+  if (markdown !== null) {
+    const markdownError = validateStudyMarkdown(markdown, expectedResult.registry);
+    if (markdownError) errors.push(markdownError);
+  }
   return { errors, expected: expectedResult.registry };
 }
 
-export function checkStudyRegistry({ root = repositoryRoot, file = path.join(path.resolve(root), "tooling", "study-registry.json") } = {}) {
+export function checkStudyRegistry({ root = repositoryRoot, file = path.join(path.resolve(root), "tooling", "study-registry.json"), markdownFile = path.join(path.resolve(root), "STUDIES.md") } = {}) {
   const generated = buildStudyRegistry({ root });
   const errors = [...generated.errors];
   if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
@@ -673,15 +771,92 @@ export function checkStudyRegistry({ root = repositoryRoot, file = path.join(pat
   if (loaded.error) {
     errors.push(`tooling/study-registry.json is invalid JSON: ${loaded.error}.`);
   } else {
-    errors.push(...validateStudyRegistry(loaded.value, { root, expected: generated.registry }).errors.filter((error) => !errors.includes(error)));
+    let markdown = null;
+    if (!fs.existsSync(markdownFile) || !fs.statSync(markdownFile).isFile()) {
+      errors.push("STUDIES.md is missing. Run bun tooling/study-registry.mjs --write.");
+    } else {
+      markdown = fs.readFileSync(markdownFile, "utf8");
+    }
+    errors.push(...validateStudyRegistry(loaded.value, { root, expected: generated.registry, markdown }).errors.filter((error) => !errors.includes(error)));
   }
   return { errors, registry: generated.registry };
 }
 
-export function writeStudyRegistry({ root = repositoryRoot, file = path.join(path.resolve(root), "tooling", "study-registry.json") } = {}) {
+function temporaryPath(target) {
+  return path.join(path.dirname(target), `.${path.basename(target)}.${process.pid}.${crypto.randomBytes(8).toString("hex")}.tmp`);
+}
+
+function removeBestEffort(fileSystem, target) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      if (!fileSystem.existsSync(target)) return;
+      fileSystem.rmSync(target, { force: true });
+      return;
+    } catch {
+      // A cleanup failure must not turn a committed pair into a reported write failure.
+    }
+  }
+}
+
+function rollbackProjectionPair(records, fileSystem) {
+  for (const record of [...records].reverse()) {
+    if (record.installed) removeBestEffort(fileSystem, record.target);
+    if (record.backup) {
+      try {
+        if (fileSystem.existsSync(record.backup)) fileSystem.renameSync(record.backup, record.target);
+      } catch {
+        // Preserve the original install error. The caller still reports the pair as failed.
+      }
+    }
+    removeBestEffort(fileSystem, record.temporary);
+  }
+}
+
+export function writeProjectionPair(outputs, { fileSystem = fs } = {}) {
+  const records = outputs.map(({ target, content }) => ({
+    target,
+    content,
+    temporary: temporaryPath(target),
+    backup: null,
+    installed: false,
+  }));
+  const targets = new Set(records.map((record) => path.resolve(record.target)));
+  if (targets.size !== records.length) throw new Error("projection targets must be distinct");
+  try {
+    for (const record of records) {
+      fileSystem.mkdirSync(path.dirname(record.target), { recursive: true });
+      fileSystem.writeFileSync(record.temporary, record.content, "utf8");
+    }
+    for (const record of records) {
+      if (fileSystem.existsSync(record.target)) {
+        record.backup = temporaryPath(record.target);
+        fileSystem.renameSync(record.target, record.backup);
+      }
+      fileSystem.renameSync(record.temporary, record.target);
+      record.installed = true;
+    }
+  } catch (error) {
+    rollbackProjectionPair(records, fileSystem);
+    throw error;
+  }
+  for (const record of records) if (record.backup) removeBestEffort(fileSystem, record.backup);
+}
+
+export function writeStudyRegistry({ root = repositoryRoot, file = path.join(path.resolve(root), "tooling", "study-registry.json"), markdownFile = path.join(path.resolve(root), "STUDIES.md"), fileSystem = fs } = {}) {
   const generated = buildStudyRegistry({ root });
   if (generated.errors.length > 0) return { ...generated, written: false };
-  fs.writeFileSync(file, serializeStudyRegistry(generated.registry), "utf8");
+  try {
+    writeProjectionPair([
+      { target: file, content: serializeStudyRegistry(generated.registry) },
+      { target: markdownFile, content: serializeStudyMarkdown(generated.registry) },
+    ], { fileSystem });
+  } catch (error) {
+    return {
+      ...generated,
+      written: false,
+      errors: [`study registry projections could not be installed transactionally with rollback on ordinary filesystem errors: ${error instanceof Error ? error.message : "unknown error"}`],
+    };
+  }
   return { ...generated, written: true };
 }
 
@@ -700,7 +875,7 @@ function main(argv = process.argv.slice(2)) {
       process.exitCode = 1;
       return;
     }
-    process.stdout.write(`Study registry written: ${result.registry.counts.studyDirectories} directories, ${result.registry.counts.references} references.\n`);
+    process.stdout.write(`Study registry written: ${result.registry.counts.studyDirectories} directories, ${result.registry.counts.references} references; JSON and Markdown projections are current.\n`);
     return;
   }
   const result = checkStudyRegistry();

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(toolingDirectory, "..");
-const skippedDirectories = new Set([".git", "history", "node_modules"]);
+const skippedDirectories = new Set([".git", "node_modules"]);
 
 function collectMarkdownFiles(directory, files = []) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
