@@ -489,6 +489,51 @@ correção para `bmd1-seed-check-lifecycle`, célula
 `clean × check-end-to-end`; não adiciona stage, timing ou result. `startup` e
 `execution` permanecem `product-runtime` deferred.
 
+## Guard OWN0 de candidates build.w
+
+`include/w_seed_owner_guard.h` e `src/w_seed_owner_guard.c` formam o core C11
+caller-owned e bounded. O core separa lifecycle e disposition, usa generations
+não zero, exige storage disjoint para staging, revalidação e publicação e
+publica candidates densos em ordem folha → root. O primeiro fato é observado;
+somente uma segunda wave na mesma sessão pode produzir
+`CANDIDATES_RECONFIRMED` ou `NO_CANDIDATE_RECONFIRMED`.
+
+Candidate refs contêm apenas generation, ordinal do diretório e índice. Elas
+são descritivas e dependem do guard vivo. O backend retém a source, a cadeia de
+diretórios e os markers. Begin e revalidate podem refazer o binding descendente
+seguro do base até a source pela cópia bounded do path; somente begin descobre a
+ancestry ascendente. Revalidation reconfirma cada identity e parent edge, a
+root terminal, cada candidate e cada ausência por handles retidos. O core não
+aceita reopen textual da ancestry como authority. Falha envenena o guard e
+mantém recursos somente para `destroy`.
+
+`w_seed_owner_guard_linux` implementa o backend real com `openat2`, barriers de
+symlink/magic-link/cross-mount e identidade que exige
+`STATX_MNT_ID_UNIQUE`, device e inode. Somente `ENOENT` no lookup literal de
+`build.w` significa ausência. O gate executa Linux nativo e, em host Windows,
+exige WSL Ubuntu; skip não é aceito. `w_seed_owner_guard_windows` permanece
+incondicionalmente `UNSUPPORTED` fail-closed neste bundle. Os probes de
+localidade e parent `..` por handle são somente diagnósticos e não promovem a
+capability, mesmo se tiverem sucesso em outro host. Não há fallback textual.
+
+O guard não seleciona owner, não interpreta manifest, não autoriza fallback
+efêmero, não é snapshot/lease global e não integra CHK9, `w check` ou `w run`.
+Um composer MAN0/WSP0 futuro deve vincular a source da sessão ao token/receipt
+ACQ0 antes de compor essas fronteiras. Os testes não provam a ordem reversa
+física de closes nem a
+matriz geral de mounts, namespaces e volumes.
+
+O gate compila core e adapters com warnings-as-errors, repete os executáveis
+host e executa Linux nativo com stdout exato; em host Windows, WSL Ubuntu é
+obrigatório:
+
+    bun tooling/check-owner-guard.mjs
+
+O `benchmarkDisposition` é `compiler-lifecycle` somente como classificação da
+track futura. OWN0 não integra o `w check` medido por BMD1, e seu gate não é
+oracle dessa célula. Não há nova evidência de benchmark, stage, timing ou
+result.
+
 ## Composição interna CHK7 — discovery, frontend e D0
 
 `include/w_seed_ephemeral_check.h` e `src/w_seed_ephemeral_check.c` compõem

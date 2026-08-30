@@ -1919,6 +1919,46 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-own0-guarded-project-candidates",
+      "reviewItem": "observação OWN0 em duas waves contra busca textual, ausência consumida cedo, reopen por path e snapshot ou lease global presumido",
+      "decisions": ["W-1497"],
+      "task": "Observe bounded build.w candidates from the source parent to the physical root, then reconfirm the same source, ancestry, candidates, and absences in the retained session without selecting an owner or authorizing fallback.",
+      "selected": {
+        "language": "c",
+        "source": [
+          "w_seed_owner_guard_input input = { .source_path = path, .max_levels = max_levels, .storage = storage, .backend = backend, .backend_context_size = sizeof(context) };",
+          "w_seed_owner_guard_status status = w_seed_owner_guard_begin(&input, &guard, &result); status = w_seed_owner_guard_revalidate(&guard, &result);"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "textual-ancestor-search",
+          "language": "c-rejected",
+          "source": ["for (path = realpath(source); path != root; path = dirname(path)) if (exists(join(path, \"build.w\"))) candidates.push(path);"],
+          "expectedDifference": "Textual paths do not retain source, directory, parent-edge, mount, marker, or absence identities and cannot support same-session revalidation."
+        },
+        {
+          "name": "observed-absence-authorizes-ephemeral",
+          "language": "w-internal-rejected",
+          "source": ["NO_CANDIDATE_OBSERVED → EPHEMERAL_ALLOWED"],
+          "expectedDifference": "An observed absence has not survived the second wave and no OWN0 disposition grants fallback or execution authority."
+        },
+        {
+          "name": "reopen-ancestry-by-path",
+          "language": "c-rejected",
+          "source": ["close_session_handles(); reopen_each_ancestor(saved_paths); revalidate_markers();"],
+          "expectedDifference": "Reopening by saved paths creates a different namespace observation and loses the retained same-session identity chain."
+        },
+        {
+          "name": "global-filesystem-snapshot-or-lease",
+          "language": "w-internal-rejected",
+          "source": ["guard.reconfirmed → namespace_snapshot_and_lease"],
+          "expectedDifference": "The generation tags only the guard lifetime; OWN0 neither freezes the namespace nor leases a project owner."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

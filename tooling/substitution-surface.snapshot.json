@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:3cc721cabee7c472b5a41db6340f38c9132c2b2033b7139dfe1a8c38bd6c2f1e",
+  "corpusDigest": "sha256:d3844efa8eb3cb8589b60c6b92ef982d20e69a2ce3d13a9b99bcc3f936366319",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3432,6 +3432,78 @@
             "nonWhitespaceCodePoints": 48,
             "lines": 1,
             "surfaceLexemes": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-own0-guarded-project-candidates",
+      "task": {
+        "utf8Bytes": 222,
+        "codePoints": 222,
+        "nonWhitespaceCodePoints": 191,
+        "lines": 1,
+        "surfaceLexemes": 39
+      },
+      "selected": {
+        "name": "selected",
+        "language": "c",
+        "sourceDigest": "sha256:5f94c02c7897a0db5f44228e204409fd46b39296e6919b3aa1248af49d1e4ebd",
+        "metrics": {
+          "utf8Bytes": 307,
+          "codePoints": 307,
+          "nonWhitespaceCodePoints": 278,
+          "lines": 2,
+          "surfaceLexemes": 59
+        }
+      },
+      "alternatives": [
+        {
+          "name": "textual-ancestor-search",
+          "language": "c-rejected",
+          "sourceDigest": "sha256:d21b86e5d0cbf9e79c6352f5f46eace9ab66b8695576e335f9f5c16ceefb57bc",
+          "metrics": {
+            "utf8Bytes": 123,
+            "codePoints": 123,
+            "nonWhitespaceCodePoints": 110,
+            "lines": 1,
+            "surfaceLexemes": 40
+          }
+        },
+        {
+          "name": "observed-absence-authorizes-ephemeral",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:66afff6f8413af004d0602bf42861e6948a93a17d1e0e24053f337436c2481d1",
+          "metrics": {
+            "utf8Bytes": 43,
+            "codePoints": 41,
+            "nonWhitespaceCodePoints": 39,
+            "lines": 1,
+            "surfaceLexemes": 3
+          }
+        },
+        {
+          "name": "reopen-ancestry-by-path",
+          "language": "c-rejected",
+          "sourceDigest": "sha256:9277dc76f3643b5a773266731de54900ea1acbef076c816688ffe579754ea6a3",
+          "metrics": {
+            "utf8Bytes": 81,
+            "codePoints": 81,
+            "nonWhitespaceCodePoints": 79,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "global-filesystem-snapshot-or-lease",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:b70f94d5d85396a10fd5cec3054dc0a586fd3773277e5a56166b7a42289f8a32",
+          "metrics": {
+            "utf8Bytes": 50,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 1,
+            "surfaceLexemes": 5
           }
         }
       ]
