@@ -5,199 +5,234 @@
 
 typedef struct {
   void *pointer;
+  size_t bytes;
   bool allocated;
-} storage_replacement;
+  bool releasable;
+} check_replacement;
 
-static size_t storage_max_source_bytes(void) {
-  return (size_t)W_SEED_CHECK_STORAGE_MAX_SOURCE_BYTES;
-}
+typedef struct {
+  uintptr_t start;
+  uintptr_t end;
+} check_storage_range;
 
-static size_t storage_max_total_source_bytes(void) {
-  return (size_t)W_SEED_CHECK_STORAGE_MAX_TOTAL_SOURCE_BYTES;
-}
+enum {
+  CHECK_STORAGE_RANGE_COUNT =
+      3 + 4 * W_SEED_CHECK_STORAGE_MAX_SOURCES,
+};
 
-static size_t storage_max_nodes(void) {
-  return (size_t)W_SEED_CHECK_STORAGE_MAX_NODES;
-}
-
-static size_t storage_max_total_nodes(void) {
-  return (size_t)W_SEED_CHECK_STORAGE_MAX_TOTAL_NODES;
-}
-
-static size_t storage_max_json_bytes(void) {
-  return (size_t)W_SEED_CHECK_STORAGE_MAX_JSON_BYTES;
-}
-
-static bool storage_index_valid(size_t request_index) {
-  return request_index < (size_t)W_SEED_CHECK_STORAGE_MAX_SOURCES;
-}
-
-static bool storage_pointer_capacity_valid(const void *pointer,
-                                           size_t capacity) {
-  return (capacity == 0u && pointer == NULL) ||
-         (capacity != 0u && pointer != NULL);
-}
-
-static bool storage_add_bounded(size_t left, size_t right, size_t maximum,
-                                size_t *sum) {
-  if (sum == NULL || left > maximum || right > maximum - left) return false;
-  *sum = left + right;
+static bool object_is_zero(const void *object, size_t size) {
+  if (object == NULL) return false;
+  const unsigned char *bytes = (const unsigned char *)object;
+  for (size_t index = 0u; index < size; index += 1u) {
+    if (bytes[index] != 0u) return false;
+  }
   return true;
 }
 
-static bool storage_node_bytes(size_t count, size_t *bytes) {
-  if (bytes == NULL || count > SIZE_MAX / sizeof(w_seed_cst_node))
+static bool add_range(check_storage_range *ranges, size_t capacity,
+                      size_t *count, const void *pointer, size_t elements,
+                      size_t element_size) {
+  if (ranges == NULL || count == NULL || element_size == 0u ||
+      elements > SIZE_MAX / element_size)
     return false;
-  *bytes = count * sizeof(w_seed_cst_node);
+  const size_t bytes = elements * element_size;
+  if (bytes == 0u) return true;
+  if (pointer == NULL || *count >= capacity) return false;
+  const uintptr_t start = (uintptr_t)pointer;
+  if ((uintmax_t)bytes > (uintmax_t)UINTPTR_MAX - (uintmax_t)start)
+    return false;
+  ranges[*count] =
+      (check_storage_range){start, start + (uintptr_t)bytes};
+  *count += 1u;
   return true;
 }
 
-static bool storage_matches_totals(const w_seed_check_storage *storage) {
-  const size_t source_maximum = storage_max_source_bytes();
-  const size_t source_total_maximum = storage_max_total_source_bytes();
-  const size_t node_maximum = storage_max_nodes();
-  const size_t node_total_maximum = storage_max_total_nodes();
-  size_t staging_total = 0u;
-  size_t revalidation_total = 0u;
-  size_t published_total = 0u;
-  size_t node_total = 0u;
+static bool ranges_overlap(check_storage_range left,
+                           check_storage_range right) {
+  return left.start < right.end && right.start < left.end;
+}
 
-  if (storage == NULL || !storage->initialized || storage->allocate == NULL ||
-      storage->deallocate == NULL) {
-    return false;
+static bool ranges_disjoint(const check_storage_range *ranges,
+                            size_t count) {
+  if (ranges == NULL) return false;
+  for (size_t left = 0u; left < count; left += 1u) {
+    for (size_t right = left + 1u; right < count; right += 1u) {
+      if (ranges_overlap(ranges[left], ranges[right])) return false;
+    }
   }
-  if (!storage_pointer_capacity_valid(storage->json_staging,
-                                      storage->json_staging_capacity) ||
-      !storage_pointer_capacity_valid(storage->json_final,
-                                      storage->json_final_capacity) ||
-      storage->json_staging_capacity != storage->json_final_capacity ||
-      storage->json_staging_capacity > storage_max_json_bytes()) {
+  return true;
+}
+
+static bool check_storage_ranges(const w_seed_check_storage *storage,
+                                 check_storage_range *ranges,
+                                 size_t *count) {
+  if (storage == NULL || ranges == NULL || count == NULL) return false;
+  *count = 0u;
+  if (!add_range(ranges, CHECK_STORAGE_RANGE_COUNT, count, storage, 1u,
+                 sizeof(*storage)) ||
+      !add_range(ranges, CHECK_STORAGE_RANGE_COUNT, count,
+                 storage->json_staging, storage->json_staging_capacity,
+                 sizeof(uint8_t)) ||
+      !add_range(ranges, CHECK_STORAGE_RANGE_COUNT, count,
+                 storage->json_final, storage->json_final_capacity,
+                 sizeof(uint8_t)))
     return false;
-  }
   for (size_t index = 0u;
        index < (size_t)W_SEED_CHECK_STORAGE_MAX_SOURCES; index += 1u) {
-    if (!storage_pointer_capacity_valid(storage->staging_bytes[index],
-                                        storage->staging_capacity[index]) ||
-        !storage_pointer_capacity_valid(
-            storage->revalidation_bytes[index],
-            storage->revalidation_capacity[index]) ||
-        !storage_pointer_capacity_valid(storage->published_bytes[index],
-                                        storage->published_capacity[index]) ||
-        !storage_pointer_capacity_valid(storage->nodes[index],
-                                        storage->node_capacity[index]) ||
-        storage->staging_capacity[index] > source_maximum ||
-        storage->revalidation_capacity[index] > source_maximum ||
-        storage->published_capacity[index] > source_maximum ||
-        storage->node_capacity[index] > node_maximum) {
+    if (!add_range(ranges, CHECK_STORAGE_RANGE_COUNT, count,
+                   storage->acquisition.staging_bytes[index],
+                   storage->acquisition.staging_capacity[index],
+                   sizeof(uint8_t)) ||
+        !add_range(ranges, CHECK_STORAGE_RANGE_COUNT, count,
+                   storage->acquisition.revalidation_bytes[index],
+                   storage->acquisition.revalidation_capacity[index],
+                   sizeof(uint8_t)) ||
+        !add_range(ranges, CHECK_STORAGE_RANGE_COUNT, count,
+                   storage->acquisition.published_bytes[index],
+                   storage->acquisition.published_capacity[index],
+                   sizeof(uint8_t)) ||
+        !add_range(ranges, CHECK_STORAGE_RANGE_COUNT, count,
+                   storage->acquisition.nodes[index],
+                   storage->acquisition.node_capacity[index],
+                   sizeof(w_seed_cst_node)))
       return false;
-    }
-    if (!storage_add_bounded(staging_total, storage->staging_capacity[index],
-                             source_total_maximum, &staging_total) ||
-        !storage_add_bounded(revalidation_total,
-                             storage->revalidation_capacity[index],
-                             source_total_maximum, &revalidation_total) ||
-        !storage_add_bounded(published_total,
-                             storage->published_capacity[index],
-                             source_total_maximum, &published_total) ||
-        !storage_add_bounded(node_total, storage->node_capacity[index],
-                             node_total_maximum, &node_total)) {
-      return false;
-    }
   }
-  return staging_total == storage->staging_total &&
-         revalidation_total == storage->revalidation_total &&
-         published_total == storage->published_total &&
-         node_total == storage->node_total;
+  return true;
 }
 
-static bool storage_next_total(size_t current_total, size_t old_capacity,
-                               size_t next_capacity, size_t maximum,
-                               size_t *next_total) {
-  if (current_total < old_capacity || old_capacity > maximum ||
-      next_capacity > maximum) {
+/* This is the single parent validator. ACQ0 validates its own child through
+ * the non-mutating bind operation. */
+static bool check_storage_valid(const w_seed_check_storage *storage) {
+  w_seed_ephemeral_provider_request probe = {0};
+  if (storage == NULL ||
+      !w_seed_acquisition_storage_bind_request(&storage->acquisition, 0u,
+                                               &probe) ||
+      !((storage->json_staging_capacity == 0u &&
+         storage->json_staging == NULL) ||
+        (storage->json_staging_capacity != 0u &&
+         storage->json_staging != NULL)) ||
+      !((storage->json_final_capacity == 0u &&
+         storage->json_final == NULL) ||
+        (storage->json_final_capacity != 0u &&
+         storage->json_final != NULL)) ||
+      storage->json_staging_capacity != storage->json_final_capacity ||
+      storage->json_staging_capacity >
+          (size_t)W_SEED_CHECK_STORAGE_MAX_JSON_BYTES)
     return false;
-  }
-  return storage_add_bounded(current_total - old_capacity, next_capacity,
-                             maximum, next_total);
+  check_storage_range ranges[CHECK_STORAGE_RANGE_COUNT];
+  size_t count = 0u;
+  return check_storage_ranges(storage, ranges, &count) &&
+         ranges_disjoint(ranges, count);
 }
 
-static size_t storage_maximum(size_t left, size_t right) {
-  return left > right ? left : right;
+static w_seed_check_storage_status map_acquisition_status(
+    w_seed_acquisition_storage_status status) {
+  switch (status) {
+    case W_SEED_ACQUISITION_STORAGE_OK:
+      return W_SEED_CHECK_STORAGE_OK;
+    case W_SEED_ACQUISITION_STORAGE_CAPACITY:
+      return W_SEED_CHECK_STORAGE_CAPACITY;
+    case W_SEED_ACQUISITION_STORAGE_ALLOCATION:
+      return W_SEED_CHECK_STORAGE_ALLOCATION;
+    case W_SEED_ACQUISITION_STORAGE_INVALID:
+    default:
+      return W_SEED_CHECK_STORAGE_INVALID;
+  }
 }
 
-static bool storage_round_capacity(size_t current_capacity,
-                                   size_t required_capacity, size_t maximum,
-                                   size_t *rounded_capacity) {
-  if (rounded_capacity == NULL || current_capacity > maximum ||
-      required_capacity > maximum) {
-    return false;
-  }
-  if (required_capacity <= current_capacity) {
-    *rounded_capacity = current_capacity;
+static bool round_capacity(size_t current, size_t required, size_t limit,
+                           size_t *rounded) {
+  if (rounded == NULL || current > limit || required > limit) return false;
+  if (required <= current) {
+    *rounded = current;
     return true;
   }
-
-  size_t candidate = current_capacity == 0u ? 1u : current_capacity;
+  size_t candidate = current == 0u ? 1u : current;
   size_t steps = 0u;
-  while (candidate < required_capacity &&
+  while (candidate < required &&
          steps < W_SEED_CHECK_STORAGE_MAX_GROWTH_STEPS) {
     steps += 1u;
-    if (candidate > maximum / 2u) {
-      candidate = maximum;
+    if (candidate > limit / 2u) {
+      candidate = limit;
       break;
     }
     candidate *= 2u;
   }
-  if (candidate < required_capacity) return false;
-  *rounded_capacity = candidate;
+  if (candidate < required) return false;
+  *rounded = candidate;
   return true;
 }
 
-static bool storage_prepare_replacement(
-    const void *old_pointer, size_t old_bytes, size_t next_bytes,
-    w_seed_check_storage_allocate_fn allocate,
-    storage_replacement *replacement) {
+static bool prepare_replacement(
+    const void *old_pointer, size_t old_size, size_t next_size,
+    w_seed_check_storage_allocate_fn allocate, check_replacement *replacement) {
   if (replacement == NULL || allocate == NULL ||
-      !storage_pointer_capacity_valid(old_pointer, old_bytes)) {
+      ((old_size == 0u && old_pointer != NULL) ||
+       (old_size != 0u && old_pointer == NULL)))
     return false;
-  }
   replacement->pointer = (void *)old_pointer;
+  replacement->bytes = old_size;
   replacement->allocated = false;
-  if (next_bytes == old_bytes) return true;
-  if (next_bytes == 0u) {
-    replacement->pointer = NULL;
-    return true;
-  }
-  replacement->pointer = allocate(next_bytes);
+  replacement->releasable = false;
+  if (next_size == old_size) return true;
+  replacement->pointer = allocate(next_size);
   if (replacement->pointer == NULL) return false;
+  replacement->bytes = next_size;
   replacement->allocated = true;
-  if (old_bytes != 0u) {
-    (void)memcpy(replacement->pointer, old_pointer, old_bytes);
-  }
   return true;
 }
 
-static void storage_discard_replacement(
-    storage_replacement *replacement,
+static bool validate_replacement(const w_seed_check_storage *storage,
+                                 check_replacement *replacement,
+                                 const check_replacement *prior) {
+  if (storage == NULL || replacement == NULL) return false;
+  if (!replacement->allocated) return true;
+  check_storage_range candidate[1];
+  size_t candidate_count = 0u;
+  if (!add_range(candidate, 1u, &candidate_count, replacement->pointer,
+                 replacement->bytes, sizeof(uint8_t)) ||
+      candidate_count != 1u)
+    return false;
+  check_storage_range existing[CHECK_STORAGE_RANGE_COUNT];
+  size_t existing_count = 0u;
+  if (!check_storage_ranges(storage, existing, &existing_count)) return false;
+  for (size_t index = 0u; index < existing_count; index += 1u) {
+    if (ranges_overlap(candidate[0], existing[index])) return false;
+  }
+  if (prior != NULL && prior->allocated && prior->releasable) {
+    check_storage_range earlier[1];
+    size_t earlier_count = 0u;
+    if (!add_range(earlier, 1u, &earlier_count, prior->pointer, prior->bytes,
+                   sizeof(uint8_t)) ||
+        earlier_count != 1u || ranges_overlap(candidate[0], earlier[0]))
+      return false;
+  }
+  replacement->releasable = true;
+  return true;
+}
+
+static void discard_replacement(
+    check_replacement *replacement,
     w_seed_check_storage_deallocate_fn deallocate) {
   if (replacement == NULL) return;
-  if (replacement->allocated && deallocate != NULL) {
+  if (replacement->allocated && replacement->releasable &&
+      deallocate != NULL)
     deallocate(replacement->pointer);
-  }
   replacement->pointer = NULL;
+  replacement->bytes = 0u;
   replacement->allocated = false;
+  replacement->releasable = false;
 }
 
 bool w_seed_check_storage_init_with_allocator(
     w_seed_check_storage *storage,
     w_seed_check_storage_allocate_fn allocate,
     w_seed_check_storage_deallocate_fn deallocate) {
-  if (storage == NULL || allocate == NULL || deallocate == NULL) return false;
-  (void)memset(storage, 0, sizeof(*storage));
-  storage->allocate = allocate;
-  storage->deallocate = deallocate;
-  storage->initialized = true;
-  return true;
+  if (storage == NULL || allocate == NULL || deallocate == NULL ||
+      !object_is_zero(storage, sizeof(*storage)))
+    return false;
+  return w_seed_acquisition_storage_init_with_allocator(
+      &storage->acquisition, allocate, deallocate);
 }
 
 bool w_seed_check_storage_init(w_seed_check_storage *storage) {
@@ -207,184 +242,52 @@ bool w_seed_check_storage_init(w_seed_check_storage *storage) {
 w_seed_check_storage_status w_seed_check_storage_grow(
     w_seed_check_storage *storage, size_t request_index,
     size_t required_capacity) {
-  if (!storage_index_valid(request_index) ||
-      !storage_matches_totals(storage)) {
-    return W_SEED_CHECK_STORAGE_INVALID;
-  }
-  if (required_capacity > storage_max_source_bytes()) {
-    return W_SEED_CHECK_STORAGE_CAPACITY;
-  }
-
-  const size_t old_staging = storage->staging_capacity[request_index];
-  const size_t old_revalidation =
-      storage->revalidation_capacity[request_index];
-  const size_t old_published = storage->published_capacity[request_index];
-  const size_t current_capacity =
-      storage_maximum(old_staging,
-                      storage_maximum(old_revalidation, old_published));
-  size_t rounded_capacity = 0u;
-  if (!storage_round_capacity(current_capacity, required_capacity,
-                              storage_max_source_bytes(), &rounded_capacity)) {
-    return W_SEED_CHECK_STORAGE_CAPACITY;
-  }
-  size_t next_staging = storage_maximum(old_staging, rounded_capacity);
-  size_t next_revalidation =
-      storage_maximum(old_revalidation, rounded_capacity);
-  size_t next_published = storage_maximum(old_published, rounded_capacity);
-  size_t next_staging_total = 0u;
-  size_t next_revalidation_total = 0u;
-  size_t next_published_total = 0u;
-  if (!storage_next_total(storage->staging_total, old_staging, next_staging,
-                          storage_max_total_source_bytes(),
-                          &next_staging_total) ||
-      !storage_next_total(storage->revalidation_total, old_revalidation,
-                          next_revalidation,
-                          storage_max_total_source_bytes(),
-                          &next_revalidation_total) ||
-      !storage_next_total(storage->published_total, old_published,
-                          next_published, storage_max_total_source_bytes(),
-                          &next_published_total)) {
-    /* A geometric target can exceed the remaining aggregate budget while the
-     * exact provider requirement still fits.  Keep the hard bound without
-     * turning that valid request into a false capacity failure. */
-    next_staging = storage_maximum(old_staging, required_capacity);
-    next_revalidation = storage_maximum(old_revalidation, required_capacity);
-    next_published = storage_maximum(old_published, required_capacity);
-    if (!storage_next_total(storage->staging_total, old_staging,
-                            next_staging, storage_max_total_source_bytes(),
-                            &next_staging_total) ||
-        !storage_next_total(storage->revalidation_total, old_revalidation,
-                            next_revalidation,
-                            storage_max_total_source_bytes(),
-                            &next_revalidation_total) ||
-        !storage_next_total(storage->published_total, old_published,
-                            next_published, storage_max_total_source_bytes(),
-                            &next_published_total)) {
-      return W_SEED_CHECK_STORAGE_CAPACITY;
-    }
-  }
-
-  storage_replacement staging = {NULL, false};
-  storage_replacement revalidation = {NULL, false};
-  storage_replacement published = {NULL, false};
-  if (!storage_prepare_replacement(storage->staging_bytes[request_index],
-                                   old_staging, next_staging,
-                                   storage->allocate, &staging) ||
-      !storage_prepare_replacement(
-          storage->revalidation_bytes[request_index], old_revalidation,
-          next_revalidation, storage->allocate, &revalidation) ||
-      !storage_prepare_replacement(storage->published_bytes[request_index],
-                                   old_published, next_published,
-                                   storage->allocate, &published)) {
-    storage_discard_replacement(&staging, storage->deallocate);
-    storage_discard_replacement(&revalidation, storage->deallocate);
-    storage_discard_replacement(&published, storage->deallocate);
-    return W_SEED_CHECK_STORAGE_ALLOCATION;
-  }
-
-  if (staging.allocated && storage->staging_bytes[request_index] != NULL) {
-    storage->deallocate(storage->staging_bytes[request_index]);
-  }
-  if (revalidation.allocated &&
-      storage->revalidation_bytes[request_index] != NULL) {
-    storage->deallocate(storage->revalidation_bytes[request_index]);
-  }
-  if (published.allocated && storage->published_bytes[request_index] != NULL) {
-    storage->deallocate(storage->published_bytes[request_index]);
-  }
-  storage->staging_bytes[request_index] =
-      (uint8_t *)staging.pointer;
-  storage->revalidation_bytes[request_index] =
-      (uint8_t *)revalidation.pointer;
-  storage->published_bytes[request_index] =
-      (uint8_t *)published.pointer;
-  storage->staging_capacity[request_index] = next_staging;
-  storage->revalidation_capacity[request_index] = next_revalidation;
-  storage->published_capacity[request_index] = next_published;
-  storage->staging_total = next_staging_total;
-  storage->revalidation_total = next_revalidation_total;
-  storage->published_total = next_published_total;
-  return W_SEED_CHECK_STORAGE_OK;
+  if (!check_storage_valid(storage)) return W_SEED_CHECK_STORAGE_INVALID;
+  return map_acquisition_status(w_seed_acquisition_storage_grow_source(
+      &storage->acquisition, request_index, required_capacity));
 }
 
 w_seed_check_storage_status w_seed_check_storage_grow_nodes(
     w_seed_check_storage *storage, size_t request_index,
     size_t required_capacity) {
-  if (!storage_index_valid(request_index) ||
-      !storage_matches_totals(storage)) {
-    return W_SEED_CHECK_STORAGE_INVALID;
-  }
-  if (required_capacity > storage_max_nodes()) {
-    return W_SEED_CHECK_STORAGE_CAPACITY;
-  }
-
-  const size_t old_capacity = storage->node_capacity[request_index];
-  size_t rounded_capacity = 0u;
-  if (!storage_round_capacity(old_capacity, required_capacity,
-                              storage_max_nodes(), &rounded_capacity)) {
-    return W_SEED_CHECK_STORAGE_CAPACITY;
-  }
-  const size_t next_capacity =
-      storage_maximum(old_capacity, rounded_capacity);
-  size_t next_total = 0u;
-  if (!storage_next_total(storage->node_total, old_capacity, next_capacity,
-                          storage_max_total_nodes(), &next_total)) {
-    return W_SEED_CHECK_STORAGE_CAPACITY;
-  }
-
-  size_t old_bytes = 0u;
-  size_t next_bytes = 0u;
-  if (!storage_node_bytes(old_capacity, &old_bytes) ||
-      !storage_node_bytes(next_capacity, &next_bytes)) {
-    return W_SEED_CHECK_STORAGE_CAPACITY;
-  }
-  storage_replacement replacement = {NULL, false};
-  if (!storage_prepare_replacement(storage->nodes[request_index], old_bytes,
-                                   next_bytes, storage->allocate,
-                                   &replacement)) {
-    storage_discard_replacement(&replacement, storage->deallocate);
-    return W_SEED_CHECK_STORAGE_ALLOCATION;
-  }
-  if (replacement.allocated && storage->nodes[request_index] != NULL) {
-    storage->deallocate(storage->nodes[request_index]);
-  }
-  storage->nodes[request_index] = (w_seed_cst_node *)replacement.pointer;
-  storage->node_capacity[request_index] = next_capacity;
-  storage->node_total = next_total;
-  return W_SEED_CHECK_STORAGE_OK;
+  if (!check_storage_valid(storage)) return W_SEED_CHECK_STORAGE_INVALID;
+  return map_acquisition_status(w_seed_acquisition_storage_grow_nodes(
+      &storage->acquisition, request_index, required_capacity));
 }
 
 w_seed_check_storage_status w_seed_check_storage_grow_json(
     w_seed_check_storage *storage, size_t required_capacity) {
-  if (!storage_matches_totals(storage))
-    return W_SEED_CHECK_STORAGE_INVALID;
-  if (required_capacity > storage_max_json_bytes())
+  if (!check_storage_valid(storage)) return W_SEED_CHECK_STORAGE_INVALID;
+  if (required_capacity > (size_t)W_SEED_CHECK_STORAGE_MAX_JSON_BYTES)
     return W_SEED_CHECK_STORAGE_CAPACITY;
-
   const size_t old_capacity = storage->json_staging_capacity;
-  if (storage->json_final_capacity != old_capacity)
-    return W_SEED_CHECK_STORAGE_INVALID;
   size_t next_capacity = 0u;
-  if (!storage_round_capacity(old_capacity, required_capacity,
-                             storage_max_json_bytes(), &next_capacity))
+  if (!round_capacity(old_capacity, required_capacity,
+                      (size_t)W_SEED_CHECK_STORAGE_MAX_JSON_BYTES,
+                      &next_capacity))
     return W_SEED_CHECK_STORAGE_CAPACITY;
   if (next_capacity == old_capacity) return W_SEED_CHECK_STORAGE_OK;
 
-  storage_replacement staging = {NULL, false};
-  storage_replacement final = {NULL, false};
-  if (!storage_prepare_replacement(storage->json_staging, old_capacity,
-                                   next_capacity, storage->allocate,
-                                   &staging) ||
-      !storage_prepare_replacement(storage->json_final, old_capacity,
-                                   next_capacity, storage->allocate, &final)) {
-    storage_discard_replacement(&staging, storage->deallocate);
-    storage_discard_replacement(&final, storage->deallocate);
+  check_replacement staging = {NULL, 0u, false, false};
+  check_replacement final = {NULL, 0u, false, false};
+  if (!prepare_replacement(storage->json_staging, old_capacity, next_capacity,
+                           storage->acquisition.allocate, &staging) ||
+      !validate_replacement(storage, &staging, NULL) ||
+      !prepare_replacement(storage->json_final, old_capacity, next_capacity,
+                           storage->acquisition.allocate, &final) ||
+      !validate_replacement(storage, &final, &staging)) {
+    discard_replacement(&staging, storage->acquisition.deallocate);
+    discard_replacement(&final, storage->acquisition.deallocate);
     return W_SEED_CHECK_STORAGE_ALLOCATION;
   }
+  if (staging.allocated && old_capacity != 0u)
+    (void)memcpy(staging.pointer, storage->json_staging, old_capacity);
+  if (final.allocated && old_capacity != 0u)
+    (void)memcpy(final.pointer, storage->json_final, old_capacity);
   if (staging.allocated && storage->json_staging != NULL)
-    storage->deallocate(storage->json_staging);
+    storage->acquisition.deallocate(storage->json_staging);
   if (final.allocated && storage->json_final != NULL)
-    storage->deallocate(storage->json_final);
+    storage->acquisition.deallocate(storage->json_final);
   storage->json_staging = (uint8_t *)staging.pointer;
   storage->json_final = (uint8_t *)final.pointer;
   storage->json_staging_capacity = next_capacity;
@@ -395,56 +298,27 @@ w_seed_check_storage_status w_seed_check_storage_grow_json(
 bool w_seed_check_storage_bind_request(
     const w_seed_check_storage *storage, size_t request_index,
     w_seed_ephemeral_provider_request *request) {
-  if (request == NULL || !storage_index_valid(request_index) ||
-      !storage_matches_totals(storage)) {
-    return false;
-  }
-  request->staging_bytes = storage->staging_bytes[request_index];
-  request->staging_capacity = storage->staging_capacity[request_index];
-  request->revalidation_bytes = storage->revalidation_bytes[request_index];
-  request->revalidation_capacity =
-      storage->revalidation_capacity[request_index];
-  request->bytes = storage->published_bytes[request_index];
-  request->byte_capacity = storage->published_capacity[request_index];
-  return true;
+  return check_storage_valid(storage) &&
+         w_seed_acquisition_storage_bind_request(
+             &storage->acquisition, request_index, request);
 }
 
 bool w_seed_check_storage_bind_slot(const w_seed_check_storage *storage,
                                     size_t request_index,
                                     w_seed_ephemeral_driver_slot *slot) {
-  if (slot == NULL || !storage_index_valid(request_index) ||
-      !storage_matches_totals(storage)) {
-    return false;
-  }
-  slot->nodes = storage->nodes[request_index];
-  slot->node_capacity = storage->node_capacity[request_index];
-  return true;
+  return check_storage_valid(storage) &&
+         w_seed_acquisition_storage_bind_slot(
+             &storage->acquisition, request_index, slot);
 }
 
 void w_seed_check_storage_destroy(w_seed_check_storage *storage) {
   if (storage == NULL) return;
-  for (size_t index = 0u;
-       index < (size_t)W_SEED_CHECK_STORAGE_MAX_SOURCES; index += 1u) {
-    if (storage->deallocate != NULL) {
-      if (storage->staging_bytes[index] != NULL) {
-        storage->deallocate(storage->staging_bytes[index]);
-      }
-      if (storage->revalidation_bytes[index] != NULL) {
-        storage->deallocate(storage->revalidation_bytes[index]);
-      }
-      if (storage->published_bytes[index] != NULL) {
-        storage->deallocate(storage->published_bytes[index]);
-      }
-      if (storage->nodes[index] != NULL) {
-        storage->deallocate(storage->nodes[index]);
-      }
-    }
-  }
-  if (storage->deallocate != NULL) {
-    if (storage->json_staging != NULL)
-      storage->deallocate(storage->json_staging);
-    if (storage->json_final != NULL)
-      storage->deallocate(storage->json_final);
-  }
+  if (object_is_zero(storage, sizeof(*storage))) return;
+  if (!check_storage_valid(storage)) return;
+  if (storage->json_staging != NULL)
+    storage->acquisition.deallocate(storage->json_staging);
+  if (storage->json_final != NULL)
+    storage->acquisition.deallocate(storage->json_final);
+  w_seed_acquisition_storage_destroy(&storage->acquisition);
   (void)memset(storage, 0, sizeof(*storage));
 }

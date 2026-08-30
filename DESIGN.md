@@ -31573,8 +31573,9 @@ ou recipe. Os limits pertencem ao profile ou provider. O oracle usa somente
 defaults de fixture não normativos de 64 sources, 4096 edges, depth 64 e 16
 MiB de source bytes, e prova bounds finitos para cada dimensão.
 
-A evidência executável desta fronteira agora tem sete cortes. CHK3 prova a
-fronteira caller-owned de origins e edges resolvidos. CHK4 prova o builder
+A evidência executável desta fronteira tem sete cortes, CHK3–CHK9, além de
+ACQ0 standalone. CHK3 prova a fronteira caller-owned de origins e edges
+resolvidos. CHK4 prova o builder
 caller-owned do graph, sem abrir filesystem. CHK5 prova o core bounded de
 aquisição/revalidação para a root física e os `SourceId` explicitamente
 solicitados, além do adapter Linux real ancorado em `openat2` quando essa
@@ -31586,6 +31587,14 @@ chama o frontend nem abre a CLI pública `w check` multi-file. O core e o
 driver publicam somente após seus preflights bounded; bytes, CST/facts da
 última wave estável e graph permanecem coerentes, e outputs publicados ficam
 inalterados em falha.
+
+**W-1496 — aquisição ACQ0 interna e reutilizável (Forma vigente):** ACQ0 é
+uma camada C11 standalone, bounded e caller-owned ao redor de CHK6. Ela não
+chama frontend ou D0, não seleciona política de filesystem ou contexto de
+projeto e não publica uma CLI. Um caller futuro pode executar ACQ0 diretamente.
+O `w check` público continua na composição CHK7 e no retry externo de CHK9. O
+contrato executável de storage, retry, pipeline, lifetime e contexto está em
+[§24.3.6](#2436-acq0-aquisição-interna-reutilizável).
 
 CHK7 acrescenta a composição interna caller-owned CHK6 → frontend seed → D0.
 A composição preflighta todos os diagnostics e usa `SourceId` lógico e spans
@@ -32405,6 +32414,71 @@ CHK9 não fecha owner detection, resolução externa, package/workspace, provide
 `std`, NFC completo, identifiers Unicode no SourceId bootstrap,
 reexport/service-import no CST seed, diagnostics além de `W-SEM-0001`, frontend
 normativo, compiler, backend ou runtime.
+
+### 24.3.6 ACQ0 — aquisição interna reutilizável
+
+**Exemplo:** um caller fornece uma root e todos os backings de CHK6. ACQ0
+repete a aquisição completa quando bytes ou CST precisam crescer e publica o
+output somente quando uma tentativa termina com sucesso.
+
+ACQ0 é uma camada C11 standalone, bounded e caller-owned ao redor de CHK6. Ela
+não chama frontend ou D0, não seleciona policy de filesystem ou contexto de
+projeto e não publica CLI. Um caller futuro pode executar ACQ0 diretamente.
+
+`w_seed_acquisition_storage` é a autoridade única para as arenas adaptativas
+de bytes de staging, revalidação e publicação e para os nodes CST. O objeto
+owning não pode ser copiado. A inicialização exige um objeto zero e rejeita um
+objeto vivo sem alterá-lo. O allocator deve ter a semântica de `malloc`: cada
+allocation não vazia é alinhada e distinta de todas as allocations vivas. O
+growth é monotônico, bounded e transacional. `destroy` é idempotente para um
+objeto zero ou destruído e não libera um objeto vivo forjado.
+
+Storage, scratch e output permanecem caller-owned. A função shared de bind
+valida os ranges de storage, arenas, slots, requests e buffers preservados
+antes de alterar qualquer record. A autoridade shared de retry aceita somente
+um envelope CHK6 completo. Ela cresce apenas as três classes de bytes do
+provider e os nodes do parser. Capacities fixas do driver ou do graph terminam
+sem retry. Envelope impossível, falta de progresso, limite e allocation têm
+status, action, detail e reason próprios.
+
+`w_seed_acquisition_pipeline_run` executa o loop bounded
+`bind → CHK6 → retry`. Antes da primeira chamada e de cada tentativa, ele
+valida alinhamento, overflow, capacities e ranges disjuntos de input, result,
+storage, scratch, slots, requests, graph, output, buffers aninhados e contexto
+mutável declarado pelo backend. O par
+`backend.context`/`backend_context_size` deve ser canônico. Um callback confiável
+pode escrever somente seus out-parameters e os bytes desse contexto declarado;
+ACQ0 não cria uma sandbox para código C malicioso. Storage e todos os backings
+exigem acesso exclusivo durante a chamada. Reentrância, concorrência, growth,
+destroy e mutation de backing durante a execução são proibidos.
+
+O pipeline usa um result local. Em toda saída diferente de `OK`, o descriptor
+de output do driver, suas cinco arrays publicadas e seus counts permanecem
+bitwise inalterados; storage, scratch e descriptors rebinding podem mudar. Essa
+é atomicidade somente do output publicado, não uma transação do backend ou do
+filesystem. O result terminal publica o número real de chamadas ao driver, o
+último result do driver e a última decisão de retry. `OK` publica
+`document_count` e os ranges escritos do graph.
+
+Views dependem dos buffers de source e module ID, tokens, slots, requests,
+scratch do parser, graph scratch, graph output, output de documentos, contexto
+e storage. Uma nova execução, growth bem-sucedido, reuse, destroy ou mutation
+de backing invalida as views anteriores. Growth que falha ou não faz trabalho
+preserva as views.
+
+CHK9 compõe esse storage com as arenas JSON. O bind do driver e a lane
+`DRIVER` de retry usam as autoridades ACQ0, mas o retry externo continua a
+repetir CHK7 completo e preserva bytes, exits e renderers públicos. `w check`
+não passa a chamar o pipeline ACQ0. ACQ0 não transforma as waves CHK6 em um
+snapshot global do filesystem: somente a última wave estável alimenta bytes,
+CST, facts e graph. O corte não prova containment de OS, owner detection,
+package/workspace, provider `std`, resolver geral ou contexto público/geral de
+aquisição.
+
+O `benchmarkDisposition` é `compiler-lifecycle`. O gate liga somente o oracle
+de correção ao benchmark existente `bmd1-seed-check-lifecycle`, célula ready
+`clean × check-end-to-end`. Não há stage, timing ou result novo. `startup` e
+`execution` permanecem na track `product-runtime` e deferred.
 
 ### 24.4 Artefatos que ainda bloqueiam o design freeze
 
@@ -33372,7 +33446,8 @@ O callback permanece one-shot mesmo quando seu resultado informa falha.
 
 O target `w_seed_run0_gate` é um harness interno e test-only. Ele lê uma única
 fixture com limite inclusivo de 4096 bytes. O uso de `fopen` nesse harness não
-é evidência de aquisição segura de source. O fluxo funcional do gate é
+é evidência de aquisição pública ou geral de source nem seleção de contexto. O
+fluxo funcional do gate é
 `source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink`. Ele
 verifica HIR0 e o plano HLO0 nas fronteiras de consumo antes de chamar RUN0.
 
@@ -33387,9 +33462,10 @@ Uma falha de I/O da CLI usa exit `3`. Essa infraestrutura não altera o help ou
 o contrato público vigente de `w check`.
 
 W-1495 é source-backed-current somente para esta execução RUN0 bounded. A
-promoção não publica `w run`, aquisição segura de source, owner detection,
-workspace, import graph, backend, linker, runtime ou provider geral. Esses
-componentes e a execução de outros programas W continuam gaps.
+promoção não publica `w run`, aquisição pública ou geral de source, seleção de
+contexto ou owner, workspace, backend, linker, runtime ou provider geral. Esses
+componentes e a execução de outros programas W continuam gaps. ACQ0 de W-1496
+fecha somente a aquisição interna bounded no contexto efêmero já fornecido.
 
 O `benchmarkDisposition` é exatamente `compiler-lifecycle`. O oracle de
 correção corresponde somente à célula ready `clean × check-end-to-end` de
@@ -33423,6 +33499,39 @@ corte não publica timing nem result. O benchmark
   medição de language workload também fica separada da medição do lifecycle.
 
 Saída: payload determinístico para programas síncronos nos dois caminhos.
+
+#### 26.4.3 Aquisição ACQ0 interna e bounded
+
+**W-1496 — aquisição ACQ0 interna e reutilizável (Forma vigente):**
+`w_seed_acquisition_storage`, `w_seed_acquisition_retry_apply` e
+`w_seed_acquisition_pipeline_run` formam a fronteira caller-owned ao redor de
+CHK6. Storage mantém arenas adaptativas de source bytes e CST. Growth e bind
+são bounded e transacionais. Retry valida o envelope completo e cresce somente
+capacities de bytes do provider ou nodes do parser.
+
+O pipeline preflighta todos os ranges e o contexto mutável declarado antes de
+chamar CHK6. Cada tentativa reinicia a aquisição completa. Em falha, o output
+publicado permanece bitwise inalterado; em sucesso, os counts delimitam todos
+os ranges válidos. Os backings têm acesso exclusivo e suas views duram somente
+até growth, nova execução, reuse, destroy ou mutation. A última wave estável
+não é um snapshot global entre waves.
+
+| Evidência local | Prova bounded |
+|---|---|
+| [`test_pipeline_restaurant` em `test_acquisition.c`](compiler/seed-c/tests/test_acquisition.c) | Root e child Restaurant, growth e retry, counts, order, inventory, edge e resolução exatos. |
+| [`test_pipeline_barriers_and_fixed_output` em `test_acquisition.c`](compiler/seed-c/tests/test_acquisition.c) | Propagação de containment e revalidação fake e capacity fixa, com output publicado inalterado. Não prova policy de OS, owner/workspace, snapshot global, frontend/D0, CLI ou `w run`. |
+
+CHK9 reutiliza storage, bind e retry de ACQ0, mas continua a executar o retry
+externo de CHK7 para preservar frontend, D0, bytes, exits e renderers públicos.
+ACQ0 permanece standalone: ele não adiciona frontend, policy de filesystem,
+CLI, `w run`, owner detection, package/workspace, provider `std` ou resolver
+geral.
+
+O `benchmarkDisposition` é `compiler-lifecycle`. O gate de ACQ0 é somente um
+oracle de correção para o benchmark existente `bmd1-seed-check-lifecycle`,
+célula ready `clean × check-end-to-end`; ele não acrescenta stage, timing ou
+result. `startup` e `execution` permanecem na track `product-runtime` e
+deferred.
 
 ### 26.5 Fase 3 — memória, errors e C
 

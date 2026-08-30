@@ -9,30 +9,6 @@ static w_seed_check_retry_outcome retry_not_run(void) {
       "retry not run"};
 }
 
-static bool bind_attempt(const w_seed_check_pipeline_input *input) {
-  if (input == NULL || input->storage == NULL ||
-      input->driver_scratch == NULL || input->driver_scratch->slots == NULL ||
-      input->driver_scratch->requests == NULL ||
-      input->driver_scratch->slot_capacity >
-          (size_t)W_SEED_CHECK_STORAGE_MAX_SOURCES ||
-      input->driver_scratch->request_capacity >
-          (size_t)W_SEED_CHECK_STORAGE_MAX_SOURCES)
-    return false;
-  for (size_t index = 0u;
-       index < input->driver_scratch->slot_capacity; index += 1u) {
-    if (!w_seed_check_storage_bind_slot(input->storage, index,
-                                        &input->driver_scratch->slots[index]))
-      return false;
-  }
-  for (size_t index = 0u;
-       index < input->driver_scratch->request_capacity; index += 1u) {
-    if (!w_seed_check_storage_bind_request(
-            input->storage, index, &input->driver_scratch->requests[index]))
-      return false;
-  }
-  return true;
-}
-
 static w_seed_check_pipeline_status map_terminal_check_status(
     w_seed_ephemeral_check_status status) {
   switch (status) {
@@ -89,13 +65,14 @@ w_seed_check_pipeline_status w_seed_check_pipeline_run(
   if (input == NULL || input->driver_input == NULL ||
       input->driver_scratch == NULL || input->driver_output == NULL ||
       input->frontend_output == NULL || input->storage == NULL ||
-      !input->storage->initialized || input->instance == NULL ||
+      !input->storage->acquisition.initialized || input->instance == NULL ||
       input->instance_length == 0u)
     return W_SEED_CHECK_PIPELINE_INVALID;
 
   for (size_t attempt = 0u;
        attempt < W_SEED_CHECK_STORAGE_MAX_RETRIES; attempt += 1u) {
-    if (!bind_attempt(input)) {
+    if (!w_seed_acquisition_storage_bind_driver(
+            &input->storage->acquisition, input->driver_scratch)) {
       result->status = W_SEED_CHECK_PIPELINE_FAULT;
       return result->status;
     }

@@ -88,7 +88,7 @@
       ]
     },
     "root-compiler": {
-      "description": "Seed C compiler, verified HIR0/HLO0/HLO1, and w CLI gates.",
+      "description": "Seed C compiler, ACQ0 acquisition, verified HIR0/HLO0/HLO1, RUN0, and w CLI gates.",
       "steps": [
         { "package": "root", "script": "check:seed-source-reader" },
         { "package": "root", "script": "check:seed-test-exits" },
@@ -98,6 +98,7 @@
         { "package": "root", "script": "check:seed-ephemeral-graph" },
         { "package": "root", "script": "check:seed-ephemeral-provider" },
         { "package": "root", "script": "check:seed-ephemeral-driver" },
+        { "package": "root", "script": "check:acquisition" },
         { "package": "root", "script": "check:seed-formatter" },
         { "package": "root", "script": "check:seed-diagnostic" },
         { "package": "root", "script": "check:seed-check-driver" },

@@ -16,11 +16,11 @@
   },
   "snapshot": {
     "path": "tooling/r1c0-closure-results.snapshot.jsonl",
-    "digest": "sha256:b5ff29bfe2f39211713de15536835643983304b614e28ef584d5eea93ea69de4"
+    "digest": "sha256:0fe9d5b5821e977fec911c66acba40faf284225e24f246c218071d62e7e75350"
   },
   "study": {
     "path": "tooling/studies/r1c0-closure/study.json",
-    "digest": "sha256:5479d3334984884cee2536f9efd0ebe7a709a776b0c9810b538ac21e94577872"
+    "digest": "sha256:b2125e9c8b3f35bb408b7100876c0ea7a4e3b5ab63d985faf49429a968150d90"
   },
   "wlo1": {
     "manifest": {

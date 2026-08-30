@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:dbe38a0bf41eeb88308a9022d1981965b09f155bcfddba5beeab1c315ea5eb3e",
+  "corpusDigest": "sha256:3cc721cabee7c472b5a41db6340f38c9132c2b2033b7139dfe1a8c38bd6c2f1e",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3360,6 +3360,78 @@
             "nonWhitespaceCodePoints": 34,
             "lines": 1,
             "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-acq0-standalone-acquisition",
+      "task": {
+        "utf8Bytes": 152,
+        "codePoints": 152,
+        "nonWhitespaceCodePoints": 131,
+        "lines": 1,
+        "surfaceLexemes": 26
+      },
+      "selected": {
+        "name": "selected",
+        "language": "c",
+        "sourceDigest": "sha256:371bb4c2a7d879ea485ce7c266807a4c71851f1e3401a3a097bea6a4ad1e01f4",
+        "metrics": {
+          "utf8Bytes": 272,
+          "codePoints": 272,
+          "nonWhitespaceCodePoints": 248,
+          "lines": 2,
+          "surfaceLexemes": 49
+        }
+      },
+      "alternatives": [
+        {
+          "name": "caller-local-growth-loop",
+          "language": "c-rejected",
+          "sourceDigest": "sha256:6334b5b344c8cfeb5f01cea42fbc853b79c90aefd52766c0cf1613c23c463a3e",
+          "metrics": {
+            "utf8Bytes": 139,
+            "codePoints": 139,
+            "nonWhitespaceCodePoints": 134,
+            "lines": 1,
+            "surfaceLexemes": 25
+          }
+        },
+        {
+          "name": "chk7-coupled-acquisition",
+          "language": "c-rejected",
+          "sourceDigest": "sha256:af29181102ef58039df4b6ee546640654117324dff58183c5428b8f556a26505",
+          "metrics": {
+            "utf8Bytes": 56,
+            "codePoints": 56,
+            "nonWhitespaceCodePoints": 55,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "global-acquisition-storage",
+          "language": "c-rejected",
+          "sourceDigest": "sha256:c828e71954ebcfe1bab4a5fbbb972dd762bfc4f56b55053e0de00c6034f69eaf",
+          "metrics": {
+            "utf8Bytes": 107,
+            "codePoints": 107,
+            "nonWhitespaceCodePoints": 102,
+            "lines": 1,
+            "surfaceLexemes": 20
+          }
+        },
+        {
+          "name": "cross-wave-snapshot-assumption",
+          "language": "c-rejected",
+          "sourceDigest": "sha256:11c7ee5678f0251f8196becd7e4e05b8aa659d228cc8d89cec62d847c1e4d7a1",
+          "metrics": {
+            "utf8Bytes": 48,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 48,
+            "lines": 1,
+            "surfaceLexemes": 4
           }
         }
       ]

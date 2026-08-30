@@ -515,15 +515,15 @@ static bool test_root_child_clean_retries(void) {
       "module child;\nexport fn value(): i64 { return 42 }\n";
   pipeline_fixture fixture;
   fake_backend backend;
-  w_seed_check_storage storage;
+  w_seed_check_storage storage = {0};
   w_seed_check_pipeline_result result;
   CHECK(run_pipeline_case(root, child, W_SEED_CHECK_PIPELINE_CLEAN, &result,
                           &storage, &fixture, &backend));
   CHECK(result.attempts >= 4u);
   CHECK(result.json_length == 0u);
-  CHECK(storage.staging_capacity[0u] != 0u &&
-        storage.staging_capacity[1u] != 0u);
-  CHECK(storage.node_capacity[0u] != 0u && storage.node_capacity[1u] != 0u);
+  CHECK(storage.acquisition.staging_capacity[0u] != 0u &&
+        storage.acquisition.staging_capacity[1u] != 0u);
+  CHECK(storage.acquisition.node_capacity[0u] != 0u && storage.acquisition.node_capacity[1u] != 0u);
   CHECK(storage.json_staging_capacity == 0u &&
         storage.json_final_capacity == 0u);
   w_seed_check_storage_destroy(&storage);
@@ -541,8 +541,8 @@ static bool test_child_diagnostic_is_deterministic(void) {
   pipeline_fixture second_fixture;
   fake_backend first_backend;
   fake_backend second_backend;
-  w_seed_check_storage first_storage;
-  w_seed_check_storage second_storage;
+  w_seed_check_storage first_storage = {0};
+  w_seed_check_storage second_storage = {0};
   w_seed_check_pipeline_result first_result;
   w_seed_check_pipeline_result second_result;
   CHECK(run_pipeline_case(root, child, W_SEED_CHECK_PIPELINE_DIAGNOSTICS,
@@ -554,10 +554,10 @@ static bool test_child_diagnostic_is_deterministic(void) {
   CHECK(first_result.json_length != 0u &&
         first_result.json_length == second_result.json_length);
   CHECK(first_result.attempts >= 4u && second_result.attempts >= 4u);
-  CHECK(first_storage.staging_capacity[0u] != 0u &&
-        first_storage.staging_capacity[1u] != 0u);
-  CHECK(first_storage.node_capacity[0u] != 0u &&
-        first_storage.node_capacity[1u] != 0u);
+  CHECK(first_storage.acquisition.staging_capacity[0u] != 0u &&
+        first_storage.acquisition.staging_capacity[1u] != 0u);
+  CHECK(first_storage.acquisition.node_capacity[0u] != 0u &&
+        first_storage.acquisition.node_capacity[1u] != 0u);
   CHECK(memcmp(first_storage.json_final, second_storage.json_final,
                first_result.json_length) == 0);
   CHECK(bytes_contain(first_storage.json_final, first_result.json_length,
@@ -572,7 +572,7 @@ static bool test_child_diagnostic_is_deterministic(void) {
 static bool test_failures_do_not_publish_json(void) {
   pipeline_fixture fixture;
   fake_backend backend;
-  w_seed_check_storage storage;
+  w_seed_check_storage storage = {0};
   w_seed_check_pipeline_result result;
   static const char cycle_child[] = "module child;\nimport root;\n";
   CHECK(run_pipeline_case("module app;\nimport missing;\n", NULL,
@@ -599,7 +599,7 @@ static bool test_failures_do_not_publish_json(void) {
 static bool test_backend_unsupported_and_frontend_capacity(void) {
   pipeline_fixture fixture;
   fake_backend backend = {0};
-  w_seed_check_storage storage;
+  w_seed_check_storage storage = {0};
   w_seed_check_pipeline_result result;
   backend.root_text = "module app;\n";
   backend.unsupported_root = true;
@@ -643,7 +643,7 @@ static void probe_deallocate(void *pointer) { free(pointer); }
 static bool test_allocator_fault_and_input_fault(void) {
   pipeline_fixture fixture;
   fake_backend backend = {0};
-  w_seed_check_storage storage;
+  w_seed_check_storage storage = {0};
   w_seed_check_pipeline_result result;
   backend.root_text = "module app;\n";
   initialize_fixture(&fixture, &backend);
@@ -670,12 +670,393 @@ static bool test_allocator_fault_and_input_fault(void) {
   return true;
 }
 
+static bool test_real_driver_acquisition_envelopes(void) {
+  static const char root_only[] = "module app;\n";
+  const w_seed_ephemeral_provider_capacity_field fields[3] = {
+      W_SEED_EPHEMERAL_PROVIDER_CAPACITY_FIELD_STAGING_BYTES,
+      W_SEED_EPHEMERAL_PROVIDER_CAPACITY_FIELD_REVALIDATION_BYTES,
+      W_SEED_EPHEMERAL_PROVIDER_CAPACITY_FIELD_OUTPUT_BYTES};
+  for (size_t field_index = 0u; field_index < 3u; field_index += 1u) {
+    pipeline_fixture fixture;
+    fake_backend backend = {0};
+    uint8_t staging[256] = {0};
+    uint8_t revalidation[256] = {0};
+    uint8_t published[256] = {0};
+    backend.root_text = root_only;
+    initialize_fixture(&fixture, &backend);
+    if (field_index != 0u) {
+      fixture.requests[0u].staging_bytes = staging;
+      fixture.requests[0u].staging_capacity = sizeof(staging);
+    }
+    if (field_index == 2u) {
+      fixture.requests[0u].revalidation_bytes = revalidation;
+      fixture.requests[0u].revalidation_capacity = sizeof(revalidation);
+    }
+    if (field_index != 2u) {
+      fixture.requests[0u].bytes = published;
+      fixture.requests[0u].byte_capacity = sizeof(published);
+    }
+    w_seed_ephemeral_driver_result driver_result;
+    const w_seed_ephemeral_driver_status driver_status =
+        w_seed_ephemeral_driver_run(
+            &fixture.driver_input, &fixture.driver_scratch,
+            &fixture.driver_output, &driver_result);
+    CHECK(driver_status == W_SEED_EPHEMERAL_DRIVER_CAPACITY &&
+          driver_result.failure == W_SEED_EPHEMERAL_DRIVER_FAILURE_PROVIDER &&
+          driver_result.provider_result.capacity_field == fields[field_index]);
+    w_seed_acquisition_storage storage = {0};
+    CHECK(w_seed_acquisition_storage_init(&storage));
+    w_seed_ephemeral_driver_result forged = driver_result;
+    forged.graph_status = W_SEED_EPHEMERAL_GRAPH_OK;
+    CHECK(w_seed_acquisition_retry_apply(&storage, driver_status, &forged)
+              .status == W_SEED_ACQUISITION_RETRY_INVALID);
+    const w_seed_acquisition_retry_outcome outcome =
+        w_seed_acquisition_retry_apply(&storage, driver_status,
+                                       &driver_result);
+    CHECK(outcome.status == W_SEED_ACQUISITION_RETRY_OK &&
+          outcome.action == W_SEED_ACQUISITION_RETRY_RETRY);
+    w_seed_acquisition_storage_destroy(&storage);
+  }
+
+  {
+    pipeline_fixture limit_fixture;
+    fake_backend limit_backend = {0};
+    uint8_t limit_staging[256] = {0};
+    uint8_t limit_revalidation[256] = {0};
+    uint8_t limit_published[256] = {0};
+    limit_backend.root_text = root_only;
+    initialize_fixture(&limit_fixture, &limit_backend);
+    limit_fixture.driver_input.provider_limits.max_source_bytes = 1u;
+    limit_fixture.requests[0u].staging_bytes = limit_staging;
+    limit_fixture.requests[0u].staging_capacity = sizeof(limit_staging);
+    limit_fixture.requests[0u].revalidation_bytes = limit_revalidation;
+    limit_fixture.requests[0u].revalidation_capacity =
+        sizeof(limit_revalidation);
+    limit_fixture.requests[0u].bytes = limit_published;
+    limit_fixture.requests[0u].byte_capacity = sizeof(limit_published);
+    w_seed_ephemeral_driver_result limit_result;
+    const w_seed_ephemeral_driver_status limit_status =
+        w_seed_ephemeral_driver_run(
+            &limit_fixture.driver_input, &limit_fixture.driver_scratch,
+            &limit_fixture.driver_output, &limit_result);
+    CHECK(limit_status == W_SEED_EPHEMERAL_DRIVER_CAPACITY &&
+          limit_result.failure ==
+              W_SEED_EPHEMERAL_DRIVER_FAILURE_PROVIDER &&
+          limit_result.provider_result.capacity_field ==
+              W_SEED_EPHEMERAL_PROVIDER_CAPACITY_FIELD_STAGING_BYTES &&
+          limit_result.provider_result.backend_status ==
+              W_SEED_EPHEMERAL_PROVIDER_BACKEND_OK);
+    w_seed_acquisition_storage limit_storage = {0};
+    CHECK(w_seed_acquisition_storage_init(&limit_storage));
+    const w_seed_acquisition_retry_outcome limit_outcome =
+        w_seed_acquisition_retry_apply(&limit_storage, limit_status,
+                                       &limit_result);
+    CHECK(limit_outcome.status == W_SEED_ACQUISITION_RETRY_CAPACITY &&
+          limit_outcome.action == W_SEED_ACQUISITION_RETRY_TERMINAL &&
+          limit_outcome.detail ==
+              W_SEED_ACQUISITION_RETRY_DETAIL_NON_RESIZABLE &&
+          limit_storage.staging_capacity[0u] == 0u);
+    w_seed_acquisition_storage_destroy(&limit_storage);
+  }
+
+  pipeline_fixture fixture;
+  fake_backend backend = {0};
+  uint8_t staging[256] = {0};
+  uint8_t revalidation[256] = {0};
+  uint8_t published[256] = {0};
+  backend.root_text = root_only;
+  initialize_fixture(&fixture, &backend);
+  fixture.requests[0u].staging_bytes = staging;
+  fixture.requests[0u].staging_capacity = sizeof(staging);
+  fixture.requests[0u].revalidation_bytes = revalidation;
+  fixture.requests[0u].revalidation_capacity = sizeof(revalidation);
+  fixture.requests[0u].bytes = published;
+  fixture.requests[0u].byte_capacity = sizeof(published);
+  w_seed_ephemeral_driver_result node_result;
+  const w_seed_ephemeral_driver_status node_status =
+      w_seed_ephemeral_driver_run(&fixture.driver_input,
+                                  &fixture.driver_scratch,
+                                  &fixture.driver_output, &node_result);
+  CHECK(node_status == W_SEED_EPHEMERAL_DRIVER_CAPACITY &&
+        node_result.capacity_field ==
+            W_SEED_EPHEMERAL_DRIVER_CAPACITY_FIELD_PARSER_NODE);
+  w_seed_acquisition_storage storage = {0};
+  CHECK(w_seed_acquisition_storage_init(&storage));
+  w_seed_ephemeral_driver_result forged_node = node_result;
+  forged_node.parser_status = W_SEED_PARSE_COMPLETE;
+  CHECK(w_seed_acquisition_retry_apply(&storage, node_status, &forged_node)
+            .status == W_SEED_ACQUISITION_RETRY_INVALID);
+  CHECK(w_seed_acquisition_retry_apply(&storage, node_status, &node_result)
+            .action == W_SEED_ACQUISITION_RETRY_RETRY);
+  w_seed_acquisition_storage_destroy(&storage);
+
+  backend = (fake_backend){0};
+  backend.root_text = root_only;
+  initialize_fixture(&fixture, &backend);
+  fixture.graph_scratch.node_capacity = 0u;
+  storage = (w_seed_acquisition_storage){0};
+  CHECK(w_seed_acquisition_storage_init(&storage));
+  bool saw_zero_graph = false;
+  for (size_t attempt = 0u;
+       attempt < (size_t)W_SEED_ACQUISITION_MAX_ATTEMPTS; attempt += 1u) {
+    CHECK(w_seed_acquisition_storage_bind_driver(
+        &storage, &fixture.driver_scratch));
+    w_seed_ephemeral_driver_result zero_graph_result;
+    const w_seed_ephemeral_driver_status zero_graph_status =
+        w_seed_ephemeral_driver_run(
+            &fixture.driver_input, &fixture.driver_scratch,
+            &fixture.driver_output, &zero_graph_result);
+    CHECK(zero_graph_status == W_SEED_EPHEMERAL_DRIVER_CAPACITY);
+    const w_seed_acquisition_retry_outcome outcome =
+        w_seed_acquisition_retry_apply(&storage, zero_graph_status,
+                                       &zero_graph_result);
+    if (zero_graph_result.failure ==
+        W_SEED_EPHEMERAL_DRIVER_FAILURE_GRAPH) {
+      CHECK(zero_graph_result.required_capacity == 0u &&
+            zero_graph_result.graph_result.required.sources == 0u &&
+            outcome.status == W_SEED_ACQUISITION_RETRY_CAPACITY &&
+            outcome.detail ==
+                W_SEED_ACQUISITION_RETRY_DETAIL_NON_RESIZABLE);
+      w_seed_ephemeral_driver_result forged_zero = zero_graph_result;
+      forged_zero.graph_result.status = W_SEED_EPHEMERAL_GRAPH_OK;
+      CHECK(w_seed_acquisition_retry_apply(&storage, zero_graph_status,
+                                           &forged_zero)
+                .status == W_SEED_ACQUISITION_RETRY_INVALID);
+      forged_zero = zero_graph_result;
+      forged_zero.document_index = 0u;
+      CHECK(w_seed_acquisition_retry_apply(&storage, zero_graph_status,
+                                           &forged_zero)
+                .status == W_SEED_ACQUISITION_RETRY_INVALID);
+      saw_zero_graph = true;
+      break;
+    }
+    CHECK(outcome.status == W_SEED_ACQUISITION_RETRY_OK &&
+          outcome.action == W_SEED_ACQUISITION_RETRY_RETRY);
+  }
+  CHECK(saw_zero_graph);
+  w_seed_acquisition_storage_destroy(&storage);
+
+  static const char root[] =
+      "module app;\nimport { value } from child\n"
+      "fn use(): i64 { return value() }\n";
+  static const char child[] =
+      "module child;\nexport fn value(): i64 { return 42 }\n";
+  backend = (fake_backend){0};
+  backend.root_text = root;
+  backend.files[0] = (fake_file){"child.w", child};
+  backend.file_count = 1u;
+  initialize_fixture(&fixture, &backend);
+  fixture.driver_input.max_edges = 0u;
+  storage = (w_seed_acquisition_storage){0};
+  CHECK(w_seed_acquisition_storage_init(&storage));
+  bool saw_provider = false;
+  bool saw_node = false;
+  bool saw_graph = false;
+  for (size_t attempt = 0u;
+       attempt < (size_t)W_SEED_ACQUISITION_MAX_ATTEMPTS; attempt += 1u) {
+    CHECK(w_seed_acquisition_storage_bind_driver(
+        &storage, &fixture.driver_scratch));
+    w_seed_ephemeral_driver_result result;
+    const w_seed_ephemeral_driver_status status =
+        w_seed_ephemeral_driver_run(&fixture.driver_input,
+                                    &fixture.driver_scratch,
+                                    &fixture.driver_output, &result);
+    CHECK(status == W_SEED_EPHEMERAL_DRIVER_CAPACITY);
+    if (result.failure == W_SEED_EPHEMERAL_DRIVER_FAILURE_PROVIDER)
+      saw_provider = true;
+    if (result.capacity_field ==
+        W_SEED_EPHEMERAL_DRIVER_CAPACITY_FIELD_PARSER_NODE)
+      saw_node = true;
+    const w_seed_acquisition_retry_outcome outcome =
+        w_seed_acquisition_retry_apply(&storage, status, &result);
+    if (result.failure == W_SEED_EPHEMERAL_DRIVER_FAILURE_GRAPH) {
+      CHECK(result.capacity_field ==
+                W_SEED_EPHEMERAL_DRIVER_CAPACITY_FIELD_NONE &&
+            result.required_capacity != 0u &&
+            outcome.status == W_SEED_ACQUISITION_RETRY_CAPACITY &&
+            outcome.action == W_SEED_ACQUISITION_RETRY_TERMINAL &&
+            outcome.detail ==
+                W_SEED_ACQUISITION_RETRY_DETAIL_NON_RESIZABLE);
+      w_seed_ephemeral_driver_result forged_graph = result;
+      forged_graph.graph_result.failure =
+          W_SEED_EPHEMERAL_GRAPH_FAILURE_NONE;
+      CHECK(w_seed_acquisition_retry_apply(&storage, status, &forged_graph)
+                .status == W_SEED_ACQUISITION_RETRY_INVALID);
+      saw_graph = true;
+      break;
+    }
+    CHECK(outcome.status == W_SEED_ACQUISITION_RETRY_OK &&
+          outcome.action == W_SEED_ACQUISITION_RETRY_RETRY);
+  }
+  CHECK(saw_provider && saw_node && saw_graph);
+  w_seed_acquisition_storage_destroy(&storage);
+
+  backend = (fake_backend){0};
+  backend.root_text = root;
+  backend.files[0] = (fake_file){"child.w", child};
+  backend.file_count = 1u;
+  initialize_fixture(&fixture, &backend);
+  fixture.driver_output.graph.edge_capacity = 0u;
+  storage = (w_seed_acquisition_storage){0};
+  CHECK(w_seed_acquisition_storage_init(&storage));
+  bool saw_fixed_graph = false;
+  for (size_t attempt = 0u;
+       attempt < (size_t)W_SEED_ACQUISITION_MAX_ATTEMPTS; attempt += 1u) {
+    CHECK(w_seed_acquisition_storage_bind_driver(
+        &storage, &fixture.driver_scratch));
+    w_seed_ephemeral_driver_result result;
+    const w_seed_ephemeral_driver_status status =
+        w_seed_ephemeral_driver_run(&fixture.driver_input,
+                                    &fixture.driver_scratch,
+                                    &fixture.driver_output, &result);
+    CHECK(status == W_SEED_EPHEMERAL_DRIVER_CAPACITY);
+    const w_seed_acquisition_retry_outcome outcome =
+        w_seed_acquisition_retry_apply(&storage, status, &result);
+    if (result.capacity_field ==
+        W_SEED_EPHEMERAL_DRIVER_CAPACITY_FIELD_GRAPH_EDGE) {
+      CHECK(result.failure == W_SEED_EPHEMERAL_DRIVER_FAILURE_STORAGE &&
+            result.required_capacity == result.graph_result.required.edges &&
+            result.required_capacity != 0u &&
+            outcome.status == W_SEED_ACQUISITION_RETRY_CAPACITY &&
+            outcome.detail ==
+                W_SEED_ACQUISITION_RETRY_DETAIL_NON_RESIZABLE);
+      w_seed_ephemeral_driver_result forged = result;
+      forged.required_capacity += 1u;
+      CHECK(w_seed_acquisition_retry_apply(&storage, status, &forged)
+                .status == W_SEED_ACQUISITION_RETRY_INVALID);
+      saw_fixed_graph = true;
+      break;
+    }
+    CHECK(outcome.status == W_SEED_ACQUISITION_RETRY_OK &&
+          outcome.action == W_SEED_ACQUISITION_RETRY_RETRY);
+  }
+  CHECK(saw_fixed_graph);
+  w_seed_acquisition_storage_destroy(&storage);
+  return true;
+}
+
+static bool test_real_fixed_storage_envelopes(void) {
+  static const char root_only[] = "module app;\n";
+  pipeline_fixture fixture;
+  fake_backend backend = {0};
+  backend.root_text = root_only;
+  initialize_fixture(&fixture, &backend);
+  fixture.slots[0u].source_id_capacity = 1u;
+  w_seed_ephemeral_driver_result result;
+  w_seed_ephemeral_driver_status status = w_seed_ephemeral_driver_run(
+      &fixture.driver_input, &fixture.driver_scratch, &fixture.driver_output,
+      &result);
+  CHECK(status == W_SEED_EPHEMERAL_DRIVER_CAPACITY &&
+        result.capacity_field ==
+            W_SEED_EPHEMERAL_DRIVER_CAPACITY_FIELD_SOURCE_ID &&
+        result.phase == W_SEED_EPHEMERAL_DRIVER_PHASE_VALIDATE);
+  w_seed_acquisition_storage storage = {0};
+  CHECK(w_seed_acquisition_storage_init(&storage));
+  CHECK(w_seed_acquisition_retry_apply(&storage, status, &result).status ==
+        W_SEED_ACQUISITION_RETRY_CAPACITY);
+  w_seed_ephemeral_driver_result forged = result;
+  forged.origin_index = 0u;
+  CHECK(w_seed_acquisition_retry_apply(&storage, status, &forged).status ==
+        W_SEED_ACQUISITION_RETRY_INVALID);
+  forged = result;
+  forged.span.end_byte = 1u;
+  CHECK(w_seed_acquisition_retry_apply(&storage, status, &forged).status ==
+        W_SEED_ACQUISITION_RETRY_INVALID);
+  w_seed_acquisition_storage_destroy(&storage);
+
+  backend = (fake_backend){0};
+  backend.root_text = root_only;
+  initialize_fixture(&fixture, &backend);
+  fixture.slots[0u].module_id_capacity = 1u;
+  storage = (w_seed_acquisition_storage){0};
+  CHECK(w_seed_acquisition_storage_init(&storage));
+  bool saw_module_id = false;
+  for (size_t attempt = 0u;
+       attempt < (size_t)W_SEED_ACQUISITION_MAX_ATTEMPTS; attempt += 1u) {
+    CHECK(w_seed_acquisition_storage_bind_driver(
+        &storage, &fixture.driver_scratch));
+    status = w_seed_ephemeral_driver_run(
+        &fixture.driver_input, &fixture.driver_scratch, &fixture.driver_output,
+        &result);
+    CHECK(status == W_SEED_EPHEMERAL_DRIVER_CAPACITY);
+    const w_seed_acquisition_retry_outcome outcome =
+        w_seed_acquisition_retry_apply(&storage, status, &result);
+    if (result.capacity_field ==
+        W_SEED_EPHEMERAL_DRIVER_CAPACITY_FIELD_MODULE_ID) {
+      CHECK(result.origin_index == SIZE_MAX &&
+            result.span.start_byte ==
+                result.scan_result.module_header_name_span.start_byte &&
+            result.span.end_byte ==
+                result.scan_result.module_header_name_span.end_byte &&
+            outcome.status == W_SEED_ACQUISITION_RETRY_CAPACITY);
+      forged = result;
+      forged.origin_index = 0u;
+      CHECK(w_seed_acquisition_retry_apply(&storage, status, &forged)
+                .status == W_SEED_ACQUISITION_RETRY_INVALID);
+      forged = result;
+      forged.span.end_byte += 1u;
+      CHECK(w_seed_acquisition_retry_apply(&storage, status, &forged)
+                .status == W_SEED_ACQUISITION_RETRY_INVALID);
+      saw_module_id = true;
+      break;
+    }
+    CHECK(outcome.action == W_SEED_ACQUISITION_RETRY_RETRY);
+  }
+  CHECK(saw_module_id);
+  w_seed_acquisition_storage_destroy(&storage);
+
+  static const char root_import[] = "module app;\nimport child;\n";
+  backend = (fake_backend){0};
+  backend.root_text = root_import;
+  backend.files[0] = (fake_file){"child.w", "module child;\n"};
+  backend.file_count = 1u;
+  initialize_fixture(&fixture, &backend);
+  fixture.driver_scratch.slot_capacity = 1u;
+  fixture.driver_scratch.request_capacity = 1u;
+  storage = (w_seed_acquisition_storage){0};
+  CHECK(w_seed_acquisition_storage_init(&storage));
+  bool saw_slot = false;
+  for (size_t attempt = 0u;
+       attempt < (size_t)W_SEED_ACQUISITION_MAX_ATTEMPTS; attempt += 1u) {
+    CHECK(w_seed_acquisition_storage_bind_driver(
+        &storage, &fixture.driver_scratch));
+    status = w_seed_ephemeral_driver_run(
+        &fixture.driver_input, &fixture.driver_scratch, &fixture.driver_output,
+        &result);
+    CHECK(status == W_SEED_EPHEMERAL_DRIVER_CAPACITY);
+    const w_seed_acquisition_retry_outcome outcome =
+        w_seed_acquisition_retry_apply(&storage, status, &result);
+    if (result.capacity_field ==
+        W_SEED_EPHEMERAL_DRIVER_CAPACITY_FIELD_SLOT) {
+      CHECK(result.origin_index < result.scan_result.written &&
+            result.span.start_byte < result.span.end_byte &&
+            outcome.status == W_SEED_ACQUISITION_RETRY_CAPACITY);
+      forged = result;
+      forged.origin_index = result.scan_result.written;
+      CHECK(w_seed_acquisition_retry_apply(&storage, status, &forged)
+                .status == W_SEED_ACQUISITION_RETRY_INVALID);
+      forged = result;
+      forged.span.end_byte = forged.span.start_byte;
+      CHECK(w_seed_acquisition_retry_apply(&storage, status, &forged)
+                .status == W_SEED_ACQUISITION_RETRY_INVALID);
+      saw_slot = true;
+      break;
+    }
+    CHECK(outcome.action == W_SEED_ACQUISITION_RETRY_RETRY);
+  }
+  CHECK(saw_slot);
+  w_seed_acquisition_storage_destroy(&storage);
+  return true;
+}
+
 int main(void) {
   if (!test_root_child_clean_retries() ||
       !test_child_diagnostic_is_deterministic() ||
       !test_failures_do_not_publish_json() ||
       !test_backend_unsupported_and_frontend_capacity() ||
-      !test_allocator_fault_and_input_fault())
+      !test_allocator_fault_and_input_fault() ||
+      !test_real_driver_acquisition_envelopes() ||
+      !test_real_fixed_storage_envelopes())
     return 1;
   (void)puts("w_seed_check_pipeline_tests: ok");
   return 0;

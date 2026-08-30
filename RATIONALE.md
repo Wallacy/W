@@ -169,6 +169,7 @@ O corpus compara, no mínimo:
 - emissão C11 source-backed a partir de plano HLO0 contra template de texto e witness Restaurant sem caminho source → plano.
 - HIR0 verificada e independente do lifetime do frontend contra acesso direto do HLO0 a records frontend e template C11.
 - execução RUN0 por plano HLO0 verificado e sink fiel contra stdout direto, template, plano forjado e bypass do pipeline.
+- aquisição ACQ0 caller-owned compartilhada contra storage/retry duplicados, acoplamento a CHK7, storage global e snapshot global presumido entre waves.
 
 ### 1.1 Cobertura de substituições
 
@@ -199,7 +200,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 78 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 79 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
@@ -275,7 +276,7 @@ flag cria estado mutável que pode divergir do control flow.
 contagens determinísticas antes de qualquer participante ou modelo vê-las.
 
 [`tooling/substitution-surface.snapshot.json`](tooling/substitution-surface.snapshot.json)
-mede as 202 formas derivadas do corpus pelo runner nesta revisão. O runner
+mede as 207 formas derivadas do corpus pelo runner nesta revisão. O runner
 junta as linhas com LF e sem newline final. A contagem vem do script e muda
 quando alternativas cross-language entram ou saem. Para a tarefa e para cada
 forma, ele registra:
@@ -7666,7 +7667,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1493 | emissão C11 source-backed de Hello World | HLO1 acrescenta `w_seed_hlo1_measure`/`w_seed_hlo1_emit` como API caller-owned sem heap. A API revalida o plano HLO0 completo e emite bytes C11 determinísticos, LF-terminados, começando pelo comentário de schema `/* w-seed-hlo1-1 */`, com array hexadecimal `unsigned char`, `<stdio.h>`, `fwrite` e `fflush`; `_WIN32` usa `_setmode(_fileno(stdout), _O_BINARY)` para preservar LF. O buffer de emissão é all-or-nothing, mas o efeito externo em stdout não é atômico. O plano isolado não prova source provenance. O gate integrado prova source → parser → frontend → HIR0 → HLO0 → HLO1 → C11 → stdout/stderr/exit e rejeita witnesses Restaurant sem substring bypass. `benchmarkDisposition` é deferred para `hlo3-hello-world-runtime-benchmark` e nenhum timing é publicado | HLO1 é `source-backed-current` para este subset bounded. A evidência está em `compiler/seed-c`, `tooling/check-hlo1.mjs` e `bun run check:hlo1`, com C11 build e execução real. CMake/Ninja/compiler ausentes geram SKIP explícito. Falha de toolchain presente gera FAIL. HIR geral, Console provider W geral, w-linker, runtime W, `w run` e language benchmark runner permanecem fora do escopo |
 | W-1494 | HIR0 verificada para o subset inicial | `w_seed_hir0` é uma representação intermediária fechada, bounded, caller-owned e sem heap para o subset inicial. Ela publica módulos e identidades, `Unit` e `String`, funções, qualifiers, parâmetros com labels HIR, blocks e ordem, valores constantes como byte slices copiados, `CALL` com identidade discriminada do callee host-prelude, argumentos tipados e ordinais, requirements nominais, terminators de retorno `Unit` e entry com target e slot. O lowering não reparseia source ou CST, copia nomes e bytes para storage HIR e o verifier recompõe semantic digest field-by-field, separado do provenance digest que inclui `module.source_sha256`, source identity, comprimento e spans dos records HIR; o receipt serializa counts, semantic_digest e provenance_digest. A HIR sobrevive ao lifetime do frontend, rejeita ranges, owners, types, ordinais, identities, requirements, truncamento, alias, overlap e digest inconsistentes, e HLO0 revalida essa HIR antes de selecionar Hello. A rota comprovada é source → parser → frontend → lower HIR0 → verify HIR0 → HLO0 → HLO1 → compilador C11 → execução; `benchmarkDisposition` permanece deferred e não há timing ou resultado | HIR0, HLO0 e HLO1 são source-backed somente para este subset bounded, com units e gates C11 reais. HIR geral, type checking normativo, lowering geral, backend nativo, linker, runtime, Console provider geral, `w run` e language benchmark runner continuam implementation-evidence gaps |
 
-| W-1495 | execução RUN0 interna bounded verified-HLO0 | RUN0 acrescenta `w_seed_run0_execute` como adapter interno, caller-owned e sem heap para o plano Hello verified-HLO0. `w_seed_hlo0_verify_plan` é a autoridade única consumida por HLO1 e RUN0 e exige fields, representação canônica, payload tail e digest exatos. O preflight rejeita plano inválido e overlap sem callback nem alteração do result. Depois do preflight, RUN0 faz uma chamada ao sink e publica attempted bytes, accepted bytes, flush status e call count fielmente. Bytes aceitos podem ter efeito externo e não possuem rollback. O gate test-only prova `source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink` com limite inclusivo de 4096 bytes, failures de short write/flush e repetição exata. O `benchmarkDisposition` é `compiler-lifecycle`, e o oracle de correção corresponde somente à célula ready `clean × check-end-to-end`. Nenhuma etapa RUN0 ou de execução se torna um estágio medido. `startup` e `execution` permanecem na track `product-runtime` e deferred. Não há timing nem result, e `hlo3-hello-world-runtime-benchmark` permanece deferred | RUN0 é source-backed-current somente para esse subset bounded. O caso `R0-run0-verified-hlo0-sink`, units e `check:run0` rejeitam stdout direto, template, plano forjado e bypass. O harness com `fopen` não prova aquisição segura de source. `w run`, owner detection, workspace, import graph, backend, linker, runtime, provider geral e execução de outros programas continuam gaps |
+| W-1495 | execução RUN0 interna bounded verified-HLO0 | RUN0 acrescenta `w_seed_run0_execute` como adapter interno, caller-owned e sem heap para o plano Hello verified-HLO0. `w_seed_hlo0_verify_plan` é a autoridade única consumida por HLO1 e RUN0 e exige fields, representação canônica, payload tail e digest exatos. O preflight rejeita plano inválido e overlap sem callback nem alteração do result. Depois do preflight, RUN0 faz uma chamada ao sink e publica attempted bytes, accepted bytes, flush status e call count fielmente. Bytes aceitos podem ter efeito externo e não possuem rollback. O gate test-only prova `source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink` com limite inclusivo de 4096 bytes, failures de short write/flush e repetição exata. O `benchmarkDisposition` é `compiler-lifecycle`, e o oracle de correção corresponde somente à célula ready `clean × check-end-to-end`. Nenhuma etapa RUN0 ou de execução se torna um estágio medido. `startup` e `execution` permanecem na track `product-runtime` e deferred. Não há timing nem result, e `hlo3-hello-world-runtime-benchmark` permanece deferred | RUN0 é source-backed-current somente para esse subset bounded. O caso `R0-run0-verified-hlo0-sink`, units e `check:run0` rejeitam stdout direto, template, plano forjado e bypass. O harness com `fopen` não prova aquisição pública ou geral de source nem seleção de contexto. `w run`, owner detection, workspace, backend, linker, runtime, provider geral e execução de outros programas continuam gaps; ACQ0 de W-1496 cobre somente aquisição interna bounded no contexto efêmero já fornecido |
+
+| W-1496 | aquisição ACQ0 interna e reutilizável | ACQ0 acrescenta `w_seed_acquisition_storage`, `w_seed_acquisition_retry_apply` e `w_seed_acquisition_pipeline_run` como fronteira C11 interna, bounded e caller-owned ao redor de CHK6. Storage possui as arenas adaptativas de staging, revalidação, publicação e CST; init exige objeto zero, growth é transacional e o owner não pode ser copiado. Bind valida todos os ranges antes de alterar records. Retry valida envelopes CHK6 completos e cresce somente bytes do provider ou nodes do parser. O pipeline preflighta todos os backings e o contexto mutável declarado, exige acesso exclusivo e executa tentativas completas bounded. Em falha, o output publicado permanece bitwise inalterado; em sucesso, counts delimitam documentos e graph. CHK9 compartilha storage, bind e a lane DRIVER de retry, mas `w check` continua no retry externo de CHK7 e preserva bytes, exits e renderers. A última wave estável não é um snapshot global. O `benchmarkDisposition` é `compiler-lifecycle`: somente o oracle de correção de `bmd1-seed-check-lifecycle` em `clean × check-end-to-end` está ready, sem stage, timing ou result; `startup` e `execution` continuam `product-runtime` deferred | source-backed-current somente para ACQ0 no contexto efêmero já fornecido. O caso `R0-acq0-standalone-acquisition`, os units C11 e `check:acquisition` cobrem lifecycle, rollback, envelopes, retries, ranges, contexto, Restaurant e regressões CHK9. ACQ0 não chama frontend/D0, não seleciona policy de filesystem e não publica CLI ou `w run`. Owner detection, package/workspace, provider `std`, resolver geral e contexto público/geral de aquisição continuam gaps |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
@@ -8327,11 +8330,63 @@ tenta burlar fields ou digest. Um bypass pula parser, frontend, HIR0 ou o
 verifier compartilhado. Units e o gate rejeitam as quatro rotas.
 
 A classificação source-backed-current cobre somente o subset bounded. O
-binário público continua sem `w run`. Aquisição segura de source, owner
-detection, workspace, import graph, backend, linker, runtime e provider geral
-permanecem gaps. O `benchmarkDisposition` é `compiler-lifecycle`. O oracle de
+binário público continua sem `w run`. Aquisição pública ou geral de source,
+seleção de contexto ou owner, workspace, backend, linker, runtime e provider
+geral permanecem gaps. ACQ0 de W-1496 cobre somente aquisição interna bounded
+no contexto efêmero já fornecido. O `benchmarkDisposition` é
+`compiler-lifecycle`. O oracle de
 correção corresponde somente à célula ready `clean × check-end-to-end` de
 W-1488. Nenhuma etapa RUN0 ou de execução se torna um estágio medido.
 `startup` e `execution` permanecem na track `product-runtime` e deferred.
 Nenhum timing ou result foi publicado.
 `hlo3-hello-world-runtime-benchmark` permanece deferred.
+
+#### W-1496 — aquisição ACQ0 interna e reutilizável
+
+W-1496 separa do `w check` a parte reutilizável de storage adaptativo, bind,
+retry e execução CHK6. A separação permite que um runner interno futuro chame
+ACQ0 diretamente sem puxar frontend, D0 ou os estados terminais de CHK7.
+
+Uma única autoridade de storage evita que a CLI e o caller futuro calculem
+capacities divergentes. O storage possui três arenas de bytes e uma arena de
+nodes por source. A composição CHK9 acrescenta somente JSON staging/final e
+usa o allocator do storage filho. Init, growth, rollback, owner tag e destroy
+fecham o lifecycle sem aceitar reinit vivo ou cópia do owner.
+
+Uma única autoridade de retry fecha o envelope produzido por CHK6. Capacities
+de provider bytes e parser nodes podem crescer. Capacities fixas do graph,
+limites agregados, envelope impossível e falta de progresso terminam com uma
+decisão explícita. A lane `DRIVER` de CHK9 delega para essa autoridade depois
+de validar o envelope externo de CHK7. As lanes frontend, D0 e JSON continuam
+no retry externo, que repete CHK7 completo.
+
+O pipeline standalone faz o preflight de todos os ranges antes de chamar o
+driver. O backend declara o tamanho de seu contexto mutável. O contrato confia
+que callbacks escrevem somente out-parameters e esse range; ele não tenta
+sandboxar callback C malicioso. Todos os backings exigem acesso exclusivo e
+não podem mudar durante a chamada.
+
+O output publicado é transacional. Falha preserva o descriptor, counts e as
+cinco arrays do driver; scratch, storage e descriptors vinculados podem mudar.
+O result terminal registra tentativas reais, último result do driver e última
+decisão de retry. Sucesso publica os ranges exatos. As views dependem de todos
+os backings e são invalidadas por growth bem-sucedido, nova execução, reuse,
+destroy ou mutation. Growth que falha ou não faz trabalho preserva as views.
+
+O caso `R0-acq0-standalone-acquisition` compara a fronteira shared com
+storage/retry duplicados, acoplamento a CHK7, storage global e a alegação falsa
+de snapshot global. Os units usam o backend injetável existente para root e
+child Restaurant, retries, mutation e containment. O gate compila os cinco
+targets focais, executa o CTest ancorado e exige duas saídas ACQ0 byte-idênticas.
+Ele não duplica as fixtures dos adapters de filesystem.
+
+A classificação é source-backed-current somente para ACQ0 bounded no contexto
+efêmero já fornecido. `w check` preserva bytes, exits e renderers, mas não passa
+a chamar o pipeline ACQ0. Owner detection, package/workspace, provider `std`,
+resolver geral, contexto público/geral de aquisição, CLI `w run` e snapshot
+global entre waves continuam gaps.
+
+O `benchmarkDisposition` é `compiler-lifecycle`. A evidência é somente o oracle
+de correção do benchmark existente `bmd1-seed-check-lifecycle`, célula ready
+`clean × check-end-to-end`. Nenhum stage, timing ou result foi acrescentado.
+`startup` e `execution` permanecem na track `product-runtime` e deferred.
