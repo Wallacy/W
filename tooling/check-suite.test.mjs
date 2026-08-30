@@ -65,13 +65,39 @@ describe("check-suite manifest", () => {
       "tree-check",
       "tree-docs",
     ]);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(108);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(110);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-docs" })).toHaveLength(79);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-studies" })).toHaveLength(33);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-quick" })).toHaveLength(21);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(21);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(106);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(22);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(108);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-docs" })).toHaveLength(76);
+
+    const isRun0 = (step) =>
+      step.package === "root" && step.script === "check:run0";
+    for (const suiteName of ["root-compiler", "tree-check", "root-check"]) {
+      const expanded = flattenCheckSuite({
+        suites: loaded.suites,
+        suiteName,
+      });
+      const run0Indices = expanded
+        .map((step, index) => isRun0(step) ? index : -1)
+        .filter((index) => index >= 0);
+      expect(run0Indices).toHaveLength(1);
+      const run0Index = run0Indices[0];
+      expect(expanded.slice(run0Index - 1, run0Index + 2)).toEqual([
+        { package: "root", script: "check:w-cli" },
+        { package: "root", script: "check:run0" },
+        { package: "root", script: "check:seed-foreign" },
+      ]);
+    }
+    expect(loaded.suites["root-compiler"].steps.filter(isRun0)).toHaveLength(1);
+    expect(loaded.suites["tree-check"].steps.filter(isRun0)).toHaveLength(0);
+    expect(loaded.suites["root-check"].steps.filter(isRun0)).toHaveLength(0);
+    expect(loaded.suites["tree-check"].steps.filter(
+      (step) => step.suite === "root-compiler")).toHaveLength(1);
+    expect(loaded.suites["root-check"].steps.filter(
+      (step) => step.suite === "tree-check")).toHaveLength(1);
   });
 
   test("rejects unknown scripts, packages, suite references, and mixed step forms", () => {

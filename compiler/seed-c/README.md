@@ -754,6 +754,59 @@ Este gate é correctness-only. Não publica timing ou resultado de performance;
 `hlo3-hello-world-runtime-benchmark` continua deferred até existir um runner W
 público/pinado com fases separáveis e reproduzíveis.
 
+## RUN0 execução interna bounded verified-HLO0
+
+`include/w_seed_run0.h` e `src/w_seed_run0.c` formam o adapter de execução
+interna RUN0. `w_seed_run0_execute` consome somente um plano HLO0 caller-owned
+do subset Hello. O adapter não aloca no heap e usa storage bounded na stack.
+Ele não é um runner W público ou geral.
+
+`w_seed_hlo0_verify_plan` é a autoridade compartilhada por HLO1 e RUN0. O
+verifier exige todos os fields e o digest do plano canônico. Cada text array
+tem um terminador NUL e zero tail. Os bytes não usados do payload também são
+zero. Planos forjados falham antes de qualquer callback.
+
+RUN0 valida pointers, plano e overlap entre plano e result no preflight. Uma
+falha de preflight preserva o result e não chama o sink. Depois do preflight,
+RUN0 stageia payload mais LF e chama o sink exatamente uma vez. O callback não
+pode reter o pointer dos bytes staged.
+
+O sink retorna `accepted_bytes` e `flush_status`. Depois do callback, o result
+publica attempted bytes, accepted bytes, flush status e uma chamada. `OK` exige
+aceitação completa e flush `SUCCEEDED`. Short write, rejeição, flush failed e
+reports inválidos retornam `IO`. Bytes aceitos podem ter efeito externo, e
+RUN0 não promete rollback desse efeito.
+
+`tests/run0_gate.c` é um harness test-only. Ele lê uma fixture por `fopen` com
+limite inclusivo de 4096 bytes. Esse path não prova aquisição segura de source.
+O fluxo funcional do gate é
+`source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink`. Erros do
+source ou features fora do subset usam exit `2`. Falhas internas, do verifier
+ou do sink usam exit `3`.
+
+O oracle cobre source canônico, whitespace, comentários, shape, identidade,
+payload, UTF-8, parse incompleto, limites, argumentos e repetição exata. Ele
+injeta short write e flush failure pelo mesmo adapter de stdout. O primeiro
+caso preserva o prefixo aceito. O segundo preserva a saída completa. Sink
+reject continua com zero bytes.
+
+`cli/io.c` centraliza `_setmode`, writes e flushes verificados. O target
+público mantém somente o help e a rota `w check` vigentes. O oracle prova que
+o binário público rejeita `w run`.
+
+```text
+bun run check:run0
+```
+
+RUN0 é source-backed-current somente para esse subset bounded. Aquisição segura
+de source, owner detection, workspace, import graph, backend, linker, runtime,
+provider geral e outros programas W continuam gaps. O `benchmarkDisposition`
+é `compiler-lifecycle`. O oracle de correção corresponde somente à célula ready
+`clean × check-end-to-end` de W-1488. Nenhuma etapa RUN0 ou de execução se
+torna um estágio medido. `startup` e `execution` permanecem na track
+`product-runtime` e deferred. Este corte não publica timing nem result.
+`hlo3-hello-world-runtime-benchmark` permanece deferred.
+
 ## ConstIR D1-D6 seed
 
 `include/w_seed_constir.h` e `src/w_seed_constir.c` formam um executor interno

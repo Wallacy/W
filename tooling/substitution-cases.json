@@ -1839,6 +1839,46 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-run0-verified-hlo0-sink",
+      "reviewItem": "execução RUN0 por plano HLO0 verificado e sink fiel contra stdout direto, template, plano forjado e bypass do pipeline",
+      "decisions": ["W-1495"],
+      "task": "Execute the canonical bounded source only through verified HIR0, canonical HLO0, shared verification, and one faithful sink call.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn main() { print(\"Hello, world!\") }",
+          "entry(main)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "direct-stdout",
+          "language": "c",
+          "source": ["fwrite(\"Hello, world!\\n\", 1, 14, stdout);"],
+          "expectedDifference": "A direct write can produce the bytes, but it does not consume a verified HLO0 plan or publish a faithful sink report."
+        },
+        {
+          "name": "output-template",
+          "language": "c",
+          "source": ["static const unsigned char output[] = { 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x0a };"],
+          "expectedDifference": "A template reproduces canonical output without proving source provenance, HIR0 structure, HLO0 fields, or the shared verifier."
+        },
+        {
+          "name": "forged-hlo0-plan",
+          "language": "w-adversarial",
+          "source": ["HLO0 plan with a mutated field, zero tail or stdout digest → RUN0"],
+          "expectedDifference": "The shared HLO0 verifier rejects the forged representation before RUN0 calls the sink or changes the result."
+        },
+        {
+          "name": "pipeline-bypass",
+          "language": "w-internal-rejected",
+          "source": ["source text → hard-coded HLO0 plan → sink"],
+          "expectedDifference": "The bypass skips parser, frontend, verified HIR0, or shared HLO0 verification and cannot establish the bounded source-backed route."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

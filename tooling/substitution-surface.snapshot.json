@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:3e98735163b9756a68d185642c5ffe3cc7e6cb2042ee07d47e65454230b328ff",
+  "corpusDigest": "sha256:dbe38a0bf41eeb88308a9022d1981965b09f155bcfddba5beeab1c315ea5eb3e",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3288,6 +3288,78 @@
             "nonWhitespaceCodePoints": 104,
             "lines": 1,
             "surfaceLexemes": 52
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-run0-verified-hlo0-sink",
+      "task": {
+        "utf8Bytes": 129,
+        "codePoints": 129,
+        "nonWhitespaceCodePoints": 112,
+        "lines": 1,
+        "surfaceLexemes": 22
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:a4e5b68eb3b6104c7af4df767890e8db8fed2e6d26b8375809b6335b17d6cd2d",
+        "metrics": {
+          "utf8Bytes": 48,
+          "codePoints": 48,
+          "nonWhitespaceCodePoints": 42,
+          "lines": 2,
+          "surfaceLexemes": 14
+        }
+      },
+      "alternatives": [
+        {
+          "name": "direct-stdout",
+          "language": "c",
+          "sourceDigest": "sha256:76dc6b8169be5da6ace48f758cd509db179ee247dffb42ffba50e315035841ac",
+          "metrics": {
+            "utf8Bytes": 41,
+            "codePoints": 41,
+            "nonWhitespaceCodePoints": 37,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "output-template",
+          "language": "c",
+          "sourceDigest": "sha256:0870886cdb781d6d3a7e99ca8d57d3c318ce9ece2bbb82b10ae39db7e8ee94da",
+          "metrics": {
+            "utf8Bytes": 125,
+            "codePoints": 125,
+            "nonWhitespaceCodePoints": 104,
+            "lines": 1,
+            "surfaceLexemes": 52
+          }
+        },
+        {
+          "name": "forged-hlo0-plan",
+          "language": "w-adversarial",
+          "sourceDigest": "sha256:f7a7b87544580d285e43b2bccc9ffe525c56d4b823febcecbcd55ce31b0bd628",
+          "metrics": {
+            "utf8Bytes": 67,
+            "codePoints": 65,
+            "nonWhitespaceCodePoints": 53,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "pipeline-bypass",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:8cf503e3cc6c1a3c52c0adde7cd2db745363813b61d69f3a0ffa3aadce979d41",
+          "metrics": {
+            "utf8Bytes": 45,
+            "codePoints": 41,
+            "nonWhitespaceCodePoints": 34,
+            "lines": 1,
+            "surfaceLexemes": 10
           }
         }
       ]

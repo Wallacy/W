@@ -122,11 +122,27 @@ Isso prova apenas a emissão e execução C11 do subset verified-HIR-backed e n�
 cria `w run`, execução W geral, HIR geral, runtime W, Console provider geral ou
 w-linker.
 
-Use `bun run check:hlo0` para validar o plano e `bun run check:hlo1` para a
-emissão/execução C11. Toolchain ausente gera `SKIP` explícito; falha com a
-toolchain presente é `FAIL`. Não registre timing: o benchmark
-`hlo3-hello-world-runtime-benchmark` permanece deferred até existir um runner
-público/pinado com fases separáveis e reproduzíveis para execução W.
+RUN0 consome o mesmo plano pelo verifier HLO0 compartilhado. O adapter interno
+faz preflight antes do sink e chama o callback uma vez. O result registra bytes
+tentados, bytes aceitos e status de flush sem prometer rollback externo. O gate
+test-only prova o pipeline até RUN0 com source de até 4096 bytes, inclusive.
+O fluxo funcional é
+`source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink`. O gate
+também prova short write, flush failed, sources adversariais e repetição.
+
+Use `bun run check:hlo0` para validar o plano. Use `bun run check:hlo1` para a
+emissão C11 e `bun run check:run0` para a execução interna. HLO1 gera `SKIP`
+explícito quando a toolchain está ausente. Uma falha com a toolchain presente é
+`FAIL`. RUN0 é somente evidência interna. Ele não publica `w run`, aquisição
+segura de source, owner detection, workspace, import graph, backend, linker,
+runtime ou provider geral.
+
+O `benchmarkDisposition` de RUN0 é `compiler-lifecycle`. O oracle de correção
+corresponde somente à célula ready `clean × check-end-to-end` de W-1488.
+Nenhuma etapa RUN0 ou de execução se torna um estágio medido. `startup` e
+`execution` permanecem na track `product-runtime` e deferred. Não registre
+timing ou result neste corte. `hlo3-hello-world-runtime-benchmark` permanece
+deferred.
 
 ### HIR0 verificada do seed
 
@@ -237,9 +253,8 @@ planejado como evidência de que uma camada existe.
 
 ### Checklist de primeira leitura
 
-- Comece com um `module` explícito. Use `entry Name(fn)` para um product
-  nomeado. A forma de arquivo único com statements finais é uma direção de
-  module run, não um segundo grammar.
+- Trate um arquivo único como módulo normal. Declare uma `fn` e um `entry`
+  explícito. Statements finais não formam um entry.
 - Prefira imports explícitos e nomes qualificados. A resolução de package,
   target e provider depende de manifestos e de um contexto de resolução.
 - Faça ownership e effects visíveis no call site. take, ref, inout, await,
@@ -2084,7 +2099,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 
 | Objetivo | Forma vigente (current) | Outra forma/condição | Não use (rejected) | Troca principal | Design + Última Luz |
 | --- | --- | --- | --- | --- | --- |
-| Escolher root do product | entry Name(run) ou entry {} | Descriptor anônimo e module-run wrapper | entry(args, ctx) {} e process.main = run sem contrato | Ownership do root e lifecycle ficam explícitos; wrapper de arquivo único custa source-map | [DESIGN.md §13](DESIGN.md#13-módulos-de-execução-services-e-entries) · [app.w](reference/last-light/app.w) |
+| Escolher root do product | `entry(run)` ou `entry Name(run)` | Descriptor anônimo `.default`; `--entry Name` seleciona o descriptor nomeado | `entry(args, ctx) {}` e `process.main = run` sem contrato | Ownership do root e lifecycle ficam explícitos. Não existe wrapper nem remapeamento de source-map | [DESIGN.md §13](DESIGN.md#13-módulos-de-execução-services-e-entries) · [app.w](reference/last-light/app.w) |
 | Importar HTTP/std | import http from std, import std.http ou import { Name } from path | Resolução de capability/provider pelo manifest | Export default implícito e as que esconde a origem | Resolver manifest e capability custa verbosidade, mas fixa authority | [DESIGN.md §6](DESIGN.md#6-módulos-imports-e-visibilidade) · [http_documents.w](reference/last-light/http_documents.w) |
 | Construir valor | Type(field: value) | Memberwise init fechado por type | new Type ou Type {} sem init | Labels tornam ownership e defaults auditáveis; synthesis exige schema | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [domain.w](reference/last-light/domain.w) |
 | Delegar initializer | self = Type(...) | Init helpers com contract head | self.init(...) como mutação escondida | Reassignment preserva estado observável e impede partial init implícito | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [state_transitions.w](reference/last-light/state_transitions.w) |
@@ -2183,7 +2198,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Design e forma de source | Forma vigente para avaliação, não release |
 | Atlas/Tree-sitter | Protótipo de parse e corpus; não checker/runtime |
 | Oracles host | Evidência lógica/física de design; não runtime |
-| Formatter/frontend/HIR/MLIR | Frontend seed e HIR0 verified-HIR-backed bounded; HIR geral, frontend normativo e MLIR continuam gaps |
+| Formatter/frontend/HIR/MLIR | Frontend seed, HIR0 verified-HIR-backed e RUN0 interno bounded; HIR geral, frontend normativo, MLIR e `w run` continuam gaps |
 | Runtime/scheduler/allocator | Planejados; implementation gap |
 | std/providers | Contratos e oracles; provider missing |
 | CLI além de `w check` / package manager | Direção; implementation gap |
