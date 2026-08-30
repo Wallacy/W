@@ -13,6 +13,9 @@ scanner C de validação de fonte, parser seed caller-owned e incremental,
 formatter seed CST-driven e adapter D0 caller-owned, com suporte sintático
 coberto por 28 IDs F0. O target bootstrap `w` executa a rota pública `w check`
 no perfil CHK9 de root efêmera explícita e imports locais alcançáveis.
+O seed também executa o plano Hello verified-HLO0 por RUN0 em um gate interno
+bounded e test-only. Essa evidência não publica `w run` nem a leitura segura dos
+arquivos de entrada.
 Owner detection, resolução externa, provider `std`, package/workspace e o
 frontend normativo completo continuam gaps.
 
@@ -137,7 +140,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1 e target bootstrap w](compiler/seed-c/README.md) | implementação caller-owned/incremental; Unicode 17 pinado, scanner C source-validation-only, parser/formatter CST, frontend seed e adapter D0; `w check` executa CHK9 bounded para root efêmera local, com até 64 sources e 16 MiB por source/agregado; HIR0 verifica o subset e HLO1 emite/executa C11 somente para Hello World verified-HIR-backed; não é frontend normativo completo, compiler ou typechecker completo |
+| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0/HLO1 bounded e RUN0 interno test-only. Limites, witnesses e gaps ficam no README do componente; o checkout não publica `w run` |
 | Formatter normativo, frontend normativo completo, HIR geral e MLIR | planejados, não implementados; o formatter, o frontend seed e a HIR0 verificada são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |
 | Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |
@@ -168,10 +171,10 @@ TUI dedicada. Linux, Darwin e Windows mantêm o mesmo import; o manifest escolhe
 o module set nativo. O entry registra os process signals no runtime. Um worker
 usa outro product e outro host lifecycle.
 
-Um script de arquivo único pode usar statements finais sem `entry {}`.
-O comando `w run path/file.w` cria um wrapper `.default` privado para esse body
-e preserva o source map. Use `fn` mais `entry(fnName)` quando o handler precisar
-de `args`, `Context`, return customizado ou errors públicos.
+Um arquivo único é um módulo normal. Ele exige uma declaração `fn` e um
+`entry`. A direção futura `w run path/file.w` seleciona `.default` ou usa
+`--entry` para selecionar outro entry. O checkout atual não publica esse
+comando. Statements finais sem `entry` são rejeitados.
 
 O Última Luz também é um workspace. O package `last-light/menu-compiler`
 descreve uma build transform tipada para o package principal. O contrato recebe

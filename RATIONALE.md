@@ -45,13 +45,14 @@ Estas alternativas permanecem preservadas para comparação:
 - labels que permitem reorder;
 - value parameters callable como associated members.
 
-Para scripts, a alternativa rejeitada é executar qualquer statement de módulo
-durante import. O body implícito é root-only, sem `args` ou `ctx` inferidos, e
-usa o mesmo parser/checker/HIR do produto. Uma função explícita continua sendo
-a forma para arguments, `Context`, retorno customizado ou errors escapantes.
+Para scripts, W-1412 rejeitou as alternativas históricas de executar statements
+de módulo durante import e de sintetizar um body ou wrapper implícito. A forma
+vigente usa um módulo normal com `entry` explícito. O host seleciona `.default`
+ou um descriptor nomeado por `--entry`. Uma função explícita continua sendo a
+forma para arguments, `Context`, retorno customizado ou errors escapantes.
 Também ficam registradas as alternativas de um runtime de script separado, de
 remover o seed C/CMake/Ninja após o self-host, e de tratar Bun como dependência
-do produto; a direção vigente preserva a rota de recovery e migra tooling só
+do produto. A direção vigente preserva a rota de recovery e migra tooling só
 depois do stage C.
 
 Para memória e concorrência, naming heuristics e warnings especulativos foram
@@ -166,7 +167,8 @@ O corpus compara, no mínimo:
 - slot runtime de allocator em `Array<String>(allocator: memory)` contra envelope genérico;
 - relação bodyless de borrow entre dois inputs independentes contra mapping implícito sem origem única, comparando receiver preciso, input único, relation-schema Research e carrier nominal.
 - emissão C11 source-backed a partir de plano HLO0 contra template de texto e witness Restaurant sem caminho source → plano.
-- HIR0 verificada e independente do lifetime do frontend contra acesso direto do HLO0 a records frontend e template C11
+- HIR0 verificada e independente do lifetime do frontend contra acesso direto do HLO0 a records frontend e template C11.
+- execução RUN0 por plano HLO0 verificado e sink fiel contra stdout direto, template, plano forjado e bypass do pipeline.
 
 ### 1.1 Cobertura de substituições
 
@@ -197,7 +199,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 74 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 78 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
@@ -273,7 +275,7 @@ flag cria estado mutável que pode divergir do control flow.
 contagens determinísticas antes de qualquer participante ou modelo vê-las.
 
 [`tooling/substitution-surface.snapshot.json`](tooling/substitution-surface.snapshot.json)
-mede as 174 formas derivadas do corpus pelo runner nesta revisão. O runner
+mede as 202 formas derivadas do corpus pelo runner nesta revisão. O runner
 junta as linhas com LF e sem newline final. A contagem vem do script e muda
 quando alternativas cross-language entram ou saem. Para a tarefa e para cada
 forma, ele registra:
@@ -2743,7 +2745,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia com evidência | 65–72% | R0 cobre 74/74, R0S mede a superfície derivada por script e R1 possui 25 bundles contrabalanceados do Última Luz que promovem 45/74 casos R0; participantes e modelos ainda não foram executados |
+| ergonomia com evidência | 65–72% | R0 cobre 78/78, R0S mede a superfície derivada por script e R1 possui 25 bundles contrabalanceados do Última Luz que promovem 45/78 casos R0; participantes e modelos ainda não foram executados |
 | validação executável | 55–65% | Tree-sitter, F0, S0, wire, R0/R1, M1, E0, B0 e P0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -7664,6 +7666,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1493 | emissão C11 source-backed de Hello World | HLO1 acrescenta `w_seed_hlo1_measure`/`w_seed_hlo1_emit` como API caller-owned sem heap. A API revalida o plano HLO0 completo e emite bytes C11 determinísticos, LF-terminados, começando pelo comentário de schema `/* w-seed-hlo1-1 */`, com array hexadecimal `unsigned char`, `<stdio.h>`, `fwrite` e `fflush`; `_WIN32` usa `_setmode(_fileno(stdout), _O_BINARY)` para preservar LF. O buffer de emissão é all-or-nothing, mas o efeito externo em stdout não é atômico. O plano isolado não prova source provenance. O gate integrado prova source → parser → frontend → HIR0 → HLO0 → HLO1 → C11 → stdout/stderr/exit e rejeita witnesses Restaurant sem substring bypass. `benchmarkDisposition` é deferred para `hlo3-hello-world-runtime-benchmark` e nenhum timing é publicado | HLO1 é `source-backed-current` para este subset bounded. A evidência está em `compiler/seed-c`, `tooling/check-hlo1.mjs` e `bun run check:hlo1`, com C11 build e execução real. CMake/Ninja/compiler ausentes geram SKIP explícito. Falha de toolchain presente gera FAIL. HIR geral, Console provider W geral, w-linker, runtime W, `w run` e language benchmark runner permanecem fora do escopo |
 | W-1494 | HIR0 verificada para o subset inicial | `w_seed_hir0` é uma representação intermediária fechada, bounded, caller-owned e sem heap para o subset inicial. Ela publica módulos e identidades, `Unit` e `String`, funções, qualifiers, parâmetros com labels HIR, blocks e ordem, valores constantes como byte slices copiados, `CALL` com identidade discriminada do callee host-prelude, argumentos tipados e ordinais, requirements nominais, terminators de retorno `Unit` e entry com target e slot. O lowering não reparseia source ou CST, copia nomes e bytes para storage HIR e o verifier recompõe semantic digest field-by-field, separado do provenance digest que inclui `module.source_sha256`, source identity, comprimento e spans dos records HIR; o receipt serializa counts, semantic_digest e provenance_digest. A HIR sobrevive ao lifetime do frontend, rejeita ranges, owners, types, ordinais, identities, requirements, truncamento, alias, overlap e digest inconsistentes, e HLO0 revalida essa HIR antes de selecionar Hello. A rota comprovada é source → parser → frontend → lower HIR0 → verify HIR0 → HLO0 → HLO1 → compilador C11 → execução; `benchmarkDisposition` permanece deferred e não há timing ou resultado | HIR0, HLO0 e HLO1 são source-backed somente para este subset bounded, com units e gates C11 reais. HIR geral, type checking normativo, lowering geral, backend nativo, linker, runtime, Console provider geral, `w run` e language benchmark runner continuam implementation-evidence gaps |
 
+| W-1495 | execução RUN0 interna bounded verified-HLO0 | RUN0 acrescenta `w_seed_run0_execute` como adapter interno, caller-owned e sem heap para o plano Hello verified-HLO0. `w_seed_hlo0_verify_plan` é a autoridade única consumida por HLO1 e RUN0 e exige fields, representação canônica, payload tail e digest exatos. O preflight rejeita plano inválido e overlap sem callback nem alteração do result. Depois do preflight, RUN0 faz uma chamada ao sink e publica attempted bytes, accepted bytes, flush status e call count fielmente. Bytes aceitos podem ter efeito externo e não possuem rollback. O gate test-only prova `source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink` com limite inclusivo de 4096 bytes, failures de short write/flush e repetição exata. O `benchmarkDisposition` é `compiler-lifecycle`, e o oracle de correção corresponde somente à célula ready `clean × check-end-to-end`. Nenhuma etapa RUN0 ou de execução se torna um estágio medido. `startup` e `execution` permanecem na track `product-runtime` e deferred. Não há timing nem result, e `hlo3-hello-world-runtime-benchmark` permanece deferred | RUN0 é source-backed-current somente para esse subset bounded. O caso `R0-run0-verified-hlo0-sink`, units e `check:run0` rejeitam stdout direto, template, plano forjado e bypass. O harness com `fopen` não prova aquisição segura de source. `w run`, owner detection, workspace, import graph, backend, linker, runtime, provider geral e execução de outros programas continuam gaps |
+
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
 W-1059, W-1061, W-1071–W-1075 e W-1158 continuam válidos e recebem a nova
@@ -8290,3 +8294,44 @@ O parse completo da referência permanece no baseline conhecido 106/107: um
 `ERROR` pré-existente em `reference/last-light/web_bodies.w` na faixa
 `[32,34]-[32,39]`. Esse resultado não é evidência de checker ou lowering para
 as queries de tipo.
+
+#### W-1495 — execução RUN0 interna bounded verified-HLO0
+
+W-1495 fecha uma execução interna depois da fronteira HLO0. A promoção não
+fecha um runner público. RUN0 recebe somente o plano caller-owned e o result.
+O adapter usa storage bounded na stack e não aloca no heap.
+
+O verifier HLO0 compartilhado evita duas autoridades divergentes. Ele valida
+todos os fields, o terminador NUL e o zero tail de cada text array. Ele também
+valida os bytes não usados do payload e recompõe o digest de stdout. HLO1 e
+RUN0 chamam a mesma função antes de consumir o plano.
+
+O preflight ocorre antes do callback. Plano nulo, plano forjado e overlap entre
+plano e result não alteram o result e não chamam o sink. O callback one-shot
+recebe payload mais LF. Seu retorno separa bytes aceitos do status de flush.
+
+Depois do callback, RUN0 preserva o efeito observado no result. Short write,
+rejeição e flush failed não são descritos como zero bytes quando houve
+aceitação. Um report impossível também termina em `IO`. RUN0 não consegue
+desfazer bytes que o sink já aceitou.
+
+O gate integrado é um harness test-only. Ele usa um path de fixture e um limite
+inclusivo de 4096 bytes. Essa leitura com `fopen` não prova aquisição segura de
+source. O fluxo funcional do gate é
+`source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink`. Casos
+adversariais fixam a mensagem da etapa que rejeita cada source.
+
+O caso `R0-run0-verified-hlo0-sink` preserva quatro alternativas. Stdout direto
+ignora o plano. Um template reproduz bytes sem provenance. Um plano forjado
+tenta burlar fields ou digest. Um bypass pula parser, frontend, HIR0 ou o
+verifier compartilhado. Units e o gate rejeitam as quatro rotas.
+
+A classificação source-backed-current cobre somente o subset bounded. O
+binário público continua sem `w run`. Aquisição segura de source, owner
+detection, workspace, import graph, backend, linker, runtime e provider geral
+permanecem gaps. O `benchmarkDisposition` é `compiler-lifecycle`. O oracle de
+correção corresponde somente à célula ready `clean × check-end-to-end` de
+W-1488. Nenhuma etapa RUN0 ou de execução se torna um estágio medido.
+`startup` e `execution` permanecem na track `product-runtime` e deferred.
+Nenhum timing ou result foi publicado.
+`hlo3-hello-world-runtime-benchmark` permanece deferred.

@@ -34,9 +34,11 @@ typedef struct {
   const w_seed_hir0_result *hir_result;
 } w_seed_hlo0_input;
 
-/* One bounded Hello plan. Text fields are copied into this caller-owned
- * record. The payload has a fixed ceiling and is not a borrowed source
- * pointer. stdout_sha256 covers payload followed by the added LF. */
+/* One bounded Hello plan. Each text value is NUL-terminated, and every byte
+ * after its terminator is zero. Unused payload bytes are zero. The payload has
+ * a fixed ceiling and is not a borrowed source pointer. stdout_sha256 covers
+ * payload followed by the added LF. The shared verifier requires this
+ * complete canonical representation. */
 typedef struct {
   char schema[W_SEED_HLO0_MAX_TEXT];
   char profile[W_SEED_HLO0_MAX_TEXT];
@@ -77,6 +79,10 @@ typedef struct {
   uint8_t *receipt;
   size_t receipt_capacity;
 } w_seed_hlo0_output;
+
+/* Verify the complete immutable HLO0 plan for this exact bounded subset. The
+ * verifier is shared by every plan consumer, including HLO1 and RUN0. */
+bool w_seed_hlo0_verify_plan(const w_seed_hlo0_plan *plan);
 
 /* Measure the one-plan result without writing caller-owned output. */
 w_seed_hlo0_status w_seed_hlo0_measure(const w_seed_hlo0_input *input,

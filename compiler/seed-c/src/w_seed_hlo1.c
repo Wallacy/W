@@ -7,20 +7,6 @@ _Static_assert(CHAR_BIT == 8, "w-seed HLO1 requires 8-bit bytes");
 
 enum {
   HLO1_DIGEST_BYTES = 32,
-  HLO1_NEWLINE_BYTES = 1,
-  HLO1_PAYLOAD_BYTES = 13,
-  HLO1_STDOUT_BYTES = 14,
-};
-
-static const char HLO0_SCHEMA[] = "w-seed-hlo0-1";
-static const char HLO0_PROFILE[] = "native-process@1";
-static const char HLO0_SLOT[] = ".default";
-static const char HLO0_ENTRY[] = "main";
-static const char HLO0_CALLEE[] = "print";
-static const char HLO0_REQUIREMENT[] = "Console";
-static const uint8_t HLO0_PAYLOAD[] = {
-    0x48u, 0x65u, 0x6cu, 0x6cu, 0x6fu, 0x2cu, 0x20u,
-    0x77u, 0x6fu, 0x72u, 0x6cu, 0x64u, 0x21u,
 };
 
 static const char C_PREFIX[] =
@@ -59,71 +45,14 @@ enum {
 
 _Static_assert(
     sizeof(C_PREFIX) - 1u +
-            ((size_t)HLO1_STDOUT_BYTES * HLO1_HEX_BYTE_CHARS) +
-            ((size_t)(HLO1_STDOUT_BYTES - 1u) * HLO1_HEX_SEPARATOR_CHARS) +
+            ((size_t)(W_SEED_HLO0_MAX_PAYLOAD + 1u) *
+             HLO1_HEX_BYTE_CHARS) +
+            ((size_t)W_SEED_HLO0_MAX_PAYLOAD * HLO1_HEX_SEPARATOR_CHARS) +
             sizeof(C_MIDDLE) - 1u <=
         W_SEED_HLO1_MAX_C_BYTES,
     "w-seed HLO1 artifact template exceeds its bound");
 
 static const char HEX[] = "0123456789abcdef";
-
-static bool bounded_length(const char *text, size_t capacity,
-                           size_t *length) {
-  if (text == NULL || length == NULL) return false;
-  for (size_t index = 0u; index < capacity; index += 1u) {
-    if (text[index] == '\0') {
-      *length = index;
-      return true;
-    }
-  }
-  return false;
-}
-
-static bool plan_text_is(const char *text, size_t capacity,
-                         const char *expected) {
-  if (expected == NULL) return false;
-  size_t length = 0u;
-  if (!bounded_length(text, capacity, &length)) return false;
-  const size_t expected_length = strlen(expected);
-  return length == expected_length &&
-         memcmp(text, expected, expected_length) == 0;
-}
-
-static bool digest_equal(const uint8_t *left, const uint8_t *right,
-                         size_t length) {
-  return left != NULL && right != NULL && memcmp(left, right, length) == 0;
-}
-
-static bool validate_plan(const w_seed_hlo0_plan *plan) {
-  if (plan == NULL ||
-      !plan_text_is(plan->schema, sizeof(plan->schema), HLO0_SCHEMA) ||
-      !plan_text_is(plan->profile, sizeof(plan->profile), HLO0_PROFILE) ||
-      !plan_text_is(plan->slot, sizeof(plan->slot), HLO0_SLOT) ||
-      !plan_text_is(plan->entry_target, sizeof(plan->entry_target), HLO0_ENTRY) ||
-      !plan_text_is(plan->handler, sizeof(plan->handler), HLO0_ENTRY) ||
-      !plan_text_is(plan->callee, sizeof(plan->callee), HLO0_CALLEE) ||
-      !plan_text_is(plan->requirement, sizeof(plan->requirement),
-                    HLO0_REQUIREMENT) ||
-      plan->is_async || plan->is_throws || plan->is_unsafe ||
-      plan->has_borrow_clause || !plan->zero_parameters ||
-      !plan->unit_return ||
-      plan->newline_policy != W_SEED_HLO0_NEWLINE_ADD_LF ||
-      plan->payload_bytes != HLO1_PAYLOAD_BYTES ||
-      memcmp(plan->payload, HLO0_PAYLOAD, HLO1_PAYLOAD_BYTES) != 0 ||
-      plan->stdout_bytes != HLO1_STDOUT_BYTES || !plan->exit_success) {
-    return false;
-  }
-
-  w_seed_sha256_state state;
-  uint8_t expected_digest[HLO1_DIGEST_BYTES];
-  static const uint8_t line_feed = 0x0au;
-  w_seed_sha256_init(&state);
-  w_seed_sha256_update(&state, plan->payload, plan->payload_bytes);
-  w_seed_sha256_update(&state, &line_feed, HLO1_NEWLINE_BYTES);
-  w_seed_sha256_final(&state, expected_digest);
-  return digest_equal(plan->stdout_sha256, expected_digest,
-                      HLO1_DIGEST_BYTES);
-}
 
 static bool append_bytes(uint8_t *buffer, size_t capacity, size_t *offset,
                          const void *bytes, size_t length) {
@@ -153,7 +82,7 @@ static bool build_artifact(const w_seed_hlo0_plan *plan, uint8_t *artifact,
                            size_t capacity, size_t *written,
                            uint8_t digest[HLO1_DIGEST_BYTES]) {
   if (plan == NULL || artifact == NULL || written == NULL || digest == NULL ||
-      !validate_plan(plan))
+      !w_seed_hlo0_verify_plan(plan))
     return false;
   size_t offset = 0u;
   if (!append_literal(artifact, capacity, &offset, C_PREFIX)) return false;

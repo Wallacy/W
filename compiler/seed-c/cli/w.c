@@ -1,18 +1,14 @@
 #include "check.h"
+#include "w_cli_io.h"
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <fcntl.h>
-#include <io.h>
-#endif
-
 static const char *usage_text = "usage: w check <path/file.w> [--json]\n";
 
-static void write_usage(FILE *stream) {
-  if (stream != NULL) (void)fputs(usage_text, stream);
+static bool write_usage(FILE *stream) {
+  return w_seed_cli_write_text(stream, usage_text, &w_seed_cli_stdio_ops);
 }
 
 static bool is_help(int argc, char **argv) {
@@ -44,18 +40,12 @@ static bool parse_check(int argc, char **argv, const char **path,
 }
 
 int main(int argc, char **argv) {
-#ifdef _WIN32
-  (void)_setmode(_fileno(stdout), _O_BINARY);
-#endif
-  if (is_help(argc, argv)) {
-    write_usage(stdout);
-    return 0;
-  }
+  if (!w_seed_cli_prepare_binary(stdout, &w_seed_cli_stdio_ops)) return 3;
+  if (is_help(argc, argv)) return write_usage(stdout) ? 0 : 3;
   const char *path = NULL;
   bool json = false;
   if (!parse_check(argc, argv, &path, &json)) {
-    write_usage(stderr);
-    return 2;
+    return write_usage(stderr) ? 2 : 3;
   }
   return w_seed_check_run(path, json);
 }

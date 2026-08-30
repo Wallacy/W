@@ -357,6 +357,42 @@ static bool check_canonical_plan(void) {
         fixture.hlo_result.required.receipt_bytes);
   CHECK(memcmp(fixture.hlo_receipt, expected_receipt,
                sizeof(expected_receipt) - 1u) == 0);
+  CHECK(w_seed_hlo0_verify_plan(&fixture.hlo_plan));
+  return true;
+}
+
+static bool check_shared_verifier_rejects_forgery(void) {
+  const w_seed_hlo0_plan canonical = fixture.hlo_plan;
+  w_seed_hlo0_plan plan = canonical;
+  plan.profile[0] = 'X';
+  CHECK(!w_seed_hlo0_verify_plan(&plan));
+  plan = canonical;
+  plan.profile[sizeof("native-process@1")] = 'X';
+  CHECK(!w_seed_hlo0_verify_plan(&plan));
+  plan = canonical;
+  plan.is_async = true;
+  CHECK(!w_seed_hlo0_verify_plan(&plan));
+  plan = canonical;
+  plan.zero_parameters = false;
+  CHECK(!w_seed_hlo0_verify_plan(&plan));
+  plan = canonical;
+  plan.payload[0] ^= 1u;
+  CHECK(!w_seed_hlo0_verify_plan(&plan));
+  plan = canonical;
+  plan.payload[plan.payload_bytes] = 1u;
+  CHECK(!w_seed_hlo0_verify_plan(&plan));
+  plan = canonical;
+  plan.payload_bytes -= 1u;
+  CHECK(!w_seed_hlo0_verify_plan(&plan));
+  plan = canonical;
+  plan.stdout_bytes -= 1u;
+  CHECK(!w_seed_hlo0_verify_plan(&plan));
+  plan = canonical;
+  plan.stdout_sha256[0] ^= 1u;
+  CHECK(!w_seed_hlo0_verify_plan(&plan));
+  plan = canonical;
+  plan.exit_success = false;
+  CHECK(!w_seed_hlo0_verify_plan(&plan));
   return true;
 }
 
@@ -415,6 +451,7 @@ static bool test_frontend_to_verified_hir_to_hlo(void) {
         W_SEED_HLO0_OK);
   CHECK(fixture.hlo_result.status == W_SEED_HLO0_OK);
   CHECK(check_canonical_plan());
+  CHECK(check_shared_verifier_rejects_forgery());
   const w_seed_hlo0_plan plan_before = fixture.hlo_plan;
   uint8_t receipt_before[sizeof(fixture.hlo_receipt)];
   (void)memcpy(receipt_before, fixture.hlo_receipt, sizeof(receipt_before));

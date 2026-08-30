@@ -20906,8 +20906,8 @@ capabilities inválidas.
 
 #### 14.5.2 Processo nativo, argumentos e stdio
 
-**Exemplo:** um handler explícito recebe owners nominais. Um body implícito lê
-os mesmos valores somente quando escreve a projection:
+**Exemplo:** um handler explícito recebe owners nominais. Um entry root
+explícito lê os mesmos valores somente quando escreve a projection:
 
 ```w
 import process from std
@@ -20933,10 +20933,11 @@ fixa a interface e não afirma acesso ao processo real.
 
 **W-1296 — um único root, nenhuma variável oculta:** `native-process@1` cria um
 owner de `Arguments` e um owner de `Context` antes de chamar o descriptor. Um
-handler explícito recebe esses owners. Um entry body curto ou implícito não
-recebe parâmetros: `process.args` e `process.context` emprestam os mesmos owners
-do root. O namespace contextual `process` não é um object da std, não pode ser
-guardado e não contém `ctx` como alias.
+handler explícito recebe esses owners. Um entry body explícito sem parâmetros
+mantém os owners no root e só recebe suas projections quando escreve
+`process.args` ou `process.context`. Não existe body implícito. O namespace
+contextual `process` não é um object da std, não pode ser guardado e não contém
+`ctx` como alias.
 
 **W-1297 — argv preserva texto nativo:** `Arguments` mantém ordem e quantidade
 exatas. Cada item é `OsString`, porque Unix pode fornecer bytes que não são
@@ -33330,6 +33331,73 @@ runtime, Console provider geral, `w run` e execução de programas fora do
 subset continuam gaps. O benchmark de compiler lifecycle e o benchmark de
 runtime permanecem deferred e não há timing ou resultado publicado.
 
+#### 26.4.2 Execução RUN0 interna e bounded
+
+**Exemplo:** o adapter interno executa somente o plano canônico deste source:
+
+```w
+fn main() { print("Hello, world!") }
+entry(main)
+```
+
+**W-1495 — execução RUN0 interna bounded verified-HLO0 (Forma vigente):**
+`w_seed_run0_execute` é um adapter interno do seed. Ele executa somente um
+plano HLO0 canônico do subset Hello verified-HIR-backed. A API não aloca no
+heap. O plano e o result permanecem caller-owned.
+
+`w_seed_hlo0_verify_plan` é a única autoridade de verificação de um plano
+HLO0. HLO1 e RUN0 chamam esse verifier antes de consumir o plano. O verifier
+valida schema, profile, slot, identidades, qualifiers, signature, newline,
+payload, counts, exit e digest. Cada valor textual deve terminar em NUL. Todos
+os bytes posteriores do array devem ser zero. Todos os bytes não usados do
+payload também devem ser zero. O HLO0 mantém `measure` e `run`
+all-or-nothing em storage caller-owned.
+
+RUN0 faz o preflight antes de qualquer efeito externo. Um plano nulo,
+inconsistente ou sobreposto ao result retorna `INVALID_PLAN` ou `ALIAS`. Nessa
+falha, RUN0 não chama o sink e não altera o result. Depois do preflight, RUN0
+copia o payload e o LF para storage bounded na stack. O limite do storage é
+`W_SEED_HLO0_MAX_PAYLOAD + 1` bytes.
+
+RUN0 chama o sink exatamente uma vez. O callback recebe os bytes staged e
+devolve `accepted_bytes` mais `flush_status`. Depois dessa chamada, o result
+registra `attempted_bytes`, `accepted_bytes`, `flush_status` e `sink_calls`
+fielmente. `OK` exige `accepted_bytes == attempted_bytes` e flush
+`SUCCEEDED`. Short write, rejeição, flush failed, enum inválido ou
+`accepted_bytes > attempted_bytes` retorna `IO`.
+
+Bytes aceitos podem produzir efeito externo. RUN0 não promete rollback desse
+efeito. O preflight é transacional somente porque ele ocorre antes do callback.
+O callback permanece one-shot mesmo quando seu resultado informa falha.
+
+O target `w_seed_run0_gate` é um harness interno e test-only. Ele lê uma única
+fixture com limite inclusivo de 4096 bytes. O uso de `fopen` nesse harness não
+é evidência de aquisição segura de source. O fluxo funcional do gate é
+`source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink`. Ele
+verifica HIR0 e o plano HLO0 nas fronteiras de consumo antes de chamar RUN0.
+
+Erros de source e features fora do subset usam exit `2`. Falha do verifier
+compartilhado, `INVALID_PLAN`, `ALIAS` ou falha do sink usa exit `3`. O oracle
+cobre source canônico, whitespace, comentários, UTF-8, limites, shape,
+identidade, payload, effects, short write, flush failed e repetição exata. O
+mesmo oracle comprova que o binário público continua rejeitando `w run`.
+
+O helper comum de I/O verifica `_setmode` no Windows, cada write e cada flush.
+Uma falha de I/O da CLI usa exit `3`. Essa infraestrutura não altera o help ou
+o contrato público vigente de `w check`.
+
+W-1495 é source-backed-current somente para esta execução RUN0 bounded. A
+promoção não publica `w run`, aquisição segura de source, owner detection,
+workspace, import graph, backend, linker, runtime ou provider geral. Esses
+componentes e a execução de outros programas W continuam gaps.
+
+O `benchmarkDisposition` é exatamente `compiler-lifecycle`. O oracle de
+correção corresponde somente à célula ready `clean × check-end-to-end` de
+W-1488. Nenhuma etapa RUN0 ou de execução se torna um estágio medido.
+`startup` e `execution` permanecem na track `product-runtime` e deferred. Este
+corte não publica timing nem result. O benchmark
+`hlo3-hello-world-runtime-benchmark` permanece deferred.
+
 - HIR tipada;
 - place projections, loans, reborrow e dependent-value facts;
 - propagation de facts, eliminação de checks e optimization record;
@@ -33347,10 +33415,12 @@ runtime permanecem deferred e não há timing ou resultado publicado.
 - corpus diferencial entre o caminho seed-C e W/MLIR;
 - `w run` usa a mesma HIR verificada para fast native, incremental native,
   evaluator ou JIT;
-- benchmark compiler lifecycle em ordem `clean`, `no-op`, `edit`, `frontend`,
-  `hir`, `lowering`, `codegen`, `link`, `startup` e `execution`, sempre com o
-  mesmo source, graph e input identity; a medição de language workload fica
-  separada da medição do lifecycle.
+- benchmark compiler lifecycle com os cenários `clean`, `no-op` e `edit`; os
+  estágios são exatamente `check-end-to-end`, `source`, `lex`, `parse`,
+  `semantic`, `hir`, `lowering`, `codegen` e `link`, sempre com o mesmo source,
+  graph e input identity;
+- `startup` e `execution` permanecem na track `product-runtime` separada; a
+  medição de language workload também fica separada da medição do lifecycle.
 
 Saída: payload determinístico para programas síncronos nos dois caminhos.
 

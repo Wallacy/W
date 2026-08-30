@@ -108,9 +108,89 @@ static bool copy_hir_text(char *destination, size_t capacity,
   return true;
 }
 
+static bool bounded_length(const char *text, size_t capacity,
+                           size_t *length) {
+  if (text == NULL || length == NULL) return false;
+  for (size_t index = 0u; index < capacity; index += 1u) {
+    if (text[index] == '\0') {
+      *length = index;
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool plan_text_is(const char *text, size_t capacity,
+                         const char *expected) {
+  if (expected == NULL) return false;
+  size_t length = 0u;
+  if (!bounded_length(text, capacity, &length)) return false;
+  const size_t expected_length = strlen(expected);
+  if (length != expected_length ||
+      memcmp(text, expected, expected_length) != 0)
+    return false;
+  for (size_t index = length + 1u; index < capacity; index += 1u)
+    if (text[index] != '\0') return false;
+  return true;
+}
+
+static bool digest_equal(const uint8_t *left, const uint8_t *right,
+                         size_t length) {
+  return left != NULL && right != NULL && memcmp(left, right, length) == 0;
+}
+
+static bool bytes_are_zero(const uint8_t *bytes, size_t length) {
+  if (bytes == NULL) return false;
+  for (size_t index = 0u; index < length; index += 1u)
+    if (bytes[index] != 0u) return false;
+  return true;
+}
+
+bool w_seed_hlo0_verify_plan(const w_seed_hlo0_plan *plan) {
+  size_t expected_stdout_bytes = 0u;
+  if (plan == NULL ||
+      !plan_text_is(plan->schema, sizeof(plan->schema),
+                    W_SEED_HLO0_SCHEMA_VERSION) ||
+      !plan_text_is(plan->profile, sizeof(plan->profile), HLO0_PROFILE) ||
+      !plan_text_is(plan->slot, sizeof(plan->slot), HLO0_SLOT) ||
+      !plan_text_is(plan->entry_target, sizeof(plan->entry_target), HLO0_ENTRY) ||
+      !plan_text_is(plan->handler, sizeof(plan->handler), HLO0_ENTRY) ||
+      !plan_text_is(plan->callee, sizeof(plan->callee), HLO0_CALLEE) ||
+      !plan_text_is(plan->requirement, sizeof(plan->requirement),
+                    HLO0_REQUIREMENT) ||
+      plan->is_async || plan->is_throws || plan->is_unsafe ||
+      plan->has_borrow_clause || !plan->zero_parameters || !plan->unit_return ||
+      plan->newline_policy != W_SEED_HLO0_NEWLINE_ADD_LF ||
+      plan->payload_bytes != sizeof(HLO0_PAYLOAD) - 1u ||
+      memcmp(plan->payload, HLO0_PAYLOAD, sizeof(HLO0_PAYLOAD) - 1u) != 0 ||
+      !bytes_are_zero(plan->payload + sizeof(HLO0_PAYLOAD) - 1u,
+                      sizeof(plan->payload) - sizeof(HLO0_PAYLOAD) + 1u) ||
+      !add_size(plan->payload_bytes, HLO0_NEWLINE_BYTES,
+                &expected_stdout_bytes) ||
+      plan->stdout_bytes != expected_stdout_bytes ||
+      plan->stdout_bytes != sizeof(HLO0_PAYLOAD) || !plan->exit_success) {
+    return false;
+  }
+
+  w_seed_sha256_state state;
+  uint8_t expected_digest[HLO0_DIGEST_BYTES];
+  static const uint8_t line_feed = 0x0au;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, plan->payload, plan->payload_bytes);
+  w_seed_sha256_update(&state, &line_feed, HLO0_NEWLINE_BYTES);
+  w_seed_sha256_final(&state, expected_digest);
+  return digest_equal(plan->stdout_sha256, expected_digest, HLO0_DIGEST_BYTES);
+}
+
 static bool select_hello(const w_seed_hir0_program *program,
                          hlo0_selection *selection) {
-  if (program == NULL || selection == NULL) return false;
+  if (program == NULL || selection == NULL || program->module_count != 1u ||
+      program->function_count != 1u || program->parameter_count != 0u ||
+      program->block_count != 1u || program->instruction_count != 1u ||
+      program->call_count != 1u || program->argument_count != 1u ||
+      program->requirement_count != 1u || program->value_count != 1u ||
+      program->terminator_count != 1u || program->entry_count != 1u)
+    return false;
   (void)memset(selection, 0, sizeof(*selection));
   size_t matching_entries = 0u;
   for (size_t index = 0u; index < program->entry_count; index += 1u) {

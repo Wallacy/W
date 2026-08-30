@@ -3,6 +3,7 @@
 #include "check_host.h"
 #include "check_pipeline.h"
 #include "check_storage.h"
+#include "w_cli_io.h"
 
 #include "w_seed_ephemeral_graph.h"
 #include "w_seed_frontend.h"
@@ -300,7 +301,8 @@ static bool report_failure(const char *path, const char *reason) {
   const int result = path == NULL
                          ? fprintf(stderr, "w_seed_check: %s\n", reason)
                          : fprintf(stderr, "%s: %s\n", path, reason);
-  return result >= 0;
+  return result >= 0 &&
+         w_seed_cli_flush(stderr, &w_seed_cli_stdio_ops);
 }
 
 static bool report_text(FILE *stream, w_seed_frontend_text text,
@@ -533,7 +535,7 @@ static bool render_human_diagnostics(
     }
     if (fputc('\n', stderr) == EOF) return false;
   }
-  return true;
+  return w_seed_cli_flush(stderr, &w_seed_cli_stdio_ops);
 }
 
 static bool emit_json_diagnostics(const w_seed_check_storage *storage,
@@ -544,7 +546,8 @@ static bool emit_json_diagnostics(const w_seed_check_storage *storage,
   }
   /* The pipeline has already staged and committed every record. This is the
    * sole public write for a successful JSON diagnostic result. */
-  return fwrite(storage->json_final, 1u, length, stdout) == length;
+  return w_seed_cli_write_bytes(stdout, storage->json_final, length,
+                                &w_seed_cli_stdio_ops);
 }
 
 static int pipeline_exit_code(w_seed_check_pipeline_status status) {
