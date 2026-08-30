@@ -74,7 +74,7 @@ Quando o resultado puder mudar source, ABI ou runtime, exija um spike.
   Esse comando instala o tooling e gera os outputs locais.
 - `bun run check:generated-policy` valida essa fronteira sem editar arquivos.
 - O portal permanece congelado até o design freeze.
-- `history/` recebe provenance, não correções da decisão vigente.
+- `ABOUT.md` preserva a narrativa pública. O Git preserva proveniência removida.
 
 Nunca corrija uma projeção para esconder conflito com sua fonte.
 

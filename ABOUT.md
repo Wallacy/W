@@ -70,14 +70,15 @@ teste.
 
 ## Proveniência
 
-Os documentos substituídos não definem o W atual. A proveniência selecionada está
-listada em [`history/README.md`](history/README.md). A consolidação anterior
-está em [`DB1`](history/archive/db1-2026-07-27). O workflow de script PYN1
-está em [`PYN1`](history/archive/pyn1-workflow). Esses arquivos ajudam a
-entender decisões e alternativas. A autoridade continua em `DESIGN.md`.
+Os documentos substituídos não definem o W atual. O Git é o arquivo da
+proveniência e preserva autoria, datas e diffs sem manter uma árvore histórica
+no checkout. A narrativa pública fica aqui. A autoridade continua em
+`DESIGN.md` e a evidência detalhada fica em `RATIONALE.md`.
 
-O commit imutável `4964d1f` contém os fontes brutos retirados na limpeza. Use
-`git show 4964d1f:<path>` quando uma auditoria histórica precisar deles.
+O commit imutável `4964d1f` contém os fontes brutos retirados na limpeza. O
+commit imutável `25ef412` registra o último estado que ainda continha a árvore
+`history/`. Use `git show <commit>:<path>` quando uma auditoria histórica
+precisar de um arquivo.
 
 O About é uma apresentação curta. Para contratos, estado, exemplos e gates,
 use as fontes canônicas indicadas no [`README.md`](README.md).

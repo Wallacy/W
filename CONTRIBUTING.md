@@ -57,7 +57,11 @@ Use esta ordem:
 5. `tooling/tree-sitter-w/grammar.js` e o corpus projetam a syntax vigente.
 6. `std/` projeta os contratos atuais da standard library.
 7. `portal/` é um protótipo visual congelado.
-8. `history/` preserva provenance obsoleta. Ele não decide o W atual.
+8. `STUDIES.md` é o catálogo humano gerado; `tooling/study-registry.json` é a
+   superfície de máquina correspondente.
+9. `REPOSITORY.md` descreve a infraestrutura e os comandos públicos.
+10. `ABOUT.md` resume a proveniência pública. O Git preserva os arquivos
+    removidos e não decide o W atual.
 
 Se dois artefatos divergem, corrija primeiro a fonte de maior autoridade.
 Depois atualize as projeções afetadas.
@@ -139,14 +143,18 @@ bun run tooling:install
 ```
 
 Valide o inventário das suítes agregadas com `bun run check:suite-manifest`.
-Use os aliases individuais para um check focal. Use `bun run check` para a
-suíte integrada.
+Use os aliases individuais para um check focal. Use `bun run check:quick` para
+a validação rápida, `bun run check:compiler` para os gates seed e `bun run check`
+para a suíte integrada.
 
 Para documentação e decisões:
 
 ```powershell
 bun run check:docs
 ```
+
+Depois de alterar metadata de estudo, regenere o catálogo humano e o registry
+com `bun run study:registry` e valide ambos com `bun run check:study-registry`.
 
 Para grammar, corpus, std, tooling ou qualquer source `.w`:
 

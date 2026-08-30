@@ -31,9 +31,8 @@ Do not retain compatibility code without an exit condition.
    specification target. It does not override `DESIGN.md`.
 8. `portal/` and `tooling/` project the current design for people and
    editors. They do not define semantics.
-9. `history/` owns obsolete provenance. `history/archive/db1-2026-07-27/` contains the
-   replaced 2026-07-27 consolidation and corpus. Do not treat archived files as
-   current.
+9. `ABOUT.md` presents selected provenance. Git owns removed material. Do not
+   treat old commits as current authority.
 
 Use exactly these labels: **Direção**, **Forma vigente**, **Alternativa**,
 **Pesquisa**, and **Rejeitado por enquanto**. A historical idea is not a

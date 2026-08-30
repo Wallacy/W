@@ -50,37 +50,29 @@ até existir type checker e runtime.
 
 ## Executar
 
-Requer Bun 1.4.0 ou uma versão compatível e instala somente dependências locais
-desta pasta:
+Requer Bun 1.4.0 ou uma versão compatível. A partir da raiz do repository,
+instale as dependências e gere os outputs com:
 
 ```sh
-bun ci
-bun run generate
-bun run check:generated-policy
-bun run test
-bun run parse:reference
-bun run parse:platforms
-bun run parse:packages
-bun run parse:roots
-bun run parse:std
-bun run parse:fixture
-bun run check:injections
-bun run check:wire
-bun run check:wire:c
-bun run check:hir
-bun run check:design
+bun run tooling:install
 ```
 
-Ou execute todos os checks:
+Os comandos locais da gramática ficam neste pacote:
 
 ```sh
-bun run check
+bun run --cwd tooling/tree-sitter-w test
+bun run --cwd tooling/tree-sitter-w parse:reference
+bun run --cwd tooling/tree-sitter-w parse:platforms
+bun run --cwd tooling/tree-sitter-w parse:packages
+bun run --cwd tooling/tree-sitter-w parse:roots
+bun run --cwd tooling/tree-sitter-w parse:std
+bun run --cwd tooling/tree-sitter-w parse:fixture
+bun run --cwd tooling/tree-sitter-w check:injections
 ```
 
-`bun run check` executa corpus, produto, variantes de plataforma, package e
-workspace roots,
-std, fixture do VS Code, oracles de wire e HIR e cobertura de exemplos. O CLI
-está fixado em
+Os checks repo-wide usam os aliases da raiz, por exemplo `bun run check:wire`,
+`bun run check:hir` e `bun run check:design`. Para a suíte rápida use
+`bun run check:quick`; para a suíte integrada use `bun run check`. O CLI está fixado em
 `tree-sitter-cli` 0.26.13.
 
 Após `generate`, os outputs gerados em `src/` tornam a gramática consumível sem

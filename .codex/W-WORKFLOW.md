@@ -230,7 +230,7 @@ Use esta ordem:
 2. `tooling/design-slice.mjs` para seção ou W ID.
 3. `reference/last-light/README.md` para localizar source.
 4. `RATIONALE.md` para evidência, alternativas e ledger.
-5. `ABOUT.md` e `history/README.md` somente para origem e proveniência obsoleta.
+5. `ABOUT.md` somente para a narrativa pública e a proveniência resumida.
 
 Não leia `DESIGN.md` integralmente sem pedido de revisão integral. Não leia
 `tooling/tree-sitter-w/src/` fora de uma falha de geração.

@@ -2217,12 +2217,12 @@ Na raiz do repositório, depois de alterar esta página e o link do README:
 
 ```text
 bun run check:links
-bun run --cwd tooling/tree-sitter-w check:syntax-atlas
+bun run check:syntax-atlas
 bun run --cwd tooling/tree-sitter-w parse:reference
 bun run --cwd tooling/tree-sitter-w parse:std
 bun run design:index:check
 git diff --check
-bun run --cwd tooling/tree-sitter-w check:docs
+bun run check:docs
 ```
 
 Os quatro primeiros checks mantêm links, atlas, corpus de referência, corpus de

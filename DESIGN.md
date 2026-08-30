@@ -5,8 +5,8 @@
 Este é o documento normativo do W. Ele define os contratos correntes de
 linguagem, runtime, SDK, compiler, packages, distribuição, tooling e plano.
 [`RATIONALE.md`](RATIONALE.md) guarda justificativas, comparações, alternativas
-e o ledger sem definir comportamento. `history/` preserva material obsoleto e
-não decide o W atual.
+e o ledger sem definir comportamento. O Git preserva material obsoleto e não
+decide o W atual.
 
 As formas correntes podem alimentar parser, realce e produto de referência antes
 da ratificação humana. Pesquisa que pode mudar source, tipo, ABI ou comportamento
@@ -48,10 +48,11 @@ Alternativas comparadas não são estado normativo. Elas ficam em
 | validação e sequência | 25–26 | produto de referência, viabilidade e roadmap |
 
 Leia o bloco que contém a dúvida e depois use o ID W correspondente. Não é
-necessário reconstruir uma decisão a partir do histórico.
+necessário reconstruir uma decisão a partir de commits antigos.
 
-O histórico das consolidações anteriores e as notas originais ficam em
-[`history/`](history). O Git preserva autoria, datas e diffs.
+O histórico das consolidações anteriores e as notas originais ficam nos
+commits do Git. O `RATIONALE.md` resume a proveniência necessária para a
+leitura atual.
 
 [`GOVERNANCE.md`](GOVERNANCE.md) define autoridade e decisão do projeto.
 [`CONTRIBUTING.md`](CONTRIBUTING.md) define o fluxo de contribuição. Esses
@@ -69,10 +70,10 @@ bun tooling/design-slice.mjs --id W-724 --context 2
 Valide somente o contrato documental com:
 
 ```powershell
-bun run --cwd tooling/tree-sitter-w check:docs
+bun run check:docs
 ```
 
-Use `bun run --cwd tooling/tree-sitter-w check` quando alterar grammar,
+Use `bun run check` quando alterar grammar,
 corpus ou fontes W. O segundo comando inclui o primeiro e também executa os
 gates de parsing e dos codecs de referência.
 

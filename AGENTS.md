@@ -44,8 +44,10 @@ progresso verificável.
 - `reference/last-light/` é o produto de referência e o alvo da especificação
   executável.
 - `portal/` e `tooling/` são projeções e ferramentas. Não definem a semântica.
-- `history/` preserva proveniência obsoleta, ideias antigas e material
-  arquivado. Não use o histórico como decisão corrente.
+- `ABOUT.md` preserva a narrativa pública. O Git preserva material removido.
+  Não use commits antigos como decisão corrente.
+- `REPOSITORY.md` descreve o mapa e as regras da infraestrutura.
+- `STUDIES.md` é a projeção humana gerada de `tooling/study-registry.json`.
 
 Não apresente uma proposta como comportamento implementado. Antes do W 1.0,
 não preserve compatibilidade por inércia. Depois do 1.0, toda compatibilidade

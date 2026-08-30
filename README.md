@@ -28,6 +28,8 @@ define a qualidade da contribuição.
 
 Leia [Sobre o W](ABOUT.md) para uma visão curta da origem, dos princípios e do
 estado atual do projeto.
+Leia [Mapa do repositório](REPOSITORY.md) para a organização da infraestrutura
+e [Catálogo de estudos](STUDIES.md) para a projeção humana dos estudos.
 
 ## Fontes canônicas
 
@@ -47,10 +49,15 @@ Leia estes artefatos nesta ordem:
    trade-offs e limites de evidência; ele não é gerado pelo atlas;
 7. [Catálogo de diagnostics](DIAGNOSTICS.md) — índice humano gerado para
    códigos, fatos, papéis, fixes e referências normativas;
-8. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
+8. [Catálogo de estudos](STUDIES.md) — status, função, path, gate e entrypoint
+   dos estudos registrados;
+9. [Mapa do repositório](REPOSITORY.md) — diretórios, autoridade, dependências
+   e comandos públicos;
+10. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
    specs, toolchain plans, ABIs, artifacts e gates;
-9. [Rascunho da std](std/README.md) — contratos da standard library em W;
-10. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
+11. [Rascunho da std](std/README.md) — contratos da standard library em W;
+12. [Tooling](tooling/README.md) — infraestrutura, Tree-sitter, TextMate e
+    extensão local.
 
 O [portal](portal/README.md) é um protótipo visual congelado. Ele não precisa
 acompanhar cada mudança antes do design freeze.
@@ -66,6 +73,8 @@ Use o [Cheatsheet W](CHEATSHEET.md) para rotas de uso e trade-offs. Use o
 referência normativa correspondente. Use o
 [SYNTAX-COVERAGE.md](reference/syntax-atlas/SYNTAX-COVERAGE.md) para cobertura
 técnica de snippets parse-only.
+Use [STUDIES.md](STUDIES.md) para consultar estudos por status sem percorrer os
+JSONs. Os READMEs locais explicam cada estudo quando disponíveis.
 
 As superfícies de máquina ficam em `tooling/*.json`, nos checkers e no manifest
 do atlas. Elas sustentam geração e gates. Nenhuma projeção substitui
@@ -100,6 +109,9 @@ Para validar somente documentação e índice:
 ```powershell
 bun run docs:check
 ```
+
+Para a manutenção diária, use `bun run check:quick`; para os gates do
+compilador seed use `bun run check:compiler`.
 
 Para regenerar somente as projeções de documentação:
 
@@ -193,6 +205,6 @@ aprova uma mudança continua responsável pelo resultado.
 ## Sobre e proveniência
 
 [Sobre o W](ABOUT.md) resume a origem, o método do restaurante, os princípios e
-o estado atual. A lista dos arquivos históricos preservados está em
-[`history/README.md`](history/README.md). Esses arquivos preservam proveniência.
-Eles não definem o W atual.
+o estado atual. A proveniência removida do checkout permanece no histórico do
+Git. `ABOUT.md` resume a narrativa e `RATIONALE.md` registra as decisões e a
+evidência sem definir o W atual.
