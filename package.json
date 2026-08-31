@@ -9,6 +9,8 @@
     "bun": ">=1.4.0"
   },
   "scripts": {
+    "cleanup": "bun tooling/cleanup-workspace.mjs --workspace",
+    "check:cleanup": "bun test tooling/cleanup-workspace.test.mjs",
     "check:design-freeze": "bun tooling/check-design-freeze-audit.mjs --require-complete",
     "check:frc0": "bun test tooling/studies/final-research-closure/oracle.test.mjs && bun tooling/tree-sitter-w/check-frc0.mjs",
     "check:pfu0": "bun test tooling/studies/pfu0-pre-freeze-usability/oracle.test.mjs && bun tooling/check-pfu0-pre-freeze-usability.mjs && bun run --cwd tooling/tree-sitter-w parse:pfu0",

@@ -81,6 +81,7 @@ Cada checkpoint do Luna contém somente:
 - último check executado e seu resultado;
 - próximo passo finito;
 - bloqueio ou nova premissa, quando existir.
+- espaço livre e diretório de build retido, quando o bundle usa uma build.
 
 O Luna envia um checkpoint ao concluir cada milestone ou quando a cadência
 expira, o que ocorrer primeiro. Se o Sol pedir status, o Luna responde no próximo
@@ -128,6 +129,41 @@ Luna valida a menor superfície após cada fatia coerente. Ele amplia os checks
 uma vez no limite de integração. Um resultado verde permanece válido até uma
 entrada relacionada mudar.
 
+#### Espaço local e outputs
+
+Antes de uma build grande, Luna mede o espaço livre nos volumes do workspace e
+do diretório temporário. Luna repete a medida no próximo checkpoint e no
+fechamento do bundle.
+
+Cada bundle mantém somente um diretório de build ativo. Luna reutiliza esse
+diretório durante o bundle. O checkpoint informa o path retido e o espaço livre
+medido.
+
+`bun run cleanup` faz somente um dry-run dos outputs workspace permitidos. Use
+`--apply` para confirmar a remoção. Use `--keep <path>` para reter uma build
+ativa. O flag pode aparecer mais de uma vez.
+
+A limpeza de temporários legados exige `--temp --legacy-temp`. Ela aceita
+somente prefixos criados pelo repositório. O diretório deve estar sem mudanças
+por pelo menos 24 horas. Use `--temp-age-hours N` para aumentar esse limite.
+Esse escopo permite somente dry-run. O uso de `--apply` falha antes da coleta.
+
+O cálculo legado usa o `mtime` mais recente da árvore. Os temporários ainda não
+têm owner records. Uma mudança futura deve usar um namespace por checkout e um
+owner record verificável.
+
+O apply workspace exige prova local de mounts. O Linux usa
+`/proc/self/mountinfo`. O Windows recusa junctions e reparse points durante a
+varredura. Uma plataforma sem essa prova recusa o apply.
+
+O apply exige um editor e ausência de mutação concorrente. As duas
+revalidações reduzem a janela local, mas não eliminam a corrida antes do
+`rm` recursivo.
+
+Nenhum fluxo executa limpeza global automática. A rotina não seleciona
+`node_modules`, fontes, histórico, sessões, dados, logs, dumps, generated ou
+resultados de benchmark.
+
 ### 4. Revisar
 
 O primeiro handoff permanece sem commit, salvo ordem explícita. Ele contém:
@@ -171,7 +207,7 @@ rejeitados pelo checker da superfície BMD.
 
 Luna faz a revisão final de manutenção. Ele remove duplicação, artefatos
 temporários e complexidade acidental. Depois, ele executa os gates finais,
-faz o commit e confirma `git status --short`.
+mede o espaço livre, faz o commit e confirma `git status --short`.
 
 Sol confirma o hash, o estado Git e as evidências. O resultado final contém
 commit, arquivos, checks e riscos restantes. Não repita logs ou o histórico da

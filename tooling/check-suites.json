@@ -65,6 +65,7 @@
       "description": "Fast manifests, projections, documentation, and maintained-source parse checks without seed C builds.",
       "steps": [
         { "package": "root", "script": "check:suite-manifest" },
+        { "package": "root", "script": "check:cleanup" },
         { "package": "root", "script": "check:study-registry" },
         { "package": "root", "script": "check:diagnostic-catalog" },
         { "package": "root", "script": "check:design-freeze" },

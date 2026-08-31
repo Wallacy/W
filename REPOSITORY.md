@@ -52,6 +52,58 @@ não deve ser editado manualmente. `src/scanner.c` é escrito manualmente e vers
 Compilações locais, `node_modules/` e outras saídas temporárias ficam fora do
 commit conforme `.gitignore`.
 
+## Espaço local e limpeza
+
+Meça o espaço livre antes de uma build grande. Repita a medida no checkpoint
+seguinte e no fechamento do bundle. Mantenha uma build ativa por bundle e
+reutilize o mesmo diretório. Informe esse diretório em cada checkpoint.
+
+O comando abaixo faz um dry-run. Ele não remove arquivos:
+
+```sh
+bun run cleanup
+```
+
+Use `--apply` para confirmar a remoção. Use `--keep <path>` mais de uma vez
+quando necessário. O keep somente subtrai candidatos da allowlist.
+
+A allowlist workspace contém somente estes outputs:
+
+- `build/` na raiz, com `CMakeCache.txt`;
+- filhos diretos `build-*` na raiz, com `CMakeCache.txt`;
+- `reference/last-light/build/`;
+- `portal/dist/`;
+- `tooling/tree-sitter-w/build/`;
+- `tooling/vscode-w/dist/`.
+
+Use a forma abaixo para incluir temporários legados:
+
+```sh
+bun run cleanup --temp --legacy-temp
+```
+
+Essa forma aceita somente prefixos `mkdtemp` declarados pelo tooling. A árvore
+deve estar sem mudanças por pelo menos 24 horas. `--temp-age-hours N` aumenta
+esse limite. O cálculo usa o `mtime` mais recente da árvore. Esse escopo aceita
+somente dry-run. A combinação com `--apply` falha antes da coleta.
+
+A rotina recusa links, junctions, reparse points, mounts e arquivos
+versionados. Ela também recusa targets externos, ancestrais e paths protegidos.
+A rotina não seleciona fontes, `node_modules`, histórico, sessões, dados,
+generated, logs, dumps ou resultados de benchmark.
+
+No Linux, o apply lê `/proc/self/mountinfo` e decodifica seus mountpoints. No
+Windows, a varredura recusa junctions e reparse points. Outras plataformas
+recusam o apply quando não conseguem provar a ausência de mounts.
+
+Execute o apply com um editor e sem mutação local concorrente. O preflight de
+batch e a revalidação imediata reduzem a janela TOCTOU. Eles não eliminam a
+corrida antes do `rm` recursivo.
+
+Não execute cleanup global automático. Os temporários legados ainda não têm
+owner records. Uma evolução futura deve usar um namespace por checkout e um
+owner record verificável.
+
 ## Dependências e comandos
 
 O pacote raiz declara Bun `1.4.0` como gerenciador de pacotes e versão mínima. O
