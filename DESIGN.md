@@ -34319,6 +34319,42 @@ schema, WSP0 e produto público permanecem gaps. O `benchmarkDisposition` fica
 em `compiler-lifecycle`; o gate não é oracle BMD1 e não publica stage, timing
 ou result.
 
+#### 26.4.6 Composição BND0 de aquisição, owner guard e manifest
+
+**W-1499 — composição interna BND0 caller-owned e bounded (Forma vigente):**
+`w_seed_source_binding_compose` compõe uma aquisição ACQ0 completa, um resultado
+MAN0 guarded e um link de adapter preso ao guard OWN0. A sequência valida ACQ0,
+valida MAN0, verifica o contexto e a generation do guard, chama o link e só
+então calcula e publica a binding. O destination é caller-owned, não possui
+handles ou backing e permanece bitwise inalterado em toda failure.
+
+A binding carrega os digests de facts e source de ACQ0, receipt e bindings de
+MAN0, digest do link, schema e a generation do guard. `verify` recompõe a
+relação usando os mesmos descriptors e scratch. Copy, alias, stale generation,
+mutation, mismatch, boundary, I/O, unsupported ou fault não produzem publicação
+parcial. O link é síncrono, não retém context e não concede authority nova.
+
+O adapter Linux aceita somente `linux-openat2-v2`. Ele reconcilia os tokens com
+`STATX_MNT_ID_UNIQUE`, device major/minor e inode para o diretório raiz e a
+source. Provider não suportado retorna `UNSUPPORTED`; token inválido e adapter
+ausente falham fechados. Adapters não-Linux permanecem stubs sem efeitos.
+
+| Evidência local | Prova bounded |
+|---|---|
+| [`test_source_binding.c`](compiler/seed-c/tests/test_source_binding.c) | Composição fake, publicação all-or-nothing, `verify`, copy/alias, statuses de link, mutação de receipt e limites, além do stub não-Linux fail-closed. |
+| [`test_source_binding_linux_gate.c`](compiler/seed-c/tests/test_source_binding_linux_gate.c) | ACQ0 real, sessão OWN0/MAN0 real, generation, tokens forjados, sources incompatíveis, manifest forjado, mutation e duas composições determinísticas com identities Linux. |
+| [`check-source-binding.mjs`](tooling/check-source-binding.mjs) | Build com warnings-as-errors e duas execuções Linux byte-idênticas; em host Windows, WSL Ubuntu é obrigatório. |
+
+W-1499 permanece `implementation-evidence-gap` no geral. Windows operacional,
+schema/WSP0, produto público, backend/runtime e o vínculo ACQ0 geral ainda são
+blockers. A subevidência Linux é somente bounded ao token
+`linux-openat2-v2` e aos adapters presentes. BND0 não abre `w run`, package ou
+workspace geral, registry, backend ou runtime.
+
+O `benchmarkDisposition` é `compiler-lifecycle` somente como classificação da
+track futura. O gate não cria stage, timing ou result e não é oracle de
+performance.
+
 ### 26.5 Fase 3 — memória, errors e C
 
 **Exemplo:** um callback C com context executa cleanup uma vez em success, error

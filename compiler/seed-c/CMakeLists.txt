@@ -10,6 +10,8 @@ add_library(w_seed_source STATIC
   include/w_seed_manifest.h
   include/w_seed_manifest_linux.h
   include/w_seed_manifest_windows.h
+  include/w_seed_source_binding.h
+  include/w_seed_source_binding_linux.h
   src/w_seed_manifest.c
   src/w_seed_manifest_linux.c
   src/w_seed_manifest_windows.c
@@ -29,6 +31,8 @@ add_library(w_seed_source STATIC
   src/w_seed_owner_guard.c
   src/w_seed_owner_guard_linux.c
   src/w_seed_owner_guard_windows.c
+  src/w_seed_source_binding.c
+  src/w_seed_source_binding_linux.c
   src/w_seed_formatter.c
   src/w_seed_sha256.c
   src/w_seed_diagnostic.c
@@ -162,6 +166,16 @@ add_executable(w_seed_owner_guard_adapter_tests
   tests/test_owner_guard_adapters.c
 )
 target_link_libraries(w_seed_owner_guard_adapter_tests PRIVATE w_seed_source)
+
+add_executable(w_seed_source_binding_tests
+  tests/test_source_binding.c
+)
+target_link_libraries(w_seed_source_binding_tests PRIVATE w_seed_source)
+
+add_executable(w_seed_source_binding_linux_gate
+  tests/test_source_binding_linux_gate.c
+)
+target_link_libraries(w_seed_source_binding_linux_gate PRIVATE w_seed_source)
 
 add_executable(w_seed_formatter_probe
   tests/formatter_probe.c
@@ -355,6 +369,8 @@ if(MSVC)
   target_compile_options(w_seed_acquisition_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_owner_guard_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_owner_guard_adapter_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_source_binding_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_source_binding_linux_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_formatter_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_formatter_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_diagnostic_probe PRIVATE /W4 /WX)
@@ -536,6 +552,24 @@ else()
     -Werror
   )
   target_compile_options(w_seed_owner_guard_adapter_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_source_binding_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_source_binding_linux_gate PRIVATE
     -Wall
     -Wextra
     -Wpedantic
@@ -804,6 +838,7 @@ add_test(NAME w_seed_ephemeral_driver_linux_unit COMMAND w_seed_ephemeral_driver
 add_test(NAME w_seed_acquisition_unit COMMAND w_seed_acquisition_tests)
 add_test(NAME w_seed_owner_guard_unit COMMAND w_seed_owner_guard_tests)
 add_test(NAME w_seed_owner_guard_adapter_unit COMMAND w_seed_owner_guard_adapter_tests)
+add_test(NAME w_seed_source_binding_unit COMMAND w_seed_source_binding_tests)
 add_test(NAME w_seed_manifest_unit COMMAND w_seed_manifest_tests)
 add_test(NAME w_seed_manifest_adapter_unit COMMAND w_seed_manifest_adapter_tests)
 add_test(NAME w_seed_formatter_unit COMMAND w_seed_formatter_tests)

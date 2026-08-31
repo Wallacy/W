@@ -557,6 +557,31 @@ público. A classificação geral permanece `implementation-evidence-gap`;
 Windows operacional, vínculo ACQ0, schema decoder, WSP0 e produto público são
 gaps deste bundle.
 
+## Composição interna BND0
+
+`include/w_seed_source_binding.h` e `src/w_seed_source_binding.c` compõem uma
+aquisição ACQ0 completa, um resultado MAN0 guarded e um link preso ao guard
+OWN0. A API é caller-owned, bounded e sem heap. Ela valida a sequência inteira,
+calcula os digests e a generation, e publica a binding somente uma vez. Toda
+failure deixa o destination bitwise inalterado.
+
+`src/w_seed_source_binding_linux.c` aceita somente o provider
+`linux-openat2-v2`. O link reconcilia tokens ACQ0 com a identity OWN0 baseada em
+`STATX_MNT_ID_UNIQUE`, device major/minor e inode. Provider, token ou adapter
+ausente falha fechado. O stub não-Linux retorna `UNSUPPORTED` sem efeitos.
+
+O unit fake cobre `verify`, statuses de link, alias, copy, mutation, limites e
+publication all-or-nothing. O gate Linux executa ACQ0, OWN0 e MAN0 reais, testa
+generation, tokens e manifests forjados, source incompatível e determinismo:
+
+    bun tooling/check-source-binding.mjs
+
+Em host Windows, o gate exige WSL Ubuntu. BND0 não seleciona owner, interpreta
+schema, resolve WSP0, abre `w run`, consulta registry ou implementa backend e
+runtime. A classificação geral é `implementation-evidence-gap`, com
+subevidência Linux bounded. O `benchmarkDisposition` é `compiler-lifecycle`;
+não há timing ou result.
+
 ## Composição interna CHK7 — discovery, frontend e D0
 
 `include/w_seed_ephemeral_check.h` e `src/w_seed_ephemeral_check.c` compõem

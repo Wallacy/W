@@ -3947,6 +3947,13 @@ bool w_seed_manifest_verify(const w_seed_manifest_program *program,
   return manifest_verify_impl(program, result, scratch, false);
 }
 
+bool w_seed_manifest_guarded_verify(
+    const w_seed_manifest_program *program,
+    const w_seed_manifest_result *result,
+    const w_seed_manifest_scratch *scratch) {
+  return manifest_verify_impl(program, result, scratch, true);
+}
+
 static bool manifest_backend_status_valid(
     w_seed_manifest_backend_status status) {
   return (int)status >= (int)W_SEED_MANIFEST_BACKEND_OK &&

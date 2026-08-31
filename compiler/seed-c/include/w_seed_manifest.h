@@ -501,6 +501,15 @@ bool w_seed_manifest_verify(const w_seed_manifest_program *program,
                             const w_seed_manifest_result *result,
                             const w_seed_manifest_scratch *scratch);
 
+/* Full verification for a committed guarded program. This exposes the same
+ * guarded verifier used by guarded_run; it does not perform another owner
+ * revalidation or change any MAN0 lifecycle. Program/result are read-only and
+ * the explicit scratch backings may be reused. */
+bool w_seed_manifest_guarded_verify(
+    const w_seed_manifest_program *program,
+    const w_seed_manifest_result *result,
+    const w_seed_manifest_scratch *scratch);
+
 /* This bridge accepts only an OK RUN or COMMIT report and validates only
  * descriptor, capacity, count, range, and alias envelopes. It never accepts a
  * MEASURE report and does not replace full verify. It constructs a local

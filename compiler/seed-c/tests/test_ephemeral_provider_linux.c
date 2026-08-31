@@ -19,8 +19,10 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <linux/stat.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -38,7 +40,7 @@
 enum {
   TEST_REQUEST_CAPACITY = 2,
   TEST_BYTE_CAPACITY = 64,
-  TEST_TOKEN_CAPACITY = 64,
+  TEST_TOKEN_CAPACITY = 96,
   TEST_PATH_CAPACITY = W_SEED_EPHEMERAL_PROVIDER_MAX_PATH_BYTES + 1u,
 };
 
@@ -409,25 +411,39 @@ static bool acquire_linux_case(linux_environment *environment,
   return true;
 }
 
-static bool stat_token(const char *path, char prefix, char token[35]) {
+static bool stat_token(const char *path, char prefix,
+                       char token[W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_TOKEN_BYTES +
+                                   1u]) {
   if (path == NULL || token == NULL) return false;
-  struct stat stat_buffer;
-  if (stat(path, &stat_buffer) != 0) return false;
-  const uintmax_t raw_device = (uintmax_t)stat_buffer.st_dev;
-  const uintmax_t raw_inode = (uintmax_t)stat_buffer.st_ino;
-  if (raw_device > (uintmax_t)UINT64_MAX ||
-      raw_inode > (uintmax_t)UINT64_MAX)
+#if defined(SYS_statx) && defined(STATX_MNT_ID_UNIQUE) && \
+    defined(AT_SYMLINK_NOFOLLOW)
+  struct statx stat_buffer;
+  (void)memset(&stat_buffer, 0, sizeof(stat_buffer));
+  const unsigned int mask =
+      (unsigned int)(STATX_TYPE | STATX_INO | STATX_MNT_ID_UNIQUE |
+                     STATX_BASIC_STATS);
+  if (syscall(SYS_statx, AT_FDCWD, path, AT_SYMLINK_NOFOLLOW, mask,
+              &stat_buffer) != 0L ||
+      (stat_buffer.stx_mask & STATX_MNT_ID_UNIQUE) == 0u ||
+      (stat_buffer.stx_mask & STATX_INO) == 0u)
     return false;
-  const int written = snprintf(token, 35u, "%c%016" PRIx64 "-%016" PRIx64,
-                               prefix, (uint64_t)raw_device,
-                               (uint64_t)raw_inode);
-  return written == 34;
+  const int written = snprintf(
+      token, W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_TOKEN_BYTES + 1u,
+      "%c%016" PRIx64 "-%016" PRIx32 "-%016" PRIx32 "-%016" PRIx64,
+      prefix, (uint64_t)stat_buffer.stx_mnt_id, stat_buffer.stx_dev_major,
+      stat_buffer.stx_dev_minor, (uint64_t)stat_buffer.stx_ino);
+  return written == (int)W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_TOKEN_BYTES;
+#else
+  (void)path;
+  (void)prefix;
+  return false;
+#endif
 }
 
 static bool assert_success(const linux_environment *environment,
                            const provider_case *test_case,
                            size_t root_index, bool has_child) {
-  static const char provider[] = "linux-openat2-v1";
+  static const char provider[] = W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_ID;
   if (environment == NULL || test_case == NULL) return false;
   const size_t root_length = 5u;
   const size_t child_length = 6u;
@@ -443,9 +459,9 @@ static bool assert_success(const linux_environment *environment,
   CHECK(text_equals_literal(test_case->facts[root_index].provider_id,
                             provider));
   char root_path[TEST_PATH_CAPACITY];
-  char root_token[35];
-  char owner_token[35];
-  char canonical_root[35];
+  char root_token[W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_TOKEN_BYTES + 1u];
+  char owner_token[W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_TOKEN_BYTES + 1u];
+  char canonical_root[W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_TOKEN_BYTES + 1u];
   CHECK(copy_c_string(root_path, sizeof(root_path), environment->directory));
   CHECK(stat_token(root_path, 'r', root_token));
   CHECK(stat_token(root_path, 'o', owner_token));
@@ -474,7 +490,7 @@ static bool assert_success(const linux_environment *environment,
   CHECK(text_equals_literal(test_case->facts[child_index].provider_id,
                             provider));
   char child_path[TEST_PATH_CAPACITY];
-  char canonical_child[35];
+  char canonical_child[W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_TOKEN_BYTES + 1u];
   CHECK(path_join(environment->directory, "nested/child.w", child_path,
                   sizeof(child_path)));
   CHECK(stat_token(child_path, 'c', canonical_child));

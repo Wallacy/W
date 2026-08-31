@@ -26,6 +26,13 @@ em host Windows, WSL Ubuntu é obrigatório e o adapter Windows permanece um
 stub direto `UNSUPPORTED` fail-closed. A evidência é estreita e não fecha
 Windows operacional, vínculo ACQ0, schema decoder, WSP0 ou produto público.
 
+BND0 compõe ACQ0, OWN0 e MAN0 em uma binding caller-owned e bounded. A
+publication é all-or-nothing e fica presa à generation do guard. O adapter
+Linux exige o token `linux-openat2-v2` e a identidade
+`STATX_MNT_ID_UNIQUE` + device major/minor + inode. Adapters ausentes falham
+fechados. BND0 não abre `w run`, package/workspace geral, registry, backend ou
+runtime, e sua evidência Linux permanece limitada ao gate bounded.
+
 Dois objetivos centrais orientam o design: gerência automática de memória sem
 anotações de lifetime no caminho comum e execução estruturada que mantém
 concorrência, paralelismo e placement explícitos no call site. Esses contratos
