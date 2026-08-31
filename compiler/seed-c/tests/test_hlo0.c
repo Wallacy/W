@@ -321,7 +321,7 @@ static bool check_canonical_plan(void) {
       0xd4, 0x67, 0xfa, 0x4e, 0x1d, 0x1a, 0x50, 0xa1,
       0xb8, 0xa9, 0x9d, 0x5a, 0x95, 0xf7, 0x2f, 0xf5};
   static const char expected_receipt[] =
-      "schema=w-seed-hlo0-1\n"
+      "schema=w-seed-hlo0-2\n"
       "profile=native-process@1\n"
       "slot=.default\n"
       "entry=main\n"
@@ -368,6 +368,12 @@ static bool check_shared_verifier_rejects_forgery(void) {
   CHECK(!w_seed_hlo0_verify_plan(&plan));
   plan = canonical;
   plan.profile[sizeof("native-process@1")] = 'X';
+  CHECK(!w_seed_hlo0_verify_plan(&plan));
+  plan = canonical;
+  plan.entry_target[0] = '\0';
+  CHECK(!w_seed_hlo0_verify_plan(&plan));
+  plan = canonical;
+  plan.handler[0] = 'X';
   CHECK(!w_seed_hlo0_verify_plan(&plan));
   plan = canonical;
   plan.is_async = true;
@@ -503,6 +509,22 @@ static bool test_hlo_all_or_nothing(void) {
         W_SEED_HLO0_INVALID);
   for (size_t byte = 0u; byte < sizeof(measure_alias); byte += 1u)
     CHECK(measure_alias_bytes[byte] == 0xa5u);
+
+  uint8_t hir_text_before[sizeof(fixture.hir_text)];
+  (void)memcpy(hir_text_before, fixture.hir_text, sizeof(hir_text_before));
+  w_seed_hlo0_result aliased_measure_result;
+  (void)memset(&aliased_measure_result, 0x6cu,
+               sizeof(aliased_measure_result));
+  CHECK(w_seed_hlo0_measure(
+            &input, (w_seed_hlo0_counts *)(void *)fixture.hir_text,
+            &aliased_measure_result) == W_SEED_HLO0_INVALID);
+  CHECK(memcmp(fixture.hir_text, hir_text_before, sizeof(hir_text_before)) ==
+        0);
+  uint8_t measure_result_bytes[sizeof(aliased_measure_result)];
+  (void)memcpy(measure_result_bytes, &aliased_measure_result,
+               sizeof(measure_result_bytes));
+  for (size_t byte = 0u; byte < sizeof(measure_result_bytes); byte += 1u)
+    CHECK(measure_result_bytes[byte] == 0x6cu);
   return true;
 }
 
@@ -662,16 +684,90 @@ static bool test_hir_record_forgery(void) {
   return true;
 }
 
-static bool test_hlo_selection_not_hardcoded(void) {
+static bool test_hlo_selection_is_input_driven(void) {
   static const char OTHER_SOURCE[] =
       "fn main() { print(\"north\") }\nentry(main)\n";
   CHECK(lower(OTHER_SOURCE));
   const w_seed_hlo0_input input = hlo_input();
   w_seed_hlo0_counts counts;
   w_seed_hlo0_result result;
-  CHECK(w_seed_hlo0_measure(&input, &counts, &result) ==
-        W_SEED_HLO0_UNSUPPORTED);
-  CHECK(expect_status(W_SEED_HLO0_UNSUPPORTED, input));
+  CHECK(w_seed_hlo0_measure(&input, &counts, &result) == W_SEED_HLO0_OK);
+  CHECK(counts.plans == 1u && counts.payload_bytes == 5u);
+  prepare_hlo_output(0xa5u);
+  CHECK(w_seed_hlo0_run(&input, &fixture.hlo_output, &fixture.hlo_result) ==
+        W_SEED_HLO0_OK);
+  CHECK(strcmp(fixture.hlo_plan.entry_target, "main") == 0 &&
+        strcmp(fixture.hlo_plan.handler, "main") == 0 &&
+        fixture.hlo_plan.payload_bytes == 5u &&
+        memcmp(fixture.hlo_plan.payload, "north", 5u) == 0 &&
+        fixture.hlo_plan.stdout_bytes == 6u &&
+        w_seed_hlo0_verify_plan(&fixture.hlo_plan));
+
+  static const char RESTAURANT_SOURCE[] =
+      "fn serve() { print(\"Table 42 remains open\") }\nentry(serve)\n";
+  CHECK(lower(RESTAURANT_SOURCE));
+  CHECK(w_seed_hlo0_measure(&input, &counts, &result) == W_SEED_HLO0_OK);
+  CHECK(counts.payload_bytes == 21u);
+  prepare_hlo_output(0x5au);
+  CHECK(w_seed_hlo0_run(&input, &fixture.hlo_output, &fixture.hlo_result) ==
+        W_SEED_HLO0_OK);
+  CHECK(strcmp(fixture.hlo_plan.entry_target, "serve") == 0 &&
+        strcmp(fixture.hlo_plan.handler, "serve") == 0 &&
+        fixture.hlo_plan.payload_bytes == 21u &&
+        memcmp(fixture.hlo_plan.payload, "Table 42 remains open", 21u) == 0 &&
+        fixture.hlo_plan.stdout_bytes == 22u &&
+        w_seed_hlo0_verify_plan(&fixture.hlo_plan));
+
+  static const char EMPTY_SOURCE[] =
+      "fn main() { print(\"\") }\nentry(main)\n";
+  CHECK(lower(EMPTY_SOURCE));
+  CHECK(w_seed_hlo0_measure(&input, &counts, &result) == W_SEED_HLO0_OK);
+  CHECK(counts.payload_bytes == 0u);
+  prepare_hlo_output(0x3cu);
+  CHECK(w_seed_hlo0_run(&input, &fixture.hlo_output, &fixture.hlo_result) ==
+        W_SEED_HLO0_OK);
+  CHECK(fixture.hlo_plan.payload_bytes == 0u &&
+        fixture.hlo_plan.stdout_bytes == 1u &&
+        fixture.hlo_plan.payload[0] == 0u &&
+        w_seed_hlo0_verify_plan(&fixture.hlo_plan));
+  return true;
+}
+
+static bool test_payload_boundary(void) {
+  char source[512];
+  static const char prefix[] = "fn main() { print(\"";
+  static const char suffix[] = "\") }\nentry(main)\n";
+  const size_t prefix_bytes = sizeof(prefix) - 1u;
+  const size_t suffix_bytes = sizeof(suffix) - 1u;
+  CHECK(prefix_bytes + W_SEED_HLO0_MAX_PAYLOAD + suffix_bytes + 1u <=
+        sizeof(source));
+  for (size_t payload_bytes = W_SEED_HLO0_MAX_PAYLOAD;
+       payload_bytes <= W_SEED_HLO0_MAX_PAYLOAD + 1u; payload_bytes += 1u) {
+    (void)memcpy(source, prefix, prefix_bytes);
+    (void)memset(source + prefix_bytes, 'x', payload_bytes);
+    (void)memcpy(source + prefix_bytes + payload_bytes, suffix, suffix_bytes);
+    source[prefix_bytes + payload_bytes + suffix_bytes] = '\0';
+    CHECK(lower(source));
+    const w_seed_hlo0_input input = hlo_input();
+    w_seed_hlo0_counts counts;
+    w_seed_hlo0_result measure_result;
+    const w_seed_hlo0_status status = w_seed_hlo0_measure(
+        &input, &counts, &measure_result);
+    if (payload_bytes == W_SEED_HLO0_MAX_PAYLOAD) {
+      CHECK(status == W_SEED_HLO0_OK && counts.plans == 1u &&
+            counts.payload_bytes == payload_bytes);
+      prepare_hlo_output(0x4du);
+      CHECK(w_seed_hlo0_run(&input, &fixture.hlo_output,
+                            &fixture.hlo_result) == W_SEED_HLO0_OK);
+      CHECK(fixture.hlo_plan.payload_bytes == payload_bytes &&
+            fixture.hlo_plan.stdout_bytes == payload_bytes + 1u &&
+            w_seed_hlo0_verify_plan(&fixture.hlo_plan));
+    } else {
+      CHECK(status == W_SEED_HLO0_UNSUPPORTED);
+      prepare_hlo_output(0x4du);
+      CHECK(expect_status_current(W_SEED_HLO0_UNSUPPORTED, input));
+    }
+  }
   return true;
 }
 
@@ -681,7 +777,8 @@ int main(void) {
   if (!test_hlo_result_alias_barriers()) return 1;
   if (!test_hir_result_forgery()) return 1;
   if (!test_hir_record_forgery()) return 1;
-  if (!test_hlo_selection_not_hardcoded()) return 1;
-  (void)puts("seed HLO0: verified-HIR Hello plan and adversarial cases passed");
+  if (!test_hlo_selection_is_input_driven()) return 1;
+  if (!test_payload_boundary()) return 1;
+  (void)puts("seed HLO0: verified-HIR print-literal plan and adversarial cases passed");
   return 0;
 }

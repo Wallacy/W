@@ -73,7 +73,7 @@ try {
   run(cmake, ["--build", buildDirectory, "--target", "w_seed_hlo0_gate",
     "w_seed_hlo0_tests", "--parallel", "2"], root, toolchainEnvironment)
   const tests = run(resolve(buildDirectory, `w_seed_hlo0_tests${suffix}`), [])
-  if (!tests.includes("verified-HIR Hello plan")) {
+  if (!tests.includes("verified-HIR print-literal plan")) {
     fail("adversarial C test witness is missing")
   }
   const gate = run(resolve(buildDirectory, `w_seed_hlo0_gate${suffix}`), [fixture])
@@ -87,9 +87,29 @@ try {
       !gate.includes("sha256=d9014c4624844aa5bac314773d6b689ad467fa4e1d1a50a1b8a99d5a95f72ff5")) {
     fail("gate output does not contain the canonical payload identity")
   }
+  const accepted = [
+    ["restaurant.w", "fn serve() { print(\"Table 42 remains open\") }\nentry(serve)\n",
+      ["entry=serve", "payload=21", "payload_hex=5461626c652034322072656d61696e73206f70656e", "stdout=22"]],
+    ["empty.w", "fn main() { print(\"\") }\nentry(main)\n",
+      ["entry=main", "payload=0 payload_hex=", "stdout=1"]],
+  ]
+  for (const [name, source, expected] of accepted) {
+    const path = resolve(caseDirectory, name)
+    await writeFile(path, source)
+    const acceptedGate = runRaw(resolve(buildDirectory, `w_seed_hlo0_gate${suffix}`), [path])
+    if (acceptedGate.exitCode !== 0 || acceptedGate.stderr.length !== 0) {
+      fail(`${name} source route failed`)
+    }
+    const output = acceptedGate.stdout.toString()
+    for (const identity of expected) {
+      if (!output.includes(identity)) fail(`${name} output lacks ${identity}`)
+    }
+  }
   const adversarial = [
-    ["comment-noop.w", "fn main() { noop(\"Other\") } // print(\"Hello, world!\")\nentry(main)\n"],
-    ["wrong-payload.w", "fn main() { print(\"Other\") } // Hello, world!\nentry(main)\n"],
+    ["comment-with-print.w", "fn main() { noop(\"Other\") } // print(\"Hello, world!\")\nentry(main)\n"],
+    ["noop.w", "fn main() { noop(\"Other\") }\nentry(main)\n"],
+    ["two-calls.w", "fn main() { print(\"a\")\nprint(\"b\") }\nentry(main)\n"],
+    ["outside-subset.w", "fn main(value: String) { print(value) }\nentry(main)\n"],
   ]
   for (const [name, source] of adversarial) {
     const path = resolve(caseDirectory, name)

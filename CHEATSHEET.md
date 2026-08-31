@@ -106,28 +106,36 @@ Esta é a primeira forma mínima ligada ao frontend seed, à HIR0 verificada e a
 plano HLO0. No profile `native-process@1`, `print` é um símbolo normal do host
 prelude que exige `Console`; não é intrinsic nem global implícito. O lowering
 copia os facts necessários para uma HIR0 caller-owned; o verifier recompõe o
-semantic digest antes de qualquer consumidor. O gate HLO0 comprova
-source → parser → frontend → lower HIR0 → verify HIR0 → plano com payload de
-13 bytes, LF acrescentado, stdout esperado de 14 bytes e exit success. HLO0
-não acessa buffers do frontend e não executa W.
+semantic digest antes de qualquer consumidor. HIR0/W-1494 continua uma
+representação bounded mais ampla; é o seletor HLO0 W-1505, sobre HIR0 verificada,
+que exige exatamente um module e um entry `.default`, uma função alvo zero-parameter/Unit
+sync, nonthrows, safe e no-borrow, um block, uma call host-prelude `print` e um
+argumento posicional `String` literal. O plano HLO0 usa schema `w-seed-hlo0-2`,
+copia as byte strings target/handler derivadas da HIR0, iguais, não vazias e
+zero-tail, e deriva o payload da HIR0; não fixa nome ou texto. O verifier de
+plano isolado confirma somente essa representação, não source provenance nem
+identifier válido.
 
-HLO1 usa esse plano validado para emitir e executar um artefato C conservador
+O payload tem de zero a 256 bytes, com preservação byte a byte (inclusive NUL),
+tail zero, LF acrescentado, stdout checked e SHA-256 sobre payload+LF. HLO0 não
+acessa buffers do frontend e não executa W. O gate comprova a rota
+source → parser → frontend → lower HIR0 → verify HIR0 → HLO0 com Hello,
+`Table 42 remains open` e string vazia.
+
+HLO1 usa o mesmo plano validado para emitir e executar um artefato C conservador
 bounded, compilado em modo C23. O corpo C usa stdio e um array hexadecimal
-`unsigned char` com
-`Hello, world!\n`; no Windows, o adapter CRT acrescenta `<fcntl.h>`/`<io.h>` e
-usa `_setmode` para preservar LF.
-O gate verifica CMake/Ninja/compiler, compila fora do repo, executa e exige
-stdout exato, stderr vazio e exit `0`. Ele também rejeita witnesses Restaurant
-com texto em comentário ou callee/payload errados, sem substring scanning.
-Isso prova apenas a emissão e execução do artefato C compilado em modo C23 do
-subset verified-HIR-backed e não
-cria `w run`, execução W geral, HIR geral, runtime W, Console provider geral ou
-w-linker.
+`unsigned char` com o payload seguido de LF; no Windows, o adapter CRT
+acrescenta `<fcntl.h>`/`<io.h>` e usa `_setmode` para preservar LF. Trivia
+preserva o artefato. Comentário contendo `print`, noop, duas calls e formas fora
+do subset não produzem C. Isso prova apenas a emissão e execução do artefato C
+do subset verified-HIR-backed e não cria `w run`, execução W geral, HIR geral,
+runtime W, Console provider geral ou w-linker.
 
 RUN0 consome o mesmo plano pelo verifier HLO0 compartilhado. O adapter interno
 faz preflight antes do sink e chama o callback uma vez. O result registra bytes
 tentados, bytes aceitos e status de flush sem prometer rollback externo. O gate
-test-only prova o pipeline até RUN0 com source de até 4096 bytes, inclusive.
+test-only prova o pipeline até RUN0 com os três payloads e source de até 4096
+bytes, inclusive.
 O fluxo funcional é
 `source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink`. O gate
 também prova short write, flush failed, sources adversariais e repetição.
@@ -140,7 +148,7 @@ pública ou geral de source, seleção de contexto ou owner, workspace, backend,
 linker, runtime ou provider geral. ACQ0 cobre somente a aquisição interna
 bounded no contexto efêmero já fornecido.
 
-O `benchmarkDisposition` de RUN0 é `compiler-lifecycle`. O oracle de correção
+O `benchmarkDisposition` de HLO0/HLO1/RUN0 é `compiler-lifecycle`. O oracle de correção
 corresponde somente à célula ready `clean × check-end-to-end` de W-1488.
 Nenhuma etapa RUN0 ou de execução se torna um estágio medido. `startup` e
 `execution` permanecem na track `product-runtime` e deferred. Não registre
@@ -156,6 +164,9 @@ slices copiados, calls host-prelude, argumentos tipados/ordinais, requirements
 nominais, terminators e entry com target e slot. O HLO0 recebe somente a HIR0
 e seu receipt; ele chama `w_seed_hir0_verify` novamente e não recebe source,
 CST ou pointers do frontend.
+Essa HIR0/W-1494 é mais ampla que a seleção HLO0 e pode carregar múltiplas
+funções e records correspondentes de blocks, calls, arguments e values dentro
+do schema bounded; W-1505 aplica a forma mais estreita somente após a verificação.
 
 O semantic digest cobre os records e bytes field-by-field com encoding
 explícito, sem padding, spans ou provenance. O provenance digest cobre a
@@ -170,7 +181,8 @@ Isto é uma evidência limitada ao subset; HIR geral, backend nativo, linker,
 runtime e `w run` continuam gaps.
 
 O subset HIR0 aceita exatamente um document, um module e um entry no slot
-`.default`; nomes de function duplicados, ranges com gap/overlap e records
+`.default`; essa é a fronteira intermediária, não o shape completo do seletor
+HLO0. Nomes de function duplicados, ranges com gap/overlap e records
 órfãos falham. `symbols` é apenas um índice auxiliar validado na ordem
 module → parâmetros → function → entry. Labels host named/external copiam o
 nome, positional usa label vazio e `OPTIONAL` exige o label na call; a forma

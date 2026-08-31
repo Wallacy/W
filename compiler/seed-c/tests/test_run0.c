@@ -31,6 +31,20 @@ static void set_text(char *destination, size_t capacity, const char *value) {
   (void)memset(destination + length + 1u, 0, capacity - length - 1u);
 }
 
+static void set_payload(w_seed_hlo0_plan *plan, const uint8_t *payload,
+                        size_t payload_bytes) {
+  (void)memset(plan->payload, 0, sizeof(plan->payload));
+  if (payload_bytes != 0u) (void)memcpy(plan->payload, payload, payload_bytes);
+  plan->payload_bytes = payload_bytes;
+  plan->stdout_bytes = payload_bytes + 1u;
+  static const uint8_t line_feed = 0x0au;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, plan->payload, plan->payload_bytes);
+  w_seed_sha256_update(&state, &line_feed, 1u);
+  w_seed_sha256_final(&state, plan->stdout_sha256);
+}
+
 static w_seed_hlo0_plan canonical_plan(void) {
   w_seed_hlo0_plan plan;
   (void)memset(&plan, 0, sizeof(plan));
@@ -91,6 +105,26 @@ static bool test_canonical_execution(void) {
   CHECK(result.accepted_bytes == 14u);
   CHECK(result.flush_status == W_SEED_RUN0_FLUSH_SUCCEEDED);
   CHECK(result.sink_calls == 1u);
+  return true;
+}
+
+static bool test_nul_payload_is_byte_faithful(void) {
+  w_seed_hlo0_plan plan = canonical_plan();
+  static const uint8_t payload[] = {'A', 0x00u, 'B'};
+  set_payload(&plan, payload, sizeof(payload));
+  CHECK(w_seed_hlo0_verify_plan(&plan));
+  sink_context sink = {
+      .accepted_bytes = sizeof(payload) + 1u,
+      .flush_status = W_SEED_RUN0_FLUSH_SUCCEEDED,
+  };
+  w_seed_run0_result result;
+  CHECK(w_seed_run0_execute(&plan, collect_sink, &sink, &result) ==
+        W_SEED_RUN0_OK);
+  static const uint8_t expected[] = {'A', 0x00u, 'B', 0x0au};
+  CHECK(sink.calls == 1u && sink.byte_count == sizeof(expected) &&
+        memcmp(sink.bytes, expected, sizeof(expected)) == 0 &&
+        result.attempted_bytes == sizeof(expected) &&
+        result.accepted_bytes == sizeof(expected));
   return true;
 }
 
@@ -298,7 +332,8 @@ static bool test_overlap_boundaries(void) {
 }
 
 int main(void) {
-  if (!test_canonical_execution() || !test_sink_failures_are_faithful() ||
+  if (!test_canonical_execution() || !test_nul_payload_is_byte_faithful() ||
+      !test_sink_failures_are_faithful() ||
       !test_preflight_failures_preserve_result() ||
       !test_text_and_scalar_mutations() || !test_alias_and_null_preflight() ||
       !test_overlap_boundaries())

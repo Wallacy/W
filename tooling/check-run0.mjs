@@ -95,9 +95,9 @@ function expectSourceFailure(executable, path, expected, label) {
   }
 }
 
-function expectExactGate(executable, path, label) {
+function expectExactGate(executable, path, expected, label) {
   const result = invoke(executable, [path])
-  if (result.exitCode !== 0 || !result.stdout.equals(expectedOutput) ||
+  if (result.exitCode !== 0 || !result.stdout.equals(expected) ||
       result.stderr.length !== 0) {
     fail(label + " is not exact: " + resultSummary(result))
   }
@@ -166,9 +166,9 @@ try {
     "public w run help remains unavailable")
 
   const canonicalFirst = expectExactGate(run0Gate, canonicalFixture,
-    "canonical source first run")
+    expectedOutput, "canonical source first run")
   const canonicalSecond = expectExactGate(run0Gate, canonicalFixture,
-    "canonical source second run")
+    expectedOutput, "canonical source second run")
   if (!canonicalFirst.equals(canonicalSecond)) {
     fail("canonical output changed between runs")
   }
@@ -185,6 +185,17 @@ try {
   expectInternalEffect(run0Gate, canonicalFixture, "sink-flush-failure",
     expectedOutput, "RUN0 stdout flush failure after full acceptance")
 
+  const restaurantPath = join(buildDirectory, "restaurant.w")
+  const emptyPath = join(buildDirectory, "empty.w")
+  await writeFile(restaurantPath,
+    "fn serve() { print(\"Table 42 remains open\") }\nentry(serve)\n")
+  await writeFile(emptyPath, "fn main() { print(\"\") }\nentry(main)\n")
+  expectExactGate(run0Gate, restaurantPath,
+    Buffer.from("Table 42 remains open\n", "utf8"),
+    "Restaurant payload source")
+  expectExactGate(run0Gate, emptyPath, Buffer.from("\n", "utf8"),
+    "empty payload source")
+
   const sources = new Map([
     ["whitespace_comments.w",
       "// leading comment\n" +
@@ -196,9 +207,13 @@ try {
     ["shadow_print.w",
       "fn print(message: String) {}\n" +
       "fn main() { print(\"Hello, world!\") }\nentry(main)\n"],
-    ["wrong_payload.w",
-      "fn main() { print(\"Goodbye\") }\nentry(main)\n"],
     ["noop_payload.w", "fn main() { noop() }\nentry(main)\n"],
+    ["comment_with_print.w",
+      "fn main() { noop(\"Other\") } // print(\"Hello, world!\")\nentry(main)\n"],
+    ["two_calls.w",
+      "fn main() { print(\"a\")\nprint(\"b\") }\nentry(main)\n"],
+    ["outside_subset.w",
+      "fn main(value: String) { print(value) }\nentry(main)\n"],
     ["qualified_call.w",
       "fn main() { console.print(\"Hello, world!\") }\nentry(main)\n"],
     ["imported_call.w",
@@ -212,8 +227,6 @@ try {
     ["extra_function.w",
       "fn helper() {}\n" +
       "fn main() { print(\"Hello, world!\") }\nentry(main)\n"],
-    ["wrong_identity.w",
-      "fn start() { print(\"Hello, world!\") }\nentry(start)\n"],
     ["async_main.w",
       "async fn main() { print(\"Hello, world!\") }\nentry(main)\n"],
     ["throws_main.w",
@@ -249,21 +262,22 @@ try {
   }
 
   expectExactGate(run0Gate, join(buildDirectory, "whitespace_comments.w"),
-    "whitespace and comments")
-  expectExactGate(run0Gate, exactLimitPath, "exact 4096-byte source")
+    expectedOutput, "whitespace and comments")
+  expectExactGate(run0Gate, exactLimitPath, expectedOutput,
+    "exact 4096-byte source")
 
   for (const [name, expected, label] of [
     ["comment_only.w", hir0Failure, "comment-only source"],
     ["shadow_print.w", hir0Failure, "shadowed print"],
-    ["wrong_payload.w", hlo0Unsupported, "wrong print payload"],
     ["noop_payload.w", hlo0Unsupported, "noop payload"],
+    ["comment_with_print.w", frontendFailure, "comment with print"],
+    ["two_calls.w", hir0Failure, "two calls"],
+    ["outside_subset.w", hir0Failure, "outside HLO0 subset"],
     ["qualified_call.w", frontendFailure, "qualified call"],
     ["imported_call.w", frontendFailure, "imported call"],
     ["extra_entry.w", parseFailure, "extra entry"],
     ["missing_entry.w", hir0Failure, "missing entry"],
     ["extra_function.w", hlo0Unsupported, "extra function"],
-    ["wrong_identity.w", hlo0Unsupported,
-      "wrong function and entry identity"],
     ["async_main.w", hlo0Unsupported, "async main"],
     ["throws_main.w", hlo0Unsupported, "throws main"],
     ["invalid_utf8.w", parseFailure, "invalid UTF-8"],

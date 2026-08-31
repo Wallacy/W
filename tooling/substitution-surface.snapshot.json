@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:4dfaa856b2d0ffa348e6942dba563ae03d395e62bf85c76ec0de83b8be3e2a17",
+  "corpusDigest": "sha256:851df06945bf66db79f399bffa81a8e8054a97ab0c06eed1db4b2fdda767d09c",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3672,6 +3672,66 @@
             "nonWhitespaceCodePoints": 56,
             "lines": 2,
             "surfaceLexemes": 16
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-print-literal-input-driven",
+      "task": {
+        "utf8Bytes": 148,
+        "codePoints": 148,
+        "nonWhitespaceCodePoints": 125,
+        "lines": 1,
+        "surfaceLexemes": 29
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:be79a0be247c9ac01e0b59b9960934d8e6843562401a373cd7fbc8d1514e6b92",
+        "metrics": {
+          "utf8Bytes": 58,
+          "codePoints": 58,
+          "nonWhitespaceCodePoints": 50,
+          "lines": 2,
+          "surfaceLexemes": 14
+        }
+      },
+      "alternatives": [
+        {
+          "name": "hello-only-hardcode",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:8cbd1c7a0256c03ed2d38ada16395150c288603a1f278fa618987a539644acd7",
+          "metrics": {
+            "utf8Bytes": 59,
+            "codePoints": 55,
+            "nonWhitespaceCodePoints": 47,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "direct-stdout",
+          "language": "c",
+          "sourceDigest": "sha256:6994f1c154664a9d90b3124365adc9c2a68f6d465917b5cce67bede28d82ec44",
+          "metrics": {
+            "utf8Bytes": 49,
+            "codePoints": 49,
+            "nonWhitespaceCodePoints": 43,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "substring-or-precomputed-bypass",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:af72cdf9be294518b88e293c1c4f39318fba55ad1432682f69680586e945c85b",
+          "metrics": {
+            "utf8Bytes": 46,
+            "codePoints": 42,
+            "nonWhitespaceCodePoints": 35,
+            "lines": 1,
+            "surfaceLexemes": 8
           }
         }
       ]
