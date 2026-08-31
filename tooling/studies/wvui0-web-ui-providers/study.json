@@ -1,0 +1,194 @@
+{
+  "$schema": "w-wvui0-web-ui-providers-study-1",
+  "id": "WVUI0",
+  "status": "design-oracle-input",
+  "title": "First-party web UI providers for embedded, browser, and terminal targets",
+  "question": "Which first-party web UI provider layers can expose one host-agnostic Last Light application without promoting a W API, syntax, or specification?",
+  "decision": "candidate-study-only",
+  "scope": [
+    "provider strategy matrix",
+    "host-agnostic application and typed-command boundary",
+    "lifecycle, concurrency, and closed-default security",
+    "availability and explicit fallback",
+    "terminal semantic boundary",
+    "human and machine witness planning"
+  ],
+  "candidateLayers": [
+    "host-agnostic web UI application and assets",
+    "typed-command protocol",
+    "embedded provider",
+    "external browser provider",
+    "terminal semantic provider",
+    "optional full/raster terminal provider"
+  ],
+  "crosspoints": [
+    "std.http, URL, Body, and assets",
+    "services and structured child tasks",
+    "AVF0 availability evidence",
+    "signed registry asset digests and CSP",
+    "terminal UI semantics and live state",
+    "sandbox and security policy"
+  ],
+  "benchmarkDisposition": "not-applicable",
+  "benchmarkReason": "This registration records planned performance axes only. It contains no timing, result, or performance claim.",
+  "witness": {
+    "application": "Last Light restaurant UI",
+    "targets": [
+      "embedded",
+      "external-browser",
+      "terminal-semantic"
+    ],
+    "requiresRealProviderSmoke": true,
+    "mockOnly": false
+  },
+  "performanceAxes": [
+    "cold start",
+    "first contentful paint",
+    "memory",
+    "idle CPU",
+    "package/cache size",
+    "bridge latency and throughput",
+    "input jank",
+    "terminal diff bytes and CPU",
+    "update cost"
+  ],
+  "officialRefs": [
+    {
+      "url": "https://v2.tauri.app/concept/architecture/",
+      "accessed": "2026-08-31",
+      "claim": "Tauri combines a Rust host, HTML in an OS WebView, and message passing."
+    },
+    {
+      "url": "https://v2.tauri.app/security/capabilities/",
+      "accessed": "2026-08-31",
+      "claim": "Capabilities grant or deny permissions for selected windows or WebViews."
+    },
+    {
+      "url": "https://github.com/tauri-apps/wry",
+      "accessed": "2026-08-31",
+      "claim": "Wry is a Rust cross-platform WebView library that needs an event loop and window handle."
+    },
+    {
+      "url": "https://github.com/webview/webview",
+      "accessed": "2026-08-31",
+      "claim": "webview is a C/C++ HTML5 abstraction using WebKit on Linux and macOS and WebView2 on Windows."
+    },
+    {
+      "url": "https://github.com/webviewjs/webview",
+      "accessed": "2026-08-31",
+      "claim": "WebViewJS provides a cross-platform WebView library for Node, Deno, and Bun."
+    },
+    {
+      "url": "https://wails.io/docs/introduction/",
+      "accessed": "2026-08-31",
+      "claim": "Wails targets desktop applications built with Go and web technologies."
+    },
+    {
+      "url": "https://neutralino.js.org/docs/contributing/architecture/",
+      "accessed": "2026-08-31",
+      "claim": "Neutralino uses a layered core with HTTP web resources and WebSocket native API messages."
+    },
+    {
+      "url": "https://www.electronjs.org/docs/latest/tutorial/process-model",
+      "accessed": "2026-08-31",
+      "claim": "Electron separates main and renderer processes and can isolate utility work."
+    },
+    {
+      "url": "https://www.electronjs.org/docs/latest/tutorial/security",
+      "accessed": "2026-08-31",
+      "claim": "Electron security depends on Chromium, Node.js, Electron, dependencies, and application code."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution",
+      "accessed": "2026-08-31",
+      "claim": "Production WebView2 apps use the WebView2 Runtime rather than the installed Edge Stable channel."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/security",
+      "accessed": "2026-08-31",
+      "claim": "Hosted web content can reach native resources unless a WebView2 app isolates it correctly."
+    },
+    {
+      "url": "https://developer.apple.com/documentation/webkit/wkwebview",
+      "accessed": "2026-08-31",
+      "claim": "WKWebView is Apple's WebKit view for displaying web content inside an app."
+    },
+    {
+      "url": "https://webkitgtk.org/reference/webkit2gtk/stable/class.WebView.html",
+      "accessed": "2026-08-31",
+      "claim": "WebKitGTK WebView manages content drawing, events, URI or data loading, and settings."
+    },
+    {
+      "url": "https://developer.android.com/develop/ui/views/layout/webapps/webview",
+      "accessed": "2026-08-31",
+      "claim": "Android WebView embeds web content and supports URL navigation through the Android APIs."
+    },
+    {
+      "url": "https://github.com/webui-dev/webui",
+      "accessed": "2026-08-31",
+      "claim": "WebUI can use an installed browser or optional WebView and exposes a WebSocket bridge."
+    },
+    {
+      "url": "https://chromiumembedded.github.io/cef/",
+      "accessed": "2026-08-31",
+      "claim": "CEF embeds Chromium-based browsers in other applications."
+    },
+    {
+      "url": "https://doc.qt.io/qt-6/qtwebengine-overview.html",
+      "accessed": "2026-08-31",
+      "claim": "Qt WebEngine uses Chromium and profiles can isolate pages, settings, scripts, and cookies."
+    },
+    {
+      "url": "https://book.servo.org/embedding/overview.html",
+      "accessed": "2026-08-31",
+      "claim": "Servo intends to be embeddable, while its embedding documentation remains sparse and in progress."
+    },
+    {
+      "url": "https://github.com/fathyb/carbonyl",
+      "accessed": "2026-08-31",
+      "claim": "Carbonyl is a Chromium-based browser that runs in a terminal."
+    },
+    {
+      "url": "https://github.com/browsh-org/browsh",
+      "accessed": "2026-08-31",
+      "claim": "Browsh renders interactive modern web pages to TTYs using headless Firefox."
+    },
+    {
+      "url": "https://www.brow.sh/docs/introduction/",
+      "accessed": "2026-08-31",
+      "claim": "Browsh's CLI starts a compatible headless browser and connects through remote debugging."
+    },
+    {
+      "url": "https://lynx.invisible-island.net/",
+      "accessed": "2026-08-31",
+      "claim": "Lynx is a text web browser and supplies a conservative terminal baseline."
+    },
+    {
+      "url": "https://www.w3.org/TR/wai-aria/",
+      "accessed": "2026-08-31",
+      "claim": "WAI-ARIA defines accessibility semantics and an accessibility tree model for user agents and assistive technology."
+    }
+  ],
+  "evidenceBoundary": {
+    "current": [
+      "official-primary-refs",
+      "host-study-notes",
+      "crosspoint-inventory"
+    ],
+    "missing": [
+      "real-provider-smoke",
+      "provider-receipts",
+      "w-compile",
+      "w-run",
+      "security-adversarial-execution",
+      "human-study",
+      "model-study",
+      "performance-results"
+    ],
+    "implementationClaimed": false,
+    "apiPromotion": false,
+    "syntaxPromotion": false,
+    "specPromotion": false
+  },
+  "stopCondition": "Stop on stale references, missing provider receipts, failed real-provider smoke, failed security adversarial cases, unsupported terminal promises, or any request to promote an API, syntax, or specification before Sol and human review."
+}
