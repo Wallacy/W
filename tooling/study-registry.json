@@ -21,17 +21,17 @@
     ]
   },
   "counts": {
-    "studyDirectories": 71,
-    "metadataFiles": 94,
-    "fixtureFiles": 335,
+    "studyDirectories": 72,
+    "metadataFiles": 95,
+    "fixtureFiles": 336,
     "references": 897,
     "digestReferences": 770,
     "pathOnlyReferences": 127,
     "dependencyEdges": 54,
     "entrypoints": 54,
     "scripts": 106,
-    "roots": 19,
-    "leaves": 69,
+    "roots": 20,
+    "leaves": 70,
     "missing": 0,
     "stale": 0,
     "duplicates": 0,
@@ -196,14 +196,14 @@
     {
       "path": "tooling/studies/final-research-closure/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:f4b7569537777bf273d3e943adee274fe71e8de179b40cc5be71ba34ee4c337d",
+      "digest": "sha256:e7bf01a79d320dd642329c43adf679be4fb1bacb9e2af660eef56e344849d6b7",
       "status": "design-oracle-input",
       "id": "R1-final-research-closure"
     },
     {
       "path": "tooling/studies/final-research-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:ae84f29e0550bcde3e7fd7b6f676c65e3d9f98fd8ad851a79b9ddcf20f3c6f33",
+      "digest": "sha256:c897deaf78826d40daad9c0680cd413b3ffb9e7ee7f103a46ce6ab3ff10cc4e3",
       "status": "design-oracle-input",
       "id": "FRC0"
     },
@@ -696,6 +696,13 @@
       "digest": "sha256:19aa04f630da7389c34780b3c8962ea5b497c1c57f0474d3cd8154e088e4e582",
       "status": "complete-design-study",
       "id": "TGM0"
+    },
+    {
+      "path": "tooling/studies/wvui0-web-ui-providers/study.json",
+      "kind": "study",
+      "digest": "sha256:8726e7d8a6c482c953aaa1d16bccc1e66d3413c82168354b90197bfca9043f4e",
+      "status": "design-oracle-input",
+      "id": "WVUI0"
     }
   ],
   "fixtures": [
@@ -1033,13 +1040,14 @@
     "tooling/studies/tgm0-task-group-map-collect/cases.json",
     "tooling/studies/tgm0-task-group-map-collect/check.mjs",
     "tooling/studies/tgm0-task-group-map-collect/oracle.mjs",
-    "tooling/studies/tgm0-task-group-map-collect/oracle.test.mjs"
+    "tooling/studies/tgm0-task-group-map-collect/oracle.test.mjs",
+    "tooling/studies/wvui0-web-ui-providers/README.md"
   ],
   "scripts": [
     {
       "path": "package.json",
       "kind": "script-package",
-      "digest": "sha256:5ec7c9493c7ddee1e7381a5066b0a2a8d6e09838ac72ccf79be9f263b9d97b9f"
+      "digest": "sha256:7a56e7a4d7708a12c07a4c94242aba8d9a642c8002ff8e10f7234c8ee4b8a08d"
     },
     {
       "path": "reference/last-light/borrow_relations_brx3.w",
@@ -5593,6 +5601,42 @@
         "inbound": [],
         "outbound": []
       }
+    },
+    {
+      "directory": "tooling/studies/wvui0-web-ui-providers",
+      "id": "WVUI0",
+      "title": "First-party web UI providers for embedded, browser, and terminal targets",
+      "status": "design-oracle-input",
+      "ids": [
+        "WVUI0",
+        "candidate-study-only"
+      ],
+      "gates": [],
+      "metadata": [
+        94
+      ],
+      "fixtures": [
+        335
+      ],
+      "references": [],
+      "entrypoints": [
+        29,
+        30,
+        31,
+        32,
+        40,
+        43,
+        44,
+        45,
+        46,
+        47,
+        51,
+        52
+      ],
+      "dependencies": {
+        "inbound": [],
+        "outbound": []
+      }
     }
   ],
   "references": [
@@ -8112,7 +8156,7 @@
       "pointer": "sourceRefs.3.path",
       "path": "../../../tooling/design-freeze-classification.json",
       "resolved": "tooling/design-freeze-classification.json",
-      "declaredDigest": "sha256:4fa1a1804c652a3497ae12bcc96d78e4f4af9538cc74430a4e9b6d38f3253ef6",
+      "declaredDigest": "sha256:6572fdeaa0ae0138f587dd9e87cef22155e6ee40bff457e61f9c532bf3fa051a",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8122,7 +8166,7 @@
       "pointer": "sourceRefs.4.path",
       "path": "../../../RATIONALE.md",
       "resolved": "RATIONALE.md",
-      "declaredDigest": "sha256:5091ce384beeed05df1054c0fd9285f17c42aaadee843f9270e12bf08a6ebceb",
+      "declaredDigest": "sha256:1af3ffe190c0591e9c6341a475b0e0c82f1bb40e8ffe95fce50f8c14580d1e05",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8132,7 +8176,7 @@
       "pointer": "sourceRefs.5.path",
       "path": "../../../DESIGN.md",
       "resolved": "DESIGN.md",
-      "declaredDigest": "sha256:75acace96ecc71000cabd897b9ff613733a8cb6d808fc0a00639f1e6f08e9c6b",
+      "declaredDigest": "sha256:ee07571a6ac4f46ea49ce2ac0ffa566e0f1093f8bbfcca4f84c7dc62aab67a64",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8362,7 +8406,7 @@
       "pointer": "artifacts.27.path",
       "path": "tooling/design-freeze-classification.json",
       "resolved": "tooling/design-freeze-classification.json",
-      "declaredDigest": "sha256:4fa1a1804c652a3497ae12bcc96d78e4f4af9538cc74430a4e9b6d38f3253ef6",
+      "declaredDigest": "sha256:6572fdeaa0ae0138f587dd9e87cef22155e6ee40bff457e61f9c532bf3fa051a",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8372,7 +8416,7 @@
       "pointer": "artifacts.28.path",
       "path": "RATIONALE.md",
       "resolved": "RATIONALE.md",
-      "declaredDigest": "sha256:5091ce384beeed05df1054c0fd9285f17c42aaadee843f9270e12bf08a6ebceb",
+      "declaredDigest": "sha256:1af3ffe190c0591e9c6341a475b0e0c82f1bb40e8ffe95fce50f8c14580d1e05",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8382,7 +8426,7 @@
       "pointer": "artifacts.29.path",
       "path": "DESIGN.md",
       "resolved": "DESIGN.md",
-      "declaredDigest": "sha256:75acace96ecc71000cabd897b9ff613733a8cb6d808fc0a00639f1e6f08e9c6b",
+      "declaredDigest": "sha256:ee07571a6ac4f46ea49ce2ac0ffa566e0f1093f8bbfcca4f84c7dc62aab67a64",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8402,7 +8446,7 @@
       "pointer": "artifacts.30.path",
       "path": "DESIGN-INDEX.md",
       "resolved": "DESIGN-INDEX.md",
-      "declaredDigest": "sha256:31340a4219499c1d43415ea5fd8311fcc8bbc21d9eb1a4c8fb974c4406bdc73a",
+      "declaredDigest": "sha256:81df89d55e37357418ca218c34203a023238b9c4009359159fb65399f094bb7a",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8412,7 +8456,7 @@
       "pointer": "artifacts.4.path",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
       "resolved": "tooling/final-research-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:247a368038dfc4fe52c534caec41471f3ad9f58d3e126f0dd3268e0d654abcb5",
+      "declaredDigest": "sha256:b88e0c523b182b0b456ff938d022bc97b840c59988544d23af4994dde350d4ea",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8432,7 +8476,7 @@
       "pointer": "artifacts.6.path",
       "path": "tooling/studies/final-research-closure/bundle.json",
       "resolved": "tooling/studies/final-research-closure/bundle.json",
-      "declaredDigest": "sha256:f4b7569537777bf273d3e943adee274fe71e8de179b40cc5be71ba34ee4c337d",
+      "declaredDigest": "sha256:e7bf01a79d320dd642329c43adf679be4fb1bacb9e2af660eef56e344849d6b7",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -15239,7 +15283,8 @@
         67,
         68,
         69,
-        70
+        70,
+        71
       ],
       "appliesTo": [
         {
@@ -15524,6 +15569,10 @@
         },
         {
           "study": 70,
+          "reason": "study-glob"
+        },
+        {
+          "study": 71,
           "reason": "study-glob"
         }
       ]
@@ -15608,7 +15657,8 @@
         67,
         68,
         69,
-        70
+        70,
+        71
       ],
       "appliesTo": [
         {
@@ -15893,6 +15943,10 @@
         },
         {
           "study": 70,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 71,
           "reason": "study-tooling"
         }
       ]
@@ -15979,7 +16033,8 @@
         67,
         68,
         69,
-        70
+        70,
+        71
       ],
       "appliesTo": [
         {
@@ -16265,6 +16320,10 @@
         {
           "study": 70,
           "reason": "direct-study-path"
+        },
+        {
+          "study": 71,
+          "reason": "study-tooling"
         }
       ]
     },
@@ -16349,7 +16408,8 @@
         67,
         68,
         69,
-        70
+        70,
+        71
       ],
       "appliesTo": [
         {
@@ -16634,6 +16694,10 @@
         },
         {
           "study": 70,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 71,
           "reason": "study-tooling"
         }
       ]
@@ -16858,7 +16922,8 @@
         67,
         68,
         69,
-        70
+        70,
+        71
       ],
       "appliesTo": [
         {
@@ -17143,6 +17208,10 @@
         },
         {
           "study": 70,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 71,
           "reason": "study-tooling"
         }
       ]
@@ -17269,7 +17338,8 @@
         67,
         68,
         69,
-        70
+        70,
+        71
       ],
       "appliesTo": [
         {
@@ -17554,6 +17624,10 @@
         },
         {
           "study": 70,
+          "reason": "study-glob"
+        },
+        {
+          "study": 71,
           "reason": "study-glob"
         }
       ]
@@ -17638,7 +17712,8 @@
         67,
         68,
         69,
-        70
+        70,
+        71
       ],
       "appliesTo": [
         {
@@ -17923,6 +17998,10 @@
         },
         {
           "study": 70,
+          "reason": "study-glob"
+        },
+        {
+          "study": 71,
           "reason": "study-glob"
         }
       ]
@@ -18009,7 +18088,8 @@
         67,
         68,
         69,
-        70
+        70,
+        71
       ],
       "appliesTo": [
         {
@@ -18294,6 +18374,10 @@
         },
         {
           "study": 70,
+          "reason": "study-glob"
+        },
+        {
+          "study": 71,
           "reason": "study-glob"
         }
       ]
@@ -18378,7 +18462,8 @@
         67,
         68,
         69,
-        70
+        70,
+        71
       ],
       "appliesTo": [
         {
@@ -18663,6 +18748,10 @@
         },
         {
           "study": 70,
+          "reason": "study-glob"
+        },
+        {
+          "study": 71,
           "reason": "study-glob"
         }
       ]
@@ -18751,7 +18840,8 @@
         67,
         68,
         69,
-        70
+        70,
+        71
       ],
       "appliesTo": [
         {
@@ -19036,6 +19126,10 @@
         },
         {
           "study": 70,
+          "reason": "study-glob"
+        },
+        {
+          "study": 71,
           "reason": "study-glob"
         }
       ]
@@ -19180,7 +19274,8 @@
         67,
         68,
         69,
-        70
+        70,
+        71
       ],
       "appliesTo": [
         {
@@ -19466,6 +19561,10 @@
         {
           "study": 70,
           "reason": "study-glob"
+        },
+        {
+          "study": 71,
+          "reason": "study-glob"
         }
       ]
     },
@@ -19549,7 +19648,8 @@
         67,
         68,
         69,
-        70
+        70,
+        71
       ],
       "appliesTo": [
         {
@@ -19834,6 +19934,10 @@
         },
         {
           "study": 70,
+          "reason": "study-glob"
+        },
+        {
+          "study": 71,
           "reason": "study-glob"
         }
       ]
@@ -20261,7 +20365,8 @@
       "RDX0",
       "SEA0",
       "SVC0",
-      "TGM0"
+      "TGM0",
+      "WVUI0"
     ],
     "leaves": [
       "AEG0",
@@ -20332,7 +20437,8 @@
       "SEC0",
       "SVC0",
       "SYN1",
-      "TGM0"
+      "TGM0",
+      "WVUI0"
     ],
     "rootDirectories": [
       "tooling/studies/aeg0-app-essentials-gate",
@@ -20353,7 +20459,8 @@
       "tooling/studies/rdx0-binary-registry-execution",
       "tooling/studies/sea0-simulated-effects-approval",
       "tooling/studies/svc0-service-stream-directions",
-      "tooling/studies/tgm0-task-group-map-collect"
+      "tooling/studies/tgm0-task-group-map-collect",
+      "tooling/studies/wvui0-web-ui-providers"
     ],
     "leafDirectories": [
       "tooling/studies/aeg0-app-essentials-gate",
@@ -20424,7 +20531,8 @@
       "tooling/studies/sec0-security-model",
       "tooling/studies/svc0-service-stream-directions",
       "tooling/studies/syn1-typed-generation",
-      "tooling/studies/tgm0-task-group-map-collect"
+      "tooling/studies/tgm0-task-group-map-collect",
+      "tooling/studies/wvui0-web-ui-providers"
     ],
     "cycles": []
   },

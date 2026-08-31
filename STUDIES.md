@@ -12,12 +12,12 @@
 | Status | Estudos |
 |---|---:|
 | `complete-design-study` | 8 |
-| `design-oracle-input` | 59 |
+| `design-oracle-input` | 60 |
 | `design-oracle-input-cap0` | 1 |
 | `design-oracle-input-syn1` | 1 |
 | `protocol-ready` | 1 |
 | `registered-research-bundle` | 1 |
-| **Total** | **71** |
+| **Total** | **72** |
 
 O registry de máquina também registra metadados, fixtures, referências, digests, dependências e entrypoints de scripts.
 Use `bun run study:registry` para regenerar as duas projeções e `bun run check:study-registry` para validá-las.
@@ -35,7 +35,7 @@ Use `bun run study:registry` para regenerar as duas projeções e `bun run check
 | `SVC0` | Directional service streams without implicit channels — `complete-design-study` | [`tooling/studies/svc0-service-stream-directions`](./tooling/studies/svc0-service-stream-directions/) | `—` | `bun run check:svc0` |
 | `TGM0` | Closed finite TaskGroup map and collect families — `complete-design-study` | [`tooling/studies/tgm0-task-group-map-collect`](./tooling/studies/tgm0-task-group-map-collect/) | `—` | `bun run check:tgm0` |
 
-## Status: `design-oracle-input` (59)
+## Status: `design-oracle-input` (60)
 
 | ID | Função / estado | Caminho | Gate principal | Entrypoint principal |
 |---|---|---|---|---|
@@ -98,6 +98,7 @@ Use `bun run study:registry` para regenerar as duas projeções e `bun run check
 | `R1C0` | Comparative ergonomics closure with bounded WLO1 fallback — `design-oracle-input` | [`tooling/studies/r1c0-closure`](./tooling/studies/r1c0-closure/) | `—` | `bun run check:r1c0` |
 | `SEC0` | Broad security model for safe W across physical targets — `design-oracle-input` | [`tooling/studies/sec0-security-model`](./tooling/studies/sec0-security-model/) | `SEC0-R1` | `bun run check:sec0` |
 | `SYN2-DYN2` | Typed generated module sets and bounded versioned behavior closure — `design-oracle-input` | [`tooling/studies/syn2-dyn2-closure`](./tooling/studies/syn2-dyn2-closure/) | `DYN0-G1` | `bun run check:syn2-dyn2` |
+| `WVUI0` | First-party web UI providers for embedded, browser, and terminal targets — `design-oracle-input` | [`tooling/studies/wvui0-web-ui-providers`](./tooling/studies/wvui0-web-ui-providers/) | `—` | `bun run check:study-bundles` |
 
 ## Status: `design-oracle-input-cap0` (1)
 
