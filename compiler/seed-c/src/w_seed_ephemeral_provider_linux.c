@@ -9,11 +9,14 @@
 #include <limits.h>
 #include <string.h>
 
-static const char linux_provider_id[] = "linux-openat2-v1";
+static const char linux_provider_id[] =
+    W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_ID;
 
 enum {
   LINUX_PROVIDER_ID_LENGTH = sizeof(linux_provider_id) - 1u,
-  LINUX_IDENTITY_TOKEN_LENGTH = 34u,
+  /* prefix + mount id + device major + device minor + inode. */
+  LINUX_IDENTITY_TOKEN_LENGTH =
+      W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_TOKEN_BYTES,
 };
 
 static w_seed_ephemeral_provider_metadata linux_metadata(void) {
@@ -30,21 +33,26 @@ static w_seed_ephemeral_provider_metadata linux_metadata(void) {
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/openat2.h>
+#include <linux/stat.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
 #if defined(SYS_openat2) && defined(RESOLVE_BENEATH) && \
-    defined(RESOLVE_NO_SYMLINKS) && defined(RESOLVE_NO_XDEV)
+    defined(RESOLVE_NO_SYMLINKS) && defined(RESOLVE_NO_XDEV) && \
+    defined(SYS_statx) && defined(STATX_MNT_ID_UNIQUE) && \
+    defined(AT_EMPTY_PATH)
 #define W_SEED_EPHEMERAL_PROVIDER_HAS_OPENAT2 1
 #else
 #define W_SEED_EPHEMERAL_PROVIDER_HAS_OPENAT2 0
 #endif
 
-_Static_assert(sizeof(dev_t) <= sizeof(uint64_t),
-               "Linux provider requires dev_t no wider than uint64_t");
-_Static_assert(sizeof(ino_t) <= sizeof(uint64_t),
-               "Linux provider requires ino_t no wider than uint64_t");
+typedef struct {
+  uint64_t mount_id;
+  uint64_t device_major;
+  uint64_t device_minor;
+  uint64_t inode;
+} linux_identity;
 
 static w_seed_ephemeral_provider_linux_slot *slot_for_handle(
     w_seed_ephemeral_provider_linux_context *context,
@@ -82,10 +90,11 @@ static bool encode_handle(size_t index, uint64_t generation,
 }
 
 static bool allocate_slot(w_seed_ephemeral_provider_linux_context *context,
-                          int fd, uint64_t device, uint64_t inode,
+                          int fd, const linux_identity *identity,
                           w_seed_ephemeral_provider_linux_slot_kind kind,
                           w_seed_ephemeral_provider_handle *handle) {
-  if (context == NULL || handle == NULL || fd < 0 || !context->initialized)
+  if (context == NULL || identity == NULL || handle == NULL || fd < 0 ||
+      !context->initialized)
     return false;
   uint64_t generation = context->next_generation;
   if (generation == 0u) generation = 1u;
@@ -95,8 +104,10 @@ static bool allocate_slot(w_seed_ephemeral_provider_linux_context *context,
     if (slot->used) continue;
     if (!encode_handle(index, generation, handle)) return false;
     slot->fd = fd;
-    slot->device = device;
-    slot->inode = inode;
+    slot->mount_id = identity->mount_id;
+    slot->device_major = identity->device_major;
+    slot->device_minor = identity->device_minor;
+    slot->inode = identity->inode;
     slot->generation = generation;
     slot->kind = kind;
     slot->used = true;
@@ -110,7 +121,9 @@ static void release_slot(w_seed_ephemeral_provider_linux_slot *slot) {
   if (slot == NULL || !slot->used) return;
   if (slot->fd >= 0) (void)close(slot->fd);
   slot->fd = -1;
-  slot->device = 0u;
+  slot->mount_id = 0u;
+  slot->device_major = 0u;
+  slot->device_minor = 0u;
   slot->inode = 0u;
   slot->generation = 0u;
   slot->kind = W_SEED_EPHEMERAL_PROVIDER_LINUX_SLOT_EMPTY;
@@ -209,51 +222,77 @@ static bool copy_source_id(w_seed_frontend_text source_id,
   return true;
 }
 
-static bool stat_identity(const struct stat *stat_buffer, uint64_t *device,
-                          uint64_t *inode) {
-  if (stat_buffer == NULL || device == NULL || inode == NULL)
+static bool statx_identity(int fd, linux_identity *identity,
+                           uint64_t *size, mode_t *mode) {
+  if (fd < 0 || identity == NULL || size == NULL || mode == NULL)
     return false;
-  const uintmax_t raw_device = (uintmax_t)stat_buffer->st_dev;
-  const uintmax_t raw_inode = (uintmax_t)stat_buffer->st_ino;
-  if (raw_device > (uintmax_t)UINT64_MAX ||
-      raw_inode > (uintmax_t)UINT64_MAX)
+#if W_SEED_EPHEMERAL_PROVIDER_HAS_OPENAT2
+  struct statx stat_buffer;
+  (void)memset(&stat_buffer, 0, sizeof(stat_buffer));
+  const unsigned int mask =
+      (unsigned int)(STATX_TYPE | STATX_SIZE | STATX_INO |
+                     STATX_MNT_ID_UNIQUE | STATX_BASIC_STATS);
+  const long result = syscall(SYS_statx, fd, "", AT_EMPTY_PATH,
+                              (unsigned int)mask, &stat_buffer);
+  if (result < 0L || (stat_buffer.stx_mask & STATX_MNT_ID_UNIQUE) == 0u ||
+      (stat_buffer.stx_mask & STATX_INO) == 0u ||
+      (stat_buffer.stx_mask & STATX_TYPE) == 0u ||
+      (stat_buffer.stx_mask & STATX_SIZE) == 0u)
     return false;
-  *device = (uint64_t)raw_device;
-  *inode = (uint64_t)raw_inode;
-  return true;
+  identity->mount_id = (uint64_t)stat_buffer.stx_mnt_id;
+  identity->device_major = (uint64_t)stat_buffer.stx_dev_major;
+  identity->device_minor = (uint64_t)stat_buffer.stx_dev_minor;
+  identity->inode = (uint64_t)stat_buffer.stx_ino;
+  *size = (uint64_t)stat_buffer.stx_size;
+  *mode = (mode_t)stat_buffer.stx_mode;
+  return identity->mount_id != 0u && identity->inode != 0u;
+#else
+  (void)identity;
+  (void)size;
+  (void)mode;
+  return false;
+#endif
 }
 
-static bool identity_equal(const struct stat *stat_buffer, uint64_t device,
-                           uint64_t inode) {
-  uint64_t observed_device = 0u;
-  uint64_t observed_inode = 0u;
-  return stat_identity(stat_buffer, &observed_device, &observed_inode) &&
-         observed_device == device && observed_inode == inode;
+static bool identity_equal(const linux_identity *left,
+                           const linux_identity *right) {
+  return left != NULL && right != NULL && left->mount_id == right->mount_id &&
+         left->device_major == right->device_major &&
+         left->device_minor == right->device_minor &&
+         left->inode == right->inode;
 }
 
-static bool write_identity_token(char *destination, size_t capacity, char prefix,
-                                 uint64_t device, uint64_t inode,
-                                 size_t *length) {
+static bool write_hex(char *destination, uint64_t value) {
   static const char hex[] = "0123456789abcdef";
-  if (destination == NULL || length == NULL ||
-      capacity < LINUX_IDENTITY_TOKEN_LENGTH)
-    return false;
-  destination[0] = prefix;
   for (size_t index = 0u; index < 16u; index += 1u) {
     const unsigned int shift = (unsigned int)((15u - index) * 4u);
     destination[1u + index] =
-        hex[(size_t)((device >> shift) & UINT64_C(0x0f))];
-    destination[18u + index] =
-        hex[(size_t)((inode >> shift) & UINT64_C(0x0f))];
+        hex[(size_t)((value >> shift) & UINT64_C(0x0f))];
   }
+  return true;
+}
+
+static bool write_identity_token(char *destination, size_t capacity, char prefix,
+                                 const linux_identity *identity,
+                                 size_t *length) {
+  if (destination == NULL || identity == NULL || length == NULL ||
+      capacity < LINUX_IDENTITY_TOKEN_LENGTH)
+    return false;
+  destination[0] = prefix;
+  (void)write_hex(destination, identity->mount_id);
   destination[17u] = '-';
+  (void)write_hex(destination + 17u, identity->device_major);
+  destination[34u] = '-';
+  (void)write_hex(destination + 34u, identity->device_minor);
+  destination[51u] = '-';
+  (void)write_hex(destination + 51u, identity->inode);
   *length = LINUX_IDENTITY_TOKEN_LENGTH;
   return true;
 }
 
 static bool write_tokens(
-    w_seed_ephemeral_provider_token_buffers *tokens, uint64_t root_device,
-    uint64_t root_inode, uint64_t source_device, uint64_t source_inode,
+    w_seed_ephemeral_provider_token_buffers *tokens,
+    const linux_identity *root_identity, const linux_identity *source_identity,
     w_seed_ephemeral_provider_observation *observation) {
   if (tokens == NULL || observation == NULL ||
       tokens->provider_id == NULL || tokens->root_token == NULL ||
@@ -264,15 +303,15 @@ static bool write_tokens(
   (void)memcpy(tokens->provider_id, linux_provider_id,
                LINUX_PROVIDER_ID_LENGTH);
   if (!write_identity_token(tokens->root_token, tokens->root_token_capacity,
-                            'r', root_device, root_inode,
+                            'r', root_identity,
                             &observation->root_token_length) ||
       !write_identity_token(
           tokens->source_provider_owner_token,
-          tokens->source_provider_owner_token_capacity, 'o', root_device,
-          root_inode, &observation->source_provider_owner_token_length) ||
+          tokens->source_provider_owner_token_capacity, 'o', root_identity,
+          &observation->source_provider_owner_token_length) ||
       !write_identity_token(tokens->canonical_token,
                             tokens->canonical_token_capacity, 'c',
-                            source_device, source_inode,
+                            source_identity,
                             &observation->canonical_token_length))
     return false;
   observation->provider_id_length = LINUX_PROVIDER_ID_LENGTH;
@@ -331,10 +370,10 @@ static bool duplicate_anchor(int source_fd, int *duplicate_fd) {
 
 static w_seed_ephemeral_provider_backend_status open_root_parent(
     w_seed_ephemeral_provider_linux_context *context,
-    w_seed_byte_view root_path, int *parent_fd, uint64_t *parent_device,
-    uint64_t *parent_inode, size_t *leaf_start) {
-  if (context == NULL || parent_fd == NULL || parent_device == NULL ||
-      parent_inode == NULL || leaf_start == NULL || !context->initialized ||
+    w_seed_byte_view root_path, int *parent_fd, linux_identity *parent_identity,
+    size_t *leaf_start) {
+  if (context == NULL || parent_fd == NULL || parent_identity == NULL ||
+      leaf_start == NULL || !context->initialized ||
       !context->openat2_supported)
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_UNSUPPORTED;
   size_t parent_length = 0u;
@@ -378,9 +417,10 @@ static w_seed_ephemeral_provider_backend_status open_root_parent(
       component_start = index + 1u;
     }
   }
-  struct stat parent_stat;
-  if (fstat(current_fd, &parent_stat) < 0 || !S_ISDIR(parent_stat.st_mode) ||
-      !stat_identity(&parent_stat, parent_device, parent_inode)) {
+  uint64_t parent_size = 0u;
+  mode_t parent_mode = 0;
+  if (!statx_identity(current_fd, parent_identity, &parent_size,
+                      &parent_mode) || !S_ISDIR(parent_mode)) {
     (void)close(current_fd);
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_UNSUPPORTED;
   }
@@ -388,11 +428,8 @@ static w_seed_ephemeral_provider_backend_status open_root_parent(
   return W_SEED_EPHEMERAL_PROVIDER_BACKEND_OK;
 }
 
-static bool source_size(const struct stat *stat_buffer, size_t *size) {
-  if (stat_buffer == NULL || size == NULL || stat_buffer->st_size < (off_t)0)
-    return false;
-  const uintmax_t raw_size = (uintmax_t)stat_buffer->st_size;
-  if (raw_size > (uintmax_t)SIZE_MAX) return false;
+static bool source_size(uint64_t raw_size, size_t *size) {
+  if (size == NULL || raw_size > (uint64_t)SIZE_MAX) return false;
   *size = (size_t)raw_size;
   return true;
 }
@@ -405,18 +442,20 @@ static bool offset_value(size_t value, off_t *offset) {
 }
 
 static w_seed_ephemeral_provider_backend_status read_fd(
-    int fd, uint64_t expected_device, uint64_t expected_inode, uint8_t *bytes,
+    int fd, const linux_identity *expected_identity, uint8_t *bytes,
     size_t capacity, size_t *written) {
   if (fd < 0 || written == NULL) return W_SEED_EPHEMERAL_PROVIDER_BACKEND_INVALID;
   *written = 0u;
-  struct stat before_stat;
-  if (fstat(fd, &before_stat) < 0)
+  linux_identity before_identity;
+  uint64_t before_size = 0u;
+  mode_t before_mode = 0;
+  if (!statx_identity(fd, &before_identity, &before_size, &before_mode))
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_IO;
-  if (!S_ISREG(before_stat.st_mode) ||
-      !identity_equal(&before_stat, expected_device, expected_inode))
+  if (!S_ISREG(before_mode) ||
+      !identity_equal(&before_identity, expected_identity))
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_UNSUPPORTED;
   size_t length = 0u;
-  if (!source_size(&before_stat, &length))
+  if (!source_size(before_size, &length))
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_UNSUPPORTED;
   if (length > capacity) {
     *written = length;
@@ -440,12 +479,15 @@ static w_seed_ephemeral_provider_backend_status read_fd(
       return W_SEED_EPHEMERAL_PROVIDER_BACKEND_INVALID;
     offset += count_size;
   }
-  struct stat after_stat;
-  if (fstat(fd, &after_stat) < 0)
+  linux_identity after_identity;
+  uint64_t after_size = 0u;
+  mode_t after_mode = 0;
+  if (!statx_identity(fd, &after_identity, &after_size, &after_mode))
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_IO;
   size_t after_length = 0u;
-  if (!source_size(&after_stat, &after_length) || after_length != length ||
-      !identity_equal(&after_stat, expected_device, expected_inode))
+  if (!S_ISREG(after_mode) || !source_size(after_size, &after_length) ||
+      after_length != length ||
+      !identity_equal(&after_identity, expected_identity))
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_IO;
   *written = length;
   return W_SEED_EPHEMERAL_PROVIDER_BACKEND_OK;
@@ -468,12 +510,11 @@ static w_seed_ephemeral_provider_backend_status linux_open_root(
   if (!context->initialized || !context->openat2_supported)
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_UNSUPPORTED;
   int parent_fd = -1;
-  uint64_t parent_device = 0u;
-  uint64_t parent_inode = 0u;
+  linux_identity parent_identity;
+  (void)memset(&parent_identity, 0, sizeof(parent_identity));
   size_t leaf_start = 0u;
   w_seed_ephemeral_provider_backend_status status = open_root_parent(
-      context, root_path, &parent_fd, &parent_device, &parent_inode,
-      &leaf_start);
+      context, root_path, &parent_fd, &parent_identity, &leaf_start);
   if (status != W_SEED_EPHEMERAL_PROVIDER_BACKEND_OK) return status;
   const size_t leaf_length = root_path.length - leaf_start;
   if (leaf_length > W_SEED_EPHEMERAL_PROVIDER_MAX_PATH_BYTES) {
@@ -492,11 +533,12 @@ static w_seed_ephemeral_provider_backend_status linux_open_root(
     context->root_leaf[0] = '\0';
     return status;
   }
-  struct stat source_stat;
-  uint64_t source_device = 0u;
-  uint64_t source_inode = 0u;
-  if (fstat(source_fd, &source_stat) < 0 || !S_ISREG(source_stat.st_mode) ||
-      !stat_identity(&source_stat, &source_device, &source_inode)) {
+  linux_identity source_identity;
+  uint64_t source_size_value = 0u;
+  mode_t source_mode = 0;
+  if (!statx_identity(source_fd, &source_identity, &source_size_value,
+                      &source_mode) ||
+      !S_ISREG(source_mode)) {
     (void)close(source_fd);
     (void)close(parent_fd);
     context->root_leaf_length = 0u;
@@ -505,7 +547,7 @@ static w_seed_ephemeral_provider_backend_status linux_open_root(
   }
   w_seed_ephemeral_provider_handle local_root = {(uintptr_t)0u};
   w_seed_ephemeral_provider_handle local_source = {(uintptr_t)0u};
-  if (!allocate_slot(context, parent_fd, parent_device, parent_inode,
+  if (!allocate_slot(context, parent_fd, &parent_identity,
                      W_SEED_EPHEMERAL_PROVIDER_LINUX_SLOT_ROOT_DIRECTORY,
                      &local_root)) {
     (void)close(parent_fd);
@@ -514,7 +556,7 @@ static w_seed_ephemeral_provider_backend_status linux_open_root(
     context->root_leaf[0] = '\0';
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_IO;
   }
-  if (!allocate_slot(context, source_fd, source_device, source_inode,
+  if (!allocate_slot(context, source_fd, &source_identity,
                      W_SEED_EPHEMERAL_PROVIDER_LINUX_SLOT_ROOT_SOURCE,
                      &local_source)) {
     w_seed_ephemeral_provider_linux_slot *root_slot =
@@ -529,8 +571,7 @@ static w_seed_ephemeral_provider_backend_status linux_open_root(
     context->root_leaf[0] = '\0';
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_IO;
   }
-  if (!write_tokens(tokens, parent_device, parent_inode, source_device,
-                    source_inode, observation)) {
+  if (!write_tokens(tokens, &parent_identity, &source_identity, observation)) {
     w_seed_ephemeral_provider_linux_slot *source_slot =
         slot_for_handle(context, local_source,
                         W_SEED_EPHEMERAL_PROVIDER_LINUX_SLOT_ROOT_SOURCE);
@@ -581,23 +622,26 @@ static w_seed_ephemeral_provider_backend_status linux_open_source(
   const int source_fd = openat2_path(root_slot->fd, path,
                                      O_RDONLY | O_NONBLOCK);
   if (source_fd < 0) return errno_status(errno);
-  struct stat source_stat;
-  uint64_t source_device = 0u;
-  uint64_t source_inode = 0u;
-  if (fstat(source_fd, &source_stat) < 0 || !S_ISREG(source_stat.st_mode) ||
-      !stat_identity(&source_stat, &source_device, &source_inode)) {
+  linux_identity source_identity;
+  uint64_t source_size_value = 0u;
+  mode_t source_mode = 0;
+  if (!statx_identity(source_fd, &source_identity, &source_size_value,
+                      &source_mode) ||
+      !S_ISREG(source_mode)) {
     (void)close(source_fd);
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_UNSUPPORTED;
   }
   w_seed_ephemeral_provider_handle local_source = {(uintptr_t)0u};
-  if (!allocate_slot(context, source_fd, source_device, source_inode,
+  if (!allocate_slot(context, source_fd, &source_identity,
                      W_SEED_EPHEMERAL_PROVIDER_LINUX_SLOT_CHILD_SOURCE,
                      &local_source)) {
     (void)close(source_fd);
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_IO;
   }
-  if (!write_tokens(tokens, root_slot->device, root_slot->inode,
-                    source_device, source_inode, observation)) {
+  const linux_identity root_identity = {
+      root_slot->mount_id, root_slot->device_major, root_slot->device_minor,
+      root_slot->inode};
+  if (!write_tokens(tokens, &root_identity, &source_identity, observation)) {
     w_seed_ephemeral_provider_linux_slot *source_slot = slot_for_handle(
         context, local_source,
         W_SEED_EPHEMERAL_PROVIDER_LINUX_SLOT_CHILD_SOURCE);
@@ -625,8 +669,10 @@ static w_seed_ephemeral_provider_backend_status linux_read_source(
         context, source_handle,
         W_SEED_EPHEMERAL_PROVIDER_LINUX_SLOT_CHILD_SOURCE);
   if (source_slot == NULL) return W_SEED_EPHEMERAL_PROVIDER_BACKEND_INVALID;
-  return read_fd(source_slot->fd, source_slot->device, source_slot->inode, bytes,
-                 capacity, written);
+  const linux_identity source_identity = {
+      source_slot->mount_id, source_slot->device_major,
+      source_slot->device_minor, source_slot->inode};
+  return read_fd(source_slot->fd, &source_identity, bytes, capacity, written);
 }
 
 static w_seed_ephemeral_provider_backend_status linux_revalidate_source(
@@ -657,10 +703,16 @@ static w_seed_ephemeral_provider_backend_status linux_revalidate_source(
         context, source_handle,
         W_SEED_EPHEMERAL_PROVIDER_LINUX_SLOT_CHILD_SOURCE);
   if (source_slot == NULL) return W_SEED_EPHEMERAL_PROVIDER_BACKEND_INVALID;
-  struct stat current_root_stat;
-  if (fstat(root_slot->fd, &current_root_stat) < 0 ||
-      !identity_equal(&current_root_stat, root_slot->device,
-                      root_slot->inode))
+  const linux_identity root_identity = {
+      root_slot->mount_id, root_slot->device_major, root_slot->device_minor,
+      root_slot->inode};
+  linux_identity current_root_identity;
+  uint64_t current_root_size = 0u;
+  mode_t current_root_mode = 0;
+  if (!statx_identity(root_slot->fd, &current_root_identity, &current_root_size,
+                      &current_root_mode) ||
+      !S_ISDIR(current_root_mode) ||
+      !identity_equal(&current_root_identity, &root_identity))
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_IO;
   char path[W_SEED_EPHEMERAL_PROVIDER_MAX_PATH_BYTES + 1u];
   if (root_source) {
@@ -674,23 +726,23 @@ static w_seed_ephemeral_provider_backend_status linux_revalidate_source(
   const int reopened_fd = openat2_path(root_slot->fd, path,
                                        O_RDONLY | O_NONBLOCK);
   if (reopened_fd < 0) return errno_status(errno);
-  struct stat reopened_stat;
-  uint64_t reopened_device = 0u;
-  uint64_t reopened_inode = 0u;
-  if (fstat(reopened_fd, &reopened_stat) < 0 ||
-      !S_ISREG(reopened_stat.st_mode) ||
-      !stat_identity(&reopened_stat, &reopened_device, &reopened_inode)) {
+  linux_identity reopened_identity;
+  uint64_t reopened_size = 0u;
+  mode_t reopened_mode = 0;
+  if (!statx_identity(reopened_fd, &reopened_identity, &reopened_size,
+                      &reopened_mode) ||
+      !S_ISREG(reopened_mode)) {
     (void)close(reopened_fd);
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_UNSUPPORTED;
   }
+  (void)reopened_size;
   const w_seed_ephemeral_provider_backend_status read_status = read_fd(
-      reopened_fd, reopened_device, reopened_inode, bytes, capacity, written);
+      reopened_fd, &reopened_identity, bytes, capacity, written);
   if (read_status != W_SEED_EPHEMERAL_PROVIDER_BACKEND_OK) {
     (void)close(reopened_fd);
     return read_status;
   }
-  if (!write_tokens(tokens, root_slot->device, root_slot->inode,
-                    reopened_device, reopened_inode, observation)) {
+  if (!write_tokens(tokens, &root_identity, &reopened_identity, observation)) {
     (void)close(reopened_fd);
     return W_SEED_EPHEMERAL_PROVIDER_BACKEND_INVALID;
   }

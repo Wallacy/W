@@ -7674,6 +7674,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1496 | aquisição ACQ0 interna e reutilizável | ACQ0 acrescenta `w_seed_acquisition_storage`, `w_seed_acquisition_retry_apply` e `w_seed_acquisition_pipeline_run` como fronteira C11 interna, bounded e caller-owned ao redor de CHK6. Storage possui as arenas adaptativas de staging, revalidação, publicação e CST; init exige objeto zero, growth é transacional e o owner não pode ser copiado. Bind valida todos os ranges antes de alterar records. Retry valida envelopes CHK6 completos e cresce somente bytes do provider ou nodes do parser. O pipeline preflighta todos os backings e o contexto mutável declarado, exige acesso exclusivo e executa tentativas completas bounded. Em falha, o output publicado permanece bitwise inalterado; em sucesso, counts delimitam documentos e graph. CHK9 compartilha storage, bind e a lane DRIVER de retry, mas `w check` continua no retry externo de CHK7 e preserva bytes, exits e renderers. A última wave estável não é um snapshot global. O `benchmarkDisposition` é `compiler-lifecycle`: somente o oracle de correção de `bmd1-seed-check-lifecycle` em `clean × check-end-to-end` está ready, sem stage, timing ou result; `startup` e `execution` continuam `product-runtime` deferred | source-backed-current somente para ACQ0 no contexto efêmero já fornecido. O caso `R0-acq0-standalone-acquisition`, os units C11 e `check:acquisition` cobrem lifecycle, rollback, envelopes, retries, ranges, contexto, Restaurant e regressões CHK9. ACQ0 não chama frontend/D0, não seleciona policy de filesystem e não publica CLI ou `w run`. Owner detection, package/workspace, provider `std`, resolver geral e contexto público/geral de aquisição continuam gaps |
 | W-1497 | observação OWN0 guarded de candidatos `build.w` | OWN0 acrescenta `w_seed_owner_guard` como fronteira C11 interna, bounded, caller-owned e generation-tagged. O core separa lifecycle de disposition, publica candidates densos folha → root ou ausência observada e exige revalidação na mesma sessão para publicar `CANDIDATES_RECONFIRMED` ou `NO_CANDIDATE_RECONFIRMED`. Staging, revalidação e publicação são disjuntos e all-or-nothing; candidate refs são descritivas e dependem do guard vivo. Candidate, marker problemático, I/O, capacity, unsupported, mutation, reparse ou boundary bloqueiam fallback. O adapter Linux usa handles retidos, `openat2` e `STATX_MNT_ID_UNIQUE`; o gate executa Linux nativo e, em host Windows, exige WSL Ubuntu. O adapter Windows permanece fail-closed `UNSUPPORTED` porque a capability não foi promovida e localidade e parent `..` por handle não foram comprovados. OWN0 não seleciona owner, não lê manifest, não autoriza contexto efêmero, não é snapshot/lease e não integra `w run` ou `w check`. Um composer MAN0/WSP0 futuro deve ainda vincular a source da sessão ao token/receipt ACQ0. O `benchmarkDisposition` é `compiler-lifecycle` somente como classificação da track futura. OWN0 não integra o `w check` medido por BMD1, e seu gate não é oracle dessa célula; não há nova evidência de benchmark, stage, timing ou result | `implementation-evidence-gap` no geral. O caso `R0-own0-guarded-project-candidates`, os units C11 e `check:owner-guard` provam o core e uma subevidência Linux bounded, além da rejeição Windows fail-closed. Não provam owner selection, manifest parsing, policy efêmera, composição ACQ0, public CLI, ordem reversa de closes nem a matriz geral de mounts, namespaces e volumes |
 | W-1498 | MAN0 guarded structural data-only manifest reader | MAN0 lê em batch todos os candidates de um guard OWN0 `LIVE_OBSERVED`. A primeira wave é parseada, medida e preflighted antes da única revalidação OWN0. A segunda wave usa as mesmas identidades; length, bytes, backend digest, core digest e bindings devem coincidir antes de run, verify e commit all-or-nothing. O parser C11 próprio aceita somente records, lists, constructors, members, String normal, number, size, quantity e Bool; preserva fields desconhecidos, ordena roots e fields e mantém list/argument order e source spans. Sete digest domains MAN0 usam frames byte-exact e não usam `w.owner/1`. O reader não seleciona owner/workspace, não valida schema, não executa imports e não integra ACQ0/WSP0/`w check`/`w run`. Linux usa a sessão retida, `openat2` e identidade mount/device/inode; Windows permanece `UNSUPPORTED` sem efeitos. Core C11, units/golden e o gate root depois de OWN0 fornecem somente evidência bounded do parser e da composição Linux real em duas waves; a factory Windows é um stub direto fail-closed. | `implementation-evidence-gap`. A classificação permanece estreita: Windows operacional, vínculo ACQ0, schema decoder, WSP0 e produto público permanecem gaps; não há claim de timing ou benchmark |
+| W-1499 | composição interna BND0 caller-owned ACQ0→OWN0→MAN0 | BND0 compõe resultados completos de ACQ0 e MAN0 por uma link síncrona presa ao guard OWN0. A validação calcula facts, receipts, bindings, link digest e generation antes de uma publicação única no destination caller-owned. O Linux aceita somente `linux-openat2-v2` e reconcilia tokens com `STATX_MNT_ID_UNIQUE`, device major/minor e inode. Alias, copy, stale, mutation, mismatch, boundary, I/O, unsupported e fault falham fechados; adapters ausentes não publicam. `verify` recompõe a relação com os mesmos descriptors e scratch. | `implementation-evidence-gap` no geral, com subevidência Linux bounded em `test_source_binding_linux_gate.c` e `check:source-binding`; Windows operacional, schema/WSP0, produto público, backend/runtime e vínculo ACQ0 geral permanecem gaps. `test_source_binding.c` cobre publicação all-or-nothing, statuses, alias/copy e stub não-Linux. `benchmarkDisposition` é `compiler-lifecycle`, sem stage, timing ou result |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
@@ -8552,3 +8553,46 @@ o adapter Windows é somente um stub `UNSUPPORTED` fail-closed. Essa evidência
 não promove o reader a owner selector ou schema decoder. A classificação geral
 permanece `implementation-evidence-gap`: Windows operacional, vínculo ACQ0,
 schema decoder, WSP0 e produto público continuam gaps.
+
+#### W-1499 — composição interna BND0 caller-owned ACQ0→OWN0→MAN0
+
+W-1499 fecha a composição interna entre aquisição, guard de owner e manifest.
+Ele não cria uma nova authority. O caller fornece os descriptors completos e o
+destination fixo. BND0 só publica depois de validar cada producer, o guard, o
+link e a generation comum.
+
+ACQ0 fornece o pipeline, o resultado terminal e os facts completos. MAN0 fornece
+o input guarded, o programa, o receipt e o scratch de verify. O link síncrono
+recebe os facts e a generation, mas não pode reter context, iniciar trabalho ou
+mutar OWN0. A binding publicada carrega digests separados para facts, source,
+receipt, bindings MAN0 e link.
+
+O destination permanece bitwise inalterado em qualquer failure. O core mantém a
+construção em um candidate zeroed e copia esse candidate somente após o digest
+final. `verify` recompõe a relação e compara o valor completo. A inicialização
+explícita do candidate também fecha o warning de padding em Release/GCC sem
+enfraquecer `-Werror`.
+
+O adapter Linux não reabre paths. Ele compara os tokens `linux-openat2-v2` de
+ACQ0 com as identities retidas pelo guard OWN0. Essas identities exigem
+`STATX_MNT_ID_UNIQUE`, device major/minor e inode. Provider, token ou adapter
+não suportado falha fechado e não publica uma binding.
+
+O unit C11 usa um link fake para cobrir success, statuses de failure, alias,
+copy, mutation e limites. O gate Linux executa ACQ0, OWN0 e MAN0 reais, verifica
+source incompatível, tokens e manifest forjados, generation stale e duas
+composições determinísticas. Em host Windows, o checker usa WSL Ubuntu e exige
+stdout exato. Adapters não-Linux são stubs `UNSUPPORTED` sem efeitos.
+
+As alternativas rejeitadas são uma binding formada por digest solto ou pointer
+de fact, uma nova leitura fora da sessão OWN0, um token escolhido pelo caller e
+um fallback quando o adapter falta. Elas perdem identidade, generation ou
+authority boundary. BND0 também não interpreta schema, seleciona owner, abre
+`w run`, resolve package/workspace, consulta registry ou implementa backend e
+runtime.
+
+A evidência permanece `implementation-evidence-gap` no geral. Windows
+operacional, schema/WSP0, produto público, backend/runtime e o vínculo ACQ0
+geral continuam blockers. A subevidência Linux é limitada ao adapter
+`linux-openat2-v2` e aos casos bounded do gate. O `benchmarkDisposition` é
+`compiler-lifecycle`; não há stage, timing ou result.

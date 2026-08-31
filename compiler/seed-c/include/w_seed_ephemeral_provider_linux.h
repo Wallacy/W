@@ -14,6 +14,12 @@ extern "C" {
 #define W_SEED_EPHEMERAL_PROVIDER_LINUX_MAX_HANDLES \
   (W_SEED_EPHEMERAL_PROVIDER_MAX_SOURCES + 1u)
 
+/* ACQ0 v2 facts are the only Linux provider identity form accepted by a
+ * source binding. The four identity fields are mount id, device major,
+ * device minor, and inode; native values remain private to this adapter. */
+#define W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_ID "linux-openat2-v2"
+#define W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_TOKEN_BYTES 68u
+
 typedef enum {
   W_SEED_EPHEMERAL_PROVIDER_LINUX_SLOT_EMPTY = 0,
   W_SEED_EPHEMERAL_PROVIDER_LINUX_SLOT_ROOT_DIRECTORY,
@@ -23,7 +29,9 @@ typedef enum {
 
 typedef struct {
   int fd;
-  uint64_t device;
+  uint64_t mount_id;
+  uint64_t device_major;
+  uint64_t device_minor;
   uint64_t inode;
   uint64_t generation;
   w_seed_ephemeral_provider_linux_slot_kind kind;
