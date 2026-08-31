@@ -140,6 +140,22 @@ O fluxo funcional é
 `source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink`. O gate
 também prova short write, flush failed, sources adversariais e repetição.
 
+MLIR0 é a primeira rota nativa real sem C source para esta mesma fatia:
+`source → parser/frontend → HIR0 → HLO0 → MLIR LLVM dialect → LLVM IR → clang/native`.
+`w_seed_mlir0` consome apenas o plano HLO0 verificado, usa a API bounded
+caller-owned `measure`/`emit`, não aloca e não chama MLIR C API. O texto privado
+`w-seed-mlir0-1` fixa `x86_64-unknown-linux-gnu`, `llvm.target_triple`, um
+global de tamanho exato e payload+LF em escapes `\XX`; faz uma call POSIX
+`write` com fd 1, compara o comprimento e usa `main` físico. HLO1 continua
+bootstrap/auditoria/recovery. O gate `bun run check:mlir0` verifica Hello,
+`Table 42 remains open` e vazio byte a byte depois de `mlir-opt`,
+`mlir-translate` e `clang -x ir --target=...`; trivia permanece idêntica e
+inputs adversariais não publicam MLIR. O manifest fixa MLIR/LLVM/Clang 20.1.2.
+A evidência é `hostEvidence: wsl-linux` em Linux x86_64 sob WSL, não host
+Windows nativo. Hosts futuros Linux/Windows/macOS e emitted targets são
+matrizes separadas; Windows native, macOS, packaging e targets adicionais são
+gaps, e LLVM aceitar uma triple não basta para support.
+
 Use `bun run check:hlo0` para validar o plano. Use `bun run check:hlo1` para a
 emissão C em modo C23 e `bun run check:run0` para a execução interna. HLO1 gera `SKIP`
 explícito quando a toolchain está ausente. Uma falha com a toolchain presente é
@@ -2492,7 +2508,7 @@ UnicodeScalar, e a forma não cria uma grammar nova.
 | Design e forma de source | Forma vigente para avaliação, não release |
 | Atlas/Tree-sitter | Protótipo de parse e corpus; não checker/runtime |
 | Oracles host | Evidência lógica/física de design; não runtime |
-| Formatter/frontend/HIR/MLIR | Frontend seed, HIR0 verified-HIR-backed e RUN0 interno bounded; HIR geral, frontend normativo, MLIR e `w run` continuam gaps |
+| Formatter/frontend/HIR/W/MLIR geral | Frontend seed, HIR0 verified-HIR-backed, ponte MLIR0 terminal bounded e RUN0 interno; HIR geral, frontend normativo, W/MLIR geral e `w run` continuam gaps |
 | Runtime/scheduler/allocator | Planejados; implementation gap |
 | std/providers | Contratos e oracles; provider missing |
 | CLI além de `w check` / package manager | Direção; implementation gap |

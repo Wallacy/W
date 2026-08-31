@@ -45,6 +45,8 @@ export const TEMP_DIRECTORY_PREFIXES = Object.freeze([
   "w-hlo0-cases-",
   "w-hlo1-artifact-",
   "w-hlo1-seed-",
+  "w-mlir0-artifact-",
+  "w-mlir0-seed-",
   "w-operator-surface-",
   "w-own0-",
   "w-owner-guard-",

@@ -1,0 +1,77 @@
+{
+  "$schema": "w-seed-mlir0-toolchain-1",
+  "version": 1,
+  "status": "pinned",
+  "target": {
+    "triple": "x86_64-unknown-linux-gnu",
+    "arch": "x86_64",
+    "os": "linux",
+    "abi": "gnu"
+  },
+  "toolchain": {
+    "mlir": "20.1.2",
+    "llvm": "20.1.2",
+    "clang": "20.1.2"
+  },
+  "commands": {
+    "mlirOpt": {
+      "linux": "/usr/bin/mlir-opt-20",
+      "wsl": "/usr/bin/mlir-opt-20",
+      "versionArgs": ["--version"]
+    },
+    "mlirTranslate": {
+      "linux": "/usr/bin/mlir-translate-20",
+      "wsl": "/usr/bin/mlir-translate-20",
+      "versionArgs": ["--version"]
+    },
+    "llvmConfig": {
+      "linux": "/usr/bin/llvm-config-20",
+      "wsl": "/usr/bin/llvm-config-20",
+      "versionArgs": ["--version"]
+    },
+    "clang": {
+      "linux": "/usr/bin/clang-20",
+      "wsl": "/usr/bin/clang-20",
+      "versionArgs": ["--version"]
+    }
+  },
+  "pipeline": [
+    {
+      "tool": "mlir-opt",
+      "args": ["<input.mlir>", "-o", "<verified.mlir>", "--verify-each"]
+    },
+    {
+      "tool": "mlir-translate",
+      "args": ["--mlir-to-llvmir", "<verified.mlir>", "-o", "<output.ll>"]
+    },
+    {
+      "tool": "clang",
+      "args": ["-x", "ir", "--target=x86_64-unknown-linux-gnu", "<output.ll>", "-o", "<executable>"]
+    }
+  ],
+  "hostModes": {
+    "linux": "direct",
+    "windows": "wsl:Ubuntu"
+  },
+  "hostEvidence": "wsl-linux",
+  "windowsNative": false,
+  "hostMatrix": {
+    "linux": "evidence",
+    "windows": "wsl-linux-only",
+    "macos": "gap"
+  },
+  "emittedTargets": {
+    "supported": ["x86_64-unknown-linux-gnu"],
+    "wideMatrix": "gap"
+  },
+  "distribution": {
+    "windowsNativeMlir": "gap",
+    "macosMlir": "gap",
+    "packaging": "gap"
+  },
+  "execution": {
+    "stdout": "payload + LF",
+    "stderr": "empty",
+    "exit": 0
+  }
+}

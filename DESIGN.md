@@ -34418,6 +34418,74 @@ somente quanto aos milestones Hello-only; W-1494 permanece current. C23 é a
 lane primária, C11 é recovery explícita, e falha de toolchain presente é FAIL
 (ausência é SKIP).
 
+#### 26.4.1.2 W-1506 — ponte terminal MLIR0 para LLVM (Forma vigente)
+
+W-1506 acrescenta a primeira rota nativa real deste seed que não passa por
+source C: `source → parser/frontend → HIR0 verificada → plano HLO0 verificado →
+MLIR0 → mlir-opt verify → mlir-translate LLVM IR → clang LLVM IR/native link →
+executable`. O adapter `w_seed_mlir0` consome somente `const
+w_seed_hlo0_plan *` e chama `w_seed_hlo0_verify_plan`; ele não acessa source,
+CST, frontend ou HIR. HLO1 C23 permanece a rota de bootstrap, auditoria e
+recovery. Para este subset, MLIR0 é a rota nativa primária.
+
+O schema é `w-seed-mlir0-1`. A API tem `measure` e `emit` caller-owned,
+determinísticos, sem heap e bounded. O limite explícito é
+`W_SEED_MLIR0_MAX_BYTES = 4096`: um `_Static_assert` soma os `sizeof` dos
+literais fixos, quatro campos decimais de no máximo três bytes e cada um dos no
+máximo 257 bytes de payload mais LF em três bytes de escape. O result
+publica status, required, written e SHA-256 do texto MLIR. Capacity, alias,
+target não suportado e plano inválido falham fechados; falhas preservam records
+e buffer do caller. Em sucesso, `emit` copia exatamente o artifact e não
+acrescenta NUL implícito.
+
+O target é um record explícito com um único valor suportado:
+`x86_64-unknown-linux-gnu`. Outros valores são `UNSUPPORTED`. O emitter não
+lê o host e fixa `llvm.target_triple` no módulo. O texto é LF-only e contém
+somente builtin e LLVM dialect. O payload HLO0 seguido de LF é codificado byte a
+byte como escapes hexadecimais `\XX`, inclusive NUL, aspas e barra invertida; o
+global privado tem array de tamanho exato entre 1 e 257. O module declara a
+função POSIX `write`, faz uma call com fd 1, compara o retorno com o tamanho e
+retorna `i32 0` ou `i32 1`. O nome `main` é o binding físico exigido pelo
+linker; o nome `entry_target` do plano continua proveniência HLO0 e não é
+publicado como entrypoint nativo. Não há `puts`, `printf`, `fwrite`, geração de
+C, substring scan, MLIR C API, custom W dialect, TableGen ou object-cache.
+
+O gate integrado publica MLIR somente depois da rota real source → HIR0 → HLO0.
+Hello, Restaurante (`Table 42 remains open`) e vazio produzem artifacts
+distintos; trivia preserva o artifact. `mlir-opt` verifica, `mlir-translate`
+produz LLVM IR e `clang -x ir --target=x86_64-unknown-linux-gnu` faz o link
+native. Cada executable exige stdout exato (payload + LF), stderr vazio e
+exit zero. Comentário contendo `print`, noop, duas calls e forma fora do subset
+falham sem stdout MLIR parcial. O manifest versionado fixa MLIR/LLVM/Clang
+20.1.2, os comandos, o target e a recipe; Linux usa ferramentas diretas e
+Windows usa WSL Ubuntu. Toolchain inteira ausente é SKIP; presença parcial,
+versão divergente ou falha de execução é FAIL. `bun run check:mlir0` é um gate
+focal/pinned, não parte da suite padrão.
+
+`hostEvidence` do manifest é `wsl-linux`: a prova atual é Linux x86_64
+executado sob WSL e não é suporte de host Windows nativo. A matriz futura de
+compiler hosts é separada da matriz de emitted targets e deve tratar Linux,
+Windows e macOS como hosts first-class. Windows nativo exige um bundle MLIR/
+LLVM próprio, pinado, assinado e reproduzível; o archive Windows oficial
+inspecionado para este corte não contém MLIR. macOS exige a evidência
+equivalente por arquitetura ou universal quando viável. A meta futura de
+targets tem amplitude ao menos comparável à do Rust e potencialmente maior,
+mas não herda claims ou tiers do Rust. Um target só pode ser promoted com
+backend, runtime do subset, provider/host adapter, SDK/sysroot/linker/
+packaging e CI evidence; LLVM aceitar uma triple não basta. Neste bundle,
+`x86_64-unknown-linux-gnu` é o único target implementado; host Windows nativo,
+macOS, packaging da toolchain e matriz ampla de targets são gaps/tasks
+W-1506.
+
+Esta ponte é terminal somente para a seed: não é o futuro dialeto W/MLIR de
+ownership, effects ou tasks, nem uma promessa de backend W geral. HIR geral
+deverá baixar diretamente para W/MLIR e depois para LLVM, Wasm ou outro target.
+HLO0 e o texto MLIR são recipe-private, não formato público, cache ou ABI.
+W dialect, lowering HIR geral, matriz de targets, ABI de provider, linker/
+runtime, distribuição MLIR nativa Windows, `w run` e performance permanecem
+gaps explícitos. `benchmarkDisposition` é `compiler-lifecycle`, correctness-only,
+sem timing ou ranking. Não há mudança de linguagem, grammar, portal ou registry.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:
@@ -34670,8 +34738,9 @@ O código do seed continua compilável na lane C11 recovery. O artefato
 conservador permanece source-compatible entre as duas lanes. Headers de
 compatibilidade podem manter requisitos C11 quando isso for explícito. Essa
 política não cria requisito C23 implícito para uma ABI C externa. C é backend de
-validation, differential e recovery; MLIR continua o backend primário futuro e
-esta decisão não o desloca.
+validation, differential e recovery; a ponte MLIR0 W-1506 é primária somente para
+o subset bounded, enquanto W/MLIR geral continua futuro e esta decisão não o
+substitui.
 
 `benchmarkDisposition` do seed é `compiler-lifecycle`. A receita C23 do BMD é
 somente correctness/estrutura nesta fase; não há novo timing ou result. O
