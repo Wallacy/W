@@ -91,9 +91,12 @@ const currentTargetScope = "w-seed-mlir0-1-print-literal";
 const currentRuntimeVersion = "w-seed-mlir0-1";
 const pinnedToolchainVersion = "20.1.2";
 const currentEvidenceCurrencyStatus = "update-required";
-const futureNativePlanPolicy = "latest-stable-exact-pin-after-currency-audit";
-const pendingAuditTag = "pending-audit";
-const dependencyCurrencyAuditBlocker = "repository-dependency-currency-audit";
+const futureNativePlanPolicy = "llvmorg-23.1.0-exact-pin-with-build-provenance-gate";
+const successorToolchainVersion = "23.1.0";
+const successorToolchainTag = "llvmorg-23.1.0";
+const successorToolchainTagObject = "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de";
+const successorToolchainCommit = "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4";
+const dependencyCurrencyPromotionBlocker = "native-build-acquisition-provenance";
 const evidenceKinds = new Set(["source", "unit", "check", "manifest"]);
 const edgeEvidenceRoles = new Set([
   "toolchain",
@@ -214,8 +217,11 @@ const dependencyCurrencyKeys = new Set([
   "currentEvidenceVersion",
   "currentEvidenceCurrencyStatus",
   "futureNativePlanPolicy",
-  "pendingAuditTag",
-  "auditBlocker",
+  "successorVersion",
+  "successorTag",
+  "successorTagObject",
+  "successorCommit",
+  "promotionBlocker",
 ]);
 const expectedExternalToolchainCandidate = Object.freeze({
   id: "portable-mlir-toolchain",
@@ -743,18 +749,26 @@ function validateNativeToolchainPlans(value, errors) {
     seen.add(plan.id);
     requireString(plan.id, `${location}.id`, errors);
     validateStringArray(plan.architectures, `${location}.architectures`, errors);
-    if (!["windows", "macos"].includes(plan.platform)) addError(errors, `${location}.platform must be windows or macos.`);
+    if (!["linux", "windows", "macos"].includes(plan.platform)) addError(errors, `${location}.platform must be linux, windows, or macos.`);
     if (!same(plan.architectures, ["x86_64", "aarch64"])) addError(errors, `${location}.architectures must list x86_64 and aarch64.`);
     if (plan.status !== "planned") addError(errors, `${location}.status must be planned.`);
     if (!isObject(plan.source)) {
       addError(errors, `${location}.source must be an object.`);
     } else {
-      validateKeys(plan.source, new Set(["repository", "tag"]), `${location}.source`, errors);
+      validateKeys(plan.source, new Set(["repository", "url", "tag", "tagObject", "commit"]), `${location}.source`, errors);
       requireString(plan.source.repository, `${location}.source.repository`, errors);
+      requireString(plan.source.url, `${location}.source.url`, errors);
       requireString(plan.source.tag, `${location}.source.tag`, errors);
+      requireString(plan.source.tagObject, `${location}.source.tagObject`, errors);
+      requireString(plan.source.commit, `${location}.source.commit`, errors);
     }
-    if (!isObject(plan.source) || plan.source.repository !== "llvm-project" || plan.source.tag !== pendingAuditTag) {
-      addError(errors, `${location}.source.tag must remain the closed ${pendingAuditTag} sentinel until ${dependencyCurrencyAuditBlocker}.`);
+    if (!isObject(plan.source) ||
+        plan.source.repository !== "llvm-project" ||
+        plan.source.url !== "https://github.com/llvm/llvm-project" ||
+        plan.source.tag !== successorToolchainTag ||
+        plan.source.tagObject !== successorToolchainTagObject ||
+        plan.source.commit !== successorToolchainCommit) {
+      addError(errors, `${location}.source must pin ${successorToolchainTag} with tag object ${successorToolchainTagObject} and commit ${successorToolchainCommit}.`);
     }
     validateStringArray(plan.projects, `${location}.projects`, errors);
     if (!same(plan.projects, ["MLIR", "Clang", "LLD"])) addError(errors, `${location}.projects must list MLIR, Clang, and LLD.`);
@@ -802,12 +816,12 @@ function validateNativeToolchainPlans(value, errors) {
     }
     if (!Array.isArray(plan.gaps) || plan.gaps.length === 0) addError(errors, `${location}.gaps must be explicit and non-empty.`);
     validateStringArray(plan.gaps, `${location}.gaps`, errors);
-    if (!Array.isArray(plan.gaps) || !plan.gaps.includes(dependencyCurrencyAuditBlocker)) {
-      addError(errors, `${location}.gaps must include ${dependencyCurrencyAuditBlocker}.`);
+    if (!Array.isArray(plan.gaps) || !plan.gaps.includes(dependencyCurrencyPromotionBlocker)) {
+      addError(errors, `${location}.gaps must include ${dependencyCurrencyPromotionBlocker}.`);
     }
   }
   const platforms = (value.nativeToolchainPlans ?? []).map((plan) => plan.platform);
-  if (!same(platforms, ["windows", "macos"])) addError(errors, "native toolchain plans must contain Windows and macOS in order.");
+  if (!same(platforms, ["linux", "windows", "macos"])) addError(errors, "native toolchain plans must contain Linux, Windows, and macOS in order.");
 }
 
 function validateExternalToolchainCandidates(value, errors) {
@@ -1081,8 +1095,11 @@ function validatePolicy(value, errors) {
     requireString(currency.currentEvidenceVersion, `${location}.currentEvidenceVersion`, errors);
     requireString(currency.currentEvidenceCurrencyStatus, `${location}.currentEvidenceCurrencyStatus`, errors);
     requireString(currency.futureNativePlanPolicy, `${location}.futureNativePlanPolicy`, errors);
-    requireString(currency.pendingAuditTag, `${location}.pendingAuditTag`, errors);
-    requireString(currency.auditBlocker, `${location}.auditBlocker`, errors);
+    requireString(currency.successorVersion, `${location}.successorVersion`, errors);
+    requireString(currency.successorTag, `${location}.successorTag`, errors);
+    requireString(currency.successorTagObject, `${location}.successorTagObject`, errors);
+    requireString(currency.successorCommit, `${location}.successorCommit`, errors);
+    requireString(currency.promotionBlocker, `${location}.promotionBlocker`, errors);
     if (currency.currentEvidenceVersion !== pinnedToolchainVersion) {
       addError(errors, `${location}.currentEvidenceVersion must remain ${pinnedToolchainVersion} for the factual MLIR0 evidence.`);
     }
@@ -1092,11 +1109,20 @@ function validatePolicy(value, errors) {
     if (currency.futureNativePlanPolicy !== futureNativePlanPolicy) {
       addError(errors, `${location}.futureNativePlanPolicy must be ${futureNativePlanPolicy}.`);
     }
-    if (currency.pendingAuditTag !== pendingAuditTag) {
-      addError(errors, `${location}.pendingAuditTag must be ${pendingAuditTag}.`);
+    if (currency.successorVersion !== successorToolchainVersion) {
+      addError(errors, `${location}.successorVersion must be ${successorToolchainVersion}.`);
     }
-    if (currency.auditBlocker !== dependencyCurrencyAuditBlocker) {
-      addError(errors, `${location}.auditBlocker must be ${dependencyCurrencyAuditBlocker}.`);
+    if (currency.successorTag !== successorToolchainTag) {
+      addError(errors, `${location}.successorTag must be ${successorToolchainTag}.`);
+    }
+    if (currency.successorTagObject !== successorToolchainTagObject) {
+      addError(errors, `${location}.successorTagObject must be ${successorToolchainTagObject}.`);
+    }
+    if (currency.successorCommit !== successorToolchainCommit) {
+      addError(errors, `${location}.successorCommit must be ${successorToolchainCommit}.`);
+    }
+    if (currency.promotionBlocker !== dependencyCurrencyPromotionBlocker) {
+      addError(errors, `${location}.promotionBlocker must be ${dependencyCurrencyPromotionBlocker}.`);
     }
   }
 }
@@ -1107,6 +1133,33 @@ function loadJson(filePath, label, errors) {
   } catch (error) {
     addError(errors, `${label} is not valid JSON: ${error.message}.`);
     return null;
+  }
+}
+
+function validateDependencyCurrencyCrossCheck(value, root, errors) {
+  const catalogPath = path.join(root, "tooling", "dependency-currency.json");
+  if (!fs.existsSync(catalogPath)) {
+    addError(errors, "tooling/dependency-currency.json is required as the currency source.");
+    return;
+  }
+  const catalog = loadJson(catalogPath, "tooling/dependency-currency.json", errors);
+  if (!catalog || !Array.isArray(catalog.dependencies)) return;
+  const byId = new Map(catalog.dependencies.map((entry) => [entry.id, entry]));
+  const mlir = byId.get("mlir0-llvm-clang");
+  const selected = mlir?.selected;
+  const policy = value.policy?.dependencyCurrency;
+  if (!selected || !policy) return;
+  const fields = ["version", "tag", "tagObject", "commit"];
+  for (const field of fields) {
+    const key = field === "version" ? "successorVersion" : `successor${field[0].toUpperCase()}${field.slice(1)}`;
+    if (policy[key] !== selected[field]) {
+      addError(errors, `platform support currency disagrees with dependency-currency.json for successor ${field}.`);
+    }
+  }
+  for (const plan of value.nativeToolchainPlans ?? []) {
+    if (plan.source?.tag !== selected.tag || plan.source?.tagObject !== selected.tagObject || plan.source?.commit !== selected.commit) {
+      addError(errors, `native plan ${plan.id} must match the selected dependency-currency successor.`);
+    }
   }
 }
 
@@ -1177,6 +1230,7 @@ export function validatePlatformSupport(value, { root = repositoryRoot, checkMan
     addError(errors, "crossChecks must be an object.");
   }
   validatePolicy(value, errors);
+  validateDependencyCurrencyCrossCheck(value, root, errors);
   const targetResult = validateTargetCatalog(value, root, errors);
   const hostResult = validateHostCatalog(value, root, errors);
   validateCrossCompilation(value.crossCompilation, targetResult.rows, hostResult.rows, root, errors);
@@ -1393,7 +1447,7 @@ export function renderPlatformSupport(value, { root = repositoryRoot } = {}) {
         `\`${plan.id ?? "—"}\``,
         plan.platform,
         plan.architectures?.join(", "),
-        `${plan.source?.repository ?? "—"} @ ${plan.source?.tag ?? "—"}`,
+        `${plan.source?.repository ?? "—"} @ ${plan.source?.tag ?? "—"}<br>commit: ${plan.source?.commit ?? "—"}`,
         plan.projects?.join(", "),
         `${plan.configuration?.buildType ?? "—"} / ${plan.configuration?.generator ?? "—"} / ${plan.configuration?.targets?.join(", ") ?? "—"} / ${plan.configuration?.linkerDrivers?.join(", ") ?? "—"}`,
         `${plan.outputs?.artifacts?.join(", ") ?? "—"} (${plan.outputs?.sha256 ?? "—"}, ${plan.outputs?.sbom ?? "—"}, ${plan.outputs?.provenance ?? "—"}, ${plan.outputs?.signing ?? "—"})`,
@@ -1402,8 +1456,8 @@ export function renderPlatformSupport(value, { root = repositoryRoot } = {}) {
       ]),
     ),
     "",
-    "Each future plan uses source tag pending-audit under latest-stable-exact-pin-after-currency-audit and builds MLIR, Clang, and LLD with Release and Ninja.",
-    "The repository-dependency-currency-audit blocker must close before an exact stable tag replaces the sentinel.",
+    `Each future plan pins ${successorToolchainTag} at commit ${successorToolchainCommit} and builds MLIR, Clang, and LLD with Release and Ninja.`,
+    `The ${dependencyCurrencyPromotionBlocker} blocker remains until exact outputs, provenance, and host evidence exist.`,
     "Promotion waits for pinned outputs, SHA256, SBOM, provenance, signing, CI, and smoke evidence.",
     "",
     "## External toolchain candidates",
@@ -1431,8 +1485,8 @@ export function renderPlatformSupport(value, { root = repositoryRoot } = {}) {
     `- Reference breadth goal: \`${value.policy?.referenceBreadth?.goal ?? "—"}\`.`,
     `- Rust target tiers imported: ${value.policy?.referenceBreadth?.importsRustTiers === false ? "no" : "yes"}.`,
     `- Current evidence version: \`${value.policy?.dependencyCurrency?.currentEvidenceVersion ?? "—"}\` (${value.policy?.dependencyCurrency?.currentEvidenceCurrencyStatus ?? "—"}).`,
-    `- Future native plan policy: \`${value.policy?.dependencyCurrency?.futureNativePlanPolicy ?? "—"}\`; pending tag: \`${value.policy?.dependencyCurrency?.pendingAuditTag ?? "—"}\`.`,
-    `- Currency audit blocker: \`${value.policy?.dependencyCurrency?.auditBlocker ?? "—"}\`.`,
+    `- Future native plan policy: \`${value.policy?.dependencyCurrency?.futureNativePlanPolicy ?? "—"}\`; successor: \`${value.policy?.dependencyCurrency?.successorTag ?? "—"}\` at \`${value.policy?.dependencyCurrency?.successorCommit ?? "—"}\`.`,
+    `- Build and provenance blocker: \`${value.policy?.dependencyCurrency?.promotionBlocker ?? "—"}\`.`,
     "- The breadth goal is comparative. It is not an inherited Rust claim or tier snapshot.",
     "",
     ...markdownTable(
@@ -1453,7 +1507,7 @@ export function renderPlatformSupport(value, { root = repositoryRoot } = {}) {
     "It records no runtime or performance result.",
     "",
   );
-  return `${lines.join("\n")}\n`;
+  return `${lines.join("\n").replace(/\n+$/u, "")}\n`;
 }
 
 function main() {

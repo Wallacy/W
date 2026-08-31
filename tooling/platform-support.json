@@ -56,9 +56,12 @@
     "dependencyCurrency": {
       "currentEvidenceVersion": "20.1.2",
       "currentEvidenceCurrencyStatus": "update-required",
-      "futureNativePlanPolicy": "latest-stable-exact-pin-after-currency-audit",
-      "pendingAuditTag": "pending-audit",
-      "auditBlocker": "repository-dependency-currency-audit"
+      "futureNativePlanPolicy": "llvmorg-23.1.0-exact-pin-with-build-provenance-gate",
+      "successorVersion": "23.1.0",
+      "successorTag": "llvmorg-23.1.0",
+      "successorTagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
+      "successorCommit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4",
+      "promotionBlocker": "native-build-acquisition-provenance"
     }
   },
   "crossChecks": {
@@ -874,11 +877,17 @@
   ],
   "nativeToolchainPlans": [
     {
-      "id": "plan-windows-native-llvm-pending-audit",
-      "platform": "windows",
+      "id": "plan-linux-native-llvm-23-1-0",
+      "platform": "linux",
       "architectures": ["x86_64", "aarch64"],
       "status": "planned",
-      "source": { "repository": "llvm-project", "tag": "pending-audit" },
+      "source": {
+        "repository": "llvm-project",
+        "url": "https://github.com/llvm/llvm-project",
+        "tag": "llvmorg-23.1.0",
+        "tagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
+        "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4"
+      },
       "projects": ["MLIR", "Clang", "LLD"],
       "configuration": {
         "buildType": "Release",
@@ -901,7 +910,49 @@
         "promotion": "blocked-until-all-evidence"
       },
       "gaps": [
-        "repository-dependency-currency-audit",
+        "native-build-acquisition-provenance",
+        "Native Linux MLIR and LLVM bundle",
+        "Reproducible release outputs",
+        "SHA256, SBOM, provenance, and signing records",
+        "CI and native smoke evidence",
+        "SDK, sysroot, linker, and packaging evidence"
+      ]
+    },
+    {
+      "id": "plan-windows-native-llvm-23-1-0",
+      "platform": "windows",
+      "architectures": ["x86_64", "aarch64"],
+      "status": "planned",
+      "source": {
+        "repository": "llvm-project",
+        "url": "https://github.com/llvm/llvm-project",
+        "tag": "llvmorg-23.1.0",
+        "tagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
+        "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4"
+      },
+      "projects": ["MLIR", "Clang", "LLD"],
+      "configuration": {
+        "buildType": "Release",
+        "generator": "Ninja",
+        "targets": ["X86", "AArch64"],
+        "linkerDrivers": ["lld-link", "ld.lld", "ld64.lld"]
+      },
+      "outputs": {
+        "status": "planned",
+        "pin": "required",
+        "artifacts": ["mlir-opt", "mlir-translate", "clang", "lld", "llvm-config"],
+        "sha256": "required",
+        "sbom": "required",
+        "provenance": "required",
+        "signing": "required"
+      },
+      "validation": {
+        "ci": "required",
+        "smoke": "required",
+        "promotion": "blocked-until-all-evidence"
+      },
+      "gaps": [
+        "native-build-acquisition-provenance",
         "Native Windows MLIR and LLVM bundle",
         "Reproducible release outputs",
         "SHA256, SBOM, provenance, and signing records",
@@ -910,11 +961,17 @@
       ]
     },
     {
-      "id": "plan-macos-native-llvm-pending-audit",
+      "id": "plan-macos-native-llvm-23-1-0",
       "platform": "macos",
       "architectures": ["x86_64", "aarch64"],
       "status": "planned",
-      "source": { "repository": "llvm-project", "tag": "pending-audit" },
+      "source": {
+        "repository": "llvm-project",
+        "url": "https://github.com/llvm/llvm-project",
+        "tag": "llvmorg-23.1.0",
+        "tagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
+        "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4"
+      },
       "projects": ["MLIR", "Clang", "LLD"],
       "configuration": {
         "buildType": "Release",
@@ -937,7 +994,7 @@
         "promotion": "blocked-until-all-evidence"
       },
       "gaps": [
-        "repository-dependency-currency-audit",
+        "native-build-acquisition-provenance",
         "Native macOS MLIR and LLVM bundle",
         "Reproducible release outputs",
         "SHA256, SBOM, provenance, and signing records",

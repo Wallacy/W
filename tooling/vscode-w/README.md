@@ -52,7 +52,7 @@ temporário e instale-o pelo VS Code:
 
 ```powershell
 $wVsix = Join-Path $env:TEMP "w-language-0.0.21.vsix"
-bunx @vscode/vsce package --allow-missing-repository --out $wVsix
+bunx @vscode/vsce@3.9.2 package --allow-missing-repository --out $wVsix
 code --install-extension $wVsix
 ```
 

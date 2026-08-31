@@ -2262,7 +2262,7 @@
           "compilerHosts: separate from targets",
           "crossCompilation: nine host-to-target edges plus WSL development evidence",
           "externalToolchainCandidates: one evaluation-only third-party record; no W claim",
-          "dependencyCurrency: current evidence update-required; future plans pending-audit until audit"
+          "dependencyCurrency: current evidence 20.1.2 preserved; successor 23.1.0 selected/not promoted with signed tag object and peeled commit; native plans blocked on build/acquisition/provenance"
         ]
       },
       "alternatives": [
@@ -2325,6 +2325,66 @@
         "bun run check:platform-support — light root gate with MLIR0 manifest cross-check",
         "bun run check:suite-manifest — root-quick order includes the platform gate without an MLIR build",
         "bun test tooling/platform-support.test.mjs — 3x3 edge matrix, endpoint, WSL, supported-edge, external-toolchain, and dependency-currency adversarial checks"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-dependency-currency-catalog",
+      "reviewItem": "catálogo operacional de dependency currency contra selectors floating, floors elevados e evidência histórica promovida.",
+      "decisions": ["W-1508"],
+      "task": "Record managed dependency currency, compatibility floors, preserved evidence, and successor provenance in one deterministic operational catalog.",
+      "selected": {
+        "language": "metadata",
+        "source": [
+          "tooling/dependency-currency.json",
+          "managed: exact latest stable selectors",
+          "compatibility: floors and recipes do not rise for currency",
+          "evidence: MLIR 20.1.2 and Unicode 17.0.0 preserved",
+          "successor: LLVM 23.1.0 signed tag object and peeled commit, not promoted",
+          "platform: exact native plans remain blocked on build/acquisition/provenance"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "floating-managed-selector",
+          "language": "metadata-rejected",
+          "source": ["managed dependency: latest", "selector: ^version"],
+          "expectedDifference": "Floating selectors do not identify one reproducible stable input and are rejected by the checker."
+        },
+        {
+          "name": "raise-compatibility-floor",
+          "language": "metadata-rejected",
+          "source": ["CMake/Ninja/compiler floor: latest stable", "floor: raised for currency"],
+          "expectedDifference": "A newer release does not change a compatibility floor or recipe without a separate reviewed decision."
+        },
+        {
+          "name": "promote-historical-evidence",
+          "language": "metadata-rejected",
+          "source": ["MLIR current evidence: 23.1.0", "Unicode snapshot: 18.0.0"],
+          "expectedDifference": "Historical evidence remains preserved; successor selection and currency observation do not implicitly promote support or replace Unicode 17.0.0."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "tooling/dependency-currency.json",
+          "symbol": "\"policy\":",
+          "claim": "The machine catalog separates exact managed selectors, compatibility floors, evidence snapshots, external evaluations, and environment observations."
+        },
+        {
+          "path": "tooling/dependency-currency.mjs",
+          "symbol": "export function validateDependencyCurrency",
+          "claim": "The checker validates exact stable selectors, release sources, preserved evidence, and cross-checks against repository files."
+        },
+        {
+          "path": "DEPENDENCIES.md",
+          "symbol": "# Dependency currency",
+          "claim": "The generated projection reports the four dependency classes and their sources without defining W semantics."
+        }
+      ],
+      "checks": [
+        "bun test tooling/dependency-currency.test.mjs — adversarial floating selectors, floor raising, evidence promotion, lock/catalog drift, and URL drift",
+        "bun tooling/dependency-currency.mjs --check — exact package, lock, workflow, README, platform, source, and projection validation",
+        "bun run check:platform-support — successor tag object, peeled commit, native-plan blocker, and no-support-promotion gate"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }

@@ -15,7 +15,7 @@ a semântica da linguagem. Para decisões normativas, leia
 5. `std/`, `portal/`, benchmarks e tooling — contratos, interfaces e evidência
    derivados.
 
-`DESIGN-INDEX.md`, `DIAGNOSTICS.md`, `STUDIES.md` e outros índices são
+`DESIGN-INDEX.md`, `DIAGNOSTICS.md`, `STUDIES.md`, `DEPENDENCIES.md` e outros índices são
 projeções. Quando uma projeção divergir, corrija sua fonte e regenere a saída.
 
 ## Mapa de diretórios
@@ -45,6 +45,7 @@ reprodução são versionados. Entre as projeções geradas e verificadas estão
 
 - `DESIGN-INDEX.md`, `DIAGNOSTICS.md` e `STUDIES.md`;
 - `PLATFORM-SUPPORT.md` (de `tooling/platform-support.json`);
+- `DEPENDENCIES.md` (de `tooling/dependency-currency.json`);
 - `tooling/study-registry.json` e `reference/syntax-atlas/*`;
 - snapshots e bundles declarados pelos seus manifests.
 
@@ -107,11 +108,12 @@ owner record verificável.
 
 ## Dependências e comandos
 
-O pacote raiz declara Bun `1.4.0` como gerenciador de pacotes e versão mínima. O
-pacote Tree-sitter declara somente `tree-sitter-cli` `0.26.13`. O seed C usa
-CMake e um compilador C23 disponível no host (C11 é somente recovery explícito);
-a matriz e os limites atuais
-estão em [`compiler/seed-c/README.md`](compiler/seed-c/README.md).
+O catálogo [`DEPENDENCIES.md`](DEPENDENCIES.md) é a projeção humana de
+`tooling/dependency-currency.json`. Ele separa Bun `1.4.0`, `tree-sitter-cli` `0.27.0`,
+actions pinadas, floors, recipes, snapshots e avaliações externas.
+O seed C usa CMake e um compilador C23 disponível no host. C11 é somente
+recovery explícito. A matriz e os limites atuais estão em
+[`compiler/seed-c/README.md`](compiler/seed-c/README.md).
 
 Instale e gere as ferramentas com:
 
@@ -129,6 +131,7 @@ bun run check:studies
 bun run check
 bun run check:suite-manifest
 bun run check:platform-support
+bun run check:dependency-currency
 bun run check:study-registry
 bun run study:registry
 ```
@@ -146,6 +149,12 @@ Edite `tooling/platform-support.json` e regenere sua projeção com:
 
 ```sh
 bun run platform:support
+```
+
+Edite `tooling/dependency-currency.json` e regenere sua projeção com:
+
+```sh
+bun tooling/dependency-currency.mjs --write
 ```
 
 ## Regra de aliases

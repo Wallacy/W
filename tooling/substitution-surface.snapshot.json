@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:c198ed2661c4f589715a5a0a5ab3e13c6b767b010e11f5d2cc4b3a2703f97c3d",
+  "corpusDigest": "sha256:ea170e242f332f65fc4036ae3c268450543d97c1362300c4c3ec72be8fa5975e",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3808,13 +3808,13 @@
       "selected": {
         "name": "selected",
         "language": "metadata",
-        "sourceDigest": "sha256:e58449f2447eb09b12325e662a388fa3de51b5313cbb96a2f8b2eb619b845e88",
+        "sourceDigest": "sha256:23f35c090e1c6d7f1fe838a7ca0d81c13dabc21fc3a5f588572094e1faa000bd",
         "metrics": {
-          "utf8Bytes": 351,
-          "codePoints": 351,
-          "nonWhitespaceCodePoints": 317,
+          "utf8Bytes": 447,
+          "codePoints": 447,
+          "nonWhitespaceCodePoints": 401,
           "lines": 6,
-          "surfaceLexemes": 60
+          "surfaceLexemes": 79
         }
       },
       "alternatives": [
@@ -3876,6 +3876,66 @@
             "nonWhitespaceCodePoints": 39,
             "lines": 3,
             "surfaceLexemes": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-dependency-currency-catalog",
+      "task": {
+        "utf8Bytes": 144,
+        "codePoints": 144,
+        "nonWhitespaceCodePoints": 129,
+        "lines": 1,
+        "surfaceLexemes": 20
+      },
+      "selected": {
+        "name": "selected",
+        "language": "metadata",
+        "sourceDigest": "sha256:dbe4ffe0b1e378c3c6157110cb48299a4ca94aa435be3447037c567e1a940dc2",
+        "metrics": {
+          "utf8Bytes": 330,
+          "codePoints": 330,
+          "nonWhitespaceCodePoints": 290,
+          "lines": 6,
+          "surfaceLexemes": 63
+        }
+      },
+      "alternatives": [
+        {
+          "name": "floating-managed-selector",
+          "language": "metadata-rejected",
+          "sourceDigest": "sha256:184cd4d76e906e08aea7f2b001b3e46c38b00d016b33d4125581745dd9b464b9",
+          "metrics": {
+            "utf8Bytes": 45,
+            "codePoints": 45,
+            "nonWhitespaceCodePoints": 41,
+            "lines": 2,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "raise-compatibility-floor",
+          "language": "metadata-rejected",
+          "sourceDigest": "sha256:5e3dbadc44a29936090e8f3d5d46b88f49b0447a5b0edf357b61298dac48dfce",
+          "metrics": {
+            "utf8Bytes": 68,
+            "codePoints": 68,
+            "nonWhitespaceCodePoints": 61,
+            "lines": 2,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "promote-historical-evidence",
+          "language": "metadata-rejected",
+          "sourceDigest": "sha256:0557520fd95b84ec2783ea6ec4c195ab066cc30b878e2cfe995df1b1d28e0bf7",
+          "metrics": {
+            "utf8Bytes": 54,
+            "codePoints": 54,
+            "nonWhitespaceCodePoints": 48,
+            "lines": 2,
+            "surfaceLexemes": 13
           }
         }
       ]
