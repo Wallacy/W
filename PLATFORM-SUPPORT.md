@@ -132,11 +132,12 @@ These plans are future work. They are not native host or target support evidence
 
 | ID | Platform | Architectures | Source | Projects | Build | Outputs | Validation | Gaps |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `plan-windows-native-llvm-pending-audit` | windows | x86_64, aarch64 | llvm-project @ pending-audit | MLIR, Clang, LLD | Release / Ninja / X86, AArch64 / lld-link, ld.lld, ld64.lld | mlir-opt, mlir-translate, clang, lld, llvm-config (required, required, required, required) | required CI, required smoke, blocked-until-all-evidence | repository-dependency-currency-audit<br>Native Windows MLIR and LLVM bundle<br>Reproducible release outputs<br>SHA256, SBOM, provenance, and signing records<br>CI and native smoke evidence<br>SDK, sysroot, linker, and packaging evidence |
-| `plan-macos-native-llvm-pending-audit` | macos | x86_64, aarch64 | llvm-project @ pending-audit | MLIR, Clang, LLD | Release / Ninja / X86, AArch64 / lld-link, ld.lld, ld64.lld | mlir-opt, mlir-translate, clang, lld, llvm-config (required, required, required, required) | required CI, required smoke, blocked-until-all-evidence | repository-dependency-currency-audit<br>Native macOS MLIR and LLVM bundle<br>Reproducible release outputs<br>SHA256, SBOM, provenance, and signing records<br>CI and native smoke evidence<br>SDK, sysroot, linker, and packaging evidence |
+| `plan-linux-native-llvm-23-1-0` | linux | x86_64, aarch64 | llvm-project @ llvmorg-23.1.0<br>commit: ea7d852a70e8bdfaf601d6626a760f9771b2c4b4 | MLIR, Clang, LLD | Release / Ninja / X86, AArch64 / lld-link, ld.lld, ld64.lld | mlir-opt, mlir-translate, clang, lld, llvm-config (required, required, required, required) | required CI, required smoke, blocked-until-all-evidence | native-build-acquisition-provenance<br>Native Linux MLIR and LLVM bundle<br>Reproducible release outputs<br>SHA256, SBOM, provenance, and signing records<br>CI and native smoke evidence<br>SDK, sysroot, linker, and packaging evidence |
+| `plan-windows-native-llvm-23-1-0` | windows | x86_64, aarch64 | llvm-project @ llvmorg-23.1.0<br>commit: ea7d852a70e8bdfaf601d6626a760f9771b2c4b4 | MLIR, Clang, LLD | Release / Ninja / X86, AArch64 / lld-link, ld.lld, ld64.lld | mlir-opt, mlir-translate, clang, lld, llvm-config (required, required, required, required) | required CI, required smoke, blocked-until-all-evidence | native-build-acquisition-provenance<br>Native Windows MLIR and LLVM bundle<br>Reproducible release outputs<br>SHA256, SBOM, provenance, and signing records<br>CI and native smoke evidence<br>SDK, sysroot, linker, and packaging evidence |
+| `plan-macos-native-llvm-23-1-0` | macos | x86_64, aarch64 | llvm-project @ llvmorg-23.1.0<br>commit: ea7d852a70e8bdfaf601d6626a760f9771b2c4b4 | MLIR, Clang, LLD | Release / Ninja / X86, AArch64 / lld-link, ld.lld, ld64.lld | mlir-opt, mlir-translate, clang, lld, llvm-config (required, required, required, required) | required CI, required smoke, blocked-until-all-evidence | native-build-acquisition-provenance<br>Native macOS MLIR and LLVM bundle<br>Reproducible release outputs<br>SHA256, SBOM, provenance, and signing records<br>CI and native smoke evidence<br>SDK, sysroot, linker, and packaging evidence |
 
-Each future plan uses source tag pending-audit under latest-stable-exact-pin-after-currency-audit and builds MLIR, Clang, and LLD with Release and Ninja.
-The repository-dependency-currency-audit blocker must close before an exact stable tag replaces the sentinel.
+Each future plan pins llvmorg-23.1.0 at commit ea7d852a70e8bdfaf601d6626a760f9771b2c4b4 and builds MLIR, Clang, and LLD with Release and Ninja.
+The native-build-acquisition-provenance blocker remains until exact outputs, provenance, and host evidence exist.
 Promotion waits for pinned outputs, SHA256, SBOM, provenance, signing, CI, and smoke evidence.
 
 ## External toolchain candidates
@@ -154,8 +155,8 @@ The portable MLIR record is a possible bootstrap, mirror, or rebuild input for a
 - Reference breadth goal: `at-least-rust-breadth`.
 - Rust target tiers imported: no.
 - Current evidence version: `20.1.2` (update-required).
-- Future native plan policy: `latest-stable-exact-pin-after-currency-audit`; pending tag: `pending-audit`.
-- Currency audit blocker: `repository-dependency-currency-audit`.
+- Future native plan policy: `llvmorg-23.1.0-exact-pin-with-build-provenance-gate`; successor: `llvmorg-23.1.0` at `ea7d852a70e8bdfaf601d6626a760f9771b2c4b4`.
+- Build and provenance blocker: `native-build-acquisition-provenance`.
 - The breadth goal is comparative. It is not an inherited Rust claim or tier snapshot.
 
 | Reference | Official source |

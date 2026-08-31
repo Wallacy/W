@@ -24,7 +24,11 @@ targets, compiler hosts e cross-compilation. O baseline primário tem nove
 edges host→target, incluindo self edges. Nenhum edge é supported. A edge WSL
 de desenvolvimento fica fora da matriz nativa e não promove Windows. A
 evidência factual MLIR0 usa 20.1.2 e está marcada `update-required`; planos
-futuros aguardam currency audit e não ratificam essa versão.
+futuros pinam `llvmorg-23.1.0`, mas permanecem bloqueados por build, aquisição,
+proveniência, outputs, CI e smoke evidence. O pin sucessor não promove a
+evidência corrente.
+[`DEPENDENCIES.md`](DEPENDENCIES.md) publica o catálogo gerado de currency,
+compatibility floors, evidence snapshots e external evaluations.
 HIR0/W-1494 continua uma representação intermediária bounded mais ampla; é o
 seletor HLO0 W-1505, sobre HIR0 verificada, que aplica a forma exata de uma
 função/entry/block/call/argument. Os nomes target/handler são byte strings
@@ -87,10 +91,12 @@ Leia estes artefatos nesta ordem:
    dos estudos registrados;
 9. [Mapa do repositório](REPOSITORY.md) — diretórios, autoridade, dependências
    e comandos públicos;
-10. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
+10. [Catálogo de dependency currency](DEPENDENCIES.md) — versões gerenciadas,
+    pisos de compatibilidade, snapshots e avaliações externas;
+11. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
    specs, toolchain plans, ABIs, artifacts e gates;
-11. [Rascunho da std](std/README.md) — contratos da standard library em W;
-12. [Tooling](tooling/README.md) — infraestrutura, Tree-sitter, TextMate e
+12. [Rascunho da std](std/README.md) — contratos da standard library em W;
+13. [Tooling](tooling/README.md) — infraestrutura, Tree-sitter, TextMate e
     extensão local.
 
 O [portal](portal/README.md) é um protótipo visual congelado. Ele não precisa
@@ -109,6 +115,8 @@ referência normativa correspondente. Use o
 técnica de snippets parse-only.
 Use [STUDIES.md](STUDIES.md) para consultar estudos por status sem percorrer os
 JSONs. Os READMEs locais explicam cada estudo quando disponíveis.
+Use [DEPENDENCIES.md](DEPENDENCIES.md) para consultar currency, pisos,
+snapshots e avaliações sem percorrer os manifests.
 
 As superfícies de máquina ficam em `tooling/*.json`, nos checkers e no manifest
 do atlas. Elas sustentam geração e gates. Nenhuma projeção substitui
@@ -135,7 +143,8 @@ bun tooling/design-slice.mjs --rationale-heading 1.1
 O leitor recorta `DESIGN.md` para contratos e `RATIONALE.md` para evidência e
 ledger; ele não cria uma segunda fonte de autoridade.
 
-`docs:check` é o gate focal para as projeções documentais e o índice.
+`docs:check` é o gate focal para as projeções documentais, dependency currency e
+o índice.
 `check:docs` permanece o gate completo, com BMD e a cadeia do Tree-sitter.
 
 Para validar somente documentação e índice:
@@ -172,7 +181,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
 | [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 LLVM-dialect terminal para um target e RUN0 interno test-only. Limites, witnesses e gaps ficam no README do componente; o checkout não publica `w run` |
-| [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo |
+| [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo; os planos nativos pinam LLVM 23.1.0, mas aguardam build/proveniência |
 | Formatter normativo, frontend normativo completo, HIR geral e W/MLIR geral | planejados, não implementados; formatter, frontend seed, HIR0 verificada e ponte MLIR0 são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |
 | Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |

@@ -27071,17 +27071,32 @@ tools Linux não são um toolchain Windows nativo.
 observada ficam no policy record. `importsRustTiers` é false. Essa meta é
 comparativa. Ela não herda claims ou tiers do Rust.
 
-Os bundles native de Windows e macOS permanecem planned. Cada plano usa
-`source.tag: pending-audit` sob a policy fechada
-`latest-stable-exact-pin-after-currency-audit`; o blocker/task
-`repository-dependency-currency-audit` deve fechar antes de substituir o
-sentinel por um tag estável exato. Os planos fixam MLIR, Clang e LLD, Release,
-Ninja, targets X86/AArch64, artifacts `mlir-opt`, `mlir-translate`, `clang`,
-`lld`, `llvm-config` e `configuration.linkerDrivers: ["lld-link", "ld.lld",
-"ld64.lld"]`. Outputs pinados exigem SHA256, SBOM, provenance, signing, CI e
-smoke antes de qualquer promoção. Drivers LLD não provam SDK ou licença Apple.
-`benchmarkDisposition` é `not-applicable` porque esta matriz é metadata,
-projection e policy gate sem runtime ou performance.
+Os bundles native de Linux, Windows e macOS permanecem planned. A evidence
+Linux atual usa MLIR `20.1.2` em WSL e não satisfaz o plano successor nativo.
+Cada plano usa
+exatamente `llvmorg-23.1.0`, com o tag object assinado
+`9b0f9b1eb4a233717c6ed014cff6f8a7c65512de` e o commit peeled
+`ea7d852a70e8bdfaf601d6626a760f9771b2c4b4`. O blocker real é
+`native-build-acquisition-provenance`: cada plano ainda precisa de build ou
+aquisição reproduzível, outputs, SHA256, SBOM, provenance, signing, CI e smoke
+antes de qualquer promoção. Os planos fixam MLIR, Clang e LLD, Release, Ninja,
+targets X86/AArch64, artifacts `mlir-opt`, `mlir-translate`, `clang`, `lld`,
+`llvm-config` e `configuration.linkerDrivers: ["lld-link", "ld.lld",
+"ld64.lld"]`. Drivers LLD não provam SDK ou licença Apple, e estes planos não
+promovem suporte nativo. `benchmarkDisposition` é `not-applicable` porque
+esta matriz é metadata, projection e policy gate sem runtime ou performance.
+
+W-1508 registra a decisão operacional de dependency currency. A fonte máquina
+é `tooling/dependency-currency.json` e `DEPENDENCIES.md` é sua projeção humana
+determinística; o checker cruza os registros com package manifests, lockfile,
+workflow, READMEs e o catálogo de platform support. Dependências managed
+ativas usam a versão latest stable exata. Compatibility floors e recipes não
+sobem por currency, snapshots de evidence preservam a versão histórica e
+nenhuma observação de ambiente declara pin exato. MLIR `20.1.2` continua a
+evidence histórica atual; `23.1.0` é successor selected/not promoted com o tag
+object e commit acima, sujeito ao blocker de build/aquisição/proveniência.
+Esta decisão é metadata operacional, não semântica W; `source-backed-current`
+fica limitado ao catálogo, checker e projeção.
 
 `externalToolchainCandidates` contém exatamente um registro evaluation-only
 de ferramenta externa. Esse registro não pode declarar promoção, autoridade,

@@ -1,0 +1,619 @@
+{
+  "$schema": "w-dependency-currency-1",
+  "version": 1,
+  "status": "operational-catalog",
+  "observedAt": "2026-08-31",
+  "policy": {
+    "managedDependency": {
+      "selector": "exact",
+      "stability": "stable",
+      "mustMatchLatestStable": true,
+      "forbiddenSelectors": ["latest", "nightly", "canary", "next", "*", "^", "~", ">", "<"]
+    },
+    "evidenceSnapshot": {
+      "preserveCurrent": true,
+      "promotion": "never-implicit"
+    },
+    "environment": {
+      "recordObservedVersions": true,
+      "claimExactPin": false
+    }
+  },
+  "dependencies": [
+    {
+      "id": "bun-runtime",
+      "name": "Bun runtime and package manager",
+      "classification": "managed-dependency",
+      "status": "current",
+      "scope": "workspace runtime and package manager",
+      "source": {
+        "kind": "official-release",
+        "urls": [
+          "https://github.com/oven-sh/bun/releases/tag/bun-v1.4.0",
+          "https://bun.sh/docs/installation"
+        ]
+      },
+      "locations": [
+        ".bun-version",
+        "package.json",
+        "portal/package.json",
+        ".github/workflows/validate.yml"
+      ],
+      "latestStable": { "version": "1.4.0", "tag": "bun-v1.4.0" },
+      "current": {
+        "version": "1.4.0",
+        "selector": "1.4.0",
+        "stability": "stable"
+      },
+      "selected": {
+        "version": "1.4.0",
+        "selector": "1.4.0",
+        "stability": "stable",
+        "purpose": "workspace runtime and package manager"
+      },
+      "successor": null,
+      "requirements": {
+        "exact": true,
+        "latestStable": true
+      }
+    },
+    {
+      "id": "tree-sitter-cli",
+      "name": "Tree-sitter CLI",
+      "classification": "managed-dependency",
+      "status": "current",
+      "scope": "grammar generation, tests, and parse checks",
+      "source": {
+        "kind": "official-release-and-registry",
+        "urls": [
+          "https://github.com/tree-sitter/tree-sitter/releases/tag/v0.27.0",
+          "https://registry.npmjs.org/tree-sitter-cli/latest"
+        ]
+      },
+      "locations": [
+        "tooling/tree-sitter-w/package.json",
+        "tooling/tree-sitter-w/bun.lock",
+        "tooling/tree-sitter-w/README.md",
+        "REPOSITORY.md"
+      ],
+      "latestStable": { "version": "0.27.0", "tag": "v0.27.0" },
+      "current": {
+        "version": "0.27.0",
+        "selector": "0.27.0",
+        "stability": "stable"
+      },
+      "selected": {
+        "version": "0.27.0",
+        "selector": "0.27.0",
+        "stability": "stable",
+        "integrity": "sha512-E42kR0og1mFlZBxPj7K4fBXCTjxPTGe19U9RXGWNq0FQKzXOxIp8bhCYFMKhddiVZUsJwW35MYGU9Q1oVYtpbA=="
+      },
+      "successor": null,
+      "requirements": {
+        "exact": true,
+        "latestStable": true,
+        "lockfile": "tooling/tree-sitter-w/bun.lock"
+      }
+    },
+    {
+      "id": "actions-checkout",
+      "name": "GitHub Actions checkout",
+      "classification": "managed-dependency",
+      "status": "current",
+      "scope": "CI source checkout",
+      "source": {
+        "kind": "official-action-release",
+        "urls": [
+          "https://github.com/actions/checkout/releases/tag/v7.0.1",
+          "https://github.com/actions/checkout"
+        ]
+      },
+      "locations": [".github/workflows/validate.yml", ".github/dependabot.yml"],
+      "latestStable": { "version": "7.0.1", "tag": "v7.0.1" },
+      "current": {
+        "version": "7.0.1",
+        "tag": "v7.0.1",
+        "sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "selector": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "stability": "stable"
+      },
+      "selected": {
+        "version": "7.0.1",
+        "tag": "v7.0.1",
+        "sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "selector": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "stability": "stable"
+      },
+      "successor": null,
+      "requirements": {
+        "exact": true,
+        "latestStable": true,
+        "fullLengthSha": true
+      }
+    },
+    {
+      "id": "actions-setup-bun",
+      "name": "GitHub Actions setup-bun",
+      "classification": "managed-dependency",
+      "status": "current",
+      "scope": "CI Bun installation",
+      "source": {
+        "kind": "official-action-release",
+        "urls": [
+          "https://github.com/oven-sh/setup-bun/releases/tag/v2.2.0",
+          "https://github.com/oven-sh/setup-bun"
+        ]
+      },
+      "locations": [".github/workflows/validate.yml", ".github/dependabot.yml"],
+      "latestStable": { "version": "2.2.0", "tag": "v2.2.0" },
+      "current": {
+        "version": "2.2.0",
+        "tag": "v2.2.0",
+        "sha": "0c5077e51419868618aeaa5fe8019c62421857d6",
+        "selector": "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+        "stability": "stable"
+      },
+      "selected": {
+        "version": "2.2.0",
+        "tag": "v2.2.0",
+        "sha": "0c5077e51419868618aeaa5fe8019c62421857d6",
+        "selector": "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+        "stability": "stable"
+      },
+      "successor": null,
+      "requirements": {
+        "exact": true,
+        "latestStable": true,
+        "fullLengthSha": true
+      }
+    },
+    {
+      "id": "vscode-vsce-on-demand",
+      "name": "VS Code Extension Manager (vsce)",
+      "classification": "managed-dependency",
+      "status": "current-on-demand",
+      "scope": "local VSIX packaging command",
+      "source": {
+        "kind": "official-registry",
+        "urls": [
+          "https://registry.npmjs.org/@vscode/vsce/latest",
+          "https://github.com/microsoft/vscode-vsce"
+        ]
+      },
+      "locations": ["tooling/vscode-w/README.md"],
+      "latestStable": { "version": "3.9.2" },
+      "current": {
+        "version": "3.9.2",
+        "selector": "@vscode/vsce@3.9.2",
+        "stability": "stable"
+      },
+      "selected": {
+        "version": "3.9.2",
+        "selector": "@vscode/vsce@3.9.2",
+        "stability": "stable",
+        "purpose": "on-demand VSIX packaging"
+      },
+      "successor": null,
+      "requirements": {
+        "exact": true,
+        "latestStable": true,
+        "onDemand": true
+      }
+    },
+    {
+      "id": "cmake-floor",
+      "name": "CMake project minimum",
+      "classification": "compatibility-floor/recipe",
+      "status": "compatibility-floor",
+      "scope": "seed C and byte-scan CMake projects",
+      "source": {
+        "kind": "official-documentation-and-release",
+        "urls": [
+          "https://cmake.org/cmake/help/latest/command/cmake_minimum_required.html",
+          "https://github.com/Kitware/CMake/releases/tag/v4.4.3"
+        ]
+      },
+      "locations": [
+        "compiler/seed-c/CMakeLists.txt",
+        "benchmarks/byte-scan-view/CMakeLists.txt",
+        "tooling/check-hlo1.mjs",
+        "tooling/demo-seed-hello.mjs"
+      ],
+      "latestStable": { "version": "4.4.3", "tag": "v4.4.3" },
+      "current": {
+        "constraint": "3.21",
+        "selector": "cmake_minimum_required(VERSION 3.21)",
+        "status": "minimum"
+      },
+      "selected": {
+        "constraint": "3.21",
+        "selector": "3.21",
+        "status": "compatibility-floor"
+      },
+      "successor": null,
+      "environment": {
+        "latestStable": "4.4.3",
+        "observedHosts": [
+          { "host": "windows", "version": "3.29.2" },
+          { "host": "wsl-ubuntu", "version": "3.28.3" }
+        ]
+      },
+      "requirements": {
+        "mustNotRaiseForCurrency": true,
+        "environmentRequirement": true
+      }
+    },
+    {
+      "id": "ninja-build-requirement",
+      "name": "Ninja build generator",
+      "classification": "compatibility-floor/recipe",
+      "status": "environment-gap",
+      "scope": "CMake build generator",
+      "source": {
+        "kind": "official-release",
+        "urls": ["https://github.com/ninja-build/ninja/releases/tag/v1.13.2"]
+      },
+      "locations": [
+        "tooling/check-hlo0.mjs",
+        "tooling/check-hir0.mjs",
+        "tooling/check-hlo1.mjs",
+        "tooling/check-mlir0.mjs",
+        "tooling/demo-seed-hello.mjs"
+      ],
+      "latestStable": { "version": "1.13.2", "tag": "v1.13.2" },
+      "current": {
+        "version": null,
+        "selector": null,
+        "status": "not-pinned"
+      },
+      "selected": {
+        "version": null,
+        "selector": "-G Ninja",
+        "status": "recipe-only"
+      },
+      "successor": null,
+      "environment": {
+        "latestStable": "1.13.2",
+        "observedHosts": [
+          { "host": "windows", "version": "1.12.0" },
+          { "host": "wsl-ubuntu", "version": "1.11.1" }
+        ]
+      },
+      "gap": {
+        "status": "open",
+        "task": "Pin a CI build image or a toolchain bundle before claiming reproducible Ninja output.",
+        "stopCondition": "CI and release artifacts report one exact Ninja build."
+      },
+      "requirements": {
+        "mustNotRaiseForCurrency": true,
+        "environmentRequirement": true,
+        "exactPin": false
+      }
+    },
+    {
+      "id": "c-compiler-selection",
+      "name": "C compiler selection",
+      "classification": "compatibility-floor/recipe",
+      "status": "environment-gap",
+      "scope": "focal C and MLIR checks",
+      "source": {
+        "kind": "repository-recipe",
+        "urls": ["https://en.cppreference.com/w/c/compiler_support"]
+      },
+      "locations": [
+        "tooling/check-hlo0.mjs",
+        "tooling/check-hir0.mjs",
+        "tooling/check-hlo1.mjs",
+        "tooling/check-mlir0.mjs",
+        "tooling/byte-scan-view-smoke.mjs"
+      ],
+      "latestStable": null,
+      "current": {
+        "version": null,
+        "selector": "cc|gcc|clang|cl",
+        "status": "first-available"
+      },
+      "selected": {
+        "version": null,
+        "selector": "first available compiler from cc, gcc, clang, cl",
+        "status": "recipe-only"
+      },
+      "successor": null,
+      "environment": {
+        "observedHosts": [
+          { "host": "windows", "compiler": "GCC", "version": "13.2.0" },
+          { "host": "wsl-ubuntu", "compiler": "GCC", "version": "13.3.0" }
+        ]
+      },
+      "gap": {
+        "status": "open",
+        "task": "Define a release toolchain bundle before making compiler-version claims.",
+        "stopCondition": "A CI and release recipe records the compiler, target, flags, and artifact provenance."
+      },
+      "requirements": {
+        "mustNotRaiseForCurrency": true,
+        "environmentRequirement": true,
+        "exactPin": false
+      }
+    },
+    {
+      "id": "c23-c11-recipes",
+      "name": "C language standard recipes",
+      "classification": "compatibility-floor/recipe",
+      "status": "current-recipe",
+      "scope": "seed C primary and recovery builds",
+      "source": {
+        "kind": "repository-recipe",
+        "urls": ["https://en.cppreference.com/w/c/23"]
+      },
+      "locations": [
+        "compiler/seed-c/CMakeLists.txt",
+        "benchmarks/byte-scan-view/CMakeLists.txt",
+        "benchmarks/byte-scan-view.manifest.json"
+      ],
+      "latestStable": null,
+      "current": {
+        "primary": "C23",
+        "recovery": "C11",
+        "selector": "W_SEED_C_STANDARD"
+      },
+      "selected": {
+        "primary": "C23",
+        "recovery": "C11",
+        "status": "recipe-only"
+      },
+      "successor": null,
+      "requirements": {
+        "mustNotRaiseForCurrency": true,
+        "environmentRequirement": false
+      }
+    },
+    {
+      "id": "vscode-engine-floor",
+      "name": "VS Code extension engine",
+      "classification": "compatibility-floor/recipe",
+      "status": "compatibility-floor",
+      "scope": "local extension compatibility",
+      "source": {
+        "kind": "official-documentation",
+        "urls": ["https://code.visualstudio.com/api/references/extension-manifest#engines-vscode"]
+      },
+      "locations": ["tooling/vscode-w/package.json"],
+      "latestStable": null,
+      "current": {
+        "constraint": "^1.85.0",
+        "selector": "engines.vscode",
+        "status": "minimum-compatible-engine"
+      },
+      "selected": {
+        "constraint": "^1.85.0",
+        "selector": "^1.85.0",
+        "status": "compatibility-floor"
+      },
+      "successor": null,
+      "requirements": {
+        "mustNotRaiseForCurrency": true,
+        "environmentRequirement": false
+      }
+    },
+    {
+      "id": "rust-edition-2021",
+      "name": "Rust edition recipe",
+      "classification": "compatibility-floor/recipe",
+      "status": "current-recipe",
+      "scope": "independent Rust correctness baseline",
+      "source": {
+        "kind": "official-documentation",
+        "urls": ["https://doc.rust-lang.org/edition-guide/rust-2021/index.html"]
+      },
+      "locations": [
+        "benchmarks/byte-scan-view.manifest.json",
+        "benchmarks/README.md",
+        "tooling/byte-scan-view-smoke.mjs"
+      ],
+      "latestStable": null,
+      "current": {
+        "edition": "2021",
+        "selector": "--edition=2021",
+        "status": "recipe"
+      },
+      "selected": {
+        "edition": "2021",
+        "selector": "--edition=2021",
+        "status": "compatibility-floor"
+      },
+      "successor": null,
+      "requirements": {
+        "mustNotRaiseForCurrency": true,
+        "environmentRequirement": true
+      }
+    },
+    {
+      "id": "rust-correctness-baseline",
+      "name": "Rust correctness baseline",
+      "classification": "evidence-snapshot",
+      "status": "historical-correctness-only",
+      "scope": "byte-scan and seed lifecycle comparison",
+      "source": {
+        "kind": "repository-evidence",
+        "urls": [
+          "https://doc.rust-lang.org/rustc/platform-support.html",
+          "https://doc.rust-lang.org/edition-guide/rust-2021/index.html"
+        ]
+      },
+      "locations": [
+        "benchmarks/byte-scan-view.manifest.json",
+        "benchmarks/seed-check-lifecycle.manifest.json",
+        "tooling/byte-scan-view-smoke.mjs"
+      ],
+      "latestStable": null,
+      "current": {
+        "command": "rustc --edition=2021 -C opt-level=2",
+        "status": "historical-correctness-reference"
+      },
+      "selected": {
+        "command": "rustc --edition=2021 -C opt-level=2",
+        "status": "correctness-reference-no-ranking"
+      },
+      "successor": null,
+      "environment": {
+        "observedHosts": [
+          { "host": "windows", "rustc": "1.94.0" },
+          { "host": "wsl-ubuntu", "rustc": null, "status": "not-installed" }
+        ]
+      },
+      "requirements": {
+        "preserveCurrent": true,
+        "performancePinRequiredBeforeRanking": true
+      }
+    },
+    {
+      "id": "mlir0-llvm-clang",
+      "name": "MLIR, LLVM, and Clang MLIR0 evidence",
+      "classification": "evidence-snapshot",
+      "status": "successor-selected-not-promoted",
+      "scope": "WSL Linux MLIR0 development edge",
+      "source": {
+        "kind": "official-release-and-repository-evidence",
+        "urls": [
+          "https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.0",
+          "https://mlir.llvm.org/getting_started/",
+          "https://llvm.org/docs/GettingStarted.html"
+        ]
+      },
+      "locations": [
+        "tooling/mlir0-toolchain.json",
+        "tooling/check-mlir0.mjs",
+        "tooling/platform-support.json",
+        "tooling/platform-support.mjs",
+        "PLATFORM-SUPPORT.md"
+      ],
+      "latestStable": {
+        "version": "23.1.0",
+        "tag": "llvmorg-23.1.0",
+        "tagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
+        "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4"
+      },
+      "current": {
+        "version": "20.1.2",
+        "selector": "20.1.2",
+        "status": "historical-reproducible-evidence",
+        "host": "wsl-linux",
+        "target": "x86_64-unknown-linux-gnu"
+      },
+      "selected": {
+        "version": "23.1.0",
+        "tag": "llvmorg-23.1.0",
+        "tagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
+        "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4",
+        "selector": "llvmorg-23.1.0",
+        "status": "successor-for-new-bundles-only",
+        "promotion": "blocked"
+      },
+      "successor": {
+        "version": "23.1.0",
+        "tag": "llvmorg-23.1.0",
+        "tagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
+        "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4",
+        "status": "successor-candidate"
+      },
+      "components": ["MLIR", "LLVM", "Clang", "LLD"],
+      "gap": {
+        "status": "open",
+        "blocker": "native-build-acquisition-provenance",
+        "task": "Build or acquire the exact MLIR, LLVM, Clang, and LLD bundle for each planned native host.",
+        "stopCondition": "Each bundle has exact outputs, SHA256, SBOM, provenance, signing, CI, smoke, SDK, sysroot, and linker evidence."
+      },
+      "requirements": {
+        "preserveCurrent": true,
+        "currentEvidenceMustRemain": "20.1.2",
+        "newBundleExactStablePin": true,
+        "zeroPromotion": true,
+        "artifacts": ["mlir-opt", "mlir-translate", "clang", "lld", "llvm-config"]
+      }
+    },
+    {
+      "id": "unicode-ucd",
+      "name": "Unicode UCD identifier snapshot",
+      "classification": "evidence-snapshot",
+      "status": "current-reproducible-snapshot",
+      "scope": "W identifier profile and generated seed data",
+      "source": {
+        "kind": "official-vendored-snapshot",
+        "urls": [
+          "https://unicode.org/versions/Unicode17.0.0/",
+          "https://www.unicode.org/Public/17.0.0/ucd/DerivedCoreProperties.txt",
+          "https://www.unicode.org/license.txt"
+        ]
+      },
+      "locations": [
+        "compiler/seed-c/unicode/17.0.0/DerivedCoreProperties.txt",
+        "compiler/seed-c/unicode/17.0.0/LICENSE.txt",
+        "compiler/seed-c/unicode/17.0.0/manifest.json",
+        "tooling/generate-seed-unicode.mjs",
+        "tooling/check-seed-unicode.mjs"
+      ],
+      "latestStable": { "version": "17.0.0" },
+      "current": {
+        "version": "17.0.0",
+        "selector": "17.0.0",
+        "status": "vendored-and-hashed",
+        "profile": "W-Identifier-17.0.0-XID-NO-DICP-UNDERSCORE"
+      },
+      "selected": {
+        "version": "17.0.0",
+        "selector": "17.0.0",
+        "status": "reproducible-snapshot",
+        "sourceSha256": "24c7fed1195c482faaefd5c1e7eb821c5ee1fb6de07ecdbaa64b56a99da22c08",
+        "generatedSha256": "6f7095d0ec4f91207c5c46105f9c3da5a38bbda4a0326e3a7ce06736d5cb2cd6"
+      },
+      "successor": null,
+      "requirements": {
+        "preserveCurrent": true,
+        "profileIdentityIncludesVersion": true,
+        "doNotUpgradeForCurrency": true
+      }
+    },
+    {
+      "id": "portable-mlir-toolchain",
+      "name": "portable MLIR toolchain candidate",
+      "classification": "external-evaluation",
+      "status": "evaluation-only",
+      "scope": "possible bootstrap, mirror, or rebuild input",
+      "source": {
+        "kind": "third-party-release-record",
+        "urls": [
+          "https://github.com/munich-quantum-software/portable-mlir-toolchain",
+          "https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/tag/2026.08.11",
+          "https://github.com/llvm/llvm-project/releases/tag/llvmorg-22.1.8"
+        ]
+      },
+      "locations": ["tooling/platform-support.json", "PLATFORM-SUPPORT.md"],
+      "latestStable": null,
+      "current": {
+        "release": "2026.08.11",
+        "llvmTag": "llvmorg-22.1.8",
+        "status": "evaluation-only"
+      },
+      "selected": {
+        "release": "2026.08.11",
+        "llvmTag": "llvmorg-22.1.8",
+        "status": "evaluation-only",
+        "promotion": "not-allowed"
+      },
+      "successor": null,
+      "requirements": {
+        "promotionAllowed": false,
+        "preserveCurrent": true,
+        "provenanceAuditRequired": true
+      },
+      "limitations": [
+        "third-party not W authority or support",
+        "version mismatch with current 20.1.2 evidence",
+        "no completed W trust, SBOM, or provenance audit",
+        "host binaries do not prove cross-compilation",
+        "Apple SDK and license are not supplied or proven"
+      ]
+    }
+  ]
+}
