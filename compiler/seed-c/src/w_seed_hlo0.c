@@ -15,10 +15,8 @@ enum {
 
 static const char HLO0_PROFILE[] = "native-process@1";
 static const char HLO0_SLOT[] = ".default";
-static const char HLO0_ENTRY[] = "main";
 static const char HLO0_CALLEE[] = "print";
 static const char HLO0_REQUIREMENT[] = "Console";
-static const char HLO0_PAYLOAD[] = "Hello, world!";
 
 typedef struct {
   w_seed_hlo0_plan plan;
@@ -74,17 +72,14 @@ static bool hir_text_is(const w_seed_hir0_program *program,
           memcmp(program->text_bytes + text.offset, literal, length) == 0);
 }
 
-static bool hir_bytes_equal(const w_seed_hir0_program *program, uint32_t offset,
-                            uint32_t count, const char *literal) {
-  if (program == NULL || literal == NULL ||
-      offset > program->value_byte_count ||
-      count > program->value_byte_count - offset)
+static bool hir_texts_equal(const w_seed_hir0_program *program,
+                            w_seed_hir0_text left, w_seed_hir0_text right) {
+  if (!hir_text_valid(program, left) || !hir_text_valid(program, right) ||
+      left.count != right.count)
     return false;
-  const size_t length = strlen(literal);
-  return count == length &&
-         (length == 0u ||
-          (program->value_bytes != NULL &&
-           memcmp(program->value_bytes + offset, literal, length) == 0));
+  return left.count == 0u ||
+         memcmp(program->text_bytes + left.offset,
+                program->text_bytes + right.offset, left.count) == 0;
 }
 
 static bool copy_literal(char *destination, size_t capacity,
@@ -134,6 +129,24 @@ static bool plan_text_is(const char *text, size_t capacity,
   return true;
 }
 
+static bool plan_text_pair_is_equal_nonempty(const char *left,
+                                             size_t left_capacity,
+                                             const char *right,
+                                             size_t right_capacity) {
+  size_t left_length = 0u;
+  size_t right_length = 0u;
+  if (!bounded_length(left, left_capacity, &left_length) ||
+      !bounded_length(right, right_capacity, &right_length) ||
+      left_length == 0u || left_length != right_length ||
+      memcmp(left, right, left_length) != 0)
+    return false;
+  for (size_t index = left_length + 1u; index < left_capacity; index += 1u)
+    if (left[index] != '\0') return false;
+  for (size_t index = right_length + 1u; index < right_capacity; index += 1u)
+    if (right[index] != '\0') return false;
+  return true;
+}
+
 static bool digest_equal(const uint8_t *left, const uint8_t *right,
                          size_t length) {
   return left != NULL && right != NULL && memcmp(left, right, length) == 0;
@@ -153,22 +166,21 @@ bool w_seed_hlo0_verify_plan(const w_seed_hlo0_plan *plan) {
                     W_SEED_HLO0_SCHEMA_VERSION) ||
       !plan_text_is(plan->profile, sizeof(plan->profile), HLO0_PROFILE) ||
       !plan_text_is(plan->slot, sizeof(plan->slot), HLO0_SLOT) ||
-      !plan_text_is(plan->entry_target, sizeof(plan->entry_target), HLO0_ENTRY) ||
-      !plan_text_is(plan->handler, sizeof(plan->handler), HLO0_ENTRY) ||
+      !plan_text_pair_is_equal_nonempty(
+          plan->entry_target, sizeof(plan->entry_target), plan->handler,
+          sizeof(plan->handler)) ||
       !plan_text_is(plan->callee, sizeof(plan->callee), HLO0_CALLEE) ||
       !plan_text_is(plan->requirement, sizeof(plan->requirement),
                     HLO0_REQUIREMENT) ||
       plan->is_async || plan->is_throws || plan->is_unsafe ||
       plan->has_borrow_clause || !plan->zero_parameters || !plan->unit_return ||
       plan->newline_policy != W_SEED_HLO0_NEWLINE_ADD_LF ||
-      plan->payload_bytes != sizeof(HLO0_PAYLOAD) - 1u ||
-      memcmp(plan->payload, HLO0_PAYLOAD, sizeof(HLO0_PAYLOAD) - 1u) != 0 ||
-      !bytes_are_zero(plan->payload + sizeof(HLO0_PAYLOAD) - 1u,
-                      sizeof(plan->payload) - sizeof(HLO0_PAYLOAD) + 1u) ||
+      plan->payload_bytes > sizeof(plan->payload) ||
+      !bytes_are_zero(plan->payload + plan->payload_bytes,
+                      sizeof(plan->payload) - plan->payload_bytes) ||
       !add_size(plan->payload_bytes, HLO0_NEWLINE_BYTES,
                 &expected_stdout_bytes) ||
-      plan->stdout_bytes != expected_stdout_bytes ||
-      plan->stdout_bytes != sizeof(HLO0_PAYLOAD) || !plan->exit_success) {
+      plan->stdout_bytes != expected_stdout_bytes || !plan->exit_success) {
     return false;
   }
 
@@ -182,8 +194,8 @@ bool w_seed_hlo0_verify_plan(const w_seed_hlo0_plan *plan) {
   return digest_equal(plan->stdout_sha256, expected_digest, HLO0_DIGEST_BYTES);
 }
 
-static bool select_hello(const w_seed_hir0_program *program,
-                         hlo0_selection *selection) {
+static bool select_print_literal(const w_seed_hir0_program *program,
+                                 hlo0_selection *selection) {
   if (program == NULL || selection == NULL || program->module_count != 1u ||
       program->function_count != 1u || program->parameter_count != 0u ||
       program->block_count != 1u || program->instruction_count != 1u ||
@@ -195,7 +207,8 @@ static bool select_hello(const w_seed_hir0_program *program,
   size_t matching_entries = 0u;
   for (size_t index = 0u; index < program->entry_count; index += 1u) {
     const w_seed_hir0_entry *entry = &program->entries[index];
-    if (!hir_text_is(program, entry->target_name, HLO0_ENTRY) ||
+    if (!hir_text_valid(program, entry->target_name) ||
+        entry->target_name.count == 0u ||
         !hir_text_is(program, entry->slot, HLO0_SLOT))
       continue;
     matching_entries += 1u;
@@ -205,7 +218,10 @@ static bool select_hello(const w_seed_hir0_program *program,
       selection->entry->target_function >= program->function_count)
     return false;
   selection->function = &program->functions[selection->entry->target_function];
-  if (!hir_text_is(program, selection->function->name, HLO0_ENTRY) ||
+  if (!hir_text_valid(program, selection->function->name) ||
+      selection->function->name.count == 0u ||
+      !hir_texts_equal(program, selection->function->name,
+                       selection->entry->target_name) ||
       selection->function->parameter_count != 0u ||
       selection->function->return_type >= program->type_count ||
       program->types[selection->function->return_type].kind !=
@@ -258,8 +274,10 @@ static bool select_hello(const w_seed_hir0_program *program,
          selection->value->type_index < program->type_count &&
          program->types[selection->value->type_index].kind ==
              W_SEED_HIR0_TYPE_STRING &&
-         hir_bytes_equal(program, selection->value->byte_offset,
-                         selection->value->byte_count, HLO0_PAYLOAD);
+         selection->value->byte_count <= W_SEED_HLO0_MAX_PAYLOAD &&
+         selection->value->byte_offset <= program->value_byte_count &&
+         selection->value->byte_count <=
+             program->value_byte_count - selection->value->byte_offset;
 }
 
 static bool append_bytes(uint8_t *buffer, size_t capacity, size_t *offset,
@@ -368,7 +386,7 @@ static hlo0_prepare_status prepare_candidate(const w_seed_hlo0_input *input,
       !w_seed_hir0_verify(input->program, input->hir_result))
     return HLO0_PREPARE_INVALID;
   hlo0_selection selection;
-  if (!select_hello(input->program, &selection))
+  if (!select_print_literal(input->program, &selection))
     return HLO0_PREPARE_UNSUPPORTED;
   (void)memset(candidate, 0, sizeof(*candidate));
   w_seed_hlo0_plan *plan = &candidate->plan;
@@ -394,12 +412,12 @@ static hlo0_prepare_status prepare_candidate(const w_seed_hlo0_input *input,
   plan->zero_parameters = selection.function->parameter_count == 0u;
   plan->unit_return = selection.function->return_type == W_SEED_HIR0_TYPE_UNIT;
   plan->payload_bytes = selection.value->byte_count;
-  if (plan->payload_bytes > W_SEED_HLO0_MAX_PAYLOAD ||
-      (plan->payload_bytes != 0u && input->program->value_bytes == NULL))
+  if (plan->payload_bytes != 0u && input->program->value_bytes == NULL)
     return HLO0_PREPARE_INVALID;
-  (void)memcpy(plan->payload,
-               input->program->value_bytes + selection.value->byte_offset,
-               plan->payload_bytes);
+  if (plan->payload_bytes != 0u)
+    (void)memcpy(plan->payload,
+                 input->program->value_bytes + selection.value->byte_offset,
+                 plan->payload_bytes);
   plan->newline_policy = W_SEED_HLO0_NEWLINE_ADD_LF;
   if (!add_size(plan->payload_bytes, HLO0_NEWLINE_BYTES, &plan->stdout_bytes))
     return HLO0_PREPARE_INVALID;
@@ -421,6 +439,17 @@ typedef struct {
   size_t count;
   size_t element_size;
 } hlo0_input_range;
+
+static bool hlo0_range_add(hlo0_input_range *ranges, size_t capacity,
+                           size_t *range_count, const void *address,
+                           size_t count, size_t element_size) {
+  if (ranges == NULL || range_count == NULL || *range_count >= capacity ||
+      element_size == 0u || count > SIZE_MAX / element_size)
+    return false;
+  ranges[*range_count] = (hlo0_input_range){address, count, element_size};
+  *range_count += 1u;
+  return true;
+}
 
 static bool hlo0_range_pair_overlaps(const hlo0_input_range *left,
                                      const hlo0_input_range *right) {
@@ -451,18 +480,36 @@ static bool output_aliases(const w_seed_hlo0_output *output) {
   return false;
 }
 
-static bool result_aliases_input(const w_seed_hlo0_input *input,
-                                 const w_seed_hlo0_output *output,
-                                 const w_seed_hlo0_result *result) {
-  if (input == NULL || input->program == NULL || input->hir_result == NULL ||
-      output == NULL || result == NULL)
+static bool input_aliases_outputs(const w_seed_hlo0_input *input,
+                                  const w_seed_hlo0_output *output,
+                                  const w_seed_hlo0_counts *counts,
+                                  const w_seed_hlo0_result *result) {
+  if (input == NULL || input->program == NULL || input->hir_result == NULL)
     return true;
-  const hlo0_input_range ranges[] = {
-      {input, 1u, sizeof(*input)},
-      {result, 1u, sizeof(*result)},
-      {output, 1u, sizeof(*output)},
-      {output->plans, output->plan_capacity, sizeof(w_seed_hlo0_plan)},
-      {output->receipt, output->receipt_capacity, sizeof(uint8_t)},
+  hlo0_input_range ranges[32];
+  size_t range_count = 0u;
+  const size_t range_capacity = sizeof(ranges) / sizeof(ranges[0]);
+  if (!hlo0_range_add(ranges, range_capacity, &range_count, input, 1u,
+                      sizeof(*input)))
+    return true;
+  if (counts != NULL &&
+      !hlo0_range_add(ranges, range_capacity, &range_count, counts, 1u,
+                      sizeof(*counts)))
+    return true;
+  if (result != NULL &&
+      !hlo0_range_add(ranges, range_capacity, &range_count, result, 1u,
+                      sizeof(*result)))
+    return true;
+  if (output != NULL) {
+    if (!hlo0_range_add(ranges, range_capacity, &range_count, output, 1u,
+                        sizeof(*output)) ||
+        !hlo0_range_add(ranges, range_capacity, &range_count, output->plans,
+                        output->plan_capacity, sizeof(w_seed_hlo0_plan)) ||
+        !hlo0_range_add(ranges, range_capacity, &range_count, output->receipt,
+                        output->receipt_capacity, sizeof(uint8_t)))
+      return true;
+  }
+  const hlo0_input_range input_ranges[] = {
       {input->program, 1u, sizeof(*input->program)},
       {input->hir_result, 1u, sizeof(*input->hir_result)},
       {input->program->modules, input->program->module_capacity,
@@ -501,10 +548,15 @@ static bool result_aliases_input(const w_seed_hlo0_input *input,
       {input->program->receipt, input->program->receipt_capacity,
        sizeof(uint8_t)},
   };
-  for (size_t first = 0u; first < sizeof(ranges) / sizeof(ranges[0]);
-       first += 1u)
-    for (size_t second = first + 1u;
-         second < sizeof(ranges) / sizeof(ranges[0]); second += 1u)
+  for (size_t index = 0u;
+       index < sizeof(input_ranges) / sizeof(input_ranges[0]); index += 1u) {
+    const hlo0_input_range *range = &input_ranges[index];
+    if (!hlo0_range_add(ranges, range_capacity, &range_count, range->address,
+                        range->count, range->element_size))
+      return true;
+  }
+  for (size_t first = 0u; first < range_count; first += 1u)
+    for (size_t second = first + 1u; second < range_count; second += 1u)
       if (hlo0_range_pair_overlaps(&ranges[first], &ranges[second])) return true;
   return false;
 }
@@ -521,6 +573,8 @@ w_seed_hlo0_status w_seed_hlo0_measure(const w_seed_hlo0_input *input,
                                        w_seed_hlo0_result *result) {
   if (counts == NULL || result == NULL ||
       ranges_overlap(counts, sizeof(*counts), result, sizeof(*result)))
+    return W_SEED_HLO0_INVALID;
+  if (input_aliases_outputs(input, NULL, counts, result))
     return W_SEED_HLO0_INVALID;
   hlo0_candidate candidate;
   const hlo0_prepare_status prepared = prepare_candidate(input, &candidate);
@@ -540,8 +594,8 @@ w_seed_hlo0_status w_seed_hlo0_run(const w_seed_hlo0_input *input,
                                    w_seed_hlo0_output *output,
                                    w_seed_hlo0_result *result) {
   if (result == NULL) return W_SEED_HLO0_INVALID;
-  w_seed_hlo0_counts counts;
-  w_seed_hlo0_result measured;
+  w_seed_hlo0_counts counts = {0u, 0u, 0u};
+  w_seed_hlo0_result measured = {0};
   const w_seed_hlo0_status measured_status =
       w_seed_hlo0_measure(input, &counts, &measured);
   if (measured_status != W_SEED_HLO0_OK) return measured_status;
@@ -551,7 +605,8 @@ w_seed_hlo0_status w_seed_hlo0_run(const w_seed_hlo0_input *input,
       output->receipt_capacity < counts.receipt_bytes)
     return W_SEED_HLO0_CAPACITY;
   if (output_aliases(output)) return W_SEED_HLO0_INVALID;
-  if (result_aliases_input(input, output, result)) return W_SEED_HLO0_INVALID;
+  if (input_aliases_outputs(input, output, &counts, result))
+    return W_SEED_HLO0_INVALID;
   hlo0_candidate candidate;
   if (prepare_candidate(input, &candidate) != HLO0_PREPARE_READY)
     return W_SEED_HLO0_INVALID;

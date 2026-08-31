@@ -91,11 +91,35 @@ try {
   assert(unit.stdoutText.includes("deterministic conservative C emitter"),
     "unit test witness is missing")
   const seedGate = resolve(buildDirectory, `w_seed_hlo1_gate${suffix}`)
+  const restaurantFixture = resolve(artifactDirectory, "restaurant.w")
+  const emptyFixture = resolve(artifactDirectory, "empty.w")
+  await writeFile(restaurantFixture,
+    `fn serve() { print("Table 42 remains open") }\nentry(serve)\n`)
+  await writeFile(emptyFixture, `fn main() { print("") }\nentry(main)\n`)
+  const products = [
+    {
+      name: "canonical",
+      source: canonicalFixture,
+      expected: Buffer.from("Hello, world!\n", "utf8"),
+    },
+    {
+      name: "restaurant",
+      source: restaurantFixture,
+      expected: Buffer.from("Table 42 remains open\n", "utf8"),
+    },
+    {
+      name: "empty",
+      source: emptyFixture,
+      expected: Buffer.from("\n", "utf8"),
+    },
+  ]
+  const artifacts = new Map()
   const canonical = run(seedGate, [canonicalFixture])
   assert(canonical.exitCode === 0,
     `canonical source route failed: ${canonical.stderrText.trim()}`)
   assert(canonical.stderr.length === 0, "canonical route wrote to stderr")
   assert(canonical.stdout.length > 0, "canonical route emitted no C bytes")
+  artifacts.set("canonical", Buffer.from(canonical.stdout))
   await writeFile(join(artifactDirectory, "generated.c"), canonical.stdout)
   await writeFile(join(artifactDirectory, "CMakeLists.txt"), `cmake_minimum_required(VERSION 3.21)
 project(w_hlo1_generated C)
@@ -118,12 +142,32 @@ endif()
     root, "generated C build", toolchainEnvironment)
   const generated = resolve(artifactBuildDirectory,
     `w_hlo1_generated${suffix}`)
-  const execution = run(generated, [])
-  assert(execution.exitCode === 0,
-    `generated program exit=${execution.exitCode}`)
-  assert(execution.stderr.length === 0, "generated program wrote to stderr")
-  assert(Buffer.from(execution.stdout).equals(Buffer.from("Hello, world!\n")),
-    "generated program stdout is not exactly Hello, world! LF")
+  for (const product of products) {
+    if (product.name !== "canonical") {
+      const artifact = run(seedGate, [product.source])
+      assert(artifact.exitCode === 0,
+        `${product.name} source route failed: ${artifact.stderrText.trim()}`)
+      assert(artifact.stderr.length === 0,
+        `${product.name} route wrote to stderr`)
+      assert(artifact.stdout.length > 0,
+        `${product.name} route emitted no C bytes`)
+      artifacts.set(product.name, Buffer.from(artifact.stdout))
+      await writeFile(join(artifactDirectory, "generated.c"), artifact.stdout)
+      runChecked(cmake, ["--build", artifactBuildDirectory, "--parallel", "2"],
+        root, `${product.name} generated C build`, toolchainEnvironment)
+    }
+    const execution = run(generated, [])
+    assert(execution.exitCode === 0,
+      `${product.name} generated program exit=${execution.exitCode}`)
+    assert(execution.stderr.length === 0,
+      `${product.name} generated program wrote to stderr`)
+    assert(Buffer.from(execution.stdout).equals(product.expected),
+      `${product.name} generated program stdout is not exact payload plus LF`)
+  }
+  assert(!artifacts.get("canonical").equals(artifacts.get("restaurant")),
+    "Restaurant payload did not change the generated C artifact")
+  assert(!artifacts.get("canonical").equals(artifacts.get("empty")),
+    "empty payload did not change the generated C artifact")
 
   const commentedPath = resolve(artifactDirectory, "commented-canonical.w")
   await writeFile(commentedPath,
@@ -132,14 +176,18 @@ endif()
   assert(commented.exitCode === 0,
     `commented canonical route failed: ${commented.stderrText.trim()}`)
   assert(commented.stderr.length === 0, "commented route wrote to stderr")
-  assert(Buffer.from(commented.stdout).equals(Buffer.from(canonical.stdout)),
+  assert(Buffer.from(commented.stdout).equals(artifacts.get("canonical")),
     "commented canonical route changed the deterministic conservative C artifact")
 
   const adversarial = [
-    ["restaurant-comment.w",
+    ["comment-with-print.w",
       `fn main() { noop("Other") } // print("Hello, world!")\nentry(main)\n`],
-    ["restaurant-payload.w",
-      `fn main() { print("Other") } // Hello, world! menu note\nentry(main)\n`],
+    ["noop.w",
+      `fn main() { noop("Other") }\nentry(main)\n`],
+    ["two-calls.w",
+      `fn main() { print("a")\nprint("b") }\nentry(main)\n`],
+    ["outside-subset.w",
+      `fn main(value: String) { print(value) }\nentry(main)\n`],
   ]
   for (const [name, source] of adversarial) {
     const path = resolve(artifactDirectory, name)

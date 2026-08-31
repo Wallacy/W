@@ -11,10 +11,10 @@
 extern "C" {
 #endif
 
-/* Internal verified-HIR-backed HLO0 plan adapter for one bounded subset. It
- * does not emit, link, run, or allocate. All input and output storage remains
- * caller-owned. */
-#define W_SEED_HLO0_SCHEMA_VERSION "w-seed-hlo0-1"
+/* Internal verified-HIR-backed HLO0 plan adapter for one bounded print-literal
+ * subset. It does not emit, link, run, or allocate. All input and output
+ * storage remains caller-owned. */
+#define W_SEED_HLO0_SCHEMA_VERSION "w-seed-hlo0-2"
 #define W_SEED_HLO0_MAX_TEXT 64u
 #define W_SEED_HLO0_MAX_PAYLOAD 256u
 
@@ -34,11 +34,11 @@ typedef struct {
   const w_seed_hir0_result *hir_result;
 } w_seed_hlo0_input;
 
-/* One bounded Hello plan. Each text value is NUL-terminated, and every byte
- * after its terminator is zero. Unused payload bytes are zero. The payload has
- * a fixed ceiling and is not a borrowed source pointer. stdout_sha256 covers
- * payload followed by the added LF. The shared verifier requires this
- * complete canonical representation. */
+/* One bounded print-literal plan. Each text value is NUL-terminated, and every
+ * byte after its terminator is zero. Unused payload bytes are zero. The
+ * payload has a fixed ceiling and is not a borrowed source pointer.
+ * stdout_sha256 covers payload followed by the added LF. The shared verifier
+ * requires this complete canonical representation. */
 typedef struct {
   char schema[W_SEED_HLO0_MAX_TEXT];
   char profile[W_SEED_HLO0_MAX_TEXT];

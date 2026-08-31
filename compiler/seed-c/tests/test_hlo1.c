@@ -56,10 +56,24 @@ static void set_text(char *destination, size_t capacity, const char *value) {
   (void)memcpy(destination, value, length);
 }
 
+static void set_payload(w_seed_hlo0_plan *plan, const uint8_t *payload,
+                        size_t payload_bytes) {
+  (void)memset(plan->payload, 0, sizeof(plan->payload));
+  if (payload_bytes != 0u) (void)memcpy(plan->payload, payload, payload_bytes);
+  plan->payload_bytes = payload_bytes;
+  plan->stdout_bytes = payload_bytes + 1u;
+  static const uint8_t line_feed = 0x0au;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, plan->payload, plan->payload_bytes);
+  w_seed_sha256_update(&state, &line_feed, 1u);
+  w_seed_sha256_final(&state, plan->stdout_sha256);
+}
+
 static w_seed_hlo0_plan canonical_plan(void) {
   w_seed_hlo0_plan plan;
   (void)memset(&plan, 0, sizeof(plan));
-  set_text(plan.schema, sizeof(plan.schema), "w-seed-hlo0-1");
+  set_text(plan.schema, sizeof(plan.schema), W_SEED_HLO0_SCHEMA_VERSION);
   set_text(plan.profile, sizeof(plan.profile), "native-process@1");
   set_text(plan.slot, sizeof(plan.slot), ".default");
   set_text(plan.entry_target, sizeof(plan.entry_target), "main");
@@ -70,16 +84,8 @@ static w_seed_hlo0_plan canonical_plan(void) {
   plan.unit_return = true;
   plan.newline_policy = W_SEED_HLO0_NEWLINE_ADD_LF;
   static const uint8_t payload[] = "Hello, world!";
-  (void)memcpy(plan.payload, payload, sizeof(payload) - 1u);
-  plan.payload_bytes = sizeof(payload) - 1u;
-  plan.stdout_bytes = sizeof(payload);
+  set_payload(&plan, payload, sizeof(payload) - 1u);
   plan.exit_success = true;
-  static const uint8_t line_feed = 0x0au;
-  w_seed_sha256_state state;
-  w_seed_sha256_init(&state);
-  w_seed_sha256_update(&state, plan.payload, plan.payload_bytes);
-  w_seed_sha256_update(&state, &line_feed, 1u);
-  w_seed_sha256_final(&state, plan.stdout_sha256);
   return plan;
 }
 
@@ -150,6 +156,60 @@ static bool test_exact_capacity(void) {
   CHECK(memcmp(output, EXPECTED_C, required) == 0);
   CHECK(output[required] == 0x6du &&
         output[sizeof(output) - 1u] == 0x6du);
+  return true;
+}
+
+static bool test_input_driven_plan(void) {
+  w_seed_hlo0_plan plan = canonical_plan();
+  set_text(plan.entry_target, sizeof(plan.entry_target), "serve");
+  set_text(plan.handler, sizeof(plan.handler), "serve");
+  static const uint8_t payload[] = "Table 42 remains open";
+  set_payload(&plan, payload, sizeof(payload) - 1u);
+  CHECK(w_seed_hlo0_verify_plan(&plan));
+  uint8_t output[W_SEED_HLO1_MAX_C_BYTES];
+  w_seed_hlo1_result result;
+  CHECK(emit_canonical(&plan, output, sizeof(output), &result));
+  CHECK(result.written.c_bytes != sizeof(EXPECTED_C) - 1u);
+  static const char expected_bytes[] =
+      "0x54, 0x61, 0x62, 0x6c, 0x65, 0x20, 0x34, 0x32, 0x20, 0x72, "
+      "0x65, 0x6d, 0x61, 0x69, 0x6e, 0x73, 0x20, 0x6f, 0x70, 0x65, "
+      "0x6e, 0x0a";
+  CHECK(result.written.c_bytes >= sizeof(expected_bytes) - 1u);
+  bool found = false;
+  for (size_t offset = 0u;
+       offset + sizeof(expected_bytes) - 1u <= result.written.c_bytes;
+       offset += 1u) {
+    if (memcmp(output + offset, expected_bytes, sizeof(expected_bytes) - 1u) ==
+        0) {
+      found = true;
+      break;
+    }
+  }
+  CHECK(found);
+  return true;
+}
+
+static bool test_nul_payload_is_byte_faithful(void) {
+  w_seed_hlo0_plan plan = canonical_plan();
+  static const uint8_t payload[] = {'A', 0x00u, 'B'};
+  set_payload(&plan, payload, sizeof(payload));
+  CHECK(w_seed_hlo0_verify_plan(&plan));
+  uint8_t output[W_SEED_HLO1_MAX_C_BYTES];
+  w_seed_hlo1_result result;
+  CHECK(emit_canonical(&plan, output, sizeof(output), &result));
+  static const char expected_bytes[] =
+      "0x41, 0x00, 0x42, 0x0a";
+  bool found = false;
+  for (size_t offset = 0u;
+       offset + sizeof(expected_bytes) - 1u <= result.written.c_bytes;
+       offset += 1u) {
+    if (memcmp(output + offset, expected_bytes, sizeof(expected_bytes) - 1u) ==
+        0) {
+      found = true;
+      break;
+    }
+  }
+  CHECK(found);
   return true;
 }
 
@@ -350,6 +410,8 @@ static bool test_alias_and_plan_mutations(void) {
 
 int main(void) {
   if (!test_exact_and_deterministic()) return 1;
+  if (!test_input_driven_plan()) return 1;
+  if (!test_nul_payload_is_byte_faithful()) return 1;
   if (!test_exact_capacity()) return 1;
   if (!test_capacity_and_no_partial_output()) return 1;
   if (!test_alias_and_plan_mutations()) return 1;

@@ -293,7 +293,7 @@ int main(int argc, char **argv) {
   w_seed_hlo0_counts counts;
   w_seed_hlo0_result result;
   if (w_seed_hlo0_measure(&input, &counts, &result) != W_SEED_HLO0_OK ||
-      counts.plans != 1u || counts.payload_bytes != 13u) {
+      counts.plans != 1u || counts.payload_bytes > W_SEED_HLO0_MAX_PAYLOAD) {
     (void)fprintf(stderr, "HLO0 gate: measure failed\n");
     return 1;
   }
@@ -305,16 +305,18 @@ int main(int argc, char **argv) {
       .receipt = receipt,
       .receipt_capacity = sizeof(receipt)};
   if (w_seed_hlo0_run(&input, &output, &result) != W_SEED_HLO0_OK ||
-      plan.payload_bytes != 13u || plan.stdout_bytes != 14u ||
+      plan.payload_bytes != counts.payload_bytes ||
+      plan.stdout_bytes != plan.payload_bytes + 1u ||
       plan.newline_policy != W_SEED_HLO0_NEWLINE_ADD_LF ||
-      !plan.exit_success) {
+      !plan.exit_success || !w_seed_hlo0_verify_plan(&plan)) {
     (void)fprintf(stderr, "HLO0 gate: run failed\n");
     return 1;
   }
-  (void)printf("HLO0 gate: profile=%s entry=%s callee=%s requirement=%s payload=%lu stdout=%lu sha256=",
+  (void)printf("HLO0 gate: profile=%s entry=%s callee=%s requirement=%s payload=%lu payload_hex=",
                plan.profile, plan.entry_target, plan.callee, plan.requirement,
-               (unsigned long)plan.payload_bytes,
-               (unsigned long)plan.stdout_bytes);
+               (unsigned long)plan.payload_bytes);
+  print_hex(plan.payload, plan.payload_bytes);
+  (void)printf(" stdout=%lu sha256=", (unsigned long)plan.stdout_bytes);
   print_hex(plan.stdout_sha256, sizeof(plan.stdout_sha256));
   (void)puts(" verified-HIR plan only; W execution unavailable");
   return 0;

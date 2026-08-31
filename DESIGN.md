@@ -34223,19 +34223,19 @@ retorno Unit omitido também são records estruturados.
 
 O adapter caller-owned `w_seed_hlo0` consome somente uma `w_seed_hir0_program`
 e seu receipt de verificação. A fronteira chama o verifier HIR0 novamente e
-não recebe pointers de frontend, source, CST ou host scope. Para o fixture
-exato, produz um plano bounded com payload `Hello, world!`, política de newline
-LF, 14 bytes de stdout, SHA-256 esperado e exit success. O gate comprova
-source → parser → frontend → lower HIR0 → verify HIR0 → plano HLO0. Ele não
-emite C, não liga, não executa W e não implementa `w run`.
+não recebe pointers de frontend, source, CST ou host scope. Para qualquer
+source aceito pelo subset, produz um plano bounded com o nome do entry, o
+payload completo do literal `String`, política de newline LF, stdout de
+`payload_bytes + 1`, SHA-256 esperado e exit success. O schema do plano é
+`w-seed-hlo0-2`; o gate comprova source → parser → frontend → lower HIR0 →
+verify HIR0 → plano HLO0. Ele não emite C, não liga, não executa W e não
+implementa `w run`.
 
-O `benchmarkDisposition` do corte HLO0 é `deferred`, com task
-`hlo3-hello-world-runtime-benchmark`. HLO0 não mede compile, link, startup ou
-execution. HLO1 prova somente a execução do artefato C conservador deste
-subset, compilado em modo C23, sem
-abrir execução W geral. Timing e resultados de performance continuam bloqueados
-por HIR geral, `native-process-console-provider`, `w-linker`,
-`w-run-driver` e `language-benchmark-runner`.
+O `benchmarkDisposition` deste corte é `compiler-lifecycle`, com correctness
+somente agora. HLO0 não mede compile, link, startup ou execution. HLO1 prova
+somente a execução do artefato C conservador deste subset, compilado em modo
+C23, sem abrir execução W geral. Produto/runtime, backend/MLIR e performance
+continuam deferred; não há timing ou result publicado.
 
 HLO1 acrescenta a primeira emissão executável sem abrir um backend W geral. A
 API interna caller-owned `w_seed_hlo1` recebe um `const w_seed_hlo0_plan`
@@ -34249,10 +34249,10 @@ caller.
 O schema HLO1 é `w-seed-hlo1-1`. O arquivo começa exatamente com o comentário
 `/* w-seed-hlo1-1 */` seguido por LF. O output é um arquivo C conservador sem terminador
 implícito, limitado a `W_SEED_HLO1_MAX_C_BYTES`, com LF em todos os finais de
-linha. O corpo canônico usa somente um array `static const unsigned char` com
-os bytes hexadecimais `Hello, world!` seguidos por `0x0a`, `<stdio.h>`,
-`fwrite` e `fflush`. O source emitido termina em LF. Não existe literal string,
-locale ou política de escaping dependente do compilador.
+linha. O corpo usa somente um array `static const unsigned char` com os bytes
+do payload `String` seguidos por `0x0a`, `<stdio.h>`, `fwrite` e `fflush`. O
+source emitido termina em LF. Não existe literal string, locale ou política de
+escaping dependente do compilador.
 
 Em `_WIN32`, o corpo inclui `<fcntl.h>` e `<io.h>` e chama
 `_setmode(_fileno(stdout), _O_BINARY)` antes de escrever. Nos demais hosts, ele
@@ -34271,18 +34271,20 @@ do source, porque o plano é um record caller-owned. Somente o gate integrado
 prova source → parser → frontend → HIR0 → HLO0 → HLO1 → compilador C em modo C23 → execução.
 
 O gate HLO1 constrói o seed em Release fora de diretório temporário do repo,
-obtém o plano pela rota HIR0 verificada, compila o C gerado em modo C23, executa e
-exige stdout `Hello, world!\n`, stderr vazio e exit `0`. Ausência de CMake,
-Ninja ou compilador produz `SKIP` explícito sem claim. Falha de configure,
-build, execução ou verificação quando a toolchain existe produz `FAIL`. O gate
-também usa um source do Restaurante com o texto em comentário ou em uma forma
-estruturalmente errada. Esse caso não pode emitir C, pois nenhuma etapa usa
-substring scanning.
+obtém os planos pela rota HIR0 verificada, compila o C gerado em modo C23,
+executa e compara byte a byte Hello, `Table 42 remains open` e a string vazia,
+sempre com stderr vazio e exit `0`. Ausência de CMake, Ninja ou compilador
+produz `SKIP` explícito sem claim. Falha de configure, build, execução ou
+verificação quando a toolchain existe produz `FAIL`. O gate também usa trivia e
+sources com comentário contendo `print`, noop, duas calls e forma fora do
+subset; nenhum desses casos pode emitir C, pois nenhuma etapa usa substring
+scanning.
 
 HLO1 não implementa HIR geral, linker W, Console provider geral, runtime W,
-distribuição de artefato ou `w run`. Seu `benchmarkDisposition` é `deferred`
-para `hlo3-hello-world-runtime-benchmark`; não há timing nem resultado de
-performance neste corte. Os blockers são HIR geral,
+distribuição de artefato ou `w run`. Seu `benchmarkDisposition` é
+`compiler-lifecycle`; a evidência atual é correctness-only e não há timing ou
+resultado de performance. Produto/runtime, backend/MLIR e o benchmark de
+performance continuam deferred. Os blockers são HIR geral,
 `native-process-console-provider`, `w-linker`, `w-run-driver` e
 `language-benchmark-runner`.
 
@@ -34322,7 +34324,9 @@ slot normalizado. O registro de host inclui o profile explícito
 
 Este schema inicial aceita exatamente um document, um module e um entry. O
 entry é publicado em um único slot `.default`, e cada module rejeita funções
-com nome duplicado. A tabela `symbols` do frontend é somente um índice
+com nome duplicado. A HIR0 continua mais ampla que o seletor HLO0: dentro dos
+limites bounded, pode carregar múltiplas funções e os records correspondentes
+de blocks, calls, arguments e values. A tabela `symbols` do frontend é somente um índice
 auxiliar: o lowering não deriva dela nenhuma identidade, tipo ou callee, mas o
 preflight valida a projeção canônica de module, parâmetros, funções e entry.
 Outras famílias frontend que não possuem record HIR0 (imports, declarations,
@@ -34354,8 +34358,8 @@ terminator, entry, alias/overlap, truncamento ou digest falha fechada.
 `measure`, `run` e a ponte `program_from_output` são transacionais:
 capacity, schema, resultado e receipt são preflightados antes de qualquer
 write; qualquer erro preserva todos os buffers do caller. O HLO0 aceita apenas
-`program` e `hir_result`, verifica HIR0 novamente e seleciona o plano Hello
-somente pelos records e bytes HIR. A rota comprovada é
+`program` e `hir_result`, verifica HIR0 novamente e seleciona o plano
+print-literal somente pelos records e bytes HIR. A rota comprovada é
 `source → parser → frontend → lower HIR0 → verify HIR0 → HLO0 → HLO1 →
 compilador C em modo C23 → execução`.
 
@@ -34364,6 +34368,55 @@ geral, type checking normativo, lowering geral, backend nativo, linker,
 runtime, Console provider geral, `w run` e execução de programas fora do
 subset continuam gaps. O benchmark de compiler lifecycle e o benchmark de
 runtime permanecem deferred e não há timing ou resultado publicado.
+
+#### 26.4.1.1 W-1505 — subset print-literal input-driven (Forma vigente)
+
+**Exemplo:** o mesmo plano preserva o payload publicado pela HIR0, inclusive
+quando o entry e o texto diferem do witness Hello:
+
+```w
+fn serve() { print("Table 42 remains open") }
+entry(serve)
+```
+
+W-1505 remove a especialização literal de Hello da rota já fechada por HIR0.
+HIR0/W-1494 continua uma representação intermediária bounded de schema fechado,
+mais ampla que a seleção final; ela não impõe uma única função, block ou call.
+Sobre uma HIR0 já verificada, o seletor HLO0 W-1505 exige exatamente um module,
+um entry `.default`, uma função alvo zero-parameter/Unit/sync/nonthrows/safe/
+no-borrow, um block linear, uma call host-prelude `print`, um argumento
+posicional `String` literal, uma requirement nominal `Console` e retorno Unit.
+No HLO0, o schema sobe para `w-seed-hlo0-2`; `entry_target` e `handler` são
+byte strings derivados dos textos da HIR0 verificada, não vazios, terminados em
+NUL, com zero-tail e exatamente iguais. O verifier isolado do plano comprova
+somente essa representação e igualdade; ele não prova source provenance nem
+que o conteúdo é um identifier válido. O profile é
+`native-process@1`, o slot é `.default`, o callee é `print` e a requirement é
+`Console`; effects, policies, counts e shape continuam fechados.
+
+O payload aceita de zero a `W_SEED_HLO0_MAX_PAYLOAD` bytes, preserva cada byte
+do literal (inclusive NUL quando o frontend o publicar), zera o tail não usado,
+define stdout como payload seguido por LF com `payload_bytes + 1` checked e
+recompõe o SHA-256 sobre exatamente esses bytes. Exit success é o único exit
+publicado. `measure`/`run` e o verifier continuam caller-owned, bounded,
+fail-closed e all-or-nothing; HLO1 e RUN0 consomem o mesmo verifier sem bypass.
+Não há heap, HIR geral, novo construct de linguagem ou backend MLIR neste
+bundle. HLO1 conserva o schema `w-seed-hlo1-1` porque o formato do artefato
+não muda.
+
+A evidência executável atravessa source → parser → frontend → HIR0 → HLO0 →
+HLO1/RUN0 e compara byte a byte o caso canônico Hello, o payload Restaurante
+`Table 42 remains open` e a string vazia. Trivia preserva o artefato. Comentário
+com `print`, noop, duas calls e formas fora do subset falham antes de publicar
+stdout ou artefato. O caso `entry` com nome diferente é aceito quando já
+suportado pelo parser/frontend; o bundle não amplia a gramática.
+
+`benchmarkDisposition` é `compiler-lifecycle`: a evidência atual é
+correctness-only, sem timing ou result. Produto/runtime, backend/MLIR e
+performance continuam deferred. W-1505 supersede W-1491, W-1493 e W-1495
+somente quanto aos milestones Hello-only; W-1494 permanece current. C23 é a
+lane primária, C11 é recovery explícita, e falha de toolchain presente é FAIL
+(ausência é SKIP).
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
@@ -34374,9 +34427,10 @@ fn main() { print("Hello, world!") }
 entry(main)
 ```
 
-**W-1495 — execução RUN0 interna bounded verified-HLO0 (Forma vigente):**
+**W-1495 — execução RUN0 interna bounded verified-HLO0 (Forma histórica; W-1505
+supersede os milestones Hello-only):**
 `w_seed_run0_execute` é um adapter interno do seed. Ele executa somente um
-plano HLO0 canônico do subset Hello verified-HIR-backed. A API não aloca no
+plano HLO0 verificado do subset print-literal input-driven. A API não aloca no
 heap. O plano e o result permanecem caller-owned.
 
 `w_seed_hlo0_verify_plan` é a única autoridade de verificação de um plano
@@ -34421,7 +34475,8 @@ O helper comum de I/O verifica `_setmode` no Windows, cada write e cada flush.
 Uma falha de I/O da CLI usa exit `3`. Essa infraestrutura não altera o help ou
 o contrato público vigente de `w check`.
 
-W-1495 é source-backed-current somente para esta execução RUN0 bounded. A
+W-1495 permanece source-backed somente como proveniência da execução RUN0
+bounded histórica; W-1505 é a forma vigente para o subset input-driven. A
 promoção não publica `w run`, aquisição pública ou geral de source, seleção de
 contexto ou owner, workspace, backend, linker, runtime ou provider geral. Esses
 componentes e a execução de outros programas W continuam gaps. ACQ0 de W-1496

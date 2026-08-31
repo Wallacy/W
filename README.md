@@ -13,9 +13,15 @@ scanner C de validação de fonte, parser seed caller-owned e incremental,
 formatter seed CST-driven e adapter D0 caller-owned, com suporte sintático
 coberto por 28 IDs F0. O target bootstrap `w` executa a rota pública `w check`
 no perfil CHK9 de root efêmera explícita e imports locais alcançáveis.
-O seed também executa o plano Hello verified-HLO0 por RUN0 em um gate interno
-bounded e test-only. Essa evidência não publica `w run` nem a leitura segura dos
-arquivos de entrada.
+O seed também executa o subset print-literal input-driven verified-HLO0 por
+HLO1/RUN0 em gates internos bounded e test-only. Hello é o witness canônico,
+mas o mesmo caminho aceita payloads String variáveis e compara stdout exato.
+HIR0/W-1494 continua uma representação intermediária bounded mais ampla; é o
+seletor HLO0 W-1505, sobre HIR0 verificada, que aplica a forma exata de uma
+função/entry/block/call/argument. Os nomes target/handler são byte strings
+derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
+source provenance nem identifier válido.
+Essa evidência não publica `w run` nem a leitura segura dos arquivos de entrada.
 Owner detection, resolução externa, provider `std`, package/workspace e o
 frontend normativo completo continuam gaps.
 
@@ -156,7 +162,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0/HLO1 bounded e RUN0 interno test-only. Limites, witnesses e gaps ficam no README do componente; o checkout não publica `w run` |
+| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0/HLO1 bounded para print-literal input-driven e RUN0 interno test-only. Limites, witnesses e gaps ficam no README do componente; o checkout não publica `w run` |
 | Formatter normativo, frontend normativo completo, HIR geral e MLIR | planejados, não implementados; o formatter, o frontend seed e a HIR0 verificada são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |
 | Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |

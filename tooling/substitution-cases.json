@@ -2106,6 +2106,77 @@
         { "path": "std/memory/contracts.w", "symbol": "Allocator/AllocatorLease", "claim": "Allocator lease contract and source-neutral descriptor." }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-print-literal-input-driven",
+      "reviewItem": "subset print-literal input-driven source → HIR0 → HLO0 → HLO1/RUN0 contra hardcode Hello-only, stdout direto e bypass sem source provenance.",
+      "decisions": ["W-1505"],
+      "task": "Carry each bounded String literal from accepted W source through verified HIR0, HLO0, HLO1 and RUN0 without a fixed payload or a source-text bypass.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn serve() { print(\"Table 42 remains open\") }",
+          "entry(serve)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "hello-only-hardcode",
+          "language": "w-internal-rejected",
+          "source": ["source → fixed HLO0 payload \"Hello, world!\" → HLO1/RUN0"],
+          "expectedDifference": "A fixed Hello payload ignores the published String bytes and cannot preserve the Restaurant or empty witnesses."
+        },
+        {
+          "name": "direct-stdout",
+          "language": "c",
+          "source": ["fwrite(\"Table 42 remains open\\n\", 1, 22, stdout);"],
+          "expectedDifference": "A direct write can reproduce one output but does not prove the source → parser → frontend → HIR0 → HLO0 route or a shared verifier."
+        },
+        {
+          "name": "substring-or-precomputed-bypass",
+          "language": "w-internal-rejected",
+          "source": ["source text → precomputed HLO0 plan → sink"],
+          "expectedDifference": "Substring selection or a precomputed plan skips structural validation and can publish output for comments, noop, two calls, or an outside-subset form."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hlo0.c",
+          "symbol": "w_seed_hlo0_measure",
+          "claim": "Input-driven HLO0 selection copies the verified HIR0 String payload and enforces the bounded plan contract."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hlo1.c",
+          "symbol": "w_seed_hlo1_emit",
+          "claim": "HLO1 revalidates the shared HLO0 plan and emits payload bytes as hexadecimal C data followed by LF."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_run0.c",
+          "symbol": "w_seed_run0_execute",
+          "claim": "RUN0 revalidates the same HLO0 plan, stages payload plus LF and calls one faithful sink."
+        },
+        {
+          "path": "tooling/check-hlo0.mjs",
+          "symbol": "const accepted = [",
+          "claim": "HLO0 gate checks Hello, Restaurant and empty payloads plus no-partial-output adversarial sources."
+        },
+        {
+          "path": "tooling/check-hlo1.mjs",
+          "symbol": "const products = [",
+          "claim": "HLO1 gate compiles and executes distinct Hello, Restaurant and empty input-driven artifacts and checks trivia identity."
+        },
+        {
+          "path": "tooling/check-run0.mjs",
+          "symbol": "const sources = new Map([",
+          "claim": "RUN0 gate checks dynamic payloads, trivia, noop/comment/two-call/outside-subset rejection and empty output."
+        }
+      ],
+      "checks": [
+        "bun run check:hlo0 — dynamic Hello, Table 42 remains open and empty payload identities; adversarial inputs produce no stdout",
+        "bun run check:hlo1 — dynamic C artifacts execute byte-for-byte, differ across payloads, and preserve trivia identity",
+        "bun run check:run0 — dynamic sink output, shared-verifier faults and no-partial-output source barriers"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }
