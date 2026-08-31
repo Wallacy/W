@@ -171,6 +171,7 @@ O corpus compara, no mínimo:
 - execução RUN0 por plano HLO0 verificado e sink fiel contra stdout direto, template, plano forjado e bypass do pipeline.
 - aquisição ACQ0 caller-owned compartilhada contra storage/retry duplicados, acoplamento a CHK7, storage global e snapshot global presumido entre waves.
 - observação OWN0 em duas waves contra busca textual, ausência consumida cedo, reopen por path e snapshot ou lease global presumido.
+- parser estrutural data-only em batch/two-wave contra seleção de owner, schema decode acoplado, parser executável/host ou first-wave publish.
 
 ### 1.1 Cobertura de substituições
 
@@ -201,7 +202,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 79 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 81 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
@@ -7672,6 +7673,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 
 | W-1496 | aquisição ACQ0 interna e reutilizável | ACQ0 acrescenta `w_seed_acquisition_storage`, `w_seed_acquisition_retry_apply` e `w_seed_acquisition_pipeline_run` como fronteira C11 interna, bounded e caller-owned ao redor de CHK6. Storage possui as arenas adaptativas de staging, revalidação, publicação e CST; init exige objeto zero, growth é transacional e o owner não pode ser copiado. Bind valida todos os ranges antes de alterar records. Retry valida envelopes CHK6 completos e cresce somente bytes do provider ou nodes do parser. O pipeline preflighta todos os backings e o contexto mutável declarado, exige acesso exclusivo e executa tentativas completas bounded. Em falha, o output publicado permanece bitwise inalterado; em sucesso, counts delimitam documentos e graph. CHK9 compartilha storage, bind e a lane DRIVER de retry, mas `w check` continua no retry externo de CHK7 e preserva bytes, exits e renderers. A última wave estável não é um snapshot global. O `benchmarkDisposition` é `compiler-lifecycle`: somente o oracle de correção de `bmd1-seed-check-lifecycle` em `clean × check-end-to-end` está ready, sem stage, timing ou result; `startup` e `execution` continuam `product-runtime` deferred | source-backed-current somente para ACQ0 no contexto efêmero já fornecido. O caso `R0-acq0-standalone-acquisition`, os units C11 e `check:acquisition` cobrem lifecycle, rollback, envelopes, retries, ranges, contexto, Restaurant e regressões CHK9. ACQ0 não chama frontend/D0, não seleciona policy de filesystem e não publica CLI ou `w run`. Owner detection, package/workspace, provider `std`, resolver geral e contexto público/geral de aquisição continuam gaps |
 | W-1497 | observação OWN0 guarded de candidatos `build.w` | OWN0 acrescenta `w_seed_owner_guard` como fronteira C11 interna, bounded, caller-owned e generation-tagged. O core separa lifecycle de disposition, publica candidates densos folha → root ou ausência observada e exige revalidação na mesma sessão para publicar `CANDIDATES_RECONFIRMED` ou `NO_CANDIDATE_RECONFIRMED`. Staging, revalidação e publicação são disjuntos e all-or-nothing; candidate refs são descritivas e dependem do guard vivo. Candidate, marker problemático, I/O, capacity, unsupported, mutation, reparse ou boundary bloqueiam fallback. O adapter Linux usa handles retidos, `openat2` e `STATX_MNT_ID_UNIQUE`; o gate executa Linux nativo e, em host Windows, exige WSL Ubuntu. O adapter Windows permanece fail-closed `UNSUPPORTED` porque a capability não foi promovida e localidade e parent `..` por handle não foram comprovados. OWN0 não seleciona owner, não lê manifest, não autoriza contexto efêmero, não é snapshot/lease e não integra `w run` ou `w check`. Um composer MAN0/WSP0 futuro deve ainda vincular a source da sessão ao token/receipt ACQ0. O `benchmarkDisposition` é `compiler-lifecycle` somente como classificação da track futura. OWN0 não integra o `w check` medido por BMD1, e seu gate não é oracle dessa célula; não há nova evidência de benchmark, stage, timing ou result | `implementation-evidence-gap` no geral. O caso `R0-own0-guarded-project-candidates`, os units C11 e `check:owner-guard` provam o core e uma subevidência Linux bounded, além da rejeição Windows fail-closed. Não provam owner selection, manifest parsing, policy efêmera, composição ACQ0, public CLI, ordem reversa de closes nem a matriz geral de mounts, namespaces e volumes |
+| W-1498 | MAN0 guarded structural data-only manifest reader | MAN0 lê em batch todos os candidates de um guard OWN0 `LIVE_OBSERVED`. A primeira wave é parseada, medida e preflighted antes da única revalidação OWN0. A segunda wave usa as mesmas identidades; length, bytes, backend digest, core digest e bindings devem coincidir antes de run, verify e commit all-or-nothing. O parser C11 próprio aceita somente records, lists, constructors, members, String normal, number, size, quantity e Bool; preserva fields desconhecidos, ordena roots e fields e mantém list/argument order e source spans. Sete digest domains MAN0 usam frames byte-exact e não usam `w.owner/1`. O reader não seleciona owner/workspace, não valida schema, não executa imports e não integra ACQ0/WSP0/`w check`/`w run`. Linux usa a sessão retida, `openat2` e identidade mount/device/inode; Windows permanece `UNSUPPORTED` sem efeitos. Core C11, units/golden e o gate root depois de OWN0 fornecem somente evidência bounded do parser e da composição Linux real em duas waves; a factory Windows é um stub direto fail-closed. | `implementation-evidence-gap`. A classificação permanece estreita: Windows operacional, vínculo ACQ0, schema decoder, WSP0 e produto público permanecem gaps; não há claim de timing ou benchmark |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
@@ -8456,3 +8458,97 @@ track futura. OWN0 não integra o `w check` medido por BMD1, e seu gate não é
 oracle dessa célula. Não há nova evidência de benchmark, stage, timing ou
 result. `startup` e `execution` permanecem na track `product-runtime` e
 deferred.
+
+#### W-1498 — MAN0 guarded structural data-only manifest reader
+
+W-1498 separa três decisões que o parser host anterior misturava: observar um
+candidate físico, reconhecer a estrutura data-only e interpretar o schema do
+package/workspace. OWN0 conserva a primeira authority. MAN0 faz somente a
+segunda. Um decoder futuro deve fazer a terceira e rejeitar fields
+desconhecidos. Essa separação permite preservar extensions e provenance sem
+declarar que qualquer record parseável é um manifest válido.
+
+Uma leitura depois da reconfirmação seria insuficiente porque não ligaria os
+bytes consumidos à primeira observação. Duas sessões também seriam
+insuficientes porque trocariam handles e namespace. A sequência escolhida lê
+todos os candidates, parseia e mede a primeira wave e fecha toda capacity antes
+de reconfirmar OWN0 uma vez. Depois, ela relê os mesmos candidates na mesma
+sessão. A igualdade de length, bytes, bindings e digests de backend e core fecha
+a evidência estreita de source usada pelo parser. Ela não cria snapshot global
+e não cobre mutation que ocorre e é revertida entre observações. Capacity ainda
+pode pedir retry antes da revalidação; depois dela, não existe growth ou retry.
+Um `CAPACITY` bem-formado na segunda wave é evidência de growth e vira mutation;
+somente um envelope incoerente vira fault. O report registra que a chamada OWN0
+ocorreu mesmo quando a própria reconfirmação falha, para impedir retry ambíguo.
+
+O backend MAN0 é separado para manter I/O fora do parser. Self-owner, endereço
+do guard, context, context size, generation e candidate refs bloqueiam copies,
+cross-context e stale antes do callback. Context/candidate bindings e source
+digest entram no receipt. Isso liga dados dentro do adapter confiado, mas não
+autentica código C hostil. O composer ACQ0 futuro ainda precisa comprovar que
+seu provider token representa a mesma source/root; nenhum token ACQ0 corrente
+é equivalente ao binding mount-aware de OWN0.
+
+O context MAN0 é uma view `const` e a callback é estritamente síncrona. Ela não
+pode reter destination/context, iniciar I/O assíncrono ou mutar OWN0. A factory
+Windows cria somente um stub para teste direto; guarded run rejeita seu guard
+non-live como `INVALID/VALIDATE` antes de consultar o stub.
+
+O parser próprio evita transformar frontend de módulo, grammar editorial ou
+JavaScript host em authority do build. A forma escolhida segue a EBNF de
+manifest: vírgulas opcionais em fields e lists, mas obrigatórias entre
+constructor arguments. BOM é rejeitado pela forma canônica UTF-8 sem BOM.
+Comments, LF e CRLF continuam aceitos como trivia lexical. Raw, multiline,
+byte e interpolation ficam fora porque MAN0 é data-only e a forma normal já
+cobre os `build.w` de referência.
+
+Ordenar roots e fields produz um stream semântico estável. Preservar list e
+argument order evita apagar semântica posicional. Source digest mantém o
+vínculo com os bytes exatos. Spans e arena offsets são projections verificadas,
+mas não entram no wire. Fields desconhecidos participam do semantic digest para
+que um decoder posterior não possa ignorá-los sem mudar sua própria decisão.
+Os quatro domains de document e três de batch usam frames explícitos em vez de
+serializar structs C; assim, padding, endian nativo e address não entram na
+identidade.
+
+As arenas usam ordem global fechada por node/owner, e a normalização decimal
+define cada byte do coefficient, exponent e suffix. Os ceilings novos têm erros
+distintos. Essas escolhas removem outputs alternativos sem transformar MAN0 em
+um decoder de schema.
+
+Base 10 usa sempre coefficient/exponent, inclusive para um integer sem ponto ou
+exponent. Por isso, `1` e `1.0e0` têm o mesmo amount semântico. Somente prefixos
+binário, octal e hexadecimal preservam `digits` e radix estrutural; `0x1` não se
+torna equivalente a `1`. Size e quantity reutilizam a mesma decisão de amount.
+
+O result retorna por value. Essa escolha permite publicar um report terminal
+em toda failure sem criar alias com os ranges publicados que devem permanecer
+inalterados. A superfície pura aceita somente binding zero e não deixa o caller
+forjar provenance OWN0. Scratch, work budget, digit/scalar ceilings e sort
+bounded impedem que um scalar ou uma ordem adversarial abra trabalho sem limite.
+Full verify recebe o mesmo scratch e reparseia source; a ponte de output valida
+somente envelopes e não finge provar uniqueness sem memória.
+
+`BACKEND_NOT_CALLED` separa ausência de callback de sucesso backend. Measure
+publica somente sizing; run e guarded commit publicam counts e digests. Failure
+zera written/digests, e verify/bridge rejeitam um receipt de measure. O bit de
+revalidate torna o status OWN0 significativo somente depois da call real.
+
+Containment de descriptors embutidos no guarded input e no guard é estrutural,
+não alias. O preflight separa esses aggregates de todos os backings externos.
+Somente guard e backend MAN0 usam self-owner; copiar descriptors comuns não é
+uma falha de authority.
+
+As alternativas rejeitadas neste corte são reutilizar
+`tooling/w-manifest-data.mjs`, chamar o parser/frontend de módulos, escolher o
+primeiro candidate parseável, abrir ancestry por path, publicar depois da
+primeira wave, descartar fields desconhecidos e derivar `w.owner/1` dentro de
+MAN0. Cada alternativa mistura authority, policy ou schema com uma leitura
+estrutural.
+
+M1 continha somente o contrato, os headers e o skeleton CMake. O bundle atual
+tem evidência C11 do subset bounded e do gate Linux real em duas waves, enquanto
+o adapter Windows é somente um stub `UNSUPPORTED` fail-closed. Essa evidência
+não promove o reader a owner selector ou schema decoder. A classificação geral
+permanece `implementation-evidence-gap`: Windows operacional, vínculo ACQ0,
+schema decoder, WSP0 e produto público continuam gaps.

@@ -101,6 +101,7 @@
         { "package": "root", "script": "check:seed-ephemeral-driver" },
         { "package": "root", "script": "check:acquisition" },
         { "package": "root", "script": "check:owner-guard" },
+        { "package": "root", "script": "check:seed-manifest" },
         { "package": "root", "script": "check:seed-formatter" },
         { "package": "root", "script": "check:seed-diagnostic" },
         { "package": "root", "script": "check:seed-check-driver" },

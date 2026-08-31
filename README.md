@@ -19,6 +19,13 @@ arquivos de entrada.
 Owner detection, resolução externa, provider `std`, package/workspace e o
 frontend normativo completo continuam gaps.
 
+MAN0 é o reader C11 guarded, caller-owned e bounded de manifests estruturais.
+Ele lê todos os candidates OWN0 em duas waves e publica somente depois de
+igualdade de bytes, bindings e digests. O gate Linux real usa a sessão retida;
+em host Windows, WSL Ubuntu é obrigatório e o adapter Windows permanece um
+stub direto `UNSUPPORTED` fail-closed. A evidência é estreita e não fecha
+Windows operacional, vínculo ACQ0, schema decoder, WSP0 ou produto público.
+
 Dois objetivos centrais orientam o design: gerência automática de memória sem
 anotações de lifetime no caminho comum e execução estruturada que mantém
 concorrência, paralelismo e placement explícitos no call site. Esses contratos

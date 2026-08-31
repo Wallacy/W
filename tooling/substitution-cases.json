@@ -1959,6 +1959,49 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-manifest-two-wave-reader",
+      "reviewItem": "parser estrutural data-only em batch/two-wave contra seleção de owner, schema decode acoplado, parser executável/host ou first-wave publish",
+      "decisions": ["W-1498"],
+      "task": "Read every observed build.w candidate twice before one guarded publication while preserving a later schema decision.",
+      "selected": {
+        "language": "w-manifest",
+        "source": [
+          "for candidate in observedCandidates {",
+          "  first = readAndMeasure(candidate)",
+          "  second = readSameCandidate(candidate)",
+          "  publish(first, second) only after equal(first, second)",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "select-first-owner",
+          "language": "w-rejected",
+          "source": ["publish(firstParseableCandidate)"],
+          "expectedDifference": "Selection discards other observed candidates and makes content parseability an owner policy."
+        },
+        {
+          "name": "schema-coupled-reader",
+          "language": "w-rejected",
+          "source": ["decodePackageSchema(firstCandidate)"],
+          "expectedDifference": "Schema validation couples structural reading to a later decoder and rejects preserved unknown fields at the wrong boundary."
+        },
+        {
+          "name": "executable-host-parser",
+          "language": "w-rejected",
+          "source": ["executeManifestAsModule(firstCandidate)"],
+          "expectedDifference": "An executable or host parser adds imports, effects, and host policy to a data-only structural reader."
+        },
+        {
+          "name": "first-wave-publish",
+          "language": "w-internal-rejected",
+          "source": ["publish(firstWave)", "revalidateAfterPublish()"],
+          "expectedDifference": "Publication before the second wave permits mutation to enter the committed program."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

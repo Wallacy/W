@@ -66,6 +66,7 @@
     "check:seed-ephemeral-driver": "bun tooling/check-seed-ephemeral-driver.mjs",
     "check:acquisition": "bun tooling/check-acquisition.mjs",
     "check:owner-guard": "bun tooling/check-owner-guard.mjs",
+    "check:seed-manifest": "bun tooling/check-seed-manifest.mjs",
     "check:seed-formatter": "bun tooling/check-seed-formatter.mjs",
     "check:seed-diagnostic": "bun tooling/check-seed-diagnostic.mjs",
     "check:seed-check-driver": "bun tooling/check-seed-check-driver.mjs",

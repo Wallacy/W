@@ -534,6 +534,29 @@ track futura. OWN0 não integra o `w check` medido por BMD1, e seu gate não é
 oracle dessa célula. Não há nova evidência de benchmark, stage, timing ou
 result.
 
+## Reader MAN0 guarded estrutural
+
+`include/w_seed_manifest.h` e `src/w_seed_manifest.c` formam o reader C11
+caller-owned, bounded e sem heap. Ele lê todos os candidates OWN0 em batch,
+faz parse e measure na primeira wave, revalida OWN0 uma vez e relê as mesmas
+referências na segunda wave. Length, bytes, bindings e os digests de
+backend/core devem coincidir antes de `run`, `verify` e do commit
+all-or-nothing. `program_from_output` e verify são read-only nas pontes de
+output.
+
+`w_seed_manifest_linux` compõe a sessão retida OWN0 com leitura bounded e
+identidade mount/device/inode. O gate root roda depois de OWN0 e exige duas
+execuções Linux byte-idênticas, inclusive por WSL Ubuntu no host Windows. A
+factory Windows é somente um stub direto `UNSUPPORTED` fail-closed, sem I/O ou
+efeitos. Use:
+
+    bun tooling/check-seed-manifest.mjs
+
+MAN0 não seleciona owner, não acopla schema e não integra ACQ0, WSP0 ou produto
+público. A classificação geral permanece `implementation-evidence-gap`;
+Windows operacional, vínculo ACQ0, schema decoder, WSP0 e produto público são
+gaps deste bundle.
+
 ## Composição interna CHK7 — discovery, frontend e D0
 
 `include/w_seed_ephemeral_check.h` e `src/w_seed_ephemeral_check.c` compõem

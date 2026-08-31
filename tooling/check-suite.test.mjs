@@ -65,12 +65,12 @@ describe("check-suite manifest", () => {
       "tree-check",
       "tree-docs",
     ]);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(112);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(113);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-docs" })).toHaveLength(79);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-studies" })).toHaveLength(33);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-quick" })).toHaveLength(22);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(24);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(110);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(25);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(111);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-docs" })).toHaveLength(76);
 
     const isRun0 = (step) =>
@@ -111,11 +111,12 @@ describe("check-suite manifest", () => {
         .filter((index) => index >= 0);
       expect(acquisitionIndices).toHaveLength(1);
       const acquisitionIndex = acquisitionIndices[0];
-      expect(expanded.slice(acquisitionIndex - 1, acquisitionIndex + 3))
+      expect(expanded.slice(acquisitionIndex - 1, acquisitionIndex + 4))
         .toEqual([
           { package: "root", script: "check:seed-ephemeral-driver" },
           { package: "root", script: "check:acquisition" },
           { package: "root", script: "check:owner-guard" },
+          { package: "root", script: "check:seed-manifest" },
           { package: "root", script: "check:seed-formatter" },
         ]);
       expect(expanded.findIndex((step) =>
@@ -137,9 +138,10 @@ describe("check-suite manifest", () => {
         .map((step, index) => isOwnerGuard(step) ? index : -1)
         .filter((index) => index >= 0);
       expect(indices).toHaveLength(1);
-      expect(expanded.slice(indices[0] - 1, indices[0] + 2)).toEqual([
+      expect(expanded.slice(indices[0] - 1, indices[0] + 3)).toEqual([
         { package: "root", script: "check:acquisition" },
         { package: "root", script: "check:owner-guard" },
+        { package: "root", script: "check:seed-manifest" },
         { package: "root", script: "check:seed-formatter" },
       ]);
     }

@@ -541,6 +541,27 @@ O `benchmarkDisposition` é `compiler-lifecycle` somente como track futura.
 OWN0 não integra o `w check` medido por BMD1, e seu gate não é oracle dessa
 célula. Não há nova evidência de benchmark, stage, timing ou result.
 
+### MAN0 — reader guarded estrutural data-only
+
+`w_seed_manifest` lê todos os candidates observados por OWN0 em batch. A
+primeira wave faz parse e measure; depois de uma única revalidação, a segunda
+wave usa as mesmas referências. Length, bytes, bindings e os digests de
+backend/core precisam coincidir antes de run, verify e publicação
+all-or-nothing. O core C11 é caller-owned, bounded e não usa heap.
+
+Os checks do core exercitam parser, normalizer, `program_from_output`, verify,
+capacity, alias e forgeries. O gate root executa MAN0 depois de OWN0 e o gate
+Linux real cobre as duas waves e as mutações de byte, replacement e binding.
+Em host Windows, o gate exige WSL Ubuntu e saída byte-idêntica em duas
+execuções; a factory Windows é somente um stub direto `UNSUPPORTED`
+fail-closed.
+
+MAN0 é data-only: não seleciona owner, não acopla schema, não integra ACQ0 ou
+WSP0 e não constitui produto público. A classificação permanece
+`implementation-evidence-gap`; Windows operacional, vínculo ACQ0, schema
+decoder, WSP0 e produto público continuam gaps. Use
+`bun run check:seed-manifest` para o gate focal.
+
 As waves CHK6 não formam uma transação única de snapshot. Candidates de waves
 anteriores podem ser readquiridos, mas o CHK4 é a autoridade de reachability e
 publica somente nodes alcançados; bytes, CST e facts da última wave estável

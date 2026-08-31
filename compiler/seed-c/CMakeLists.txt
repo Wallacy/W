@@ -7,6 +7,12 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 add_library(w_seed_source STATIC
+  include/w_seed_manifest.h
+  include/w_seed_manifest_linux.h
+  include/w_seed_manifest_windows.h
+  src/w_seed_manifest.c
+  src/w_seed_manifest_linux.c
+  src/w_seed_manifest_windows.c
   src/w_seed_source.c
   src/w_seed_foreign.c
   src/w_seed_unicode.c
@@ -59,6 +65,19 @@ add_executable(w_seed_source_tests
   tests/test_source.c
 )
 target_link_libraries(w_seed_source_tests PRIVATE w_seed_source)
+
+add_executable(w_seed_manifest_tests
+  tests/test_manifest.c
+)
+target_link_libraries(w_seed_manifest_tests PRIVATE w_seed_source)
+target_compile_definitions(w_seed_manifest_tests PRIVATE
+  W_SEED_REPOSITORY_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/../.."
+)
+
+add_executable(w_seed_manifest_adapter_tests
+  tests/test_manifest_adapters.c
+)
+target_link_libraries(w_seed_manifest_adapter_tests PRIVATE w_seed_source)
 
 add_executable(w_seed_source_probe
   tests/source_probe.c
@@ -318,6 +337,8 @@ target_link_libraries(w_seed_cli_io_tests PRIVATE w_seed_source)
 
 if(MSVC)
   target_compile_options(w_seed_source_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_manifest_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_manifest_adapter_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_source_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_lexer_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_lexer_probe PRIVATE /W4 /WX)
@@ -362,6 +383,24 @@ if(MSVC)
   target_compile_options(w_seed_generic_validation_tests PRIVATE /W4 /WX)
 else()
   target_compile_options(w_seed_source_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_manifest_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_manifest_adapter_tests PRIVATE
     -Wall
     -Wextra
     -Wpedantic
@@ -765,6 +804,8 @@ add_test(NAME w_seed_ephemeral_driver_linux_unit COMMAND w_seed_ephemeral_driver
 add_test(NAME w_seed_acquisition_unit COMMAND w_seed_acquisition_tests)
 add_test(NAME w_seed_owner_guard_unit COMMAND w_seed_owner_guard_tests)
 add_test(NAME w_seed_owner_guard_adapter_unit COMMAND w_seed_owner_guard_adapter_tests)
+add_test(NAME w_seed_manifest_unit COMMAND w_seed_manifest_tests)
+add_test(NAME w_seed_manifest_adapter_unit COMMAND w_seed_manifest_adapter_tests)
 add_test(NAME w_seed_formatter_unit COMMAND w_seed_formatter_tests)
 add_test(NAME w_seed_diagnostic_unit COMMAND w_seed_diagnostic_tests)
 add_test(NAME w_seed_foreign_unit COMMAND w_seed_foreign_tests)
