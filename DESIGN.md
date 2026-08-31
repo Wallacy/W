@@ -31607,6 +31607,15 @@ autoriza execução e não integra `w run` ou o `w check` vigente. O contrato e 
 limites de evidência estão em
 [§24.3.7](#2437-own0-observação-guarded-de-candidatos-buildw).
 
+**W-1498 — MAN0 guarded structural data-only manifest reader (Forma vigente):**
+MAN0 é uma fronteira C11 interna, bounded e caller-owned. Ela lê todos os
+candidatos de um guard OWN0 `LIVE_OBSERVED`, reconfirma o guard uma vez,
+compara uma segunda leitura byte-exact e só então publica records estruturais
+canônicos para `package` e `workspace`. MAN0 preserva fields desconhecidos,
+mas não seleciona owner ou workspace e não valida o schema de manifest. O
+contrato, os limits, os receipts e as lacunas de composição estão em
+[§24.3.8](#2438-man0-guarded-structural-data-only-manifest-reader).
+
 CHK7 acrescenta a composição interna caller-owned CHK6 → frontend seed → D0.
 A composição preflighta todos os diagnostics e usa `SourceId` lógico e spans
 válidos. O JSONL passa por staging separado e somente o buffer final é
@@ -32565,6 +32574,634 @@ futura aplicável. OWN0 não integra a rota `w check` medida por BMD1, e
 `check:owner-guard` não é oracle dessa célula. Não há nova evidência de
 benchmark, stage, timing ou result. `startup` e `execution` permanecem na track
 `product-runtime` e deferred.
+
+### 24.3.8 MAN0 — guarded structural data-only manifest reader
+
+**Exemplo:** OWN0 observa dois candidatos `build.w`, um no diretório da source
+e outro em uma root ancestral. MAN0 lê os dois pela sessão retida, reconfirma
+OWN0 uma vez, repete as duas leituras pelas mesmas identidades e publica dois
+documentos estruturais. MAN0 não escolhe qual documento é owner.
+
+**W-1498 — escopo MAN0 (Forma vigente):** `w_seed_manifest` é um parser C11
+próprio. Ele não chama `w_seed_parser`, frontend seed, Tree-sitter, JavaScript
+ou tooling host. Ele pode reutilizar somente os primitives seed de bytes,
+UTF-8, classificação Unicode e SHA-256. A saída é caller-owned, bounded e sem
+heap. O parser aceita somente a grammar estrutural de manifest de §2.2.
+
+Um documento ocupa o arquivo inteiro. Ele contém um ou dois roots diretos,
+`package` e `workspace`, em qualquer ordem física. Cada root aparece no máximo
+uma vez. Um documento pode ser package-only, workspace-only ou conter os dois.
+MAN0 publica ambos quando coexistem e não infere precedência. O batch contém
+todos os candidates do guard na ordem folha → root. Nenhum candidate é omitido
+ou promovido por conteúdo.
+
+MAN0 aceita somente estes values:
+
+- record;
+- list;
+- constructor contextual;
+- member contextual;
+- string normal sem interpolation;
+- number;
+- size;
+- quantity;
+- Bool.
+
+Byte string, raw string, multiline string, interpolation, expression geral,
+import, module, declaration, call não contextual, função, loop, I/O e qualquer
+forma executável falham. Não existe recovery. Depois do último root, somente
+trivia pode anteceder EOF. Source adicional falha como trailing source.
+
+O contrato lexical acompanha o source seed vigente. Ele exige UTF-8 estrito,
+rejeita NUL, default-ignorable proibido em identifier e BOM inicial. O BOM é
+rejeitado porque a forma canônica de source W é UTF-8 sem BOM; ele não é
+removido. Space, tab, LF, CRLF, comment de linha e block comment aninhado são
+trivia. CR isolado falha. MAN0 preserva todos os bytes, inclusive trivia e
+CRLF, no source view e no source digest; a forma semântica não inclui trivia.
+
+Record fields e list items seguem a EBNF vigente: uma vírgula depois de cada
+item é opcional. Constructor arguments exigem vírgula entre argumentos e
+aceitam uma vírgula final. Roots são únicos por kind. Fields são únicos dentro
+do próprio record. Labels presentes em um mesmo constructor são únicas;
+argumentos posicionais podem repetir. As comparações usam os bytes UTF-8 do
+identifier. Um decoder de schema posterior deve rejeitar fields desconhecidos,
+extensions inválidas e shapes incompatíveis. MAN0 preserva esses fields e os
+inclui nos digests. Um parse MAN0 bem-sucedido não chama o documento de
+manifest válido.
+
+#### Records, ordem e valores canônicos
+
+Cada document record retém a view exata de source, o candidate ref, a
+generation, os bindings e quatro digests. Roots ficam em ordem semântica
+`package`, `workspace`. Fields de cada record ficam em ordem crescente dos
+bytes UTF-8 do name. Lists e constructor arguments preservam a ordem física.
+Nodes mantêm spans half-open exatos. Um field ou argument span exclui trivia e
+a vírgula opcional; o source view preserva ambos. Todos os índices publicados
+são `u32`; `UINT32_MAX` é o sentinel de índice único. Um span ausente usa
+`{SIZE_MAX, SIZE_MAX}`. Um span vazio presente usa dois offsets iguais dentro
+do source.
+
+Os códigos wire são fixos. Root usa `package = 0` e `workspace = 1`. Node usa,
+nesta ordem, `record = 0`, `list = 1`, `constructor = 2`, `member = 3`,
+`string = 4`, `number = 5`, `size = 6`, `quantity = 7` e `bool = 8`. Edge usa
+`listItem = 0` e `constructorArgument = 1`. Binding usa `none = 0` e
+`ownerGuard = 1`. Bool usa somente `0` ou `1`.
+
+Documents seguem candidate ordinal denso. Roots são agrupados por document e
+recebem ordinal canônico denso. Nodes recebem índices globais densos em preorder
+física por document. O record de root tem `parentNode = UINT32_MAX` e usa o
+ordinal físico do root em `sourceOrdinal`. Todo outro node possui exatamente um
+parent e um `sourceOrdinal` denso entre os values desse parent. Fields são
+agrupados por owner record e ordenados por name; seu ordinal é canônico e denso.
+Edges são agrupados por owner list/constructor e seu ordinal é físico e denso.
+`field.valueNode` e `edge.valueNode` devem apontar para um node cujo parent é o
+owner. Não há cycle ou node órfão.
+
+A ordem global das arenas também é única. Fields são concatenados por
+`ownerRecord` em ordem crescente de node index e, dentro do owner, por name.
+Edges são concatenados por `ownerNode` em ordem crescente de node index e,
+dentro do owner, por ordinal físico. Canonical bytes são a concatenação dos
+payloads de String, number, size e quantity em ordem crescente de node index.
+Um range vazio começa no offset corrente. Nenhum padding separa payloads.
+
+`record.firstChild` referencia fields. `list.firstChild` e
+`constructor.firstChild` referenciam edges. Outro kind usa
+`firstChild = UINT32_MAX` e `childCount = 0`. Constructor tem pelo menos um
+argument. `nameSpan` existe somente em member e constructor. `labelSpan` existe
+somente quando `hasLabel = true`. Scalar canonical range existe somente em
+String, number, size e quantity. Bool usa `booleanValue`; os demais kinds usam
+false. Cada document publica ranges contíguos e counts próprios para roots,
+nodes, fields, edges e canonical bytes.
+
+String normal é decodificada para bytes UTF-8. Os escapes aceitos são `\\`,
+`\"`, `\n`, `\r`, `\t`, `\0` e `\u{scalar}`; surrogate, scalar fora de range
+e interpolation falham. Number remove underscores, normaliza integer radix em
+uma forma lexical estrutural com radix explícito e representa decimal como
+coefficient sem zeros redundantes e exponent decimal. MAN0 não iguala `0x10` a
+`16`; essa normalização de valor pertence ao decoder posterior. Suffix permanece
+explícito. Size usa o mesmo amount e a unit exata
+`B`, `KiB`, `MiB` ou `GiB`. Quantity usa o mesmo amount e uma unit expression
+lexical válida depois de remover somente space e tab. Essa arena canônica pode
+conter NUL e não usa terminador.
+
+O canonical payload de number começa com o radix `U8(2 | 8 | 10 | 16)`. Somente
+uma forma com prefixo `0b`, `0o` ou `0x` usa `digits`: ela remove underscores,
+usa hex lowercase e remove zeros à esquerda, mantendo um zero. Toda forma
+base-10, inclusive um integer decimal sem fraction ou exponent, deixa `digits`
+vazio e usa coefficient e exponent decimal. Assim, `1`, `1.0` e `1e0` têm o
+mesmo amount canônico, enquanto `0x1` permanece diferente. O suffix fica sem o
+`_` introdutor. Zero decimal é sempre coefficient `0` e exponent `0`. Size
+acrescenta um frame unit com uma das quatro spellings exatas. Quantity
+acrescenta um frame unit com os
+bytes estritamente entre `<` e `>`, removendo somente space e tab. Ela preserva
+identifier spelling, `.`, `*`, `/`, `(`, `)`, `^`, sinais e underscores. Não
+faz álgebra de unidades. Amount base-10 de size e quantity usa exatamente a
+mesma regra coefficient/exponent. String guarda diretamente os bytes
+decodificados.
+
+Para decimal, o algoritmo primeiro separa o suffix opcional no `_` introdutor e
+preserva os bytes posteriores. Depois, remove os `_` separadores do núcleo
+numérico; concatena os digits da parte inteira e fracionária; e calcula
+`exponent = explicitExponent -
+fractionDigitCount`, usando zero quando o exponent é ausente. Ele remove zeros à
+esquerda do coefficient e depois remove zeros à direita, somando ao exponent um
+por zero removido à direita. Se o coefficient fica vazio ou contém somente
+zero, o resultado é coefficient ASCII `0` e exponent ASCII `0`. Caso contrário,
+o coefficient não tem zero à esquerda ou à direita. O exponent usa digits ASCII
+sem zero à esquerda, não usa `+` e usa `-` somente quando não zero. A soma e
+subtração de exponent usam magnitude textual com carry/borrow em passes
+lineares; não há conversão para integer nativo. O suffix é ausente ou preserva
+exatamente os bytes depois do `_` introdutor, em seu frame separado; ele nunca
+altera coefficient ou exponent. Unit identifiers preservam seus bytes UTF-8
+exatos.
+
+O limite seed é:
+
+| Dimensão | Ceiling MAN0 |
+|---|---:|
+| bytes por documento | 1 MiB |
+| bytes no batch | 16 MiB |
+| nesting | 256 |
+| structural nodes no batch | 262.144 |
+| roots por documento | 2 |
+| documentos | 256 |
+| bytes de source por scalar | 1 MiB |
+| digits por number | 1.048.576 |
+| bytes decodificados por scalar | 1 MiB |
+| canonical bytes no batch | 16 MiB |
+| work units no batch | 67.108.864 |
+
+`structural nodes` soma roots, value nodes, fields, list items e constructor
+arguments. O caller pode reduzir qualquer limite, mas não aumentá-lo. Counts e
+capacities são validados antes de cada índice ou write. Measure calcula counts
+e canonical bytes sem publicar records. Run repete o parse completo e publica
+somente uma forma que corresponde à medida. Verify recebe scratch, reparseia os
+sources e valida capacities, ranges, owners, ordinals, spans, ordem,
+uniqueness, canonical bytes e todos os digests antes de seguir uma relation.
+
+Cada byte lexed, decodificado ou comparado, cada digit operation e cada sort
+comparison consome uma work unit. Normalização de scalar faz um número fixo de
+passes lineares. Radix permanece explícito e não usa conversão big-integer.
+Fields são
+coletados em source order e uma permutation bounded `O(n log n)` produz a ordem
+canônica. Bytes comparados também debitam work. Esgotar work falha como limit.
+
+Scratch exige `nameSlotCapacity >= maxStructuralNodes` e
+`byteCapacity >= maxDecodedScalarBytes + 256`. Name slots implementam
+uniqueness e retêm scope, name/label span, value span e source ordinal para a
+permutation bounded de cada record/constructor. Eles não são records wire. Byte
+scratch guarda um scalar e seus frames por vez. O canonical output exige a
+medida exata e nunca ultrapassa `maxCanonicalBytes`.
+
+Cada ceiling possui erro fechado. `maxDocumentBytes` usa
+`SOURCE_TOO_LARGE`; `maxAggregateBytes`, `AGGREGATE_TOO_LARGE`;
+`maxNesting`, `NESTING_LIMIT`; `maxStructuralNodes`, `NODE_LIMIT`;
+`maxRootsPerDocument`, `ROOT_LIMIT`; `maxDocuments`, `DOCUMENT_LIMIT`;
+`maxScalarSourceBytes`, `SCALAR_SOURCE_LIMIT`; `maxNumberDigits`,
+`NUMBER_DIGIT_LIMIT`; `maxDecodedScalarBytes`, `DECODED_SCALAR_LIMIT`;
+`maxCanonicalBytes`, `CANONICAL_LIMIT`; e `maxWorkUnits`, `WORK_LIMIT`.
+Um limite efetivo zero ou acima do ceiling é `INVALID` com error `NONE`.
+Scratch ou output insuficiente é `CAPACITY` com error `NONE` e required exato;
+não é um erro de limit.
+
+#### Digests e receipts
+
+MAN0 não usa `w.owner/1`. Cada digest possui um tag externo distinto:
+
+| Digest | Tag ASCII exato |
+|---|---|
+| document source | `w.seed.man0.document.source/1` |
+| document semantic | `w.seed.man0.document.semantic/1` |
+| document provenance | `w.seed.man0.document.provenance/1` |
+| document receipt | `w.seed.man0.document.receipt/1` |
+| batch semantic | `w.seed.man0.batch.semantic/1` |
+| batch provenance | `w.seed.man0.batch.provenance/1` |
+| batch receipt | `w.seed.man0.batch.receipt/1` |
+
+Bindings Linux usam `w.seed.man0.context/1` e
+`w.seed.man0.candidate/1`. O codec usa estas productions byte-exact:
+
+```text
+U8(x)        = x em 1 byte
+U32(x)       = x em 4 bytes big-endian
+U64(x)       = x em 8 bytes big-endian
+Frame(t, p)  = U32(byteLength(t)) || ASCII(t) || U64(byteLength(p)) || p
+Seq(t, xs)   = Frame(t, U32(count(xs)) || Frame("item", x0) || ...)
+Digest(t, p) = SHA-256(Frame(t, p))
+```
+
+Tag não possui NUL. Não existe padding, alinhamento nativo, address ou bytes de
+struct C. Source offsets, spans e arena offsets não entram no codec. Todo
+`size_t` que entra passa por prova `<= UINT32_MAX`. Isso inclui candidate
+ordinal, `directoryOrdinal` e `candidateIndex`. Generation e
+`candidate.generation` usam `U64`. O sentinel `UINT32_MAX`, struct layout,
+span, pointer e capacity nunca entram no wire.
+
+```text
+Counts(d, r, n, f, e, c, s) =
+  U32(d) || U32(r) || U32(n) || U32(f) || U32(e) || U32(c) || U32(s)
+Limits =
+  U32(maxDocumentBytes) || U32(maxAggregateBytes) || U32(maxNesting) ||
+  U32(maxStructuralNodes) || U32(maxRootsPerDocument) || U32(maxDocuments) ||
+  U32(maxScalarSourceBytes) || U32(maxNumberDigits) ||
+  U32(maxDecodedScalarBytes) || U32(maxCanonicalBytes) || U64(maxWorkUnits)
+ZeroDigest = 32 bytes zero
+CandidateRef(g, d, c) =
+  Frame("candidate-ref", U64(g) || U32(d) || U32(c))
+BindingNone =
+  U8(0) || U64(0) || CandidateRef(0, 0, 0) || ZeroDigest || ZeroDigest
+BindingGuard =
+  U8(1) || U64(generation) ||
+  CandidateRef(candidateGeneration, directoryOrdinal, candidateIndex) ||
+  contextBinding || candidateBinding
+OptionLabel(absent) = U8(0)
+OptionLabel(label)  = U8(1) || Frame("label", identifierBytes)
+```
+
+`DocCounts` usa `Counts(1, ...)` com os seis counts restantes do documento.
+`BatchCounts` usa os sete counts globais publicados. Root, node, edge, binding e
+Bool usam exatamente os códigos fechados acima; outro valor de enum ou Bool é
+inválido antes do hash.
+
+O payload semântico recursivo é:
+
+```text
+SemanticField = Frame("field", Frame("name", nameBytes) || SemanticValue)
+SemanticArg   = Frame("argument", OptionLabel || SemanticValue)
+SemanticRoot  = Frame("root", U8(rootKind) || SemanticValue(recordNode))
+
+SemanticValue(record) = Frame("value", U8(0) || Seq("fields", fields))
+SemanticValue(list) = Frame("value", U8(1) || Seq("items", values))
+SemanticValue(constructor) =
+  Frame("value", U8(2) || Frame("name", nameBytes) || Seq("arguments", args))
+SemanticValue(member) = Frame("value", U8(3) || Frame("name", nameBytes))
+SemanticValue(string) = Frame("value", U8(4) || Frame("scalar", decodedBytes))
+SemanticValue(number) = Frame("value", U8(5) || Frame("scalar", canonical))
+SemanticValue(size) = Frame("value", U8(6) || Frame("scalar", canonical))
+SemanticValue(quantity) = Frame("value", U8(7) || Frame("scalar", canonical))
+SemanticValue(bool) = Frame("value", U8(8) || U8(0 | 1))
+```
+
+Fields e roots entram na ordem canônica. Items e arguments entram na ordem
+física. `canonical` de number é `U8(radix) || Frame("digits", bytes) ||
+Frame("coefficient", bytes) || Frame("exponent", bytes) ||
+Frame("suffix", bytes)`. Somente forms com prefixo binário, octal ou hexadecimal
+usam `digits` e frames decimais vazios. Toda form base-10 usa
+coefficient/exponent e `digits` vazio. Size acrescenta
+`Frame("unit", bytes)`. Quantity acrescenta seu `Frame("unit", bytes)` exato
+conforme a regra acima. Field desconhecido usa a mesma production e nunca é
+descartado.
+
+Os quatro digests de documento são exatamente:
+
+```text
+DocumentSourceDigest = Digest("w.seed.man0.document.source/1", sourceBytes)
+DocumentSemanticPayload =
+  Frame("schema", "w-seed-man0-1") || Seq("roots", SemanticRoot*)
+DocumentSemanticDigest =
+  Digest("w.seed.man0.document.semantic/1", DocumentSemanticPayload)
+DocumentProvenancePayload =
+  Frame("schema", "w-seed-man0-1") ||
+  Frame("candidate-ordinal", U32(candidateOrdinal)) || Binding ||
+  Frame("source-digest", DocumentSourceDigest)
+DocumentProvenanceDigest =
+  Digest("w.seed.man0.document.provenance/1", DocumentProvenancePayload)
+DocumentReceiptPayload =
+  Frame("schema", "w-seed-man0-1") || Frame("limits", Limits) ||
+  Frame("counts", DocCounts) || Frame("binding", Binding) ||
+  Frame("source-digest", DocumentSourceDigest) ||
+  Frame("semantic-digest", DocumentSemanticDigest) ||
+  Frame("provenance-digest", DocumentProvenanceDigest)
+DocumentReceiptDigest =
+  Digest("w.seed.man0.document.receipt/1", DocumentReceiptPayload)
+```
+
+Indices, ordinals, parent relations, spans e canonical arena ranges são
+verificados, mas não entram em nenhum wire digest. Eles são projections da
+mesma árvore e dos mesmos bytes; serializar layout tornaria digest dependente de
+uma struct ou estratégia de arena. Os bytes exatos já entram no source digest,
+e a árvore normalizada entra no semantic digest.
+
+Em `DocCounts`, documents é sempre um. Os outros counts pertencem somente ao
+document correspondente. `BatchCounts` usa os counts globais publicados.
+
+Os três result digests pertencem ao batch e são exatamente:
+
+```text
+BatchSemanticPayload = Frame("schema", "w-seed-man0-1") ||
+  Seq("documents", DocumentSemanticDigest*)
+BatchSemanticDigest =
+  Digest("w.seed.man0.batch.semantic/1", BatchSemanticPayload)
+BatchProvenancePayload = Frame("schema", "w-seed-man0-1") ||
+  Seq("documents", DocumentProvenanceDigest*)
+BatchProvenanceDigest =
+  Digest("w.seed.man0.batch.provenance/1", BatchProvenancePayload)
+BatchReceiptPayload =
+  Frame("schema", "w-seed-man0-1") || Frame("limits", Limits) ||
+  Frame("counts", BatchCounts) ||
+  Frame("semantic-digest", BatchSemanticDigest) ||
+  Frame("provenance-digest", BatchProvenanceDigest) ||
+  Seq("documents", DocumentReceiptDigest*)
+BatchReceiptDigest =
+  Digest("w.seed.man0.batch.receipt/1", BatchReceiptPayload)
+```
+
+A ordem dos documents é sempre o candidate ordinal. Não existe batch source
+digest publicado ou implícito. Verify recalcula e confere cada digest de
+documento antes dos três digests de batch.
+
+No adapter Linux, `mountIdUnique`, device major, device minor e inode entram
+como `U64`. Todos os levels entram em ordem crescente de directory ordinal. O
+candidate ordinal presente é o número de levels presentes anteriores; ele deve
+ser igual ao `candidateIndex` publicado por OWN0. Assim, presença e ausência
+fazem parte do binding. O adapter recompõe os dois bindings a partir do context
+retido em cada wave. O core não interpreta identidades nativas; ele compara
+bindings, bytes e seu próprio source digest.
+
+```text
+LinuxIdentity(m, dmaj, dmin, ino) = Frame("linux-identity",
+  Frame("mount-id-unique", U64(m)) || Frame("device-major", U64(dmaj)) ||
+  Frame("device-minor", U64(dmin)) || Frame("inode", U64(ino)))
+LinuxLevelAbsent(d, directoryIdentity) = Frame("level",
+  Frame("directory-ordinal", U32(d)) ||
+  Frame("directory-identity", directoryIdentity) ||
+  Frame("candidate-present", U8(0)))
+LinuxLevelPresent(d, directoryIdentity, c, candidateIdentity) = Frame("level",
+  Frame("directory-ordinal", U32(d)) ||
+  Frame("directory-identity", directoryIdentity) ||
+  Frame("candidate-present", U8(1)) || Frame("candidate-index", U32(c)) ||
+  Frame("candidate-identity", candidateIdentity))
+LinuxContextPayload =
+  Frame("schema", "w-seed-man0-1") || Frame("generation", U64(generation)) ||
+  Frame("base-identity", baseIdentity) ||
+  Frame("source-identity", sourceIdentity) ||
+  Seq("levels", LinuxLevelAbsent | LinuxLevelPresent)
+ContextBinding = Digest("w.seed.man0.context/1", LinuxContextPayload)
+LinuxCandidatePayload =
+  Frame("schema", "w-seed-man0-1") || Frame("literal", "build.w") ||
+  Frame("context-binding", ContextBinding) ||
+  CandidateRef(candidateGeneration, directoryOrdinal, candidateIndex) ||
+  Frame("directory-identity", directoryIdentity) ||
+  Frame("candidate-identity", candidateIdentity)
+CandidateBinding =
+  Digest("w.seed.man0.candidate/1", LinuxCandidatePayload)
+```
+
+`baseIdentity` vem de `context.base_identity`; `sourceIdentity`, do source slot
+retido; e cada directory/candidate identity, dos slots retidos do mesmo level.
+O adapter prova `levelCount`, ordinals, slots, kinds, `used`, generation e refs
+antes de codificar. Conversão impossível para `U32`, slot ausente, identity
+zero, candidate ordinal divergente ou context inconsistente falha antes do
+callback.
+
+A superfície pública pura aceita somente `BindingNone` canônico. Generation,
+candidate ref e os 64 bytes de bindings devem ser zero. Ela não pode publicar
+facts `OWNER_GUARD` fornecidos pelo caller. Guarded run constrói internamente o
+`BindingGuard` somente depois de validar o guard e o backend. Ele usa uma entry
+interna do mesmo parser; não chama nem relaxa `measure`/`run` públicos.
+
+#### Alias, lifetime e report
+
+MAN0 devolve `w_seed_manifest_result` por value. Por isso, o report terminal não
+possui range caller que possa sobrepor a publicação. Success e toda failure
+preenchem status, phase, error, backend/OWN0 status aplicável, candidate/byte
+location, required counts/capacity, limits efetivos e
+`owner_guard_revalidate_called`. O core marca esse bit imediatamente antes da
+única chamada OWN0, mesmo quando ela falha. Somente program e ranges
+`published` permanecem bitwise inalterados em failure. Wave buffers, scratch,
+staged sources e staged records podem mudar. `measure` preserva o `counts`
+separado em failure.
+
+Todo result começa em um envelope canônico. `schema` contém sempre os bytes
+exatos de `w-seed-man0-1`, inclusive NUL final no array C. Error, required byte,
+counts e digests começam zero; document/candidate usam `UINT32_MAX`; byte offset
+usa `SIZE_MAX`; backend usa `NOT_CALLED/NONE`; owner-guard status contém seu
+valor zero e só é significativo quando `owner_guard_revalidate_called = true`.
+Limits ficam todos zero até que o bloco inteiro seja validado; depois disso, o
+result contém exatamente os limits efetivos em success ou failure.
+
+`NOT_CALLED` existe somente no result. Uma callback que devolve esse status tem
+envelope malformado e vira backend `FAULT/VALIDATE`. Depois de cada callback
+válida, backend status/phase no result passam a ser o último envelope aplicável
+na ordem de candidates/waves. Um envelope malformado é normalizado para
+`FAULT/VALIDATE`, nunca publica enum ou phase desconhecido.
+
+As formas OK são fechadas. Measure usa phase `MEASURE`, põe os counts exatos em
+`required`, escreve o `counts` separado e deixa `written` e os três batch
+digests zero. Run usa phase `RUN`, exige `required = written` e publica os três
+batch digests. Guarded run usa phase `COMMIT`, também exige
+`required = written` e publica os três batch digests. Toda failure deixa
+`written` e batch digests zero. `required` fica zero, exceto quando measure já
+fechou sizing exato para uma failure de capacity; `requiredByteCapacity` fica
+zero, exceto para a capacity exata do candidate indicado. Nenhum count parcial
+ou lower bound é publicado como required exato.
+
+Na superfície pura, o preflight inclui o input fixo, o array de source
+descriptors, cada source byte range, scratch name slots, scratch bytes, `counts`
+de measure, o próprio output descriptor de run e cada array/canonical range de
+output. Run lê o descriptor de output e não o escreve; somente os backings são
+mutáveis. Todos os ranges mutáveis são pairwise disjoint e não sobrepõem source
+ou descriptors. Source ranges também não se sobrepõem. O result retornado por
+value não possui range de alias. O scratch descriptor é um subobject do input;
+esse containment declarado não é overlap. Input, source, scratch e output
+descriptors comuns podem ser copiados; eles não carregam self-owner ou authority.
+
+`program_from_output` inclui no preflight o output descriptor, seus backings, o
+result descriptor e o destination program. O destination não pode sobrepor
+nenhum deles. A função valida somente envelopes, capacities, counts, ranges e
+alias, constrói um program candidato local e escreve o destination uma única vez
+no commit; qualquer failure, inclusive alias adversarial, o preserva bitwise.
+Ela aceita somente result `OK/RUN` ou `OK/COMMIT`; rejeita `OK/MEASURE` e não
+substitui full verify.
+
+`verify` inclui program descriptor, result descriptor, scratch descriptor,
+scratch name slots/bytes e todos os backings referidos no preflight. Program,
+result e backings são read-only; scratch é mutável e disjoint de todos eles.
+Verify reparseia cada source, usa name slots para uniqueness bounded, recalcula
+digests e escreve somente os dois backings scratch. O scratch mínimo vem dos
+limits no result. Ele aceita somente result `OK/RUN` ou `OK/COMMIT`; nunca aceita
+um result de measure.
+
+Na superfície guarded, containment estrutural declarado não é alias. O
+`guarded_input` contém limits e o descriptor `storage`; `storage` contém os
+descriptors de scratch, staged e published; o guard original contém seus
+descriptors OWN0 de backend e storage; e o array de read slots contém seus
+elementos. Nenhum desses subobjects precisa ser disjoint do aggregate que o
+contém.
+
+Os envelopes raiz `guarded_input`, guard original, backend MAN0 e destination
+program são disjoint. O preflight também cobre como ranges externos o context
+OWN0 integral, arrays OWN0 de observations/candidates, array de read slots,
+todos os first/second buffers, staged sources, scratch name slots/bytes e todos
+os arrays/canonical backings staged/published. Todo backing externo é disjoint
+de cada envelope e dos outros backings. First/second buffers de candidates
+diferentes também são disjoint.
+
+A única alias externa pré-commit é
+`backend.context == guard.backend.context` com o mesmo endereço e tamanho
+integral; é uma view read-only do mesmo context. Depois do commit,
+`document.source` referencia o prefixo do second buffer correspondente. Um
+backing que aponta para dentro de qualquer envelope, um context parcial ou uma
+segunda sobreposição falha antes de callback.
+
+O core primeiro lê somente os envelopes fixos necessários para formar ranges.
+Ele rejeita null, overflow e overlap antes de seguir um backing variável ou
+chamar backend/OWN0. Dois ranges adjacentes, com `left.end == right.begin`, não
+se sobrepõem. Somente o guard OWN0 e o backend MAN0 possuem self-owner; uma
+cópia deles, um context parcial ou um pointer externo interior a envelope
+falham. Copiar um descriptor comum de input, output ou scratch não falha por
+identidade; suas relações e ranges ainda passam pelo mesmo preflight.
+
+Depois de pure run, source bytes e todos os output arrays/canonical bytes ficam
+vivos e imutáveis enquanto o program estiver vivo. Depois de guarded success,
+essa regra inclui o prefixo promovido de cada second buffer. Mutation, reuse ou
+growth de qualquer backing invalida a view antes do próximo acesso.
+
+#### Guard, duas waves e publicação
+
+`w_seed_manifest_guarded_run` exige o objeto OWN0 original em
+`LIVE_OBSERVED`, disposition `CANDIDATES_OBSERVED` e pelo menos um candidate.
+Ele exige exatamente todos os refs publicados, na ordem publicada. Cada
+read-slot e staged-source capacity cobre o candidate count. Cada first buffer
+possui capacity não zero e não maior que `maxDocumentBytes`. Depois da medida da
+primeira wave, cada second buffer deve cobrir o byte count exato correspondente
+e também não pode exceder `maxDocumentBytes`. Scratch usa os mínimos da seção
+anterior. Descriptor ou guard copiado, context diferente, generation stale, ref
+omitido/reordenado e overlap falham antes do primeiro callback.
+
+Para um input de outro modo bem-formado cujo único bloqueio é um guard non-live,
+inclusive o guard OWN0 Windows deste corte, o retorno é exato: status
+`INVALID`, phase `VALIDATE`, error `NONE`, backend `NOT_CALLED/NONE`, raw
+owner-guard status zero e não significativo, ordinals `UINT32_MAX`, byte offset
+`SIZE_MAX`, capacities/counts/digests zero e
+`owner_guard_revalidate_called = false`. Schema e limits efetivos são
+preenchidos. Nenhuma callback MAN0 ou OWN0 é chamada e nenhum storage caller é
+alterado.
+
+A sequência é fixa:
+
+1. ler todos os candidates na primeira wave;
+2. recalcular cada source digest no core e validar os reports/bindings;
+3. parsear e medir toda a primeira wave;
+4. preflightar counts exatos e todas as capacities staged, published e da
+   segunda wave;
+5. chamar `w_seed_owner_guard_revalidate` exatamente uma vez;
+6. exigir o mesmo guard e os mesmos refs em `LIVE_RECONFIRMED`;
+7. ler todos os candidates na segunda wave pelas mesmas identidades retidas;
+8. recalcular os digests e comparar length, bytes, core digest, backend digest
+   e bindings de cada par;
+9. executar run e full verify sobre a segunda wave, reutilizando o scratch e a
+   medida já fechada;
+10. copiar uma vez todo o batch staged para a saída publicada.
+
+`BACKEND_CAPACITY` na primeira wave inclui `requiredByteCapacity` exata, maior
+que a capacity fornecida e não maior que o limite. Ela pode pedir retry antes da
+revalidação. `BACKEND_LIMIT` significa que existe pelo menos um byte além do
+limite; não significa capacity e nunca publica bytes truncados. Uma failure de
+syntax, limit, scratch ou output capacity na primeira wave publica seu report e
+mantém o guard `LIVE_OBSERVED`. O caller pode corrigir storage ou ajustar os
+limites dentro dos ceilings e repetir somente quando
+`owner_guard_revalidate_called = false`.
+
+Não existe sizing ou growth depois da revalidação. `BACKEND_LIMIT` na segunda
+wave significa mutation. Um envelope `BACKEND_CAPACITY` bem-formado, com
+required maior que a capacity fornecida e dentro do limite, também prova growth
+e vira `MUTATED` terminal. Um envelope capacity incoerente vira `FAULT`.
+Capacity interna inesperada em run é fault de invariant, não uma solicitação de
+retry. Toda failure depois da chamada OWN0 permite somente `destroy`; ela não
+autoriza outra escolha ou execução MAN0. Falha de
+`w_seed_owner_guard_revalidate` preserva o lifecycle OWN0 definido em §24.3.7,
+mas `owner_guard_revalidate_called` permanece true e termina a operação.
+
+Em success, `document.source` aponta para o prefixo escrito de
+`read_slots[documentIndex].second_bytes`. O commit promove esse prefixo de
+staging para backing publicado. O caller deve mantê-lo exclusivo e imutável
+enquanto o program estiver vivo; mutation ou reuse invalida o program. O
+buffer da primeira wave volta a ser scratch depois do retorno. Destroy do
+guard encerra a authority live dos candidate refs, mas não altera esses bytes;
+o program restante é somente data e receipt, não uma authority para reabrir o
+candidate.
+
+O backend MAN0 é separado do backend OWN0, mas fica preso ao mesmo
+`guard.backend.context`, ao tamanho integral desse context, ao endereço do
+guard original, à generation e ao conjunto completo de refs. O descriptor tem
+self-owner e não pode ser copiado. Cada read devolve context binding, candidate
+binding e source digest. O backend source digest é exatamente
+`DocumentSourceDigest` para o prefixo completo devolvido; não é SHA-256 sem o
+tag MAN0. O core sempre o recalcula dos bytes e exige bindings iguais entre
+waves. Essas relações entram no provenance receipt. Callback C é uma authority
+confiada do adapter; o digest detecta divergência de dados, não torna código de
+backend hostil seguro.
+
+O tipo do context MAN0 é `const void *`. Guarded run mantém uso exclusivo do
+guard, dos descriptors MAN0, do context OWN0 e de todos os destinations durante
+a call. A callback só pode ler context. Ela não retém nem acessa context ou
+destination depois do retorno, não inicia trabalho assíncrono e não muta o
+context OWN0. Toda escrita é síncrona e fica em um prefixo dentro de
+`byteCapacity`; `OK` escreve exatamente `byteCount` bytes e não toca o sufixo.
+
+Todo envelope ecoa exatamente generation e candidate ref recebidos e usa um
+status e phase conhecidos. `NOT_CALLED` é proibido na callback. `OK` exige phase `CLOSE`,
+`byteCount = requiredByteCapacity <= byteCapacity <= byteLimit`, arquivo
+completo, `sourceDigest = DocumentSourceDigest` e os bindings Linux exatos.
+`CAPACITY` exige phase `VERIFY_EOF`, `byteCount = 0` e
+`byteCapacity < requiredByteCapacity <= byteLimit`; required é o length completo
+exato provado por EOF, e os três digests/bindings são zero. `LIMIT` exige phase
+`VERIFY_EOF`, `byteCount = 0`,
+`requiredByteCapacity = byteLimit + 1` e os três digests/bindings zero; esse
+valor é a prova bounded de pelo menos um byte excedente, não o length completo.
+Outro status usa a phase exata onde falhou e zera byte count, required e os três
+digests/bindings. A phase `NONE`, enum desconhecido, echo divergente ou qualquer
+combinação fora desses envelopes é `FAULT`.
+
+Uma callback non-OK pode alterar um prefixo não especificado dentro do
+destination fornecido; esses bytes nunca viram source. A callback Windows
+`UNSUPPORTED` é a exceção e não altera destination. O core valida o envelope
+antes de confiar no prefixo ou em qualquer digest. Ele recalcula
+`DocumentSourceDigest` depois de cada `OK`.
+
+No Linux, cada read abre o literal `build.w` relativo ao diretório retido com
+`openat2`, `RESOLVE_NO_SYMLINKS | RESOLVE_NO_MAGICLINKS | RESOLVE_NO_XDEV |
+RESOLVE_BENEATH` e `O_RDONLY | O_CLOEXEC | O_NONBLOCK`. O adapter exige arquivo
+regular e compara
+`STATX_MNT_ID_UNIQUE`, device e inode com o candidate retido antes e depois da
+leitura. Ele lê até o limite e faz um probe bounded de um byte para comprovar
+EOF. O byte de probe não entra no destino. Source maior retorna
+`BACKEND_LIMIT`; o adapter nunca retorna `OK` truncado. Ele fecha o fd local.
+Ele não usa `/proc`, `realpath`, reopen de ancestor ou containment textual.
+
+Se o destination termina antes de EOF, o adapter continua a contagem em um
+chunk local fixo, sem heap, somente até EOF ou `byteLimit + 1`. EOF dentro do
+limite produz `CAPACITY` com length exato; o byte excedente produz `LIMIT`.
+Assim, uma capacity curta nunca mascara um limit e nenhum prefixo non-OK é
+publicado.
+
+No Windows, a factory/stub MAN0 direta expõe um callback que retorna
+`UNSUPPORTED` incondicionalmente, sem open, read, write de destino ou efeito
+externo. Esse descriptor existe somente para teste direto do adapter; ele não é
+um backend operacional de guarded run. OWN0 Windows não produz um guard
+`LIVE_OBSERVED`; o retorno guarded é o `INVALID/VALIDATE` exato acima, sem
+consultar a callback. Não existe fallback textual. O gate Linux
+é obrigatório: em host Windows, ele usa WSL Ubuntu, executa duas vezes e exige
+output exato. Skip e `UNSUPPORTED` não contam como prova Linux.
+
+MAN0 não seleciona owner ou workspace, não deriva `ownerDigest`, não chama um
+decoder de schema, não resolve members, não integra WSP0 e não chama ACQ0,
+frontend, `w check` ou `w run`. O provenance MAN0 liga somente a sessão OWN0.
+Um composer posterior ainda deve ligar criptograficamente essa mesma source e
+root ao provider token ou receipt ACQ0 antes de aquisição ou execução. O core
+C11 e o gate focal exercitam o subset bounded de parser, normalizer, measure,
+run, `program_from_output` e verify. O gate Linux real executa OWN0 primeiro,
+faz as duas waves pelas mesmas referências e verifica replacement, byte e
+binding mutation antes do commit; em host Windows, ele exige WSL Ubuntu e
+duas saídas byte-idênticas. A factory Windows continua um stub direto
+`UNSUPPORTED` fail-closed, sem prova de adapter operacional. A classificação
+geral de W-1498 permanece `implementation-evidence-gap`: Windows operacional,
+vínculo ACQ0, schema decoder, WSP0 e produto público continuam gaps.
+
+O `benchmarkDisposition` é `compiler-lifecycle` somente como classificação de
+track. O gate MAN0 não é oracle BMD1 e não cria stage, timing ou result.
+`startup` e `execution` permanecem na track `product-runtime` e deferred.
 
 ### 24.4 Artefatos que ainda bloqueiam o design freeze
 
@@ -33652,6 +34289,35 @@ O `benchmarkDisposition` é `compiler-lifecycle` e indica somente a track futura
 aplicável. OWN0 não integra o `w check` medido por BMD1; seu gate não é oracle
 dessa célula e não adiciona evidência de benchmark, stage, timing ou result.
 `startup` e `execution` permanecem `product-runtime` deferred.
+
+#### 26.4.5 Reader MAN0 guarded e estrutural
+
+**W-1498 — MAN0 guarded structural data-only manifest reader (Forma vigente):**
+o bundle fecha a fronteira em cinco milestones. M1 registrou o contrato, o
+header e o skeleton CMake. M2 implementou o parser, normalizer, measure, run e
+verify puros. M3 acrescentou a composição de duas waves e o adapter Linux real;
+Windows permanece fail-closed. M4 adicionou o gate depois de OWN0, a suíte
+root, a documentação e os casos de substituição. M4b atualizou as projeções e
+registrou a evidência corrente. M5 concluiu a revisão final e reduziu o gate
+integrado para não repetir OWN0 dentro de MAN0.
+
+Os checks C11 do core cobrem os três `build.w` reais em `reference/`, uma
+fixture workspace-only, package+workspace, comments, CRLF, canonical order,
+unknown fields preservados, duplicates, comma rules, forms proibidas, limits,
+capacity, alias e forgery. O gate de composição cobre todos os candidates de
+um guard, duas waves, mutation, replacement, stale/copy/cross-context, ordem de
+refs e publicação all-or-nothing. O gate root executa MAN0 somente depois de
+`check:owner-guard`. Linux real é obrigatório, inclusive por WSL Ubuntu em
+host Windows, e cada execução deve produzir o mesmo output exato duas vezes.
+No Windows, a factory MAN0 é somente um stub direto `UNSUPPORTED` fail-closed;
+não há evidência de adapter operacional.
+
+A evidência corrente não promove MAN0 a schema validator ou owner selector.
+Mesmo após os gates, a classificação geral permanece
+`implementation-evidence-gap`: Windows operacional, vínculo ACQ0, decoder de
+schema, WSP0 e produto público permanecem gaps. O `benchmarkDisposition` fica
+em `compiler-lifecycle`; o gate não é oracle BMD1 e não publica stage, timing
+ou result.
 
 ### 26.5 Fase 3 — memória, errors e C
 

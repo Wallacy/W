@@ -37,11 +37,13 @@ bun tooling/check-suite.mjs --dry-run --suite root-compiler
 
 `check:quick` valida manifests, projeções, documentação e parsing mantido sem
 builds C pesados. `check:compiler` executa uma vez os gates do compilador seed,
-ACQ0, OWN0, HIR0, HLO0, HLO1, RUN0 interno e da CLI `w`. Os leaves
-`root/check:acquisition` e `root/check:owner-guard` aparecem uma vez em
-`root-compiler`; OWN0 fica imediatamente depois de ACQ0 e antes de formatter e
-`w-cli`. `tree-check` e `root-check` recebem os mesmos leaves por composição.
-`check:w-cli` continua depois deles como regressão pública.
+ACQ0, OWN0, MAN0, HIR0, HLO0, HLO1, RUN0 interno e da CLI `w`. Os leaves
+`root/check:acquisition`, `root/check:owner-guard` e
+`root/check:seed-manifest` aparecem uma vez em `root-compiler`; MAN0 fica
+imediatamente depois de OWN0. O gate MAN0 atravessa o caminho OWN0 que consome,
+mas não repete a suíte OWN0 inteira. `tree-check` e `root-check` recebem os
+mesmos leaves por composição. `check:w-cli` continua depois deles como
+regressão pública.
 `check` mantém a suíte integrada histórica. Use `check:docs` e `check:studies`
 para escopos menores.
 
