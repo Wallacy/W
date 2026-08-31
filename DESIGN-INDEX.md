@@ -18,8 +18,8 @@
 |---|---:|
 | linhas de `DESIGN.md` | 35107 |
 | tokens aproximados de `DESIGN.md` | 397600 |
-| linhas de `RATIONALE.md` | 9054 |
-| tokens aproximados de `RATIONALE.md` | 227300 |
+| linhas de `RATIONALE.md` | 9058 |
+| tokens aproximados de `RATIONALE.md` | 227400 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 370/374 |
 | decisões | 1508 (W-001–W-1508) |
@@ -33,7 +33,7 @@
 | decisões ainda sem classe de freeze | 0 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 241 |
-| surface lexemes das formas vigentes R0 | 2169 total; mediana 19; máximo 101 |
+| surface lexemes das formas vigentes R0 | 2163 total; mediana 19; máximo 101 |
 | bundles executáveis R1 | 57 |
 | variantes/tarefas R1 | 162/228 |
 | casos R0 promovidos a R1 | 69/87 |
@@ -171,9 +171,9 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 15–6140 | 97900 | Evidência comparativa |
-| 2 | 6141–6170 | 500 | Proveniência |
-| 3 | 6171–9054 | 128800 | Ledger |
+| 1 | 15–6142 | 97900 | Evidência comparativa |
+| 2 | 6143–6172 | 500 | Proveniência |
+| 3 | 6173–9058 | 128900 | Ledger |
 
 ## Bundles de leitura
 

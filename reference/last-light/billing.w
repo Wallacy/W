@@ -52,29 +52,6 @@ export enum BillingError: Error {
   service(ServiceFailure)
 }
 
-export behavior Versioned<Value> for Value {
-  var current: Value
-  var mutationEpoch: u64 = 0
-
-  init(initialValue: fn(): Value) {
-    current = initialValue()
-  }
-
-  get {
-    return current
-  }
-
-  mut set(newValue) {
-    current = newValue
-    mutationEpoch += 1
-  }
-
-  mut modify {
-    defer { mutationEpoch += 1 }
-    return inout current
-  }
-}
-
 export protocol PricingPolicy {
   fn price(for course: Course): Money throws BillingError
 }
@@ -145,7 +122,7 @@ export protocol BillingApi {
 
 export service billing: BillingApi {
   gateway: ServiceRef<PaymentGatewayApi>
-  var Versioned payments: Map<IdempotencyKey, Payment> = Map()
+  var payments: Map<IdempotencyKey, Payment> = Map()
 
   init(gateway: ServiceRef<PaymentGatewayApi>) {
     self.gateway = gateway

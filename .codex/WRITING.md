@@ -26,9 +26,31 @@ uma reescrita global sem uma tarefa específica.
 
 ### Exemplos observáveis
 
-Cada exemplo deve demonstrar um resultado, effect ou diagnostic observável. Não
-use um tail identifier isolado sem o contexto que define sua origem, operação e
-consumo.
+Cada declaração ilustrativa deve mostrar sua aplicação real e um valor, effect
+ou diagnostic observável. Um `return` dentro do corpo, um binding em `_` ou a
+declaração isolada não satisfaz esta regra.
+
+Use `expect` para um valor ou diagnostic. Use `print` para um effect. Um bloco
+de contrato lógico ou de referência de assinatura é a única exceção. Marque
+essa exceção com `logical-contract` ou `signature-reference`.
+
+Não use um tail identifier isolado sem o contexto que define sua origem,
+operação e consumo.
+
+### Informações das fences do CHEATSHEET
+
+Use somente estas informações humanas:
+
+- `w executable use=<names> observable=<value|effect|diagnostic>`
+- `w excerpt executable use=<names> observable=<value|effect|diagnostic>`
+- `w logical-contract` e `w excerpt logical-contract`
+- `w signature-reference` e `w excerpt signature-reference`
+- `text logical-contract`
+
+Os blocos `logical-contract` e `signature-reference` são exemptions explícitas.
+Eles documentam contrato ou assinatura e não alegam execução.
+Um `w excerpt` deve manter `// excerpt-source:` ou `// excerpt-kind:` como a
+primeira linha do corpo.
 
 ## Inglês
 

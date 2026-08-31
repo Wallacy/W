@@ -522,12 +522,11 @@ fn classify<batch: usize>(
 W property behavior accessors
 ==================
 
-behavior Versioned<Value> for Value {
-  var current: Value
-  var revision: u64 = 0
+export behavior WrappedDegrees for u16 {
+  var current: u16
 
-  init(initialValue: fn(): Value) {
-    current = initialValue()
+  init(initialValue: fn(): u16) {
+    current = initialValue() % 360_u16
   }
 
   get {
@@ -535,19 +534,37 @@ behavior Versioned<Value> for Value {
   }
 
   mut set(newValue) {
-    current = newValue
-    revision += 1
+    current = newValue % 360_u16
   }
+
+  mut modify {
+    defer { current %= 360_u16 }
+    return inout current
+  }
+}
+
+export struct Attitude {
+  var WrappedDegrees yaw: u16 = 0
+
+  mut fn rotate(by delta: u16) {
+    yaw += delta
+  }
+}
+
+test "attitude rotation wraps degrees" for Attitude {
+  var attitude = Attitude()
+  attitude.yaw = 350
+  attitude.rotate(by: 25)
+
+  expect attitude.yaw == 15
 }
 
 ---
 
 (source_file
   (behavior_declaration
+    (declaration_prefix)
     (type_identifier)
-    (generic_parameters
-      (generic_parameter
-        (identifier)))
     (type
       (type_name
         (type_identifier)))
@@ -557,12 +574,6 @@ behavior Versioned<Value> for Value {
         (type
           (type_name
             (type_identifier))))
-      (behavior_field_declaration
-        (identifier)
-        (type
-          (type_name
-            (type_identifier)))
-        (number_literal))
       (behavior_accessor
         (behavior_initializer
           (behavior_initializer_parameters
@@ -573,9 +584,11 @@ behavior Versioned<Value> for Value {
             (expression_statement
               (assignment_expression
                 (identifier)
-                (call_expression
-                  (identifier)
-                  (argument_list)))))))
+                (binary_expression
+                  (call_expression
+                    (identifier)
+                    (argument_list))
+                  (number_literal)))))))
       (behavior_accessor
         (block
           (return_statement
@@ -588,11 +601,79 @@ behavior Versioned<Value> for Value {
           (expression_statement
             (assignment_expression
               (identifier)
-              (identifier)))
+              (binary_expression
+                (identifier)
+                (number_literal))))))
+      (behavior_accessor
+        (block
+          (defer_statement
+            (block
+              (expression_statement
+                (assignment_expression
+                  (identifier)
+                  (number_literal)))))
+          (return_statement
+            (unary_expression
+              (identifier)))))))
+  (struct_declaration
+    (declaration_prefix)
+    (type_identifier)
+    (type_body
+      (field_declaration
+        (identifier))
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (number_literal))
+      (function_declaration
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (block
           (expression_statement
             (assignment_expression
               (identifier)
-              (number_literal))))))))
+              (identifier)))))))
+  (test_declaration
+    (string_literal)
+    (identifier)
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (expression_statement
+        (assignment_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (number_literal)))
+      (expression_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (argument_list
+            (argument
+              (identifier)
+              (number_literal)))))
+      (expression_statement
+        (identifier))
+      (expression_statement
+        (binary_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (number_literal))))))
 
 ==================
 Retired behavior storage and input spellings are rejected
@@ -628,8 +709,6 @@ behavior Legacy for Value {
         (identifier)
         (ERROR)
         (parameter_list)))))
-
-
 
 ==================
 W static and mutable receivers

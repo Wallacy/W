@@ -4,6 +4,43 @@ import si from std
 import { Tensor } from std.tensor
 import { Distance, PhysicalDuration, Velocity } from units
 
+export behavior WrappedDegrees for u16 {
+  var current: u16
+
+  init(initialValue: fn(): u16) {
+    current = initialValue() % 360_u16
+  }
+
+  get {
+    return current
+  }
+
+  mut set(newValue) {
+    current = newValue % 360_u16
+  }
+
+  mut modify {
+    defer { current %= 360_u16 }
+    return inout current
+  }
+}
+
+export struct Attitude {
+  var WrappedDegrees yaw: u16 = 0
+
+  mut fn rotate(by delta: u16) {
+    yaw += delta
+  }
+}
+
+test "attitude rotation wraps degrees" for Attitude {
+  var attitude = Attitude()
+  attitude.yaw = 350
+  attitude.rotate(by: 25)
+
+  expect attitude.yaw == 15
+}
+
 export type SatelliteId = u32
 export alias Vector3<T> = Tensor<T, shape: [3]>
 
