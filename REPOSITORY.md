@@ -22,11 +22,11 @@ projeções. Quando uma projeção divergir, corrija sua fonte e regenere a saí
 
 | Diretório | Função |
 |---|---|
-| `compiler/seed-c/` | leitor de fonte, lexer, parser, formatter, frontend seed, HIR0/HLO0/HLO1 e CLI de bootstrap |
+| `compiler/seed-c/` | leitor de fonte, lexer, parser, formatter, frontend seed, HIR0/HLO0, HLO1 C23 bootstrap/recovery, MLIR0 e CLI de bootstrap |
 | `reference/last-light/` | produto de referência, fontes `.w`, contratos e fixtures do design |
 | `reference/syntax-atlas/` | atlas de sintaxe e cobertura de parsing gerados |
 | `std/` | rascunho dos módulos da biblioteca padrão |
-| `tooling/` | máquinas, oracles, checkers, snapshots, índices e suítes |
+| `tooling/` | máquinas, oracles, checkers, snapshots, índices, suítes e manifest da recipe MLIR0 |
 | `tooling/tree-sitter-w/` | grammar.js, corpus, queries e CLI local do Tree-sitter |
 | `benchmarks/` | catálogo e receitas de benchmark; resultados só existem quando explicitamente gerados |
 | `portal/` | protótipo de editor/highlighting e seus contratos de fallback |

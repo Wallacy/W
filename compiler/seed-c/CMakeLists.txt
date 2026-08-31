@@ -50,6 +50,7 @@ add_library(w_seed_source STATIC
   src/w_seed_generic_validation.c
   src/w_seed_hlo0.c
   src/w_seed_hlo1.c
+  src/w_seed_mlir0.c
   src/w_seed_hir0.c
   src/w_seed_run0.c
 )
@@ -329,6 +330,17 @@ add_executable(w_seed_hlo1_gate
 )
 target_link_libraries(w_seed_hlo1_gate PRIVATE w_seed_source)
 
+add_executable(w_seed_mlir0_tests
+  tests/test_mlir0.c
+)
+target_link_libraries(w_seed_mlir0_tests PRIVATE w_seed_source)
+
+add_executable(w_seed_mlir0_gate
+  tests/hlo1_gate.c
+)
+target_link_libraries(w_seed_mlir0_gate PRIVATE w_seed_source)
+target_compile_definitions(w_seed_mlir0_gate PRIVATE W_SEED_MLIR0_GATE)
+
 add_executable(w_seed_hir0_tests
   tests/test_hir0.c
 )
@@ -398,6 +410,8 @@ if(MSVC)
   target_compile_options(w_seed_hlo0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_hlo1_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hlo1_gate PRIVATE /W4 /WX)
+  target_compile_options(w_seed_mlir0_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_mlir0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_run0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_run0_gate PRIVATE /W4 /WX)
@@ -793,6 +807,24 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_mlir0_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_mlir0_gate PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_hir0_tests PRIVATE
     -Wall
     -Wextra
@@ -855,6 +887,7 @@ add_test(NAME w_seed_foreign_unit COMMAND w_seed_foreign_tests)
 add_test(NAME w_seed_frontend_unit COMMAND w_seed_frontend_tests)
 add_test(NAME w_seed_hlo0_unit COMMAND w_seed_hlo0_tests)
 add_test(NAME w_seed_hlo1_unit COMMAND w_seed_hlo1_tests)
+add_test(NAME w_seed_mlir0_unit COMMAND w_seed_mlir0_tests)
 add_test(NAME w_seed_hir0_unit COMMAND w_seed_hir0_tests)
 add_test(NAME w_seed_run0_unit COMMAND w_seed_run0_tests)
 add_test(NAME w_seed_cli_io_unit COMMAND w_seed_cli_io_tests)

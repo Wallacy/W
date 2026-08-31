@@ -20,7 +20,8 @@ C23 gera SKIP no gate principal ou roda recovery quando isso for solicitado.
 
 O código continua compilável em C11 recovery. Essa escolha não cria requisito
 C23 para uma ABI C externa. C permanece backend de validation, differential e
-recovery; MLIR continua o backend primário futuro.
+recovery; MLIR0 é a rota nativa primária somente para o subset fechado, e W/MLIR
+geral continua futuro.
 
 ## Limite de medição BMD1
 
@@ -746,7 +747,8 @@ distintos e as barreiras de edges incompletos, mal ordenados ou fora de bounds.
 Ownership/HIR completo, async/services/providers, avaliação de
 initializers/dependencies, cache e materialização, generic calls completas,
 heads importados e aplicações de enum/object/type/alias/function, tensor,
-runtime, MLIR e WInterface permanecem fora desta fatia.
+runtime, W/MLIR geral e WInterface permanecem fora desta fatia. A ponte MLIR0
+terminal bounded é descrita abaixo.
 
 `cli/check.c` compõe o núcleo bounded de source → parser → frontend → D0 na
 rota pública CHK9. `tests/check_driver.c` fornece o wrapper da evidência interna
@@ -945,6 +947,44 @@ Este gate é correctness-only e pertence à classificação
 `compiler-lifecycle`. Não publica timing ou resultado de performance;
 `hlo3-hello-world-runtime-benchmark` continua deferred até existir um runner W
 público/pinado com fases separáveis e reproduzíveis. C11 é recovery explícita.
+
+## MLIR0 ponte nativa terminal para LLVM
+
+`include/w_seed_mlir0.h` e `src/w_seed_mlir0.c` formam um adapter seed-only que
+consome somente `const w_seed_hlo0_plan *` depois de
+`w_seed_hlo0_verify_plan`. Ele não acessa source, CST, frontend ou HIR, não usa
+heap e não chama a MLIR C API. `measure` e `emit` são caller-owned, bounded,
+determinísticos e all-or-nothing; status, required, written e digest pertencem
+ao result. Capacity curta, alias, plano forjado e target não suportado falham
+sem alterar result ou output. O texto não tem NUL implícito.
+
+O schema privado é `w-seed-mlir0-1`, com limite explícito de 4096 bytes. Um
+`_Static_assert` deriva esse limite da soma dos literais fixos, quatro campos
+decimais bounded e até 257 bytes de payload mais LF, cada um escapado em três
+bytes. O único target é
+`x86_64-unknown-linux-gnu`; o módulo fixa `llvm.target_triple`, contém somente
+builtin e LLVM dialect, escapa cada byte de payload+LF como `\XX`, declara
+POSIX `write`, faz uma call com fd 1, compara o tamanho retornado e retorna
+`main` físico com i32 0/1. `entry_target` permanece nome lógico HLO0; não há
+puts/printf/fwrite, geração C, custom W dialect, TableGen ou object-cache.
+
+O gate `bun run check:mlir0` comprova source → parser/frontend → HIR0 → HLO0 →
+MLIR0 → `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native
+link → executable para Hello, `Table 42 remains open` e vazio. Ele exige
+stdout exato (payload + LF), stderr vazio e exit zero, preserva MLIR em trivia
+e rejeita comentário com `print`, noop, duas calls e formas fora do subset sem
+artifact parcial. O manifest `tooling/mlir0-toolchain.json` fixa MLIR/LLVM/
+Clang/LLVM-config 20.1.2 e a recipe. Linux usa ferramentas diretas; no
+checkout Windows `hostEvidence` é `wsl-linux` e `windowsNative` é `false`, logo
+a prova não é suporte Windows nativo. Windows native, macOS, packaging da
+toolchain e a matriz ampla de targets são gaps; qualquer target adicional
+precisa de backend, runtime/provider/host adapter, SDK/sysroot/linker/packaging
+e CI evidence. MLIR0 é ponte terminal da seed, não o futuro W/MLIR de ownership,
+effects/tasks nem backend W geral. HLO1 continua bootstrap, auditoria e recovery.
+
+```text
+bun run check:mlir0
+```
 
 ## RUN0 execução interna bounded verified-HLO0
 

@@ -1,5 +1,12 @@
 #include "w_seed_hlo1.h"
 
+#if defined(W_SEED_MLIR0_GATE)
+#include "w_seed_mlir0.h"
+#define GATE_LABEL "MLIR0"
+#else
+#define GATE_LABEL "HLO1"
+#endif
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -285,7 +292,7 @@ int main(int argc, char **argv) {
   gate_fixture fixture;
   (void)memset(&fixture, 0, sizeof(fixture));
   if (!read_fixture(&fixture, argv[1])) {
-    (void)fprintf(stderr, "HLO1 gate: fixture/frontend/HIR0 failed\n");
+    (void)fprintf(stderr, GATE_LABEL " gate: fixture/frontend/HIR0 failed\n");
     return 1;
   }
   const w_seed_hlo0_input input = {
@@ -299,9 +306,24 @@ int main(int argc, char **argv) {
       .receipt_capacity = sizeof(hlo_receipt)};
   w_seed_hlo0_result hlo_result;
   if (w_seed_hlo0_run(&input, &hlo_output, &hlo_result) != W_SEED_HLO0_OK) {
-    (void)fprintf(stderr, "HLO1 gate: HLO0 plan failed\n");
+    (void)fprintf(stderr, GATE_LABEL " gate: HLO0 plan failed\n");
     return 1;
   }
+#if defined(W_SEED_MLIR0_GATE)
+  const w_seed_mlir0_target target = {
+      W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU};
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_result result;
+  const w_seed_mlir0_output output = {artifact, sizeof(artifact)};
+  if (w_seed_mlir0_emit(&plan, &target, &output, &result) !=
+          W_SEED_MLIR0_OK ||
+      result.written.mlir_bytes != result.required.mlir_bytes ||
+      fwrite(artifact, 1u, result.written.mlir_bytes, stdout) !=
+          result.written.mlir_bytes ||
+      fflush(stdout) != 0)
+    return 1;
+  return 0;
+#else
   uint8_t artifact[W_SEED_HLO1_MAX_C_BYTES];
   w_seed_hlo1_result result;
   const w_seed_hlo1_output output = {artifact, sizeof(artifact)};
@@ -314,4 +336,5 @@ int main(int argc, char **argv) {
       result.written.c_bytes || fflush(stdout) != 0)
     return 1;
   return 0;
+#endif
 }

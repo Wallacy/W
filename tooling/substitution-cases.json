@@ -2177,6 +2177,77 @@
         "bun run check:run0 — dynamic sink output, shared-verifier faults and no-partial-output source barriers"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-mlir0-native-terminal",
+      "reviewItem": "primeira rota nativa MLIR0 source → HIR0 → HLO0 → LLVM dialect → native contra emissão C HLO1, LLVM/source bypass e futuro W/MLIR geral.",
+      "decisions": ["W-1506"],
+      "task": "Carry the verified HLO0 payload through the bounded MLIR0 LLVM-dialect recipe to a native executable without generating C or claiming a general W backend.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn serve() { print(\"Table 42 remains open\") }",
+          "entry(serve)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "hlo1-c-bootstrap",
+          "language": "c",
+          "source": ["verified HLO0 → HLO1 → C23 → native"],
+          "expectedDifference": "HLO1 remains bootstrap, audit and recovery; it is not the native MLIR0 route and its C artifact cannot prove a no-C source path."
+        },
+        {
+          "name": "direct-llvm-or-source-bypass",
+          "language": "llvm-internal-rejected",
+          "source": ["source or fixed payload → LLVM IR → native"],
+          "expectedDifference": "A direct or precomputed LLVM path skips the verified HIR0/HLO0 boundary and cannot establish the input-driven source provenance."
+        },
+        {
+          "name": "future-w-mlir-dialect",
+          "language": "w-mlir-planned",
+          "source": ["HIR general → W/MLIR dialect → LLVM/Wasm/etc."],
+          "expectedDifference": "The future W/MLIR dialect owns general semantics such as ownership, effects and tasks; this seed bridge is terminal and does not implement that dialect."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_mlir0.h",
+          "symbol": "w_seed_mlir0_emit",
+          "claim": "MLIR0 exposes a bounded caller-owned measure/emit API for one explicit target and publishes status, counts and digest."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_artifact",
+          "claim": "The emitter consumes only a verified HLO0 plan and renders deterministic builtin plus LLVM dialect text with byte-faithful payload escapes."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_exact_and_deterministic",
+          "claim": "The unit covers deterministic output, exact capacity, NUL payload bytes, unsupported targets, aliases and forged plans."
+        },
+        {
+          "path": "compiler/seed-c/tests/hlo1_gate.c",
+          "symbol": "W_SEED_MLIR0_GATE",
+          "claim": "The MLIR0 gate reuses the existing source → parser/frontend → HIR0 → HLO0 fixture route and emits no artifact for rejected shapes."
+        },
+        {
+          "path": "tooling/mlir0-toolchain.json",
+          "symbol": "pipeline",
+          "claim": "The pinned manifest records MLIR/LLVM/Clang 20.1.2, llvm-config, target, host evidence and the mlir-opt → mlir-translate → clang LLVM IR recipe."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "const products = [",
+          "claim": "The focal gate executes Hello, Restaurant and empty artifacts through MLIR verification, LLVM IR translation, native link and exact stdout/stderr/exit checks."
+        }
+      ],
+      "checks": [
+        "bun run check:mlir0 — pinned LLVM dialect verification, translation, clang -x ir link and byte-exact Hello/Restaurant/empty execution",
+        "bun test compiler/seed-c/tests/test_mlir0.c — deterministic, capacity, alias, NUL and plan-forgery unit coverage",
+        "bun run check:seed-c11-recovery — shared seed remains available in explicit C11 recovery"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }
