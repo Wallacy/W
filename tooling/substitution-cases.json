@@ -2011,21 +2011,19 @@
       "selected": {
         "language": "w",
         "source": [
-          "export behavior Versioned<Value> for Value {",
-          "  var current: Value",
-          "  var mutationEpoch: u64 = 0",
-          "  init(initialValue: fn(): Value) {",
-          "    current = initialValue()",
+          "export behavior WrappedDegrees for u16 {",
+          "  var current: u16",
+          "  init(initialValue: fn(): u16) {",
+          "    current = initialValue() % 360_u16",
           "  }",
           "  get {",
           "    return current",
           "  }",
           "  mut set(newValue) {",
-          "    current = newValue",
-          "    mutationEpoch += 1",
+          "    current = newValue % 360_u16",
           "  }",
           "  mut modify {",
-          "    defer { mutationEpoch += 1 }",
+          "    defer { current %= 360_u16 }",
           "    return inout current",
           "  }",
           "}"
@@ -2046,12 +2044,12 @@
         {
           "name": "explicit-behavior-slot-call",
           "language": "w-rejected",
-          "source": ["Versioned<Value>(expression)"],
+          "source": ["WrappedDegrees(expression)"],
           "expectedDifference": "Behavior application names only the nominal behavior; the RHS is supplied as the one allowed initializer thunk rather than a historical slot argument."
         }
       ],
       "sourceRefs": [
-        { "path": "reference/last-light/billing.w", "symbol": "Versioned<Value>", "claim": "Canonical behavior backing, thunk, get/set/modify and defer witness." },
+        { "path": "reference/last-light/orbit.w", "symbol": "export behavior WrappedDegrees", "claim": "Canonical behavior backing, thunk, get/set/modify, defer normalization and observed Attitude rotation witness." },
         { "path": "tooling/tree-sitter-w/test/corpus/module_run.txt", "symbol": "Behavior supports the zero-slot initializer form", "claim": "Zero-slot behavior initializer witness." }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]

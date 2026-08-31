@@ -19,8 +19,8 @@ describe("cheatsheet snippet checker", () => {
   test("accepts the current extraction and inventory", () => {
     const result = validateCheatsheetText(cheatsheet, { repositoryRoot })
     expect(result.errors).toEqual([])
-    expect(result.counts.w).toBe(29)
-    expect(result.counts.source).toBe(20)
+    expect(result.counts.w).toBe(19)
+    expect(result.counts.source).toBe(30)
     expect(result.counts.composed).toBe(4)
     expect(result.counts.contrafactual).toBe(1)
     expect(result.counts["manifest-fragment"]).toBe(1)
@@ -32,7 +32,7 @@ describe("cheatsheet snippet checker", () => {
   })
 
   test("rejects unknown W fence info", () => {
-    const candidate = mutate(cheatsheet, "```w\nmodule hello", "```w unknown\nmodule hello")
+    const candidate = mutate(cheatsheet, "```w executable use=runHello observable=effect\nmodule hello", "```w unknown\nmodule hello")
     expect(errorsFor(candidate).some((error) => error.includes("unknown fence info"))).toBe(true)
   })
 
@@ -44,8 +44,8 @@ describe("cheatsheet snippet checker", () => {
   test("rejects missing excerpt metadata", () => {
     const candidate = mutate(
       cheatsheet,
-      "```w excerpt\n// excerpt-kind: composed\n// entrada: dois valores Order",
-      "```w excerpt\n// entrada: dois valores Order",
+      "```w excerpt logical-contract\n// excerpt-kind: composed\n// entrada: dois valores Order",
+      "```w excerpt logical-contract\n// entrada: dois valores Order",
     )
     expect(errorsFor(candidate).some((error) => error.includes("requires one metadata line"))).toBe(true)
   })
@@ -123,8 +123,8 @@ describe("cheatsheet snippet checker", () => {
   test("rejects duplicate and invalid metadata", () => {
     const duplicate = mutate(
       cheatsheet,
-      "```w excerpt\n// excerpt-kind: composed\n// entrada: dois valores Order",
-      "```w excerpt\n// excerpt-kind: composed\n// excerpt-kind: composed\n// entrada: dois valores Order",
+      "```w excerpt logical-contract\n// excerpt-kind: composed\n// entrada: dois valores Order",
+      "```w excerpt logical-contract\n// excerpt-kind: composed\n// excerpt-kind: composed\n// entrada: dois valores Order",
     )
     expect(errorsFor(duplicate).some((error) => error.includes("duplicate excerpt metadata"))).toBe(true)
 
@@ -134,5 +134,142 @@ describe("cheatsheet snippet checker", () => {
       "// excerpt-kind: unknown\nlet lease = try await ovens.acquire",
     )
     expect(errorsFor(invalid).some((error) => error.includes("invalid excerpt metadata"))).toBe(true)
+  })
+
+  test("accepts an executable declaration with a real use and value observation", () => {
+    const candidate = [
+      "```w executable use=add observable=value",
+      "fn add(): i32 { return 1 }",
+      "test \"add\" for add { expect add() == 1 }",
+      "```",
+    ].join("\n")
+    expect(errorsFor(candidate)).toEqual([])
+  })
+
+  test("accepts a named entry as a consumer of its target", () => {
+    const candidate = [
+      "```w executable use=runHello observable=effect",
+      "fn runHello() { print(\"hello\") }",
+      "entry Hello(runHello)",
+      "```",
+    ].join("\n")
+    expect(errorsFor(candidate)).toEqual([])
+  })
+
+  test("reaches helpers transitively from a real consumer", () => {
+    const candidate = [
+      "```w executable use=main,helper observable=effect",
+      "fn helper(): i32 { print(\"helper\"); return 1 }",
+      "fn main(): i32 { return helper() }",
+      "test \"main\" for main { let result = main(); print(result) }",
+      "```",
+    ].join("\n")
+    expect(errorsFor(candidate)).toEqual([])
+  })
+
+  test("rejects a declaration without a consumer", () => {
+    const candidate = [
+      "```w executable use=add observable=value",
+      "fn add(): i32 { return 1 }",
+      "```",
+    ].join("\n")
+    expect(errorsFor(candidate).some((error) => error.includes("test or entry consumer"))).toBe(true)
+  })
+
+  test("rejects body-only return, discard, and print as observation", () => {
+    const bodyOnly = [
+      "```w executable use=add observable=value",
+      "fn add(): i32 { return 1 }",
+      "test \"discard\" { let _ = add() }",
+      "```",
+    ].join("\n")
+    expect(errorsFor(bodyOnly).some((error) => error.includes("observable value"))).toBe(true)
+
+    const printedBody = [
+      "```w executable use=add observable=effect",
+      "fn add() { print(\"inside declaration\") }",
+      "```",
+    ].join("\n")
+    expect(errorsFor(printedBody).some((error) => error.includes("test or entry consumer"))).toBe(true)
+  })
+
+  test("rejects a literal-only sentinel print as an effect observation", () => {
+    const candidate = [
+      "```w executable use=add observable=effect",
+      "fn add(): i32 { return 1 }",
+      "test \"literal sentinel\" for add { add(); print(\"only a sentinel\") }",
+      "```",
+    ].join("\n")
+    expect(errorsFor(candidate).some((error) => error.includes("observable effect"))).toBe(true)
+  })
+
+  test("rejects an unpaired declaration and use", () => {
+    const candidate = [
+      "```w executable use=add observable=value",
+      "fn add(): i32 { return 1 }",
+      "fn other(): i32 { return 2 }",
+      "test \"other\" { expect other() == 2 }",
+      "```",
+    ].join("\n")
+    expect(errorsFor(candidate).some((error) => error.includes("example-use add has no application"))).toBe(true)
+  })
+
+  test("requires a closed diagnostic witness", () => {
+    const generic = [
+      "```w executable use=check observable=diagnostic",
+      "fn check(): i32 { return 1 }",
+      "test \"generic value\" for check { expect check() == 1 }",
+      "```",
+    ].join("\n")
+    expect(errorsFor(generic).some((error) => error.includes("observable diagnostic"))).toBe(true)
+
+    const caught = [
+      "```w executable use=check observable=diagnostic",
+      "fn check(): i32 throws Error { throw Error() }",
+      "test \"caught diagnostic\" for check {",
+      "  do { let _ = try check() } catch error { expect error == error }",
+      "}",
+      "```",
+    ].join("\n")
+    expect(errorsFor(caught)).toEqual([])
+  })
+
+  test("rejects unknown, duplicate, and incomplete executable metadata", () => {
+    const unknown = [
+      "```w executable use=add observable=value budget=small",
+      "fn add(): i32 { return 1 }",
+      "test \"add\" for add { expect add() == 1 }",
+      "```",
+    ].join("\n")
+    expect(errorsFor(unknown).some((error) => error.includes("unknown fence metadata key budget"))).toBe(true)
+
+    const duplicate = unknown.replace(" budget=small", " use=other")
+    expect(errorsFor(duplicate).some((error) => error.includes("duplicate fence metadata key use"))).toBe(true)
+
+    const incomplete = [
+      "```w executable use=add observable=",
+      "fn add(): i32 { return 1 }",
+      "test \"add\" for add { expect add() == 1 }",
+      "```",
+    ].join("\n")
+    expect(errorsFor(incomplete).some((error) => error.includes("invalid fence observable"))).toBe(true)
+  })
+
+  test("accepts only the two closed logical declaration exemptions", () => {
+    const logical = [
+      "```w logical-contract",
+      "protocol Directory<Key> { fn lookup(key: Key): String }",
+      "```",
+    ].join("\n")
+    const signature = [
+      "```w signature-reference",
+      "fn lookup(key: String): String",
+      "```",
+    ].join("\n")
+    expect(errorsFor(logical)).toEqual([])
+    expect(errorsFor(signature)).toEqual([])
+
+    const unknown = logical.replace("logical-contract", "logical")
+    expect(errorsFor(unknown).some((error) => error.includes("unknown fence info"))).toBe(true)
   })
 })

@@ -1299,8 +1299,9 @@ Aceite:
 - Currency diferente exige conversion explícita;
 - rounding policy é parte da operação;
 - overflow não usa binary float;
-- `Versioned` não concede atomicidade fora do serial turn;
-- `Versioned.modify` incrementa `mutationEpoch` uma vez depois do borrow;
+- `WrappedDegrees` normaliza a atribuição e a mutação composta no accessor;
+- `WrappedDegrees.modify` retoma seu hook depois do borrow, e uma rotação de
+  `350` graus por `25` graus produz `15`;
 - um behavior aceita somente o thunk `initialValue`, sem configuração runtime;
 - `priceTable` usa lowering isolado no service serial e não cria lock;
 - um owner concorrente seleciona um winner e publica um valor completo;
