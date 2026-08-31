@@ -1,8 +1,16 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.21)
 
 project(w_seed_source_reader C)
 
-set(CMAKE_C_STANDARD 11)
+set(W_SEED_C_STANDARD "23" CACHE STRING
+  "C standard for the seed (23 is primary; 11 is explicit recovery)")
+set_property(CACHE W_SEED_C_STANDARD PROPERTY STRINGS 23 11)
+if(NOT W_SEED_C_STANDARD STREQUAL "23" AND NOT W_SEED_C_STANDARD STREQUAL "11")
+  message(FATAL_ERROR
+    "W_SEED_C_STANDARD must be 23 (primary) or 11 (explicit recovery), got '${W_SEED_C_STANDARD}'")
+endif()
+
+set(CMAKE_C_STANDARD "${W_SEED_C_STANDARD}")
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 

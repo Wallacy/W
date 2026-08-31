@@ -108,7 +108,8 @@ owner record verificável.
 
 O pacote raiz declara Bun `1.4.0` como gerenciador de pacotes e versão mínima. O
 pacote Tree-sitter declara somente `tree-sitter-cli` `0.26.13`. O seed C usa
-CMake e um compilador C11 disponível no host; a matriz e os limites atuais
+CMake e um compilador C23 disponível no host (C11 é somente recovery explícito);
+a matriz e os limites atuais
 estão em [`compiler/seed-c/README.md`](compiler/seed-c/README.md).
 
 Instale e gere as ferramentas com:

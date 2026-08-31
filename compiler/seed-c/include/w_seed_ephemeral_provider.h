@@ -90,8 +90,9 @@ typedef struct {
   w_seed_ephemeral_provider_token_capacity canonical_token;
 } w_seed_ephemeral_provider_metadata;
 
-/* A backend handle is an opaque integer representation. uintptr_t is the C11
- * representation that can carry a backend object pointer or a native handle
+/* A backend handle is an opaque integer representation. uintptr_t is the
+ * portable representation used by both the C23 primary lane and the explicit
+ * C11 recovery lane; it can carry a backend object pointer or a native handle
  * without a narrowing conversion. The provider never dereferences it. */
 typedef struct {
   uintptr_t value;

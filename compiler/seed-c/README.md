@@ -6,6 +6,22 @@ semântico são fatias fechadas caller-owned. O target bootstrap `w` usa o núcl
 privado para o perfil CHK9 de root efêmera explícita e imports locais
 alcançáveis. O target bootstrap não é um compiler driver completo.
 
+## Política de dialeto C
+
+O seed usa C23 como padrão explícito no CMake, nos probes e checkers C, na
+compilação do artefato C conservador HLO1 e na receita BMD byte-scan-view.
+`W_SEED_C_STANDARD=23` é o
+default e o cache aceita somente `23` ou `11`; `11` é uma lane explícita de
+recovery/compatibilidade. O CMake exige o standard e mantém extensões off.
+GCC/Clang usam `-std=c23`; uma toolchain que só aceita `-std=c2x` pode rodar
+correctness com disclosure `c2x-preview (correctness-only; not a final C23
+result)`, sem ranking final C23. Não há fallback silencioso para C11. MSVC sem
+C23 gera SKIP no gate principal ou roda recovery quando isso for solicitado.
+
+O código continua compilável em C11 recovery. Essa escolha não cria requisito
+C23 para uma ABI C externa. C permanece backend de validation, differential e
+recovery; MLIR continua o backend primário futuro.
+
 ## Limite de medição BMD1
 
 O runner BMD1 mede somente o ponto `clean × check-end-to-end` da matriz
@@ -47,7 +63,7 @@ diagnósticos D0.
 
 ## Parser seed interno (fatia incremental)
 
-`include/w_seed_parser.h` e `src/w_seed_parser.c` adicionam uma API C11 sem
+`include/w_seed_parser.h` e `src/w_seed_parser.c` adicionam uma API C23 sem
 alocação para uma fatia incremental: header `module` opcional, imports
 ordinários no topo, `fn` com parâmetros simples e requirements
 `ref`/`inout`/`take`/`const`, retorno opcional (incluindo `()`), `throws Type`,
@@ -199,7 +215,7 @@ capacidades ou resolve chamadas contextuais. `try allocator` e `allocator` na
 raiz continuam STOP, e o parser não afirma a semântica de providers, contexto
 ou recuperação de allocation.
 
-Corpos `fn<C>` e `fn<lang:.c>` usam um scanner C11 caller-owned com o profile
+Corpos `fn<C>` e `fn<lang:.c>` usam um scanner C23 caller-owned com o profile
 `c-inline-1`. A entrada do scanner é somente a view que começa em `{` e os
 limites explícitos `maximum_body_bytes`/`maximum_nesting`; não há filesystem,
 locale, environment, shell, alocação ou estado global. O resultado é uma
@@ -228,7 +244,7 @@ Ele não inventa códigos para fatos sem mapping suportado.
 ## Formatter seed e adapter D0
 
 `include/w_seed_formatter.h` e `src/w_seed_formatter.c` formam um formatter
-C11 sem heap, path, locale, clock ou environment. A API recebe buffers de
+C23 sem heap, path, locale, clock ou environment. A API recebe buffers de
 tokens, grupos e output do caller, mede antes de escrever e rejeita
 CST recuperado/fatal. A renderização usa a estrutura CST e as folhas raw; não
 carrega o oracle JSON nem procura IDs ou digests em runtime. O gate compara os
@@ -261,7 +277,8 @@ os bytes D0 existentes.
 
 ## Build local
 
-Use C11, CMake e Ninja. Mantenha o diretório de build fora do repositório:
+Use C23 (C11 recovery explícito), CMake e Ninja. Mantenha o diretório de build
+fora do repositório:
 
     $build = Join-Path $env:TEMP "w-seed-source-reader-build"
     cmake -S compiler/seed-c -B $build -G Ninja -DCMAKE_BUILD_TYPE=Debug
@@ -302,7 +319,7 @@ O gate dedicado do scanner C constrói o probe em diretório temporário e compa
 ## Scanner de origins de módulo (CHK3)
 
 `include/w_seed_module_scan.h` e `src/w_seed_module_scan.c` formam o scanner
-interno de origins usado pelo frontend. A API C11 é caller-owned, não aloca e
+interno de origins usado pelo frontend. A API C23 é caller-owned, não aloca e
 não possui estado global mutável. Ela recebe a source, o CST e o parse completo
 e mede/escreve, em ordem de bytes, o span opcional do nome de `module` e os
 records de imports diretos. Cada record preserva o ordinal do import, índice do
@@ -324,7 +341,7 @@ O gate dedicado é executado com:
 ## Graph efêmero seed (CHK4)
 
 `include/w_seed_ephemeral_graph.h` e `src/w_seed_ephemeral_graph.c` formam um
-builder C11 bounded para o graph efêmero W-1485. A entrada é uma lista de
+builder C23 bounded para o graph efêmero W-1485. A entrada é uma lista de
 documentos CST completos, facts de provider já adquiridos pelo caller e um
 índice explícito do root. O builder só expande
 `W_SEED_MODULE_ORIGIN_IMPORT` produzido pelo scanner CHK3. Ele não abre
@@ -357,7 +374,7 @@ O gate dedicado é executado com:
 ## Provider de source efêmero (CHK5)
 
 `include/w_seed_ephemeral_provider.h` e `src/w_seed_ephemeral_provider.c`
-formam a fronteira C11 bounded de aquisição e revalidação para o builder CHK4.
+formam a fronteira C23 bounded de aquisição e revalidação para o builder CHK4.
 O caller fornece uma root física explícita e uma lista explícita de `SourceId`
 root-relative. O core não faz scan, discovery de vizinhos, fetch, fallback,
 lookup de cwd/PATH/environment ou detecção de owner. A root física e o
@@ -404,7 +421,7 @@ compõe o provider com CHK6 e CHK7 na rota pública local.
 ## Driver de descoberta efêmera (CHK6)
 
 `include/w_seed_ephemeral_driver.h` e `src/w_seed_ephemeral_driver.c` formam
-um driver C11 interno, bounded e caller-owned para descoberta local iterativa a
+um driver C23 interno, bounded e caller-owned para descoberta local iterativa a
 partir de uma root e de um `SourceId` root explícitos. Em waves limitadas, ele
 compõe a aquisição/revalidação CHK5, parser e module scan, e o graph builder
 CHK4. O resultado entrega a um caller futuro os documentos em ordem lógica e
@@ -434,7 +451,8 @@ Linux ou registra um skip explícito:
 ## Aquisição ACQ0 interna e compartilhada
 
 `include/w_seed_acquisition.h` e `src/w_seed_acquisition.c` formam uma camada
-C11 standalone, bounded e caller-owned ao redor do driver CHK6. A camada não
+C23 standalone, bounded e caller-owned ao redor do driver CHK6. A lane C11 é
+somente recovery explícita. A camada não
 chama frontend ou D0, não seleciona policy de filesystem ou contexto de projeto
 e não publica CLI. Um caller futuro pode chamar o pipeline ACQ0 diretamente.
 
@@ -491,7 +509,7 @@ correção para `bmd1-seed-check-lifecycle`, célula
 
 ## Guard OWN0 de candidates build.w
 
-`include/w_seed_owner_guard.h` e `src/w_seed_owner_guard.c` formam o core C11
+`include/w_seed_owner_guard.h` e `src/w_seed_owner_guard.c` formam o core C23
 caller-owned e bounded. O core separa lifecycle e disposition, usa generations
 não zero, exige storage disjoint para staging, revalidação e publicação e
 publica candidates densos em ordem folha → root. O primeiro fato é observado;
@@ -536,7 +554,7 @@ result.
 
 ## Reader MAN0 guarded estrutural
 
-`include/w_seed_manifest.h` e `src/w_seed_manifest.c` formam o reader C11
+`include/w_seed_manifest.h` e `src/w_seed_manifest.c` formam o reader C23
 caller-owned, bounded e sem heap. Ele lê todos os candidates OWN0 em batch,
 faz parse e measure na primeira wave, revalida OWN0 uma vez e relê as mesmas
 referências na segunda wave. Length, bytes, bindings e os digests de
@@ -610,7 +628,8 @@ provider CHK5. O adapter usa `NtCreateFile` com
 `FileAttributeTagInfo`, obtém identidade com `FILE_ID_INFO` e aceita somente
 handles de disco e arquivos regulares.
 
-O adapter é C11, caller-owned, não reentrante, sem heap e bounded. O
+O adapter primário é C23, caller-owned, não reentrante, sem heap e bounded. A
+lane C11 é somente recovery explícita. O
 `base_handle` é emprestado e nunca é fechado pelo adapter. Handles próprios são
 mantidos em slots com generation e fechados uma vez. O perfil aceita root
 relativa e root absoluta drive-local. UNC retorna `UNSUPPORTED`; namespaces,
@@ -682,7 +701,7 @@ normativo, compiler, backend ou runtime.
 ## Frontend seed interno (fatia semântica)
 
 `include/w_seed_frontend.h` e `src/w_seed_frontend.c` formam a primeira fatia
-caller-owned do frontend. A API C11 mede antes de emitir e não usa heap,
+caller-owned do frontend. A API C23 mede antes de emitir e não usa heap,
 filesystem, locale, environment ou clock. Ela aceita somente documentos CST
 `COMPLETE`; CST `RECOVERED`/fatal cruza uma barreira sem alterar nenhum buffer.
 `logical_source_id`, o `module_id` completo pertencente ao resolver e o
@@ -858,7 +877,7 @@ grafo coerente fora do subset retorna `UNSUPPORTED`; records incoerentes
 retornam `INVALID`.
 
 O plano atual fixa payload `Hello, world!`, adiciona LF, registra 14 bytes de
-stdout, SHA-256 e exit success. Isso não é execução W. O emitter C11 HLO1 é uma
+stdout, SHA-256 e exit success. Isso não é execução W. O emitter C23 HLO1 é uma
 etapa separada e bounded; HLO0 não prova HIR geral, Console provider W,
 w-linker, `w run` ou runtime.
 
@@ -873,10 +892,11 @@ O `benchmarkDisposition` é `deferred` para
 podem ser medidos em W depois de um runner público/pinado com fases separáveis,
 reproduzíveis, output e exit verificados.
 
-## HLO1 emissão C11 verified-HIR-backed
+## HLO1 emissão de artefato C em modo C23 verified-HIR-backed
 
 `include/w_seed_hlo1.h` e `src/w_seed_hlo1.c` consomem um plano HLO0 já
-validado e produzem, sem heap, um arquivo C11 bounded em buffer caller-owned.
+validado e produzem, sem heap, um arquivo C conservador bounded em buffer
+caller-owned; o build primário o compila em modo C23.
 `measure` e `emit` revalidam o plano completo antes de qualquer escrita. Em
 qualquer falha, os records e buffers do caller permanecem inalterados; alias,
 capacidade curta, plano corrompido e payload fora do subset retornam status.
@@ -884,14 +904,14 @@ O plano isolado não prova sua própria proveniência. Essa prova pertence ao ga
 integrado source → parser → frontend → HIR0 → HLO0 → HLO1.
 
 O arquivo emitido começa pelo comentário de schema `/* w-seed-hlo1-1 */` e usa
-stdio C11 e um array hexadecimal `unsigned char` com os 14 bytes de
+stdio e um array hexadecimal `unsigned char` com os 14 bytes de
 `Hello, world!\n`. O source termina em LF. Em `_WIN32`, o adapter
 CRT acrescenta `<fcntl.h>`/`<io.h>` e chama `_setmode(_fileno(stdout),
 _O_BINARY)` antes de `fwrite`; depois verifica a contagem escrita e
 `fflush(stdout)`. O buffer C é all-or-nothing, mas stdout externo não é
 transacional.
 
-O gate reproduz a rota HIR0 verificada, compila o C gerado com C11 em um
+O gate reproduz a rota HIR0 verificada, compila o C gerado em modo C23 em um
 diretório temporário fora do repo e exige stdout exato, stderr vazio e exit 0.
 Também rejeita dois witnesses Restaurant que colocam o texto em comentário ou
 usam callee/payload incorretos. CMake, Ninja ou compiler ausente produz `SKIP`;

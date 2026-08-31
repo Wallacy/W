@@ -353,6 +353,6 @@ int main(void) {
   if (!test_exact_capacity()) return 1;
   if (!test_capacity_and_no_partial_output()) return 1;
   if (!test_alias_and_plan_mutations()) return 1;
-  (void)puts("seed HLO1: deterministic C11 emitter and all-or-nothing barriers passed");
+  (void)puts("seed HLO1: deterministic conservative C emitter and all-or-nothing barriers passed");
   return 0;
 }

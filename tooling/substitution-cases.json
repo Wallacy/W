@@ -1775,9 +1775,9 @@
     },
     {
       "id": "R0-hlo1-c11-emission",
-      "reviewItem": "emissão C11 source-backed a partir de plano HLO0 contra template de texto e witness Restaurant sem caminho source → plano",
+      "reviewItem": "emissão C source-backed em modo C23 a partir de plano HLO0 contra template de texto e witness Restaurant sem caminho source → plano",
       "decisions": ["W-1493"],
-      "task": "Emit and execute a deterministic C11 artifact only after the canonical W source reaches the validated HLO0 plan.",
+      "task": "Emit and execute a deterministic conservative C artifact compiled in C23 mode only after the canonical W source reaches the validated HLO0 plan.",
       "selected": {
         "language": "w",
         "source": [
@@ -1801,14 +1801,14 @@
             "fn main() { noop(\"Other\") } // print(\"Hello, world!\")",
             "entry(main)"
           ],
-          "expectedDifference": "A source comment or unrelated text must not select the HLO0 shape or emit the C11 artifact."
+          "expectedDifference": "A source comment or unrelated text must not select the HLO0 shape or emit the conservative C artifact."
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     },
     {
       "id": "R0-hir0-verified-lowering",
-      "reviewItem": "HIR0 verificada e independente do lifetime do frontend contra acesso direto do HLO0 a records frontend e template C11",
+      "reviewItem": "HIR0 verificada e independente do lifetime do frontend contra acesso direto do HLO0 a records frontend e template C compilado em modo C23",
       "decisions": ["W-1494"],
       "task": "Lower the canonical W source into a copied, verified HIR0 before HLO0. Prove the bounded one-document/one-module/one-entry (.default) schema, dense ownership partitions, auxiliary symbol index, host labels, and rejection of frontend bypasses and forged intermediate records.",
       "selected": {

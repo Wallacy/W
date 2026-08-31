@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:0e809fc7cff5719a22763f97374748a89ef83f7f5899b29098df350ad38e9a2a",
+  "corpusDigest": "sha256:2458e2b9014cb7f2a2d42fce3175979eec79501af4ce6339a8f51c94ae569d56",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3187,11 +3187,11 @@
     {
       "id": "R0-hlo1-c11-emission",
       "task": {
-        "utf8Bytes": 112,
-        "codePoints": 112,
-        "nonWhitespaceCodePoints": 95,
+        "utf8Bytes": 144,
+        "codePoints": 144,
+        "nonWhitespaceCodePoints": 122,
         "lines": 1,
-        "surfaceLexemes": 19
+        "surfaceLexemes": 24
       },
       "selected": {
         "name": "selected",

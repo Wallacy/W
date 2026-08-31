@@ -10,6 +10,7 @@ import {
   validateLanguageCatalog,
 } from "./byte-scan-view-machine.mjs";
 import { oracleForPath, runOracleCli } from "./byte-scan-view-oracle.mjs";
+import { dialectDisclosure, probeCDialect } from "./c-dialect.mjs";
 
 const root = path.resolve(import.meta.dir, "..");
 const documents = loadByteScanDocuments();
@@ -89,29 +90,38 @@ async function prepareCases(directory) {
   return paths;
 }
 
-async function compileC11(directory) {
+async function compileC23(directory) {
   const cmake = Bun.which("cmake");
   if (!cmake) {
-    report("C11 SKIP (cmake not available; no compiler claim made)");
+    report("C23 SKIP (cmake not available; no compiler claim made)");
     return undefined;
   }
-  const sourceDirectory = path.join(directory, "c11-source");
-  const buildDirectory = path.join(directory, "c11-build");
+  const sourceDirectory = path.join(directory, "c23-source");
+  const buildDirectory = path.join(directory, "c23-build");
   await fs.mkdir(sourceDirectory, { recursive: true });
   await fs.copyFile(path.join(root, "benchmarks", "byte-scan-view", "byte_scan_view.c"), path.join(sourceDirectory, "byte_scan_view.c"));
   await fs.copyFile(path.join(root, "benchmarks", "byte-scan-view", "CMakeLists.txt"), path.join(sourceDirectory, "CMakeLists.txt"));
-  const recipe = baselineManifest("c11");
+  const recipe = baselineManifest("c23");
   const replacements = { "<source-dir>": sourceDirectory, "<build-dir>": buildDirectory };
   const configureStep = expandStep(recipe.compileSteps[0], replacements);
   const configure = await spawnCapture(cmake, configureStep.slice(1));
   if (configure.exitCode !== 0) {
-    fail("C11 CMake configure failed with an available cmake: " + configure.stderr.trim().slice(0, 1200));
+    fail("C23 CMake configure failed with an available cmake: " + configure.stderr.trim().slice(0, 1200));
+    return undefined;
+  }
+  const cache = await fs.readFile(path.join(buildDirectory, "CMakeCache.txt"), "utf8");
+  const compilerMatch = cache.match(/^CMAKE_C_COMPILER:FILEPATH=(.*)$/mu);
+  const dialect = compilerMatch === null
+    ? undefined
+    : await probeCDialect(compilerMatch[1].trim());
+  if (dialect === undefined) {
+    report("C23 SKIP (compiler accepts neither -std=c23 nor -std=c2x; C11 recovery is explicit only)");
     return undefined;
   }
   const buildStep = expandStep(recipe.compileSteps[1], replacements);
   const build = await spawnCapture(cmake, buildStep.slice(1));
   if (build.exitCode !== 0) {
-    fail("C11 CMake build failed with an available compiler: " + build.stderr.trim().slice(0, 1200));
+    fail("C23 CMake build failed with an available compiler: " + build.stderr.trim().slice(0, 1200));
     return undefined;
   }
   const executable = await existingFile([
@@ -120,11 +130,11 @@ async function compileC11(directory) {
     path.join(buildDirectory, "byte_scan_view"),
   ]);
   if (!executable) {
-    fail("C11 build completed without a discoverable executable.");
+    fail("C23 build completed without a discoverable executable.");
     return undefined;
   }
-  report("C11 compiled through CMake with its selected available compiler");
-  return { id: "c11", executable };
+  report(`C23 recipe compiled through CMake (${dialectDisclosure(dialect)})`);
+  return { id: "c23", executable, dialect };
 }
 
 async function compileRust(directory) {
@@ -217,7 +227,7 @@ async function main() {
   try {
     const cases = await prepareCases(directory);
     report("host oracle exact checks complete for " + cases.filter((item) => item.expected !== undefined).length + " valid inputs");
-    const baselines = (await Promise.all([compileC11(directory), compileRust(directory)])).filter(Boolean);
+    const baselines = (await Promise.all([compileC23(directory), compileRust(directory)])).filter(Boolean);
     for (const baseline of baselines) await checkBaseline(baseline, cases);
     await checkInvalidInputs(directory, cases.find((item) => item.expected !== undefined), baselines);
     if (baselines.length === 0 && errors.length === 0) report("all native baseline checks SKIP (toolchains unavailable; structural/oracle checks remain the only evidence)");

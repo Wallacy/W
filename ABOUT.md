@@ -48,7 +48,9 @@ O produto de referência [`Última Luz`](reference/last-light/README.md) coloca
 as formas em um conjunto coerente de fontes `.w`. Os oracles e o tooling
 testam contratos, fronteiras e diagnósticos. A gramática e o atlas verificam a
 superfície sintática. O seed compiler percorre uma rota limitada de source,
-parser, frontend, HIR0 verificada, HLO0, HLO1 e emissão C11.
+parser, frontend, HIR0 verificada, HLO0 e HLO1; o artefato C conservador é
+compilado em modo C23, e C11 fica somente na lane explícita de
+recovery/compatibilidade.
 
 Essa rota é evidência de uma fatia. Ela não é o compiler completo, o runtime,
 o package manager ou o provider da standard library. O estado atual permanece

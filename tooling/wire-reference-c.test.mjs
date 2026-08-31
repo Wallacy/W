@@ -5,16 +5,23 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { dialectArgs, dialectDisclosure, probeCDialect } from "./c-dialect.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const sourcePath = path.join(toolingDirectory, "wire-reference.c");
 const compiler = process.env.W_CC || "gcc";
 const probe = spawnSync(compiler, ["--version"], { stdio: "ignore" });
 const compilerAvailable = !probe.error && probe.status === 0;
+const dialect = compilerAvailable ? await probeCDialect(compiler) : undefined;
+const dialectAvailable = dialect !== undefined;
 
 test(
   "C MenuKey codec matches the wWire seed vectors",
-  { skip: compilerAvailable ? false : `${compiler} is not available` },
+  {
+    skip: !compilerAvailable
+      ? `${compiler} is not available`
+      : (!dialectAvailable ? "compiler accepts neither C23 nor c2x" : false),
+  },
   () => {
     const temporaryDirectory = fs.mkdtempSync(
       path.join(os.tmpdir(), "w-wire-reference-"),
@@ -27,7 +34,7 @@ test(
     try {
       const compilation = spawnSync(
         compiler,
-        [sourcePath, "-std=c11", "-Wall", "-Wextra", "-Werror", "-O2", "-o", executablePath],
+        [sourcePath, ...dialectArgs(dialect), "-Wall", "-Wextra", "-Werror", "-O2", "-o", executablePath],
         { encoding: "utf8" },
       );
       assert.equal(
@@ -45,6 +52,7 @@ test(
         "compatible.absent=01 01 03 02 2A 00",
         "compatible.present=02 01 03 02 01 01 01 2A 00 01",
       ]);
+      assert.ok(dialectDisclosure(dialect));
     } finally {
       fs.rmSync(temporaryDirectory, { recursive: true, force: true });
     }

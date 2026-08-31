@@ -262,7 +262,7 @@ async function main() {
     checkStop(probe, Buffer.from("\u0301", "utf8"), 5, "combining mark at identifier start", 0x0301)
     checkStop(probe, Buffer.from("a\u{1F600}b", "utf8"), 5, "non-XID emoji identifier", 0x1F600)
     checkStop(probe, Buffer.from("x\ry", "utf8"), 6, "bare CR control")
-    console.log("Seed C lexer: " + paths.length + " .w byte partitions, " + itemCount + " items, C11/Bun partition-integrity checks passed (pinned opaque C×5/Asm×1).")
+    console.log("Seed C lexer: " + paths.length + " .w byte partitions, " + itemCount + " items, C/Bun partition-integrity checks passed (pinned opaque C×5/Asm×1).")
   } finally {
     await rm(buildDirectory, { recursive: true, force: true })
   }

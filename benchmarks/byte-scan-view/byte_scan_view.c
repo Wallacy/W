@@ -1,4 +1,4 @@
-// C11 independent baseline for BMD3 byte-scan-view.
+// C23 independent baseline for BMD3 byte-scan-view.
 // The program prints no output until the bounded input is fully validated.
 
 #include <errno.h>

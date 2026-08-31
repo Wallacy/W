@@ -8,7 +8,7 @@ _Static_assert(CHAR_BIT == 8,
                "w_seed_ephemeral_provider requires 8-bit bytes");
 
 #ifndef UINTPTR_MAX
-#error "w_seed_ephemeral_provider requires a C11 uintptr_t representation"
+#error "w_seed_ephemeral_provider requires a uintptr_t representation"
 #endif
 
 typedef struct {

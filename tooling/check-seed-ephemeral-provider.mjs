@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { dialectArgs, dialectDisclosure, probeCDialect, requireCDialect } from "./c-dialect.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
@@ -19,8 +20,7 @@ const compileSources = [
   "w_seed_ephemeral_provider_linux.c",
   "w_seed_ephemeral_provider_windows.c",
 ]
-const strictWarnings = [
-  "-std=c11",
+const strictWarningFlags = [
   "-Wall",
   "-Wextra",
   "-Wpedantic",
@@ -147,6 +147,12 @@ async function runWslAdapter() {
   }
   const linuxExecutable = `/tmp/w-seed-ephemeral-provider-linux-${process.pid}`
   const windowsExecutable = `/tmp/w-seed-ephemeral-provider-windows-${process.pid}`
+  const wslCompiler = ["wsl.exe", "-d", "Ubuntu", "--", "gcc"]
+  const dialect = requireCDialect(
+    await probeCDialect(wslCompiler),
+    "WSL GCC",
+  )
+  const strictWarnings = [...dialectArgs(dialect), ...strictWarningFlags]
   const linuxSources = compileSources.map((source) => `${wslRoot}/compiler/seed-c/src/${source}`)
   try {
     const linuxCompile = runRequired(
@@ -246,7 +252,7 @@ async function runWslAdapter() {
     if (firstWindowsMode !== secondWindowsMode) {
       fail("WSL Windows adapter stub status is not deterministic")
     }
-    return { linux: firstLinuxMode, windows: firstWindowsMode }
+    return { linux: firstLinuxMode, windows: firstWindowsMode, dialect }
   } finally {
     for (const executable of [linuxExecutable, windowsExecutable]) {
       const cleanup = spawn("wsl.exe", ["-d", "Ubuntu", "--", "rm", "-f", executable])
@@ -331,6 +337,7 @@ try {
       console.log("WSL linux-real=passed")
     }
     console.log("WSL windows-stub=passed")
+    console.log(`WSL C dialect: ${dialectDisclosure(wslAdapterMode.dialect)}`)
   }
   console.log(
     "seed ephemeral provider: CMake core/Linux/Windows tests and deterministic bounded records passed",

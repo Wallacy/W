@@ -123,7 +123,7 @@ seed, adapter D0, ACQ0, OWN0 e as fatias verificadas HIR0/HLO0/HLO1/RUN0. Consul
 [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) para a superfície
 local. Execute `bun run check:compiler` para os gates do bundle.
 
-O caminho source → parser → frontend → HIR0 verificada → HLO0 → HLO1 → C11
+O caminho source → parser → frontend → HIR0 verificada → HLO0 → HLO1 → C23
 continua limitado aos subset e witnesses documentados. ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun run check:acquisition` para compilar os cinco targets focais,

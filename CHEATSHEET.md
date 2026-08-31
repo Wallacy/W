@@ -111,14 +111,16 @@ source → parser → frontend → lower HIR0 → verify HIR0 → plano com payl
 13 bytes, LF acrescentado, stdout esperado de 14 bytes e exit success. HLO0
 não acessa buffers do frontend e não executa W.
 
-HLO1 usa esse plano validado para emitir e executar um artefato C11 bounded.
-O corpo C usa stdio C11 e um array hexadecimal `unsigned char` com
+HLO1 usa esse plano validado para emitir e executar um artefato C conservador
+bounded, compilado em modo C23. O corpo C usa stdio e um array hexadecimal
+`unsigned char` com
 `Hello, world!\n`; no Windows, o adapter CRT acrescenta `<fcntl.h>`/`<io.h>` e
 usa `_setmode` para preservar LF.
 O gate verifica CMake/Ninja/compiler, compila fora do repo, executa e exige
 stdout exato, stderr vazio e exit `0`. Ele também rejeita witnesses Restaurant
 com texto em comentário ou callee/payload errados, sem substring scanning.
-Isso prova apenas a emissão e execução C11 do subset verified-HIR-backed e não
+Isso prova apenas a emissão e execução do artefato C compilado em modo C23 do
+subset verified-HIR-backed e não
 cria `w run`, execução W geral, HIR geral, runtime W, Console provider geral ou
 w-linker.
 
@@ -131,7 +133,7 @@ O fluxo funcional é
 também prova short write, flush failed, sources adversariais e repetição.
 
 Use `bun run check:hlo0` para validar o plano. Use `bun run check:hlo1` para a
-emissão C11 e `bun run check:run0` para a execução interna. HLO1 gera `SKIP`
+emissão C em modo C23 e `bun run check:run0` para a execução interna. HLO1 gera `SKIP`
 explícito quando a toolchain está ausente. Uma falha com a toolchain presente é
 `FAIL`. RUN0 é somente evidência interna. Ele não publica `w run`, aquisição
 pública ou geral de source, seleção de contexto ou owner, workspace, backend,
@@ -163,7 +165,7 @@ Assim, comentário ou whitespace podem mudar provenance sem mudar semantic
 digest. `measure`, `run` e `program_from_output` são all-or-nothing e falham
 sem alterar buffers em capacity curta, truncamento, alias, overlap ou record
 forjado. A rota comprovada é
-`source → parser → frontend → lower HIR0 → verify HIR0 → HLO0 → HLO1 → C11 → execução`.
+`source → parser → frontend → lower HIR0 → verify HIR0 → HLO0 → HLO1 → C (modo C23) → execução`.
 Isto é uma evidência limitada ao subset; HIR geral, backend nativo, linker,
 runtime e `w run` continuam gaps.
 
@@ -474,8 +476,9 @@ O exemplo é oracle-backed e não uma promessa de execução. CHK3 fornece origi
 e edges explícitos caller-owned; CHK4 fornece o graph builder caller-owned.
 CHK5 fornece aquisição e revalidação somente para a root e os `SourceId`
 explicitamente solicitados pelo caller, com evidência real do adapter Linux
-quando `openat2` está disponível. CHK6 fornece um driver C11 interno
-caller-owned de discovery local iterativo: ele compõe CHK5, parser/module scan
+quando `openat2` está disponível. CHK6 fornece um driver C23 interno; C11 é
+somente recovery explícito. O driver caller-owned de discovery local iterativo
+compõe CHK5, parser/module scan
 e CHK4 em waves bounded e entrega documentos em `document_order` e imports
 resolvidos a um caller futuro. O driver não chama o frontend nem abre a CLI
 pública `w check` multi-file. CHK9 usa essa composição na boundary pública
@@ -547,7 +550,8 @@ célula. Não há nova evidência de benchmark, stage, timing ou result.
 primeira wave faz parse e measure; depois de uma única revalidação, a segunda
 wave usa as mesmas referências. Length, bytes, bindings e os digests de
 backend/core precisam coincidir antes de run, verify e publicação
-all-or-nothing. O core C11 é caller-owned, bounded e não usa heap.
+all-or-nothing. O core C23 é caller-owned, bounded e não usa heap; C11 é
+somente recovery explícito.
 
 Os checks do core exercitam parser, normalizer, `program_from_output`, verify,
 capacity, alias e forgeries. O gate root executa MAN0 depois de OWN0 e o gate
@@ -1813,8 +1817,9 @@ language e performance W continuam blocked.
 
 `learner` e `idiomatic` são equivalentes. `frontier` é `open` por estratégia
 física SIMD e declara todos os eixos de unsafe, FFI, target, layout, algoritmo e
-legibilidade. C11 e Rust são referências de correção sem ranking no estado
-atual; seu papel futuro é comparação independente após equivalência, com
+legibilidade. C23 e Rust são referências de correção sem ranking no estado
+atual; C11 é somente recovery explícito. O papel futuro é comparação
+independente após equivalência, com
 toolchain e recipe fixos. O smoke separado usa CMake/Rust sem Cargo, exige
 stdout/exit completos e não grava timing ou result W:
 
