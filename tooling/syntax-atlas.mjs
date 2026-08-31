@@ -9,7 +9,7 @@ const GRAMMAR = path.join(ROOT, "tooling", "tree-sitter-w", "grammar.js");
 const MANIFEST = path.join(ATLAS, "atlas-manifest.json");
 const SYNTAX_COVERAGE = path.join(ATLAS, "SYNTAX-COVERAGE.md");
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
-const RULE_SET_DIGEST = "sha256:527bf912bd038d0c85984b9438458138a647a5e2239b22f6c91339f8b9e1b3d4";
+const RULE_SET_DIGEST = "sha256:b982b531fb03cf3c544d050f622de37e9bf37d093b9bd68874a08027bce77fe6";
 const SCHEMA = "w-syntax-atlas-1";
 
 const ROOT_KINDS = new Set(["module", "package", "workspace"]);
@@ -22,7 +22,7 @@ const EVIDENCE = new Set(["tree-sitter-parse-only", "tree-sitter-parse-only-prov
 const REQUIRED_VARIANT_IDS = [
   "root-module", "root-package", "root-workspace",
   "import-ordinary", "import-domain", "import-service", "import-wildcard",
-  "entry-explicit", "allocator-named", "allocator-anonymous", "allocator-root-plan", "allocator-none", "allocator-contextual-parameter", "allocator-contextual-call",
+  "entry-explicit", "allocator-named", "allocator-anonymous", "allocator-contextual-parameter", "allocator-contextual-call",
   "ownership-ref", "ownership-inout", "ownership-take", "ownership-shared", "ownership-weak", "ownership-view", "ownership-pin", "ownership-atomic",
   "execution-direct", "execution-await", "execution-sync", "execution-async-initializer", "execution-spawn",
   "callable-positional", "callable-required-homonym", "callable-optional-label", "callable-required-external", "callable-default", "callable-rest", "callable-some-fn", "callable-any-fn", "callable-static", "callable-generic",
@@ -43,7 +43,7 @@ const LEXICAL_RULES = new Set([
 const VISIBLE_RULES_MUST_NOT_BE_INTERNAL = new Set([
   "declaration_prefix", "function_signature", "parameter", "rest_marker", "non_borrowed_type",
   "type_body", "protocol_body", "enum_body", "behavior_body", "property_accessor_body",
-  "get_accessor", "set_accessor", "modify_accessor", "accessor_implementation", "behavior_parameter_list",
+  "get_accessor", "set_accessor", "modify_accessor", "accessor_implementation", "behavior_initializer_parameters", "behavior_parameter_list",
   "behavior_parameter", "enum_case_parameter", "pattern_bound", "struct_pattern_field",
   "shorthand_struct_pattern_field", "labeled_struct_pattern_field", "tuple_element", "labeled_tuple_element",
   "map_entry", "capture_item", "closure_parameter", "closure_parameters", "switch_case", "catch_clause",
@@ -67,7 +67,7 @@ const DIRECT_RULES = new Set([
   "function_declaration", "struct_declaration", "object_declaration", "service_declaration", "protocol_declaration",
   "enum_declaration", "initializer_declaration", "field_declaration", "computed_property_declaration", "property_requirement",
   "enum_case", "type_declaration", "alias_declaration", "dimension_declaration", "unit_declaration", "extension_declaration",
-  "behavior_declaration", "entry_declaration", "foreign_declaration", "const_declaration", "test_declaration", "type",
+  "behavior_declaration", "behavior_field_declaration", "behavior_initializer", "entry_declaration", "foreign_declaration", "const_declaration", "test_declaration", "type",
   "function_type", "tuple_type", "fixed_array_type", "allocator_statement", "binding_declaration", "return_statement",
   "commit_statement", "throw_statement", "break_statement", "continue_statement", "defer_statement", "guard_statement",
   "if_statement", "labeled_statement", "while_statement", "for_statement", "repeat_statement", "do_statement", "expression_statement",
@@ -131,9 +131,9 @@ function markerForRule(name) {
   if (name === "foreign_body" || name.startsWith("foreign_")) return "callables-and-foreign";
   if (["domain_import_statement", "service_import_statement", "named_service_imports", "service_import_item", "service_key_contract", "import_statement", "reexport_declaration", "reexport_item", "wildcard_import", "named_imports", "import_item", "module_path"].includes(name)) return "source-roots-imports";
   if (["function_declaration", "function_signature", "language_tag", "abi_contract", "parameter_list", "generic_parameters", "generic_parameter", "function_type", "function_type_parameter", "rest_marker", "borrow_clause", "borrow_pair", "slot_ref"].includes(name)) return "callables-and-foreign";
-  if (["struct_declaration", "object_declaration", "service_declaration", "protocol_declaration", "enum_declaration", "primary_associated_types", "conformance_clause", "associated_type_requirement", "associated_const_requirement", "initializer_declaration", "field_declaration", "computed_property_declaration", "property_requirement", "enum_case", "type_declaration", "alias_declaration", "dimension_declaration", "unit_declaration", "extension_declaration", "behavior_declaration", "behavior_storage_declaration", "behavior_input_declaration", "behavior_accessor", "deinit_declaration", "const_declaration", "test_declaration", "export_list_declaration", "export_item"].includes(name)) return "data-declarations";
+  if (["struct_declaration", "object_declaration", "service_declaration", "protocol_declaration", "enum_declaration", "primary_associated_types", "conformance_clause", "associated_type_requirement", "associated_const_requirement", "initializer_declaration", "field_declaration", "computed_property_declaration", "property_requirement", "enum_case", "type_declaration", "alias_declaration", "dimension_declaration", "unit_declaration", "extension_declaration", "behavior_declaration", "behavior_field_declaration", "behavior_initializer", "behavior_accessor", "behavior_initializer_parameters", "deinit_declaration", "const_declaration", "test_declaration", "export_list_declaration", "export_item"].includes(name)) return "data-declarations";
   if (["type", "type_name", "type_arguments", "type_argument", "static_argument_value", "contract_expression_argument", "static_record_literal", "static_array_literal", "fixed_array_type", "tuple_type", "labeled_tuple_type_element", "unit_literal"].includes(name)) return "types-and-contracts";
-  if (["declaration_prefix", "type_body", "protocol_body", "enum_body", "behavior_body", "property_accessor_body", "get_accessor", "set_accessor", "modify_accessor", "accessor_implementation", "behavior_parameter_list", "behavior_parameter", "enum_case_parameter"].includes(name)) return "data-declarations";
+  if (["declaration_prefix", "type_body", "protocol_body", "enum_body", "behavior_body", "behavior_initializer_parameters", "property_accessor_body", "get_accessor", "set_accessor", "modify_accessor", "accessor_implementation", "behavior_parameter_list", "behavior_parameter", "enum_case_parameter"].includes(name)) return "data-declarations";
   if (["non_borrowed_type"].includes(name)) return "types-and-contracts";
   if (["parameter", "rest_marker", "function_signature"].includes(name)) return "callables-and-foreign";
   if (["array_literal", "map_literal", "repeat_array_literal", "tuple_expression", "parenthesized_expression"].includes(name)) return "literals-and-collections";

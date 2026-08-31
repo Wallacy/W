@@ -35,8 +35,6 @@
 | `entry-explicit` | `entry Atlas` | `entry-declaration` |
 | `allocator-named` | `allocator scratch` | `allocator-and-bindings` |
 | `allocator-anonymous` | `allocator .fixed<capacity: 128>` | `allocator-and-bindings` |
-| `allocator-root-plan` | `allocator .root` | `allocator-and-bindings` |
-| `allocator-none` | `allocator .none` | `allocator-and-bindings` |
 | `allocator-contextual-parameter` | `allocator destination: ref Allocator` | `allocator-and-bindings` |
 | `allocator-contextual-call` | `stage(city)` | `allocator-and-bindings` |
 | `ownership-ref` | `let ref name` | `allocator-and-bindings` |
@@ -198,9 +196,8 @@ extension Place {
 }
 
 behavior Initialized for Place {
-  storage var current: Place
-  input initialValue: fn(): Place
-  init {
+  var current: Place
+  init(initialValue: fn(): Place) {
     current = initialValue()
   }
   get {
@@ -386,13 +383,6 @@ fn prepare(city: String): String {
     let _ = staged
   }
   allocator .fixed<capacity: 128> {
-    let _ = result.bytes.count
-  }
-  allocator .root {
-    let rootName = result.bytes.count
-    let _ = rootName
-  }
-  try allocator .none {
     let _ = result.bytes.count
   }
   return result

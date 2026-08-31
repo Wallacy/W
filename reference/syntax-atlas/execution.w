@@ -25,13 +25,6 @@ fn prepare(city: String): String {
   allocator .fixed<capacity: 128> {
     let _ = result.bytes.count
   }
-  allocator .root {
-    let rootName = result.bytes.count
-    let _ = rootName
-  }
-  try allocator .none {
-    let _ = result.bytes.count
-  }
   return result
 }
 // atlas:end allocator-and-bindings

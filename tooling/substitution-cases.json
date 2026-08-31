@@ -1775,7 +1775,7 @@
     },
     {
       "id": "R0-hlo1-c11-emission",
-      "reviewItem": "emissão C source-backed em modo C23 a partir de plano HLO0 contra template de texto e witness Restaurant sem caminho source → plano",
+      "reviewItem": "emissão do artefato C conservador em modo C23, source-backed a partir de plano HLO0 contra template de texto e witness Restaurant sem caminho source → plano.",
       "decisions": ["W-1493"],
       "task": "Emit and execute a deterministic conservative C artifact compiled in C23 mode only after the canonical W source reaches the validated HLO0 plan.",
       "selected": {
@@ -1808,7 +1808,7 @@
     },
     {
       "id": "R0-hir0-verified-lowering",
-      "reviewItem": "HIR0 verificada e independente do lifetime do frontend contra acesso direto do HLO0 a records frontend e template C compilado em modo C23",
+      "reviewItem": "HIR0 verificada e independente do lifetime do frontend contra acesso direto do HLO0 a records frontend e template C23.",
       "decisions": ["W-1494"],
       "task": "Lower the canonical W source into a copied, verified HIR0 before HLO0. Prove the bounded one-document/one-module/one-entry (.default) schema, dense ownership partitions, auxiliary symbol index, host labels, and rejection of frontend bypasses and forged intermediate records.",
       "selected": {
@@ -2000,6 +2000,110 @@
           "source": ["publish(firstWave)", "revalidateAfterPublish()"],
           "expectedDifference": "Publication before the second wave permits mutation to enter the committed program."
         }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-behavior-convergent-backing",
+      "reviewItem": "behavior convergente com plain `var` e initializer zero/one-slot contra `storage`/`input` e shim pré-1.0",
+      "decisions": ["W-1501"],
+      "task": "Declare one behavior with an observed backing field and select either the zero-slot initializer or the single RHS thunk without legacy storage or input syntax.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "export behavior Versioned<Value> for Value {",
+          "  var current: Value",
+          "  var mutationEpoch: u64 = 0",
+          "  init(initialValue: fn(): Value) {",
+          "    current = initialValue()",
+          "  }",
+          "  get {",
+          "    return current",
+          "  }",
+          "  mut set(newValue) {",
+          "    current = newValue",
+          "    mutationEpoch += 1",
+          "  }",
+          "  mut modify {",
+          "    defer { mutationEpoch += 1 }",
+          "    return inout current",
+          "  }",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "legacy-storage-input",
+          "language": "w-rejected",
+          "source": [
+            "behavior Legacy<Value> for Value {",
+            "  storage var current: Value",
+            "  input initialValue: Value",
+            "}"
+          ],
+          "expectedDifference": "The old storage/input spelling exposes a second declaration protocol and is rejected before W 1.0 without a compatibility shim."
+        },
+        {
+          "name": "explicit-behavior-slot-call",
+          "language": "w-rejected",
+          "source": ["Versioned<Value>(expression)"],
+          "expectedDifference": "Behavior application names only the nominal behavior; the RHS is supplied as the one allowed initializer thunk rather than a historical slot argument."
+        }
+      ],
+      "sourceRefs": [
+        { "path": "reference/last-light/billing.w", "symbol": "Versioned<Value>", "claim": "Canonical behavior backing, thunk, get/set/modify and defer witness." },
+        { "path": "tooling/tree-sitter-w/test/corpus/module_run.txt", "symbol": "Behavior supports the zero-slot initializer form", "claim": "Zero-slot behavior initializer witness." }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-core-contracts-opaque-views",
+      "reviewItem": "contratos core opaque e views estáveis contra declarations construtíveis, metadata universal e layout público",
+      "decisions": ["W-1502"],
+      "task": "Query core type identity and logical metadata while keeping Task and allocator contracts opaque, build-local, and free of public physical layout.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "export struct ReservationKey: Hashable & Reflectable {",
+          "  orderId: OrderId",
+          "  course: Course",
+          "}",
+          "export fn reservationKeyInfo(): ref TypeInfo {",
+          "  return info of ReservationKey",
+          "}",
+          "export fn reservationKeyType(value: ref any Hashable): TypeId {",
+          "  return type of value",
+          "}",
+          "export enum TaskOutcome<Value, Failure: Error> {",
+          "  success(Value)",
+          "  error(Failure)",
+          "  canceled(Cancellation)",
+          "}",
+          "export struct TaskSettlement<Value, Failure: Error> {",
+          "  export index: usize",
+          "  export outcome: TaskOutcome<Value, Failure>",
+          "}",
+          "export alias AllocatorLease = Allocator"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "constructed-type-id",
+          "language": "w-rejected",
+          "source": ["let id = TypeId.of<ReservationKey>()", "let info = TypeInfo(layout: offsets)"],
+          "expectedDifference": "TypeId and TypeInfo are core-owned views; the source cannot construct them or publish layout, offsets, or addresses."
+        },
+        {
+          "name": "universal-reflection-object",
+          "language": "w-rejected",
+          "source": ["let metadata = reflect(value)", "let task = Task(handle: rawHandle)"],
+          "expectedDifference": "Reflection queries and launcher-produced Task handles do not expose a universal runtime object or a public raw-handle constructor."
+        }
+      ],
+      "sourceRefs": [
+        { "path": "reference/last-light/reflection.w", "symbol": "ReservationKey/reservationKeyInfo", "claim": "Opt-in Reflectable conformance and type/metadata queries." },
+        { "path": "std/runtime/task.w", "symbol": "TaskOutcome/TaskSettlement", "claim": "Opaque task companion records and outcomes." },
+        { "path": "std/memory/contracts.w", "symbol": "Allocator/AllocatorLease", "claim": "Allocator lease contract and source-neutral descriptor." }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }

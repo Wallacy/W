@@ -4,8 +4,8 @@
   "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. SYNTAX-COVERAGE.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:2693c555b3472466c0555e31b6847c3e1cd323d8fb3d0d3751a9e97cf2ab6d30",
-    "publicRuleSetDigest": "sha256:527bf912bd038d0c85984b9438458138a647a5e2239b22f6c91339f8b9e1b3d4"
+    "digest": "sha256:3ef485d6154a039fd1f7d7806ba7ec3d9168fbdbe95e688ec1b69fcf4b31dfe7",
+    "publicRuleSetDigest": "sha256:b982b531fb03cf3c544d050f622de37e9bf37d093b9bd68874a08027bce77fe6"
   },
   "sourceFiles": [
     "build.w",
@@ -171,13 +171,29 @@
       ]
     },
     {
+      "name": "behavior_field_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
       "name": "behavior_identifier",
       "surface": "lexical",
       "reason": "Lexical token or trivia. The atlas covers it in the values block.",
       "markers": []
     },
     {
-      "name": "behavior_input_declaration",
+      "name": "behavior_initializer",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_initializer_parameters",
       "surface": "composed",
       "reason": "Composed by the data-declarations atlas block.",
       "markers": [
@@ -194,14 +210,6 @@
     },
     {
       "name": "behavior_parameter_list",
-      "surface": "composed",
-      "reason": "Composed by the data-declarations atlas block.",
-      "markers": [
-        "data-declarations"
-      ]
-    },
-    {
-      "name": "behavior_storage_declaration",
       "surface": "composed",
       "reason": "Composed by the data-declarations atlas block.",
       "markers": [
@@ -1712,22 +1720,6 @@
       "witness": "allocator .fixed<capacity: 128>"
     },
     {
-      "id": "allocator-root-plan",
-      "block": "allocator-and-bindings",
-      "construction": "root allocator plan",
-      "designStatus": "current",
-      "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "allocator .root"
-    },
-    {
-      "id": "allocator-none",
-      "block": "allocator-and-bindings",
-      "construction": "explicit no-allocator plan",
-      "designStatus": "current",
-      "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "allocator .none"
-    },
-    {
       "id": "allocator-contextual-parameter",
       "block": "allocator-and-bindings",
       "construction": "contextual allocator parameter",
@@ -2149,10 +2141,11 @@
         "behavior_accessor",
         "behavior_body",
         "behavior_declaration",
-        "behavior_input_declaration",
+        "behavior_field_declaration",
+        "behavior_initializer",
+        "behavior_initializer_parameters",
         "behavior_parameter",
         "behavior_parameter_list",
-        "behavior_storage_declaration",
         "computed_property_declaration",
         "conformance_clause",
         "const_declaration",
@@ -2194,14 +2187,14 @@
           "digest": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553"
         }
       ],
-      "snippetDigest": "sha256:d4f18a8732192feb777225bd64769034aab2b4074f7b6aa6c7a81fd222b705be",
-      "snippetBytes": 1408
+      "snippetDigest": "sha256:5f77f35c94fd1346ebf3ca1d74f7faab9b03e8f03932047b8a04842f1ee0e0fb",
+      "snippetBytes": 1393
     },
     {
       "id": "types-and-contracts",
       "file": "language.w",
       "order": 3,
-      "line": 139,
+      "line": 138,
       "title": "Type contracts, static values, and function types",
       "family": "types",
       "designStatus": "current",
@@ -2241,7 +2234,7 @@
       "id": "callables-and-foreign",
       "file": "language.w",
       "order": 4,
-      "line": 108,
+      "line": 107,
       "title": "Callable modes, generics, and foreign bodies",
       "family": "callables",
       "designStatus": "current",
@@ -2286,7 +2279,7 @@
       "id": "literals-and-collections",
       "file": "language.w",
       "order": 5,
-      "line": 188,
+      "line": 187,
       "title": "Literals, tuples, and collections",
       "family": "values",
       "designStatus": "current",
@@ -2319,7 +2312,7 @@
       "id": "patterns",
       "file": "language.w",
       "order": 6,
-      "line": 163,
+      "line": 162,
       "title": "Patterns, ranges, and matches",
       "family": "patterns",
       "designStatus": "current",
@@ -2381,14 +2374,14 @@
           "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b"
         }
       ],
-      "snippetDigest": "sha256:c497cb570094b726aae9fc86949805b019bd59086a167d2caf6ff3af55cc5b5b",
-      "snippetBytes": 661
+      "snippetDigest": "sha256:3e5f0bf2ddd60ed598df5a1a4adbcfaf82f20efb71ad3693c9b6343703f876c4",
+      "snippetBytes": 519
     },
     {
       "id": "control-flow",
       "file": "execution.w",
       "order": 8,
-      "line": 39,
+      "line": 32,
       "title": "Control flow and cleanup",
       "family": "control",
       "designStatus": "current",
@@ -2429,7 +2422,7 @@
       "id": "execution-forms",
       "file": "execution.w",
       "order": 9,
-      "line": 69,
+      "line": 62,
       "title": "Direct sync entry, await, async and spawn initializers, and calls",
       "family": "execution",
       "designStatus": "current",
@@ -2469,7 +2462,7 @@
       "id": "restricted-expressions",
       "file": "execution.w",
       "order": 10,
-      "line": 106,
+      "line": 99,
       "title": "Pipelines, locks, transactions, unsafe, and closures",
       "family": "effects",
       "designStatus": "current",
@@ -2532,7 +2525,7 @@
       "id": "stream-and-channel",
       "file": "execution.w",
       "order": 12,
-      "line": 154,
+      "line": 147,
       "title": "Streams, channels, and directional contracts",
       "family": "streams",
       "designStatus": "current",
@@ -2560,7 +2553,7 @@
       "id": "entry-declaration",
       "file": "language.w",
       "order": 13,
-      "line": 225,
+      "line": 224,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -2586,7 +2579,7 @@
       "id": "module-run-entry",
       "file": "execution.w",
       "order": 14,
-      "line": 183,
+      "line": 176,
       "title": "Explicit module-run entry",
       "family": "entry",
       "designStatus": "current",
@@ -2680,6 +2673,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:1fdd6992097ca4686e43da196249bd704817d960bebfed3bb954d49c593fe703"
+    "coverageDigest": "sha256:ecdefaba5bc320e6ca29ea445f7cb6579759b120367ef0f57e9674cb071bdba6"
   }
 }

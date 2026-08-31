@@ -746,11 +746,10 @@ do borrow sem copiar o valor anterior:
 ```w excerpt
 // excerpt-source: reference/last-light/billing.w::export behavior Versioned
 export behavior Versioned<Value> for Value {
-  storage var current: Value
-  storage var mutationEpoch: u64 = 0
-  input initialValue: fn(): Value
+  var current: Value
+  var mutationEpoch: u64 = 0
 
-  init {
+  init(initialValue: fn(): Value) {
     current = initialValue()
   }
 
@@ -770,11 +769,12 @@ export behavior Versioned<Value> for Value {
 }
 ```
 
-A baseline aceita somente `input initialValue: fn(): Value`. Todos os generic
-parameters do behavior são inferidos pelo tipo depois de `for`. Configuração
-estática pertence ao tipo lógico. Dependência runtime usa owner, método, service
-ou channel nomeado. `Behavior(...)`, `Behavior<...>`, múltiplos inputs e acesso
-ao backing não pertencem à baseline.
+A baseline aceita `init()` para o caso zero-slot ou
+`init(initialValue: fn(): Value)` para o caso one-slot. O one-slot recebe o
+thunk do RHS. Todos os generic parameters do behavior são inferidos pelo tipo
+depois de `for`. Configuração estática pertence ao tipo lógico. Dependência
+runtime usa owner, método, service ou channel nomeado. `Behavior(...)`,
+`Behavior<...>`, múltiplos inputs e acesso ao backing não pertencem à baseline.
 
 | Operação | Caminho da property |
 | --- | --- |
@@ -935,20 +935,18 @@ fn prepare(city: String): String {
   allocator .fixed<capacity: 128> {
     let _ = result.bytes.count
   }
-  allocator .root {
-    let rootName = result.bytes.count
-    let _ = rootName
-  }
-  try allocator .none {
-    let _ = result.bytes.count
-  }
   return result
 }
 ```
 
-As formas .fixed, .root e .none são current. .bounded é uma
-Pesquisa descrita, não um plano ativo em ASC0; não o trate como API corrente.
-A política de propagação contextual está em
+`.fixed<capacity: N>` é a forma lexical corrente; o target/profile escolhe
+stack, task frame ou storage local. `.root` e `.none` não são plans source.
+`memory.generalAllocator: .none` é uma policy de build: não fornece allocator
+geral/root e rejeita requests de allocation geral no grafo alcançável, mas não
+escolhe register, stack, static storage ou task frame. `.bounded<budget: N>` é
+Research: limita bytes committed sobre um provider, sem escolher placement.
+`.stack<capacity: N>` e envelopes estáticos de module/function são alternativas
+de pesquisa, não syntax ratificada. A política de propagação contextual está em
 [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação).
 
 ## Controle, patterns, generics e reflexão
@@ -1024,6 +1022,134 @@ exhaustividade estão em
 Reflection e synthesis são contratos fechados. Não os trate como macros
 universais, derive automático ou metadata de runtime.
 
+### Contratos core de reflection (lógicos, não construtíveis)
+
+A interface abaixo é pesquisável, mas não é uma sequência de declarations de
+source. `TypeId`, `Reflectable` e `TypeInfo` são `core`/`opaque`. O compiler e o
+runtime produzem os descriptors. O programa somente consulta `type of` e
+`info of`. O protocol `Reflectable` não pode ser redeclarado ou construído pelo
+programa, mas tipos do programa podem declarar conformance explícita e receber
+synthesis.
+
+```text
+TypeId
+  opaque build-local identity
+  Copy, Equatable, Hashable
+  nonserializable, nonpersistable, nontransmittable
+
+Reflectable
+  core marker sem constructor ou member de usuário
+
+TypeKind = scalar | struct | object | enum | refinement | enumSubset
+
+TypeInfo                         // view imutável, estável durante o process-lifetime
+  id: TypeId
+  name: view String
+  kind: TypeKind
+  base: TypeId?
+  properties: view [TypeInfo.Property]
+  cases: view [TypeInfo.Case]
+
+TypeInfo.Property
+  name: view String
+  valueType: TypeId
+  mutability: immutable | mutable
+  accessorAvailability: get | set | modify | combinations
+
+TypeInfo.Case
+  name: view String
+  payloadTypes: view [TypeId]
+```
+
+As views são read-only e duram o process-lifetime. Properties e cases seguem a
+ordem declarada da interface exportada. Não há layout, offset, size, address,
+backing storage ou lookup de method por nome. `TypeInfo` não possui constructor
+público, assignment ou mutation.
+
+### Companions de execução e memória
+
+`Task<T, E>` é um handle `linear` e `opaque` cujo producer público é `async` ou
+`spawn<domain>`. Depois do staging, o launcher publica o child ou produz o
+handle estruturado inline-canceled de budget exhaustion. Não existe constructor
+ou layout de `Task` na source surface. `cancel` não consome o handle. `await`,
+`join` e `outcome` consomem o handle.
+Os records e enums seguintes são excerpts exatos de
+[`std/runtime/task.w`](std/runtime/task.w):
+
+```w excerpt
+// excerpt-source: std/runtime/task.w::export enum TaskOutcome
+export enum TaskOutcome<Value, Failure: Error> {
+  success(Value)
+  error(Failure)
+  canceled(Cancellation)
+}
+```
+
+```w excerpt
+// excerpt-source: std/runtime/task.w::export enum TaskGroupOrdering
+export enum TaskGroupOrdering {
+  input
+  completion
+}
+```
+
+```w excerpt
+// excerpt-source: std/runtime/task.w::export struct TaskSettlement
+export struct TaskSettlement<Value, Failure: Error> {
+  export index: usize
+  export outcome: TaskOutcome<Value, Failure>
+}
+```
+
+`Allocator` e `AllocatorLease` seguem as formas exatas de
+[`std/memory/contracts.w`](std/memory/contracts.w). O alias não introduz um
+constructor separado ou um layout público:
+
+```w excerpt
+// excerpt-source: std/memory/contracts.w::export struct AllocatorPlanDescriptor
+export struct AllocatorPlanDescriptor: Copy & Equatable {
+  providerDigest: [u8; 32]
+  version: u32<(1...)>
+  failure: AllocatorFailureMode
+  deallocator: AllocatorDeallocator
+  mobility: AllocatorMobility
+}
+```
+
+```w excerpt
+// excerpt-source: std/memory/contracts.w::export alias AllocatorLease
+export alias AllocatorLease = Allocator
+```
+
+```w excerpt
+// excerpt-source: std/memory/contracts.w::export struct Allocator
+export struct Allocator {
+  handle: AllocatorHandle
+
+  init(validatedRaw: AllocatorHandle) {
+    self.handle = validatedRaw
+  }
+
+  deinit {
+    // AllocatorLease deinit closes the provider lease exactly once.
+    unsafe { stdMemoryDropAllocator(inout handle) }
+  }
+}
+```
+
+```w excerpt
+// excerpt-source: std/memory/contracts.w::export protocol AllocatorPlan
+export protocol AllocatorPlan {
+  const descriptor: AllocatorPlanDescriptor
+  take fn open(): AllocatorLease throws AllocationError
+}
+```
+
+`AllocatorPlan` publica somente `descriptor` e `take fn open()` conforme a
+fonte std. O provider e o lowering continuam ausentes. Nenhum snippet desta
+seção afirma construction ou execução de core opaque. A conformance explícita a
+`Reflectable` é permitida e não constrói o descriptor no source.
+
 ## Errors, effects e cleanup
 
 Contrato: [DESIGN.md §11](DESIGN.md#11-erros-panic-oom-e-cleanup) e
@@ -1058,57 +1184,95 @@ diagnósticos ainda é um gap do frontend/runtime.
 
 ### Effects e expressões restritas
 
-Esta unidade completa é source-backed de
-[execution.w](reference/syntax-atlas/execution.w). Ela fecha os helpers para
-que cada expressão restrita tenha contexto de parsing.
+Os exemplos abaixo são excerpts exatos e observáveis das fontes Last Light.
+Cada trecho mostra o valor, o effect ou o diagnostic que justifica a forma.
 
-```w
-struct AtlasLease {
-  target: String
-}
+```w excerpt
+// excerpt-source: reference/last-light/synchronization.w::export object ThreadApologyLedger
+export object ThreadApologyLedger {
+  state: shared ApologyLedgerState
 
-fn acquireLease(target: String): AtlasLease {
-  return AtlasLease(target: target)
-}
+  export init() {
+    self.state = ApologyLedgerState(revision: 0, messages: [])
+  }
 
-fn prepareLease(lease: AtlasLease): String {
-  return lease.target
-}
+  fn record(message: take String): u64 {
+    return lock state as ledger {
+      ledger.messages.append(take message)
+      ledger.revision += 1
+      ledger.revision
+    }
+  }
 
-async fn restricted(target: String): String throws String {
-  let captured = <[copy target]>(name) => name
-  let value = if target == "north" { "day" } else { "night" }
-  let range = 1..<4
-  let (lease, ready) = try await pipeline {
-    let lease = acquireLease(target)
-    let ready = prepareLease(lease)
-    return (lease, ready)
+  fn snapshot(): ApologyLedgerState {
+    return lock state as ledger { copy ledger }
   }
-  let guarded = lock target as city {
-    city
+
+  fn trySnapshot(): LockAttempt<ApologyLedgerState> {
+    return try lock state as ledger { copy ledger }
   }
-  let transactionValue = transaction<.serial> tx = target {
-    commit tx
-  }
-  let unsafeValue = unsafe {
-    target
-  }
-  let pinned = pin target
-  let _ = captured
-  let _ = range
-  let _ = lease
-  let _ = ready
-  let _ = guarded
-  let _ = transactionValue
-  let _ = unsafeValue
-  let _ = pinned
-  return target
 }
 ```
 
-await, throws, unsafe, lock, transaction, pin e defer async formam efeitos
-verificáveis. try!, conversão automática de cancelamento em erro ou errdefer
-não são atalhos correntes sem uma decisão explícita.
+```w excerpt
+// excerpt-source: reference/last-light/synchronization.w::test "a scoped synchronous lock returns an owned snapshot"
+test "a scoped synchronous lock returns an owned snapshot" {
+  let ledger = ThreadApologyLedger()
+  expect ledger.record("We regret the scheduling inconvenience") == 1
+
+  let snapshot = ledger.snapshot()
+  expect snapshot.revision == 1
+  expect snapshot.messages == ["We regret the scheduling inconvenience"]
+
+  let attempted = ledger.trySnapshot()
+  expect switch attempted {
+    case .acquired(let value): value.revision == 1
+    case .busy: false
+  }
+}
+```
+
+```w excerpt
+// excerpt-source: reference/last-light/transaction_oracle.w::export async fn reserveTableAtomically
+export async fn reserveTableAtomically(
+  ledger: ref ServiceRef<TableLedgerApi>,
+  tableId: TableId,
+  guestId: GuestId,
+): ReservationReceipt throws TransactionFailure<BookingError, BookingError> {
+  return try await transaction<
+    isolation: .serializable,
+    access: .readWrite,
+  > tx = ledger {
+    let reservation = try await tx.reserve(tableId: tableId, guestId: guestId)
+    let receipt = try await tx.confirm(reservation: take reservation)
+    commit receipt
+  }
+}
+```
+
+```w excerpt
+// excerpt-source: reference/last-light/hardware.w::mut async fn sample
+  mut async fn sample(): ProbeSample throws ProbeError {
+    var raw: ll_sample
+    let status = unsafe {
+      legacyProbeStatus(ll_probe_read(device.handle, inout raw))
+    }
+    guard status == 0 else throw .readFailed(status: status)
+    guard raw.aroma.isFinite && raw.kelvin.isFinite else throw .nonFinite
+
+    return ProbeSample(
+      aroma: try Probability(raw.aroma),
+      temperature: Quantity(raw.kelvin, unit: si.K),
+    )
+  }
+```
+
+O lock verifica snapshot e tentativa de aquisição. A transaction retorna
+`ReservationReceipt` ou um error de commit. O bloco `unsafe` chama o probe
+foreign, o `guard` roteia status/error e o trecho retorna `ProbeSample`.
+`try` continua marcador de
+expression e roteamento de error. `do` abre o handling scope que seus `catch`
+tratam. Assim, `try` não recebe um segundo significado como try-block.
 
 ### Cleanup
 
@@ -1158,6 +1322,24 @@ de placement; ambas continuam exigindo join. `await` é um ponto de suspensão;
 o corpo de uma função pode inferir maySuspend quando a operação chamada o
 exige. Não há
 promessa de scheduler ou runtime disponível.
+
+Os dois initializers abaixo criam o mesmo child estruturado no domain lexical
+atual:
+
+```w
+fn sameChildLaunchers() {
+  let a = async asyncFunction()
+  let b = async ordinaryFunction()
+  let _ = a
+  let _ = b
+}
+```
+
+A declaration do callee muda seu facet e resumo de suspensão. Ela não muda o
+launcher, o owner lexical ou o domain. Uma `async fn` explicita um facet que
+permite suspensão, mas `maySuspend` depende do body/HIR e pode coexistir com
+`directEntry: available`/`neverSuspend` para `sync`. Uma function ordinary pode
+receber `maySuspend` por inferência.
 
 | Intent | Current form | Note |
 | --- | --- | --- |
@@ -1221,6 +1403,11 @@ Em `.input`, os settlements seguem o índice. Em `.completion`, seguem body
 settlement, mas cada record ainda contém o índice original. `limit` limita
 children vivos; não torna os arrays de input ou output sublineares. Parent
 cancellation e fault não retornam array parcial e todo caminho drena.
+
+`TaskGroup` é uma coleção dinâmica homogênea de children. `pipeline` é um DAG
+estático de dependent service calls, promise pipelining e `unknownOutcome`.
+As duas formas podem compartilhar machinery de execution-graph no HIR/runtime,
+mas mantêm keywords e source surfaces distintas.
 
 `Task.firstSettled` faz uma escolha one-shot por completion order. Ele consome
 handles já criados e não escolhe um domain:
@@ -2200,7 +2387,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Refletir/sintetizar | `type of`, `info of`, `as?`, Reflectable e conformance head | Metadata limitada e declarada | `typeof` como query, Type<T> universal, downcast owned, derive mágico e metadata livre | Identidade e metadata permanecem separadas. Synthesis universal seria difícil de auditar | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [reflection.w](reference/last-light/reflection.w) |
 | Aceitar rest arguments | T... + each values | Rest homogêneo com bound explícito | Pack heterogêneo obrigatório ou Array<Any> | Pack homogêneo preserva schema e ownership; materialização só ocorre quando pedida | [DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos) · [rest_arguments.w](reference/last-light/rest_arguments.w) |
 | Escrever matriz | [[1, 2], [3, 4]] | Carrier shape-checked | [1 2; 3 4] como grammar separada | Array literal é familiar; shape estático exige type/contract | [DESIGN.md §17](DESIGN.md#17-matrizes-tensors-e-ml) · [numerics.w](reference/last-light/numerics.w) |
-| Controlar allocation | allocator scratch, .fixed, .root, .none | .bounded é Pesquisa descrita, não plano ASC0 | Arena API universal, propagação implícita ou using obrigatório | Budget explícito limita efeitos; annotations aumentam superfície | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [allocation.w](reference/last-light/allocation.w) |
+| Controlar allocation | allocator scratch e `.fixed<capacity:N>`; `memory.generalAllocator: .none` como policy de build | `.bounded<budget:N>` e `.stack<capacity:N>` são Pesquisa; placement físico continua separado | Arena API universal, propagação implícita ou using obrigatório | Budget explícito limita efeitos; policy não é placement | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [allocation.w](reference/last-light/allocation.w) |
 | Projetar borrow | ref T, view T, inout T | Projection física e borrow oracle | StringView/Slice públicos como segunda hierarquia | Menos tipos públicos, mas checker precisa acompanhar projection e liveness | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [views.w](reference/last-light/views.w) |
 | Executar async | direct call, await, `let x = async ...`, `let x = spawn<.compute> ...`, `let x = spawn<domain: .compute> ...`, TaskGroup map/collect | `limit`, `ordering` e `using` explícitos; collect devolve `TaskSettlement` | Promise/Future, detached task, launcher fora de `let`, spawn sem domain e collect que perde o input | Structured join preserva ownership; domain e bounds explícitos custam call-site | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [execution.w](reference/last-light/execution.w) |
 | Expressar urgência | deadline + service isolada + admission/reserva/budget; domain só para placement | política física aparece somente em `w explain execution` e provider receipt | `priority`/`qos`, domain como safety, `.background`, `.userInteractive`, `Task.currentPriority` ou `Task.withPriority` | Ordem garantida pelo contrato não muda; ordem unspecified e deadline/admission/winner podem variar entre traces permitidos | [DESIGN.md §12.6.2](DESIGN.md#1262-domain-placement-e-política-física-de-scheduling) · [BUILD.md](reference/last-light/BUILD.md#32-execution-profiles) |
@@ -2250,6 +2437,14 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Tuple | (north: 1, east: 2) |
 | Array/map | [1, 2], ["north": 1] |
 | Repeated | [0; 4] |
+
+```text
+let tickJson: String = #"{"value":30,"unit":"s"}"#
+let scalar: UnicodeScalar = 'λ'
+```
+
+O raw delimiter mantém as aspas JSON visíveis. 'λ' continua um
+UnicodeScalar, e a forma não cria uma grammar nova.
 
 ### Ownership e callable modes
 

@@ -1119,7 +1119,22 @@ extension_declaration = "extension" generic_parameters? type
                         conformance_clause? type_body ;
 behavior_declaration = "export"? "behavior" identifier generic_parameters?
                        "for" type behavior_body ;
-behavior_input_declaration = "input" identifier ":" type ";"? ;
+behavior_body = "{" behavior_member* "}" ;
+behavior_member = behavior_field_declaration
+                | behavior_accessor
+                | function_declaration ;
+behavior_field_declaration = "var" identifier ":" type
+                             ("=" expression)? ";"? ;
+behavior_accessor = behavior_initializer
+                  | "mut"? behavior_accessor_kind
+                    behavior_parameter_list? block ;
+behavior_accessor_kind = "get"
+                       | "set"
+                       | "modify" ;
+behavior_initializer = "init" behavior_initializer_parameters block ;
+behavior_initializer_parameters = "("
+                                ("initialValue" ":" "fn" "(" ")" ":" type)?
+                                ")" ;
 
 entry_declaration = "entry" (entry_body | entry_handler
                     | identifier (entry_body | entry_handler)) ;
@@ -2196,6 +2211,36 @@ success usa `return`. O pipeline não é first-class e não escapa como builder.
 `transaction` recebe um provider nominal e cria um binding scoped. Cada caminho
 de success usa `commit`. `return`, nesting, pipeline e segundo provider ficam
 inválidos nesse body.
+
+**W-1504 — convergência pipeline/transaction (Pesquisa research-gated; não é
+Forma vigente):** a pipeline corrente é um DAG estático de calls dependentes com
+terminal `return`; a transaction corrente é uma região async estruturada de
+provider único com `commit` e permite compute, branch e loop local. A grammar e
+a Última Luz não mudam neste corte. A candidata primária é uma pipeline única
+com terminal `commit`, incluindo exatamente
+`pipeline<transaction: {isolation:..., access:...}> tx = provider { ... commit value }`;
+o keyword `transaction` pode ser removido antes de 1.0 somente se a evidência
+fechar essa migração. `commit` plain exporta o output envelope e não implica
+rollback; `commit` transacional também solicita atomic provider commit.
+
+O estudo compara sem escolher silenciosamente: (A) transaction em DAG estático,
+restringindo a transaction corrente e movendo controle dinâmico para method do
+provider; (B) um keyword com body shape e terminal contract dependentes do mode
+sobre uma `StructuredOperationRegion`; (C) control nodes/sent code, rejeitado salvo
+evidência de IR bounded; e (D) keyword separado. A policy candidata diz que
+pipeline query-only nunca produz `unknownOutcome`, mutation idempotente ou
+reconciliável exige `EffectId`, mutation não idempotente deve ser transacional ou
+ser rejeitada, e lost ACK antes/depois de node ou commit mantém incerteza typed
+(`unknownOutcome`/`unknownCommit`) quando não há fact de admission ou receipt do
+provider; se o provider provar não-admission, o outcome é conhecido e retry só é
+seguro segundo o contract. Sem esse fact não há retry cego. Cancel, drain, error
+precedence, capability/output ownership, multi-provider, nesting, branch em
+resultado remoto, defaults/contract de transaction e `w explain` entram nos
+casos. Parser/checker, HIR schema, effect classification, provider/transport
+oracle, fault injection de commit/ACK, decisão DAG/region, plano de migração da
+Última Luz, benchmarks de round-trip/contention e usability humana são gates;
+nenhuma syntax é ratificada antes deles. O ledger separado é
+[`W-1504`](tooling/studies/w1504-pipeline-transaction/task-ledger.json).
 
 `panic` possui type `Never`. Seus argumentos seguem a avaliação comum. Panic
 não substitui typed error e não participa de `try?`.
@@ -8336,9 +8381,13 @@ Nome textual não seleciona um initializer.
 
 #### 8.9.3 `Reflectable` e metadata alcançável
 
-`Reflectable` é um protocol core com body vazio:
+`Reflectable` é um marker de protocol core com body vazio. A identidade desse
+protocol é reservada ao core e não pode ser redeclarada ou construída pelo
+programa. Um tipo do programa pode declarar conformance explícita a
+`Reflectable`; o compiler então fornece o witness e a síntese descrita em
+8.9.4:
 
-```w
+```text
 protocol Reflectable {}
 ```
 
@@ -8375,6 +8424,48 @@ O descriptor possui estes dados lógicos:
 tamanho físico, addresses de fields, getter ou setter universal, methods
 invocáveis por nome, valores de associated members, nomes privados ou acesso por
 string a uma instance.
+
+**W-1502 — contratos core lógicos (Forma vigente):** a interface abaixo é uma
+descrição pesquisável de contratos `core`/`opaque`. Ela não é uma sequência de
+declarations que o programa possa construir ou redeclarar. O compiler e o
+runtime produzem os descriptors. Um tipo do programa pode declarar conformance
+explícita a `Reflectable` e receber synthesis. O programa consulta o resultado
+de `type of` e `info of`.
+
+```text
+TypeId
+  opaque build-local identity
+  Copy, Equatable, Hashable
+  nonserializable, nonpersistable, nontransmittable
+
+Reflectable
+  core marker sem constructor ou member de usuário
+
+TypeKind = scalar | struct | object | enum | refinement | enumSubset
+
+TypeInfo                         // view imutável, estável durante o process-lifetime
+  id: TypeId
+  name: view String
+  kind: TypeKind
+  base: TypeId?
+  properties: view [TypeInfo.Property]
+  cases: view [TypeInfo.Case]
+
+TypeInfo.Property
+  name: view String
+  valueType: TypeId
+  mutability: immutable | mutable
+  accessorAvailability: get | set | modify | combinations
+
+TypeInfo.Case
+  name: view String
+  payloadTypes: view [TypeId]
+```
+
+Cada `view` é uma view read-only de process-lifetime. A lista de properties e
+cases preserva a ordem declarada e a interface exportada. O contrato não
+expõe layout, offset, size, address, backing storage ou lookup de method por
+nome. `TypeInfo` não possui constructor público, assignment ou mutation.
 
 Property behavior aparece como uma propriedade lógica. Seu backing storage não
 aparece. Uma computed property exportada pode aparecer com seus accessors. O
@@ -9604,8 +9695,67 @@ try allocator request: RestaurantPool(
 }
 ```
 
+**W-1503 — allocation e placement (Pesquisa research-gated; não é Forma
+vigente):** `allocator .root { ... }` e `allocator .none { ... }` não são plans
+da linguagem. O valor `.none` que aparece em um build profile é somente a
+policy `memory.generalAllocator: .none`: ela deixa o build sem allocator
+geral/root e rejeita qualquer request de allocation geral no grafo alcançável.
+Ela não escolhe register, stack, static storage, task frame ou fixed scope e
+não é sinônimo de stack ou de no-allocation.
+
+`.fixed<capacity: N>` continua uma forma lexical corrente. A capacity limita a
+reserva do scope, mas o target/profile escolhe entre native stack, task frame e
+memória local/fixed conforme os facts. `.bounded<budget: N>` continua Research:
+limita bytes committed sobre um provider e não escolhe placement. Um objeto ou
+tipo pode publicar que seu storage é inline/fixed ou não possui allocation
+interna; ele não publica uma promessa de “stack”.
+
+As alternativas ainda em pesquisa são um default/policy de workspace, um
+contrato estático de module ou function escrito em um envelope `<...>` e um
+allocator lexical `.stack<capacity: N>`. Essas alternativas não adicionam
+grammar neste corte. O workspace atual é data-only; qualquer novo field de
+policy nesse record é candidate, não Forma vigente. Um module pode manter ou
+restringir a policy do workspace, nunca relaxá-la. `product` é um conceito de
+seleção de manifest/artifact; `product<...>` não é declaração genérica de source
+nem candidato.
+
+`allocation: .forbid` é uma candidate effect verificável em scope, function ou
+module; uma policy equivalente de artifact/build permanece na seleção de
+manifest/artifact e não ganha generic source syntax. `.stack<capacity: N>` é uma candidate de
+placement garantido sem fallback, sujeita a budgets separados para stack,
+static storage e task frame. Um programa heapless ou stack-bounded precisa
+combinar policy com bound provado; renomear `.none` não fornece essa prova.
+
+| Contrato | O que ele proíbe ou permite | O que ele não prova |
+|---|---|---|
+| `no-general-allocation` (gate atual) | request ao allocator geral no grafo alcançável | ausência de stack spill, static/TLS, task frame ou outra storage class |
+| `no-allocation` (candidate; hipótese separada) | nenhum evento de allocation no escopo; permite somente register/elided, static/TLS preexistente e storage fixed fornecido pelo caller; nega provider/heap/arena, resize e nova reserva de stack/task frame salvo classificação | taxonomy de eventos, disponibilidade da storage preexistente e placement físico |
+| `dynamic-allocation-forbid` (candidate; hipótese separada) | nenhum commit de allocation dinâmica/provider/runtime após admission; pode permitir register/elided, static/TLS, native stack, task frame e fixed/local se bounded separadamente; nega general/provider/heap/arena e resize dinâmico | ausência de todo evento de allocation, placement físico, escape safety ou multiplicação por concurrency |
+| allowed storage classes (candidate) | conjunto fechado, por exemplo register/elided, static/TLS, native stack, task frame e fixed/local | que uma classe escolhida cabe no target, não escapa ou não multiplica com concurrency |
+| `.fixed<capacity: N>` (current) | lease lexical com capacity e admission verificáveis | placement único ou ausência de allocations transitivas fora do contrato |
+
+O estudo precisa fechar, em separado, register/elision/free choice; native
+stack versus async task frame; recursion, indirect calls e generics; closures e
+escape; multiplicação por task/thread em concurrency; static/TLS; FFI e
+`alloca`; unwind/drop; target guard/probing; summaries de linker/interface; e
+retornos públicos (fixed inline, destination do caller ou `rehome` explícito,
+nunca escape de callee frame). ABI separado e inlining não são prova semântica.
+
+Os gates de pesquisa são: taxonomy de allocation/storage na HIR; escape
+analysis; stack-usage summary; generalização em verified-HIR; lowering MLIR;
+evidence de target/linker/provider; modelo de async frame; diagnostics de
+`w explain memory`; corpus adversarial; e benchmarks sem claims prematuros.
+Até todos esses gates produzirem receipts e diagnostics reproduzíveis, nenhuma
+syntax de policy, effect ou placement é ratificada. O estudo para em qualquer
+gap de provider/target/linker/ABI, escape ou frame, output que escaparia do
+callee, multiplicação não bounded, summary não verificável, divergence do
+corpus ou benchmark que não preserve os mesmos resultados e errors.
+
 Um plan customizado aceita uma expression que conforma ao contrato lógico
-`std.memory.AllocatorPlan` e publica `AllocatorPlanDescriptor`. O descriptor
+[`std.memory.AllocatorPlan`](std/memory/contracts.w) e publica
+`AllocatorPlanDescriptor`. A forma pública exata de `Allocator`,
+`AllocatorLease`, `AllocatorPlanDescriptor` e `AllocationError` permanece na
+fonte desse módulo. O descriptor
 `Copy & Equatable` usa um `providerDigest: [u8; 32]` fixo, `version`, `failure`,
 `deallocator` e `mobility` facts; ele não carrega `String` nem consulta um
 provider em runtime. O protocol expõe somente um `const descriptor` e um
@@ -9635,13 +9785,15 @@ continua o caminho corrente para o primeiro owner.
 **W-1348 — formas e contexto corrente:** o owner, a lease e o scope existem nas
 formas nomeada e anônima. A aquisição fallible usa `try` antes de `allocator`; se
 falha, não entra no body, não cria binding, lease ou contexto, e o diagnostic
-aponta o plan/range. O allocator corrente é uma stack semântica: root product
-quando publicado, slot contextual de função e leases lexicais. A prioridade de
-resolução é `explicit` > lexical innermost > `contextualParameter` >
-`productDefault`. O item mais interno vence; `scope exit` drena dependents e
-fecha a lease antes do pop. Root `.none` deixa a stack vazia. A função sem slot
-começa seu body somente com o próprio root; ela não recebe o lexical allocator do
-caller. O nome anônimo não cria identifier ou binding sintético observável.
+aponta o plan/range. O allocator corrente é uma stack semântica de slots
+contextuais e leases lexicais. Um build profile pode fornecer um default geral
+ou nenhum allocator geral quando `memory.generalAllocator: .none`; isso é uma
+policy de build, não um plan source. A prioridade de resolução é `explicit` >
+lexical innermost > `contextualParameter` > `productDefault`. O item mais
+interno vence; `scope exit` drena dependents e fecha a lease antes do pop. A
+função sem slot começa seu body no contexto do próprio build profile; ela não
+recebe o lexical allocator do caller. O nome anônimo não cria identifier ou
+binding sintético observável.
 
 **W-1349 — conclusão contextual de call:** somente um callee com exatamente um
 slot keyword `allocator name: ref Allocator`, primeiro parâmetro explícito e
@@ -9650,8 +9802,9 @@ currentAllocator` antes de ownership/effects. `allocator:` explícito continua
 válido e faz override. Um parâmetro comum chamado `allocator`, ou apenas tipado
 `Allocator`, usa a resolução normal de labels. Cada função intermediária entra
 com o argumento materializado quando declara o slot; sem slot, ela reinicia no
-root e uma call seguinte pode usar o product default ou falhar em `.none`. Root
-incompatível falha antes do body. `W-ALLOCATOR-0010` cobre somente slot
+contexto do próprio build profile e uma call seguinte pode usar o default geral
+ou falhar quando `memory.generalAllocator: .none` não oferece essa capability.
+Um contexto incompatível falha antes do body. `W-ALLOCATOR-0010` cobre somente slot
 contextual genuíno sem current compatível. As transições de cadeia registram
 cada entrada/saída e `resolutionSource`.
 
@@ -9745,8 +9898,10 @@ allocator lexical mais interno vence. Um parâmetro contextual fornece o mesmo
 allocator corrente no body da função. Uma call pode omitir `allocator:` somente
 quando o callee satisfaz W-1349. A omissão propaga por uma cadeia somente quando
 cada função intermediária declara o slot. Uma função sem slot não herda o
-allocator lexical do caller; o body começa com o próprio root (ou `.none`) e
-resolve suas próprias calls nesse contexto:
+allocator lexical do caller; o body começa no contexto do próprio build profile
+e resolve suas próprias calls nesse contexto. Quando
+`memory.generalAllocator: .none` não fornece uma capability geral, uma
+construction que a exige falha antes do body:
 
 ```w
 import iec from std
@@ -9784,7 +9939,7 @@ Os cases iniciais de `generalAllocator` são:
 | Case | Contrato |
 |---|---|
 | `.system` | adapter do sistema fixado pelo target e pela toolchain plan |
-| `.none` | o grafo alcançável não pode solicitar allocation geral |
+| `.none` | nenhum allocator geral/root é fornecido; o grafo alcançável não pode solicitar allocation geral; placement de register, stack, static storage e task frame continua uma decisão separada |
 | `.runtime(contract:, mode:)` | runtime contract tipado, resolvido para um provider exato |
 
 O resolver de `.runtime` seleciona um provider e mode exatos e grava o artifact
@@ -9953,7 +10108,7 @@ A baseline usa estes adapters:
 |---|---|
 | hosted POSIX ou Windows | provider `system` do target |
 | Wasm linear memory | provider da instance sobre memory grow |
-| freestanding ou controller | `.none`, `fixed` ou provider do host |
+| freestanding ou controller | profile sem allocator geral, `.fixed` lexical ou provider do host |
 | GPU ou device memory | capability com address space próprio |
 
 Device memory não é uma allocation geral do host. Copy, visibility, fence e
@@ -10687,30 +10842,33 @@ mutação composta usa um único `modify` e `defer` retoma depois do borrow.
 Nenhum `behavior` adiciona `willSet`, `didSet`, observer implícito, tipo de
 backing ou `deinit` oculto.
 
-**W-1414 — initializer slot explícito de behavior:** a gramática aceita a forma
-`input name: Type`, mas a baseline v0 fecha no máximo um slot canônico:
-`input initialValue: fn(): Value`. O slot é resolvido na aplicação do behavior
-e entra na interface normalizada. Ele não é backing storage, não recebe valor
-implícito e não captura o scope do caller.
+**W-1501 — behavior convergente (forma vigente):** dentro de um `behavior`, uma
+declaração `var name: Type` é, por definição, um backing field lógico. O field
+fica oculto de reflection: a property lógica, seus accessors e seu contrato de
+drop são a interface observável. A forma `storage var` não existe mais e o
+keyword global `storage` não é reservado.
 
-Quando o behavior exige `initialValue`, a declaração de aplicação
-`var Behavior field = expression` fornece um thunk sem argumentos para esse
-slot. O initializer do behavior chama o slot conforme as restrições de effects
-vigentes. Ausência do initializer produz `W-BEHAVIOR-0001`. Nome, aridade, type,
-`throws`, `await` ou effects incompatíveis também produzem esse diagnostic.
-Um identifier solto sem `input` e `type` é rejeitado.
+Um behavior definido pelo programa declara no máximo uma forma de initializer.
+`init()` é a forma zero-slot. `init(initialValue: fn(): Value)` é a única forma
+one-slot e recebe o RHS da aplicação como um thunk sem argumentos. Não existem
+outros parâmetros ou declarações `input`. Assim, a aplicação
+`var Behavior field = expression` fornece o thunk `initialValue`; a ausência de
+RHS seleciona somente um behavior com `init()`. Nome, aridade, tipo, `throws`,
+`await` ou effects incompatíveis produzem `W-BEHAVIOR-0001`.
 
-**W-1478 — aplicação fechada de behavior:** a baseline aceita exatamente zero
-ou um input. Quando existe, ele é `input initialValue: fn(): Value`. Outro nome
-ou um segundo input produz `W-BEHAVIOR-0001`. A aplicação usa somente o nome
-nominal do behavior. Ela não aceita argumentos, generic arguments, lista por
-vírgula ou acesso ao backing.
+O initializer chama o thunk `initialValue` conforme as restrições de effects
+vigentes. A aplicação usa somente o nome nominal do behavior, sem argumentos,
+generic arguments, lista por vírgula ou acesso ao backing. Todo parâmetro generic
+do behavior deve ser inferido de forma única pela unificação do tipo lógico da
+property com o pattern depois de `for`. A interface normalizada registra o
+behavior nominal, a especialização inferida e o thunk one-slot quando presente.
+Um parâmetro generic ausente do pattern é inválido, e o source não repete esses
+argumentos.
 
-Todo parâmetro generic do behavior deve ser inferido de forma única pela
-unificação do tipo lógico da property com o pattern depois de `for`. Um
-parâmetro que não aparece nesse pattern é inválido. A interface normalizada
-registra o behavior nominal, a especialização inferida e o slot
-`initialValue`, quando presente. O source não repete esses argumentos.
+W-1501 substitui as formas históricas W-1414 e W-1478. Não há shim de
+compatibilidade antes de W 1.0: `storage var`, `input ...` e qualquer outro
+initializer/input spelling são rejeitados pela grammar e pelo diagnóstico
+semântico.
 
 Uma policy estática pertence ao tipo lógico. Use refinement, newtype ou value
 parameter do tipo. Uma dependência runtime pertence ao owner e entra por método,
@@ -10908,6 +11066,10 @@ let course = try? Course.horizonCake // W-EFFECT-0010: expression cannot fail
 `try?` declara perda intencional do error. Quando a causa importa, o programa usa
 `try`, `Result` ou `do`/`catch`. `try!` não existe; uma invariante usa
 `Result.expect("reason")`.
+
+`try` continua um marcador de expression e de roteamento de error. Ele não abre
+um scope tratado. `do` cria o owner do handling scope, e `catch` trata as error
+edges desse owner. Essa separação evita dois significados para um bloco `try`.
 
 Postfix `?` não aceita Result. Ele continua exclusivo de Option:
 
@@ -11267,6 +11429,20 @@ suspension point pode devolver o executor ao runtime.
 callee, argumentos e captures lexicais. O body do callee executa no child. Ele
 não executa parcialmente no parent.
 
+As duas calls abaixo usam o mesmo launcher e criam o mesmo child estruturado no
+domain lexical corrente:
+
+```w
+let a = async asyncFunction()
+let b = async ordinaryFunction()
+```
+
+A declaration do callee muda somente o facet e o resumo de suspensão. `async fn`
+explicita um facet que permite suspensão, mas o resumo `neverSuspend` ou
+`maySuspend` continua vindo do body e da HIR. Uma function ordinary também pode
+receber `maySuspend` por inferência. Essa diferença não muda o launcher `async`,
+o owner lexical ou o domain do child.
+
 **Exemplo:** se `prepare(take order)` precisa avaliar uma conversão que falha, a
 falha ocorre antes da criação do child. Nenhuma task recebe uma parte de
 `order`.
@@ -11291,27 +11467,31 @@ recebem os ingredientes por `Channel<Ingredient>` ou são children de um group.
 interface para preservar safety e calling convention. O suspension point
 continua visível no source e no explain output.
 
-`async fn` é um modifier opcional. Ele fixa e publica `maySuspend` para
-evolução de API. A declaration exige `async fn` quando não há body analisável e
-a operação pode suspender, como em protocol, foreign ou interface declaration.
-Um body marcado `async` sem suspension é válido. Ele continua publicando
-`maySuspend`, mas um body visível que satisfaz a prova de W-1484 também recebe
-`directEntry: available`. Um body não marcado que suspende exporta
-`maySuspend` inferido e nunca oferece essa direct entry.
+`async fn` é um modifier opcional. Ele fixa um facet assíncrono que permite
+suspensão e preserva a intenção da API. O resumo `maySuspend` somente aparece
+quando o body ou a HIR possui uma suspensão possível. A declaration exige
+`async fn` quando não há body analisável e a operação pode suspender, como em
+protocol, foreign ou interface declaration. Um body marcado `async` sem
+suspension é válido. Um body visível que satisfaz a prova de W-1484 também
+recebe `directEntry: available` e pode ter resumo `neverSuspend` para `sync`.
+Um body não marcado que suspende exporta `maySuspend` inferido e nunca oferece
+essa direct entry.
 
 Function type e HIR registram `suspension: never|may`,
 `sourceSpelling: explicit|inferred`, `stabilityAssertion` e
-`directEntry: available|absent`. Para uma declaration `async fn` explícita,
-`suspension: may` descreve a async entry publicada; quando o facet está
-`available`, a direct entry selecionada por `sync` é `neverSuspend`. A
+`directEntry: available|absent`. Para uma declaration `async fn` explícita, o
+facet assíncrono permite `suspension: may` quando a body/HIR o exige; quando o
+facet `directEntry` está `available`, a entry selecionada por `sync` é
+`neverSuspend` e pode coexistir com a async entry. A
 inferência de suspensão é
 monotônica em calls indiretas e em SCCs recursivos: a análise propaga o resumo
 do function type até um ponto fixo, e um `await` em qualquer member alcançável
 fixa `may` para todo o SCC. O widening semântico
 `neverSuspend -> maySuspend` é possível, mas numa interface pública é uma
-mudança source/API breaking; `async fn` explícito mantém `may` mesmo quando uma
-versão posterior deixa de suspender. O inverso só ocorre ao remover
-deliberadamente o contrato público. O checker rejeita o inverso implícito.
+mudança source/API breaking. O facet explícito de `async fn` permanece, mesmo
+quando uma versão posterior deixa de suspender e a prova publica
+`directEntry: available`. O inverso só ocorre ao remover deliberadamente o
+contrato público. O checker rejeita o inverso implícito.
 Os launchers `async` e `spawn` aceitam callable sync ou suspending. A operação child
 trata a suspensão.
 
@@ -11525,10 +11705,25 @@ As regras são:
 6. esquecer ou destruir o handle não destaca a task;
 7. o compiler diagnostica um handle sem consumo.
 
-O handle normal fica disponível somente depois que o child foi publicado. Uma
-falha durante a avaliação dos argumentos não publica task nem handle. Budget
-exhaustion liga um handle inline canceled sem publicar o child. Uma reserva de
-runtime não usada volta ao scope.
+**W-1502 — handle core (Forma vigente):** `Task<T, E>` é `linear` e `opaque`.
+As expressions `async` e `spawn<domain>` são os únicos producers públicos do
+handle. Depois do staging, o launcher publica o child e seu handle ou produz o
+handle estruturado inline-canceled definido para budget exhaustion. Não existe
+constructor, field, layout ou conversão de `Task` na source surface. `cancel` é
+non-consuming. `await`, `join` e `outcome` consomem o handle e fecham a
+observação do child.
+
+Os companions públicos de task são source-backed em
+[`std/runtime/task.w`](std/runtime/task.w): `CancellationReason`,
+`TaskBudgetKind`, `TaskOutcome<Value, Failure: Error>`,
+`TaskGroupOrdering` e `TaskSettlement<Value, Failure: Error>`. Esses tipos não
+criam um constructor alternativo para `Task` e mantêm application error,
+cancellation, ordering e input index separados.
+
+O handle de um child publicado fica disponível somente depois que a publicação
+termina. Uma falha durante a avaliação dos argumentos não publica task nem
+handle. Budget exhaustion usa o handle estruturado inline-canceled previsto
+acima, sem publicar o child. Uma reserva de runtime não usada volta ao scope.
 
 Um child estruturado pode receber um value dependent somente quando o join do
 child precede a última origin. O valor também deve continuar `transferable` no
@@ -12888,6 +13083,13 @@ Invariantes de execução:
 
 Uma builder API futura precisa declarar memória por item, deadline, fairness e
 policy de overload. O runtime nunca cria uma thread por item por default.
+
+`TaskGroup` é uma coleção dinâmica e homogênea de children admitidos em runtime.
+`pipeline` é um DAG estático de dependent service calls, promise pipelining e
+outcomes que podem ser `unknownOutcome`, conforme a seção 23.1.7. As duas
+formas podem compartilhar machinery de execution-graph no HIR e no runtime,
+mas conservam keywords e source surfaces distintas. Uma não é alias ou
+substituta da outra.
 
 #### 12.8.1 Paralelismo aninhado e capacity
 
@@ -21793,6 +21995,17 @@ genérico com `unit: String` que aceite qualquer unit em runtime.
 { "value": 30, "unit": "s" }
 ```
 
+O oracle mantém o documento JSON visível com o raw delimiter já vigente:
+
+```w
+let tickJson: String = #"{"value":30,"unit":"s"}"#
+let lambda: UnicodeScalar = 'λ'
+```
+
+O raw String preserva as aspas JSON sem escapes e não adiciona interpolation.
+`'λ'` continua um `UnicodeScalar`, não um `String`. Esta decisão reutiliza a
+grammar existente e não cria uma forma nova de literal.
+
 A forma recomendada é um object redundante para debug e interoperabilidade
 humana. O schema declara os members na ordem `value`, depois `unit`. O encoder
 emite essa ordem e sempre usa o mesmo token. O decoder aceita qualquer ordem de
@@ -27041,9 +27254,14 @@ Unknown fields são erro. Extensões usam namespace. O parser do manifest é men
 e independente do parser W completo.
 
 Cada build profile possui um record `memory`. `generalAllocator` fixa o default
-do product. `representation` escolhe o fallback portátil ou permite a seleção
-otimizada descrita na seção 9. A ausência desses fields é erro; a distribuição
-não consulta environment nem instala um allocator implícito.
+geral do build. Quando seu valor é `.none`, o profile não fornece allocator
+geral/root e o grafo alcançável não pode solicitar allocation geral; essa policy
+não escolhe register, stack, static storage ou task frame. `representation`
+escolhe o fallback portátil ou permite a seleção otimizada descrita na seção 9.
+A ausência desses fields é erro; a distribuição não consulta environment nem
+instala um allocator implícito. O workspace corrente permanece data-only;
+qualquer novo field de policy de allocator no workspace é candidato de W-1503,
+não Forma vigente.
 
 - `build.w` é um formato data-only com um ou dois records top-level;
 - `resolution` aninhada no owner package/workspace é obrigatória para build
@@ -33558,6 +33776,12 @@ o compiler/runtime/provider ainda precisa substituir o oracle:
    ainda não existem; eles devem consumir o `AllocationOriginMap` com os paths
    `$storage` e `$controlBlock`. `share`/`try share` não retornam como caminho
    corrente e não há container público.
+
+W-1503 adiciona uma research gate transversal: nenhum nome de policy, effect ou
+placement deve ser promovido a syntax a partir de `.none`, `.fixed`, `.bounded`
+ou de uma candidate `.stack`. O ledger separado mantém os casos de HIR,
+escape, frames, targets, linker/provider, ABI, async, diagnostics e benchmark;
+o estudo permanece registration-only até essas evidências existirem.
 
 A ordem recomendada de fechamento é:
 

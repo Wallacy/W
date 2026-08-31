@@ -88,9 +88,8 @@ extension Place {
 }
 
 behavior Initialized for Place {
-  storage var current: Place
-  input initialValue: fn(): Place
-  init {
+  var current: Place
+  init(initialValue: fn(): Place) {
     current = initialValue()
   }
   get {

@@ -104,7 +104,8 @@ fn rootFallbackAfterIntermediary(
   dishes: ref Array<String>,
 ): MenuSnapshot throws AllocationError {
   // A function without the slot does not inherit the caller block. Its own
-  // product root completes this call, or `.none` rejects it before the body.
+  // build-profile context completes this call; a general request is rejected
+  // before the body when memory.generalAllocator: .none supplies no provider.
   return try stageMenu(ref title, dishes: ref dishes)
 }
 
@@ -132,7 +133,8 @@ test "a staged menu leaves its temporary allocator scope" for stageMenu {
 }
 
 // Compile-fail assays kept source-shaped for the design oracle:
-// - `memory: .none` rejects the omitted root allocator before the body.
+// - `memory.generalAllocator: .none` rejects a general allocation request
+//   before the body; the policy does not select stack or task-frame placement.
 // - a custom plan whose `open()` fails enters neither body nor binding.
 // - an outer allocator is not captured by a stored/escaping closure without
 //   an explicit capture or its own contextual slot.

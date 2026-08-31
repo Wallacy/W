@@ -687,6 +687,8 @@ Aceite:
 - JSON de domínio fixa `{ "value": 30, "unit": "s" }` para `tickDuration` e
   `{ "value": 12.5, "unit": "J" }` para `energyUsed`;
 - JSON usa `{"value":"524288","unit":"bit"}` para `MemorySize` integer;
+- `quantity_oracle.w` usa raw String para manter as aspas JSON visíveis, e
+  `'λ'` continua um `UnicodeScalar`;
 - token alternativo, como `"ms"` no schema de `tickDuration`, é rejeitado por
   igualdade exata;
 - `switch` com range e `if` preserva a regra anti-windup;
@@ -727,6 +729,8 @@ Aceite:
 - o scope aguarda todos os filhos;
 - join seleciona o error pela ordem lexical;
 - cada lease executa cleanup uma vez;
+- `let a = async asyncFunction()` e `let b = async ordinaryFunction()` criam o
+  mesmo child lexical, e somente o facet de suspensão do callee difere;
 - capture local em `spawn` falha quando não pode ser transferida ou compartilhada.
 
 ### 3.5.1 Passaporte da Brigada
@@ -1581,6 +1585,8 @@ Aceite:
 - `TaskOutcome` distingue success, application error e cancellation;
 - `TaskGroup.*Collect` preserva o índice do input em cada `TaskSettlement`,
   inclusive quando a ordem é `.completion`;
+- `TaskGroup` é uma coleção dinâmica homogênea, enquanto `pipeline` é um DAG
+  estático de calls dependentes, mesmo quando o HIR/runtime compartilha machinery;
 - `Task.firstSettled` consome handles existentes e publica somente após o drain
   dos losers.
 
@@ -1851,6 +1857,10 @@ Aceite:
 - `type of value` observa concrete ou existential sem mover o source;
 - `info of T` retorna `ref TypeInfo` somente para `T: Reflectable`;
 - `info of value` exige concrete `Reflectable` ou composição existential com `Reflectable`;
+- `TypeKind` fecha `scalar`, `struct`, `object`, `enum`, `refinement` e
+  `enumSubset`, e `TypeInfo` expõe views process-lifetime sem layout ou offsets;
+- `TypeId` é opaque, local ao build, `Copy`/`Equatable`/`Hashable` e não
+  serializável;
 - `value as? T` retorna `ref T?` borrowed e avalia o source uma vez;
 - para um existential nominal compatível, `value is T` equivale a
   `type of value == type of T`, e `value as? T` é `.some(ref payload)` quando
@@ -2235,6 +2245,10 @@ Aceite:
 - cada string duplicada mantém a origem do allocator;
 - `.fixed` fornece uma capability scoped de `Allocator`; `.bounded` permanece
   Research e não é um plan ativo do oracle ASC0;
+- `.fixed<capacity:N>` é lexical; o target escolhe stack, task frame ou storage
+  local/fixed. `.bounded<budget:N>` limita bytes committed sobre seu provider e
+  não escolhe placement; `.stack<capacity:N>` permanece uma alternativa de
+  Pesquisa, sem fallback físico implícito;
 - reuso/reset não é a surface comum; o bloco exige que nenhum child, wait, loan
   ou dependent permaneça aberto;
 - a origem registra instance lifetime, deallocator, mobility e adoption family;
@@ -2254,8 +2268,9 @@ Aceite:
 - drop executa em ordem inversa da construção concluída;
 - um child paralelo não compartilha o allocator default;
 - um bloco anônimo cria owner, lease e scope, mas não cria binding observável;
-- o root product default preenche a call somente quando publica um allocator;
-  root `.none` rejeita a omissão;
+- o build profile pode publicar um default geral; `memory.generalAllocator: .none`
+  não fornece allocator geral/root e rejeita requests gerais no grafo alcançável,
+  sem escolher register, stack, static storage ou task frame;
 - parâmetro comum chamado `allocator` não é contextual;
 - function values preservam o slot; uma closure armazenada/escapante exige
   capture explícita e uma closure não escapante pode inferir `ref` sem tornar o
@@ -2308,11 +2323,12 @@ allocator outer: .fixed<capacity: 2<iec.MiB>> {
 lease corrente. O primeiro block demonstra a forma anônima. `outer`
 demonstra override explícito e `inner` demonstra a precedência innermost.
 `rootFallbackAfterIntermediary` perde o lexical caller context e usa somente o
-root do próprio profile; sob `.none` a mesma call falha. `countStagedMenuInParallel`
+contexto do próprio build profile; sob `memory.generalAllocator: .none`, uma
+request geral sem capability falha. `countStagedMenuInParallel`
 preserva o slot no function value. Uma closure armazenada não captura `outer`
 sem capture explícita; uma closure local pode referi-lo sem capture observável,
 mas suas allocations seguem o root ou o próprio slot. A matriz ASC0 também cobre overload
-collision, initializer rejection, `.none`, requirement incompatível, await
+collision, ausência de allocator geral, requirement incompatível, await
 stable e spawn de origin local.
 
 O oracle host executa um modelo source-shaped de `stageMenu` com uma falha
